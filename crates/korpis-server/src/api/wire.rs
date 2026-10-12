@@ -1,71 +1,54 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Translation between the wire (`korpis.v1`) and the domain. Everything a client sends passes
-//! through here before it reaches a use case, so every function refuses malformed input rather
-//! than defaulting it. Nothing here decides anything.
+//! The wire mapping (`korpis-wire`), and what only the API needs beside it: turning a refused
+//! translation into the structured error of §8 of docs/10-api.md, and the effect log's page
+//! cursor.
 
-pub mod audit;
-pub mod authz;
-pub mod principal;
-pub mod scope;
-pub mod tenancy;
+pub use korpis_wire::{
+    audit, authz, id, name, plan, principal, scope, spec, tenancy, time, timestamp, value, wire_id,
+    workload,
+};
 
 use super::error::invalid;
-use buffa_types::google::protobuf::Timestamp;
 use connectrpc::ConnectError;
-use korpis_core::authz::Kind;
-use korpis_core::id::{Id, IdKind};
-use korpis_core::tenancy::Name;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use korpis_app::ports::EffectCursor;
+use korpis_wire::WireError;
+use std::time::{Duration, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// Parses a wire identifier of `kind` from the request field `field`.
-pub fn id(kind: IdKind, field: &str, value: &str) -> Result<Uuid, ConnectError> {
-    Id::parse(kind, value).map(|id| id.uuid()).map_err(|e| invalid(field, e.to_string()))
+/// A refused translation, as the `request.invalid` error naming the field.
+#[must_use]
+pub fn refuse(e: WireError) -> ConnectError {
+    invalid(&e.field, e.message)
 }
 
-/// The wire form of an identifier.
-#[must_use]
-pub fn wire_id(kind: IdKind, uuid: Uuid) -> String {
-    Id::from_uuid(kind, uuid).to_string()
+/// Translation results in the API's error type.
+pub trait Refuse<T> {
+    /// The value, or the refusal as a `request.invalid` error.
+    fn refuse(self) -> Result<T, ConnectError>;
 }
 
-/// The identifier kind of an object kind.
-#[must_use]
-pub fn id_kind(kind: Kind) -> IdKind {
-    match kind {
-        Kind::Organization => IdKind::Organization,
-        Kind::Project => IdKind::Project,
-        Kind::Workload => IdKind::Workload,
-        Kind::Volume => IdKind::Volume,
-        Kind::Endpoint => IdKind::Endpoint,
-        Kind::Stream => IdKind::Stream,
-        Kind::Node => IdKind::Node,
+impl<T> Refuse<T> for Result<T, WireError> {
+    fn refuse(self) -> Result<T, ConnectError> {
+        self.map_err(refuse)
     }
 }
 
-/// A name from the request field `field`.
-pub fn name(field: &str, value: &str) -> Result<Name, ConnectError> {
-    Name::parse(value).map_err(|e| invalid(field, e.to_string()))
-}
-
-/// A wire timestamp.
+/// The log is ordered by (ingest time, id); its page token carries both, as microseconds since
+/// the epoch and the identifier.
 #[must_use]
-pub fn timestamp(t: SystemTime) -> Timestamp {
-    let d = t.duration_since(UNIX_EPOCH).unwrap_or_default();
-    Timestamp {
-        seconds: i64::try_from(d.as_secs()).unwrap_or(i64::MAX),
-        nanos: i32::try_from(d.subsec_nanos()).unwrap_or(0),
-        ..Default::default()
-    }
+pub fn encode_cursor(c: EffectCursor) -> String {
+    let micros = c.at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
+    format!("{micros}.{}", c.id.simple())
 }
 
-/// A time from the request field `field`. Times before 1970 are refused rather than clamped.
-pub fn time(field: &str, t: &Timestamp) -> Result<SystemTime, ConnectError> {
-    let secs = u64::try_from(t.seconds).map_err(|_| invalid(field, "before 1970"))?;
-    let nanos = u32::try_from(t.nanos).map_err(|_| invalid(field, "negative nanoseconds"))?;
-    if nanos >= 1_000_000_000 {
-        return Err(invalid(field, "nanoseconds out of range"));
-    }
-    Ok(UNIX_EPOCH + Duration::new(secs, nanos))
+/// A page token from the request.
+pub fn decode_cursor(s: &str) -> Result<EffectCursor, ConnectError> {
+    let bad = || invalid("page.page_token", "malformed");
+    let (at, id) = s.split_once('.').ok_or_else(bad)?;
+    let micros: u64 = at.parse().map_err(|_| bad())?;
+    Ok(EffectCursor {
+        at: UNIX_EPOCH + Duration::from_micros(micros),
+        id: Uuid::try_parse(id).map_err(|_| bad())?,
+    })
 }

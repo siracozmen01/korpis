@@ -496,6 +496,8 @@ Plan
   expires_at    Timestamp
   approved_by   Subject?
   approved_at   Timestamp?
+  approval      auto | confirmation | authority   what it needs before it applies (below)
+  approval_scope Scope?        for authority: where the approver's grant must reach
 
 Step
   index         int
@@ -504,6 +506,8 @@ Step
   target        object reference
   reversible    bool
   disruptive    bool           resolved through the override chain below, never inferred
+  classified_by vocabulary | driver | recipe | operator   the layer that decided `disruptive`
+  reason        string         why, in words
   detail        map[str]Value
 ```
 

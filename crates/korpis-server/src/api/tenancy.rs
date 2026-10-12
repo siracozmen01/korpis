@@ -2,6 +2,7 @@
 
 //! `OrganizationService` and `ProjectService`.
 
+use super::wire::Refuse;
 use super::wire::tenancy::{labels, organization_to_pb, project_to_pb};
 use super::wire::{self, name};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
@@ -39,8 +40,8 @@ impl pb::OrganizationService for Api {
         let key = mutation_key(req.mutation.as_option())?;
         let parent = req.parent.as_deref().ok_or_else(|| error::invalid("parent", "required"))?;
         let cmd = CreateOrganization {
-            name: name("name", &req.name)?,
-            parent: wire::id(IdKind::Organization, "parent", parent)?,
+            name: name("name", &req.name).refuse()?,
+            parent: wire::id(IdKind::Organization, "parent", parent).refuse()?,
         };
         let encoder = |o: &Organization| encode(&created_organization(o));
         let idem = Idempotent { key, encode: &encoder };
@@ -55,7 +56,7 @@ impl pb::OrganizationService for Api {
         request: ServiceRequest<'_, pb::GetOrganizationRequest>,
     ) -> ServiceResult<pb::GetOrganizationResponse> {
         let caller = self.caller(&ctx).await?;
-        let id = wire::id(IdKind::Organization, "id", request.id)?;
+        let id = wire::id(IdKind::Organization, "id", request.id).refuse()?;
         let o = self.app.get_organization(&caller, id).await.map_err(error::from_app)?;
         Response::ok(pb::GetOrganizationResponse {
             organization: organization_to_pb(&o).into(),
@@ -75,7 +76,8 @@ impl pb::OrganizationService for Api {
             .parent
             .as_deref()
             .map(|p| wire::id(IdKind::Organization, "parent", p))
-            .transpose()?;
+            .transpose()
+            .refuse()?;
         let listed =
             self.app.list_organizations(&caller, parent, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListOrganizationsResponse {
@@ -123,9 +125,10 @@ impl pb::ProjectService for Api {
         let req = request.to_owned_message();
         let key = mutation_key(req.mutation.as_option())?;
         let cmd = CreateProject {
-            organization: wire::id(IdKind::Organization, "organization", &req.organization)?,
-            name: name("name", &req.name)?,
-            labels: labels("labels", &req.labels)?,
+            organization: wire::id(IdKind::Organization, "organization", &req.organization)
+                .refuse()?,
+            name: name("name", &req.name).refuse()?,
+            labels: labels("labels", &req.labels).refuse()?,
         };
         let encoder = |p: &Project| encode(&created_project(p));
         let idem = Idempotent { key, encode: &encoder };
@@ -139,7 +142,7 @@ impl pb::ProjectService for Api {
         request: ServiceRequest<'_, pb::GetProjectRequest>,
     ) -> ServiceResult<pb::GetProjectResponse> {
         let caller = self.caller(&ctx).await?;
-        let id = wire::id(IdKind::Project, "id", request.id)?;
+        let id = wire::id(IdKind::Project, "id", request.id).refuse()?;
         let p = self.app.get_project(&caller, id).await.map_err(error::from_app)?;
         Response::ok(pb::GetProjectResponse {
             project: project_to_pb(&p).into(),
@@ -154,7 +157,7 @@ impl pb::ProjectService for Api {
     ) -> ServiceResult<pb::ListProjectsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let org = wire::id(IdKind::Organization, "organization", &req.organization)?;
+        let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
         let page = page(req.page.as_option(), IdKind::Project)?;
         let listed = self.app.list_projects(&caller, org, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListProjectsResponse {

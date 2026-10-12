@@ -1,0 +1,26 @@
+[package]
+name = "korpis-wire"
+description = "Korpis wire mapping: domain values to and from the korpis.v1 schema, and the stored intent body"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+buffa = { version = "=0.9.2", features = ["json"] }
+buffa-types = { version = "=0.9.2", features = ["json"] }
+buffa-descriptor = { version = "=0.9.2", features = ["reflect"] }
+ipnet = "2"
+korpis-core = { workspace = true, features = ["authz"] }
+korpis-proto = { workspace = true }
+serde_json = "1"
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+uuid = { workspace = true }
+
+[lints]
+workspace = true

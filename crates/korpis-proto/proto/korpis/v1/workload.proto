@@ -9,6 +9,7 @@ package korpis.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/v1/authority.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/recipe.proto";
 import "korpis/v1/tenancy.proto";
@@ -198,6 +199,19 @@ message Plan {
   google.protobuf.Timestamp approved_at = 17;
   // The grant under which the plan was proposed.
   string proposed_under = 18;
+  // What the plan needs before it applies (§3.3 of docs/01-model.md), and why.
+  PlanApproval approval = 19;
+  // For PLAN_APPROVAL_AUTHORITY: where the approver's grant must reach.
+  Scope approval_scope = 20;
+}
+
+// Auto applies at once; confirmation waits for the proposer or any approver to confirm;
+// authority waits for a different subject holding plan.approve over approval_scope.
+enum PlanApproval {
+  PLAN_APPROVAL_UNSPECIFIED = 0;
+  PLAN_APPROVAL_AUTO = 1;
+  PLAN_APPROVAL_CONFIRMATION = 2;
+  PLAN_APPROVAL_AUTHORITY = 3;
 }
 
 enum PlanKind {
@@ -234,6 +248,19 @@ message Step {
   bool disruptive = 6;
   map<string, Value> detail = 7;
   google.protobuf.Duration timeout = 8;
+  // The layer of the override chain that decided `disruptive`, and why, in words.
+  StepLayer classified_by = 9;
+  string reason = 10;
+}
+
+enum StepLayer {
+  STEP_LAYER_UNSPECIFIED = 0;
+  // The action vocabulary's floor.
+  STEP_LAYER_VOCABULARY = 1;
+  STEP_LAYER_DRIVER = 2;
+  STEP_LAYER_RECIPE = 3;
+  // The operator's recorded override for this workload.
+  STEP_LAYER_OPERATOR = 4;
 }
 
 enum StepExecutor {
@@ -251,9 +278,23 @@ message Impact {
   // Paths or volumes whose data is at risk.
   repeated string data_at_risk = 4;
   bool data_at_risk_unknown = 5;
-  Resources cost_delta = 6;
+  // Field 6 was an unsigned Resources, which could not say that a plan shrinks a workload.
+  reserved 6;
   // Why the plan does or does not auto-approve.
   string approval_reason = 7;
+  // How the plan changes what the workload reserves; negative where it shrinks.
+  ResourceDelta cost_delta = 8;
+}
+
+// A signed change in reserved resources and counted objects.
+message ResourceDelta {
+  // Millicores.
+  int64 cpu_millis = 1;
+  int64 memory_bytes = 2;
+  int64 disk_bytes = 3;
+  int64 volumes = 4;
+  int64 endpoints = 5;
+  int64 workloads = 6;
 }
 
 // What actually happened. Append-only.

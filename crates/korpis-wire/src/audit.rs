@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Effects, and the log's page cursor.
+//! Effects.
 
-use super::super::error::invalid;
-use super::{principal, timestamp, wire_id};
-use connectrpc::ConnectError;
-use korpis_app::ports::EffectCursor;
+use crate::{principal, timestamp, wire_id};
+
 use korpis_core::audit::{Effect, Outcome};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::value::Kind as V;
 use serde_json::{Map, Value};
-use std::time::{Duration, UNIX_EPOCH};
-use uuid::Uuid;
 
 /// A JSON value as a `korpis.v1.Value`.
 fn value(v: &Value) -> pb::Value {
@@ -77,23 +73,4 @@ pub fn effect_to_pb(e: &Effect) -> pb::Effect {
         count: e.count,
         ..Default::default()
     }
-}
-
-/// The log is ordered by (ingest time, id); its page token carries both, as microseconds since
-/// the epoch and the identifier.
-#[must_use]
-pub fn encode_cursor(c: EffectCursor) -> String {
-    let micros = c.at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
-    format!("{micros}.{}", c.id.simple())
-}
-
-/// A page token from the request.
-pub fn decode_cursor(s: &str) -> Result<EffectCursor, ConnectError> {
-    let bad = || invalid("page.page_token", "malformed");
-    let (at, id) = s.split_once('.').ok_or_else(bad)?;
-    let micros: u64 = at.parse().map_err(|_| bad())?;
-    Ok(EffectCursor {
-        at: UNIX_EPOCH + Duration::from_micros(micros),
-        id: Uuid::try_parse(id).map_err(|_| bad())?,
-    })
 }

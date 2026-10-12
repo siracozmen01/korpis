@@ -2,10 +2,10 @@
 
 //! Principals: `korpis.v1.Subject`.
 
-use super::super::error::invalid;
-use super::{id, wire_id};
+use crate::invalid;
+use crate::{id, wire_id};
 use buffa::EnumValue;
-use connectrpc::ConnectError;
+
 use korpis_core::id::IdKind;
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_proto::korpis::v1 as pb;
@@ -35,7 +35,7 @@ fn external(e: &pb::ExternalIdentity) -> Option<Principal> {
 }
 
 /// The principal a request's subject names.
-pub fn from_pb(field: &str, s: &pb::Subject) -> Result<Principal, ConnectError> {
+pub fn from_pb(field: &str, s: &pb::Subject) -> Result<Principal, crate::WireError> {
     let none = || invalid(field, "a subject must name exactly one actor");
     let p = match s.kind.as_ref().ok_or_else(none)? {
         subject::Kind::User(v) => Principal::User(id(IdKind::User, field, v)?),

@@ -19,3 +19,8 @@
 )]
 
 connectrpc::include_generated!();
+
+/// The schema as a compiled `FileDescriptorSet`, the same bytes the code above is generated
+/// from. Readers that need the schema at run time (to emit a message's default fields, for
+/// one) use this rather than a copy that could drift.
+pub const DESCRIPTOR_SET: &[u8] = include_bytes!("../descriptor.binpb");

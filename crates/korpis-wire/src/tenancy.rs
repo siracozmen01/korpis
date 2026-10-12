@@ -2,9 +2,9 @@
 
 //! Organizations and projects.
 
-use super::super::error::invalid;
-use super::{timestamp, wire_id};
-use connectrpc::ConnectError;
+use crate::invalid;
+use crate::{timestamp, wire_id};
+
 use korpis_core::id::IdKind;
 use korpis_core::labels::Labels;
 use korpis_core::tenancy::{Organization, OrganizationStatus, Project};
@@ -46,7 +46,7 @@ pub fn project_to_pb(p: &Project) -> pb::Project {
 pub fn labels<'a>(
     field: &str,
     pairs: impl IntoIterator<Item = (&'a String, &'a String)>,
-) -> Result<Labels, ConnectError> {
+) -> Result<Labels, crate::WireError> {
     Labels::new(pairs.into_iter().map(|(k, v)| (k.clone(), v.clone())))
         .map_err(|e| invalid(field, e.to_string()))
 }

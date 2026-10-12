@@ -2,6 +2,7 @@
 
 //! `GrantService` (§3 and §6 of docs/08-identity.md).
 
+use super::wire::Refuse;
 use super::wire::authz::{actions, conditions_from_pb, delegation_from_pb, grant_to_pb};
 use super::wire::{self, principal, scope};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
@@ -18,12 +19,12 @@ fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError
     let subject = req.subject.as_option().ok_or_else(|| error::invalid("subject", "required"))?;
     let scope_pb = req.scope.as_option().ok_or_else(|| error::invalid("scope", "required"))?;
     Ok(IssueGrant {
-        parent: wire::id(IdKind::Grant, "parent", &req.parent)?,
-        holder: principal::from_pb("subject", subject)?,
-        actions: actions("actions", &req.actions)?,
-        scope: scope::from_pb("scope", scope_pb)?,
-        conditions: conditions_from_pb(req.conditions.as_option())?,
-        delegation: delegation_from_pb(req.delegation.as_option())?,
+        parent: wire::id(IdKind::Grant, "parent", &req.parent).refuse()?,
+        holder: principal::from_pb("subject", subject).refuse()?,
+        actions: actions("actions", &req.actions).refuse()?,
+        scope: scope::from_pb("scope", scope_pb).refuse()?,
+        conditions: conditions_from_pb(req.conditions.as_option()).refuse()?,
+        delegation: delegation_from_pb(req.delegation.as_option()).refuse()?,
         link_form: req.link_form,
     })
 }
@@ -43,8 +44,10 @@ fn revoked(r: &Revoked, now: SystemTime) -> pb::RevokeGrantResponse {
 fn filter(f: Option<&Filter>) -> Result<GrantsFilter, ConnectError> {
     Ok(match f {
         None => GrantsFilter::Mine,
-        Some(Filter::Scope(s)) => GrantsFilter::On(scope::object_from_pb("scope", s)?),
-        Some(Filter::Subject(s)) => GrantsFilter::HeldBy(principal::from_pb("subject", s)?),
+        Some(Filter::Scope(s)) => GrantsFilter::On(scope::object_from_pb("scope", s).refuse()?),
+        Some(Filter::Subject(s)) => {
+            GrantsFilter::HeldBy(principal::from_pb("subject", s).refuse()?)
+        }
     })
 }
 
@@ -71,7 +74,7 @@ impl pb::GrantService for Api {
         request: ServiceRequest<'_, pb::GetGrantRequest>,
     ) -> ServiceResult<pb::GetGrantResponse> {
         let caller = self.caller(&ctx).await?;
-        let id = wire::id(IdKind::Grant, "id", request.id)?;
+        let id = wire::id(IdKind::Grant, "id", request.id).refuse()?;
         let found = self.app.get_grant(&caller, id).await.map_err(error::from_app)?;
         let now = self.app.now();
         Response::ok(pb::GetGrantResponse {
@@ -107,7 +110,7 @@ impl pb::GrantService for Api {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
         let key = mutation_key(req.mutation.as_option())?;
-        let grant = wire::id(IdKind::Grant, "grant", &req.grant)?;
+        let grant = wire::id(IdKind::Grant, "grant", &req.grant).refuse()?;
         let now = self.app.now();
         let encoder = |r: &Revoked| encode(&revoked(r, now));
         let idem = Idempotent { key, encode: &encoder };
@@ -126,9 +129,10 @@ impl pb::GrantService for Api {
         let cmd = MintToken {
             via: (!req.grant.is_empty())
                 .then(|| wire::id(IdKind::Grant, "grant", &req.grant))
-                .transpose()?,
+                .transpose()
+                .refuse()?,
             actions: req.actions.clone(),
-            object: scope::object_from_pb("scope", scope_pb)?,
+            object: scope::object_from_pb("scope", scope_pb).refuse()?,
             ttl: (req.ttl_seconds > 0).then(|| Duration::from_secs(u64::from(req.ttl_seconds))),
         };
         let minted = self.app.mint_token(&caller, cmd).await.map_err(error::from_app)?;

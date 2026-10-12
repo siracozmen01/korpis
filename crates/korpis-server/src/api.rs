@@ -31,6 +31,7 @@ use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
 use std::sync::Arc;
 use uuid::Uuid;
+use wire::Refuse;
 
 /// The application as the server composes it: PostgreSQL, the system clock, OCI registries.
 pub type ServerApp = App<PgStore, SystemClock, RegistrySource>;
@@ -105,8 +106,11 @@ fn respond<T, R: buffa::Message + Send + 'static>(
 /// A page request.
 fn page(p: Option<&pb::PageRequest>, kind: IdKind) -> Result<Page, ConnectError> {
     let (size, token) = p.map_or((0, ""), |p| (p.page_size, p.page_token.as_str()));
-    let after =
-        if token.is_empty() { None } else { Some(wire::id(kind, "page.page_token", token)?) };
+    let after = if token.is_empty() {
+        None
+    } else {
+        Some(wire::id(kind, "page.page_token", token).refuse()?)
+    };
     Ok(Page::new(after, size))
 }
 

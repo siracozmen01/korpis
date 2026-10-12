@@ -2,9 +2,9 @@
 
 //! Grants: conditions, delegation policies, and the grant itself.
 
-use super::super::error::invalid;
-use super::{principal, scope, time, timestamp, wire_id};
-use connectrpc::ConnectError;
+use crate::invalid;
+use crate::{principal, scope, time, timestamp, wire_id};
+
 use korpis_core::authz::{Action, Conditions, Delegation, GrantRecord, GrantState};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
@@ -12,12 +12,12 @@ use std::collections::BTreeSet;
 use std::time::SystemTime;
 
 /// Actions from the request field `field`.
-pub fn actions(field: &str, names: &[String]) -> Result<BTreeSet<Action>, ConnectError> {
+pub fn actions(field: &str, names: &[String]) -> Result<BTreeSet<Action>, crate::WireError> {
     names.iter().map(|n| Action::parse(n).map_err(|e| invalid(field, e.to_string()))).collect()
 }
 
 /// Conditions from a request; absent means none.
-pub fn conditions_from_pb(c: Option<&pb::Conditions>) -> Result<Conditions, ConnectError> {
+pub fn conditions_from_pb(c: Option<&pb::Conditions>) -> Result<Conditions, crate::WireError> {
     let Some(c) = c else { return Ok(Conditions::default()) };
     let source_cidr = c
         .source_cidr
@@ -61,7 +61,9 @@ pub fn conditions_to_pb(c: &Conditions) -> pb::Conditions {
 }
 
 /// A delegation policy from a request; absent means none.
-pub fn delegation_from_pb(d: Option<&pb::DelegationPolicy>) -> Result<Delegation, ConnectError> {
+pub fn delegation_from_pb(
+    d: Option<&pb::DelegationPolicy>,
+) -> Result<Delegation, crate::WireError> {
     let Some(d) = d else { return Ok(Delegation::default()) };
     Ok(Delegation {
         allowed: d.allowed,

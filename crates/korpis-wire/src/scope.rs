@@ -2,16 +2,16 @@
 
 //! Scopes and label selectors.
 
-use super::super::error::invalid;
-use super::{id, id_kind, wire_id};
-use connectrpc::ConnectError;
+use crate::invalid;
+use crate::{id, id_kind, wire_id};
+
 use korpis_core::authz::scope::LabelExpression;
 use korpis_core::authz::{Kind, LabelSelector, ObjectRef, Scope};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::scope::Kind as K;
 
 /// A scope from the request field `field`.
-pub fn from_pb(field: &str, scope: &pb::Scope) -> Result<Scope, ConnectError> {
+pub fn from_pb(field: &str, scope: &pb::Scope) -> Result<Scope, crate::WireError> {
     match scope.kind.as_ref().ok_or_else(|| invalid(field, "required"))? {
         K::Selector(sel) => {
             let within_field = format!("{field}.selector.within");
@@ -19,7 +19,10 @@ pub fn from_pb(field: &str, scope: &pb::Scope) -> Result<Scope, ConnectError> {
                 sel.within.as_option().ok_or_else(|| invalid(&within_field, "required"))?;
             Ok(Scope::Selector {
                 within: object_from_pb(&within_field, within)?,
-                selector: selector_from_pb(sel.selector.as_option())?,
+                selector: selector_from_pb(
+                    &format!("{field}.selector.selector"),
+                    sel.selector.as_option(),
+                )?,
             })
         }
         other => Ok(Scope::Object(object_from_kind(field, other)?)),
@@ -27,11 +30,11 @@ pub fn from_pb(field: &str, scope: &pb::Scope) -> Result<Scope, ConnectError> {
 }
 
 /// An object scope from the request field `field`; selectors are refused.
-pub fn object_from_pb(field: &str, scope: &pb::Scope) -> Result<ObjectRef, ConnectError> {
+pub fn object_from_pb(field: &str, scope: &pb::Scope) -> Result<ObjectRef, crate::WireError> {
     object_from_kind(field, scope.kind.as_ref().ok_or_else(|| invalid(field, "required"))?)
 }
 
-fn object_from_kind(field: &str, kind: &K) -> Result<ObjectRef, ConnectError> {
+fn object_from_kind(field: &str, kind: &K) -> Result<ObjectRef, crate::WireError> {
     let (k, value) = match kind {
         K::Organization(v) => (Kind::Organization, v),
         K::Project(v) => (Kind::Project, v),
@@ -77,7 +80,11 @@ pub fn to_pb(scope: &Scope) -> pb::Scope {
     }
 }
 
-fn selector_from_pb(sel: Option<&pb::LabelSelector>) -> Result<LabelSelector, ConnectError> {
+/// A label selector from the field `field`; absent selects everything.
+pub fn selector_from_pb(
+    field: &str,
+    sel: Option<&pb::LabelSelector>,
+) -> Result<LabelSelector, crate::WireError> {
     let Some(sel) = sel else { return Ok(LabelSelector::default()) };
     let expressions = sel
         .match_expressions
@@ -93,7 +100,9 @@ fn selector_from_pb(sel: Option<&pb::LabelSelector>) -> Result<LabelSelector, Co
                 Some(pb::LabelOperator::LABEL_OPERATOR_DOES_NOT_EXIST) => {
                     LabelExpression::DoesNotExist(key)
                 }
-                _ => return Err(invalid("selector.match_expressions", "unknown operator")),
+                _ => {
+                    return Err(invalid(&format!("{field}.match_expressions"), "unknown operator"));
+                }
             })
         })
         .collect::<Result<_, _>>()?;
@@ -119,10 +128,26 @@ fn expression_to_pb(e: &LabelExpression) -> pb::LabelExpression {
     }
 }
 
-fn selector_to_pb(sel: &LabelSelector) -> pb::LabelSelector {
+/// The wire form of a label selector.
+#[must_use]
+pub fn selector_to_pb(sel: &LabelSelector) -> pb::LabelSelector {
     pb::LabelSelector {
         match_labels: sel.match_labels.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         match_expressions: sel.expressions.iter().map(expression_to_pb).collect(),
         ..Default::default()
+    }
+}
+
+/// The wire form of an object kind.
+#[must_use]
+pub fn object_kind_to_pb(k: Kind) -> pb::ObjectKind {
+    match k {
+        Kind::Organization => pb::ObjectKind::OBJECT_KIND_ORGANIZATION,
+        Kind::Project => pb::ObjectKind::OBJECT_KIND_PROJECT,
+        Kind::Workload => pb::ObjectKind::OBJECT_KIND_WORKLOAD,
+        Kind::Volume => pb::ObjectKind::OBJECT_KIND_VOLUME,
+        Kind::Endpoint => pb::ObjectKind::OBJECT_KIND_ENDPOINT,
+        Kind::Stream => pb::ObjectKind::OBJECT_KIND_STREAM,
+        Kind::Node => pb::ObjectKind::OBJECT_KIND_NODE,
     }
 }
