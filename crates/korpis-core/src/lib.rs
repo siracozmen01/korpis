@@ -13,6 +13,7 @@ pub mod authz;
 pub mod build;
 pub mod id;
 pub mod labels;
+pub mod node;
 pub mod object;
 pub mod principal;
 pub mod quantity;

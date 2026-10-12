@@ -797,6 +797,8 @@ a versioned binary schema, normative definition in `10-api.md`.
 An agent authenticates with a per-node key established at enrolment. Enrolment uses a single-use,
 short-lived token that is itself an attenuated grant (§3.2 of `01-model.md`), issuing a node token
 is not a special code path, it is `node.enroll` scoped to one organization with `max_uses: 1`.
+The node belongs to that organization from then on, and serves it and every organization below it
+(§3.4 of `01-model.md`).
 
 The node generates its Ed25519 identity key itself and sends only the public half at enrolment, so
 the private key never leaves the machine. Every session then runs over TLS to the control-plane

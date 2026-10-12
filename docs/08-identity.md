@@ -180,11 +180,19 @@ because it acts on grants one did not issue, and §3.5 says who may.
 Volume | Endpoint | Stream  ⊑  their Workload
 Workload                    ⊑  its Project
 Project                     ⊑  its Organization
+Node                        ⊑  the Organization it was enrolled into
 Organization                ⊑  any ancestor Organization
 Selector(P, expr)           ⊑  P            for any expression
 ```
 
 The last line resolves open question 3 of `01-model.md`.
+
+> Correction, 2026-10-13, from the implementation. The node line was missing. A node had no
+> parent, so the only grant that could cover `node.read` or `node.cordon` was one naming that
+> node, and the root grant, which "contains every action", contained no node at all. Enrollment
+> was already `node.enroll` scoped to one organization (§7 of `02-architecture.md`); the node now
+> belongs to that organization (§3.4 of `01-model.md`), so a host's root grant covers its fleet
+> and a customer who enrolls a machine of their own holds it through their own organization.
 
 #### Tenant-private actions do not cross an organization boundary implicitly
 

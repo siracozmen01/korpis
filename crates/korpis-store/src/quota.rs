@@ -4,11 +4,11 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{count, from_json};
+use crate::stored::{bounds, count, from_json};
 use crate::tenancy::labels;
 use korpis_app::ports::{Holder, QuotaWrite, StoreError, StoreResult};
 use korpis_core::labels::LabelSelector;
-use korpis_core::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, QuotaOwner};
+use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -20,17 +20,6 @@ struct SelectorDoc {
     match_labels: BTreeMap<String, String>,
     #[serde(default)]
     expressions: Vec<crate::stored::ExpressionDoc>,
-}
-
-fn bounds(what: &str, v: Value) -> StoreResult<Bounds> {
-    let raw: BTreeMap<String, u64> = from_json(what, v)?;
-    raw.into_iter()
-        .map(|(k, n)| {
-            Dimension::parse(&k)
-                .map(|d| (d, n))
-                .ok_or_else(|| StoreError::Corrupt(format!("{what}: dimension {k:?}")))
-        })
-        .collect()
 }
 
 struct EntryRow {

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE node SET admin = $2, version = version + 1 WHERE id = $1 AND version = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aa57a6288236c380aea5b681283379f98b99c6266f436a552dc9d5c07f2c3b2f"
+}

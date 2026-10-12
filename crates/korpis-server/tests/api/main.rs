@@ -14,6 +14,7 @@
 mod authority;
 mod authz;
 mod lifecycle;
+mod nodes;
 mod operator;
 mod plans;
 mod quota;

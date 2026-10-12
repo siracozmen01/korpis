@@ -1,6 +1,7 @@
 -- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its
--- root organization, with labels. One statement walks from the object to its organization and
--- then up the organization tree, so the answer is consistent with a single snapshot.
+-- root organization, with labels. A node's parent is the organization it was enrolled into. One
+-- statement walks from the object to its organization and then up the organization tree, so the
+-- answer is consistent with a single snapshot.
 WITH RECURSIVE
 start AS (
     SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,
@@ -13,7 +14,7 @@ start AS (
     SELECT 'organization', o.id, '{}'::jsonb, 0, NULL, o.parent_id
       FROM organization o WHERE $1 = 'organization' AND o.id = $2
     UNION ALL
-    SELECT 'node', n.id, n.labels, 0, NULL, NULL
+    SELECT 'node', n.id, n.labels, 0, NULL, n.organization_id
       FROM node n WHERE $1 = 'node' AND n.id = $2
 ),
 project_step AS (
@@ -24,7 +25,7 @@ project_step AS (
 first_org AS (
     SELECT up_org AS id, depth FROM project_step
     UNION ALL
-    SELECT up_org, depth FROM start WHERE kind IN ('project', 'organization')
+    SELECT up_org, depth FROM start WHERE kind IN ('project', 'organization', 'node')
 ),
 orgs AS (
     SELECT o.id, o.parent_id, f.depth + 1 AS depth

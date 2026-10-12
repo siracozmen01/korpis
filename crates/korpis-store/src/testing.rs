@@ -4,6 +4,10 @@
 //! `KORPIS_TEST_PG_URL` (default: the `scripts/dev-pg.sh` instance), migrated, and dropped when
 //! the [`TestDb`] is dropped.
 
+mod nodes;
+
+pub use nodes::{FixtureError, capacity, enroll, oci_driver, ready_node};
+
 use crate::{Error, PgStore, migrate};
 use korpis_app::ports::{CodecError, IntentCodec};
 use korpis_core::workload::IntentBody;

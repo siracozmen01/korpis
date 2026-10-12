@@ -154,13 +154,18 @@ offset that means something different. → verify after patching
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | Node heartbeat stops; node marked `unreachable` † | `02-architecture.md` §9 |
+| 1 | Node heartbeat stops; its `connectivity` becomes `unreachable`, its `admin` untouched † ‡ | `02-architecture.md` §9; `01-model.md` §3.4 |
 | 2 | Observations become `unknown`, never a stale value shown as current | `11-surface-web.md` §2 |
 | 3 | The agent, unable to renew, fails static; the grantor's lease expires on its own clock; the workload's derived `on_lease_expiry` decides † | `02-architecture.md` §4.5 |
 | 4 | Metering records a gap with its cause | `15-observability.md` §2 |
 | 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2 |
 | 6 | Workloads whose only copy of data was local are **not**, and this is said plainly | `18-operations.md` §5 |
-| 7 | On return: adoption by label, epoch checked; if fenced, it cannot resume | `02-architecture.md` §4.4 |
+| 7 | On return: adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4; `01-model.md` §3.4 |
+
+‡ Updated 2026-10-13, from the implementation. Node status was one field, and the lifecycle took
+an unreachable node back to `ready` on reconnect, so a node cordoned for maintenance that lost its
+network for a minute came back taking placements. What the operator decided and whether the node
+is heard are now two states, and the status a client shows is derived from both.
 
 **FINDING 5: What a `stable` address does while its workload is gone. `CONFIRMED`**
 
@@ -196,6 +201,11 @@ and `18-operations.md` §5 refuses to tell it.
 | 5 | Metering rolls up; the reseller sees their sub-tree's usage | `15-observability.md` §2 |
 | 6 | `Explanation`s filtered per viewer, the customer learns nothing about the node | `08-identity.md` §8 |
 | 7 | No reseller feature was written anywhere | Bet 4 |
+| 8 | The customer enrolls a machine of their own: it belongs to their organization, only their subtree lands on it, and the reseller's grant covers it by containment ‡ | `01-model.md` §3.4; `08-identity.md` §3.3; `05-scheduling.md` §2.1 |
+
+‡ Added 2026-10-13, from the implementation. A node had no owner, so nothing said whose workloads
+could land on a customer's own machine, and no grant above the node itself could read or cordon
+it. Enrollment was already scoped to one organization; the node now belongs to it.
 
 **FINDING 6: Quota inheritance does not say allocation or usage. `CONFIRMED`, and it decides Bet
 4**

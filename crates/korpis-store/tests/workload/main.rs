@@ -12,5 +12,6 @@
 )]
 
 mod chain;
+mod nodes;
 mod plans;
 mod support;

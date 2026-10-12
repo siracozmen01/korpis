@@ -428,7 +428,7 @@ service NodeService {
   rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // node.cordon.
+  // node.cordon, both ways.
   rpc CordonNode(CordonNodeRequest) returns (CordonNodeResponse);
   rpc UncordonNode(UncordonNodeRequest) returns (UncordonNodeResponse);
 }
@@ -452,9 +452,11 @@ message GetNodeResponse {
   Node node = 1;
 }
 
+// The nodes one organization owns; node.read over it.
 message ListNodesRequest {
   LabelSelector selector = 1;
   PageRequest page = 2;
+  string organization = 3;
 }
 
 message ListNodesResponse {

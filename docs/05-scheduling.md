@@ -39,7 +39,8 @@ A node survives the filter only if all hold:
 | has every requested device available | §6 |
 | satisfies the intent's constraints | `PlacementSpec` label selectors |
 | the workload tolerates every taint | `Node.taints` |
-| is `ready`: not cordoned, draining, or unreachable | `Node.status` |
+| is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |
+| belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
 | can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
 | the tenancy's quota admits it | §5 |
 

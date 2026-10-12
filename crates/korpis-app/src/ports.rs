@@ -10,6 +10,8 @@ mod audit;
 mod authz;
 mod clock;
 mod idempotency;
+mod node;
+mod placement;
 mod quota;
 mod recipe;
 mod tenancy;
@@ -21,6 +23,8 @@ pub use authz::{
 };
 pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
+pub use node::{NodeRead, NodeWrite};
+pub use placement::PlacementWrite;
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use tenancy::{TenancyRead, TenancyWrite};
@@ -71,6 +75,7 @@ pub trait Store:
     + KeyRegistry
     + RecipeCache
     + WorkloadRead
+    + NodeRead
     + Send
     + Sync
     + 'static
@@ -91,6 +96,8 @@ pub trait Tx:
     + IdempotencyWrite
     + WorkloadWrite
     + QuotaWrite
+    + NodeWrite
+    + PlacementWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

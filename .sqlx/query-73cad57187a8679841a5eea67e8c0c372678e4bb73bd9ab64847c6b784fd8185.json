@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- What the placements on each node of $1 reserve, summed per dimension. Authoritative or not:\n-- during a migration both nodes hold the workload's capacity.\nSELECT p.node_id AS \"node_id!\", r.key AS \"dimension!\", sum(r.value::bigint)::bigint AS \"total!\"\n  FROM placement p, jsonb_each_text(p.reserved) r\n WHERE p.node_id = ANY($1)\n GROUP BY p.node_id, r.key\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "dimension!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "73cad57187a8679841a5eea67e8c0c372678e4bb73bd9ab64847c6b784fd8185"
+}

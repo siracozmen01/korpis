@@ -15,6 +15,7 @@ pub mod caller;
 pub mod error;
 pub mod idempotency;
 pub mod install;
+pub mod node;
 pub mod page;
 pub mod ports;
 pub mod recipe;

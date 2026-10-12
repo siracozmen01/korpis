@@ -29,6 +29,13 @@ message Node {
   repeated StorageClassInfo storage_classes = 12;
   // Whether the node can be reached for inbound traffic (§9 of docs/07-networking.md).
   Reachability reachability = 13;
+  // The organization it was enrolled into. It serves that organization and every organization
+  // below it, and a grant over the organization covers it.
+  string organization = 14;
+  // What the operator decided. `status` is derived from this and `connectivity`, a
+  // connectivity problem outranking the decision (§3.4 of docs/01-model.md).
+  NodeAdmin admin = 15;
+  NodeConnectivity connectivity = 16;
 }
 
 message Taint {
@@ -36,6 +43,23 @@ message Taint {
   string value = 2;
 }
 
+enum NodeAdmin {
+  NODE_ADMIN_UNSPECIFIED = 0;
+  NODE_ADMIN_ACTIVE = 1;
+  NODE_ADMIN_CORDONED = 2;
+  NODE_ADMIN_DRAINING = 3;
+  NODE_ADMIN_DECOMMISSIONED = 4;
+}
+
+enum NodeConnectivity {
+  NODE_CONNECTIVITY_UNSPECIFIED = 0;
+  NODE_CONNECTIVITY_REGISTERING = 1;
+  NODE_CONNECTIVITY_CONNECTED = 2;
+  NODE_CONNECTIVITY_UNREACHABLE = 3;
+  NODE_CONNECTIVITY_UNKNOWN = 4;
+}
+
+// Derived from `NodeAdmin` and `NodeConnectivity`; never stored.
 enum NodeStatus {
   NODE_STATUS_UNSPECIFIED = 0;
   NODE_STATUS_REGISTERING = 1;

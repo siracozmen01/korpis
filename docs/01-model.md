@@ -690,16 +690,39 @@ stream *is* the record of what happened.
 Node
   id            NodeID         immutable
   name          string
+  organization  OrgID          the organization it was enrolled into; immutable
   labels        map[str]str    region, rack, arch, os, gpu, storage-class, ...
   taints        []Taint        workloads must tolerate these to land here
   capacity      Resources      total
   allocatable   Resources      capacity minus system reserve
-  allocated     Resources      sum of placed intents
+  allocated     Resources      sum of what its placements reserve
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
-  status        ready | cordoned | draining | unreachable | unknown
+  admin         active | cordoned | draining | decommissioned      what the operator decided
+  connectivity  registering | connected | unreachable | unknown    whether it is heard
+  status        derived from the two, below
   agent_version string
   last_seen     Timestamp
 ```
+
+**A node belongs to the organization it was enrolled into.** Enrollment is `node.enroll` scoped
+to one organization (§7 of `02-architecture.md`), and the node stays there: it is contained in
+that organization for every grant (§3.3 of `08-identity.md`), and it serves that organization and
+every organization below it, never a sibling or an ancestor (§2.1 of `05-scheduling.md`). A host's
+fleet is enrolled into its root organization and so serves every customer; a customer who enrolls
+a machine of their own gets a node only their own subtree lands on.
+
+**`status` is derived, from two states that change for different reasons.** `admin` changes when
+the operator decides; `connectivity` changes when the network does. The status a client shows is
+`decommissioned` if the node is; otherwise `registering`, `unreachable`, or `unknown` while it is
+not heard, because that is what needs attention; otherwise `draining`, `cordoned`, or `ready` from
+the operator's decision. Only `ready` (active and connected) takes new placements.
+
+> Correction, 2026-10-13, from the implementation. Nodes had no owner, so no grant but one naming
+> the node could cover it (§3.3 of `08-identity.md`). And `status` was one field holding both
+> states, so a cordoned node that dropped off the network and came back returned as `ready`: the
+> lifecycle below said `unreachable ──▶ ready`, and a network blip undid the operator's cordon.
+> The cost of two states is one more field a client renders; the derived `status` keeps the single
+> word a list shows.
 
 **There is no `Location` object.** Pterodactyl has Nodes inside Locations; Pelican replaced its
 nest/location hierarchy with tags and was right to. Region, rack, datacentre, and provider are
@@ -713,10 +736,13 @@ snapshot, or live-migrate. The scheduler asks; it never assumes (Rule K-9).
 **Lifecycle**
 
 ```
-registering ──▶ ready ⇄ cordoned ──▶ draining ──▶ (empty) ──▶ decommissioned
-                  │
-                  └──▶ unreachable ──▶ ready  (on reconnect)
+admin          active ⇄ cordoned ──▶ draining ──▶ (empty) ──▶ decommissioned
+connectivity   registering ──▶ connected ⇄ unreachable
+                                   ▲
+               unknown ────────────┘  (after a control-plane restart, until heard)
 ```
+
+Reconnecting returns a node to the `admin` state it had: a cordoned node comes back cordoned.
 
 `cordoned` means no new placements; existing workloads keep running. `draining` means migrate
 everything off. Both are real states with real behaviour, not admin conveniences; they are what

@@ -1,0 +1,194 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! What a node's drivers and storage declare they can do (§4.1 of docs/04-runtimes.md). Declared,
+//! never inferred: the scheduler asks these and never assumes from a version (Rule K-9).
+
+use crate::workload::spec::{ConsoleMode, IsolationTier};
+use std::collections::BTreeMap;
+
+/// How a driver offers GPUs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GpuMode {
+    /// None.
+    None,
+    /// A whole device, passed through.
+    Passthrough,
+    /// A mediated slice.
+    Mediated,
+    /// Time-sliced sharing.
+    Timeslice,
+}
+
+/// A class of device a driver can attach.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DeviceClass {
+    /// A GPU.
+    Gpu,
+    /// A USB device.
+    Usb,
+    /// A PCI device.
+    Pci,
+    /// A TPM.
+    Tpm,
+    /// A serial port.
+    Serial,
+}
+
+/// Where a root filesystem can come from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RootfsSource {
+    /// An OCI image.
+    OciImage,
+    /// A directory on the host.
+    Directory,
+    /// A disk image.
+    DiskImage,
+    /// An installation ISO.
+    Iso,
+}
+
+/// How a driver connects a workload to the network.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NetworkMode {
+    /// A veth pair.
+    Veth,
+    /// A tap device.
+    Tap,
+    /// The host's network.
+    Host,
+    /// No network.
+    None,
+}
+
+/// What a volume is to the workload (§3 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VolumeSemantics {
+    /// A directory on a filesystem the host controls.
+    Filesystem,
+    /// A block device the guest owns.
+    BlockDevice,
+}
+
+/// How a workload's files are reached (§4.4 of docs/04-runtimes.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileAccess {
+    /// A worker on the host.
+    HostWorker,
+    /// A worker inside the guest.
+    GuestWorker,
+    /// Not at all.
+    None,
+}
+
+/// Whether, and how, a driver holds one kind of limit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Enforcement {
+    /// The kernel holds it; when false, the limit is neither accepted nor displayed (Rule K-3).
+    pub enforced: bool,
+    /// For example `cgroup v2 memory.max`.
+    pub mechanism: String,
+    /// What the mechanism actually bounds, where it differs.
+    pub granularity: String,
+}
+
+/// Where an execution-state snapshot can be restored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnapshotCaps {
+    /// The CPU model or template.
+    pub cpu_template: String,
+    /// The hypervisor version.
+    pub hypervisor_version: String,
+    /// The oldest host kernel.
+    pub kernel_min: String,
+    /// The newest host kernel.
+    pub kernel_max: String,
+}
+
+/// How workload uids reach the disk (§4.5 of docs/04-runtimes.md).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct IdMapCaps {
+    /// Id-mapped mounts.
+    pub idmapped_mounts: bool,
+    /// User namespaces.
+    pub user_namespaces: bool,
+}
+
+/// A driver's declared capabilities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Capabilities {
+    /// The isolation tiers it implements.
+    pub tiers: Vec<IsolationTier>,
+    /// The console modes it offers.
+    pub console: Vec<ConsoleMode>,
+    /// Whether it can run a command inside a running workload.
+    pub exec: bool,
+    /// Driver-defined signal names.
+    pub signals: Vec<String>,
+    /// The resources that change without a restart.
+    pub hot_resize: Vec<String>,
+    /// Whether a volume attaches to a running workload.
+    pub hot_volume_attach: bool,
+    /// Where execution-state snapshots restore; `None` when they are not supported.
+    pub runtime_snapshot: Option<SnapshotCaps>,
+    /// Whether it migrates a running workload.
+    pub live_migrate: bool,
+    /// How it offers GPUs.
+    pub gpu: Vec<GpuMode>,
+    /// The device classes it attaches.
+    pub devices: Vec<DeviceClass>,
+    /// Where root filesystems come from.
+    pub rootfs_sources: Vec<RootfsSource>,
+    /// How it networks.
+    pub network_modes: Vec<NetworkMode>,
+    /// Per resource kind (`memory`, `cpu`, `disk`, `io`, `pids`, `egress`): whether it holds
+    /// a limit of that kind. A kind absent is not enforced.
+    pub enforcement: BTreeMap<String, Enforcement>,
+    /// What its volumes are.
+    pub volume_semantics: VolumeSemantics,
+    /// How files are reached.
+    pub file_access: FileAccess,
+    /// How uids reach the disk.
+    pub id_mapping: IdMapCaps,
+    /// Its configuration's JSON Schema document.
+    pub config_schema: String,
+}
+
+impl Capabilities {
+    /// Whether a limit of `kind` is held by the kernel.
+    #[must_use]
+    pub fn enforces(&self, kind: &str) -> bool {
+        self.enforcement.get(kind).is_some_and(|e| e.enforced)
+    }
+
+    /// Whether it can give a workload a GPU in any mode.
+    #[must_use]
+    pub fn offers_gpu(&self) -> bool {
+        self.gpu.iter().any(|m| *m != GpuMode::None) || self.devices.contains(&DeviceClass::Gpu)
+    }
+}
+
+/// A runtime driver as a node offers it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DriverInfo {
+    /// For example `oci`.
+    pub name: String,
+    /// Its version, informational only.
+    pub version: String,
+    /// The driver protocol version it speaks.
+    pub protocol: String,
+    /// What it declares it can do.
+    pub capabilities: Capabilities,
+    /// Whether it last reported itself healthy.
+    pub healthy: bool,
+}
+
+/// A storage class as a node offers it (§2 of docs/06-storage.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StorageClass {
+    /// Its name.
+    pub name: String,
+    /// Total bytes.
+    pub capacity_bytes: u64,
+    /// Free bytes, as last reported.
+    pub free_bytes: u64,
+}

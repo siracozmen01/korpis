@@ -118,6 +118,29 @@ impl Harness {
         pb::GrantServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
+        pb::NodeServiceClient::new(self.http.clone(), config)
+    }
+
+    /// Enrolls a ready node owned by `organization` (the root organization when `None`), as
+    /// the agent protocol will; its wire id.
+    pub async fn node(
+        &self,
+        organization: Option<Uuid>,
+        name: &str,
+        labels: &[(&str, &str)],
+    ) -> String {
+        let org = organization.unwrap_or(self.installed.organization.id);
+        self.enroll(korpis_store::testing::ready_node(org, name, labels).unwrap()).await
+    }
+
+    /// Enrolls `node` as given; its wire id.
+    pub async fn enroll(&self, node: korpis_core::node::Node) -> String {
+        let store = self.db.store().await.unwrap();
+        korpis_store::testing::enroll(&store, &node).await.unwrap();
+        wire_id(IdKind::Node, node.id)
+    }
+
     /// An API token with no grants, created directly: Phase 0 has no token-creation call.
     pub async fn bare_token(&self) -> (Uuid, Secret) {
         let store = self.db.store().await.unwrap();

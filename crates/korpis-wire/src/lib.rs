@@ -33,6 +33,7 @@ macro_rules! enum_map {
 pub mod audit;
 pub mod authz;
 pub mod body;
+pub mod node;
 pub mod plan;
 pub mod principal;
 pub mod recipe;

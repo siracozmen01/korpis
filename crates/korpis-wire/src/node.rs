@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Nodes, their drivers and storage, and amounts per dimension.
+
+use crate::spec::{console_to_pb, tier_to_pb};
+use crate::{timestamp, wire_id};
+use korpis_core::id::IdKind;
+use korpis_core::node::driver::{
+    DeviceClass, FileAccess, GpuMode, NetworkMode, RootfsSource, VolumeSemantics,
+};
+use korpis_core::node::{
+    Capabilities, Connectivity, DriverInfo, Node, NodeAdmin, NodeStatus, Reachability, StorageClass,
+};
+use korpis_core::tenancy::quota::{Bounds, Dimension};
+use korpis_proto::korpis::v1 as pb;
+
+enum_map!(admin_to_pb, admin_from_pb, NodeAdmin, pb::NodeAdmin, "a node admin state", {
+    NodeAdmin::Active => pb::NodeAdmin::NODE_ADMIN_ACTIVE,
+    NodeAdmin::Cordoned => pb::NodeAdmin::NODE_ADMIN_CORDONED,
+    NodeAdmin::Draining => pb::NodeAdmin::NODE_ADMIN_DRAINING,
+    NodeAdmin::Decommissioned => pb::NodeAdmin::NODE_ADMIN_DECOMMISSIONED,
+});
+
+enum_map!(connectivity_to_pb, connectivity_from_pb, Connectivity, pb::NodeConnectivity,
+    "a node connectivity", {
+    Connectivity::Registering => pb::NodeConnectivity::NODE_CONNECTIVITY_REGISTERING,
+    Connectivity::Connected => pb::NodeConnectivity::NODE_CONNECTIVITY_CONNECTED,
+    Connectivity::Unreachable => pb::NodeConnectivity::NODE_CONNECTIVITY_UNREACHABLE,
+    Connectivity::Unknown => pb::NodeConnectivity::NODE_CONNECTIVITY_UNKNOWN,
+});
+
+enum_map!(status_to_pb, status_from_pb, NodeStatus, pb::NodeStatus, "a node status", {
+    NodeStatus::Registering => pb::NodeStatus::NODE_STATUS_REGISTERING,
+    NodeStatus::Ready => pb::NodeStatus::NODE_STATUS_READY,
+    NodeStatus::Cordoned => pb::NodeStatus::NODE_STATUS_CORDONED,
+    NodeStatus::Draining => pb::NodeStatus::NODE_STATUS_DRAINING,
+    NodeStatus::Unreachable => pb::NodeStatus::NODE_STATUS_UNREACHABLE,
+    NodeStatus::Unknown => pb::NodeStatus::NODE_STATUS_UNKNOWN,
+    NodeStatus::Decommissioned => pb::NodeStatus::NODE_STATUS_DECOMMISSIONED,
+});
+
+enum_map!(reachability_to_pb, reachability_from_pb, Reachability, pb::Reachability,
+    "a reachability", {
+    Reachability::Public => pb::Reachability::REACHABILITY_PUBLIC,
+    Reachability::EdgeOnly => pb::Reachability::REACHABILITY_EDGE_ONLY,
+});
+
+enum_map!(gpu_to_pb, gpu_from_pb, GpuMode, pb::GpuMode, "a GPU mode", {
+    GpuMode::None => pb::GpuMode::GPU_MODE_NONE,
+    GpuMode::Passthrough => pb::GpuMode::GPU_MODE_PASSTHROUGH,
+    GpuMode::Mediated => pb::GpuMode::GPU_MODE_MEDIATED,
+    GpuMode::Timeslice => pb::GpuMode::GPU_MODE_TIMESLICE,
+});
+
+enum_map!(device_to_pb, device_from_pb, DeviceClass, pb::DeviceClass, "a device class", {
+    DeviceClass::Gpu => pb::DeviceClass::DEVICE_CLASS_GPU,
+    DeviceClass::Usb => pb::DeviceClass::DEVICE_CLASS_USB,
+    DeviceClass::Pci => pb::DeviceClass::DEVICE_CLASS_PCI,
+    DeviceClass::Tpm => pb::DeviceClass::DEVICE_CLASS_TPM,
+    DeviceClass::Serial => pb::DeviceClass::DEVICE_CLASS_SERIAL,
+});
+
+enum_map!(rootfs_to_pb, rootfs_from_pb, RootfsSource, pb::RootfsSource, "a rootfs source", {
+    RootfsSource::OciImage => pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE,
+    RootfsSource::Directory => pb::RootfsSource::ROOTFS_SOURCE_DIRECTORY,
+    RootfsSource::DiskImage => pb::RootfsSource::ROOTFS_SOURCE_DISK_IMAGE,
+    RootfsSource::Iso => pb::RootfsSource::ROOTFS_SOURCE_ISO,
+});
+
+enum_map!(network_to_pb, network_from_pb, NetworkMode, pb::NetworkMode, "a network mode", {
+    NetworkMode::Veth => pb::NetworkMode::NETWORK_MODE_VETH,
+    NetworkMode::Tap => pb::NetworkMode::NETWORK_MODE_TAP,
+    NetworkMode::Host => pb::NetworkMode::NETWORK_MODE_HOST,
+    NetworkMode::None => pb::NetworkMode::NETWORK_MODE_NONE,
+});
+
+enum_map!(semantics_to_pb, semantics_from_pb, VolumeSemantics, pb::VolumeSemantics,
+    "a volume semantics", {
+    VolumeSemantics::Filesystem => pb::VolumeSemantics::VOLUME_SEMANTICS_FILESYSTEM,
+    VolumeSemantics::BlockDevice => pb::VolumeSemantics::VOLUME_SEMANTICS_BLOCK_DEVICE,
+});
+
+enum_map!(file_access_to_pb, file_access_from_pb, FileAccess, pb::FileAccess, "a file access", {
+    FileAccess::HostWorker => pb::FileAccess::FILE_ACCESS_HOST_WORKER,
+    FileAccess::GuestWorker => pb::FileAccess::FILE_ACCESS_GUEST_WORKER,
+    FileAccess::None => pb::FileAccess::FILE_ACCESS_NONE,
+});
+
+fn all<D: Copy, P: buffa::Enumeration>(v: &[D], f: impl Fn(D) -> P) -> Vec<buffa::EnumValue<P>> {
+    v.iter().map(|d| f(*d).into()).collect()
+}
+
+/// The wire form of amounts per dimension; a dimension absent is zero.
+#[must_use]
+pub fn resources_to_pb(b: &Bounds) -> pb::Resources {
+    let n = |d: Dimension| b.get(&d).copied().unwrap_or(0);
+    pb::Resources {
+        cpu_millis: n(Dimension::Cpu),
+        memory_bytes: n(Dimension::Memory),
+        disk_bytes: n(Dimension::Disk),
+        disk_read_bytes_per_sec: n(Dimension::DiskReadBytes),
+        disk_write_bytes_per_sec: n(Dimension::DiskWriteBytes),
+        disk_read_ops_per_sec: n(Dimension::DiskReadOps),
+        disk_write_ops_per_sec: n(Dimension::DiskWriteOps),
+        bandwidth_bits_per_sec: n(Dimension::Bandwidth),
+        workloads: n(Dimension::Workloads),
+        volumes: n(Dimension::Volumes),
+        endpoints: n(Dimension::Endpoints),
+        dedicated_ipv4: n(Dimension::DedicatedIpv4),
+        ..Default::default()
+    }
+}
+
+fn capabilities_to_pb(c: &Capabilities) -> pb::Capabilities {
+    pb::Capabilities {
+        tiers: all(&c.tiers, tier_to_pb),
+        console: all(&c.console, console_to_pb),
+        exec: c.exec,
+        signals: c.signals.clone(),
+        hot_resize: c.hot_resize.clone(),
+        hot_volume_attach: c.hot_volume_attach,
+        runtime_snapshot: c
+            .runtime_snapshot
+            .as_ref()
+            .map(|s| pb::SnapshotCaps {
+                cpu_template: s.cpu_template.clone(),
+                hypervisor_version: s.hypervisor_version.clone(),
+                kernel_min: s.kernel_min.clone(),
+                kernel_max: s.kernel_max.clone(),
+                ..Default::default()
+            })
+            .into(),
+        live_migrate: c.live_migrate,
+        gpu: all(&c.gpu, gpu_to_pb),
+        devices: all(&c.devices, device_to_pb),
+        rootfs_sources: all(&c.rootfs_sources, rootfs_to_pb),
+        network_modes: all(&c.network_modes, network_to_pb),
+        enforcement: c
+            .enforcement
+            .iter()
+            .map(|(k, e)| {
+                let decl = pb::EnforcementDecl {
+                    enforced: e.enforced,
+                    mechanism: e.mechanism.clone(),
+                    granularity: e.granularity.clone(),
+                    ..Default::default()
+                };
+                (k.clone(), decl)
+            })
+            .collect(),
+        volume_semantics: semantics_to_pb(c.volume_semantics).into(),
+        file_access: file_access_to_pb(c.file_access).into(),
+        id_mapping: pb::IdMapCaps {
+            idmapped_mounts: c.id_mapping.idmapped_mounts,
+            user_namespaces: c.id_mapping.user_namespaces,
+            ..Default::default()
+        }
+        .into(),
+        config_schema: c.config_schema.clone(),
+        ..Default::default()
+    }
+}
+
+fn driver_to_pb(d: &DriverInfo) -> pb::DriverInfo {
+    pb::DriverInfo {
+        name: d.name.clone(),
+        version: d.version.clone(),
+        protocol: d.protocol.clone(),
+        capabilities: capabilities_to_pb(&d.capabilities).into(),
+        healthy: d.healthy,
+        ..Default::default()
+    }
+}
+
+fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
+    pb::StorageClassInfo {
+        name: c.name.clone(),
+        capacity_bytes: c.capacity_bytes,
+        free_bytes: c.free_bytes,
+        ..Default::default()
+    }
+}
+
+/// The wire form of a node, with what its placements reserve.
+#[must_use]
+pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
+    pb::Node {
+        id: wire_id(IdKind::Node, n.id),
+        name: n.name.as_str().to_owned(),
+        labels: n.labels.as_map().iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        taints: n
+            .taints
+            .iter()
+            .map(|t| pb::Taint { key: t.key.clone(), value: t.value.clone(), ..Default::default() })
+            .collect(),
+        capacity: resources_to_pb(&n.capacity).into(),
+        allocatable: resources_to_pb(&n.allocatable).into(),
+        allocated: resources_to_pb(allocated).into(),
+        drivers: n.drivers.iter().map(driver_to_pb).collect(),
+        status: status_to_pb(n.status()).into(),
+        agent_version: n.agent_version.clone().unwrap_or_default(),
+        last_seen: n.last_seen.map(timestamp).into(),
+        storage_classes: n.storage_classes.iter().map(storage_class_to_pb).collect(),
+        reachability: reachability_to_pb(n.reachability).into(),
+        organization: wire_id(IdKind::Organization, n.organization),
+        admin: admin_to_pb(n.admin).into(),
+        connectivity: connectivity_to_pb(n.connectivity).into(),
+        ..Default::default()
+    }
+}
