@@ -57,7 +57,7 @@ pub struct Delegation {
 /// A grant as evaluation sees it.
 #[allow(
     clippy::struct_excessive_bools,
-    reason = "link_form, revoked, suspended, and irreversible_override are independent properties"
+    reason = "link_form, revoked, suspended, irreversible_override, and root are independent"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grant {
@@ -74,8 +74,15 @@ pub struct Grant {
     pub revoked: bool,
     pub suspended: bool,
     /// For a grant to a set subject: the operator deliberately overrode the default that keeps
-    /// irreversible actions out of it (§5.2). Never meaningful for a link-form grant.
+    /// irreversible actions out of it (§5.2). Never meaningful for a link-form grant. Set by the
+    /// control plane from the subject's identity binding, never from a request; [`issue`]
+    /// refuses a child that carries it otherwise.
+    ///
+    /// [`issue`]: super::evaluate::issue
     pub irreversible_override: bool,
+    /// A root grant: created at installation or by local root recovery (§9 of
+    /// docs/08-identity.md), the only kind of grant with no parent.
+    pub root: bool,
 }
 
 impl Grant {

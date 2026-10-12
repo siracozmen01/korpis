@@ -26,20 +26,34 @@ pub struct Request<'a> {
 }
 
 /// The outcome of evaluation.
+///
+/// Proposing is a separate variant rather than a flag on a permit, so that no caller can let a
+/// propose-only grant through by forgetting to read a field: an action that is not a
+/// declaration (a console keystroke, a file read) must treat [`Decision::Propose`] as a refusal,
+/// and the compiler makes every caller say what it does with one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Decision {
-    Permit {
-        /// The grant that authorized the request, which every effect names.
-        grant: Uuid,
-        /// The chain, leaf first, root last.
-        chain: Vec<Uuid>,
-        /// The leaf has a use limit: the gateway must redeem one use atomically, in the
-        /// transaction that performs the action (§6.2).
-        redeem: bool,
-        /// The grant can propose, not apply: plans wait for an approver over this scope (§3.6).
-        propose_only: Option<Scope>,
+    /// The request may be performed now.
+    Permit(Permit),
+    /// The grant can propose, not apply (§3.6): a declaration under it produces a plan that waits
+    /// for an approver over `approval_scope`. Anything that is not a declaration is refused.
+    Propose {
+        permit: Permit,
+        approval_scope: Scope,
     },
     Deny(Denial),
+}
+
+/// The authority a permitted or proposed request acts under.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Permit {
+    /// The grant that authorized the request, which every effect names.
+    pub grant: Uuid,
+    /// The chain, leaf first, root last.
+    pub chain: Vec<Uuid>,
+    /// The leaf has a use limit: the gateway must redeem one use atomically, in the transaction
+    /// that performs the action (§6.2).
+    pub redeem: bool,
 }
 
 /// Why a request was refused. The caller is told which action was missing, never which grant
@@ -56,6 +70,8 @@ pub struct Denial {
 pub enum ChainError {
     #[error("the chain is incomplete: grant {0} names a parent that was not supplied")]
     BrokenChain(Uuid),
+    #[error("grant {0} has no parent and is not a root grant")]
+    NotRooted(Uuid),
     #[error("grant {0} is revoked")]
     Revoked(Uuid),
     #[error("grant {0} is suspended")]
@@ -93,13 +109,17 @@ pub fn evaluate(
         let Some(leaf) = chain.first() else { continue };
         match permits(request, chain, hierarchy) {
             Ok(decision) => {
-                let Decision::Permit { redeem, propose_only, .. } = &decision else {
-                    unreachable!()
-                };
-                if !redeem && propose_only.is_none() {
+                if matches!(&decision, Decision::Permit(p) if !p.redeem) {
                     return decision;
                 }
-                best.get_or_insert(decision);
+                // Prefer a direct permit over a proposal, and either over a redemption.
+                let better = matches!(
+                    (&best, &decision),
+                    (None, _) | (Some(Decision::Propose { .. }), Decision::Permit(_))
+                );
+                if better {
+                    best = Some(decision);
+                }
             }
             Err(e) => reasons.push((leaf.id, e)),
         }
@@ -142,11 +162,14 @@ fn permits(
     if leaf.remaining_uses() == Some(0) {
         return Err(ChainError::Exhausted);
     }
-    Ok(Decision::Permit {
+    let permit = Permit {
         grant: leaf.id,
         chain: chain.iter().map(|g| g.id).collect(),
         redeem: leaf.conditions.max_uses.is_some(),
-        propose_only: leaf.conditions.requires_approval_by.clone(),
+    };
+    Ok(match &leaf.conditions.requires_approval_by {
+        Some(scope) => Decision::Propose { permit, approval_scope: scope.clone() },
+        None => Decision::Permit(permit),
     })
 }
 
@@ -167,11 +190,14 @@ pub fn verify_chain(
             return Err(ChainError::NotInForce(link.id));
         }
         match (link.parent, chain.get(i + 1)) {
-            (None, None) => {}
+            // Only a grant created as a root (at installation, or by local root recovery) may
+            // end a chain; a parentless grant that is not marked root roots nothing.
+            (None, None) if link.root => {}
             (Some(p), Some(parent)) if parent.id == p => {
                 check_attenuation(parent, link, hierarchy, At::Use)
                     .map_err(|e| ChainError::InvalidAttenuation(link.id, e))?;
             }
+            (None, None) => return Err(ChainError::NotRooted(link.id)),
             _ => return Err(ChainError::BrokenChain(link.id)),
         }
     }
@@ -243,7 +269,7 @@ pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decis
         now: approval.now,
     };
     match evaluate(&request, &eligible, hierarchy) {
-        Decision::Permit { propose_only: Some(_), .. } => deny(Vec::new()),
+        Decision::Propose { .. } => deny(Vec::new()),
         decision => decision,
     }
 }
@@ -255,6 +281,10 @@ pub enum IssueError {
     NotHolder,
     #[error("the parent chain is not valid now: {0}")]
     ParentChain(ChainError),
+    #[error("only an operator's identity binding can override the irreversible-action default")]
+    OverrideNotFromBinding,
+    #[error("a root grant is created at installation, never issued")]
+    RootNotIssuable,
     #[error(transparent)]
     Attenuation(#[from] super::grant::AttenuationError),
 }
@@ -264,13 +294,24 @@ pub enum IssueError {
 /// the parent's subject, the parent's whole chain must be valid now, and the child must be a valid
 /// attenuation of it, use limits included. The gateway runs this before inserting the child, in
 /// the transaction that takes the parent's remaining uses (§6.2).
+///
+/// `binding_allows_irreversible` is what the subject's identity binding says, read by the caller
+/// from the binding an operator declared (§5.2), never from the request: a child carrying
+/// `irreversible_override` is refused unless it is a set subject whose binding allows it.
 pub fn issue(
     issuer: &Subject,
     parent_chain: &[Grant],
     child: &Grant,
+    binding_allows_irreversible: bool,
     hierarchy: &impl Hierarchy,
     now: SystemTime,
 ) -> Result<(), IssueError> {
+    if child.root {
+        return Err(IssueError::RootNotIssuable);
+    }
+    if child.irreversible_override && !(child.subject.set && binding_allows_irreversible) {
+        return Err(IssueError::OverrideNotFromBinding);
+    }
     let Some(parent) = parent_chain.first() else { return Err(IssueError::NotHolder) };
     if &parent.subject != issuer || child.parent != Some(parent.id) {
         return Err(IssueError::NotHolder);

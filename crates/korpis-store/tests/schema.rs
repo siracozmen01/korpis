@@ -117,7 +117,21 @@ async fn link_form_grants_cannot_delegate() {
         .bind(link)
         .execute(store.pool())
     };
-    grant(root, None, false, r#"{"allowed":true}"#).await.unwrap();
+    assert!(
+        grant(root, None, false, r#"{"allowed":true}"#).await.is_err(),
+        "a parentless grant must be marked root"
+    );
+    sqlx::query(
+        "INSERT INTO grants (id, subject, subject_key, actions, scope, scope_kind, scope_id,
+                             delegation, issued_by, root)
+         VALUES ($1, '{}', 'token:root', ARRAY['workload.restart'], '{}', 'organization', $2,
+                 '{\"allowed\":true}', '{}', true)",
+    )
+    .bind(root)
+    .bind(org)
+    .execute(store.pool())
+    .await
+    .unwrap();
     assert!(
         grant(Uuid::now_v7(), Some(root), true, r#"{"allowed":true}"#).await.is_err(),
         "a link-form grant with delegation allowed is refused by the store"

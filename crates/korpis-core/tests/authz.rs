@@ -11,7 +11,7 @@ use korpis_core::authz::scope::LabelSelector;
 use korpis_core::authz::token::{self, Claims, KeyRing, SigningKey, TokenError};
 use korpis_core::authz::{
     Action, AttenuationError, Conditions, Decision, Delegation, Grant, Hierarchy, Kind, Node,
-    ObjectRef, Request, Resource, Scope, Subject, check_attenuation, evaluate,
+    ObjectRef, Permit, Request, Resource, Scope, Subject, check_attenuation, evaluate,
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::time::{Duration, SystemTime};
@@ -84,6 +84,7 @@ fn root(tree: &Tree, now: SystemTime) -> Grant {
         revoked: false,
         suspended: false,
         irreversible_override: false,
+        root: true,
     }
 }
 
@@ -101,6 +102,7 @@ fn child(parent: &Grant, subject: &str, acts: &[&str], scope: Scope) -> Grant {
         revoked: false,
         suspended: false,
         irreversible_override: false,
+        root: false,
     }
 }
 
@@ -149,13 +151,12 @@ fn the_moderator_mints_a_link_and_the_link_mints_nothing() {
         &[vec![link.clone(), moderator.clone(), root.clone()]],
         &tree,
     );
-    let Decision::Permit { grant, redeem, propose_only, chain } = decision else {
+    let Decision::Permit(Permit { grant, redeem, chain }) = decision else {
         panic!("the link permits restarting W1: {decision:?}")
     };
     assert_eq!(grant, link.id);
     assert_eq!(chain, vec![link.id, moderator.id, root.id]);
     assert!(redeem, "a use-limited link is redeemed online (§6.2)");
-    assert!(propose_only.is_none());
 
     let mut grandchild =
         child(&link, "someone-else", &["workload.restart"], Scope::Object(tree.w1));
@@ -276,7 +277,7 @@ fn private_actions_do_not_cross_into_a_customer_implicitly() {
     assert!(
         matches!(
             evaluate(&request(&root.subject, &stop, &w1, now), &chains, &tree),
-            Decision::Permit { .. }
+            Decision::Permit(_)
         ),
         "operating the capacity it sells flows down as before"
     );
@@ -303,7 +304,7 @@ fn private_actions_do_not_cross_into_a_customer_implicitly() {
             &[vec![support, root.clone()]],
             &tree
         ),
-        Decision::Permit { .. }
+        Decision::Permit(_)
     ));
 }
 
@@ -332,7 +333,7 @@ fn approval_moves_up_the_tree_and_nobody_approves_their_own_plan() {
         &[vec![proposer.clone(), root.clone()]],
         &tree,
     );
-    assert!(matches!(decision, Decision::Permit { propose_only: Some(_), .. }));
+    assert!(matches!(decision, Decision::Propose { .. }), "a propose-only grant proposes");
 
     let mut down = child(&proposer, "user:junior2", &["workload.write"], Scope::Object(tree.w1));
     down.conditions.requires_approval_by = Some(Scope::Object(tree.w1));
@@ -362,7 +363,7 @@ fn approval_moves_up_the_tree_and_nobody_approves_their_own_plan() {
             &tree,
         )
     };
-    let permitted = |d: Decision| matches!(d, Decision::Permit { propose_only: None, .. });
+    let permitted = |d: Decision| matches!(d, Decision::Permit(_));
 
     assert!(permitted(approval(&senior, &[vec![senior.clone(), root.clone()]], &p)));
     let mut as_proposer = senior.clone();
@@ -444,7 +445,7 @@ fn selector_scopes_follow_labels_and_networks_bind() {
     let chains = [vec![g.clone(), root]];
     let mut r = request(&g.subject, &restart, &w1, now);
     r.source_ip = Some("10.1.2.3".parse().unwrap());
-    assert!(matches!(evaluate(&r, &chains, &tree), Decision::Permit { .. }));
+    assert!(matches!(evaluate(&r, &chains, &tree), Decision::Permit(_)));
     r.source_ip = Some("192.168.1.1".parse().unwrap());
     assert!(matches!(evaluate(&r, &chains, &tree), Decision::Deny(_)));
     let mut r2 = request(&g.subject, &restart, &w2, now);
@@ -565,15 +566,15 @@ fn only_the_holder_of_a_valid_parent_can_issue() {
     let link = link(&tree, &moderator, now);
     let chain = [moderator.clone(), root.clone()];
 
-    issue(&moderator.subject, &chain, &link, &tree, now).unwrap();
+    issue(&moderator.subject, &chain, &link, false, &tree, now).unwrap();
     assert_eq!(
-        issue(&Subject::new("user:mallory"), &chain, &link, &tree, now),
+        issue(&Subject::new("user:mallory"), &chain, &link, false, &tree, now),
         Err(IssueError::NotHolder),
         "issuing is attenuating a grant one holds"
     );
     moderator.revoked = true;
     assert!(matches!(
-        issue(&moderator.subject, &[moderator.clone(), root.clone()], &link, &tree, now),
+        issue(&moderator.subject, &[moderator.clone(), root.clone()], &link, false, &tree, now),
         Err(IssueError::ParentChain(ChainError::Revoked(_)))
     ));
 }
@@ -607,4 +608,50 @@ fn tokens_scoped_above_a_customer_reach_no_private_action_offline() {
     let operate = mint(tree.reseller, "workload.stop");
     token::verify(&operate, &keys, "workload.stop", &w1, &none, now)
         .expect("non-private actions still flow down");
+}
+
+#[test]
+fn the_override_comes_from_the_binding_and_roots_from_installation() {
+    let tree = Tree::new();
+    let now = SystemTime::now();
+    let root = root(&tree, now);
+    let chain = [root.clone()];
+    let mut role = child(&root, "x", &["workload.delete"], Scope::Object(tree.survival));
+    role.subject = Subject::set("discord:guild-456:role-mod");
+    role.irreversible_override = true;
+    assert_eq!(
+        issue(&root.subject, &chain, &role, false, &tree, now),
+        Err(IssueError::OverrideNotFromBinding),
+        "a request cannot set the override itself"
+    );
+    issue(&root.subject, &chain, &role, true, &tree, now).expect("the binding allows it");
+
+    let mut individual = role.clone();
+    individual.subject = Subject::new("user:bob");
+    assert_eq!(
+        issue(&root.subject, &chain, &individual, true, &tree, now),
+        Err(IssueError::OverrideNotFromBinding),
+        "the override exists only for set subjects"
+    );
+
+    let mut fake_root = root.clone();
+    fake_root.id = Uuid::now_v7();
+    fake_root.root = false;
+    let restart = Action::parse("workload.restart").unwrap();
+    let w1 = tree.resource(tree.w1).unwrap();
+    let Decision::Deny(denial) = evaluate(
+        &request(&fake_root.subject, &restart, &w1, now),
+        &[vec![fake_root.clone()]],
+        &tree,
+    ) else {
+        panic!("a parentless grant that is not a root roots nothing");
+    };
+    assert_eq!(denial.reasons[0].1, ChainError::NotRooted(fake_root.id));
+
+    let mut minted_root = child(&root, "user:eve", &["workload.restart"], Scope::Object(tree.w1));
+    minted_root.root = true;
+    assert_eq!(
+        issue(&root.subject, &chain, &minted_root, false, &tree, now),
+        Err(IssueError::RootNotIssuable)
+    );
 }
