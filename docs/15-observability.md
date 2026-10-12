@@ -78,13 +78,14 @@ number that changed is a thing a host may have to explain.
 There is exactly one case where a gap is a statement about the workload rather than about the
 control plane, and it is the case the agent creates deliberately:
 
-**The agent's metering buffer is bounded, and the bound is declared.** `14-streams.md` §3 bounds
-the console buffer and says what a drop looks like; metering, which is the one stream with
-financial consequence, gets the same treatment rather than an assumption that the buffer is large
-enough. Exhausting it writes a gap with the cause `buffer exhausted`, which no later delivery can
-supersede because there is nothing to deliver. An operator who does not want that gap raises the
-bound, and the trade is stated: local disk against how long a node may be partitioned before its
-meter has holes in it.
+**The agent's metering buffer is bounded, and the bound is declared.** `14-streams.md` §5 bounds
+the console and says what a drop looks like; metering, which is the one stream with financial
+consequence, gets the same treatment rather than an assumption that the buffer is large enough.
+The buffer is the node's journal (§4.10 of `02-architecture.md`), shared with effects, so there is
+one bound, one horizon reported in `NodeStatus`, and one place an operator raises it. Exhausting it
+writes a gap with the cause `journal exhausted`, which no later delivery can supersede because there
+is nothing to deliver. The trade is stated: local disk against how long a node may be partitioned
+before its meter has holes in it.
 
 ### Periods close, or the numbers never stop moving
 
@@ -113,10 +114,20 @@ one bills on time and sends more adjustments.
 
 ### Idempotent by construction
 
-A sample's identity is `(workload, resource, interval_start)`. Re-delivery after a network failure
-overwrites rather than adds. An agent that reconnects and re-sends an hour of buffered samples
-cannot double-bill anyone, which matters because that reconnect is a normal event, not an
-exceptional one.
+A record's identity is `(workload, interval_start)`, every resource a column. Re-delivery of the
+same journal record is dropped by the journal cursor before it reaches the table (§4.10 of
+`02-architecture.md`), so an agent that reconnects and re-sends an hour of buffered records cannot
+double-bill anyone, which matters because that reconnect is a normal event, not an exceptional one.
+
+**Changing a number appends; it never overwrites.** A real sample that replaces a gap, a late
+sample inside the lateness window, and a correction all insert a new version of the record with a
+`supersedes` reference to the one it replaces, and the current value is the newest version. The
+table is append-only like the effect log, so "what did this interval say on the day it was
+invoiced" is a query, not a reconstruction.
+
+> Second external review, finding S11. This paragraph said re-delivery "overwrites", while §5 of
+> `03-state.md` called metering append-only and this section's own gap retraction already needed the
+> earlier value to stay visible. Supersession satisfies all three.
 
 ### Continuity across restart, reboot, and migration
 
@@ -152,10 +163,11 @@ labels. Player names, file paths, remote addresses, and anything else a tenant c
 and never become labels, a tenant able to inject unbounded label values can take down the
 operator's monitoring, which makes it an availability vulnerability rather than a tidiness concern.
 
-Storage: recent data at full resolution near where it is produced, rolled up on the control plane,
-and remote-written to whatever the operator already runs for anything longer. §3 of `03-state.md`
-keeps telemetry out of the transactional store; metering is the deliberate exception, because its
-volume is low and its value is high.
+Storage: recent data at full resolution on the node, as the workload's `metric` stream, downsampled
+there and migrated and offloaded with it (§5 of `03-state.md`), and exported in Prometheus and OTLP
+form to whatever the operator already runs for anything fleet-wide. §5 of `03-state.md` keeps
+telemetry out of the transactional store; metering is the deliberate exception, because its volume
+is low and its value is high.
 
 ---
 
@@ -164,8 +176,10 @@ volume is low and its value is high.
 The `Effect` log **is** the audit log. There is no second table, no separate writer, and therefore
 no possibility of the two disagreeing.
 
-This falls out of §4 of `03-state.md`: an `Effect` is append-only, written in the same transaction
-as the state change it describes, and names the grant that authorized it. Nothing can change state
+This falls out of §1 and §4 of `03-state.md`: an `Effect` is append-only and names the grant that
+authorized it. An effect of a control-plane decision is written in the same transaction as the
+decision; an effect of something that happened on a node is ingested exactly once, in order, from
+that node's journal, in the same transaction as the state it explains. Nothing can change state
 without producing one, because producing one is how state changes. Bolt-on audit logs are
 incomplete in exactly the cases that matter, since the paths that skip them are the unusual ones.
 
@@ -173,7 +187,9 @@ Three properties worth naming explicitly:
 
 **Denials are recorded.** Most systems log what happened; the interesting security signal is what
 was attempted and refused. A denied action produces an `Effect` with its outcome, its subject, and
-the action that was missing.
+the action that was missing. Repeated identical denials within a window are one effect with a count,
+and denials are charged against the caller's rate limits (§10 of `10-api.md`), so recording them
+cannot be turned into an unbounded write path.
 
 **Sensitive reads are recorded.** Reading a secret config field, downloading a backup, attaching to
 another tenant's console under operator authority (§7 of `08-identity.md`), these are events. An
@@ -247,17 +263,26 @@ be a different way of taxing trust.
 
 ## 7. Open questions
 
-1. **Metering resolution.** Per-minute intervals are ~525,000 rows per workload per year; per-hour
-   is 8,760 and loses burst detail that "dedicated vCPU" claims depend on (§5.2 of
+1. **Metering resolution. Resolved here.** Per-minute intervals are ~525,000 rows per workload per
+   year; per-hour is 8,760 and loses burst detail that "dedicated vCPU" claims depend on (§5.2 of
    `05-scheduling.md`). High-resolution recent with automatic rollup is likely, and the rollup must
-   remain gap-honest. → here
+   remain gap-honest.
+
+The interval is per installation, **hourly by default and as fine as one minute**, with the row
+count stated at the moment of choosing it. Totals lose nothing at any interval, because the
+counters are cumulative (§2): an hour is the exact difference of two readings, not an average of
+samples. What a coarse interval loses is shape, so each record also carries the interval's peak
+memory and the CPU time the workload spent throttled, which is the number a dispute about
+"dedicated" capacity actually turns on. Finer shape lives in the workload's `metric` stream, which
+is not billing-grade and does not claim to be.
 2. **Restatement.** A metering bug discovered after invoices are issued needs a correction path
    that is auditable rather than an `UPDATE`. Append-only correction records with an explicit
    supersedes link are the shape; the API for it is unspecified. → here
-3. **Node-local buffering horizon.** How long an agent buffers metering while the control plane is
-   unreachable determines how long an outage can last before revenue data is lost. §4.6 of
-   `02-architecture.md` guarantees workloads keep running; it does not yet guarantee they keep
-   being measured. → `02-architecture.md`
+3. **Node-local buffering horizon. Resolved in §4.10 of `02-architecture.md`**: the node journal,
+   a declared bound (2 GiB by default), and a horizon each node measures and reports. How long an
+   agent buffers metering while the control plane is unreachable determines how long an outage can
+   last before revenue data is lost. §4.6 of `02-architecture.md` guarantees workloads keep running;
+   it did not yet guarantee they keep being measured.
 4. **Trace propagation.** Following a request across declared dependencies (§5 of
    `07-networking.md`) requires injecting context into tenant traffic, which is intrusive and
    possibly not Korpis' place. Carried from §9 of `14-streams.md`. → here

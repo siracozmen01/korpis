@@ -77,12 +77,23 @@ Three tiers, read as one merged view:
 |---|---|---|---|
 | node ring buffer | seconds to minutes | sub-millisecond | live attach, fan-out to readers |
 | node segment files | the retention window | milliseconds | scrollback, replay, search |
-| offload target | beyond the window, if configured | seconds | long-term evidence, object storage |
+| offload target | sealed segments, and beyond the window | seconds | survives the node, long-term evidence |
 
-The agent owns all three. The control plane is not in the data path, a hundred consoles attached to
-a hundred workloads on ten nodes is ten agents fanning out locally, not a hundred streams through
-the control plane. Readers are directed to the node with a short-lived scoped token, the same
-pattern as file transfer (§8 of `11-surface-web.md`).
+The agent owns all three. The control plane is not in the data path: a hundred consoles attached to
+a hundred workloads on ten nodes is ten agents fanning out locally, joined to their readers by
+stateless relays (§3.1 of `02-architecture.md`), not a hundred streams through the control plane.
+A reader holds a short-lived capability token naming the stream, which the relay and the agent
+both verify, the same pattern as file transfer (§8 of `11-surface-web.md`).
+
+> Second external review, finding S19. Recorded in §17 of `23-walkthroughs.md`. This section said
+> readers were "directed to the node", which under §3 of `02-architecture.md` has no inbound port.
+> The relay is what makes "not through the control plane" and "the node dials out" true at once.
+
+**Offload is on by default wherever an offload target exists, and segments are offloaded as they
+seal, not when they age out.** A node that dies takes with it only the segment still being
+written. Where no target is configured (a single machine with no object storage), the interface
+says how much of each stream exists only on its node, because §3.6 of `01-model.md` promises
+durability per failure and this is the failure it does not cover.
 
 **A stream is part of the workload's durable state, so it migrates with it.**
 
@@ -192,11 +203,16 @@ product, and because sending an operator to a separate system to find one line i
 
 ## 9. Open questions
 
-1. **Offload ownership.** Whether the agent uploads to the offload target directly (fast, but the
-   node holds object-storage credentials) or via a broker (slower, no node-held credential) is the
-   same trade §7 of `02-architecture.md` resolved for registry pulls with short-lived scoped
-   tokens. The same answer probably applies and has not been verified for this write pattern. →
-   here
+1. **Offload ownership. Resolved here, by the backup mechanism.** Whether the agent uploads to the
+   offload target directly (fast, but the node holds object-storage credentials) or via a broker
+   (slower, no node-held credential) is the same trade §7 of `02-architecture.md` resolved for
+   registry pulls with short-lived scoped tokens.
+
+It is resolved exactly as backup is (§5.5 of `06-storage.md`): the node receives, per offload job,
+a short-lived credential that can write new objects under that workload's stream prefix and nothing
+else, and segments are encrypted with the workload's data key before they leave the node. A target
+that cannot issue such a credential is written through a relay, which holds the credential instead.
+The node never holds a credential that reaches another workload's data.
 2. **Multi-line and interleaving.** A Java stack trace is one event across forty records, and
    stdout and stderr interleave non-deterministically. Whether Korpis attempts reassembly, and
    risks being wrong, or presents raw records and lets consumers decide, is unsettled. Leaning

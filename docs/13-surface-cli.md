@@ -87,7 +87,8 @@ placement decisions, `Explanation`s, quota effects, and estimated unavailability
 Plan pl_3c81 · 3 changes
 
   ~ mc-survival        memory 4Gi → 6Gi          restart required, ~40s, 14 players connected
-  + mc-creative        create on node fra-3      fra-3: most free memory after packing (see: korpis explain pl_3c81 mc-creative)
+  + mc-creative        create on node fra-3      fra-3: most free memory after packing
+                                                 (see: korpis explain pl_3c81 mc-creative)
   - mc-testing         delete                    volume "world" 12Gi will be RETAINED
                                                  (pass --delete-volumes to remove)
 
@@ -206,14 +207,16 @@ cannot become a name-disclosure oracle.
 korpis console mc-survival           attach to the durable stream; scrollback, seek, replay
 korpis logs mc-survival --since 1h   read without attaching
 korpis exec mc-survival -- /bin/sh   a session, subject to the runtime's isolation tier
-korpis files sync./world w:mc-survival/world    delta transfer, direct to node
+korpis files sync ./world w:mc-survival/world   delta transfer, through a relay
 korpis forward mc-survival:25565     local port through the overlay, no public exposure
 korpis watch -f servers/             stream plans and effects as they occur
 ```
 
-`files sync` transfers directly to the node with a short-lived scoped token rather than through the
+`files sync` transfers through a relay with a short-lived scoped token rather than through the
 control plane, for the same reason web upload does (§8 of `11-surface-web.md`): a 40 GB world
-should not traverse the control plane, and the control plane should not be a data path.
+should not traverse the control plane, and the control plane should not be a data path. Where the
+node advertises a direct endpoint the CLI uses it, because the CLI pins the Korpis CA; the relay
+path always works (§3.1 of `02-architecture.md`).
 
 `exec` is not universally available and does not pretend to be. §4.3 of `04-runtimes.md` forbids
 the driver interface from assuming a shared filesystem or a POSIX process model, so `exec` exists

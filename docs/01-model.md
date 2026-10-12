@@ -10,7 +10,7 @@ Pterodactyl's central noun is `Server`, and `Server` means *a game server*. Ever
 permission, and UI screen is built around that word. The reason no fork has been able to make
 Pterodactyl general-purpose is not that nobody tried; it is that the vocabulary does not permit it.
 
-Nineteen documents follow this one. If the nouns here are wrong, all nineteen are wrong.
+Twenty-two documents follow this one. If the nouns here are wrong, all of them are wrong.
 
 ---
 
@@ -86,12 +86,14 @@ Organization
   id            OrgID          immutable, never reused
   name          string         mutable, unique within parent
   parent        OrgID?         null for a root organization
-  quota         Quota          resources this org may consume, ≤ parent's remaining
+  quota         QuotaSet       what this org may consume (§5.1 of `05-scheduling.md`)
   created       Timestamp
 ```
 
 **Invariants**
-- An organization's quota can never exceed its parent's unallocated remainder.
+- An organization's **reservations** can never exceed its parent's unallocated reservations. Its
+  **limits** may exceed the parent's by the overcommit ratio the parent has enabled for each
+  dimension (§5.1 of `05-scheduling.md`).
 - The tree has no cycles.
 - Deleting an organization requires its subtree to be empty.
 
@@ -108,7 +110,7 @@ Project
   id            ProjectID      immutable
   org           OrgID
   name          string         mutable, unique within org
-  quota         Quota?         optional sub-limit within the org's quota
+  quota         QuotaSet?      optional sub-limit within the org's quota
   labels        map[str]str
 ```
 
@@ -119,13 +121,19 @@ projects; a moderator can hold authority over one and not the other.
 
 > An enforced upper bound on resource consumption, inherited down the tenancy tree.
 
+> Second external review, findings S16 and S78. Recorded in §17 of `23-walkthroughs.md`. The flat
+> struct below was replaced by `QuotaSet` in §5.1 of `05-scheduling.md` (selector-scoped entries,
+> each with reservations and limits), and this section did not say so; its invariants still forbade
+> the overselling that §5.1 exists to allow. The struct is kept visible as the dimension list. The
+> shape that holds it is `QuotaSet`.
+
 ```
-Quota
+Quota dimensions
   cpu           millicores
   memory        bytes
   disk          bytes
-  disk_iops     ops/sec
-  egress        bytes/month
+  disk_io       bytes/sec and ops/sec, as limits (§5.2 of `05-scheduling.md`)
+  egress        bytes per metering period
   bandwidth     bits/sec
   workloads     count
   volumes       count
@@ -133,9 +141,21 @@ Quota
 ```
 
 **Invariants**
-- Every dimension is enforced by the kernel at the node and metered (Rule K-3, P4). A dimension
-  that cannot be enforced is not added to this struct.
-- Sum of children's quotas ≤ parent's quota. Allocation is checked at grant time, not at use time.
+- **Every dimension is enforced, by the component that can enforce it, and metered** (Rule K-3,
+  P4). Per-workload resource dimensions are enforced by the kernel at the node, in the write path or
+  the scheduler of the resource itself. Aggregate dimensions (an organization's total memory across
+  fifty nodes) and count dimensions (how many workloads) cannot be enforced by any one kernel; they
+  are enforced at admission, in the same transaction that would exceed them (§5.1 of
+  `05-scheduling.md`). The first version said every dimension was enforced "by the kernel at the
+  node", which no count could satisfy. A dimension that nothing can enforce is still not added.
+- **`egress` is enforced by shaping, decided centrally and applied locally.** The control plane
+  computes consumption against the period's budget from metering (§2 of `15-observability.md`);
+  when a budget is exhausted it sets the workload's egress state in its assignment, and the agent
+  applies the shaping the quota entry declares for that state (a floor rate, not a cut-off, unless
+  the entry says otherwise). Who evaluates, where, and with what information: the control plane,
+  from metered bytes; the kernel, from a rate.
+- Reservations sum against the parent and are never oversubscribed; limits may exceed the parent's
+  by a declared ratio. Admission holds what it checks, at admission time, not at use time.
 
 > Named `Quota`, deliberately not `Plan`, `Plan` is taken by §3.3 and the collision would be
 > constant. A commercial "plan" is a billing concept and lives in the billing system (Rule K-12).
@@ -172,7 +192,7 @@ carry authority, and losing the role removes the authority with no deprovisionin
 Grant
   id            GrantID
   subject       Subject
-  actions       []Action        e.g. workload.start, volume.read, console.write
+  actions       []Action        e.g. workload.start, workload.console.write, backup.read
   scope         Scope           Organization | Project | Workload | Volume | Endpoint | ...
   conditions    Conditions
   parent        GrantID?        the grant this was attenuated from; null only for root
@@ -275,7 +295,10 @@ Workload
   project       ProjectID
   name          string         mutable, unique within project
   labels        map[str]str
-  intent        IntentID       the current declared state
+  intent        IntentID       the newest declared intent, the head of the chain
+  target        IntentID?      the approved intent the system converges toward; null until the
+                               first plan is approved
+  power         Power          the current power declaration (below)
   observation   ObservationID? the most recent observed state, null if never observed
   created       Timestamp
   deleted_at    Timestamp?     soft; the id is retained forever
@@ -285,6 +308,16 @@ Workload
 - `id` is never reused, even after deletion. Logs, backups, grants, and metering records outlive
   the workload and must never be reattributed to a different one.
 - `name` is a label for humans and may be changed or reused. Nothing references a workload by name.
+- **`intent` and `target` are different pointers, and only `target` reaches a node.** Declaring an
+  intent moves `intent`. Approving the plan for it moves `target`, and only then does the change
+  enter the workload's assignment (§4.8 of `02-architecture.md`). While they differ, the workload is
+  awaiting approval or scheduled, and nothing on any node has changed.
+
+> Second external review, finding S3. Recorded in §17 of `23-walkthroughs.md`. The first version had
+> one pointer, `intent`, which the compare-and-swap of §3.2 of `03-state.md` moved at declaration,
+> before any plan was approved. The protocol published "the current intent", so a node could
+> converge toward a change nobody had approved, which bypassed P5 and `requires_approval_by`, and a
+> scheduled change ("approve now, apply in a window") had nowhere to wait.
 
 #### Intent
 
@@ -311,6 +344,8 @@ Intent
   health        HealthSpec
   config        map[str]Value  validated against the recipe's schema (Rule K-17)
   placement     PlacementSpec  constraints, affinities, preferred region
+  continuity    ContinuitySpec on_lease_expiry: derived | keep_running | stop
+                               (§4.5 of 02-architecture.md); derived when unset
 ```
 
 **Invariants**
@@ -341,6 +376,7 @@ between 41 and 42 may be that one is stopped. And the retention problem of open 
 Power
   workload      WorkloadID
   desired       running | stopped
+  cycle         int            incremented to request one restart; performed once per value
   version       int            monotonic, its own sequence
   set_by        Subject
   set_at        Timestamp
@@ -348,7 +384,9 @@ Power
 
 Power is versioned, attributed, and reconciled exactly like everything else, so nothing about P2 or
 P5 changes: stopping a workload still produces a `Plan` and an `Effect`, and still names the grant
-that authorized it. What changes is that it does not produce an `Intent`.
+that authorized it. What changes is that it does not produce an `Intent`. It reaches the node in
+the workload's assignment (§4.8 of `02-architecture.md`), and a restart is a higher `cycle`, which
+the agent performs once and records (§4.1 of `02-architecture.md`).
 
 The test of the split is P9's promise. Re-declaring intent 41 now restores a configuration and says
 nothing about whether the workload should be running, which is what a rollback should mean.
@@ -364,9 +402,13 @@ Observation
   workload      WorkloadID
   node          NodeID
   observed_at   Timestamp
-  intent_seen   IntentID       which intent the agent believes it is converging toward
+  assignment_seen  int         the assignment generation the agent has applied
+  intent_seen   IntentID       the target intent the agent has converged to
+  power_seen    {version, cycle}  the power declaration and restart cycle it has performed
+  plan_progress {plan, step}?  the last plan step it completed, while one is assigned
 
-  state         running | stopped | starting | stopping | crashed | unknown
+  state         running | stopped | starting | stopping | crashed | unsatisfiable | unknown
+  reason        string?        for unsatisfiable: the structured reason (§7 of 05-scheduling.md)
   health        healthy | unhealthy | unknown
   exit_code     int?
   runtime_id    string         container/VM id on the node
@@ -383,42 +425,67 @@ Observation
   (P1).
 - When the agent is unreachable, `state` is `unknown`. Korpis never reports a remembered value as a
   current one (P4).
-- `intent_seen` makes convergence lag visible: if it trails `Workload.intent`, the workload has not
-  caught up yet, and the UI can say so precisely.
+- The `*_seen` fields make convergence lag visible: if any trails the assignment, the workload has
+  not caught up yet, and the UI can say so precisely (§4.3 of `02-architecture.md`).
+- **An observation reports only what the node can know.** Whether a plan has failed, been
+  cancelled, or is waiting for approval is a fact about the plan, held by the control plane, and
+  never appears as an observed state.
 
 #### Plan
 
-> The computed difference between an intent and reality, persisted, inspectable, approvable.
+> The computed difference between a declaration and reality, persisted, inspectable, approvable.
 
 ```
 Plan
   id            PlanID
   workload      WorkloadID
-  from_intent   IntentID?      current
-  to_intent     IntentID       proposed
+  kind          intent | power | retire | migrate
+  operation     OperationID?   the parent, when generated by an Operation (§3 of 05-scheduling.md)
+  from_intent   IntentID?      Workload.target when computed
+  to_intent     IntentID?      required iff kind = intent
+  to_power      PowerVersion?  required iff kind = power
   computed_at   Timestamp
   computed_by   Subject
 
   steps         []Step
   impact        Impact         disruptive?, downtime estimate, data at risk, cost delta
-  status        proposed | approved | rejected | applying | applied | failed | expired | superseded
+  status        proposed | approved | queued | applying | applied
+                | failed | cancelled | rejected | expired | superseded
+  completed     int?           the last step whose completion effect has been ingested
+  apply_after   Timestamp?     approved now, applied in a window
   expires_at    Timestamp
   approved_by   Subject?
   approved_at   Timestamp?
 
 Step
+  index         int
   action        create_volume | pull_recipe | stop | migrate | reconfigure_network | ...
+  executor      control_plane | node | extension    (§4.9 of 02-architecture.md)
   target        object reference
   reversible    bool
+  disruptive    bool           resolved through the override chain below, never inferred
   detail        map[str]Value
 ```
 
+> Second external review, findings S1, S2, S4, and S16. A plan with no intent change (a stop, a
+> deletion, a migration of an unchanged workload) had no valid `to_intent`, because the field was
+> required, and its steps had no unique key, because the key was built from the intent version.
+> `kind` and an optional `to_intent` give those plans a shape, and steps are keyed by
+> `(plan.id, index)` (§4.7 of `02-architecture.md`). The status list now includes the two states
+> §7 of `03-state.md` already used and the model did not name: `queued` and `cancelled`.
+
 **Invariants**
-- Every change to a workload's **declared** state passes through a `Plan`. There is no code path
-  that produces a new `Intent` without producing one (P5).
+- Every change to a workload's **declared** state passes through a `Plan`: a new intent, a power
+  change, a retirement, a migration. There is no code path that changes what a node is assigned
+  without one (P5).
 - A plan is computed against a specific `from_intent`. If reality moves underneath it, the plan is
   marked `superseded` and must be recomputed, a plan can never be applied against a state it was
   not computed for.
+- Only a plan for the head intent is approvable. Declaring a newer intent supersedes every
+  unapproved plan for an older one.
+- **A failed or cancelled plan is resumable from `completed`.** Its completed steps' resources are
+  retained and named (§3.1 of `05-scheduling.md`), and the next plan for the workload is computed
+  against that state rather than against an assumption about it.
 - Plans expire. A stale plan is not an approvable plan.
 - A plan containing a step marked `reversible: false`, deleting a volume, releasing an IP, always
   requires explicit approval. A plan whose steps are all non-disruptive is auto-approved by default
@@ -440,7 +507,7 @@ So the classification has one source and one override chain, both in the Plan an
 |---|---|---|
 | the action vocabulary | a floor: `delete_volume` is disruptive and irreversible, always | nothing, this cannot be relaxed |
 | the driver | how a tier changes it: `stop` on a `vm` costs a boot, on a `process` it does not | the floor, upward only |
-| the recipe | what this software costs to interrupt (§5 of `09-recipes.md`) | the driver, upward only |
+| the recipe | what this software costs to interrupt (`disruption` in §5 of `09-recipes.md`) | the driver, upward only |
 | the operator, per workload | a deliberate override, recorded | everything, and it is an `Effect` |
 
 Every layer may only make a step **more** disruptive than the layer beneath it, never less. That
@@ -473,11 +540,16 @@ Converging toward an approved intent is not a new decision. It is the execution 
 already made and already audited. It still emits `Effect`s (every restart, recreate, and repair is
 recorded) but it does not require a new plan, because nobody is choosing anything.
 
-This is also what keeps the interactive path fast. Pressing Start changes `state: stopped →
-running`, which is an intent change, so it produces a plan. But that plan's steps are
-non-disruptive, so default policy auto-approves and applies it in the same call. The user
-experiences one click; the system still has a complete Intent → Plan → Effect record. The plan
-object is not a round trip, it is a receipt.
+This is also what keeps the interactive path fast. Pressing Start declares a new `Power` version
+with `desired: running`, which is a declaration, so it produces a plan of kind `power`. That plan's
+steps are non-disruptive, so default policy auto-approves and applies it in the same call. The user
+experiences one click; the system still has a complete declaration → Plan → Effect record, and the
+intent chain is untouched, which is what finding R7 was for. The plan object is not a round trip,
+it is a receipt.
+
+> Second external review, finding S2. This paragraph said that pressing Start changes
+> `state: stopped → running`, "which is an intent change", fifty lines after R7 had moved power out
+> of the intent precisely so that it would not be one.
 
 This single object is Bet 3, and it produces as consequences: dry-run (compute the plan, do not
 apply it), approval workflow (`requires_approval_by` on a grant), scheduled change (approve now,
@@ -501,7 +573,10 @@ Effect
   node          NodeID?
   actor         Subject
   grant         GrantID?       the grant that authorized it
-  at            Timestamp
+  at            Timestamp      when the control plane ingested it, the only ordering clock
+  occurred_at   Timestamp?     the originating node's reading, informational (§4 of 03-state.md)
+  origin        {node, seq}?   for node-originated effects, the journal position (§4.10 of
+                               02-architecture.md); the pair is unique
   action        string
   outcome       succeeded | failed | skipped | rolled_back
   error         Error?
@@ -513,6 +588,9 @@ Effect
 - Append-only. Never updated, never deleted. Retention is by archival, not mutation.
 - Every effect names the **grant** that authorized it, not merely the actor. "Who did this" is
   answerable; so is "under what authority, delegated from whom".
+- An effect of a control-plane decision commits in the same transaction as the decision. An effect
+  of something that happened on a node is ingested exactly once, in its journal order, in the same
+  transaction as the state it explains (§4.10 of `02-architecture.md`).
 
 Audit is not a separate subsystem writing a parallel log that can drift from reality. The effect
 stream *is* the record of what happened.
@@ -660,15 +738,22 @@ Endpoint
   id            EndpointID
   workload      WorkloadID
   name          string           "game", "rcon", "http", "query"
-  protocol      tcp | udp | http | https
+  protocol      tcp | udp | http | https | quic
   container_port  int
-  exposure      node_port | ingress | overlay_only | dedicated_ip
+  exposure      node_port | node_bound | stable | ingress | dedicated_ip | overlay_only | none
   address       Address?         assigned; shape depends on exposure
+  client_address  preserved | translated   how the workload sees the client
+                                 (§3.4 of 07-networking.md)
   domains       []Domain         for ingress exposure
   tls           TLSSpec?         certificate source and policy
   policy        NetworkPolicy    ingress/egress rules, rate limits
   accounting    bool             meter traffic on this endpoint
+  shaping       ShapingSpec?     bandwidth limits (§7 of 07-networking.md)
 ```
+
+> Second external review, finding S16. The first version of this struct had no `stable`, which is
+> the exposure mode `07-networking.md` is built around, no `none`, no `quic`, and no `shaping`.
+> `07-networking.md` §2 is the detail; this is the list, and the two now agree.
 
 Pterodactyl's `Allocation` is a bare `(ip, port)` row on a node, which is why it has no ingress, no
 TLS, no service discovery, no egress control, and no traffic accounting, and why the allocation
@@ -699,6 +784,15 @@ Stream
 - A stream can be shared by grant: a bounded time range, read-only, to a subject who has no other
   authority. Attaching a crash log to a support ticket is a grant, not a copy-paste.
 - Streams outlive the workload. A crashed workload's final output is still there after it is gone.
+- **Durability is stated per failure, not in general.** A stream survives the workload crashing, the
+  agent restarting, and the workload migrating (§4 of `14-streams.md`). It survives the **node**
+  being lost only for segments already offloaded, so offload is on by default wherever an offload
+  target exists, and the interface shows how much of a stream is held only on its node.
+
+> Second external review, finding S12. Recorded in §17 of `23-walkthroughs.md`. The first version
+> said streams were durable and outlived the workload without qualification, while §4 of
+> `14-streams.md` kept segments on the node and offloaded them only "if configured". A node that
+> died took its unoffloaded segments with it, and the invariant claimed otherwise.
 
 Detail in `14-streams.md`.
 
@@ -763,10 +857,12 @@ Subject ──▶ Grant ──▶ Grant ──▶ …        (attenuation chain;
 
 Two loops define the system:
 
-**The convergence loop.** `Intent` is declared → the control plane computes a `Plan` → the plan is
-approved → the agent applies it and emits `Effect`s → the agent reports `Observation` → the control
-plane compares observation against intent → if they differ, a new plan. The loop never stops, and
-nothing outside it changes durable state.
+**The convergence loop.** An `Intent` or a `Power` change is declared → the control plane computes a
+`Plan` → the plan is approved and `Workload.target` moves → the workload's assignment changes → the
+agent converges to it, executing any node steps, and journals `Effect`s → the agent reports
+`Observation` → the control plane compares observation against assignment → drift is corrected
+toward the approved target without a new plan, and a new declaration starts the loop again. The
+loop never stops, and nothing outside it changes durable state.
 
 **The authority chain.** Every `Effect` names the `Grant` that permitted it. Every `Grant` names
 its parent. Follow the chain from any action taken in the system to a root grant, and you have the
@@ -805,31 +901,40 @@ complete answer to *who allowed this, and who allowed them*.
 
 ## 7. Open questions
 
-Recorded rather than resolved. Each is settled in the document named.
+Recorded rather than resolved, and each settled in the document named. All eight are now resolved.
+They are kept as they were asked, with the answer and its location in front, because the question
+is the record of what this model did not originally say.
 
-1. **Does `Plan` cover multi-workload changes?** Draining a node touches many workloads. Is that
-   one plan with many targets, or many plans under a parent operation? → `05-scheduling.md`
-2. **What is the storage engine for `Effect`?** Postgres append-only table, or a separate log with
-   Postgres as projection? The answer determines whether cheap time-travel is available. Note that
-   an earlier design proposal built the job queue on `LISTEN/NOTIFY` and `SKIP LOCKED` while also
-   claiming to keep a SQLite path open, those are contradictory and the contradiction must be
-   resolved here, not deferred. → `03-state.md`
-3. **Can a `Grant` name a set of workloads by label selector**, or only by explicit ID? Selectors
-   are far more useful and considerably harder to reason about when the set changes after issue. →
-   `08-identity.md`
-4. **Where do `task` and `scheduled` workloads keep their run history?** A `scheduled` workload
-   produces many runs. Are runs workloads, or a separate `Run` object? → `05-scheduling.md`
-5. **Does `Quota` allow overcommit?** Hosting providers depend on it. Which dimensions may be
-   oversubscribed, and what happens under contention? → `05-scheduling.md`
-6. **How are `Observation`s retained?** Every observation forever is unaffordable; only the latest
-   loses the history that makes incidents explicable. → `15-observability.md`
-7. **Can a `Quota` be scoped to a label selector?** As written, `Quota` is a flat resource bound
-   per organization. A hosting provider sells "4 GB in the EU", capacity in one region is not
-   interchangeable with capacity in another, so a single global bound cannot express what is
-   actually being sold. Either `Quota` gains a selector dimension, or an organization holds a set
-   of selector-scoped quotas. This is a real gap in the model, not a detail. → `05-scheduling.md`
-8. **How does one workload address another?** The model gives a workload `Endpoint`s and an
-   `overlay_only` exposure, but no name resolution. A web service needs to reach its database
-   without either knowing the other's placement or hard-coding an IP that changes on migration.
-   This requires either service discovery as a core concern or an explicit dependency declaration
-   on `Intent`. Nothing in the current model provides it. → `07-networking.md`
+1. **Does `Plan` cover multi-workload changes? Resolved in §3 of `05-scheduling.md`**: a `Plan`
+   covers one workload, and an `Operation` owns many. Draining a node touches many workloads. Is
+   that one plan with many targets, or many plans under a parent operation?
+2. **What is the storage engine for `Effect`? Resolved in §1 and §4 of `03-state.md`**: an
+   append-only, time-partitioned PostgreSQL table, without event sourcing. Postgres append-only
+   table, or a separate log with Postgres as projection? The answer determines whether cheap
+   time-travel is available. Note that an earlier design proposal built the job queue on
+   `LISTEN/NOTIFY` and `SKIP LOCKED` while also claiming to keep a SQLite path open, those are
+   contradictory and the contradiction must be resolved here, not deferred.
+3. **Can a `Grant` name a set of workloads by label selector, or only by explicit ID? Resolved in
+   §3.4 of `08-identity.md`**: yes, always bounded by an explicit container, with membership
+   materialized. Selectors are far more useful and considerably harder to reason about when the
+   set changes after issue.
+4. **Where do `task` and `scheduled` workloads keep their run history? Resolved in §4 of
+   `05-scheduling.md`**: a separate `Run` object. A `scheduled` workload produces many runs. Are
+   runs workloads, or a separate `Run` object?
+5. **Does `Quota` allow overcommit? Resolved in §5 of `05-scheduling.md`**: limits may exceed the
+   parent's by a declared per-dimension ratio; reservations never do; memory overcommit is off by
+   default. Hosting providers depend on it. Which dimensions may be oversubscribed, and what happens
+   under contention?
+6. **How are `Observation`s retained? Resolved in §5 of `03-state.md`**: the latest in place,
+   history downsampled in the telemetry path, and state transitions promoted into the effect log.
+   This was routed to `15-observability.md`, which never carried it (finding S18). Every observation
+   forever is unaffordable; only the latest loses the history that makes incidents explicable.
+7. **Can a `Quota` be scoped to a label selector? Resolved in §5.1 of `05-scheduling.md`**:
+   `QuotaSet`, a set of selector-scoped entries, every matching one enforced. As written, `Quota`
+   was a flat resource bound per organization. A hosting provider sells "4 GB in the EU", capacity
+   in one region is not interchangeable with capacity in another, so a single global bound cannot
+   express what is actually being sold.
+8. **How does one workload address another? Resolved in §5 of `07-networking.md`**. The model gave a
+   workload `Endpoint`s and an `overlay_only` exposure, but no name resolution. A web service needs
+   to reach its database without either knowing the other's placement or hard-coding an IP that
+   changes on migration.

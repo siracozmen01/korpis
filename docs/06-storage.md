@@ -49,8 +49,20 @@ StorageClass
     reflink_copy        bool     instant copy-on-write clone
     compression         bool
     encryption_at_rest  bool
-    shared_access       bool     mountable from more than one node
+    shared_access       bool     mountable from more than one node at once
+    multi_node_attach   bool     attachable from a different node after the first detaches
+    fencing             none | lease_only | storage_enforced
+                                 whether the backend itself can refuse a superseded writer
 ```
+
+`multi_node_attach` is the property that decides lease behaviour, not `shared_access`. A
+single-attach Ceph RBD image or iSCSI LUN is never mounted twice at once, but after a reschedule a
+second node can attach it, and that is the case in which two writers become possible. Any class
+with `multi_node_attach` makes `stop` the derived `on_expiry` default for workloads that use it
+(§4.5 of `02-architecture.md`). `fencing: storage_enforced` means the backend refuses the old
+writer itself (SCSI-3 persistent reservations, a Ceph exclusive lock with blocklisting, an NFSv4
+lease) and the lease epoch is applied there too; `lease_only` means the agents' lease discipline is
+the only protection, and the class says so.
 
 | Backend | snapshot | incremental send | quota | thin | reflink | Verdict |
 |---|---|---|---|---|---|---|
@@ -347,10 +359,17 @@ provisioned ──▶ attached ⇄ detached ──▶ orphaned ──▶ deleted
 - **Orphans are listed, never auto-collected.** Same reasoning as orphaned runtime objects (§4.4 of
   `02-architecture.md`): "the control plane forgot about this" and "this should be deleted" are
   indistinguishable from the node's point of view, and one of them destroys customer data.
-- **`shared_access` volumes carry the `on_expiry: stop` lease policy by default** (§4.5 of
-  `02-architecture.md`). Two nodes writing to one network volume is corruption, so a workload on
-  shared storage must stop when its lease cannot be renewed. Local volumes default to
-  `keep_running`, because nothing else can reach that disk.
+- **Volumes in a `multi_node_attach` class make `on_expiry: stop` the derived default** for the
+  workloads that use them (§4.5 of `02-architecture.md`). Two nodes writing to one network volume
+  is corruption, so a workload on such storage must stop when its lease cannot be renewed. Local
+  volumes leave the default at `keep_running`, because nothing else can reach that disk.
+
+> Second external review, finding S8. Recorded in §17 of `23-walkthroughs.md`. This rule keyed the
+> default on `shared_access`, "mountable from more than one node". The hazard is broader: a
+> single-attach network volume is not shared, and it is still attachable by the node a workload is
+> rescheduled to, which is exactly when the old node may still be writing. `multi_node_attach`
+> names that property, and the rule is now the same here, in §4.5 of `02-architecture.md`, and in
+> §8 of `03-state.md`.
 
 ---
 

@@ -811,3 +811,38 @@ The reviewer flagged three findings as unverifiable because they could not read
 correct, §5 did specify no caching design at all; R11 was correct; R18 was half correct as above.
 
 ---
+
+## 17. A second external review, and what it found
+
+In October 2026 the specification was read a third way. Claude, the model this repository says it
+was written with, read all twenty-four documents in a session with the maintainer: four readings
+partitioned by subsystem, each asked for contradictions, algebra defects, unowned steps, broken
+cross-references, and evidence errors, followed by a direct reading of the core documents. Every
+finding ranked high was then checked against the files themselves, and every claim about another
+project against its primary source (the GitHub advisory and issue APIs, and runc's source). Nothing
+below is recorded on a reviewer's word alone.
+
+It found seventy-nine things. The table records each with its verdict and where it was patched.
+
+| # | Finding | Verdict | Patched into |
+|---|---|---|---|
+| S1 | Plans had no carrier in the agent protocol; `plan.cancel` and the migration phases were imperative messages the protocol did not contain | **real** | `02-architecture.md` §4.8, §4.9; `03-state.md` §7; `05-scheduling.md` §8 |
+| S2 | R7 was applied to one paragraph: Start was still "an intent change", restart used a field that no longer existed, and nothing carried `Power` to a node | **real** | `01-model.md` §3.3; `02-architecture.md` §4.1, §4.8 |
+| S3 | `Workload.intent` moved at declaration, so nodes converged toward changes nobody had approved | **real, bypassed P5** | `01-model.md` §3.3; `03-state.md` §3.2; `02-architecture.md` §4.3, §4.8 |
+| S4 | The step key `(workload, intent_version, step)` collided for every plan without a new intent; failed plans were "fresh" in one document and resumable in two others | **real** | `02-architecture.md` §4.7, §9; `03-state.md` §6 |
+| S5 | Deleting a workload had no mechanism distinguishable from forgetting it | real | `02-architecture.md` §4.8 |
+| S6 | Node-originated effects had no journal, acknowledgement, or deduplication, and the same-transaction claim was made for events on other machines | **real** | `02-architecture.md` §4.10; `03-state.md` §1, §4; `01-model.md` §3.3 |
+| S7 | Lease exclusivity depended on an edge-triggered revoke arriving and on node clocks | **real** | `02-architecture.md` §4.5; `05-scheduling.md` §8 |
+| S8 | A fenced agent kept running, stopped, and stopped, in three places; the `on_expiry` default was global in two documents and "wrong" in a third; no field existed | **real** | `02-architecture.md` §4.5; `01-model.md` §3.3; `06-storage.md` §2, §7; `03-state.md` §8; `18-operations.md` §5 |
+| S9 | Restore still used the pre-R11 epoch arithmetic in one document, and nothing fenced intent versions, so a restore rolled configuration back silently and reissued version numbers | **real** | `03-state.md` §8; `18-operations.md` §6 |
+| S10 | Grant-cache invalidation rode a queue that delivers each job to one worker, and re-introduced the subtree walk R4 removed | **real** | `02-architecture.md` §5.1 |
+| S11 | Metering was outside PostgreSQL in one document and inside it in another; "append-only" and "overwrites"; "approximately zero" load | real | `03-state.md` §2, §5, §9; `15-observability.md` §2, §7 |
+| S12 | Streams were promised to outlive the node without offload being on | real | `01-model.md` §3.6; `14-streams.md` §4 |
+| S13 | The scheduler called `Prepare` on candidate nodes through a channel that did not exist | **real** | `05-scheduling.md` §2.1; `02-architecture.md` §4.2 |
+| S14 | No action for approving a plan, declaring configuration, exec, or reading a secret | real | `10-api.md` §5 |
+| S15 | Recorded denials were an unbounded, unmetered write path | real | `10-api.md` §10; `15-observability.md` §4 |
+| S16 | `01-model.md` had not absorbed later decisions: the flat `Quota`, `Endpoint` without `stable`, plan and observation states | real | `01-model.md` §3.1, §3.3, §3.6 |
+| S18 | Resolved open questions were left open, and questions routed to `15-observability.md` were dropped there | real | `01-model.md` §7; `02-architecture.md` §10; `03-state.md` §10; `05-scheduling.md` §10; `15-observability.md` §7 |
+| S65 | The agent protocol's "N-2" window did not survive an LTS-to-LTS upgrade | real | `10-api.md` §4; `18-operations.md` §4; `19-governance.md` §5 |
+| S78 | The `Quota` invariant said every dimension was kernel-enforced, which no count can be, and nobody owned the monthly egress budget | real | `01-model.md` §3.1 |
+| S79 | One filesystem worker per tenant could not exist (a stopped container has no namespace) and would have authorized sibling access by path | **real** | `02-architecture.md` §6 |

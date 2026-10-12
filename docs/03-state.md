@@ -31,13 +31,28 @@ So event sourcing would pay full price, projections that drift, rebuilds measure
 schema migration, and debugging through an indirection, to buy something the model already has.
 
 **Decision: PostgreSQL is authoritative. Intents are immutable rows, append-only by construction.
-Effects are an append-only table written in the same transaction as the state change they describe.
-No projections, no rebuild, no replay.**
+Effects are an append-only table. No projections, no rebuild, no replay.**
 
-The transactional coupling is the part that matters: a state change and its effect record commit
-together or neither commits. Audit cannot drift from reality, because there is no window in which
-one exists without the other. This is what a separate audit-logging subsystem (the usual design)
-cannot guarantee.
+The transactional coupling is the part that matters, and it has two forms because effects have two
+origins:
+
+- **An effect of a control-plane decision** (a declaration, an approval, a grant issued, a denial)
+  commits in the same transaction as the state change it describes, or neither commits. There is no
+  window in which one exists without the other.
+- **An effect of something that happened on a node** (a restart, a keystroke, a drift correction
+  during an outage) cannot share a transaction with the event, because the event happened on
+  another machine, possibly while it was disconnected. It is written first to the node's durable
+  journal and ingested **exactly once, in journal order**, in the same transaction as the
+  observation or state change it explains (§4.10 of `02-architecture.md`). Where the journal had to
+  drop records, the loss is itself a record.
+
+Audit cannot drift from reality in either case, which is what a separate audit-logging subsystem
+(the usual design) cannot guarantee.
+
+> Second external review, finding S6. Recorded in §17 of `23-walkthroughs.md`. The first version
+> claimed the same-transaction coupling for every effect, which is impossible for the majority that
+> originate on nodes, and nothing in the protocol made their delivery reliable or their ingestion
+> idempotent.
 
 ---
 
@@ -50,9 +65,10 @@ volumes, lifetimes, and consistency requirements.
 |---|---|---|---|---|
 | **Configuration** | Organization, Project, Quota, Grant, Workload, Intent, Plan, Recipe, Volume, Endpoint, Placement, Lease, Extension | small, highly relational | strong, transactional | PostgreSQL |
 | **Audit** | Effect | high, append-only, never updated | strong at write, eventually archived | PostgreSQL, time-partitioned → object storage |
-| **Telemetry** | Observation history, metrics, metering samples | very high, low value per row | best-effort | **not the main database**, see §5 |
+| **Metering** | metering records | moderate, one row per workload per interval | exact, idempotent, gap-marked | PostgreSQL, partitioned, the deliberate exception (§2 of `15-observability.md`) |
+| **Telemetry** | Observation history, metrics | very high, low value per row | best-effort | **not the main database**, see §5 |
 
-The third row is the one that kills systems that get it wrong. A thousand workloads reporting every
+The last row is the one that kills systems that get it wrong. A thousand workloads reporting every
 few seconds is millions of rows a day of data whose individual value approaches zero. Writing that
 into the same database that holds grants and intents means the transactional store is dominated by
 traffic that never needed a transaction.
@@ -148,7 +164,7 @@ cast written into the index rather than discovered from a slow query log.
 Two clients declaring intents for one workload at the same time is normal: a web user and a Discord
 command, or an operator and an autoscaler. Last-write-wins would silently discard one of them.
 
-Every intent creation is a compare-and-swap:
+Every intent creation is a compare-and-swap on the head of the chain:
 
 ```sql
 UPDATE workload
@@ -157,8 +173,25 @@ UPDATE workload
 ```
 
 Zero rows affected means someone else moved first. The loser receives a conflict carrying the
-intent that won, and must recompute its plan against the new base. This is the same rule as §4.1 of
-`02-architecture.md`: a plan can never be applied against a state it was not computed for.
+intent that won, and must recompute its plan against the new base. This is the same rule as §3.3 of
+`01-model.md`: a plan can never be applied against a state it was not computed for.
+
+**Declaring does not change what any node runs. Approving does.** The head (`intent_id`) is what was
+last declared; `target_id` is what was last approved, and only the target enters a node's
+assignment (§4.8 of `02-architecture.md`). Approval is a second compare-and-swap, on the target:
+
+```sql
+UPDATE workload
+   SET target_id = $plan_to_intent, target_version = target_version + 1
+ WHERE id = $workload AND target_version = $expected_target
+   AND intent_id = $plan_to_intent;          -- only the head is approvable
+```
+
+It commits in the same transaction as the plan's move to `approved` (or `queued`, §7) and the
+effect recording who approved it.
+
+> Second external review, finding S3. The first version had only the head pointer, and the protocol
+> published it, so an intent waiting for approval was already on its way to a node.
 
 ### 3.3 Authorization is not in the database
 
@@ -225,9 +258,21 @@ a latency investigation needs, and a large gap between the two is itself a findi
   why: "who did this" and "under what authority, delegated from whom" are different questions, and
   only the second one is useful during an incident.
 - **Effects are written by drift correction too.** Restarts, recreations, and repairs are recorded
-  even though they produce no `Plan` (§4.7 of `02-architecture.md`). The plan log answers "what did
+  even though they produce no `Plan` (§3.3 of `01-model.md`). The plan log answers "what did
   someone decide"; the effect log answers "what actually happened". They are not the same question
   and the system must be able to answer both.
+- **Node-originated effects carry their journal position.** `origin_node` and `origin_seq` record
+  where an effect came from, and a per-node cursor makes ingestion exactly-once without a unique
+  index on the partitioned table, which PostgreSQL could not enforce anyway because a unique
+  constraint on a partitioned table must include the partition key (§4.10 of `02-architecture.md`):
+
+```sql
+  origin_node   uuid,                   -- null for control-plane effects
+  origin_seq    bigint,                 -- the node journal sequence
+
+CREATE TABLE node_journal_cursor (node_id  uuid PRIMARY KEY,
+  ingested_through  bigint NOT NULL);     -- advanced in the ingesting transaction
+```
 
 ---
 
@@ -239,7 +284,11 @@ Observations arrive constantly and are 99% uninteresting. They are split by how 
 current-state cache the UI reads. Overwriting is correct: it is not history, it is "now". History
 lives in the next row of this table.
 
-**Observation history: a separate time-series path.**
+The latest row is written on every state transition, not continuously and not on a timer; its
+currency between transitions comes from the node's heartbeat (§10 of `02-architecture.md`,
+question 6). That is real write load and it is counted in §9 rather than called zero.
+
+**Observation history: a `metric` stream on the node.**
 
 ```
 raw          full fidelity          hours
@@ -248,17 +297,36 @@ raw          full fidelity          hours
 1-hour       downsampled            years
 ```
 
+History is a stream of kind `metric` (§3.6 of `01-model.md`), owned by the agent like every other
+stream. It is written on the node, downsampled there into the tiers above, migrated with the
+workload (§8 of `05-scheduling.md`), offloaded with the workload's other streams (§4 of
+`14-streams.md`), and read through the relay like a console's scrollback. "What was this server
+doing at 3am on Tuesday" is a seek on that stream.
+
+This keeps three promises at once that a separate time-series engine would have broken one of: the
+control plane stays stateless (§8 of `02-architecture.md`), a single machine needs nothing more
+installed (§1 of `18-operations.md`), and history follows the workload rather than the node it
+happened to be on. Operators who want fleet-wide dashboards export metrics in Prometheus and OTLP
+form to whatever they already run (§3 of `15-observability.md`); Korpis is not a monitoring stack.
+
 State transitions (`running → crashed`, `healthy → unhealthy`) are **not** downsampled. They are
 promoted into the effect log, because a crash is an event and belongs in the record that survives.
 Downsampling loses the CPU curve, not the fact that something died.
 
-**Metering: a separate append-only series**, because it is the one telemetry stream with financial
-consequences and must not be downsampled, dropped under pressure, or reconstructed from averages
-(Rule K-12). Detail in `15-observability.md`.
+**Metering is not telemetry, and it is in PostgreSQL.** It is the one measured series with financial
+consequences, so it must not be downsampled, dropped under pressure, or reconstructed from averages
+(Rule K-12). It is stored as one row per workload per metering interval, every resource a column,
+which is low volume and high value, and `15-observability.md` §2 is its detail.
 
-The concrete choice of time-series engine is deferred to `15-observability.md`. What is decided
-here is that it is **not the transactional store**, and that observations never enter a transaction
-with configuration state.
+> Second external review, finding S11. Recorded in §17 of `23-walkthroughs.md`. This section put
+> metering in "a separate append-only series" outside the transactional store, while §1 of
+> `15-observability.md` put it in PostgreSQL as the deliberate exception. The second is right: a
+> number that becomes an invoice needs transactions, idempotent re-delivery, and period closing,
+> and those are the store's properties. The time-series engine this section deferred is not
+> needed at all, for the reasons above.
+
+What is decided here is that observation history is **not in the transactional store**, and that
+observations never enter a transaction with configuration state.
 
 ---
 
@@ -308,9 +376,10 @@ Workers claim with `FOR UPDATE SKIP LOCKED`, wake on `NOTIFY`, and fall back to 
 timer so a missed notification delays a job rather than stranding it, level-triggered, for the same
 reason as §4.1 of `02-architecture.md`.
 
-`key` is `(workload_id, intent_version, step_index)` for plan steps, which makes enqueueing the
-same work twice a no-op and satisfies the idempotency requirement of §4.7 of `02-architecture.md`
-directly rather than by discipline.
+`key` is `(plan_id, step_index)` for plan steps, which makes enqueueing the same work twice a no-op
+and satisfies the idempotency requirement of §4.7 of `02-architecture.md` directly rather than by
+discipline. The key was `(workload_id, intent_version, step_index)` and collided for every plan that
+does not create an intent (finding S4).
 
 No Redis. No NATS. No broker. They are added if and when a measurement demands it, not because the
 architecture diagram looks more serious with them.
@@ -341,22 +410,33 @@ enforced by the store rather than by convention. A plan proposed while another i
 computed and persisted as normal, so it is inspectable, and it enters `queued`.
 
 **A queued plan preempts rather than waits, when it can.** Waiting for a five-step migration to
-finish before honouring a stop button is not acceptable, so `plan.cancel` is part of the agent
-protocol:
+finish before honouring a stop button is not acceptable, so the applying plan can be cancelled, and
+cancelling is a change to desired state rather than a message that must arrive:
 
 ```
-control plane ──plan.cancel(plan_id, at_step_boundary)──▶ agent
-agent finishes the step in flight, does not begin the next
-        ──effect: plan cancelled at step N──▶ control plane
-plan.status = cancelled, workload state = partial, resources named
+control plane: plan.cancel(plan_id)
+  → the plan's NodePlan.through is lowered to the last step already started,
+    in every assignment that carries it (§4.8 of 02-architecture.md)
+  → control-plane and extension steps not yet claimed are withdrawn from the queue
+agent: finishes the step in flight, does not begin the next
+  ──effect: step N completed──▶ control plane
+plan.status = cancelled, plan.completed = N, resources from steps 1..N retained and named
 ```
+
+> Second external review, finding S1. The first version sent `plan.cancel` to the agent as a
+> message, which the agent protocol did not contain and which, being edge-triggered, could be lost
+> exactly when it mattered. Lowering `through` is level-triggered: a lost update is repaired by the
+> next sync like any other. The first version also set "workload state = partial", which is a fact
+> about the plan and was being written into a field only the agent may write; it is now
+> `plan.completed`, held by the control plane, and the interface derives the workload's displayed
+> state from it.
 
 Cancellation lands **on a step boundary**, never inside one, which is what makes it cheap: §3.1 of
 `05-scheduling.md` already requires every step to be ordered, idempotent, and resumable from the
 last completed one, and a cancelled plan is a partial plan the model can already express. The next
 plan is computed against that partial state exactly as it would be against a failed one.
 
-`plan.cancel` is a request, not a command. A step in flight completes, because interrupting a
+Cancellation is a request, not a command. A step in flight completes, because interrupting a
 half-written volume is how a system acquires states nobody declared. The cost is a bounded wait
 equal to one step, which is stated, rather than an unbounded wait equal to one plan, which was the
 alternative nobody had chosen on purpose.
@@ -419,12 +499,61 @@ procedure that stops tenants' workloads. Fencing exists to prevent two authoriti
 workload. A fenced agent already refuses mutations, so killing the processes it is supervising
 prevents no inconsistency that refusing mutations has not already prevented. It only converts a
 control-plane incident into a tenant-visible outage, which is the opposite of what the restore is
-for. `on_expiry: keep_running` is the default for exactly this reason (§4.5 of
-`02-architecture.md`), and `stop` remains available for the workloads whose correctness genuinely
-depends on single ownership of a shared resource.
+for. `on_expiry: keep_running` is therefore the derived default for every workload whose storage no
+other node can attach (§4.5 of `02-architecture.md`), and `stop` remains the default for the
+workloads whose correctness genuinely depends on single ownership of a shared resource.
 
 The system converges from a known state instead of a contested one. Slower than pretending nothing
 happened; correct.
+
+**And restore recovers the declarations it lost, from the nodes that are running them.**
+
+> Second external review, finding S9. Recorded in §17 of `23-walkthroughs.md`.
+
+The two fences above protect authority. They do nothing for **configuration**, and a restore loses
+some. Restore to Tuesday's backup when Thursday's agents are running intents declared on
+Wednesday:
+
+- The store's head for a workload is version 5; its agent is running version 7. A full resync sends
+  version 5, and the workload is silently rolled back to Tuesday's configuration with no Plan and
+  no record, which is P5 and P9 broken by the recovery procedure.
+- The next declaration is numbered 6, a version that already existed with a different body. A
+  label or step key built from the version number would conclude it had already been applied.
+- A workload created on Wednesday has no row at all, so its agent's runtime objects become orphans.
+
+So the settling window that raises the epoch floor does a second job. Every assignment a node holds
+is signed by the control plane that issued it (§4.8 of `02-architecture.md`) and carries the full
+target intent, its owner, and its power state. During the window, each reconnecting agent presents
+its assignments, and for every one whose signature verifies against the control plane's
+assignment-signing keyring:
+
+| The restored store lacks | It records |
+|---|---|
+| the target intent | a **recovered** intent with its original identifier, version, body, and declarer, as signed |
+| the workload | a recovered workload under the signed owner, with that intent as head and target |
+| the power version | the recovered power declaration |
+| the plan the node is executing | a plan in `applying`, marked recovered, whose approval record is lost and says so |
+
+Every recovered row is written with an effect naming the node that presented it and the signature
+that vouched for it, and each workload's version counter is advanced past the highest version any
+node presented, so no version number is ever issued twice. Runtime objects are labelled with intent
+**identifiers**, never versions (§4.4 of `02-architecture.md`), so even a collision that slipped
+through could not make a new declaration look already applied. An assignment whose signature does
+not verify is not recovered; its workload is fenced like any other unaccounted-for authority.
+
+**Lost effects are re-ingested from the nodes, within a stated horizon.** Agents keep acknowledged
+journal records for a retention window after acknowledgement (default seven days, §4.10 of
+`02-architecture.md`). The restored cursor is the backup's, so a reconnecting agent resends
+everything after it and the effect log refills itself, exactly once, in order. A backup older than
+the retention window leaves a gap, and the gap is recorded as one.
+
+**What cannot be recovered, stated plainly.** A declaration that was made after the backup and never
+approved reached no node, so no node can present it; it is lost. Control-plane effects with no node
+counterpart (an approval, a grant issued and never used) between the backup and the failure are
+lost, and the restore writes a single gap record covering that interval so the audit log says what
+it does not know. Grants issued in that interval are already void, because the signing key rotates
+(below). The interval is as long as the backup is old, which is why continuous WAL archiving is the
+documented configuration rather than nightly dumps.
 
 **And restore rotates the signing key, for the same reason.**
 
@@ -468,21 +597,33 @@ known in advance rather than discovered in production.
 | Workloads | 1 – 50,000 | 100,000 |
 | Intents/second | < 10 | 100 |
 | Effects/day | millions | tens of millions |
-| Observations/second | thousands | handled outside the transactional store by design |
+| Observation history | thousands of samples/second | on the nodes, outside the store by design (§5) |
+| Latest-observation writes | one per state transition | proportional to churn, not to workload count |
+| Node heartbeats | one per node per 30 s: about 17/s at 500 nodes | the interval, before the node count |
+| Metering rows | one per workload per interval: about 14/s at 50,000 workloads, hourly | the interval (§2 of `15-observability.md`) |
 
-The load that scales fastest is telemetry, and §5 keeps it out of PostgreSQL entirely. The
-transactional store scales with *decisions*, not with *workloads*, and decisions are made by humans
-and schedulers at human and scheduler rates. A node running two hundred workloads that nobody
-touches generates approximately zero transactional load.
+The load that scales fastest is observation history, and §5 keeps it out of PostgreSQL entirely.
+What remains scales with *decisions* and with three steady streams that are counted here rather than
+rounded to zero: transitions, node heartbeats, and metering. A node running two hundred workloads
+that nobody touches costs the store one heartbeat write per interval and two hundred metering rows
+per metering interval, a few writes a minute.
+
+> Second external review, finding S11. This paragraph said such a node generated "approximately
+> zero transactional load", while the latest observation was being updated in place in PostgreSQL
+> and metering, which `15-observability.md` places in PostgreSQL, grows with workloads times
+> intervals. Both are small. Neither is zero, and a figure someone will measure against should be
+> the real one.
 
 ---
 
 ## 10. Open questions
 
-1. **Which time-series engine?** Embedded (a local columnar store, keeping the single-binary
-   promise) versus external (Prometheus/VictoriaMetrics/TimescaleDB, better tooling, another
-   dependency). This interacts with §5 and with the metering guarantees, since metering must not be
-   lossy. → `15-observability.md`
+1. **Which time-series engine? Resolved in §5: none.** Embedded (a local columnar store, keeping
+   the single-binary promise) versus external (Prometheus/VictoriaMetrics/TimescaleDB, better
+   tooling, another dependency). This interacts with §5 and with the metering guarantees, since
+   metering must not be lossy. It was routed to `15-observability.md`, which never took it up
+   (finding S18). Observation history is a `metric` stream on the node, metering is in PostgreSQL,
+   and fleet dashboards are the operator's own system fed by Prometheus and OTLP export.
 2. **Retention defaults for intents.** Intents are small and are the rollback history, so keeping
    them forever is affordable, until a workload edited by an autoscaler accumulates millions.
    Pruning by age loses old rollback targets; pruning by count loses the oldest. Neither is
@@ -491,10 +632,18 @@ touches generates approximately zero transactional load.
    are the record of what was decided, but they are large and most are auto-approved non-events.
    Possibly: persist plans that required approval or contained irreversible steps, and summarize
    the rest into their effects. → here
-4. **Archive query path.** Detached effect partitions in object storage must stay queryable for
-   incident review and compliance. Is that a Korpis feature, or an exported open format and
-   somebody else's query engine? The second is cheaper and matches "Korpis is not a monitoring
-   stack" (§2 of `00-overview.md`). → `15-observability.md`
+4. **Archive query path. Resolved here.** Detached effect partitions in object storage must stay
+   queryable for incident review and compliance. Is that a Korpis feature, or an exported open
+   format and somebody else's query engine? The second is cheaper and matches "Korpis is not a
+   monitoring stack" (§2 of `00-overview.md`). It was routed to `15-observability.md`, which never
+   took it up (finding S18).
+
+Archived partitions are written as Apache Parquet with a published schema, alongside the day's hash
+chain and its signed root (§4 of `15-observability.md`), so an archive is verifiable without
+Korpis running and queryable by any engine that reads Parquet. Korpis ships `korpis audit verify`,
+which checks a chain against its published roots, and does not ship a query engine. An archive that
+can only be read by the system that wrote it is not evidence; one that any tool can read and anyone
+can verify is.
 5. **Control plane read scaling.** Read replicas serve the dashboards well, but replication lag
    makes a client see its own write disappear, the worst possible UX for an operator who just
    pressed a button. Read-your-writes routing is the standard fix and it needs designing rather

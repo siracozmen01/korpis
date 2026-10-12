@@ -111,7 +111,7 @@ the reason hibernation (§6 of `22-first-party.md`) exists.
 
 ## 3. Enrolling a node
 
-The agent dials out (§4 of `02-architecture.md`), so enrollment opens nothing:
+The agent dials out (§3 of `02-architecture.md`), so enrollment opens nothing:
 
 ```
 korpis node token create --label fra-3 --expires 1h
@@ -137,8 +137,9 @@ its agent upgrade restarts tenant workloads.
 
 Four rules, each of which is a property of the architecture rather than a procedure to remember:
 
-**Control plane first, then agents, one at a time.** The N-2 support window of §4 of `10-api.md`
-means the control plane always speaks the version every deployed agent speaks.
+**Control plane first, then agents, one at a time.** The agent-protocol window of §4 of `10-api.md`
+covers every protocol version shipped by a supported release, every LTS included, so the control
+plane always speaks the version every deployed agent speaks.
 
 **A mixed-version fleet is a supported steady state.** Not a window to rush through. An operator
 who upgrades the control plane on Monday and gets to the last three nodes in a fortnight is
@@ -147,9 +148,10 @@ operating normally, which is what makes cautious upgrading possible for someone 
 **Upgrading an agent does not restart tenant workloads.** This is the single most valuable
 operational property in the design and it is why `Recover` is mandatory rather than optional in §4
 of `04-runtimes.md`. The agent stops, the new binary starts, re-adopts the running workloads by
-their `workload_id` / `intent_version` / `lease_epoch` labels (§4.4 of `02-architecture.md`),
-reconciles, and continues. A game server with forty players on it does not notice that its
-supervisor was replaced.
+their `workload_id` / `intent_id` / `assignment_generation` / `lease_epoch` labels (§4.4 of
+`02-architecture.md`), reconciles, and continues. A game server with forty players on it does not
+notice that its supervisor was replaced. The agent's other executables follow the same rule and
+their own skew rules (§6.2 of `02-architecture.md`).
 
 **Migrations are forward-only, online, and reversible for one version.** No long-held locks, no
 schema change that takes a table offline, and every migration accompanied by the inverse needed to
@@ -227,8 +229,10 @@ machine, the edge is that machine and the question does not arise; the single-ma
 
 **The control plane can be entirely absent and workloads keep running.** §4.6 of
 `02-architecture.md` guarantees it, and it is the reason disaster recovery here is a recovery
-rather than an outage: agents hold their intents and their leases, and a lease's `on_expiry` policy
-is `keep_running` by default.
+rather than an outage: agents hold their assignments and their leases, and a lease's `on_expiry`
+policy is `keep_running` by default for every workload whose storage no other node can attach (the
+derived default of §4.5 of `02-architecture.md`). Workloads on storage another node could attach
+default to `stop`, by design, because for them an unrenewable lease is a reason to stop.
 
 ---
 
@@ -244,9 +248,10 @@ client-side encrypted, restorable to a new volume.
 | Must be backed up | Why |
 |---|---|
 | the Postgres database | all intents, grants, effects, placements |
-| the control plane's grant signing key | grants and capability tokens verify against it |
+| the control plane's grant signing key | grants and capability tokens verify against it; rotated on restore |
+| the assignment-signing keyring | every public key that ever signed an assignment, verify-only, so a restore can recover assignments the store lost (§8 of `03-state.md`) |
 | the node identity certificate | agents' per-node keys are pinned to it, and it is **not** rotated on restore |
-| the `max_issued_epoch` watermark | without it, restore cannot fence safely |
+| the `max_issued_epoch` watermark and the epoch issue-rate cap | the first fence mechanism of §8 of `03-state.md` computes its bound from both |
 
 **The backup lives outside the system it protects.**
 
@@ -273,18 +278,28 @@ reason; the consequence for this section is that a restore ends with agents that
 than with an operator re-enrolling every node by hand in the middle of the incident the restore was
 fixing.
 
-The restore procedure has **two** steps that cannot be skipped, and §8 of `03-state.md` makes both
-mandatory rather than documented. They are the same principle applied to the two kinds of authority
-the control plane hands out: *a restored control plane must invalidate authority it can no longer
-account for.*
+The restore procedure has **three** steps that cannot be skipped, and §8 of `03-state.md` makes all
+three mandatory rather than documented. The first two are the same principle applied to the two
+kinds of authority the control plane hands out: *a restored control plane must invalidate authority
+it can no longer account for.* The third is the same principle applied to configuration: *a
+restored control plane must not silently forget what it had decided.*
 
-> **1. Advance the lease epoch past every epoch it may have issued before the backup was taken.**
+> **1. Advance the lease epoch past every epoch that could have been issued after the backup.**
 
-A backup is by definition older than the failure, so it contains a stale view of which epochs are
-outstanding. A restored control plane that resumes issuing from the backup's watermark will hand
-out an epoch a live agent already holds, and two authorities believing they own the same workload
-is the split-brain that produces two processes writing one volume. The monotonic watermark exists
-for exactly this, and the restore path advances it before serving a single request.
+> Second external review, finding S9. Recorded in §17 of `23-walkthroughs.md`. This step used to say
+> "advance the lease epoch past every epoch it may have issued **before** the backup was taken",
+> relying on "the monotonic watermark". That is the arithmetic finding R11 corrected in §8 of
+> `03-state.md`: the watermark is in the database being restored, so it is as stale as everything
+> else in it, and the epochs that matter are the ones issued *after* the backup. This section had
+> not been updated with the correction.
+
+A backup is by definition older than the failure, so every epoch issued between the backup and the
+failure is larger than anything the backup records, and a restored control plane that resumed from
+the backup's watermark would hand out an epoch a live agent already holds. Two mechanisms close it,
+both from §8 of `03-state.md`: the epoch issue rate is capped, so `watermark + cap × backup age` is
+a real upper bound that the restore advances past; and a settling window, during which nothing is
+issued, lets reconnecting agents present the signed epochs they hold so the floor rises past the
+highest one seen.
 
 > **2. Rotate the signing key.**
 
@@ -297,12 +312,24 @@ Sessions re-authenticate, which is a bounded and visible interruption during a d
 operator is already handling, and the short token lifetimes of §6 of `08-identity.md` bound how
 long it lasts.
 
-Skipping either step converts a recovery into an incident. Neither is a procedure someone can
-forget; both run before the restored control plane serves a request.
+> **3. Recover the assignments the store no longer has, from the agents running them.**
 
-Everything else follows from the model: agents reconnect, present the intent-set digest of §9 of
-`10-api.md`, and the fleet re-converges from state that was never lost because it was never only in
-the control plane.
+During the same settling window, agents present their signed assignments. Intents, workloads,
+power declarations, and in-flight plans that the restored store lacks are recovered from them with
+their original identifiers, and every workload's version counter is advanced past the highest
+version presented, so the fleet is not rolled back to the backup's configuration without a plan,
+and no version number is issued twice (§8 of `03-state.md`). Acknowledged journal records the
+agents still retain are re-ingested, refilling the effect log from the backup's cursor onward.
+
+Skipping any step converts a recovery into an incident. None is a procedure someone can forget; all
+three run before the restored control plane serves a request.
+
+What is genuinely lost is stated rather than implied away: declarations made after the backup and
+never approved reached no node, and control-plane effects with no node counterpart in that interval
+cannot be recovered. The restore writes a gap record for the interval. Continuous WAL archiving
+keeps the interval short; the procedure keeps it honest. The earlier claim that the fleet
+re-converges "from state that was never lost" was true of authority and false of configuration until
+step 3 existed.
 
 ---
 
@@ -328,12 +355,12 @@ that will be improvised during an incident:
 
 | Situation | Core of the procedure |
 |---|---|
-| node unreachable | confirm; decide `keep_running` vs `stop`; drain to peers; do not fence unless evicting |
+| node unreachable | confirm; `stop` workloads move once their leases provably end; `keep_running` ones move only through an `evacuate` Operation that names the split risk (§3 of `05-scheduling.md`) |
 | node compromised | revoke key, **increment lease epoch**, reschedule from intents, rebuild the host |
-| control plane lost | restore Postgres and keys, **advance the epoch watermark and rotate the signing key**, restart, let agents re-converge |
+| control plane lost | restore Postgres and keys, **advance the epoch floor, rotate the signing key, and recover assignments from agents** during the settling window, then serve |
 | Postgres lost, no backup | unrecoverable for configuration; workloads keep running; re-declare intents |
 | migration stuck | inspect phase; migration is resumable and reversible by construction (K-4, §8 of `05-scheduling.md`) |
-| agent version drift | expected and supported; upgrade at leisure within N-2 |
+| agent version drift | expected and supported; upgrade at leisure within the supported window (§4 of `10-api.md`) |
 | certificate expiry approaching | rotate; the alarm should have fired days earlier |
 | quota exhausted, tenant blocked | quota is enforced in the write path; raise it or free space, never disable enforcement |
 | a node's disk filling | inode and byte quota per volume; identify, then drain (§10 of `17-security.md`) |

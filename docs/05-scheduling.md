@@ -33,7 +33,8 @@ A node survives the filter only if all hold:
 | Check | Source |
 |---|---|
 | offers a driver implementing the requested tier | `Node.drivers[].Capabilities.tiers` |
-| that driver's `Prepare` accepts the intent | §4.2 of `04-runtimes.md`, pure, so this is free to ask |
+| that driver's declared capabilities admit the intent | `Node.drivers[].Capabilities`, evaluated in the control plane (below) |
+| for the shortlist, the driver's `Prepare` accepts it | a `FeasibilityQuery` (§4.2 of `02-architecture.md`), side-effect free |
 | has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated` |
 | has every requested device available | §6 |
 | satisfies the intent's constraints | `PlacementSpec` label selectors |
@@ -41,10 +42,35 @@ A node survives the filter only if all hold:
 | is `ready`: not cordoned, draining, or unreachable | `Node.status` |
 | the tenancy's quota admits it | §5 |
 
-`Prepare` in the filter is the part other systems lack. Because it is pure, the scheduler can ask
-every candidate driver "could you actually run this?" before committing to anything, so a workload
-requiring nested virtualization, a specific kernel feature, or an image format is rejected at
-scheduling time with a reason, rather than at start time as a mysterious failure.
+Asking the driver before committing is the part other systems lack, and it happens in two layers,
+because the scheduler runs in the control plane and `Prepare` runs on the node.
+
+**First, declared capabilities, evaluated where the scheduler is.** Every driver publishes in
+`Hello` and `NodeStatus` what it can do as data: tiers, architectures, image and disk formats it can
+run, whether nested virtualization is available, the Landlock ABI, kernel features, volume
+semantics, device modes (§4.1 of `04-runtimes.md`). The Content component resolves the recipe's
+manifest, which names its architecture, format, and requirements, without fetching any layer. The
+filter compares the two. This rejects the large majority of unsuitable nodes with a reason and
+costs no round trip.
+
+**Then `Prepare`, for the shortlist only.** Some questions are not answerable from declared data
+(does this specific configuration validate against this driver's rules). For the few candidates
+that survive scoring, the scheduler sends a `FeasibilityQuery` carrying the intent and the resolved
+manifest, and the driver answers with `Prepare`'s result. `Prepare` is pure (§4.2 of
+`04-runtimes.md`), the manifest is supplied so nothing is fetched, and the query has a timeout; a
+node that does not answer in time is treated as rejecting, with that reason recorded.
+
+**And `Prepare` runs again after binding, on the bound node,** as the first thing the agent does
+with a new assignment, because the node's state can change between the query and the bind. A
+rejection there is the `unsatisfiable` observation of §7, and the scheduler re-places with that
+node excluded and the reason in the `Explanation`.
+
+> Second external review, finding S13. Recorded in §17 of `23-walkthroughs.md`. The first version
+> called `Prepare` from the scheduler "for every candidate", described it as free to ask, and the
+> agent protocol had no message that could ask it; trace §1 of `23-walkthroughs.md` ran it after
+> binding instead. It also proposed checking "an image format" on nodes that did not have the image.
+> The capability filter, the shortlist query with a supplied manifest, and the post-bind check are
+> what "rejected at scheduling time with a reason" actually requires.
 
 ### 2.2 Score: of those, which is *best*
 
@@ -132,7 +158,8 @@ anyone will use.
 ```
 Operation
   id             OperationID
-  kind           drain | migrate | rebalance | recipe_rollout | bulk_intent | node_upgrade
+  kind           drain | evacuate | migrate | rebalance | recipe_rollout | bulk_intent
+                 | node_upgrade
   scope          selector or explicit set
   plans          []PlanID          one per affected workload, generated as it proceeds
   policy         OperationPolicy
@@ -152,6 +179,12 @@ An Operation is a parent that owns many Plans. It carries one approval, one prog
 pause/resume/abort control. Individual plans still exist, are still computed against their own
 `from_intent`, and are still individually audited, nothing is lost, and the human approves the
 decision that was actually made ("drain node 7") rather than two hundred restatements of it.
+
+`evacuate` is drain for a node that cannot take part: it is unreachable, so nothing can be copied
+from it. It re-places workloads from their intents onto other nodes, which for a workload with
+local storage means starting from its latest backup or empty. Its plan names, per workload, which
+of those it will be and what data is at risk, and it is never generated automatically for a
+`keep_running` workload, whose original may still be running (§4.5 of `02-architecture.md`).
 
 `max_unavailable` is the property that makes drain safe. Without it, draining a node means every
 workload on it migrating at once, which is a self-inflicted outage. With it, drain is a slow,
@@ -178,8 +211,11 @@ requirement; these are its mechanics:
 - Resources created by completed steps are **retained and named in the observation**, never
   orphaned silently, never deleted on the assumption they are unwanted. This is the same treatment
   §4.4 of `02-architecture.md` gives runtime objects an agent finds but did not create.
-- The workload's state is one the model can express at every point: `partial`, with the failed step
-  and its reason attached.
+- The state is one the model can express at every point: the plan is `failed` or `cancelled` with
+  `completed` naming the last finished step and the failed step's reason attached (§3.3 of
+  `01-model.md`), and the interface shows the workload as **partially applied** from those facts.
+  It is the plan's state, held by the control plane, and never an observed state, because the
+  agent that writes observations cannot know what the plan intended.
 
 A plan that fails halfway is therefore a plan waiting to continue, which is what makes P9's
 "resumable, verifiable, reversible" true of ordinary workload creation and not only of migration.
@@ -213,7 +249,7 @@ count by the number of nights and break every quota, grant, and name.
 Run
   id             RunID
   workload       WorkloadID
-  intent_version int              which declaration produced it
+  intent         IntentID         which declaration produced it
   trigger        schedule | manual | event | retry
   scheduled_for  Timestamp
   started_at     Timestamp?
@@ -466,16 +502,24 @@ prepare ─▶ replicate ─▶ quiesce ─▶ final_sync ─▶ verify ─▶ c
 | `quiesce` | stop the workload, or capture live state where `runtime_snapshot` exists | source restarts; migration abandoned |
 | `final_sync` | ship the last delta | source restarts; destination discarded |
 | `verify` | checksum the destination; confirm it can start | source restarts; destination discarded |
-| `cutover` | `LeaseRevoke(old_epoch)` then `LeaseGrant(new_epoch)` | atomic, one side holds a valid lease at every instant |
+| `cutover` | the source releases its epoch, then the destination's `LeaseRequest` is granted a new one (§4.5 of `02-architecture.md`) | at most one side holds a valid lease at every instant; if the source cannot be reached the grant waits one term |
 | `release` | after a hold period, delete source data | source data still present; rollback available |
+
+Each phase is a desired state, not a command: the control plane sets the phase in both nodes'
+assignments (`MigrationRole`, §4.8 of `02-architecture.md`), each node converges to its side of it
+and reports completion, and only then does the control plane advance both. A lost update is
+repaired by the next sync, and a node that restarts mid-phase resumes the phase it is assigned.
 
 Four invariants:
 
 1. **The source is authoritative until `verify` passes.** Nothing before cutover can lose the
    workload, because the destination is never authoritative until it is proven startable.
 2. **Cutover is a lease epoch change** (§4.5 of `02-architecture.md`), so there is no instant at
-   which two nodes are both authorized. This is the mechanism Pterodactyl lacks, and its absence is
-   the direct cause of the deadlock class.
+   which two nodes are both authorized: a new epoch is granted only after the source has released
+   the old one or its term has provably ended. This is the mechanism Pterodactyl lacks, and its
+   absence is the direct cause of the deadlock class. What the lease guarantees is single
+   ownership; how quickly traffic follows is a separate, network-level property, stated in §10 of
+   `07-networking.md`.
 3. **`release` holds.** Source data is retained for a configurable period after cutover. If the
    destination fails to start in production (which is exactly when it will), rollback is
    re-granting the source lease, not a restore from backup.
@@ -545,8 +589,9 @@ estimates what a rebalance would achieve. It does not act.
    allocation requests over ~500 ms specifically for this. Whether Korpis needs batching, or
    whether its placement rate is low enough that it never will, is a measurement not yet taken. →
    here
-5. **Cross-organization spread.** A provider may want a customer's workloads spread across failure
+5. **Cross-organization spread. Resolved in §8 of `08-identity.md`**: explanations are filtered by
+   the viewer's grants. A provider may want a customer's workloads spread across failure
    domains without revealing which nodes hold whose workloads to that customer. Spread constraints
    as written are evaluated by the scheduler with full visibility, but the resulting `Explanation`
    would leak placement information across tenancy boundaries. The explanation needs a tenancy
-   filter. → `08-identity.md`
+   filter.

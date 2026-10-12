@@ -115,8 +115,9 @@ sixty nodes and paying customers cannot re-qualify a platform six times a year, 
 incumbents charge for exactly this stability. Under P10 it is free.
 
 The LTS commitment constrains the protocol, which is the useful part: **an LTS control plane must
-be able to speak to agents for its entire supported life**, so the N-2 window of §4 of `10-api.md`
-is not an abstract policy, it is a dated obligation that makes a proposed protocol change expensive
+be able to speak to agents for its entire supported life**, so the agent-protocol window of §4 of
+`10-api.md`, which is defined by what is supported rather than by a count of versions, is not an
+abstract policy, it is a dated obligation that makes a proposed protocol change expensive
 in a way that shows up during review rather than afterwards.
 
 ### Deprecation

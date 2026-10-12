@@ -164,10 +164,13 @@ view and drops with a visible marker, never silently.
 
 **Files.** The web file manager is a client of the volume API and holds no privilege of its own.
 Large files stream rather than buffer; a workload's directory is not something a browser tab should
-try to hold. Upload is direct-to-node with a scoped, short-lived token, so a 40 GB world upload
-does not traverse the control plane. All the interesting failures here are on the server side of
-the boundary, and §3 of `06-storage.md` and `17-security.md` are where they are addressed, the
-interface's own obligation is simply never to become a privileged path.
+try to hold. Upload goes through a relay with a scoped, short-lived token (§3.1 of
+`02-architecture.md`), streamed and resumable by chunk, so a 40 GB world upload never traverses the
+control plane and never needs the node to accept a connection. The first version said
+"direct-to-node", which a node with no inbound port cannot accept (finding S19). All the interesting
+failures here are on the server side of the boundary, and §3 of `06-storage.md` and `17-security.md`
+are where they are addressed, the interface's own obligation is simply never to become a privileged
+path.
 
 **Metering.** Numbers people will be billed on. Every figure names its source, its window, and its
 collection method, and disagreements between the instantaneous and the accounted value are shown
