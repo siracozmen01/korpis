@@ -187,24 +187,95 @@ fn private_reach(scope: &Scope, resource: &Resource, hierarchy: &impl Hierarchy)
     anchor.owning_organization() == Some(owner)
 }
 
-/// Whether `approver` may approve a plan proposed by `proposer` under `proposing_chain`, which
-/// requires approval over `approval_scope` (§3.6 of docs/08-identity.md): the approver holds
-/// `plan.approve` through a valid grant whose scope contains the approval scope, is a different
-/// subject, and its chain does not pass through the proposing grant.
-pub fn may_approve(
-    approver: &Subject,
-    approver_chain: &[Grant],
-    proposer: &Subject,
-    proposing_chain: &[Grant],
-    approval_scope: &Scope,
+/// An approval being attempted (§3.6 of docs/08-identity.md).
+#[derive(Debug, Clone)]
+pub struct Approval<'a> {
+    pub approver: &'a Subject,
+    /// The approver's candidate chains, each leaf first.
+    pub approver_chains: &'a [Vec<Grant>],
+    pub proposer: &'a Subject,
+    /// The chain the plan was proposed under, leaf first.
+    pub proposing_chain: &'a [Grant],
+    /// The scope the proposing grant requires approval over.
+    pub approval_scope: &'a Scope,
+    pub source_ip: Option<IpAddr>,
+    pub mfa: bool,
+    pub now: SystemTime,
+}
+
+/// Decides an approval. It goes through [`evaluate`] like every other action, so every
+/// condition on the approver's chain binds (revocation, expiry, networks, MFA, use limits), and
+/// then adds what is particular to approval:
+///
+/// - the approver holds `plan.approve` through a grant whose scope contains the approval scope,
+///   so the set of approvers shrinks as the scope grows;
+/// - the approver's own grant is not propose-only: an approval cannot itself await approval;
+/// - nobody approves their own plan: the approver is a different subject, and the approving
+///   chain does not pass through the proposing grant, so minting oneself a child grant does not
+///   manufacture a second approver. Ancestors the two chains share (the root, at least) are not
+///   the proposing grant and do not disqualify anyone.
+pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decision {
+    let approve = Action::parse("plan.approve").unwrap_or_else(|_| unreachable!("core action"));
+    let deny = |reasons| Decision::Deny(Denial { missing_action: approve.clone(), reasons });
+    if approval.approver == approval.proposer {
+        return deny(Vec::new());
+    }
+    let Some(anchor) = hierarchy.resource(approval.approval_scope.anchor()) else {
+        return deny(Vec::new());
+    };
+    let proposing = approval.proposing_chain.first().map(|g| g.id);
+    let eligible: Vec<Vec<Grant>> = approval
+        .approver_chains
+        .iter()
+        .filter(|chain| {
+            chain.first().is_some_and(|leaf| {
+                super::scope::scope_within(approval.approval_scope, &leaf.scope, hierarchy)
+            }) && !chain.iter().any(|g| Some(g.id) == proposing)
+        })
+        .cloned()
+        .collect();
+    let request = Request {
+        subject: approval.approver,
+        action: &approve,
+        resource: &anchor,
+        source_ip: approval.source_ip,
+        mfa: approval.mfa,
+        now: approval.now,
+    };
+    match evaluate(&request, &eligible, hierarchy) {
+        Decision::Permit { propose_only: Some(_), .. } => deny(Vec::new()),
+        decision => decision,
+    }
+}
+
+/// Why a grant could not be issued.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum IssueError {
+    #[error("the issuer does not hold the parent grant")]
+    NotHolder,
+    #[error("the parent chain is not valid now: {0}")]
+    ParentChain(ChainError),
+    #[error(transparent)]
+    Attenuation(#[from] super::grant::AttenuationError),
+}
+
+/// Issues `child` from the first grant of `parent_chain` on behalf of `issuer`. Issuing a grant to
+/// someone *is* attenuating a grant one holds (§3.2 of docs/08-identity.md), so the issuer must be
+/// the parent's subject, the parent's whole chain must be valid now, and the child must be a valid
+/// attenuation of it, use limits included. The gateway runs this before inserting the child, in
+/// the transaction that takes the parent's remaining uses (§6.2).
+pub fn issue(
+    issuer: &Subject,
+    parent_chain: &[Grant],
+    child: &Grant,
     hierarchy: &impl Hierarchy,
     now: SystemTime,
-) -> bool {
-    let Some(leaf) = approver_chain.first() else { return false };
-    approver != proposer
-        && &leaf.subject == approver
-        && verify_chain(approver_chain, hierarchy, now).is_ok()
-        && leaf.actions.iter().any(|a| a.as_str() == "plan.approve")
-        && super::scope::scope_within(approval_scope, &leaf.scope, hierarchy)
-        && !approver_chain.iter().any(|g| proposing_chain.first().is_some_and(|p| p.id == g.id))
+) -> Result<(), IssueError> {
+    let Some(parent) = parent_chain.first() else { return Err(IssueError::NotHolder) };
+    if &parent.subject != issuer || child.parent != Some(parent.id) {
+        return Err(IssueError::NotHolder);
+    }
+    verify_chain(parent_chain, hierarchy, now).map_err(IssueError::ParentChain)?;
+    check_attenuation(parent, child, hierarchy, At::Issue)?;
+    Ok(())
 }

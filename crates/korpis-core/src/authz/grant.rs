@@ -14,12 +14,20 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Subject {
     pub key: String,
+    /// A set: a chat role, an OIDC group. Its members act through it (§5 of
+    /// docs/08-identity.md).
+    pub set: bool,
 }
 
 impl Subject {
     #[must_use]
     pub fn new(key: impl Into<String>) -> Self {
-        Self { key: key.into() }
+        Self { key: key.into(), set: false }
+    }
+
+    #[must_use]
+    pub fn set(key: impl Into<String>) -> Self {
+        Self { key: key.into(), set: true }
     }
 }
 
@@ -47,6 +55,10 @@ pub struct Delegation {
 }
 
 /// A grant as evaluation sees it.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "link_form, revoked, suspended, and irreversible_override are independent properties"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grant {
     pub id: Uuid,
@@ -61,6 +73,9 @@ pub struct Grant {
     pub uses: u64,
     pub revoked: bool,
     pub suspended: bool,
+    /// For a grant to a set subject: the operator deliberately overrode the default that keeps
+    /// irreversible actions out of it (§5.2). Never meaningful for a link-form grant.
+    pub irreversible_override: bool,
 }
 
 impl Grant {
@@ -101,6 +116,8 @@ pub enum AttenuationError {
     DelegationWider,
     #[error("a link-form grant can never delegate")]
     LinkFormDelegates,
+    #[error("action {0} is irreversible and cannot be held by a link-form or set-subject grant")]
+    IrreversibleToBearerOrSet(Action),
 }
 
 /// Whether the use-count dimension is part of the check. At issue it is: the child's limit is
@@ -134,6 +151,12 @@ pub fn check_attenuation(
         if !pd.actions.contains(action) {
             return Err(AttenuationError::ActionNotDelegable(action.clone()));
         }
+    }
+    // Grants to set subjects and link-form grants cannot include irreversible actions (§5.2,
+    // §6.1). A set's binding may be overridden by an operator, deliberately; a link never.
+    let exposed = child.link_form || (child.subject.set && !child.irreversible_override);
+    if exposed && let Some(a) = child.actions.iter().find(|a| a.is_irreversible()) {
+        return Err(AttenuationError::IrreversibleToBearerOrSet(a.clone()));
     }
     if !scope_within(&child.scope, &parent.scope, hierarchy) {
         return Err(AttenuationError::ScopeNotContained);

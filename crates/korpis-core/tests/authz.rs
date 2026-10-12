@@ -5,7 +5,7 @@
 //! A three-level tenancy tree: a host, a reseller under it, a customer under the reseller. The
 //! customer has project "Survival" with two workloads; W1 is labelled game=mc.
 
-use korpis_core::authz::evaluate::{ChainError, may_approve};
+use korpis_core::authz::evaluate::{Approval, ChainError, IssueError, issue, may_approve};
 use korpis_core::authz::grant::At;
 use korpis_core::authz::scope::LabelSelector;
 use korpis_core::authz::token::{self, Claims, KeyRing, SigningKey, TokenError};
@@ -83,6 +83,7 @@ fn root(tree: &Tree, now: SystemTime) -> Grant {
         uses: 0,
         revoked: false,
         suspended: false,
+        irreversible_override: false,
     }
 }
 
@@ -99,6 +100,7 @@ fn child(parent: &Grant, subject: &str, acts: &[&str], scope: Scope) -> Grant {
         uses: 0,
         revoked: false,
         suspended: false,
+        irreversible_override: false,
     }
 }
 
@@ -345,56 +347,77 @@ fn approval_moves_up_the_tree_and_nobody_approves_their_own_plan() {
     let senior = child(&root, "user:senior", &["plan.approve"], Scope::Object(tree.customer));
     let scope = Scope::Object(tree.survival);
     let p = [proposer.clone(), root.clone()];
-    assert!(may_approve(
-        &senior.subject,
-        &[senior.clone(), root.clone()],
-        &proposer.subject,
-        &p,
-        &scope,
-        &tree,
-        now
-    ));
-    assert!(
-        !may_approve(
-            &proposer.subject,
-            &[senior.clone(), root.clone()],
-            &proposer.subject,
-            &p,
-            &scope,
+    let approval = |approver: &Grant, chains: &[Vec<Grant>], proposing: &[Grant]| {
+        may_approve(
+            &Approval {
+                approver: &approver.subject,
+                approver_chains: chains,
+                proposer: &proposing[0].subject,
+                proposing_chain: proposing,
+                approval_scope: &scope,
+                source_ip: None,
+                mfa: false,
+                now,
+            },
             &tree,
-            now
-        ),
+        )
+    };
+    let permitted = |d: Decision| matches!(d, Decision::Permit { propose_only: None, .. });
+
+    assert!(permitted(approval(&senior, &[vec![senior.clone(), root.clone()]], &p)));
+    let mut as_proposer = senior.clone();
+    as_proposer.subject = proposer.subject.clone();
+    assert!(
+        !permitted(approval(&as_proposer, &[vec![as_proposer.clone(), root.clone()]], &p)),
         "nobody approves their own plan"
-    );
-    // A sock puppet holding plan.approve over the approval scope, minted from the proposing
-    // grant: everything holds except the chain rule.
-    let self_minted =
-        child(&proposer, "user:sock-puppet", &["plan.approve"], Scope::Object(tree.survival));
-    check_attenuation(&proposer, &self_minted, &tree, At::Issue).unwrap();
-    assert!(
-        !may_approve(
-            &self_minted.subject,
-            &[self_minted.clone(), proposer.clone(), root.clone()],
-            &proposer.subject,
-            &p,
-            &scope,
-            &tree,
-            now
-        ),
-        "a chain through the proposing grant is not a second approver"
     );
     let narrow = child(&root, "user:lead", &["plan.approve"], Scope::Object(tree.w1));
     assert!(
-        !may_approve(
-            &narrow.subject,
-            &[narrow.clone(), root],
-            &proposer.subject,
-            &p,
-            &scope,
-            &tree,
-            now
-        ),
+        !permitted(approval(&narrow, &[vec![narrow.clone(), root.clone()]], &p)),
         "an approver's scope must contain the approval scope"
+    );
+
+    // Every condition on the approver's chain binds, as for any other action.
+    let mut needs_mfa = senior.clone();
+    needs_mfa.conditions.requires_mfa = true;
+    assert!(!permitted(approval(&needs_mfa, &[vec![needs_mfa.clone(), root.clone()]], &p)));
+    let mut gated = senior.clone();
+    gated.conditions.requires_approval_by = Some(Scope::Object(tree.host));
+    assert!(
+        !permitted(approval(&gated, &[vec![gated.clone(), root.clone()]], &p)),
+        "an approval cannot itself await approval"
+    );
+    let mut spent = senior.clone();
+    spent.conditions.max_uses = Some(1);
+    spent.uses = 1;
+    assert!(!permitted(approval(&spent, &[vec![spent.clone(), root.clone()]], &p)));
+
+    // A plan with an irreversible step needs approval even when its proposer's grant does not
+    // (§3.3 of docs/01-model.md). Such a proposer could mint a sock puppet holding plan.approve
+    // over the scope; everything about the puppet holds except the chain rule.
+    let mut operator = child(
+        &root,
+        "user:operator",
+        &["workload.delete", "plan.approve"],
+        Scope::Object(tree.survival),
+    );
+    operator.delegation =
+        Delegation { allowed: true, max_depth: Some(1), actions: actions(&["plan.approve"]) };
+    let puppet =
+        child(&operator, "user:sock-puppet", &["plan.approve"], Scope::Object(tree.survival));
+    check_attenuation(&operator, &puppet, &tree, At::Issue).unwrap();
+    let proposing = [operator.clone(), root.clone()];
+    assert!(
+        !permitted(approval(
+            &puppet,
+            &[vec![puppet.clone(), operator.clone(), root.clone()]],
+            &proposing
+        )),
+        "a chain through the proposing grant is not a second approver"
+    );
+    assert!(
+        permitted(approval(&senior, &[vec![senior.clone(), root.clone()]], &proposing)),
+        "sharing the root with the proposer disqualifies nobody"
     );
 }
 
@@ -503,4 +526,85 @@ fn tokens_verify_offline_and_refuse_everything_else() {
 
     keys.retire(1);
     refuse(token::verify(&t, &keys, "workload.console.write", &w1, &none, now));
+}
+
+#[test]
+fn irreversible_actions_stay_out_of_links_and_chat_roles() {
+    let tree = Tree::new();
+    let now = SystemTime::now();
+    let root = root(&tree, now);
+    let mut link = child(&root, "link:x", &["workload.delete"], Scope::Object(tree.w1));
+    link.link_form = true;
+    assert!(matches!(
+        check_attenuation(&root, &link, &tree, At::Issue),
+        Err(AttenuationError::IrreversibleToBearerOrSet(_))
+    ));
+    link.irreversible_override = true;
+    assert!(
+        check_attenuation(&root, &link, &tree, At::Issue).is_err(),
+        "a link is never overridable"
+    );
+
+    let mut role =
+        child(&root, "x", &["workload.delete", "workload.restart"], Scope::Object(tree.survival));
+    role.subject = Subject::set("discord:guild-456:role-mod");
+    assert!(check_attenuation(&root, &role, &tree, At::Issue).is_err());
+    role.irreversible_override = true;
+    check_attenuation(&root, &role, &tree, At::Issue).expect("an operator may override a binding");
+    role.irreversible_override = false;
+    role.actions = actions(&["workload.restart"]);
+    check_attenuation(&root, &role, &tree, At::Issue).unwrap();
+}
+
+#[test]
+fn only_the_holder_of_a_valid_parent_can_issue() {
+    let tree = Tree::new();
+    let now = SystemTime::now();
+    let root = root(&tree, now);
+    let mut moderator = moderator(&tree, &root, now);
+    let link = link(&tree, &moderator, now);
+    let chain = [moderator.clone(), root.clone()];
+
+    issue(&moderator.subject, &chain, &link, &tree, now).unwrap();
+    assert_eq!(
+        issue(&Subject::new("user:mallory"), &chain, &link, &tree, now),
+        Err(IssueError::NotHolder),
+        "issuing is attenuating a grant one holds"
+    );
+    moderator.revoked = true;
+    assert!(matches!(
+        issue(&moderator.subject, &[moderator.clone(), root.clone()], &link, &tree, now),
+        Err(IssueError::ParentChain(ChainError::Revoked(_)))
+    ));
+}
+
+#[test]
+fn tokens_scoped_above_a_customer_reach_no_private_action_offline() {
+    let tree = Tree::new();
+    let now = SystemTime::now();
+    let key = SigningKey::generate(7);
+    let mut keys = KeyRing::default();
+    keys.insert(7, &key.public_bytes()).unwrap();
+    let w1 = tree.resource(tree.w1).unwrap();
+    let mint = |scope, action: &str| {
+        token::mint(
+            &key,
+            &Claims {
+                subject: "user:host-admin".into(),
+                chain: vec![Uuid::now_v7()],
+                actions: vec![action.into()],
+                scope,
+                expires_at: now + Duration::from_secs(60),
+            },
+        )
+        .unwrap()
+    };
+    let none = HashSet::new();
+    let above = mint(tree.reseller, "workload.console.write");
+    assert!(token::verify(&above, &keys, "workload.console.write", &w1, &none, now).is_err());
+    let within = mint(tree.customer, "workload.console.write");
+    token::verify(&within, &keys, "workload.console.write", &w1, &none, now).unwrap();
+    let operate = mint(tree.reseller, "workload.stop");
+    token::verify(&operate, &keys, "workload.stop", &w1, &none, now)
+        .expect("non-private actions still flow down");
 }

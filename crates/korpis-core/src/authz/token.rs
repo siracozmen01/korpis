@@ -14,7 +14,7 @@
 
 use super::scope::{Kind, ObjectRef, Resource};
 use biscuit_auth::builder::{Algorithm, Term, date, string};
-use biscuit_auth::{AuthorizerBuilder, Biscuit, KeyPair, PublicKey, error};
+use biscuit_auth::{AuthorizerBuilder, AuthorizerLimits, Biscuit, KeyPair, PublicKey, error};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::hash::BuildHasher;
@@ -139,6 +139,13 @@ pub fn mint(key: &SigningKey, claims: &Claims) -> Result<String, TokenError> {
     Ok(token.to_base64()?)
 }
 
+/// Bounds on one verification. Biscuit's defaults cap evaluation at one millisecond, which a
+/// loaded relay exceeds, refusing valid tokens; the time bound here is generous because the
+/// fact and iteration bounds are what keep a hostile token cheap, and they stay at Biscuit's
+/// defaults.
+const VERIFY_LIMITS: AuthorizerLimits =
+    AuthorizerLimits { max_facts: 1000, max_iterations: 100, max_time: Duration::from_millis(100) };
+
 /// What a verified token permits, as far as the verifier needs to know.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verified {
@@ -174,9 +181,28 @@ pub fn verify<S: BuildHasher>(
     code.push_str("allow if operation($a), right($a), resource($k, $i), scope($k, $i);\n");
     let mut authorizer = AuthorizerBuilder::new()
         .code_with_params(&code, params, HashMap::new())?
+        .set_limits(VERIFY_LIMITS)
         .build(&biscuit)?;
     authorizer.authorize().map_err(|e| TokenError::Unauthorized(e.to_string()))?;
 
+    // A private action does not reach into an organization from a scope above it, offline
+    // exactly as online (§3.3 of docs/08-identity.md): the token's scope must sit at or below
+    // the resource's owning organization in the resource's own chain.
+    if super::action::PRIVATE.contains(&action) {
+        let scope: Vec<(String, String)> = authorizer.query("data($k, $i) <- scope($k, $i)")?;
+        let owner_at = resource.chain.iter().position(|n| n.object.kind == Kind::Organization);
+        let scope_at = scope.first().and_then(|(k, i)| {
+            resource
+                .chain
+                .iter()
+                .position(|n| n.object.kind.as_str() == k && n.object.id.to_string() == *i)
+        });
+        if !matches!((scope_at, owner_at), (Some(s), Some(o)) if s <= o) {
+            return Err(TokenError::Unauthorized(
+                "a private action does not reach into an organization from above".into(),
+            ));
+        }
+    }
     let chain: Vec<(String,)> = authorizer.query("chain($g) <- grant($g)")?;
     let chain: Vec<Uuid> = chain.into_iter().filter_map(|(g,)| Uuid::parse_str(&g).ok()).collect();
     if let Some(r) = chain.iter().find(|g| revoked.contains(g)) {
