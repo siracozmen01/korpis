@@ -73,12 +73,15 @@ shortest accurate description of how this repository works for humans too.
 
 The implementation is a Rust workspace in `crates/` (§3 of
 [`21-stack.md`](./docs/21-stack.md)). How it is organized, and why, is in
-[`ARCHITECTURE.md`](./ARCHITECTURE.md): read it before adding a file. Four scripts cover
+[`ARCHITECTURE.md`](./ARCHITECTURE.md): read it before adding a file. Five scripts cover
 everything:
 
 ```
 scripts/dev-pg.sh up      a PostgreSQL for development and tests, in its own container on
                           127.0.0.1:55432, isolated from anything else on the machine
+scripts/dev-registry.sh up
+                          an OCI registry for recipes, in its own container on
+                          127.0.0.1:55000, plain HTTP on loopback only
 scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli), into .tools/;
                           needed to change a .proto (then scripts/gen-proto.sh) or a query
 scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development

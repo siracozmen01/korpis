@@ -11,7 +11,7 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, Recorded, Store};
+use crate::ports::{Clock, RecipeSource, Recorded, Store};
 
 /// How a mutation's result is recorded for replay.
 pub struct Idempotent<'a, T> {
@@ -39,7 +39,7 @@ pub enum Reply<T> {
 /// The longest idempotency key accepted.
 const MAX_KEY: usize = 128;
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The recorded response for this caller's key, if the mutation already happened.
     pub(crate) async fn replay<T>(
         &self,

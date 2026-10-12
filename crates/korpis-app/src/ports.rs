@@ -10,6 +10,7 @@ mod audit;
 mod authz;
 mod clock;
 mod idempotency;
+mod recipe;
 mod tenancy;
 
 pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
@@ -18,6 +19,7 @@ pub use authz::{
 };
 pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
+pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use tenancy::{TenancyRead, TenancyWrite};
 
 use std::future::Future;
@@ -61,6 +63,7 @@ pub trait Store:
     + EffectRead
     + IdempotencyRead
     + KeyRegistry
+    + RecipeCache
     + Send
     + Sync
     + 'static

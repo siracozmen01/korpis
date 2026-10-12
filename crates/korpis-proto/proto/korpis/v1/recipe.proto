@@ -243,21 +243,28 @@ message ProviderStep {
 }
 
 message TemplateSpec {
+  // Where it is rendered, inside the workload.
   string path = 1;
   TemplateFormat format = 2;
   // The allow-listed variables; nothing else is in scope (Rule K-2).
   repeated string vars = 3;
+  // The source: a file of the recipe artifact (§2 of docs/09-recipes.md).
+  string from = 4;
 }
 
-// Templates encode values for their output format (§6 of docs/09-recipes.md).
+// Templates encode values for their output format (§6 of docs/09-recipes.md). There is no plain
+// text format: a format with no structure has no encoding to keep a value inside its place.
 enum TemplateFormat {
+  reserved 1;
+  reserved "TEMPLATE_FORMAT_TEXT";
   TEMPLATE_FORMAT_UNSPECIFIED = 0;
-  TEMPLATE_FORMAT_TEXT = 1;
   TEMPLATE_FORMAT_PROPERTIES = 2;
   TEMPLATE_FORMAT_YAML = 3;
   TEMPLATE_FORMAT_JSON = 4;
   TEMPLATE_FORMAT_TOML = 5;
   TEMPLATE_FORMAT_INI = 6;
+  TEMPLATE_FORMAT_ENV = 7;
+  TEMPLATE_FORMAT_XML = 8;
 }
 
 message Probes {

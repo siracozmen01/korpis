@@ -56,6 +56,39 @@ operates no store, takes no cut, and curates nothing.
 the `Intent` records the digest (§3.5 of `01-model.md`). Two workloads declared from the same
 digest run the same bytes, permanently.
 
+### The layout
+
+The artifact is an OCI image manifest in the form the image specification's guidelines for
+artifact usage give (image-spec v1.1): `artifactType` is `application/vnd.korpis.recipe.v1`, the
+config is the empty descriptor (`application/vnd.oci.empty.v1+json`), and the layers are the
+recipe's content.
+
+| Layer | Media type | Named by |
+|---|---|---|
+| the document, exactly one | `application/vnd.korpis.recipe.document.v1+yaml` | |
+| each file the recipe refers to | what the file is | `org.opencontainers.image.title` |
+
+A file's title is its path inside the artifact, relative, with no `..` component; the document
+names files by those paths (a template's `from`, an install step's `from`, a target's `rootfs` or
+`disk_image`). The document is at most 1 MiB.
+
+Resolving a recipe reads the manifest and the document and nothing else. The control plane checks
+the manifest's digest against the one it asked for, the document's digest against its descriptor,
+the artifact type, that there is exactly one document layer, and that every path the document
+names is a file the manifest carries. A recipe that fails any of these does not load. The files
+themselves are read by whatever installs the recipe, against the digests the manifest gives.
+
+Why this shape: it is the one the specification recommends, so `oras`, registry garbage
+collection, and referrers (where signatures attach, §7) all treat a recipe as a first-class
+artifact without knowing what Korpis is. The `v1` in both media types is the format version: a
+second format is a new media type, never a reinterpretation of the old one, so a control plane
+that does not know a format refuses it by type instead of misreading it.
+
+What it costs: a registry that refuses an unknown `artifactType` or unknown layer media types
+cannot hold a recipe, and Korpis does not fall back to another layout for it, because two layouts
+would be two things to verify. The one implementation of the layout is the `korpis-recipe` crate,
+shared by the control plane and the CLI (§2 of `../ARCHITECTURE.md`).
+
 ### Thin and fat recipes
 
 | | Contains | Size | Durability |
@@ -94,7 +127,7 @@ runtime:
       image: docker.io/library/eclipse-temurin@sha256:…
     - tier: process                         # resolves open question 4 of 04-runtimes.md
       arch: [amd64]
-      rootfs:./layers/rootfs.tar.zst       # an OCI layer, unpacked rather than run
+      rootfs: layers/rootfs.tar.zst        # a file of the artifact (§2), unpacked
   entry:
     command: [...]
     working_dir: /data
@@ -119,7 +152,8 @@ install:                                    # §4: restricted, no arbitrary code
   steps: [...]
 
 templates:                                  # §6: sandboxed, allow-listed
-  - path: /data/server.properties
+  - from: templates/server.properties      # the source: a file of the artifact (§2)
+    path: /data/server.properties           # where it is rendered, inside the workload
     format: properties
     vars: [motd, max_players, difficulty]
 
@@ -160,9 +194,16 @@ and it is declared by the recipe rather than special-cased in core.
 | `mkdir` | `path`, `mode` | |
 | `write` | `path`, `content`, `mode` | literal content from the recipe |
 | `template` | `from`, `to`, `vars` | §6 |
-| `chmod` / `chown` | `path`, `mode` \| `owner` | within the tenant's uid range only |
+| `chmod` | `path`, `mode` | |
+| `chown` | `path`, `uid`, `gid` | workload-relative ids, 0 to 65535 (§4.5 of `04-runtimes.md`) |
 | `symlink` | `target`, `link` | both must resolve inside the volume |
 | `delete` | `path` | |
+
+`chown` first took an `owner` "within the tenant's uid range", which left open whether it named a
+user, a number, or a pair, and ranges turned out to be per workload, not per tenant. It takes `uid`
+and `gid` as the workload sees them, which is how files are stored on disk (§4.5 of
+`04-runtimes.md`): `0` is the workload's own root, a value above 65535 does not load, and no value
+can name a host identity, because the mapping is applied at mount and not by the step.
 
 Every step that touches the volume executes through the workload's own confined filesystem worker,
 in a mount namespace that holds that workload's volumes and nothing else (§6 of

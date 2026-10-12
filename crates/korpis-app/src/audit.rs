@@ -6,7 +6,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::page::Page;
-use crate::ports::{Clock, EffectCursor, EffectFilter, Store};
+use crate::ports::{Clock, EffectCursor, EffectFilter, RecipeSource, Store};
 use korpis_core::audit::Effect;
 use korpis_core::authz::{Kind, ObjectRef};
 use std::time::SystemTime;
@@ -31,7 +31,7 @@ pub struct EffectPage {
     pub next: Option<EffectCursor>,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Effects concerning one workload or node, in log order.
     pub async fn list_effects(
         &self,

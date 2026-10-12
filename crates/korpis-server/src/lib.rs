@@ -15,6 +15,8 @@ use api::Api;
 use connectrpc::Server;
 use korpis_app::App;
 use korpis_app::ports::SystemClock;
+use korpis_recipe::registry::Registry;
+use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -30,6 +32,9 @@ pub struct ServeConfig {
     pub listen: SocketAddr,
     /// The connection pool's size.
     pub max_connections: u32,
+    /// Registries spoken to over plain HTTP, as `host:port`: development registries on
+    /// loopback only. Every other registry is HTTPS.
+    pub plain_http_registries: Vec<String>,
 }
 
 /// Why serving failed.
@@ -70,7 +75,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let store = PgStore::connect(&config.database_url, config.max_connections).await?;
     store.ensure_partitions(3).await?;
     let keys = keys::Keys::load_or_create(&config.data)?;
-    let app = App::new(store, SystemClock, keys.token.clone());
+    let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));
+    let app = App::new(store, SystemClock, keys.token.clone(), recipes);
     app.register_keys(&keys.public()).await?;
     let tls = tls::server_config(&config.data)?;
     let bound = Server::bind(config.listen).await.map_err(|e| ServeError::Serve(e.to_string()))?;

@@ -1,0 +1,75 @@
+# The example of §3 of docs/09-recipes.md, completed so that it loads.
+apiVersion: korpis.dev/v1
+kind: Recipe
+
+metadata:
+  name: paper
+  version: "1.21.4"
+  description: PaperMC server
+  maintainers: [ops@example.org]
+  license: GPL-3.0
+  annotations: {source: "https://papermc.io"}
+
+runtime:
+  targets:
+    - tier: container
+      arch: [amd64, arm64]
+      image: docker.io/library/eclipse-temurin@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    - tier: process
+      arch: [amd64]
+      rootfs: ./layers/rootfs.tar.zst
+  entry:
+    command: [java, -jar, /data/paper.jar, nogui]
+    working_dir: /data
+
+preset:
+  lifecycle: persistent
+  console: interactive
+  endpoints:
+    - {name: game,  protocol: tcp, port: 25565, exposure_default: stable}
+    - {name: query, protocol: udp, port: 25565}
+    - {name: rcon,  protocol: tcp, port: 25575, exposure_default: overlay_only}
+  volumes:
+    - {name: data, path: /data, size_default: 10Gi}
+  resources:
+    memory: {min: 1Gi, recommended: 4Gi}
+    cpu:    {min: 500m, recommended: 2000m}
+
+config:
+  fields:
+    - {key: max_players, type: integer, min: 1, max: 200, default: 20, label: "Maximum players"}
+    - {key: motd, type: string, max_length: 59, pattern: '[^\r\n]*'}
+    - {key: difficulty, type: enum, choices: [peaceful, easy, normal, hard], default: normal}
+    - {key: rcon_password, type: string, secret: true, permission: operator, deliver: env, deliver_as: RCON_PASSWORD}
+    - {key: java_heap, type: quantity, permission: system, derived: "resources.memory * 0.8", deliver: env, deliver_as: JAVA_HEAP}
+    - {key: eula, type: boolean, const: true, hidden: true}
+
+install:
+  steps:
+    - fetch: {url: "https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/1/downloads/paper.jar", sha256: "1111111111111111111111111111111111111111111111111111111111111111", to: /data/paper.jar}
+    - mkdir: {path: /data/plugins, mode: "0755"}
+    - write: {path: /data/eula.txt, content: "eula=true\n"}
+
+templates:
+  - from: templates/server.properties
+    path: /data/server.properties
+    format: properties
+    vars: [motd, max_players, difficulty]
+
+probes:
+  readiness: {kind: tcp, endpoint: game, timeout: 5s}
+  liveness:  {kind: tcp, endpoint: game, failures: 3, period: 30s}
+
+logs:
+  events:
+    - {pattern: 'Done \(.*\)! For help', emit: ready}
+    - {pattern: 'Can''t keep up!', emit: performance_warning, level: warn}
+
+lifecycle_hooks:
+  pre_stop: {kind: console_write, data: "stop\n", wait_for_exit: 120s}
+
+disruption:
+  stop:     {disruptive: true,  reason: "disconnects players"}
+  restart:  {disruptive: true,  reason: "disconnects players"}
+  reconfigure:
+    disruptive_fields: [max_players, difficulty]

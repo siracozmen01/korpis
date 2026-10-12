@@ -8,7 +8,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, GrantWrite, Store};
+use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::evaluate::verify_chain;
 use korpis_core::authz::{Grant, GrantRecord};
@@ -25,7 +25,7 @@ pub struct Revoked {
     pub cascaded: u64,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Revokes a grant. Permitted to its holder; to anyone holding a currently valid grant above
     /// it on its chain; and to a holder of `grant.revoke` over a scope containing it.
     pub async fn revoke_grant(

@@ -7,7 +7,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
-use crate::ports::{Clock, EffectWrite, Store, StoreError, TenancyWrite, Unique};
+use crate::ports::{Clock, EffectWrite, RecipeSource, Store, StoreError, TenancyWrite, Unique};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::labels::Labels;
@@ -27,7 +27,7 @@ pub struct CreateProject {
     pub labels: Labels,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Creates a project in an organization the caller may create projects in.
     pub async fn create_project(
         &self,

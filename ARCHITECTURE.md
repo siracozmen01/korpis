@@ -74,6 +74,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-core` | domain | AGPL-3.0 | principals, authority, tenancy, workloads, plans, recipes |
 | `korpis-app` | application | AGPL-3.0 | use cases and the ports they need |
 | `korpis-store` | driven adapter | AGPL-3.0 | PostgreSQL: migrations and the store ports |
+| `korpis-recipe` | driven adapter | AGPL-3.0 | the recipe document format and OCI registries |
 | `korpis-server` | driving adapter, root | AGPL-3.0 | Connect API, TLS, keys, `install`, `serve` |
 | `korpis-agent` | its own hexagon | AGPL-3.0 | the node supervisor (§4 of `02-architecture.md`) |
 | `korpis-helper` | its own hexagon | AGPL-3.0 | the privileged helper, synchronous, minimal |
@@ -85,6 +86,11 @@ crate and the wire contract and nothing else. The helper does not link the autho
 domain (the `authz` feature is off for it), because its attack surface is the reason it exists
 (§6.1 of `02-architecture.md`).
 
+`korpis-recipe` is the one place the recipe's YAML form and its OCI artifact layout are read and
+written (§2 of `09-recipes.md`). The server uses it as the `RecipeSource` port's adapter, and the
+CLI will use the same crate to lint and push a recipe, so an author's tool and the control plane
+cannot disagree about what a valid recipe is.
+
 ## 3. The dependency rule, enforced
 
 | Crate | May depend on (of ours) | Must never depend on |
@@ -92,6 +98,7 @@ domain (the `authz` feature is off for it), because its attack surface is the re
 | `korpis-core` | nothing | `tokio`, `sqlx`, `connectrpc`, `korpis-proto`, any I/O crate |
 | `korpis-app` | `korpis-core` | `tokio`, `sqlx`, `connectrpc`, `korpis-proto` |
 | `korpis-store` | `korpis-core`, `korpis-app` | `connectrpc`, `korpis-proto` |
+| `korpis-recipe` | `korpis-core`, `korpis-app` | `sqlx`, `connectrpc`, `korpis-proto` |
 | `korpis-server` | all of the above | |
 
 `scripts/check-layers.sh` reads the dependency graph with `cargo tree` and fails the build if any

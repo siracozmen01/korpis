@@ -6,7 +6,7 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, Store};
+use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::token::{self, Claims, SESSION_TOKEN_LIFETIME};
 use korpis_core::authz::{Action, Decision, ObjectRef};
 use std::time::{Duration, SystemTime};
@@ -34,7 +34,7 @@ pub struct Minted {
     pub expires_at: SystemTime,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Mints a capability token for actions the caller may perform now.
     pub async fn mint_token(&self, caller: &Caller, cmd: MintToken) -> Result<Minted, AppError> {
         if cmd.actions.is_empty() {

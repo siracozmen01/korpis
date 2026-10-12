@@ -13,6 +13,7 @@ rules=(
     "korpis-core|--no-default-features|tokio sqlx connectrpc korpis-proto biscuit-auth"
     "korpis-app||tokio sqlx connectrpc korpis-proto korpis-store hyper"
     "korpis-store||connectrpc korpis-proto korpis-server"
+    "korpis-recipe||sqlx connectrpc korpis-proto"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

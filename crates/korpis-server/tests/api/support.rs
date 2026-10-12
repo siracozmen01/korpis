@@ -66,6 +66,10 @@ impl Harness {
             database_url: db.owner_url.clone(),
             listen: "127.0.0.1:0".parse().unwrap(),
             max_connections: 4,
+            plain_http_registries: vec![
+                std::env::var("KORPIS_TEST_REGISTRY")
+                    .unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
+            ],
         })
         .await
         .expect("serve");

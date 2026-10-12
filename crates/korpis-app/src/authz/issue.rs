@@ -7,7 +7,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, GrantWrite, Store, StoreError, Unique};
+use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store, StoreError, Unique};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::evaluate::{IssueError, issue};
 use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Scope};
@@ -43,7 +43,7 @@ fn issue_error(e: &IssueError) -> AppError {
     }
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Issues a grant attenuated from one the caller holds.
     pub async fn issue_grant(
         &self,

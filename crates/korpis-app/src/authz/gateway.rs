@@ -8,7 +8,7 @@ use super::Snapshot;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, Store, Tx};
+use crate::ports::{Clock, EffectWrite, RecipeSource, Store, Tx};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::credential::Secret;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
@@ -16,7 +16,7 @@ use korpis_core::principal::Principal;
 use std::net::IpAddr;
 use uuid::Uuid;
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Authenticates an API token secret presented from `source_ip`.
     pub async fn authenticate(
         &self,

@@ -48,6 +48,14 @@ pub enum AppError {
         /// The roadmap phase that builds it.
         phase: u8,
     },
+    /// Something Korpis depends on could not be reached; retrying may help.
+    #[error("{what} is unavailable")]
+    Unavailable {
+        /// What could not be reached.
+        what: &'static str,
+        /// Why, for the operator's log.
+        detail: String,
+    },
     /// Our fault. The message is for the operator's log, not for the caller.
     #[error("internal: {0}")]
     Internal(String),

@@ -10,7 +10,9 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, CredentialWrite, EffectWrite, GrantWrite, Store, TenancyWrite, Tx};
+use crate::ports::{
+    Clock, CredentialWrite, EffectWrite, GrantWrite, RecipeSource, Store, TenancyWrite, Tx,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::action::CORE;
 use korpis_core::authz::credential::{ApiToken, Secret};
@@ -46,7 +48,7 @@ pub struct PublicKey {
     pub public: Vec<u8>,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Installs into an empty store. Refused if an organization already exists.
     pub async fn install(&self, organization: Name) -> Result<Installation, AppError> {
         let bootstrap = Principal::System(SystemActor::Bootstrap);

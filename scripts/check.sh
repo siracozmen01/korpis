@@ -54,8 +54,9 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 # The helper links the domain without its authority module; that build must stay clean too.
 cargo clippy -p korpis-core --no-default-features --locked -- -D warnings
 
-echo "== tests (database: scripts/dev-pg.sh)"
+echo "== tests (database: scripts/dev-pg.sh, registry: scripts/dev-registry.sh)"
 if [ -z "${KORPIS_TEST_PG_URL:-}" ]; then ./scripts/dev-pg.sh up >/dev/null; fi
+if [ -z "${KORPIS_TEST_REGISTRY:-}" ]; then ./scripts/dev-registry.sh up >/dev/null; fi
 cargo test --workspace --all-features --locked
 
 if command -v cargo-deny >/dev/null; then

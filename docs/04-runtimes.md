@@ -282,10 +282,11 @@ recipe edits, and single-file restore had no mechanism for half the tiers.
 
 > Second external review, finding S50.
 
-`container` always uses user-namespace remapping (§2) and the install DSL speaks of "the tenant's
-uid range" (§4 of `09-recipes.md`), but nothing said where ranges come from. If each node allocated
-its own, a workload migrated by `zfs send` or a file-level sync would arrive with its files owned by
-host uids that mean another workload, or nobody, on the destination.
+`container` always uses user-namespace remapping (§2) and the install DSL spoke of "the tenant's
+uid range" (§4 of `09-recipes.md`, since corrected to the workload-relative ids below), but nothing
+said where ranges come from. If each node allocated its own, a workload migrated by `zfs send` or a
+file-level sync would arrive with its files owned by host uids that mean another workload, or
+nobody, on the destination.
 
 - **Ranges are allocated by the control plane, per workload, cluster-wide**, recorded in the
   assignment, and never reused while any volume carrying them exists.

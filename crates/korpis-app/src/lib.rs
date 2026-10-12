@@ -17,30 +17,33 @@ pub mod idempotency;
 pub mod install;
 pub mod page;
 pub mod ports;
+pub mod recipe;
 pub mod tenancy;
 
 pub use caller::Caller;
 pub use error::AppError;
 pub use idempotency::{Idempotent, Reply};
 pub use page::{Page, Paged};
+pub use recipe::NoRecipes;
 
 use korpis_core::authz::token::SigningKey;
-use ports::{Clock, Store, SystemClock};
+use ports::{Clock, RecipeSource, Store, SystemClock};
 use std::sync::Arc;
 
 /// The application: every use case is a method on it.
 #[derive(Debug)]
-pub struct App<S, C = SystemClock> {
+pub struct App<S, C = SystemClock, R = NoRecipes> {
     store: S,
     clock: C,
     token_key: Arc<SigningKey>,
+    recipes: R,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
-    /// The application over `store`, reading time from `clock` and minting capability tokens
-    /// with `token_key`.
-    pub fn new(store: S, clock: C, token_key: Arc<SigningKey>) -> Self {
-        Self { store, clock, token_key }
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// The application over `store`, reading time from `clock`, minting capability tokens with
+    /// `token_key`, and resolving recipes from `recipes`.
+    pub fn new(store: S, clock: C, token_key: Arc<SigningKey>, recipes: R) -> Self {
+        Self { store, clock, token_key, recipes }
     }
 
     /// Now, by the application's clock: what adapters render time-dependent state against.

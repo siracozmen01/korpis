@@ -41,6 +41,7 @@ korpis-proto = { path = "crates/korpis-proto" }
 korpis-core = { path = "crates/korpis-core" }
 korpis-app = { path = "crates/korpis-app" }
 korpis-store = { path = "crates/korpis-store" }
+korpis-recipe = { path = "crates/korpis-recipe" }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }

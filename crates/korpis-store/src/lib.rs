@@ -13,6 +13,7 @@ mod audit;
 mod authz;
 mod errors;
 mod idempotency;
+mod recipe;
 mod stored;
 mod tenancy;
 #[cfg(feature = "testing")]

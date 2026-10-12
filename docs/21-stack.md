@@ -236,6 +236,20 @@ the encoder that answers a `curl` request are the same code.
 The JSON surface being first-class is the ecosystem decision, not a convenience: an integration
 market that requires a protobuf toolchain to send one request does not form.
 
+**One TLS stack and one cryptographic provider per process.** Every TLS connection Korpis makes or
+accepts goes through `rustls`, with `ring` installed as the process's default provider before
+anything else runs: the API listener, the database connection, the certificates `install` mints,
+and the OCI registry client that resolves recipes (§2 of `09-recipes.md`). A provider chosen per
+connection would make "which primitives does this process use" a question with several answers.
+The registry client verifies certificates against the host's trust store, so a private registry
+behind a private authority is trusted by adding that authority to the host; plain HTTP is used only
+for the registries named with `--plain-http-registry`, which exists for development.
+
+What it costs: `connectrpc` depends on `rustls` with its default features, which build and link
+`aws-lc-rs` as well, so every binary carries a second provider it never selects and every build
+compiles its C sources. Removing it needs that dependency declared without default features
+upstream; until then it is dead weight, not a second code path.
+
 ---
 
 ## 8. PostgreSQL only, and the friction it creates

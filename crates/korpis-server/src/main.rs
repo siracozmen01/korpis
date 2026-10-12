@@ -46,11 +46,18 @@ enum Command {
         listen: SocketAddr,
         #[arg(long, default_value_t = 16)]
         max_connections: u32,
+        /// A registry to speak plain HTTP to, as host:port; for a development registry on
+        /// loopback. Repeatable.
+        #[arg(long = "plain-http-registry")]
+        plain_http_registries: Vec<String>,
     },
 }
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    // One TLS provider for the whole process, installed before anything can need one: several
+    // dependencies compile rustls with more than one provider, and rustls then refuses to guess.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
@@ -83,12 +90,19 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             report(&config, &done);
             Ok(())
         }
-        Command::Serve { data_dir, database_url, listen, max_connections } => {
+        Command::Serve {
+            data_dir,
+            database_url,
+            listen,
+            max_connections,
+            plain_http_registries,
+        } => {
             let running = korpis_server::serve(korpis_server::ServeConfig {
                 data: DataDir::new(data_dir),
                 database_url,
                 listen,
                 max_connections,
+                plain_http_registries,
             })
             .await?;
             tokio::select! {

@@ -112,6 +112,16 @@ pub fn from_app(e: AppError) -> ConnectError {
         AppError::NotYet { what, phase } => ConnectError::unimplemented(format!(
             "{what} arrive in Phase {phase} (§4 of docs/20-roadmap.md)"
         )),
+        AppError::Unavailable { what, detail } => {
+            tracing::warn!(%detail, "{what} is unavailable");
+            build(&Wire {
+                code: C::ERROR_CODE_UNAVAILABLE,
+                reason: "dependency.unavailable",
+                field: "",
+                message: &format!("{what} is unavailable; retry"),
+                retryable: true,
+            })
+        }
         AppError::Internal(cause) => internal(&cause),
     }
 }

@@ -9,7 +9,7 @@ use crate::keys::{KeyError, Keys};
 use crate::tls::{self, TlsError};
 use korpis_app::install::Installation;
 use korpis_app::ports::SystemClock;
-use korpis_app::{App, AppError};
+use korpis_app::{App, AppError, NoRecipes};
 use korpis_core::tenancy::Name;
 use korpis_store::PgStore;
 
@@ -56,7 +56,7 @@ pub async fn install(config: &InstallConfig) -> Result<Installation, InstallErro
     }
     let store = PgStore::connect(&config.owner_url, 2).await?;
     store.ensure_partitions(3).await?;
-    let app = App::new(store, SystemClock, keys.token.clone());
+    let app = App::new(store, SystemClock, keys.token.clone(), NoRecipes);
     app.register_keys(&keys.public()).await?;
     Ok(app.install(config.organization.clone()).await?)
 }

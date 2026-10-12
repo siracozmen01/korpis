@@ -19,6 +19,7 @@ http = "1"
 korpis-app = { workspace = true }
 korpis-core = { workspace = true, features = ["authz"] }
 korpis-proto = { workspace = true }
+korpis-recipe = { workspace = true }
 korpis-store = { workspace = true }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }

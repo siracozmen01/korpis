@@ -19,6 +19,7 @@ mod tenancy;
 pub mod wire;
 
 use connectrpc::{ConnectError, RequestContext, Response, Router, ServiceResult};
+use korpis_app::ports::SystemClock;
 use korpis_app::{App, Caller, Page, Reply};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
@@ -26,20 +27,24 @@ use korpis_proto::korpis::v1::{
     EffectServiceExt, GrantServiceExt, OrganizationServiceExt, ProjectServiceExt,
     ServerInfoServiceExt,
 };
+use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// The services' shared state: the application, over PostgreSQL.
+/// The application as the server composes it: PostgreSQL, the system clock, OCI registries.
+pub type ServerApp = App<PgStore, SystemClock, RegistrySource>;
+
+/// The services' shared state: the application.
 #[derive(Debug)]
 pub struct Api {
-    app: App<PgStore>,
+    app: ServerApp,
 }
 
 impl Api {
     /// The API over `app`.
     #[must_use]
-    pub fn new(app: App<PgStore>) -> Self {
+    pub fn new(app: ServerApp) -> Self {
         Self { app }
     }
 

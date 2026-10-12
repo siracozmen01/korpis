@@ -6,7 +6,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::page::{Page, Paged};
-use crate::ports::{Clock, Store};
+use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::{GrantRecord, ObjectRef};
 use korpis_core::principal::Principal;
 use uuid::Uuid;
@@ -31,7 +31,7 @@ pub struct GrantWithChain {
     pub chain: Vec<GrantRecord>,
 }
 
-impl<S: Store, C: Clock> App<S, C> {
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One grant with its chain, if the caller holds it or may read grants over its scope.
     pub async fn get_grant(&self, caller: &Caller, id: Uuid) -> Result<GrantWithChain, AppError> {
         let mut records = self.store.grant_chain(id).await?;
