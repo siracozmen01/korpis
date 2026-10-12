@@ -20,6 +20,8 @@ pub enum EffectsOf {
     Workload(Uuid),
     /// A node's; needs `node.read`.
     Node(Uuid),
+    /// One plan's, its steps' included; needs `plan.read` on its workload.
+    Plan(Uuid),
 }
 
 /// A page of the log.
@@ -50,6 +52,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             EffectsOf::Node(id) => {
                 self.authorize(caller, "node.read", ObjectRef::new(Kind::Node, id)).await?;
                 filter.node = Some(id);
+            }
+            EffectsOf::Plan(id) => {
+                let plan = self.store.plan(id).await?.ok_or(AppError::NotFound { kind: "plan" })?;
+                let workload = ObjectRef::new(Kind::Workload, plan.workload);
+                self.authorize(caller, "plan.read", workload).await?;
+                filter.plan = Some(id);
             }
         }
         let page = Page::new(None, size);

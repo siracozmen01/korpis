@@ -20,12 +20,15 @@ impl pb::EffectService for Api {
     ) -> ServiceResult<pb::ListEffectsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let of = match (&req.workload, &req.node) {
-            (Some(w), None) => {
+        let of = match (&req.workload, &req.plan, &req.node) {
+            (Some(w), None, None) => {
                 EffectsOf::Workload(wire::id(IdKind::Workload, "workload", w).refuse()?)
             }
-            (None, Some(n)) => EffectsOf::Node(wire::id(IdKind::Node, "node", n).refuse()?),
-            _ => return Err(error::invalid("workload", "filter by one workload or one node")),
+            (None, Some(p), None) => EffectsOf::Plan(wire::id(IdKind::Plan, "plan", p).refuse()?),
+            (None, None, Some(n)) => EffectsOf::Node(wire::id(IdKind::Node, "node", n).refuse()?),
+            _ => {
+                return Err(error::invalid("workload", "filter by one workload, plan, or node"));
+            }
         };
         let since = req.since.as_option().map(|t| time("since", t)).transpose().refuse()?;
         let (size, token) =

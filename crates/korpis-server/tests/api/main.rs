@@ -13,6 +13,7 @@
 
 mod authority;
 mod authz;
+mod effects;
 mod lifecycle;
 mod nodes;
 mod operator;

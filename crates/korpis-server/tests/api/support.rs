@@ -120,6 +120,10 @@ impl Harness {
         pb::GrantServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn effect_log(&self, config: ClientConfig) -> pb::EffectServiceClient<HttpClient> {
+        pb::EffectServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
         pb::NodeServiceClient::new(self.http.clone(), config)
     }
