@@ -63,7 +63,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 12 | `Create`, then `Start` | `04-runtimes.md` §4.2 |
 | 13 | Health probed at the application level | `04-runtimes.md` §5 |
 | 14 | `Observation` reported; node-originated effects journaled and acknowledged exactly once † | `02-architecture.md` §4.3, §4.10 |
-| 15 | Web shows converging, then converged, with the lag | `11-surface-web.md` §3 |
+| 15 | Web shows converging, then converged, with the lag, each change pushed to its watch as it commits ‡ | `11-surface-web.md` §3; `10-api.md` §7 |
 | 16 | Owner issues a share grant; token travels in the fragment; any `max_uses` is redeemed online † | `08-identity.md` §6.1, §6.2 |
 
 ‡ Updated 2026-10-13, from the implementation. The trace had the subject declare a complete
@@ -74,7 +74,9 @@ answer for a workload no node can take, and none for two creates racing for the 
 capacity: the bind now happens in the transaction that approves the target, under one placement
 lock, and a target with no node is recorded with its explanation, shown as unplaced, and retried.
 Placing the example recipe also showed that §9 of `07-networking.md` kept any workload with an
-`overlay_only` endpoint off a node without the overlay; it is corrected there.
+`overlay_only` endpoint off a node without the overlay; it is corrected there. Step 15 had a
+stream with no source: nothing said what wakes a watch, and a watch that polls is either late or
+expensive. The database announces each committed change, and the watch re-reads on it.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

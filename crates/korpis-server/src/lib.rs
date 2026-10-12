@@ -42,6 +42,8 @@ pub struct ServeConfig {
     pub placement_policy: PlacementPolicy,
     /// How often workloads no node could take are tried again.
     pub placement_retry: Duration,
+    /// How often a watcher re-reads what it watches when nothing was announced.
+    pub watch_resync: Duration,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -95,7 +97,9 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         config.max_connections,
         Arc::new(bodies::ProtoJsonBodies),
     )
-    .await?;
+    .await?
+    .with_watch_resync(config.watch_resync);
+    store.listen();
     store.ensure_partitions(3).await?;
     let keys = keys::Keys::load_or_create(&config.data)?;
     let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));

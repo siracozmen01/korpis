@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT workload_id, intent_id, attempted_at, explanation\n               FROM placement_failure WHERE workload_id = $1",
+  "query": "SELECT workload_id, intent_id, since, explanation\n               FROM placement_failure WHERE workload_id = $1",
   "describe": {
     "columns": [
       {
@@ -27,12 +27,12 @@
       },
       {
         "ordinal": 2,
-        "name": "attempted_at",
+        "name": "since",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "placement_failure",
-            "name": "attempted_at"
+            "name": "since"
           }
         }
       },
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "1b48193421dfb6ccf64c10bb7b349467e1856e5457859f248a14b3e9e3ce3597"
+  "hash": "435c2eba3afdb0b36331361d05238db4c9f1505b593d1a8dded484a4e8b972ba"
 }

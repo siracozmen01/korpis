@@ -8,6 +8,7 @@
 
 mod audit;
 mod authz;
+mod changes;
 mod clock;
 mod idempotency;
 mod node;
@@ -22,6 +23,7 @@ pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
+pub use changes::{Change, Changes};
 pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use node::{NodeRead, NodeWrite};
@@ -86,8 +88,14 @@ pub trait Store:
     /// A transaction.
     type Tx: Tx;
 
+    /// A subscription to workload changes.
+    type Changes: Changes;
+
     /// Opens a transaction.
     fn begin(&self) -> impl Future<Output = StoreResult<Self::Tx>> + Send;
+
+    /// Subscribes to the changes of every workload, from now on.
+    fn subscribe(&self) -> Self::Changes;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.

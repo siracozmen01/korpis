@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The newest attempt that found no node for workload $1's target $2, returning the intent the\n-- previous record was for, if any: the statement's snapshot still sees that row. A retry that\n-- reaches the same intent and explanation leaves the record as it was, `since` included, so a\n-- watcher hears when the reason changes and not every time it is retried.\nWITH previous AS (SELECT intent_id FROM placement_failure WHERE workload_id = $1)\nINSERT INTO placement_failure (workload_id, intent_id, since, explanation)\nVALUES ($1, $2, $3, $4)\nON CONFLICT (workload_id) DO UPDATE SET\n    intent_id = EXCLUDED.intent_id, since = EXCLUDED.since, explanation = EXCLUDED.explanation\n    WHERE placement_failure.intent_id IS DISTINCT FROM EXCLUDED.intent_id\n       OR placement_failure.explanation IS DISTINCT FROM EXCLUDED.explanation\nRETURNING (SELECT intent_id FROM previous) AS previous\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "previous",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6f5f0d255f48e75218bc746f14e070711f1fee714adf259e2cf182c0211ec9ca"
+}

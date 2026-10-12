@@ -65,7 +65,7 @@ impl PlacementRead for PgStore {
 
     async fn unplaced(&self, workload: Uuid) -> StoreResult<Option<Unplaced>> {
         let row = sqlx::query!(
-            "SELECT workload_id, intent_id, attempted_at, explanation
+            "SELECT workload_id, intent_id, since, explanation
                FROM placement_failure WHERE workload_id = $1",
             workload
         )
@@ -77,7 +77,7 @@ impl PlacementRead for PgStore {
             Ok(Unplaced {
                 workload: r.workload_id,
                 intent: r.intent_id,
-                attempted_at: to_time(r.attempted_at),
+                since: to_time(r.since),
                 explanation: doc.into_domain()?,
             })
         })
@@ -180,13 +180,14 @@ impl PlacementWrite for PgTx {
             "queries/unplaced_record.sql",
             u.workload,
             u.intent,
-            from_time(u.attempted_at),
+            from_time(u.since),
             explanation
         )
-        .fetch_one(&mut *self.tx)
+        .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(previous != Some(u.intent))
+        // No row: the same intent and explanation were already recorded, and nothing changed.
+        Ok(previous.is_some_and(|before| before != Some(u.intent)))
     }
 
     async fn clear_unplaced(&mut self, workload: Uuid) -> StoreResult<()> {

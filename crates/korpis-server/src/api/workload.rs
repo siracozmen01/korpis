@@ -13,19 +13,20 @@ use super::wire::workload::{
     convergence_to_pb, intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb,
 };
 use super::wire::{self, name, timestamp, wire_id};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, ServerApp, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
 use korpis_app::Idempotent;
 use korpis_app::workload::{
     ChangePower, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
-    NewWorkload, PlacementView, PowerChanged, WorkloadView,
+    NewWorkload, PlacementView, PowerChanged, Watch, WorkloadView,
 };
 use korpis_core::id::IdKind;
 use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+use std::sync::Arc;
 
 /// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
 /// placement as the caller may see it. The observation is empty until a node reports one.
@@ -42,7 +43,7 @@ fn status(v: &WorkloadView) -> pb::WorkloadStatus {
             .as_ref()
             .map(|u| pb::Unplaced {
                 intent: wire_id(IdKind::Intent, u.intent),
-                attempted_at: timestamp(u.attempted_at).into(),
+                since: timestamp(u.since).into(),
                 explanation: explanation_to_pb(&u.explanation).into(),
                 ..Default::default()
             })
@@ -67,6 +68,31 @@ fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
     }
 }
 
+/// The watch as a stream: the status now, then each status that differs, until the client
+/// leaves, the feed ends, or a read is refused, which ends the stream with that refusal.
+fn watched(
+    app: Arc<ServerApp>,
+    caller: korpis_app::Caller,
+    first: &WorkloadView,
+    watch: Watch<korpis_store::Subscription>,
+) -> impl futures_util::Stream<Item = Result<pb::WatchWorkloadResponse, ConnectError>> + Send + use<>
+{
+    let now = pb::WatchWorkloadResponse { status: status(first).into(), ..Default::default() };
+    let rest = futures_util::stream::unfold(Some((app, caller, watch)), |state| async move {
+        let (app, caller, mut watch) = state?;
+        match app.next_status(&caller, &mut watch).await {
+            Ok(Some(v)) => {
+                let item =
+                    pb::WatchWorkloadResponse { status: status(&v).into(), ..Default::default() };
+                Some((Ok(item), Some((app, caller, watch))))
+            }
+            Ok(None) => None,
+            Err(e) => Some((Err(error::from_app(e)), None)),
+        }
+    });
+    futures_util::StreamExt::chain(futures_util::stream::once(async move { Ok(now) }), rest)
+}
+
 fn deleted(p: &Plan) -> pb::DeleteWorkloadResponse {
     pb::DeleteWorkloadResponse { plan: plan_to_pb(p).into(), ..Default::default() }
 }
@@ -78,11 +104,6 @@ fn declared(d: &Declared) -> pb::DeclareIntentResponse {
         plan: plan_to_pb(&d.plan).into(),
         ..Default::default()
     }
-}
-
-/// A method of the service that is specified and not yet built.
-fn unbuilt(method: &str) -> ConnectError {
-    ConnectError::unimplemented(format!("{method} is not built yet"))
 }
 
 fn target(req: &pb::DeclareIntentRequest) -> Result<DeclareTarget, ConnectError> {
@@ -270,12 +291,14 @@ impl pb::WorkloadService for Api {
         })
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn watch_workload(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::WatchWorkloadRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::WatchWorkloadRequest>,
     ) -> ServiceResult<ServiceStream<pb::WatchWorkloadResponse>> {
-        Err(unbuilt("WatchWorkload"))
+        let caller = self.caller(&ctx).await?;
+        let id = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
+        let (first, watch) = self.app.watch_workload(&caller, id).await.map_err(error::from_app)?;
+        Response::stream_ok(watched(Arc::clone(&self.app), caller, &first, watch))
     }
 }

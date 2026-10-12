@@ -246,7 +246,9 @@ message Placement {
 // Why no node took a workload's approved target, from the newest attempt.
 message Unplaced {
   string intent = 1;
-  google.protobuf.Timestamp attempted_at = 2;
+  // Since when this has been the reason: a retry that reaches the same explanation changes
+  // nothing.
+  google.protobuf.Timestamp since = 2;
   Explanation explanation = 3;
 }
 

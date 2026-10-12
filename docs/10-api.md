@@ -255,6 +255,19 @@ nothing happened. Every gap is marked, sized, and timestamped.
 Streams are durable and seekable (§3.6 of `01-model.md`, detail in `14-streams.md`), so a
 reconnecting client resumes at an offset rather than restarting from an in-memory buffer.
 
+**A status watch is level-triggered, so it needs no offset.** `WatchWorkload` sends the workload's
+status now, then each status that differs from the last one sent; there is nothing to resume,
+because every message is the whole status and a reconnecting client starts again from the current
+one. Each change is announced by the database when the transaction that made it commits, so a
+writer cannot forget to announce, and a watcher re-reads only the workload it watches. An
+announcement is a wake-up, not a record: a watcher that may have missed some (its server's
+listener reconnected, or it fell behind) re-reads, and every watcher also re-reads on a fixed
+interval, because time alone changes some statuses (a scheduled window opening). Every read is made
+with the watcher's authority as it is then, so a grant revoked during a watch ends it with the
+refusal a fresh read would get (§8). The cost is one listening connection per control-plane
+process and one read per announced change per watcher of that workload; a burst of changes inside
+one transaction is one announcement.
+
 ---
 
 ## 8. Errors

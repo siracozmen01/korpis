@@ -72,6 +72,7 @@ impl Harness {
             ],
             placement_policy: korpis_core::schedule::PlacementPolicy::default(),
             placement_retry: std::time::Duration::from_millis(200),
+            watch_resync: std::time::Duration::from_secs(1),
         })
         .await
         .expect("serve");

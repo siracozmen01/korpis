@@ -12,6 +12,7 @@
 mod audit;
 mod authz;
 mod errors;
+mod feed;
 mod idempotency;
 mod node;
 mod placement;
@@ -22,6 +23,8 @@ mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;
 mod workload;
+
+pub use feed::Subscription;
 
 use korpis_app::ports::{IntentCodec, Store, StoreResult, Tx};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
@@ -48,7 +51,12 @@ pub enum Error {
 pub struct PgStore {
     pool: PgPool,
     bodies: Arc<dyn IntentCodec>,
+    feed: Arc<feed::Feed>,
 }
+
+/// How often a watcher re-reads what it watches when nothing was announced: time alone changes
+/// some statuses (a scheduled window opening).
+pub const DEFAULT_WATCH_RESYNC: std::time::Duration = std::time::Duration::from_secs(15);
 
 impl PgStore {
     /// Connects with `url` and assumes [`APP_ROLE`] on every connection, so that the
@@ -70,7 +78,15 @@ impl PgStore {
             })
             .connect_with(options)
             .await?;
-        Ok(Self { pool, bodies })
+        Ok(Self { pool, bodies, feed: feed::Feed::new(DEFAULT_WATCH_RESYNC) })
+    }
+
+    /// Resyncs watchers every `every` instead of [`DEFAULT_WATCH_RESYNC`]. Call before
+    /// [`PgStore::listen`] and before anything subscribes.
+    #[must_use]
+    pub fn with_watch_resync(mut self, every: std::time::Duration) -> Self {
+        self.feed = feed::Feed::new(every);
+        self
     }
 
     /// The pool, for tests that inspect what the schema enforces.
@@ -107,6 +123,11 @@ pub struct PgTx {
 
 impl Store for PgStore {
     type Tx = PgTx;
+    type Changes = feed::Subscription;
+
+    fn subscribe(&self) -> feed::Subscription {
+        self.subscription()
+    }
 
     async fn begin(&self) -> StoreResult<PgTx> {
         let tx = self.pool.begin().await.map_err(errors::from_sqlx)?;

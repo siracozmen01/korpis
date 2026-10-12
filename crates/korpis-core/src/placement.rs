@@ -69,8 +69,9 @@ pub struct Unplaced {
     pub workload: Uuid,
     /// The approved intent no node could take.
     pub intent: Uuid,
-    /// When it was last tried.
-    pub attempted_at: SystemTime,
+    /// When this explanation was first reached. A retry that reaches the same one changes
+    /// nothing, so a watcher is told when the reason changes, not every time it is retried.
+    pub since: SystemTime,
     /// Why every candidate was rejected.
     pub explanation: Explanation,
 }

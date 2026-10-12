@@ -210,8 +210,10 @@ its own; an approval never moves a workload as a side effect.
 full explanation, the workload shows as unplaced (§4.3 of `02-architecture.md`), and the control
 plane retries every such workload on a short interval, so a node enrolled, uncordoned, or freed is
 found without anyone approving anything again. The failure is logged once per target, not once per
-retry. A cancellation that puts back the target a workload is placed for forgets the failure
-recorded for the target it withdrew.
+retry, and a retry that reaches the same explanation changes nothing, so the record says since
+when this has been the reason and a watcher hears when the reason changes, not every retry pass. A
+cancellation that puts back the target a workload is placed for forgets the failure recorded for
+the target it withdrew.
 
 ---
 

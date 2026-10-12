@@ -183,12 +183,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         explanation: Explanation,
     ) -> Result<(), AppError> {
         let (candidates, rejections) = (explanation.candidates, explanation.filtered.len());
-        let unplaced = Unplaced {
-            workload: w.id,
-            intent: target.id,
-            attempted_at: self.clock.now(),
-            explanation,
-        };
+        let unplaced =
+            Unplaced { workload: w.id, intent: target.id, since: self.clock.now(), explanation };
         if tx.record_unplaced(&unplaced).await? {
             let e = place_effect(w, Outcome::Failed).error(details([
                 ("reason", "no node can run it".into()),

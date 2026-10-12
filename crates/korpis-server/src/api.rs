@@ -45,14 +45,14 @@ pub type ServerApp = App<PgStore, SystemClock, RegistrySource>;
 /// The services' shared state: the application.
 #[derive(Debug)]
 pub struct Api {
-    app: ServerApp,
+    app: Arc<ServerApp>,
 }
 
 impl Api {
     /// The API over `app`.
     #[must_use]
     pub fn new(app: ServerApp) -> Self {
-        Self { app }
+        Self { app: Arc::new(app) }
     }
 
     /// The application, for the composition root's background work.

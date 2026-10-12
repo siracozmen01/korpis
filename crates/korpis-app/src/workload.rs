@@ -14,6 +14,7 @@ mod power;
 mod propose;
 mod read;
 mod retire;
+mod watch;
 
 pub use decide::{ApprovePlan, RejectPlan};
 pub use declare::{DeclareIntent, DeclareTarget, Declared, NewWorkload};
@@ -21,3 +22,4 @@ pub use explain::{PlacementView, UnplacedView};
 pub use power::{ChangePower, PowerChanged};
 pub use read::{ListWorkloads, WorkloadView};
 pub use retire::DeleteWorkload;
+pub use watch::Watch;

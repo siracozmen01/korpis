@@ -17,6 +17,7 @@ serde_json = "1"
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = "0.1"
 uuid = { workspace = true }
 # Only for `testing`, which builds stores the way the control plane does.
 korpis-wire = { workspace = true, optional = true }

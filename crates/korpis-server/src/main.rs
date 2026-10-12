@@ -59,6 +59,9 @@ enum Command {
         /// Seconds between passes that retry workloads no node could take.
         #[arg(long, default_value_t = 10)]
         placement_retry_secs: u64,
+        /// Seconds between re-reads of a watched workload when nothing was announced.
+        #[arg(long, default_value_t = 15)]
+        watch_resync_secs: u64,
     },
 }
 
@@ -107,6 +110,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             plain_http_registries,
             placement_policy,
             placement_retry_secs,
+            watch_resync_secs,
         } => {
             let policy = match placement_policy {
                 Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
@@ -120,6 +124,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 plain_http_registries,
                 placement_policy: policy,
                 placement_retry: Duration::from_secs(placement_retry_secs.max(1)),
+                watch_resync: Duration::from_secs(watch_resync_secs.max(1)),
             })
             .await?;
             tokio::select! {

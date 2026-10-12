@@ -73,7 +73,7 @@ async fn a_failed_attempt_is_new_once_per_target() {
     let u = Unplaced {
         workload: w.id,
         intent: first.id,
-        attempted_at: now(),
+        since: now(),
         explanation: explanation(Uuid::now_v7()),
     };
     assert!(tx.record_unplaced(&u).await.unwrap(), "the first attempt for this target");

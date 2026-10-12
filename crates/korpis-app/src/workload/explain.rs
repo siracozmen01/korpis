@@ -45,8 +45,8 @@ pub struct PlacementView {
 pub struct UnplacedView {
     /// The target no node could take.
     pub intent: Uuid,
-    /// When that was last tried.
-    pub attempted_at: SystemTime,
+    /// Since when that has been the reason.
+    pub since: SystemTime,
     /// The derivation, filtered.
     pub explanation: ExplanationView,
 }
@@ -139,7 +139,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             });
             v.unplaced = f.unplaced.map(|u| UnplacedView {
                 intent: u.intent,
-                attempted_at: u.attempted_at,
+                since: u.since,
                 explanation: render(&u.explanation, &sight),
             });
         }

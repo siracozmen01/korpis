@@ -1938,6 +1938,7 @@ dependencies = [
  "clap",
  "connectrpc",
  "ed25519-dalek",
+ "futures-util",
  "getrandom 0.4.3",
  "http",
  "korpis-app",
@@ -1972,6 +1973,7 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
