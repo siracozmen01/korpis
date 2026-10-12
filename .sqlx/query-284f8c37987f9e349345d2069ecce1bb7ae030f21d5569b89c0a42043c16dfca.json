@@ -1,0 +1,226 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, actor, grant_id,\n                    action, outcome, error, before, after, count, origin_node, origin_seq\n               FROM effect\n              WHERE ($1::uuid IS NULL OR workload_id = $1)\n                AND ($2::uuid IS NULL OR plan_id = $2)\n                AND ($3::uuid IS NULL OR node_id = $3)\n                AND ($4::timestamptz IS NULL OR at >= $4)\n                AND ($5::timestamptz IS NULL OR (at, id) > ($5, $6))\n              ORDER BY at, id LIMIT $7",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "occurred_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "occurred_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "plan_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "plan_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "step",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "step"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "actor",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "actor"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "grant_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "grant_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "action",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "error",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "before",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "before"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "after",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "after"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "count"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "origin_node",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "origin_node"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "origin_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "origin_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "284f8c37987f9e349345d2069ecce1bb7ae030f21d5569b89c0a42043c16dfca"
+}

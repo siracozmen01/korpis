@@ -6,11 +6,13 @@ A general-purpose workload platform: its specification in `docs/`, and its imple
 them is wrong, and the fix lands in the same commit as the discovery: the code is corrected, or the
 document is corrected in place with its reasoning.
 
-The Rust code follows `rustfmt.toml` and the workspace lints in `Cargo.toml`, and every commit
-passes `scripts/check.sh` (formatting, clippy with warnings denied, tests, the supply-chain policy
-of `deny.toml`, and the text checks below). Every source file starts with its SPDX licence line:
-`Apache-2.0` in `korpis-proto`, `AGPL-3.0-or-later` everywhere else (§2 of
-`docs/19-governance.md`).
+The Rust code is organized as `ARCHITECTURE.md` describes (domain, application, adapters, with
+dependencies pointing inward) and written to the code rules of `CONTRIBUTING.md`: files under 400
+lines, functions under 60, no panics outside tests, every public item documented. Every commit
+passes `scripts/check.sh` (formatting, clippy with warnings denied, the layer rule, file length,
+tests, the supply-chain policy of `deny.toml`, and the text checks below). Every source file
+starts with its SPDX licence line: `Apache-2.0` in `korpis-proto`, `AGPL-3.0-or-later` everywhere
+else (§2 of `docs/19-governance.md`).
 
 ## Hard rules
 
@@ -45,7 +47,8 @@ LICENSE LICENSE-APACHE LICENSE-AGPL LICENSE-CC-BY the licence split and the full
 docs/00-overview.md                              principles, non-goals, bets, binding rules
 docs/01-model.md .. docs/23-walkthroughs.md      the specification, in dependency order
 docs/research/evidence.md                        the citations every deviation is argued from
-Cargo.toml crates/                               the Rust workspace, one crate per component
+ARCHITECTURE.md                                  how the code is layered, and the dependency rule
+Cargo.toml crates/                               the Rust workspace, one crate per layer or program
 scripts/check.sh                                 every check a commit must pass
 ```
 

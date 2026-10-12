@@ -3,11 +3,19 @@
 //! The schema enforces what docs/03-state.md says the database enforces, as the role the
 //! control plane actually runs as. Needs the development database (`scripts/dev-pg.sh up`).
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "a failing test should fail loudly"
+)]
+
 use korpis_store::testing::TestDb;
 use sqlx::Row;
 use uuid::Uuid;
 
-async fn seed_workload(store: &korpis_store::Store) -> (Uuid, Uuid) {
+async fn seed_workload(store: &korpis_store::PgStore) -> (Uuid, Uuid) {
     let pool = store.pool();
     let (org, project, workload, intent) =
         (Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7(), Uuid::now_v7());
@@ -105,10 +113,10 @@ async fn link_form_grants_cannot_delegate() {
     let root = Uuid::now_v7();
     let grant = |id: Uuid, parent: Option<Uuid>, link: bool, delegation: &'static str| {
         sqlx::query(
-            "INSERT INTO grants (id, subject, subject_key, actions, scope, scope_kind, scope_id,
+            "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id,
                                  parent_id, delegation, issued_by, link_form)
-             VALUES ($1, '{}', 'user:u1', ARRAY['workload.restart'], '{}', 'organization', $2,
-                     $3, $4::jsonb, '{}', $5)",
+             VALUES ($1, 'user:u1', ARRAY['workload.restart'], '{}', 'organization', $2,
+                     $3, $4::jsonb, 'system:bootstrap', $5)",
         )
         .bind(id)
         .bind(org)
@@ -122,10 +130,10 @@ async fn link_form_grants_cannot_delegate() {
         "a parentless grant must be marked root"
     );
     sqlx::query(
-        "INSERT INTO grants (id, subject, subject_key, actions, scope, scope_kind, scope_id,
+        "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id,
                              delegation, issued_by, root)
-         VALUES ($1, '{}', 'token:root', ARRAY['workload.restart'], '{}', 'organization', $2,
-                 '{\"allowed\":true}', '{}', true)",
+         VALUES ($1, 'token:root', ARRAY['workload.restart'], '{}', 'organization', $2,
+                 '{\"allowed\":true}', 'system:bootstrap', true)",
     )
     .bind(root)
     .bind(org)

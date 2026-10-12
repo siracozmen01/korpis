@@ -118,6 +118,12 @@ Project
 Most grants are scoped to a project. A community's "Minecraft network" and its "website" are two
 projects; a moderator can hold authority over one and not the other.
 
+> Added 2026-10-12: **label syntax**. Labels on projects, workloads and nodes use the syntax of
+> Kubernetes labels, deliberately: a key is an optional DNS-subdomain prefix and `/`, then a name
+> of at most 63 characters from `[A-Za-z0-9-_.]` beginning and ending alphanumeric; a value is
+> empty or such a name. Operators already know it, and a selector reads the same in both systems.
+> The API refuses anything else (`crates/korpis-core/src/labels.rs`).
+
 #### Quota
 
 > An enforced upper bound on resource consumption, inherited down the tenancy tree.
@@ -188,6 +194,14 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 > authorized by an earlier approval or by installation itself (§9.1 of `08-identity.md`), not by a
 > subject acting now. `System` holds no grant and can be issued none; it appears only as the actor
 > of effects whose authority is the plan or approval they cite.
+
+> Added 2026-10-12, while building the store (`crates/korpis-core/src/principal.rs`). Every subject
+> has one **canonical key**: `user:<id>`, `token:<id>`, `workload:<id>`, `extension:<name>`,
+> `system:<actor>`, `ext:<provider>:user:<id>`, or `ext:<provider>:set:<realm>:<member>`. Grants
+> are indexed by it, effects record their actor as it, and it parses back to exactly one subject,
+> which holds because every part but the last is refused if it contains `:`. The first schema
+> stored the wire message instead; that tied an append-only audit log to the protocol's field
+> names, and migration `0005_principal_keys.sql` records the correction.
 
 `ExternalIdentity` being a first-class subject is what makes Bet 1 work. A grant can name *the
 Discord role `@moderator` in guild X* directly. Nobody needs a Korpis account for that role to

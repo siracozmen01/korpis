@@ -18,3 +18,4 @@ Thumbs.db
 # local agent state
 /.claude/
 /.tools/
+/.env

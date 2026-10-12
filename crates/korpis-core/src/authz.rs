@@ -9,12 +9,15 @@
 //! object hierarchy, so the same code runs in the gateway, the relay, and the agent.
 
 pub mod action;
+pub mod credential;
 pub mod evaluate;
 pub mod grant;
+pub mod record;
 pub mod scope;
 pub mod token;
 
 pub use action::Action;
 pub use evaluate::{Decision, Denial, Permit, Request, evaluate};
 pub use grant::{AttenuationError, Conditions, Delegation, Grant, Subject, check_attenuation};
+pub use record::{GrantRecord, GrantState};
 pub use scope::{Hierarchy, Kind, LabelSelector, Node, ObjectRef, Resource, Scope};

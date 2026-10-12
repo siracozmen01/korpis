@@ -72,19 +72,80 @@ shortest accurate description of how this repository works for humans too.
 ## Working on the code
 
 The implementation is a Rust workspace in `crates/` (§3 of
-[`21-stack.md`](./docs/21-stack.md)). Three scripts cover everything:
+[`21-stack.md`](./docs/21-stack.md)). How it is organized, and why, is in
+[`ARCHITECTURE.md`](./ARCHITECTURE.md): read it before adding a file. Four scripts cover
+everything:
 
 ```
-scripts/dev-pg.sh up    a PostgreSQL for development and tests, in its own container on
-                        127.0.0.1:55432, isolated from anything else on the machine
-scripts/tools.sh        the pinned schema tools (buf and the code generators), into .tools/;
-                        needed only to change a .proto, then run scripts/gen-proto.sh
-scripts/check.sh        every check a commit must pass: the text rules, the schema, rustfmt,
-                        clippy with warnings denied, the tests, and the dependency policy
+scripts/dev-pg.sh up      a PostgreSQL for development and tests, in its own container on
+                          127.0.0.1:55432, isolated from anything else on the machine
+scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli), into .tools/;
+                          needed to change a .proto (then scripts/gen-proto.sh) or a query
+scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development
+                          database and regenerates .sqlx/, which builds use offline
+scripts/check.sh          every check a commit must pass: the text rules, file length, the
+                          layer rule, the schema, rustfmt, clippy with warnings denied, the
+                          tests, and the dependency policy
 ```
 
 Building needs only a Rust toolchain: the wire types are generated at build time from the
-committed descriptor set, so no protobuf compiler is required.
+committed descriptor set, and queries are checked against the committed `.sqlx/` metadata, so
+neither a protobuf compiler nor a database is needed to compile.
+
+## Code rules
+
+These are the rules professional Rust teams converge on, written down so that they hold in a
+codebase with one maintainer as well as in one with fifty. Most are enforced by
+`scripts/check.sh`; the rest are enforced in review, and a change that breaks one is wrong in the
+same way a document with an em dash is.
+
+**Layers.** The dependency rule of §3 of [`ARCHITECTURE.md`](./ARCHITECTURE.md) is absolute:
+the domain does no I/O, the application never names a database or a transport, and a handler holds
+no business rule. `scripts/check-layers.sh` fails the build on an outward dependency.
+
+**Size.** No source file exceeds 400 lines, tests included (checked). No function exceeds 60 lines
+(clippy `too_many_lines`), takes more than 6 arguments (`too_many_arguments`), or nests more than
+4 blocks deep (`excessive_nesting`). A file near the limit is split by responsibility, never by
+cutting at line 400. Long SQL lives in `crates/korpis-store/queries/` and is loaded with
+`query_file!`.
+
+**Modules.** A module with children is `name.rs` beside `name/`, never `name/mod.rs`
+(`mod_module_files`). Code is grouped by bounded context (§4 of `ARCHITECTURE.md`), and a context
+has the same module name in every layer.
+
+**No panics outside tests.** `unwrap`, `expect`, `panic!`, indexing that can panic, `todo!` and
+`unimplemented!` are denied in non-test code. A function that can fail returns a `Result`; an
+invariant the type system cannot express is made expressible, or handled. Something specified but
+not yet built answers with a typed "not yet, Phase N" error, never with a panic.
+
+**Errors.** Libraries define their errors with `thiserror`, one enum per layer, and translate at
+each boundary: the store's errors into `StoreError`, use-case refusals into `AppError`, and those
+into the wire's `korpis.v1.Error`. No `Box<dyn Error>` crosses a library boundary; `main` may use
+one. A caller is never told more than §8 of [`10-api.md`](./docs/10-api.md) allows.
+
+**Lints.** `clippy::all` is denied and `clippy::pedantic` is warned, and warnings fail the build.
+An exception is `#[expect(lint, reason = "...")]` on the narrowest item, never a bare
+`#[allow]` (`allow_attributes_without_reason`), and the reason says why the code is right, not
+that the lint is annoying. Integration test crates start with one `#![allow]` block for the
+panicking lints, with a reason.
+
+**Documentation.** Every public item of `korpis-core`, `korpis-app`, `korpis-store` and
+`korpis-server` has a doc comment (`missing_docs`). Comments say why, cite the document and
+section that decided it, and are written in the same English as the specification.
+
+**Output.** Libraries log through `tracing` and never print (`print_stdout`, `print_stderr`); a
+binary prints only in the functions that produce its output, marked with `#[expect]`.
+
+**Unsafe.** `unsafe_code` is denied workspace-wide. The day a crate needs it, the crate says so in
+its header, and every block carries a `// SAFETY:` comment that a reviewer can check.
+
+**Tests.** Unit tests sit at the foot of the file they test; tests that need a database or cross
+a crate boundary live in the crate's `tests/` directory, one file per behaviour, with shared
+setup in a `support` module. A test is named for the behaviour it pins down
+(`a_link_form_grant_can_never_delegate`), not for the function it calls.
+
+**Formatting.** `rustfmt` with `rustfmt.toml`, unconditionally. Lines of prose in comments stay
+under 100 characters, like the documents.
 
 ## Legal
 

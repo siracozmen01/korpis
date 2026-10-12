@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT method, response FROM idempotency WHERE subject_key = $1 AND key = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "method",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "idempotency",
+            "name": "method"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "response",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "idempotency",
+            "name": "response"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f54e55308efcde813d7207e3b57b58ee2e5014bf9e5bce74a1f825843b945569"
+}

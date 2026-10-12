@@ -1,0 +1,128 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Scopes and label selectors.
+
+use super::super::error::invalid;
+use super::{id, id_kind, wire_id};
+use connectrpc::ConnectError;
+use korpis_core::authz::scope::LabelExpression;
+use korpis_core::authz::{Kind, LabelSelector, ObjectRef, Scope};
+use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::scope::Kind as K;
+
+/// A scope from the request field `field`.
+pub fn from_pb(field: &str, scope: &pb::Scope) -> Result<Scope, ConnectError> {
+    match scope.kind.as_ref().ok_or_else(|| invalid(field, "required"))? {
+        K::Selector(sel) => {
+            let within_field = format!("{field}.selector.within");
+            let within =
+                sel.within.as_option().ok_or_else(|| invalid(&within_field, "required"))?;
+            Ok(Scope::Selector {
+                within: object_from_pb(&within_field, within)?,
+                selector: selector_from_pb(sel.selector.as_option())?,
+            })
+        }
+        other => Ok(Scope::Object(object_from_kind(field, other)?)),
+    }
+}
+
+/// An object scope from the request field `field`; selectors are refused.
+pub fn object_from_pb(field: &str, scope: &pb::Scope) -> Result<ObjectRef, ConnectError> {
+    object_from_kind(field, scope.kind.as_ref().ok_or_else(|| invalid(field, "required"))?)
+}
+
+fn object_from_kind(field: &str, kind: &K) -> Result<ObjectRef, ConnectError> {
+    let (k, value) = match kind {
+        K::Organization(v) => (Kind::Organization, v),
+        K::Project(v) => (Kind::Project, v),
+        K::Workload(v) => (Kind::Workload, v),
+        K::Volume(v) => (Kind::Volume, v),
+        K::Endpoint(v) => (Kind::Endpoint, v),
+        K::Stream(v) => (Kind::Stream, v),
+        K::Node(v) => (Kind::Node, v),
+        K::Selector(_) => return Err(invalid(field, "expected an object, not a selector")),
+    };
+    Ok(ObjectRef::new(k, id(id_kind(k), field, value)?))
+}
+
+/// The wire form of an object scope.
+#[must_use]
+pub fn object_to_pb(o: ObjectRef) -> pb::Scope {
+    let id = wire_id(id_kind(o.kind), o.id);
+    let kind = match o.kind {
+        Kind::Organization => K::Organization(id),
+        Kind::Project => K::Project(id),
+        Kind::Workload => K::Workload(id),
+        Kind::Volume => K::Volume(id),
+        Kind::Endpoint => K::Endpoint(id),
+        Kind::Stream => K::Stream(id),
+        Kind::Node => K::Node(id),
+    };
+    pb::Scope { kind: Some(kind), ..Default::default() }
+}
+
+/// The wire form of a scope.
+#[must_use]
+pub fn to_pb(scope: &Scope) -> pb::Scope {
+    match scope {
+        Scope::Object(o) => object_to_pb(*o),
+        Scope::Selector { within, selector } => pb::Scope {
+            kind: Some(K::Selector(Box::new(pb::SelectorScope {
+                within: object_to_pb(*within).into(),
+                selector: selector_to_pb(selector).into(),
+                ..Default::default()
+            }))),
+            ..Default::default()
+        },
+    }
+}
+
+fn selector_from_pb(sel: Option<&pb::LabelSelector>) -> Result<LabelSelector, ConnectError> {
+    let Some(sel) = sel else { return Ok(LabelSelector::default()) };
+    let expressions = sel
+        .match_expressions
+        .iter()
+        .map(|e| {
+            let (key, values) = (e.key.clone(), e.values.clone());
+            Ok(match e.operator.as_known() {
+                Some(pb::LabelOperator::LABEL_OPERATOR_IN) => LabelExpression::In(key, values),
+                Some(pb::LabelOperator::LABEL_OPERATOR_NOT_IN) => {
+                    LabelExpression::NotIn(key, values)
+                }
+                Some(pb::LabelOperator::LABEL_OPERATOR_EXISTS) => LabelExpression::Exists(key),
+                Some(pb::LabelOperator::LABEL_OPERATOR_DOES_NOT_EXIST) => {
+                    LabelExpression::DoesNotExist(key)
+                }
+                _ => return Err(invalid("selector.match_expressions", "unknown operator")),
+            })
+        })
+        .collect::<Result<_, _>>()?;
+    Ok(LabelSelector {
+        match_labels: sel.match_labels.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        expressions,
+    })
+}
+
+fn expression_to_pb(e: &LabelExpression) -> pb::LabelExpression {
+    use pb::LabelOperator as Op;
+    let (operator, key, values) = match e {
+        LabelExpression::In(k, v) => (Op::LABEL_OPERATOR_IN, k, v.clone()),
+        LabelExpression::NotIn(k, v) => (Op::LABEL_OPERATOR_NOT_IN, k, v.clone()),
+        LabelExpression::Exists(k) => (Op::LABEL_OPERATOR_EXISTS, k, Vec::new()),
+        LabelExpression::DoesNotExist(k) => (Op::LABEL_OPERATOR_DOES_NOT_EXIST, k, Vec::new()),
+    };
+    pb::LabelExpression {
+        key: key.clone(),
+        operator: operator.into(),
+        values,
+        ..Default::default()
+    }
+}
+
+fn selector_to_pb(sel: &LabelSelector) -> pb::LabelSelector {
+    pb::LabelSelector {
+        match_labels: sel.match_labels.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+        match_expressions: sel.expressions.iter().map(expression_to_pb).collect(),
+        ..Default::default()
+    }
+}

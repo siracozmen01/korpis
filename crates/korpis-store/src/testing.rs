@@ -4,7 +4,7 @@
 //! `KORPIS_TEST_PG_URL` (default: the `scripts/dev-pg.sh` instance), migrated, and dropped when
 //! the [`TestDb`] is dropped.
 
-use crate::{Error, Store, migrate};
+use crate::{Error, PgStore, migrate};
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
 
@@ -39,8 +39,8 @@ impl TestDb {
     }
 
     /// A store acting as the application role, as the control plane does.
-    pub async fn store(&self) -> Result<Store, Error> {
-        Store::connect(&self.owner_url, 4).await
+    pub async fn store(&self) -> Result<PgStore, Error> {
+        PgStore::connect(&self.owner_url, 4).await
     }
 }
 
@@ -54,17 +54,17 @@ impl Drop for TestDb {
             let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else {
                 return;
             };
-            rt.block_on(async move {
-                if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
-                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-                        "DROP DATABASE IF EXISTS {name} WITH (FORCE)"
-                    )))
-                    .execute(&mut admin)
-                    .await;
-                    let _ = admin.close().await;
-                }
-            });
+            rt.block_on(drop_database(&admin_url, &name));
         })
         .join();
     }
+}
+
+/// Best effort: a database a crashed test leaves behind goes with `scripts/dev-pg.sh destroy`.
+async fn drop_database(admin_url: &str, name: &str) {
+    let Ok(mut admin) = PgConnection::connect(admin_url).await else { return };
+    // The name was generated from a UUID, never from input.
+    let drop = format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)");
+    let _ = sqlx::query(sqlx::AssertSqlSafe(drop)).execute(&mut admin).await;
+    let _ = admin.close().await;
 }

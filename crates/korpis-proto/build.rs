@@ -3,7 +3,7 @@
 //! Generates the Rust types and Connect service stubs from the committed descriptor set, which
 //! scripts/gen-proto.sh builds from proto/. No protobuf compiler is needed here.
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     const FILES: &[&str] = &[
         "korpis/v1/common.proto",
         "korpis/v1/tenancy.proto",
@@ -25,6 +25,6 @@ fn main() {
         .generate_json(true)
         .gate_client_feature(true)
         .include_file("_connectrpc.rs")
-        .compile()
-        .expect("generate code from descriptor.binpb");
+        .compile()?;
+    Ok(())
 }

@@ -9,10 +9,22 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+korpis-app = { workspace = true }
+korpis-core = { workspace = true, features = ["authz"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
+
+[features]
+# Throwaway databases for tests in this and dependent crates. Never on in a release build.
+testing = []
+
+[dev-dependencies]
+korpis-store = { path = ".", features = ["testing"] }
 
 [lints]
 workspace = true

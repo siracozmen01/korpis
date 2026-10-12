@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Authority: authenticating callers, the one authorization path every use case goes through
+//! (P6), and the grant use cases of docs/08-identity.md.
+
+mod gateway;
+mod issue;
+mod mint;
+mod query;
+mod revoke;
+mod snapshot;
+
+pub use issue::IssueGrant;
+pub use mint::{MintToken, Minted};
+pub use query::{GrantWithChain, GrantsFilter};
+pub use revoke::Revoked;
+pub(crate) use snapshot::Snapshot;

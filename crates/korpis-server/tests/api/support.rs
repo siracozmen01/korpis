@@ -1,0 +1,179 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! A control plane installed into a throwaway database and served on a free port.
+
+use buffa::Message;
+use connectrpc::ConnectError;
+use connectrpc::client::{ClientConfig, HttpClient};
+use korpis_app::install::Installation;
+use korpis_core::authz::credential::Secret;
+use korpis_core::authz::{Kind, ObjectRef, Scope};
+use korpis_core::id::{Id, IdKind};
+use korpis_core::principal::Principal;
+use korpis_core::tenancy::Name;
+use korpis_proto::korpis::v1 as pb;
+use korpis_server::api::wire::{principal, scope, wire_id};
+use korpis_server::data::DataDir;
+use korpis_server::install::{InstallConfig, install};
+use korpis_store::testing::TestDb;
+use rustls::pki_types::{CertificateDer, pem::PemObject};
+use std::sync::Arc;
+use uuid::Uuid;
+
+pub struct Harness {
+    pub db: TestDb,
+    _dir: tempfile::TempDir,
+    pub installed: Installation,
+    pub http: HttpClient,
+    base: http::Uri,
+    server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
+}
+
+impl Drop for Harness {
+    fn drop(&mut self) {
+        self.server.abort();
+    }
+}
+
+fn client_tls(data: &DataDir) -> HttpClient {
+    let ca = CertificateDer::from_pem_file(data.tls().join("ca.pem")).expect("CA");
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(ca).expect("CA accepted");
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let tls = rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    HttpClient::with_tls(Arc::new(tls))
+}
+
+impl Harness {
+    pub async fn new() -> Self {
+        let db = TestDb::new().await.expect("test database");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let data = DataDir::new(dir.path().join("data"));
+        let installed = install(&InstallConfig {
+            data: data.clone(),
+            owner_url: db.owner_url.clone(),
+            organization: Name::parse("acme").unwrap(),
+            tls_names: vec!["localhost".to_owned()],
+        })
+        .await
+        .expect("install");
+        let running = korpis_server::serve(korpis_server::ServeConfig {
+            data: data.clone(),
+            database_url: db.owner_url.clone(),
+            listen: "127.0.0.1:0".parse().unwrap(),
+            max_connections: 4,
+        })
+        .await
+        .expect("serve");
+        let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
+        let http = client_tls(&data);
+        Self { db, _dir: dir, installed, http, base, server: running.task }
+    }
+
+    pub fn root_org(&self) -> String {
+        wire_id(IdKind::Organization, self.installed.organization.id)
+    }
+
+    pub fn root_grant(&self) -> String {
+        wire_id(IdKind::Grant, self.installed.root_grant)
+    }
+
+    pub fn config(&self, secret: Option<&str>) -> ClientConfig {
+        let config = ClientConfig::new(self.base.clone());
+        match secret {
+            Some(s) => config.with_default_header("authorization", format!("Bearer {s}")),
+            None => config,
+        }
+    }
+
+    pub fn root(&self) -> ClientConfig {
+        self.config(Some(self.installed.secret.expose()))
+    }
+
+    pub fn orgs(&self, config: ClientConfig) -> pb::OrganizationServiceClient<HttpClient> {
+        pb::OrganizationServiceClient::new(self.http.clone(), config)
+    }
+
+    pub fn projects(&self, config: ClientConfig) -> pb::ProjectServiceClient<HttpClient> {
+        pb::ProjectServiceClient::new(self.http.clone(), config)
+    }
+
+    pub fn grants(&self, config: ClientConfig) -> pb::GrantServiceClient<HttpClient> {
+        pb::GrantServiceClient::new(self.http.clone(), config)
+    }
+
+    /// An API token with no grants, created directly: Phase 0 has no token-creation call.
+    pub async fn bare_token(&self) -> (Uuid, Secret) {
+        let store = self.db.store().await.unwrap();
+        let id = Uuid::now_v7();
+        let secret = Secret::generate().unwrap();
+        sqlx::query(
+            "INSERT INTO api_token (id, name, secret_hash, created_by)
+             VALUES ($1, 'test', $2, 'system:bootstrap')",
+        )
+        .bind(id)
+        .bind(secret.digest().as_slice())
+        .execute(store.pool())
+        .await
+        .unwrap();
+        (id, secret)
+    }
+
+    /// Issues `actions` on the root organization to `token`, from the root grant; the new grant's id.
+    pub async fn issue_to(&self, token: Uuid, key: &str, actions: &[&str]) -> String {
+        let issued = self
+            .grants(self.root())
+            .issue_grant(pb::IssueGrantRequest {
+                mutation: mutation(key).into(),
+                parent: self.root_grant(),
+                subject: principal::to_pb(&Principal::Token(token)).into(),
+                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
+                scope: org_scope(&self.root_org()).into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        issued.grant.as_option().unwrap().id.clone()
+    }
+
+    /// Effect rows for an action, straight from the log.
+    pub async fn effects(&self, action: &str) -> Vec<(String, Option<Uuid>)> {
+        let store = self.db.store().await.unwrap();
+        sqlx::query_as::<_, (String, Option<Uuid>)>(
+            "SELECT outcome, grant_id FROM effect WHERE action = $1 ORDER BY at, id",
+        )
+        .bind(action)
+        .fetch_all(store.pool())
+        .await
+        .unwrap()
+    }
+}
+
+pub fn mutation(key: &str) -> pb::Mutation {
+    pb::Mutation { idempotency_key: key.to_owned(), ..Default::default() }
+}
+
+pub fn org_scope(id: &str) -> pb::Scope {
+    let id = Id::parse(IdKind::Organization, id).unwrap().uuid();
+    scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Organization, id)))
+}
+
+/// The structured reason a client branches on (§8 of docs/10-api.md).
+pub fn reason(e: &ConnectError) -> String {
+    use base64::Engine;
+    e.details
+        .iter()
+        .filter(|d| d.type_url.ends_with("korpis.v1.Error"))
+        .filter_map(|d| d.value.as_deref())
+        .filter_map(|v| {
+            base64::engine::general_purpose::STANDARD_NO_PAD.decode(v.trim_end_matches('=')).ok()
+        })
+        .find_map(|bytes| pb::Error::decode_from_slice(&bytes).ok())
+        .map(|d| d.reason)
+        .unwrap_or_default()
+}

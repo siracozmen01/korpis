@@ -25,11 +25,13 @@ use uuid::Uuid;
 /// or on suspected compromise) invalidates every token signed by the previous one.
 #[derive(Debug)]
 pub struct SigningKey {
+    /// Which key it is, so verifiers can hold several during rotation.
     pub key_id: u32,
     keypair: KeyPair,
 }
 
 impl SigningKey {
+    /// A fresh key.
     #[must_use]
     pub fn generate(key_id: u32) -> Self {
         Self { key_id, keypair: KeyPair::new_with_algorithm(Algorithm::Ed25519) }
@@ -49,6 +51,7 @@ impl SigningKey {
         self.keypair.private().to_bytes().to_vec()
     }
 
+    /// The public half, for verifiers.
     #[must_use]
     pub fn public_bytes(&self) -> Vec<u8> {
         self.keypair.public().to_bytes()
@@ -62,6 +65,7 @@ pub struct KeyRing {
 }
 
 impl KeyRing {
+    /// Trusts a public key under `key_id`.
     pub fn insert(&mut self, key_id: u32, public: &[u8]) -> Result<(), TokenError> {
         let key = PublicKey::from_bytes(public, Algorithm::Ed25519)
             .map_err(|e| TokenError::Key(e.to_string()))?;
@@ -79,25 +83,34 @@ impl KeyRing {
 /// by the gateway before minting.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Claims {
+    /// The holder's subject key.
     pub subject: String,
     /// The grant chain, leaf first, root last.
     pub chain: Vec<Uuid>,
+    /// The actions it carries.
     pub actions: Vec<String>,
+    /// The one object it is for.
     pub scope: ObjectRef,
+    /// When it stops working.
     pub expires_at: SystemTime,
 }
 
 /// Why a token was refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum TokenError {
+    /// A key is malformed or unknown.
     #[error("key: {0}")]
     Key(String),
+    /// The token is malformed or its signature does not verify.
     #[error("malformed or unverifiable token: {0}")]
     Invalid(String),
+    /// The token does not permit the request.
     #[error("the token does not authorize this request: {0}")]
     Unauthorized(String),
+    /// A grant on its chain is revoked.
     #[error("grant {0} on the token's chain is revoked")]
     Revoked(Uuid),
+    /// The token names no chain.
     #[error("the token states no chain")]
     NoChain,
 }
@@ -149,9 +162,11 @@ const VERIFY_LIMITS: AuthorizerLimits =
 /// What a verified token permits, as far as the verifier needs to know.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verified {
+    /// The holder's subject key.
     pub subject: String,
     /// The grant the request acts under: the leaf of the chain, which every effect names.
     pub grant: Uuid,
+    /// The grant chain, leaf first.
     pub chain: Vec<Uuid>,
 }
 

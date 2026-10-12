@@ -7,6 +7,7 @@ TOOLS="$PWD/.tools"
 BUF_VERSION=1.73.0
 BUFFA_VERSION=0.9.2
 CONNECT_CODEGEN_VERSION=0.9.0
+SQLX_CLI_VERSION=0.9.0
 
 mkdir -p "$TOOLS/bin"
 if ! "$TOOLS/bin/buf" --version 2>/dev/null | grep -qx "$BUF_VERSION"; then
@@ -25,4 +26,6 @@ cargo install --locked --quiet --root "$TOOLS" protoc-gen-buffa-packaging \
     --version "=$BUFFA_VERSION"
 cargo install --locked --quiet --root "$TOOLS" connectrpc-codegen \
     --version "=$CONNECT_CODEGEN_VERSION"
+cargo install --locked --quiet --root "$TOOLS" sqlx-cli --version "=$SQLX_CLI_VERSION" \
+    --no-default-features --features postgres,rustls
 echo "tools ready in $TOOLS/bin"

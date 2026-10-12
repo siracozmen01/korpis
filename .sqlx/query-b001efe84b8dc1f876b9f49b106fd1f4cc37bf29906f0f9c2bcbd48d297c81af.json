@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its\n-- root organization, with labels. One statement walks from the object to its organization and\n-- then up the organization tree, so the answer is consistent with a single snapshot.\nWITH RECURSIVE\nstart AS (\n    SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,\n           w.project_id AS up_project, NULL::uuid AS up_org\n      FROM workload w WHERE $1 = 'workload' AND w.id = $2\n    UNION ALL\n    SELECT 'project', p.id, p.labels, 0, NULL, p.organization_id\n      FROM project p WHERE $1 = 'project' AND p.id = $2\n    UNION ALL\n    SELECT 'organization', o.id, '{}'::jsonb, 0, NULL, o.parent_id\n      FROM organization o WHERE $1 = 'organization' AND o.id = $2\n    UNION ALL\n    SELECT 'node', n.id, n.labels, 0, NULL, NULL\n      FROM node n WHERE $1 = 'node' AND n.id = $2\n),\nproject_step AS (\n    SELECT 'project'::text AS kind, p.id, p.labels, 1 AS depth,\n           p.organization_id AS up_org\n      FROM start s JOIN project p ON p.id = s.up_project\n),\nfirst_org AS (\n    SELECT up_org AS id, depth FROM project_step\n    UNION ALL\n    SELECT up_org, depth FROM start WHERE kind IN ('project', 'organization')\n),\norgs AS (\n    SELECT o.id, o.parent_id, f.depth + 1 AS depth\n      FROM first_org f JOIN organization o ON o.id = f.id\n    UNION ALL\n    SELECT o.id, o.parent_id, orgs.depth + 1\n      FROM orgs JOIN organization o ON o.id = orgs.parent_id\n)\nSELECT kind AS \"kind!\", id AS \"id!\", labels AS \"labels!\", depth AS \"depth!\"\n  FROM (\n    SELECT kind, id, labels, depth FROM start\n    UNION ALL\n    SELECT kind, id, labels, depth FROM project_step\n    UNION ALL\n    SELECT 'organization', id, '{}'::jsonb, depth FROM orgs\n  ) chain\n ORDER BY depth\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "labels!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "depth!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b001efe84b8dc1f876b9f49b106fd1f4cc37bf29906f0f9c2bcbd48d297c81af"
+}

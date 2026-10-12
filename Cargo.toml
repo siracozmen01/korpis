@@ -12,16 +12,34 @@ publish = false
 [workspace.lints.rust]
 unsafe_code = "deny"
 missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
+# Restriction lints: the code rules of CONTRIBUTING.md that a machine can check. Tests are exempt
+# from the panicking ones through clippy.toml.
+allow_attributes_without_reason = "deny"
+as_conversions = "deny"
+dbg_macro = "deny"
+excessive_nesting = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+mod_module_files = "deny"
+panic = "deny"
+print_stderr = "deny"
+print_stdout = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_in_result = "deny"
+unwrap_used = "deny"
 
 [workspace.dependencies]
 korpis-proto = { path = "crates/korpis-proto" }
 korpis-core = { path = "crates/korpis-core" }
+korpis-app = { path = "crates/korpis-app" }
 korpis-store = { path = "crates/korpis-store" }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
 thiserror = "2"

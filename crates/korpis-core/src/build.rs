@@ -16,7 +16,14 @@ pub const SOURCE_URL: &str = "https://github.com/siracozmen01/korpis";
 /// One line naming a binary, its version, and its source, for every `--version` output.
 #[must_use]
 pub fn describe(binary: &str) -> String {
-    format!("{binary} {VERSION} (source {SOURCE_URL} at {SOURCE_REVISION})")
+    format!("{binary} {}", version_line())
+}
+
+/// The version and source, without a binary name, for argument parsers that print the name
+/// themselves.
+#[must_use]
+pub fn version_line() -> String {
+    format!("{VERSION} (source {SOURCE_URL} at {SOURCE_REVISION})")
 }
 
 #[cfg(test)]

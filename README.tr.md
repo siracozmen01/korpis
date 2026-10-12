@@ -81,6 +81,7 @@ CLAUDE.md                                       bu dokümanları düzenleyen her
 docs/00-overview.md .. docs/23-walkthroughs.md  spesifikasyon, bağımlılık sırasına göre numaralı
 docs/research/evidence.md                       her sapmanın dayandığı kaynaklar
 crates/                                         uygulama, bir Rust workspace'i
+ARCHITECTURE.md                                 kodun katmanları ve gerekçesi
 ```
 
 **Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli dokuz açık soru var; her

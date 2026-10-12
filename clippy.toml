@@ -1,0 +1,16 @@
+# Thresholds for the code rules in CONTRIBUTING.md. Lints themselves are set in the workspace
+# Cargo.toml; this file only tunes them.
+
+# A function longer than this is doing more than one thing.
+too-many-lines-threshold = 60
+# More arguments than this want a struct.
+too-many-arguments-threshold = 6
+# Deeper than this wants an early return or a helper.
+excessive-nesting-threshold = 4
+# Tests may unwrap, expect, panic, and print: a failing test should fail loudly.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+allow-indexing-slicing-in-tests = true

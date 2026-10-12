@@ -10,34 +10,18 @@ use std::collections::BTreeSet;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-/// Anything that can act. `key` is the stable string the store indexes grants by.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Subject {
-    pub key: String,
-    /// A set: a chat role, an OIDC group. Its members act through it (§5 of
-    /// docs/08-identity.md).
-    pub set: bool,
-}
-
-impl Subject {
-    #[must_use]
-    pub fn new(key: impl Into<String>) -> Self {
-        Self { key: key.into(), set: false }
-    }
-
-    #[must_use]
-    pub fn set(key: impl Into<String>) -> Self {
-        Self { key: key.into(), set: true }
-    }
-}
+pub use crate::principal::Subject;
 
 /// Every condition narrows; a child's are at least as restrictive as its parent's.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Conditions {
+    /// When it stops being valid.
     pub expires_at: Option<SystemTime>,
+    /// When it starts being valid.
     pub not_before: Option<SystemTime>,
     /// Empty means unrestricted.
     pub source_cidr: Vec<IpNet>,
+    /// Whether every use needs a second factor.
     pub requires_mfa: bool,
     /// This grant can propose, not apply (§3.6).
     pub requires_approval_by: Option<Scope>,
@@ -48,9 +32,11 @@ pub struct Conditions {
 /// Whether, how deep, and with which actions a grant may be attenuated (§3.2).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Delegation {
+    /// Whether the holder may attenuate it further at all.
     pub allowed: bool,
     /// `None` is unbounded, which only a root grant created at installation holds.
     pub max_depth: Option<u32>,
+    /// The actions a child may carry.
     pub actions: BTreeSet<Action>,
 }
 
@@ -61,17 +47,27 @@ pub struct Delegation {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grant {
+    /// Immutable identity.
     pub id: Uuid,
+    /// Who holds it.
     pub subject: Subject,
+    /// What it permits.
     pub actions: BTreeSet<Action>,
+    /// Where.
     pub scope: Scope,
+    /// Under which conditions.
     pub conditions: Conditions,
+    /// The grant it was attenuated from; `None` only for a root grant.
     pub parent: Option<Uuid>,
+    /// What the holder may pass on.
     pub delegation: Delegation,
+    /// Held by whoever presents its link, rather than by a named subject (§6.1).
     pub link_form: bool,
     /// Online redemptions so far, and uses handed to children at issue.
     pub uses: u64,
+    /// Revoked on this grant itself; ancestors are checked separately.
     pub revoked: bool,
+    /// Suspended on this grant itself.
     pub suspended: bool,
     /// For a grant to a set subject: the operator deliberately overrode the default that keeps
     /// irreversible actions out of it (§5.2). Never meaningful for a link-form grant. Set by the
@@ -97,32 +93,46 @@ impl Grant {
 /// in §3.2, so a refusal names the dimension that failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AttenuationError {
+    /// The parent does not allow delegation.
     #[error("the parent's delegation policy does not allow children")]
     DelegationNotAllowed,
+    /// The parent's delegation depth is used up.
     #[error("the parent's delegation depth is exhausted")]
     DepthExhausted,
+    /// The child carries an action the parent does not.
     #[error("action {0} is not in the parent's actions")]
     ActionNotHeld(Action),
+    /// The child carries an action the parent may not delegate.
     #[error("action {0} is not delegable under the parent's policy")]
     ActionNotDelegable(Action),
+    /// The child's scope is not within the parent's.
     #[error("the child's scope is not contained in the parent's")]
     ScopeNotContained,
+    /// The child outlives the parent.
     #[error("the child must expire no later than the parent")]
     ExpiryWider,
+    /// The child starts before the parent.
     #[error("the child must not become valid before the parent")]
     NotBeforeEarlier,
+    /// The child admits a network the parent does not.
     #[error("the child's source networks are not within the parent's")]
     NetworkWider,
+    /// The parent requires a second factor and the child does not.
     #[error("the parent requires MFA and the child does not")]
     MfaWeaker,
+    /// The child has more uses than the parent has left.
     #[error("the child's use limit exceeds the parent's remaining uses")]
     UsesWider,
+    /// The child's approval scope is narrower than the parent's.
     #[error("the child's approval requirement is weaker than the parent's")]
     ApprovalWeaker,
+    /// The child may delegate more than the parent allows.
     #[error("the child's delegation policy is wider than the parent permits")]
     DelegationWider,
+    /// A link-form grant would delegate.
     #[error("a link-form grant can never delegate")]
     LinkFormDelegates,
+    /// An irreversible action would go to a bearer link or a set (§5.2).
     #[error("action {0} is irreversible and cannot be held by a link-form or set-subject grant")]
     IrreversibleToBearerOrSet(Action),
 }
@@ -132,7 +142,9 @@ pub enum AttenuationError {
 /// have legitimately fallen by exactly what its children took.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum At {
+    /// When the child is issued: uses are compared with what the parent has left.
     Issue,
+    /// At every use: the parent's uses have already fallen by what its children took.
     Use,
 }
 

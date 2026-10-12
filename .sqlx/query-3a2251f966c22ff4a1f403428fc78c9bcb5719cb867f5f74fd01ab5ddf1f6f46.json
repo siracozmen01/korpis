@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE d AS (\n                   SELECT id FROM grants WHERE parent_id = $1\n                   UNION ALL\n                   SELECT g.id FROM grants g JOIN d ON g.parent_id = d.id\n               )\n               SELECT count(*) AS \"n!\" FROM d",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3a2251f966c22ff4a1f403428fc78c9bcb5719cb867f5f74fd01ab5ddf1f6f46"
+}

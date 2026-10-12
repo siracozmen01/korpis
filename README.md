@@ -75,6 +75,7 @@ CLAUDE.md                                       the rules anyone editing these d
 docs/00-overview.md .. docs/23-walkthroughs.md  the specification, numbered in dependency order
 docs/research/evidence.md                       the citations every deviation is argued from
 crates/                                         the implementation, a Rust workspace
+ARCHITECTURE.md                                 how the code is layered, and why
 ```
 
 **The open questions are the point, not the gaps.** Fifty-nine are open across the documents, each

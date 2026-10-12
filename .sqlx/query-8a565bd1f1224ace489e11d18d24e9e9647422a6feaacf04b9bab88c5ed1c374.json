@@ -1,0 +1,199 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override\n               FROM grants\n              WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "subject_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "actions",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "actions"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "scope",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "conditions",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "conditions"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "parent_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "parent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "delegation",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "delegation"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "issued_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "issued_by"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "link_form",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "link_form"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "uses",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "uses"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "issued_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "issued_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "revoked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "revoked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "suspended_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "suspended_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "root",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "root"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "irreversible_override",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "irreversible_override"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "8a565bd1f1224ace489e11d18d24e9e9647422a6feaacf04b9bab88c5ed1c374"
+}

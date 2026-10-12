@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id, conditions,\n                                 parent_id, delegation, issued_by, link_form, uses, issued_at,\n                                 root, irreversible_override)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "TextArray",
+        "Jsonb",
+        "Text",
+        "Uuid",
+        "Jsonb",
+        "Uuid",
+        "Jsonb",
+        "Text",
+        "Bool",
+        "Int8",
+        "Timestamptz",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6cf9755c0b7ed8c9df407afc1f6d015f970131c3c5a2d6a34d5974831ff2340b"
+}

@@ -114,7 +114,10 @@ operator has to reason about.
 
 - **Compile times.** Real, and paid on the codebase that changes most. Mitigated by structure rather
   than accepted as fate: a Cargo workspace of small crates with the protocol types at the bottom, so
-  a change to reconciliation logic does not rebuild the world.
+  a change to reconciliation logic does not rebuild the world. The crates follow a
+  ports-and-adapters layering (a pure domain crate, an application crate of use cases and ports,
+  and adapters for PostgreSQL, the API, and the runtime), described with its dependency rule in
+  `ARCHITECTURE.md` at the repository root.
 - **Async Rust is harder than goroutines.** Cancellation, pinning, and `Send` bounds are genuine
   complexity. The control plane, the relay, and the supervisor use Tokio; the privileged helper uses
   no async runtime at all (question 2).

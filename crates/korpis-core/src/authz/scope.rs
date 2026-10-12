@@ -14,17 +14,26 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// The kinds of object a scope can name.
 pub enum Kind {
+    /// An organization.
     Organization,
+    /// A project.
     Project,
+    /// A workload.
     Workload,
+    /// A volume.
     Volume,
+    /// An endpoint.
     Endpoint,
+    /// A stream.
     Stream,
+    /// A node.
     Node,
 }
 
 impl Kind {
+    /// The stored and wire name.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -38,6 +47,7 @@ impl Kind {
         }
     }
 
+    /// The kind a stored name names.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
@@ -56,11 +66,14 @@ impl Kind {
 /// One object, by kind and identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObjectRef {
+    /// What kind of object.
     pub kind: Kind,
+    /// Which one.
     pub id: Uuid,
 }
 
 impl ObjectRef {
+    /// A reference to object `id` of `kind`.
     #[must_use]
     pub fn new(kind: Kind, id: Uuid) -> Self {
         Self { kind, id }
@@ -70,19 +83,27 @@ impl ObjectRef {
 /// A label selector: every `match_labels` pair must be present, and every expression must hold.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LabelSelector {
+    /// Labels that must be present with these values.
     pub match_labels: BTreeMap<String, String>,
+    /// Further expressions, all of which must hold.
     pub expressions: Vec<LabelExpression>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// One label expression of a selector.
 pub enum LabelExpression {
+    /// The label is present with one of the values.
     In(String, Vec<String>),
+    /// The label is absent or has none of the values.
     NotIn(String, Vec<String>),
+    /// The label is present.
     Exists(String),
+    /// The label is absent.
     DoesNotExist(String),
 }
 
 impl LabelSelector {
+    /// Whether `labels` satisfy the selector.
     #[must_use]
     pub fn matches(&self, labels: &BTreeMap<String, String>) -> bool {
         self.match_labels.iter().all(|(k, v)| labels.get(k) == Some(v))
@@ -107,10 +128,13 @@ impl LabelSelector {
 /// Where a grant applies.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
+    /// One object and everything below it.
     Object(ObjectRef),
     /// Every object inside `within` that the selector matches at evaluation time.
     Selector {
+        /// The object the selector looks below.
         within: ObjectRef,
+        /// What the objects must carry.
         selector: LabelSelector,
     },
 }
@@ -128,17 +152,21 @@ impl Scope {
 /// One link of a resource's ancestry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Node {
+    /// The object.
     pub object: ObjectRef,
+    /// Its labels.
     pub labels: BTreeMap<String, String>,
 }
 
 /// An object together with its ancestry, from the object itself up to its root organization.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resource {
+    /// The object first, then its ancestors up to the root organization.
     pub chain: Vec<Node>,
 }
 
 impl Resource {
+    /// The object itself.
     #[must_use]
     pub fn object(&self) -> Option<ObjectRef> {
         self.chain.first().map(|n| n.object)
@@ -161,7 +189,8 @@ impl Resource {
             Scope::Object(o) => self.position(*o).is_some(),
             Scope::Selector { within, selector } => self
                 .position(*within)
-                .is_some_and(|at| self.chain[..at].iter().any(|n| selector.matches(&n.labels))),
+                .and_then(|at| self.chain.get(..at))
+                .is_some_and(|below| below.iter().any(|n| selector.matches(&n.labels))),
         }
     }
 }

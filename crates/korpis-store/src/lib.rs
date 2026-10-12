@@ -1,33 +1,49 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control-plane store (docs/03-state.md): PostgreSQL only, migrations embedded.
+//! The PostgreSQL adapter: the schema, its migrations, and the store ports of `korpis-app`
+//! (§1 of ARCHITECTURE.md, docs/03-state.md).
 //!
 //! The database enforces referential integrity and immutability and nothing else; authorization
-//! is decided in the gateway (§3.3). The control plane runs as `korpis_app`, which may insert
-//! into the append-only tables and may not update or delete them.
+//! is decided in the application (§3.3 of docs/03-state.md). The control plane runs as
+//! `korpis_app`, which may insert into the append-only tables and may not update or delete them.
 
+#![warn(missing_docs)]
+
+mod audit;
+mod authz;
+mod errors;
+mod idempotency;
+mod stored;
+mod tenancy;
+#[cfg(feature = "testing")]
+pub mod testing;
+
+use korpis_app::ports::{Store, StoreResult, Tx};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
+use sqlx::{Postgres, Transaction};
 use std::str::FromStr;
 
-/// The role the control plane acts as. Migrations create it; [`Store::connect`] assumes it.
+/// The role the control plane acts as. Migrations create it; [`PgStore::connect`] assumes it.
 pub const APP_ROLE: &str = "korpis_app";
 
-/// Errors from the store.
+/// Failures of the operations outside the ports: connecting, migrating, maintenance.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// The database refused or could not be reached.
     #[error("database: {0}")]
     Database(#[from] sqlx::Error),
+    /// A migration failed.
     #[error("migration: {0}")]
     Migration(#[from] sqlx::migrate::MigrateError),
 }
 
 /// A pool of connections acting as [`APP_ROLE`].
 #[derive(Debug, Clone)]
-pub struct Store {
+pub struct PgStore {
     pool: PgPool,
 }
 
-impl Store {
+impl PgStore {
     /// Connects with `url` and assumes [`APP_ROLE`] on every connection, so that the
     /// immutability grants of the schema bind the control plane whatever login it used.
     pub async fn connect(url: &str, max_connections: u32) -> Result<Self, Error> {
@@ -45,7 +61,8 @@ impl Store {
         Ok(Self { pool })
     }
 
-    /// The underlying pool.
+    /// The pool, for tests that inspect what the schema enforces.
+    #[cfg(feature = "testing")]
     #[must_use]
     pub fn pool(&self) -> &PgPool {
         &self.pool
@@ -69,4 +86,22 @@ pub async fn migrate(owner_url: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub mod testing;
+/// A transaction on a [`PgStore`].
+#[derive(Debug)]
+pub struct PgTx {
+    tx: Transaction<'static, Postgres>,
+}
+
+impl Store for PgStore {
+    type Tx = PgTx;
+
+    async fn begin(&self) -> StoreResult<PgTx> {
+        Ok(PgTx { tx: self.pool.begin().await.map_err(errors::from_sqlx)? })
+    }
+}
+
+impl Tx for PgTx {
+    async fn commit(self) -> StoreResult<()> {
+        self.tx.commit().await.map_err(errors::from_sqlx)
+    }
+}

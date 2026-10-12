@@ -9,6 +9,13 @@
 //!
 //! The `.proto` files under `proto/` are the source; the Rust code is generated at build time.
 
-#![allow(clippy::all, clippy::pedantic, missing_debug_implementations)]
+#![allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::restriction,
+    missing_debug_implementations,
+    rust_2018_idioms,
+    reason = "generated code is not ours to restyle; the schema is what is reviewed"
+)]
 
 connectrpc::include_generated!();

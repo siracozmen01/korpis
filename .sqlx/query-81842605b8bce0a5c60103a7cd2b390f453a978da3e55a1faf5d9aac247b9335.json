@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE grants SET uses = uses + $2 WHERE id = $1 AND uses + $2 <= $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "81842605b8bce0a5c60103a7cd2b390f453a978da3e55a1faf5d9aac247b9335"
+}

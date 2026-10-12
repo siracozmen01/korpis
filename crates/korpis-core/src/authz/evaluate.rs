@@ -17,11 +17,17 @@ use uuid::Uuid;
 /// What is being asked.
 #[derive(Debug, Clone)]
 pub struct Request<'a> {
+    /// Who asks.
     pub subject: &'a Subject,
+    /// What they ask to do.
     pub action: &'a Action,
+    /// What they ask to do it to, with its ancestry.
     pub resource: &'a Resource,
+    /// Where the request came from, for network conditions.
     pub source_ip: Option<IpAddr>,
+    /// Whether the credential was presented with a second factor.
     pub mfa: bool,
+    /// When; conditions are evaluated at this instant.
     pub now: SystemTime,
 }
 
@@ -38,9 +44,12 @@ pub enum Decision {
     /// The grant can propose, not apply (§3.6): a declaration under it produces a plan that waits
     /// for an approver over `approval_scope`. Anything that is not a declaration is refused.
     Propose {
+        /// The permit the action will run under once approved.
         permit: Permit,
+        /// Where an approver must hold `plan.approve`.
         approval_scope: Scope,
     },
+    /// Refused.
     Deny(Denial),
 }
 
@@ -60,6 +69,7 @@ pub struct Permit {
 /// would have granted it (§8 of docs/10-api.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Denial {
+    /// The action no chain carried, which is all the caller is told.
     pub missing_action: Action,
     /// For the audit log and the operator, never for the caller.
     pub reasons: Vec<(Uuid, ChainError)>,
@@ -68,30 +78,46 @@ pub struct Denial {
 /// Why one candidate chain did not permit the request.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ChainError {
+    /// A grant names a parent that was not supplied.
     #[error("the chain is incomplete: grant {0} names a parent that was not supplied")]
     BrokenChain(Uuid),
+    /// A parentless grant that is not a root grant.
     #[error("grant {0} has no parent and is not a root grant")]
     NotRooted(Uuid),
+    /// A grant on the chain is revoked.
     #[error("grant {0} is revoked")]
     Revoked(Uuid),
+    /// A grant on the chain is suspended.
     #[error("grant {0} is suspended")]
     Suspended(Uuid),
+    /// A grant on the chain is outside its validity window.
     #[error("grant {0} is not in force")]
     NotInForce(Uuid),
+    /// A grant on the chain is not a valid attenuation of its parent.
     #[error("grant {0} is not a valid attenuation of its parent: {1}")]
     InvalidAttenuation(Uuid, super::grant::AttenuationError),
+    /// No grants were supplied.
+    #[error("no grants were supplied")]
+    EmptyChain,
+    /// The leaf is held by someone else.
     #[error("the grant is held by a different subject")]
     WrongSubject,
+    /// The leaf does not carry the action.
     #[error("the grant does not carry the action")]
     ActionNotHeld,
+    /// The resource is outside the leaf's scope.
     #[error("the resource is outside the grant's scope")]
     OutOfScope,
+    /// A private action would cross into another organization implicitly.
     #[error("a private action does not reach into another organization implicitly")]
     PrivateAcrossOrganization,
+    /// The request's source is outside a network condition.
     #[error("the request's source address is outside the grant's networks")]
     SourceNotAllowed,
+    /// A condition requires a second factor the request lacks.
     #[error("the grant requires MFA")]
     MfaRequired,
+    /// A use-limited grant has no uses left.
     #[error("the grant's uses are exhausted")]
     Exhausted,
 }
@@ -135,7 +161,7 @@ fn permits(
     hierarchy: &impl Hierarchy,
 ) -> Result<Decision, ChainError> {
     verify_chain(chain, hierarchy, request.now)?;
-    let leaf = &chain[0];
+    let leaf = chain.first().ok_or(ChainError::EmptyChain)?;
     if &leaf.subject != request.subject {
         return Err(ChainError::WrongSubject);
     }
@@ -216,16 +242,21 @@ fn private_reach(scope: &Scope, resource: &Resource, hierarchy: &impl Hierarchy)
 /// An approval being attempted (§3.6 of docs/08-identity.md).
 #[derive(Debug, Clone)]
 pub struct Approval<'a> {
+    /// Who would approve.
     pub approver: &'a Subject,
     /// The approver's candidate chains, each leaf first.
     pub approver_chains: &'a [Vec<Grant>],
+    /// Who proposed.
     pub proposer: &'a Subject,
     /// The chain the plan was proposed under, leaf first.
     pub proposing_chain: &'a [Grant],
     /// The scope the proposing grant requires approval over.
     pub approval_scope: &'a Scope,
+    /// Where the approval came from.
     pub source_ip: Option<IpAddr>,
+    /// Whether the approver presented a second factor.
     pub mfa: bool,
+    /// When.
     pub now: SystemTime,
 }
 
@@ -277,14 +308,19 @@ pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decis
 /// Why a grant could not be issued.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum IssueError {
+    /// The issuer does not hold the parent.
     #[error("the issuer does not hold the parent grant")]
     NotHolder,
+    /// The parent's own chain is not valid now.
     #[error("the parent chain is not valid now: {0}")]
     ParentChain(ChainError),
+    /// The override was claimed by a request rather than granted by an identity binding.
     #[error("only an operator's identity binding can override the irreversible-action default")]
     OverrideNotFromBinding,
+    /// A root grant is created by installation, never issued.
     #[error("a root grant is created at installation, never issued")]
     RootNotIssuable,
+    /// The child is not a valid attenuation of the parent.
     #[error(transparent)]
     Attenuation(#[from] super::grant::AttenuationError),
 }

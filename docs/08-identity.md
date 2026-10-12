@@ -864,6 +864,14 @@ valid for one hour, redeemable only by registering a passkey. Redeeming it creat
 and issues the root grant to that user, with unbounded delegation (§3.2). The token is then void.
 Every other grant in the installation descends from that one.
 
+> Phase 0 note, 2026-10-12. Registering a passkey needs the web client, which arrives in Phase 1
+> (§4 of `20-roadmap.md`). Until then `install` issues the root grant to an **API token** whose
+> secret it prints once, and the effects of installation name the `System` bootstrap actor
+> (§3.2 of `01-model.md`). This is a weaker root than a passkey, and it is stated rather than
+> hidden: the token is a bearer secret with no second factor. When the web client exists, the
+> bootstrap token above replaces this path, and an installation's Phase 0 root token can be
+> revoked once a passkey-held root grant has been issued through local root recovery (§9.2).
+
 ### 9.2 When the last administrator is locked out
 
 Whoever holds root on the machine running the control plane already holds everything: the

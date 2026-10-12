@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO signing_key (key_id, purpose, public_key) VALUES ($1, $2, $3)\n             ON CONFLICT (key_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6caec07aa68e7582e3642217fae739eb32f32872bd2dadb97dbe8911556d193c"
+}

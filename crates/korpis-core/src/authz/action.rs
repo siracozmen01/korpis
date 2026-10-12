@@ -90,16 +90,21 @@ impl Action {
         }
     }
 
+    /// The action's name, e.g. `workload.restart`.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
+    /// Whether it cannot be undone, which keeps it out of links and set grants by default (§5.2 of
+    /// docs/08-identity.md).
     #[must_use]
     pub fn is_irreversible(&self) -> bool {
         IRREVERSIBLE.contains(&self.0.as_str())
     }
 
+    /// Whether it reaches a customer's data, which an ancestor never reaches implicitly (§7 of
+    /// docs/08-identity.md).
     #[must_use]
     pub fn is_private(&self) -> bool {
         PRIVATE.contains(&self.0.as_str())
