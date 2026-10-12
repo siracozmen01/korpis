@@ -1876,6 +1876,7 @@ dependencies = [
  "biscuit-auth",
  "getrandom 0.4.3",
  "ipnet",
+ "p256",
  "regex",
  "serde_json",
  "sha2 0.10.9",

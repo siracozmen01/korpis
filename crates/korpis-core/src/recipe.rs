@@ -13,6 +13,7 @@ pub mod reference;
 pub mod resolve;
 pub mod runtime;
 pub mod template;
+pub mod trust;
 
 pub use config::{
     ConfigDelivery, ConfigField, ConfigSchema, ConfigType, FieldPermission, SchemaError,

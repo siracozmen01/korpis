@@ -503,18 +503,37 @@ There is no ambient scope for a template to reach into, because there is no ambi
 
 ```
 TrustPolicy                      # per organization
-  require_signature   bool       default true
-  accepted_signers    []KeyRef
+  accepted_signers    []Signer   cosign public keys, each named; a key's identity is its fingerprint
   allow_unsigned      bool       default false, every use is logged
   allow_unverified    bool       default false, see §9
+
+Signer
+  name                string     what an intent records as having vouched
+  public_key          PEM        ECDSA P-256, as `cosign generate-key-pair` writes it
+  fingerprint         sha256     of the key's DER encoding
 ```
 
-- Recipes are signed with cosign; signatures live in the registry beside the artifact.
+> Correction, 2026-10-13, from the implementation. The policy had `require_signature` beside
+> `allow_unsigned`. They were one decision stated twice, and two of their four combinations had no
+> meaning an evaluator could apply: requiring a signature while allowing unsigned recipes, and
+> requiring none while not allowing them. `allow_unsigned` is the decision, and its default is the
+> old `require_signature: true`.
+
+- Recipes are signed with cosign; signatures live in the registry beside the artifact, in the form
+  `cosign sign --key` writes: a manifest tagged `sha256-<hex>.sig` whose layers are simple-signing
+  payloads naming the signed digest. A signature counts only for the digest its payload names.
+- A recipe is usable when one of the organization's accepted signers has signed its digest. A
+  signature by a key the policy does not accept proves nothing to it, so a recipe signed only by
+  strangers is unsigned as far as that organization is concerned.
+- **The default policy runs nothing.** It accepts no signer and allows nothing unsigned, because
+  Korpis ships no key it asks anyone to trust (question 4 of §13 of `17-security.md`): an
+  installation runs recipes once its operator has said whose it runs.
 - Verification happens **before** anything is fetched or unpacked, not after.
 - Registry credentials are never held by nodes. The Content component exchanges them for
   short-lived, digest-scoped pull tokens (§7 of `02-architecture.md`).
 - An operator may permit unsigned recipes. It is a deliberate, logged, per-organization decision,
-  and the recipe carries the fact into every workload declared from it.
+  and the recipe carries the fact into every workload declared from it. What vouched for a recipe
+  (the accepted signer, by name, or nothing) is recorded in every intent declared from it.
 
 ---
 
@@ -607,3 +626,10 @@ runs the control plane that must use it, so any such promise would be false, and
 `17-security.md` already states that tenants are not protected from the operator. A tenant who
 needs that property keeps the recipe in a registry the operator's control plane is given a
 pull-only, revocable credential for, and revokes it when the relationship ends.
+
+6. **Keyless signatures and the sigstore bundle.** Verification reads cosign's keyed
+   signatures in the `.sig` tag form. cosign also signs keylessly, with a short-lived Fulcio
+   certificate and a Rekor transparency-log entry, and newer releases can store a sigstore bundle
+   through the OCI referrers API instead of a tag. Accepting either means trusting a Fulcio root
+   and a Rekor key, and stating which identities (an OIDC issuer and subject) a policy accepts in
+   place of a key. → here, before the signing tooling of Phase 4 (§4 of `20-roadmap.md`)
