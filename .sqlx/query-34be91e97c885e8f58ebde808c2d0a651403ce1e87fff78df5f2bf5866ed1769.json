@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET intent_id = $2, intent_version = $3, power_version = $4,\n                                 version_floor = greatest(version_floor, $3, $4)\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34be91e97c885e8f58ebde808c2d0a651403ce1e87fff78df5f2bf5866ed1769"
+}

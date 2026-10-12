@@ -1966,6 +1966,7 @@ dependencies = [
  "korpis-app",
  "korpis-core",
  "korpis-store",
+ "korpis-wire",
  "serde",
  "serde_json",
  "sqlx",

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE plan SET status = $3, completed = $4, apply_after = $5, approved_by = $6,\n                             approved_at = $7\n              WHERE id = $1 AND status = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a5ffce6a119da9dbeb2a9ed08b565f50dd2dde786968b803679c4b3610563d8"
+}

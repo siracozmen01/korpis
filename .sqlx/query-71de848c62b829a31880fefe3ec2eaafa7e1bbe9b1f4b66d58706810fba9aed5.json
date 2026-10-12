@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version\n                 FROM intent WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "parent_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "parent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "declared_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "declared_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "declared_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "declared_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "body",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "schema_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "schema_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "71de848c62b829a31880fefe3ec2eaafa7e1bbe9b1f4b66d58706810fba9aed5"
+}

@@ -12,6 +12,7 @@ mod clock;
 mod idempotency;
 mod recipe;
 mod tenancy;
+mod workload;
 
 pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
 pub use authz::{
@@ -21,6 +22,7 @@ pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use tenancy::{TenancyRead, TenancyWrite};
+pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
 
 use std::future::Future;
 
@@ -31,6 +33,8 @@ pub enum Unique {
     OrganizationName,
     /// Project names are unique within an organization.
     ProjectName,
+    /// Workload names are unique within a project among workloads not deleted.
+    WorkloadName,
     /// One response per caller and idempotency key.
     IdempotencyKey,
     /// Any other.
@@ -64,6 +68,7 @@ pub trait Store:
     + IdempotencyRead
     + KeyRegistry
     + RecipeCache
+    + WorkloadRead
     + Send
     + Sync
     + 'static
@@ -77,7 +82,7 @@ pub trait Store:
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.
 pub trait Tx:
-    TenancyWrite + GrantWrite + CredentialWrite + EffectWrite + IdempotencyWrite + Send
+    TenancyWrite + GrantWrite + CredentialWrite + EffectWrite + IdempotencyWrite + WorkloadWrite + Send
 {
     /// Makes every write of the transaction durable at once.
     fn commit(self) -> impl Future<Output = StoreResult<()>> + Send;

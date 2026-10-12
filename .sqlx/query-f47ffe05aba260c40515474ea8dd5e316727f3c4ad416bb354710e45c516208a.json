@@ -1,0 +1,270 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans, oldest first, after a keyset cursor.\nSELECT id, workload_id, kind, operation_id, from_intent, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)\n ORDER BY id LIMIT $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operation_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "from_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "to_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "to_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_power"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "computed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "steps",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "steps"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "impact",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "impact"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "completed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "completed"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "apply_after",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "apply_after"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "approved_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_by"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "approved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "proposed_under",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "proposed_under"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "approval",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "approval_scope",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "approval_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "f47ffe05aba260c40515474ea8dd5e316727f3c4ad416bb354710e45c516208a"
+}

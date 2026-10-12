@@ -41,7 +41,7 @@ async fn seed_workload(store: &korpis_store::PgStore) -> (Uuid, Uuid) {
     .unwrap();
     sqlx::query(
         "INSERT INTO intent (id, workload_id, version, declared_by, body, schema_version)
-         VALUES ($1, $2, 1, '{\"user\":\"u1\"}', '{}', 'korpis.v1')",
+         VALUES ($1, $2, 1, 'user:u1', '{}', 'korpis.v1')",
     )
     .bind(intent)
     .bind(workload)
@@ -87,8 +87,9 @@ async fn at_most_one_plan_applies_per_workload() {
     let insert = |status: &'static str| {
         sqlx::query(
             "INSERT INTO plan (id, workload_id, kind, to_power, computed_by, steps, impact,
-                               status, expires_at)
-             VALUES ($1, $2, 'power', 1, '{}', '[]', '{}', $3, now() + interval '1 hour')",
+                               status, expires_at, approval, approval_reason)
+             VALUES ($1, $2, 'power', 1, 'user:u1', '[]', '{}', $3, now() + interval '1 hour',
+                     'auto', '')",
         )
         .bind(Uuid::now_v7())
         .bind(workload)

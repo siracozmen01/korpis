@@ -54,7 +54,9 @@ pub async fn install(config: &InstallConfig) -> Result<Installation, InstallErro
     if !config.data.tls().join("server.pem").exists() {
         tls::generate(&config.data, &config.tls_names)?;
     }
-    let store = PgStore::connect(&config.owner_url, 2).await?;
+    let store =
+        PgStore::connect(&config.owner_url, 2, std::sync::Arc::new(crate::bodies::ProtoJsonBodies))
+            .await?;
     store.ensure_partitions(3).await?;
     let app = App::new(store, SystemClock, keys.token.clone(), NoRecipes);
     app.register_keys(&keys.public()).await?;

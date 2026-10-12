@@ -64,7 +64,7 @@ impl ProjectRow {
     }
 }
 
-fn name(s: String) -> StoreResult<Name> {
+pub(crate) fn name(s: String) -> StoreResult<Name> {
     Name::parse(s).map_err(|e| StoreError::Corrupt(format!("name: {e}")))
 }
 

@@ -5,8 +5,11 @@
 //! the [`TestDb`] is dropped.
 
 use crate::{Error, PgStore, migrate};
+use korpis_app::ports::{CodecError, IntentCodec};
+use korpis_core::workload::IntentBody;
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
+use std::sync::Arc;
 
 /// The default superuser URL, matching `scripts/dev-pg.sh url`.
 pub const DEFAULT_ADMIN_URL: &str = "postgres://postgres:korpis-dev@127.0.0.1:55432/postgres";
@@ -38,9 +41,10 @@ impl TestDb {
         Ok(Self { admin_url, name, owner_url })
     }
 
-    /// A store acting as the application role, as the control plane does.
+    /// A store acting as the application role, as the control plane does, with intent bodies
+    /// stored as the control plane stores them.
     pub async fn store(&self) -> Result<PgStore, Error> {
-        PgStore::connect(&self.owner_url, 4).await
+        PgStore::connect(&self.owner_url, 4, Arc::new(WireBodies)).await
     }
 }
 
@@ -67,4 +71,24 @@ async fn drop_database(admin_url: &str, name: &str) {
     let drop = format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)");
     let _ = sqlx::query(sqlx::AssertSqlSafe(drop)).execute(&mut admin).await;
     let _ = admin.close().await;
+}
+
+/// Intent bodies in their stored form (§3.1 of docs/03-state.md), as the control plane's
+/// composition root configures them. Only tests construct the store here, so only tests carry
+/// this second copy of a three-line adapter.
+#[derive(Debug, Clone, Copy)]
+struct WireBodies;
+
+impl IntentCodec for WireBodies {
+    fn schema_version(&self) -> &str {
+        korpis_wire::body::SCHEMA_VERSION
+    }
+
+    fn encode(&self, b: &IntentBody) -> Result<String, CodecError> {
+        korpis_wire::body::encode(b).map_err(|e| CodecError(e.to_string()))
+    }
+
+    fn decode(&self, json: &str, schema_version: &str) -> Result<IntentBody, CodecError> {
+        korpis_wire::body::decode(json, schema_version).map_err(|e| CodecError(e.to_string()))
+    }
 }

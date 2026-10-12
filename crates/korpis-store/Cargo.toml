@@ -18,13 +18,18 @@ sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
+# Only for `testing`, which builds stores the way the control plane does.
+korpis-wire = { workspace = true, optional = true }
 
 [features]
 # Throwaway databases for tests in this and dependent crates. Never on in a release build.
-testing = []
+testing = ["dep:korpis-wire"]
 
 [dev-dependencies]
 korpis-store = { path = ".", features = ["testing"] }
+serde_json = "1"
+sqlx = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true

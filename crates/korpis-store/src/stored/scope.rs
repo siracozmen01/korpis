@@ -22,11 +22,11 @@ pub(crate) struct ObjectDoc {
 }
 
 impl ObjectDoc {
-    fn from_domain(o: ObjectRef) -> Self {
+    pub(crate) fn from_domain(o: ObjectRef) -> Self {
         Self { kind: o.kind.as_str().to_owned(), id: o.id }
     }
 
-    fn into_domain(self) -> Result<ObjectRef, StoreError> {
+    pub(crate) fn into_domain(self) -> Result<ObjectRef, StoreError> {
         let kind = Kind::parse(&self.kind).ok_or_else(|| corrupt("scope kind", &self.kind))?;
         Ok(ObjectRef::new(kind, self.id))
     }

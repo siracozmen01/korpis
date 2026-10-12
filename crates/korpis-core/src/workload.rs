@@ -34,6 +34,9 @@ pub struct Workload {
     pub intent_version: u64,
     /// The approved intent nodes converge toward; `None` until the first plan is approved.
     pub target: Option<Uuid>,
+    /// Bumped every time the target moves; approval is a compare-and-swap on it (§3.2 of
+    /// docs/03-state.md).
+    pub target_version: u64,
     /// The current power declaration's version.
     pub power_version: u64,
     /// Bumped on every metadata change, for compare-and-swap.

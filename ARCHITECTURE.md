@@ -165,6 +165,15 @@ data already written. That matters most for the effect log, which is append-only
 rewritten. Principals are stored as their canonical key (`korpis_core::principal`), which parses
 back to exactly one principal.
 
+**The one exception: the intent body.** §3.1 of `03-state.md` decides that `intent.body` holds the
+`korpis.v1.IntentBody` message in canonical JSON with defaults emitted, so that the schema and its
+compatibility rules cover the database as well as the wire. The store cannot depend on the wire
+schema (§3), so the format reaches it as a port: `IntentCodec` in `korpis-app`, implemented over
+`korpis-wire` by the composition root and handed to `PgStore::connect`. The store writes and reads
+the column through it and knows nothing of protobuf. The cost is a seam that has to be wired: a
+store built with another codec would write another format, which is why the test databases of
+`korpis_store::testing` are built with the same encoding the server uses.
+
 **Idempotent replays.** §6 of `10-api.md` promises that a retried mutation returns the original
 response. The guarantee belongs to the transport, but its atomicity belongs to the use case: the
 response must be recorded in the transaction of the change. So the driving adapter hands the use

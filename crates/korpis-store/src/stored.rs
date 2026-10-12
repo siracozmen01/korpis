@@ -8,9 +8,11 @@
 //! written. Every conversion from a row refuses what it cannot read as
 //! [`StoreError::Corrupt`] rather than defaulting it.
 
+mod plan;
 mod scope;
 mod time;
 
+pub(crate) use plan::{ImpactDoc, StepDoc};
 pub(crate) use scope::{ConditionsDoc, DelegationDoc, ScopeDoc, actions};
 pub(crate) use time::{from_time, to_time};
 

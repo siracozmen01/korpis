@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod api;
+pub mod bodies;
 pub mod data;
 pub mod install;
 pub mod keys;
@@ -72,7 +73,12 @@ pub struct Running {
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can
 /// connect immediately.
 pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
-    let store = PgStore::connect(&config.database_url, config.max_connections).await?;
+    let store = PgStore::connect(
+        &config.database_url,
+        config.max_connections,
+        Arc::new(bodies::ProtoJsonBodies),
+    )
+    .await?;
     store.ensure_partitions(3).await?;
     let keys = keys::Keys::load_or_create(&config.data)?;
     let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));

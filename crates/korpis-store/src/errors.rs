@@ -10,6 +10,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("organization_name_in_parent") => Unique::OrganizationName,
         Some("project_organization_id_name_key") => Unique::ProjectName,
         Some("idempotency_pkey") => Unique::IdempotencyKey,
+        Some("workload_name_in_project") => Unique::WorkloadName,
         _ => Unique::Other,
     }
 }
