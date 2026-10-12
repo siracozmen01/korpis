@@ -108,7 +108,7 @@ fn preset_endpoint(i: usize, e: &dto::PresetEndpoint) -> Result<PresetEndpoint, 
     let exposure_default = e
         .exposure_default
         .as_deref()
-        .map_or(Ok(Exposure::NodePort), |x| scalars::exposure(&at("exposure_default"), x))?;
+        .map_or(Ok(Exposure::Stable), |x| scalars::exposure(&at("exposure_default"), x))?;
     Ok(PresetEndpoint {
         name: e.name.clone(),
         protocol: scalars::protocol(&at("protocol"), &e.protocol)?,

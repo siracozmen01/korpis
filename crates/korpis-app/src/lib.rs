@@ -19,6 +19,7 @@ pub mod page;
 pub mod ports;
 pub mod recipe;
 pub mod tenancy;
+pub mod workload;
 
 pub use caller::Caller;
 pub use error::AppError;

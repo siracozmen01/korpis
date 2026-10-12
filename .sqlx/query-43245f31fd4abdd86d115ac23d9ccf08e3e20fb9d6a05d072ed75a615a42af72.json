@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM plan WHERE workload_id = $1 AND status = 'applying')\n                 AS \"applying!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "applying!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "43245f31fd4abdd86d115ac23d9ccf08e3e20fb9d6a05d072ed75a615a42af72"
+}

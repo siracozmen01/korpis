@@ -105,6 +105,10 @@ pub trait WorkloadWrite {
         power: &PowerRecord,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Whether a plan of `workload` is applying: a plan approved meanwhile is queued behind it
+    /// (§7 of docs/03-state.md).
+    fn plan_applying(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Inserts a plan.
     fn insert_plan(&mut self, plan: &Plan) -> impl Future<Output = StoreResult<()>> + Send;
 

@@ -17,6 +17,8 @@ mod info;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
 pub mod wire;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod workload;
 
 use connectrpc::{ConnectError, RequestContext, Response, Router, ServiceResult};
 use korpis_app::ports::SystemClock;
@@ -25,7 +27,7 @@ use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     EffectServiceExt, GrantServiceExt, OrganizationServiceExt, ProjectServiceExt,
-    ServerInfoServiceExt,
+    ServerInfoServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -57,6 +59,7 @@ impl Api {
         let router = OrganizationServiceExt::register(Arc::clone(&self), router);
         let router = ProjectServiceExt::register(Arc::clone(&self), router);
         let router = GrantServiceExt::register(Arc::clone(&self), router);
+        let router = WorkloadServiceExt::register(Arc::clone(&self), router);
         EffectServiceExt::register(self, router)
     }
 

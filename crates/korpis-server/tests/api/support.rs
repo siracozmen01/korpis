@@ -106,6 +106,10 @@ impl Harness {
         pb::ProjectServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn workloads(&self, config: ClientConfig) -> pb::WorkloadServiceClient<HttpClient> {
+        pb::WorkloadServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn grants(&self, config: ClientConfig) -> pb::GrantServiceClient<HttpClient> {
         pb::GrantServiceClient::new(self.http.clone(), config)
     }
@@ -167,8 +171,8 @@ pub fn org_scope(id: &str) -> pb::Scope {
     scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Organization, id)))
 }
 
-/// The structured reason a client branches on (§8 of docs/10-api.md).
-pub fn reason(e: &ConnectError) -> String {
+/// The structured error detail of §8 of docs/10-api.md.
+pub fn detail(e: &ConnectError) -> pb::Error {
     use base64::Engine;
     e.details
         .iter()
@@ -178,6 +182,10 @@ pub fn reason(e: &ConnectError) -> String {
             base64::engine::general_purpose::STANDARD_NO_PAD.decode(v.trim_end_matches('=')).ok()
         })
         .find_map(|bytes| pb::Error::decode_from_slice(&bytes).ok())
-        .map(|d| d.reason)
         .unwrap_or_default()
+}
+
+/// The structured reason a client branches on (§8 of docs/10-api.md).
+pub fn reason(e: &ConnectError) -> String {
+    detail(e).reason
 }

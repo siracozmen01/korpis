@@ -155,6 +155,18 @@ impl WorkloadWrite for PgTx {
         Ok(true)
     }
 
+    async fn plan_applying(&mut self, workload: Uuid) -> StoreResult<bool> {
+        let applying = sqlx::query_scalar!(
+            "SELECT EXISTS (SELECT 1 FROM plan WHERE workload_id = $1 AND status = 'applying')
+                 AS \"applying!\"",
+            workload
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(applying)
+    }
+
     async fn insert_plan(&mut self, p: &Plan) -> StoreResult<()> {
         let (to_intent, to_power) = match p.target {
             PlanTarget::Intent(i) => (Some(i), None),

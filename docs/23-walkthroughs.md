@@ -47,7 +47,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | # | Step | Governed by |
 |---|---|---|
 | 1 | Subject declares a workload; grant checked at declaration | `08-identity.md` §3 |
-| 2 | Recipe reference `…:1.20` resolved to a digest, **recorded in the intent** | `09-recipes.md` §8 |
+| 2 | Recipe reference `…:1.20` resolved to a digest, **recorded in the intent**; what the declaration leaves out is completed from that recipe, once ‡ | `09-recipes.md` §8, §3.1 |
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
 | 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind; `Explanation` recorded † | `05-scheduling.md` §2.1 to §2.3 |
@@ -62,6 +62,11 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 14 | `Observation` reported; node-originated effects journaled and acknowledged exactly once † | `02-architecture.md` §4.3, §4.10 |
 | 15 | Web shows converging, then converged, with the lag | `11-surface-web.md` §3 |
 | 16 | Owner issues a share grant; token travels in the fragment; any `max_uses` is redeemed online † | `08-identity.md` §6.1, §6.2 |
+
+‡ Updated 2026-10-13, from the implementation. The trace had the subject declare a complete
+body; the declared file of §3 of `13-surface-cli.md` is not one, and nothing said who completes
+it. The control plane does, at step 2, against the digest it just resolved, so step 3 validates
+the configuration of the body that will run and step 6 classifies its real steps.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

@@ -180,6 +180,42 @@ disruption:                                 # §5.1: what this software costs to
 `stop` to the console and waiting is the difference between a clean shutdown and a corrupted save,
 and it is declared by the recipe rather than special-cased in core.
 
+### 3.1 A declaration is completed by its recipe, once, and the intent stores the result
+
+> Added 2026-10-13, from the implementation (`crates/korpis-core/src/workload/declare.rs`). The
+> declared file of §3 of `13-surface-cli.md` leaves out the runtime, the probes, and a volume's
+> path, and §4 of the same document has `korpis plan` show what the control plane will actually
+> run. Nothing said who fills in what a declaration leaves out, or when.
+
+**The control plane completes a declaration against its recipe at declaration time, and the
+intent stores the completed body.** What is left out comes from the recipe resolved to its digest:
+
+| Part | When the declaration leaves it out |
+|---|---|
+| `lifecycle`, `console` | the preset's |
+| `runtime.tier` | the recipe's first target's tier; a declared tier must be one the recipe has a target for |
+| `runtime.driver` | the Linux driver for the tier in §3 of `04-runtimes.md`: `oci`, `native`, `firecracker`, `qemu` |
+| `resources` | when neither reservation nor limit is declared, the preset's recommendation is reserved |
+| `volumes`, `endpoints` | every preset entry is kept; a declared entry of the same name replaces what it states and inherits what it leaves out; other declared entries are added |
+| `health` | each probe not declared is the recipe's |
+
+Whatever is declared must also reach the preset's minimum resources, which is what the software
+needs to start: a declaration below it is refused, not placed and left to crash. An endpoint with
+no exposure, declared or proposed, is `stable`, which placement resolves to `node_bound` where the
+installation cannot deliver it (§3 of `07-networking.md`).
+
+Why at declaration and on the server: an intent is immutable and must mean the same thing
+forever (§3.1 of `03-state.md`), so it cannot depend on reading its recipe again; and every client,
+the CLI, the web panel and a chat command, gets the same completion because only one place
+performs it, which is what lets `korpis plan` show the body that will run. Why merge entries by name rather
+than replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
+endpoint's exposure should not have to restate the others to keep its readiness probe valid.
+
+What it costs: a declared list cannot remove a preset entry. A workload that must not expose a
+preset endpoint declares it with exposure `none`; a preset volume cannot be dropped at all, because
+the recipe's software was packaged expecting it. And a workload for a non-Linux host must name its
+driver, because the default is the Linux one.
+
 ---
 
 ## 4. The install DSL

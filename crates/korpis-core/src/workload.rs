@@ -3,6 +3,7 @@
 //! The workload and its state (§3.3 of docs/01-model.md): its identity, the intents declared
 //! for it, its power declaration, and the plans that move it from one to the next.
 
+pub mod declare;
 pub mod plan;
 pub mod spec;
 

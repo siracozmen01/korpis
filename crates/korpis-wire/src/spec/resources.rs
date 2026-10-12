@@ -100,7 +100,7 @@ pub fn resources_from_pb(field: &str, r: Option<&pb::ResourceSpec>) -> Result<Re
     })
 }
 
-fn mode(field: &str, v: buffa::EnumValue<pb::VolumeMode>) -> Result<VolumeMode> {
+pub(crate) fn mode(field: &str, v: buffa::EnumValue<pb::VolumeMode>) -> Result<VolumeMode> {
     match v.as_known() {
         Some(pb::VolumeMode::VOLUME_MODE_UNSPECIFIED | pb::VolumeMode::VOLUME_MODE_RW) => {
             Ok(VolumeMode::ReadWrite)

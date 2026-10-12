@@ -12,5 +12,8 @@
 )]
 
 mod authz;
+mod operator;
+mod recipes;
 mod support;
 mod tenancy;
+mod workload;

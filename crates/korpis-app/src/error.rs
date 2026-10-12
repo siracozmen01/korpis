@@ -25,6 +25,16 @@ pub enum AppError {
         /// The action no grant carried.
         action: String,
     },
+    /// The caller may make the change but not set this field: an operator field of a recipe's
+    /// configuration needs authority over the owning organization's parent (§5 of
+    /// docs/09-recipes.md).
+    #[error("{field} needs {action} over the owning organization's parent")]
+    FieldDenied {
+        /// The field, in the request's own terms.
+        field: String,
+        /// The action no grant carried there.
+        action: String,
+    },
     /// Does not exist, or the caller may not know that it does.
     #[error("{kind} not found")]
     NotFound {

@@ -13,6 +13,7 @@ use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::credential::Secret;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::principal::Principal;
+use korpis_core::workload::plan::Proposing;
 use std::net::IpAddr;
 use uuid::Uuid;
 
@@ -101,6 +102,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
+    /// Authorizes a declaration: like [`App::authorize`], except that a propose-only grant
+    /// authorizes it too, and the plan it produces then waits for an approver (§3.6 of
+    /// docs/08-identity.md).
+    pub(crate) async fn authorize_declaration(
+        &self,
+        caller: &Caller,
+        action: &str,
+        object: ObjectRef,
+    ) -> Result<(Permit, Proposing), AppError> {
+        let action = core_action(action)?;
+        match self.decide(caller, &action, object, None).await? {
+            Decision::Permit(permit) => Ok((permit, Proposing::Permitted)),
+            Decision::Propose { permit, approval_scope } => {
+                Ok((permit, Proposing::ProposeOnly { approval_scope }))
+            }
+            Decision::Deny(_) => Err(self.refuse(caller, &action, object).await),
+        }
+    }
+
     /// Records a refusal and returns what the caller is told.
     pub(crate) async fn refuse(
         &self,
@@ -119,7 +139,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    async fn record_denial(
+    pub(crate) async fn record_denial(
         &self,
         caller: &Caller,
         action: &Action,

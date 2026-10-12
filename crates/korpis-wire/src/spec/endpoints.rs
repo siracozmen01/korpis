@@ -43,7 +43,7 @@ fn tls_to_pb(t: &TlsSpec) -> pb::TlsSpec {
     pb::TlsSpec { source: source.into(), secret, ..Default::default() }
 }
 
-fn tls_from_pb(field: &str, t: &pb::TlsSpec) -> Result<TlsSpec> {
+pub(crate) fn tls_from_pb(field: &str, t: &pb::TlsSpec) -> Result<TlsSpec> {
     match t.source.as_known() {
         Some(pb::TlsSource::TLS_SOURCE_ACME) => Ok(TlsSpec::Acme),
         Some(pb::TlsSource::TLS_SOURCE_PROVIDED) => {
@@ -128,7 +128,7 @@ fn policy_to_pb(p: &NetworkPolicy) -> pb::NetworkPolicy {
     }
 }
 
-fn policy_from_pb(field: &str, p: Option<&pb::NetworkPolicy>) -> Result<NetworkPolicy> {
+pub(crate) fn policy_from_pb(field: &str, p: Option<&pb::NetworkPolicy>) -> Result<NetworkPolicy> {
     let Some(p) = p else { return Ok(NetworkPolicy::default()) };
     Ok(NetworkPolicy {
         ingress: rules_from_pb(&format!("{field}.ingress"), &p.ingress)?,

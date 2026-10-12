@@ -4,6 +4,8 @@
 //! to. A reservation is what placement guarantees; a limit is what the kernel enforces.
 
 use super::SpecError;
+use crate::recipe::derive::{Part, Resource};
+use crate::value::int_to_f64;
 
 /// A reservation and a limit; zero means unset.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -112,5 +114,31 @@ impl ResourceSpec {
             return Err(SpecError::new("resources.cpu", "dedicated cores reserve whole cores"));
         }
         Ok(())
+    }
+}
+
+fn amount(n: u64) -> f64 {
+    int_to_f64(i64::try_from(n).unwrap_or(i64::MAX))
+}
+
+impl ResourceSpec {
+    /// One figure of the declaration, as a recipe's derived fields read it (§5.3 of
+    /// docs/09-recipes.md): `Effective` is the limit if one is set, otherwise the reservation.
+    #[must_use]
+    pub fn read(&self, resource: Resource, part: Part) -> f64 {
+        let rl = match resource {
+            Resource::Cpu => ReservedLimit {
+                reservation: self.cpu.reservation_millis,
+                limit: self.cpu.limit_millis,
+            },
+            Resource::Memory => self.memory,
+            Resource::Disk => self.disk,
+            Resource::Pids => ReservedLimit { reservation: 0, limit: self.pids_limit },
+        };
+        amount(match part {
+            Part::Effective => rl.effective(),
+            Part::Reservation => rl.reservation,
+            Part::Limit => rl.limit,
+        })
     }
 }

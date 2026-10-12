@@ -2,6 +2,7 @@
 
 //! The intent body: `korpis.v1.IntentBody` and its parts.
 
+pub mod declare;
 pub mod endpoints;
 pub mod health;
 pub mod resources;

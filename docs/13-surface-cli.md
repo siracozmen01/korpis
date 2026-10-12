@@ -69,6 +69,10 @@ The file is validated against the recipe's config schema (§5 of `09-recipes.md`
 anything is sent, so a typo in a field name is a local error with a line number rather than a
 rejected request.
 
+What the file leaves out (the runtime, the probes, the volume's mount path above) is supplied by
+the recipe's preset, on the control plane, at declaration (§3.1 of `09-recipes.md`), and the plan
+shows the completed body.
+
 ---
 
 ## 4. Plan is the diff, and it is the real one

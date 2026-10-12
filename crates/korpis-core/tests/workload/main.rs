@@ -11,6 +11,7 @@
 )]
 
 mod approval;
+mod declare;
 mod plans;
 mod spec;
 mod support;

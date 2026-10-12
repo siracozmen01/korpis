@@ -93,6 +93,13 @@ pub fn from_app(e: AppError) -> ConnectError {
             message: &format!("missing action {action}"),
             retryable: false,
         }),
+        AppError::FieldDenied { field, action } => build(&Wire {
+            code: C::ERROR_CODE_DENIED,
+            reason: "authorization.field_denied",
+            field: &field,
+            message: &format!("setting {field} needs {action} over the parent organization"),
+            retryable: false,
+        }),
         // Also what a caller who may not read the object is told, so existence is gated by
         // read authority.
         AppError::NotFound { kind } => build(&Wire {
