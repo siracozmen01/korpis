@@ -1,0 +1,213 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The runtime driver interface (§4 of docs/04-runtimes.md). A driver is a separate process
+// serving this over a local socket to the agent supervisor. It validates every spec it receives
+// against its tier's invariants (§6.1 of docs/02-architecture.md): a spec the supervisor could
+// not have produced from an honest assignment is refused and reported as a security event.
+
+syntax = "proto3";
+
+package korpis.driver.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/placement.proto";
+import "korpis/v1/workload.proto";
+import "korpis/v1/workload_spec.proto";
+
+service DriverService {
+  // Declared capabilities. Asked, never inferred.
+  rpc Describe(DescribeRequest) returns (DescribeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Pure: validates and resolves; no side effects, ever.
+  rpc Prepare(PrepareRequest) returns (PrepareResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Allocate, mount, attach; nothing executes yet. Idempotent by workload and intent.
+  rpc Create(CreateRequest) returns (CreateResponse);
+  rpc Start(StartRequest) returns (StartResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
+  rpc Kill(KillRequest) returns (KillResponse);
+  // Release every resource the runtime object holds.
+  rpc Destroy(DestroyRequest) returns (DestroyResponse);
+  // Enumerate every runtime object this driver created, with its labels, for adoption.
+  rpc Recover(RecoverRequest) returns (RecoverResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc Inspect(InspectRequest) returns (InspectResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc Stats(StatsRequest) returns (StatsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Server-streaming lifecycle events (exits, OOM kills) for every object this driver holds.
+  rpc Events(EventsRequest) returns (stream EventsResponse);
+  rpc Signal(SignalRequest) returns (SignalResponse);
+}
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  korpis.v1.DriverInfo info = 1;
+}
+
+message PrepareRequest {
+  string workload = 1;
+  korpis.v1.Intent intent = 2;
+  bytes recipe_manifest = 3;
+}
+
+message PrepareResponse {
+  oneof result {
+    PreparedSpec prepared = 1;
+    Rejection rejection = 2;
+  }
+}
+
+// A resolved, driver-validated description of what Create will build.
+message PreparedSpec {
+  string workload = 1;
+  string intent = 2;
+  // The image or rootfs, by digest.
+  string rootfs = 3;
+  repeated string command = 4;
+  repeated string args = 5;
+  map<string, string> env = 6;
+  string working_dir = 7;
+  korpis.v1.ResourceSpec resources = 8;
+  repeated Mount mounts = 9;
+  korpis.v1.IsolationTier tier = 10;
+  // Every runtime object is labelled so that adoption can match it (§4.4 of
+  // docs/02-architecture.md).
+  RuntimeLabels labels = 11;
+  // The uid range allocated to the workload (§4.5 of docs/04-runtimes.md).
+  uint32 uid_base = 12;
+  uint32 uid_count = 13;
+  repeated PortMapping ports = 14;
+}
+
+message Mount {
+  // A host path prepared by the privileged helper; the driver never chooses one.
+  string source = 1;
+  string destination = 2;
+  bool read_only = 3;
+  string volume = 4;
+}
+
+message PortMapping {
+  uint32 container_port = 1;
+  uint32 host_port = 2;
+  korpis.v1.EndpointProtocol protocol = 3;
+  string host_ip = 4;
+}
+
+message RuntimeLabels {
+  string workload = 1;
+  string intent = 2;
+  uint64 assignment_generation = 3;
+  uint64 power_cycle = 4;
+  uint64 lease_epoch = 5;
+}
+
+message Rejection {
+  korpis.v1.UnsatisfiableReason reason = 1;
+  string detail = 2;
+}
+
+message CreateRequest {
+  PreparedSpec spec = 1;
+}
+
+message CreateResponse {
+  string runtime_id = 1;
+}
+
+message StartRequest {
+  string runtime_id = 1;
+}
+
+message StartResponse {}
+
+message StopRequest {
+  string runtime_id = 1;
+  // A driver-defined signal name; empty means the driver's graceful default.
+  string signal = 2;
+  google.protobuf.Duration grace = 3;
+}
+
+message StopResponse {}
+
+message KillRequest {
+  string runtime_id = 1;
+}
+
+message KillResponse {}
+
+message DestroyRequest {
+  string runtime_id = 1;
+}
+
+message DestroyResponse {}
+
+message RecoverRequest {}
+
+message RecoverResponse {
+  repeated RuntimeObject objects = 1;
+}
+
+message RuntimeObject {
+  string runtime_id = 1;
+  RuntimeLabels labels = 2;
+  RuntimeStatus status = 3;
+}
+
+message InspectRequest {
+  string runtime_id = 1;
+}
+
+message InspectResponse {
+  RuntimeStatus status = 1;
+}
+
+message RuntimeStatus {
+  RuntimeState state = 1;
+  optional int32 exit_code = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp finished_at = 4;
+  // e.g. "oom_killed".
+  string reason = 5;
+  uint32 pid = 6;
+}
+
+enum RuntimeState {
+  RUNTIME_STATE_UNSPECIFIED = 0;
+  RUNTIME_STATE_CREATED = 1;
+  RUNTIME_STATE_RUNNING = 2;
+  RUNTIME_STATE_STOPPED = 3;
+  RUNTIME_STATE_PAUSED = 4;
+  RUNTIME_STATE_UNKNOWN = 5;
+}
+
+message StatsRequest {
+  string runtime_id = 1;
+}
+
+message StatsResponse {
+  korpis.v1.ResourceUsage usage = 1;
+}
+
+message EventsRequest {}
+
+message EventsResponse {
+  string runtime_id = 1;
+  RuntimeStatus status = 2;
+  google.protobuf.Timestamp at = 3;
+}
+
+message SignalRequest {
+  string runtime_id = 1;
+  string signal = 2;
+}
+
+message SignalResponse {}

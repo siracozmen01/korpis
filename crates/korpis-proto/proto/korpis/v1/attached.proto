@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Attached resources: volumes, endpoints, streams (§3.6 of docs/01-model.md), and extensions
+// (§3.7).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/workload_spec.proto";
+
+// Durable state with a lifecycle independent of the workload using it.
+message Volume {
+  string id = 1;
+  string project = 2;
+  string name = 3;
+  uint64 size_bytes = 4;
+  string storage_class = 5;
+  // Absent for network-backed classes.
+  optional string node = 6;
+  optional string attached_to = 7;
+  VolumeMode mode = 8;
+  repeated string snapshots = 9;
+  google.protobuf.Timestamp created = 10;
+  google.protobuf.Timestamp deleted_at = 11;
+}
+
+// A way the network reaches a workload. The replacement for the allocation.
+message Endpoint {
+  string id = 1;
+  string workload = 2;
+  string name = 3;
+  EndpointProtocol protocol = 4;
+  uint32 container_port = 5;
+  Exposure exposure = 6;
+  // Assigned; its shape depends on the exposure.
+  Address address = 7;
+  ClientAddress client_address = 8;
+  repeated string domains = 9;
+  TlsSpec tls = 10;
+  NetworkPolicy policy = 11;
+  bool accounting = 12;
+  ShapingSpec shaping = 13;
+}
+
+message Address {
+  string ip = 1;
+  uint32 port = 2;
+  // For node_port and node_bound: the node it is bound to.
+  string node = 3;
+  // For stable: the edge failover group serving it.
+  string edge_group = 4;
+}
+
+// How the workload sees the client (§3.4 of docs/07-networking.md).
+enum ClientAddress {
+  CLIENT_ADDRESS_UNSPECIFIED = 0;
+  CLIENT_ADDRESS_PRESERVED = 1;
+  CLIENT_ADDRESS_TRANSLATED = 2;
+  // Delivered by PROXY protocol v2 to a router that requested it.
+  CLIENT_ADDRESS_PROXY_PROTOCOL = 3;
+}
+
+// A durable, addressable channel of output from a workload.
+message Stream {
+  string id = 1;
+  string workload = 2;
+  StreamKind kind = 3;
+  oneof retention {
+    google.protobuf.Duration retention_duration = 4;
+    uint64 retention_bytes = 5;
+  }
+  bool indexed = 6;
+  // Bytes held only on the node, not yet offloaded (§4 of docs/14-streams.md).
+  uint64 node_only_bytes = 7;
+}
+
+enum StreamKind {
+  STREAM_KIND_UNSPECIFIED = 0;
+  STREAM_KIND_CONSOLE = 1;
+  STREAM_KIND_LOG = 2;
+  STREAM_KIND_EVENT = 3;
+  STREAM_KIND_METRIC = 4;
+}
+
+// A separate process that adds capability, holding a scoped grant and speaking a versioned
+// contract (docs/16-extensions.md).
+message Extension {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  // The contract version it speaks.
+  string api_version = 4;
+  // Its authority: narrow, revocable, auditable.
+  string grant = 5;
+  repeated string subscribes = 6;
+  repeated string routes = 7;
+  repeated string ui_slots = 8;
+  ExtensionStatus status = 9;
+}
+
+enum ExtensionStatus {
+  EXTENSION_STATUS_UNSPECIFIED = 0;
+  EXTENSION_STATUS_RUNNING = 1;
+  EXTENSION_STATUS_STOPPED = 2;
+  EXTENSION_STATUS_FAILED = 3;
+  EXTENSION_STATUS_INCOMPATIBLE = 4;
+}

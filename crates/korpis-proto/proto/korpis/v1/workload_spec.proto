@@ -1,0 +1,281 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The parts of a declaration: shape, runtime, resources, volumes, endpoints, health, placement.
+// Shape is independent declared fields, not one enum (P7, §2 of docs/01-model.md).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+import "korpis/v1/common.proto";
+
+enum Lifecycle {
+  LIFECYCLE_UNSPECIFIED = 0;
+  LIFECYCLE_PERSISTENT = 1;
+  LIFECYCLE_TASK = 2;
+  LIFECYCLE_SCHEDULED = 3;
+}
+
+enum ConsoleMode {
+  CONSOLE_MODE_UNSPECIFIED = 0;
+  CONSOLE_MODE_NONE = 1;
+  CONSOLE_MODE_LOGS = 2;
+  CONSOLE_MODE_INTERACTIVE = 3;
+  CONSOLE_MODE_SERIAL = 4;
+}
+
+enum IsolationTier {
+  ISOLATION_TIER_UNSPECIFIED = 0;
+  ISOLATION_TIER_PROCESS = 1;
+  ISOLATION_TIER_CONTAINER = 2;
+  ISOLATION_TIER_MICROVM = 3;
+  ISOLATION_TIER_VM = 4;
+}
+
+// Driver, tier, and driver-specific configuration validated against the driver's own schema.
+message RuntimeSpec {
+  // e.g. "oci", "firecracker".
+  string driver = 1;
+  IsolationTier tier = 2;
+  map<string, Value> config = 3;
+}
+
+// Reservation and limit are different numbers (§5.2 of docs/05-scheduling.md).
+message ResourceSpec {
+  CpuSpec cpu = 1;
+  ReservedLimit memory = 2;
+  ReservedLimit disk = 3;
+  IoSpec io = 4;
+  BandwidthSpec bandwidth = 5;
+  PidsSpec pids = 6;
+}
+
+message CpuSpec {
+  // Millicores.
+  uint64 reservation_millis = 1;
+  uint64 limit_millis = 2;
+  CpuIsolation isolation = 3;
+}
+
+enum CpuIsolation {
+  CPU_ISOLATION_UNSPECIFIED = 0;
+  CPU_ISOLATION_SHARED = 1;
+  // Whole cores, excluded from every other workload's cpuset.
+  CPU_ISOLATION_DEDICATED_CORES = 2;
+}
+
+message ReservedLimit {
+  uint64 reservation = 1;
+  uint64 limit = 2;
+}
+
+// Ceilings and a proportional share; IO has no reservation (§5.2 of docs/05-scheduling.md).
+message IoSpec {
+  uint64 read_bytes_per_sec = 1;
+  uint64 write_bytes_per_sec = 2;
+  uint64 read_ops_per_sec = 3;
+  uint64 write_ops_per_sec = 4;
+  // Relative weight, 1 to 10000.
+  uint32 share = 5;
+}
+
+message BandwidthSpec {
+  // Bits per second.
+  ReservedLimit egress = 1;
+  // A limit only; no node can guarantee inbound bandwidth.
+  uint64 ingress_limit = 2;
+}
+
+message PidsSpec {
+  uint64 limit = 1;
+}
+
+message VolumeSpec {
+  string name = 1;
+  // Mount path inside the workload.
+  string path = 2;
+  uint64 size_bytes = 3;
+  string storage_class = 4;
+  VolumeMode mode = 5;
+  // Attach an existing volume instead of creating one.
+  optional string existing = 6;
+}
+
+enum VolumeMode {
+  VOLUME_MODE_UNSPECIFIED = 0;
+  VOLUME_MODE_RW = 1;
+  VOLUME_MODE_RO = 2;
+  VOLUME_MODE_SHARED = 3;
+}
+
+enum EndpointProtocol {
+  ENDPOINT_PROTOCOL_UNSPECIFIED = 0;
+  ENDPOINT_PROTOCOL_TCP = 1;
+  ENDPOINT_PROTOCOL_UDP = 2;
+  ENDPOINT_PROTOCOL_HTTP = 3;
+  ENDPOINT_PROTOCOL_HTTPS = 4;
+  ENDPOINT_PROTOCOL_QUIC = 5;
+}
+
+// How the network reaches a workload (§3 of docs/07-networking.md).
+enum Exposure {
+  EXPOSURE_UNSPECIFIED = 0;
+  EXPOSURE_NODE_PORT = 1;
+  EXPOSURE_NODE_BOUND = 2;
+  EXPOSURE_STABLE = 3;
+  EXPOSURE_INGRESS = 4;
+  EXPOSURE_DEDICATED_IP = 5;
+  EXPOSURE_OVERLAY_ONLY = 6;
+  EXPOSURE_NONE = 7;
+}
+
+message EndpointSpec {
+  string name = 1;
+  EndpointProtocol protocol = 2;
+  uint32 container_port = 3;
+  Exposure exposure = 4;
+  repeated string domains = 5;
+  TlsSpec tls = 6;
+  NetworkPolicy policy = 7;
+  bool accounting = 8;
+  ShapingSpec shaping = 9;
+}
+
+message TlsSpec {
+  TlsSource source = 1;
+  // For TLS_SOURCE_PROVIDED: the secret holding the certificate and key.
+  string secret = 2;
+}
+
+enum TlsSource {
+  TLS_SOURCE_UNSPECIFIED = 0;
+  TLS_SOURCE_ACME = 1;
+  TLS_SOURCE_PROVIDED = 2;
+  TLS_SOURCE_PASSTHROUGH = 3;
+}
+
+message NetworkPolicy {
+  repeated NetworkRule ingress = 1;
+  repeated NetworkRule egress = 2;
+  ConntrackLimits conntrack = 3;
+}
+
+message NetworkRule {
+  NetworkAction action = 1;
+  oneof peer {
+    string cidr = 2;
+    LabelSelector workloads = 3;
+    string domain = 4;
+  }
+  repeated PortRange ports = 5;
+  EndpointProtocol protocol = 6;
+}
+
+enum NetworkAction {
+  NETWORK_ACTION_UNSPECIFIED = 0;
+  NETWORK_ACTION_ALLOW = 1;
+  NETWORK_ACTION_DENY = 2;
+}
+
+message PortRange {
+  uint32 first = 1;
+  uint32 last = 2;
+}
+
+message ConntrackLimits {
+  uint32 max_connections = 1;
+  uint32 new_per_sec = 2;
+  uint32 max_half_open = 3;
+}
+
+message ShapingSpec {
+  uint64 egress_bits_per_sec = 1;
+  uint64 ingress_bits_per_sec = 2;
+}
+
+// Health is application-level (Rule K-16, §5 of docs/04-runtimes.md).
+message HealthSpec {
+  Probe readiness = 1;
+  Probe liveness = 2;
+}
+
+message Probe {
+  oneof kind {
+    TcpProbe tcp = 1;
+    HttpProbe http = 2;
+    QueryProbe query = 3;
+    ExecProbe exec = 4;
+    GuestAgentProbe guest_agent = 5;
+    ExitProbe exit = 6;
+    HeartbeatProbe heartbeat = 7;
+  }
+  google.protobuf.Duration period = 8;
+  google.protobuf.Duration timeout = 9;
+  uint32 failures = 10;
+  google.protobuf.Duration initial_delay = 11;
+}
+
+message TcpProbe {
+  string endpoint = 1;
+}
+
+message HttpProbe {
+  string endpoint = 1;
+  string path = 2;
+  uint32 expect_status = 3;
+}
+
+message QueryProbe {
+  // The query protocol, provided by an extension, e.g. "minecraft".
+  string protocol = 1;
+  string endpoint = 2;
+}
+
+message ExecProbe {
+  repeated string command = 1;
+}
+
+message GuestAgentProbe {}
+
+message ExitProbe {
+  repeated int32 success_codes = 1;
+}
+
+message HeartbeatProbe {
+  google.protobuf.Duration max_interval = 1;
+}
+
+// Constraints and preferences for placement (§2 of docs/05-scheduling.md).
+message PlacementSpec {
+  LabelSelector node_selector = 1;
+  repeated Toleration tolerations = 2;
+  repeated AffinityRule affinity = 3;
+  string preferred_region = 4;
+}
+
+message Toleration {
+  string key = 1;
+  string value = 2;
+}
+
+message AffinityRule {
+  bool anti = 1;
+  bool required = 2;
+  LabelSelector workloads = 3;
+  // e.g. "rack", "region", "host".
+  string topology_key = 4;
+}
+
+// What a workload does when its lease ends and cannot be renewed (§4.5 of
+// docs/02-architecture.md).
+message ContinuitySpec {
+  OnLeaseExpiry on_lease_expiry = 1;
+}
+
+enum OnLeaseExpiry {
+  // Derived from the attached volumes' storage classes: stop if any is multi-node-attachable.
+  ON_LEASE_EXPIRY_UNSPECIFIED = 0;
+  ON_LEASE_EXPIRY_KEEP_RUNNING = 1;
+  ON_LEASE_EXPIRY_STOP = 2;
+}

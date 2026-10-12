@@ -1,0 +1,176 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Authority: grants, conditions, delegation, templates, and identity bindings (§3.2 of
+// docs/01-model.md, §3 to §6 of docs/08-identity.md). There are no roles.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/tenancy.proto";
+
+// The only authority primitive. A grant can never exceed its parent (§3.2 of
+// docs/08-identity.md), and every authority traces to a root grant.
+message Grant {
+  string id = 1;
+  Subject subject = 2;
+  // Action names from the vocabulary of §5 of docs/10-api.md, or "ext.<extension>.<action>".
+  repeated string actions = 3;
+  Scope scope = 4;
+  Conditions conditions = 5;
+  // The grant this was attenuated from. Absent only for a root grant.
+  optional string parent = 6;
+  DelegationPolicy delegation = 7;
+  Subject issued_by = 8;
+  // Present when issued by a member exercising a set grant (§5.1 of docs/08-identity.md).
+  SetMemberIssue via = 9;
+  // Provenance only; no authorization decision reads it.
+  optional TemplateRef from_template = 10;
+  google.protobuf.Timestamp issued_at = 11;
+  google.protobuf.Timestamp revoked_at = 12;
+  // A link-form grant is redeemed by bearer and can never delegate (§6.1 of
+  // docs/08-identity.md).
+  bool link_form = 13;
+  // State as computed by the control plane; never written by a client.
+  GrantState state = 14;
+}
+
+enum GrantState {
+  GRANT_STATE_UNSPECIFIED = 0;
+  GRANT_STATE_ISSUED = 1;
+  GRANT_STATE_EXPIRED = 2;
+  GRANT_STATE_EXHAUSTED = 3;
+  GRANT_STATE_REVOKED = 4;
+  // Rooted in an external binding that failed re-verification (§5.1 of docs/08-identity.md).
+  GRANT_STATE_SUSPENDED = 5;
+}
+
+message SetMemberIssue {
+  ExternalIdentity set = 1;
+  ExternalIdentity member = 2;
+}
+
+message TemplateRef {
+  string template = 1;
+  uint64 version = 2;
+}
+
+// Where a grant applies. Containment (§3.3 of docs/08-identity.md):
+// volume, endpoint, stream ⊑ workload ⊑ project ⊑ organization ⊑ any ancestor organization;
+// a selector within P ⊑ P.
+message Scope {
+  oneof kind {
+    string organization = 1;
+    string project = 2;
+    string workload = 3;
+    string volume = 4;
+    string endpoint = 5;
+    string stream = 6;
+    string node = 7;
+    SelectorScope selector = 8;
+  }
+}
+
+// Every object inside `within` that the selector matches at evaluation time (§3.4 of
+// docs/08-identity.md).
+message SelectorScope {
+  Scope within = 1;
+  LabelSelector selector = 2;
+}
+
+// Every condition narrows; a child's are at least as restrictive as its parent's.
+message Conditions {
+  google.protobuf.Timestamp expires_at = 1;
+  google.protobuf.Timestamp not_before = 2;
+  // Absent means unrestricted. Checked at the gateway and at the relay.
+  repeated string source_cidr = 3;
+  bool requires_mfa = 4;
+  // This grant can propose, not apply; approvers hold plan.approve over a scope containing it
+  // (§3.6 of docs/08-identity.md).
+  Scope requires_approval_by = 5;
+  // Redeemed online (§6.2 of docs/08-identity.md).
+  optional uint64 max_uses = 6;
+}
+
+// Whether, how deep, and with which actions a grant may be attenuated into children (§3.2 of
+// docs/08-identity.md). Delegating is a property of the grant, not an action.
+message DelegationPolicy {
+  bool allowed = 1;
+  // How many further levels may exist beneath this grant. Absent means unbounded, which only a
+  // root grant created at installation may hold.
+  optional uint32 max_depth = 2;
+  // Which of this grant's actions a child may carry; a subset of the grant's actions.
+  repeated string actions = 3;
+}
+
+// A named, reusable bundle that expands into ordinary grants. A role in the interface, not in
+// the model (§4 of docs/08-identity.md).
+message GrantTemplate {
+  string id = 1;
+  string organization = 2;
+  string name = 3;
+  // Incremented on every edit. Issued grants carry no back-reference that widens with it.
+  uint64 version = 4;
+  repeated string actions = 5;
+  ScopePattern scope_pattern = 6;
+  // Defaults, overridable at issue.
+  Conditions conditions = 7;
+  // Required: a template must say whether its grants may delegate.
+  DelegationPolicy delegation = 8;
+}
+
+message ScopePattern {
+  oneof kind {
+    // The object the template is applied to.
+    bool applied_object = 1;
+    // Any project in the template's organization.
+    bool any_project = 2;
+    // A fixed scope.
+    Scope fixed = 3;
+  }
+}
+
+// How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).
+message IdentityBinding {
+  string id = 1;
+  // The identity provider extension that verifies it.
+  string provider = 2;
+  ExternalIdentity subject = 3;
+  BindingKind kind = 4;
+  BindingOrigin created_by = 5;
+  // For set bindings: what the set's members receive.
+  optional TemplateRef template = 6;
+  BindingConstraints constraints = 7;
+  google.protobuf.Duration reverify_interval = 8;
+  BindingState state = 9;
+  google.protobuf.Timestamp last_verified_at = 10;
+}
+
+enum BindingKind {
+  BINDING_KIND_UNSPECIFIED = 0;
+  BINDING_KIND_INDIVIDUAL = 1;
+  BINDING_KIND_SET = 2;
+}
+
+enum BindingOrigin {
+  BINDING_ORIGIN_UNSPECIFIED = 0;
+  BINDING_ORIGIN_OPERATOR = 1;
+  BINDING_ORIGIN_FIRST_USE = 2;
+}
+
+enum BindingState {
+  BINDING_STATE_UNSPECIFIED = 0;
+  BINDING_STATE_VERIFIED = 1;
+  BINDING_STATE_UNVERIFIED = 2;
+}
+
+message BindingConstraints {
+  // Members must also satisfy these, checked at every re-verification.
+  repeated ExternalSet require_membership = 1;
+  // Grace before an unverifiable binding suspends its grants; bounded by §5.1 of
+  // docs/08-identity.md.
+  google.protobuf.Duration grace = 2;
+}

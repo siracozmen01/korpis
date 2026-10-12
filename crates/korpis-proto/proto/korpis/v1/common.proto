@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Types shared by every Korpis surface. Identifiers are opaque strings with a type prefix
+// ("wl_", "org_", ...); they are immutable and never reused (§5 of docs/01-model.md).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+
+// A label selector. An empty selector matches everything.
+message LabelSelector {
+  // Every pair must be present with exactly this value.
+  map<string, string> match_labels = 1;
+  // Every expression must hold.
+  repeated LabelExpression match_expressions = 2;
+}
+
+message LabelExpression {
+  string key = 1;
+  LabelOperator operator = 2;
+  repeated string values = 3;
+}
+
+enum LabelOperator {
+  LABEL_OPERATOR_UNSPECIFIED = 0;
+  LABEL_OPERATOR_IN = 1;
+  LABEL_OPERATOR_NOT_IN = 2;
+  LABEL_OPERATOR_EXISTS = 3;
+  LABEL_OPERATOR_DOES_NOT_EXIST = 4;
+}
+
+// A reference to any object, by kind and identifier.
+message ObjectRef {
+  ObjectKind kind = 1;
+  string id = 2;
+}
+
+enum ObjectKind {
+  OBJECT_KIND_UNSPECIFIED = 0;
+  OBJECT_KIND_ORGANIZATION = 1;
+  OBJECT_KIND_PROJECT = 2;
+  OBJECT_KIND_WORKLOAD = 3;
+  OBJECT_KIND_VOLUME = 4;
+  OBJECT_KIND_ENDPOINT = 5;
+  OBJECT_KIND_STREAM = 6;
+  OBJECT_KIND_NODE = 7;
+  OBJECT_KIND_GRANT = 8;
+  OBJECT_KIND_PLAN = 9;
+  OBJECT_KIND_OPERATION = 10;
+  OBJECT_KIND_EXTENSION = 11;
+  OBJECT_KIND_REPOSITORY = 12;
+  OBJECT_KIND_BACKUP = 13;
+  OBJECT_KIND_INTENT = 14;
+}
+
+// A dynamically typed value, for recipe configuration and plan step detail. Typed by the schema
+// that governs it (the recipe's config schema, a driver's config schema), never by convention.
+message Value {
+  oneof kind {
+    bool bool_value = 1;
+    int64 int_value = 2;
+    double double_value = 3;
+    string string_value = 4;
+    bytes bytes_value = 5;
+    ValueList list_value = 6;
+    ValueMap map_value = 7;
+    // Present and explicitly null.
+    NullValue null_value = 8;
+  }
+}
+
+message ValueList {
+  repeated Value values = 1;
+}
+
+message ValueMap {
+  map<string, Value> fields = 1;
+}
+
+enum NullValue {
+  NULL_VALUE_UNSPECIFIED = 0;
+}
+
+// A structured, machine-readable error (§8 of docs/10-api.md). Clients branch on `code` and
+// `reason`, never on a message string.
+message Error {
+  ErrorCode code = 1;
+  // Stable identifier, e.g. "quota.memory.exceeded".
+  string reason = 2;
+  // Field path, for validation errors.
+  string field = 3;
+  map<string, Value> detail = 4;
+  bool retryable = 5;
+  google.protobuf.Duration retry_after = 6;
+  // Human-readable, for display only.
+  string message = 7;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_INVALID = 1;
+  ERROR_CODE_UNAUTHENTICATED = 2;
+  ERROR_CODE_DENIED = 3;
+  ERROR_CODE_NOT_FOUND = 4;
+  ERROR_CODE_CONFLICT = 5;
+  ERROR_CODE_UNSATISFIABLE = 6;
+  ERROR_CODE_QUOTA_EXCEEDED = 7;
+  ERROR_CODE_OVERFLOW = 8;
+  ERROR_CODE_UNAVAILABLE = 9;
+  ERROR_CODE_INTERNAL = 10;
+}
+
+// Resource quantities, used for capacity, allocation, quota, and usage.
+message Resources {
+  // Millicores.
+  uint64 cpu_millis = 1;
+  uint64 memory_bytes = 2;
+  uint64 disk_bytes = 3;
+  uint64 disk_read_bytes_per_sec = 4;
+  uint64 disk_write_bytes_per_sec = 5;
+  uint64 disk_read_ops_per_sec = 6;
+  uint64 disk_write_ops_per_sec = 7;
+  // Per metering period.
+  uint64 egress_bytes = 8;
+  uint64 bandwidth_bits_per_sec = 9;
+  uint64 workloads = 10;
+  uint64 volumes = 11;
+  uint64 endpoints = 12;
+  uint64 dedicated_ipv4 = 13;
+  uint64 pids = 14;
+}

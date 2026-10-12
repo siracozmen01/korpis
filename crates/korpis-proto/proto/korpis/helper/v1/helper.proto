@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The privileged helper (§6 of docs/02-architecture.md): the only component on a node that holds
+// root. It serves one structured request at a time over a local socket, from the supervisor
+// only, and performs exactly these operations. There is no request that runs a command or takes
+// a free-form path: every path it acts on is derived from identifiers it validates.
+
+syntax = "proto3";
+
+package korpis.helper.v1;
+
+service HelperService {
+  // Create a workload volume in a storage class, with byte and inode quota enforced by the
+  // filesystem in the write path (§3 of docs/06-storage.md). Idempotent by volume.
+  rpc EnsureVolume(EnsureVolumeRequest) returns (EnsureVolumeResponse);
+  // Remove a volume. Reached only from an approved, irreversible plan step.
+  rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
+  // Report a volume's usage as the filesystem accounts it.
+  rpc VolumeUsage(VolumeUsageRequest) returns (VolumeUsageResponse);
+  // Reserve a uid range for a workload, cluster-wide unique, recorded on disk (§4.5 of
+  // docs/04-runtimes.md).
+  rpc EnsureIdRange(EnsureIdRangeRequest) returns (EnsureIdRangeResponse);
+}
+
+message EnsureVolumeRequest {
+  string volume = 1;
+  string workload = 2;
+  string storage_class = 3;
+  uint64 size_bytes = 4;
+  uint64 inodes = 5;
+  // The uid range that owns the volume root.
+  uint32 uid_base = 6;
+}
+
+message EnsureVolumeResponse {
+  // The host path of the volume root, for the driver's mount list.
+  string host_path = 1;
+  bool created = 2;
+}
+
+message DeleteVolumeRequest {
+  string volume = 1;
+}
+
+message DeleteVolumeResponse {
+  bool deleted = 1;
+}
+
+message VolumeUsageRequest {
+  string volume = 1;
+}
+
+message VolumeUsageResponse {
+  uint64 used_bytes = 1;
+  uint64 used_inodes = 2;
+  uint64 limit_bytes = 3;
+  uint64 limit_inodes = 4;
+}
+
+message EnsureIdRangeRequest {
+  string workload = 1;
+  uint32 uid_base = 2;
+  uint32 uid_count = 3;
+}
+
+message EnsureIdRangeResponse {}

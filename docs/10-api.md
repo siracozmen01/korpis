@@ -50,6 +50,12 @@ Python and Go clients, the OpenAPI document, and the docs; because its compatibi
 precise and mechanically checkable; because streaming is native; and because the agent protocol
 carries a high volume of observations and stream data where wire efficiency is real.
 
+**The schema lives in `crates/korpis-proto/proto/`**, in four packages: `korpis.v1` (the domain
+model and the client services), `korpis.agent.v1` (the agent protocol of §4 of
+`02-architecture.md`), and `korpis.driver.v1` and `korpis.helper.v1` (the internal agent protocols
+of §6.2 of that document). `buf lint` and a committed descriptor set guard it, and the Rust code is
+generated from the descriptor set at build time, so building Korpis needs no protobuf compiler.
+
 Connect rather than raw gRPC because it speaks Connect, gRPC, and gRPC-Web on one endpoint, works
 through ordinary HTTP proxies and CDNs, and is reachable from a browser without a translating
 proxy.

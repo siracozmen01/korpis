@@ -1,0 +1,381 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The agent protocol (§4 of docs/02-architecture.md). The agent dials out and holds one
+// bidirectional stream carrying decisions and facts, never bulk data. It is level-triggered:
+// the control plane sends the complete set of assignments, and nothing in it is an instruction
+// that is lost if a message is lost. A third party can implement a conforming agent from this
+// file and docs/02-architecture.md alone (Rule K-7).
+
+syntax = "proto3";
+
+package korpis.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/placement.proto";
+import "korpis/v1/workload.proto";
+import "korpis/v1/workload_spec.proto";
+
+service AgentService {
+  // Exchange a one-time enrollment token for a node identity (§3 of docs/18-operations.md).
+  // The node identity is distinct from the grant signing key (finding 16).
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+  // The control stream. The first agent message is Hello.
+  rpc Session(stream AgentMessage) returns (stream ControlMessage);
+}
+
+message EnrollRequest {
+  string enrollment_token = 1;
+  // The node's public key (Ed25519, raw 32 bytes); the private key never leaves the node.
+  bytes node_public_key = 2;
+  string hostname = 3;
+}
+
+message EnrollResponse {
+  string node = 1;
+  // The control plane's assignment-signing public keys, current and historical, verify-only
+  // (§6 of docs/18-operations.md).
+  repeated SigningKey assignment_keys = 2;
+  // The capability-token verification keys (§6 of docs/08-identity.md).
+  repeated SigningKey token_keys = 3;
+}
+
+message SigningKey {
+  string key_id = 1;
+  // Ed25519 public key, raw 32 bytes.
+  bytes public_key = 2;
+  google.protobuf.Timestamp not_before = 3;
+  google.protobuf.Timestamp not_after = 4;
+}
+
+// Agent to control plane.
+message AgentMessage {
+  oneof message {
+    Hello hello = 1;
+    korpis.v1.Observation observation = 2;
+    NodeStatus node_status = 3;
+    JournalRecords journal = 4;
+    LeaseRequest lease_request = 5;
+    LeaseReleased lease_released = 6;
+    FeasibilityResult feasibility_result = 7;
+    ContentStatus content_status = 8;
+    Ack ack = 9;
+    ProbeReply probe_reply = 10;
+  }
+}
+
+// Control plane to agent.
+message ControlMessage {
+  oneof message {
+    AssignmentSet assignment_set = 1;
+    AssignmentDelta assignment_delta = 2;
+    // The agent's set digest matches; nothing to send (§9 of docs/10-api.md).
+    InSync in_sync = 3;
+    LeaseGrant lease_grant = 4;
+    LeaseRefusal lease_refusal = 5;
+    LeaseRevoke lease_revoke = 6;
+    RevocationList revocation_list = 7;
+    JournalAck journal_ack = 8;
+    FeasibilityQuery feasibility_query = 9;
+    ContentHint content_hint = 10;
+    Probe probe = 11;
+  }
+}
+
+message Hello {
+  string node = 1;
+  string agent_version = 2;
+  // The agent protocol version, independent of the release version.
+  string protocol = 3;
+  repeated korpis.v1.DriverInfo drivers = 4;
+  repeated korpis.v1.StorageClassInfo storage_classes = 5;
+  korpis.v1.Resources capacity = 6;
+  korpis.v1.Resources allocatable = 7;
+  // The assignment set digest the agent holds, empty if none.
+  string set_digest = 8;
+  // The highest journal sequence the agent has written, and the lowest it still holds.
+  uint64 journal_head = 9;
+  uint64 journal_tail = 10;
+  map<string, string> labels = 11;
+  // Proof that the agent holds the node identity key established at enrollment.
+  NodeAuth auth = 12;
+}
+
+// The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
+// proves the other half, that the agent holds the node key. Ed25519 by the node key over the
+// UTF-8 bytes of "korpis.agent.v1.Hello|" + node + "|" + RFC 3339 timestamp + "|" + hex(nonce).
+// The control plane rejects timestamps outside a declared skew window and nonces it has seen
+// within that window.
+message NodeAuth {
+  google.protobuf.Timestamp timestamp = 1;
+  bytes nonce = 2;
+  bytes signature = 3;
+}
+
+message NodeStatus {
+  korpis.v1.Resources capacity = 1;
+  korpis.v1.Resources allocatable = 2;
+  repeated korpis.v1.DriverInfo drivers = 3;
+  // Pressure signals, keyed by resource ("memory", "cpu", "io").
+  map<string, double> pressure = 4;
+  // How long this node can be cut off before audit and metering have holes (§4.10 of
+  // docs/02-architecture.md), measured from the journal's growth rate.
+  google.protobuf.Duration journal_horizon = 5;
+  uint64 journal_bytes_used = 6;
+  uint64 journal_bytes_bound = 7;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Assignments (§4.8 of docs/02-architecture.md)
+
+// The complete set of assignments for this node, each signed.
+message AssignmentSet {
+  repeated SignedAssignment assignments = 1;
+  // Over the assignments, canonically: sorted by workload, covering each generation.
+  string set_digest = 2;
+}
+
+// Optimization only: a mismatch on `base_digest` triggers a full resync.
+message AssignmentDelta {
+  string base_digest = 1;
+  repeated SignedAssignment upserts = 2;
+  // Workloads whose assignment left the set.
+  repeated string removed = 3;
+  string set_digest = 4;
+}
+
+message InSync {
+  string set_digest = 1;
+}
+
+// An assignment and the control plane's signature over its exact bytes, so an agent can prove
+// what it was told (§8 of docs/03-state.md).
+message SignedAssignment {
+  // A serialized Assignment.
+  bytes assignment = 1;
+  // Ed25519 over `assignment`.
+  bytes signature = 2;
+  string key_id = 3;
+}
+
+// The unit of desired state on a node: one per workload placed there.
+message Assignment {
+  string workload = 1;
+  string project = 2;
+  string organization = 3;
+  // Monotonic per workload; any change below increments it.
+  uint64 generation = 4;
+  // The approved configuration in full: Workload.target, never the head.
+  korpis.v1.Intent target = 5;
+  korpis.v1.Power power = 6;
+  // Resolved: never ON_LEASE_EXPIRY_UNSPECIFIED here.
+  korpis.v1.OnLeaseExpiry on_lease_expiry = 7;
+  Shaping shaping = 8;
+  NodePlan plan = 9;
+  Retire retire = 10;
+  MigrationRole migration = 11;
+  // The resolved recipe manifest the node needs to run the target.
+  bytes recipe_manifest = 12;
+  string node = 13;
+  // The lease epoch under which this node may act for the workload.
+  uint64 lease_epoch = 14;
+}
+
+// Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).
+message Shaping {
+  bool egress_exhausted = 1;
+  uint64 egress_floor_bits_per_sec = 2;
+  bool egress_cut_off = 3;
+}
+
+message NodePlan {
+  string plan = 1;
+  // The steps this node executes, in order, each with its index.
+  repeated korpis.v1.Step steps = 2;
+  // The last step index the node may execute. Cancelling a plan is lowering this.
+  uint32 through = 3;
+}
+
+message Retire {
+  // The plan of kind retire this belongs to.
+  string plan = 1;
+}
+
+message MigrationRole {
+  MigrationSide role = 1;
+  MigrationPhase phase = 2;
+  string peer = 3;
+  string plan = 4;
+}
+
+enum MigrationSide {
+  MIGRATION_SIDE_UNSPECIFIED = 0;
+  MIGRATION_SIDE_SOURCE = 1;
+  MIGRATION_SIDE_DESTINATION = 2;
+}
+
+enum MigrationPhase {
+  MIGRATION_PHASE_UNSPECIFIED = 0;
+  MIGRATION_PHASE_PREPARE = 1;
+  MIGRATION_PHASE_REPLICATE = 2;
+  MIGRATION_PHASE_QUIESCE = 3;
+  MIGRATION_PHASE_FINAL_SYNC = 4;
+  MIGRATION_PHASE_VERIFY = 5;
+  MIGRATION_PHASE_CUTOVER = 6;
+  MIGRATION_PHASE_RELEASE = 7;
+}
+
+message Ack {
+  string set_digest = 1;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Leases (§4.5 of docs/02-architecture.md)
+
+// The holder's lease runs from the send: valid until sent_at + term × (1 − ρ) on its own
+// monotonic clock. The grantor's runs from receipt: received_at + term.
+message LeaseRequest {
+  string workload = 1;
+  // Echoed by the grant.
+  bytes nonce = 2;
+  // The epoch the agent holds, zero if none.
+  uint64 held_epoch = 3;
+}
+
+message LeaseGrant {
+  string workload = 1;
+  bytes nonce = 2;
+  uint64 epoch = 3;
+  google.protobuf.Duration term = 4;
+  // The declared bound on clock-rate error, in parts per million.
+  uint32 rho_ppm = 5;
+  korpis.v1.OnLeaseExpiry on_expiry = 6;
+}
+
+// Why a lease was not granted. The control plane always knows which case it is in.
+message LeaseRefusal {
+  string workload = 1;
+  bytes nonce = 2;
+  LeaseRefusalReason reason = 3;
+  // For SUPERSEDED: the node now holding the workload.
+  string superseded_by = 4;
+}
+
+enum LeaseRefusalReason {
+  LEASE_REFUSAL_REASON_UNSPECIFIED = 0;
+  // Another node holds a newer epoch: stop, retain data, report the volume as an orphan.
+  LEASE_REFUSAL_REASON_SUPERSEDED = 1;
+  // The workload is not assigned to this node.
+  LEASE_REFUSAL_REASON_NOT_ASSIGNED = 2;
+  // A transient condition; retry.
+  LEASE_REFUSAL_REASON_UNAVAILABLE = 3;
+}
+
+// Asks the holder to release early. Safety never depends on its delivery.
+message LeaseRevoke {
+  string workload = 1;
+  uint64 epoch = 2;
+}
+
+// The node has stopped acting under an epoch. Also written to the journal.
+message LeaseReleased {
+  string workload = 1;
+  uint64 epoch = 2;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Journal (§4.10 of docs/02-architecture.md)
+
+message JournalRecords {
+  repeated JournalRecord records = 1;
+}
+
+message JournalRecord {
+  // Monotonic per node, never reused, survives agent restart.
+  uint64 seq = 1;
+  // The node's clock, informational.
+  google.protobuf.Timestamp occurred_at = 2;
+  oneof body {
+    korpis.v1.Effect effect = 3;
+    MeteringSample metering = 4;
+    BreakGlass break_glass = 5;
+    LeaseReleased lease_released = 6;
+    JournalGap gap = 7;
+  }
+  // Coalesced identical records: how many this one stands for.
+  uint64 count = 8;
+}
+
+message MeteringSample {
+  string workload = 1;
+  google.protobuf.Timestamp interval_start = 2;
+  google.protobuf.Duration interval = 3;
+  korpis.v1.ResourceUsage usage = 4;
+  // CPU-seconds, byte-hours, and egress bytes for the interval (§2 of
+  // docs/15-observability.md).
+  double cpu_seconds = 5;
+  double memory_byte_hours = 6;
+  double disk_byte_hours = 7;
+  uint64 egress_bytes = 8;
+}
+
+message BreakGlass {
+  string operator = 1;
+  string reason = 2;
+  string session = 3;
+}
+
+// Records lost because the journal filled; a visible loss, never a silent one.
+message JournalGap {
+  uint64 first_seq = 1;
+  uint64 last_seq = 2;
+  string cause = 3;
+}
+
+// The highest sequence durably ingested; the agent may discard up to it after the retention
+// window.
+message JournalAck {
+  uint64 seq = 1;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Placement, content, liveness
+
+// A side-effect-free Prepare against a supplied manifest (§2.1 of docs/05-scheduling.md).
+message FeasibilityQuery {
+  string query = 1;
+  korpis.v1.IntentBody body = 2;
+  bytes recipe_manifest = 3;
+}
+
+message FeasibilityResult {
+  string query = 1;
+  bool accepted = 2;
+  korpis.v1.UnsatisfiableReason reason = 3;
+  string detail = 4;
+}
+
+message ContentHint {
+  repeated string digests = 1;
+}
+
+message ContentStatus {
+  repeated string present = 1;
+}
+
+message RevocationList {
+  // Revoked grant identifiers; a token is revoked if any link of its chain is listed (§6.3 of
+  // docs/08-identity.md).
+  repeated string grants = 1;
+  repeated string tokens = 2;
+  uint64 version = 3;
+}
+
+message Probe {
+  bytes nonce = 1;
+}
+
+message ProbeReply {
+  bytes nonce = 1;
+}

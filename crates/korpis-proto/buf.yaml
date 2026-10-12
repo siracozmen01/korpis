@@ -1,0 +1,15 @@
+# The wire schema's lint and breaking-change rules (§4 of docs/10-api.md).
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # Request and response types are shared where the docs define one message (PowerResponse).
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_STANDARD_NAME
+breaking:
+  use:
+    - WIRE_JSON

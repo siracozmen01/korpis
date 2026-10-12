@@ -171,7 +171,7 @@ Quota dimensions
 > Anything that can act. Not necessarily a person, and not necessarily registered with Korpis.
 
 ```
-Subject = User | Token | ExternalIdentity | Workload | Extension
+Subject = User | Token | ExternalIdentity | Workload | Extension | System
 ```
 
 | Variant | Is | Example |
@@ -181,6 +181,13 @@ Subject = User | Token | ExternalIdentity | Workload | Extension
 | `ExternalIdentity` | a claim from an identity provider | Discord user `123`, Discord role `@mod` in guild `456`, an OIDC group |
 | `Workload` | a running workload acting for itself | a bot that restarts its own sibling |
 | `Extension` | a running extension | a backup extension reading volumes |
+| `System` | the control plane acting on a decision already made | the reconciler correcting drift, the scheduler binding a placement, the bootstrap that creates the root grant |
+
+> Added 2026-10-12, while writing the wire schema (`crates/korpis-proto`). Every `Effect` names an
+> actor, and drift correction, placement, and installation bootstrap had none to name: they are
+> authorized by an earlier approval or by installation itself (§9.1 of `08-identity.md`), not by a
+> subject acting now. `System` holds no grant and can be issued none; it appears only as the actor
+> of effects whose authority is the plan or approval they cite.
 
 `ExternalIdentity` being a first-class subject is what makes Bet 1 work. A grant can name *the
 Discord role `@moderator` in guild X* directly. Nobody needs a Korpis account for that role to
@@ -597,7 +604,7 @@ Effect
   origin        {node, seq}?   for node-originated effects, the journal position (§4.10 of
                                02-architecture.md); the pair is unique
   action        string
-  outcome       succeeded | failed | skipped | rolled_back
+  outcome       succeeded | failed | skipped | rolled_back | denied
   error         Error?
   before        map[str]Value?
   after         map[str]Value?
@@ -610,6 +617,9 @@ Effect
 - An effect of a control-plane decision commits in the same transaction as the decision. An effect
   of something that happened on a node is ingested exactly once, in its journal order, in the same
   transaction as the state it explains (§4.10 of `02-architecture.md`).
+
+`denied` is the outcome of a refused action, which §4 of `15-observability.md` records as an effect
+like any other; the outcome list had no value for it until the wire schema was written (2026-10-12).
 
 Audit is not a separate subsystem writing a parallel log that can drift from reality. The effect
 stream *is* the record of what happened.

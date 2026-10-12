@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Nodes, driver capabilities, placement, and explanations (§3.4 of docs/01-model.md, §4.1 of
+// docs/04-runtimes.md, §2 of docs/05-scheduling.md).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/workload_spec.proto";
+
+message Node {
+  string id = 1;
+  string name = 2;
+  // region, rack, arch, os, gpu, storage-class, ...: there is no Location object.
+  map<string, string> labels = 3;
+  repeated Taint taints = 4;
+  Resources capacity = 5;
+  // Capacity minus system reserve.
+  Resources allocatable = 6;
+  // Sum of placed reservations.
+  Resources allocated = 7;
+  repeated DriverInfo drivers = 8;
+  NodeStatus status = 9;
+  string agent_version = 10;
+  google.protobuf.Timestamp last_seen = 11;
+  repeated StorageClassInfo storage_classes = 12;
+  // Whether the node can be reached for inbound traffic (§9 of docs/07-networking.md).
+  Reachability reachability = 13;
+}
+
+message Taint {
+  string key = 1;
+  string value = 2;
+}
+
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+  NODE_STATUS_REGISTERING = 1;
+  NODE_STATUS_READY = 2;
+  NODE_STATUS_CORDONED = 3;
+  NODE_STATUS_DRAINING = 4;
+  NODE_STATUS_UNREACHABLE = 5;
+  NODE_STATUS_UNKNOWN = 6;
+  NODE_STATUS_DECOMMISSIONED = 7;
+}
+
+enum Reachability {
+  REACHABILITY_UNSPECIFIED = 0;
+  // A public address on the node itself.
+  REACHABILITY_PUBLIC = 1;
+  // Behind NAT; inbound only through an edge.
+  REACHABILITY_EDGE_ONLY = 2;
+}
+
+message DriverInfo {
+  // e.g. "oci".
+  string name = 1;
+  string version = 2;
+  // The driver protocol version it speaks.
+  string protocol = 3;
+  Capabilities capabilities = 4;
+  bool healthy = 5;
+}
+
+// Declared, never inferred (§4.1 of docs/04-runtimes.md).
+message Capabilities {
+  repeated IsolationTier tiers = 1;
+  repeated ConsoleMode console = 2;
+  bool exec = 3;
+  repeated string signals = 4;
+  repeated string hot_resize = 5;
+  bool hot_volume_attach = 6;
+  // Absent if execution-state snapshots are not supported.
+  SnapshotCaps runtime_snapshot = 7;
+  bool live_migrate = 8;
+  repeated GpuMode gpu = 9;
+  repeated DeviceClass devices = 10;
+  repeated RootfsSource rootfs_sources = 11;
+  repeated NetworkMode network_modes = 12;
+  // Keyed by resource kind: "memory", "cpu", "disk", "io", "pids", "egress".
+  map<string, EnforcementDecl> enforcement = 13;
+  VolumeSemantics volume_semantics = 14;
+  FileAccess file_access = 15;
+  IdMapCaps id_mapping = 16;
+  // A JSON Schema document, driver-specific configuration.
+  string config_schema = 17;
+}
+
+message SnapshotCaps {
+  string cpu_template = 1;
+  string hypervisor_version = 2;
+  string kernel_min = 3;
+  string kernel_max = 4;
+}
+
+enum GpuMode {
+  GPU_MODE_UNSPECIFIED = 0;
+  GPU_MODE_NONE = 1;
+  GPU_MODE_PASSTHROUGH = 2;
+  GPU_MODE_MEDIATED = 3;
+  GPU_MODE_TIMESLICE = 4;
+}
+
+enum DeviceClass {
+  DEVICE_CLASS_UNSPECIFIED = 0;
+  DEVICE_CLASS_GPU = 1;
+  DEVICE_CLASS_USB = 2;
+  DEVICE_CLASS_PCI = 3;
+  DEVICE_CLASS_TPM = 4;
+  DEVICE_CLASS_SERIAL = 5;
+}
+
+enum RootfsSource {
+  ROOTFS_SOURCE_UNSPECIFIED = 0;
+  ROOTFS_SOURCE_OCI_IMAGE = 1;
+  ROOTFS_SOURCE_DIRECTORY = 2;
+  ROOTFS_SOURCE_DISK_IMAGE = 3;
+  ROOTFS_SOURCE_ISO = 4;
+}
+
+enum NetworkMode {
+  NETWORK_MODE_UNSPECIFIED = 0;
+  NETWORK_MODE_VETH = 1;
+  NETWORK_MODE_TAP = 2;
+  NETWORK_MODE_HOST = 3;
+  NETWORK_MODE_NONE = 4;
+}
+
+message EnforcementDecl {
+  bool enforced = 1;
+  // e.g. "cgroup v2 memory.max".
+  string mechanism = 2;
+  string granularity = 3;
+}
+
+enum VolumeSemantics {
+  VOLUME_SEMANTICS_UNSPECIFIED = 0;
+  VOLUME_SEMANTICS_FILESYSTEM = 1;
+  VOLUME_SEMANTICS_BLOCK_DEVICE = 2;
+}
+
+enum FileAccess {
+  FILE_ACCESS_UNSPECIFIED = 0;
+  FILE_ACCESS_HOST_WORKER = 1;
+  FILE_ACCESS_GUEST_WORKER = 2;
+  FILE_ACCESS_NONE = 3;
+}
+
+// How workload uids reach the disk (§4.5 of docs/04-runtimes.md).
+message IdMapCaps {
+  bool idmapped_mounts = 1;
+  bool user_namespaces = 2;
+}
+
+// A storage class as offered on a node (§2 of docs/06-storage.md).
+message StorageClassInfo {
+  string name = 1;
+  StorageBackend backend = 2;
+  StorageCapabilities capabilities = 3;
+  uint64 capacity_bytes = 4;
+  uint64 free_bytes = 5;
+}
+
+enum StorageBackend {
+  STORAGE_BACKEND_UNSPECIFIED = 0;
+  STORAGE_BACKEND_ZFS = 1;
+  STORAGE_BACKEND_BTRFS = 2;
+  STORAGE_BACKEND_LVM_THIN = 3;
+  STORAGE_BACKEND_XFS_PROJECT = 4;
+  STORAGE_BACKEND_EXT4_PROJECT = 5;
+  STORAGE_BACKEND_NETWORK = 6;
+}
+
+message StorageCapabilities {
+  bool snapshot = 1;
+  bool snapshot_atomic = 2;
+  bool incremental_send = 3;
+  // The kernel fails the write, not a monitor.
+  bool quota_enforced = 4;
+  bool quota_capacity = 5;
+  bool quota_inodes = 6;
+  bool thin_provision = 7;
+  bool online_grow = 8;
+  bool online_shrink = 9;
+  bool reflink_copy = 10;
+  bool compression = 11;
+  bool encryption_at_rest = 12;
+  bool shared_access = 13;
+  bool multi_node_attach = 14;
+  Fencing fencing = 15;
+}
+
+enum Fencing {
+  FENCING_UNSPECIFIED = 0;
+  FENCING_NONE = 1;
+  FENCING_LEASE_ONLY = 2;
+  FENCING_STORAGE_ENFORCED = 3;
+}
+
+// The binding of a workload to a node, and why.
+message Placement {
+  string workload = 1;
+  string node = 2;
+  google.protobuf.Timestamp bound_at = 3;
+  BoundBy bound_by = 4;
+  string reason = 5;
+  Explanation explanation = 6;
+  // During migration two placements coexist; exactly one is authoritative.
+  bool authoritative = 7;
+}
+
+enum BoundBy {
+  BOUND_BY_UNSPECIFIED = 0;
+  BOUND_BY_SCHEDULER = 1;
+  BOUND_BY_OPERATOR = 2;
+  BOUND_BY_MIGRATION = 3;
+}
+
+// Every rejection with its reason, every score with its weight (§2.3 of
+// docs/05-scheduling.md). Filtered per viewer (§8 of docs/08-identity.md).
+message Explanation {
+  uint32 candidates = 1;
+  repeated FilterResult filtered = 2;
+  repeated ScoreResult scored = 3;
+  string chosen = 4;
+  optional string runner_up = 5;
+  PlacementPolicy policy = 6;
+}
+
+message FilterResult {
+  string node = 1;
+  string check = 2;
+  string detail = 3;
+}
+
+message ScoreResult {
+  string node = 1;
+  string signal = 2;
+  double value = 3;
+  double weight = 4;
+}
+
+message PlacementPolicy {
+  PlacementStrategy strategy = 1;
+  repeated SpreadConstraint spread = 2;
+  repeated AffinityRule affinity = 3;
+  map<string, double> weights = 4;
+}
+
+enum PlacementStrategy {
+  PLACEMENT_STRATEGY_UNSPECIFIED = 0;
+  PLACEMENT_STRATEGY_PACKED = 1;
+  PLACEMENT_STRATEGY_DISTRIBUTED = 2;
+  PLACEMENT_STRATEGY_BALANCED = 3;
+}
+
+message SpreadConstraint {
+  string topology_key = 1;
+  uint32 max_skew = 2;
+  LabelSelector scope = 3;
+}

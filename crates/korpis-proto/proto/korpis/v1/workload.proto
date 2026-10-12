@@ -1,0 +1,299 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The workload and its state: identity, declaration, power, observation, plan, effect (§3.3 of
+// docs/01-model.md). Intent and Observation are separate objects with separate writers.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/recipe.proto";
+import "korpis/v1/tenancy.proto";
+import "korpis/v1/workload_spec.proto";
+
+// The identity of a thing that runs: a stable name to which state attaches.
+message Workload {
+  string id = 1;
+  string project = 2;
+  // Unique within the project; nothing references a workload by name.
+  string name = 3;
+  map<string, string> labels = 4;
+  // The newest declared intent, the head of the chain.
+  string intent = 5;
+  // The approved intent the system converges toward; absent until the first plan is approved.
+  optional string target = 6;
+  Power power = 7;
+  optional string observation = 8;
+  google.protobuf.Timestamp created = 9;
+  google.protobuf.Timestamp deleted_at = 10;
+  // The organization that owns the project, denormalized for authorization.
+  string organization = 11;
+}
+
+// What someone declared should be true. Immutable and versioned.
+message Intent {
+  string id = 1;
+  string workload = 2;
+  // Monotonic per workload.
+  uint64 version = 3;
+  optional string parent = 4;
+  Subject declared_by = 5;
+  google.protobuf.Timestamp declared_at = 6;
+  // The declaration itself. Stored as canonical ProtoJSON with defaults emitted (§3.1 of
+  // docs/03-state.md).
+  IntentBody body = 7;
+}
+
+// The declaration a subject writes. Everything else on Intent is set by the control plane.
+message IntentBody {
+  RecipeRef recipe = 1;
+  Lifecycle lifecycle = 2;
+  // Required iff lifecycle is scheduled.
+  string schedule = 3;
+  ConsoleMode console = 4;
+  RuntimeSpec runtime = 5;
+  ResourceSpec resources = 6;
+  repeated VolumeSpec volumes = 7;
+  repeated EndpointSpec endpoints = 8;
+  HealthSpec health = 9;
+  // Validated against the recipe's config schema (Rule K-17).
+  map<string, Value> config = 10;
+  PlacementSpec placement = 11;
+  ContinuitySpec continuity = 12;
+}
+
+// Power is declared separately from configuration (finding R7, §3.3 of docs/01-model.md).
+message Power {
+  string workload = 1;
+  PowerState desired = 2;
+  // Incremented to request one restart; performed once per value.
+  uint64 cycle = 3;
+  // Monotonic, its own sequence.
+  uint64 version = 4;
+  Subject set_by = 5;
+  google.protobuf.Timestamp set_at = 6;
+}
+
+enum PowerState {
+  POWER_STATE_UNSPECIFIED = 0;
+  POWER_STATE_RUNNING = 1;
+  POWER_STATE_STOPPED = 2;
+}
+
+// What the node agent actually sees. Written only by the agent.
+message Observation {
+  string id = 1;
+  string workload = 2;
+  string node = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  // The assignment generation the agent has applied.
+  uint64 assignment_seen = 5;
+  // The target intent the agent has converged to.
+  string intent_seen = 6;
+  PowerSeen power_seen = 7;
+  PlanProgress plan_progress = 8;
+  ObservedState state = 9;
+  // For unsatisfiable: the structured reason (§7 of docs/05-scheduling.md).
+  UnsatisfiableReason reason = 10;
+  string reason_detail = 11;
+  HealthState health = 12;
+  optional int32 exit_code = 13;
+  string runtime_id = 14;
+  ResourceUsage resources = 15;
+  repeated EndpointStatus endpoints = 16;
+  repeated VolumeStatus volumes = 17;
+  // When the state last changed.
+  google.protobuf.Timestamp since = 18;
+}
+
+message PowerSeen {
+  uint64 version = 1;
+  uint64 cycle = 2;
+}
+
+message PlanProgress {
+  string plan = 1;
+  uint32 step = 2;
+}
+
+enum ObservedState {
+  OBSERVED_STATE_UNSPECIFIED = 0;
+  OBSERVED_STATE_RUNNING = 1;
+  OBSERVED_STATE_STOPPED = 2;
+  OBSERVED_STATE_STARTING = 3;
+  OBSERVED_STATE_STOPPING = 4;
+  OBSERVED_STATE_CRASHED = 5;
+  OBSERVED_STATE_UNSATISFIABLE = 6;
+  // No observation within the staleness window. Never a remembered value (P4).
+  OBSERVED_STATE_UNKNOWN = 7;
+}
+
+enum UnsatisfiableReason {
+  UNSATISFIABLE_REASON_UNSPECIFIED = 0;
+  UNSATISFIABLE_REASON_MISSING_DRIVER = 1;
+  UNSATISFIABLE_REASON_INSUFFICIENT_RESOURCES = 2;
+  UNSATISFIABLE_REASON_VOLUME_UNAVAILABLE = 3;
+  UNSATISFIABLE_REASON_DEVICE_UNAVAILABLE = 4;
+  UNSATISFIABLE_REASON_IMAGE_UNSUPPORTED = 5;
+  UNSATISFIABLE_REASON_PREPARE_REJECTED = 6;
+}
+
+enum HealthState {
+  HEALTH_STATE_UNSPECIFIED = 0;
+  HEALTH_STATE_HEALTHY = 1;
+  HEALTH_STATE_UNHEALTHY = 2;
+  HEALTH_STATE_UNKNOWN = 3;
+}
+
+message ResourceUsage {
+  uint64 cpu_millis = 1;
+  uint64 memory_bytes = 2;
+  uint64 disk_bytes = 3;
+  uint64 disk_inodes = 4;
+  uint64 pids = 5;
+  uint64 net_rx_bytes = 6;
+  uint64 net_tx_bytes = 7;
+}
+
+message EndpointStatus {
+  string name = 1;
+  string address = 2;
+  bool ready = 3;
+}
+
+message VolumeStatus {
+  string name = 1;
+  string volume = 2;
+  uint64 used_bytes = 3;
+  uint64 used_inodes = 4;
+  bool mounted = 5;
+}
+
+// The computed difference between a declaration and reality: persisted, inspectable,
+// approvable.
+message Plan {
+  string id = 1;
+  string workload = 2;
+  PlanKind kind = 3;
+  optional string operation = 4;
+  // Workload.target when computed.
+  optional string from_intent = 5;
+  // Required iff kind is intent.
+  optional string to_intent = 6;
+  // Required iff kind is power.
+  optional uint64 to_power = 7;
+  google.protobuf.Timestamp computed_at = 8;
+  Subject computed_by = 9;
+  repeated Step steps = 10;
+  Impact impact = 11;
+  PlanStatus status = 12;
+  // The last step whose completion effect has been ingested.
+  optional uint32 completed = 13;
+  google.protobuf.Timestamp apply_after = 14;
+  google.protobuf.Timestamp expires_at = 15;
+  Subject approved_by = 16;
+  google.protobuf.Timestamp approved_at = 17;
+  // The grant under which the plan was proposed.
+  string proposed_under = 18;
+}
+
+enum PlanKind {
+  PLAN_KIND_UNSPECIFIED = 0;
+  PLAN_KIND_INTENT = 1;
+  PLAN_KIND_POWER = 2;
+  PLAN_KIND_RETIRE = 3;
+  PLAN_KIND_MIGRATE = 4;
+}
+
+enum PlanStatus {
+  PLAN_STATUS_UNSPECIFIED = 0;
+  PLAN_STATUS_PROPOSED = 1;
+  PLAN_STATUS_APPROVED = 2;
+  PLAN_STATUS_QUEUED = 3;
+  PLAN_STATUS_APPLYING = 4;
+  PLAN_STATUS_APPLIED = 5;
+  PLAN_STATUS_FAILED = 6;
+  PLAN_STATUS_CANCELLED = 7;
+  PLAN_STATUS_REJECTED = 8;
+  PLAN_STATUS_EXPIRED = 9;
+  PLAN_STATUS_SUPERSEDED = 10;
+}
+
+message Step {
+  // Keyed (plan.id, index); applying a completed step is a no-op that reports success.
+  uint32 index = 1;
+  // e.g. "create_volume", "pull_recipe", "install", "create", "start", "stop", "retire".
+  string action = 2;
+  StepExecutor executor = 3;
+  ObjectRef target = 4;
+  bool reversible = 5;
+  // Resolved through the override chain of §3.3 of docs/01-model.md, never inferred.
+  bool disruptive = 6;
+  map<string, Value> detail = 7;
+  google.protobuf.Duration timeout = 8;
+}
+
+enum StepExecutor {
+  STEP_EXECUTOR_UNSPECIFIED = 0;
+  STEP_EXECUTOR_CONTROL_PLANE = 1;
+  STEP_EXECUTOR_NODE = 2;
+  STEP_EXECUTOR_EXTENSION = 3;
+}
+
+message Impact {
+  bool disruptive = 1;
+  // Absent means unknown, and an unknown impact is never auto-approvable.
+  google.protobuf.Duration downtime_estimate = 2;
+  bool downtime_unknown = 3;
+  // Paths or volumes whose data is at risk.
+  repeated string data_at_risk = 4;
+  bool data_at_risk_unknown = 5;
+  Resources cost_delta = 6;
+  // Why the plan does or does not auto-approve.
+  string approval_reason = 7;
+}
+
+// What actually happened. Append-only.
+message Effect {
+  string id = 1;
+  optional string plan = 2;
+  optional uint32 step = 3;
+  optional string workload = 4;
+  optional string node = 5;
+  Subject actor = 6;
+  // The grant that authorized it.
+  optional string grant = 7;
+  // When the control plane ingested it: the only ordering clock.
+  google.protobuf.Timestamp at = 8;
+  // The originating node's reading, informational.
+  google.protobuf.Timestamp occurred_at = 9;
+  // For node-originated effects, the journal position; the pair is unique.
+  JournalOrigin origin = 10;
+  string action = 11;
+  EffectOutcome outcome = 12;
+  Error error = 13;
+  map<string, Value> before = 14;
+  map<string, Value> after = 15;
+  // Coalesced repeats (denials, crash loops): how many, over what window.
+  uint64 count = 16;
+  google.protobuf.Timestamp window_end = 17;
+}
+
+message JournalOrigin {
+  string node = 1;
+  uint64 seq = 2;
+}
+
+enum EffectOutcome {
+  EFFECT_OUTCOME_UNSPECIFIED = 0;
+  EFFECT_OUTCOME_SUCCEEDED = 1;
+  EFFECT_OUTCOME_FAILED = 2;
+  EFFECT_OUTCOME_SKIPPED = 3;
+  EFFECT_OUTCOME_ROLLED_BACK = 4;
+  // An authorization refusal, recorded like any other effect (§4 of
+  // docs/15-observability.md).
+  EFFECT_OUTCOME_DENIED = 5;
+}

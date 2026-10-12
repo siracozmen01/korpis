@@ -794,6 +794,13 @@ An agent authenticates with a per-node key established at enrolment. Enrolment u
 short-lived token that is itself an attenuated grant (§3.2 of `01-model.md`), issuing a node token
 is not a special code path, it is `node.enroll` scoped to one organization with `max_uses: 1`.
 
+The node generates its Ed25519 identity key itself and sends only the public half at enrolment, so
+the private key never leaves the machine. Every session then runs over TLS to the control-plane
+certificate the agent pinned at enrolment, and its first message proves the other direction: the
+`Hello` carries a signature by the node key over the node identifier, a timestamp, and a nonce,
+which the control plane checks against the enrolled public key, a declared clock-skew window, and
+the nonces it has seen inside that window (`NodeAuth` in `korpis/agent/v1/agent.proto`).
+
 **No node ever receives a credential it does not need.** The critical advisory GHSA-pfvc-3p5h-x7h6
 exists because Wings held registry credentials and a daemon token in a scope that tenant-authored
 templates could reach. In Korpis, registry credentials are held by the Content component and

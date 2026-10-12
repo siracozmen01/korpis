@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The Recipe: a signed, versioned, content-addressed package describing how to run a class of
+// workload (§3.5 of docs/01-model.md, docs/09-recipes.md). Its identity is its digest.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/duration.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/workload_spec.proto";
+
+// How an intent names a recipe. The digest is resolved once, centrally, at declaration, and is
+// the identity; name and version are the pointer that resolved to it (§8 of docs/09-recipes.md).
+message RecipeRef {
+  // e.g. "korpis.io/minecraft/paper".
+  string name = 1;
+  string version = 2;
+  // "sha256:<hex>".
+  string digest = 3;
+}
+
+message Recipe {
+  RecipeMetadata metadata = 1;
+  RecipeRuntime runtime = 2;
+  Preset preset = 3;
+  ConfigSchema config = 4;
+  repeated InstallStep install = 5;
+  repeated TemplateSpec templates = 6;
+  Probes probes = 7;
+  LogRules logs = 8;
+  LifecycleHooks lifecycle_hooks = 9;
+  Disruption disruption = 10;
+}
+
+message RecipeMetadata {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  repeated string maintainers = 4;
+  // SPDX expression for the software the recipe runs.
+  string license = 5;
+  map<string, string> annotations = 6;
+}
+
+message RecipeRuntime {
+  repeated RuntimeTarget targets = 1;
+  Entry entry = 2;
+}
+
+// One way to run the recipe: per isolation tier and architecture.
+message RuntimeTarget {
+  IsolationTier tier = 1;
+  repeated string arch = 2;
+  oneof source {
+    // An OCI image reference pinned by digest.
+    string image = 3;
+    // A path inside the recipe artifact: an OCI layer unpacked rather than run.
+    string rootfs = 4;
+    // A disk image inside the recipe artifact, for vm and microvm.
+    string disk_image = 5;
+  }
+}
+
+message Entry {
+  repeated string command = 1;
+  string working_dir = 2;
+}
+
+// The workload shape the recipe proposes; every field is overridable by the intent.
+message Preset {
+  Lifecycle lifecycle = 1;
+  ConsoleMode console = 2;
+  repeated PresetEndpoint endpoints = 3;
+  repeated PresetVolume volumes = 4;
+  PresetResources resources = 5;
+}
+
+message PresetEndpoint {
+  string name = 1;
+  EndpointProtocol protocol = 2;
+  uint32 port = 3;
+  Exposure exposure_default = 4;
+}
+
+message PresetVolume {
+  string name = 1;
+  string path = 2;
+  uint64 size_default_bytes = 3;
+}
+
+message PresetResources {
+  uint64 memory_min_bytes = 1;
+  uint64 memory_recommended_bytes = 2;
+  uint64 cpu_min_millis = 3;
+  uint64 cpu_recommended_millis = 4;
+}
+
+// Typed, permissioned configuration (§5 of docs/09-recipes.md, Rule K-17).
+message ConfigSchema {
+  repeated ConfigField fields = 1;
+}
+
+message ConfigField {
+  string key = 1;
+  ConfigType type = 2;
+  string label = 3;
+  FieldPermission permission = 4;
+  Value default = 5;
+  // Fixed value; the field cannot be changed by anyone.
+  Value const = 6;
+  optional double min = 7;
+  optional double max = 8;
+  optional uint32 max_length = 9;
+  // An anchored regular expression the value must match.
+  string pattern = 10;
+  repeated Value choices = 11;
+  // Redacted from streams (§7 of docs/14-streams.md); read needs workload.secret.read.
+  bool secret = 12;
+  bool hidden = 13;
+  // An expression over the intent, e.g. "resources.memory * 0.8"; makes the field system-set.
+  string derived = 14;
+  // How the value reaches the workload (§5.2 of docs/09-recipes.md).
+  ConfigDelivery deliver = 15;
+  // For deliver = env or arg: the variable name or the argument template.
+  string deliver_as = 16;
+}
+
+enum ConfigType {
+  CONFIG_TYPE_UNSPECIFIED = 0;
+  CONFIG_TYPE_STRING = 1;
+  CONFIG_TYPE_INTEGER = 2;
+  CONFIG_TYPE_NUMBER = 3;
+  CONFIG_TYPE_BOOLEAN = 4;
+  // A resource quantity such as "4Gi" or "500m".
+  CONFIG_TYPE_QUANTITY = 5;
+  CONFIG_TYPE_ENUM = 6;
+  CONFIG_TYPE_DURATION = 7;
+}
+
+enum FieldPermission {
+  FIELD_PERMISSION_UNSPECIFIED = 0;
+  // A holder of workload.write on the workload.
+  FIELD_PERMISSION_TENANT = 1;
+  // A holder of workload.write through a grant scoped to the parent of the owning organization
+  // or above; for a root organization's own workloads, its own scope.
+  FIELD_PERMISSION_OPERATOR = 2;
+  // Korpis only, derived or fixed.
+  FIELD_PERMISSION_SYSTEM = 3;
+}
+
+enum ConfigDelivery {
+  CONFIG_DELIVERY_UNSPECIFIED = 0;
+  // Only through templates that name the field.
+  CONFIG_DELIVERY_TEMPLATE = 1;
+  CONFIG_DELIVERY_ENV = 2;
+  CONFIG_DELIVERY_ARG = 3;
+  // A file Korpis manages outside every tenant-writable path.
+  CONFIG_DELIVERY_MANAGED_FILE = 4;
+}
+
+// The closed install vocabulary (§4 of docs/09-recipes.md). There is no step that runs code.
+message InstallStep {
+  oneof verb {
+    FetchStep fetch = 1;
+    CopyStep copy = 2;
+    ExtractStep extract = 3;
+    MkdirStep mkdir = 4;
+    WriteStep write = 5;
+    TemplateStep template = 6;
+    ChmodStep chmod = 7;
+    ChownStep chown = 8;
+    SymlinkStep symlink = 9;
+    DeleteStep delete = 10;
+    ProviderStep provider = 11;
+  }
+}
+
+message FetchStep {
+  string url = 1;
+  // "sha256:<hex>" or "sha512:<hex>". Mandatory; a fetch without one is a parse error.
+  string digest = 2;
+  string to = 3;
+}
+
+message CopyStep {
+  // A path inside the recipe artifact.
+  string from = 1;
+  string to = 2;
+}
+
+message ExtractStep {
+  string from = 1;
+  string to = 2;
+  uint32 strip = 3;
+  repeated string include = 4;
+}
+
+message MkdirStep {
+  string path = 1;
+  uint32 mode = 2;
+}
+
+message WriteStep {
+  string path = 1;
+  string content = 2;
+  uint32 mode = 3;
+}
+
+message TemplateStep {
+  string from = 1;
+  string to = 2;
+  repeated string vars = 3;
+}
+
+message ChmodStep {
+  string path = 1;
+  uint32 mode = 2;
+}
+
+message ChownStep {
+  string path = 1;
+  // Within the tenant's uid range only.
+  uint32 uid = 2;
+  uint32 gid = 3;
+}
+
+message SymlinkStep {
+  string target = 1;
+  string link = 2;
+}
+
+message DeleteStep {
+  string path = 1;
+}
+
+// An extension-provided step, pinned in the lockfile (§4 of docs/09-recipes.md).
+message ProviderStep {
+  // "<publisher>/<step>".
+  string provider = 1;
+  map<string, Value> args = 2;
+}
+
+message TemplateSpec {
+  string path = 1;
+  TemplateFormat format = 2;
+  // The allow-listed variables; nothing else is in scope (Rule K-2).
+  repeated string vars = 3;
+}
+
+// Templates encode values for their output format (§6 of docs/09-recipes.md).
+enum TemplateFormat {
+  TEMPLATE_FORMAT_UNSPECIFIED = 0;
+  TEMPLATE_FORMAT_TEXT = 1;
+  TEMPLATE_FORMAT_PROPERTIES = 2;
+  TEMPLATE_FORMAT_YAML = 3;
+  TEMPLATE_FORMAT_JSON = 4;
+  TEMPLATE_FORMAT_TOML = 5;
+  TEMPLATE_FORMAT_INI = 6;
+}
+
+message Probes {
+  Probe readiness = 1;
+  Probe liveness = 2;
+}
+
+message LogRules {
+  repeated LogEventRule events = 1;
+}
+
+message LogEventRule {
+  string pattern = 1;
+  string emit = 2;
+  string level = 3;
+}
+
+message LifecycleHooks {
+  Hook pre_stop = 1;
+}
+
+message Hook {
+  oneof kind {
+    ConsoleWriteHook console_write = 1;
+  }
+}
+
+message ConsoleWriteHook {
+  string data = 1;
+  google.protobuf.Duration wait_for_exit = 2;
+}
+
+// What this software costs to interrupt (§5.1 of docs/09-recipes.md). It may only make a step
+// more disruptive than the driver says.
+message Disruption {
+  DisruptionDecl stop = 1;
+  DisruptionDecl restart = 2;
+  ReconfigureDisruption reconfigure = 3;
+}
+
+message DisruptionDecl {
+  bool disruptive = 1;
+  string reason = 2;
+}
+
+message ReconfigureDisruption {
+  // Changing any of these makes a configuration change a disruptive plan.
+  repeated string disruptive_fields = 1;
+}

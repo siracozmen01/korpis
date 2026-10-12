@@ -1,0 +1,563 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The client API (docs/10-api.md). Web, CLI, chat, and integrations are peer clients of exactly
+// these services (P2). Every mutation carries an idempotency key and, where it changes a
+// versioned object, the expected version; every write returns a consistency token (§6).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/authority.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/placement.proto";
+import "korpis/v1/tenancy.proto";
+import "korpis/v1/workload.proto";
+
+// Carried by every mutating request.
+message Mutation {
+  // Safe retry: a repeat returns the original outcome.
+  string idempotency_key = 1;
+  // Compare-and-swap against the object's current version; absent only on create.
+  optional uint64 expected_version = 2;
+}
+
+// Carried by every write response, and passed back on reads for read-your-writes.
+message Consistency {
+  string token = 1;
+}
+
+// Common to list calls.
+message PageRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+}
+
+service ServerInfoService {
+  // Capabilities of this control plane. Clients ask; they never sniff a version.
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetServerInfoRequest {}
+
+message GetServerInfoResponse {
+  string version = 1;
+  // The exact source revision, and where it is published (§2 of docs/19-governance.md).
+  string source_revision = 2;
+  string source_url = 3;
+  repeated string capabilities = 4;
+  // Agent protocol versions this control plane accepts (§4 of docs/10-api.md).
+  repeated string agent_protocols = 5;
+}
+
+service OrganizationService {
+  rpc CreateOrganization(CreateOrganizationRequest) returns (CreateOrganizationResponse);
+  rpc GetOrganization(GetOrganizationRequest) returns (GetOrganizationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListOrganizations(ListOrganizationsRequest) returns (ListOrganizationsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.quota.write.
+  rpc SetQuota(SetQuotaRequest) returns (SetQuotaResponse);
+  // org.suspend: reversible, from above only.
+  rpc SuspendOrganization(SuspendOrganizationRequest) returns (SuspendOrganizationResponse);
+  rpc ResumeOrganization(ResumeOrganizationRequest) returns (ResumeOrganizationResponse);
+}
+
+message CreateOrganizationRequest {
+  Mutation mutation = 1;
+  string name = 2;
+  // Absent creates a root organization, which only the installation's root grant may do.
+  optional string parent = 3;
+  QuotaSet quota = 4;
+}
+
+message CreateOrganizationResponse {
+  Organization organization = 1;
+  Consistency consistency = 2;
+}
+
+message GetOrganizationRequest {
+  string id = 1;
+  Consistency consistency = 2;
+}
+
+message GetOrganizationResponse {
+  Organization organization = 1;
+}
+
+message ListOrganizationsRequest {
+  optional string parent = 1;
+  PageRequest page = 2;
+  Consistency consistency = 3;
+}
+
+message ListOrganizationsResponse {
+  repeated Organization organizations = 1;
+  PageResponse page = 2;
+}
+
+message SetQuotaRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  QuotaSet quota = 3;
+}
+
+message SetQuotaResponse {
+  Organization organization = 1;
+  Consistency consistency = 2;
+}
+
+message SuspendOrganizationRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string reason = 3;
+  OnSuspend on_suspend = 4;
+}
+
+message SuspendOrganizationResponse {
+  Organization organization = 1;
+  Consistency consistency = 2;
+}
+
+message ResumeOrganizationRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+}
+
+message ResumeOrganizationResponse {
+  Organization organization = 1;
+  Consistency consistency = 2;
+}
+
+service ProjectService {
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message CreateProjectRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string name = 3;
+  map<string, string> labels = 4;
+  QuotaSet quota = 5;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+  Consistency consistency = 2;
+}
+
+message GetProjectRequest {
+  string id = 1;
+  Consistency consistency = 2;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+  Consistency consistency = 3;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  PageResponse page = 2;
+}
+
+service WorkloadService {
+  // workload.create (new workload) or workload.write (new intent). Validates the body against
+  // the recipe's config schema and field permissions, holds quota in the same transaction, and
+  // computes the plan. `dry_run` computes and returns the plan without persisting anything.
+  rpc DeclareIntent(DeclareIntentRequest) returns (DeclareIntentResponse);
+  // workload.start.
+  rpc Start(StartRequest) returns (PowerResponse);
+  // workload.stop.
+  rpc Stop(StopRequest) returns (PowerResponse);
+  // workload.restart: a new Power version with a higher cycle.
+  rpc Restart(RestartRequest) returns (PowerResponse);
+  // workload.delete: a plan of kind retire. Volumes are not deleted by it.
+  rpc DeleteWorkload(DeleteWorkloadRequest) returns (DeleteWorkloadResponse);
+  rpc GetWorkload(GetWorkloadRequest) returns (GetWorkloadResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListWorkloads(ListWorkloadsRequest) returns (ListWorkloadsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListIntents(ListIntentsRequest) returns (ListIntentsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Server-streaming changes to one workload's status, starting with its current state.
+  rpc WatchWorkload(WatchWorkloadRequest) returns (stream WatchWorkloadResponse);
+}
+
+message DeclareIntentRequest {
+  // expected_version is the workload's current intent version; absent for a new workload.
+  Mutation mutation = 1;
+  // Exactly one: an existing workload, or a new one.
+  oneof target {
+    string workload = 2;
+    NewWorkload create = 3;
+  }
+  IntentBody body = 4;
+  bool dry_run = 5;
+}
+
+message NewWorkload {
+  string project = 1;
+  string name = 2;
+  map<string, string> labels = 3;
+  // The initial power declaration; running unless stated.
+  PowerState power = 4;
+}
+
+message DeclareIntentResponse {
+  Workload workload = 1;
+  Intent intent = 2;
+  Plan plan = 3;
+  Consistency consistency = 4;
+}
+
+message StartRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+}
+
+message StopRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+}
+
+message RestartRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+}
+
+message PowerResponse {
+  Power power = 1;
+  Plan plan = 2;
+  Consistency consistency = 3;
+}
+
+message DeleteWorkloadRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+}
+
+message DeleteWorkloadResponse {
+  Plan plan = 1;
+  Consistency consistency = 2;
+}
+
+message GetWorkloadRequest {
+  string id = 1;
+  Consistency consistency = 2;
+}
+
+message GetWorkloadResponse {
+  WorkloadStatus status = 1;
+}
+
+// Everything a client needs to render one workload honestly (§4.3 of
+// docs/02-architecture.md).
+message WorkloadStatus {
+  Workload workload = 1;
+  Intent target = 2;
+  Intent head = 3;
+  Observation observation = 4;
+  Placement placement = 5;
+  Convergence convergence = 6;
+  // The plan currently proposed, scheduled, or applying, if any.
+  Plan active_plan = 7;
+}
+
+enum Convergence {
+  CONVERGENCE_UNSPECIFIED = 0;
+  CONVERGENCE_CONVERGED = 1;
+  CONVERGENCE_APPLYING = 2;
+  CONVERGENCE_AWAITING_APPROVAL = 3;
+  CONVERGENCE_SCHEDULED = 4;
+  // The agent holds the assignment and cannot satisfy it.
+  CONVERGENCE_FAILING = 5;
+  CONVERGENCE_UNKNOWN = 6;
+  CONVERGENCE_UNPLACED = 7;
+}
+
+message ListWorkloadsRequest {
+  optional string project = 1;
+  optional string organization = 2;
+  LabelSelector selector = 3;
+  PageRequest page = 4;
+  Consistency consistency = 5;
+}
+
+message ListWorkloadsResponse {
+  repeated WorkloadStatus workloads = 1;
+  PageResponse page = 2;
+}
+
+message ListIntentsRequest {
+  string workload = 1;
+  PageRequest page = 2;
+}
+
+message ListIntentsResponse {
+  repeated Intent intents = 1;
+  PageResponse page = 2;
+}
+
+message WatchWorkloadRequest {
+  string workload = 1;
+}
+
+message WatchWorkloadResponse {
+  WorkloadStatus status = 1;
+}
+
+service PlanService {
+  rpc GetPlan(GetPlanRequest) returns (GetPlanResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // plan.approve, by a subject other than the proposer (§3.6 of docs/08-identity.md).
+  rpc ApprovePlan(ApprovePlanRequest) returns (ApprovePlanResponse);
+  rpc RejectPlan(RejectPlanRequest) returns (RejectPlanResponse);
+  // plan.cancel: lowers `through` on the nodes executing it (§7 of docs/03-state.md).
+  rpc CancelPlan(CancelPlanRequest) returns (CancelPlanResponse);
+}
+
+message GetPlanRequest {
+  string id = 1;
+  Consistency consistency = 2;
+}
+
+message GetPlanResponse {
+  Plan plan = 1;
+}
+
+message ListPlansRequest {
+  string workload = 1;
+  PageRequest page = 2;
+}
+
+message ListPlansResponse {
+  repeated Plan plans = 1;
+  PageResponse page = 2;
+}
+
+message ApprovePlanRequest {
+  Mutation mutation = 1;
+  string plan = 2;
+  // Approve now, apply in a window.
+  google.protobuf.Timestamp apply_after = 3;
+}
+
+message ApprovePlanResponse {
+  Plan plan = 1;
+  Consistency consistency = 2;
+}
+
+message RejectPlanRequest {
+  Mutation mutation = 1;
+  string plan = 2;
+  string reason = 3;
+}
+
+message RejectPlanResponse {
+  Plan plan = 1;
+  Consistency consistency = 2;
+}
+
+message CancelPlanRequest {
+  Mutation mutation = 1;
+  string plan = 2;
+}
+
+message CancelPlanResponse {
+  Plan plan = 1;
+  Consistency consistency = 2;
+}
+
+service EffectService {
+  // The effect log, filtered to what the caller may read.
+  rpc ListEffects(ListEffectsRequest) returns (ListEffectsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListEffectsRequest {
+  optional string workload = 1;
+  optional string plan = 2;
+  optional string node = 3;
+  google.protobuf.Timestamp since = 4;
+  PageRequest page = 5;
+}
+
+message ListEffectsResponse {
+  repeated Effect effects = 1;
+  PageResponse page = 2;
+}
+
+service NodeService {
+  // node.enroll: a one-time token the agent exchanges for its node identity (§3 of
+  // docs/18-operations.md).
+  rpc CreateEnrollmentToken(CreateEnrollmentTokenRequest) returns (CreateEnrollmentTokenResponse);
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // node.cordon.
+  rpc CordonNode(CordonNodeRequest) returns (CordonNodeResponse);
+  rpc UncordonNode(UncordonNodeRequest) returns (UncordonNodeResponse);
+}
+
+message CreateEnrollmentTokenRequest {
+  Mutation mutation = 1;
+  string node_name = 2;
+  map<string, string> labels = 3;
+}
+
+message CreateEnrollmentTokenResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message GetNodeRequest {
+  string id = 1;
+}
+
+message GetNodeResponse {
+  Node node = 1;
+}
+
+message ListNodesRequest {
+  LabelSelector selector = 1;
+  PageRequest page = 2;
+}
+
+message ListNodesResponse {
+  repeated Node nodes = 1;
+  PageResponse page = 2;
+}
+
+message CordonNodeRequest {
+  Mutation mutation = 1;
+  string node = 2;
+}
+
+message CordonNodeResponse {
+  Node node = 1;
+}
+
+message UncordonNodeRequest {
+  Mutation mutation = 1;
+  string node = 2;
+}
+
+message UncordonNodeResponse {
+  Node node = 1;
+}
+
+service GrantService {
+  // Attenuate a grant the caller holds into a child (§3.2 of docs/08-identity.md). Needs no
+  // action: only the parent's delegation policy.
+  rpc IssueGrant(IssueGrantRequest) returns (IssueGrantResponse);
+  // grant.read.
+  rpc GetGrant(GetGrantRequest) returns (GetGrantResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // grant.revoke, or the issuer of the grant or an ancestor (§3.5 of docs/08-identity.md).
+  rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse);
+  // A capability token for a grant the caller holds, attenuated to what the call needs.
+  rpc MintToken(MintTokenRequest) returns (MintTokenResponse);
+}
+
+message IssueGrantRequest {
+  Mutation mutation = 1;
+  // The grant to attenuate; the caller must hold it.
+  string parent = 2;
+  Subject subject = 3;
+  repeated string actions = 4;
+  Scope scope = 5;
+  Conditions conditions = 6;
+  DelegationPolicy delegation = 7;
+  bool link_form = 8;
+}
+
+message IssueGrantResponse {
+  Grant grant = 1;
+  // For link-form grants: the bearer token, shown once.
+  string link_token = 2;
+  Consistency consistency = 3;
+}
+
+message GetGrantRequest {
+  string id = 1;
+}
+
+message GetGrantResponse {
+  Grant grant = 1;
+  // Parent first, root last.
+  repeated Grant chain = 2;
+}
+
+message ListGrantsRequest {
+  oneof filter {
+    Scope scope = 1;
+    Subject subject = 2;
+  }
+  PageRequest page = 3;
+}
+
+message ListGrantsResponse {
+  repeated Grant grants = 1;
+  PageResponse page = 2;
+}
+
+message RevokeGrantRequest {
+  Mutation mutation = 1;
+  string grant = 2;
+}
+
+message RevokeGrantResponse {
+  Grant grant = 1;
+  // How many descendants the revocation cascaded to.
+  uint64 cascaded = 2;
+  Consistency consistency = 3;
+}
+
+message MintTokenRequest {
+  string grant = 1;
+  repeated string actions = 2;
+  Scope scope = 3;
+  // Bounded by the grant's own expiry and the server's maximum token lifetime.
+  uint32 ttl_seconds = 4;
+}
+
+message MintTokenResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}

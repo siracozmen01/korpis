@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Tenancy: organizations, projects, and quota (§3.1 of docs/01-model.md, §5.1 of
+// docs/05-scheduling.md, §2 of docs/08-identity.md).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+
+// The root of a tenancy tree. Recursive: a child organization is how reselling exists.
+message Organization {
+  string id = 1;
+  // Unique within the parent.
+  string name = 2;
+  // Absent for a root organization.
+  optional string parent = 3;
+  QuotaSet quota = 4;
+  OrganizationStatus status = 5;
+  // Present while suspended (§2.1 of docs/08-identity.md).
+  Suspension suspension = 6;
+  google.protobuf.Timestamp created = 7;
+  // Compare-and-swap version for updates (§6 of docs/10-api.md).
+  uint64 version = 8;
+}
+
+enum OrganizationStatus {
+  ORGANIZATION_STATUS_UNSPECIFIED = 0;
+  ORGANIZATION_STATUS_ACTIVE = 1;
+  ORGANIZATION_STATUS_SUSPENDED = 2;
+}
+
+// Reversible suspension, set from above only. It is not revocation.
+message Suspension {
+  Subject by = 1;
+  google.protobuf.Timestamp at = 2;
+  string reason = 3;
+  OnSuspend on_suspend = 4;
+}
+
+enum OnSuspend {
+  ON_SUSPEND_UNSPECIFIED = 0;
+  ON_SUSPEND_KEEP_RUNNING = 1;
+  ON_SUSPEND_STOP = 2;
+}
+
+// A named grouping of workloads inside an organization; the usual unit of delegation.
+message Project {
+  string id = 1;
+  string organization = 2;
+  // Unique within the organization.
+  string name = 3;
+  // Optional sub-limit within the organization's quota.
+  QuotaSet quota = 4;
+  map<string, string> labels = 5;
+  google.protobuf.Timestamp created = 6;
+  uint64 version = 7;
+}
+
+// Selector-scoped quota entries, each with reservations and limits (§5.1 of
+// docs/05-scheduling.md). Reservations sum against the parent and are never oversubscribed;
+// limits may exceed the parent's by the parent's declared overcommit ratio.
+message QuotaSet {
+  repeated QuotaEntry entries = 1;
+  // Per-dimension overcommit ratio this owner permits its children's limits, in percent of its
+  // own limit. Absent dimensions permit no overcommit. Memory defaults to none.
+  map<string, uint32> child_overcommit_percent = 2;
+}
+
+message QuotaEntry {
+  // Absent applies to everything the owner contains.
+  LabelSelector selector = 1;
+  Resources reservations = 2;
+  Resources limits = 3;
+  // Participates in the admission compare-and-swap (§5.1 of docs/05-scheduling.md).
+  uint64 version = 4;
+  // What shaping applies when the egress budget for the period is exhausted.
+  EgressExhaustion egress_exhausted = 5;
+}
+
+message EgressExhaustion {
+  // A floor rate, not a cut-off, unless `cut_off` is set.
+  uint64 floor_bits_per_sec = 1;
+  bool cut_off = 2;
+}
+
+// Anything that can act (§3.2 of docs/01-model.md).
+message Subject {
+  oneof kind {
+    string user = 1;
+    string token = 2;
+    ExternalIdentity external = 3;
+    string workload = 4;
+    string extension = 5;
+    // The control plane acting on its own decisions: reconciliation, scheduling.
+    SystemActor system = 6;
+  }
+}
+
+message ExternalIdentity {
+  // The identity provider extension that verifies it, e.g. "discord".
+  string provider = 1;
+  oneof selector {
+    // One person.
+    string user = 2;
+    // A set: a role in a guild, an OIDC group claim, a SAML attribute value.
+    ExternalSet set = 3;
+  }
+}
+
+message ExternalSet {
+  // e.g. guild id, OIDC issuer.
+  string realm = 1;
+  // e.g. role id, claim value.
+  string member_of = 2;
+}
+
+enum SystemActor {
+  SYSTEM_ACTOR_UNSPECIFIED = 0;
+  SYSTEM_ACTOR_RECONCILER = 1;
+  SYSTEM_ACTOR_SCHEDULER = 2;
+  SYSTEM_ACTOR_BOOTSTRAP = 3;
+}
