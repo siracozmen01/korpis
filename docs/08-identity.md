@@ -567,11 +567,26 @@ Identical attenuation algebra, identical evaluation.
 
 ```
 CapabilityToken
-  grant_chain     the attenuation chain, each link signed
-  actions, scope, conditions
+  grant_chain     the identifiers of the attenuation chain, leaf first
+  actions, scope  one concrete object; selector scopes are resolved before minting
   issued_at, expires_at
   epoch           the issuing control plane's key epoch
 ```
+
+**The token is a Biscuit** whose authority block is signed by the control plane's token key and
+states the chain, the actions, the scope, and the expiry. The gateway mints one only after it has
+evaluated the whole chain online, every link's attenuation and delegation policy included (§3.2),
+so a token is the *result* of an authorization rather than a claim a verifier has to re-derive. A
+holder can attenuate a token further, offline, by appending a block, and a block can only add
+checks (a shorter expiry, a narrower operation), never authority. Implemented in
+`crates/korpis-core/src/authz/token.rs`.
+
+> Corrected 2026-10-12, while implementing it. This said each link of the chain was signed, and
+> the table of §6.2 had offline verifiers checking every link's delegation policy. Neither is
+> needed and neither was what made the design safe: the delegation policy constrains who may
+> *create* a grant, which happens online at the gateway, and an offline verifier has nothing to
+> create. What a verifier needs from the chain is its identifiers, so that the revocation list can
+> refuse a token when any link is revoked (§6.3), and that is what the token carries.
 
 The relays and the agents hold the control plane's public key and verify a token **offline**. This
 is what makes interactive work possible without a round trip per keystroke:
@@ -713,7 +728,7 @@ So the rule is stated rather than assumed:
 
 | Condition | Checked where | Survives a control plane outage |
 |---|---|---|
-| signature and grant chain, including every link's delegation policy | relay and agent, offline | **yes** |
+| signature, and the chain's identifiers against the revocation list (below) | relay and agent, offline | **yes** |
 | `expires_at`, `not_before` | relay and agent, offline | **yes** |
 | revocation of any link | relay and agent, against the last revocation list, offline | **yes**, as of the last list received |
 | `source_cidr` | the gateway for API calls; the relay for sessions; offline at the relay | **yes** |

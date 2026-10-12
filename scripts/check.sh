@@ -28,11 +28,11 @@ echo "== rustfmt"
 cargo fmt --all --check
 
 echo "== clippy"
-cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
 echo "== tests (database: scripts/dev-pg.sh)"
 if [ -z "${KORPIS_TEST_PG_URL:-}" ]; then ./scripts/dev-pg.sh up >/dev/null; fi
-cargo test --workspace --locked
+cargo test --workspace --all-features --locked
 
 if command -v cargo-deny >/dev/null; then
     echo "== cargo deny"

@@ -2,4 +2,6 @@
 
 //! Domain logic shared by the Korpis control plane and the node agent.
 
+#[cfg(feature = "authz")]
+pub mod authz;
 pub mod build;

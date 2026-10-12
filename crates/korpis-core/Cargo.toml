@@ -10,3 +10,19 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+default = []
+# The authorization path: grant algebra, evaluation, and capability tokens. Off by default so
+# that the privileged helper, which needs none of it, links none of it.
+authz = ["dep:biscuit-auth", "dep:ipnet", "dep:thiserror", "dep:uuid"]
+
+[dependencies]
+biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
+ipnet = { version = "2", optional = true }
+thiserror = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+
+[[test]]
+name = "authz"
+required-features = ["authz"]

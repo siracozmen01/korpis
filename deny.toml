@@ -6,6 +6,14 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # proc-macro-error2 is unmaintained, and nothing patched exists. It reaches Korpis only as a
+    # compile-time dependency of biscuit-quote, the proc-macro behind biscuit-auth 6.0.0's
+    # `datalog-macro` feature, which biscuit-auth needs in order to compile at all (its builder
+    # does not build without that feature). It runs in the compiler, never in a Korpis binary.
+    # Revisit when biscuit-auth releases a version without it.
+    { id = "RUSTSEC-2026-0173", reason = "build-time only, via biscuit-auth's required proc-macro" },
+]
 
 [licenses]
 version = 2
