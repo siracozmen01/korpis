@@ -168,3 +168,38 @@ pub fn power_steps(
     }
     b.steps
 }
+
+/// The steps of a retire plan for `workload` (§4.8 of docs/02-architecture.md), from its
+/// approved body and power. A workload stops, its volumes are detached and retained, and its
+/// runtime is removed; deleting a volume is never part of it. A workload nothing was ever
+/// approved for has reached no node, and the control plane retires it alone.
+#[must_use]
+pub fn retire_steps(
+    workload: Uuid,
+    target: Option<&IntentBody>,
+    power: PowerState,
+    classifier: Classifier<'_>,
+) -> Vec<Step> {
+    let mut b =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    let Some(body) = target else {
+        b.push(StepAction::Retire, ValueMap::new(), &[]);
+        if let Some(step) = b.steps.last_mut() {
+            step.executor = StepExecutor::ControlPlane;
+        }
+        return b.steps;
+    };
+    if power == PowerState::Running {
+        b.push(StepAction::Stop, ValueMap::new(), &[]);
+    }
+    for v in &body.volumes {
+        let detail = ValueMap::from([
+            ("volume".to_owned(), text(&v.name)),
+            ("retained".to_owned(), Value::Bool(true)),
+        ]);
+        b.push(StepAction::DetachVolume, detail, &[]);
+    }
+    let retained = Value::List(body.volumes.iter().map(|v| text(&v.name)).collect());
+    b.push(StepAction::Retire, ValueMap::from([("volumes_retained".to_owned(), retained)]), &[]);
+    b.steps
+}

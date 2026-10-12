@@ -22,6 +22,7 @@ mod plans;
 mod quota;
 mod reads;
 mod recipes;
+mod retire;
 mod support;
 mod tenancy;
 mod workload;

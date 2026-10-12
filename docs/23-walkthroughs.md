@@ -25,6 +25,9 @@ the seams between them, and found seventeen more. §17 records a second external
 2026, that re-read every document against every other and against the primary sources, and whose
 seventy-nine findings changed the mechanics several of these traces cross.
 
+§18 is a fifteenth trace, written from the implementation in October 2026 when deletion was
+built, and its finding is numbered on from the first fourteen.
+
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
 their resolutions are left exactly as they were found, because they are the record. A row marked
@@ -749,6 +752,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 21 | The edge is the only component holding no lease | §13 | `07-networking.md` §3.1, `18-operations.md` §5 |
 | 22 | A hibernated workload's wake trigger lives in the edge | §13 | fixed by 21 |
 | 23 | The circuit breaker measures failure, and the failure mode is success | §14 | `16-extensions.md` §5, `15-observability.md` §5 |
+| 24 | A deleted workload's identity has no moment it is deleted | §18 | `01-model.md` §3.3, `02-architecture.md` §4.8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -979,3 +983,38 @@ Nothing. That is not because the review was infallible: every finding was checke
 files and the primary sources before it was recorded, so claims that did not survive were never
 entered, and this table cannot show what the review got wrong the way §16's could. That is a real
 loss of information, and the next review should record its rejected claims as §16 did.
+
+---
+
+## 18. A pipeline deletes a workload
+
+Written 2026-10-13, from the implementation, when `DeleteWorkload` was built.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `mc-testing` is removed from the set's files; apply proposes its deletion, never performs it | `13-surface-cli.md` §5 |
+| 2 | The deletion is a retire plan computed from the approved target and power: stop, detach and retain volume `world`, remove the runtime | `01-model.md` §3.3; `02-architecture.md` §4.8 |
+| 3 | It waits for a human: removing a runtime is disruptive by the vocabulary's floor, and `workload.delete` is irreversible | `01-model.md` §3.3; `10-api.md` §5 |
+| 4 | Approved: every other proposal is superseded, and a moderator's stop is refused, the workload is being retired | `01-model.md` §3.3 |
+| 5 | The node's assignment carries `retire`; the agent stops the workload and removes the runtime, touching no volume | `02-architecture.md` §4.8 |
+| 6 | The completion effect is ingested: the assignment leaves the set, the placement is removed, `deleted_at` is set, and the name and quota are released | `02-architecture.md` §4.8; `05-scheduling.md` §5.1 |
+| 7 | Volume `world` remains, detached, listed and never collected | `06-storage.md` §7 |
+
+**FINDING 24: A deleted workload's identity has no moment it is deleted. `CONFIRMED`**
+
+`deleted_at` was "soft; the id is retained forever", and every reader of it (name uniqueness,
+quota admission, listing) depended on when it was set, which nothing said. Set at the request, a
+name would be reusable and quota released while the old runtime still held its node's capacity;
+set at approval, the same, and a cancelled retirement would have to un-delete an identity whose
+name someone may have taken. A workload nothing was ever approved for is the other edge: no node
+holds it, so no node will ever report its retirement complete, and waiting for one would keep it
+forever.
+
+**Resolution.** A retire plan moves no pointer. Approving it freezes the workload, and `deleted_at`
+is set when the retirement is complete: when the node's completion effect is ingested, or at
+approval when the plan has only the control plane's step because nothing ever reached a node.
+Cancelling a retirement before any step has run restores nothing, because nothing moved. → patched
+into `01-model.md` §3.3 and `02-architecture.md` §4.8
+

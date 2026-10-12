@@ -55,21 +55,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         match from {
             PlanStatus::Proposed => {}
             PlanStatus::Approved | PlanStatus::Queued if plan.completed.is_none() => {
-                // Only the plan that moved the targets last can put them back; a later one has
-                // moved them since, and restoring would undo it.
-                let restored = moved_last(&plan, &w)
-                    && tx
-                        .restore_targets(w.id, plan.from_intent, plan.from_power, w.target_version)
-                        .await?;
-                if !restored {
-                    return Err(AppError::conflict(
-                        "plan.not_latest",
-                        "a later approval has moved the workload since this plan",
-                    ));
-                }
-                if matches!(plan.target, PlanTarget::Intent(_)) {
-                    self.follow_restored(&mut tx, &w, plan.from_intent).await?;
-                }
+                self.withdraw_approved(&mut tx, &plan, &w).await?;
             }
             PlanStatus::Applying | PlanStatus::Approved | PlanStatus::Queued => {
                 return Err(AppError::NotYet {
@@ -94,6 +80,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         )
         .await?;
         finish(tx, caller, idem, CANCEL, plan).await
+    }
+
+    /// Undoes what approving `plan` moved, before any of its steps ran. Only the plan that moved
+    /// the targets last can put them back; a later one has moved them since, and restoring would
+    /// undo it. A retire plan moved nothing.
+    async fn withdraw_approved(
+        &self,
+        tx: &mut S::Tx,
+        plan: &Plan,
+        w: &Workload,
+    ) -> Result<(), AppError> {
+        if plan.target == PlanTarget::Retire {
+            return Ok(());
+        }
+        let restored = moved_last(plan, w)
+            && tx
+                .restore_targets(w.id, plan.from_intent, plan.from_power, w.target_version)
+                .await?;
+        if !restored {
+            return Err(AppError::conflict(
+                "plan.not_latest",
+                "a later approval has moved the workload since this plan",
+            ));
+        }
+        if matches!(plan.target, PlanTarget::Intent(_)) {
+            self.follow_restored(tx, w, plan.from_intent).await?;
+        }
+        Ok(())
     }
 
     /// Puts the placement back with the target a cancellation restored.

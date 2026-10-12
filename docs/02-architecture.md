@@ -492,7 +492,8 @@ the gaps above:
 - **`retire` is how deletion differs from forgetting.** A workload whose assignment carries
   `retire` is stopped and its runtime objects destroyed; its volumes are not touched, because
   deleting a volume is its own irreversible plan step (§3.6 of `01-model.md`). Once the agent
-  reports the retirement complete and the effect is ingested, the assignment leaves the set. A
+  reports the retirement complete and the effect is ingested, the assignment leaves the set, the
+  placement is removed, and the workload's identity is retired (§3.3 of `01-model.md`). A
   runtime object with no assignment and no retirement is still an orphan (§4.4) and is still never
   deleted on the node's own initiative.
 - **`migration` makes each phase a desired state on each side.** The control plane advances the

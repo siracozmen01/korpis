@@ -5,11 +5,12 @@
 //! head, computed against the current target, can be approved: a plan the world moved under is
 //! superseded, and a plan nobody approved in time has expired.
 
+use super::retire::retiring;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, RecipeSource, Store, Tx, WorkloadWrite};
+use crate::ports::{Clock, EffectWrite, RecipeSource, RetirementWrite, Store, Tx, WorkloadWrite};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::plan::PlanStatus;
@@ -43,8 +44,12 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
     Ok(match plan.target {
         PlanTarget::Intent(i) => i == w.intent && plan.from_intent == w.target,
         PlanTarget::Power(v) => v == w.power_version && plan.from_power == w.power_target_version,
-        PlanTarget::Retire | PlanTarget::Migrate => {
-            return Err(AppError::NotYet { what: "retirement and migration plans", phase: 0 });
+        // A retire plan's steps were computed from what the workload was approved to be and do.
+        PlanTarget::Retire => {
+            plan.from_intent == w.target && plan.from_power == w.power_target_version
+        }
+        PlanTarget::Migrate => {
+            return Err(AppError::NotYet { what: "migration plans", phase: 0 });
         }
     })
 }
@@ -119,8 +124,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !plan.approvable(now) {
             return Err(self.retire_stale(tx, plan, PlanStatus::Expired).await);
         }
-        if !current(&plan, &w)? {
+        if w.deleted_at.is_some() || !current(&plan, &w)? {
             return Err(self.retire_stale(tx, plan, PlanStatus::Superseded).await);
+        }
+        if tx.retiring(w.id).await? {
+            return Err(retiring());
         }
         let to =
             if tx.plan_applying(w.id).await? { PlanStatus::Queued } else { PlanStatus::Approved };
@@ -137,7 +145,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 PlanTarget::Power(v) => {
                     tx.move_power_target(w.id, v, w.power_target_version).await?
                 }
-                PlanTarget::Retire | PlanTarget::Migrate => false,
+                PlanTarget::Retire => true,
+                PlanTarget::Migrate => false,
             };
         if !moved {
             return Err(AppError::conflict(
@@ -150,10 +159,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             &effect(caller.principal.clone(), "plan.approve", &plan, after).under(permit.grant),
         )
         .await?;
-        if let PlanTarget::Intent(i) = plan.target {
-            let target =
-                self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
-            self.place_target(&mut tx, &w, Some(&target)).await?;
+        match plan.target {
+            PlanTarget::Intent(i) => {
+                let target =
+                    self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
+                self.place_target(&mut tx, &w, Some(&target)).await?;
+            }
+            PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
+            PlanTarget::Power(_) | PlanTarget::Migrate => {}
         }
         finish(tx, caller, idem, APPROVE, plan).await
     }

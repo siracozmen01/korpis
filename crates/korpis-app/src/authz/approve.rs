@@ -31,6 +31,9 @@ fn plan_action(plan: &Plan) -> &'static str {
         }
         return "workload.start";
     }
+    if plan.target == korpis_core::workload::PlanTarget::Retire {
+        return "workload.delete";
+    }
     "workload.write"
 }
 

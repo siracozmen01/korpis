@@ -89,3 +89,12 @@ pub(super) async fn approve_if_auto<T: WorkloadWrite>(
     plan.approved_at = Some(now);
     Ok(true)
 }
+
+/// The name of the approval a plan needs, as effects record it.
+pub(super) fn approval_name(p: &Plan) -> &'static str {
+    match p.approval {
+        Approval::Auto => "auto",
+        Approval::Confirmation => "confirmation",
+        Approval::Authority { .. } => "authority",
+    }
+}

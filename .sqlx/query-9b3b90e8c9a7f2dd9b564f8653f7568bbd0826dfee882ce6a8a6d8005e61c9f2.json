@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET deleted_at = $2, version = version + 1\n              WHERE id = $1 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9b3b90e8c9a7f2dd9b564f8653f7568bbd0826dfee882ce6a8a6d8005e61c9f2"
+}

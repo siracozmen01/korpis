@@ -9,7 +9,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
+use crate::ports::{Clock, EffectWrite, RecipeSource, RetirementWrite, Store, WorkloadWrite};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef, Permit};
 use korpis_core::recipe::Disruption;
@@ -90,6 +90,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let locked =
             tx.lock_workload(w.id).await?.ok_or(AppError::NotFound { kind: "workload" })?;
+        if tx.retiring(w.id).await? {
+            return Err(super::retire::retiring());
+        }
         if locked.power_version != w.power_version
             || locked.power_target_version != w.power_target_version
             || !tx.append_power(&power).await?
@@ -168,7 +171,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// What interrupting the workload costs, by the recipe of what it runs: its target, or its
     /// head while nothing is approved.
-    async fn running_disruption(&self, w: &Workload) -> Result<Disruption, AppError> {
+    pub(super) async fn running_disruption(&self, w: &Workload) -> Result<Disruption, AppError> {
         let id = w.target.unwrap_or(w.intent);
         let intent = self
             .store

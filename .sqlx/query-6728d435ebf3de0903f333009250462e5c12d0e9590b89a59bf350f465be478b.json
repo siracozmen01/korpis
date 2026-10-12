@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM plan WHERE workload_id = $1 AND kind = 'retire'\n                              AND status IN ('approved', 'queued', 'applying')) AS \"retiring!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "retiring!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6728d435ebf3de0903f333009250462e5c12d0e9590b89a59bf350f465be478b"
+}

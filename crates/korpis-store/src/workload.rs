@@ -2,6 +2,7 @@
 
 //! Workloads, intents, power declarations, and plans (§3 and §7 of docs/03-state.md).
 
+mod retire;
 mod rows;
 mod write;
 

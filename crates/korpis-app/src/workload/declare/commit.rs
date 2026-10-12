@@ -7,8 +7,11 @@ use super::{Base, Declared};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, RecipeSource, Store, StoreError, Unique, WorkloadWrite};
+use crate::ports::{
+    Clock, RecipeSource, RetirementWrite, Store, StoreError, Unique, WorkloadWrite,
+};
 use crate::workload::propose;
+use crate::workload::retire::retiring;
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::recipe::resolve::Change;
 use korpis_core::tenancy::quota::Held;
@@ -56,6 +59,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 || now.intent_version != base.workload.intent_version;
             if stale {
                 return Err(moved(&now));
+            }
+            if tx.retiring(now.id).await? {
+                return Err(retiring());
             }
             // After the workload's lock, so admissions of one workload are serialized and the
             // lock order is always workload, then quota.
@@ -113,7 +119,7 @@ pub(super) fn declaration_effect(
             ("version", d.intent.version.into()),
             ("recipe", d.intent.body.recipe.digest.clone().into()),
             ("config_changed", Value::Array(keys)),
-            ("approval", approval_name(&d.plan).into()),
+            ("approval", propose::approval_name(&d.plan).into()),
             ("superseded_plans", superseded.into()),
         ]));
     e.workload = Some(d.workload.id);
@@ -133,13 +139,4 @@ pub(super) fn approval_effect(caller: &Caller, base: &Base, plan: &Plan) -> Effe
     e.workload = Some(plan.workload);
     e.plan = Some(plan.id);
     e
-}
-
-fn approval_name(p: &Plan) -> &'static str {
-    use korpis_core::workload::plan::Approval;
-    match p.approval {
-        Approval::Auto => "auto",
-        Approval::Confirmation => "confirmation",
-        Approval::Authority { .. } => "authority",
-    }
 }

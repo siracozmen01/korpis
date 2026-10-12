@@ -14,6 +14,7 @@ mod node;
 mod placement;
 mod quota;
 mod recipe;
+mod retire;
 mod tenancy;
 mod workload;
 
@@ -27,6 +28,7 @@ pub use node::{NodeRead, NodeWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
+pub use retire::RetirementWrite;
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
 
@@ -99,6 +101,7 @@ pub trait Tx:
     + QuotaWrite
     + NodeWrite
     + PlacementWrite
+    + RetirementWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

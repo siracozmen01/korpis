@@ -19,11 +19,11 @@ use connectrpc::{
 };
 use korpis_app::Idempotent;
 use korpis_app::workload::{
-    ChangePower, DeclareIntent, DeclareTarget, Declared, ListWorkloads, NewWorkload, PlacementView,
-    PowerChanged, WorkloadView,
+    ChangePower, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
+    NewWorkload, PlacementView, PowerChanged, WorkloadView,
 };
 use korpis_core::id::IdKind;
-use korpis_core::workload::PowerChange;
+use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 
@@ -65,6 +65,10 @@ fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
         intent: wire_id(IdKind::Intent, p.intent),
         ..Default::default()
     }
+}
+
+fn deleted(p: &Plan) -> pb::DeleteWorkloadResponse {
+    pb::DeleteWorkloadResponse { plan: plan_to_pb(p).into(), ..Default::default() }
 }
 
 fn declared(d: &Declared) -> pb::DeclareIntentResponse {
@@ -187,13 +191,23 @@ impl pb::WorkloadService for Api {
         self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Restart).await
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn delete_workload(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::DeleteWorkloadRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::DeleteWorkloadRequest>,
     ) -> ServiceResult<pb::DeleteWorkloadResponse> {
-        Err(unbuilt("DeleteWorkload"))
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let mutation = req.mutation.as_option();
+        let key = mutation_key(mutation)?;
+        let cmd = DeleteWorkload {
+            workload: wire::id(IdKind::Workload, "workload", &req.workload).refuse()?,
+            expected_version: mutation.and_then(|m| m.expected_version),
+        };
+        let encoder = |p: &Plan| encode(&deleted(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.delete_workload(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, deleted)
     }
 
     async fn get_workload(
