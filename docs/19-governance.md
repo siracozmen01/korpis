@@ -238,12 +238,19 @@ any individual's economics changing.
 2. **Recipe ecosystem governance.** Recipes are OCI artifacts anyone can publish (§8 of
    `16-extensions.md`) and Korpis is not a marketplace. Whether a *reference* set is maintained by
    the project, and who decides what enters it, is unresolved and is the seed of a curation
-   problem. → `09-recipes.md`
+   problem. It was routed to `09-recipes.md`, which never carried it, while §9 of
+   `22-first-party.md` routed the same question here (finding S18). It is a governance question and
+   it stays here. Part of it is settled: a first-party recipe is one the project maintains, which
+   means one with a named maintainer, so the first-party set can never be larger than the
+   maintainers can keep current, and a recipe whose maintainer steps away is relabelled community
+   rather than left to rot under the project's name. Who adds to it beyond that is open. → here
 3. **Funded-development boundaries.** A sponsor paying for a feature that conflicts with the
    principles is a governance test that will arrive, and the answer needs to be written before the
    money is on the table rather than during the conversation. → here
 4. **Translation governance.** Community translation spread Pterodactyl; it also means strings in
-   many languages that no maintainer can review. → `11-surface-web.md`
+   many languages that no maintainer can review. The mechanism is settled in §10 of
+   `11-surface-web.md`; who may approve a translation into a language no maintainer reads is a
+   governance question and stays here (finding S18). → here
 5. **LTS security backport scope.** Twenty-four months of "security and correctness" needs a line
    between a correctness fix and a behaviour change, or the LTS branch drifts into a second
    product. → here

@@ -80,19 +80,28 @@ whatever Valve currently ships. So it takes the designed escape hatch rather tha
 
 ```
 steps:
-  - steam.app:
+  - valve/steam.app:
       appid: 896660
       branch: public
+      manifest: 7346914270000188842       # pins the exact depot content
 ```
 
-`steam.app` is a step provider registered by an extension. The extension runs in its own sandbox,
-under its own grant, with declared egress to Steam's content servers and nowhere else. The recipe
-does not gain the ability to run arbitrary code; it gains the ability to ask a specific, audited
-extension to do one specific thing.
+`valve/steam.app` is a step provider registered by an extension (§4.1 of `16-extensions.md`). The
+extension runs in its own sandbox, under its own grant, with declared egress to Steam's content
+servers and nowhere else. The recipe does not gain the ability to run arbitrary code; it gains the
+ability to ask a specific, audited extension to do one specific thing.
 
-The resulting content is recorded by digest in the node's content store (§6 of `04-runtimes.md`),
-so the *second* node installing the same app version fetches nothing (K-15), and what was installed
-is knowable after the fact even though it was not knowable before.
+The resulting content is recorded by digest in the node's content store (§6 of `06-storage.md`), so
+the *second* node installing the same app version fetches nothing (K-15).
+
+**Pinned or not, and the recipe says which.** With `manifest`, the request names the content
+exactly and the install is reproducible: the same recipe digest produces the same bytes. Without it,
+`branch: public` means whatever Valve ships today, which is useful for a server that should track
+updates and is not reproducible, so the provider reports the result as unpinned and the workload
+carries the non-reproducible mark (§4 of `09-recipes.md`). The first version of this example omitted
+`manifest` and said only that the content was "knowable after the fact even though it was not
+knowable before", which contradicted the recipe document's promise that one digest runs the same
+bytes permanently (finding S26).
 
 ---
 
@@ -136,11 +145,36 @@ idle:
 Every part of this already exists:
 
 - **Player count** is an observation from the query extension (§3).
-- **Stopping** is an ordinary intent change producing an ordinary Plan.
+- **Stopping** is an ordinary power change producing an ordinary Plan (§3.3 of `01-model.md`); the
+  intent chain is untouched, which is what finding R7 was for. The first version called it "an
+  ordinary intent change" (finding S2).
 - **The address survives** because `stable` endpoints live on the edge, not on the node (§3.1 of
   `07-networking.md`), the entire reason that mode exists.
-- **The edge sees the connection** to an address whose workload is stopped, and asks the control
-  plane to start it.
+- **The edge sees the connection** to an address whose workload is hibernated, and requests that it
+  be started, under an authority the next paragraph defines.
+
+**Who wakes it, and what may.**
+
+> Second external review, finding S36. Recorded in §17 of `23-walkthroughs.md`.
+
+"The edge asks the control plane to start it" was a power change with no subject and no grant, and
+any connection could trigger it, including the internet-wide scanners that probe every Minecraft
+port continuously, which would wake every hibernated server every few minutes and erase the density
+the feature exists for. So:
+
+- **The authority is the hibernation policy itself.** Whoever declared the `idle` block (holding
+  `workload.write`) authorized both halves of it. When the policy is applied, the edge receives a
+  grant limited to `workload.start` on that one workload, conditioned on the workload being
+  `hibernated`, and it expires when the policy is removed. The wake is a power plan under that
+  grant, and its effect names the policy, the declarer, and the connection that triggered it.
+- **A connection wakes a workload only by attempting to join.** For protocols the router
+  understands, a status ping is answered by the router from the last known status and never wakes
+  anything; only a login attempt does. A port scan is neither.
+- **Wakes are rate-limited per workload**, with a cooldown after each wake and a daily budget
+  declared in the policy, so a determined client can cost a host at most the budget, visibly.
+- **Waking needs the control plane**, because it is a plan. During a control-plane outage a
+  hibernated workload stays hibernated, and the router's status reply says so rather than promising
+  a start that cannot happen.
 
 **Stated honestly, per P4, because this is where a feature like this usually lies.** A cold start
 takes tens of seconds and the connecting player's client will time out before it finishes. So:
@@ -204,9 +238,9 @@ services, databases, jobs, and virtual machines, with nothing missing but the ga
    signed nor stable, which is the same problem as an unverified egg. The grading of §9 of
    `09-recipes.md` probably applies unchanged, and that should be verified rather than assumed. →
    `09-recipes.md`
-4. **Which recipes are first-party.** A first-party set implies maintenance, and §10 of
-   `19-governance.md` already asks who decides what enters it. The list in §2 is a starting point,
-   not a commitment. → `19-governance.md`
+4. **Which recipes are first-party. Carried by §10 of `19-governance.md`, question 2.** A
+   first-party set implies maintenance, and §10 of `19-governance.md` already asks who decides what
+   enters it. The list in §2 is a starting point, not a commitment.
 5. **Query provider and cardinality.** Player counts are per-workload and fine; player *names* are
    tenant-controlled and must never become metric labels (§3 of `15-observability.md`). The query
    extension is the most likely place to get this wrong. → here

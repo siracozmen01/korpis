@@ -87,6 +87,7 @@ Organization
   name          string         mutable, unique within parent
   parent        OrgID?         null for a root organization
   quota         QuotaSet       what this org may consume (§5.1 of `05-scheduling.md`)
+  status        active | suspended     reversible, from above only (§2.1 of 08-identity.md)
   created       Timestamp
 ```
 
@@ -196,7 +197,11 @@ Grant
   scope         Scope           Organization | Project | Workload | Volume | Endpoint | ...
   conditions    Conditions
   parent        GrantID?        the grant this was attenuated from; null only for root
+  delegation    DelegationPolicy   whether, how deep, and with which actions it may be attenuated
   issued_by     Subject
+  via           {set, member}?  when issued by a member exercising a set grant (§5.1 of
+                                08-identity.md)
+  from_template TemplateRef?    provenance only; no authorization decision reads it
   issued_at     Timestamp
   revoked_at    Timestamp?
 
@@ -211,8 +216,10 @@ Conditions
 
 **Invariants**
 - **A grant can never exceed its parent.** Its actions are a subset, its scope is contained, its
-  conditions are at least as restrictive. This is checked at issue time and re-checked at use time,
-  because a parent may have been revoked in between.
+  conditions are at least as restrictive, and its delegation policy is no wider. This is checked at
+  issue time and re-checked at use time, because a parent may have been revoked in between.
+- **Only a grant whose delegation policy allows it can have children** (§3.2 of
+  `08-identity.md`). A link-form grant never can.
 - Revoking a grant revokes its entire subtree, transitively and immediately.
 - Every authority in the system traces to a root grant through an unbroken chain. There is no
   ambient authority anywhere, including for administrators.
@@ -232,10 +239,11 @@ issued ──use──▶ issued
 
 The operation RBAC cannot express, which this makes trivial:
 
-> A moderator holds `workload.restart` on project *Survival*, expiring in 90 days. They attenuate
-> it into a link: `workload.restart` on **one** workload, expiring in 24 hours, `max_uses: 3`, no
-> account required. They send it in a Discord DM. It cannot outlive their own grant, and revoking
-> theirs kills it.
+> A moderator holds `workload.restart` on project *Survival*, expiring in 90 days, with a delegation
+> policy that permits one further level. They attenuate it into a link: `workload.restart` on
+> **one** workload, expiring in 24 hours, `max_uses: 3`, no account required. They send it in a
+> Discord DM. It cannot outlive their own grant, revoking theirs kills it, and the link itself can
+> delegate nothing.
 
 #### GrantTemplate
 
@@ -272,11 +280,21 @@ Templates are convenience at the edge. The model stays pure; the interface stays
 
 ```
 IdentityBinding
-  provider      discord | oidc | ...
-  external_id   string        // guild id, role id, subject claim
-  subject       Subject       // the ExternalIdentity this materializes
-  verified_at   Timestamp
+  provider            ProviderRef     the identity provider extension that verifies it
+  selector            guild+role · guild+user · oidc issuer+claim · saml issuer+attribute
+  subject             ExternalIdentity
+  kind                individual | set
+  created_by          operator | first_use
+  template            TemplateRef?    for set bindings
+  constraints         BindingConstraints
+  reverify_interval   Duration
+  state               verified | unverified
+  last_verified_at    Timestamp
 ```
+
+> Second external review, finding S34. This struct had four fields and `08-identity.md` §5 had a
+> different set, extended again in §5.1. §5 of `08-identity.md` is now the one definition and this
+> is a copy of it, kept so the catalogue is complete.
 
 ---
 

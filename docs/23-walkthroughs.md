@@ -846,3 +846,20 @@ It found seventy-nine things. The table records each with its verdict and where 
 | S65 | The agent protocol's "N-2" window did not survive an LTS-to-LTS upgrade | real | `10-api.md` §4; `18-operations.md` §4; `19-governance.md` §5 |
 | S78 | The `Quota` invariant said every dimension was kernel-enforced, which no count can be, and nobody owned the monthly egress budget | real | `01-model.md` §3.1 |
 | S79 | One filesystem worker per tenant could not exist (a stopped container has no namespace) and would have authorized sibling access by path | **real** | `02-architecture.md` §6 |
+| S20 | Nothing said who may delegate or who may revoke; both readings broke the document's own canonical example | **real** | `08-identity.md` §3.2, §3.5; `01-model.md` §3.2; `10-api.md` §5 |
+| S21 | The Discord client "exchanged" a user's identity for that user's token, which extensions may not hold, with no signature, replay, or narrowing rule | **real, worst of the identity set** | `08-identity.md` §5.2; `12-surface-discord.md` §1; `16-extensions.md` §7 |
+| S22 | The chat document kept role grants valid through an outage that the identity document suspends them for | real | `08-identity.md` §5.1; `12-surface-discord.md` §9 |
+| S23 | Re-verifying a role cannot notice one member leaving it, so that member's delegations outlived them | **real** | `08-identity.md` §5.1; `01-model.md` §3.2 |
+| S24 | "No default access to a child's files" could not be computed: containment carried the host's root grant into every tenant | **real** | `08-identity.md` §3.3 |
+| S25 | Extensions acted under their own grant for any resource an invoker named, and iframe tokens were not intersected with the viewer | **real** | `16-extensions.md` §5 |
+| S26 | Step providers had no installer, namespace, or pinning, and provider-fetched content broke "one digest, same bytes" silently | real | `16-extensions.md` §4.1, §5; `09-recipes.md` §4, §8; `22-first-party.md` §4 |
+| S27 | `requires_approval_by` had no order a verifier could compute, and permitted self-approval | real | `08-identity.md` §3.6 |
+| S28 | Rate limits per grant multiplied under attenuation, pooled a whole role, and left login unlimited | real | `10-api.md` §10 |
+| S29 | A bearer link could be posted into a public channel; `max_uses` counted session renewals; the share screen hid the cap | real | `08-identity.md` §6.1; `11-surface-web.md` §6; `12-surface-discord.md` §6 |
+| S30 | The offline revocation list held token identifiers, so revoking an ancestor did not reach its descendants offline | real | `08-identity.md` §6.3 |
+| S31 | Operator-only config fields named no action and could be overridden by editing the rendered file; templates did not encode values | **real** | `09-recipes.md` §5, §5.2, §6 |
+| S32 | The only lever for "suspend this customer for non-payment" was irreversible, cascading revocation | real | `08-identity.md` §2.1; `01-model.md` §3.1; `10-api.md` §5 |
+| S33 | No bootstrap of the first grant, no lockout recovery, no account recovery, no session lifetimes, no `exec` action | real | `08-identity.md` §9.1 to §9.4; `10-api.md` §5 |
+| S34 | Three definitions of `IdentityBinding`; role-to-template binding described two ways; templates impossible to locate | real | `08-identity.md` §4, §5; `01-model.md` §3.2; `12-surface-discord.md` §2 |
+| S35 | Two different lists of irreversible actions, one enforced by the bot it said never adjudicates | real | `10-api.md` §5; `08-identity.md` §5.2; `12-surface-discord.md` §3 |
+| S36 | Waking a hibernated workload had no subject and no grant, and any port scan could trigger it | real | `22-first-party.md` §6 |

@@ -23,15 +23,18 @@ with network access and downloads whatever it needs at install time.
 | Signed | no | an imported community egg is unauthenticated code |
 | Survives upstream | no | the URL dies, the egg dies |
 | Dependency resolution | none | none |
-| Install mechanism | arbitrary bash | GHSA-p744-4q6p-hvc2: escape to host from the installation container. CVE-2023-32080: an attacker who can modify an install script executes commands on the host |
+| Install mechanism | arbitrary bash | GHSA-p744-4q6p-hvc2 (CVE-2023-32080, critical): escape to host from the installation container, reachable by anyone who can modify an install script or influence the user data one executes |
 | Templating scope | ambient | GHSA-pfvc-3p5h-x7h6 (Critical): egg configuration-file templating could render the daemon token and registry credentials into a tenant-readable file |
 | Config typing | untyped environment variables | no validation, no generated forms, no per-field permissions |
 
 Importing a community egg is, in practice, "run this bash script with privileges near root." Very
 few people treat it that way.
 
-Two of the ten published Wings advisories exist *only* because arbitrary install code and ambient
-templating exist. Removing them removes those classes, not those bugs.
+Two of the published Wings advisories (§1.1 of `research/evidence.md`) exist *only* because
+arbitrary install code and ambient templating exist. Removing them removes those classes, not those
+bugs. An earlier version of this sentence said "two of the ten" and listed the first as two
+separate issues; it is one advisory with a GHSA and a CVE identifier, and the published total is
+higher than ten (finding S61).
 
 ---
 
@@ -131,6 +134,12 @@ logs:
 
 lifecycle_hooks:
   pre_stop:  {kind: console_write, data: "stop\n", wait_for_exit: 120s}
+
+disruption:                                 # §5.1: what this software costs to interrupt
+  stop:     {disruptive: true,  reason: "disconnects players"}
+  restart:  {disruptive: true,  reason: "disconnects players"}
+  reconfigure:
+    disruptive_fields: [max_players, difficulty]   # applied only by a restart
 ```
 
 `pre_stop` deserves a note: a game server sent `SIGTERM` may not flush its world to disk. Writing
@@ -155,10 +164,17 @@ and it is declared by the recipe rather than special-cased in core.
 | `symlink` | `target`, `link` | both must resolve inside the volume |
 | `delete` | `path` | |
 
-Every step executes inside the tenant's own mount namespace through the confined filesystem worker
-(§6 of `02-architecture.md`), unprivileged, Landlock-restricted, with every path resolved by
+Every step that touches the volume executes through the workload's own confined filesystem worker,
+in a mount namespace that holds that workload's volumes and nothing else (§6 of
+`02-architecture.md`), unprivileged, Landlock-restricted, with every path resolved by
 `openat2(RESOLVE_BENEATH)`. Rule K-1 applies to installation exactly as it applies to the file
 manager, the installer has historically been the *more* dangerous of the two.
+
+**A `fetch` is performed by the node's content store, not by the worker.** The content store
+downloads the URL once per node, verifies the declared hash, and keeps it by digest (§6 of
+`06-storage.md`); the worker then copies it into the volume. So a second workload installing the
+same file fetches nothing (K-15, which the first version applied to images and not to install
+steps), and the worker that handles tenant paths never needs network access at all.
 
 **A `fetch` without a hash is not a warning. It is a parse error.** The recipe does not load.
 
@@ -176,12 +192,20 @@ The verb list being closed is what makes the fix cheap. Each verb declares what 
 
 | Verb | Re-running it |
 |---|---|
-| `fetch` | no-op if the digest already matches on disk; refetch otherwise |
-| `verify` | pure, always safe |
+| `fetch` | no-op if the digest is already in the content store and at the target; otherwise refetch or recopy |
+| `copy` | overwrites the target with the layer's content, never merges |
 | `extract` | overwrites into the target tree, never merges into whatever was there |
+| `mkdir` | no-op if the directory exists with the declared mode; corrects the mode otherwise |
+| `write` | overwrites the target with the literal content |
 | `template` | renders from the source template every time, never edits its own output |
-| `chmod` | pure, always safe |
+| `chmod` / `chown` | sets the declared value; idempotent by definition |
+| `symlink` | replaces a link at the path; refuses to replace anything that is not a link |
+| `delete` | no-op if already absent |
 | a provider step | the provider declares it, and a provider that cannot is refused at install |
+
+> Second external review, finding S73. The first version of this table listed `verify`, which is not
+> a verb, and omitted six verbs that are, so the guarantee "each verb states its own idempotence"
+> covered half the closed set it relied on.
 
 Install progress is recorded durably per install, not per plan, so a resume continues at the verb
 that failed. This is the property the escape hatch below depends on: a step provider is third-party
@@ -198,13 +222,22 @@ recipe uses it declaratively:
 ```yaml
 install:
   steps:
-    - steam.app: {appid: 730, branch: public, manifest: 8471…}
+    - valve/steam.app: {appid: 730, branch: public, manifest: 8471…}
 ```
 
-The `steam.app` provider is contributed by an extension. It runs **in the extension's own sandbox,
-under the extension's own grant** (§3.7 of `01-model.md`, P8), not with the installer's privileges,
-not in the tenant's namespace, and not with the ambient authority of core. It resolves the request
-into content-addressed artifacts, which then flow through the ordinary content store.
+The `valve/steam.app` provider is contributed by an extension. It runs **in the extension's own
+sandbox, under the extension's own grant** (§3.7 of `01-model.md`, P8), not with the installer's
+privileges, not in the tenant's namespace, and not with the ambient authority of core. It resolves
+the request into content-addressed artifacts, which then flow through the ordinary content store,
+and the workload's filesystem worker copies them in like any other content.
+
+The step is named by publisher, the provider that answers it is pinned by digest in the lockfile,
+and its contract (argument schema, idempotence, failure reasons, and whether its output was pinned
+or merely current) is §5 of `16-extensions.md`. A step that names exact content, as `manifest` does
+here, is reproducible. One that names a channel (`branch: public` with no manifest) gets whatever
+the channel holds today, so the workload is marked non-reproducible, as an unverified egg is (§9),
+and the recipe says so. "Two workloads from one digest run the same bytes" (§2) is true of
+reproducible recipes, and the label says which ones those are.
 
 The capability exists. Arbitrary code in a recipe does not. And because providers are extensions,
 adding SteamCMD support requires no change to Korpis and no new core privilege.
@@ -230,7 +263,14 @@ config:
     - key: motd
       type: string
       max_length: 59
+      pattern: '^[^\r\n]*$'               # a single line
       permission: tenant
+
+    - key: rcon_password
+      type: string
+      secret: true                         # redacted from streams (§7 of 14-streams.md)
+      permission: operator
+      deliver: env                         # §5.2: never into a tenant-writable file
 
     - key: java_heap
       type: quantity
@@ -248,11 +288,16 @@ config:
       hidden: true
 ```
 
-| Permission | Who may change it |
+| Permission | Who may change it, as a rule the gateway evaluates |
 |---|---|
-| `tenant` | the workload's owner |
-| `operator` | the organization above them |
+| `tenant` | a holder of `workload.write` on the workload |
+| `operator` | a holder of `workload.write` through a grant scoped to the **parent** of the workload's owning organization, or above it; for a root organization's own workloads, its own scope |
 | `system` | Korpis only, derived or fixed |
+
+> Second external review, finding S31. Recorded in §17 of `23-walkthroughs.md`. The permissions were
+> role words ("the workload's owner", "the organization above them") with no action behind them, so
+> "grant-checked like everything else" had nothing to check. Each is now an action on a scope the
+> gateway can compare.
 
 Three properties follow:
 
@@ -266,6 +311,43 @@ Three properties follow:
 
 Pterodactyl offers untyped environment variables and a raw text editor. The gap between that and a
 per-field permission model is most of what an operator does all day.
+
+### 5.1 Disruption is declared by the recipe
+
+The override chain of §3.3 of `01-model.md` (finding R9) gives the recipe a layer between the driver
+and the operator: what this software costs to interrupt. That layer is the `disruption` block of §3.
+It may only make a step more disruptive than the driver says, never less, and fields listed in
+`disruptive_fields` make a configuration change that touches them a disruptive plan. A recipe that
+declares nothing inherits the driver's classification. This is the field §3.3 of `01-model.md`
+cited and this document had not defined (finding S17).
+
+### 5.2 An operator field is enforced where the tenant cannot write
+
+> Second external review, finding S31.
+
+Rejecting a tenant's attempt to set `jvm_flags` at the API is worthless if the value is rendered
+into `/data/server.properties` and the tenant holds `workload.file.write` on `/data`: they edit the
+file instead. A permission that a file edit can override is a displayed limit nothing enforces
+(K-3).
+
+So every field declares how it reaches the software, and an `operator` or `secret` field may only
+use a channel the tenant cannot write:
+
+| `deliver` | Reaches the software as | Tenant-writable | Allowed for `operator` and `secret` |
+|---|---|---|---|
+| `env` | an environment variable set by the runtime | no | yes |
+| `arg` | a command-line argument set by the runtime | no | yes (not for `secret`: arguments are visible in the process table) |
+| `managed_file` | a file rendered into a read-only mount outside the tenant's volumes | no | yes |
+| `file` | a file in the tenant's volume | **yes** | **no**: rejected when the recipe is loaded |
+
+Software that reads a setting only from a file in its own data directory can still have that
+setting typed, validated, and generated as a form, but it cannot be an `operator` field, and the
+recipe loader says so rather than letting the recipe claim a protection it cannot provide.
+
+`secret: true` marks a field whose value is redacted from streams before persistence (§7 of
+`14-streams.md`), never rendered into a template the tenant can read, never shown in plans or
+effects (they record that it changed, not what to), and readable back only with
+`workload.secret.read` (§5 of `10-api.md`).
 
 ---
 
@@ -284,8 +366,15 @@ same context. So:
   object.
 - **The template language is logic-less**: substitution and simple conditionals. No loops over
   arbitrary collections, no attribute traversal, no function calls, no file reads, no includes.
-- **Rendering happens in the tenant's namespace**, so even a total escape reaches only the tenant's
-  own data.
+- **Substitution is encoded for the declared `format`.** A template declares its format
+  (`properties`, `yaml`, `json`, `toml`, `ini`, `env`, `xml`), and every value is encoded for it, so
+  a value can never terminate the line, the string, or the element it was placed in. A field whose
+  type could carry a structural character it cannot be encoded away from (a newline in a
+  line-oriented format) is rejected at validation by its type, as `motd` above is by its pattern.
+  Without this, a tenant-writable `motd` containing a newline would write any key it liked into
+  `server.properties`, including the operator's (finding S31).
+- **Rendering happens in the workload's own filesystem worker** (§6 of `02-architecture.md`), so
+  even a total escape reaches only that workload's own data.
 
 There is no ambient scope for a template to reach into, because there is no ambient scope.
 
@@ -320,6 +409,8 @@ recipes:
     resolved_at: 2026-08-07T10:12:00Z
     artifacts:
       - {url: "https://api.papermc.io/…", sha256: "a1b2…", vendored: true}
+    providers:
+      - {step: valve/steam.app, digest: "sha256:5d0e…"}   # §4.1 of 16-extensions.md
 ```
 
 `name:version` resolves through the lockfile once, at declaration. Afterwards the `Intent` refers
@@ -372,10 +463,13 @@ visible rather than inherited silently.
    wants for a one-click install, and it introduces a bundle object that owns several workloads,
    with its own lifecycle, quota accounting, and deletion semantics. Possibly a separate `Bundle`
    kind rather than a recipe feature. → here
-3. **How extensions register install providers.** §4 makes `steam.app` an extension-provided verb.
-   The contract, how a provider declares its schema, what sandbox it runs in, how failures surface
-   in the plan, whether it can be required for a recipe to be `clean`, belongs in the extension
-   contract. → `16-extensions.md`
+3. **How extensions register install providers. Resolved in §4.1 and §5 of `16-extensions.md`.** §4
+   makes `steam.app` an extension-provided verb. The contract, how a provider declares its schema,
+   what sandbox it runs in, how failures surface in the plan, whether it can be required for a
+   recipe to be `clean`, belongs in the extension contract. It is now there: publisher-namespaced
+   names, registration scoped to an organization, the provider pinned by digest in the lockfile, and
+   pinned or unpinned output declared per call, with unpinned output marking the workload
+   non-reproducible.
 4. **Recipe-level dependency resolution.** Recipes currently pin exact digests, which is correct
    and means a security fix in a base image requires re-publishing every dependent recipe. A
    constraint solver would fix that and would import npm's entire problem space. The middle

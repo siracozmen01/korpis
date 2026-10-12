@@ -186,6 +186,14 @@ local storage means starting from its latest backup or empty. Its plan names, pe
 of those it will be and what data is at risk, and it is never generated automatically for a
 `keep_running` workload, whose original may still be running (§4.5 of `02-architecture.md`).
 
+**Bulk changes are Operations too.** "Restart these two hundred workloads" or "set this label on
+five hundred" is a `bulk_intent` Operation: one call, one approval, a plan per workload computed
+against that workload's own current version, and **per-item results**. A workload that changed
+underneath the operation conflicts alone and is reported alone; the rest proceed. All-or-nothing
+across hundreds of independently owned workloads would let one person's concurrent edit block
+everyone else's change. This answers §12 of `10-api.md` and §10 of `11-surface-web.md` (finding
+S18).
+
 `max_unavailable` is the property that makes drain safe. Without it, draining a node means every
 workload on it migrating at once, which is a self-inflicted outage. With it, drain is a slow,
 observable, pausable process, which is what hardware maintenance actually requires.

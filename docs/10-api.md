@@ -157,7 +157,8 @@ workload.file.read · workload.file.write
 workload.secret.read                                 read a field the recipe marks secret
 plan.read · plan.approve · plan.cancel
 volume.read · volume.snapshot.create · volume.delete
-backup.create · backup.browse · backup.read · backup.restore
+endpoint.read · endpoint.write · endpoint.release
+backup.create · backup.browse · backup.read · backup.restore · backup.prune
 stream.share
 grant.read · grant.revoke
 org.read · org.create · org.write · org.suspend · org.quota.write
@@ -172,6 +173,11 @@ ext.<extension>.<action>              extensions define their own, namespaced
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.
+- **Some actions are marked irreversible in the schema**: `workload.delete`, `volume.delete`,
+  `endpoint.release` (giving up an address), and `backup.prune`. The mark is what §5.2 of
+  `08-identity.md` excludes from set-subject and link-form grants by default, and what the chat
+  client and the panel route to an explicit confirmation. There is one list, here, and every other
+  document refers to it (finding S35).
 - **`plan.approve` is what an approver holds** (§3.6 of `08-identity.md`). Approval was central to
   the model and had no action a gateway could check when someone pressed Approve.
 - **Delegating is not an action.** Whether a grant may be attenuated into children, how deep, and
@@ -378,15 +384,19 @@ ecosystem can exist on top of it instead of a series of forks.
    authorization story, its own cost-analysis problem, and its own way to disagree with the primary
    API. The likely answer is purpose-built aggregate endpoints instead, the benefit without the
    second surface. → here
-2. **Webhook delivery guarantees.** Extensions and billing systems subscribe to events.
-   At-least-once with a persistent outbox and consumer-side idempotency is the correct default;
-   whether Korpis also offers ordered delivery per workload, and what that costs at scale, is open.
-   → `16-extensions.md`
-3. **Bulk mutations.** Setting a label on five hundred workloads through five hundred calls with
-   five hundred `expected_version`s is unusable. A bulk form needs its own conflict semantics
-   (all-or- nothing, or per-item results) and it interacts with `Operation` (§3 of
-   `05-scheduling.md`), which already exists for exactly this shape of problem. →
-   `05-scheduling.md`
+2. **Webhook delivery guarantees. Resolved in §5 of `16-extensions.md`**: at-least-once, ordered per
+   workload by a per-workload sequence, unordered across workloads. Extensions and billing systems
+   subscribe to events. At-least-once with a persistent outbox and consumer-side idempotency is the
+   correct default; whether Korpis also offers ordered delivery per workload, and what that costs at
+   scale, was open.
+3. **Bulk mutations. Resolved in §3 of `05-scheduling.md`.** Setting a label on five hundred
+   workloads through five hundred calls with five hundred `expected_version`s is unusable. A bulk
+   form needs its own conflict semantics (all-or-nothing, or per-item results) and it interacts
+   with `Operation` (§3 of `05-scheduling.md`), which already exists for exactly this shape of
+   problem. A bulk change is a `bulk_intent` Operation: one call and one approval, a plan per
+   workload computed against that workload's own version, and **per-item results**, because
+   all-or-nothing across five hundred independently owned workloads would let one conflicting edit
+   block the other four hundred and ninety-nine.
 4. **Long-poll versus streaming for low-frequency clients.** A Discord bot does not want a
    permanent connection per guild. Whether it subscribes to a stream, long-polls, or receives
    webhooks changes the operational profile substantially. → `12-surface-discord.md`

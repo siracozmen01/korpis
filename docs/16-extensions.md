@@ -30,7 +30,7 @@ not ship.** These are extensions in Korpis, not core code with an extension API 
 | Steam app installation (`steam.app` install step) | recipe step provider |
 | DNS providers (Cloudflare, Route53, RFC 2136) | DNS provider |
 | object-storage backup targets | backup target provider |
-| OIDC, SAML, LDAP identity sources | identity provider |
+| OIDC, SAML, LDAP, Discord identity sources | identity provider, in the trust base (§5.3 of `08-identity.md`) |
 | protocol-aware routers (Minecraft handshake, TLS SNI) | edge router provider |
 | alert routing beyond the built-in minimum | event consumer |
 | **the Discord client**: and the chat-adapter interface behind it | actions + events + streams |
@@ -107,7 +107,24 @@ The real distinction is **which direction the call goes**:
 | Kind | Whose exposure | Who may install |
 |---|---|---|
 | event consumer, action, UI slot | the installer's own data and quota | **the installer**, their grants already suffice |
-| **provider**: DNS, backup target, identity, edge router | the control path; Korpis calls it, waits on it, depends on it | **whoever owns the resource it provides for** |
+| **provider**: DNS, backup target, edge router | the control path; Korpis calls it, waits on it, depends on it | **whoever owns the resource it provides for** |
+| **identity provider** | authentication itself: whatever it asserts is believed | **whoever holds authority over the whole organization it authenticates into** |
+| **recipe step, health, and console providers** | the install path and the probes of every workload whose recipe names them | **whoever holds authority over the organization** whose recipes may use them; they serve that organization's subtree |
+
+> Second external review, finding S26. Recorded in §17 of `23-walkthroughs.md`. This table named
+> DNS, backup, identity, and edge providers, and none of the providers §2 lists first: the recipe
+> step, health, and console providers. Nothing said who may register `steam.app`, how its name is
+> kept from colliding, or which registration a recipe gets.
+
+**Step providers are named, scoped, and pinned.** A step kind is named `<publisher>/<step>`, so two
+publishers' `app` steps cannot collide, and recipes write `valve/steam.app` where they used to write
+`steam.app`. A registration belongs to an organization and is visible to its subtree; two
+registrations of one name in one organization are refused, and a child organization's own
+registration shadows its parent's for that child's subtree only, visibly. When a recipe is
+declared, the step kinds it uses are resolved against the registrations visible to the declaring
+organization and the provider's **artifact digest is recorded in the lockfile** beside the recipe's
+own (§8 of `09-recipes.md`), so a workload never changes provider because someone registered a new
+one later.
 
 Tenant-direction extensions need nothing new. Authority is bounded structurally, consumption is
 metered against the installer, and egress obeys the tenant's egress policy, so an operator who
@@ -136,6 +153,12 @@ outbox; consumers are expected to be idempotent, and the delivery identifier mak
 slow or dead consumer's queue is bounded and is dropped with a visible marker rather than growing
 until it becomes the control plane's problem.
 
+**Delivery is ordered per workload.** Every event carries a sequence number scoped to the workload
+it concerns, the outbox delivers each workload's events in that order, and a consumer that sees a
+gap in a sequence knows it, rather than inferring order from timestamps. Across workloads there is
+no order, because none is meaningful and providing one would make one slow workload's events hold
+up everyone else's. This answers the question §12 of `10-api.md` routed here (finding S18).
+
 ### Providers
 
 Korpis calls **out** to the extension to obtain a capability it does not implement: resolve a DNS
@@ -155,6 +178,16 @@ Calling out is the direction that carries risk, so the contract is strict:
   reconciliation loop in the fleet queueing behind it.
 - **The breaker trips on latency as well as on failure**, and provider concurrency is bounded per
   provider rather than per call.
+- **A step provider states what it produced and whether it was knowable in advance.** It returns
+  content-addressed artifacts, never writes into a tenant's volume itself (the workload's own
+  filesystem worker copies them in, §4 of `09-recipes.md`), and declares per call whether its
+  output was **pinned** (the request named the content exactly, a Steam depot manifest for
+  instance) or **unpinned** (the request named a channel and got whatever it currently holds). An
+  unpinned result marks the workload non-reproducible, exactly as an unverified egg does (§9 of
+  `09-recipes.md`). The contract also carries the provider's argument schema, its idempotence
+  declaration (§4 of `09-recipes.md`), and its failure reasons, which surface in the plan as the
+  failed step's reason. This is the contract §10 of `09-recipes.md` routed here and that this
+  section had not yet written down.
 
 > Finding 23 of `23-walkthroughs.md`.
 
@@ -183,6 +216,26 @@ the web, Discord, and CLI surfaces are generated from the schema, a registered a
 all three automatically** (as a button, a slash command, and a subcommand) with autocomplete,
 authorization, Plan rendering, and audit already attached.
 
+**An extension acting for someone acts with the intersection, never with its own grant.**
+
+> Second external review, finding S25. Recorded in §17 of `23-walkthroughs.md`.
+
+The gateway checked the invoker's `ext.rcon.kick`, and the extension then did the kicking under its
+own, broader grant, with nothing tying the resource it touched to the resource the invoker was
+authorized for. A user authorized on workload A could pass workload B. That is the confused deputy,
+and the structure has to make it impossible rather than ask extension authors to avoid it:
+
+- **An action's schema declares which of its arguments are resources**, typed (`workload:
+  WorkloadRef`). The gateway authorizes the invoker for the action **on each declared resource**.
+- **The extension receives an invocation token, not the invoker's token and not a blank cheque.**
+  It is bound to the invocation, expires with it, and permits only the core actions the extension's
+  own grant permits, **on only the resources the invoker was authorized for**. Calls the extension
+  makes for that invocation must carry it; an effect made with it names the invoker, the extension,
+  and the invocation.
+- What the extension does on its own initiative, under its standing grant (a scheduled sync, a
+  background probe), is attributed to the extension alone and never to a user who happened to
+  invoke something earlier.
+
 This is the payoff for P2 being enforced rather than promised. In every competing product, an
 extension that wants a Discord command writes a Discord bot.
 
@@ -198,12 +251,14 @@ inherit its theming, accessibility, mobile layout, and its three-state rendering
 
 For genuinely custom UI there is an iframe on a **separate origin**, communicating over a typed
 `postMessage` channel, under a restrictive CSP. It never receives the user's capability token; it
-receives its own, scoped to the extension's grants and the current context. Two things follow that
-are worth stating: an extension cannot exfiltrate the user's authority, and an extension cannot
-render a convincing fake login prompt inside the panel's own chrome, because it is visibly and
-structurally a foreign frame.
+receives its own, scoped to the **intersection** of the extension's grants and the viewer's
+authority, for the resources in the current context. Three things follow that are worth stating:
+an extension cannot exfiltrate the user's authority; a viewer cannot borrow the extension's, which
+the first version permitted (a share-link holder opening the panel view received a token scoped to
+the extension's grants, finding S25); and an extension cannot render a convincing fake login
+prompt inside the panel's own chrome, because it is visibly and structurally a foreign frame.
 
-Runtime drivers are deliberately **not** in this list. §4.3 of `04-runtimes.md` defines them as
+Runtime drivers are deliberately **not** in this list. §3 of `04-runtimes.md` defines them as
 separate processes with their own interface, because a driver's privilege union is different in
 kind from an extension's, and pretending otherwise would put the two on the same footing at exactly
 the point where they must not be.
@@ -220,9 +275,10 @@ detected at load, refused with a message naming what is missing, and never disco
 use**, the alternative being an extension that installs cleanly and fails six weeks later during an
 incident.
 
-The support window is the same N-2 as the agent protocol, and for the same reason: extensions live
-on machines and in registries that Korpis does not control, and an upgrade that silently orphans an
-operator's DNS provider is an outage the operator did not choose.
+The support window is defined the same way as the agent protocol's (§4 of `10-api.md`): every
+contract version shipped by a release that is still supported, every LTS included. The reason is the
+same: extensions live on machines and in registries that Korpis does not control, and an upgrade
+that silently orphans an operator's DNS provider is an outage the operator did not choose.
 
 ---
 
@@ -233,7 +289,9 @@ Stated as a list because the boundary is the design:
 - read or write the database
 - modify, replace, or read Korpis' own files
 - hold authority exceeding their installer's
-- receive another subject's capability token
+- receive another subject's capability token (acting for an asserted user goes through `InvokeAs`,
+  §5.2 of `08-identity.md`, which hands the extension no token at all)
+- act, during an invocation, on a resource the invoker was not authorized for
 - run in the control plane's process, address space, or privilege
 - add a field to a core object: they carry their own state, keyed by core identifiers
 - block a reconciliation loop indefinitely
@@ -261,10 +319,16 @@ at, and it is what the AGPL/Apache split in §5 of `00-overview.md` exists to ma
 
 ## 9. Open questions
 
-1. **Hot reload versus restart.** An extension is a workload, so replacing it is a rolling update,
-   which is already solved. Whether a *provider* can be replaced without dependents seeing a
-   failure window needs the drain semantics of §3 of `05-scheduling.md` applied to provider
-   registration. → `05-scheduling.md`
+1. **Hot reload versus restart. Resolved here.** An extension is a workload, so replacing it is a
+   rolling update, which is already solved. Whether a *provider* can be replaced without dependents
+   seeing a failure window needs the drain semantics of §3 of `05-scheduling.md` applied to
+   provider registration. It was routed to `05-scheduling.md`, which never carried it (finding S18).
+
+A provider replacement registers the new version beside the old one; new calls go to the new
+version; calls in flight on the old one finish within their deadline; then the old registration is
+withdrawn. Dependents see no failure window, because no call is ever sent to a provider that is not
+registered, and a call that fails during the switch is retried under the provider's ordinary
+breaker policy. It is a drain, applied to one registration rather than one node.
 2. **Extension-to-extension dependency.** A game-query extension and a Discord-notification
    extension composing is natural, and a dependency graph invites version-resolution complexity
    that has eaten larger projects. Possibly the answer is that they compose only through the event

@@ -27,9 +27,18 @@ cannot start it, and if it can, it does so by holding a permanent admin API key 
 itself who is allowed to ask, an authorization system reimplemented, badly, in a bot.
 
 **The Korpis Discord client is a full client of the same API the web panel uses, and holds no
-authority of its own.** It has no admin key. When a user runs a command, the bot exchanges that
-user's Discord identity for a capability token carrying that user's grants, and makes the call with
-it. If the user is not authorized, the *control plane* refuses, the bot never adjudicates.
+authority of its own.** It has no admin key, and it never holds a user's authority either. When a
+user runs a command, Discord delivers a signed interaction; the Discord identity provider verifies
+it and produces a single-use assertion of who the user is and which roles they hold; and the client
+asks the gateway to perform **that one action on that one resource** for the asserted user
+(`InvokeAs`, §5.2 of `08-identity.md`). If the user is not authorized, the *control plane* refuses,
+the bot never adjudicates.
+
+> Second external review, finding S21. Recorded in §17 of `23-walkthroughs.md`. The first version
+> had the bot exchange the user's identity for "a capability token carrying that user's grants".
+> That is the one thing `16-extensions.md` §7 forbids an extension, and if it had been allowed the
+> bot would have held the full authority of everyone who ever invoked it. The bot now relays
+> requests; it never possesses what authorizes them.
 
 This is Bet 1 demonstrated rather than asserted: authority without accounts. And the reason it is
 possible here and nowhere else is P6: a system with roles has to provision an account for a Discord
@@ -40,12 +49,15 @@ identity directly and issue authority that never existed as a stored role.
 
 ## 2. How authority arrives
 
-Three bindings, all explicit, all operator-declared, all visible:
+Three bindings, all explicit and all visible. The two that confer authority are declared by an
+operator; the third only names a person, so it is created when that person first appears:
 
 ```
-guild        →  Organization        one guild is bound to one organization
-Discord user →  Subject             an IdentityBinding, created on first authenticated use
-Discord role →  GrantTemplate       the role's members receive the template's grant
+guild        →  Organization        operator-declared: one guild is bound to one organization
+Discord role →  GrantTemplate       operator-declared: the role, as a set subject, is issued the
+                                    template's grant, and its members exercise it
+Discord user →  Subject             an individual IdentityBinding, created on first authenticated
+                                    use; it confers nothing by itself
 ```
 
 The role mapping is the interesting one. A community already maintains its authority structure in
@@ -59,10 +71,12 @@ role  @moderator   →  template "operate"
                       scope:   project "community-servers"
 ```
 
-A `GrantTemplate` issues ordinary grants and keeps no back-reference (§4 of `08-identity.md`), so a
-grant obtained through a role is indistinguishable downstream from one issued by hand, attenuates
-the same way, and appears in the same audit trail. Losing the role revokes the grant; nothing else
-about it is special.
+Binding the role to the template issues **one** ordinary grant, to the role as a set subject (§5 of
+`08-identity.md`). Members exercise it by being members; nobody receives a copy of it, and the
+template is not consulted again (§4 of `08-identity.md`), so the grant attenuates the same way as
+one issued by hand and appears in the same audit trail. A member who leaves the role stops being
+able to exercise it as soon as the membership is next verified, and anything that member delegated
+is suspended with them (§5.1 of `08-identity.md`).
 
 **Nobody creates an account.** A moderator who has never opened the web panel can restart a server
 from their phone in the channel they were already in. That is the product.
@@ -85,9 +99,13 @@ where the consequences land.
 
 Two defaults follow, both on by default and both overridable only by explicit operator declaration:
 
-1. **Irreversible actions are unavailable from Discord.** Deleting a volume, deleting a workload,
-   revoking someone else's grant, and changing billing-relevant quota are not exposed. The command
-   returns a link to the web panel. A chat message is a poor place to be certain.
+1. **Irreversible actions are unavailable through Discord roles.** The irreversible actions are the
+   ones the action vocabulary marks so (§5 of `10-api.md`), and grants to set subjects exclude them
+   by default (§5.2 of `08-identity.md`). That is enforced by the gateway at attenuation, not by the
+   bot hiding commands: the bot hides what a user cannot do as a courtesy, and offers a link to the
+   web panel instead. A chat message is a poor place to be certain. Revoking a grant is not on that
+   list; it destroys nothing that cannot be reissued, and a moderator killing a leaked link from the
+   channel where it leaked is the case that most needs to be fast (finding S35).
 2. **`requires_mfa` is unsatisfiable through Discord.** A grant condition requiring multi-factor
    authentication cannot be met by a Discord identity, because Korpis cannot verify Discord's MFA
    state. High-authority operations therefore route to the web panel by construction, not by policy
@@ -115,16 +133,18 @@ Discord's interaction primitive is already *message, then buttons, then result*:
   │ 14 players currently connected               │
   │ estimated unavailable: ~40s                  │
   │                                              │
-  │ authorized by grant g_7f3a (via @moderator)  │
+  │ authorized by your @moderator role           │
   │                                              │
   │  [ Apply ]  [ Cancel ]                       │
   └──────────────────────────────────────────────┘
 ```
 
-The button carries the Plan's identifier, so applying it applies *that* Plan, not a freshly
-computed one that may have changed in between. If the world moved underneath it, applying returns
-`CONFLICT` (§6 of `10-api.md`) and the bot shows the new Plan rather than doing something the user
-did not read.
+The button carries the Plan's identifier, so applying it applies *that* Plan, not a freshly computed
+one that may have changed in between. The card names the authority in the words a member recognizes
+(their role); the grant identifier is one click away for whoever needs to audit it, and pressing
+**Apply** is a new interaction from whoever pressed it, authorized as that person. If the world
+moved underneath it, applying returns `CONFLICT` (§6 of `10-api.md`) and the bot shows the new Plan
+rather than doing something the user did not read.
 
 Low-risk actions skip the button and post the Plan alongside the result, exactly as in §4 of
 `11-surface-web.md`. The gradation is the same because it is the same rule, not a Discord-specific
@@ -176,9 +196,11 @@ that everyone assumes chat means one message per line.
   what was skipped**, never a silent omission (§7 of `10-api.md`).
 - **Send command** opens a modal. Input is never dropped or reordered, and requires
   `workload.console.write` separately from read.
-- **Open full** is a share link (§6 of `11-surface-web.md`) carrying a token in the fragment,
-  scoped to this workload, this viewer, and a short lifetime. The chat window is for glancing; the
-  panel is for reading.
+- **Open full** is a button, not a link. Pressing it is a new interaction from whoever pressed it,
+  and the bot answers that person alone (an ephemeral reply) with a link minted under **their**
+  authority, for this workload and a short lifetime. A link with a token in it never appears in the
+  shared message, because a bearer token in a channel is a grant to everyone who scrolls back (§6.1
+  of `08-identity.md`, finding S29). The chat window is for glancing; the panel is for reading.
 - The session ends on its own. Discord interaction tokens expire after fifteen minutes, so a live
   session is renewed by an explicit control rather than held open indefinitely, which is also the
   behaviour you want, since an abandoned live console in a channel is a leak with a long tail.
@@ -197,6 +219,11 @@ is whose authority governs what a channel receives.
 issue it, and it receives exactly the events that grant permits. The alternative, events scoped to
 the authority of whoever configured the subscription, means a subscription keeps leaking after that
 person's access is revoked, which is the standard behaviour and is wrong.
+
+Channel grants are read-only by construction: a channel can receive events and nothing else, and
+the chat client exercises a channel's grant only for the channels bound to its own installation. A
+channel cannot be asserted as an actor by an interaction, because a channel does not press buttons;
+people do, and they act as themselves.
 
 ```
 #ops-alerts  subject sub_c4d1
@@ -225,15 +252,23 @@ workloads that user may attach to, and no others, because existence follows read
 
 ## 9. When Discord is unavailable
 
-Nothing depends on it. The bot is a client; the control plane does not call Discord, does not store
-state in it, and does not wait on it. A Discord outage removes a surface and changes nothing about
+Nothing in the data plane depends on it. The control plane does not store state in Discord and does
+not wait on it; the one thing that calls Discord is the Discord identity provider, re-verifying
+memberships (§5.1 of `08-identity.md`). A Discord outage removes a surface and changes nothing about
 whether workloads run, converge, or are reachable, which is the property the architecture was
 chosen for, not one added afterwards.
 
-Grants obtained through role mappings are re-evaluated when Discord is reachable and otherwise
-remain valid until their own expiry. This is a deliberate choice: a token with a lifetime measured
-in minutes means an outage degrades to read-only rather than to a locked door, and the exposure
-window is bounded by the same lifetime that bounds ordinary revocation (§6 of `08-identity.md`).
+Grants obtained through role mappings follow the one rule of §5.1 of `08-identity.md`: while Discord
+cannot be reached they stay valid for the binding's declared grace after the re-verification
+interval, and then they are suspended, not revoked, and resume when verification succeeds. An outage
+therefore degrades to a locked door after a stated time, not to an open one indefinitely.
+
+> Second external review, finding S22. Recorded in §17 of `23-walkthroughs.md`. This section said
+> role-derived grants "remain valid until their own expiry" during an outage, described their
+> lifetime as "minutes", and said the control plane does not call Discord. `08-identity.md` §5.1
+> suspends them instead (finding 19), its own examples run for seven to ninety days, and
+> re-verification has to call something. The failure mode here would have been a membership that
+> ended during an outage continuing to authorize for as long as the grant said.
 
 ---
 
@@ -256,14 +291,21 @@ acquires a second chat-shaped codebase. The one thing that interface must carry,
 is not trivially portable, is the widget vocabulary of §4 and §6, plan-with-buttons and an
 edited-in-place rolling console. Platforms that cannot express those degrade to command-and- link,
 and say so.
-2. **Long-poll versus gateway for event delivery.** Carried from §12 of `10-api.md`. A bot serving
-   many guilds does not want a control-plane stream per guild. → here
+2. **Long-poll versus gateway for event delivery. Resolved here.** Carried from §12 of `10-api.md`.
+   A bot serving many guilds does not want a control-plane stream per guild. It does not need one:
+   the client is an extension and holds **one** event subscription through the extension contract
+   (§5 of `16-extensions.md`), filtered by the channel grants of every guild bound to it. Commands
+   arrive separately, as signed HTTP interactions (§5.2 of `08-identity.md`).
 3. **Guild-to-organization cardinality.** One guild to one organization is the clean model, but a
    host running support for many customers in one guild wants many organizations in one guild,
    scoped by channel. That is expressible with per-channel bindings and may not be worth the
    confusion. → here
 4. **Voice-adjacent affordances.** A moderator in a voice channel during an incident is a real
    scenario; whether that means anything beyond ordinary commands is unexplored. → here
-5. **Thread-per-incident.** Automatically opening a thread when a workload becomes unhealthy and
-   posting convergence progress into it is attractive and could equally be an extension rather than
-   core behaviour. → `16-extensions.md`
+5. **Thread-per-incident. Resolved here: an extension, needing nothing new.** Automatically opening
+   a thread when a workload becomes unhealthy and posting convergence progress into it is attractive
+   and could equally be an extension rather than core behaviour. It was routed to
+   `16-extensions.md`, which never carried it (finding S18). It is an event consumer subscribed to
+   health events, writing through the chat client's channel grants, which is exactly what §5 of
+   `16-extensions.md` already provides; if building it needs a core change, that is a defect in the
+   contract (P8).

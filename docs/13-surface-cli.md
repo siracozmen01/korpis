@@ -235,10 +235,21 @@ worse.
 3. **CLI plugins.** `korpis-foo` on `PATH` becoming `korpis foo` is cheap and gives extensions a
    CLI surface for free, but it also creates a path-hijacking vector worth thinking through. →
    `16-extensions.md`
-4. **Templating in declared files.** Every declarative tool grows one. Helm, Kustomize, jsonnet,
-   and every one is regretted. Recipes already provide typed, schema-validated parameterization (§5
-   of `09-recipes.md`), so the honest answer may be that the CLI needs none, and the files are
-   plain data. → `09-recipes.md`
-5. **Plan signing.** A Plan approved in a pull request and applied by a pipeline would ideally
-   carry a signature binding the approval to the exact plan. That is an approval-workflow feature
-   and belongs with governance rather than being invented here. → `19-governance.md`
+4. **Templating in declared files. Resolved here: none.** Every declarative tool grows one. Helm,
+   Kustomize, jsonnet, and every one is regretted. Recipes already provide typed, schema-validated
+   parameterization (§5 of `09-recipes.md`), so the honest answer may be that the CLI needs none,
+   and the files are plain data. It was routed to `09-recipes.md`, which never carried it (finding
+   S18). Declared files are plain data, validated against the schema. A team that wants to generate
+   them uses whatever generator it already trusts and commits the output, which keeps the reviewed
+   artifact identical to the applied one. A template language inside the files would be a second
+   configuration language with its own evaluation rules, reviewed by nobody.
+5. **Plan signing. Resolved here: the approval is the binding.** A Plan approved in a pull request
+   and applied by a pipeline would ideally carry a signature binding the approval to the exact
+   plan. That is an approval-workflow feature and belongs with governance rather than being
+   invented here. It was routed to `19-governance.md`, which never carried it (finding S18). A Plan
+   is an immutable object stored by the control plane under its identifier, and approving it is
+   `plan.approve` recorded as an effect naming the approver's grant (§3.6 of `08-identity.md`). A
+   pipeline applying `--plan pl_3c81` applies that object and nothing else, and a plan that changed
+   would have a different identifier. The pull request links the plan identifier; the reviewer
+   approves in Korpis, not by a comment Korpis cannot see. No separate signature adds anything the
+   effect log does not already hold.

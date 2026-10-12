@@ -129,13 +129,17 @@ to make possible:
 Share "mc-survival"
   they can          [x] view console   [ ] send commands   [ ] restart   [ ] files
   expires           in 24 hours
+  uses              3   (a use is opening it; needs the control plane to be reachable)
   requires sign-in  no
   →  https://panel.example/w/mc-survival#g_7f3a…
 ```
 
 The resulting link opens a screen containing exactly that workload and exactly those actions. There
 is no account, no invitation email, and no membership record, and revoking it is revoking one
-grant.
+grant. The dialog shows the use cap and its cost before the link exists, because §6.1 of
+`08-identity.md` makes caps a default and §6.2 makes them depend on the control plane; the first
+version of this screen showed neither (finding S29). A link can never be used to make further links
+(§3.2 of `08-identity.md`), and the screen does not offer it.
 
 ---
 
@@ -196,15 +200,32 @@ explicit paused-and-buffered reading mode rather than by leaving it unsolved.
 1. **Framework.** Deferred deliberately; the constraints are already fixed, static output, no
    server runtime, streams over polling, and small enough that a host serving it from a cheap CDN
    is ordinary. → here
-2. **Custom dashboards.** Hosts want a landing screen composed for their customers. Whether that is
-   an extension slot, a saved layout object, or both determines whether it can be per-organization.
-   → `16-extensions.md`
+2. **Custom dashboards. Resolved here: a saved layout object over declared slots.** Hosts want a
+   landing screen composed for their customers. Whether that is an extension slot, a saved layout
+   object, or both determines whether it can be per-organization. It was routed to
+   `16-extensions.md`, which never carried it (finding S18).
+
+A dashboard is a `Layout`: a named arrangement of panel components and extension slots (§5 of
+`16-extensions.md`), owned by an organization, inherited by its subtree unless a child sets its
+own. It is data, so it is per-organization by construction, and it can only place what already
+exists, so it cannot become a way around the slot inventory. Every component on it renders under
+the viewer's own authority, so a host's dashboard shown to a customer shows that customer's view.
 3. **Offline and PWA.** Attractive for the incident case, the panel loading while the control plane
    is degraded. Requires deciding what a cached view is allowed to claim, which collides with §2. →
    here
-4. **Internationalization.** Community translation is one of the reasons Pterodactyl spread. The
-   decision is whether recipe-supplied strings (§5 of `09-recipes.md`) participate in the same
-   translation pipeline as core strings, which is not obvious. → `09-recipes.md`
-5. **Bulk selection.** The interface will want "select 200 workloads and restart them", which needs
-   the bulk mutation semantics still open in §12 of `10-api.md` and the `Operation` object of
-   `05-scheduling.md`. → `05-scheduling.md`
+4. **Internationalization. Resolved here.** Community translation is one of the reasons Pterodactyl
+   spread. The decision is whether recipe-supplied strings (§5 of `09-recipes.md`) participate in
+   the same translation pipeline as core strings, which is not obvious. It was routed to
+   `09-recipes.md`, which never carried it (finding S18).
+
+They participate in the same message format and the same tooling, and not the same repository.
+Core strings and recipe strings are both ICU MessageFormat catalogues keyed by stable identifiers.
+A recipe ships its catalogues inside its artifact, so they are versioned and signed with it, and a
+translation of a recipe is a new recipe version rather than a file someone else's server fetches at
+runtime. The panel resolves a string from the recipe's catalogue for the viewer's locale, then the
+recipe's default locale, and never displays a raw key. Community translators work on core and on
+first-party recipes with the same tools; third-party recipes are their authors' to translate.
+5. **Bulk selection. Resolved in §3 of `05-scheduling.md`**: a selection becomes a `bulk_intent`
+   Operation, one approval, a plan per workload, and per-item results. The interface will want
+   "select 200 workloads and restart them", which needs the bulk mutation semantics that were open
+   in §12 of `10-api.md` and the `Operation` object of `05-scheduling.md`.
