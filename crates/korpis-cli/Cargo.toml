@@ -1,0 +1,19 @@
+[package]
+name = "korpis-cli"
+description = "Korpis CLI, the reference client"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "korpis"
+path = "src/main.rs"
+
+[dependencies]
+korpis-core.workspace = true

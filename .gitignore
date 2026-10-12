@@ -11,3 +11,9 @@ Thumbs.db
 # working files
 *.draft.md
 /scratch/
+
+# rust
+/target/
+
+# local agent state
+/.claude/

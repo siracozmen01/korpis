@@ -12,9 +12,10 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Henüz kod yok. Bu depo tasarımın kendisi.**
+> **Önce tasarım geldi, kod yeni başlıyor.** Yapım sırasının Phase 0'ı `crates/` altında sürüyor
+> (Rust, [`21-stack.md`](./docs/21-stack.md) §3); henüz kullanılabilir bir şey yok.
 >
-> Yirmi dört doküman var ve teslim edilen şey onlar. Böyle bir sistemde bazı kararlar sonradan
+> Yirmi dört doküman var ve kod onlara göre yazılıyor. Böyle bir sistemde bazı kararlar sonradan
 > takılamaz: durumun nasıl saklandığı, yetkinin nasıl devredildiği, güvenlik sınırının nerede
 > durduğu, ajan protokolünün ne söz verdiği. Bunları kâğıt üstünde yanlış yapmanın bedeli bir
 > paragraf. Dokuzuncu ayda yanlış yapmanın bedeli baştan yazmak, ki bu yazılım kategorisinin başına
@@ -79,6 +80,7 @@ README.md CONTRIBUTING.md SECURITY.md LICENSE*  giriş noktaları, inceleme, bil
 CLAUDE.md                                       bu dokümanları düzenleyen herkesin uyduğu kurallar
 docs/00-overview.md .. docs/23-walkthroughs.md  spesifikasyon, bağımlılık sırasına göre numaralı
 docs/research/evidence.md                       her sapmanın dayandığı kaynaklar
+crates/                                         uygulama, bir Rust workspace'i
 ```
 
 **Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli dokuz açık soru var; her

@@ -1,0 +1,15 @@
+[package]
+name = "korpis-agent"
+description = "Korpis node agent supervisor; dials out, holds no inbound port"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+korpis-core.workspace = true

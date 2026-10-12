@@ -1,6 +1,7 @@
 # Contributing
 
-There is no code yet. **The most valuable contribution right now is disagreement.**
+The code has only just started (Phase 0, in `crates/`). **The most valuable contribution right now
+is still disagreement.**
 
 A specification nobody has argued with has not been reviewed, and this one makes a number of
 deliberate departures from how this class of software is normally built. Each of those departures

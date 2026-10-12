@@ -1,8 +1,16 @@
 # Korpis
 
-Design specification for a general-purpose workload platform. **There is no code in this
-repository.** The documents in `docs/` are the deliverable, and they are written to be implemented
-later.
+A general-purpose workload platform: its specification in `docs/`, and its implementation in
+`crates/`, a Rust workspace built in the order of §4 of `docs/20-roadmap.md` (Phase 0 is under way).
+**The documents are the specification and the code implements them.** When the two disagree, one of
+them is wrong, and the fix lands in the same commit as the discovery: the code is corrected, or the
+document is corrected in place with its reasoning.
+
+The Rust code follows `rustfmt.toml` and the workspace lints in `Cargo.toml`, and every commit
+passes `scripts/check.sh` (formatting, clippy with warnings denied, tests, the supply-chain policy
+of `deny.toml`, and the text checks below). Every source file starts with its SPDX licence line:
+`Apache-2.0` in `korpis-proto`, `AGPL-3.0-or-later` everywhere else (§2 of
+`docs/19-governance.md`).
 
 ## Hard rules
 
@@ -37,6 +45,8 @@ LICENSE LICENSE-APACHE LICENSE-AGPL LICENSE-CC-BY the licence split and the full
 docs/00-overview.md                              principles, non-goals, bets, binding rules
 docs/01-model.md .. docs/23-walkthroughs.md      the specification, in dependency order
 docs/research/evidence.md                        the citations every deviation is argued from
+Cargo.toml crates/                               the Rust workspace, one crate per component
+scripts/check.sh                                 every check a commit must pass
 ```
 
 Numbering is dependency order, not importance. A document may depend on a lower number and should

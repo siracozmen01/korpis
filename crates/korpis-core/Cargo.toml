@@ -1,0 +1,12 @@
+[package]
+name = "korpis-core"
+description = "Korpis domain logic shared by the control plane and the agent"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

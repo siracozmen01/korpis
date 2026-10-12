@@ -9,13 +9,14 @@ job, a virtual machine) on hardware you own. It places the workload on a node, i
 strongly as you ask, gives it storage and network, keeps it in the state you declared, and lets you
 and the people you delegate to operate it from a panel, a terminal, chat, or the API.
 
-> **There is no code yet. This repository is the design.**
+> **The design comes first, and the code is just starting.** Phase 0 of the build order is under
+> way in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)); nothing is usable yet.
 >
-> Twenty-four documents, and they are the deliverable. Some decisions in a system like this cannot
-> be retrofitted: how state is stored, how authority is delegated, where the security boundary
-> sits, what the agent protocol promises. Getting those wrong on paper costs a paragraph. Getting
-> them wrong in month nine costs a rewrite, which is a thing that has already happened to this
-> category of software more than once.
+> Twenty-four documents, and they are the specification the code is held to. Some decisions in a
+> system like this cannot be retrofitted: how state is stored, how authority is delegated, where the
+> security boundary sits, what the agent protocol promises. Getting those wrong on paper costs a
+> paragraph. Getting them wrong in month nine costs a rewrite, which is a thing that has already
+> happened to this category of software more than once.
 
 ---
 
@@ -73,6 +74,7 @@ README.md CONTRIBUTING.md SECURITY.md LICENSE*  entry points, review policy, dis
 CLAUDE.md                                       the rules anyone editing these documents works under
 docs/00-overview.md .. docs/23-walkthroughs.md  the specification, numbered in dependency order
 docs/research/evidence.md                       the citations every deviation is argued from
+crates/                                         the implementation, a Rust workspace
 ```
 
 **The open questions are the point, not the gaps.** Fifty-nine are open across the documents, each
