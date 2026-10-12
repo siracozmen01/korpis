@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET target_id = $2, target_version = target_version + 1,\n                                 power_target_version = $3\n              WHERE id = $1 AND target_version = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6e357b8de2ab3dfbe9201e475c72abaed7c2360dd5406b27342cc2b2774987b8"
+}

@@ -190,6 +190,11 @@ UPDATE workload
 It commits in the same transaction as the plan's move to `approved` (or `queued`, §7) and the
 effect recording who approved it.
 
+Power has the same two pointers: `power_version` is the newest declaration and
+`power_target_version` the approved one, and approving a power plan is the same compare-and-swap
+on the latter, permitted only when the plan's power version is the head (§3.3 of `01-model.md`,
+added 2026-10-13).
+
 > Second external review, finding S3. The first version had only the head pointer, and the protocol
 > published it, so an intent waiting for approval was already on its way to a node.
 
@@ -435,6 +440,15 @@ Cancellation lands **on a step boundary**, never inside one, which is what makes
 `05-scheduling.md` already requires every step to be ordered, idempotent, and resumable from the
 last completed one, and a cancelled plan is a partial plan the model can already express. The next
 plan is computed against that partial state exactly as it would be against a failed one.
+
+**A plan cancelled before any of its steps completed leaves the workload as it was.** Approval
+moved the target (or the power target) when the plan was approved, not when it ran, so cancelling
+an approved or queued plan whose `completed` is still empty puts the targets back to the plan's
+`from_intent` and `from_power` by compare-and-swap, and the next sync tells the nodes nothing new.
+Only the plan that moved the targets last can do that; one that a later approval has overtaken is
+refused with a conflict rather than undoing the later one. (Added 2026-10-13, from the
+implementation: the steps above describe an applying plan and said nothing about one approved but
+not yet begun.)
 
 Cancellation is a request, not a command. A step in flight completes, because interrupting a
 half-written volume is how a system acquires states nobody declared. The cost is a bounded wait

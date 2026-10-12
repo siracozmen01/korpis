@@ -62,6 +62,8 @@ pub struct Plan {
     /// The workload's target intent when the plan was computed; the plan is valid only
     /// against it.
     pub from_intent: Option<Uuid>,
+    /// The workload's power target when the plan was computed, by version; zero for none.
+    pub from_power: u64,
     /// When it was computed.
     pub computed_at: SystemTime,
     /// Who it was computed for.

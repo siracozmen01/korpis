@@ -66,6 +66,13 @@ pub trait WorkloadRead {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<PowerRecord>>> + Send;
 
+    /// One of a workload's power declarations, by version.
+    fn power_at(
+        &self,
+        workload: Uuid,
+        version: u64,
+    ) -> impl Future<Output = StoreResult<Option<PowerRecord>>> + Send;
+
     /// One plan.
     fn plan(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Plan>>> + Send;
 
@@ -123,21 +130,39 @@ pub trait WorkloadWrite {
         from: PlanStatus,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Marks every proposed plan of `workload` other than `keep` superseded, and returns how
-    /// many there were: declaring a newer intent supersedes every unapproved plan for an older
-    /// one (§3.3 of docs/01-model.md).
-    fn supersede_proposed(
-        &mut self,
-        workload: Uuid,
-        keep: Uuid,
-    ) -> impl Future<Output = StoreResult<u64>> + Send;
+    /// Marks every other proposed plan of `keep`'s workload and kind superseded, and returns how
+    /// many there were: a newer declaration supersedes every unapproved plan for an older one
+    /// (§3.3 of docs/01-model.md), and a power change leaves a pending intent plan alone.
+    fn supersede_proposed(&mut self, keep: &Plan) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Moves the target to `to`, if the target version is still `expected` and `to` is the
-    /// head: only the head is approvable (§3.2 of docs/03-state.md).
+    /// head: only the head is approvable (§3.2 of docs/03-state.md). The first time a target is
+    /// set, the workload's first power declaration is approved with it, because the plan that
+    /// moved it was computed with that power.
     fn move_target(
         &mut self,
         workload: Uuid,
         to: Uuid,
+        expected: u64,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Moves the power target to version `to`, if it is still `expected` and `to` is the power
+    /// head.
+    fn move_power_target(
+        &mut self,
+        workload: Uuid,
+        to: u64,
+        expected: u64,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Puts the target back to `to` (absent: none) and the power target back to `power`, if the
+    /// target version is still `expected`: a plan cancelled before any of its steps completed
+    /// leaves the workload as it was (§7 of docs/03-state.md).
+    fn restore_targets(
+        &mut self,
+        workload: Uuid,
+        to: Option<Uuid>,
+        power: u64,
         expected: u64,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 }

@@ -103,6 +103,15 @@ impl Action {
         IRREVERSIBLE.contains(&self.0.as_str())
     }
 
+    /// Whether it changes nothing: the `*.read` actions and `backup.browse`. Such an action is
+    /// not proposed and approved, because approval governs change (§3.6 of
+    /// docs/08-identity.md). Every other action, an extension's included, is a change.
+    #[must_use]
+    pub fn changes_nothing(&self) -> bool {
+        let name = self.0.as_str();
+        CORE.contains(&name) && (name.rsplit('.').next() == Some("read") || name == "backup.browse")
+    }
+
     /// Whether it reaches a customer's data, which an ancestor never reaches implicitly (§7 of
     /// docs/08-identity.md).
     #[must_use]

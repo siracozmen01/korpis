@@ -38,8 +38,11 @@ pub struct Workload {
     /// Bumped every time the target moves; approval is a compare-and-swap on it (§3.2 of
     /// docs/03-state.md).
     pub target_version: u64,
-    /// The current power declaration's version.
+    /// The newest power declaration's version: the power head.
     pub power_version: u64,
+    /// The approved power declaration nodes are told, by version; zero until one is approved.
+    /// Moved only by approving a plan, like `target` (§3.3 of docs/01-model.md).
+    pub power_target_version: u64,
     /// Bumped on every metadata change, for compare-and-swap.
     pub version: u64,
     /// When it was created.

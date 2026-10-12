@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE plan SET status = 'superseded'\n              WHERE workload_id = $1 AND id <> $2 AND kind = $3 AND status = 'proposed'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d4334a9b29d4aa8a11c03d8227c3c22c71f9e9570e23381e4cf1def3b1880cca"
+}

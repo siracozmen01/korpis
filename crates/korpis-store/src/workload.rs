@@ -18,7 +18,8 @@ impl WorkloadRead for PgStore {
         let row = sqlx::query_as!(
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
-                    target_id, target_version, power_version, version, created, deleted_at
+                    target_id, target_version, power_version, power_target_version, version,
+                    created, deleted_at
                FROM workload WHERE id = $1",
             id
         )
@@ -32,7 +33,8 @@ impl WorkloadRead for PgStore {
         let rows = sqlx::query_as!(
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
-                    target_id, target_version, power_version, version, created, deleted_at
+                    target_id, target_version, power_version, power_target_version, version,
+                    created, deleted_at
                FROM workload
               WHERE deleted_at IS NULL
                 AND ($1::uuid IS NULL OR project_id = $1)
@@ -88,6 +90,20 @@ impl WorkloadRead for PgStore {
             "SELECT workload_id, version, desired, cycle, set_by, set_at
                FROM power WHERE workload_id = $1 ORDER BY version DESC LIMIT 1",
             workload
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(PowerRow::into_domain).transpose()
+    }
+
+    async fn power_at(&self, workload: Uuid, version: u64) -> StoreResult<Option<PowerRecord>> {
+        let row = sqlx::query_as!(
+            PowerRow,
+            "SELECT workload_id, version, desired, cycle, set_by, set_at
+               FROM power WHERE workload_id = $1 AND version = $2",
+            workload,
+            crate::stored::to_count("power version", version)?
         )
         .fetch_optional(&self.pool)
         .await

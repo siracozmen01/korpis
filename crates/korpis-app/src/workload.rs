@@ -4,8 +4,13 @@
 //! docs/01-model.md, §3 and §7 of docs/03-state.md).
 
 mod admit;
+mod cancel;
 mod configure;
+mod decide;
 mod declare;
+mod power;
 mod propose;
 
+pub use decide::{ApprovePlan, RejectPlan};
 pub use declare::{DeclareIntent, DeclareTarget, Declared, NewWorkload};
+pub use power::{ChangePower, PowerChanged};

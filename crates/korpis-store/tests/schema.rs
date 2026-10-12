@@ -86,10 +86,10 @@ async fn at_most_one_plan_applies_per_workload() {
     let (workload, _) = seed_workload(&store).await;
     let insert = |status: &'static str| {
         sqlx::query(
-            "INSERT INTO plan (id, workload_id, kind, to_power, computed_by, steps, impact,
-                               status, expires_at, approval, approval_reason)
-             VALUES ($1, $2, 'power', 1, 'user:u1', '[]', '{}', $3, now() + interval '1 hour',
-                     'auto', '')",
+            "INSERT INTO plan (id, workload_id, kind, to_power, from_power, computed_by, steps,
+                               impact, status, expires_at, approval, approval_reason)
+             VALUES ($1, $2, 'power', 1, 0, 'user:u1', '[]', '{}', $3,
+                     now() + interval '1 hour', 'auto', '')",
         )
         .bind(Uuid::now_v7())
         .bind(workload)

@@ -11,8 +11,11 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod authority;
 mod authz;
+mod lifecycle;
 mod operator;
+mod plans;
 mod quota;
 mod recipes;
 mod support;

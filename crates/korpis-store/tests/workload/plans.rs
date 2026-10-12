@@ -28,6 +28,7 @@ fn plan(f: &Fixture, to: &Intent, approval: Approval) -> Plan {
         target: PlanTarget::Intent(to.id),
         operation: None,
         from_intent: None,
+        from_power: 0,
         computed_at: now,
         computed_by: alice(),
         proposed_under: f.grant,
@@ -81,13 +82,17 @@ async fn a_decision_is_a_compare_and_swap_on_the_status() {
 #[tokio::test]
 async fn a_newer_declaration_supersedes_every_proposed_plan_but_its_own() {
     let f = fixture().await;
-    let (w, first) = create(&f, "mc").await;
+    let (_, first) = create(&f, "mc").await;
     let (old, new) = (plan(&f, &first, Approval::Confirmation), plan(&f, &first, Approval::Auto));
+    let mut power = plan(&f, &first, Approval::Confirmation);
+    power.target = PlanTarget::Power(1);
     let mut tx = f.store.begin().await.unwrap();
     tx.insert_plan(&old).await.unwrap();
+    tx.insert_plan(&power).await.unwrap();
     tx.insert_plan(&new).await.unwrap();
-    assert_eq!(tx.supersede_proposed(w.id, new.id).await.unwrap(), 1);
+    assert_eq!(tx.supersede_proposed(&new).await.unwrap(), 1, "only plans of its own kind");
     tx.commit().await.unwrap();
+    assert_eq!(f.store.plan(power.id).await.unwrap().unwrap().status, PlanStatus::Proposed);
     assert_eq!(f.store.plan(old.id).await.unwrap().unwrap().status, PlanStatus::Superseded);
     assert_eq!(f.store.plan(new.id).await.unwrap().unwrap().status, PlanStatus::Proposed);
 }

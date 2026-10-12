@@ -320,6 +320,11 @@ a project they controlled and approve their own requests. The definitions:
 
 - **A grant with `requires_approval_by: S` can propose, not apply.** A plan proposed under it waits
   in `proposed` until approved.
+  Reading under it is not proposing: an action that changes nothing (the `*.read` actions and
+  `backup.browse`) is permitted outright, because approval governs change (P5), and a proposer who
+  could not read would not see the plan it proposed or the workload it is for. Every other action,
+  an extension's included, is a change and is proposed. Evaluation decides this from the action
+  name alone (clarified 2026-10-13, from the implementation).
 - **An approver for S is a subject holding `plan.approve` through a grant whose scope contains S.**
   The set of approvers therefore shrinks as S grows: approval scoped to an organization can be given
   only by someone with authority over the whole organization.

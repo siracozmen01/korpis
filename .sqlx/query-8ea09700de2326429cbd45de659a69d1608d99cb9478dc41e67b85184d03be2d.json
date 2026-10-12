@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT workload_id, version, desired, cycle, set_by, set_at\n               FROM power WHERE workload_id = $1 AND version = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "desired",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "desired"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "cycle",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "cycle"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "set_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "set_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "set_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "power",
+            "name": "set_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8ea09700de2326429cbd45de659a69d1608d99cb9478dc41e67b85184d03be2d"
+}

@@ -6,13 +6,16 @@ use super::wire::Refuse;
 use super::wire::plan::plan_to_pb;
 use super::wire::spec::declare::declaration_from_pb;
 use super::wire::tenancy::labels;
-use super::wire::workload::{intent_to_pb, power_state_from_pb, workload_to_pb};
+use super::wire::workload::{intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb};
 use super::wire::{self, name};
 use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{ConnectError, RequestContext, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::Idempotent;
-use korpis_app::workload::{DeclareIntent, DeclareTarget, Declared, NewWorkload};
+use korpis_app::workload::{
+    ChangePower, DeclareIntent, DeclareTarget, Declared, NewWorkload, PowerChanged,
+};
 use korpis_core::id::IdKind;
+use korpis_core::workload::PowerChange;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 
@@ -53,6 +56,38 @@ fn target(req: &pb::DeclareIntentRequest) -> Result<DeclareTarget, ConnectError>
     }
 }
 
+fn power_response(c: &PowerChanged) -> pb::PowerResponse {
+    pb::PowerResponse {
+        power: power_to_pb(&c.power).into(),
+        plan: plan_to_pb(&c.plan).into(),
+        ..Default::default()
+    }
+}
+
+impl Api {
+    async fn power(
+        &self,
+        ctx: &RequestContext,
+        mutation: Option<&pb::Mutation>,
+        workload: &str,
+        change: PowerChange,
+    ) -> ServiceResult<pb::PowerResponse> {
+        let caller = self.caller(ctx).await?;
+        let key = mutation_key(mutation)?;
+        let cmd = ChangePower {
+            workload: wire::id(IdKind::Workload, "workload", workload).refuse()?,
+            change,
+            expected_version: mutation.and_then(|m| m.expected_version).ok_or_else(|| {
+                error::invalid("mutation.expected_version", "the power version changed against")
+            })?,
+        };
+        let encoder = |c: &PowerChanged| encode(&power_response(c));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.change_power(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, power_response)
+    }
+}
+
 impl pb::WorkloadService for Api {
     async fn declare_intent(
         &self,
@@ -77,31 +112,31 @@ impl pb::WorkloadService for Api {
         respond(reply, declared)
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn start(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::StartRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::StartRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
-        Err(unbuilt("Start"))
+        let req = request.to_owned_message();
+        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Start).await
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn stop(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::StopRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::StopRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
-        Err(unbuilt("Stop"))
+        let req = request.to_owned_message();
+        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Stop).await
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn restart(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::RestartRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RestartRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
-        Err(unbuilt("Restart"))
+        let req = request.to_owned_message();
+        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Restart).await
     }
 
     #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]

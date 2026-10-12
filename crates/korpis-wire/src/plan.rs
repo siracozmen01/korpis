@@ -125,6 +125,7 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         kind: kind.into(),
         operation: p.operation.map(|o| wire_id(IdKind::Operation, o)),
         from_intent: p.from_intent.map(|i| wire_id(IdKind::Intent, i)),
+        from_power: p.from_power,
         to_intent: to_intent.map(|i| wire_id(IdKind::Intent, i)),
         to_power,
         computed_at: timestamp(p.computed_at).into(),

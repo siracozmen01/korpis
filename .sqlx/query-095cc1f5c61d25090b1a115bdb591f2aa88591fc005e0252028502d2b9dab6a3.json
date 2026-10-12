@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan, locked until the transaction ends.\nSELECT id, workload_id, kind, operation_id, from_intent, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE id = $1\n   FOR UPDATE\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan, locked until the transaction ends.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE id = $1\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -60,6 +60,17 @@
       },
       {
         "ordinal": 5,
+        "name": "from_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_power"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "to_intent",
         "type_info": "Uuid",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "to_power",
         "type_info": "Int8",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "computed_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "computed_by",
         "type_info": "Text",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "steps",
         "type_info": "Jsonb",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "impact",
         "type_info": "Jsonb",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "status",
         "type_info": "Text",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "completed",
         "type_info": "Int4",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "apply_after",
         "type_info": "Timestamptz",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "approved_by",
         "type_info": "Text",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "approved_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "proposed_under",
         "type_info": "Uuid",
         "origin": {
@@ -202,7 +213,7 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "approval",
         "type_info": "Text",
         "origin": {
@@ -213,7 +224,7 @@
         }
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "approval_scope",
         "type_info": "Jsonb",
         "origin": {
@@ -224,7 +235,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "approval_reason",
         "type_info": "Text",
         "origin": {
@@ -246,6 +257,7 @@
       false,
       true,
       true,
+      false,
       true,
       true,
       false,
@@ -264,5 +276,5 @@
       false
     ]
   },
-  "hash": "ffb34e440fef7f14b69fb25d04e099e7765358e415e0a7376784639a9ab9aa0f"
+  "hash": "095cc1f5c61d25090b1a115bdb591f2aa88591fc005e0252028502d2b9dab6a3"
 }

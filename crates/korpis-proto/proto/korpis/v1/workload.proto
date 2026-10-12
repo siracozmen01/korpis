@@ -32,6 +32,9 @@ message Workload {
   google.protobuf.Timestamp deleted_at = 10;
   // The organization that owns the project, denormalized for authorization.
   string organization = 11;
+  // The approved power declaration nodes are told, by version; `power` is the newest declared,
+  // which may be waiting for approval. 0 until one is approved.
+  uint64 power_target = 12;
 }
 
 // What someone declared should be true. Immutable and versioned.
@@ -203,6 +206,8 @@ message Plan {
   PlanApproval approval = 19;
   // For PLAN_APPROVAL_AUTHORITY: where the approver's grant must reach.
   Scope approval_scope = 20;
+  // Workload.power_target when computed, by version; 0 when none was approved.
+  uint64 from_power = 21;
 }
 
 // Auto applies at once; confirmation waits for the proposer or any approver to confirm;

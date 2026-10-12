@@ -3,6 +3,7 @@
 //! Authority: authenticating callers, the one authorization path every use case goes through
 //! (P6), and the grant use cases of docs/08-identity.md.
 
+mod approve;
 pub(crate) mod gateway;
 mod issue;
 mod mint;

@@ -445,7 +445,8 @@ Assignment
   generation    int            monotonic per workload; any change below increments it
   target        Intent         the approved configuration in full: Workload.target, never the
                                head; the agent needs the body to run it
-  power         PowerRef       desired state, version, and cycle (§3.3 of 01-model.md)
+  power         PowerRef       the approved power declaration: Workload.power_target, never
+                               the newest; desired state, version, and cycle (§3.3 of 01-model.md)
   continuity    on_lease_expiry, resolved (§4.5)
   shaping       quota-imposed state, e.g. an exhausted egress budget (§3.1 of 01-model.md)
   plan          NodePlan?      present while an applying plan has steps this node executes
@@ -472,8 +473,10 @@ the gaps above:
   approval has not reached any node, because it is not in any assignment. The agent therefore
   cannot converge toward a change nobody approved, which is the property P5 depends on and which
   the first version did not have (§3.2 of `03-state.md`).
-- **`power` carries start, stop, and restart.** A restart is a higher `cycle`; the agent performs
-  each cycle once and records that it did (§4.1).
+- **`power` carries start, stop, and restart, once approved.** A restart is a higher `cycle`; the
+  agent performs each cycle once and records that it did (§4.1). Like `target`, it is the approved
+  declaration, so a stop waiting for confirmation has not reached the node (§3.3 of
+  `01-model.md`, corrected 2026-10-13).
 - **`plan` carries ordered work without becoming a command.** It states which steps of which plan
   this node is to have executed, up to `through`. The agent executes the next unexecuted step,
   reports its completion as an effect keyed `(plan_id, step_index)`, and moves on. **Cancelling a

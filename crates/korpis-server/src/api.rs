@@ -15,6 +15,8 @@ pub mod error;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod info;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod plan;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
 pub mod wire;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
@@ -26,7 +28,7 @@ use korpis_app::{App, Caller, Page, Reply};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
-    EffectServiceExt, GrantServiceExt, OrganizationServiceExt, ProjectServiceExt,
+    EffectServiceExt, GrantServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt,
     ServerInfoServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
@@ -60,6 +62,7 @@ impl Api {
         let router = ProjectServiceExt::register(Arc::clone(&self), router);
         let router = GrantServiceExt::register(Arc::clone(&self), router);
         let router = WorkloadServiceExt::register(Arc::clone(&self), router);
+        let router = PlanServiceExt::register(Arc::clone(&self), router);
         EffectServiceExt::register(self, router)
     }
 

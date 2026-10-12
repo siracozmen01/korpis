@@ -20,6 +20,7 @@ use korpis_core::tenancy::Name;
 use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::declare::Declaration;
 use korpis_core::workload::plan::compute::intent_steps;
+use korpis_core::workload::plan::impact::delta;
 use korpis_core::workload::plan::{DriverClass, Proposing};
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
 use uuid::Uuid;
@@ -172,7 +173,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Reply::Fresh(declared));
         }
         self.write_declaration(&mut tx, &base, &declared, held.as_ref(), &holds).await?;
-        let superseded = tx.supersede_proposed(declared.workload.id, declared.plan.id).await?;
+        let superseded = tx.supersede_proposed(&declared.plan).await?;
         let approved = self.approve_declared(&mut tx, caller, &base, &mut declared).await?;
         let effect = declaration_effect(caller, &base, &declared, &changes, superseded);
         tx.append_effect(&effect).await?;
@@ -201,6 +202,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             target: None,
             target_version: 0,
             power_version: 1,
+            power_target_version: 0,
             version: 1,
             created: now,
             deleted_at: None,
@@ -264,8 +266,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let proposal = Proposal {
             workload: to.workload,
             target: PlanTarget::Intent(to.id),
-            from,
-            to: Some(&to.body),
+            from_intent: from.map(|(id, _)| id),
+            from_power: base.workload.power_target_version,
+            delta: delta(from.map(|(_, b)| b), Some(&to.body)),
             steps,
             proposing: &base.proposing,
             grant: base.permit.grant,

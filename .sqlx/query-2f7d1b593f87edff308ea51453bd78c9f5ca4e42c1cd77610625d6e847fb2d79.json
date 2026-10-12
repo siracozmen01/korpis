@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET target_id = $2, target_version = target_version + 1,\n                    power_target_version = CASE WHEN target_id IS NULL AND power_target_version = 0\n                                                THEN 1 ELSE power_target_version END\n              WHERE id = $1 AND target_version = $3 AND intent_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2f7d1b593f87edff308ea51453bd78c9f5ca4e42c1cd77610625d6e847fb2d79"
+}

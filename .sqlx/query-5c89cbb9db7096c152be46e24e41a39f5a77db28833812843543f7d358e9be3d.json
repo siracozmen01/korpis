@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, version, created, deleted_at\n               FROM workload WHERE id = $1 FOR UPDATE",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at\n               FROM workload WHERE id = $1 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -115,6 +115,17 @@
       },
       {
         "ordinal": 10,
+        "name": "power_target_version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "power_target_version"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "created",
         "type_info": "Timestamptz",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -165,8 +176,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "62608a8bc335afe5c5d964b0e3b32d233515385e1762f2c0f4eef68247c03ac6"
+  "hash": "5c89cbb9db7096c152be46e24e41a39f5a77db28833812843543f7d358e9be3d"
 }

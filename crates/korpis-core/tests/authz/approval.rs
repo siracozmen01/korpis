@@ -15,7 +15,7 @@ use crate::support::{Tree, actions, child, request, root};
 
 /// A grant to write Survival that only proposes: its plans await approval within Survival.
 fn proposer(tree: &Tree, root: &Grant) -> Grant {
-    let both = ["workload.write", "plan.approve"];
+    let both = ["workload.write", "workload.read", "plan.approve"];
     let mut g = child(root, "user:junior", &both, Scope::Object(tree.survival));
     g.conditions.requires_approval_by = Some(Scope::Object(tree.survival));
     g.delegation = Delegation { allowed: true, max_depth: Some(2), actions: actions(&both) };
@@ -62,6 +62,13 @@ fn a_propose_only_grant_proposes_and_its_approval_scope_only_moves_up() {
         &tree,
     );
     assert!(matches!(decision, Decision::Propose { .. }), "a propose-only grant proposes");
+    let read = Action::parse("workload.read").unwrap();
+    let decision = evaluate(
+        &request(&proposer.subject, &read, &w1, now),
+        &[vec![proposer.clone(), root.clone()]],
+        &tree,
+    );
+    assert!(matches!(decision, Decision::Permit(_)), "reading is not proposing");
 
     let mut down = child(&proposer, "user:junior2", &["workload.write"], Scope::Object(tree.w1));
     down.conditions.requires_approval_by = Some(Scope::Object(tree.w1));

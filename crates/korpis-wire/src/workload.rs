@@ -44,6 +44,7 @@ pub fn workload_to_pb(w: &Workload, power: &PowerRecord) -> pb::Workload {
         id: wire_id(IdKind::Workload, w.id),
         project: wire_id(IdKind::Project, w.project),
         organization: wire_id(IdKind::Organization, w.organization),
+        power_target: w.power_target_version,
         name: w.name.as_str().to_owned(),
         labels: w.labels.as_map().iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         intent: wire_id(IdKind::Intent, w.intent),

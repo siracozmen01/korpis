@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, version, created, deleted_at\n               FROM workload WHERE id = $1",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at\n               FROM workload\n              WHERE deleted_at IS NULL\n                AND ($1::uuid IS NULL OR project_id = $1)\n                AND ($2::uuid IS NULL OR organization_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -115,6 +115,17 @@
       },
       {
         "ordinal": 10,
+        "name": "power_target_version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "power_target_version"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "created",
         "type_info": "Timestamptz",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -149,7 +160,10 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -165,8 +179,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "4542676382345ceaedfc7153fdbe994ec505b3107ea1270da9dbb7017a212847"
+  "hash": "a9ada980703401e863ae5a24f5f1b46dfe921922501507b1b89e738e5192c4b3"
 }

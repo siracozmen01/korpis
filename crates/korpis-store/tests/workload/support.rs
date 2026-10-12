@@ -135,6 +135,7 @@ pub async fn create(f: &Fixture, name: &str) -> (Workload, Intent) {
         target: None,
         target_version: 0,
         power_version: 1,
+        power_target_version: 0,
         version: 1,
         created: now(),
         deleted_at: None,

@@ -110,6 +110,10 @@ impl Harness {
         pb::WorkloadServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn plans(&self, config: ClientConfig) -> pb::PlanServiceClient<HttpClient> {
+        pb::PlanServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn grants(&self, config: ClientConfig) -> pb::GrantServiceClient<HttpClient> {
         pb::GrantServiceClient::new(self.http.clone(), config)
     }

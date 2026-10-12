@@ -42,7 +42,8 @@ pub enum Decision {
     /// The request may be performed now.
     Permit(Permit),
     /// The grant can propose, not apply (§3.6): a declaration under it produces a plan that waits
-    /// for an approver over `approval_scope`. Anything that is not a declaration is refused.
+    /// for an approver over `approval_scope`, and any other change is refused. An action that
+    /// changes nothing is permitted under it instead.
     Propose {
         /// The permit the action will run under once approved.
         permit: Permit,
@@ -193,9 +194,12 @@ fn permits(
         chain: chain.iter().map(|g| g.id).collect(),
         redeem: leaf.conditions.max_uses.is_some(),
     };
+    // A propose-only grant proposes changes; reading under it is not a change (§3.6).
     Ok(match &leaf.conditions.requires_approval_by {
-        Some(scope) => Decision::Propose { permit, approval_scope: scope.clone() },
-        None => Decision::Permit(permit),
+        Some(scope) if !request.action.changes_nothing() => {
+            Decision::Propose { permit, approval_scope: scope.clone() }
+        }
+        _ => Decision::Permit(permit),
     })
 }
 

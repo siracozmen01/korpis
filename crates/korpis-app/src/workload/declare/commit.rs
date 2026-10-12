@@ -86,6 +86,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Err(moved(&d.workload));
         }
+        if d.workload.target.is_none() && d.workload.power_target_version == 0 {
+            // The first approval approves the first power declaration with it.
+            d.workload.power_target_version = 1;
+        }
         d.workload.target = Some(d.intent.id);
         d.workload.target_version = expected + 1;
         Ok(true)

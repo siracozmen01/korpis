@@ -7,11 +7,11 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::WorkloadWrite;
 use korpis_core::recipe::Disruption;
-use korpis_core::workload::plan::impact::{assess, delta};
+use korpis_core::workload::plan::impact::assess;
 use korpis_core::workload::plan::{
-    Approval, Classifier, DriverClass, PROPOSAL_LIFETIME, PlanStatus, Proposing, Step, approval,
+    Approval, Classifier, DriverClass, PROPOSAL_LIFETIME, PlanStatus, Proposing, ResourceDelta,
+    Step, approval,
 };
-use korpis_core::workload::spec::IntentBody;
 use korpis_core::workload::{Plan, PlanTarget};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -20,10 +20,12 @@ use uuid::Uuid;
 pub(super) struct Proposal<'a> {
     pub workload: Uuid,
     pub target: PlanTarget,
-    /// The workload's target intent, and its body, when it has one.
-    pub from: Option<(Uuid, &'a IntentBody)>,
-    /// The body the plan moves to; `None` for a plan that changes no intent.
-    pub to: Option<&'a IntentBody>,
+    /// The workload's target intent when computed.
+    pub from_intent: Option<Uuid>,
+    /// The workload's power target when computed, by version.
+    pub from_power: u64,
+    /// How reservations change.
+    pub delta: ResourceDelta,
     pub steps: Vec<Step>,
     pub proposing: &'a Proposing,
     pub grant: Uuid,
@@ -38,14 +40,15 @@ pub(super) fn classifier<'a>(driver: &'a DriverClass, recipe: &'a Disruption) ->
 
 /// The plan for a proposal, proposed by `caller` at `now`.
 pub(super) fn plan(caller: &Caller, p: Proposal<'_>, now: SystemTime) -> Plan {
-    let impact = assess(&p.steps, delta(p.from.map(|(_, b)| b), p.to));
+    let impact = assess(&p.steps, p.delta);
     let (approval, approval_reason) = approval::required(&p.steps, &impact, p.proposing);
     Plan {
         id: Uuid::now_v7(),
         workload: p.workload,
         target: p.target,
         operation: None,
-        from_intent: p.from.map(|(id, _)| id),
+        from_intent: p.from_intent,
+        from_power: p.from_power,
         computed_at: now,
         computed_by: caller.principal.clone(),
         proposed_under: p.grant,

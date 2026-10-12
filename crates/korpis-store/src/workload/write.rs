@@ -60,7 +60,8 @@ impl WorkloadWrite for PgTx {
         let row = sqlx::query_as!(
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
-                    target_id, target_version, power_version, version, created, deleted_at
+                    target_id, target_version, power_version, power_target_version, version,
+                    created, deleted_at
                FROM workload WHERE id = $1 FOR UPDATE",
             id
         )
@@ -182,6 +183,7 @@ impl WorkloadWrite for PgTx {
             p.target.kind(),
             p.operation,
             p.from_intent,
+            to_count("from_power", p.from_power)?,
             to_intent,
             to_power,
             from_time(p.computed_at),
@@ -232,12 +234,13 @@ impl WorkloadWrite for PgTx {
         Ok(updated.rows_affected() == 1)
     }
 
-    async fn supersede_proposed(&mut self, workload: Uuid, keep: Uuid) -> StoreResult<u64> {
+    async fn supersede_proposed(&mut self, keep: &Plan) -> StoreResult<u64> {
         let done = sqlx::query!(
             "UPDATE plan SET status = 'superseded'
-              WHERE workload_id = $1 AND id <> $2 AND status = 'proposed'",
-            workload,
-            keep
+              WHERE workload_id = $1 AND id <> $2 AND kind = $3 AND status = 'proposed'",
+            keep.workload,
+            keep.id,
+            keep.target.kind()
         )
         .execute(&mut *self.tx)
         .await
@@ -247,7 +250,9 @@ impl WorkloadWrite for PgTx {
 
     async fn move_target(&mut self, workload: Uuid, to: Uuid, expected: u64) -> StoreResult<bool> {
         let moved = sqlx::query!(
-            "UPDATE workload SET target_id = $2, target_version = target_version + 1
+            "UPDATE workload SET target_id = $2, target_version = target_version + 1,
+                    power_target_version = CASE WHEN target_id IS NULL AND power_target_version = 0
+                                                THEN 1 ELSE power_target_version END
               WHERE id = $1 AND target_version = $3 AND intent_id = $2",
             workload,
             to,
@@ -257,5 +262,46 @@ impl WorkloadWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(moved.rows_affected() == 1)
+    }
+
+    async fn move_power_target(
+        &mut self,
+        workload: Uuid,
+        to: u64,
+        expected: u64,
+    ) -> StoreResult<bool> {
+        let moved = sqlx::query!(
+            "UPDATE workload SET power_target_version = $2
+              WHERE id = $1 AND power_target_version = $3 AND power_version = $2",
+            workload,
+            to_count("power target", to)?,
+            to_count("power target", expected)?
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(moved.rows_affected() == 1)
+    }
+
+    async fn restore_targets(
+        &mut self,
+        workload: Uuid,
+        to: Option<Uuid>,
+        power: u64,
+        expected: u64,
+    ) -> StoreResult<bool> {
+        let restored = sqlx::query!(
+            "UPDATE workload SET target_id = $2, target_version = target_version + 1,
+                                 power_target_version = $3
+              WHERE id = $1 AND target_version = $4",
+            workload,
+            to,
+            to_count("power target", power)?,
+            to_count("target_version", expected)?
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(restored.rows_affected() == 1)
     }
 }
