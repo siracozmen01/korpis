@@ -4,20 +4,39 @@
 
 use super::wire::Refuse;
 use super::wire::plan::plan_to_pb;
+use super::wire::scope::selector_from_pb;
 use super::wire::spec::declare::declaration_from_pb;
 use super::wire::tenancy::labels;
-use super::wire::workload::{intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb};
+use super::wire::workload::{
+    convergence_to_pb, intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb,
+};
 use super::wire::{self, name};
-use super::{Api, encode, error, mutation_key, respond};
-use connectrpc::{ConnectError, RequestContext, ServiceRequest, ServiceResult, ServiceStream};
+use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use connectrpc::{
+    ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
+};
 use korpis_app::Idempotent;
 use korpis_app::workload::{
-    ChangePower, DeclareIntent, DeclareTarget, Declared, NewWorkload, PowerChanged,
+    ChangePower, DeclareIntent, DeclareTarget, Declared, ListWorkloads, NewWorkload, PowerChanged,
+    WorkloadView,
 };
 use korpis_core::id::IdKind;
 use korpis_core::workload::PowerChange;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+
+/// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md). The
+/// observation and placement are empty until nodes report them.
+fn status(v: &WorkloadView) -> pb::WorkloadStatus {
+    pb::WorkloadStatus {
+        workload: workload_to_pb(&v.workload, &v.power).into(),
+        target: v.target.as_ref().map(intent_to_pb).into(),
+        head: intent_to_pb(&v.head).into(),
+        convergence: convergence_to_pb(v.convergence).into(),
+        active_plan: v.active_plan.as_ref().map(plan_to_pb).into(),
+        ..Default::default()
+    }
+}
 
 fn declared(d: &Declared) -> pb::DeclareIntentResponse {
     pb::DeclareIntentResponse {
@@ -148,31 +167,64 @@ impl pb::WorkloadService for Api {
         Err(unbuilt("DeleteWorkload"))
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn get_workload(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::GetWorkloadRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetWorkloadRequest>,
     ) -> ServiceResult<pb::GetWorkloadResponse> {
-        Err(unbuilt("GetWorkload"))
+        let caller = self.caller(&ctx).await?;
+        let id = wire::id(IdKind::Workload, "id", request.id).refuse()?;
+        let view = self.app.get_workload(&caller, id).await.map_err(error::from_app)?;
+        Response::ok(pb::GetWorkloadResponse { status: status(&view).into(), ..Default::default() })
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn list_workloads(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::ListWorkloadsRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListWorkloadsRequest>,
     ) -> ServiceResult<pb::ListWorkloadsResponse> {
-        Err(unbuilt("ListWorkloads"))
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let page = page(req.page.as_option(), IdKind::Workload)?;
+        let q = ListWorkloads {
+            project: req
+                .project
+                .as_deref()
+                .map(|p| wire::id(IdKind::Project, "project", p))
+                .transpose()
+                .refuse()?,
+            organization: req
+                .organization
+                .as_deref()
+                .map(|o| wire::id(IdKind::Organization, "organization", o))
+                .transpose()
+                .refuse()?,
+            selector: selector_from_pb("selector", req.selector.as_option()).refuse()?,
+        };
+        let listed = self.app.list_workloads(&caller, &q, page).await.map_err(error::from_app)?;
+        Response::ok(pb::ListWorkloadsResponse {
+            workloads: listed.items.iter().map(status).collect(),
+            page: next_page(listed.next, IdKind::Workload).into(),
+            ..Default::default()
+        })
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn list_intents(
         &self,
-        _: RequestContext,
-        _: ServiceRequest<'_, pb::ListIntentsRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListIntentsRequest>,
     ) -> ServiceResult<pb::ListIntentsResponse> {
-        Err(unbuilt("ListIntents"))
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let page = page(req.page.as_option(), IdKind::Intent)?;
+        let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
+        let listed =
+            self.app.list_intents(&caller, workload, page).await.map_err(error::from_app)?;
+        Response::ok(pb::ListIntentsResponse {
+            intents: listed.items.iter().map(intent_to_pb).collect(),
+            page: next_page(listed.next, IdKind::Intent).into(),
+            ..Default::default()
+        })
     }
 
     #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]

@@ -17,6 +17,7 @@ mod lifecycle;
 mod operator;
 mod plans;
 mod quota;
+mod reads;
 mod recipes;
 mod support;
 mod tenancy;

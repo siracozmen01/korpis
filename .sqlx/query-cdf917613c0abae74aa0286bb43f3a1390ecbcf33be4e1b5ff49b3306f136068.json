@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM placement WHERE workload_id = $1 AND authoritative)\n                   AS \"placed!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "placed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "cdf917613c0abae74aa0286bb43f3a1390ecbcf33be4e1b5ff49b3306f136068"
+}

@@ -1,0 +1,280 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans still in play: proposed, approved, queued, or applying.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,\n       computed_at, computed_by, steps, impact, status, completed, apply_after, expires_at,\n       approved_by, approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE workload_id = $1 AND status IN ('proposed', 'approved', 'queued', 'applying')\n ORDER BY id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operation_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "from_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "from_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_power"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "to_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "to_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_power"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "computed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "steps",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "steps"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "impact",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "impact"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "completed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "completed"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "apply_after",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "apply_after"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "approved_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_by"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "approved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "proposed_under",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "proposed_under"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "approval",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "approval_scope",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "approval_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "ef60bf03368b60beb345ae60920435a7f369e440ec9bb2f5719ebf4ac8704b41"
+}

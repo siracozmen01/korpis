@@ -76,6 +76,12 @@ pub trait WorkloadRead {
     /// One plan.
     fn plan(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Plan>>> + Send;
 
+    /// A workload's plans that are proposed, approved, queued, or applying.
+    fn open_plans(&self, workload: Uuid) -> impl Future<Output = StoreResult<Vec<Plan>>> + Send;
+
+    /// Whether a node has been chosen for the workload: it has an authoritative placement.
+    fn placed(&self, workload: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// A workload's plans, oldest first, after the page's cursor.
     fn plans(
         &self,

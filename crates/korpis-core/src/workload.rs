@@ -6,6 +6,7 @@
 pub mod declare;
 pub mod plan;
 pub mod spec;
+pub mod status;
 
 pub use plan::{Plan, PlanStatus, PlanTarget};
 pub use spec::{IntentBody, SpecError};

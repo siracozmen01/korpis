@@ -10,7 +10,9 @@ mod decide;
 mod declare;
 mod power;
 mod propose;
+mod read;
 
 pub use decide::{ApprovePlan, RejectPlan};
 pub use declare::{DeclareIntent, DeclareTarget, Declared, NewWorkload};
 pub use power::{ChangePower, PowerChanged};
+pub use read::{ListWorkloads, WorkloadView};

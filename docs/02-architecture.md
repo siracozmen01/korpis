@@ -256,8 +256,9 @@ Those fields make the whole system honest:
 
 Two states that are not about the node at all are computed in the control plane, never inferred
 from an observation: a declared intent waiting for approval (`Workload.intent` ahead of
-`Workload.target`, §3.3 of `01-model.md`) shows as **awaiting approval**, and an approved plan with
-a future window shows as **scheduled**. Neither has reached a node, so no node can report it.
+`Workload.target`, or the power head ahead of `Workload.power_target`, with a plan proposed for the
+newer one, §3.3 of `01-model.md`) shows as **awaiting approval**, and an approved plan with a
+future window shows as **scheduled**. Neither has reached a node, so no node can report it.
 
 > Second external review, findings S2 and S3. The first version compared `intent_seen` with
 > `Workload.intent` and `Observation.state` with `Intent.state`. After finding R7 there was no

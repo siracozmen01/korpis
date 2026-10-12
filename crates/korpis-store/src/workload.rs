@@ -119,6 +119,25 @@ impl WorkloadRead for PgStore {
         row.map(PlanRow::into_domain).transpose()
     }
 
+    async fn open_plans(&self, workload: Uuid) -> StoreResult<Vec<Plan>> {
+        let rows = sqlx::query_file_as!(PlanRow, "queries/plans_open.sql", workload)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter().map(PlanRow::into_domain).collect()
+    }
+
+    async fn placed(&self, workload: Uuid) -> StoreResult<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM placement WHERE workload_id = $1 AND authoritative)
+                   AS "placed!""#,
+            workload
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
+
     async fn plans(&self, workload: Uuid, page: Page) -> StoreResult<Vec<Plan>> {
         let rows = sqlx::query_file_as!(
             PlanRow,

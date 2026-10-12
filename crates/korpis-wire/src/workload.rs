@@ -70,3 +70,18 @@ pub fn intent_to_pb(i: &Intent) -> pb::Intent {
         ..Default::default()
     }
 }
+
+/// The wire form of a convergence.
+#[must_use]
+pub fn convergence_to_pb(c: korpis_core::workload::status::Convergence) -> pb::Convergence {
+    use korpis_core::workload::status::Convergence as C;
+    match c {
+        C::Converged => pb::Convergence::CONVERGENCE_CONVERGED,
+        C::Applying => pb::Convergence::CONVERGENCE_APPLYING,
+        C::AwaitingApproval => pb::Convergence::CONVERGENCE_AWAITING_APPROVAL,
+        C::Scheduled => pb::Convergence::CONVERGENCE_SCHEDULED,
+        C::Failing => pb::Convergence::CONVERGENCE_FAILING,
+        C::Unknown => pb::Convergence::CONVERGENCE_UNKNOWN,
+        C::Unplaced => pb::Convergence::CONVERGENCE_UNPLACED,
+    }
+}
