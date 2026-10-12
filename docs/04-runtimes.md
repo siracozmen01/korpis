@@ -420,10 +420,10 @@ exists instead of a series of forks.
    layers or storage drivers. Whether one content store abstraction covers both, or a Windows node
    runs a parallel one, affects Rule K-15's "fetched once per node". → here, when `winsilo` is
    designed
-6. **Windows, as a whole.** Four documents routed their Windows questions here and this list did
-   not carry them (finding S18): isolation parity (§13 of `17-security.md`, question 5), node
-   operations (§10 of `18-operations.md`, question 4), and the driver language (§10 of
-   `21-stack.md`, question 3), alongside question 5 above. They are one question, which is what the
+6. **Windows, as a whole.** Four documents routed their Windows questions here and this list did not
+   carry them (finding S18): isolation parity (§13 of `17-security.md`, question 5), node operations
+   (§10 of `18-operations.md`, question 4), and the driver language (§10 of `21-stack.md`, question
+   3, now Rust by default), alongside question 5 above. They are one question, which is what the
    Windows column of every table in this document says once a Windows machine exists to write it on
    (Phase 5, §4 of `20-roadmap.md`). Until then the interface keeps them possible (§4.3) and nothing
    claims them. → here, in Phase 5

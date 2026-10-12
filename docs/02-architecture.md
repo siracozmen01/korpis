@@ -749,7 +749,7 @@ So the boundary is drawn at each driver, not at the supervisor:
   driver privileges never lands in one process (§3 of `04-runtimes.md`).
 - **Driver validation code is held to the same review standard as the helper**, because for the
   `oci` driver it is the only thing between a compromised supervisor and root. §6 of `21-stack.md`
-  records what this means for the language choice.
+  records what this meant for the language choice, and why it no longer splits it.
 
 The honest statement is therefore: a compromised supervisor can ask for anything and obtain only
 what an honest assignment could have produced. It does not reduce the oci driver's own attack

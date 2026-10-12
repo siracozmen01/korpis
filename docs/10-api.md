@@ -45,10 +45,10 @@ they visit twice a year is a supported configuration, and that node's agent must
 
 **Protocol Buffers as the schema language, served over Connect.**
 
-Protobuf because one definition generates the Go server, the TypeScript client, the Python and Rust
-clients, the OpenAPI document, and the docs; because its compatibility rules are precise and
-mechanically checkable; because streaming is native; and because the agent protocol carries a high
-volume of observations and stream data where wire efficiency is real.
+Protobuf because one definition generates the Rust server and agent, the TypeScript client, the
+Python and Go clients, the OpenAPI document, and the docs; because its compatibility rules are
+precise and mechanically checkable; because streaming is native; and because the agent protocol
+carries a high volume of observations and stream data where wire efficiency is real.
 
 Connect rather than raw gRPC because it speaks Connect, gRPC, and gRPC-Web on one endpoint, works
 through ordinary HTTP proxies and CDNs, and is reachable from a browser without a translating

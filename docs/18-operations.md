@@ -43,7 +43,7 @@ On one machine, all of it runs on one machine. That is the entire single-node st
 
 > Second external review, finding S55. Recorded in §17 of `23-walkthroughs.md`. This section said
 > "two binaries and a database" while the agent it describes is a supervisor, a root helper,
-> filesystem workers, and one process per driver, in two languages (§2 of `21-stack.md`). An
+> filesystem workers, and one process per driver (§2 of `21-stack.md`). An
 > operator installs two artifacts; the agent artifact contains several executables because the
 > privilege separation of §6 of `02-architecture.md` is made of process boundaries. Saying so costs
 > nothing and makes the process list on a node unsurprising.

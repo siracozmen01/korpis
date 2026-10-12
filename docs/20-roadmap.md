@@ -349,7 +349,7 @@ than architecture.
 |---|---|
 | `docs/research/evidence.md` | complete: evidence, confidence-tagged, rules K-1…K-12, and the stated basis of K-13…K-18 |
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
-| `docs/21-stack.md` | **reopened**: the language question is under review (question 6 of `21-stack.md`) |
+| `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
 | `docs/23-walkthroughs.md` | complete: fourteen traces and their findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
@@ -357,19 +357,22 @@ than architecture.
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not Phase 0 |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 
-Fifty-nine numbered open questions remain open, of 117 recorded, distributed across the documents,
+Fifty-nine numbered open questions remain open, of 118 recorded, distributed across the documents,
 each assigned to the one that will settle it. They are the design's honest edges, not omissions: an
 open question with an owner is a decision deferred deliberately, and every one of them was recorded
 where the person who hits it will find it.
 
-**One question blocks Phase 0: the implementation language.** The intent body's representation
-(§3.1 of `03-state.md`), whether the agent caches grants (§10 of `02-architecture.md`: it does not,
-it verifies tokens), and break-glass access during an outage (a local socket, not a listener) are
-settled. Question 6 of `21-stack.md` was reopened on 2026-10-12 for a review of Go plus Rust
-against Rust throughout, and nothing is built until it closes. Everything else left open belongs to
-phases that have not started.
+**Nothing blocks the start of Phase 0.** The intent body's representation (§3.1 of
+`03-state.md`), whether the agent caches grants (§10 of `02-architecture.md`: it does not, it
+verifies tokens), break-glass access during an outage (a local socket, not a listener), and the
+implementation language (§3 of `21-stack.md`: Rust throughout) are settled. One question is owed
+during Phase 0 rather than before it: whether the protocol freeze waits for a 1.0 of the Rust
+Connect implementation (question 7 of `21-stack.md`). Everything else left open belongs to phases
+that have not started.
 
-> Corrected 2026-10-12. This said everything blocking Phase 0 was closed, including every
-> component's language; that stopped being true when question 6 of `21-stack.md` was reopened.
+> Corrected 2026-10-12, twice in one day. This said everything blocking Phase 0 was closed,
+> including every component's language. Question 6 of `21-stack.md` was then reopened, which made
+> it false, and closed the same day with the decision for Rust throughout, which made it true
+> again.
 
 The model is drawn. What remains is to build it.

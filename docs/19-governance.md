@@ -43,8 +43,8 @@ Settled in §5 of `00-overview.md` and restated because this is where it belongs
 | The documents in this repository, this one included | **CC BY 4.0** | `LICENSE-CC-BY` |
 | Recipes, extensions, themes | Author's choice, including proprietary | |
 
-The relay is named because it is a separate binary (§3.1 of `02-architecture.md`) and should not be
-left for a reader to place.
+The relay is named because it is a separate tier (§3.1 of `02-architecture.md`), deployable on
+its own machines, and should not be left for a reader to place.
 
 ### DCO, not a CLA
 
