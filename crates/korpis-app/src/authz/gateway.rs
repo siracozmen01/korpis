@@ -44,6 +44,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Decision, AppError> {
         let mut snapshot = Snapshot::default();
         snapshot.load(&self.store, object).await?;
+        let chains = self.held_chains(caller, via, &mut snapshot).await?;
+        self.evaluate(caller, action, object, &chains, &snapshot)
+            .ok_or(AppError::NotFound { kind: object.kind.as_str() })
+    }
+
+    /// The caller's grant chains, through only the grant `via` when it is given, with what each
+    /// depends on loaded into `snapshot`.
+    async fn held_chains(
+        &self,
+        caller: &Caller,
+        via: Option<Uuid>,
+        snapshot: &mut Snapshot,
+    ) -> Result<Vec<Vec<Grant>>, AppError> {
         let mut chains = Vec::new();
         for records in self.store.chains_held_by(&caller.subject.key).await? {
             if via.is_some_and(|v| records.first().is_none_or(|leaf| leaf.grant.id != v)) {
@@ -55,9 +68,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             chains.push(chain);
         }
-        let Some(resource) = authz::Hierarchy::resource(&snapshot, object) else {
-            return Err(AppError::NotFound { kind: object.kind.as_str() });
-        };
+        Ok(chains)
+    }
+
+    /// One decision over a loaded snapshot; `None` if the object does not exist.
+    fn evaluate(
+        &self,
+        caller: &Caller,
+        action: &Action,
+        object: ObjectRef,
+        chains: &[Vec<Grant>],
+        snapshot: &Snapshot,
+    ) -> Option<Decision> {
+        let resource = authz::Hierarchy::resource(snapshot, object)?;
         let request = Request {
             subject: &caller.subject,
             action,
@@ -66,7 +89,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             mfa: caller.mfa,
             now: self.clock.now(),
         };
-        Ok(authz::evaluate(&request, &chains, &snapshot))
+        Some(authz::evaluate(&request, chains, snapshot))
+    }
+
+    /// Whether `caller` may do `action` on each of `objects` now, without recording anything:
+    /// the caller's grants are loaded once for all of them, which is what filtering a list or
+    /// an explanation per viewer needs (§8 of docs/08-identity.md).
+    pub(crate) async fn permitted_each(
+        &self,
+        caller: &Caller,
+        action: &str,
+        objects: &[ObjectRef],
+    ) -> Result<Vec<bool>, AppError> {
+        let action = core_action(action)?;
+        let mut snapshot = Snapshot::default();
+        let chains = self.held_chains(caller, None, &mut snapshot).await?;
+        let mut out = Vec::with_capacity(objects.len());
+        for o in objects {
+            snapshot.load(&self.store, *o).await?;
+            let decision = self.evaluate(caller, &action, *o, &chains, &snapshot);
+            out.push(matches!(decision, Some(Decision::Permit(_))));
+        }
+        Ok(out)
     }
 
     /// Whether `caller` may do `action` on `object` now, without recording anything.

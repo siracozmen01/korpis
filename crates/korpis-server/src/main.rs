@@ -3,12 +3,14 @@
 use clap::{Parser, Subcommand};
 use korpis_app::install::Installation;
 use korpis_core::id::{Id, IdKind};
+use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;
 use korpis_server::install::{InstallConfig, install};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
 /// The Korpis control plane.
 #[derive(Debug, Parser)]
@@ -50,6 +52,13 @@ enum Command {
         /// loopback. Repeatable.
         #[arg(long = "plain-http-registry")]
         plain_http_registries: Vec<String>,
+        /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without
+        /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
+        #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
+        placement_policy: Option<PathBuf>,
+        /// Seconds between passes that retry workloads no node could take.
+        #[arg(long, default_value_t = 10)]
+        placement_retry_secs: u64,
     },
 }
 
@@ -96,13 +105,21 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             listen,
             max_connections,
             plain_http_registries,
+            placement_policy,
+            placement_retry_secs,
         } => {
+            let policy = match placement_policy {
+                Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
+                None => PlacementPolicy::default(),
+            };
             let running = korpis_server::serve(korpis_server::ServeConfig {
                 data: DataDir::new(data_dir),
                 database_url,
                 listen,
                 max_connections,
                 plain_http_registries,
+                placement_policy: policy,
+                placement_retry: Duration::from_secs(placement_retry_secs.max(1)),
             })
             .await?;
             tokio::select! {

@@ -82,17 +82,16 @@ fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
     })
 }
 
+/// The exposures that need the node itself to be reachable (§9 of docs/07-networking.md).
+/// `stable` and `ingress` reach the node through a tunnel it dials, and `overlay_only` needs the
+/// overlay only for a consumer on another node, which is a cross-node dependency.
 fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
-    req.body.endpoints.iter().find_map(|e| match e.exposure {
-        Exposure::NodePort | Exposure::NodeBound if c.node.reachability != Reachability::Public => {
-            Some((Check::Reachability, format!("{:?} needs a public address", e.name)))
-        }
-        // No node offers the overlay before §9 of docs/07-networking.md is built.
-        Exposure::OverlayOnly => {
-            Some((Check::Reachability, format!("{:?} needs the overlay", e.name)))
-        }
-        _ => None,
-    })
+    let public = c.node.reachability == Reachability::Public;
+    req.body
+        .endpoints
+        .iter()
+        .find(|e| matches!(e.exposure, Exposure::NodePort | Exposure::NodeBound) && !public)
+        .map(|e| (Check::Reachability, format!("{:?} needs a public address", e.name)))
 }
 
 fn selector(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {

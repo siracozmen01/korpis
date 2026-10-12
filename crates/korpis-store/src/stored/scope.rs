@@ -41,6 +41,31 @@ pub(crate) enum ExpressionDoc {
     DoesNotExist { key: String },
 }
 
+/// A label selector.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct SelectorDoc {
+    #[serde(default)]
+    match_labels: BTreeMap<String, String>,
+    #[serde(default)]
+    expressions: Vec<ExpressionDoc>,
+}
+
+impl SelectorDoc {
+    pub(crate) fn from_domain(s: &LabelSelector) -> Self {
+        Self {
+            match_labels: s.match_labels.clone(),
+            expressions: s.expressions.iter().map(expression_doc).collect(),
+        }
+    }
+
+    pub(crate) fn into_domain(self) -> LabelSelector {
+        LabelSelector {
+            match_labels: self.match_labels,
+            expressions: self.expressions.into_iter().map(expression).collect(),
+        }
+    }
+}
+
 /// A scope: one object, or the objects below one that match a selector.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

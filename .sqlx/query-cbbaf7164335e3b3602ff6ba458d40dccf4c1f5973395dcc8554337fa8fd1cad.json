@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM placement_failure WHERE workload_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cbbaf7164335e3b3602ff6ba458d40dccf4c1f5973395dcc8554337fa8fd1cad"
+}

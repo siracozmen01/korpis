@@ -150,6 +150,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             &effect(caller.principal.clone(), "plan.approve", &plan, after).under(permit.grant),
         )
         .await?;
+        if let PlanTarget::Intent(i) = plan.target {
+            let target =
+                self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
+            self.place_target(&mut tx, &w, Some(&target)).await?;
+        }
         finish(tx, caller, idem, APPROVE, plan).await
     }
 

@@ -3,30 +3,32 @@
 //! `WorkloadService`.
 
 use super::wire::Refuse;
+use super::wire::placement::{bound_by_to_pb, explanation_to_pb};
 use super::wire::plan::plan_to_pb;
 use super::wire::scope::selector_from_pb;
 use super::wire::spec::declare::declaration_from_pb;
+use super::wire::spec::tier_to_pb;
 use super::wire::tenancy::labels;
 use super::wire::workload::{
     convergence_to_pb, intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb,
 };
-use super::wire::{self, name};
+use super::wire::{self, name, timestamp, wire_id};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
 use korpis_app::Idempotent;
 use korpis_app::workload::{
-    ChangePower, DeclareIntent, DeclareTarget, Declared, ListWorkloads, NewWorkload, PowerChanged,
-    WorkloadView,
+    ChangePower, DeclareIntent, DeclareTarget, Declared, ListWorkloads, NewWorkload, PlacementView,
+    PowerChanged, WorkloadView,
 };
 use korpis_core::id::IdKind;
 use korpis_core::workload::PowerChange;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 
-/// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md). The
-/// observation and placement are empty until nodes report them.
+/// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
+/// placement as the caller may see it. The observation is empty until a node reports one.
 fn status(v: &WorkloadView) -> pb::WorkloadStatus {
     pb::WorkloadStatus {
         workload: workload_to_pb(&v.workload, &v.power).into(),
@@ -34,6 +36,33 @@ fn status(v: &WorkloadView) -> pb::WorkloadStatus {
         head: intent_to_pb(&v.head).into(),
         convergence: convergence_to_pb(v.convergence).into(),
         active_plan: v.active_plan.as_ref().map(plan_to_pb).into(),
+        placement: v.placement.as_ref().map(|p| placement_to_pb(v.workload.id, p)).into(),
+        unplaced: v
+            .unplaced
+            .as_ref()
+            .map(|u| pb::Unplaced {
+                intent: wire_id(IdKind::Intent, u.intent),
+                attempted_at: timestamp(u.attempted_at).into(),
+                explanation: explanation_to_pb(&u.explanation).into(),
+                ..Default::default()
+            })
+            .into(),
+        ..Default::default()
+    }
+}
+
+fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
+    pb::Placement {
+        workload: wire_id(IdKind::Workload, workload),
+        node: p.node.map(|n| wire_id(IdKind::Node, n)).unwrap_or_default(),
+        bound_at: timestamp(p.bound_at).into(),
+        bound_by: bound_by_to_pb(p.bound_by).into(),
+        reason: p.reason.clone(),
+        explanation: explanation_to_pb(&p.explanation).into(),
+        authoritative: p.authoritative,
+        region: p.region.clone().unwrap_or_default(),
+        tier: tier_to_pb(p.tier).into(),
+        intent: wire_id(IdKind::Intent, p.intent),
         ..Default::default()
     }
 }

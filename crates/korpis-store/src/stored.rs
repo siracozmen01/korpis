@@ -9,15 +9,15 @@
 //! [`StoreError::Corrupt`] rather than defaulting it.
 
 mod node;
+mod placement;
 mod plan;
 mod scope;
 mod time;
 
 pub(crate) use node::{bounds, bounds_doc, drivers, node_docs, storage_classes, taints};
+pub(crate) use placement::ExplanationDoc;
 pub(crate) use plan::{ImpactDoc, StepDoc};
-pub(crate) use scope::{
-    ConditionsDoc, DelegationDoc, ExpressionDoc, ScopeDoc, actions, expression,
-};
+pub(crate) use scope::{ConditionsDoc, DelegationDoc, ScopeDoc, SelectorDoc, actions};
 pub(crate) use time::{from_time, to_time};
 
 use korpis_app::ports::StoreError;

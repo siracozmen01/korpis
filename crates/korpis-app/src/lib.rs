@@ -29,6 +29,7 @@ pub use page::{Page, Paged};
 pub use recipe::NoRecipes;
 
 use korpis_core::authz::token::SigningKey;
+use korpis_core::schedule::PlacementPolicy;
 use ports::{Clock, RecipeSource, Store, SystemClock};
 use std::sync::Arc;
 
@@ -39,13 +40,23 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     clock: C,
     token_key: Arc<SigningKey>,
     recipes: R,
+    policy: PlacementPolicy,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The application over `store`, reading time from `clock`, minting capability tokens with
     /// `token_key`, and resolving recipes from `recipes`.
     pub fn new(store: S, clock: C, token_key: Arc<SigningKey>, recipes: R) -> Self {
-        Self { store, clock, token_key, recipes }
+        let policy = PlacementPolicy::default();
+        Self { store, clock, token_key, recipes, policy }
+    }
+
+    /// Places workloads by `policy`, the installation's (§2.2 of docs/05-scheduling.md),
+    /// instead of the default.
+    #[must_use]
+    pub fn with_placement_policy(mut self, policy: PlacementPolicy) -> Self {
+        self.policy = policy;
+        self
     }
 
     /// Now, by the application's clock: what adapters render time-dependent state against.

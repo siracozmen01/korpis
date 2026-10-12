@@ -55,6 +55,12 @@ impl Api {
         Self { app }
     }
 
+    /// The application, for the composition root's background work.
+    #[must_use]
+    pub fn app(&self) -> &ServerApp {
+        &self.app
+    }
+
     /// Registers every client service on a router.
     #[must_use]
     pub fn router(self: Arc<Self>) -> Router {

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The newest attempt that found no node for workload $1's target $2, returning the intent the\n-- previous record was for, if any: the statement's snapshot still sees that row.\nWITH previous AS (SELECT intent_id FROM placement_failure WHERE workload_id = $1)\nINSERT INTO placement_failure (workload_id, intent_id, attempted_at, explanation)\nVALUES ($1, $2, $3, $4)\nON CONFLICT (workload_id) DO UPDATE SET\n    intent_id = EXCLUDED.intent_id, attempted_at = EXCLUDED.attempted_at,\n    explanation = EXCLUDED.explanation\nRETURNING (SELECT intent_id FROM previous) AS previous\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "previous",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5e23c71fbfe06543868a1e0c1a0a5375254965a08595f73b0b8dd18b99da558c"
+}

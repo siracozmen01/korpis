@@ -854,6 +854,22 @@ derivation. What a subject sees is filtered to what their grants cover:
 Same rule applies wherever an object aggregates across a tenancy boundary, node status, cluster
 capacity, scheduler recommendations. Filter on read; never store two versions of the truth.
 
+The table rests on grants the gateway already evaluates, one load of the viewer's grants for every
+node an explanation names:
+
+| What | Shown to |
+|---|---|
+| a node's rejections and scores, and whether it was chosen | a viewer with `node.read` on that node |
+| how many candidates, and how many nodes failed each check | a viewer with `workload.read` over the workload's organization: the tenant |
+| which checks failed, with no count | anyone who may read the workload |
+| the region (the chosen node's `region` label) and the tier | anyone who may read the workload |
+| the policy | a viewer who may read every node the explanation names |
+
+A placement's `reason` is written for every reader, so it names no node and no count. The same
+filter applies to the explanation of an unplaced workload (§2.3 of `05-scheduling.md`), which is
+the explanation a customer asking "why is my server not starting" is shown: the checks that
+failed, never whose nodes failed them.
+
 ---
 
 ## 9. Authentication

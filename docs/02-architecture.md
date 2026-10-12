@@ -258,7 +258,11 @@ Two states that are not about the node at all are computed in the control plane,
 from an observation: a declared intent waiting for approval (`Workload.intent` ahead of
 `Workload.target`, or the power head ahead of `Workload.power_target`, with a plan proposed for the
 newer one, §3.3 of `01-model.md`) shows as **awaiting approval**, and an approved plan with a
-future window shows as **scheduled**. Neither has reached a node, so no node can report it.
+future window shows as **scheduled**. Neither has reached a node, so no node can report it. The
+third is **unplaced**: an approved target with no authoritative placement bound for it, because
+no node could take it (§2.3 of `05-scheduling.md`). It is shown with the explanation of why every
+candidate was rejected, filtered for the viewer (§8 of `08-identity.md`), and it is never a
+spinner: the control plane retries it, and the state changes only when a node can take it.
 
 > Second external review, findings S2 and S3. The first version compared `intent_seen` with
 > `Workload.intent` and `Observation.state` with `Intent.state`. After finding R7 there was no

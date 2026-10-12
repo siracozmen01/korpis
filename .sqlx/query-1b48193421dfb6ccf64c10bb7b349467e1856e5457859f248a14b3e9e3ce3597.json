@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT workload_id, intent_id, attempted_at, explanation\n               FROM placement_failure WHERE workload_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement_failure",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "intent_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement_failure",
+            "name": "intent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "attempted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "placement_failure",
+            "name": "attempted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "explanation",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "placement_failure",
+            "name": "explanation"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1b48193421dfb6ccf64c10bb7b349467e1856e5457859f248a14b3e9e3ce3597"
+}

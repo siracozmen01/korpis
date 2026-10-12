@@ -4,23 +4,12 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{bounds, count, from_json};
+use crate::stored::{SelectorDoc, bounds, count, from_json};
 use crate::tenancy::labels;
 use korpis_app::ports::{Holder, QuotaWrite, StoreError, StoreResult};
-use korpis_core::labels::LabelSelector;
 use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner};
 use serde_json::Value;
-use std::collections::BTreeMap;
 use uuid::Uuid;
-
-/// A selector, as an entry stores it.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct SelectorDoc {
-    #[serde(default)]
-    match_labels: BTreeMap<String, String>,
-    #[serde(default)]
-    expressions: Vec<crate::stored::ExpressionDoc>,
-}
 
 struct EntryRow {
     id: Uuid,
@@ -43,14 +32,7 @@ impl EntryRow {
             .selector
             .map(|s| {
                 let doc: SelectorDoc = from_json("quota selector", s)?;
-                Ok::<_, StoreError>(LabelSelector {
-                    match_labels: doc.match_labels,
-                    expressions: doc
-                        .expressions
-                        .into_iter()
-                        .map(crate::stored::expression)
-                        .collect(),
-                })
+                Ok::<_, StoreError>(doc.into_domain())
             })
             .transpose()?;
         Ok(QuotaEntry {

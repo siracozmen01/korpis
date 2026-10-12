@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The nodes any organization of $1 owns, decommissioned ones excepted, in identifier order.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version\n  FROM node WHERE organization_id = ANY($1) AND admin <> 'decommissioned'\n ORDER BY id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "labels",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "taints",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "taints"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "capacity",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "capacity"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "allocatable",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "allocatable"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "drivers",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "drivers"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "storage_classes",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "storage_classes"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "reachability",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "reachability"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "admin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "admin"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "connectivity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "connectivity"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "agent_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "agent_version"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "last_seen",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "last_seen"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "enrolled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "enrolled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "6dbeba7e5d7c0de5cc9eff7d919d2ba9bc62d0b5808816db2d8925a97daa0328"
+}

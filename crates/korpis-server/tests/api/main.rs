@@ -16,6 +16,7 @@ mod authz;
 mod lifecycle;
 mod nodes;
 mod operator;
+mod placement;
 mod plans;
 mod quota;
 mod reads;

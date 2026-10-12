@@ -179,6 +179,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.append_effect(&effect).await?;
         if approved {
             tx.append_effect(&approval_effect(caller, &base, &declared.plan)).await?;
+            self.place_target(&mut tx, &declared.workload, Some(&declared.intent)).await?;
         }
         finish(tx, caller, idem, OPERATION, declared).await
     }

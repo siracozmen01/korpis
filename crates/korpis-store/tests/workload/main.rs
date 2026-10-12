@@ -13,5 +13,6 @@
 
 mod chain;
 mod nodes;
+mod placement;
 mod plans;
 mod support;

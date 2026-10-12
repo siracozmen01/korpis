@@ -468,8 +468,18 @@ Three positions, and Korpis takes the third:
    plane loss.
 3. **The overlay is optional and its requirement is explicit.** Nodes that can reach each other
    join the mesh. Nodes that cannot are marked `overlay: unavailable`, and the scheduler will not
-   place a workload with cross-node dependencies or `overlay_only` endpoints on them (§2.1 of
-   `05-scheduling.md`).
+   place a workload with a cross-node dependency on them (§2.1 of `05-scheduling.md`): one whose
+   dependency (§5), or whose dependent, is placed on another node.
+
+> Correction, 2026-10-13, from the implementation. The rule also kept every workload with an
+> `overlay_only` endpoint off nodes without the overlay. An `overlay_only` endpoint is reachable by
+> other workloads: on its own node through the node's local network, and across nodes only
+> through the overlay, so what needs the overlay is a consumer on another node, which is a
+> cross-node dependency and is already in the rule. As written, the rule made the first-party
+> Minecraft recipe, whose RCON endpoint is `overlay_only`, unplaceable on a single machine
+> (Phase 1) and on any fleet without the overlay, although nothing on another node needed to reach
+> it. The cost of the correction: an `overlay_only` endpoint placed without the overlay is
+> reachable from its own node only, and the plan that creates it says so.
 
 **Reachability is measured, and every exposure mode states what it needs.** A node cannot know
 from the inside whether it is reachable, so the control plane has a relay or an edge probe each
@@ -480,7 +490,8 @@ node's advertised addresses, and the result is part of `NodeStatus`:
 | `node_port`, `node_bound` | **inbound reachability** on the allocated ports |
 | `stable` | an outbound tunnel to its edge group, which the node dials, so NAT does not matter |
 | `ingress` | the same as `stable` |
-| `overlay_only`, cross-node dependencies | a working overlay (`overlay: available`) |
+| `overlay_only` | nothing for consumers on the same node; a cross-node consumer is a dependency |
+| cross-node dependencies | a working overlay (`overlay: available`) |
 
 The scheduler filters on these (§2.1 of `05-scheduling.md`). So a hobbyist's node behind CGNAT can
 host game servers **through an edge**, because the tunnel is dialled outward, and cannot host them

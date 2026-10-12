@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "intent_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "intent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "reserved",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "reserved"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "bound_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "bound_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "bound_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "bound_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "explanation",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "explanation"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "authoritative",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "authoritative"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d94179f4e7f39252aab8682a0a06c67e86fde7f4cea0cb182d2d32f20c9c9727"
+}

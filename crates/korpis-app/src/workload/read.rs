@@ -3,6 +3,7 @@
 //! Reading workloads (§4.3 of docs/02-architecture.md): everything a client needs to render one
 //! honestly, and the intent chain. Existence is gated by read authority (§8 of docs/10-api.md).
 
+use super::explain::{Found, PlacementView, UnplacedView};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -29,6 +30,10 @@ pub struct WorkloadView {
     pub active_plan: Option<Plan>,
     /// How far it is from what was approved.
     pub convergence: Convergence,
+    /// Where it is placed, as the caller may see it.
+    pub placement: Option<PlacementView>,
+    /// Why its target has no node, if the newest attempt found none.
+    pub unplaced: Option<UnplacedView>,
 }
 
 /// Which workloads to list: in a project or under an organization, matching a selector.
@@ -43,7 +48,7 @@ pub struct ListWorkloads {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    async fn view(&self, workload: Workload) -> Result<WorkloadView, AppError> {
+    async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
         let id = workload.id;
         let missing = |what: &str| AppError::Internal(format!("workload {id} has no {what}"));
         let power = self.store.power(id).await?.ok_or_else(|| missing("power"))?;
@@ -54,16 +59,44 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let open = self.store.open_plans(id).await?;
         let active = active_plan(&open).cloned();
-        let placed = self.store.placed(id).await?;
+        let found = self.found(&workload, target.as_ref()).await?;
+        let placed = found.placed_for(workload.target);
         let convergence = convergence(&workload, &open, placed, self.clock.now());
-        Ok(WorkloadView { workload, power, head, target, active_plan: active, convergence })
+        let view = WorkloadView {
+            workload,
+            power,
+            head,
+            target,
+            active_plan: active,
+            convergence,
+            placement: None,
+            unplaced: None,
+        };
+        Ok((view, found))
+    }
+
+    /// Views of `workloads`, their placements filtered for the caller.
+    async fn views(
+        &self,
+        caller: &Caller,
+        workloads: Vec<Workload>,
+    ) -> Result<Vec<WorkloadView>, AppError> {
+        let (mut views, mut found) = (Vec::new(), Vec::new());
+        for w in workloads {
+            let (v, f) = self.unrendered(w).await?;
+            views.push(v);
+            found.push(f);
+        }
+        self.render_placements(caller, &mut views, found).await?;
+        Ok(views)
     }
 
     /// One workload the caller may read, deleted or not.
     pub async fn get_workload(&self, caller: &Caller, id: Uuid) -> Result<WorkloadView, AppError> {
         self.authorize(caller, "workload.read", ObjectRef::new(Kind::Workload, id)).await?;
         let w = self.store.workload(id).await?.ok_or(AppError::NotFound { kind: "workload" })?;
-        self.view(w).await
+        let mut views = self.views(caller, vec![w]).await?;
+        views.pop().ok_or_else(|| AppError::Internal(format!("workload {id} rendered nothing")))
     }
 
     /// The workloads of a project, or under an organization, that the caller may read. A page
@@ -86,11 +119,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let filter = WorkloadFilter { project: q.project, organization: q.organization };
         let read = self.store.workloads(&filter, page).await?;
         let next = page.next(&read, |w| w.id);
-        let mut items = Vec::new();
-        for w in read.into_iter().filter(|w| q.selector.matches(w.labels.as_map())) {
-            items.push(self.view(w).await?);
-        }
-        Ok(Paged { items, next })
+        let matching = read.into_iter().filter(|w| q.selector.matches(w.labels.as_map())).collect();
+        Ok(Paged { items: self.views(caller, matching).await?, next })
     }
 
     /// A workload's intents, oldest first.

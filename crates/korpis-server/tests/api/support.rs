@@ -70,6 +70,8 @@ impl Harness {
                 std::env::var("KORPIS_TEST_REGISTRY")
                     .unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
             ],
+            placement_policy: korpis_core::schedule::PlacementPolicy::default(),
+            placement_retry: std::time::Duration::from_millis(200),
         })
         .await
         .expect("serve");

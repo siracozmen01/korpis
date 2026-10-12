@@ -111,6 +111,28 @@ pub fn health_from_pb(field: &str, h: Option<&pb::HealthSpec>) -> Result<HealthS
     })
 }
 
+/// The wire form of an affinity rule.
+#[must_use]
+pub fn affinity_to_pb(a: &AffinityRule) -> pb::AffinityRule {
+    pb::AffinityRule {
+        anti: a.anti,
+        required: a.required,
+        workloads: selector_to_pb(&a.workloads).into(),
+        topology_key: a.topology_key.clone(),
+        ..Default::default()
+    }
+}
+
+/// An affinity rule from the field `field`.
+pub fn affinity_from_pb(field: &str, a: &pb::AffinityRule) -> Result<AffinityRule> {
+    Ok(AffinityRule {
+        anti: a.anti,
+        required: a.required,
+        workloads: selector_from_pb(&format!("{field}.workloads"), a.workloads.as_option())?,
+        topology_key: a.topology_key.clone(),
+    })
+}
+
 /// The wire form of a placement declaration.
 #[must_use]
 pub fn placement_to_pb(p: &PlacementSpec) -> pb::PlacementSpec {
@@ -125,17 +147,7 @@ pub fn placement_to_pb(p: &PlacementSpec) -> pb::PlacementSpec {
                 ..Default::default()
             })
             .collect(),
-        affinity: p
-            .affinity
-            .iter()
-            .map(|a| pb::AffinityRule {
-                anti: a.anti,
-                required: a.required,
-                workloads: selector_to_pb(&a.workloads).into(),
-                topology_key: a.topology_key.clone(),
-                ..Default::default()
-            })
-            .collect(),
+        affinity: p.affinity.iter().map(affinity_to_pb).collect(),
         preferred_region: p.preferred_region.clone(),
         ..Default::default()
     }
@@ -148,17 +160,7 @@ pub fn placement_from_pb(field: &str, p: Option<&pb::PlacementSpec>) -> Result<P
         .affinity
         .iter()
         .enumerate()
-        .map(|(i, a)| {
-            Ok(AffinityRule {
-                anti: a.anti,
-                required: a.required,
-                workloads: selector_from_pb(
-                    &format!("{field}.affinity[{i}].workloads"),
-                    a.workloads.as_option(),
-                )?,
-                topology_key: a.topology_key.clone(),
-            })
-        })
+        .map(|(i, a)| affinity_from_pb(&format!("{field}.affinity[{i}]"), a))
         .collect::<Result<_>>()?;
     Ok(PlacementSpec {
         node_selector: selector_from_pb(

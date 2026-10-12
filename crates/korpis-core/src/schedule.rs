@@ -9,6 +9,7 @@ mod filter;
 pub mod policy;
 mod score;
 mod topology;
+pub mod view;
 
 pub use policy::{PlacementPolicy, Signal, SpreadConstraint, SpreadScope, Strategy};
 
@@ -114,6 +115,28 @@ pub enum Check {
 }
 
 impl Check {
+    /// Every check, in the order they are evaluated.
+    pub const ALL: [Self; 12] = [
+        Self::Owner,
+        Self::Status,
+        Self::Driver,
+        Self::Tier,
+        Self::Console,
+        Self::Enforcement,
+        Self::Reachability,
+        Self::Selector,
+        Self::Taint,
+        Self::Capacity,
+        Self::StorageClass,
+        Self::Affinity,
+    ];
+
+    /// The check a name names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.as_str() == s)
+    }
+
     /// Its name in an explanation.
     #[must_use]
     pub const fn as_str(self) -> &'static str {

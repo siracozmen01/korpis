@@ -756,9 +756,13 @@ makes hardware maintenance possible without downtime.
 Placement
   workload      WorkloadID
   node          NodeID
+  intent        IntentID        the approved intent it was bound for
+  reserved      Resources       that intent's reservations, held on the node
   bound_at      Timestamp
   bound_by      scheduler | operator | migration
   reason        string          human-readable explanation of why this node
+  explanation   Explanation     the full derivation (§2.3 of `05-scheduling.md`)
+  authoritative bool
 ```
 
 **Invariants**
@@ -767,6 +771,8 @@ Placement
   K-4).
 - Every placement records **why**. A scheduler that cannot explain its choice is a scheduler nobody
   trusts. Detail in `05-scheduling.md`.
+- A node's `allocated` is the sum of `reserved` over its placements, authoritative or not: during a
+  migration both nodes hold the workload's capacity.
 
 ---
 

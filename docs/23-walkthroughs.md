@@ -50,7 +50,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 2 | Recipe reference `…:1.20` resolved to a digest, **recorded in the intent**; what the declaration leaves out is completed from that recipe, once ‡ | `09-recipes.md` §8, §3.1 |
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
-| 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind; `Explanation` recorded † | `05-scheduling.md` §2.1 to §2.3 |
+| 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind in the approving transaction under the placement lock; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
 | 6 | Plan persisted; non-disruptive by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `09-recipes.md` §5.1 |
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
 | 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps † | `02-architecture.md` §4.8 |
@@ -66,7 +66,12 @@ findings than the first seven did, which is what an untraced surface is supposed
 ‡ Updated 2026-10-13, from the implementation. The trace had the subject declare a complete
 body; the declared file of §3 of `13-surface-cli.md` is not one, and nothing said who completes
 it. The control plane does, at step 2, against the digest it just resolved, so step 3 validates
-the configuration of the body that will run and step 6 classifies its real steps.
+the configuration of the body that will run and step 6 classifies its real steps. Step 5 had no
+answer for a workload no node can take, and none for two creates racing for the last free
+capacity: the bind now happens in the transaction that approves the target, under one placement
+lock, and a target with no node is recorded with its explanation, shown as unplaced, and retried.
+Placing the example recipe also showed that §9 of `07-networking.md` kept any workload with an
+`overlay_only` endpoint off a node without the overlay; it is corrected there.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

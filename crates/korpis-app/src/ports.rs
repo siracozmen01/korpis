@@ -24,7 +24,7 @@ pub use authz::{
 pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use node::{NodeRead, NodeWrite};
-pub use placement::PlacementWrite;
+pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use tenancy::{TenancyRead, TenancyWrite};
@@ -76,6 +76,7 @@ pub trait Store:
     + RecipeCache
     + WorkloadRead
     + NodeRead
+    + PlacementRead
     + Send
     + Sync
     + 'static

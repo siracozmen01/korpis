@@ -162,6 +162,8 @@ region applies to the workload.
 ```
 Placement
   workload, node, bound_at, bound_by, reason
+  intent        IntentID                    // the approved intent it was bound for
+  reserved      Resources                   // that intent's reservations, held on the node
   explanation   Explanation
 ```
 
@@ -186,6 +188,30 @@ not starting.*
 
 Manual placement remains available (`bound_by: operator`) and is recorded as an override with the
 reason the operator gives. The scheduler is not a wall.
+
+**When a placement is bound.** In the transaction that approves a target (§3.3 of `01-model.md`),
+whether by default policy or by an approver, so an approved workload either has a node or a
+recorded reason it has none before the approval commits. A scheduled window does not delay it:
+the capacity a change will need is held from the moment it is approved. Every bind holds the
+installation's placement lock from reading the nodes to writing the placement, and so does every
+cordon, so two binds never count the same free capacity and nothing lands on a node cordoned while
+the scheduler was choosing. The cost is that binds are serialized across the installation; at
+Phase 0 rates that is unmeasurable, and whether it stays so is question 4 of §10.
+
+**A placed workload follows its target in place, or not at all.** When a new target is approved
+for a workload that already has a node, only that node is considered, with the workload's own
+reservation counted as free for it, and a cordon does not stop it: cordoning stops new
+placements, not changes to what is there. If the node can hold the new target, the placement
+follows it. If it cannot, the placement stays bound for the old target, the workload is unplaced
+for the new one, and the explanation says why. Moving it is a migration (§8), which has a plan of
+its own; an approval never moves a workload as a side effect.
+
+**When no node can take it, the attempt is kept.** The newest failed attempt is stored with its
+full explanation, the workload shows as unplaced (§4.3 of `02-architecture.md`), and the control
+plane retries every such workload on a short interval, so a node enrolled, uncordoned, or freed is
+found without anyone approving anything again. The failure is logged once per target, not once per
+retry. A cancellation that puts back the target a workload is placed for forgets the failure
+recorded for the target it withdrew.
 
 ---
 

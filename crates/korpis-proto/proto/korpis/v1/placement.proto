@@ -224,9 +224,11 @@ enum Fencing {
   FENCING_STORAGE_ENFORCED = 3;
 }
 
-// The binding of a workload to a node, and why.
+// The binding of a workload to a node, and why, as the caller may see it (§8 of
+// docs/08-identity.md).
 message Placement {
   string workload = 1;
+  // Empty when the caller may not read the node.
   string node = 2;
   google.protobuf.Timestamp bound_at = 3;
   BoundBy bound_by = 4;
@@ -234,6 +236,18 @@ message Placement {
   Explanation explanation = 6;
   // During migration two placements coexist; exactly one is authoritative.
   bool authoritative = 7;
+  // The node's `region` label, which every reader of the workload sees.
+  string region = 8;
+  IsolationTier tier = 9;
+  // The approved intent the placement was bound for.
+  string intent = 10;
+}
+
+// Why no node took a workload's approved target, from the newest attempt.
+message Unplaced {
+  string intent = 1;
+  google.protobuf.Timestamp attempted_at = 2;
+  Explanation explanation = 3;
 }
 
 enum BoundBy {
@@ -244,14 +258,23 @@ enum BoundBy {
 }
 
 // Every rejection with its reason, every score with its weight (§2.3 of
-// docs/05-scheduling.md). Filtered per viewer (§8 of docs/08-identity.md).
+// docs/05-scheduling.md). Filtered per viewer (§8 of docs/08-identity.md): rejections, scores,
+// and the chosen node only for nodes the caller may read; counts only for the tenant; the
+// policy only for a caller who may read every node it names.
 message Explanation {
-  uint32 candidates = 1;
+  optional uint32 candidates = 1;
   repeated FilterResult filtered = 2;
   repeated ScoreResult scored = 3;
   string chosen = 4;
   optional string runner_up = 5;
   PlacementPolicy policy = 6;
+  // Per failing check, how many nodes failed it.
+  repeated CheckCount rejected = 7;
+}
+
+message CheckCount {
+  string check = 1;
+  optional uint32 nodes = 2;
 }
 
 message FilterResult {

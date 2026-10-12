@@ -67,6 +67,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                         "a later approval has moved the workload since this plan",
                     ));
                 }
+                if matches!(plan.target, PlanTarget::Intent(_)) {
+                    self.follow_restored(&mut tx, &w, plan.from_intent).await?;
+                }
             }
             PlanStatus::Applying | PlanStatus::Approved | PlanStatus::Queued => {
                 return Err(AppError::NotYet {
@@ -91,6 +94,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         )
         .await?;
         finish(tx, caller, idem, CANCEL, plan).await
+    }
+
+    /// Puts the placement back with the target a cancellation restored.
+    async fn follow_restored(
+        &self,
+        tx: &mut S::Tx,
+        w: &Workload,
+        restored: Option<Uuid>,
+    ) -> Result<(), AppError> {
+        let target = match restored {
+            Some(i) => {
+                Some(self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?)
+            }
+            None => None,
+        };
+        self.place_target(tx, w, target.as_ref()).await
     }
 
     /// One plan the caller may read.

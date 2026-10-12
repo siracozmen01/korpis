@@ -285,6 +285,8 @@ message WorkloadStatus {
   Convergence convergence = 6;
   // The plan currently proposed, scheduled, or applying, if any.
   Plan active_plan = 7;
+  // Why no node took the approved target, if the newest attempt found none.
+  Unplaced unplaced = 8;
 }
 
 enum Convergence {

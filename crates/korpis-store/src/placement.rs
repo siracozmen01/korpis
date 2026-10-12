@@ -2,16 +2,96 @@
 
 //! Placements (§3.4 of docs/01-model.md, §2.3 of docs/05-scheduling.md).
 
-use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::count;
-use korpis_app::ports::{PlacementWrite, StoreError, StoreResult};
+use crate::node::NodeRow;
+use crate::stored::{
+    ExplanationDoc, bounds, bounds_doc, count, from_json, from_time, to_json, to_time,
+};
+use crate::tenancy::labels;
+use crate::{PgStore, PgTx};
+use chrono::{DateTime, Utc};
+use korpis_app::Page;
+use korpis_app::ports::{PlacementRead, PlacementWrite, StoreError, StoreResult};
+use korpis_core::node::Node;
+use korpis_core::placement::{BoundBy, Placement, Unplaced};
+use korpis_core::schedule::Peer;
 use korpis_core::tenancy::quota::{Bounds, Dimension};
+use serde_json::Value;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// The advisory lock every bind and every cordon holds: one key, for the installation.
 const PLACEMENT_LOCK: i64 = 0x6b6f_7270_6973_0001;
+
+struct PlacementRow {
+    workload_id: Uuid,
+    node_id: Uuid,
+    intent_id: Uuid,
+    reserved: Value,
+    bound_at: DateTime<Utc>,
+    bound_by: String,
+    reason: String,
+    explanation: Value,
+    authoritative: bool,
+}
+
+impl PlacementRow {
+    fn into_domain(self) -> StoreResult<Placement> {
+        let doc: ExplanationDoc = from_json("placement explanation", self.explanation)?;
+        Ok(Placement {
+            workload: self.workload_id,
+            node: self.node_id,
+            intent: self.intent_id,
+            reserved: bounds("placement reserved", self.reserved)?,
+            bound_at: to_time(self.bound_at),
+            bound_by: BoundBy::parse(&self.bound_by).ok_or_else(|| {
+                StoreError::Corrupt(format!("placement bound_by {:?}", self.bound_by))
+            })?,
+            reason: self.reason,
+            explanation: doc.into_domain()?,
+            authoritative: self.authoritative,
+        })
+    }
+}
+
+impl PlacementRead for PgStore {
+    async fn placement(&self, workload: Uuid) -> StoreResult<Option<Placement>> {
+        let row = sqlx::query_file_as!(PlacementRow, "queries/placement_of.sql", workload)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        row.map(PlacementRow::into_domain).transpose()
+    }
+
+    async fn unplaced(&self, workload: Uuid) -> StoreResult<Option<Unplaced>> {
+        let row = sqlx::query!(
+            "SELECT workload_id, intent_id, attempted_at, explanation
+               FROM placement_failure WHERE workload_id = $1",
+            workload
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(|r| {
+            let doc: ExplanationDoc = from_json("unplaced explanation", r.explanation)?;
+            Ok(Unplaced {
+                workload: r.workload_id,
+                intent: r.intent_id,
+                attempted_at: to_time(r.attempted_at),
+                explanation: doc.into_domain()?,
+            })
+        })
+        .transpose()
+    }
+
+    async fn awaiting_placement(&self, page: Page) -> StoreResult<Vec<Uuid>> {
+        let size = i64::from(page.size);
+        sqlx::query_file_scalar!("queries/placement_awaiting.sql", page.after, size)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)
+    }
+}
 
 impl PlacementWrite for PgTx {
     async fn lock_placement(&mut self) -> StoreResult<()> {
@@ -35,5 +115,85 @@ impl PlacementWrite for PgTx {
             out.entry(r.node_id).or_default().insert(d, count("node allocated", r.total)?);
         }
         Ok(out)
+    }
+
+    async fn serving_nodes(&mut self, owners: &[Uuid]) -> StoreResult<Vec<Node>> {
+        let rows = sqlx::query_file_as!(NodeRow, "queries/nodes_serving.sql", owners)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter().map(NodeRow::into_domain).collect()
+    }
+
+    async fn peers(&mut self, organization: Uuid, except: Uuid) -> StoreResult<Vec<Peer>> {
+        let rows = sqlx::query_file!("queries/placement_peers.sql", organization, except)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter()
+            .map(|r| {
+                let labels = labels(r.labels)?.into_map();
+                Ok(Peer { workload: r.workload, project: r.project, node: r.node, labels })
+            })
+            .collect()
+    }
+
+    async fn placement_in(&mut self, workload: Uuid) -> StoreResult<Option<Placement>> {
+        let row = sqlx::query_file_as!(PlacementRow, "queries/placement_of.sql", workload)
+            .fetch_optional(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        row.map(PlacementRow::into_domain).transpose()
+    }
+
+    async fn bind(&mut self, p: &Placement) -> StoreResult<()> {
+        let explanation = to_json("explanation", &ExplanationDoc::from_domain(&p.explanation))?;
+        sqlx::query_file!(
+            "queries/placement_bind.sql",
+            p.workload,
+            p.node,
+            p.intent,
+            bounds_doc(&p.reserved),
+            from_time(p.bound_at),
+            p.bound_by.as_str(),
+            p.reason,
+            explanation,
+            p.authoritative
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn unbind(&mut self, workload: Uuid) -> StoreResult<()> {
+        sqlx::query!("DELETE FROM placement WHERE workload_id = $1", workload)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        self.clear_unplaced(workload).await
+    }
+
+    async fn record_unplaced(&mut self, u: &Unplaced) -> StoreResult<bool> {
+        let explanation = to_json("explanation", &ExplanationDoc::from_domain(&u.explanation))?;
+        let previous = sqlx::query_file_scalar!(
+            "queries/unplaced_record.sql",
+            u.workload,
+            u.intent,
+            from_time(u.attempted_at),
+            explanation
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(previous != Some(u.intent))
+    }
+
+    async fn clear_unplaced(&mut self, workload: Uuid) -> StoreResult<()> {
+        sqlx::query!("DELETE FROM placement_failure WHERE workload_id = $1", workload)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
     }
 }

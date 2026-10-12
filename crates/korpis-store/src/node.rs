@@ -17,23 +17,23 @@ use korpis_core::tenancy::quota::{Bounds, Dimension};
 use serde_json::Value;
 use uuid::Uuid;
 
-struct NodeRow {
-    id: Uuid,
-    name: String,
-    organization_id: Uuid,
-    labels: Value,
-    taints: Value,
-    capacity: Value,
-    allocatable: Value,
-    drivers: Value,
-    storage_classes: Value,
-    reachability: String,
-    admin: String,
-    connectivity: String,
-    agent_version: Option<String>,
-    last_seen: Option<DateTime<Utc>>,
-    enrolled_at: DateTime<Utc>,
-    version: i64,
+pub(crate) struct NodeRow {
+    pub(crate) id: Uuid,
+    pub(crate) name: String,
+    pub(crate) organization_id: Uuid,
+    pub(crate) labels: Value,
+    pub(crate) taints: Value,
+    pub(crate) capacity: Value,
+    pub(crate) allocatable: Value,
+    pub(crate) drivers: Value,
+    pub(crate) storage_classes: Value,
+    pub(crate) reachability: String,
+    pub(crate) admin: String,
+    pub(crate) connectivity: String,
+    pub(crate) agent_version: Option<String>,
+    pub(crate) last_seen: Option<DateTime<Utc>>,
+    pub(crate) enrolled_at: DateTime<Utc>,
+    pub(crate) version: i64,
 }
 
 fn corrupt(what: &str, s: &str) -> StoreError {
@@ -66,7 +66,7 @@ fn reachability_str(r: Reachability) -> &'static str {
 }
 
 impl NodeRow {
-    fn into_domain(self) -> StoreResult<Node> {
+    pub(crate) fn into_domain(self) -> StoreResult<Node> {
         let admin = [
             NodeAdmin::Active,
             NodeAdmin::Cordoned,

@@ -15,6 +15,7 @@ pub mod id;
 pub mod labels;
 pub mod node;
 pub mod object;
+pub mod placement;
 pub mod principal;
 pub mod quantity;
 pub mod recipe;
