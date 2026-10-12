@@ -154,6 +154,13 @@ anything. Here themes are data (a token set plus optional CSS) resolved per orga
 reseller's customers see the reseller's brand without anyone modifying a deployed file. Extensions
 contribute UI through declared slots (`16-extensions.md`), never by editing the bundle.
 
+**White-labelling stops at one fixed path.** The web client's JavaScript is conveyed to every
+browser that loads it, and AGPL-3.0 attaches its source obligation to that (§2 of
+`19-governance.md`). So every build serves `/about/source`, naming the exact source revision it was
+built from and where that source is published, and themes cannot remove or restyle it. It is not in
+the branded chrome: a host's customers see the host's brand everywhere they look, and the notice is
+where the licence needs it to be rather than where a brand would notice it.
+
 ---
 
 ## 8. The hard screens

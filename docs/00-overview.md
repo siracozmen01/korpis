@@ -62,7 +62,12 @@ no feature gated behind a license, and no commercial-use restriction. (Rule K-13
 
 ## 3. Principles
 
-These are ordered. When two conflict, the higher number yields.
+P1 to P9 are ordered: when two conflict, the higher number yields. P10 is outside the ordering. It
+constrains what Korpis may charge for or forbid, not how a design trade-off is decided, so it is
+never weighed against the others and never yields to them.
+
+> Corrected 2026-10-12. This said "These are ordered", which made P10 the principle that yields to
+> every other, the opposite of how every document applies it.
 
 ### P1. Truth is declared, not commanded
 
@@ -93,9 +98,10 @@ Privilege is separated by process and confined by kernel mechanisms, namespaces,
 capabilities, seccomp, Landlock, `openat2(RESOLVE_BENEATH)`. Validation of paths, names, and inputs
 is defence in depth, never the defence.
 
-*Beats:* performance, code simplicity, developer convenience. *Because:* six of twelve published
-Wings advisories are one class, a privileged process defending tenant-supplied paths by inspecting
-strings. Symlinks, races, and `..` win that fight every time.
+*Beats:* performance, code simplicity, developer convenience. *Because:* the largest class of
+published Wings advisories, six of twenty-one by October 2026, is one shape: a privileged process
+defending tenant-supplied paths by inspecting strings. Symlinks, races, and `..` win that fight
+every time.
 
 ### P4. Never claim what is not enforced
 
@@ -224,7 +230,8 @@ evidence points in two opposite directions:
 | Layer | License | Reasoning |
 |---|---|---|
 | Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** | These must be implementable by anyone, including commercial products, with no friction. Rule K-7 requires that a third party be able to write a conforming agent; a copyleft protocol definition would undermine that. Apache-2.0 also carries an explicit patent grant. |
-| Control plane, node agent, web client, Discord client, CLI | **AGPLv3** | The platform itself cannot be taken closed. Hosting Korpis for others is exactly the case AGPL exists to cover, and it is the case Pterodactyl lost to. |
+| Control plane, node agent, relay, web client, chat clients, CLI | **AGPL-3.0-or-later** | The platform itself cannot be taken closed. Hosting Korpis for others is exactly the case AGPL exists to cover, and it is the case Pterodactyl lost to. |
+| The documents in this repository | **CC BY 4.0** | The specification is the work until code exists, and it should be quotable and buildable-on by anyone, with attribution. |
 | Recipes, extensions, themes | **Author's choice** | Extensions are separate processes speaking a published contract (P8), not derivative works. Anything else would poison the ecosystem before it exists. |
 
 The AGPL objection is real: it is what drove commercial hosts away from Pelican. The counter is
@@ -235,23 +242,33 @@ precisely what P8 exists to permit.
 
 **What this means for a hosting provider, stated plainly**, because AGPL is widely misunderstood as
 a restriction on use: run Korpis commercially, sell capacity on it, charge whatever you like, build
-proprietary extensions against it, no obligation of any kind. The only obligation arises if you
-**modify Korpis itself** and offer the modified version over a network, in which case you publish
-those modifications. Using it unmodified obliges nothing. The single thing AGPL forecloses is
-taking Korpis, closing it, and selling it as a proprietary product, which is precisely what
-happened to Pterodactyl under MIT.
+proprietary extensions against it. Running it unmodified for your customers obliges nothing. Two
+things do create obligations: **modifying Korpis itself** and offering the modified version over a
+network, in which case you offer its users the source of your version; and **conveying copies**,
+binaries, the CLI, or the web client's bundle, in which case the corresponding source goes with
+them, which an unmodified build already arranges (§2 of `19-governance.md`). The single thing AGPL
+forecloses is taking Korpis, closing it, and selling it as a proprietary product, which is
+precisely what happened to Pterodactyl under MIT. What the licence does not foreclose, and what
+only policy does, is stated in the same section of `19-governance.md`.
+
+> Corrected 2026-10-12. This said "using it unmodified obliges nothing", which missed the
+> obligations attached to conveying copies.
 
 The remaining terms, versioning policy, compatibility guarantees, LTS, trademark policy, and
-multi-maintainer structure, are settled in `19-governance.md` before the first release, per Rule
+maintainership and succession, are settled in `19-governance.md` before the first release, per Rule
 K-8. Governance was Pterodactyl's actual failure; it is not left until later here.
 
 ---
 
 ## 6. Inherited constraints
 
-Nineteen rules were derived from evidence in [`research/evidence.md`](./research/evidence.md) and
-[`research/evidence.md`](./research/evidence.md). They are binding on every document that follows.
-Each is traceable to a specific published advisory, issue, or product behaviour.
+Eighteen rules bind every document that follows. K-1 to K-12 are derived from evidence in
+[`research/evidence.md`](./research/evidence.md), each traceable to a specific published advisory,
+issue, or product behaviour. K-13 to K-18 are policy and design decisions made while the design was
+written; §4 of that file states what each rests on.
+
+> Corrected 2026-10-12. This said nineteen rules, all derived from evidence. K-13 to K-18 are not,
+> and K-19 restated K-8 and is retired.
 
 | # | Rule |
 |---|---|
@@ -262,7 +279,7 @@ Each is traceable to a specific published advisory, issue, or product behaviour.
 | K-5 | Backup is a consequence of the storage design, not a feature on top of it |
 | K-6 | Extensions are out-of-process, versioned, sandboxed; core uses the same mechanism |
 | K-7 | Control plane and data plane are separated by a published, versioned protocol |
-| K-8 | License, versioning, and multi-maintainer governance are day-one decisions |
+| K-8 | License, versioning, compatibility, and maintainership are day-one decisions |
 | K-9 | The runtime is an interface; it must be able to express Windows on day one |
 | K-10 | Isolation strength is a per-workload operator choice |
 | K-11 | Workload shape is a field, not an assumption |
@@ -273,7 +290,7 @@ Each is traceable to a specific published advisory, issue, or product behaviour.
 | K-16 | Health is application-level, not process-level |
 | K-17 | Configuration is schema-driven, with per-field permissions |
 | K-18 | Ship one excellent runtime driver before five adequate ones |
-| K-19 | Licensing is decided before the first release (see §5; BSL is source-available, not open source) |
+| ~~K-19~~ | Retired 2026-10-12 as a restatement of K-8 |
 
 ---
 
@@ -304,4 +321,4 @@ Each is traceable to a specific published advisory, issue, or product behaviour.
 | `20-roadmap.md` | Build order and dependency graph |
 | `21-stack.md` | Implementation languages, and why they differ by component |
 | `22-first-party.md` | The first-party recipe and extension set, and what it proves |
-| `23-walkthroughs.md` | Fourteen end-to-end traces, and the twenty-three defects they found |
+| `23-walkthroughs.md` | Fourteen end-to-end traces and the defects they found; two external reviews |

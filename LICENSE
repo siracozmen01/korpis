@@ -10,8 +10,12 @@ for the reasons argued in section 5 of docs/00-overview.md and restated in secti
   Protocol definitions, client SDKs, recipe format, agent protocol
       Apache-2.0                            full text in LICENSE-APACHE
 
-  Control plane, node agent, web / CLI / chat clients
+  Control plane, node agent, relay, web / CLI / chat clients
       AGPL-3.0-or-later                     full text in LICENSE-AGPL
+
+  The documents in this repository (docs/, README, and the other
+  Markdown files)
+      CC BY 4.0                             full text in LICENSE-CC-BY
 
   Recipes, extensions, themes
       the author's choice, proprietary included
@@ -34,27 +38,35 @@ WHAT THIS MEANS IF YOU RUN IT
 Stated plainly, because AGPL is routinely misread as a restriction on use:
 
     Run it commercially. Sell capacity on it. Charge whatever you like.
-    Build closed extensions against it. You owe nothing.
+    Build closed extensions against it. Running it, unmodified, for your
+    customers obliges you to nothing.
 
-The obligation arises in one case only: if you modify Korpis itself and offer the
-modified version to others over a network, you publish those modifications. Using
-it unmodified obliges nothing at all. There is no per-workload, per-node,
+Two things do create obligations. If you modify Korpis itself and let others use
+the modified version over a network, you offer those users the source of your
+version (AGPL section 13). If you convey copies, which includes distributing
+binaries or the CLI and serving the web client's JavaScript to a browser, the
+licence and the corresponding source go with them (AGPL sections 4 to 6); every
+Korpis build names the exact source revision it was built from, so an unmodified
+deployment meets this as shipped. There is no per-workload, per-node,
 per-instance, per-account or per-domain charge, at any scale, ever.
 
 CONTRIBUTIONS
 
 Contributions are accepted under the Developer Certificate of Origin. Sign off with
 "git commit -s". There is no contributor licence agreement and no copyright
-assignment, which keeps copyright distributed and makes a future relicence require
-broad consent from contributors. That is the point: it forecloses an open-core
-pivot structurally rather than by promise. See CONTRIBUTING.md.
+assignment, which keeps copyright distributed: as other people's contributions
+accumulate, relicensing their code requires their consent. What the licence does
+not do is prevent new proprietary components from being added beside the open
+core; that is prevented by the project's policy (Principle P10 and Rule K-13), a
+public promise rather than a legal mechanism. Section 2 of docs/19-governance.md
+states both halves. See CONTRIBUTING.md.
 
 DOCUMENTATION
 
 The documents in this repository are the specification. Until the first code
 release they are the whole of the work, and they are published under CC BY 4.0 so
 that they can be quoted, argued with, and built on freely. Attribution is the only
-condition.
+condition. The full licence text is in LICENSE-CC-BY.
 
 TRADEMARK
 

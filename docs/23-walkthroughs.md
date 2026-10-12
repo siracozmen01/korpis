@@ -21,7 +21,14 @@ the documents they belong to, the table in §15 says where each landed. Each cos
 here. Finding them in month nine would have cost a rewrite.
 
 §16 records a separate external review that attacked the documents' internal algebra rather than
-the seams between them, and found sixteen more.
+the seams between them, and found seventeen more. §17 records a second external review, in October
+2026, that re-read every document against every other and against the primary sources, and whose
+seventy-nine findings changed the mechanics several of these traces cross.
+
+**The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
+through a different mechanism, its row says so and cites the section that owns it; the findings and
+their resolutions are left exactly as they were found, because they are the record. A row marked
+† changed in the re-run.
 
 The first seven follow one workload through its life: created, migrated, orphaned by a dead node,
 delegated, attacked, restored, upgraded. That is one axis, and after they were written the coverage
@@ -43,18 +50,18 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 2 | Recipe reference `…:1.20` resolved to a digest, **recorded in the intent** | `09-recipes.md` §8 |
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
-| 5 | Placement: filter → score → bind, `Explanation` recorded | `05-scheduling.md` §2 |
-| 6 | Plan persisted; low-risk, so applied directly and shown after | `11-surface-web.md` §4 |
-| 7 | `Intent` v1 written, `Effect` in the same transaction | `03-state.md` §3.1, §4 |
-| 8 | Agent receives the assigned intent set | `02-architecture.md` §4.1 |
+| 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind; `Explanation` recorded † | `05-scheduling.md` §2.1 to §2.3 |
+| 6 | Plan persisted; non-disruptive by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `09-recipes.md` §5.1 |
+| 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
+| 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps † | `02-architecture.md` §4.8 |
 | 9 | `Prepare`, content fetched by digest, signature verified, **pure** | `04-runtimes.md` §4.2 |
 | 10 | Volume created with byte and inode quota in the write path | `06-storage.md` §3 |
 | 11 | Endpoint allocated, exposure mode applied | `07-networking.md` §3 |
 | 12 | `Create`, then `Start` | `04-runtimes.md` §4.2 |
 | 13 | Health probed at the application level | `04-runtimes.md` §5 |
-| 14 | `Observation` written by the agent, `intent_seen` advances | `02-architecture.md` §4.3 |
+| 14 | `Observation` reported; node-originated effects journaled and acknowledged exactly once † | `02-architecture.md` §4.3, §4.10 |
 | 15 | Web shows converging, then converged, with the lag | `11-surface-web.md` §3 |
-| 16 | Owner issues a share grant; token travels in the fragment | `08-identity.md` §6.1 |
+| 16 | Owner issues a share grant; token travels in the fragment; any `max_uses` is redeemed online † | `08-identity.md` §6.1, §6.2 |
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 
@@ -102,8 +109,8 @@ find and `09-recipes.md` §8 already closes it.
 | 2 | Per workload: destination chosen, `Explanation` recorded | `05-scheduling.md` §2 |
 | 3 | Volume snapshot; incremental transfer while running | `06-storage.md` §8 |
 | 4 | Final incremental with the workload paused | `05-scheduling.md` §8 |
-| 5 | **Cutover:** source lease epoch fenced, destination started | `02-architecture.md` §4.5 |
-| 6 | Edge forwarding target updated in the same step | `07-networking.md` §3.1, §10 |
+| 5 | **Cutover:** the migrate plan's step in both nodes' assignments; source lease released, destination started † | `02-architecture.md` §4.5, §4.8; `05-scheduling.md` §8 |
+| 6 | Edge forwarding target updated in the same step; the residual window is stated, not denied † | `07-networking.md` §3.1, §10 |
 | 7 | Meter cut at that instant, no reset, no double count | `15-observability.md` §2 |
 | 8 | Players reconnect to the same address | none |
 
@@ -142,11 +149,11 @@ offset that means something different. → verify after patching
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | Agent stops reporting; node marked `unreachable` | `02-architecture.md` §9 |
+| 1 | Node heartbeat stops; node marked `unreachable` † | `02-architecture.md` §9 |
 | 2 | Observations become `unknown`, never a stale value shown as current | `11-surface-web.md` §2 |
-| 3 | Lease expires; `on_expiry` decides `keep_running` or `stop` | `02-architecture.md` §4.5 |
+| 3 | The agent, unable to renew, fails static; the grantor's lease expires on its own clock; the workload's derived `on_lease_expiry` decides † | `02-architecture.md` §4.5 |
 | 4 | Metering records a gap with its cause | `15-observability.md` §2 |
-| 5 | Workloads on replicated storage are rescheduled | `18-operations.md` §5 |
+| 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2 |
 | 6 | Workloads whose only copy of data was local are **not**, and this is said plainly | `18-operations.md` §5 |
 | 7 | On return: adoption by label, epoch checked; if fenced, it cannot resume | `02-architecture.md` §4.4 |
 
@@ -178,7 +185,7 @@ and `18-operations.md` §5 refuses to tell it.
 | # | Step | Governed by |
 |---|---|---|
 | 1 | Operator delegates to a reseller: a grant, scoped to an organization | `08-identity.md` §3 |
-| 2 | Reseller delegates to a customer, attenuated, never wider | `08-identity.md` §3.2 |
+| 2 | Reseller delegates to a customer, attenuated, never wider, as the grant's `delegation` policy allows † | `08-identity.md` §3.2 |
 | 3 | Customer delegates to their own moderator | same mechanism, no new code |
 | 4 | Quota inherits down the tree | `05-scheduling.md` §5.1 |
 | 5 | Metering rolls up; the reseller sees their sub-tree's usage | `15-observability.md` §2 |
@@ -225,6 +232,9 @@ allow-list controlled by whoever owns the node, defaulting to first-party extens
 a policy choice with real product consequences, not something to settle inside a walkthrough. →
 `16-extensions.md`
 
+**Closed.** §4.1 of `16-extensions.md` settled it in the shape proposed: installation needs the
+installer's grants and the node owner's allow-list. The `OPEN` above is how the trace found it.
+
 ---
 
 ## 5. A hostile tenant
@@ -239,8 +249,8 @@ a policy choice with real product consequences, not something to settle inside a
 | a million empty files | inode quota | `06-storage.md` §3 |
 | 50 MB/s of log output | stream rate limit, drop with gap marker, never blocks the workload, counts against their own quota | `14-streams.md` §4, §5 |
 | exhaust the node's conntrack table | per-workload conntrack limit | `07-networking.md` §6 |
-| reach `169.254.169.254` | egress default-deny | `07-networking.md` §6 |
-| reach a neighbour | network namespace + default-deny | |
+| reach `169.254.169.254` | the egress default denies link-local metadata; the public internet is allowed, rate-limited † | `07-networking.md` §6 |
+| reach a neighbour | network namespace + default-deny | `07-networking.md` §6 |
 | read the daemon's credentials via a template | no ambient scope; a flat pre-resolved variable map | `09-recipes.md` §6 |
 | escape the kernel via an LPE | **not stopped** in `process`/`container`; this is why the tier is a choice | `17-security.md` §5 |
 | exfiltrate their own operator's secret from a log | redaction at write time, best-effort, labelled as such | `14-streams.md` §7 |
@@ -257,6 +267,8 @@ edge (latency, a chokepoint), enforce at the destination (only works inside the 
 it and state that a compromised node's egress is uncontained. **Decision needed.** →
 `17-security.md`
 
+**Closed.** §9.1 of `17-security.md` decided it. The `OPEN` above is how the trace found it.
+
 *Otherwise this trace is the strongest in the document.* Every attempt except the kernel LPE meets
 a named, specific mechanism, and the LPE is not defended against by anyone and is labelled
 honestly.
@@ -269,10 +281,10 @@ honestly.
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | Postgres, signing keys, and the epoch watermark restored | `18-operations.md` §6 |
-| 2 | **Epoch watermark advanced past every epoch that could have been issued** | `03-state.md` §8 |
+| 1 | Postgres, signing keys, and the assignment-signing keyring restored † | `18-operations.md` §6 |
+| 2 | **Epoch floor raised past every epoch that could have been issued**, after a settling window † | `03-state.md` §8 |
 | 3 | Control plane starts; agents reconnect | `02-architecture.md` §4 |
-| 4 | Each presents its intent-set digest; most match; deltas for the rest | `10-api.md` §9 |
+| 4 | Each presents a digest of its assignments; assignments newer than the backup whose signatures verify are recovered, not rolled back † | `03-state.md` §8; `10-api.md` §9 |
 | 5 | Workloads never stopped, they were never dependent on the control plane | `02-architecture.md` §4.6 |
 
 **FINDING 9: Capability tokens outlive the database they were issued from. `CONFIRMED`**
@@ -308,7 +320,7 @@ lifetimes of §6 of `08-identity.md` bound how long the disruption lasts. → pa
 | # | Step | Governed by |
 |---|---|---|
 | 1 | Control plane first; migrations forward-only and online | `18-operations.md` §4 |
-| 2 | Agents upgraded one at a time, over days if wanted; N-2 window | `10-api.md` §4 |
+| 2 | Agents upgraded one at a time, over days if wanted, within the window defined by supported releases † | `10-api.md` §4 |
 | 3 | Each agent restarts and **re-adopts running workloads**, no tenant restart | `02-architecture.md` §4.4 |
 | 4 | Extensions declaring an incompatible API version are refused at load, with a message | `16-extensions.md` §6 |
 | 5 | Mixed-version fleet is a supported steady state, not a window | `18-operations.md` §4 |
@@ -340,8 +352,8 @@ seven barely touched.
 | 2 | The agent keeps sampling from kernel counters, locally | `15-observability.md` §2 |
 | 3 | The control plane stops receiving samples and reports the workload's state as `unknown` | P4, `03-state.md` §5 |
 | 4 | The control plane records a gap with the cause `node unreachable` | `15-observability.md` §2 |
-| 5 | 04:00 on the 1st: the link returns and the agent re-sends six hours of buffered samples | `15-observability.md` §2 |
-| 6 | Samples are idempotent by `(workload, resource, interval_start)`, so re-delivery overwrites | `15-observability.md` §2 |
+| 5 | 04:00 on the 1st: the link returns and the agent's journal delivers six hours of samples † | `02-architecture.md` §4.10 |
+| 6 | Re-delivery is dropped by the journal cursor; a real sample supersedes the gap by appending, never overwriting † | `15-observability.md` §2 |
 | 7 | The host's billing system reads the month that closed at 00:00 on the 1st | K-12, out of scope by design |
 
 **FINDING 10: A gap and a late sample are two answers to one question. `CONFIRMED`**
@@ -403,7 +415,7 @@ statement about the workload and not only about the control plane's knowledge.
 | 1 | The customer opens a snapshot from forty days back and browses its manifest | `06-storage.md` §5.4 |
 | 2 | The repository is scoped to their organization; dedup scope is the repository | `06-storage.md` §5.3 |
 | 3 | They select one file; only the chunks it needs are fetched | `06-storage.md` §5.4 |
-| 4 | Chunks decrypt client-side against a key held outside the repository | `06-storage.md` §5.3 |
+| 4 | Chunks decrypt against the workload's own data key, unwrapped by a key held outside the repository † | `06-storage.md` §5.5 |
 | 5 | The read is an `Effect` and appears in the audit log | `15-observability.md` §4 |
 | 6 | Restore lands in a **new** volume, which is the default presentation | `06-storage.md` §5.4 |
 
@@ -535,8 +547,8 @@ last.
 | # | Step | Governed by |
 |---|---|---|
 | 1 | A grant names *the `@moderator` role in guild 456* as its subject | `08-identity.md` §5 |
-| 2 | A moderator uses it, and issues an attenuated child grant to a helper: restart one server, 7 days | `08-identity.md` §3.2 |
-| 3 | They also open a console; a 120-second capability token is issued and renewed | `08-identity.md` §6 |
+| 2 | A moderator uses it, and issues an attenuated child grant to a helper: restart one server, 7 days, as the parent's `delegation` policy allows † | `08-identity.md` §3.2 |
+| 3 | They also open a console through a relay; a 120-second capability token is issued, renewed, and checked by relay and agent † | `08-identity.md` §6; `02-architecture.md` §3.1 |
 | 4 | They also create a share link, valid 24 hours, token in the fragment | `08-identity.md` §6.1 |
 | 5 | The guild owner removes them from `@moderator` | Discord, outside Korpis |
 | 6 | §5 says losing the role removes the authority with no deprovisioning step | `08-identity.md` §5 |
@@ -576,7 +588,7 @@ authority outlives its source, it is stated, and it is configurable rather than 
 | 1 | An `Intent` names a recipe by digest, resolved once through the lockfile | `09-recipes.md` §8 |
 | 2 | The Plan contains a step: run the recipe's install | `05-scheduling.md` §3.1 |
 | 3 | The install DSL runs six steps: fetch, verify, extract, `steam.app`, template, chmod | `09-recipes.md` §4 |
-| 4 | Step four calls an extension-provided step provider, which is circuit-broken | `16-extensions.md` §5 |
+| 4 | Step four calls an extension-provided step provider, pinned in the lockfile as `<publisher>/<step>`, which is circuit-broken † | `16-extensions.md` §4.1, §5 |
 | 5 | The Plan step fails. The workload's state is `partial`, with the failed step attached | `05-scheduling.md` §3.1 |
 | 6 | Resources created by completed steps are retained and named in the observation | `05-scheduling.md` §3.1 |
 | 7 | The provider recovers; the plan resumes from the last completed step | `05-scheduling.md` §3.1 |
@@ -609,7 +621,7 @@ needed and had only asserted one level up.
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | Two hundred workloads are exposed through one `stable` address on an edge | `07-networking.md` §3.1 |
+| 1 | Two hundred workloads are exposed through one `stable` address on an edge failover group † | `07-networking.md` §3.1 |
 | 2 | Thirty of them are hibernated and wake on connection | `22-first-party.md` §6 |
 | 3 | The edge's forwarding plane stops passing traffic. Its host is up and its agent is healthy | `18-operations.md` §5 |
 | 4 | Every node holding a workload is up, holds a valid lease, and reports `running` | `05-scheduling.md` §7 |
@@ -740,8 +752,11 @@ point: they were invisible per document and obvious per trace.
 The fourteen traces above are one method: follow a concrete story until it crosses a boundary
 nobody owns. In August 2026 the specification was also read by a different model with a different
 method, which attacked the **algebra** inside each document rather than the seams between them. It
-found nineteen things. Sixteen were real and are patched; one had been closed hours earlier by
-Finding 19 above and the reviewer could not see it; two were already partly answered.
+found nineteen things. Seventeen were real and are patched; one (R1) had been closed hours earlier
+by Finding 19 above and the reviewer could not see it; one (R18) was already partly answered.
+
+> Corrected 2026-10-12. This said sixteen were real and two partly answered, which the table below
+> did not support: it marks seventeen real.
 
 Recording it here, in full, because §2 of `01-model.md` set the rule that corrections stay visible,
 and because the split between what the two methods caught is the most useful thing in this
@@ -752,10 +767,10 @@ document.
 | R1 | Set-subject grants: membership lives in no link of the chain, so children outlive it | **already closed**, and complemented | `08-identity.md` §5.1 |
 | R2 | `max_uses` cannot be enforced by an offline verifier, so it was a displayed limit nothing held | **real, worst of the set** | `08-identity.md` §6.2 |
 | R3 | `remaining_uses` is racy at issue time | real | `08-identity.md` §6.2 |
-| R4 | Cascade revocation: derived or materialized was never chosen | real | `08-identity.md` §6.3 |
+| R4 | Cascade revocation: derived or materialized was never chosen | real | `08-identity.md` §3.5, §6.3 |
 | R5 | Per-request authorization cost, and cache invalidation vs immediate revocation | real | `02-architecture.md` §5.1 |
 | R6 | Preempting a plan that is already applying | **real** | `03-state.md` §7 |
-| R7 | Power state inside the intent body turns config history into a power log | **real** | `01-model.md` §3.2 |
+| R7 | Power state inside the intent body turns config history into a power log | **real** | `01-model.md` §3.3 |
 | R8 | Effect PK and partition key fed by agent clocks | real | `03-state.md` §4 |
 | R9 | Auto-approval hides a policy engine inside the word "non-disruptive" | real | `01-model.md` §3.3 |
 | R10 | Proto3 canonical JSON omits defaults, inverting the immutability claim | **real** | `03-state.md` §3.1, `10-api.md` §4 |
@@ -776,8 +791,8 @@ review found **algebra** defects: a single document asserting a property its own
 support. Almost nothing appears on both lists, and the one thing that does, R1 and Finding 19, was
 reached from opposite directions on the same day.
 
-R2 is the clearest example and the most uncomfortable. Trace §1 follows a share link with
-`max_uses: 3` three separate times and never asks who holds the counter. A trace verifies that each
+R2 is the clearest example and the most uncomfortable. Trace §1 ends by issuing a share grant and
+never asks who holds its limits, and `max_uses` was one of them. A trace verifies that each
 step has an owner; it does not verify that a step is *possible*. The document that lectures every
 other document about displaying only what is enforced was displaying a limit nothing enforced, and
 it took someone reading the definitions rather than following the story.
@@ -801,10 +816,15 @@ is not a bottleneck: the gateway is stateless and horizontally scaled with no le
 `18-operations.md`), so the cost is throughput, not a serialization point. The invalidation gap
 underneath the argument was real and is fixed; the conclusion drawn from it was not.
 
-The review also suspected that `stable` puts a permanent hop in front of UDP game traffic. §4 of
+The review also suspected that `stable` puts a permanent hop in front of UDP game traffic. §3.1 of
 `07-networking.md` already had the edge co-resident with kernel-level forwarding for exactly this
 reason. What was genuinely missing was the word "default", which is now there, along with the
 statement that a remote edge is a deliberate choice with a stated cost.
+
+> Superseded 2026-10-12 by S39 in §17. The co-resident default defended here was itself wrong: a
+> co-resident edge stops forwarding when its workload migrates away, so `stable` now requires an
+> edge failover group, and the latency-first option is the separate, honestly labelled `node_bound`
+> mode. The reviewer's suspicion was closer to right than this paragraph allowed.
 
 The reviewer flagged three findings as unverifiable because they could not read
 `02-architecture.md`, `17-security.md`, or this document. Checked against those files: R5 was
@@ -822,7 +842,9 @@ finding ranked high was then checked against the files themselves, and every cla
 project against its primary source (the GitHub advisory and issue APIs, and runc's source). Nothing
 below is recorded on a reviewer's word alone.
 
-It found seventy-nine things. The table records each with its verdict and where it was patched.
+It found seventy-nine things, and all seventy-nine are patched. The table records each with its
+verdict and where it was patched, grouped by subsystem: the state core first, then identity, the
+data path and runtime, and last governance and evidence.
 
 | # | Finding | Verdict | Patched into |
 |---|---|---|---|
@@ -842,6 +864,7 @@ It found seventy-nine things. The table records each with its verdict and where 
 | S14 | No action for approving a plan, declaring configuration, exec, or reading a secret | real | `10-api.md` §5 |
 | S15 | Recorded denials were an unbounded, unmetered write path | real | `10-api.md` §10; `15-observability.md` §4 |
 | S16 | `01-model.md` had not absorbed later decisions: the flat `Quota`, `Endpoint` without `stable`, plan and observation states | real | `01-model.md` §3.1, §3.3, §3.6 |
+| S17 | R9's disruption classes and stream redaction relied on recipe fields `09-recipes.md` did not define | real | `09-recipes.md` §5, §5.1 |
 | S18 | Resolved open questions were left open, and questions routed to `15-observability.md` were dropped there | real | `01-model.md` §7; `02-architecture.md` §10; `03-state.md` §10; `05-scheduling.md` §10; `15-observability.md` §7 |
 | S65 | The agent protocol's "N-2" window did not survive an LTS-to-LTS upgrade | real | `10-api.md` §4; `18-operations.md` §4; `19-governance.md` §5 |
 | S78 | The `Quota` invariant said every dimension was kernel-enforced, which no count can be, and nobody owned the monthly egress budget | real | `01-model.md` §3.1 |
@@ -885,3 +908,54 @@ It found seventy-nine things. The table records each with its verdict and where 
 | S55 | "Two binaries" for an agent of several executables in two languages, with no versioning between them | real | `18-operations.md` §2; `02-architecture.md` §6.2; `10-api.md` §11 |
 | S67 | Nested virtualization was listed as a node requirement; bare metal needs only KVM | real | `18-operations.md` §2 |
 | S77 | The case for Rust at the boundary called a hard kernel error a race, and grouped seccomp with mechanisms it differs from | real | `21-stack.md` §4 |
+| S56 | Issue #141 was described in four places as open and unanswered since 2016; it was answered the same day and closed in three | **real, an evidence error** | `research/evidence.md` §1.6; `02-architecture.md` §1; `19-governance.md` §1, §7 |
+| S57 | The schema was frozen in Phase 0 while tenancy, the Recipe, and the config schema arrived in Phases 2 and 4, and providers were built before the contract they plug into | **real** | `20-roadmap.md` §2, §3, §4 |
+| S58 | "The licence forecloses an open-core pivot structurally" overstated what a licence can do: new proprietary components need no relicensing, and a sole copyright holder can relicense future versions | **real** | `19-governance.md` §2, §9; `LICENSE`; `CONTRIBUTING.md`; `README.md` |
+| S59 | "Using it unmodified obliges nothing" missed the obligations attached to conveying copies, the web client's bundle included | real | `00-overview.md` §5; `19-governance.md` §2; `11-surface-web.md` §7; `13-surface-cli.md` §8; `LICENSE` |
+| S60 | K-13 to K-19 were presented as derived from evidence and none was; K-19 restated K-8; K-18 leaned on an unsourced market claim | real | `research/evidence.md` §4; `00-overview.md` §6; `04-runtimes.md` §3 |
+| S61 | "Six of twelve" advisories: thirteen existed at the date, one CVE was counted twice, one advisory was missing, and one fix version was wrong | real | `research/evidence.md` §1.1; `00-overview.md` §3; `20-roadmap.md` §2 |
+| S62 | Five issues cited as current defects had been fixed in 2020 or 2022, or were not defects | real | `research/evidence.md` §1.2, §1.4, §5 |
+| S63 | `SECURITY.md` said every issue in the evidence file had been fixed | real | `SECURITY.md` |
+| S64 | The README's account of §16 disagreed with §16's own table, sixteen real against seventeen | real | `README.md`; `CONTRIBUTING.md`; `CLAUDE.md`; §16 |
+| S66 | Governance required two maintainers with independent rights from the first commit; the project has one | **real** | `19-governance.md` §6, §7, §9; `research/evidence.md` §1.7; `00-overview.md` §5, §6; `21-stack.md` §3 |
+| S68 | "About forty" open questions: 117 are recorded and 59 are open | real | `README.md`; `CONTRIBUTING.md`; `20-roadmap.md` §9 |
+| S69 | The licence was AGPLv3 in two places and AGPL-3.0-or-later in a third; the documents' CC BY licence appeared only in `LICENSE`, with no text | real | `00-overview.md` §5; `19-governance.md` §2; `README.md`; `LICENSE`; `LICENSE-CC-BY` |
+| S70 | The roadmap's graph disagreed with the documents' dependency headers and did not say which kind of dependency it drew | real | `20-roadmap.md` §3 |
+| S71 | The evidence file quoted a competitor's prices, which `CLAUDE.md` keeps out of the repository | real | `research/evidence.md` §3 |
+| S72 | Findings 7 and 8 still read `OPEN` in their traces, though §15 marked both patched | real | §4, §5 |
+| S73 | A table and several references pointed at the wrong thing: the install verb table listed a non-verb and omitted six verbs, and §16 cited wrong sections for R4, R7, and the edge | real | `09-recipes.md` §4; §16 |
+| S74 | "These are ordered; the higher number yields" made P10 the principle that yields to all the others | real | `00-overview.md` §3 |
+| S75 | `CLAUDE.md`'s removed-material check matched itself; the overview linked the evidence file twice in one sentence | real | `CLAUDE.md`; `00-overview.md` §6 |
+| S76 | Eight Wings advisories published after the evidence file's date, four of them in the classes K-1 and K-3 exist for | real, strengthens K-1 and K-3 | `research/evidence.md` §1.1, §1.2 |
+
+### What this review caught, and why the earlier methods could not
+
+Most of the seventy-nine are not new design errors. They are **patch-propagation defects**: a
+correction applied to the document that owned it and left standing in the documents that restated
+it. R7 moved power out of the intent body in `01-model.md`, and other documents kept starting a
+workload by changing its intent (S2). R11 corrected the epoch arithmetic in `03-state.md` and
+`18-operations.md` kept the wrong version (S9). R4 removed the subtree walk and the cache
+invalidation design brought it back (S10). The governance claims about maintainers, the licence, and
+#141 were each stated in one place and repeated, in slightly different words, in up to four.
+
+Neither earlier instrument could see this. A trace follows one story and checks that each step has
+an owner; it does not reread every document that mentions the step. An algebra review asks whether
+one document's definitions support its claims; a claim that is true in its owner and false in its
+copy passes in the owner and is never read in the copy. What finds them is reading everything
+against everything, and checking every external claim against its source rather than against the
+sentence that cited it. `CLAUDE.md` now requires a correction to reach every document that restates
+it, in the same commit.
+
+The evidence errors deserve their own sentence, because the evidence file is the document that holds
+every other to account. Nine of its citations were wrong, and all but one (a fix version) erred in
+the same direction: toward a stronger case against Pterodactyl than the record supports. None of the
+rules built on them fell, and two (K-1, K-3) are better supported now than when they were written,
+but a file that demands accuracy of others was the least accurate document in the repository, and
+that is recorded here rather than only fixed there.
+
+### What was not accepted
+
+Nothing. That is not because the review was infallible: every finding was checked against the
+files and the primary sources before it was recorded, so claims that did not survive were never
+entered, and this table cannot show what the review got wrong the way §16's could. That is a real
+loss of information, and the next review should record its rejected claims as §16 did.

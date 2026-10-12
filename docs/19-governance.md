@@ -1,7 +1,7 @@
 # Governance
 
 **Status:** design **Date:** 2026-08-07 **Depends on:** [`00-overview.md`](./00-overview.md),
-[`10-api.md`](./10-api.md) **Implements:** Rules K-8, K-13, K-19; Principle P10
+[`10-api.md`](./10-api.md) **Implements:** Rules K-8, K-13; Principle P10
 
 ---
 
@@ -12,17 +12,23 @@ stating without softening: **the architectural problems Korpis was designed arou
 The governance problems were not.**
 
 - A v2 rewrite was announced and abandoned.
-- Issue #141 has been open since October 2016: not rejected, not explained, open.
-- Correctness reports were closed as *not planned*, including a file 858 times larger than its
-  declared limit.
+- The control-plane/daemon contract was never written down. Asked in 2016 for third-party daemon
+  support (#141), the answer was that any daemon following "the same API style as the core daemon"
+  would work: the contract was whatever the reference implementation did.
+- Correctness reports were closed as *not planned* without a stated reason, including a file 858
+  times larger than its declared limit, closed in a batch of 86 issues on one day.
 - Decision-making concentrated to the point where the project's velocity was one person's
   availability, and when that became untenable, the outcome was a community fork rather than a
   transition.
 
-Every one of those is a process outcome. K-8 therefore makes license, versioning, and
-multi-maintainer governance **day-one decisions**, settled here, before the first release, because
+Every one of those is a process outcome. K-8 therefore makes license, versioning, compatibility, and
+maintainership **day-one decisions**, settled here, before the first release, because
 a project that defers governance until it has users is deferring it until the decision is
 contested.
+
+> Corrected 2026-10-12. The second bullet said #141 had been open since 2016, "not rejected, not
+> explained, open". It was answered the same day and closed three days later (§1.6 of
+> `research/evidence.md`). The finding it supports is the one stated now.
 
 ---
 
@@ -30,11 +36,15 @@ contested.
 
 Settled in §5 of `00-overview.md` and restated because this is where it belongs:
 
-| Layer | License |
-|---|---|
-| Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** |
-| Control plane, node agent, web/Discord/CLI clients | **AGPLv3** |
-| Recipes, extensions, themes | Author's choice, including proprietary |
+| Layer | License | Text |
+|---|---|---|
+| Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** | `LICENSE-APACHE` |
+| Control plane, node agent, relay, web/chat/CLI clients | **AGPL-3.0-or-later** | `LICENSE-AGPL` |
+| The documents in this repository, this one included | **CC BY 4.0** | `LICENSE-CC-BY` |
+| Recipes, extensions, themes | Author's choice, including proprietary | |
+
+The relay is named because it is a separate binary (§3.1 of `02-architecture.md`) and should not be
+left for a reader to place.
 
 ### DCO, not a CLA
 
@@ -48,16 +58,37 @@ closed, a different route to the outcome MIT permitted for Pterodactyl, and one 
 walked by several well-known projects since. Distributed copyright makes a future relicense require
 broad consent from contributors.
 
-**Stated plainly: this forecloses an open-core pivot.** Korpis cannot later gate features behind a
-paid edition, because doing so would require the agreement of everyone who ever contributed. P10
-and K-13 are not promises in a README that a future board can revise; they are enforced by the
-licence structure.
+**What the licence protects, and what is only policy.** Earlier versions of this section said the
+licence structure "forecloses an open-core pivot" and that P10 and K-13 were "enforced by the
+licence structure". That overstated it, and it is corrected here (2026-10-12):
+
+- **Protected by the licence:** code released under AGPL-3.0-or-later stays available under it.
+  Nobody, the maintainer included, can withdraw a released version, and nobody can take a
+  contributor's code proprietary without that contributor's consent.
+- **Not protected by the licence:** an open-core pivot does not need to relicense anything. It can
+  ship new proprietary components beside the open core, and the extension model of §5 of
+  `00-overview.md` explicitly permits proprietary extensions. And while one person has written all
+  of the code, that person holds all of the copyright and could release future versions under other
+  terms; distributed copyright constrains this only as other contributors' code accumulates.
+- **What prevents it is policy:** P10 and K-13, written in this repository. They are promises, made
+  in public and dated, and this document is honest that they are promises.
+- **"Or later":** the `-or-later` clause lets each recipient choose a later version of the AGPL
+  published by the Free Software Foundation. That is the FSF's power, not this project's, and the
+  licence requires later versions to be "similar in spirit"; it cannot turn Korpis proprietary.
 
 ### Forks are welcome
 
-Fork it, modify it, run it, sell hosting on it. The AGPL obligation arises only if you modify
-Korpis itself and offer the modified version over a network, in which case you publish the
-modifications. Using it unmodified obliges nothing at all.
+Fork it, modify it, run it, sell hosting on it. **Running** Korpis, unmodified, to serve your own
+customers obliges nothing. Two things do create AGPL obligations, and both are narrower than
+commonly feared:
+
+- **Modifying** Korpis and letting users interact with the modified version over a network (AGPL
+  section 13): offer those users the source of your version.
+- **Conveying** copies, which includes distributing binaries or the CLI, and the web client's
+  JavaScript bundle that a browser downloads (sections 4 to 6): pass on the licence and make the
+  corresponding source available. Every Korpis build states the exact source revision it was built
+  from and where to get it, in `korpis version` (§8 of `13-surface-cli.md`) and at the web client's
+  `/about/source` (§7 of `11-surface-web.md`), so an unmodified deployment meets this as shipped.
 
 **Hosts are not blocked, restricted, capped, or charged. That is the entire point of P10**: no
 per-workload, per-node, per-instance, per-account, or per-domain anything, at any scale, forever.
@@ -130,40 +161,52 @@ A deprecation that only appears in release notes is a deprecation nobody saw.
 
 ## 6. Maintainership, and the bus factor
 
-The rules below exist because "the maintainer got busy" is the documented cause of the failure in
-§1, and no amount of code quality compensates for it.
+**Korpis has one maintainer.** That is stated first because §1's finding is that a project whose
+velocity is one person's availability fails in a specific way, and a governance document that
+described a two-maintainer rule the project could not keep would be the same failure written down.
 
-**Two maintainers with independent, complete rights from the first commit.** Not a lead and a
-helper. Two people who can each cut a release, sign an artifact, and merge to a release branch, and
-neither of whom can do so alone:
+> Corrected 2026-10-12. Earlier versions of this section required "two maintainers with
+> independent, complete rights from the first commit" and forbade any single person from merging
+> to a release branch. That described a project that does not exist. The rules below are the ones
+> that can be kept, and they say what changes when a second maintainer exists.
 
-> **No single person merges to a release branch.** Every release-branch change requires a second
-> maintainer's approval, including the founder's, including trivial changes, including during an
-> incident. An exception process for security fixes exists, is time-boxed, and requires
-> retrospective review by the second maintainer.
+**What substitutes for a second reviewer, while there is none.** Not a promise of care; mechanisms:
 
-**Infrastructure ownership is written down and is not one person's account.** This is the real bus
-factor, not code review, but who can log in:
+- Every change to a release branch passes the full conformance suites (§8) in CI, and a release is
+  cut only from a green build.
+- Builds are reproducible from the repository, and every release artifact is signed and recorded in
+  a public transparency log, so anyone can check that a release is what the tagged source produces.
+- Security fixes are published with the advisory detail of §8 and are open to retrospective review
+  by anyone; a fix made in private under embargo is reviewed in public the day it is disclosed.
+- Changes to the subjects listed in §7 still go through a written proposal and a comment period,
+  which is the one form of review that one maintainer can always obtain.
+
+**Infrastructure is held so that it outlives one person's account.** This is the real bus factor:
+not who reviews, but who can log in.
 
 | Asset | Requirement |
 |---|---|
-| domain registration | organization-held, at least two people with access |
-| registry namespaces (recipes, extensions, images) | organization-held |
-| release signing keys | split or escrowed; no single-holder key |
+| domain registration | registered to the project, with a recovery contact recorded in the succession document |
+| registry namespaces (recipes, extensions, images) | held by an organization account, never a personal one |
+| release signing keys | an offline root key with an escrowed copy; online release keys are subkeys that the root can rotate |
 | CI and build infrastructure | reproducible from configuration in the repository |
-| package repositories | organization-held |
-| the source repository organization | at least two owners |
+| package repositories | held by an organization account |
+| the source repository organization | the maintainer plus a recovery owner who holds no commit rights |
 
-A project whose signing key exists on one laptop has a bus factor of one regardless of how many
-maintainers review pull requests.
+**Succession is documented before it is needed.** A succession document in the repository names
+who receives access if the maintainer is unreachable for a stated period, what they are entitled
+to do with it (keep the lights on, publish security fixes, hand the project on), and what they are
+not (change the licence policy, P10, or K-13). Until it exists, the project is not ready for a
+first release, and §9 of `20-roadmap.md` lists it as a release blocker.
 
-**Succession is documented before it is needed.** How a maintainer is added, how an inactive one
-moves to emeritus, and what happens if everyone with access is unreachable at once. Maintainers are
-added for sustained contribution and judgement, not for volume.
+**How a second maintainer is added.** For sustained contribution and judgement, not for volume,
+with the proposal process of §7. When there are two, the rules tighten automatically rather than by
+a new decision: release signing becomes a two-of-*n* threshold, every release-branch change needs a
+second maintainer's approval, and the recovery owner of the table above becomes a maintainer.
 
 **No foundation initially.** Standing one up before there is anything to steward is expensive
 ceremony. But the assets above are held so that transferring them to a neutral entity later is a
-transfer rather than a negotiation, which is the other reason there is no CLA.
+transfer rather than a negotiation.
 
 ---
 
@@ -177,14 +220,18 @@ The rule that matters most is about the decisions that are never made:
 
 > **Silence is not a decision, and an untriaged issue is a process failure rather than a backlog
 > item.** Every issue receives a triage response within a published window. "We are not going to do
-> this, because, " is a good outcome. Nine years open is not.
+> this, because, " is a good outcome. A batch closure with no reason given is not.
 
-Issue #141 was not harmed by being declined. It was harmed by never being answered.
+**Closing as *not planned* requires a stated reason, written on the issue.** Closing a
+*correctness or security* report as not planned also requires the rationale to be recorded in the
+next release notes, where users of the affected behaviour will see it, and, once there are two
+maintainers, a second maintainer's agreement. The 858 GB-over-quota report (#4554) is the reason:
+it had been explained in a comment two years earlier, and was then closed as not planned without a
+word, in a batch of 86 issues closed on one day in May 2024. It is the clearest example in the
+research of a process producing an outcome nobody would have chosen deliberately.
 
-**Closing as *not planned* requires a stated reason.** Closing a *correctness or security* report
-as not planned requires **two maintainers and a written rationale**, because that is precisely what
-happened to the 858 GB-over-quota report, and it is the single clearest example in the research of
-a process producing a technical outcome nobody would have chosen deliberately.
+> Corrected 2026-10-12. This section used #141 as its example of an issue harmed by never being
+> answered. #141 was answered the same day (§1.6 of `research/evidence.md`).
 
 The roadmap is public, dated, and says what is *not* being done, §2 of `00-overview.md` is the
 permanent version of that, and per-release scope is the temporary one.
@@ -193,11 +240,11 @@ permanent version of that, and per-release scope is the temporary one.
 
 ## 8. Contribution
 
-The conformance suites are the contribution gate and the reason this scales past the founding
-maintainers. A runtime driver is accepted if it passes the driver suite (§8 of `04-runtimes.md`);
-an agent implementation is conforming if it passes the agent suite (§11 of `10-api.md`). Neither
-requires a maintainer to hold the whole system in their head to review, which is the bottleneck
-that throttles projects of this size.
+The conformance suites are the contribution gate and the reason this scales past one maintainer. A
+runtime driver is accepted if it passes the driver suite (§8 of `04-runtimes.md`); an agent
+implementation is conforming if it passes the agent suite (§11 of `10-api.md`). Neither requires a
+maintainer to hold the whole system in their head to review, which is the bottleneck that throttles
+projects of this size.
 
 Documentation lives in the repository and changes with the code. A behaviour change that does not
 update the document describing it is incomplete, and the twenty-four documents in this directory
@@ -213,7 +260,8 @@ reachable, what it affected, which versions, and what the fix changed.
 
 This is the largest unresolved risk in the project and it is not a technical one.
 
-P10 forbids taxing growth and §2 forecloses open-core, which together remove every revenue
+P10 forbids taxing growth and K-13 rules out open-core as policy (§2 says what the licence adds
+and what it does not), which together remove every revenue
 mechanism the commercial products in this market use, per-server, per-machine, per-instance,
 per-account, and per-domain licensing, and reselling restrictions below a top tier. That is the
 point rather than an oversight: Pterodactyl took this market by removing the tax, and imposing one
@@ -226,8 +274,9 @@ by parties who want them, delivered into the open project.
 **Several projects have died in exactly this position, and pretending otherwise would violate P4 in
 the one document where the honesty matters most.** The mitigations are structural rather than
 hopeful: costs stay low because Korpis operates no infrastructure (no marketplace, no registry, no
-telemetry backend, no hosted service) and the maintainer rules in §6 mean the project can survive
-any individual's economics changing.
+telemetry backend, no hosted service), and the succession document of §6 is what lets the project
+outlive one person's economics changing. With one maintainer that is the weakest point in this
+section, and it is stated rather than hidden.
 
 ---
 
@@ -254,3 +303,6 @@ any individual's economics changing.
 5. **LTS security backport scope.** Twenty-four months of "security and correctness" needs a line
    between a correctness fix and a behaviour change, or the LTS branch drifts into a second
    product. → here
+6. **Dormancy.** §6 covers a maintainer who is unreachable. A maintainer who is reachable and has
+   stopped is harder: what counts as dormant (no release, no triage, for how long), and whether the
+   trademark policy of §3 then lets a successor fork use the name, is unwritten. → here

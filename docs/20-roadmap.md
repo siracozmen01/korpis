@@ -6,7 +6,7 @@
 
 ## 1. This is order, not scope
 
-Everything described in the twenty preceding documents ships. Nothing here removes anything; this
+Everything described in the other twenty-three documents ships. Nothing here removes anything; this
 document decides only what is built before what, and why that particular sequence rather than a
 more comfortable one.
 
@@ -17,7 +17,7 @@ parts first is a commitment to all of them by default.**
 
 ---
 
-## 2. Four ordering rules
+## 2. Five ordering rules
 
 **A. Anything that shapes stored history goes first.** `Intent`, `Plan`, and `Effect` determine
 what the system can ever say about its own past. A system that mutated state directly for six
@@ -30,8 +30,21 @@ before anyone has deployed it costs a week. Getting it wrong afterwards costs a 
 everyone's trust.
 
 **C. A security boundary is built before the thing it protects, never after.** Privilege separation
-in the agent, kernel confinement, and grant evaluation are not hardening passes. Six of twelve
-Wings advisories are one class that exists because the boundary was drawn after the feature worked.
+in the agent, kernel confinement, and grant evaluation are not hardening passes. The largest class
+of Wings advisories, six of twenty-one, exists because the boundary was drawn after the feature
+worked.
+
+**E. A schema is frozen whole, even when it is implemented in parts.** Phase 0 freezes the API
+schema (rule B), so every field a later phase needs must already be in it: the recursive tenancy
+model, the grant with its delegation policy, the full Recipe and its config schema. A later phase
+implements more of a schema; it never changes one. And an interface that later features plug into
+is built before the first of them, so that nothing is written in-core and moved out afterwards: the
+extension contract's core precedes the first backup target, identity provider, and step provider.
+
+> Corrected 2026-10-12 (second external review, S57). The first version of this document froze the
+> schema in Phase 0 while organizations, the Recipe, and the config schema arrived in Phases 2 and
+> 4, and built S3 backup targets (Phase 1) and OIDC (Phase 2) before the extension contract they are
+> providers of (Phase 4). Rule E is the rule both violated, and the phases below follow it.
 
 **D. The second implementation of an interface is the test of the interface, and it must be the
 most *different* one available.** Not the easiest second one. After the `oci` driver, the driver
@@ -48,48 +61,62 @@ called stable.
 
 ## 3. Dependency graph
 
+An arrow means *built before*: the thing at the head needs the thing at the tail to exist.
+
 ```
-  10-api ──────────────────────────────────────────────┐
-  (schema, protocol, versioning)                       │
-     │                                                 │
-     ├─→ 01-model ─→ 03-state ─→ 02-architecture ──┐    │
-     │   (nouns)     (Postgres,   (control/data,   │    │
-     │               I/P/E)        leases)         │    │
-     │                                             │    │
-     └─→ 08-identity ──────────────────────────────┤    │
-         (grants, evaluated by everything)        │    │
-                                                   ↓    ↓
-                              04-runtimes ─→ 17-security
-                              (drivers)      (boundaries)
-                                   │
-        ┌──────────────────────────┼──────────────────────────┐
-        ↓                          ↓                          ↓
-  06-storage                 05-scheduling               07-networking
-  (volumes, quota,           (placement, drain,          (endpoints,
-   backup)                    migration, Operation)       exposure, egress)
-        │                          │                          │
-        └──────────────┬───────────┴──────────────────────────┘
-                       ↓
-                 14-streams ─→ 15-observability
-                 (console)     (metering, audit)
-                       │
-        ┌──────────────┼──────────────┬───────────────┐
-        ↓              ↓              ↓               ↓
-  13-surface-cli  11-surface-web  12-surface-discord  16-extensions
-  (reference)                                          │
+  10-api: every schema, frozen whole (rules B and E)
+  │   01-model's nouns; 08-identity's grant and recursive tenancy schema;
+  │   09-recipes' Recipe and config schema
+  │
+  ├─→ 03-state ─→ 02-architecture ─→ 17-security ─→ 04-runtimes
+  │   (Postgres,   (protocol, leases,  (privilege      (driver interface,
+  │    I/P/E)       assignment,         separation,     `oci`, inside the
+  │                 journal)            confinement)    boundary, rule C)
+  ├─→ 08-identity (grant evaluation, capability tokens)
+  └─→ 13-surface-cli (the reference client)                     Phase 0
+        │
+        ↓
+  16-extensions, the contract core (process model, permissions, providers)
+        │
+        ├─→ 06-storage (backup targets are providers) ─┐
+        ├─→ 05-scheduling        07-networking ────────┤
+        ├─→ 02-architecture §3.1 (the relay) ─→ 14-streams
+        └─→ 09-recipes (install DSL; step providers) ──┤
                                                        ↓
-                                                  09-recipes
-                                                  (step providers,
-                                                   config schema)
+                                              11-surface-web    Phase 1
+        │
+        ↓
+  08-identity in full (delegation, external identity as providers)
+  15-observability (metering, tenant audit)                     Phase 2
+        │
+        ↓
+  04-runtimes' second driver; 05-scheduling §8 (migration);
+  07-networking §3.1 (edge failover groups, `stable`)           Phase 3
+        │
+        ↓
+  16-extensions in full (actions, UI slots, delegated install, distribution);
+  09-recipes' distribution and egg import; the chat client      Phase 4
 
   18-operations and 19-governance apply throughout, not after.
 ```
 
+**This is build order, not reading order, and the two differ on purpose.** The `Depends on` line
+at the top of each document records which documents a *reader* needs first. `03-state.md` depends
+on `02-architecture.md`, because the store is argued from the protocol's needs; here the store is
+built first, because the protocol writes to it. `16-extensions.md` depends on `09-recipes.md`,
+because an extension is packaged as a recipe; here the contract core comes first, because the
+install DSL's escape hatch is a provider. Neither is wrong; they answer different questions.
+
+> Corrected 2026-10-12 (second external review, S70). The first version of this graph was presented
+> without saying which kind of dependency it showed, and it disagreed with the document headers
+> without explanation.
+
 `10-api` is at the root because the schema is the only artifact every other component shares.
 `08-identity` reaches everything because authorization is evaluated on every call in every document
-above. `09-recipes` sits late not because it is unimportant; it is how anything actually gets
-installed, but because its escape hatch is extension-provided step providers, and building it
-before the extension contract exists would bake in a worse escape hatch.
+above. `09-recipes` is split across three phases: its schema in Phase 0, because every intent names
+a recipe and is shaped by its config schema; its install DSL in Phase 1, built on the contract core
+so that its escape hatch is a provider from the start; and its distribution tooling and egg import
+in Phase 4, with the ecosystem they serve.
 
 ---
 
@@ -97,10 +124,16 @@ before the extension contract exists would bake in a worse escape hatch.
 
 ### Phase 0: The parts that cannot be retrofitted
 
-Schema and protocol. PostgreSQL with `Intent`/`Plan`/`Effect`, immutability enforced by the
-database. Grants, attenuation, and capability tokens. The agent, dialling out, level-triggered,
-with full privilege separation and lease fencing from the first commit. One runtime driver (`oci`),
-excellent. The CLI.
+**Every schema, complete, and the protocol.** The full domain model of `01-model.md`, including
+recursive organizations and quota sets; the grant schema with its delegation policy and conditions;
+the full Recipe and its config schema; the agent protocol with assignments, plans, and the node
+journal. Phase 0 implements only what its done-when needs, but no later phase adds a field to a
+schema frozen here (rule E).
+
+PostgreSQL with `Intent`/`Plan`/`Effect`, immutability enforced by the database. Grants,
+attenuation, and capability tokens. The agent, dialling out, level-triggered, with full privilege
+separation and lease fencing from the first commit. One runtime driver (`oci`), excellent, running
+thin recipes. The CLI.
 
 **No web client in Phase 0.** This will look wrong and it is the most important ordering decision
 in the document. §1 of `13-surface-cli.md` makes the CLI the reference client precisely so that P2
@@ -116,10 +149,17 @@ That is the smallest artifact that proves the entire thesis.
 
 ### Phase 1: Usable by one operator on one machine
 
-Web client. Durable streams and console. Volumes with kernel-enforced byte and inode quota,
-snapshots, and content-defined-chunking backup. Scheduling: filter, score, bind, with
-`Explanation`; cordon and drain. Networking: `node_port` and `stable` exposure, default-deny
-egress.
+**The extension contract's core first**: extensions as workloads, permissions as grants declared
+at install, event consumers, and the provider interfaces (§3 to §6 of `16-extensions.md`). Every
+backup target, DNS provider, and step provider is a provider from the first one, so nothing is
+written in-core and moved out later (rule E).
+
+Then: the relay tier (§3.1 of `02-architecture.md`), which every console and file transfer runs
+through. The web client. Durable streams and console. Volumes with kernel-enforced byte and inode
+quota, snapshots, and content-defined-chunking backup with per-workload keys. The install DSL with
+its built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain.
+Networking: `node_port` and `node_bound` exposure, and the default egress policy of §6 of
+`07-networking.md`.
 
 **Done when:** the single-machine constraint of §1 of `18-operations.md` is real, install, run
 workloads, back them up, restore them, and read an honest console, with every displayed limit
@@ -144,7 +184,7 @@ machine the answer is a local resolver and the semantics are the same.
 
 Organizations and recursive delegation. `GrantTemplate`. `IdentityBinding` and role-to-template
 mapping. Quota sets. Metering, with the exactness guarantees of §2 of `15-observability.md`.
-Tenant-visible audit. External identity through OIDC.
+Tenant-visible audit. External identity through OIDC, as a provider on the Phase 1 contract core.
 
 **The chat client is not here.** It is a first-party extension and ships in Phase 4 (§10 of
 `12-surface-discord.md`). What Phase 2 owes it is the machinery (external identity mapped to
@@ -158,17 +198,19 @@ created anywhere.
 ### Phase 3: Isolation as a choice, and workloads that move
 
 The `firecracker` driver. Rule D's validation of the driver interface. Migration, all seven phases,
-resumable and reversible (K-4). Replicated storage classes. Edge forwarding, so a `stable` endpoint
-survives the move. Devices, including GPU.
+resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
+`stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
+`07-networking.md`). Devices, including GPU.
 
 **Done when:** a running workload with a 40 GB volume moves between nodes, keeps its public
 address, and its meter neither resets nor double-counts across the cutover.
 
 ### Phase 4: The ecosystem
 
-The extension contract, with the core extensions of §2 of `16-extensions.md` built through it and
-not beside it. Recipes as OCI artifacts, signing, the install DSL, the config schema, egg import
-with its three grades.
+The extension contract in full: actions and commands, UI slots, installation inside a delegated
+tree, and distribution (§4.1, §5, §8 of `16-extensions.md`), with the core extensions of §2 built
+through it and not beside it. Recipes as OCI artifacts at ecosystem scale: publishing, signing
+tooling, and egg import with its three grades.
 
 The chat client lands here, as an extension, alongside the chat-adapter provider interface.
 
@@ -225,7 +267,7 @@ wrong. *Resolves: Phase 2.*
 incumbents use and that projects have died in this position. Structural mitigation: Korpis operates
 no infrastructure, so its costs are near zero. *Never fully resolves.*
 
-**3. Scope against a small team.** Twenty-one documents is a large model. The mitigation is Rules
+**3. Scope against one maintainer.** Twenty-four documents is a large model. The mitigation is Rules
 A–D: the expensive-to-retrofit parts are small and early, and the large parts (drivers, storage
 classes, exposure modes, surfaces, extensions) are additive behind interfaces that Phase 0 and
 Phase 3 prove. *Continuously managed.*
@@ -233,8 +275,9 @@ Phase 3 prove. *Continuously managed.*
 **4. Plan latency.** Bet 3's failure mode. *Resolves: Phase 1.*
 
 **5. The protocol freezing wrong.** Rule B puts the protocol first, which means it is designed with
-the least implementation experience. The conformance suite and the N-2 window bound the damage;
-nothing eliminates it. *Resolves: Phase 3, when the second driver and migration stress it.*
+the least implementation experience. The conformance suite and the agent-protocol support window (§4
+of `10-api.md`) bound the damage; nothing eliminates it. *Resolves: Phase 3, when the second driver
+and migration stress it.*
 
 ---
 
@@ -304,24 +347,29 @@ than architecture.
 
 | Document | State |
 |---|---|
-| `docs/research/evidence.md` | complete: evidence, confidence-tagged, rules K-1…K-12 |
+| `docs/research/evidence.md` | complete: evidence, confidence-tagged, rules K-1…K-12, and the stated basis of K-13…K-18 |
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
-| `docs/21-stack.md` | complete: languages, derived from where the boundary sits |
+| `docs/21-stack.md` | **reopened**: the language question is under review (question 6 of `21-stack.md`) |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fourteen traces, twenty-three findings, all patched |
+| `docs/23-walkthroughs.md` | complete: fourteen traces and their findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
-| `LICENSE` | complete: the split, and what it means for a host |
+| `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
+| succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not Phase 0 |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 
-Roughly forty numbered open questions remain, distributed across the documents, each assigned to
-the one that will settle it. They are the design's honest edges, not omissions: an open question
-with an owner is a decision deferred deliberately, and every one of them was recorded where the
-person who hits it will find it.
+Fifty-nine numbered open questions remain open, of 117 recorded, distributed across the documents,
+each assigned to the one that will settle it. They are the design's honest edges, not omissions: an
+open question with an owner is a decision deferred deliberately, and every one of them was recorded
+where the person who hits it will find it.
 
-**Everything that blocks Phase 0 is closed.** The intent body's representation (§3.1 of
-`03-state.md`), whether the agent caches grants (§10 of `02-architecture.md`: it does not, it
-verifies tokens), break-glass access during an outage (a local socket, not a listener), and every
-component's language (`21-stack.md`) are settled. What is left open belongs to phases that have not
-started.
+**One question blocks Phase 0: the implementation language.** The intent body's representation
+(§3.1 of `03-state.md`), whether the agent caches grants (§10 of `02-architecture.md`: it does not,
+it verifies tokens), and break-glass access during an outage (a local socket, not a listener) are
+settled. Question 6 of `21-stack.md` was reopened on 2026-10-12 for a review of Go plus Rust
+against Rust throughout, and nothing is built until it closes. Everything else left open belongs to
+phases that have not started.
+
+> Corrected 2026-10-12. This said everything blocking Phase 0 was closed, including every
+> component's language; that stopped being true when question 6 of `21-stack.md` was reopened.
 
 The model is drawn. What remains is to build it.

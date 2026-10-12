@@ -51,7 +51,7 @@ at any scale, ever. No editions, no gated features, no commercial-use restrictio
 ## Start here
 
 **[`00-overview.md`](./docs/00-overview.md)**: what Korpis is, what it deliberately is *not*, ten
-ordered principles, four falsifiable bets, and nineteen rules derived from evidence.
+principles, four falsifiable bets, and eighteen binding rules, twelve of them derived from evidence.
 
 Then whichever of these you actually care about:
 
@@ -59,7 +59,7 @@ Then whichever of these you actually care about:
 |---|---|
 | Does the model hold together? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
 | Is it safe? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): fourteen scenarios traced end to end, and the twenty-three defects that found |
+| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): fourteen scenarios traced end to end, the defects they found, and two external reviews |
 | Could I run it? | [`18-operations.md`](./docs/18-operations.md) |
 | Could I build on it? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
 | What gets built first? | [`20-roadmap.md`](./docs/20-roadmap.md) |
@@ -69,14 +69,14 @@ Then whichever of these you actually care about:
 Full map in §7 of the overview.
 
 ```
-README.md CONTRIBUTING.md SECURITY.md LICENSE   entry points, review policy, disclosure, licensing
+README.md CONTRIBUTING.md SECURITY.md LICENSE*  entry points, review policy, disclosure, licensing
 CLAUDE.md                                       the rules anyone editing these documents works under
 docs/00-overview.md .. docs/23-walkthroughs.md  the specification, numbered in dependency order
 docs/research/evidence.md                       the citations every deviation is argued from
 ```
 
-**The open questions are the point, not the gaps.** About forty are recorded across the documents,
-each one filed in the document that will settle it. A deferred decision with a name on it is
+**The open questions are the point, not the gaps.** Fifty-nine are open across the documents, each
+one filed in the document that will settle it. A deferred decision with a name on it is
 honest. An undeclared one is a trap someone walks into later.
 
 ---
@@ -89,10 +89,11 @@ notice.
 Nobody should take a specification on trust because of who or what produced it, so here is what was
 actually done to make it worth reading:
 
-- **Every deviation is argued from something citable.** The rules in §6 of the overview each trace
-  to a published advisory, a specific issue, or documented product behaviour, collected in
-  [`docs/research/evidence.md`](./docs/research/evidence.md) with confidence tags. Sources that
-  turned out to be SEO content are marked as such and not relied on.
+- **Every deviation is argued from something citable, or says it is a decision.** Rules K-1 to K-12
+  in §6 of the overview each trace to a published advisory, a specific issue, or documented product
+  behaviour, collected in [`docs/research/evidence.md`](./docs/research/evidence.md) with
+  confidence tags. K-13 to K-18 are policy and design decisions, and that file states what each
+  rests on. Sources that turned out to be SEO content are marked as such and not relied on.
 - **The design was attacked on purpose.** [`23-walkthroughs.md`](./docs/23-walkthroughs.md) traces
   fourteen concrete scenarios across every layer they touch, looking specifically for the step
   where no document is holding the ball. It found twenty-three defects, including a quota race,
@@ -101,10 +102,17 @@ actually done to make it worth reading:
   fixed, and the walkthrough documents them rather than quietly patching them.
 - **A second reading attacked the definitions rather than the seams.** An independent review by a
   different model went after the algebra inside each document: what evaluates this condition, with
-  what information, and can it. It found nineteen things, sixteen of them real, including a limit
+  what information, and can it. It found nineteen things, seventeen of them real, including a limit
   the identity document displayed that no verifier could enforce. All are patched, and §16 of
   [`23-walkthroughs.md`](./docs/23-walkthroughs.md) records every one along with the two claims
   that did not survive checking.
+- **Then the whole thing was read again, against itself and against its sources.** A second
+  review read every document against every other and checked every claim about another project
+  against the primary source. It found seventy-nine things: protocol mechanics that earlier fixes
+  had left half-applied, a data path that contradicted the dial-out design, and nine wrong
+  citations in the evidence file itself, including an issue described as unanswered that had been
+  answered the same day. §17 of [`23-walkthroughs.md`](./docs/23-walkthroughs.md) records each
+  one and where it was fixed.
 - **Corrections are left visible.** §2 of [`01-model.md`](./docs/01-model.md) is a record of an
   earlier proposal in this repository being wrong and why. Nothing is presented as having been
   obvious.
@@ -136,14 +144,17 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Security policy: [`SECURITY.md`](./S
 | Layer | License |
 |---|---|
 | Protocol definitions, client SDKs, recipe format, agent protocol | **Apache-2.0** |
-| Control plane, node agent, web / CLI / chat clients | **AGPL-3.0** |
+| Control plane, node agent, relay, web / CLI / chat clients | **AGPL-3.0-or-later** |
+| These documents | **CC BY 4.0** |
 | Recipes, extensions, themes | Author's choice, proprietary included |
 
 Plainly, because AGPL gets misread as a restriction on use: **run it commercially, sell capacity on
-it, charge what you like, build closed extensions against it. You owe nothing.** The obligation
-appears only if you modify Korpis itself and offer the modified version over a network, in which
-case you publish those modifications.
+it, charge what you like, build closed extensions against it.** Running it unmodified for your
+customers obliges nothing. Modifying it and offering the modified version over a network means
+offering its users your source; distributing copies means the source goes with them, which an
+unmodified build already arranges.
 
-Contributions come in under a Developer Certificate of Origin. There is no CLA and no copyright
-assignment, which deliberately makes a future open-core pivot impossible. See §2 of
-[`19-governance.md`](./docs/19-governance.md).
+Contributions come in under a Developer Certificate of Origin, with no CLA and no copyright
+assignment, so nobody can relicense a contributor's code without them. The licence does not by
+itself rule out an open-core pivot; the project's policy (P10, K-13) does, and §2 of
+[`19-governance.md`](./docs/19-governance.md) says which is which.

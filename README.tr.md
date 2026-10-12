@@ -56,8 +56,8 @@ kullanım kısıtı yok.
 
 ## Buradan başla
 
-**[`00-overview.md`](./docs/00-overview.md)**: Korpis'in ne olduğu, bilerek ne *olmadığı*, sıralı
-on ilke, yanlışlanabilir dört bahis ve kanıttan türetilmiş on dokuz kural.
+**[`00-overview.md`](./docs/00-overview.md)**: Korpis'in ne olduğu, bilerek ne *olmadığı*, on ilke,
+yanlışlanabilir dört bahis ve on ikisi kanıttan türetilmiş, bağlayıcı on sekiz kural.
 
 Sonrası, gerçekten neyi merak ettiğine bağlı:
 
@@ -65,7 +65,7 @@ Sonrası, gerçekten neyi merak ettiğine bağlı:
 |---|---|
 | Model tutarlı mı? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
 | Güvenli mi? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Gerçekle temasa dayanıyor mu?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): uçtan uca izlenen on dört senaryo ve bulduğu yirmi üç kusur |
+| **Gerçekle temasa dayanıyor mu?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): uçtan uca izlenen on dört senaryo, buldukları kusurlar ve iki dış inceleme |
 | Çalıştırabilir miyim? | [`18-operations.md`](./docs/18-operations.md) |
 | Üstüne bir şey inşa edebilir miyim? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
 | Önce ne yapılacak? | [`20-roadmap.md`](./docs/20-roadmap.md) |
@@ -75,15 +75,15 @@ Sonrası, gerçekten neyi merak ettiğine bağlı:
 Tam harita genel bakışın §7'sinde.
 
 ```
-README.md CONTRIBUTING.md SECURITY.md LICENSE   giriş noktaları, inceleme politikası, bildirim, lisans
+README.md CONTRIBUTING.md SECURITY.md LICENSE*  giriş noktaları, inceleme, bildirim, lisans
 CLAUDE.md                                       bu dokümanları düzenleyen herkesin uyduğu kurallar
 docs/00-overview.md .. docs/23-walkthroughs.md  spesifikasyon, bağımlılık sırasına göre numaralı
 docs/research/evidence.md                       her sapmanın dayandığı kaynaklar
 ```
 
-**Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış yaklaşık kırk tane var; her biri
-onu karara bağlayacak dokümanın içine yazıldı. Üzerinde adı olan ertelenmiş bir karar dürüsttür.
-Beyan edilmemiş olan ise birinin sonradan içine düşeceği bir tuzaktır.
+**Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli dokuz açık soru var; her
+biri onu karara bağlayacak dokümanın içine yazıldı. Üzerinde adı olan ertelenmiş bir karar
+dürüsttür. Beyan edilmemiş olan ise birinin sonradan içine düşeceği bir tuzaktır.
 
 ---
 
@@ -95,11 +95,12 @@ daha doğru.
 Hiç kimse bir spesifikasyona onu kimin ya da neyin ürettiğine bakarak güvenmemeli. O yüzden,
 okumaya değer olması için fiilen ne yapıldığı:
 
-- **Her sapma alıntılanabilir bir şeyden argümanla türetildi.** Genel bakışın §6'sındaki kuralların
-  her biri yayımlanmış bir güvenlik bildirimine, belirli bir issue'ya veya belgelenmiş ürün
-  davranışına dayanır; hepsi [`docs/research/evidence.md`](./docs/research/evidence.md) içinde
-  güven etiketleriyle toplandı. SEO içeriği çıkan kaynaklar öyle işaretlendi ve hiçbir şeye dayanak
-  yapılmadı.
+- **Her sapma alıntılanabilir bir şeyden türetildi ya da bir karar olduğunu söylüyor.** Genel
+  bakışın §6'sındaki K-1 ile K-12 arasındaki kuralların her biri yayımlanmış bir güvenlik
+  bildirimine, belirli bir issue'ya veya belgelenmiş ürün davranışına dayanır; hepsi
+  [`docs/research/evidence.md`](./docs/research/evidence.md) içinde güven etiketleriyle toplandı.
+  K-13 ile K-18 politika ve tasarım kararlarıdır ve aynı dosya her birinin neye dayandığını yazar.
+  SEO içeriği çıkan kaynaklar öyle işaretlendi ve hiçbir şeye dayanak yapılmadı.
 - **Tasarıma kasıtlı olarak saldırıldı.** [`23-walkthroughs.md`](./docs/23-walkthroughs.md) on dört
   somut senaryoyu dokundukları her katman boyunca izler ve özellikle hiçbir dokümanın topu
   tutmadığı adımı arar. Yirmi üç kusur buldu: bir kota yarışı, geri yüklemeden sonra dirilebilen
@@ -108,10 +109,17 @@ okumaya değer olması için fiilen ne yapıldığı:
   dokümanı onları sessizce yamamak yerine kayda geçirdi.
 - **İkinci bir okuma dikişlere değil tanımlara saldırdı.** Farklı bir modelle yapılan bağımsız bir
   inceleme, her dokümanın kendi cebrini hedef aldı: bu koşulu ne, hangi bilgiyle değerlendiriyor ve
-  değerlendirebilir mi. On dokuz şey buldu, on altısı gerçekti; aralarında kimlik dokümanının
+  değerlendirebilir mi. On dokuz şey buldu, on yedisi gerçekti; aralarında kimlik dokümanının
   gösterdiği ama hiçbir doğrulayıcının uygulayamayacağı bir limit de vardı. Hepsi yamandı ve
   [`23-walkthroughs.md`](./docs/23-walkthroughs.md) §16 hem her birini hem de denetimden geçemeyen
   iki iddiayı kayda geçirdi.
+- **Sonra her şey yeniden okundu, hem kendisine hem kaynaklarına karşı.** İkinci bir inceleme her
+  dokümanı diğer her dokümana karşı okudu ve başka bir projeye dair her iddiayı birincil kaynağıyla
+  karşılaştırdı. Yetmiş dokuz şey buldu: önceki düzeltmelerin yarım bıraktığı protokol mekanikleri,
+  dışarı arama tasarımıyla çelişen bir veri yolu ve kanıt dosyasının kendisinde dokuz yanlış atıf;
+  aralarında yanıtsız denilen ama aynı gün yanıtlanmış bir issue da var.
+  [`23-walkthroughs.md`](./docs/23-walkthroughs.md) §17 her birini ve nerede düzeltildiğini
+  kaydeder.
 - **Düzeltmeler görünür bırakıldı.** [`01-model.md`](./docs/01-model.md) §2, bu depodaki daha eski
   bir önerinin neden yanlış olduğunun kaydıdır. Hiçbir şey baştan belliymiş gibi sunulmuyor.
 
@@ -142,17 +150,20 @@ Bkz. [`CONTRIBUTING.md`](./CONTRIBUTING.md). Güvenlik politikası: [`SECURITY.m
 | Katman | Lisans |
 |---|---|
 | Protokol tanımları, istemci SDK'ları, tarif formatı, ajan protokolü | **Apache-2.0** |
-| Kontrol düzlemi, düğüm ajanı, web / CLI / sohbet istemcileri | **AGPL-3.0** |
+| Kontrol düzlemi, düğüm ajanı, aktarıcı (relay), web / CLI / sohbet istemcileri | **AGPL-3.0-or-later** |
+| Bu dokümanlar | **CC BY 4.0** |
 | Tarifler, eklentiler, temalar | Yazarın seçimi, tescilli dahil |
 
 Açıkça söylemek gerekirse, çünkü AGPL sıkça kullanım kısıtı sanılıyor: **ticari olarak çalıştır,
-üzerinden kapasite sat, istediğin fiyatı iste, ona karşı kapalı eklentiler yaz. Hiçbir borcun
-yok.** Yükümlülük yalnızca Korpis'in kendisini değiştirip değiştirilmiş sürümü ağ üzerinden
-sunarsan doğar; o durumda da yaptığın değişiklikleri yayımlarsın.
+üzerinden kapasite sat, istediğin fiyatı iste, ona karşı kapalı eklentiler yaz.** Değiştirmeden,
+müşterilerin için çalıştırman hiçbir yükümlülük doğurmaz. Değiştirip değiştirilmiş sürümü ağ
+üzerinden sunarsan, kullanıcılarına kendi kaynak kodunu sunarsın; kopya dağıtırsan kaynak da
+onlarla gider, ki değiştirilmemiş bir derleme bunu zaten sağlar.
 
-Katkılar Developer Certificate of Origin altında alınır. CLA yok, telif devri yok; bu, ileride
-open-core'a dönmeyi bilerek imkânsız kılıyor. Bkz. [`19-governance.md`](./docs/19-governance.md)
-§2.
+Katkılar Developer Certificate of Origin altında alınır; CLA ve telif devri yoktur, dolayısıyla
+kimse bir katkıcının kodunu onun rızası olmadan yeniden lisanslayamaz. Lisans tek başına
+open-core'a dönüşü engellemez; bunu projenin politikası (P10, K-13) engeller ve
+[`19-governance.md`](./docs/19-governance.md) §2 hangisinin hangisi olduğunu söyler.
 
 ---
 

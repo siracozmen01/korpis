@@ -50,7 +50,7 @@ Go wins here on the things that actually matter for this component: Connect and 
 first-class, the PostgreSQL tooling is mature, a single static binary matches §2 of
 `18-operations.md`, compile times keep iteration fast on the codebase that changes most, and the
 contributor pool is deep, which matters for a project whose governance model (§8 of
-`19-governance.md`) depends on outside contribution scaling past two maintainers.
+`19-governance.md`) depends on outside contribution scaling past one maintainer.
 
 **Rust's guarantees buy little here, and the security thesis places no weight on them.** §1 of
 `17-security.md` says tenant code is hostile and §3 says confinement is the kernel's job. The

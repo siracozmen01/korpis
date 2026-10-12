@@ -61,10 +61,14 @@ A driver implements one or more tiers on one operating system.
 | `winjob` | `process` | Windows | Job Objects + restricted tokens |
 | `winsilo` | `container` | Windows | Server Silos via the Host Compute Service |
 
-Rule K-18 is binding: `oci` ships excellent before anything else ships adequate. VirtFusion beat
-entrenched incumbents by supporting one hypervisor extremely well rather than five acceptably. The
+Rule K-18 is binding: `oci` ships excellent before anything else ships adequate, and the second
+driver is the most different one rather than the easiest (rule D in §2 of `20-roadmap.md`). The
 interface must accommodate all six from the first version; the implementations arrive in order of
 evidence.
+
+> Corrected 2026-10-12 (second external review, S60). This paragraph supported K-18 with a claim
+> about VirtFusion's market history that no document cited. K-18 is a design decision, and §4 of
+> `research/evidence.md` now says so and states its basis.
 
 ### Drivers are separate processes
 

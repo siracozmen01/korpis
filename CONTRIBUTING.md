@@ -19,8 +19,10 @@ where they are.
 **Attack the definitions, not just the seams.** The other productive reading is to take a single
 document and ask of every field, condition, and limit in it: what evaluates this, where, and with
 what information? §16 of [`23-walkthroughs.md`](./docs/23-walkthroughs.md) is a review done that
-way and it found sixteen things fourteen traces had walked straight past, including a limit that
-was displayed and could not be enforced.
+way and it found seventeen things fourteen traces had walked straight past, including a limit that
+was displayed and could not be enforced. §17 records a second review that read every document
+against every other and checked every external claim against its primary source; it found
+seventy-nine.
 
 **Correct the evidence.** [`docs/research/evidence.md`](./docs/research/evidence.md) makes factual
 claims about deployed software. If one is wrong, out of date, or unfair, please say so. Accuracy
@@ -31,8 +33,8 @@ correction takes precedence over our reading.
 know that no design document can supply is which of these decisions will hurt at 3am. That is the
 review this most needs.
 
-**Take an open question.** About forty are recorded across the documents, each filed where it will
-be settled. Several are genuine forks in the road rather than details, and are marked as such.
+**Take an open question.** Fifty-nine are open across the documents, each filed where it will be
+settled. Several are genuine forks in the road rather than details, and are marked as such.
 
 ## What to expect
 
@@ -75,9 +77,14 @@ git commit -s
 ```
 
 There is no contributor licence agreement and no copyright assignment. This is deliberate. It keeps
-copyright distributed, which means no single party can ever relicense the project, which is what
-makes the promises in §2 of [`19-governance.md`](./docs/19-governance.md) structural rather than a
-statement of current intent.
+copyright distributed, so that relicensing anyone's contribution needs that person's consent. It
+does not, on its own, make Korpis impossible to take open-core; §2 of
+[`19-governance.md`](./docs/19-governance.md) says plainly which promises the licence enforces and
+which are policy.
+
+A contribution is licensed like the layer it lands in: documents under CC BY 4.0, protocol
+definitions and SDKs under Apache-2.0, and the platform under AGPL-3.0-or-later. See
+[`LICENSE`](./LICENSE).
 
 Licensing is split by layer: protocol and SDK material is Apache-2.0, the platform is AGPL-3.0. The
 document you are editing tells you which side of that line it describes; when in doubt, ask in the

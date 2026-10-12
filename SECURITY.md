@@ -43,6 +43,10 @@ to publish vague ones.
 
 This policy covers the contents of this repository. Findings about the third-party systems
 discussed in [`docs/research/evidence.md`](./docs/research/evidence.md) should go to those
-projects, not here. Every issue recorded in that document was responsibly disclosed to and fixed by
-its maintainers, and it is listed only because the *pattern* across them informed a design
-decision.
+projects, not here. Every security advisory recorded in that document was responsibly disclosed to
+and fixed by its maintainers. The ordinary issues it cites are a mix: some fixed, some declined,
+some still open, and the document says which for each. All of them are listed only because the
+*pattern* across them informed a design decision.
+
+> Corrected 2026-10-12. This said every issue in the evidence document had been disclosed and
+> fixed, which was true of the advisories and not of the issues.

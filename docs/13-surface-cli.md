@@ -210,7 +210,13 @@ korpis exec mc-survival -- /bin/sh   a session, subject to the runtime's isolati
 korpis files sync ./world w:mc-survival/world   delta transfer, through a relay
 korpis forward mc-survival:25565     local port through the overlay, no public exposure
 korpis watch -f servers/             stream plans and effects as they occur
+korpis version                       client and server versions, and the source revision of each
 ```
+
+`version` names the exact source revision each binary was built from and where its source is
+published, for the client and for the control plane it is talking to. That is how an unmodified
+distribution meets the AGPL's obligation for conveyed copies without anyone doing anything (§2 of
+`19-governance.md`).
 
 `files sync` transfers through a relay with a short-lived scoped token rather than through the
 control plane, for the same reason web upload does (§8 of `11-surface-web.md`): a 40 GB world

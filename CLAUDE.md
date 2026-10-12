@@ -8,27 +8,33 @@ later.
 
 These are not preferences. Breaking one means the change is wrong.
 
-1. **Never use the em dash character.** Not in documents, commit messages, issue replies, or code
+1. **No subagents.** This is the repository's first rule, set by the maintainer. An AI agent
+   working here does the work itself, in its own session: it does not delegate reading, review,
+   search, or editing to spawned agents or forks. A review is only as good as the one context that
+   holds all of it, and every finding in §17 of `docs/23-walkthroughs.md` was checked by the agent
+   that recorded it.
+2. **Never use the em dash character.** Not in documents, commit messages, issue replies, or code
    comments. Restructure the sentence instead: a comma for an aside, a colon before an explanation,
    parentheses for a true parenthetical, a semicolon or a full stop between two independent
    clauses. A hyphen surrounded by spaces is not an acceptable substitute. The check is in "Before
    committing" below, and it must return nothing.
-2. **All documentation is in English.** Discussion may happen in any language; what lands in the
+3. **All documentation is in English.** Discussion may happen in any language; what lands in the
    repo is English.
-3. **Never use the name "Blueprint".** It is Pterodactyl's de facto extension framework. Korpis
+4. **Never use the name "Blueprint".** It is Pterodactyl's de facto extension framework. Korpis
    calls its package format `Recipe`. See §1 of `docs/09-recipes.md`.
-4. **Do not reduce scope.** If something looks too large, say so and argue it, but do not quietly
+5. **Do not reduce scope.** If something looks too large, say so and argue it, but do not quietly
    drop it, narrow it, or replace it with a simpler thing. Removing a decision from a document is a
    change that needs the same justification as adding one.
-5. **Do not restrict hosts.** No per-workload, per-node, per-instance, per-account, or per-domain
+6. **Do not restrict hosts.** No per-workload, per-node, per-instance, per-account, or per-domain
    limit, charge, or gate, at any scale. This is Principle P10 and it is load-bearing for several
    other decisions.
 
 ## Layout
 
 ```
-README.md CONTRIBUTING.md SECURITY.md LICENSE   entry points, licensing, governance-facing docs
-docs/00-overview.md                              principles, non-goals, bets, evidence-derived rules
+README.md CONTRIBUTING.md SECURITY.md            entry points, review policy, disclosure
+LICENSE LICENSE-APACHE LICENSE-AGPL LICENSE-CC-BY the licence split and the full licence texts
+docs/00-overview.md                              principles, non-goals, bets, binding rules
 docs/01-model.md .. docs/23-walkthroughs.md      the specification, in dependency order
 docs/research/evidence.md                        the citations every deviation is argued from
 ```
@@ -44,7 +50,7 @@ are the owners:
 | Subject | Document |
 |---|---|
 | nouns, fields, lifecycles | `01-model.md` |
-| control plane / data plane split, reconciliation | `02-architecture.md` |
+| control plane / data plane split, reconciliation, assignments, relays | `02-architecture.md` |
 | Intent, Plan, Effect, storage engine, restore | `03-state.md` |
 | runtime driver interface and isolation tiers | `04-runtimes.md` |
 | placement, quota, cgroup limits, migration | `05-scheduling.md` |
@@ -57,6 +63,8 @@ are the owners:
 | install, upgrade, HA, disaster recovery | `18-operations.md` |
 | licence, versioning, LTS, maintainership | `19-governance.md` |
 | build order and what is deferred | `20-roadmap.md` |
+| implementation languages | `21-stack.md` |
+| the first-party recipe and extension set | `22-first-party.md` |
 
 ## How documents are written
 
@@ -77,6 +85,13 @@ K-3).
 leave the correction visible with its reasoning rather than rewriting history. §2 of `01-model.md`
 is the model for this.
 
+**A correction reaches every document that restates the corrected claim.** Fixing the owning
+document is half of a correction. Before committing one, search the whole repository (the
+documents, the README and its translation, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, and this
+file) for every restatement of the old claim, its numbers, and its section references, and fix each
+of them in the same commit. Most defects the second external review found were a fix applied in one
+document and left standing in three others.
+
 **Open questions are numbered, live in a final section, and name where they will be settled.** The
 form is a numbered item ending in `→ <document>` or `→ here`. A deferred decision with a name on it
 is honest; an undeclared one is a trap. Resolving one means editing it in place to say `Resolved in
@@ -93,8 +108,9 @@ tabular material, not for prose that has been chopped up.
 
 `README.md` is English and is the source. `README.tr.md` is a translation of it, and its first line
 is an HTML comment naming the commit of `README.md` it was translated from. When you change
-`README.md`, either update the translation and that hash in the same commit, or say in the commit
-message that the translation is now behind.
+`README.md`, either update the translation in the same commit, or say in the commit message that
+the translation is now behind. A commit cannot name its own hash, so when the two change together
+the comment is updated to that commit in the one immediately after it.
 
 Only the README is translated. The documents in `docs/` are English and stay that way. The agent
 protocol, the rule names, and the model's nouns have to be defined in one language, or two
@@ -103,9 +119,13 @@ translations drift apart silently and there is no way to tell which one is the s
 ## Before committing
 
 ```bash
-grep -rnP '\x{2014}' .                # em dash: must return nothing
-grep -rn '01-landscape\|prior-art' .  # removed material, must return nothing
+grep -rnP --exclude-dir=.git '\x{2014}' .     # em dash: must return nothing
+grep -rn --exclude-dir=.git --exclude=CLAUDE.md -e '01-landscape' -e 'prior-art' .
+                                              # removed material: must return nothing
 ```
+
+The second command excludes this file because this file has to name the patterns; without the
+exclusion it matches itself and can never return nothing.
 
 Also check: every relative link resolves, no duplicated `## N.` heading number inside a file, and
 the document map in §7 of `docs/00-overview.md` matches what is actually in `docs/`.
@@ -127,12 +147,12 @@ went.
 
 **`docs/23-walkthroughs.md` is the test suite.** It traces scenarios end to end across every
 document they touch, looking for the step where no document is holding the ball. Fourteen traces
-have produced twenty-three defects. When a change touches more than one document, add or update a
-trace.
+produced twenty-three defects, and two external reviews (§16 and §17) found more. When a change
+touches more than one document, add or update a trace.
 
 **Traces and algebra review are different instruments, and a document needs both.** A trace
 confirms that every step has an owner. It does not confirm that a step is possible. §16 of
-`23-walkthroughs.md` records an external review that found sixteen defects the traces could not,
+`23-walkthroughs.md` records an external review that found seventeen defects the traces could not,
 every one of them a document asserting a property its own definitions cannot support. So when a
 change adds a field, a condition, or a limit, ask the algebra question of it directly: **what
 evaluates this, where, and with what information?** The answer has to name a component that

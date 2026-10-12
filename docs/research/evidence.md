@@ -1,15 +1,24 @@
 # Evidence
 
-**Status:** research input for the Korpis design **Date:** 2026-08-07
+**Status:** research input for the Korpis design **Date:** 2026-08-07, **revised** 2026-10-12
+
+> Revised after the second external review (§17 of `../23-walkthroughs.md`), which re-checked every
+> cited advisory and issue against GitHub's API on 2026-10-12. Nine citations were wrong: an issue
+> described as unanswered had been answered the same day, five issues cited as current defects had
+> been fixed or were not defects, one advisory was counted twice, one fix version was wrong, and the
+> advisory count itself was wrong. They are corrected in place
+> below, with what changed. The advisory table now covers every advisory published to that date.
 
 Korpis departs from how this class of software is normally built, and a design document that says
 "we did it differently" without saying *why* is just taste. This is the file that keeps the rest
-honest: every rule in `00-overview.md` §6 traces to something specific and citable here.
+honest: Rules K-1 to K-12 in §6 of `00-overview.md` trace to something specific and citable here,
+and §4 says what each of the later rules rests on instead.
 
 **On tone, because this matters.** The systems examined below are successful. Pterodactyl in
 particular solved a real problem for a large number of people and is why this market exists in a
 usable form at all; a great deal of what Korpis does is Pterodactyl's idea. Every advisory listed
-here was responsibly disclosed and fixed by maintainers doing unpaid work.
+here was responsibly disclosed and fixed by maintainers doing unpaid work. The issues cited are a
+different matter: some are open, some were declined, and some were fixed, and each one says which.
 
 The point of collecting them is not that these projects have bugs, everything has bugs. It is that
 **certain failures recur**, in the same shape, across years and across independent codebases, and
@@ -35,32 +44,53 @@ those sources were either dropped or demoted to **[W]**.
 
 ## 1. Pterodactyl
 
-### 1.1 The security record points at one architectural flaw, not ten bugs
+### 1.1 The security record points at a few architectural flaws, not twenty bugs
 
-Published Wings advisories: **[V]**
+Every published Wings advisory to 2026-10-12, from GitHub's advisory database: **[V]**
 
-| ID | Severity | Title |
-|---|---|---|
-| GHSA-66p8-j459-rq63 | Critical | Improper link resolution allowing deletion of host files/directories |
-| GHSA-494h-9924-xww9 | Critical | Symlink race in server filesystem |
-| GHSA-p744-4q6p-hvc2 | Critical | Escape to host from installation container |
-| GHSA-pfvc-3p5h-x7h6 | Critical | Wings exposes node configuration secrets through egg configuration-file templating |
-| GHSA-gqmf-jqgv-v8fw | High | Arbitrary file write/read |
-| GHSA-2497-gp99-2m74 | High | Endless reprocessing of activity log data (SQLite parameter limit) |
-| GHSA-ghrq-5wpp-hxx5 | High | Crafted SFTP handshake packet causes denial of service |
-| GHSA-rhq6-9rgh-v45c | Moderate | Chmod can change permissions of files outside the server container |
-| GHSA-qq22-jj8x-4wwv | Moderate | SSRF during remote file pull |
-| GHSA-q6hh-gp44-4hcm | Moderate | Malformed parsed config files cause Wings OOM |
+| ID | Published | Severity | Title | Class |
+|---|---|---|---|---|
+| GHSA-6rg3-8h8x-5xfv | 2021-01 | Moderate | Unchecked hostname resolution allows access to local network resources | SSRF |
+| GHSA-jj6m-r8jc-2gp7 | 2021-06 | Moderate | Resource amplification in containers created by Wings (CVE-2021-32699), fixed 1.4.4 | **limit not held** |
+| GHSA-66p8-j459-rq63 | 2023-02 | Critical | Improper link resolution allowing deletion of host files (CVE-2023-25168), fixed 1.7.4 / 1.11.4 | **path** |
+| GHSA-p8r3-83r8-jwj5 | 2023-02 | High | Improper link resolution allowing creation of host files (CVE-2023-25152), fixed 1.7.3 / 1.11.3 | **path** |
+| GHSA-p744-4q6p-hvc2 | 2023-05 | Critical | Escape to host from installation container (CVE-2023-32080), fixed 1.7.5 / 1.11.6 | install code |
+| GHSA-494h-9924-xww9 | 2024-03 | Critical | Symlink race in server filesystem (CVE-2024-27102) | **path** |
+| GHSA-gqmf-jqgv-v8fw | 2024-05 | High | Arbitrary file write/read (CVE-2024-34066) | **path** |
+| GHSA-qq22-jj8x-4wwv | 2024-05 | Moderate | SSRF during remote file pull (CVE-2024-34068) | SSRF |
+| GHSA-2497-gp99-2m74 | 2026-01 | High | Endless reprocessing of activity log data (CVE-2026-21696) | other |
+| GHSA-rhq6-9rgh-v45c | 2026-05 | Moderate | Chmod can change permissions of files outside the server container | **path** |
+| GHSA-pfvc-3p5h-x7h6 | 2026-06 | Critical | Node secrets exposed through egg configuration-file templating (CVE-2026-52855, CVSS 9.9), fixed 1.12.3 | templating |
+| GHSA-ghrq-5wpp-hxx5 | 2026-06 | High | Crafted SFTP handshake packet causes denial of service (CVE-2026-52856) | other |
+| GHSA-q6hh-gp44-4hcm | 2026-06 | Moderate | Malformed parsed config files cause Wings OOM (CVE-2026-52857) | other |
+| GHSA-77pg-7gfq-9hjr | 2026-08 | Critical | Unsanitized backup identifiers permit host path traversal (CVE-2026-104261) | **path** |
+| GHSA-hfvm-879c-xgmm | 2026-08 | High | SFTP streaming writes bypass per-server disk quotas (CVE-2026-104260) | **limit not held** |
+| GHSA-5mgr-9frx-2rh7 | 2026-08 | High | Integer overflow in upload and archive quota calculations bypasses disk quota (CVE-2026-104263) | **limit not held** |
+| GHSA-8j54-xcwx-597p | 2026-08 | High | SFTP write path enforces disk quota only as a stale pre-flight check (CVE-2026-61617) | **limit not held** |
+| GHSA-7w9q-4q32-wfj8 | 2026-08 | High | Backup restore URLs permit SSRF (CVE-2026-104262) | SSRF |
+| GHSA-4g8v-75pm-x7f6 | 2026-08 | High | Prefix-based registry matching leaks credentials to attacker registries (CVE-2026-104265) | credentials |
+| GHSA-p682-235x-522p | 2026-10 | Moderate | Nil-pointer dereference in SFTP Setstat crashes the daemon | other |
+| GHSA-grp4-3hv5-m6vf | 2026-10 | Moderate | Token revocation not enforced on signed-URL file and backup handlers | revocation |
 
-Additional: CVE-2023-32080, install-script-controlled command execution on the host, escaping the
-container; fixed in Wings 1.11.6, backported to 1.7.5. CVE-2023-25152, symlink following; fixed in
-1.7.4. Pre-1.4.4 Wings had improper container process limits allowing resource exhaustion of the
-physical host. **[V]**
+**The lesson is not "Wings has bugs."** Twenty-one advisories fall into a handful of recurring
+classes, and the two largest are architectural:
 
-**The lesson is not "Wings has bugs."** Six of the twelve issues above are the same class: a
-privileged process performs filesystem operations on paths supplied by an untrusted tenant, and
-defends itself by *validating path strings*. Path-string validation loses to symlinks, races, and
-`..` every time, it is a losing strategy, not a series of oversights.
+- **Path (six).** A privileged process performs filesystem operations on paths supplied by an
+  untrusted tenant and defends itself by *validating path strings*. Path-string validation loses
+  to symlinks, races, and `..` every time; it is a losing strategy, not a series of oversights.
+- **A limit displayed and not held (four).** Resource limits in containers, and three distinct ways
+  around the disk quota in August 2026 alone: SFTP streaming, integer overflow in the arithmetic,
+  and a quota checked before a write rather than in it.
+
+Then SSRF (three), and one each for install code, templating, credentials scoping, and revocation.
+The install-code and templating advisories are the classes that §4 and §6 of `09-recipes.md`
+remove.
+
+> Corrected 2026-10-12. This section said "six of the twelve" advisories were the path class. The
+> table then listed ten, with CVE-2023-32080 added as an eleventh issue although it is the CVE of
+> GHSA-p744 already in the table, and omitted GHSA-6rg3. On the document's own date (2026-08-07)
+> thirteen advisories had been published, five of them in the path class. The fix version given
+> for CVE-2023-25152 (1.7.4) was the fix for CVE-2023-25168. The table above is the full record.
 
 > **Rule K-1.** The component that touches tenant files must never hold host privilege. Filesystem
 > access is confined by the kernel, a per-tenant mount namespace plus `openat2(RESOLVE_BENEATH)` or
@@ -68,27 +98,38 @@ defends itself by *validating path strings*. Path-string validation loses to sym
 
 The critical advisory GHSA-pfvc-3p5h-x7h6 deserves separate attention: egg configuration-file
 **templating** could be made to render node secrets, the daemon token and Docker registry
-credentials, into a file the tenant can read. A secondary source reports this as CVE-2026-52855,
-CVSS 9.9, fixed in Wings 1.12.3 **[R]**. The root cause is that the template evaluation context and
-the daemon's secret context were the same context.
+credentials, into a file the tenant can read. It is CVE-2026-52855, CVSS 9.9, fixed in Wings 1.12.3
+**[V]** (the advisory itself; this was tagged [R] when only a secondary source had been read). The
+root cause is that the template evaluation context and the daemon's secret context were the same
+context.
 
 > **Rule K-2.** Tenant-authored templates evaluate in a sandbox with an explicit, allow-listed
 > variable set. There is no ambient scope to leak from.
 
 ### 1.2 Resource limits are advertised but not enforced
 
-- **Disk quota is not enforced.** Issue #4554: an 858 GB file existed on a server configured with a
-  1 GB disk limit. The issue was **closed as not planned**. **[V]** Related: #2638 (servers are not
-  stopped when the disk limit is reached), #5186 (panel misreports disk usage), #1050 (request for
-  real disk restrictions).
-- **No disk I/O limit.** #2798: backups to spinning disks cause iowait spikes that degrade every
-  other server on the node. **[V]**
-- **No bandwidth limit and no traffic accounting.** #1871 (limit bandwidth per server), #3352 (mb/s
-  cap "to prevent people from killing the network"), #3780 (network usage chart). **[V]**
+- **Disk quota is not enforced in the write path.** Issue #4554: an 858 GB file existed on a server
+  configured with a 1 GB disk limit. A maintainer explained in 2022 that containers do not provide
+  disk limits and Wings checks usage on an interval; the issue was then **closed as not planned** in
+  May 2024, without a closing comment, in a batch of 86 issues closed that day. **[V]** The August
+  2026 advisories above are the same property failing three more ways. In 2018, #1050 asked for
+  stricter disk restrictions; maintainers answered that usage is checked at start and every 30
+  seconds thereafter, and that anything stricter belongs to external monitoring. **[V]**
+- **No per-tenant disk I/O limit.** Wings throttles its **backup** throughput, added in December
+  2020 to fix #2798 (backups causing iowait spikes across the node), but a tenant's own I/O has no
+  limit. **[V]**
+- **No bandwidth limit.** #1871 (limit bandwidth per server) was declined until Docker gains the
+  capability, and #3352 was answered with "look into Linux utilities". **[V]**
 
-CPU and memory are handled through cgroups. Disk capacity, disk I/O, and network are not. On a
-multi-tenant node that means one tenant can degrade or halt every other tenant, and the operator
-has no evidence of who did it.
+CPU and memory are handled through cgroups. Disk capacity and network are not limited per tenant,
+and disk I/O is limited only for backups. On a multi-tenant node that means one tenant can degrade
+or halt every other tenant.
+
+> Corrected 2026-10-12. This section cited #2638 (servers not stopped at the disk limit) and #2798
+> (backup iowait) as current defects; both were fixed in 2020. It cited #3780 (no network usage
+> chart), which was implemented in 2022, and #5186 as the panel misreporting disk usage, which on
+> reading turned out to be space used outside the server's volume, correctly reported. Those four
+> citations are removed or restated as fixed.
 
 > **Rule K-3.** Every limit Korpis displays is enforced by the kernel, or Korpis does not display
 > it. Capacity, IOPS, bandwidth, and PIDs are first-class limits alongside CPU and memory, and each
@@ -121,13 +162,19 @@ leaves the system in a state the model cannot express.
 
 ### 1.4 Backups do not scale
 
-- **Full backups only.** No incremental support; open feature requests for incremental (#5493) and
-  for Borg (#4715). A 40 GB server means writing 40 GB every time. **[V]**
-- **S3 uploads fail above 5 GB**: multipart upload is not used (#2599). **[V]**
-- **Backups stage to local disk first** (#3846), so the node needs free space equal to the backup.
-  **[V]**
-- **Backup settings cannot vary per location** (#4411). **[V]**
-- Combined with 1.2: backup I/O is unthrottled and degrades the whole node (#2798).
+- **Full backups only.** No incremental support; open feature requests for incremental (discussion
+  #5493) and for Borg (discussion #4715). A 40 GB server means writing 40 GB every time. **[V]**
+- **Backups stage to local disk first** (#3846, open), so the node needs free space equal to the
+  backup. **[V]**
+- **Backup settings cannot vary per location** (#4411, closed in 2026 when feature requests moved to
+  Discussions, not implemented). **[V]**
+- S3 uploads above 5 GB failed until Wings 1.1.0 (November 2020) switched to multipart upload
+  (#2599, fixed). And backup I/O degraded the whole node until a throughput limit was added in
+  December 2020 (#2798, fixed). Both are history rather than current behaviour, and are kept
+  because they are the same lesson: backup bolted onto a plain directory has to rediscover every
+  scaling limit one at a time. **[V]**
+
+> Corrected 2026-10-12. #2599 and #2798 were cited as current defects; both were fixed in 2020.
 
 > **Rule K-5.** Backup is a consequence of the storage design, not a feature bolted on top. Choose
 > a filesystem that snapshots (ZFS/btrfs subvolume per workload), take the snapshot instantly, then
@@ -164,9 +211,17 @@ one. **[R]**
 
 ### 1.6 The panel and the daemon were never decoupled
 
-Issue #141, opened **October 2016**, asked for third-party daemon support. Ten years later there is
-still exactly one implementation. **[V]** Panel and Wings are coupled by version rather than by
-contract, so they must be upgraded in lockstep and no alternative data plane can exist.
+Issue #141, opened **October 2016**, asked for third-party daemon support. It was answered the same
+day: this was "already technically possible so long as the daemon you are using follows the same
+API style as the core daemon", and on closing it three days later the maintainer added that
+supporting external daemons is difficult "unless said daemon is specifically designed to work with
+Pterodactyl". **[V]** That is the finding: the contract was the reference implementation's
+behaviour. Panel and Wings are coupled by version rather than by a published protocol, so they must
+be upgraded in lockstep, and an alternative data plane can only exist by imitating Wings.
+
+> Corrected 2026-10-12. Earlier versions of this paragraph, of §1 of `02-architecture.md`, and of
+> §1 and §7 of `19-governance.md` said #141 had been open and unanswered since 2016. It was answered
+> and closed within three days.
 
 > **Rule K-7.** The control plane and the data plane are separated by a published, versioned,
 > independently implementable protocol with explicit compatibility guarantees. A third party must
@@ -174,20 +229,29 @@ contract, so they must be upgraded in lockstep and no alternative data plane can
 
 ### 1.7 Governance was the actual failure
 
-Pelican was forked in mid-2024, primarily because Wings had gone a long stretch without updates and
-the fork wanted to ship releases and security fixes faster. **[R]** Pelican relicensed the panel
-from MIT to AGPLv3, which pushed commercial hosts relying on proprietary differentiation to look
-elsewhere. **[R]** Pterodactyl has continued under MIT, and its leadership has publicly framed the
-current phase as cleanup and maintenance (patching holes, untangling dependencies, improving
-testing) before new features. **[R]**
+Pelican was forked in early 2024 (its panel repository dates from March 2024, **[V]**), primarily
+because Wings had gone a long stretch without updates and the fork wanted to ship releases and
+security fixes faster. **[R]** Pelican relicensed the panel from MIT to AGPLv3, which pushed
+commercial hosts relying on proprietary differentiation to look elsewhere. **[R]** Pterodactyl has
+continued under MIT, and its leadership has publicly framed the current phase as cleanup and
+maintenance (patching holes, untangling dependencies, improving testing) before new features.
+**[R]**
 
 A candid outside assessment described Pterodactyl's release process as "almost like it's a hobby
 project," with weak testing infrastructure and no coordinated triage or review, notable for
 software that became an industry default. **[R]**
 
-> **Rule K-8.** License, versioning policy, compatibility guarantees, and a multi-maintainer
-> structure are day-one decisions, written down before the first release. An extension ecosystem
-> can only exist on top of a stable, promised contract.
+> Corrected 2026-10-12. The first sentence said Pelican was forked "in mid-2024"; its repository
+> was created on 2024-03-19.
+
+> **Rule K-8.** License, versioning policy, compatibility guarantees, and maintainership, including
+> what happens when a maintainer stops, are day-one decisions, written down before the first
+> release. An extension ecosystem can only exist on top of a stable, promised contract.
+
+> Corrected 2026-10-12. K-8 said "a multi-maintainer structure". The evidence above supports
+> writing maintainership and succession down before the first release; it does not make a second
+> maintainer something a project can decide into existence. Korpis has one maintainer, and §6 of
+> `19-governance.md` says so and says what follows from it.
 
 ---
 
@@ -239,8 +303,10 @@ evidence that Korpis should start from a new model rather than a fork.
 ### AMP (CubeCoders): commercial, and holds the market Pterodactyl cannot enter
 
 Runs on **Windows and Linux**, Docker optional, supports 400+ games, and is widely reported as
-easier to set up. Free tier of 2 instances; roughly $10 one-time for 5 instances with no recurring
-fee. **[R]**
+easier to set up. **[R]**
+
+> Pricing removed 2026-10-12. This paragraph quoted AMP's licence prices, which `CLAUDE.md` keeps
+> out of this repository: competitor pricing is business-model analysis, not technical evidence.
 
 Windows support is the whole story. Pterodactyl's hard dependency on Docker excludes Windows-only
 game binaries, several anti-cheat systems, and workloads needing GPU or custom kernel modules.
@@ -334,20 +400,32 @@ nothing else, because the panel exposes provisioning but not identity, metering,
 
 ## 4. Consolidated rules
 
-| # | Rule | Comes from |
-|---|---|---|
-| K-1 | Tenant filesystem access is confined by the kernel, never by path-string validation | 6 of 12 Wings advisories |
-| K-2 | Tenant templates evaluate in a sandbox with an allow-listed variable set | GHSA-pfvc-3p5h-x7h6 |
-| K-3 | Every displayed limit is kernel-enforced and metered, or it is not displayed | #4554, #2798, #1871, #3352 |
-| K-4 | Migration is a resumable, verifiable, reversible job with explicit phases | #4505, #5429, #3332, #3015 |
-| K-5 | Backup is a consequence of the storage design | #5493, #2599, #3846, #4411 |
-| K-6 | Extensions are out-of-process, versioned, sandboxed; core uses the same mechanism | Blueprint's `sed` model |
-| K-7 | Control plane and data plane are separated by a published, versioned protocol | #141, open since 2016 |
-| K-8 | License, versioning, and multi-maintainer governance are day-one decisions | Pelican fork, MIT→AGPL split |
-| K-9 | The runtime is an interface; it must express Windows on day one | AMP's uncontested market |
-| K-10 | Isolation strength is a per-workload operator choice | Pterodactyl vs PufferPanel |
-| K-11 | Workload shape is a field, not an assumption | Coolify vs Pterodactyl |
-| K-12 | Korpis implements what billing needs, not billing | WHMCS/Paymenter integration depth |
+Rules K-1 to K-12 are derived from the evidence above. Rules K-13 to K-18 were added while the
+design was written, and they are not derived from an advisory or an issue: each is a policy or a
+design decision, and its basis is stated so that it can be argued with. Earlier versions of §6 of
+`00-overview.md` said all of them were traceable to evidence; that was corrected on 2026-10-12.
+
+| # | Rule | Kind | Comes from |
+|---|---|---|---|
+| K-1 | Tenant filesystem access is confined by the kernel, never by path-string validation | evidence | The largest advisory class: 6 of 21 Wings advisories (§1.1) |
+| K-2 | Tenant templates evaluate in a sandbox with an allow-listed variable set | evidence | GHSA-pfvc-3p5h-x7h6 (§1.1) |
+| K-3 | Every displayed limit is kernel-enforced and metered, or it is not displayed | evidence | #4554, #1050, #1871, #3352; four limit advisories (§1.1, §1.2) |
+| K-4 | Migration is a resumable, verifiable, reversible job with explicit phases | evidence | #4505, #5429, #3332, #3015 (§1.3) |
+| K-5 | Backup is a consequence of the storage design | evidence | #5493, #4715, #3846, #4411; #2599 and #2798 as history (§1.4) |
+| K-6 | Extensions are out-of-process, versioned, sandboxed; core uses the same mechanism | evidence | Blueprint's `sed` model (§1.5) |
+| K-7 | Control plane and data plane are separated by a published, versioned protocol | evidence | #141 and its answer (§1.6) |
+| K-8 | License, versioning, compatibility, and maintainership are day-one decisions | evidence | Pelican fork, MIT→AGPL split, release process (§1.7) |
+| K-9 | The runtime is an interface; it must express Windows on day one | evidence | The Windows segment held by AMP and TCAdmin (§3) |
+| K-10 | Isolation strength is a per-workload operator choice | evidence | Pterodactyl vs PufferPanel (§3) |
+| K-11 | Workload shape is a field, not an assumption | evidence | Coolify vs Pterodactyl (§3) |
+| K-12 | Korpis implements what billing needs, not billing | evidence | WHMCS/Paymenter integration depth (§3) |
+| K-13 | Never price per workload, node, instance, account, or domain | policy | Principle P10 and §2 of `00-overview.md`: Korpis is free, with no edition matrix |
+| K-14 | Tenancy is recursive delegation; reselling is an emergent property | design | §3 Billing: resale exists today only as provisioning glue, because panels expose no identity |
+| K-15 | Recipes are content-addressed and fetched once per node, not once per workload | design | Image and artifact caching as in containerd and Nomad; GHSA-p744 shows fetch-at-install is also a trust problem |
+| K-16 | Health is application-level, not process-level | design | Agones' Ready state (§3); a running process is not a serving game server |
+| K-17 | Configuration is schema-driven, with per-field permissions | design | Egg variables are untyped strings with no per-field authority (§1 of `09-recipes.md`) |
+| K-18 | Ship one excellent runtime driver before five adequate ones | design | Build-order judgement for a single maintainer; argued under rule D in §2 of `20-roadmap.md` |
+| ~~K-19~~ | Retired 2026-10-12: "licensing is decided before the first release" restated K-8 | | |
 
 ---
 
@@ -355,29 +433,32 @@ nothing else, because the panel exposes provisioning but not identity, metering,
 
 Primary:
 - [Pterodactyl Wings security advisories](https://github.com/pterodactyl/wings/security/advisories)
-- [Escape to host from installation container
-  (GHSA-p744-4q6p-hvc2)](https://github.com/pterodactyl/wings/security/advisories/GHSA-p744-4q6p-hvc2)
-- [CVE-2023-32080: execution with unnecessary
-  privileges](https://security.snyk.io/vuln/SNYK-GOLANG-GITHUBCOMPTERODACTYLWINGSSERVER-5529843)
-- [CVE-2023-25152: symlink
-  following](https://vulert.com/vuln-db/go-github-com-pterodactyl-wings-147358)
+- GHSA-p744-4q6p-hvc2 (CVE-2023-32080), escape to host from installation container:
+  [advisory](https://github.com/pterodactyl/wings/security/advisories/GHSA-p744-4q6p-hvc2)
+- GHSA-p8r3-83r8-jwj5 (CVE-2023-25152), improper link resolution:
+  [advisory](https://github.com/pterodactyl/wings/security/advisories/GHSA-p8r3-83r8-jwj5)
+- GHSA-pfvc-3p5h-x7h6 (CVE-2026-52855), node secrets through configuration-file templating:
+  [advisory](https://github.com/pterodactyl/wings/security/advisories/GHSA-pfvc-3p5h-x7h6)
+- Every other advisory in the §1.1 table is at the same address with its GHSA identifier.
 - [#4554: disk space attack, 1 TB+ file, closed as not
   planned](https://github.com/pterodactyl/panel/issues/4554)
-- [#2638: servers not shut down at disk limit](https://github.com/pterodactyl/panel/issues/2638)
-- [#2798: high iowait and memory usage during
-  backups](https://github.com/pterodactyl/panel/issues/2798)
+- [#1050: more restrictions on disk usage](https://github.com/pterodactyl/panel/issues/1050)
+- [#2798: high iowait and memory usage during backups, fixed in
+  2020](https://github.com/pterodactyl/panel/issues/2798)
 - [#1871: limit bandwidth per server](https://github.com/pterodactyl/panel/issues/1871)
 - [#3352: network limit per server](https://github.com/pterodactyl/panel/issues/3352)
 - [#4505: failed transfer causes server deadlock](https://github.com/pterodactyl/panel/issues/4505)
 - [#5429: transfer does not move symlinks](https://github.com/pterodactyl/panel/issues/5429)
 - [#3332: processFailedTransfer NULL argument](https://github.com/pterodactyl/panel/issues/3332)
 - [#3015: transfers failing, walking error](https://github.com/pterodactyl/panel/issues/3015)
-- [#2599: S3 backups cannot exceed 5 GB](https://github.com/pterodactyl/panel/issues/2599)
+- [#2599: S3 backups cannot exceed 5 GB, fixed in Wings
+  1.1.0](https://github.com/pterodactyl/panel/issues/2599)
+- [#4411: backup settings per location](https://github.com/pterodactyl/panel/issues/4411)
 - [#3846: backups upload to S3 without local
   disk](https://github.com/pterodactyl/panel/issues/3846)
 - [#5493: incremental backup support](https://github.com/orgs/pterodactyl/discussions/5493)
 - [#4715: Borg backup feature request](https://github.com/orgs/pterodactyl/discussions/4715)
-- [#141: third-party daemon support, open since
+- [#141: third-party daemon support, answered and closed in October
   2016](https://github.com/pterodactyl/panel/issues/141)
 - [Blueprint: extension scripts documentation](https://blueprint.zip/docs/concepts/scripts)
 - [Pelican: comparison with Pterodactyl](https://pelican.dev/docs/comparison/)
@@ -397,8 +478,6 @@ Secondary:
 - [Pterodactyl is back and keeps its MIT
   license](https://teramont.net/blog/pterodactyl-is-back-and-keeps-its-mit-open-source-license)
 - [AMP vs Pterodactyl (CubeCoders)](https://cubecoders.com/compare/pterodactyl)
-- [Wings daemon config disclosure,
-  CVE-2026-52855](https://www.thehackerwire.com/wings-daemon-config-disclosure-cve-2026-52855/)
 - [Coolify vs
   Dokploy](https://servercompass.app/blog/coolify-vs-dokploy-self-hosted-paas-comparison)
 - [Paymenter vs WHMCS vs Blesta](https://builtbyotte.com/blog/paymenter-vs-whmcs-vs-blesta)
