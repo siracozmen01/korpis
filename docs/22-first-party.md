@@ -231,9 +231,10 @@ services, databases, jobs, and virtual machines, with nothing missing but the ga
    connection to hold and no handshake to answer with a status. Hibernation may simply be limited
    to protocols with a usable handshake, which is an honest limit but a narrower feature than it
    first appears. → here
-2. **Hibernation and storage.** A hibernated workload keeps its volume, so it still consumes disk
-   and still counts against quota. Whether hibernated volumes migrate to cheaper storage
-   automatically is attractive and interacts with §7 of `06-storage.md`. → `06-storage.md`
+2. **Hibernation and storage. Carried by §9 of `06-storage.md`, question 6.** A hibernated workload
+   keeps its volume, so it still consumes disk and still counts against quota. Whether hibernated
+   volumes migrate to cheaper storage automatically is attractive and interacts with §7 of
+   `06-storage.md`.
 3. **Mod source trust.** Modrinth and CurseForge are content sources whose artifacts are neither
    signed nor stable, which is the same problem as an unverified egg. The grading of §9 of
    `09-recipes.md` probably applies unchanged, and that should be verified rather than assumed. →

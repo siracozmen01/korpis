@@ -863,3 +863,25 @@ It found seventy-nine things. The table records each with its verdict and where 
 | S34 | Three definitions of `IdentityBinding`; role-to-template binding described two ways; templates impossible to locate | real | `08-identity.md` §4, §5; `01-model.md` §3.2; `12-surface-discord.md` §2 |
 | S35 | Two different lists of irreversible actions, one enforced by the bot it said never adjudicates | real | `10-api.md` §5; `08-identity.md` §5.2; `12-surface-discord.md` §3 |
 | S36 | Waking a hibernated workload had no subject and no grant, and any port scan could trigger it | real | `22-first-party.md` §6 |
+| S19 | Four documents sent clients directly to nodes that, by design, have no inbound port | **real** | `02-architecture.md` §3.1, §4.2; `14-streams.md` §4; `11-surface-web.md` §8; `13-surface-cli.md` §8; `08-identity.md` §6; `17-security.md` §8 |
+| S37 | Backups needed a repository-wide key and credential on every node, against the document that said nodes hold neither | **real** | `06-storage.md` §5.2, §5.3, §5.5; `02-architecture.md` §7; `17-security.md` §7, §9; `14-streams.md` §9 |
+| S38 | IOPS reservations and I/O shares were displayed with no mechanism that could hold them, and ZFS cannot attribute writes | **real** | `05-scheduling.md` §5.2, §5.3; `06-storage.md` §3; `18-operations.md` §2 |
+| S39 | The default co-resident edge stopped forwarding after a migration, so `stable` addresses did not survive the move they were for | **real** | `07-networking.md` §3, §3.1; `18-operations.md` §2, §5; `01-model.md` §3.6 |
+| S40 | File access, SFTP, and single-file restore had no mechanism for block-device volumes, and the obvious one parsed hostile images on the host | **real** | `04-runtimes.md` §4.4; `02-architecture.md` §6; `06-storage.md` §5.4 |
+| S41 | "No window" at cutover, contradicted by BGP convergence, multi-edge updates, and connection tracking | real | `07-networking.md` §10; `05-scheduling.md` §8 |
+| S42 | Nothing said what address a workload sees through an edge, and NAT would have erased every player's | real | `07-networking.md` §3.4; `01-model.md` §3.6 |
+| S43 | "A NAT-bound node runs game servers perfectly" was true only behind an edge, and no filter knew the difference | real | `07-networking.md` §9; `05-scheduling.md` §2.1 |
+| S44 | Egress was default-deny in the threat model and default-allow in its owning document; inbound on IPv6 was unstated | real | `07-networking.md` §4, §6; `17-security.md` §2, §10 |
+| S45 | No document owned workload DNS, and the default policy blocked the resolvers of two major clouds | real | `07-networking.md` §5.1 |
+| S46 | `microvm` was said to stop "most side channels", which SMT-sibling leaks contradict | real | `17-security.md` §5, §13 |
+| S47 | Inbound bandwidth was sold as guaranteed, which no node can enforce | real | `07-networking.md` §7; `05-scheduling.md` §5.2 |
+| S48 | `guaranteed` was sold as "dedicated vCPU" with nothing that dedicated a core | real | `05-scheduling.md` §5.2; `17-security.md` §13 |
+| S49 | Concurrent backup and prune had no coordination owner; the dedup open question was framed wrongly | real | `06-storage.md` §5.5, §9 |
+| S50 | Nothing allocated user-namespace ranges, so a migrated workload's files could arrive owned by someone else | real | `04-runtimes.md` §4.5 |
+| S51 | A live-state migration could choose a destination its snapshot cannot be restored on | real | `04-runtimes.md` §4.1 |
+| S52 | `statfs` does not report btrfs quotas; ZFS `refquota` has no inode limit; the LVM-thin row contradicted itself | real | `06-storage.md` §2, §3 |
+| S53 | "A container and a microVM from one base share storage" overstated what is shared | real | `04-runtimes.md` §6 |
+| S54 | The `oci` driver is root-equivalent through containerd, and the design did not say so | **real** | `02-architecture.md` §6.1; `17-security.md` §6; `21-stack.md` §6 |
+| S55 | "Two binaries" for an agent of several executables in two languages, with no versioning between them | real | `18-operations.md` §2; `02-architecture.md` §6.2; `10-api.md` §11 |
+| S67 | Nested virtualization was listed as a node requirement; bare metal needs only KVM | real | `18-operations.md` §2 |
+| S77 | The case for Rust at the boundary called a hard kernel error a race, and grouped seccomp with mechanisms it differs from | real | `21-stack.md` §4 |

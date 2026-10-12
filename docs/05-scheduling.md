@@ -40,6 +40,7 @@ A node survives the filter only if all hold:
 | satisfies the intent's constraints | `PlacementSpec` label selectors |
 | the workload tolerates every taint | `Node.taints` |
 | is `ready`: not cordoned, draining, or unreachable | `Node.status` |
+| can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
 | the tenancy's quota admits it | §5 |
 
 Asking the driver before committing is the part other systems lack, and it happens in two layers,
@@ -315,6 +316,11 @@ Admission requires an intent to fit within **every** matching entry. A tenant ca
 of 32 GB and a per-region cap of 4 GB simultaneously, and both are enforced. Composable, and it
 replaces the flat `Quota` struct of `01-model.md` §3.1.
 
+The dimensions are those listed in §3.1 of `01-model.md`, plus **dedicated IPv4 addresses**, a count
+that is exclusive and never overcommitted. IPv6 addresses are not a dimension: they are abundant,
+and counting them would make the scarce resource and the plentiful one look alike (§11 of
+`07-networking.md`, question 4).
+
 #### Inheritance: reservations sum, limits may oversell
 
 > Finding 6 of `23-walkthroughs.md`. This is the question Bet 4 actually turns on.
@@ -382,13 +388,20 @@ headroom is visible the same morning instead of at the end of the month.
 
 ```
 ResourceSpec
-  cpu       {reservation, limit}
+  cpu       {reservation, limit, isolation: shared | dedicated_cores}
   memory    {reservation, limit}
   disk      {reservation, limit}
-  iops      {reservation, limit}
-  bandwidth {reservation, limit}
+  io        {limit, share}           ceilings in bytes/s and ops/s; a proportional share
+  bandwidth {egress: {reservation, limit}, ingress: {limit}}
   pids      {limit}                  ceiling only, nobody reserves the right to fork
 ```
+
+> Second external review, findings S38, S47, and S48. Recorded in §17 of `23-walkthroughs.md`.
+> `iops` had a reservation, and cgroup v2 has no I/O floor: `io.max` is a ceiling and `io.weight` is
+> a share of contended capacity, so a "guaranteed" IOPS figure was a displayed number nothing could
+> hold. `bandwidth` had a reservation in both directions, and no node can guarantee what arrives at
+> it (§7 of `07-networking.md`). And the `guaranteed` class was sold as "dedicated vCPU" with
+> nothing that dedicated a core. Each is now what the kernel can actually do.
 
 `pids` has no reservation because process slots are not a capacity anyone sells; it exists solely
 as a ceiling, and it is the one dimension with no graceful degradation on the way to it. A tenant
@@ -401,25 +414,44 @@ by cgroup v2 `pids.max`, it has a default, and there is no configuration in whic
 - **Limit** is the ceiling. The gap between reservation and limit is burst, and burst is what may
   be contended.
 
-This yields three service classes that map exactly onto what hosting providers already sell:
+This yields three service classes that map exactly onto what hosting providers already sell, and a
+fourth property that is sold separately because it costs separately:
 
 | Class | Condition | Sold as |
 |---|---|---|
-| `guaranteed` | reservation == limit | "dedicated vCPU", "dedicated RAM" |
+| `guaranteed` | reservation == limit | "guaranteed CPU time", "dedicated RAM" |
 | `burstable` | reservation < limit | "shared vCPU", "fair-share" |
 | `best_effort` | reservation == 0 | free tier, batch, scavenger capacity |
+| **`dedicated_cores`** | `cpu.isolation: dedicated_cores` | **"dedicated cores"**: whole physical cores pinned to the workload, with no other tenant on their SMT siblings |
+
+`guaranteed` CPU is CPU **time**: the workload always gets its share, on cores it shares with
+others. That is real and it is what `cpu.max` and `cpu.weight` enforce, and it is not a dedicated
+core, so it is not sold as one. `dedicated_cores` is enforced by `cpuset` and by the scheduler
+accounting whole physical cores, siblings included, so a workload asking for four dedicated cores
+consumes four cores and their siblings from `allocatable`. It is the only configuration that defends
+against the cross-core side channels of §5 of `17-security.md`, in any tier, and its density cost is
+stated in the plan that requests it.
+
+**I/O is ceilings and shares, never a reservation.** `io.limit` sets `io.max` (bytes and operations
+per second, read and write). `io.share` sets `io.weight`, which is a proportional share of the
+device under contention and does nothing at all unless the node runs the `io.cost` controller; a
+node without it does not offer shares, and preflight says what to configure (§2 of
+`18-operations.md`). Both are offered only where the storage class declares them enforceable,
+because the cgroup cannot attribute I/O that the filesystem issues from its own threads, which on
+ZFS is most writes (§3 of `06-storage.md`).
 
 ### 5.3 Overcommit is per-dimension, and never applies to reservations
 
 | Dimension | Overcommit | Why |
 |---|---|---|
 | CPU | yes, configurable ratio | time-shared; contention degrades gradually |
+| Dedicated cores | **no** | a pinned core is exclusive or it is not dedicated |
 | Memory | **discouraged, off by default** | there is no gradual degradation; there is the OOM killer |
 | Disk capacity | yes (thin provisioning) | but see below |
-| Disk IOPS | yes | time-shared |
-| Bandwidth | yes | time-shared |
+| Disk I/O | not applicable | there are no reservations to overcommit, only ceilings and shares |
+| Egress bandwidth | yes, in the burst region | time-shared |
 | Devices (GPU, passthrough) | no | exclusive by nature |
-| Dedicated IP | no | exclusive by nature |
+| Dedicated IPv4 | no | exclusive by nature |
 
 Overcommit applies **only to the burst region**. `allocatable` for reservations is always physical
 capacity divided by one. A `guaranteed` workload is never oversubscribed, whatever the node's
@@ -431,7 +463,10 @@ exhaustion raises pressure, stops accepting placements, and alerts **before** an
 limit they were never told about. Selling capacity that does not exist and discovering it when a
 customer's write fails is the failure mode this exists to prevent.
 
-Every one of these is kernel-enforced and metered, or it is not offered (Rule K-3).
+Every one of these is kernel-enforced and metered, or it is not offered (Rule K-3). "Offered" is per
+node and per storage class, from the driver's `enforcement` declarations (§4.1 of
+`04-runtimes.md`): a dimension a node cannot enforce is not offered on that node, rather than being
+displayed there and quietly not held.
 
 ---
 
@@ -585,9 +620,10 @@ estimates what a rebalance would achieve. It does not act.
    room? It is what makes scavenger capacity useful and it means a running workload can be killed
    by somebody else's scheduling decision, which needs an explicit, visible contract with whoever
    bought best-effort capacity, not a silent behaviour. → here, once QoS classes are exercised
-2. **Node pool autoscaling.** Growing a cluster in response to pressure requires a provider
-   interface (create a machine, install the agent, enrol it). That is close to "Korpis is not a
-   cloud provider" and needs a boundary drawn before it is built. → `18-operations.md`
+2. **Node pool autoscaling. Carried by §10 of `18-operations.md`, question 6.** Growing a cluster
+   in response to pressure requires a provider interface (create a machine, install the agent,
+   enrol it). That is close to "Korpis is not a cloud provider" and needs a boundary drawn before it
+   is built.
 3. **Weighting content locality against strategy.** Preferring a node that already holds a 4 GB
    image conflicts with `distributed`. There is no obviously correct exchange rate between "starts
    in 2 seconds" and "shares a failure domain", and the honest answer may be that it is an operator

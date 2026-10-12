@@ -35,19 +35,22 @@ parties whose interests diverge from the operator's, each of which forces a diff
 | **A sub-tenant** | escalate to their reseller's authority | attenuation, a grant cannot produce a stronger child (P6) |
 | **A recipe author** | run code on nodes via a popular recipe | no arbitrary code in the install DSL (§4 of `09-recipes.md`), signing, digest pinning |
 | **An extension author** | exceed granted authority | extensions are workloads with declared grants (§4 of `16-extensions.md`) |
-| **An unauthenticated outsider** | reach the API, the agent, or a workload | no inbound agent ports (§4 of `02-architecture.md`), default-deny egress and ingress |
+| **An unauthenticated outsider** | reach the API, the agent, or a workload | no inbound agent ports (§3 of `02-architecture.md`); a workload is reachable only through endpoints it declares (§3 of `07-networking.md`); rate limits on every unauthenticated endpoint (§10 of `10-api.md`) |
 | **A compromised node** | forge observations, reach other nodes, keep running after eviction | single-writer ownership, lease epochs, no node-held long-lived credentials (§7) |
 | **A compromised control plane** | everything | acknowledged as total; blast radius and recovery in §9 |
-| **Discord, or an external IdP** | none | treated as a third party, not as an authority (§3 of `12-surface-discord.md`) |
+| **Discord, or an external IdP** | none | trusted for exactly what it asserts (who someone is, which sets they belong to) and for nothing else; it holds no grants, and installing one requires authority over the whole organization it serves (§5.3 of `08-identity.md`) |
 | **The operator** | none | **tenants are not protected from the operator.** Stated in §8, honestly. |
 
 ---
 
 ## 3. What the evidence says to build
 
-Six of the twelve published Wings advisories are one class: **a privileged process defending
-tenant-controlled paths by inspecting strings.** Symlinks, hardlinks, TOCTOU races, `..` traversal,
-and mount tricks each beat string validation, and each did.
+The largest single class of published Wings advisories (§1.1 of `research/evidence.md`) is one
+mistake: **a privileged process defending tenant-controlled paths by inspecting strings.** Symlinks,
+hardlinks, TOCTOU races, `..` traversal, and mount tricks each beat string validation, and each did.
+The second largest is a limit displayed and not held: disk quotas bypassed through SFTP streaming,
+through an integer overflow in the quota arithmetic, and through a pre-flight check that went
+stale. That class is why K-3 says a displayed limit must be enforced in the write path.
 
 One more is worth naming because it is a different lesson. GHSA-pfvc-3p5h-x7h6 (Critical): tenant-
 controlled egg template variables were rendered in a context where they could reach the daemon
@@ -100,8 +103,16 @@ claims more than anywhere else.
 |---|---|---|---|
 | `process` | namespaces, cgroups, Landlock, seccomp, no container image | filesystem escape, resource exhaustion, network reach | kernel LPE, CPU side channels |
 | `container` | the above, plus image isolation and a reduced syscall surface | the same, plus most host-filesystem exposure | **kernel LPE**, CPU side channels |
-| `microvm` | a separate kernel (Firecracker) | kernel LPE, most side channels, almost all escape classes | hypervisor vulnerabilities, hardware-level channels |
+| `microvm` | a separate kernel (Firecracker) | kernel LPE, almost all escape classes, and the CPU side channels of the shared-kernel tiers **when its cores are dedicated** | hypervisor vulnerabilities, hardware-level channels, and cross-VM leaks between SMT siblings when cores are shared |
 | `vm` | a separate kernel with full device emulation (QEMU/KVM) | as microvm | as microvm, with a larger device attack surface |
+
+> Second external review, finding S46. Recorded in §17 of `23-walkthroughs.md`. The `microvm` row
+> said it stops "most side channels", and §13 told customers who need side-channel isolation to
+> pick `microvm`. A separate kernel does not stop the leaks that cross a shared physical core: the
+> L1TF and MDS classes leak between SMT siblings whatever runs on them, which is why Firecracker's
+> own production-host guidance disables SMT or keeps tenants off sibling threads. The row now says
+> what the tier stops on its own and what it stops only with dedicated cores (§5.2 of
+> `05-scheduling.md`), and §13 question 1 is resolved by offering exactly that.
 
 **A shared-kernel tier does not survive a kernel privilege-escalation vulnerability.** That is true
 of every container platform, it is true here, and it is why the tier is an operator choice rather
@@ -120,10 +131,10 @@ The agent is where tenant data meets root, so it is decomposed until no single p
 (§6 of `02-architecture.md`):
 
 ```
-supervisor              unprivileged. talks to the control plane, holds no root, touches no tenant path.
-privileged helper       root, tiny, no tenant input. performs an enumerated set of operations.
-filesystem workers      one per tenant, inside that tenant's mount namespace, Landlocked to its subtree.
-runtime drivers         separate processes, each holding only its own driver's privileges.
+supervisor          unprivileged. talks to the control plane, holds no root, touches no tenant path.
+privileged helper   root, tiny, no tenant input. performs an enumerated set of operations.
+filesystem workers  one per workload, in a namespace holding only its volumes, Landlocked to them.
+runtime drivers     separate processes, each holding only its own driver's privileges.
 ```
 
 The argument is a privilege union. A single process performing all four roles holds the union of
@@ -131,8 +142,27 @@ their privileges at all times, so any bug anywhere in it is a bug in a root proc
 every tenant's data. Split, a bug in the filesystem worker is a bug confined to one tenant's
 subtree by the kernel, and a bug in the supervisor is a bug in an unprivileged process.
 
-Drivers are separate for the same reason (§4.3 of `04-runtimes.md`): the QEMU driver needs
-privileges the OCI driver does not, and a merged runtime would grant both to both.
+Drivers are separate for the same reason (§3 of `04-runtimes.md`): the QEMU driver needs privileges
+the OCI driver does not, and a merged runtime would grant both to both.
+
+**What the split does not do, stated as plainly as what it does.**
+
+> Second external review, finding S54. Recorded in §17 of `23-walkthroughs.md`.
+
+- **The `oci` driver is root-equivalent.** It talks to containerd, and anything that can talk to
+  containerd can ask for a privileged container with the host's root filesystem mounted. The
+  supervisor holds no privilege, but it can ask the driver for things, so the property that
+  actually holds is narrower than "a supervisor bug is a bug in an unprivileged process": a
+  compromised supervisor can obtain only what the drivers will accept, and the drivers accept only
+  specs inside their tier's invariants (§6.1 of `02-architecture.md`). The driver's validation is
+  therefore part of the security boundary, and is reviewed as such.
+- **containerd and runc are in the trusted base of the `container` tier.** A vulnerability in either
+  is a vulnerability in the tier, and the tier's row in §5 is only as strong as they are.
+- **The helper is root.** It is tiny and takes no tenant input, which makes bugs in it unlikely, not
+  impossible; a bug in it is root on the node.
+
+None of this changes the design. It changes what the design is allowed to claim, which is the
+point of this section.
 
 ---
 
@@ -143,10 +173,18 @@ The principle from §3: reduce reachability first.
 - **Nodes hold no long-lived registry credentials.** §7 of `02-architecture.md` issues short-lived,
   digest-scoped pull tokens instead. A compromised node yields a token that expires and that can
   pull one thing.
-- **Nodes hold no object-storage credentials** by default, for the same reason (§9 of
-  `14-streams.md` carries the open form of this for stream offload).
+- **Nodes hold no standing object-storage credentials and no repository keys.** For each backup or
+  offload job a node receives the data key of the one workload concerned and a short-lived
+  credential that can write new objects under that workload's prefix and nothing else; a target
+  that cannot issue such a credential is written through a relay instead (§5.5 of
+  `06-storage.md`). The first version said nodes held no object-storage credentials while the
+  backup flow streamed encrypted chunks from the node straight to the repository, which required
+  both a key and a credential on the node (finding S37). Now the node holds both, for one workload
+  at a time, for the length of one job.
 - **Tenant secrets never enter a template context.** §6 of `09-recipes.md` renders from a flat,
-  pre-resolved, enumerated variable map in a logic-less language inside the tenant's namespace.
+  pre-resolved, enumerated variable map in a logic-less language, inside the workload's own
+  filesystem worker, and secret fields are delivered only through channels the tenant cannot read
+  back (§5.2 of `09-recipes.md`).
   There is no ambient scope to walk, which is what defeats the GHSA-pfvc-3p5h-x7h6 class rather
   than escaping harder.
 - **Secrets are redacted before persistence**, on the node, in the write path (§7 of
@@ -171,6 +209,12 @@ behaviour:
 - **That effect is visible to the tenant** (§7 of `08-identity.md`), in their own audit view.
 - Break-glass access is the same mechanism, not a bypass, a grant, issued, time-bounded, logged (§6
   of `08-identity.md`).
+- **Relays see the sessions they carry.** TLS terminates at the relay (§3.1 of
+  `02-architecture.md`), so console output, keystrokes, and files in transit are plaintext there.
+  Relays are operator infrastructure, and this is one more thing the operator can see, stated here
+  rather than left to be inferred from a diagram.
+- **A host reads a tenant's private data only through a grant that names the tenant**, which the
+  tenant sees issued and sees used (§3.3 of `08-identity.md`).
 
 > **Resolving open question 5 of `15-observability.md`**, which accesses are exempt from tenant
 > visibility: **none are.** An operator debugging a node-wide failure touches many tenants and
@@ -183,20 +227,22 @@ behaviour:
 > need for evidence: the operator may set a **retention floor**, a minimum below which a tenant
 > cannot go, and that floor is **disclosed to the tenant** in the interface alongside the retention
 > setting. An operator cannot silently retain more than they declared. This is the same shape as
-> `min_retention` on volumes (§5.3 of `06-storage.md`), and the disclosure is the part that makes
-> it legitimate rather than surveillance.
+> `min_retention` on backup retention policies (§5.3 of `06-storage.md`), and the disclosure is the
+> part that makes it legitimate rather than surveillance.
 
 ---
 
 ## 9. Compromise, and what it costs
 
-**A compromised node.** The blast radius is that node's tenants, plus whatever its credentials
-reached, which §7 has deliberately made small. Recovery: revoke the node key, and **increment the
-lease epoch**. §4.5 of `02-architecture.md` and §8 of `03-state.md` make epochs monotonic and
-fencing mandatory, so a compromised agent that keeps running cannot reacquire ownership of
-anything, and cannot write an observation the control plane will accept. Workloads are rescheduled
-elsewhere from their intents, which are unaffected. The node is not trusted to clean itself up; it
-is fenced and rebuilt.
+**A compromised node.** The blast radius is that node's tenants, including the backups of the
+workloads placed on it, which the node could already read live, plus whatever its credentials
+reached, which §7 has deliberately made small: no other workload's backups, no other node's
+assignments, no registry beyond one artifact for a few minutes. Recovery: revoke the node key, and
+**increment the lease epoch**. §4.5 of `02-architecture.md` and §8 of `03-state.md` make epochs
+monotonic and fencing mandatory, so a compromised agent that keeps running cannot reacquire
+ownership of anything, and cannot write an observation the control plane will accept. Workloads are
+rescheduled elsewhere from their intents, which are unaffected. The node is not trusted to clean
+itself up; it is fenced and rebuilt.
 
 ### 9.1 Egress is enforced by the party being contained
 
@@ -205,7 +251,10 @@ is fenced and rebuilt.
 Egress rules are applied at the source node by that node's agent, and a compromised agent can
 ignore them, which puts a control in the hands of the adversary it is meant to constrain.
 
-The honest framing first: **a compromised agent means root on that machine.** At that point the
+The honest framing first: **an attacker who has compromised the agent as far as its root
+components (the helper, or a root-equivalent driver, §6) has root on that machine.** A compromised
+supervisor alone does not, which is what §6 exists to ensure, but egress is not the place to rely
+on that distinction. At that point the
 attacker can already rewrite nftables, read every tenant's data on the node, and forge
 observations. Egress is the least of what has been lost, and containing the outbound traffic of a
 machine whose root you no longer hold is defending the wrong thing. The answer to node compromise
@@ -254,7 +303,7 @@ unbounded resource is a denial-of-service vulnerability with a friendlier name.
 | processes and threads | cgroup `pids.max`; this is the fork bomb | §5.2 of `05-scheduling.md` |
 | disk bytes | filesystem quota in the write path, returning `EDQUOT` | §3 of `06-storage.md` |
 | **inodes** | inode quota, a million empty files fills a filesystem with bytes to spare | §3 of `06-storage.md` |
-| disk I/O | cgroup v2 `io` weight and limits | §3 of `06-storage.md` |
+| disk I/O | cgroup v2 `io.max` ceilings, and proportional shares under `io.cost`, where the storage class declares them enforceable (ZFS writes are not) | §3 of `06-storage.md` |
 | backup I/O | the backup process runs in its own throttled cgroup | §3 of `06-storage.md` |
 | network bandwidth | shaping per endpoint | §7 of `07-networking.md` |
 | **conntrack entries** | per-workload limit, a shared table is a shared failure | §6 of `07-networking.md` |
@@ -262,9 +311,12 @@ unbounded resource is a denial-of-service vulnerability with a friendlier name.
 | log volume | stream rate limit, drop with gap marker, never block | §5 of `14-streams.md` |
 | log storage | counts against the tenant's storage quota | §4 of `14-streams.md` |
 | metric cardinality | tenant-controlled values are never labels | §3 of `15-observability.md` |
-| API calls | rate limits per grant, not per IP | §10 of `10-api.md` |
+| API calls | rate limits per authenticated subject and per organization, never multiplied by attenuation | §10 of `10-api.md` |
+| unauthenticated attempts | per source and per targeted account or link, slowing rather than locking | §10 of `10-api.md` |
+| recorded denials | charged to the caller and coalesced per window | §10 of `10-api.md` |
+| node journal | a declared size, coalescing, then a gap record | §4.10 of `02-architecture.md` |
 | control-plane work | expensive operations carry separate budgets | §10 of `10-api.md` |
-| **outbound abuse** | egress default-deny, rate limiting, detection | §6 and §8 of `07-networking.md` |
+| **outbound abuse** | internal destinations denied by default, public internet rate-limited, SMTP denied, detection | §6 and §8 of `07-networking.md` |
 
 ---
 
@@ -301,20 +353,30 @@ publish vague ones.
 
 ## 13. Open questions
 
-1. **CPU side channels between tenants in shared tiers.** Not defended against; §5 says so plainly.
+1. **CPU side channels between tenants in shared tiers. Resolved here: dedicated cores are offered,
+   and they are what defends against them.** Not defended against by default; §5 says so plainly.
    Whether Korpis offers core pinning and sibling-thread exclusion as a declared workload property
-   (with the density cost stated) is unresolved, and the honest default is that customers needing
-   this pick `microvm`. → here
+   (with the density cost stated) was unresolved, and the default advice was to pick `microvm`,
+   which on its own does not stop the sibling leaks (finding S46).
+
+`cpu.isolation: dedicated_cores` (§5.2 of `05-scheduling.md`) pins a workload to whole physical
+cores and keeps every other tenant off their SMT siblings. It is honest on both counts: it is the
+only configuration that defends against the cross-core leak classes, in any tier, and it costs the
+whole core, which the scheduler accounts and the meter bills. Combined with `microvm` it is the
+strongest isolation Korpis offers; neither alone is.
 2. **Hardware attestation.** Verifying that a node runs the kernel and agent it claims would raise
    compromised-node detection substantially and drags in TPM, measured boot, and a key-management
    story disproportionate to a single-operator install. → `18-operations.md`
 3. **Confidential computing tiers.** AMD SEV-SNP and Intel TDX would let a tenant be protected
    *from the operator*, which §8 currently states is impossible. That is a real fifth tier and a
    large commitment. → `04-runtimes.md`
-4. **Recipe author reputation.** Signing proves who published a recipe, not whether they should be
-   trusted. Anything resembling curation collides with "Korpis is not a marketplace" (§2 of
-   `00-overview.md`), so the likely answer is operator-managed allow-lists and nothing central. →
-   `09-recipes.md`
+4. **Recipe author reputation. Resolved here: operator-managed allow-lists, nothing central.**
+   Signing proves who published a recipe, not whether they should be trusted. Anything resembling
+   curation collides with "Korpis is not a marketplace" (§2 of `00-overview.md`). It was routed to
+   `09-recipes.md`, which never carried it (finding S18). The mechanism already exists in two
+   places and is now named as the answer: `TrustPolicy.accepted_signers` per organization (§7 of
+   `09-recipes.md`) and the publisher or registry allow-list for extensions (§4.1 of
+   `16-extensions.md`). Korpis supplies verification and policy; reputation is the operator's.
 5. **Windows isolation parity.** K-9 requires the runtime interface to express Windows on day one;
    job objects and server silos are genuinely weaker than Linux namespaces, and §5's tier table has
    no honest Windows column yet. It needs one before Windows ships, not after. → `04-runtimes.md`

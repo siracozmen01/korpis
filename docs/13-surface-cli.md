@@ -121,8 +121,8 @@ pruned", and:
 
 - Deleting a workload is permitted by an ordinary apply.
 - **Deleting anything that holds data is not.** Volumes, snapshots, and backups are retained by
-  default and require `--delete-volumes` naming them explicitly. §5 of `06-storage.md` gives
-  volumes a `min_retention` floor, and the CLI cannot override it.
+  default and require `--delete-volumes` naming them explicitly. §5.3 of `06-storage.md` gives
+  backups a `min_retention` floor in their retention policy, and the CLI cannot override it.
 - An object that never belonged to the set is never touched by it, so two sets cannot fight and a
   hand-created workload cannot be pruned by someone else's pipeline.
 

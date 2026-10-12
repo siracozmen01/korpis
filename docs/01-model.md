@@ -139,6 +139,7 @@ Quota dimensions
   workloads     count
   volumes       count
   endpoints     count
+  dedicated_ipv4  count        exclusive, never overcommitted; IPv6 is not counted
 ```
 
 **Invariants**
@@ -356,7 +357,7 @@ Intent
   schedule      CronExpr?      required iff lifecycle = scheduled
   console       none | logs | interactive
   runtime       RuntimeSpec    driver + isolation tier + driver-specific config
-  resources     ResourceSpec   cpu, memory, disk, iops, bandwidth
+  resources     ResourceSpec   cpu, memory, disk, io, bandwidth (§5.2 of 05-scheduling.md)
   volumes       []VolumeSpec
   endpoints     []EndpointSpec
   health        HealthSpec

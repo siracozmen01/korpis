@@ -93,7 +93,8 @@ Capabilities
   signals              []SignalName       driver-defined names, not POSIX numbers
   hot_resize           []ResourceKind     which resources change without a restart
   hot_volume_attach    bool
-  runtime_snapshot     bool               capture execution state, not just disk
+  runtime_snapshot     SnapshotCaps?      capture execution state, not just disk; null if not
+                                          supported, else where a snapshot can be restored
   live_migrate         bool
   gpu                  []GPUMode          none | passthrough | mediated | timeslice
   devices              []DeviceClass      gpu | usb | pci | tpm | serial, per tier
@@ -101,13 +102,26 @@ Capabilities
   network_modes        []NetworkMode      veth | tap | host | none
   enforcement          map[ResourceKind]EnforcementDecl
   volume_semantics     VolumeSemantics    filesystem | block_device
+  file_access          host_worker | guest_worker | none     (§4.4)
+  id_mapping           IdMapCaps          how workload uids reach the disk (§4.5)
   config_schema        JSONSchema         driver-specific configuration
 
 EnforcementDecl
   enforced      bool
   mechanism     text        "cgroup v2 memory.max", "Windows job object", "none"
   granularity   text        what the mechanism actually bounds, where it differs
+
+SnapshotCaps
+  restore_requires   CPU model or template, hypervisor version, host kernel range
+                     a snapshot restores only onto a node matching all three
 ```
+
+> Second external review, finding S51. Recorded in §17 of `23-walkthroughs.md`. `runtime_snapshot`
+> was a boolean, and the migration that relies on it (§8 of `05-scheduling.md`) could pick a
+> destination where the snapshot cannot be restored: Firecracker restores a snapshot only onto a
+> compatible CPU template, the same hypervisor version, and a compatible host kernel. The
+> compatibility is now part of the capability, so the scheduler filters destinations by it and a
+> live-state migration to an incompatible node falls back to stop-and-start, stated in its plan.
 
 The control plane **asks** and never assumes, following Nomad's task driver interface. A version
 number is not a capability statement: two builds of the same driver on different kernels have
@@ -212,13 +226,73 @@ would silently close a tier. Rule K-9 is satisfied by this list, not by intent.
 | one filesystem tree the agent can assemble | mounts declared as specs the driver realizes | VMs, microVMs |
 | the workload is a process the agent's kernel can see | liveness comes from `Inspect`, never `kill(pid, 0)` | VMs, microVMs |
 | a command line starts the workload | the rootfs source declares its own entry semantics | VMs, ISOs |
-| the agent shares a filesystem with the workload | file access goes through the tenant's own worker (§6 of `02-architecture.md`) | microVMs, VMs, Windows |
+| the agent shares a filesystem with the workload | file access goes through the workload's own worker, on the host or in a guest (§4.4, §6 of `02-architecture.md`) | microVMs, VMs, Windows |
+| a uid on disk means the same thing on every node | workload-relative ids, mapped at mount (§4.5) | migration, every tier with user namespaces |
 | stdout/stderr are the output | console mode is declared; serial and VNC are console modes | VMs |
 
-The last two are the ones that quietly fail. An agent that reads a workload's files by opening a
-host path works perfectly for containers and is impossible for a microVM, and by the time anyone
-notices, that assumption has spread through the file manager, the backup system, and the recipe
-installer.
+The file-access and output rows are the ones that quietly fail. An agent that reads a workload's
+files by opening a host path works perfectly for containers and is impossible for a microVM, and by
+the time anyone notices, that assumption has spread through the file manager, the backup system, and
+the recipe installer.
+
+### 4.4 File access across tiers
+
+> Second external review, finding S40. Recorded in §17 of `23-walkthroughs.md`.
+
+The row above said file access "goes through the tenant's own worker", and §6 of
+`02-architecture.md` put that worker on the host, in a mount namespace, using `openat2`. For a
+`block_device` volume (§3.1 of `06-storage.md`) there is nothing on the host to open: the guest
+formatted the device and has it mounted, Firecracker has no shared filesystem, and mounting the
+image on the host while the guest runs corrupts it. Mounting it on the host at all hands the host
+kernel's filesystem parser to whoever formatted the image, which for `microvm` is precisely the
+tenant the tier exists to keep away from the host kernel. So the file manager, SFTP, in-place
+recipe edits, and single-file restore had no mechanism for half the tiers.
+
+**The worker for a block device always runs on a guest kernel, never on the host's:**
+
+| Workload state | Where the filesystem worker runs | Reached by |
+|---|---|---|
+| running, `microvm` | inside the workload's own guest, started by `korpis-guest` | vsock |
+| running, `vm`, with `korpis-guest` installed | inside the guest | virtio-serial or vsock |
+| running, `vm`, without it | nowhere: no file access while running, and the interface says so | none |
+| stopped, any block-device tier | inside a **service microVM**: a disposable Korpis-built guest that attaches the volume read-write, runs the worker, and is destroyed when the session ends | vsock |
+
+- **`korpis-guest` is the in-guest component**, a small static binary that Korpis places in every
+  `microvm` it builds, because Korpis builds the microVM's root filesystem and init from the
+  recipe's image (§6). It runs the filesystem worker, answers `guest_agent` health probes (§5), and
+  performs clean shutdown. It runs as an unprivileged user inside the guest and enforces the same
+  `openat2`/Landlock confinement there, so the tenant's own guest kernel is the one at risk if it
+  is attacked, which is the tenant's own business.
+- **For `vm`, installing it is the customer's choice**, because a `vm` runs an operating system the
+  customer installed. Open question 3 records what that costs.
+- **The service microVM is the only thing that ever parses a tenant-formatted filesystem**, and it
+  does so in a guest kernel behind the hypervisor boundary. The same mechanism performs single-file
+  restore from a block-device backup (§5.4 of `06-storage.md`) and recipe installs into a stopped
+  `microvm`'s volume. A node that cannot run microVMs cannot host `block_device` workloads in the
+  first place, so the requirement adds nothing a node did not already need.
+- **A filesystem the service microVM cannot read** (an encrypted volume, a filesystem type its
+  kernel lacks) offers whole-image operations only, which the driver declares at creation rather
+  than the user discovering at restore time.
+
+### 4.5 A uid on disk must mean the same thing everywhere
+
+> Second external review, finding S50.
+
+`container` always uses user-namespace remapping (§2) and the install DSL speaks of "the tenant's
+uid range" (§4 of `09-recipes.md`), but nothing said where ranges come from. If each node allocated
+its own, a workload migrated by `zfs send` or a file-level sync would arrive with its files owned by
+host uids that mean another workload, or nobody, on the destination.
+
+- **Ranges are allocated by the control plane, per workload, cluster-wide**, recorded in the
+  assignment, and never reused while any volume carrying them exists.
+- **Files on disk carry workload-relative ids** (0 to 65535 as the workload sees them), and the
+  range is applied at mount time with idmapped mounts, so on-disk ownership does not depend on which
+  host range the workload holds on which node. Migration copies bytes and ownership survives,
+  whatever replication path is used.
+- The driver declares the mechanism (`id_mapping`): idmapped mounts where the filesystem supports
+  them (ext4, XFS, btrfs, and ZFS from OpenZFS 2.2), and a declared, slower fallback (ownership
+  shifted at copy time) where it does not. A storage class that supports neither cannot host
+  user-namespaced workloads that migrate, and the scheduler knows it.
 
 ---
 
@@ -263,8 +337,11 @@ forever.
 Drivers **reference** content by digest and never fetch it themselves. Consequences:
 
 - One fetch, one verification, one signature check per digest per node, regardless of driver.
-- Layer and block sharing across tiers: a `container` and a `microvm` built from the same base
-  share storage.
+- **Fetch sharing across tiers**: a `container` and a `microvm` built from the same base share the
+  downloaded layer blobs, so the bytes come over the network once. They do not share realised
+  storage: an unpacked overlay tree and a guest block image have no blocks in common, and
+  Firecracker has no shared filesystem to make them. The first version said they "share storage",
+  which overstated it (finding S53).
 - A compromised driver cannot pull arbitrary content; it has no registry credentials and no network
   path to a registry (§7 of `02-architecture.md`).
 - Prefetch is a scheduling concern: the control plane can hint a digest to a node before placing a
@@ -318,21 +395,36 @@ exists instead of a series of forks.
 
 ## 9. Open questions
 
-1. **GPU allocation model.** Passthrough is exclusive, mediated devices (vGPU) partition, and
+1. **GPU allocation model. Resolved in §6 of `05-scheduling.md`**: devices are discrete named
+   objects with declared modes. Passthrough is exclusive, mediated devices (vGPU) partition, and
    timeslicing oversubscribes. These have different scheduling semantics, a GPU is a resource
-   dimension in `Quota`, a placement constraint, and a driver capability at once, and it is not
-   clear it can be one field. → `05-scheduling.md`
+   dimension in `Quota`, a placement constraint, and a driver capability at once, and it was not
+   clear it could be one field.
 2. **Nested virtualization.** If a node is itself a VM (which is common), `microvm` and `vm` tiers
    require nested virtualization that many providers disable. The scheduler must know this, so it
    is a driver capability determined at runtime rather than a static declaration. → here
 3. **Who owns the guest agent for `vm`?** In-guest health, hot resize, and clean shutdown all need
    one. Building it means shipping software into customer VMs and maintaining it across guest
-   operating systems. Not building it means VMs are second-class. Neither is comfortable. → here
-4. **`process` tier and recipes.** The `native` driver has no image; a recipe for it must deliver a
-   directory tree and an entry point. Does that reuse the OCI image format as a delivery mechanism
-   (unpacked, not run), or is there a second artifact kind? The first keeps one content store and
-   one signing path. → `09-recipes.md`
+   operating systems. Not building it means VMs are second-class. Neither is comfortable. For
+   `microvm` it is settled: Korpis builds the guest and ships `korpis-guest` in it (§4.4). For
+   `vm` the question now has a sharper cost attached, because without it a running `vm` has no file
+   access at all. → here
+4. **`process` tier and recipes. Resolved in §3 of `09-recipes.md`**: the OCI format, unpacked
+   rather than run, so one content store and one signing path. The `native` driver has no image; a
+   recipe for it must deliver a directory tree and an entry point.
 5. **Windows content store.** Windows container images and Linux OCI images share a format but not
    layers or storage drivers. Whether one content store abstraction covers both, or a Windows node
    runs a parallel one, affects Rule K-15's "fetched once per node". → here, when `winsilo` is
    designed
+6. **Windows, as a whole.** Four documents routed their Windows questions here and this list did
+   not carry them (finding S18): isolation parity (§13 of `17-security.md`, question 5), node
+   operations (§10 of `18-operations.md`, question 4), and the driver language (§10 of
+   `21-stack.md`, question 3), alongside question 5 above. They are one question, which is what the
+   Windows column of every table in this document says once a Windows machine exists to write it on
+   (Phase 5, §4 of `20-roadmap.md`). Until then the interface keeps them possible (§4.3) and nothing
+   claims them. → here, in Phase 5
+7. **Confidential-computing tiers.** AMD SEV-SNP and Intel TDX would let a tenant's memory stay
+   opaque to the host, which no other tier offers. Routed here from §13 of `17-security.md`
+   (question 3), and not carried until now (finding S18). It would be a fifth tier with its own
+   honest table row, and whether it is worth it depends on attestation (§13 of `17-security.md`,
+   question 2), which is the harder half. → here, after attestation is settled

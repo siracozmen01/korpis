@@ -60,8 +60,9 @@ This is where the address is either tied to a machine or freed from it.
 
 | Mode | Address | Survives migration | Costs | Right for |
 |---|---|---|---|---|
-| `node_port` | node's IP + allocated port | **no** | nothing | hobby, single node, dev |
-| `stable` | an edge address, forwarded to the current placement | **yes** | an edge tier | game servers in production |
+| `node_port` | node's IP + allocated port | **no** | nothing | hobby, dev |
+| `node_bound` | an address on the node where the workload was first exposed, forwarded to wherever it runs now | **while that node exists**; not its loss or decommissioning | nothing before a move, one hop after | single machines, and fleets without an edge tier |
+| `stable` | an address held by an edge tier with failover, forwarded to the current placement | **yes, including the loss of any one node or edge** | an edge tier with failover, or a routed address pool | game servers in production |
 | `ingress` | name-based, shared address | **yes** | a proxy | HTTP/HTTPS, TLS services |
 | `dedicated_ip` | an IP belonging to the workload | **yes**, if the IP is routable to any node | an IP, plus BGP or a provider API | games needing a whole IP, IP reputation |
 | `overlay_only` | reachable by other workloads only | yes | an overlay | databases, internal services |
@@ -71,9 +72,27 @@ This is where the address is either tied to a machine or freed from it.
 correct and free. It is not the default, and the UI states its consequence, the address changes if
 this workload ever moves.
 
+**The default is `stable` where the installation can deliver it, and `node_bound` where it cannot,
+and the plan says which and why.** A recipe's `exposure_default: stable` is a preference, not a
+promise: on a single machine, or a fleet with no edge tier, it resolves to `node_bound`, and the
+plan that creates the endpoint shows the resolved mode and what it does not survive.
+
+> Second external review, finding S39. Recorded in §17 of `23-walkthroughs.md`. The first version
+> had one mode, `stable`, whose default edge was co-resident with the workload's node and forwarded
+> to a migration's destination "for the drain interval" and then stopped. After that the address
+> belonged to a node the workload had left, so the promise that no player edits their server list,
+> repeated in §10 and in §5 of `18-operations.md`, failed one drain interval after every move and
+> immediately on the node's loss. The two behaviours were real and different, so they are now two
+> modes, each named for what it actually guarantees.
+
 ### 3.1 `stable`: the edge
 
-An **edge** owns stable public addresses and forwards to wherever a workload currently is.
+An **edge** owns stable public addresses and forwards to wherever a workload currently is. For
+`stable`, edges come in **failover groups**: at least two edges sharing addresses through VRRP,
+ECMP, or anycast (§5 of `18-operations.md`), or a pool of addresses routable to any node (BGP or a
+provider API, §4). Preflight refuses to offer `stable` in an installation that has neither, because
+an address that does not survive the loss of the machine holding it is `node_bound`, whatever it is
+called.
 
 ```
                       stable address
@@ -88,31 +107,37 @@ An **edge** owns stable public addresses and forwards to wherever a workload cur
    player's address never changes
 ```
 
-The forwarding target is updated at migration cutover (§8 of `05-scheduling.md`), in the same step
-as the lease epoch change. The client sees a connection reset, reconnects to the same address, and
-lands on the new node. **A game server can move between machines without a single player editing
-their server list.**
+The forwarding target is updated at migration cutover (§8 of `05-scheduling.md`), after the lease
+epoch change. A TCP client sees a connection reset; a UDP client sees its game protocol time out
+and reconnect; both reconnect to the same address and land on the new node. **A game server can
+move between machines, and survive the loss of one, without a single player editing their server
+list.** §10 states how long the switch takes.
 
 This is the thing that makes migration ordinary rather than an event, and it is why
 `05-scheduling.md` could treat draining a node as routine.
 
-**The default data path adds no hop.**
+**What each mode costs in latency, stated before anyone feels it.**
 
-> External review, finding R18. Recorded in §16 of `23-walkthroughs.md`.
+> External review, finding R18, and second external review, finding S39.
 
-This market's users feel five milliseconds, so an exposure mode that puts a box in front of every
-UDP packet would be the wrong default no matter what it buys. It does not:
+This market's users feel five milliseconds, so the hop is part of the choice and is shown where the
+choice is made:
 
-- **An edge is co-resident by default.** For a single-machine install and for any node that is its
-  own edge, forwarding is a kernel path on the same machine (nftables DNAT, or XDP/eBPF where the
-  volume justifies it), which is a table lookup rather than a hop. §4 already said this; what it
-  did not say is that it is the **default** rather than an option.
-- **A remote edge is an operator's explicit choice**, taken to get an address that outlives the
-  machine, and its cost is one hop, which is stated in the interface at the point the choice is
-  made rather than inferred later from latency complaints.
-- **Migration does not need a permanent hop.** The window where an address must reach two places is
-  the cutover, so a co-resident edge forwards to the destination for the drain interval and stops.
-  Paying a hop permanently to make a rare event cheaper is the wrong trade for this workload.
+- **`node_bound` adds no hop while the workload is where it started.** Forwarding is a kernel path
+  on that node (nftables DNAT, or XDP/eBPF where the volume justifies it), a table lookup rather
+  than a hop. After a migration, traffic crosses the original node to reach the new one, one hop,
+  for as long as the workload stays away. A drain that decommissions the original node lists, in its
+  plan, every `node_bound` address that will change, and offers converting them to `stable` first
+  where the installation can.
+- **`stable` costs one hop through the edge**, inbound. Return traffic goes back through the edge
+  as well unless the node's network permits direct server return (§3.4), in which case replies
+  leave the node directly. The cost is the price of an address that outlives any one machine, and
+  the interface states it when `stable` is chosen.
+
+The first version made the co-resident edge the default for `stable` to avoid the hop, which is
+what broke the guarantee. Removing the hop and keeping the guarantee are not both available; which
+one a workload gets is now a named mode rather than a side effect of where the edge happened to
+run.
 
 `node_port` remains available for the operator who wants the address on the node and accepts that
 migration changes it, which is Pterodactyl's behaviour offered deliberately rather than inherited.
@@ -139,9 +164,9 @@ So:
   a component that had escaped it: what is displayed is what was observed, and what was being
   observed was the wrong thing.
 - **The detection interval is declared.** An operator choosing `stable`, and with it the
-  concentrated failure mode §11.2 admits to, is entitled to a number for how long the concentration
-  lasts before it is noticed. §5 of `18-operations.md` carries the failover mechanisms; this is the
-  detection that has to precede any of them.
+  concentrated failure mode §11 admits to (question 2), is entitled to a number for how long the
+  concentration lasts before it is noticed. §5 of `18-operations.md` carries the failover
+  mechanisms; this is the detection that has to precede any of them.
 
 Dependents of a failed edge become `unsatisfiable` with the edge named, the same treatment §7 of
 `05-scheduling.md` gives every other unsatisfiable condition, which is also what makes a hibernated
@@ -171,10 +196,10 @@ Where a protocol router is registered (§3.3), it answers with the real state (`
 `22-first-party.md` uses to hold a player's client while a hibernated server boots. An unreachable
 workload is that problem with a different message, not a different mechanism.
 
-An edge is a role a node holds, not separate hardware, a small deployment can run the edge on the
-same machine as its workloads. Forwarding is kernel-level (nftables DNAT, or XDP/eBPF where the
-throughput justifies it) so it costs a NAT table entry rather than a userspace proxy hop, which
-matters for latency-sensitive game traffic.
+An edge is a role a node holds, not separate hardware: a deployment can run its edges on machines
+that also run workloads, as long as there are at least two in the failover group. Forwarding is
+kernel-level, which matters for latency-sensitive game traffic, and it is a tunnel rather than a
+NAT, for the reason §3.4 gives.
 
 ### 3.2 `ingress`: name-based routing
 
@@ -205,6 +230,31 @@ and a Minecraft handshake parser in the ingress path would be exactly that. Core
 forwarding plane and a hook; a protocol-aware router registers as a handler for a port. The
 capability exists; the game does not enter the core.
 
+### 3.4 Who the workload sees connecting
+
+> Second external review, finding S42. Recorded in §17 of `23-walkthroughs.md`.
+
+Game servers ban by address, rate-limit by address, and show addresses to moderators. Nothing in
+the first version said what a workload sees when traffic arrives through an edge or a forwarding
+node, and the obvious implementation, DNAT on the way in and SNAT on the way back, replaces every
+player's address with the edge's.
+
+**Edges and forwarding nodes tunnel; they do not translate the source.** The inbound packet is
+encapsulated (WireGuard between Korpis machines, which the overlay already provides, §9) and
+delivered to the workload's network namespace with its original source address. The reply follows
+policy routing back into the tunnel to the edge, which sends it from the stable address. The
+workload sees the real client address for TCP and UDP alike, with no cooperation from the
+application. Where the node's upstream permits sending packets with the edge's address as source,
+replies may leave the node directly (direct server return) and skip the return hop; many networks
+filter such packets, correctly, so this is detected per node and never assumed.
+
+**Userspace routers translate, and say so.** A protocol-aware router (§3.3) or the HTTP ingress
+terminates the connection, so the workload's peer is the router. Those paths pass the client
+address in the PROXY protocol (version 2) or the `Forwarded` header, and the endpoint declares
+whether the workload accepts it. Where it does not, the endpoint's `client_address` is
+`translated` (§3.6 of `01-model.md`), and the interface says that this workload sees the router,
+not the player.
+
 ---
 
 ## 4. Addressing
@@ -214,6 +264,12 @@ capability exists; the game does not enter the core.
 Every workload gets a routable IPv6 address where the node has IPv6. IPv4 is allocated
 deliberately: shared by port under `node_port` or `stable`, shared by name under `ingress`, or
 dedicated when someone pays for it.
+
+**Inbound is closed except where declared, on both families.** A workload's addresses, IPv6 and
+IPv4 alike, accept connections only on the ports of its declared endpoints, through a stateful
+firewall in its network namespace; everything else inbound is dropped. A routable IPv6 address is
+an address, not an invitation, and the first version, which made every workload IPv6-reachable,
+never said so (finding S44).
 
 This inverts what every panel in this market does, and it is worth doing because IPv4 is the single
 largest per-workload cost a hosting operator carries. An operator who can serve IPv6-capable
@@ -278,6 +334,24 @@ model was chosen over the familiar one:
 The cost is that an address change requires a restart or a reload. Mitigated by the file form for
 workloads that watch for changes, and by DNS where the class supports it.
 
+### 5.1 The resolver a workload uses
+
+> Second external review, finding S45.
+
+Every workload resolves names somewhere, and the first version said where nowhere, while the
+default policy of §6 denies `169.254.169.254` (which on GCP **is** the instance's DNS resolver) and
+all private ranges (where AWS puts the VPC resolver). A workload on either would have had no DNS.
+
+- **Every workload gets the node's Korpis resolver** at a fixed link-local address inside its
+  namespace (handed to VMs by DHCP and cloud-init). It answers the optional dependency names of
+  this section and forwards everything else to the node's configured upstream resolvers.
+- **The node, not the workload, talks to the provider's resolver.** The metadata address stays
+  denied to workloads, so the credential-theft path of §6 stays closed, and resolution works on
+  every cloud because the request leaves from the host.
+- The resolver's address is the one exception the policy carries by default, it is visible as such,
+  and it rate-limits queries per workload, because a resolver open to every tenant is a resource
+  every tenant can exhaust.
+
 ---
 
 ## 6. Policy
@@ -292,7 +366,10 @@ NetworkPolicy
   conntrack ConntrackLimits
 ```
 
-**Defaults, applied to every workload unless deliberately changed:**
+**Egress defaults, applied to every workload unless deliberately changed.** This table is the
+owner of the egress default. `17-security.md` §2 and §10 once described egress as "default-deny";
+the default is the table below, deny for every internal destination and allow, rate-limited, for
+the public internet (finding S44):
 
 | Destination | Default | Why |
 |---|---|---|
@@ -335,9 +412,18 @@ sees or deliberately hides, and it cannot be evaded by a compromised workload.
 - limit → ceiling
 - the gap → burst, contended fairly under load
 
-Implemented with HTB or an eBPF-based shaper, per direction. A workload sold "100 Mbit guaranteed,
-1 Gbit burst" gets exactly that, and Rule K-3 means Korpis does not display the number unless the
-kernel enforces it.
+Implemented with HTB or an eBPF-based shaper. A workload sold "100 Mbit guaranteed, 1 Gbit burst"
+outbound gets exactly that at the node's interface, and Rule K-3 means Korpis does not display the
+number unless the kernel enforces it.
+
+**Inbound has a limit and no guarantee.** A node controls what it sends and can only drop what it
+receives. Congestion upstream of the node, an attack included (§8), happens before the node's kernel
+sees a packet, so nothing on the node can guarantee inbound bandwidth, and Korpis does not sell one:
+`bandwidth.ingress` has a `limit`, policed at the node, and no `reservation` (§5.2 of
+`05-scheduling.md`). An outbound reservation, likewise, is a guarantee at the node's interface and
+says nothing about the network beyond it, and the interface says so. The first version offered
+reservations "per direction", which for inbound displayed a guarantee no component could hold
+(finding S47).
 
 ---
 
@@ -385,9 +471,22 @@ Three positions, and Korpis takes the third:
    place a workload with cross-node dependencies or `overlay_only` endpoints on them (§2.1 of
    `05-scheduling.md`).
 
-A hobbyist's NAT-bound node runs game servers perfectly and cannot host half of a two-tier
-application. That is a true statement about their network, and Korpis reports it as a constraint at
-scheduling time rather than as a mysterious connection failure at runtime.
+**Reachability is measured, and every exposure mode states what it needs.** A node cannot know
+from the inside whether it is reachable, so the control plane has a relay or an edge probe each
+node's advertised addresses, and the result is part of `NodeStatus`:
+
+| Exposure | Requires of the node |
+|---|---|
+| `node_port`, `node_bound` | **inbound reachability** on the allocated ports |
+| `stable` | an outbound tunnel to its edge group, which the node dials, so NAT does not matter |
+| `ingress` | the same as `stable` |
+| `overlay_only`, cross-node dependencies | a working overlay (`overlay: available`) |
+
+The scheduler filters on these (§2.1 of `05-scheduling.md`). So a hobbyist's node behind CGNAT can
+host game servers **through an edge**, because the tunnel is dialled outward, and cannot host them
+on its own address, because nobody can reach it. The first version said that a NAT-bound node "runs
+game servers perfectly", which was true only with an edge and false without one, and no filter
+existed to tell the two apart (finding S43).
 
 ---
 
@@ -398,14 +497,38 @@ Collected here because it is the sequence that decides whether §1's central goa
 | Exposure | At cutover |
 |---|---|
 | `node_port` | **the address changes.** Clients must be told. This is why it is not the default |
+| `node_bound` | the original node's forwarding target is updated; the address does not change while that node exists |
 | `stable` | edge forwarding target is updated; the address does not change |
 | `ingress` | proxy upstream is updated; the name and certificate do not change |
 | `dedicated_ip` | with BGP or a provider API the IP is readvertised from the new node; with static routing the workload cannot migrate at all |
 | `overlay_only` | overlay routes update; dependents are re-injected |
 
-Every one of these is a step inside the `cutover` phase, ordered after `verify` and atomic with the
-lease epoch change. There is no window in which traffic is forwarded to a node that no longer holds
-the lease.
+Every one of these is a step inside the `cutover` phase, ordered after `verify` and **after** the
+lease epoch change.
+
+**What is guaranteed, and what takes time.**
+
+> Second external review, finding S41. Recorded in §17 of `23-walkthroughs.md`.
+
+The first version said these updates were "atomic with the lease epoch change" and that there was
+"no window in which traffic is forwarded to a node that no longer holds the lease". The rows of the
+table contradict it: a BGP re-advertisement converges over seconds, a provider API moves an address
+in its own time, an edge group is several machines updated one by one, and with DNAT, existing
+connection-tracking entries keep sending a flow to its old target until they expire. What holds
+instead:
+
+- **No node that has lost the lease ever serves traffic.** The source stops acting under its epoch
+  before the destination's is granted (§4.5 of `02-architecture.md`), so a packet still arriving at
+  the source finds nothing listening and is dropped. Misdelivery to a second running copy is
+  impossible; loss for a moment is not.
+- **The forwarding update flushes the old flows.** Edges and forwarding nodes delete the
+  connection-tracking entries for the moved address when they switch target, so UDP flows do not
+  linger on the old path until a timeout.
+- **The length of the window is stated in the plan**, per exposure mode: sub-second for an edge
+  group, the configured convergence time for BGP, the provider's documented time for an API move.
+
+The guarantee is single ownership at every instant. Continuity of traffic is a separate, shorter
+promise, and it is now the one the document makes.
 
 ---
 
@@ -423,9 +546,11 @@ the lease.
 3. **IPv4 exhaustion strategies.** CGNAT, port-range sharing, and per-name sharing all extend a
    scarce IPv4 pool and all degrade some workloads. Which are offered, and how the degradation is
    surfaced to whoever is buying, is unresolved. → here
-4. **Do dedicated IPs participate in quota?** An IP is a countable exclusive resource like a device
-   (§6 of `05-scheduling.md`) and probably belongs in `QuotaSet`, but IPv4 and IPv6 are so
-   different in scarcity that one dimension may be misleading. → `05-scheduling.md`
+4. **Do dedicated IPs participate in quota? Resolved in §5.1 of `05-scheduling.md`**: dedicated IPv4
+   addresses are a quota dimension; IPv6 addresses are not. An IP is a countable exclusive resource
+   like a device (§6 of `05-scheduling.md`) and probably belongs in `QuotaSet`, but IPv4 and IPv6
+   are so different in scarcity that one dimension may be misleading. It was routed to
+   `05-scheduling.md`, which never carried it (finding S18).
 5. **Certificate scale.** ACME rate limits are per registered domain, and a provider issuing
    certificates for thousands of customer domains will hit them. Whether Korpis needs an internal
    CA for internal names, ACME only for customer-facing ones, or an ACME account pool is

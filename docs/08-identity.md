@@ -789,7 +789,7 @@ platform makes that invisible.
 | Console content | **no**, requires an explicit grant |
 | File contents | **no**, requires an explicit grant |
 | Backup manifest, the file tree without contents | **no**: requires `backup.browse`, and browse does not imply read (Finding 13 of `23-walkthroughs.md`) |
-| Backup contents | **no**, requires an explicit grant, and see §9.1 of `06-storage.md` on key custody |
+| Backup contents | **no**, requires an explicit grant naming the tenant (§3.3), and under `tenant` key custody not even then (§5.5 of `06-storage.md`) |
 | Environment variables and secrets | **no**, requires an explicit grant |
 
 Operator access to tenant data is itself a grant. It can be issued (support cases require it) and

@@ -32,7 +32,7 @@ the design exists to keep separate.
 | Control plane (`korpis-server`) | **Go** | largest | constantly |
 | Agent supervisor | **Go** | medium | often |
 | **Privileged helper** | **Rust** | tiny | almost never |
-| **Per-tenant filesystem workers** | **Rust** | small | almost never |
+| **Per-workload filesystem workers** | **Rust** | small | almost never |
 | Runtime drivers | the runtime ecosystem's language | small each | independently |
 | Web client | **TypeScript**, static bundle | medium | constantly |
 | CLI | **Go**, one static binary | small | often |
@@ -61,9 +61,10 @@ would be paying iteration speed for a property this component was not relying on
 
 ## 4. Rust where the boundary is, and this one is not a preference
 
-The privileged helper and the per-tenant filesystem workers are the two components that hold root
-or sit inside a tenant's namespace. They are also, precisely, the code paths whose equivalents
-produced **six of Wings' twelve published advisories**. They get a different language, for two
+The privileged helper and the per-workload filesystem workers are the two components that hold root
+or sit inside a workload's namespace. They are also, precisely, the code paths whose equivalents
+produced **the largest single class of published Wings advisories** (§1.1 of
+`research/evidence.md`). They get a different language, for two
 reasons, and the second is the decisive one.
 
 **Small and security-critical.** A few thousand lines each, rarely changed, doing exactly the work
@@ -73,16 +74,27 @@ second argument.
 **Go cannot do this part correctly without leaving Go.** This is a concrete technical constraint,
 not an aesthetic one:
 
-- Namespace operations (`setns`, `unshare`, `CLONE_NEWUSER`) are **per-thread**. The Go runtime
-  creates OS threads on its own schedule and migrates goroutines between them. "Enter this mount
-  namespace, then do work" is therefore racy in Go, and any goroutine spawned afterwards may run on
-  a thread that never entered the namespace.
-- `seccomp` filters and Landlock rulesets are likewise applied per-thread, with the same
-  consequence.
+- **Joining a mount namespace is impossible from a Go process, not merely racy.** `setns` into a
+  mount namespace fails with `EINVAL` for a thread that shares filesystem attributes (`CLONE_FS`)
+  with any other thread, and every thread of a Go process does. `unshare(CLONE_NEWUSER)` and
+  `setns` into a user namespace require the caller to be single-threaded, which a Go process never
+  is: the runtime starts its threads before `main` runs.
+- **Landlock rulesets confine the calling thread** and what it creates afterwards. A Go process has
+  other threads already running, which the ruleset does not cover, and goroutines migrate between
+  threads, so "this code runs confined" cannot be stated. `seccomp` is different, and the first
+  version of this list was wrong to group it here: `SECCOMP_FILTER_FLAG_TSYNC` applies a filter to
+  every thread at once, so seccomp alone would not force the choice. Mount namespaces, user
+  namespaces, and Landlock do.
 - `fork` without immediate `exec` is unsafe in Go, which rules out the classic fork → confine →
   exec pattern that is the natural way to build these processes.
 
-`runtime.LockOSThread()` mitigates some of this and is not sufficient. The proof is in the field:
+> Second external review, finding S77. Recorded in §17 of `23-walkthroughs.md`. The first version
+> called the namespace problem a race. It is a hard error, which makes the argument stronger than it
+> was written, and it grouped seccomp with the per-thread mechanisms, which made it weaker than it
+> looked to anyone who knew about `TSYNC`.
+
+`runtime.LockOSThread()` does not help with the first point at all, since it does not make the
+process single-threaded or stop the other threads sharing `CLONE_FS`. The proof is in the field:
 **runc is written in Go and performs its namespace setup in C**, in a constructor (`nsexec.c`) that
 runs before the Go runtime initializes, because there was no correct way to do it from Go.
 
@@ -128,6 +140,15 @@ than being fast to change. The Go surface is everything that changes weekly.
 The alternative (all Rust) was considered and rejected: it would slow the largest and
 most-contributed-to codebase in exchange for a property that codebase does not depend on. The other
 alternative (all Go) is not available, per §4.
+
+**One place where the boundary argument does not fall cleanly on the Rust side.** The `oci` driver
+is Go, because containerd's API is Go, and §6.1 of `02-architecture.md` makes its validation of
+incoming specs part of the security boundary: containerd access is root-equivalent, so the driver's
+refusal of a spec outside the container tier's invariants is the only thing between a compromised
+supervisor and root (§6 of `17-security.md`). That code is small, structured, and does no namespace
+work, so the arguments of §4 do not force it into Rust; but it is security-critical, and it is held
+to the helper's review standard whatever its language. Open question 6 carries what this means for
+the split as a whole.
 
 Worth noting and not worth weighting: Wings is Go, and Calagopus is Rust. Neither fact influenced
 this. The split here is derived from where the confinement boundary sits, and it happens to match
@@ -183,11 +204,31 @@ an arbitrary grant set, and small enough that a host serving it from a cheap CDN
 With that settled, the choice is made on ordinary grounds and Go wins them: the supervisor is the
 part of the agent that changes most (protocol handling, reconciliation, adoption, driver
 orchestration) and it holds no root and touches no tenant path.
-2. **Rust async runtime.** The Rust components are small and mostly synchronous; pulling in Tokio
-   for them may be unnecessary weight. → here
-3. **Windows driver language.** C# reaches the Windows APIs most directly and adds a third
-   toolchain. Deferred to when Windows is actually built (§13 of `17-security.md` has the harder
-   question). → `04-runtimes.md`
-4. **Web framework.** Carried from §10 of `11-surface-web.md`. → `11-surface-web.md`
+2. **Rust async runtime. Resolved here: Tokio in the filesystem worker only.** The Rust components
+   are small and mostly synchronous; pulling in Tokio for them may be unnecessary weight.
+
+The filesystem worker serves SFTP (§6 of `02-architecture.md`), and the mature Rust SSH server
+implementations are built on Tokio, so the worker uses it. The order matters and is fixed: the
+helper starts the worker inside its prepared mount namespace (§6 of `02-architecture.md`), the
+worker applies its Landlock ruleset while it is still single-threaded, and only then starts the
+runtime, so every thread the runtime creates is born confined (§4). The privileged helper stays
+synchronous and single-threaded: it serves one structured request at a time, and an async runtime
+would add threads and code to the one process where both are least welcome.
+
+3. **Windows driver language. Carried by §9 of `04-runtimes.md`, question 6.** C# reaches the
+   Windows APIs most directly and adds a third toolchain. Deferred to when Windows is actually built
+   (§13 of `17-security.md` has the harder question).
+4. **Web framework. Carried by §10 of `11-surface-web.md`, question 1**, where the constraints that
+   will decide it are listed.
 5. **Intent body representation. Resolved in §3.1 of `03-state.md`**: proto3 canonical JSON in the
    `jsonb` column, so the `.proto` remains the only schema and the seam closes.
+6. **Is the split still right, or should more of Korpis be Rust? Reopened for review, October
+   2026.** The decisions above were derived from where the confinement boundary sits, and §4's
+   argument for Rust at the boundary stands. What the second external review changed is the
+   boundary's extent: per-workload workers, `korpis-guest` inside microVMs, the relay that carries
+   every session, and the `oci` driver's validation are all security-critical, and the share of
+   Korpis that sits on a boundary is larger than §6 assumed when it called the Rust surface "a few
+   thousand lines". Whether that tips the agent supervisor, the relay, or the whole system toward
+   Rust, against the Connect and containerd ecosystems that favour Go for the control plane, is
+   being decided with the maintainer before Phase 0 begins, and this item is updated with the
+   decision and its reasoning. → here

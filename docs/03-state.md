@@ -649,3 +649,9 @@ can verify is.
    pressed a button. Read-your-writes routing is the standard fix and it needs designing rather
    than assuming. **Resolved in §6 of `10-api.md`**, a `consistency_token` returned by every write
    and replayed on reads.
+6. **Multi-region writes.** One PostgreSQL primary and nodes on three continents means every
+   declaration and every journal ingestion crosses an ocean. Regional read replicas and the
+   `consistency_token` of §6 of `10-api.md` cover reads. Whether writes need regional partitioning
+   is a large change if so, and it touches the epoch watermark of §8, which assumes one issuer.
+   Routed here from §10 of `18-operations.md` (question 2) and not carried until now (finding S18).
+   → here

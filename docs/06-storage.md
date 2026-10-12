@@ -66,9 +66,9 @@ the only protection, and the class says so.
 
 | Backend | snapshot | incremental send | quota | thin | reflink | Verdict |
 |---|---|---|---|---|---|---|
-| **ZFS** | ✓ atomic | ✓ `send -i` | ✓ `refquota` + inodes | ✓ | ✓ | recommended default |
-| **btrfs** | ✓ atomic | ✓ `send -p` | ✓ qgroups | ✓ | ✓ | recommended default |
-| **LVM-thin + XFS** | ✓ | ✗ block-level only | ✓ project quota | ✓ | ✗ | acceptable |
+| **ZFS** | ✓ atomic | ✓ `send -i` | ✓ `refquota` for bytes, project object quota for inodes | ✓ | ✓ | recommended default |
+| **btrfs** | ✓ atomic | ✓ `send -p` | ✓ qgroups, bytes only | ✓ | ✓ | recommended default |
+| **LVM-thin + XFS** | ✓ | ✗ block-level only | ✓ XFS project quota inside, the thin volume's size outside | ✓ | ✗ | acceptable |
 | **XFS / ext4 project quota** | ✗ | ✗ | ✓ | ✗ | ✗ | supported, degraded |
 | **Network (NFS/iSCSI/Ceph)** | backend-dependent | backend-dependent | backend-dependent | none | none | required for `shared_access` |
 
@@ -97,19 +97,29 @@ against a number produced by a background process. Neither is in the write path.
 
 | Backend | Mechanism | Result of exceeding |
 |---|---|---|
-| ZFS | `refquota` on the dataset | `write()` returns `EDQUOT`, immediately |
+| ZFS | `refquota` on the dataset; `projectobjquota` for inodes | `write()` returns `EDQUOT`, immediately |
 | btrfs | qgroup limit on the subvolume | `write()` returns `EDQUOT`, immediately |
-| XFS / ext4 | project quota on the project ID | `write()` returns `EDQUOT`, immediately |
-| LVM-thin | logical volume size | `ENOSPC` at the block layer |
+| XFS / ext4 | project quota on the project ID, bytes and inodes | `write()` returns `EDQUOT`, immediately |
+| LVM-thin + XFS | XFS project quota inside; the thin volume's size bounds the filesystem | `EDQUOT` from the quota; `ENOSPC` from the filesystem if the volume is full |
+
+**Thin pools are the one place where exceeding capacity is not a clean error.** A thin volume that
+fills returns `ENOSPC` from its filesystem like any full disk. A thin **pool** that runs out of real
+blocks underneath its volumes either queues writes or fails them with I/O errors, depending on its
+configuration, which is why §5.3 of `05-scheduling.md` stops placing and raises pressure well before
+a pool approaches exhaustion. The first version of this table said "`ENOSPC` at the block layer",
+which is not what happens at either level (finding S52).
 
 Three consequences follow, and all three are improvements:
 
 1. **The limit is in the write path.** There is no window, no walk interval, and no race. An 858 GB
    file cannot exist on a 1 GB volume, not because a monitor noticed, but because the kernel
    refused the write.
-2. **Usage is read, not computed.** `statfs` inside the tenant's namespace returns current usage in
-   constant time. #5186 (the panel misreporting disk usage) cannot occur, because nothing is
-   estimating anything.
+2. **Usage is read, not computed.** Each backend's own accounting returns current usage in constant
+   time: `used` against `refquota` on ZFS, the qgroup's referenced bytes on btrfs, the project quota
+   through `quotactl` on XFS and ext4. #5186 (the panel misreporting disk usage) cannot occur,
+   because nothing is estimating anything. The first version said `statfs` returned it, which is
+   true on XFS and ext4 for a directory under project quota and on ZFS, and false on btrfs, where
+   `statfs` reports the whole filesystem (finding S52).
 3. **Inode quotas exist.** A tenant can exhaust a filesystem with millions of empty files without
    using meaningful capacity. `quota_dimensions` includes inodes, and both are enforced. No panel
    in this market does this.
@@ -119,17 +129,30 @@ Three consequences follow, and all three are improvements:
 Ptero's #2798 and the open requests #1871 and #3352: disk I/O and bandwidth are unlimited, so one
 tenant degrades a whole node.
 
-Every workload runs in a cgroup v2 with `io.max` set from its `ResourceSpec`:
+Every workload runs in a cgroup v2 with its I/O set from its `ResourceSpec` (§5.2 of
+`05-scheduling.md`):
 
 ```
-io.max: rbps, wbps, riops, wiops     hard ceilings
-io.weight                             share of leftover capacity
+io.max: rbps, wbps, riops, wiops     hard ceilings, from io.limit
+io.weight                             proportional share under contention, from io.share
 ```
+
+**What the cgroup can and cannot hold, per storage class.** The I/O controller limits I/O it can
+attribute to a cgroup. Direct I/O and buffered writeback are attributed on ext4, XFS, and btrfs, so
+ceilings hold there. ZFS issues most of its I/O from its own pool threads, so the cgroup sees little
+of what a workload causes, and **ZFS classes declare write ceilings unenforced**: the interface does
+not display them on ZFS (K-3), and the operator who needs per-tenant I/O isolation chooses a class
+that can provide it, knowing why. `io.weight` is a share only when the node runs the `io.cost`
+controller with a device model; without it the weight does nothing, so a node without `io.cost`
+does not offer shares at all (§2 of `18-operations.md`). There is no I/O floor in cgroup v2, so
+nothing in Korpis reserves I/O (finding S38).
 
 **And the backup process is throttled too.** This is the actual content of #2798: backups to a
 spinning disk cause iowait spikes that degrade every server on the node. In Korpis the backup
-worker runs in its own cgroup with a low `io.weight` and explicit ceilings, so it consumes only
-capacity tenants are not using. Backup never competes with the workloads it is protecting.
+worker runs in its own cgroup with explicit `io.max` ceilings, and with a low share where `io.cost`
+is configured, so it consumes only capacity tenants are not using. Where neither applies (a ZFS
+class, which cannot attribute the reads either), backups are throttled by their own read rate in
+userspace, which is cruder and still bounded.
 
 ---
 
@@ -211,17 +234,26 @@ equivalent.
 | Incremental by default | unchanged chunks are already in the repository | #5493 |
 | No size limit | chunks are megabytes; multipart is irrelevant | #2599 |
 | No local staging | chunks stream directly to the repository | #3846 |
-| Doesn't kill the node | throttled cgroup, low `io.weight` | #2798 |
-| Deduplicated | content-addressed chunks | none |
-| Encrypted before leaving the node | client-side, per-repository key | none |
+| Doesn't kill the node | throttled cgroup, ceilings and a low share where the class enforces them | #2798 |
+| Deduplicated | content-addressed chunks, within each workload's history; recipe content by reference | none |
+| Encrypted before leaving the node | client-side, a per-workload data key (§5.5) | none |
 | Single-file restore | the manifest is a tree; fetch only the needed chunks | none |
 | Per-target policy | repositories are objects with their own settings | #4411 |
 
-Deduplication is worth spelling out for this market: fifty game servers running the same modpack
-store that modpack's bytes **once**. A provider running five hundred servers from a handful of
-popular images stores a small multiple of one server's data, not five hundred times it. This is the
-same idea as Rule K-15 and TCAdmin's patch system, applied to the backup path instead of the
-distribution path.
+Deduplication is worth spelling out for this market, and so is its boundary. Every backup of a
+workload deduplicates against that workload's earlier backups, which is what makes nightly backups
+of a 40 GB world cost the day's changes. Across workloads, chunks are not shared, because each
+workload's chunks are keyed by its own data key (§5.5) so that a node holding one workload's key
+learns nothing about another's. What fifty game servers running the same modpack do share is the
+modpack: files that are byte-identical to the content of the workload's recipe are recorded in the
+manifest **by reference to the recipe's digest** and stored once per repository, so the modpack's
+bytes are kept once and every tenant's own world is kept per tenant. This is Rule K-15 applied to
+the backup path, bounded by the security rule rather than in spite of it.
+
+> Second external review, finding S37. The first version promised cross-workload deduplication
+> with one key per repository, which required every node to hold a key that decrypts every
+> workload's backups in that repository. The trade is now the other way round, and the part of the
+> saving that matters most in this market, shared game content, survives it.
 
 Single-file restore falls out for free and is unavailable anywhere in this market: because the
 manifest is a tree of chunk references, restoring one config file from three weeks ago fetches a
@@ -233,9 +265,9 @@ few kilobytes. Pterodactyl requires downloading and extracting the entire `tar.g
 Repository
   id, name, scope           organization | project
   target                    s3 | b2 | azure | gcs | sftp | local | filesystem
-  encryption                key reference, the key is never stored beside the data
+  encryption                key-encryption key reference and custody (§5.5); never beside the data
   retention                 RetentionPolicy
-  dedup_scope               repository
+  dedup_scope               workload, plus recipe content by reference (§5.2)
 ```
 
 ```
@@ -245,12 +277,15 @@ RetentionPolicy
   min_retention      Duration     a floor no policy or operator can prune below
 ```
 
-**Deduplication is scoped to the repository, and that is a security boundary, not a tuning knob.**
-Content-addressed dedup leaks a bit: an attacker who can write to a repository can test whether a
-given file already exists by observing whether their upload deduplicates. Within one organization's
-data that is uninteresting. Across tenants it is a confirmation-of-file oracle. The default
-repository scope is therefore the organization, and a shared cross-tenant repository is an explicit
-operator decision documented with this consequence.
+**The dedup scope is a security boundary, not a tuning knob.** Content-addressed dedup leaks a bit:
+an attacker who can write to a repository can test whether a given file already exists by
+observing whether their upload deduplicates. Within one workload's history that is uninteresting.
+Across tenants it is a confirmation-of-file oracle. Keying chunk identifiers by the workload's own
+data key (§5.5) closes the oracle structurally: two workloads storing the same file produce
+different chunk identifiers, so nobody can observe the other's. Recipe content is shared by
+reference, and recipe content is public by definition, so there is nothing to confirm. The default
+repository scope remains the organization, for billing and retention reasons rather than for
+secrecy.
 
 #### Widening the dedup scope is decided by the people inside it
 
@@ -268,9 +303,12 @@ This is Finding 7 of `23-walkthroughs.md` in a different subsystem, and it takes
 - A repository scoped to one organization is that organization's own decision.
 - Widening a scope to span organizations requires the authority of the owner of **every**
   organization it will span, the same rule §4.1 of `16-extensions.md` applies to providers.
-- The scope is **visible to every tenant inside it**. A tenant whose backups deduplicate against
-  someone else's can see that this is true, because it is a fact about their data and they cannot
-  discover it any other way.
+- The scope is **visible to every tenant inside it**, because which repository holds a tenant's
+  data, and who else's is beside it, is a fact about their data they cannot discover any other way.
+
+With per-workload keys (§5.5) a shared repository no longer shares an oracle, only storage and
+public recipe content. The rule above stays, because who decides where a tenant's data lives is
+still the tenant's question, whatever the cryptography makes safe.
 
 **Pruning is an irreversible plan step** (§3.3 of `01-model.md`) and always requires approval.
 `min_retention` is a floor beneath which no policy, operator, or automation can prune, the defence
@@ -307,11 +345,79 @@ So `backup.browse` and `backup.read` are separate actions. Browse is the weaker 
 implies the other, and both are recorded as sensitive reads in the audit log (§4 of
 `15-observability.md`).
 
+**Single-file restore from a block-device volume runs in a guest kernel.** A `microvm` or `vm`
+volume's backup is an image the tenant's guest formatted. Browsing it means parsing that
+filesystem, and the host never does: the browse and the fetch run in a disposable service microVM
+that attaches the restored image read-only, the same mechanism that gives such volumes file access
+when they are stopped (§4.4 of `04-runtimes.md`). A filesystem the service microVM cannot read
+offers whole-image restore only, stated when the backup is taken (finding S40).
+
 **Restores are verified.** A restore that completes without confirming the data is readable and the
 workload can start is not a restore, it is a hope. The verification is the same contract as
 migration's `verify` phase (§8 of `05-scheduling.md`), including symlinks, extended attributes,
 sparse files, ACLs, and hardlinks, the omission that makes Pterodactyl's transfers silently produce
 unbootable servers (#5429).
+
+### 5.5 Keys, credentials, and who may write
+
+> Second external review, findings S37 and S49. Recorded in §17 of `23-walkthroughs.md`.
+
+The flow of §5.1 encrypts on the node, deduplicates before the network, and streams to the
+repository without staging. Each of those needs something on the node: a key to encrypt with, the
+chunk index to deduplicate against, and a credential that can write. The first version gave the
+node all three for the whole repository while §7 of `17-security.md` said nodes hold no
+object-storage credentials, and §9 of the same document bounded a compromised node to "that node's
+tenants", which a repository-wide key would have contradicted the moment a repository held more
+than one node's workloads.
+
+**Keys form a hierarchy, and a node only ever holds the bottom of it, briefly:**
+
+```
+repository key-encryption key (KEK)    held by the control plane, or by an external KMS
+  └── workload data key (DEK)          one per workload, generated at its first backup,
+                                       stored only wrapped by the KEK
+        ├── chunk identifiers          keyed hashes under the DEK: equal content in two
+        │                              workloads has unrelated identifiers
+        └── chunk and manifest encryption
+```
+
+- **For each backup or offload job, the node receives the one workload's DEK**, unwrapped by the
+  control plane for that job, and nothing else. It never sees the KEK.
+- **For the same job, it receives a short-lived credential that can write new objects under that
+  workload's prefix and nothing else**: an STS session policy on S3-compatible stores, a downscoped
+  token on GCS, a user-delegation SAS on Azure, a prefix-restricted application key on B2. It can
+  list that prefix, so it can deduplicate against the workload's own history, and it cannot delete
+  or overwrite anything.
+- **Where a target cannot issue such a credential** (SFTP, most self-hosted stores), the node
+  streams its encrypted chunks to a relay (§3.1 of `02-architecture.md`), which holds the target's
+  credential and writes them. The relay never holds a DEK, so it moves ciphertext it cannot read.
+- **A compromised node therefore reaches the backups of the workloads placed on it**, whose live
+  data it could already read, for the length of its jobs, and nothing in any other prefix. That is
+  the blast radius §9 of `17-security.md` states, now true of backups as well.
+
+**Who holds the KEK is a declared choice per repository**, because it decides who can read tenants'
+backups, and that is exactly the question open question 1 asked:
+
+| `key_custody` | KEK held by | The operator can read tenant backups | Restore needs |
+|---|---|---|---|
+| `operator` (default) | the control plane, or the operator's KMS | **yes**, through an explicit grant naming the tenant, visible to the tenant (§3.3 of `08-identity.md`) | nothing extra |
+| `tenant` | a KMS the tenant controls, which the control plane asks to unwrap per job | **no** | the tenant's KMS to be reachable |
+
+`tenant` custody is the only configuration in which a host genuinely cannot read a customer's
+backups, and it costs the customer their own key management and the host the ability to restore
+without them. Both are stated where the choice is made.
+
+**One writer per workload prefix, and pruning only in the control plane.** Pruning while a backup
+is running can delete a chunk that the running backup has just decided not to upload because it
+already existed, which is how deduplicating backup systems lose data. The rule that prevents it is
+simple because the keys made it so: a workload's chunks live only under its own prefix, and the
+control plane schedules every job that touches a prefix, so it never runs two at once. Backups of
+one workload are serialized by the control plane, which schedules them, and a prune of a prefix
+takes the same lock. Pruning itself is two-phase and runs with the repository's own
+credential, which only the control plane or a relay holds: chunks no manifest references are marked,
+and deleted only after a grace period longer than the longest backup job, so even a lock lost to a
+crash cannot race a writer into a hole. Recipe content, shared across prefixes, is never pruned
+while any manifest in the repository refers to its digest.
 
 ---
 
@@ -393,16 +499,24 @@ the operator should know which one they bought at the moment they choose the cla
 
 ## 9. Open questions
 
-1. **Encryption key custody.** Client-side encryption means a lost key is lost data, and a key
-   stored beside the backups is not encryption. Options: operator-held with an explicit escrow
-   ceremony, KMS integration, or per-organization keys wrapped by an operator key. The last
-   supports multi-tenancy but makes the operator able to read tenant backups, which may be exactly
-   right for a hosting provider and exactly wrong for a shared community. → here, and
-   `17-security.md`
-2. **Does Korpis ever run an object store?** Backups need a target. Requiring S3-compatible storage
-   is one more thing to procure for a single-machine operator; shipping one contradicts "Korpis is
-   not a storage provider" (§2 of `00-overview.md`). A local filesystem target is the likely middle
-   position, with its limitations stated. → `18-operations.md`
+1. **Encryption key custody. Resolved in §5.5**: per-workload data keys wrapped by a repository
+   key-encryption key, whose custody is a declared choice between the operator and the tenant.
+   Client-side encryption means a lost key is lost data, and a key stored beside the backups is not
+   encryption. Options: operator-held with an explicit escrow ceremony, KMS integration, or
+   per-organization keys wrapped by an operator key. The last supports multi-tenancy but makes the
+   operator able to read tenant backups, which may be exactly right for a hosting provider and
+   exactly wrong for a shared community, which is why it is now a choice rather than a default.
+2. **Does Korpis ever run an object store? Resolved here: no.** Backups need a target. Requiring
+   S3-compatible storage is one more thing to procure for a single-machine operator; shipping one
+   contradicts "Korpis is not a storage provider" (§2 of `00-overview.md`). A local filesystem
+   target is the likely middle position, with its limitations stated. It was routed to
+   `18-operations.md`, which never carried it (finding S18).
+
+The `filesystem` target is supported for exactly that operator, on a separate disk or a mounted
+remote filesystem, and a target on the same machine as the data it protects is labelled **not
+off-site** wherever its backups are shown, because it does not survive the machine. Anything
+S3-compatible, from a commercial service to a self-hosted store the operator runs themselves,
+serves the rest. Korpis ships no object store and does not become one.
 3. **Network storage backends.** `shared_access` is required for VM live migration and for
    failover, but Ceph, NFS, and iSCSI have very different consistency, performance, and failure
    characteristics. Whether one abstraction covers them or each needs its own class is unresolved.
@@ -411,7 +525,16 @@ the operator should know which one they bought at the moment they choose the cla
    `runtime_snapshot`, capturing memory state gives a restore that resumes rather than reboots. It
    also multiplies backup size by the RAM allocation. Probably an opt-in policy rather than a
    default. → here
-5. **Cross-node deduplication.** Dedup is currently per-repository, which means a hundred nodes
-   backing up identical images each upload them once, a hundred uploads of the same bytes. A shared
-   chunk index across nodes would fix it and reintroduces the confirmation-of-file oracle of §5.3
-   at a larger scale. → here
+5. **Cross-node deduplication. Resolved by §5.2 and §5.5, and the question was framed wrongly.** It
+   said dedup was per repository and that a hundred nodes would each upload identical images. Dedup
+   per repository already spans every node writing to it, so the real question was always across
+   workloads and tenants, which is where the oracle lives (finding S49). The answer is that
+   identical *recipe* content is stored once per repository by reference, which covers identical
+   images and modpacks, and identical *tenant* content is not shared, deliberately, because sharing
+   it would require a key that reaches every tenant's data.
+6. **Hibernated volumes and cheaper storage.** A hibernated workload keeps its volume, so it still
+   consumes disk and still counts against quota. Whether hibernated volumes move to cheaper storage
+   automatically is attractive and interacts with §7. Routed here from §9 of `22-first-party.md`
+   (question 2) and not carried until now (finding S18). A move is a migration of the volume
+   alone, with every guarantee of §8 of `05-scheduling.md`, and waking would then pay for the move
+   back; whether that trade is worth automating is a measurement, not a principle. → here

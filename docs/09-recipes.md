@@ -474,7 +474,17 @@ visible rather than inherited silently.
    and means a security fix in a base image requires re-publishing every dependent recipe. A
    constraint solver would fix that and would import npm's entire problem space. The middle
    position is automated rebuild-and-republish tooling rather than runtime resolution. → here
-5. **Private recipes and registry authentication.** An operator's proprietary recipes live in a
-   private registry. Which credentials the Content component holds, how they are scoped per
-   organization, and whether a tenant can supply their own registry credentials without the
-   operator being able to read them is unresolved. → `17-security.md`
+5. **Private recipes and registry authentication. Resolved here.** An operator's proprietary
+   recipes live in a private registry. Which credentials the Content component holds, how they are
+   scoped per organization, and whether a tenant can supply their own registry credentials without
+   the operator being able to read them was unresolved. It was routed to `17-security.md`, which
+   never carried it (finding S18).
+
+Registry credentials are organization-scoped secrets held by the Content component, usable for the
+recipes declared within that organization's subtree, and never sent to a node: nodes receive the
+short-lived, digest-scoped pull tokens of §7. A tenant may supply credentials for its own registry
+on the same terms. What is **not** offered is a credential the operator cannot read: the operator
+runs the control plane that must use it, so any such promise would be false, and §8 of
+`17-security.md` already states that tenants are not protected from the operator. A tenant who
+needs that property keeps the recipe in a registry the operator's control plane is given a
+pull-only, revocable credential for, and revokes it when the relationship ends.

@@ -24,18 +24,32 @@ edition nobody can afford.
 
 ## 2. Install, honestly
 
-Two binaries and a database:
+Two signed artifacts and a database:
 
 ```
-korpis-server    control plane. HTTP/Connect API, reconcilers, scheduler.
-korpis-agent     node agent. dials out; no inbound ports.
-PostgreSQL       authoritative state (§6 of `03-state.md`. Postgres only, no SQLite, no MySQL).
+korpis-server     one binary: control plane (API, reconcilers, scheduler), gateway, relay, and
+                  its own installer. Roles are enabled per process; on one machine, all of them.
+korpis-agent      one signed package of separate executables (§6.2 of `02-architecture.md`):
+                    korpis-agent          the supervisor; dials out; no inbound ports
+                    korpis-helper         the privileged helper, socket-activated
+                    korpis-fsworker       the per-workload filesystem worker
+                    korpis-driver-*       one per runtime driver the node offers
+                    korpis-guest          placed inside microVMs, never run on the host
+PostgreSQL        authoritative state (§6 of `03-state.md`. Postgres only, no SQLite, no MySQL).
+korpis            the CLI, one static binary, for whoever operates the installation
 ```
 
-On one machine, all three run on one machine. That is the entire single-node story.
+On one machine, all of it runs on one machine. That is the entire single-node story.
 
-**The database is the one place Korpis cannot claim "just one binary", and it says so rather than
-pretending.** §6 of `03-state.md` killed SQLite deliberately: the transactional guarantees that
+> Second external review, finding S55. Recorded in §17 of `23-walkthroughs.md`. This section said
+> "two binaries and a database" while the agent it describes is a supervisor, a root helper,
+> filesystem workers, and one process per driver, in two languages (§2 of `21-stack.md`). An
+> operator installs two artifacts; the agent artifact contains several executables because the
+> privilege separation of §6 of `02-architecture.md` is made of process boundaries. Saying so costs
+> nothing and makes the process list on a node unsurprising.
+
+**The database is the one place Korpis cannot claim "just two artifacts", and it says so rather
+than pretending.** §6 of `03-state.md` killed SQLite deliberately: the transactional guarantees that
 make `Intent`/`Effect` honest are not optional, and an embedded engine that cannot provide them
 would undermine the model in exchange for a nicer README. The installer provisions Postgres through
 the system package manager or a container and gets out of the way; Korpis does not vendor, fork, or
@@ -92,7 +106,9 @@ microVMs on ZFS. Preflight reports against what the node is *configured to offer
 | user namespaces enabled | every tier | root inside a workload must not be root on the host |
 | `openat2` (5.6+) | tenant file access | subsumed by the kernel floor |
 | Landlock | tenant file access | the filesystem worker's confinement; without it the node offers no tenant file API |
-| **KVM + nested virt** | `microvm`, `vm` | absent → the node advertises only `process` and `container` |
+| **KVM** | `microvm`, `vm` | absent → the node advertises only `process` and `container`. On bare metal KVM is enough; **nested virtualization is needed only when the node is itself a virtual machine**, and preflight checks it only then (finding S67) |
+| `io.cost` configured for the volume devices | I/O shares (§3 of `06-storage.md`) | absent → I/O ceilings only; preflight prints the configuration to apply and does not apply it |
+| an edge failover group, or a routed address pool | the `stable` exposure mode (§3.1 of `07-networking.md`) | absent → `node_bound` is offered instead, and says what it does not survive |
 | ZFS or btrfs | replicated and snapshot-capable storage classes | ext4/XFS with project quota still gives enforced byte and inode limits |
 | IPv6 | the default addressing mode (§4 of `07-networking.md`) | absent → IPv4 only, and the scarcity is the operator's problem |
 
@@ -194,13 +210,15 @@ for the transaction that writes an `Effect`, and leaves the rest to tools built 
 **Nodes.** A node is a single point of failure for the workloads on it, and no amount of
 control-plane availability changes that. What Korpis provides is the ability to *express* the
 answer: replicas, anti-affinity across nodes and failure domains, a replicated storage class, and a
-`stable` endpoint whose public address survives the move (§3 of `07-networking.md`). What it does
+`stable` endpoint whose public address survives the move and the loss of any one node or edge (§3
+of `07-networking.md`). A `node_bound` address does not survive the loss of the node it is anchored
+to, and is described that way wherever it is shown. What it does
 not provide is automatic recovery of stateful workloads whose only copy of their data was on the
 failed node, because that is not recoverable, and implying otherwise would be the kind of claim P4
 forbids.
 
 **Edges.** `stable` and `ingress` endpoints (§3 of `07-networking.md`) concentrate many workloads'
-reachability into one forwarding point, which reintroduces at the network layer exactly the shared
+reachability into a forwarding tier, which reintroduces at the network layer exactly the shared
 failure domain the control plane design removed. **This is the cost of the headline feature and it
 must be stated rather than discovered:** in Pterodactyl a node's failure takes down that node's
 servers and nothing else, because the address lives on the node. With `stable`, an edge's failure
@@ -224,8 +242,10 @@ asking, because a half-failed edge on a healthy host was not detected at all (Fi
 
 Forwarding state is derivable from placements, so a replacement edge reconstructs it from the
 control plane rather than needing state replication, an edge holds no truth of its own. On one
-machine, the edge is that machine and the question does not arise; the single-machine constraint of
-§1 is not violated by an option that only matters at scale.
+machine there is no edge tier and no `stable` mode; endpoints are `node_bound`, which on one machine
+behaves identically because nothing can move. The single-machine constraint of §1 is not violated
+by an option that only exists at scale, and the option is not pretended into existence where it
+cannot hold.
 
 **The control plane can be entirely absent and workloads keep running.** §4.6 of
 `02-architecture.md` guarantees it, and it is the reason disaster recovery here is a recovery
@@ -387,17 +407,24 @@ default (§6 of `15-observability.md`).
    quick-start exists for evaluation and says so at startup, and no database is vendored. What
    remains open is whether distribution packages arrive before or after there is a second
    maintainer to keep them from going stale (§6 of `19-governance.md`). → here
-2. **Multi-region control plane.** One Postgres and nodes on three continents means reconciliation
-   latency crossing oceans. Regional read replicas plus the `consistency_token` of §6 of
-   `10-api.md` cover reads; whether writes need regional partitioning is unresolved and is a large
-   change if so. → `03-state.md`
+2. **Multi-region control plane. Carried by §10 of `03-state.md`, question 6.** One Postgres and
+   nodes on three continents means reconciliation latency crossing oceans. Regional read replicas
+   plus the `consistency_token` of §6 of `10-api.md` cover reads; whether writes need regional
+   partitioning is unresolved and is a large change if so.
 3. **Hardware attestation.** Carried from §13 of `17-security.md`. Measured boot would make
    compromised-node detection real; the key management is disproportionate for a single-operator
    install and would have to be optional. → here
-4. **Windows node operations.** Enrollment, preflight, upgrade-without-restart, and drain all
-   assume a Linux process model. K-9 requires Windows on day one at the *interface* level; the
-   operational surface has not been worked through. → `04-runtimes.md`
+4. **Windows node operations. Carried by §9 of `04-runtimes.md`, question 6.** Enrollment,
+   preflight, upgrade-without-restart, and drain all assume a Linux process model. K-9 requires
+   Windows on day one at the *interface* level; the operational surface has not been worked
+   through.
 5. **Upgrade rehearsal.** A `korpis upgrade --plan` that reports which agents would fall outside
    the support window, which extensions declare incompatible API versions (§6 of
    `16-extensions.md`), and which migrations would run, before anything moves. This is P5 applied
    to the platform itself and is probably not optional. → here
+6. **Node pool autoscaling.** Growing a cluster in response to pressure requires a provider
+   interface (create a machine, install the agent, enrol it). That is close to "Korpis is not a
+   cloud provider" and needs a boundary drawn before it is built. Routed here from §10 of
+   `05-scheduling.md` (question 2) and not carried until now (finding S18). The likely boundary is
+   the same as for DNS: a node-pool provider extension creates machines and hands them an
+   enrollment token, and Korpis never speaks a cloud API itself. → here
