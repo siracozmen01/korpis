@@ -58,6 +58,26 @@ fn installs_run_no_code_and_fetch_nothing_unhashed() {
 }
 
 #[test]
+fn an_archive_is_read_and_unpacked_only_inside_the_workload() {
+    let extract = |args: &str| {
+        PAPER.replacen(
+            "- write: {path: /data/eula.txt",
+            &format!("- extract: {{{args}}}\n    - write: {{path: /data/eula.txt"),
+            1,
+        )
+    };
+    parse(extract("from: /data/paper.jar, to: /data/x").as_bytes()).unwrap();
+    for (args, field) in [
+        ("from: /data/../../etc/shadow, to: /data/x", "install.steps[2].from"),
+        ("from: /data/paper.jar, to: /data/x, include: [../../etc]", "install.steps[2].include"),
+        ("from: /data/paper.jar, to: /data/x, include: [/etc]", "install.steps[2].include"),
+    ] {
+        let e = parse(extract(args).as_bytes()).unwrap_err();
+        assert_eq!(field_of(&e), field, "{args}");
+    }
+}
+
+#[test]
 fn ownership_is_workload_relative() {
     let chown = |uid: u32| {
         PAPER.replacen(

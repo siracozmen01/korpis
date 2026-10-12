@@ -166,9 +166,14 @@ impl InstallStep {
                 artifact_path(&f("from"), from)?;
                 workload_path(&f("to"), to)
             }
-            Self::Extract { from, to, .. } => {
-                if !from.starts_with('/') {
+            Self::Extract { from, to, include, .. } => {
+                if from.starts_with('/') {
+                    workload_path(&f("from"), from)?;
+                } else {
                     artifact_path(&f("from"), from)?;
+                }
+                if include.iter().any(|e| e.starts_with('/') || artifact_path("", e).is_err()) {
+                    return Err(RecipeError::new(&f("include"), "archive paths without . or .."));
                 }
                 workload_path(&f("to"), to)
             }
