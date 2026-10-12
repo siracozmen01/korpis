@@ -71,7 +71,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | Crate | Layer | Licence | What it holds |
 |---|---|---|---|
 | `korpis-proto` | wire contract | Apache-2.0 | the protobuf schema and generated types |
-| `korpis-core` | domain | AGPL-3.0 | identifiers, principals, authority, effects, tenancy |
+| `korpis-core` | domain | AGPL-3.0 | principals, authority, tenancy, workloads, plans, recipes |
 | `korpis-app` | application | AGPL-3.0 | use cases and the ports they need |
 | `korpis-store` | driven adapter | AGPL-3.0 | PostgreSQL: migrations and the store ports |
 | `korpis-server` | driving adapter, root | AGPL-3.0 | Connect API, TLS, keys, `install`, `serve` |
@@ -110,6 +110,7 @@ domain rules, the use cases, the storage, and the API mapping for one subject sh
 | authority: grants, delegation, tokens, credentials | `08-identity.md` | `authz` |
 | audit: the effect log | `03-state.md`, `15-observability.md` | `audit` |
 | workloads: intent, plan, power | `01-model.md`, `03-state.md` | `workload` |
+| recipes: references, configuration schema | `09-recipes.md` | `recipe` |
 | placement: nodes, scheduling, leases | `02-architecture.md`, `05-scheduling.md` | `placement` |
 
 Contexts talk to each other through the domain types and through use cases, never by reaching into

@@ -329,6 +329,10 @@ a project they controlled and approve their own requests. The definitions:
 - **Nobody approves their own plan.** The approving subject must differ from the proposing subject,
   and the approving grant's chain must not pass through the proposing grant, so minting oneself a
   child grant does not manufacture a second approver.
+  This governs approval of a plan proposed under `requires_approval_by`. A plan whose proposer was
+  permitted the action outright, and which waits only because it is disruptive or irreversible,
+  needs **confirmation**, which its proposer may give (§3.3 of `01-model.md`, clarified
+  2026-10-12).
 - The approval is an effect naming both subjects and both chains, and `requires_approval_by` is
   never cached (§5.1 of `02-architecture.md`).
 

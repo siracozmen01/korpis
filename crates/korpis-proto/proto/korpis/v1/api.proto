@@ -337,7 +337,9 @@ service PlanService {
   rpc ListPlans(ListPlansRequest) returns (ListPlansResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // plan.approve, by a subject other than the proposer (§3.6 of docs/08-identity.md).
+  // A plan waiting for authority (proposed under requires_approval_by) needs plan.approve by a
+  // subject other than the proposer (§3.6 of docs/08-identity.md). A plan waiting only for
+  // confirmation may be confirmed by its proposer (§3.3 of docs/01-model.md).
   rpc ApprovePlan(ApprovePlanRequest) returns (ApprovePlanResponse);
   rpc RejectPlan(RejectPlanRequest) returns (RejectPlanResponse);
   // plan.cancel: lowers `through` on the nodes executing it (§7 of docs/03-state.md).

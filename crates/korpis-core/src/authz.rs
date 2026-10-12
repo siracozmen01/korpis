@@ -13,7 +13,8 @@ pub mod credential;
 pub mod evaluate;
 pub mod grant;
 pub mod record;
-pub mod scope;
+/// Scopes are plain data shared with plans and placement; they live at the crate root.
+pub use crate::scope;
 pub mod token;
 
 pub use action::Action;

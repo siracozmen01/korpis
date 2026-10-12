@@ -531,6 +531,22 @@ Step
   requires explicit approval. A plan whose steps are all non-disruptive is auto-approved by default
   policy, and **`disruptive` is declared, never inferred** (below).
 
+> Added 2026-10-12, from the implementation (`crates/korpis-core/src/workload/plan/approval.rs`).
+> "Explicit approval" named two different requirements, and §3.6 of `08-identity.md` gives only one
+> of them its rules. Read literally, a lone operator could never stop a game server whose recipe
+> declares stopping disruptive, because nobody may approve their own plan, while §4 of
+> `13-surface-cli.md` has the same operator apply a plan they reviewed with `--plan`. Every plan
+> now records which one it needs:
+>
+> - **Auto**: every step reversible and non-disruptive and the impact known; applied at once.
+> - **Confirmation**: the proposer's grant permits the action outright, but the plan is not
+>   auto-approvable. It waits in `proposed` until someone confirms it, and the proposer may: P5
+>   asks that a human see the change, and the proposer reading the plan is that human. Confirming
+>   re-evaluates the proposer's authority for the plan's action.
+> - **Authority**: the plan was proposed under a grant with `requires_approval_by`. It needs a
+>   different subject holding `plan.approve` over the approval scope, with the chain rule of §3.6
+>   of `08-identity.md`; the proposer can never supply it, however the plan is classified.
+
 **Where `disruptive` comes from**
 
 > External review, finding R9. Recorded in §16 of `23-walkthroughs.md`.
@@ -553,6 +569,13 @@ So the classification has one source and one override chain, both in the Plan an
 Every layer may only make a step **more** disruptive than the layer beneath it, never less. That
 asymmetry is the whole safety property: the vocabulary's floor cannot be argued away by a recipe
 author or a driver, and an operator who wants a quieter approval flow has to say so on the record.
+
+> Clarified 2026-10-12, from the implementation (`crates/korpis-core/src/workload/plan/step.rs`).
+> "Everything" in the operator's row means everything above the floor: an operator's override may
+> make a step less disruptive than the driver or the recipe said, never less than the vocabulary's
+> floor, which the first row says cannot be relaxed. Each step records the layer that decided its
+> classification and the reason in words, so "both in the Plan and both visible" holds for the
+> answer as well as for the rules.
 
 `Impact.downtime_estimate` and `Impact.data_at_risk` follow the same rule. Where they cannot be
 computed they are reported as `unknown` rather than zero, and a plan whose impact is `unknown` is

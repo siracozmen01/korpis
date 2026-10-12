@@ -349,6 +349,48 @@ recipe loader says so rather than letting the recipe claim a protection it canno
 effects (they record that it changed, not what to), and readable back only with
 `workload.secret.read` (§5 of `10-api.md`).
 
+> Note, 2026-10-12, from the implementation (`crates/korpis-core/src/recipe/config.rs`). The wire
+> schema names the `file` channel `CONFIG_DELIVERY_TEMPLATE`: the field reaches the software only
+> through templates rendered into its volumes, which is the same tenant-writable channel. The
+> loader treats them as one, and refuses an `operator` or `secret` field that uses it.
+
+### 5.3 Derived fields, and the language they are written in
+
+> Added 2026-10-12. §5 showed `derived: "resources.memory * 0.8"` and no document said what an
+> expression may contain, who evaluates it, or when, so the field could not be implemented.
+
+A derived field is computed by the **control plane, at declaration**, from the intent being
+declared, and the result is written into the intent like any other value. A node never evaluates
+an expression, an old intent keeps the value it was declared with, and a rollback restores it.
+The language is deliberately small:
+
+```
+expr    := term (('+' | '-') term)*
+term    := factor (('*' | '/') factor)*
+factor  := number | quantity | path | '-' factor | '(' expr ')'
+         | ('min' | 'max') '(' expr ',' expr ')'
+path    := 'resources.' ('cpu' | 'memory' | 'disk') ['.reservation' | '.limit'] | 'resources.pids'
+         | 'config.' key
+```
+
+`resources.memory` without a suffix means the limit if one is set and the reservation otherwise;
+CPU is in millicores, memory and disk in bytes. A `config.` path may name only a numeric field
+that is not itself derived, so evaluation needs no ordering and cannot cycle. A derived field
+must be `integer`, `number`, or `quantity`, must have permission `system`, and its result is
+rounded down for the integer types and checked against the field's `min` and `max` like a
+declared value. Division by zero, a non-finite result, or a negative quantity rejects the
+declaration. Expressions are limited to 256 bytes and sixteen levels of nesting.
+
+The other syntaxes the schema relies on are fixed here as well. A **quantity** is a decimal
+number with an optional suffix: binary `Ki` to `Ei`, decimal `k` to `E`, or `m` for thousandths,
+with no exponent form and at most three fractional digits after scaling. A **duration** is one or
+more `<integer><unit>` parts with units `d`, `h`, `m`, `s`, `ms`, largest first (`1h30m`). A
+field **key** is `[a-z][a-z0-9_]*`, at most 64 bytes, and a `pattern` must match the whole value.
+
+What it costs: a recipe author who needs a conditional or a string operation cannot express it,
+and has to ask for a field the operator sets instead. That is the intended trade; an expression
+language that can branch is a program, and recipes contain no programs (§4).
+
 ---
 
 ## 6. Templating is sandboxed

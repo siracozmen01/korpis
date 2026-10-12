@@ -83,6 +83,51 @@ impl Labels {
     }
 }
 
+/// A label selector: every `match_labels` pair must be present, and every expression must hold.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LabelSelector {
+    /// Labels that must be present with these values.
+    pub match_labels: BTreeMap<String, String>,
+    /// Further expressions, all of which must hold.
+    pub expressions: Vec<LabelExpression>,
+}
+
+/// One label expression of a selector.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LabelExpression {
+    /// The label is present with one of the values.
+    In(String, Vec<String>),
+    /// The label is absent or has none of the values.
+    NotIn(String, Vec<String>),
+    /// The label is present.
+    Exists(String),
+    /// The label is absent.
+    DoesNotExist(String),
+}
+
+impl LabelSelector {
+    /// Whether `labels` satisfy the selector.
+    #[must_use]
+    pub fn matches(&self, labels: &BTreeMap<String, String>) -> bool {
+        self.match_labels.iter().all(|(k, v)| labels.get(k) == Some(v))
+            && self.expressions.iter().all(|e| match e {
+                LabelExpression::In(k, vs) => labels.get(k).is_some_and(|v| vs.contains(v)),
+                LabelExpression::NotIn(k, vs) => labels.get(k).is_none_or(|v| !vs.contains(v)),
+                LabelExpression::Exists(k) => labels.contains_key(k),
+                LabelExpression::DoesNotExist(k) => !labels.contains_key(k),
+            })
+    }
+
+    /// Whether every object this selector matches is also matched by `wider`: it carries all of
+    /// `wider`'s requirements, and possibly more. Conservative: a narrower selector written
+    /// differently is refused rather than reasoned about.
+    #[must_use]
+    pub fn is_at_least_as_narrow_as(&self, wider: &Self) -> bool {
+        wider.match_labels.iter().all(|(k, v)| self.match_labels.get(k) == Some(v))
+            && wider.expressions.iter().all(|e| self.expressions.contains(e))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
