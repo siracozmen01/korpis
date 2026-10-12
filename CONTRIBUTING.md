@@ -69,6 +69,23 @@ read start to finish by someone who has not seen them before, so:
 decision and how open questions are recorded. It is written for AI coding agents, and it is the
 shortest accurate description of how this repository works for humans too.
 
+## Working on the code
+
+The implementation is a Rust workspace in `crates/` (§3 of
+[`21-stack.md`](./docs/21-stack.md)). Three scripts cover everything:
+
+```
+scripts/dev-pg.sh up    a PostgreSQL for development and tests, in its own container on
+                        127.0.0.1:55432, isolated from anything else on the machine
+scripts/tools.sh        the pinned schema tools (buf and the code generators), into .tools/;
+                        needed only to change a .proto, then run scripts/gen-proto.sh
+scripts/check.sh        every check a commit must pass: the text rules, the schema, rustfmt,
+                        clippy with warnings denied, the tests, and the dependency policy
+```
+
+Building needs only a Rust toolchain: the wire types are generated at build time from the
+committed descriptor set, so no protobuf compiler is required.
+
 ## Legal
 
 Contributions are accepted under the **Developer Certificate of Origin**. Sign off your commits:

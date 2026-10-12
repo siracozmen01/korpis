@@ -22,6 +22,11 @@ missing_errors_doc = "allow"
 [workspace.dependencies]
 korpis-proto = { path = "crates/korpis-proto" }
 korpis-core = { path = "crates/korpis-core" }
+korpis-store = { path = "crates/korpis-store" }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v7", "serde"] }
 
 [profile.release]
 lto = "thin"

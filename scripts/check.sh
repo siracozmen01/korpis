@@ -30,7 +30,8 @@ cargo fmt --all --check
 echo "== clippy"
 cargo clippy --workspace --all-targets --locked -- -D warnings
 
-echo "== tests"
+echo "== tests (database: scripts/dev-pg.sh)"
+if [ -z "${KORPIS_TEST_PG_URL:-}" ]; then ./scripts/dev-pg.sh up >/dev/null; fi
 cargo test --workspace --locked
 
 if command -v cargo-deny >/dev/null; then

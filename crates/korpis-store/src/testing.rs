@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Throwaway databases for tests. Each one is created from the superuser URL in
+//! `KORPIS_TEST_PG_URL` (default: the `scripts/dev-pg.sh` instance), migrated, and dropped when
+//! the [`TestDb`] is dropped.
+
+use crate::{Error, Store, migrate};
+use sqlx::Connection;
+use sqlx::postgres::PgConnection;
+
+/// The default superuser URL, matching `scripts/dev-pg.sh url`.
+pub const DEFAULT_ADMIN_URL: &str = "postgres://postgres:korpis-dev@127.0.0.1:55432/postgres";
+
+/// A migrated database that exists for the lifetime of the value.
+#[derive(Debug)]
+pub struct TestDb {
+    admin_url: String,
+    name: String,
+    /// The owner URL for the database: superuser, connected to it.
+    pub owner_url: String,
+}
+
+impl TestDb {
+    /// Creates and migrates a fresh database.
+    pub async fn new() -> Result<Self, Error> {
+        let admin_url =
+            std::env::var("KORPIS_TEST_PG_URL").unwrap_or_else(|_| DEFAULT_ADMIN_URL.to_owned());
+        let name = format!("korpis_test_{}", uuid::Uuid::now_v7().simple());
+        let mut admin = PgConnection::connect(&admin_url).await?;
+        // The name is generated from a UUID above, never from input.
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE {name} TEMPLATE template0")))
+            .execute(&mut admin)
+            .await?;
+        admin.close().await?;
+        let base = admin_url.rsplit_once('/').map_or(admin_url.as_str(), |(base, _)| base);
+        let owner_url = format!("{base}/{name}");
+        migrate(&owner_url).await?;
+        Ok(Self { admin_url, name, owner_url })
+    }
+
+    /// A store acting as the application role, as the control plane does.
+    pub async fn store(&self) -> Result<Store, Error> {
+        Store::connect(&self.owner_url, 4).await
+    }
+}
+
+impl Drop for TestDb {
+    fn drop(&mut self) {
+        let admin_url = self.admin_url.clone();
+        let name = self.name.clone();
+        // Drop on a separate thread with its own runtime: Drop cannot be async, and the test's
+        // runtime may already be shutting down.
+        let _ = std::thread::spawn(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else {
+                return;
+            };
+            rt.block_on(async move {
+                if let Ok(mut admin) = PgConnection::connect(&admin_url).await {
+                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+                        "DROP DATABASE IF EXISTS {name} WITH (FORCE)"
+                    )))
+                    .execute(&mut admin)
+                    .await;
+                    let _ = admin.close().await;
+                }
+            });
+        })
+        .join();
+    }
+}
