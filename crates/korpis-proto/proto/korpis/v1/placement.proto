@@ -284,5 +284,16 @@ enum PlacementStrategy {
 message SpreadConstraint {
   string topology_key = 1;
   uint32 max_skew = 2;
-  LabelSelector scope = 3;
+  // With SPREAD_SCOPE_SELECTOR: the workloads of the placed workload's organization it matches.
+  LabelSelector selector = 3;
+  SpreadScope scope = 4;
+}
+
+// Which workloads a spread constraint counts, always within the placed workload's own
+// organization (§2.2 of docs/05-scheduling.md).
+enum SpreadScope {
+  SPREAD_SCOPE_UNSPECIFIED = 0;
+  SPREAD_SCOPE_PROJECT = 1;
+  SPREAD_SCOPE_ORGANIZATION = 2;
+  SPREAD_SCOPE_SELECTOR = 3;
 }

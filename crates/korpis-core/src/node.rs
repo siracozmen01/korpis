@@ -69,6 +69,22 @@ pub enum NodeStatus {
     Decommissioned,
 }
 
+impl NodeStatus {
+    /// Its name, as a client shows it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Registering => "registering",
+            Self::Ready => "ready",
+            Self::Cordoned => "cordoned",
+            Self::Draining => "draining",
+            Self::Unreachable => "unreachable",
+            Self::Unknown => "unknown",
+            Self::Decommissioned => "decommissioned",
+        }
+    }
+}
+
 /// Whether a node can be reached for inbound traffic (§9 of docs/07-networking.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reachability {

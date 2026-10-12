@@ -18,6 +18,7 @@ pub mod object;
 pub mod principal;
 pub mod quantity;
 pub mod recipe;
+pub mod schedule;
 pub mod scope;
 pub mod tenancy;
 pub mod value;

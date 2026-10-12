@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! The filter (§2.1 of docs/05-scheduling.md): which nodes can run this, each refusal with its
+//! reason. Every check is evaluated, so a node rejected for two reasons shows both.
+
+use super::topology::{Fleet, domain, matching};
+use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request, reservation};
+use crate::node::driver::DriverInfo;
+use crate::node::{NodeAdmin, NodeStatus, Reachability};
+use crate::workload::spec::ConsoleMode;
+use crate::workload::spec::endpoints::Exposure;
+use crate::workload::spec::placement::AffinityRule;
+
+type Refusal = (Check, String);
+
+fn owner(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    (!req.owners.contains(&c.node.organization)).then(|| {
+        (Check::Owner, "enrolled into an organization this workload is not below".to_owned())
+    })
+}
+
+fn status(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let here = req.current.is_some_and(|cur| cur.node == c.node.id);
+    // Cordoning stops new placements; a workload already here may change in place.
+    let ok = if here {
+        c.node.admin != NodeAdmin::Decommissioned
+    } else {
+        c.node.status() == NodeStatus::Ready
+    };
+    (!ok).then(|| (Check::Status, c.node.status().as_str().to_owned()))
+}
+
+/// The driver checks: name, tier, console, and the limits it holds. The first failing one is
+/// the reason, because each depends on the one before it having a driver to ask.
+fn driver<'n>(req: &Request<'_>, c: &Candidate<'n>) -> Result<&'n DriverInfo, Refusal> {
+    let rt = &req.body.runtime;
+    let Some(d) = c.node.drivers.iter().find(|d| d.name == rt.driver && d.healthy) else {
+        return Err((Check::Driver, format!("no healthy {:?} driver", rt.driver)));
+    };
+    if !d.capabilities.tiers.contains(&rt.tier) {
+        return Err((Check::Tier, format!("{:?} does not offer the {:?} tier", d.name, rt.tier)));
+    }
+    let console = req.body.console;
+    if console != ConsoleMode::None && !d.capabilities.console.contains(&console) {
+        return Err((Check::Console, format!("{:?} offers no {console:?} console", d.name)));
+    }
+    Ok(d)
+}
+
+/// The kinds of limit the intent sets, by the names drivers declare enforcement under.
+fn limited(req: &Request<'_>) -> Vec<&'static str> {
+    let r = &req.body.resources;
+    let io = r.io;
+    let cpu = r.cpu.limit_millis.max(r.cpu.reservation_millis);
+    [
+        ("memory", r.memory.effective() > 0),
+        ("cpu", cpu > 0),
+        ("disk", r.disk.effective() > 0),
+        (
+            "io",
+            io.read_bytes_per_sec > 0
+                || io.write_bytes_per_sec > 0
+                || io.read_ops_per_sec > 0
+                || io.write_ops_per_sec > 0,
+        ),
+        ("pids", r.pids_limit > 0),
+        ("egress", r.bandwidth.egress.effective() > 0),
+    ]
+    .into_iter()
+    .filter_map(|(k, set)| set.then_some(k))
+    .collect()
+}
+
+/// Rule K-3: a limit the kernel does not hold is not accepted, so a node whose driver cannot
+/// hold one the intent sets cannot run it.
+fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
+    let missing: Vec<_> =
+        limited(req).into_iter().filter(|k| !d.capabilities.enforces(k)).collect();
+    (!missing.is_empty()).then(|| {
+        let what = missing.join(", ");
+        (Check::Enforcement, format!("{:?} does not enforce {what} limits", d.name))
+    })
+}
+
+fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    req.body.endpoints.iter().find_map(|e| match e.exposure {
+        Exposure::NodePort | Exposure::NodeBound if c.node.reachability != Reachability::Public => {
+            Some((Check::Reachability, format!("{:?} needs a public address", e.name)))
+        }
+        // No node offers the overlay before §9 of docs/07-networking.md is built.
+        Exposure::OverlayOnly => {
+            Some((Check::Reachability, format!("{:?} needs the overlay", e.name)))
+        }
+        _ => None,
+    })
+}
+
+fn selector(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let sel = &req.body.placement.node_selector;
+    (!sel.matches(c.node.labels.as_map()))
+        .then(|| (Check::Selector, "does not match the node selector".to_owned()))
+}
+
+fn taints(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let tolerations = &req.body.placement.tolerations;
+    c.node
+        .taints
+        .iter()
+        .find(|t| {
+            !tolerations
+                .iter()
+                .any(|o| o.key == t.key && (o.value.is_empty() || o.value == t.value))
+        })
+        .map(|t| (Check::Taint, format!("{}={} is not tolerated", t.key, t.value)))
+}
+
+fn capacity(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
+    let need = reservation(req.body);
+    let own = req.current.filter(|cur| cur.node == c.node.id).map(|cur| cur.reserved);
+    RESERVED
+        .into_iter()
+        .filter_map(|d| {
+            let wanted = need.get(&d).copied().unwrap_or(0);
+            let allocatable = c.node.allocatable.get(&d).copied().unwrap_or(0);
+            let allocated = c.allocated.get(&d).copied().unwrap_or(0);
+            let mine = own.and_then(|o| o.get(&d)).copied().unwrap_or(0);
+            let free = allocatable.saturating_sub(allocated.saturating_sub(mine));
+            (wanted > free)
+                .then(|| (Check::Capacity, format!("{}: needs {wanted}, {free} free", d.as_str())))
+        })
+        .collect()
+}
+
+fn storage_classes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    req.body
+        .volumes
+        .iter()
+        .filter(|v| !v.storage_class.is_empty())
+        .find(|v| !c.node.storage_classes.iter().any(|s| s.name == v.storage_class))
+        .map(|v| (Check::StorageClass, format!("no storage class {:?}", v.storage_class)))
+}
+
+/// One required rule against one candidate.
+fn affinity_rule(
+    req: &Request<'_>,
+    c: &Candidate<'_>,
+    fleet: &Fleet<'_>,
+    peers: &[Peer],
+    rule: &AffinityRule,
+) -> Option<Refusal> {
+    let key = &rule.topology_key;
+    let Some(here) = domain(c.node, key) else {
+        return Some((Check::Affinity, format!("no {key:?} label")));
+    };
+    let matched = matching(fleet, peers, key, &rule.workloads, req.workload);
+    let together = matched.iter().any(|(_, d)| d.as_deref() == Some(here.as_str()));
+    if rule.anti {
+        return together.then(|| (Check::Affinity, format!("a workload it avoids is in {here}")));
+    }
+    // With nothing to be together with yet, a workload that matches its own rule is the
+    // first of its group and lands anywhere; otherwise it waits for what it needs.
+    let first = matched.is_empty() && rule.workloads.matches(req.labels);
+    (!together && !first).then(|| (Check::Affinity, format!("nothing it needs is in {here}")))
+}
+
+fn affinity(
+    req: &Request<'_>,
+    c: &Candidate<'_>,
+    fleet: &Fleet<'_>,
+    peers: &[Peer],
+    policy: &PlacementPolicy,
+) -> Vec<Refusal> {
+    let rules = req.body.placement.affinity.iter().chain(&policy.affinity);
+    rules.filter(|r| r.required).filter_map(|r| affinity_rule(req, c, fleet, peers, r)).collect()
+}
+
+/// Every check the candidate fails; empty if it can run the workload.
+pub(super) fn rejections(
+    req: &Request<'_>,
+    c: &Candidate<'_>,
+    fleet: &Fleet<'_>,
+    peers: &[Peer],
+    policy: &PlacementPolicy,
+) -> Vec<Refusal> {
+    let mut out: Vec<Refusal> = [owner(req, c), status(req, c)].into_iter().flatten().collect();
+    match driver(req, c) {
+        Ok(d) => out.extend(enforcement(req, d)),
+        Err(r) => out.push(r),
+    }
+    out.extend([reachability(req, c), selector(req, c), taints(req, c)].into_iter().flatten());
+    out.extend(capacity(req, c));
+    out.extend(storage_classes(req, c));
+    out.extend(affinity(req, c, fleet, peers, policy));
+    out
+}

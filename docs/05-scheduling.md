@@ -37,7 +37,8 @@ A node survives the filter only if all hold:
 | for the shortlist, the driver's `Prepare` accepts it | a `FeasibilityQuery` (§4.2 of `02-architecture.md`), side-effect free |
 | has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated` |
 | has every requested device available | §6 |
-| satisfies the intent's constraints | `PlacementSpec` label selectors |
+| satisfies the intent's constraints | `PlacementSpec` label selectors, required affinity rules |
+| offers every storage class the intent's volumes name | `Node.storage_classes` |
 | the workload tolerates every taint | `Node.taints` |
 | is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |
 | belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
@@ -92,6 +93,13 @@ PlacementPolicy
 | `distributed` | the emptiest node | fixed hardware, minimize blast radius |
 | `balanced` | evens utilization | mixed, and the default |
 
+Utilization is measured after the placement, per reserved dimension the node declares (CPU,
+memory, disk, egress bandwidth: what §5.2 guarantees), as the fraction of `allocatable` held.
+`packed` scores the mean of those fractions, `distributed` one minus the mean, and `balanced` one
+minus the largest: it prefers the node whose most loaded dimension stays lowest, which evens
+utilization across nodes and across dimensions at once, so a memory-heavy workload does not land
+on the node whose memory is already the bottleneck.
+
 **Spread constraints** are orthogonal to strategy and operate on topology labels:
 
 ```
@@ -106,6 +114,29 @@ is independent of whether the cluster is packing or distributing, which is why i
 into the strategy, and why Pterodactyl's Location, a rigid two-level hierarchy, could never express
 it.
 
+**A topology domain is a node label's value.** A node's domain under `rack` is its `rack` label;
+`host` is the node itself unless it carries a `host` label. A node without the label is in no known
+domain, so nothing can show that a required rule holds there: it is rejected by required affinity
+and anti-affinity alike, and scores zero for a preference. Treating it as a domain of its own would
+let an unlabelled node in the same rack satisfy "apart by rack".
+
+**What a spread constraint and an affinity rule count is the placed workload's own
+organization.** `project` counts the workloads of its project, `organization` those of its
+organization, and `label_selector` those of its organization that the selector matches (and
+constrains only a workload it matches itself). An affinity rule's selector is read the same way.
+None of them reaches another tenant's workloads, which is what keeps the evaluation inside what §8
+of `08-identity.md` lets an explanation show, and stops a tenant from steering its placement by
+another tenant's labels.
+
+**Spread is a score, not a filter.** A node whose domain would exceed `max_skew` scores zero for the
+failure-domain signal rather than being rejected, so a workload is still placed when only a skewed
+domain has room. The cost is that `max_skew` is a strong preference, not a guarantee; a constraint
+that must hold is a required anti-affinity rule, which is a filter (§2.1).
+
+**Where the policy comes from.** One policy per installation, set in the control plane's
+configuration, with `balanced` and every weight 1 as the default. Whether an organization may set
+its own, and how two such policies combine over a node both may use, is question 8 of §10.
+
 **Scoring signals**, weighted:
 
 | Signal | Prefers |
@@ -114,8 +145,17 @@ it.
 | content locality | a node that already has the recipe digest, start latency instead of a download (Rule K-15) |
 | volume locality | the node already holding this workload's volumes; usually decisive, since moving them is expensive |
 | device fit | not consuming a GPU node for a workload that needs none |
-| failure domain | per spread constraints |
+| failure domain | per spread constraints, preferred affinity rules, and the intent's preferred region |
 | recent churn | penalize nodes that recently lost workloads, they may be unhealthy |
+
+Each signal scores a node from 0 to 1 and is multiplied by its weight (1 unless the policy says
+otherwise); the highest sum wins, and a tie goes to the lower node identifier so that the same
+inputs always choose the same node. **A signal is scored only where its information exists.**
+Content locality needs the node's content inventory and recent churn needs its history of lost
+workloads, both of which agents report (§4.2 of `02-architecture.md`); until a node has reported
+them, the explanation omits the signal rather than scoring a guess. Volume locality applies only to
+a workload already placed, and failure domain only when a constraint, a preference, or a preferred
+region applies to the workload.
 
 ### 2.3 Bind: and record why
 
@@ -692,3 +732,9 @@ estimates what a rebalance would achieve. It does not act.
    in the admitting transaction, and reconciled from the intents, is the remedy. It must exist
    before quota sets are offered in Phase 2, because that is when such entries become settable.
    → here
+8. **Placement policy per organization.** The policy is one per installation (§2.2). A host that
+   sells dedicated pools may want `packed` for its shared fleet and `distributed` for one
+   customer's machines, and a customer with nodes of their own (§3.4 of `01-model.md`) may want
+   to choose for those. A policy per organization is the obvious shape; what it does not answer
+   is which policy scores a candidate when the workload's organization and the node's owner each
+   set one. → here, before Phase 2

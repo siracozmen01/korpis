@@ -73,6 +73,17 @@ pub fn int_to_f64(i: i64) -> f64 {
     i as f64
 }
 
+/// An unsigned amount as a float, exactly up to 2^53: capacities and counts become ratios.
+#[must_use]
+#[expect(
+    clippy::as_conversions,
+    clippy::cast_precision_loss,
+    reason = "the one place amounts become floats for the scheduler's ratios"
+)]
+pub fn uint_to_f64(n: u64) -> f64 {
+    n as f64
+}
+
 /// A finite float rounded down to an integer, if it fits.
 #[must_use]
 #[expect(
