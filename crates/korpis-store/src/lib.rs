@@ -13,6 +13,7 @@ mod audit;
 mod authz;
 mod errors;
 mod idempotency;
+mod quota;
 mod recipe;
 mod stored;
 mod tenancy;

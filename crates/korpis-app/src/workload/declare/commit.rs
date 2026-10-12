@@ -11,6 +11,7 @@ use crate::ports::{Clock, RecipeSource, Store, StoreError, Unique, WorkloadWrite
 use crate::workload::propose;
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::recipe::resolve::Change;
+use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::{Plan, Workload};
 use serde_json::Value;
 
@@ -24,15 +25,18 @@ pub(super) fn moved(w: &Workload) -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Creates the workload, or appends the intent if neither pointer moved since the plan was
-    /// computed; then inserts the plan.
+    /// Admits the declaration against quota, then creates the workload, or appends the intent
+    /// if neither pointer moved since the plan was computed; then inserts the plan.
     pub(super) async fn write_declaration(
         &self,
         tx: &mut S::Tx,
         base: &Base,
         d: &Declared,
+        held: Option<&Held>,
+        holds: &Held,
     ) -> Result<(), AppError> {
         if base.head.is_none() {
+            self.admit(tx, &d.workload, held, holds).await?;
             tx.create_workload(&d.workload, &d.intent, &d.power).await.map_err(|e| match e {
                 StoreError::Duplicate(Unique::WorkloadName) => AppError::conflict(
                     "workload.name_taken",
@@ -50,7 +54,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // no longer exists (§3.3 of docs/01-model.md).
             let stale = now.target != base.workload.target
                 || now.intent_version != base.workload.intent_version;
-            if stale || !tx.append_intent(&d.intent).await? {
+            if stale {
+                return Err(moved(&now));
+            }
+            // After the workload's lock, so admissions of one workload are serialized and the
+            // lock order is always workload, then quota.
+            self.admit(tx, &d.workload, held, holds).await?;
+            if !tx.append_intent(&d.intent).await? {
                 return Err(moved(&now));
             }
         }

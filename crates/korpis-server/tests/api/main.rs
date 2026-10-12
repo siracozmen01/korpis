@@ -13,6 +13,7 @@
 
 mod authz;
 mod operator;
+mod quota;
 mod recipes;
 mod support;
 mod tenancy;

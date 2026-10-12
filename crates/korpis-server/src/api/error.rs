@@ -116,6 +116,13 @@ pub fn from_app(e: AppError) -> ConnectError {
             message: &message,
             retryable: reason == "idempotency.in_flight",
         }),
+        AppError::QuotaExceeded { dimension, message } => build(&Wire {
+            code: C::ERROR_CODE_QUOTA_EXCEEDED,
+            reason: "quota.exceeded",
+            field: dimension,
+            message: &message,
+            retryable: false,
+        }),
         AppError::NotYet { what, phase } => ConnectError::unimplemented(format!(
             "{what} arrive in Phase {phase} (§4 of docs/20-roadmap.md)"
         )),

@@ -13,7 +13,9 @@ mod scope;
 mod time;
 
 pub(crate) use plan::{ImpactDoc, StepDoc};
-pub(crate) use scope::{ConditionsDoc, DelegationDoc, ScopeDoc, actions};
+pub(crate) use scope::{
+    ConditionsDoc, DelegationDoc, ExpressionDoc, ScopeDoc, actions, expression,
+};
 pub(crate) use time::{from_time, to_time};
 
 use korpis_app::ports::StoreError;

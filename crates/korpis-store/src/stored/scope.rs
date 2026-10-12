@@ -90,7 +90,7 @@ fn expression_doc(e: &LabelExpression) -> ExpressionDoc {
     }
 }
 
-fn expression(e: ExpressionDoc) -> LabelExpression {
+pub(crate) fn expression(e: ExpressionDoc) -> LabelExpression {
     match e {
         ExpressionDoc::In { key, values } => LabelExpression::In(key, values),
         ExpressionDoc::NotIn { key, values } => LabelExpression::NotIn(key, values),

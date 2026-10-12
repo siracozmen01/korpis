@@ -2,6 +2,8 @@
 
 //! Tenancy: organizations and the projects inside them (§3.1 of docs/01-model.md).
 
+pub mod quota;
+
 use crate::labels::Labels;
 use std::time::SystemTime;
 use uuid::Uuid;

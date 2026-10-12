@@ -17,6 +17,7 @@ use korpis_core::authz::{Kind, ObjectRef, Permit};
 use korpis_core::labels::Labels;
 use korpis_core::recipe::Recipe;
 use korpis_core::tenancy::Name;
+use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::declare::Declaration;
 use korpis_core::workload::plan::compute::intent_steps;
 use korpis_core::workload::plan::{DriverClass, Proposing};
@@ -91,6 +92,26 @@ struct Base {
     action: &'static str,
 }
 
+impl Base {
+    /// What the workload holds now: the larger of its head and its target; nothing if new.
+    fn held(&self) -> Option<Held> {
+        let head = Held::of(&self.head.as_ref()?.body);
+        Some(match &self.target {
+            Some(t) => head.max(&Held::of(&t.body)),
+            None => head,
+        })
+    }
+
+    /// What it will hold with `intent` as its head, beside the target it still runs.
+    fn holding(&self, intent: &Intent) -> Held {
+        let head = Held::of(&intent.body);
+        match &self.target {
+            Some(t) => head.max(&Held::of(&t.body)),
+            None => head,
+        }
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Declares an intent. A grant that may only propose produces a plan that waits for an
     /// approver; a plan nothing in which needs a human is approved at once and moves the target.
@@ -141,11 +162,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             power: base.power.clone(),
             plan,
         };
+        let held = base.held();
+        let holds = base.holding(&declared.intent);
+        let mut tx = self.store.begin().await?;
         if cmd.dry_run {
+            // Admission runs, so the plan shows a quota refusal too, and the transaction is
+            // dropped: nothing is held and nothing is written.
+            self.admit(&mut tx, &declared.workload, held.as_ref(), &holds).await?;
             return Ok(Reply::Fresh(declared));
         }
-        let mut tx = self.store.begin().await?;
-        self.write_declaration(&mut tx, &base, &declared).await?;
+        self.write_declaration(&mut tx, &base, &declared, held.as_ref(), &holds).await?;
         let superseded = tx.supersede_proposed(declared.workload.id, declared.plan.id).await?;
         let approved = self.approve_declared(&mut tx, caller, &base, &mut declared).await?;
         let effect = declaration_effect(caller, &base, &declared, &changes, superseded);

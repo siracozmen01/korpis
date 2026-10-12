@@ -50,6 +50,14 @@ pub enum AppError {
         /// For humans.
         message: String,
     },
+    /// Admitting the change would exceed a quota entry (§5.1 of docs/05-scheduling.md).
+    #[error("{message}")]
+    QuotaExceeded {
+        /// The dimension, as `korpis.v1.Resources` names it.
+        dimension: &'static str,
+        /// For humans: which entry, its bound, and what would be held.
+        message: String,
+    },
     /// Specified, scheduled, not yet built (§4 of docs/20-roadmap.md).
     #[error("{what} arrive in Phase {phase}")]
     NotYet {

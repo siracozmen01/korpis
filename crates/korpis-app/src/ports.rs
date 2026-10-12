@@ -10,6 +10,7 @@ mod audit;
 mod authz;
 mod clock;
 mod idempotency;
+mod quota;
 mod recipe;
 mod tenancy;
 mod workload;
@@ -20,6 +21,7 @@ pub use authz::{
 };
 pub use clock::{Clock, SystemClock};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
+pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
@@ -82,7 +84,14 @@ pub trait Store:
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.
 pub trait Tx:
-    TenancyWrite + GrantWrite + CredentialWrite + EffectWrite + IdempotencyWrite + WorkloadWrite + Send
+    TenancyWrite
+    + GrantWrite
+    + CredentialWrite
+    + EffectWrite
+    + IdempotencyWrite
+    + WorkloadWrite
+    + QuotaWrite
+    + Send
 {
     /// Makes every write of the transaction durable at once.
     fn commit(self) -> impl Future<Output = StoreResult<()>> + Send;

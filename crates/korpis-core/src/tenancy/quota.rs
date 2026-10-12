@@ -1,0 +1,271 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Quota (§5.1 of docs/05-scheduling.md): selector-scoped entries, each with reservations and
+//! limits, held at admission in the transaction that would exceed them.
+//!
+//! What a workload holds is computed from its intents, never kept as a running counter that
+//! could drift from them. It is the larger, per dimension, of what its head declares (which may
+//! be approved at any moment) and what its target runs (which the kernel grants now): holding
+//! either one alone would let a workload awaiting approval, or one being shrunk, hold less than
+//! it may use (§5.1, "Quota holds the enforced value, not the declared one").
+
+use crate::labels::LabelSelector;
+use crate::workload::spec::IntentBody;
+use crate::workload::spec::endpoints::Exposure;
+use crate::workload::spec::resources::ReservedLimit;
+use std::collections::BTreeMap;
+use uuid::Uuid;
+
+/// A dimension admission can hold (§3.1 of docs/01-model.md). Egress is metered per period and
+/// shaped, not admitted (§3.1), so it is not one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Dimension {
+    /// Millicores.
+    Cpu,
+    /// Bytes.
+    Memory,
+    /// Bytes, including every volume the workload creates.
+    Disk,
+    /// Bytes read per second; a limit only.
+    DiskReadBytes,
+    /// Bytes written per second; a limit only.
+    DiskWriteBytes,
+    /// Read operations per second; a limit only.
+    DiskReadOps,
+    /// Write operations per second; a limit only.
+    DiskWriteOps,
+    /// Egress bits per second.
+    Bandwidth,
+    /// Workloads.
+    Workloads,
+    /// Volumes created.
+    Volumes,
+    /// Endpoints.
+    Endpoints,
+    /// Endpoints with a dedicated IPv4 address; never overcommitted.
+    DedicatedIpv4,
+}
+
+impl Dimension {
+    /// Every dimension.
+    pub const ALL: [Self; 12] = [
+        Self::Cpu,
+        Self::Memory,
+        Self::Disk,
+        Self::DiskReadBytes,
+        Self::DiskWriteBytes,
+        Self::DiskReadOps,
+        Self::DiskWriteOps,
+        Self::Bandwidth,
+        Self::Workloads,
+        Self::Volumes,
+        Self::Endpoints,
+        Self::DedicatedIpv4,
+    ];
+
+    /// The stored and wire name: the field of `korpis.v1.Resources`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "cpu_millis",
+            Self::Memory => "memory_bytes",
+            Self::Disk => "disk_bytes",
+            Self::DiskReadBytes => "disk_read_bytes_per_sec",
+            Self::DiskWriteBytes => "disk_write_bytes_per_sec",
+            Self::DiskReadOps => "disk_read_ops_per_sec",
+            Self::DiskWriteOps => "disk_write_ops_per_sec",
+            Self::Bandwidth => "bandwidth_bits_per_sec",
+            Self::Workloads => "workloads",
+            Self::Volumes => "volumes",
+            Self::Endpoints => "endpoints",
+            Self::DedicatedIpv4 => "dedicated_ipv4",
+        }
+    }
+
+    /// The dimension a name names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|d| d.as_str() == s)
+    }
+}
+
+/// Bounds per dimension; a dimension absent is not bounded.
+pub type Bounds = BTreeMap<Dimension, u64>;
+
+/// Whose quota an entry is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuotaOwner {
+    /// An organization: it bounds everything below it, sub-organizations included.
+    Organization(Uuid),
+    /// A project.
+    Project(Uuid),
+}
+
+/// One entry of a quota set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuotaEntry {
+    /// Its identity.
+    pub id: Uuid,
+    /// Whose it is.
+    pub owner: QuotaOwner,
+    /// The workloads it counts, by their labels; `None` counts every workload of the owner.
+    pub selector: Option<LabelSelector>,
+    /// Guaranteed capacity: what the reservations of the workloads it counts may sum to.
+    pub reservations: Bounds,
+    /// Sold capacity: what their limits may sum to.
+    pub limits: Bounds,
+    /// Participates in the admission compare-and-swap.
+    pub version: u64,
+}
+
+/// What a workload holds against quota.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Held {
+    /// Per dimension, reserved.
+    pub reservations: BTreeMap<Dimension, u64>,
+    /// Per dimension, the limit; `None` where the workload sets none, which no finite bound
+    /// can hold.
+    pub limits: BTreeMap<Dimension, Option<u64>>,
+}
+
+fn count(n: usize) -> u64 {
+    u64::try_from(n).unwrap_or(u64::MAX)
+}
+
+impl Held {
+    /// What a workload declared by `body` holds.
+    #[must_use]
+    pub fn of(body: &IntentBody) -> Self {
+        use Dimension as D;
+        let r = &body.resources;
+        let created: Vec<_> = body.volumes.iter().filter(|v| v.existing.is_none()).collect();
+        let volume_bytes = created.iter().fold(0u64, |a, v| a.saturating_add(v.size_bytes));
+        let dedicated = body.endpoints.iter().filter(|e| e.exposure == Exposure::DedicatedIp);
+        let counts = [
+            (D::Workloads, 1),
+            (D::Volumes, count(created.len())),
+            (D::Endpoints, count(body.endpoints.len())),
+            (D::DedicatedIpv4, count(dedicated.count())),
+        ];
+        // A limit left unset is the reservation (`ReservedLimit::effective`); the I/O ceilings
+        // have no reservation, so unset there is unbounded.
+        let ceiling = |n: u64| (n > 0).then_some(n);
+        let cpu =
+            ReservedLimit { reservation: r.cpu.reservation_millis, limit: r.cpu.limit_millis };
+        let mut reservations = BTreeMap::from([
+            (D::Cpu, r.cpu.reservation_millis),
+            (D::Memory, r.memory.reservation),
+            (D::Disk, r.disk.reservation.saturating_add(volume_bytes)),
+            (D::Bandwidth, r.bandwidth.egress.reservation),
+        ]);
+        let mut limits = BTreeMap::from([
+            (D::Cpu, Some(cpu.effective())),
+            (D::Memory, Some(r.memory.effective())),
+            (D::Disk, Some(r.disk.effective().saturating_add(volume_bytes))),
+            (D::DiskReadBytes, ceiling(r.io.read_bytes_per_sec)),
+            (D::DiskWriteBytes, ceiling(r.io.write_bytes_per_sec)),
+            (D::DiskReadOps, ceiling(r.io.read_ops_per_sec)),
+            (D::DiskWriteOps, ceiling(r.io.write_ops_per_sec)),
+            (D::Bandwidth, Some(r.bandwidth.egress.effective())),
+        ]);
+        for (d, n) in counts {
+            reservations.insert(d, n);
+            limits.insert(d, Some(n));
+        }
+        Self { reservations, limits }
+    }
+
+    /// The larger of two holdings, per dimension; an unbounded limit is the larger.
+    #[must_use]
+    pub fn max(&self, other: &Self) -> Self {
+        let mut out = self.clone();
+        for (d, n) in &other.reservations {
+            let slot = out.reservations.entry(*d).or_insert(0);
+            *slot = (*slot).max(*n);
+        }
+        for (d, n) in &other.limits {
+            let slot = out.limits.entry(*d).or_insert(Some(0));
+            *slot = match (*slot, *n) {
+                (Some(a), Some(b)) => Some(a.max(b)),
+                _ => None,
+            };
+        }
+        out
+    }
+}
+
+/// Which side of an entry a declaration would exceed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    /// The reservations: guaranteed capacity.
+    Reservation,
+    /// The limits: sold capacity.
+    Limit,
+}
+
+/// Why a declaration is not admitted.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("quota entry {entry} bounds {} {side:?} at {bound}; this would hold {would}",
+        dimension.as_str())]
+pub struct Exceeded {
+    /// The entry.
+    pub entry: Uuid,
+    /// The dimension.
+    pub dimension: Dimension,
+    /// Reservations or limits.
+    pub side: Side,
+    /// The entry's bound.
+    pub bound: u64,
+    /// What would be held, saturating; `u64::MAX` for an unbounded limit.
+    pub would: u64,
+}
+
+impl QuotaEntry {
+    /// Whether the entry counts a workload with `labels`.
+    #[must_use]
+    pub fn counts(&self, labels: &BTreeMap<String, String>) -> bool {
+        self.selector.as_ref().is_none_or(|s| s.matches(labels))
+    }
+
+    /// Admits a workload that held `old` (nothing, if new) and would hold `new`, beside `others`,
+    /// everything else the entry counts. Only growth is refused: a change that holds no more than
+    /// before passes even where the entry is already exceeded, so lowering a bound never strands
+    /// a workload that cannot then be edited.
+    pub fn admit(&self, others: &[Held], old: Option<&Held>, new: &Held) -> Result<(), Exceeded> {
+        for (d, bound) in &self.reservations {
+            let mine = new.reservations.get(d).copied().unwrap_or(0);
+            let before = old.and_then(|o| o.reservations.get(d).copied()).unwrap_or(0);
+            let rest = others
+                .iter()
+                .fold(0u64, |a, h| a.saturating_add(h.reservations.get(d).copied().unwrap_or(0)));
+            let would = rest.saturating_add(mine);
+            if mine > before && would > *bound {
+                return Err(self.exceeded(*d, Side::Reservation, *bound, would));
+            }
+        }
+        for (d, bound) in &self.limits {
+            let mine = new.limits.get(d).copied().unwrap_or(Some(0));
+            let before = old.map_or(Some(0), |o| o.limits.get(d).copied().unwrap_or(Some(0)));
+            let rest = others.iter().try_fold(0u64, |a, h| {
+                h.limits.get(d).copied().unwrap_or(Some(0)).map(|n| a.saturating_add(n))
+            });
+            let grew = match (mine, before) {
+                (_, None) => false,
+                (None, Some(_)) => true,
+                (Some(m), Some(b)) => m > b,
+            };
+            let would = match (rest, mine) {
+                (Some(r), Some(m)) => r.saturating_add(m),
+                _ => u64::MAX,
+            };
+            if grew && would > *bound {
+                return Err(self.exceeded(*d, Side::Limit, *bound, would));
+            }
+        }
+        Ok(())
+    }
+
+    fn exceeded(&self, dimension: Dimension, side: Side, bound: u64, would: u64) -> Exceeded {
+        Exceeded { entry: self.id, dimension, side, bound, would }
+    }
+}

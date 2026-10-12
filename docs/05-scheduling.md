@@ -364,6 +364,43 @@ figure.
 A quota that is checked without being held is advisory, and P4 forbids displaying an advisory limit
 as a limit.
 
+#### What admission counts, and against what
+
+> Added 2026-10-13, from the implementation (`crates/korpis-core/src/tenancy/quota.rs`,
+> `crates/korpis-app/src/workload/admit.rs`). The paragraphs above say that admission holds the
+> matching entries; they did not say which entries match, what a workload holds, or what a change
+> that shrinks a workload owes. Each answer names what evaluates it and with what information.
+
+- **Which entries.** The entries of the workload's project and of its organization and every
+  organization above it: an organization's entry bounds everything below it, sub-organizations
+  included, which is how a reseller's 32 Gi bounds its customers' customers. The control plane
+  evaluates this at declaration, from the tenancy tree it holds.
+- **What a selector matches: the workload's labels.** They are the only description of the
+  workload admission has; where it will run is decided later, by placement. Question 6 below is
+  what that leaves open.
+- **What a workload holds: per dimension, the larger of its head and its target.** The head may be
+  approved at any moment and the target is what the kernel grants now, so holding either alone
+  would let a workload awaiting approval, or one being shrunk, hold less than it may use. A limit
+  left unset is the reservation (§5.2); an I/O ceiling left unset is unbounded, which no bounded
+  entry admits. Disk includes every volume the workload creates.
+- **Only growth is refused.** A declaration that holds no more than the workload already did, in a
+  dimension, passes even where the entry is exceeded, so lowering a bound never strands a workload
+  that then cannot be edited, not even to shrink it.
+- **Holdings are computed from the intents, under the entries' locks**, never kept as a running
+  counter that could drift from them; the entries' versions are bumped in the admitting
+  transaction as the record that they were consumed. Entries are locked in identifier order and
+  after the workload's own row, so two admissions never wait on each other in a cycle. A dry run
+  performs admission and rolls back, so `korpis plan` shows a quota refusal before anything is
+  sent for real.
+
+What it costs: every declaration reads and decodes every workload under the entries that count it,
+under a lock that serializes the declarations those entries count. For a project that is a handful
+of rows. For an entry on a root organization at the comfortable scale of §9 of `03-state.md`, it is
+up to 50,000 bodies per declaration, which is too slow to hold a lock over. The design that
+survives that is a held total per entry, written in the same transaction as every intent and
+recomputed from the intents by a reconciliation, so a drift between them is found rather than
+trusted; it is not built yet, and question 7 below says when it must be.
+
 #### Quota holds the enforced value, not the declared one
 
 > Finding 17 of `23-walkthroughs.md`.
@@ -639,3 +676,18 @@ estimates what a rebalance would achieve. It does not act.
    as written are evaluated by the scheduler with full visibility, but the resulting `Explanation`
    would leak placement information across tenancy boundaries. The explanation needs a tenancy
    filter.
+6. **How a regional quota knows the region.** A selector matches the workload's labels (§5.1),
+   because admission happens before placement and the labels are all it has. So "4 Gi in the EU"
+   holds only if a workload that runs in the EU carries the label the entry selects, and nothing
+   yet makes it: a workload labelled for nowhere is counted by the global entry, may be placed in
+   the EU, and consumes EU capacity that the EU entry never counted. The answer has to bind the
+   two, either by making placement honour the labels a counting entry selects on (a workload
+   counted by `region: eu` is placed only where nodes say `region: eu`) or by admitting again at
+   bind time against the entries that select the chosen node's labels. Neither is built; until one
+   is, an entry with a selector on a placement property is advisory, and P4 forbids displaying it
+   as a limit. → here, before quota sets are offered in Phase 2
+7. **Held totals per quota entry.** Admission computes holdings from the intents on every
+   declaration (§5.1), which does not scale to an entry on a large root organization. A total kept
+   in the admitting transaction, and reconciled from the intents, is the remedy. It must exist
+   before quota sets are offered in Phase 2, because that is when such entries become settable.
+   → here
