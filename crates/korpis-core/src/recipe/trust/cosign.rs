@@ -7,7 +7,7 @@
 //! Only what the payload names is believed: a signature over a payload for another digest, or of
 //! another type, verifies nothing.
 
-use super::Signer;
+use super::{Signature, Signer};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use p256::ecdsa::signature::{Signer as _, Verifier as _};
@@ -22,15 +22,6 @@ pub const SIMPLE_SIGNING_MEDIA_TYPE: &str = "application/vnd.dev.cosign.simplesi
 pub const SIGNATURE_ANNOTATION: &str = "dev.cosignproject.cosign/signature";
 /// The payload type cosign signs.
 const SIGNATURE_TYPE: &str = "cosign container image signature";
-
-/// One signature as the registry holds it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Signature {
-    /// The simple-signing payload, exactly as signed.
-    pub payload: Vec<u8>,
-    /// The ASN.1 DER ECDSA signature over it, base64.
-    pub signature: String,
-}
 
 /// Why a public key is refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

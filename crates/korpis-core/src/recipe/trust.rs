@@ -24,6 +24,17 @@ pub struct Signer {
     pub fingerprint: String,
 }
 
+/// One cosign signature as a registry holds it beside a recipe, and as the store keeps it: a
+/// recipe's signatures are kept with it, so a rollback years later is verified without the
+/// registry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Signature {
+    /// The simple-signing payload, exactly as signed.
+    pub payload: Vec<u8>,
+    /// The ASN.1 DER ECDSA signature over it, base64.
+    pub signature: String,
+}
+
 /// An organization's recipe trust policy.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrustPolicy {

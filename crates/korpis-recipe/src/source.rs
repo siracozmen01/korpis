@@ -7,6 +7,7 @@ use crate::document::{DocumentError, parse};
 use crate::registry::{Registry, RegistryError};
 use korpis_app::ports::{Fetched, RecipeSource, SourceError};
 use korpis_core::recipe::Recipe;
+use korpis_core::recipe::trust::Signature;
 
 fn from_registry(e: RegistryError) -> SourceError {
     match e {
@@ -44,6 +45,10 @@ impl RecipeSource for RegistrySource {
         let recipe = parse(&pulled.document).map_err(|e| from_document(&e))?;
         check_files(&recipe, &pulled.files).map_err(|e| SourceError::Invalid(e.to_string()))?;
         Ok(Fetched { document: pulled.document, recipe })
+    }
+
+    async fn signatures(&self, name: &str, digest: &str) -> Result<Vec<Signature>, SourceError> {
+        self.registry.signatures(name, digest).await.map_err(from_registry)
     }
 
     fn parse(&self, document: &[u8]) -> Result<Recipe, SourceError> {

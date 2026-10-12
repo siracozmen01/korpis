@@ -5,6 +5,7 @@
 
 use super::StoreResult;
 use korpis_core::recipe::Recipe;
+use korpis_core::recipe::trust::Signature;
 use std::future::Future;
 
 /// Why a recipe could not be had.
@@ -46,6 +47,14 @@ pub trait RecipeSource: Send + Sync + 'static {
         digest: &str,
     ) -> impl Future<Output = Result<Fetched, SourceError>> + Send;
 
+    /// The signatures stored beside `name@digest`, read without fetching the recipe; none if
+    /// it was never signed.
+    fn signatures(
+        &self,
+        name: &str,
+        digest: &str,
+    ) -> impl Future<Output = Result<Vec<Signature>, SourceError>> + Send;
+
     /// A document read back from the store. Validation runs again: the rules may have grown.
     fn parse(&self, document: &[u8]) -> Result<Recipe, SourceError>;
 }
@@ -75,5 +84,18 @@ pub trait RecipeCache {
         &self,
         digest: &str,
         recipe: &CachedRecipe,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// The signatures kept for `digest`, whoever's they are.
+    fn cached_signatures(
+        &self,
+        digest: &str,
+    ) -> impl Future<Output = StoreResult<Vec<Signature>>> + Send;
+
+    /// Keeps signatures for `digest`; keeping one already kept does nothing.
+    fn cache_signatures(
+        &self,
+        digest: &str,
+        signatures: &[Signature],
     ) -> impl Future<Output = StoreResult<()>> + Send;
 }

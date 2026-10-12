@@ -1918,6 +1918,7 @@ dependencies = [
  "korpis-core",
  "korpis-store",
  "oci-client",
+ "p256",
  "regex",
  "rustls",
  "serde",

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT payload, signature FROM recipe_signature WHERE digest = $1 ORDER BY found_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "payload",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "recipe_signature",
+            "name": "payload"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "signature",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "recipe_signature",
+            "name": "signature"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "edd3b1de56b01652e740e73a261f1e32700c05a6ece428c162511d88d36eacf5"
+}

@@ -10,8 +10,9 @@ publish.workspace = true
 
 [dependencies]
 korpis-app = { workspace = true }
-korpis-core = { workspace = true }
+korpis-core = { workspace = true, features = ["trust"] }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
+p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 serde = { version = "1", features = ["derive"] }
 serde-saphyr = { version = "1.3", default-features = false, features = ["deserialize"] }
 regex = "1"
@@ -21,7 +22,7 @@ sha2 = "0.10"
 thiserror = { workspace = true }
 
 [dev-dependencies]
-korpis-core = { workspace = true, features = ["authz"] }
+korpis-core = { workspace = true, features = ["authz", "trust"] }
 korpis-store = { workspace = true, features = ["testing"] }
 tokio = { workspace = true }
 uuid = { workspace = true }

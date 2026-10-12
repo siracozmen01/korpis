@@ -8,6 +8,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{CachedRecipe, Clock, Fetched, RecipeSource, SourceError, Store};
 use korpis_core::recipe::reference::is_digest;
+use korpis_core::recipe::trust::Signature;
 use korpis_core::recipe::{Recipe, RecipeRef};
 use std::future::Future;
 
@@ -62,6 +63,14 @@ impl RecipeSource for NoRecipes {
     }
 
     fn fetch(&self, _: &str, _: &str) -> impl Future<Output = Result<Fetched, SourceError>> + Send {
+        std::future::ready(Err(SourceError::Unavailable("no recipe source is configured".into())))
+    }
+
+    fn signatures(
+        &self,
+        _: &str,
+        _: &str,
+    ) -> impl Future<Output = Result<Vec<Signature>, SourceError>> + Send {
         std::future::ready(Err(SourceError::Unavailable("no recipe source is configured".into())))
     }
 
