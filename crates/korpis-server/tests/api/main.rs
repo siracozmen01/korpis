@@ -25,5 +25,6 @@ mod recipes;
 mod retire;
 mod support;
 mod tenancy;
+mod trust;
 mod watch;
 mod workload;

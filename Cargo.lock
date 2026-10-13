@@ -1949,6 +1949,7 @@ dependencies = [
  "korpis-recipe",
  "korpis-store",
  "korpis-wire",
+ "p256",
  "rcgen",
  "rustls",
  "serde_json",

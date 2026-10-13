@@ -114,9 +114,11 @@ install DSL's escape hatch is a provider. Neither is wrong; they answer differen
 `10-api` is at the root because the schema is the only artifact every other component shares.
 `08-identity` reaches everything because authorization is evaluated on every call in every document
 above. `09-recipes` is split across three phases: its schema in Phase 0, because every intent names
-a recipe and is shaped by its config schema; its install DSL in Phase 1, built on the contract core
-so that its escape hatch is a provider from the start; and its distribution tooling and egg import
-in Phase 4, with the ecosystem they serve.
+a recipe and is shaped by its config schema, together with verification against the trust policy,
+because every intent records what vouched for its recipe (§7 of `09-recipes.md`) and that field
+cannot be added once intents exist; its install DSL in Phase 1, built on the contract core so that
+its escape hatch is a provider from the start; and its distribution tooling, the signing tooling
+among it, and egg import in Phase 4, with the ecosystem they serve.
 
 ---
 
@@ -126,9 +128,9 @@ in Phase 4, with the ecosystem they serve.
 
 **Every schema, complete, and the protocol.** The full domain model of `01-model.md`, including
 recursive organizations and quota sets; the grant schema with its delegation policy and conditions;
-the full Recipe and its config schema; the agent protocol with assignments, plans, and the node
-journal. Phase 0 implements only what its done-when needs, but no later phase adds a field to a
-schema frozen here (rule E).
+the full Recipe and its config schema, and the trust policy that admits a recipe; the agent
+protocol with assignments, plans, and the node journal. Phase 0 implements only what its done-when
+needs, but no later phase adds a field to a schema frozen here (rule E).
 
 PostgreSQL with `Intent`/`Plan`/`Effect`, immutability enforced by the database. Grants,
 attenuation, and capability tokens. The agent, dialling out, level-triggered, with full privilege

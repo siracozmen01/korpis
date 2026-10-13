@@ -26,7 +26,8 @@ the seams between them, and found seventeen more. §17 records a second external
 seventy-nine findings changed the mechanics several of these traces cross.
 
 §18 is a fifteenth trace, written from the implementation in October 2026 when deletion was
-built, and its finding is numbered on from the first fourteen.
+built, and its finding is numbered on from the first fourteen. Finding 25 came from re-running
+§4 when recipe trust was built, and is numbered on from it.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -50,7 +51,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | # | Step | Governed by |
 |---|---|---|
 | 1 | Subject declares a workload; grant checked at declaration | `08-identity.md` §3 |
-| 2 | Recipe reference `…:1.20` resolved to a digest, **recorded in the intent**; what the declaration leaves out is completed from that recipe, once ‡ | `09-recipes.md` §8, §3.1 |
+| 2 | Recipe reference `…:1.20` resolved to a digest, decided under the organization's trust policy before anything is fetched, and **recorded in the intent** with what vouched for it; what the declaration leaves out is completed from that recipe, once ‡ | `09-recipes.md` §8, §7.1, §3.1 |
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
 | 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind in the approving transaction under the placement lock; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
@@ -76,7 +77,10 @@ lock, and a target with no node is recorded with its explanation, shown as unpla
 Placing the example recipe also showed that §9 of `07-networking.md` kept any workload with an
 `overlay_only` endpoint off a node without the overlay; it is corrected there. Step 15 had a
 stream with no source: nothing said what wakes a watch, and a watch that polls is either late or
-expensive. The database announces each committed change, and the watch re-reads on it.
+expensive. The database announces each committed change, and the watch re-reads on it. Step 2
+named no trust decision, though §7 of `09-recipes.md` makes one: the control plane decides it
+there, on the digest and the signatures kept with the recipe, under the policy that governs the
+declaring organization, and a dry run shows a refusal before anything is written.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 
@@ -212,10 +216,30 @@ and `18-operations.md` §5 refuses to tell it.
 | 6 | `Explanation`s filtered per viewer, the customer learns nothing about the node | `08-identity.md` §8 |
 | 7 | No reseller feature was written anywhere | Bet 4 |
 | 8 | The customer enrolls a machine of their own: it belongs to their organization, only their subtree lands on it, and the reseller's grant covers it by containment ‡ | `01-model.md` §3.4; `08-identity.md` §3.3; `05-scheduling.md` §2.1 |
+| 9 | The customer declares from a recipe: the reseller's trust policy governs until the customer sets its own, and a removal returns to the reseller's ‡ | `09-recipes.md` §7.1 |
 
 ‡ Added 2026-10-13, from the implementation. A node had no owner, so nothing said whose workloads
 could land on a customer's own machine, and no grant above the node itself could read or cordon
-it. Enrollment was already scoped to one organization; the node now belongs to it.
+it. Enrollment was already scoped to one organization; the node now belongs to it. Step 9: the
+trust policy was per organization and the customer had none, so no policy governed the customer's
+declarations at all. The nearest ancestor's now does. The customer may set one the reseller would
+not, because the policy protects the workloads that run the recipe, and the reseller's machines
+are protected from those workloads by their isolation tier, not by a signature; whether a reseller
+may still pin a floor is question 7 of §10 of `09-recipes.md`. Extensions differ, and FINDING 7
+below is why: an extension acts with grants and egress, so the node owner's allow-list gates it.
+
+**FINDING 25: An organization without its own trust policy had no policy at all. `CONFIRMED`**
+
+§7 of `09-recipes.md` defined the policy per organization and said nothing of an organization that
+has not set one, which is every organization an installation creates after its first. The
+evaluator at step 9 had nothing to read: either every customer's declarations failed until someone
+thought to set a policy for each, or each was silently given the default and its reseller's
+decision never reached it. Neither is stated anywhere, so an implementation would have picked one.
+
+**Resolution.** The nearest ancestor's policy governs an organization that has none, a removal
+returns to it, and the version keeps counting through the removal so compare-and-swap still
+holds. The cost, that a parent cannot impose its policy as a ceiling, is stated and routed. →
+patched `09-recipes.md` §7.1, question 7 of §10
 
 **FINDING 6: Quota inheritance does not say allocation or usage. `CONFIRMED`, and it decides Bet
 4**
@@ -755,6 +779,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 22 | A hibernated workload's wake trigger lives in the edge | §13 | fixed by 21 |
 | 23 | The circuit breaker measures failure, and the failure mode is success | §14 | `16-extensions.md` §5, `15-observability.md` §5 |
 | 24 | A deleted workload's identity has no moment it is deleted | §18 | `01-model.md` §3.3, `02-architecture.md` §4.8 |
+| 25 | An organization without its own trust policy had no policy at all | §4 | `09-recipes.md` §7.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

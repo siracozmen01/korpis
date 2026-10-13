@@ -12,6 +12,7 @@ import "google/protobuf/timestamp.proto";
 import "korpis/v1/authority.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
+import "korpis/v1/recipe.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
 
@@ -70,6 +71,14 @@ service OrganizationService {
   // org.suspend: reversible, from above only.
   rpc SuspendOrganization(SuspendOrganizationRequest) returns (SuspendOrganizationResponse);
   rpc ResumeOrganization(ResumeOrganizationRequest) returns (ResumeOrganizationResponse);
+  // org.read. The recipe trust policy that governs the organization (§7 of
+  // docs/09-recipes.md): its own, else its nearest ancestor's, else the default.
+  rpc GetTrustPolicy(GetTrustPolicyRequest) returns (GetTrustPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.write. Sets or removes the organization's own policy. mutation.expected_version is
+  // the own_version GetTrustPolicy returned, absent when the organization has none.
+  rpc SetTrustPolicy(SetTrustPolicyRequest) returns (SetTrustPolicyResponse);
 }
 
 message CreateOrganizationRequest {
@@ -135,6 +144,40 @@ message ResumeOrganizationRequest {
 
 message ResumeOrganizationResponse {
   Organization organization = 1;
+  Consistency consistency = 2;
+}
+
+message GetTrustPolicyRequest {
+  string organization = 1;
+  Consistency consistency = 2;
+}
+
+// The policy that governs an organization, and where it was set.
+message GoverningTrustPolicy {
+  // Empty, the default, when no organization from this one up to its root has set one.
+  TrustPolicy policy = 1;
+  // The organization that set it: this one, or an ancestor. Absent when the default governs.
+  optional string set_on = 2;
+  // Who set it, and when; absent when the default governs.
+  Subject set_by = 3;
+  google.protobuf.Timestamp set_at = 4;
+  // The version of this organization's own policy, zero when it has none.
+  uint64 own_version = 5;
+}
+
+message GetTrustPolicyResponse {
+  GoverningTrustPolicy governing = 1;
+}
+
+message SetTrustPolicyRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // Absent removes the organization's own policy, so its nearest ancestor's governs again.
+  TrustPolicy policy = 3;
+}
+
+message SetTrustPolicyResponse {
+  GoverningTrustPolicy governing = 1;
   Consistency consistency = 2;
 }
 

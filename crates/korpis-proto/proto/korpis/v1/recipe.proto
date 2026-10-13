@@ -19,6 +19,38 @@ message RecipeRef {
   string version = 2;
   // "sha256:<hex>".
   string digest = 3;
+  // What vouched for the recipe when it was declared (§7 of docs/09-recipes.md). Set by the
+  // control plane at resolution; whatever a client sends here is replaced.
+  RecipeTrust trust = 4;
+}
+
+// Exactly one of the two.
+message RecipeTrust {
+  // The accepted signer whose signature over the digest made it usable, by name.
+  string signer = 1;
+  // No signer the organization accepts had signed it; used under allow_unsigned.
+  bool unsigned = 2;
+}
+
+// An organization's recipe trust policy (§7 of docs/09-recipes.md). An organization without
+// one is governed by its nearest ancestor's; with none up to the root, by the default, this
+// message empty, which runs no recipe at all.
+message TrustPolicy {
+  // Signers whose signature over a recipe's digest makes it usable.
+  repeated Signer accepted_signers = 1;
+  // Use recipes no accepted signer has signed; every such use is recorded as an effect.
+  bool allow_unsigned = 2;
+  // Use imported recipes graded unverified (§9 of docs/09-recipes.md).
+  bool allow_unverified = 3;
+}
+
+message Signer {
+  // Unique within the policy, and what an intent records as having vouched.
+  string name = 1;
+  // A PEM PUBLIC KEY for ECDSA over P-256, as cosign generate-key-pair writes it.
+  string public_key_pem = 2;
+  // Output only: sha256: of the key's DER encoding, its identity whatever it is called.
+  string fingerprint = 3;
 }
 
 message Recipe {

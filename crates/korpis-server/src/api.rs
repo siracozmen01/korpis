@@ -20,6 +20,7 @@ mod node;
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
+mod trust;
 pub mod wire;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod workload;

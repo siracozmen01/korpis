@@ -85,7 +85,12 @@ fn body(memory: u64) -> IntentBody {
     resources.memory.reservation = memory;
     resources.cpu.reservation_millis = 1_000;
     IntentBody {
-        recipe: RecipeRef { name: "r".into(), version: "1".into(), digest: String::new() },
+        recipe: RecipeRef {
+            name: "r".into(),
+            version: "1".into(),
+            digest: String::new(),
+            trust: None,
+        },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
         console: ConsoleMode::Logs,

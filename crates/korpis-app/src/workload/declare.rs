@@ -12,16 +12,18 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
-use commit::{approval_effect, declaration_effect, moved};
+use commit::{approval_effect, declaration_effects, moved};
 use korpis_core::authz::{Kind, ObjectRef, Permit};
 use korpis_core::labels::Labels;
 use korpis_core::recipe::Recipe;
+use korpis_core::recipe::resolve::Change;
 use korpis_core::tenancy::Name;
 use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::declare::Declaration;
 use korpis_core::workload::plan::compute::intent_steps;
 use korpis_core::workload::plan::impact::delta;
 use korpis_core::workload::plan::{DriverClass, Proposing};
+use korpis_core::workload::spec::IntentBody;
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
 use uuid::Uuid;
 
@@ -133,16 +135,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.base_existing(caller, *workload, *expected_version).await?
             }
         };
-        let (reference, recipe) =
-            self.resolve_recipe(&cmd.recipe_name, &cmd.recipe_version).await?;
-        let mut body = cmd
-            .declaration
-            .complete(reference, &recipe)
-            .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
-        let previous = base.head.as_ref().map(|h| &h.body.config);
-        let changes = self
-            .configure(caller, &mut body, &recipe, previous, base.workload.organization)
-            .await?;
+        let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
+        let (body, recipe, changes) =
+            self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
         let intent = Intent {
             id: Uuid::now_v7(),
             workload: base.workload.id,
@@ -175,13 +170,33 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.write_declaration(&mut tx, &base, &declared, held.as_ref(), &holds).await?;
         let superseded = tx.supersede_proposed(&declared.plan).await?;
         let approved = self.approve_declared(&mut tx, caller, &base, &mut declared).await?;
-        let effect = declaration_effect(caller, &base, &declared, &changes, superseded);
-        tx.append_effect(&effect).await?;
+        for effect in declaration_effects(caller, &base, &declared, &changes, superseded) {
+            tx.append_effect(&effect).await?;
+        }
         if approved {
             tx.append_effect(&approval_effect(caller, &base, &declared.plan)).await?;
             self.place_target(&mut tx, &declared.workload, Some(&declared.intent)).await?;
         }
         finish(tx, caller, idem, OPERATION, declared).await
+    }
+
+    /// The declared body completed from its recipe, resolved under the organization's trust
+    /// policy, with its configuration resolved and what that changed.
+    async fn complete_declaration(
+        &self,
+        caller: &Caller,
+        base: &Base,
+        (name, version): (&str, &str),
+        declaration: Declaration,
+    ) -> Result<(IntentBody, Recipe, Vec<Change>), AppError> {
+        let organization = base.workload.organization;
+        let (reference, recipe) = self.resolve_trusted(name, version, organization).await?;
+        let mut body = declaration
+            .complete(reference, &recipe)
+            .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
+        let previous = base.head.as_ref().map(|h| &h.body.config);
+        let changes = self.configure(caller, &mut body, &recipe, previous, organization).await?;
+        Ok((body, recipe, changes))
     }
 
     async fn base_new(&self, caller: &Caller, n: &NewWorkload) -> Result<Base, AppError> {

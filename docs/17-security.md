@@ -326,7 +326,7 @@ Four things arrive from outside and each is pinned by digest and verified before
 
 | | Verification |
 |---|---|
-| recipes | cosign signature, digest-pinned, `fetch` without a hash is a **parse error** (§4 of `09-recipes.md`) |
+| recipes | cosign signature, decided on the digest under the organization's trust policy (§7 of `09-recipes.md`), digest-pinned, `fetch` without a hash is a **parse error** (§4 of `09-recipes.md`) |
 | extensions | cosign signature, digest-pinned, declared grants approved at install |
 | container images | digest-pinned; tags are resolved once and recorded, never re-resolved silently |
 | the Korpis binaries themselves | reproducible builds, signed releases, published SBOM |

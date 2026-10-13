@@ -26,6 +26,7 @@ pub fn body() -> IntentBody {
             name: "ghcr.io/korpis/recipes/minecraft-paper".into(),
             version: "1.21.4".into(),
             digest: format!("sha256:{}", "9d2f".repeat(16)),
+            trust: Some(korpis_core::recipe::trust::Vouched::Signer("korpis".into())),
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,

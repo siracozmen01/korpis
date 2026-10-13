@@ -17,6 +17,7 @@ mod quota;
 mod recipe;
 mod retire;
 mod tenancy;
+mod trust;
 mod workload;
 
 pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
@@ -32,6 +33,7 @@ pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
 pub use tenancy::{TenancyRead, TenancyWrite};
+pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
 
 use std::future::Future;
@@ -81,6 +83,7 @@ pub trait Store:
     + WorkloadRead
     + NodeRead
     + PlacementRead
+    + TrustRead
     + Send
     + Sync
     + 'static
@@ -110,6 +113,7 @@ pub trait Tx:
     + NodeWrite
     + PlacementWrite
     + RetirementWrite
+    + TrustWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

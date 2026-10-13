@@ -72,12 +72,10 @@ pub fn internal(cause: &dyn std::fmt::Display) -> ConnectError {
     })
 }
 
-/// A use case's answer as the client sees it.
-#[must_use]
-pub fn from_app(e: AppError) -> ConnectError {
+/// A refusal that is about who is asking or what they may use, as the client sees it.
+fn refusal(e: AppError) -> ConnectError {
     use pb::ErrorCode as C;
     match e {
-        AppError::Invalid { field, message } => invalid(&field, message),
         AppError::Unauthenticated => build(&Wire {
             code: C::ERROR_CODE_UNAUTHENTICATED,
             reason: "credential.missing_or_invalid",
@@ -100,6 +98,27 @@ pub fn from_app(e: AppError) -> ConnectError {
             message: &format!("setting {field} needs {action} over the parent organization"),
             retryable: false,
         }),
+        AppError::Untrusted { message } => build(&Wire {
+            code: C::ERROR_CODE_DENIED,
+            reason: "recipe.untrusted",
+            field: "body.recipe",
+            message: &message,
+            retryable: false,
+        }),
+        other => internal(&format!("not a refusal: {other}")),
+    }
+}
+
+/// A use case's answer as the client sees it.
+#[must_use]
+pub fn from_app(e: AppError) -> ConnectError {
+    use pb::ErrorCode as C;
+    match e {
+        AppError::Invalid { field, message } => invalid(&field, message),
+        e @ (AppError::Unauthenticated
+        | AppError::Denied { .. }
+        | AppError::FieldDenied { .. }
+        | AppError::Untrusted { .. }) => refusal(e),
         // Also what a caller who may not read the object is told, so existence is gated by
         // read authority.
         AppError::NotFound { kind } => build(&Wire {

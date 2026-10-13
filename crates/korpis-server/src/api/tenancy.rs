@@ -113,6 +113,22 @@ impl pb::OrganizationService for Api {
     ) -> ServiceResult<pb::ResumeOrganizationResponse> {
         Err(not_yet("organization suspension", 2))
     }
+
+    async fn get_trust_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetTrustPolicyRequest>,
+    ) -> ServiceResult<pb::GetTrustPolicyResponse> {
+        super::trust::get(self, &ctx, request).await
+    }
+
+    async fn set_trust_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetTrustPolicyRequest>,
+    ) -> ServiceResult<pb::SetTrustPolicyResponse> {
+        super::trust::set(self, &ctx, request).await
+    }
 }
 
 impl pb::ProjectService for Api {

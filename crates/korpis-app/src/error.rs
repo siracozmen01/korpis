@@ -58,6 +58,14 @@ pub enum AppError {
         /// For humans: which entry, its bound, and what would be held.
         message: String,
     },
+    /// The organization's trust policy does not let it use this recipe (§7 of
+    /// docs/09-recipes.md). Not a permission of the caller's: no grant changes it, only the
+    /// policy or a signature.
+    #[error("{message}")]
+    Untrusted {
+        /// For humans: which digest, and that no accepted signer signed it.
+        message: String,
+    },
     /// Specified, scheduled, not yet built (§4 of docs/20-roadmap.md).
     #[error("{what} arrive in Phase {phase}")]
     NotYet {

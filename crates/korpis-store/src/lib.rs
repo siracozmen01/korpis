@@ -22,6 +22,7 @@ mod stored;
 mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;
+mod trust;
 mod workload;
 
 pub use feed::Subscription;

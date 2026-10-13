@@ -20,6 +20,28 @@ use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
 use uuid::Uuid;
 
+/// The signer of every test recipe [`crate::recipes::push_paper`] pushes.
+pub const TEST_SIGNER: &str = "korpis-test";
+
+/// The key behind [`TEST_SIGNER`].
+pub fn test_key() -> p256::ecdsa::SigningKey {
+    p256::ecdsa::SigningKey::from_slice(&[7; 32]).expect("a valid scalar")
+}
+
+/// A signer for a policy, by name, of `key`.
+pub fn signer_of(name: &str, key: &p256::ecdsa::SigningKey) -> pb::Signer {
+    pb::Signer {
+        name: name.to_owned(),
+        public_key_pem: korpis_core::recipe::trust::cosign::public_pem(key).expect("PEM"),
+        ..Default::default()
+    }
+}
+
+/// [`TEST_SIGNER`] as a policy names it.
+pub fn test_signer() -> pb::Signer {
+    signer_of(TEST_SIGNER, &test_key())
+}
+
 pub struct Harness {
     pub db: TestDb,
     _dir: tempfile::TempDir,
@@ -78,7 +100,23 @@ impl Harness {
         .expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
         let http = client_tls(&data);
-        Self { db, _dir: dir, installed, http, base, server: running.task }
+        let h = Self { db, _dir: dir, installed, http, base, server: running.task };
+        h.accept_test_signer().await;
+        h
+    }
+
+    /// The root organization accepts recipes signed by [`test_key`], as an operator's first act
+    /// is to say whose recipes it runs (§7 of docs/09-recipes.md).
+    async fn accept_test_signer(&self) {
+        let policy =
+            pb::TrustPolicy { accepted_signers: vec![test_signer()], ..Default::default() };
+        let request = pb::SetTrustPolicyRequest {
+            mutation: mutation("accept-test-signer").into(),
+            organization: self.root_org(),
+            policy: policy.into(),
+            ..Default::default()
+        };
+        self.orgs(self.root()).set_trust_policy(request).await.expect("trust policy");
     }
 
     pub fn root_org(&self) -> String {

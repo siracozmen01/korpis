@@ -502,7 +502,7 @@ There is no ambient scope for a template to reach into, because there is no ambi
 ## 7. Trust
 
 ```
-TrustPolicy                      # per organization
+TrustPolicy                      # an organization's own, or its nearest ancestor's (§7.1)
   accepted_signers    []Signer   cosign public keys, each named; a key's identity is its fingerprint
   allow_unsigned      bool       default false, every use is logged
   allow_unverified    bool       default false, see §9
@@ -534,6 +534,56 @@ Signer
 - An operator may permit unsigned recipes. It is a deliberate, logged, per-organization decision,
   and the recipe carries the fact into every workload declared from it. What vouched for a recipe
   (the accepted signer, by name, or nothing) is recorded in every intent declared from it.
+
+### 7.1 Which policy governs, who evaluates it, and when
+
+**An organization is governed by its own policy, else by its nearest ancestor's, else by the
+default.** Setting or removing an organization's own policy needs `org.write` over it, reading the
+one that governs needs `org.read`, and both are `GetTrustPolicy` and `SetTrustPolicy` on the
+organization service. A removal returns the organization to inheritance. A policy is changed by
+compare-and-swap (§6 of `10-api.md`) against the organization's own version, and that version keeps
+counting through a removal, so a client holding a version from before it cannot overwrite what was
+set after. Every change is an effect, `org.trust_policy.set`, naming each signer by name and
+fingerprint.
+
+The reasoning is that the policy protects the organization that runs the recipe. A recipe runs as
+that organization's workload, inside the isolation tier it is placed in, and the host is protected
+from it by that tier (§5 of `17-security.md`), not by who signed it. What a forged or tampered
+recipe endangers is the workload and its data, which are the organization's. So the organization
+decides, and inheritance only fills the gap for one that has not: a reseller's customer who never
+thought about signing runs what the reseller runs.
+
+The cost is that **a parent cannot impose its policy as a ceiling.** A child whose administrator
+holds `org.write` over it may accept a signer, or unsigned recipes, that its parent does not.
+Whether a parent may pin a floor beneath its descendants is question 7 of §10.
+
+**The control plane evaluates it, at declaration, on the digest.** Resolution turns `name:version`
+into a digest (§8), reads the governing policy from the store, and decides before anything of the
+recipe is fetched. A recipe's signatures are kept in the store with it, as the recipe itself is,
+so a rollback years later is decided without the registry. The registry is asked again only when
+the kept signatures do not satisfy the policy, since a signature may have been added since; if it
+cannot be reached and the kept ones decided, their decision stands. A dry run decides too, so a
+refusal is visible before anything is written. The refusal is `recipe.untrusted` on
+`body.recipe`: it is not a permission of the caller's, no grant changes it, only the policy or a
+signature does. A use under `allow_unsigned` is recorded twice: in the intent, and as an effect,
+`recipe.use_unsigned`, naming the recipe, its digest, and the organization.
+
+What it does not do:
+
+- **It is decided once per intent, at declaration.** Changing a policy does not touch an intent
+  already declared: the workload keeps running what it runs, a plan proposed before the change can
+  still be approved, and cancelling or rolling back to an earlier target does not decide again.
+  The next declaration does. Withdrawing trust from a recipe already running is an action on its
+  workloads, re-declaring or deleting them, not a side effect of the policy. Whether a policy
+  change should supersede proposed plans it no longer admits is part of question 7 of §10.
+- **`allow_unverified` has nothing to evaluate yet.** The grade it reads comes from egg import
+  (§9), which arrives in Phase 4 (§4 of `20-roadmap.md`). Until then the field is stored and
+  returned, and no recipe carries a grade it could refuse.
+
+> Added 2026-10-13, from the implementation. §7 said only that the policy is per organization,
+> and an organization without one had no stated policy: the evaluator had nothing to read for
+> every organization an installation creates after its first. Inheritance from the nearest
+> ancestor is the answer, for the reasons above.
 
 ---
 
@@ -633,3 +683,11 @@ pull-only, revocable credential for, and revokes it when the relationship ends.
    through the OCI referrers API instead of a tag. Accepting either means trusting a Fulcio root
    and a Rekor key, and stating which identities (an OIDC issuer and subject) a policy accepts in
    place of a key. → here, before the signing tooling of Phase 4 (§4 of `20-roadmap.md`)
+7. **A policy floor, and policy changes against pending plans.** A parent cannot keep its
+   descendants from accepting what it does not (§7.1). A floor (the parent's accepted signers
+   as the only ones a descendant may accept, or `allow_unsigned` forbidden beneath it) would let a
+   reseller promise its customers' workloads a provenance. It costs the customer's autonomy over
+   its own workloads, and it has to say what happens to a descendant's policy that the floor
+   newly excludes. Separately, a plan proposed before a policy change is approved under the
+   decision made at its declaration; superseding such plans on the change, or deciding again at
+   approval, would close that window at the price of approval reaching the registry. → here

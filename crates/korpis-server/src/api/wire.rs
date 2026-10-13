@@ -5,7 +5,7 @@
 //! cursor.
 
 pub use korpis_wire::{
-    audit, authz, id, name, node, placement, plan, principal, scope, spec, tenancy, time,
+    audit, authz, id, name, node, placement, plan, principal, recipe, scope, spec, tenancy, time,
     timestamp, value, wire_id, workload,
 };
 

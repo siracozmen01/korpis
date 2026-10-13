@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The trust policy governing organization $1: its own, or the nearest ancestor's, skipping any\n-- organization that removed its own.\nWITH RECURSIVE up AS (\n    SELECT id, parent_id, 0 AS depth FROM organization WHERE id = $1\n    UNION ALL\n    SELECT o.id, o.parent_id, up.depth + 1 FROM organization o JOIN up ON o.id = up.parent_id\n)\nSELECT t.organization_id, t.accepted_signers, t.allow_unsigned, t.allow_unverified, t.version,\n       t.set_by, t.set_at\n  FROM up JOIN trust_policy t ON t.organization_id = up.id AND NOT t.inherit\n ORDER BY up.depth\n LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "accepted_signers",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "accepted_signers"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "allow_unsigned",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "allow_unsigned"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "allow_unverified",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "allow_unverified"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "set_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "set_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "set_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "trust_policy",
+            "name": "set_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5082eecca49eadcf3158853d74f53ce067aae204cf7b689e89184f1c3e21ce86"
+}

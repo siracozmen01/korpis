@@ -2,7 +2,7 @@
 
 //! A recipe in the development registry, and declarations of it.
 
-use crate::support::{Harness, mutation};
+use crate::support::{Harness, mutation, test_key};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use korpis_proto::korpis::v1::__buffa::oneof::value::Kind as V;
@@ -17,8 +17,9 @@ pub fn registry_address() -> String {
     std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
 }
 
-/// Pushes the example to a repository no other test uses; returns the repository.
-pub async fn push_paper() -> String {
+/// Pushes the example, unsigned, to a repository no other test uses; returns the repository
+/// and the digest it pushed.
+pub async fn push_unsigned_paper() -> (String, String) {
     let repo = format!("{}/test/paper-{}", registry_address(), Uuid::now_v7().simple());
     let file = |path: &str, data: &[u8]| File {
         path: path.to_owned(),
@@ -32,8 +33,22 @@ pub async fn push_paper() -> String {
             file("templates/server.properties", b"motd={{motd}}\n"),
         ],
     };
-    Registry::new(vec![registry_address()]).push(&repo, "1.21.4", &artifact).await.unwrap();
-    repo
+    let registry = Registry::new(vec![registry_address()]);
+    let digest = registry.push(&repo, "1.21.4", &artifact).await.unwrap();
+    (repo, digest)
+}
+
+/// Pushes the example signed by `key`; returns the repository and the digest.
+pub async fn push_paper_signed_by(key: &p256::ecdsa::SigningKey) -> (String, String) {
+    let (repo, digest) = push_unsigned_paper().await;
+    Registry::new(vec![registry_address()]).sign(&repo, &digest, key).await.unwrap();
+    (repo, digest)
+}
+
+/// Pushes the example signed by the signer every harness's root organization accepts;
+/// returns the repository.
+pub async fn push_paper() -> String {
+    push_paper_signed_by(&test_key()).await.0
 }
 
 pub fn text(s: &str) -> pb::Value {

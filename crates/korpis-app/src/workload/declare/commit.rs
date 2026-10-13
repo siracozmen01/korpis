@@ -14,6 +14,7 @@ use crate::workload::propose;
 use crate::workload::retire::retiring;
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::recipe::resolve::Change;
+use korpis_core::recipe::trust::Vouched;
 use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::{Plan, Workload};
 use serde_json::Value;
@@ -102,29 +103,53 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-/// The effect of the declaration itself. Configuration is named by key only: a secret's value
-/// never reaches the log (§5 of docs/09-recipes.md), and the intent holds the values.
-pub(super) fn declaration_effect(
+/// The effects of the declaration itself: what was declared and, when nothing the organization
+/// accepts signed the recipe, that it was used anyway (§7 of docs/09-recipes.md). Configuration
+/// is named by key only: a secret's value never reaches the log (§5 of docs/09-recipes.md), and
+/// the intent holds the values.
+pub(super) fn declaration_effects(
     caller: &Caller,
     base: &Base,
     d: &Declared,
     changes: &[Change],
     superseded: u64,
-) -> Effect {
+) -> Vec<Effect> {
     let keys: Vec<Value> = changes.iter().map(|c| c.key.clone().into()).collect();
+    let recipe = &d.intent.body.recipe;
+    let trust = match &recipe.trust {
+        Some(Vouched::Signer(name)) => serde_json::json!({ "signer": name }),
+        Some(Vouched::Unsigned) => serde_json::json!("unsigned"),
+        None => Value::Null,
+    };
     let mut e = Effect::new(caller.principal.clone(), base.action, Outcome::Succeeded)
         .under(base.permit.grant)
         .after(details([
             ("intent", d.intent.id.to_string().into()),
             ("version", d.intent.version.into()),
-            ("recipe", d.intent.body.recipe.digest.clone().into()),
+            ("recipe", recipe.digest.clone().into()),
+            ("recipe_trust", trust),
             ("config_changed", Value::Array(keys)),
             ("approval", propose::approval_name(&d.plan).into()),
             ("superseded_plans", superseded.into()),
         ]));
     e.workload = Some(d.workload.id);
     e.plan = Some(d.plan.id);
-    e
+    let mut effects = vec![e];
+    if recipe.trust == Some(Vouched::Unsigned) {
+        let mut u =
+            Effect::new(caller.principal.clone(), "recipe.use_unsigned", Outcome::Succeeded)
+                .under(base.permit.grant)
+                .after(details([
+                    ("recipe", recipe.name.clone().into()),
+                    ("version", recipe.version.clone().into()),
+                    ("digest", recipe.digest.clone().into()),
+                    ("organization", d.workload.organization.to_string().into()),
+                ]));
+        u.workload = Some(d.workload.id);
+        u.plan = Some(d.plan.id);
+        effects.push(u);
+    }
+    effects
 }
 
 /// The effect of approving a plan by default policy.

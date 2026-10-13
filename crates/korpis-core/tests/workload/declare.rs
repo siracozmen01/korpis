@@ -85,6 +85,7 @@ fn reference() -> RecipeRef {
         name: "korpis.io/paper".into(),
         version: "1.21.4".into(),
         digest: format!("sha256:{}", "b".repeat(64)),
+        trust: None,
     }
 }
 

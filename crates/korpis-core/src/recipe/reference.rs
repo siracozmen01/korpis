@@ -12,6 +12,9 @@ pub struct RecipeRef {
     pub version: String,
     /// `sha256:` and 64 lowercase hexadecimal digits.
     pub digest: String,
+    /// What vouched for the recipe when it was declared, under the declaring organization's
+    /// policy (§7 of docs/09-recipes.md); `None` only in a declaration not yet resolved.
+    pub trust: Option<crate::recipe::trust::Vouched>,
 }
 
 /// Why a reference is malformed.
@@ -60,7 +63,8 @@ mod tests {
         assert!(!is_digest(&format!("sha256:{}", "A".repeat(64))));
         assert!(!is_digest(&format!("sha512:{}", "a".repeat(64))));
         assert!(!is_digest("sha256:abc"));
-        let r = RecipeRef { name: "korpis.io/x".into(), version: "1".into(), digest: ok };
+        let r =
+            RecipeRef { name: "korpis.io/x".into(), version: "1".into(), digest: ok, trust: None };
         assert_eq!(r.validate(), Ok(()));
         let named = RecipeRef { name: "x@y".into(), ..r };
         assert!(named.validate().is_err());
