@@ -101,6 +101,16 @@ node excluded and the reason in the `Explanation`.
 > The capability filter, the shortlist query with a supplied manifest, and the post-bind check are
 > what "rejected at scheduling time with a reason" actually requires.
 
+> Built so far, 2026-10-13. Phase 0 builds the first layer and half of the third: the declared
+> capabilities are evaluated in the control plane, and the agent runs `Prepare` before it creates
+> anything and reports a rejection as `unsatisfiable` with the driver's reason (§7). It does not
+> build the shortlist `FeasibilityQuery` or the re-placement after a post-bind rejection. Both
+> are in the schema (`FeasibilityQuery` and `FeasibilityResult` in §4.2 of `02-architecture.md`,
+> under rule E of `20-roadmap.md`) and arrive with Phase 1's scheduling (§4 there). Until then a
+> workload whose bound node's driver rejects it stays bound there, shown as unsatisfiable with
+> the reason, and nothing moves it, since moving a placed workload is migration. Whether the
+> shortlist query runs inside the placement lock is question 9 of §10.
+
 ### 2.2 Score: of those, which is *best*
 
 ```
@@ -177,9 +187,17 @@ its own, and how two such policies combine over a node both may use, is question
 Each signal scores a node from 0 to 1 and is multiplied by its weight (1 unless the policy says
 otherwise); the highest sum wins, and a tie goes to the lower node identifier so that the same
 inputs always choose the same node. **A signal is scored only where its information exists.**
-Content locality needs the node's content inventory and recent churn needs its history of lost
-workloads, both of which agents report (§4.2 of `02-architecture.md`); until a node has reported
-them, the explanation omits the signal rather than scoring a guess. Volume locality applies only to
+Content locality needs the node's content inventory, which agents report as `ContentStatus`
+(§4.2 of `02-architecture.md`), and recent churn needs the node's history of lost workloads,
+which the control plane keeps itself: the crashes its agents observed and the placements it took
+away because the node failed. Until that information exists, the explanation omits the signal
+rather than scoring a guess.
+
+> Corrected 2026-10-13, from the implementation. This said agents report both. No agent message
+> carries a history of lost workloads, and none needs to: every loss is already an observation
+> or a placement change the control plane recorded. Neither signal is scored yet. Both arrive
+> with Phase 1's scheduling (§4 of `20-roadmap.md`); what window churn is counted over is
+> question 10 of §10. Volume locality applies only to
 a workload already placed, and failure domain only when a constraint, a preference, or a preferred
 region applies to the workload.
 
@@ -810,3 +828,15 @@ estimates what a rebalance would achieve. It does not act.
    to choose for those. A policy per organization is the obvious shape; what it does not answer
    is which policy scores a candidate when the workload's organization and the node's owner each
    set one. → here, before Phase 2
+9. **The shortlist query and the placement lock.** Binding happens under one lock for the
+   installation (§2.3), and a `FeasibilityQuery` is a round trip to an agent with a timeout. Asked
+   inside the lock, every placement waits for the slowest shortlisted node; asked outside, the
+   bind must re-check that what was queried still holds, and a node can change between the two.
+   The second looks right, with the bind re-running the capability filter and the post-bind
+   `Prepare` catching the rest, but it has not been built against a fleet. → here, before
+   Phase 1's scheduling
+10. **What churn counts, and over what window.** A crash loop on one workload and a node that
+    lost every workload in a power cut are both churn, and they say different things about the
+    node. Whether churn counts workloads lost or loss events, whether a crash counts as much as a
+    failed node, and how long a loss is remembered decide whether the signal steers placements
+    away from bad hardware or merely away from bad recipes. → here, before Phase 1's scheduling

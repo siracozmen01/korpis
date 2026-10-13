@@ -168,7 +168,9 @@ written in-core and moved out later (rule E).
 Then: the relay tier (§3.1 of `02-architecture.md`), which every console and file transfer runs
 through. The web client. Durable streams and console. Volumes with kernel-enforced byte and inode
 quota, snapshots, and content-defined-chunking backup with per-workload keys. The install DSL with
-its built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain.
+its built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain; the
+shortlist `FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality
+and churn signals (§2.1 and §2.2 of `05-scheduling.md`).
 Networking: `node_port` and `node_bound` exposure, and the default egress policy of §6 of
 `07-networking.md`. Rate limits, with the web client's login and link redemption that are the
 first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
@@ -225,7 +227,8 @@ The `firecracker` driver. Rule D's validation of the driver interface. Migration
 resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
 `stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
 `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
-Devices, including GPU.
+Devices, including GPU. `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads
+for the difference to be measured.
 
 **Done when:** a running workload with a 40 GB volume moves between nodes, keeps its public
 address, and its meter neither resets nor double-counts across the cutover.

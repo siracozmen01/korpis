@@ -359,6 +359,14 @@ earlier message, the unknown-digest path always works, and any inconsistency res
 sync. The digest is an optimization that can be discarded at any time without affecting
 correctness, which is the property that makes it safe.
 
+> Built so far, 2026-10-13. Phase 0 builds the digest and the `InSync` answer, and the full set
+> for everything else: the control plane keeps no history of earlier digests, so the
+> known-prior branch never fires and a node that missed a change receives the whole set. That
+> costs bandwidth in proportion to the set on every change a node missed, and nothing else.
+> `AssignmentDelta` is in the schema (rule E of `20-roadmap.md`) and arrives in Phase 3, with
+> the fleets whose nodes hold enough workloads for the difference to be measured; a Phase 1
+> installation is one machine, where the set is small and reconnects are rare.
+
 The digest is over the **set**, not over individual assignments. Assignments keep their generation
 numbers as their identity; this is a set-level checksum. No second identity concept is introduced.
 

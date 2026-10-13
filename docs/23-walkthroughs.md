@@ -122,7 +122,10 @@ The operator's row, the last one, had no field and no action either; it is set w
 `workload.classify` (§5 of `10-api.md`), on the record, and can never undercut the floor.
 Step 5 placed the game endpoint by its declared `stable`, so a node behind NAT could take it on
 an installation with no edge tier to hold the address; the scheduler now judges reachability on
-the mode the declaration resolves to (§3 of `07-networking.md`).
+the mode the declaration resolves to (§3 of `07-networking.md`). The step's `FeasibilityQuery`
+is the one part of it Phase 0 does not run: the shortlist query and the re-placement after a
+post-bind rejection are homed in Phase 1, with the question of the placement lock they raise
+(§2.1 and question 9 of §10 of `05-scheduling.md`).
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 
