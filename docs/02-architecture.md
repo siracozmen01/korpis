@@ -240,16 +240,17 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `FeasibilityQuery` | a side-effect-free `Prepare` against a supplied manifest, for placement (§2.1 of `05-scheduling.md`) |
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |
 | `Probe` | liveness check with a nonce |
-| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
+| `ReachabilityProbe` | listen on a port of the node's range, over TCP and UDP, and answer nonces with the node key's signature, to measure whether the node can be reached at what it advertises (§9 of `07-networking.md`) |
+| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, the control plane's clock, and the relays to attach a data connection to (§3.1) |
 | `WorkloadCredential` | the answer to a `CredentialRequest`: a credential for the workload and its expiry, or the refusal (§9.5 of `08-identity.md`) |
 
 **Agent → control plane**
 
 | Message | Purpose |
 |---|---|
-| `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, the set digest it holds |
+| `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, what it advertises for inbound traffic (§9 of `07-networking.md`), the set digest it holds |
 | `Observation` | current observed state of one workload, including what it has converged to (§4.3) |
-| `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, reachability (§3.1), and a digest of current observations |
+| `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, what it advertises for inbound traffic (§9 of `07-networking.md`), and a digest of current observations |
 | `JournalRecords` | effects, metering samples, and break-glass records, in sequence order (§4.10) |
 | `LeaseRequest` | acquire or renew a lease, carrying a nonce; the clock starts when it is sent (§4.5) |
 | `LeaseReleased` | the node has stopped acting under an epoch; it is also a journal record |
@@ -257,6 +258,12 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `ContentStatus` | which recipe digests are present locally |
 | `Ack` | the assignment set digest the agent has received |
 | `CredentialRequest` | a workload asked its identity socket for a credential; names the workload and a request identifier (§9.5 of `08-identity.md`) |
+| `ProbeListening` | the node is listening for a `ReachabilityProbe`, or why it could not |
+
+> Corrected 2026-10-14, from the implementation. `NodeStatus` was said to carry the node's
+> reachability. A node cannot know that from the inside (§9 of `07-networking.md`); it carries
+> what it advertises, and the control plane measures reachability against it with
+> `ReachabilityProbe`.
 
 > Added 2026-10-13, from the implementation: `Welcome`. The heartbeat interval was declared
 > (question 6 of §10) and nothing carried the declaration to the agent, so an agent could only

@@ -66,10 +66,10 @@ impl TestAgent {
             .await
             .unwrap()
             .into_owned();
-        // An enrolled node is edge-only until a probe measures it, and the probe arrives with
-        // the relay in Phase 1 (§9 of docs/07-networking.md). The recipes these tests place
-        // have a `stable` endpoint, which without an edge tier needs a public node, so this
-        // stands in for the probe.
+        // An enrolled node is edge-only until the prober measures it (§9 of
+        // docs/07-networking.md), and this hand-played node advertises nothing to measure. The
+        // recipes these tests place have a `stable` endpoint, which without an edge tier needs a
+        // public node, so this stands in for the measurement.
         let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &enrolled.node).unwrap();
         let store = h.db.store().await.unwrap();
         sqlx::query("UPDATE node SET reachability = 'public' WHERE id = $1")

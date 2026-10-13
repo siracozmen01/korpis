@@ -67,6 +67,7 @@ message AgentMessage {
     Ack ack = 9;
     ProbeReply probe_reply = 10;
     CredentialRequest credential_request = 11;
+    ProbeListening probe_listening = 12;
   }
 }
 
@@ -87,6 +88,7 @@ message ControlMessage {
     Probe probe = 11;
     Welcome welcome = 12;
     WorkloadCredential workload_credential = 13;
+    ReachabilityProbe reachability_probe = 14;
   }
 }
 
@@ -482,4 +484,21 @@ message Probe {
 
 message ProbeReply {
   bytes nonce = 1;
+}
+
+// Measure whether the node can be reached at what it advertises (§9 of docs/07-networking.md):
+// the node listens on `port`, over TCP and UDP on every address, for fifteen seconds, and answers
+// each 32-byte nonce it is sent there with its node key's Ed25519 signature over
+// "korpis.agent.v1.Reachability|<node>|<port>|<nonce in lowercase hexadecimal>".
+message ReachabilityProbe {
+  string probe = 1;
+  // One of the node's advertised range.
+  uint32 port = 2;
+}
+
+// The node is listening for a probe, or could not.
+message ProbeListening {
+  string probe = 1;
+  // Empty when listening; otherwise why not, such as the port being taken.
+  string error = 2;
 }

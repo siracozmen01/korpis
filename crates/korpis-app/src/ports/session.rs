@@ -60,6 +60,17 @@ pub trait SessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Records that `node`'s reachability, measured against `measured`, was `reachability` at
+    /// `at`; false if the node no longer advertises `measured`, whose measurement then says
+    /// nothing about it (§9 of docs/07-networking.md).
+    fn record_reachability(
+        &mut self,
+        node: Uuid,
+        measured: &korpis_core::node::advertised::Advertised,
+        reachability: korpis_core::node::Reachability,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Marks unreachable every connected node last heard before `before`; how many.
     fn mark_silent_nodes(
         &mut self,

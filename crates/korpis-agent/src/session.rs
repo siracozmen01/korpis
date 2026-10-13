@@ -301,6 +301,9 @@ impl Session {
                 }
                 Vec::new()
             }
+            Some(Down::ReachabilityProbe(p)) => {
+                vec![crate::probe::begin(&self.identity.node, &self.identity.key, *p).await]
+            }
             Some(Down::WorkloadCredential(answer)) => {
                 self.credentials.answer(*answer);
                 Vec::new()

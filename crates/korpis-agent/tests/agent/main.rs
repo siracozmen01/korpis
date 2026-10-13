@@ -17,6 +17,7 @@ mod identity;
 mod join;
 mod journal;
 mod lease;
+mod reachability;
 mod reconcile;
 mod revocation;
 mod session;

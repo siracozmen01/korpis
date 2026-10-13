@@ -540,7 +540,8 @@ Three positions, and Korpis takes the third:
 
 **Reachability is measured, and every exposure mode states what it needs.** A node cannot know
 from the inside whether it is reachable, so the control plane has a relay or an edge probe each
-node's advertised addresses, and the result is part of `NodeStatus`:
+node's advertised addresses, and the result is part of the node (`Node.reachability`, measured
+by the probe below; the node's own heartbeat carries only what it advertises):
 
 | Exposure | Requires of the node |
 |---|---|
@@ -563,7 +564,9 @@ existed to tell the two apart (finding S43).
 > able to reach and report it as served (P4). What it costs in Phase 0: no enrolled node takes a
 > workload with a `node_port`, `node_bound`, or, without an edge tier, `stable` endpoint, so
 > Phase 0 runs workloads without public endpoints, which its done-when does, and the tests that
-> run a game server's recipe on an enrolled node stand in for the probe.
+> run a game server's recipe on an enrolled node stand in for the probe. Since 2026-10-14 the
+> control plane runs the probe (below), and those tests wait for its measurement instead, except
+> where the node is played by hand and advertises nothing.
 
 **What a probe measures against.** A node advertises, in its Hello and in every heartbeat, the
 addresses clients would reach it at and the range its `node_port` and `node_bound` endpoints'
@@ -579,6 +582,27 @@ reaches below 1024. A change of either makes the node's reachability unmeasured 
 `edge_only`, because a measurement of other addresses says nothing about these. What this does not
 do: an address that changes is noticed at the next heartbeat, so for up to one heartbeat interval
 the node is judged on its old addresses.
+
+**The probe, as built.** The control plane process that holds a node's session measures it when
+it has never been measured against what it advertises, and every ten minutes after. It asks the
+node to listen on a random port of its range, over TCP and UDP on every address, for fifteen
+seconds; the node answers each 32-byte nonce sent there with its node key's signature over a
+message bound to the purpose, the node, and the port, so a machine that holds the address but not
+the key is not taken for the node, and the answer is good for nothing else. The prober then tries
+each advertised address over TCP and over UDP, and the node is `public` if one address answers
+over both, and `edge_only` otherwise. Both, because a game server's port is usually UDP and a
+web endpoint's TCP, and a firewall that passes one need not pass the other; the cost is that a
+node whose firewall passes only TCP is `edge_only`, although a TCP endpoint on it would have been
+reachable. A measurement is recorded only if the node still advertises what was measured.
+
+What the probe does not do, stated plainly. It measures from where the control plane runs. A
+prober inside the node's network reaches a private address no client outside can, and a prober
+on the node's own machine, which is every single-machine installation, reaches the node's public
+address without crossing a firewall in front of the machine, such as a cloud provider's security
+group. So on one machine `public` means the node answered at that address from inside, and the
+operator still owns the outside firewall; the plan that exposes an endpoint says so. A prober
+outside every node's network is what an edge tier or a relay on another machine provides (§3.1 of
+`02-architecture.md`), and with one the measurement means what a client sees.
 
 ---
 

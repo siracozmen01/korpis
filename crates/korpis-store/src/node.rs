@@ -81,7 +81,7 @@ fn connectivity_str(c: Connectivity) -> &'static str {
     }
 }
 
-fn reachability_str(r: Reachability) -> &'static str {
+pub(crate) fn reachability_str(r: Reachability) -> &'static str {
     match r {
         Reachability::Public => "public",
         Reachability::EdgeOnly => "edge_only",

@@ -28,6 +28,20 @@ pub fn data_hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) ->
     proof_message("korpis.agent.v1.DataHello", node, seconds, nanos, nonce)
 }
 
+/// What a node signs to answer a reachability probe's `nonce` on `port` (§9 of
+/// docs/07-networking.md): the same form as [`hello_message`] under
+/// `korpis.agent.v1.Reachability`, with the port in place of the timestamp, so the answer proves
+/// that the machine reached is the node, and is good for nothing else.
+#[must_use]
+pub fn probe_answer_message(node: &str, port: u16, nonce: &[u8]) -> Vec<u8> {
+    let mut s = format!("korpis.agent.v1.Reachability|{node}|{port}|");
+    for b in nonce {
+        // Writing to a String cannot fail.
+        let _ = write!(s, "{b:02x}");
+    }
+    s.into_bytes()
+}
+
 fn proof_message(purpose: &str, node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
     let mut s = format!("{purpose}|{node}|{seconds}.{nanos:09}|");
     for b in nonce {

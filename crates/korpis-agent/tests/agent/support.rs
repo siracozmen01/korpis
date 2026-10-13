@@ -15,6 +15,8 @@ use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
 use std::time::Duration;
 
+mod authority;
+
 pub struct ControlPlane {
     db: TestDb,
     _dir: tempfile::TempDir,
@@ -141,10 +143,9 @@ impl ControlPlane {
     /// Declares workload `name` from the example recipe in `project`; its wire id.
     pub async fn declare(&self, project: &str, name: &str) -> String {
         // The recipe's game endpoint is `stable`, which without an edge tier needs a node
-        // reachable on its own address (§3 of docs/07-networking.md). Reachability is measured
-        // by a probe that arrives with the relay in Phase 1, and an enrolled node is edge-only
-        // until then; this stands in for the probe on the nodes the test has joined.
-        self.execute("UPDATE node SET reachability = 'public'").await;
+        // reachable on its own address (§3 of docs/07-networking.md). The test nodes advertise
+        // the loopback address, which the control plane's prober reaches; wait until it has.
+        self.measured().await;
         let repo = push_paper().await;
         let declared = self
             .workloads()
@@ -238,6 +239,30 @@ impl ControlPlane {
         sqlx::query_scalar(sql).fetch_one(store.pool()).await.unwrap()
     }
 
+    /// One row, with one text parameter, from the control plane's database, if there is one.
+    pub async fn query_one<T>(&self, sql: &'static str, arg: &str) -> Option<T>
+    where
+        T: for<'r> sqlx::FromRow<'r, sqlx::postgres::PgRow> + Send + Unpin,
+    {
+        let store = self.db.store().await.unwrap();
+        sqlx::query_as(sql).bind(arg.to_owned()).fetch_optional(store.pool()).await.unwrap()
+    }
+
+    /// Waits until every connected node's reachability has been measured (§9 of
+    /// docs/07-networking.md).
+    pub async fn measured(&self) {
+        for _ in 0..300 {
+            let waiting: i64 = self
+                .scalar("SELECT count(*) FROM node WHERE connectivity = 'connected' AND probed_at IS NULL")
+                .await;
+            if waiting == 0 {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        panic!("the nodes were not measured within thirty seconds");
+    }
+
     /// One statement against the control plane's database.
     pub async fn execute(&self, sql: &'static str) {
         let store = self.db.store().await.unwrap();
@@ -262,86 +287,6 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         (created.token, created.ca_fingerprint)
-    }
-
-    /// The relay service, as an anonymous client: a session is authorized by its token alone.
-    pub fn relay(&self) -> pb::RelayServiceClient<HttpClient> {
-        pb::RelayServiceClient::new(self.http(), ClientConfig::new(self.url.parse().unwrap()))
-    }
-
-    /// A capability token for `actions` on exactly `workload`, minted by the root token.
-    pub async fn mint(&self, workload: &str, actions: &[&str]) -> String {
-        self.mint_as(&self.secret, workload, actions, 0).await
-    }
-
-    /// A capability token for `actions` on exactly `workload`, minted by whoever `secret`
-    /// authenticates, lasting `ttl_seconds` (the server's maximum when zero).
-    pub async fn mint_as(
-        &self,
-        secret: &str,
-        workload: &str,
-        actions: &[&str],
-        ttl: u32,
-    ) -> String {
-        use korpis_core::authz::{Kind, ObjectRef};
-        use korpis_core::id::{Id, IdKind};
-        let w = Id::parse(IdKind::Workload, workload).unwrap().uuid();
-        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Workload, w));
-        let config = ClientConfig::new(self.url.parse().unwrap())
-            .with_default_header("authorization", format!("Bearer {secret}"));
-        let minted = pb::GrantServiceClient::new(self.http(), config)
-            .mint_token(pb::MintTokenRequest {
-                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
-                scope: korpis_wire::scope::to_pb(&scope).into(),
-                ttl_seconds: ttl,
-                ..Default::default()
-            })
-            .await
-            .unwrap()
-            .into_owned();
-        minted.token
-    }
-
-    /// Issues `actions` on the root organization to a new API token; the grant and the token's
-    /// secret.
-    pub async fn grant_to_new_token(&self, key: &str, actions: &[&str]) -> (String, String) {
-        use korpis_core::authz::{Kind, ObjectRef};
-        use korpis_core::id::{Id, IdKind};
-        let org = Id::parse(IdKind::Organization, &self.root_org).unwrap().uuid();
-        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Organization, org));
-        let issued = pb::GrantServiceClient::new(self.http(), self.config())
-            .issue_grant(pb::IssueGrantRequest {
-                mutation: mutation(key).into(),
-                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
-                scope: korpis_wire::scope::to_pb(&scope).into(),
-                label: key.into(),
-                to_new_token: true,
-                ..Default::default()
-            })
-            .await
-            .unwrap()
-            .into_owned();
-        (issued.grant.as_option().unwrap().id.clone(), issued.token)
-    }
-
-    /// Revokes `grant`; its identifier.
-    pub async fn revoke(&self, grant: &str) -> uuid::Uuid {
-        use korpis_core::id::{Id, IdKind};
-        pb::GrantServiceClient::new(self.http(), self.config())
-            .revoke_grant(pb::RevokeGrantRequest {
-                mutation: mutation(&format!("revoke-{grant}")).into(),
-                grant: grant.to_owned(),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-        Id::parse(IdKind::Grant, grant).unwrap().uuid()
-    }
-
-    /// Issues a grant on the root organization to a new token, then revokes it; the grant.
-    pub async fn revoked_grant(&self) -> uuid::Uuid {
-        let (grant, _) = self.grant_to_new_token("to-revoke", &["org.read"]).await;
-        self.revoke(&grant).await
     }
 }
 

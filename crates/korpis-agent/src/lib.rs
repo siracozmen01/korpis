@@ -17,6 +17,7 @@ pub mod identity;
 pub mod join;
 pub mod journal;
 pub mod lease;
+pub mod probe;
 pub mod reconcile;
 pub mod revoked;
 pub mod run;

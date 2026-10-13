@@ -118,6 +118,10 @@ impl Uplink {
             Some(Up::Journal(j)) => self.journal(j).await,
             Some(Up::Observation(o)) => self.observed(o).await,
             Some(Up::CredentialRequest(r)) => self.credential(r).await,
+            Some(Up::ProbeListening(p)) => {
+                self.sessions.probe_listening(&p.probe, p.error.clone());
+                Ok(())
+            }
             // Feasibility answers and content status arrive with their consumers.
             _ => Ok(()),
         };

@@ -10,8 +10,8 @@ use korpis_proto::korpis::agent::v1::ControlMessage;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use tokio::sync::Notify;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::{Notify, oneshot};
 use uuid::Uuid;
 
 struct Entry {
@@ -25,6 +25,9 @@ struct Entry {
 pub struct Sessions {
     open: Mutex<HashMap<Uuid, Entry>>,
     next: AtomicU64,
+    /// Reachability probes sent and not yet answered, by probe: where the node's answer goes,
+    /// which is empty when it is listening and says why not when it is not.
+    probes: Mutex<HashMap<String, oneshot::Sender<String>>>,
 }
 
 impl std::fmt::Debug for Sessions {
@@ -82,6 +85,26 @@ impl Sessions {
     #[must_use]
     pub fn sender(&self, node: Uuid) -> Option<Sender<ControlMessage>> {
         self.guard().get(&node).map(|e| e.tx.clone())
+    }
+
+    /// Where the answer to `probe` will arrive, once the node has been sent it.
+    pub fn expect_probe(&self, probe: &str) -> oneshot::Receiver<String> {
+        let (tx, rx) = oneshot::channel();
+        self.probes.lock().unwrap_or_else(PoisonError::into_inner).insert(probe.to_owned(), tx);
+        rx
+    }
+
+    /// A node's answer to `probe`: empty when it is listening, otherwise why it is not.
+    pub fn probe_listening(&self, probe: &str, error: String) {
+        let waiting = self.probes.lock().unwrap_or_else(PoisonError::into_inner).remove(probe);
+        if let Some(tx) = waiting {
+            let _ = tx.send(error);
+        }
+    }
+
+    /// Stops waiting for `probe`.
+    pub fn forget_probe(&self, probe: &str) {
+        self.probes.lock().unwrap_or_else(PoisonError::into_inner).remove(probe);
     }
 
     /// The nodes with a session here.

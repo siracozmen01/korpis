@@ -6,6 +6,8 @@ use crate::PgTx;
 use crate::errors::from_sqlx;
 use crate::stored::{bounds_doc, from_time, node_docs, to_json};
 use korpis_app::ports::{NodeFacts, SessionWrite, StoreResult};
+use korpis_core::node::Reachability;
+use korpis_core::node::advertised::Advertised;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -66,6 +68,31 @@ impl SessionWrite for PgTx {
             addresses.as_deref(),
             first,
             last
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected() == 1)
+    }
+
+    async fn record_reachability(
+        &mut self,
+        node: Uuid,
+        measured: &Advertised,
+        reachability: Reachability,
+        at: SystemTime,
+    ) -> StoreResult<bool> {
+        let addresses: Vec<String> = measured.addresses.iter().map(ToString::to_string).collect();
+        let done = sqlx::query!(
+            "UPDATE node SET reachability = $2, probed_at = $3
+              WHERE id = $1 AND addresses = $4
+                AND first_port = $5 AND last_port = $6",
+            node,
+            crate::node::reachability_str(reachability),
+            from_time(at),
+            &addresses,
+            i32::from(measured.ports.first()),
+            i32::from(measured.ports.last())
         )
         .execute(&mut *self.tx)
         .await

@@ -10,6 +10,7 @@ mod identity;
 mod journal;
 mod lease;
 mod observe;
+mod reachability;
 mod session;
 
 pub use assign::AssignmentSet;
@@ -18,6 +19,7 @@ pub use enroll::{
 };
 pub use identity::{CredentialRefusal, IssuedCredential};
 pub use lease::LeaseAnswer;
+pub use reachability::ProbeDue;
 pub use session::{AGENT_PROTOCOLS, Hello, NodeProof, Session, SessionTerms};
 
 use crate::App;
