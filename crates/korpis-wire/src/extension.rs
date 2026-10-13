@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What an extension's document declares, `korpis.v1.ExtensionManifest`, and the event filters
-//! it subscribes with, `korpis.v1.EventFilter` (§3.1 of docs/16-extensions.md).
+//! What an extension's document declares, `korpis.v1.ExtensionManifest` (§3.1 of
+//! docs/16-extensions.md).
 
-use crate::scope::selector_to_pb;
-use crate::{IdKind, Result, invalid, wire_id};
+use crate::event::filter_to_pb;
+use crate::{Result, invalid};
 use korpis_core::authz::Action;
-use korpis_core::event::{EventFilter, Severity};
 use korpis_core::extension::{
     ActionDecl, Egress, ExtensionManifest, Need, NeedScope, ProvidedInterface, ProviderType,
     SlotDecl,
@@ -29,12 +28,6 @@ enum_map!(provider_type_to_pb, provider_type_from_pb, ProviderType, pb::Provider
     ProviderType::Identity => pb::ProviderType::PROVIDER_TYPE_IDENTITY,
     ProviderType::EdgeRouter => pb::ProviderType::PROVIDER_TYPE_EDGE_ROUTER,
     ProviderType::ChatAdapter => pb::ProviderType::PROVIDER_TYPE_CHAT_ADAPTER,
-});
-
-enum_map!(severity_to_pb, severity_from_pb, Severity, pb::Severity, "a severity", {
-    Severity::Info => pb::Severity::SEVERITY_INFO,
-    Severity::Warning => pb::Severity::SEVERITY_WARNING,
-    Severity::Critical => pb::Severity::SEVERITY_CRITICAL,
 });
 
 /// The wire form of a need.
@@ -68,18 +61,6 @@ fn egress_to_pb(e: &Egress) -> String {
         format!("[{}]:{}", e.host, e.port)
     } else {
         format!("{}:{}", e.host, e.port)
-    }
-}
-
-/// The wire form of an event filter.
-#[must_use]
-pub fn filter_to_pb(f: &EventFilter) -> pb::EventFilter {
-    pb::EventFilter {
-        kinds: f.kinds.clone(),
-        min_severity: severity_to_pb(f.min_severity).into(),
-        projects: f.projects.iter().map(|p| wire_id(IdKind::Project, *p)).collect(),
-        workloads: selector_to_pb(&f.workloads).into(),
-        ..Default::default()
     }
 }
 

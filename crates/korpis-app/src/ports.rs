@@ -25,6 +25,7 @@ mod recipe;
 mod retire;
 mod session;
 mod set;
+mod subscription;
 mod tenancy;
 mod trust;
 mod workload;
@@ -54,6 +55,7 @@ pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, So
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
+pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
@@ -122,6 +124,7 @@ pub trait Store:
     + SetRead
     + ExtensionRead
     + ConditionRead
+    + SubscriptionRead
     + Send
     + Sync
     + 'static
@@ -162,6 +165,7 @@ pub trait Tx:
     + SetWrite
     + ExtensionWrite
     + ConditionWrite
+    + SubscriptionWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT next FROM event_sequencer",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "next",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "event_sequencer",
+            "name": "next"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4eff56220a1c981e271b5185994f29a7335ef85cf41ad2eeb7186c305e160448"
+}

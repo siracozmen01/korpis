@@ -311,6 +311,18 @@ acknowledgement and may see again what it saw but did not acknowledge, and the e
 delivery identifier that makes it idempotent. Only events about objects on which the subject holds
 `event.read` (§5 of `10-api.md`) are delivered, judged by its grants as they are when each is sent.
 
+**Whose a subscription is** (2026-10-13, from the implementation). A subscription belongs to the
+subject that created it, and only that subject reads, acknowledges, or deletes it; to anyone else
+it does not exist. Creating one needs no particular grant, because it holds nothing: what it is
+delivered is judged by its subject's `event.read` grants at each send. Creating and deleting one
+are effects; acknowledging is not, being a consumer's progress and as frequent as its reads. A
+new subscription starts at the end of the log, so it is delivered what happens from then on,
+not thirty days of history it did not ask for. An acknowledgement may not pass the newest
+positioned event, so a consumer cannot skip what has not been delivered yet. An extension's
+subscriptions are created with its installation, held by `extension:<id>`, narrowed to the
+target project when it is installed into one, and deleted when it is uninstalled (§4 of
+`16-extensions.md`).
+
 **Bounded, and the bound is visible.** The live stream holds a bounded buffer per subscriber; a
 consumer that falls behind it is disconnected with `OVERFLOW` (§7 of `10-api.md`) and resumes from
 its position, which the log itself holds. The log is kept for a retention window (thirty days by

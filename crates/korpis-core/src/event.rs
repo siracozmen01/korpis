@@ -154,6 +154,40 @@ impl EventFilter {
     }
 }
 
+/// A subscription: a stored position in the log, and what it selects (§5 of
+/// docs/15-observability.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Subscription {
+    /// Its identifier.
+    pub id: Uuid,
+    /// Who it delivers to, as a principal key; deliveries are judged by its grants.
+    pub subject: crate::principal::Principal,
+    /// What it selects.
+    pub filter: EventFilter,
+    /// The last position acknowledged; 0 before the first.
+    pub acked: u64,
+    /// When it was created.
+    pub created: SystemTime,
+    /// The installation that created it, which it ends with.
+    pub extension: Option<Uuid>,
+}
+
+/// An event's identifier, which is its position: the position in the low 64 bits, so the
+/// identifiers of later events are greater.
+#[must_use]
+pub const fn position_id(position: u64) -> Uuid {
+    Uuid::from_u64_pair(0, position)
+}
+
+/// The position an event identifier names; `None` for one that names no position.
+#[must_use]
+pub const fn position_of(id: Uuid) -> Option<u64> {
+    match id.as_u64_pair() {
+        (0, position) if position > 0 => Some(position),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +210,13 @@ mod tests {
         assert!(Severity::Critical > Severity::Warning && Severity::Warning > Severity::Info);
         assert_eq!(Severity::parse("warning"), Some(Severity::Warning));
         assert_eq!(Severity::parse("loud"), None);
+    }
+
+    #[test]
+    fn an_event_identifier_is_its_position_and_orders_like_it() {
+        assert_eq!(position_of(position_id(42)), Some(42));
+        assert!(position_id(9) < position_id(10));
+        assert_eq!(position_of(Uuid::now_v7()), None, "an ordinary identifier names none");
+        assert_eq!(position_of(position_id(0)), None, "positions start at 1");
     }
 }

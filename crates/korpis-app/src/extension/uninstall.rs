@@ -10,7 +10,9 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::Page;
-use crate::ports::{Clock, EffectWrite, ExtensionWrite, RecipeSource, RetirementWrite, Store, Tx};
+use crate::ports::{
+    Clock, EffectWrite, ExtensionWrite, RecipeSource, RetirementWrite, Store, SubscriptionWrite, Tx,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{GrantRecord, Kind, ObjectRef};
 use korpis_core::extension::Installation;
@@ -73,6 +75,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.uninstall_extension(id, now).await? {
             return Err(gone());
         }
+        let ended = tx.delete_extension_subscriptions(id).await?;
         installation.uninstalled_at = Some(now);
         let mut plan = None;
         if let Some((w, p, grant)) = retire
@@ -86,6 +89,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .after(details([
                 ("extension", id.to_string().into()),
                 ("revoked_grants", revoked.into()),
+                ("ended_subscriptions", ended.into()),
             ]));
         effect.workload = Some(installation.workload);
         tx.append_effect(&effect).await?;

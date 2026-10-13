@@ -30,6 +30,7 @@ mod recipe;
 mod session;
 mod set;
 mod stored;
+mod subscription;
 mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;

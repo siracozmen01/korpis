@@ -20,6 +20,7 @@ mod classify;
 mod denials;
 mod effects;
 mod enroll;
+mod events;
 mod extensions;
 mod identity;
 mod journal;

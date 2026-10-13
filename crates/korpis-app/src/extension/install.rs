@@ -11,10 +11,11 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, RecipeSource, Store, StoreError, Tx, Unique};
+use crate::ports::{Clock, RecipeSource, Store, StoreError, SubscriptionWrite, Tx, Unique};
 use crate::workload::{DeclareIntent, DeclareTarget, Declared, NewWorkload};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{GrantRecord, Kind, ObjectRef, Permit};
+use korpis_core::event::Subscription;
 use korpis_core::extension::{ExtensionManifest, Installation, Need, ProviderType};
 use korpis_core::labels::Labels;
 use korpis_core::recipe::RecipeRef;
@@ -127,9 +128,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if cmd.dry_run {
             return Ok(Reply::Fresh(installed));
         }
+        let start = self.store.last_position().await?;
         let mut tx = self.store.begin().await?;
         self.write_prepared(&mut tx, caller, &mut prepared).await?;
         write_installation(&mut tx, caller, &installed, &grants, target.permit.grant).await?;
+        for s in subscriptions(&installed.installation, &installed.manifest, start) {
+            tx.insert_subscription(&s).await?;
+        }
         installed.declared = Some(prepared.into_declared());
         finish(tx, caller, idem, OPERATION, installed).await
     }
@@ -266,6 +271,28 @@ async fn write_installation<X: Tx>(
     }
     tx.append_effect(&install_effect(caller, installed, under)).await?;
     Ok(())
+}
+
+/// The subscriptions its document declares, held by the installation and starting at the end of
+/// the log; installed into a project, each is narrowed to that project (§4 of
+/// docs/16-extensions.md).
+fn subscriptions(
+    i: &Installation,
+    manifest: &ExtensionManifest,
+    start: u64,
+) -> impl Iterator<Item = Subscription> {
+    let (id, project, created) = (i.id, i.project, i.installed_at);
+    manifest.subscribes.clone().into_iter().map(move |mut filter| {
+        filter.projects = project.into_iter().collect();
+        Subscription {
+            id: Uuid::now_v7(),
+            subject: korpis_core::principal::Principal::Extension(id),
+            filter,
+            acked: start,
+            created,
+            extension: Some(id),
+        }
+    })
 }
 
 fn exists() -> AppError {

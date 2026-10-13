@@ -3,7 +3,8 @@
 //! `ExtensionService` (§4 of docs/16-extensions.md): installing an extension and reading what is
 //! installed.
 
-use super::wire::extension::{filter_to_pb, manifest_to_pb, need_from_pb, provided_to_pb};
+use super::wire::event::filter_to_pb;
+use super::wire::extension::{manifest_to_pb, need_from_pb, provided_to_pb};
 use super::wire::plan::plan_to_pb;
 use super::wire::recipe::ref_to_pb;
 use super::wire::value::map_from_pb;
