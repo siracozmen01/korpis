@@ -38,8 +38,10 @@ async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
     if let Some(Up::Hello(x)) = hello.message.as_mut() {
         held.clone_into(&mut x.set_digest);
     }
-    let (stream, first) = TestAgent::open(h, hello).await;
+    let (mut stream, first) = TestAgent::open(h, hello).await;
     welcome(&first.unwrap());
+    let ack = next(&mut stream).await;
+    assert!(matches!(ack.message, Some(Down::JournalAck(_))), "where to resend from");
     stream
 }
 

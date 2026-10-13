@@ -5,7 +5,7 @@
 //! the stream carries facts up and decisions down.
 
 use super::downlink::Downlink;
-use super::uplink::Uplink;
+use super::uplink::{Uplink, journal_ack};
 use crate::api::wire::{Refuse, id, timestamp};
 use crate::api::{ServerApp, error};
 use crate::sessions::Sessions;
@@ -94,6 +94,8 @@ pub(super) async fn open(
     let session = app.open_session(hello_from_pb(hello)?).await.map_err(error::from_app)?;
     let (tx, rx) = mpsc::channel(OUTBOUND);
     tx.send(welcome(app, &session)).await.map_err(|e| error::internal(&e))?;
+    let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;
+    tx.send(journal_ack(ingested)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;
     let (id, wake) = sessions.register(node, tx.clone());
     tracing::info!(%node, protocol = %session.protocol, "agent session opened");

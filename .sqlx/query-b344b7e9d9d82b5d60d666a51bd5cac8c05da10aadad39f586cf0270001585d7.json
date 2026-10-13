@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ingested_through FROM node_journal_cursor WHERE node_id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ingested_through",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "node_journal_cursor",
+            "name": "ingested_through"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b344b7e9d9d82b5d60d666a51bd5cac8c05da10aadad39f586cf0270001585d7"
+}

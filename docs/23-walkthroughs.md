@@ -1037,7 +1037,7 @@ Written 2026-10-13, from the implementation, when `DeleteWorkload` was built.
 | 3 | It waits for a human: removing a runtime is disruptive by the vocabulary's floor, and `workload.delete` is irreversible | `01-model.md` §3.3; `10-api.md` §5 |
 | 4 | Approved: every other proposal is superseded, and a moderator's stop is refused, the workload is being retired | `01-model.md` §3.3 |
 | 5 | The node's assignment carries `retire`; the agent stops the workload and removes the runtime, touching no volume | `02-architecture.md` §4.8 |
-| 6 | The completion effect is ingested: the assignment leaves the set, the placement is removed, `deleted_at` is set, and the name and quota are released | `02-architecture.md` §4.8; `05-scheduling.md` §5.1 |
+| 6 | The completion effect of the last step is ingested, checked against the node's own steps of that plan: the plan is applied, the assignment leaves the set, the placement is removed, `deleted_at` is set, and the name and quota are released ‡ | `02-architecture.md` §4.8, §4.10; `05-scheduling.md` §5.1 |
 | 7 | Volume `world` remains, detached, listed and never collected | `06-storage.md` §7 |
 
 **FINDING 24: A deleted workload's identity has no moment it is deleted. `CONFIRMED`**
@@ -1055,4 +1055,10 @@ is set when the retirement is complete: when the node's completion effect is ing
 approval when the plan has only the control plane's step because nothing ever reached a node.
 Cancelling a retirement before any step has run restores nothing, because nothing moved. → patched
 into `01-model.md` §3.3 and `02-architecture.md` §4.8
+
+‡ Updated 2026-10-13, when journal ingestion was built. Step 6 trusted whatever the node reported.
+A completion is now believed only for a step that is the node's own in that workload's plan, and a
+record that is not is kept as a rejection; and a retire plan approved while the create plan was
+still applying waited in `queued` with nothing to move it on, so a queued plan now becomes the
+node's next plan once the one ahead of it is applied (§4.8 of `02-architecture.md`).
 

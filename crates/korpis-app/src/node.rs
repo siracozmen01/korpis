@@ -5,6 +5,7 @@
 
 mod assign;
 mod enroll;
+mod journal;
 mod lease;
 mod session;
 

@@ -17,6 +17,7 @@ use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
 use std::collections::BTreeMap;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// A node's set, as it is sent.
@@ -33,17 +34,19 @@ fn seal_error(SealError(why): SealError) -> AppError {
 }
 
 /// The plan a node is to be executing for a workload: the applying one, or else the earliest
-/// approved, which becomes applying when it is first assigned.
-fn active_plan(open: Vec<Plan>) -> Option<Plan> {
-    let mut candidates: Vec<Plan> = open
-        .into_iter()
-        .filter(|p| matches!(p.status, PlanStatus::Applying | PlanStatus::Approved))
-        .collect();
-    if let Some(i) = candidates.iter().position(|p| p.status == PlanStatus::Applying) {
-        return Some(candidates.swap_remove(i));
+/// approved or queued whose window has opened, which becomes applying when it is first assigned.
+/// A queued plan waited for the one ahead of it; once that one is done, it is next.
+fn active_plan(open: Vec<Plan>, now: SystemTime) -> Option<Plan> {
+    if let Some(applying) = open.iter().find(|p| p.status == PlanStatus::Applying) {
+        return Some(applying.clone());
     }
-    candidates.sort_by_key(|p| (p.approved_at, p.id));
-    candidates.into_iter().next()
+    let mut ready: Vec<Plan> = open
+        .into_iter()
+        .filter(|p| matches!(p.status, PlanStatus::Approved | PlanStatus::Queued))
+        .filter(|p| p.apply_after.is_none_or(|t| t <= now))
+        .collect();
+    ready.sort_by_key(|p| (p.approved_at, p.id));
+    ready.into_iter().next()
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -111,13 +114,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Marks an approved plan applying, unless another of its workload's already is.
+    /// Marks an approved or queued plan applying, unless another of its workload's already is.
     async fn begin_applying(&self, tx: &mut S::Tx, plan: Plan) -> Result<(), AppError> {
-        if plan.status != PlanStatus::Approved || tx.plan_applying(plan.workload).await? {
+        let from = plan.status;
+        let waiting = matches!(from, PlanStatus::Approved | PlanStatus::Queued);
+        if !waiting || tx.plan_applying(plan.workload).await? {
             return Ok(());
         }
         let applying = Plan { status: PlanStatus::Applying, ..plan };
-        tx.update_plan(&applying, PlanStatus::Approved).await?;
+        tx.update_plan(&applying, from).await?;
         Ok(())
     }
 
@@ -142,7 +147,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .cached_recipe(&target.body.recipe.digest)
             .await?
             .ok_or_else(|| missing("recipe document"))?;
-        let plan = active_plan(self.store.open_plans(workload).await?);
+        let plan = active_plan(self.store.open_plans(workload).await?, self.clock.now());
         // No storage class a Phase 0 node offers is attachable from a second node, so a derived
         // answer keeps running (§4.5 of docs/02-architecture.md).
         let on_lease_expiry = target.body.continuity.resolved(false);

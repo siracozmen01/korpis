@@ -17,6 +17,7 @@ mod authority;
 mod authz;
 mod effects;
 mod enroll;
+mod journal;
 mod leases;
 mod lifecycle;
 mod nodes;

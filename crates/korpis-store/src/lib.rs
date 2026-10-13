@@ -16,6 +16,7 @@ mod enrollment;
 mod errors;
 mod feed;
 mod idempotency;
+mod journal;
 mod lease;
 mod node;
 mod placement;

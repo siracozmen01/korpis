@@ -615,8 +615,29 @@ JournalRecord
 - **The control plane ingests in sequence order.** It accepts record `seq` only if it is one past
   the highest it has ingested from that node, and it advances that cursor in the same transaction as
   the rows the record produces. A record at or below the cursor is a duplicate and is dropped; a
-  record beyond the next is held until the gap fills. So node-originated effects are ingested
+  record beyond the next is not acknowledged, and the node sends it again with what was missing,
+  because its journal keeps everything past the cursor. So node-originated effects are ingested
   **exactly once, in order**, without asking a partitioned table for a unique index it cannot have.
+
+  > Corrected 2026-10-13, from the implementation. This said a record beyond the next "is held
+  > until the gap fills". The node's journal already holds it, durably, and resends everything
+  > the cursor has not passed; a second copy held in the control plane's memory would be lost
+  > with the process and could only ever duplicate what the node keeps. The control plane keeps
+  > the cursor and nothing else.
+- **A session begins with the cursor.** After the `Welcome`, the control plane sends a
+  `JournalAck` naming the highest sequence it has ingested from the node, so an agent that
+  reconnects knows where to resend from without guessing.
+- **A record is believed only as far as the node's assignments reach.** An effect for a workload
+  the node holds no assignment or placement for, or for a step that is not one of the node's steps
+  of that workload's plan, moves nothing; it is kept as a `journal.rejected` effect naming why, and
+  the cursor passes it, so one bad record cannot block a journal. A believed effect is recorded with
+  the control plane as its actor (`system:reconciler`, §3.2 of `01-model.md`), since the node
+  executed a decision already made, and with the grant the plan was approved under. A step's
+  completion moves the plan's progress; the last step applies the plan, a failure fails it, and a
+  retire plan applied retires the workload (§4.8). A gap record and a break-glass record are
+  effects in their own right. A metering sample is recorded only as having arrived
+  (`journal.unsupported`) until metering is stored in Phase 2 (§4 of `20-roadmap.md`): a loss that
+  is visible, not silent.
 - **`JournalAck`** tells the agent the cursor. Nothing is discarded before it is acknowledged, and
   acknowledged records are kept for a further retention window (default seven days) before they
   are discarded, so that a control plane restored from an older backup can re-ingest them (§8 of

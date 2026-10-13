@@ -8,6 +8,7 @@
 pub mod driver;
 #[cfg(feature = "identity")]
 pub mod identity;
+pub mod journal;
 
 pub use driver::{Capabilities, DriverInfo, Enforcement, StorageClass};
 

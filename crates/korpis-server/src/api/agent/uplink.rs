@@ -17,6 +17,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_wire::duration;
+use korpis_wire::journal::records_from_pb;
 use korpis_wire::spec::continuity_to_pb;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -70,6 +71,13 @@ fn answer(request: &agent::LeaseRequest, a: LeaseAnswer) -> agent::ControlMessag
     agent::ControlMessage { message: Some(message), ..Default::default() }
 }
 
+/// The cursor, as the node is told it: it may discard up to `through` after its retention
+/// window, and sends everything after it again.
+pub(super) fn journal_ack(through: u64) -> agent::ControlMessage {
+    let ack = agent::JournalAck { seq: through, ..Default::default() };
+    agent::ControlMessage { message: Some(Down::JournalAck(Box::new(ack))), ..Default::default() }
+}
+
 impl Uplink {
     /// Handles what the agent sends until the stream ends or another session replaces this one.
     pub(super) async fn run(self, mut requests: InboundStream<agent::AgentMessage>) {
@@ -104,7 +112,8 @@ impl Uplink {
             }
             Some(Up::LeaseRequest(r)) => self.lease(r).await,
             Some(Up::LeaseReleased(r)) => self.released(r).await,
-            // Observations, journal records, and feasibility answers arrive with ingestion.
+            Some(Up::Journal(j)) => self.journal(j).await,
+            // Observations and feasibility answers arrive with their consumers.
             _ => Ok(()),
         };
         if let Err(e) = result {
@@ -117,6 +126,13 @@ impl Uplink {
             id(IdKind::Workload, "workload", &r.workload).refuse().map_err(|e| e.to_string())?;
         let a = self.app.request_lease(self.node, workload).await.map_err(|e| e.to_string())?;
         self.tx.send(answer(r, a)).await.map_err(|e| e.to_string())
+    }
+
+    async fn journal(&self, j: &agent::JournalRecords) -> Result<(), String> {
+        let records = records_from_pb(&j.records).map_err(|e| e.to_string())?;
+        let through =
+            self.app.ingest_journal(self.node, records).await.map_err(|e| e.to_string())?;
+        self.tx.send(journal_ack(through)).await.map_err(|e| e.to_string())
     }
 
     async fn released(&self, r: &agent::LeaseReleased) -> Result<(), String> {
