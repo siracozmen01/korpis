@@ -76,6 +76,16 @@ pub trait RelayWrite {
         expires_at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// Records `nonce` as seen from `relay` at `at`, forgetting that relay's nonces older than
+    /// `forget_before`; false if it was already seen.
+    fn remember_relay_nonce(
+        &mut self,
+        relay: Uuid,
+        nonce: &[u8],
+        at: SystemTime,
+        forget_before: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Removes `relay` at `at`; false if it was already removed or does not exist.
     fn remove_relay(
         &mut self,

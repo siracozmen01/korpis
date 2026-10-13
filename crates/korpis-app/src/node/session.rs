@@ -23,7 +23,7 @@ pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
 pub(super) type ProofMessage = fn(&str, i64, u32, &[u8]) -> Vec<u8>;
 
 /// The shortest nonce accepted: 128 bits makes a collision across a skew window negligible.
-const MIN_NONCE: usize = 16;
+pub(crate) const MIN_NONCE: usize = 16;
 
 /// The declared intervals of a session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,13 +99,13 @@ pub struct Session {
     pub terms: SessionTerms,
 }
 
-fn signed_at(proof: &NodeProof) -> Option<SystemTime> {
+pub(crate) fn signed_at(proof: &NodeProof) -> Option<SystemTime> {
     let seconds = u64::try_from(proof.seconds).ok()?;
     let at = UNIX_EPOCH.checked_add(Duration::from_secs(seconds))?;
     at.checked_add(Duration::from_nanos(u64::from(proof.nanos)))
 }
 
-fn within(at: SystemTime, now: SystemTime, skew: Duration) -> bool {
+pub(crate) fn within(at: SystemTime, now: SystemTime, skew: Duration) -> bool {
     match at.duration_since(now) {
         Ok(ahead) => ahead <= skew,
         Err(behind) => behind.duration() <= skew,

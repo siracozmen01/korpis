@@ -44,6 +44,16 @@ impl EnrollmentRead for PgStore {
             .map_err(from_sqlx)
     }
 
+    async fn node_keys(&self) -> StoreResult<Vec<(Uuid, Vec<u8>)>> {
+        let rows = sqlx::query!(
+            "SELECT id, public_key FROM node WHERE admin <> 'decommissioned' ORDER BY id"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.id, r.public_key)).collect())
+    }
+
     async fn verify_keys(&self, purpose: &str) -> StoreResult<Vec<VerifyKey>> {
         let rows = sqlx::query!(
             "SELECT key_id, public_key, not_before, not_after FROM signing_key

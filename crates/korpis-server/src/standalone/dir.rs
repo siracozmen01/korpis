@@ -38,6 +38,14 @@ impl RelayDir {
         read_text(&self.file("relay"))
     }
 
+    /// The relay's identity key, once it has one.
+    pub fn identity(&self) -> std::io::Result<ed25519_dalek::SigningKey> {
+        let seed = std::fs::read(self.file("identity.key"))?;
+        let seed: [u8; 32] =
+            seed.try_into().map_err(|_| std::io::Error::other("identity.key is not 32 bytes"))?;
+        Ok(ed25519_dalek::SigningKey::from_bytes(&seed))
+    }
+
     /// Writes a secret file once: what is there already is kept, so a join that is retried
     /// presents the same keys.
     pub fn secret_once(

@@ -6,6 +6,7 @@
 //! authority, pinned by the fingerprint the join command carried.
 
 mod dir;
+pub mod feed;
 mod join;
 
 pub use dir::RelayDir;

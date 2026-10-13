@@ -162,6 +162,34 @@ impl RelayWrite for PgTx {
         Ok(())
     }
 
+    async fn remember_relay_nonce(
+        &mut self,
+        relay: Uuid,
+        nonce: &[u8],
+        at: SystemTime,
+        forget_before: SystemTime,
+    ) -> StoreResult<bool> {
+        sqlx::query!(
+            "DELETE FROM relay_auth_nonce WHERE relay_id = $1 AND seen_at < $2",
+            relay,
+            from_time(forget_before)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let inserted = sqlx::query!(
+            "INSERT INTO relay_auth_nonce (relay_id, nonce, seen_at) VALUES ($1, $2, $3)
+             ON CONFLICT (relay_id, nonce) DO NOTHING",
+            relay,
+            nonce,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(inserted.rows_affected() == 1)
+    }
+
     async fn remove_relay(&mut self, relay: Uuid, at: SystemTime) -> StoreResult<bool> {
         let done = sqlx::query!(
             "UPDATE relay SET removed_at = $2 WHERE id = $1 AND removed_at IS NULL",

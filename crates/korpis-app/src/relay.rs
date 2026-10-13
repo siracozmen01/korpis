@@ -6,9 +6,11 @@
 //! plane's own relay role is not a relay here; it needs no enrollment.
 
 mod enroll;
+mod feed;
 mod join;
 
 pub use enroll::{CreateRelayEnrollment, RelayEnrollmentToken};
+pub use feed::RelayFeed;
 pub use join::{JoinRelay, JoinedRelay};
 
 use crate::App;

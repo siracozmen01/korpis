@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO relay_auth_nonce (relay_id, nonce, seen_at) VALUES ($1, $2, $3)\n             ON CONFLICT (relay_id, nonce) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5119d4c0a01c60f237c1d7000910d0f1ca7641d75b5ba59327dfb21948a7326d"
+}

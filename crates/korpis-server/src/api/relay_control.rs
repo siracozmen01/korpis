@@ -2,15 +2,108 @@
 
 //! `RelayControlService` (§3.1 of docs/02-architecture.md): what a relay running as its own
 //! process asks of the control plane. Joining is authenticated by the enrollment token in the
-//! request, as an agent's enrollment is.
+//! request, as an agent's enrollment is; the feed by the relay's identity key.
+//!
+//! The feed sends each part whole when the relay connects and again when it changes: the
+//! revocation list as this process publishes it, and the token and node keys as a look every
+//! [`LOOK`] finds them. It ends when the relay is removed, so a removed relay stops verifying
+//! by anything newer than its last list.
 
-use super::agent::key_to_pb;
-use super::wire::{timestamp, wire_id};
-use super::{Api, error};
-use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use super::agent::{key_to_pb, proof_from_pb};
+use super::wire::{self, Refuse as _, timestamp, wire_id};
+use super::{Api, ServerApp, error};
+use crate::revocations::Revocations;
+use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::relay::JoinRelay;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::relay::v1 as relay;
+use korpis_proto::korpis::relay::v1::__buffa::oneof::feed_update::Message as Update;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::mpsc;
+use uuid::Uuid;
+
+/// How often the feed looks for changed keys, and for the relay's removal.
+const LOOK: Duration = Duration::from_secs(2);
+
+fn update(message: Update) -> relay::FeedUpdate {
+    relay::FeedUpdate { message: Some(message), ..Default::default() }
+}
+
+fn node_keys(keys: &[(Uuid, Vec<u8>)]) -> relay::NodeKeys {
+    let nodes = keys
+        .iter()
+        .map(|(node, key)| relay::NodeKey {
+            node: wire_id(IdKind::Node, *node),
+            public_key: key.clone(),
+            ..Default::default()
+        })
+        .collect();
+    relay::NodeKeys { nodes, ..Default::default() }
+}
+
+/// The keys as they stand, each sent when it differs from what was sent last.
+async fn keys(
+    app: &ServerApp,
+    sent: &mut (Option<relay::TokenKeys>, Option<relay::NodeKeys>),
+    tx: &mpsc::Sender<relay::FeedUpdate>,
+) -> Result<(), String> {
+    let feed = app.relay_feed().await.map_err(|e| e.to_string())?;
+    let tokens = relay::TokenKeys {
+        keys: feed.token_keys.iter().map(key_to_pb).collect(),
+        ..Default::default()
+    };
+    if sent.0.as_ref() != Some(&tokens) {
+        tx.send(update(Update::TokenKeys(Box::new(tokens.clone()))))
+            .await
+            .map_err(|e| e.to_string())?;
+        sent.0 = Some(tokens);
+    }
+    let nodes = node_keys(&feed.node_keys);
+    if sent.1.as_ref() != Some(&nodes) {
+        tx.send(update(Update::NodeKeys(Box::new(nodes.clone()))))
+            .await
+            .map_err(|e| e.to_string())?;
+        sent.1 = Some(nodes);
+    }
+    Ok(())
+}
+
+/// Feeds `relay` until it is removed or goes away.
+async fn feed(
+    app: Arc<ServerApp>,
+    revocations: Arc<Revocations>,
+    relay: Uuid,
+    tx: mpsc::Sender<relay::FeedUpdate>,
+) {
+    let mut lists = revocations.subscribe();
+    let mut sent = (None, None);
+    let mut list_sent = false;
+    loop {
+        if !matches!(app.relay_joined(relay).await, Ok(true)) {
+            tracing::info!(%relay, "relay feed ended: removed");
+            return;
+        }
+        if let Err(e) = keys(&app, &mut sent, &tx).await {
+            tracing::warn!(%relay, error = %e, "relay feed ended");
+            return;
+        }
+        let current = (!list_sent || lists.has_changed().unwrap_or(false))
+            .then(|| lists.borrow_and_update().clone())
+            .flatten();
+        if let Some(list) = current {
+            if tx.send(update(Update::RevocationList(Box::new((*list).clone())))).await.is_err() {
+                return;
+            }
+            list_sent = true;
+        }
+        tokio::select! {
+            _ = lists.changed() => {}
+            () = tokio::time::sleep(LOOK) => {}
+            () = tx.closed() => return,
+        }
+    }
+}
 
 impl relay::RelayControlService for Api {
     async fn join(
@@ -36,5 +129,20 @@ impl relay::RelayControlService for Api {
             token_keys: joined.token_keys.iter().map(key_to_pb).collect(),
             ..Default::default()
         })
+    }
+
+    async fn feed(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, relay::FeedRequest>,
+    ) -> ServiceResult<ServiceStream<relay::FeedUpdate>> {
+        let req = request.to_owned_message();
+        let id = wire::id(IdKind::Relay, "relay", &req.relay).refuse()?;
+        let proof = proof_from_pb(&req.relay, req.auth.as_option())?;
+        self.app.authenticate_relay(id, &proof).await.map_err(error::from_app)?;
+        let (tx, mut rx) = mpsc::channel(8);
+        tokio::spawn(feed(Arc::clone(&self.app), Arc::clone(&self.revocations), id, tx));
+        let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));
+        Response::stream_ok(out)
     }
 }

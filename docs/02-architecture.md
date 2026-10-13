@@ -169,9 +169,12 @@ expires unrenewed, when a revocation list names its chain, or when the relay ref
 the client sent on the session (§6 of `08-identity.md`). What it does not do
 yet: the role does not yet serve from its own process. A relay can be enrolled as one, joining
 with its keys and receiving a certificate under the installation's authority (§3 of
-`18-operations.md`), but serving needs what Phase 1 still owes (§4 of `20-roadmap.md`): the nodes'
-keys and the revocation list sent to it as they change, and a `DataHello` bound to the relay it
-was sent to, since nonce memory is not shared between relays.
+`18-operations.md`), and it is fed what it verifies by: `RelayControlService.Feed`, opened with a
+request its identity key signs over a fresh nonce the control plane accepts once, streams the
+token keys, the signed revocation list, and the keys of every node not decommissioned, each when
+it changes, and ends when the relay is removed. Serving still needs what Phase 1 owes (§4 of
+`20-roadmap.md`): a `DataHello` bound to the relay it was sent to, since nonce memory is not shared
+between relays, and the relay process itself.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is

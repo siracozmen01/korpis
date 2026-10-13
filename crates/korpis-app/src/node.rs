@@ -13,7 +13,7 @@ mod journal;
 mod lease;
 mod observe;
 mod reachability;
-mod session;
+pub(crate) mod session;
 
 pub use assign::AssignmentSet;
 pub use enroll::{

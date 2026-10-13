@@ -28,6 +28,14 @@ pub fn data_hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) ->
     proof_message("korpis.agent.v1.DataHello", node, seconds, nanos, nonce)
 }
 
+/// What a relay signs to open its feed (§3.1 of docs/02-architecture.md): the same form as
+/// [`hello_message`] under `korpis.relay.v1.Feed`, with the relay's identifier in place of the
+/// node's, signed by the relay's identity key.
+#[must_use]
+pub fn relay_feed_message(relay: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
+    proof_message("korpis.relay.v1.Feed", relay, seconds, nanos, nonce)
+}
+
 /// What a node signs to answer a reachability probe's `nonce` on `port` (§9 of
 /// docs/07-networking.md): the same form as [`hello_message`] under
 /// `korpis.agent.v1.Reachability`, with the port in place of the timestamp, so the answer proves

@@ -58,6 +58,9 @@ pub trait EnrollmentRead {
     /// A node's identity key, its public half.
     fn node_key(&self, node: Uuid) -> impl Future<Output = StoreResult<Option<Vec<u8>>>> + Send;
 
+    /// The identity key of every node not decommissioned, by node.
+    fn node_keys(&self) -> impl Future<Output = StoreResult<Vec<(Uuid, Vec<u8>)>>> + Send;
+
     /// The public keys of `purpose` (`assignment` or `token`), current and historical, so a
     /// verifier holds every key that ever signed what it may be shown (§8 of docs/03-state.md).
     fn verify_keys(

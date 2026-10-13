@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM relay_auth_nonce WHERE relay_id = $1 AND seen_at < $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ad56fe6842a63c9b1d5318f7ea9fc7ef718b430d35a299395136577c28081f4b"
+}

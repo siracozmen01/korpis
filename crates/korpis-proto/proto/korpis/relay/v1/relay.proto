@@ -16,6 +16,43 @@ service RelayControlService {
   // Redeems an enrollment token. Asking again with the same token and identity key returns the
   // same relay with a fresh certificate; another key is refused.
   rpc Join(JoinRequest) returns (JoinResponse);
+  // What a joined relay verifies by, for as long as it runs: the token keys, the signed
+  // revocation list, and the nodes' identity keys, each sent whole when the relay connects and
+  // again whenever it changes. The stream ends when the relay is removed.
+  rpc Feed(FeedRequest) returns (stream FeedUpdate);
+}
+
+message FeedRequest {
+  string relay = 1;
+  // The relay identity key's Ed25519 signature over
+  // "korpis.relay.v1.Feed|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>",
+  // the timestamp within the control plane's auth skew window and the nonce never seen before
+  // from this relay.
+  korpis.agent.v1.NodeAuth auth = 2;
+}
+
+message FeedUpdate {
+  oneof message {
+    TokenKeys token_keys = 1;
+    korpis.agent.v1.RevocationList revocation_list = 2;
+    NodeKeys node_keys = 3;
+  }
+}
+
+// Every key that ever signed a capability token.
+message TokenKeys {
+  repeated korpis.agent.v1.SigningKey keys = 1;
+}
+
+// The identity key of every node not decommissioned, which a node's DataHello is verified with.
+message NodeKeys {
+  repeated NodeKey nodes = 1;
+}
+
+message NodeKey {
+  string node = 1;
+  // Ed25519, raw 32 bytes.
+  bytes public_key = 2;
 }
 
 message JoinRequest {
