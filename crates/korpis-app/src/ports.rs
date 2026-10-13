@@ -17,6 +17,7 @@ mod placement;
 mod quota;
 mod recipe;
 mod retire;
+mod session;
 mod tenancy;
 mod trust;
 mod workload;
@@ -34,6 +35,7 @@ pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
+pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
@@ -122,6 +124,7 @@ pub trait Tx:
     + RetirementWrite
     + TrustWrite
     + EnrollmentWrite
+    + SessionWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

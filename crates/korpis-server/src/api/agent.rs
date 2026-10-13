@@ -3,12 +3,13 @@
 //! `AgentService` (§4 of docs/02-architecture.md): enrollment, and the control stream. The
 //! agent dials out to the same listener the clients use, over the same TLS.
 
+mod session;
+
 use super::wire::{timestamp, wire_id};
 use super::{Api, error};
 use connectrpc::{
     InboundStream, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
-use korpis_app::AppError;
 use korpis_app::node::{Enroll, Enrolled};
 use korpis_app::ports::VerifyKey;
 use korpis_core::id::IdKind;
@@ -50,12 +51,15 @@ impl agent::AgentService for Api {
         Response::ok(enrolled_to_pb(&enrolled))
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn session(
         &self,
         _ctx: RequestContext,
-        _requests: InboundStream<agent::AgentMessage>,
+        requests: InboundStream<agent::AgentMessage>,
     ) -> ServiceResult<ServiceStream<agent::ControlMessage>> {
-        Err(error::from_app(AppError::NotYet { what: "agent sessions", phase: 0 }))
+        let rx = session::open(&self.app, &self.sessions, requests).await?;
+        let out = futures_util::stream::unfold(rx, |mut rx| async move {
+            rx.recv().await.map(|m| (Ok(m), rx))
+        });
+        Response::stream_ok(out)
     }
 }

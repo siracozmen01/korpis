@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM node_auth_nonce WHERE node_id = $1 AND seen_at < $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "93071892e36e27942f612591f042b0e670e97c168fe6694ce53e05bb3030d353"
+}

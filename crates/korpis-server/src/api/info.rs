@@ -9,8 +9,7 @@ use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_core::build;
 use korpis_proto::korpis::v1 as pb;
 
-/// The agent protocol versions this control plane speaks (§4 of docs/10-api.md).
-pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
+use korpis_app::node::AGENT_PROTOCOLS;
 
 impl pb::ServerInfoService for Api {
     #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]

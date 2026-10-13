@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE node SET connectivity = 'unknown' WHERE connectivity = 'connected'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3db66cb6754ccea75afb015c4cb238814b970aeaa780c3b19c6c2c74120a3420"
+}

@@ -2,6 +2,10 @@
 
 //! Nodes, their drivers and storage, and amounts per dimension.
 
+mod facts;
+
+pub use facts::{drivers_from_pb, resources_from_pb, storage_classes_from_pb};
+
 use crate::spec::{console_to_pb, tier_to_pb};
 use crate::{timestamp, wire_id};
 use korpis_core::id::IdKind;

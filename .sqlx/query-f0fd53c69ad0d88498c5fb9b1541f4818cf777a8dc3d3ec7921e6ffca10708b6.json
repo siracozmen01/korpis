@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE node SET connectivity = 'unreachable'\n              WHERE connectivity = 'connected' AND last_seen < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f0fd53c69ad0d88498c5fb9b1541f4818cf777a8dc3d3ec7921e6ffca10708b6"
+}

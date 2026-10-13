@@ -4,10 +4,12 @@
 //! by grants over the organization it was enrolled into.
 
 mod enroll;
+mod session;
 
 pub use enroll::{
     CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
 };
+pub use session::{AGENT_PROTOCOLS, Hello, NodeProof, Session, SessionTerms};
 
 use crate::App;
 use crate::caller::Caller;

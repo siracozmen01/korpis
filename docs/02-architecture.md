@@ -212,6 +212,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `FeasibilityQuery` | a side-effect-free `Prepare` against a supplied manifest, for placement (§2.1 of `05-scheduling.md`) |
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |
 | `Probe` | liveness check with a nonce |
+| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
 
 **Agent → control plane**
 
@@ -219,13 +220,17 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 |---|---|
 | `Hello` | agent version, protocol version, driver capabilities, node capacity, the set digest it holds |
 | `Observation` | current observed state of one workload, including what it has converged to (§4.3) |
-| `NodeStatus` | capacity, allocation, pressure signals, driver health, reachability (§3.1) |
+| `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, reachability (§3.1), and a digest of current observations |
 | `JournalRecords` | effects, metering samples, and break-glass records, in sequence order (§4.10) |
 | `LeaseRequest` | acquire or renew a lease, carrying a nonce; the clock starts when it is sent (§4.5) |
 | `LeaseReleased` | the node has stopped acting under an epoch; it is also a journal record |
 | `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, or rejected with a reason |
 | `ContentStatus` | which recipe digests are present locally |
 | `Ack` | the assignment set digest the agent has received |
+
+> Added 2026-10-13, from the implementation: `Welcome`. The heartbeat interval was declared
+> (question 6 of §10) and nothing carried the declaration to the agent, so an agent could only
+> guess how often to send what three missed would condemn it for.
 
 > Second external review, findings S1 and S19. Recorded in §17 of `23-walkthroughs.md`. The first
 > version of this table carried `AssignedIntents`, which could not express a power change, an
@@ -811,6 +816,17 @@ certificate the agent pinned at enrolment, and its first message proves the othe
 `Hello` carries a signature by the node key over the node identifier, a timestamp, and a nonce,
 which the control plane checks against the enrolled public key, a declared clock-skew window, and
 the nonces it has seen inside that window (`NodeAuth` in `korpis/agent/v1/agent.proto`).
+
+The window is five minutes either side of the control plane's clock, and a nonce is remembered for
+twice that, so a captured Hello cannot open a second session while its timestamp would still be
+accepted. Every failure of the proof is answered `UNAUTHENTICATED` with nothing more, except a
+timestamp outside the window, which says so: it is the one refusal an honest agent can act on, by
+its clock, and `Welcome` carries the control plane's time so the agent can notice drift before its
+next Hello is refused. A decommissioned node's key opens nothing. A node holds one session; a new
+one replaces the old, whose stream ends, so an agent that reconnected after a network change does
+not leave a half-open twin receiving its assignments. The node's labels are the operator's, bound
+at enrollment, and a `Hello` that reports others changes nothing: a node that could label itself
+could attract the workloads of anyone whose placement selects on the label.
 
 **No node ever receives a credential it does not need.** The critical advisory GHSA-pfvc-3p5h-x7h6
 exists because Wings held registry credentials and a daemon token in a scope that tenant-authored

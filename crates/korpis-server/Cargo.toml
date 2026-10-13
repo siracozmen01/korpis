@@ -40,7 +40,7 @@ korpis-store = { workspace = true, features = ["testing"] }
 sqlx = { workspace = true }
 tempfile = "3"
 base64 = "0.22"
-korpis-core = { workspace = true, features = ["authz", "trust"] }
+korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 
 [lints]

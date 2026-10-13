@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- What node $1's agent reported at $8, and that it is connected and was heard then. The agent's\n-- release and protocol ($6, $7) and its storage classes ($5) are kept as they were when a\n-- heartbeat does not say. Facts are\n-- not operator decisions, so the node's version, which guards those, does not move.\nUPDATE node SET capacity = $2, allocatable = $3, drivers = $4,\n                storage_classes = COALESCE($5, storage_classes),\n                agent_version = COALESCE($6, agent_version), protocol = COALESCE($7, protocol),\n                connectivity = 'connected', last_seen = $8\n WHERE id = $1 AND admin <> 'decommissioned'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0e49ec670adb77f88ec4468b0233a58209752451ce8dcb5af4098fcf22472ef0"
+}

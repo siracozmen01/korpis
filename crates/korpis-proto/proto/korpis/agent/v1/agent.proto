@@ -83,7 +83,24 @@ message ControlMessage {
     FeasibilityQuery feasibility_query = 9;
     ContentHint content_hint = 10;
     Probe probe = 11;
+    Welcome welcome = 12;
   }
+}
+
+// The control plane's first message on a session, once the Hello is verified: what it accepted
+// and the intervals the agent keeps. Added 2026-10-13, from the implementation: the heartbeat
+// interval was declared (question 6 of §10 of docs/02-architecture.md) and nothing carried the
+// declaration to the agent.
+message Welcome {
+  // The protocol the session speaks, one the agent offered.
+  string protocol = 1;
+  // How often the agent sends NodeStatus. Three missed heartbeats make the node unreachable.
+  google.protobuf.Duration heartbeat_interval = 2;
+  // The control plane's clock when it sent this; informational, for an agent to notice skew
+  // before its next Hello is refused for it.
+  google.protobuf.Timestamp server_time = 3;
+  // The window either side of server_time a NodeAuth timestamp must fall in.
+  google.protobuf.Duration auth_skew = 4;
 }
 
 message Hello {
@@ -100,6 +117,9 @@ message Hello {
   // The highest journal sequence the agent has written, and the lowest it still holds.
   uint64 journal_head = 9;
   uint64 journal_tail = 10;
+  // Informational. A node's labels are the operator's, bound at enrollment (§3 of
+  // docs/18-operations.md): a node that could set its own could attract the workloads of
+  // anyone whose placement selects on them.
   map<string, string> labels = 11;
   // Proof that the agent holds the node identity key established at enrollment.
   NodeAuth auth = 12;
@@ -121,6 +141,7 @@ message NodeAuth {
   bytes signature = 3;
 }
 
+// The heartbeat: sent every Welcome.heartbeat_interval, and whenever capacity or drivers change.
 message NodeStatus {
   korpis.v1.Resources capacity = 1;
   korpis.v1.Resources allocatable = 2;
@@ -132,6 +153,10 @@ message NodeStatus {
   google.protobuf.Duration journal_horizon = 5;
   uint64 journal_bytes_used = 6;
   uint64 journal_bytes_bound = 7;
+  // Over the current observations of the node's workloads: while it matches, every unchanged
+  // observation is current without being rewritten (question 6 of §10 of
+  // docs/02-architecture.md).
+  string observation_digest = 8;
 }
 
 // ---------------------------------------------------------------------------------------------

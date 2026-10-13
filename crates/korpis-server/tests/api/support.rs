@@ -72,6 +72,12 @@ fn client_tls(data: &DataDir) -> HttpClient {
 
 impl Harness {
     pub async fn new() -> Self {
+        Self::with_heartbeat(std::time::Duration::from_secs(30)).await
+    }
+
+    /// A control plane whose agents send heartbeats every `heartbeat`. The default is long, so
+    /// that the nodes tests put in place without an agent are not swept as silent.
+    pub async fn with_heartbeat(heartbeat: std::time::Duration) -> Self {
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
@@ -95,6 +101,7 @@ impl Harness {
             placement_policy: korpis_core::schedule::PlacementPolicy::default(),
             placement_retry: std::time::Duration::from_millis(200),
             watch_resync: std::time::Duration::from_secs(1),
+            heartbeat_interval: heartbeat,
         })
         .await
         .expect("serve");

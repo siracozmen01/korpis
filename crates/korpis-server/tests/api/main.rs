@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod agent;
 mod authority;
 mod authz;
 mod effects;
@@ -24,6 +25,7 @@ mod quota;
 mod reads;
 mod recipes;
 mod retire;
+mod session;
 mod support;
 mod tenancy;
 mod trust;

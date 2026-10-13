@@ -41,6 +41,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     token_key: Arc<SigningKey>,
     recipes: R,
     policy: PlacementPolicy,
+    session_terms: node::SessionTerms,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -48,7 +49,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// `token_key`, and resolving recipes from `recipes`.
     pub fn new(store: S, clock: C, token_key: Arc<SigningKey>, recipes: R) -> Self {
         let policy = PlacementPolicy::default();
-        Self { store, clock, token_key, recipes, policy }
+        Self {
+            store,
+            clock,
+            token_key,
+            recipes,
+            policy,
+            session_terms: node::SessionTerms::default(),
+        }
     }
 
     /// Places workloads by `policy`, the installation's (§2.2 of docs/05-scheduling.md),
@@ -56,6 +64,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_placement_policy(mut self, policy: PlacementPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Runs agent sessions on `terms` instead of the defaults.
+    #[must_use]
+    pub fn with_session_terms(mut self, terms: node::SessionTerms) -> Self {
+        self.session_terms = terms;
         self
     }
 

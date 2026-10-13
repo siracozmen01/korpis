@@ -168,18 +168,21 @@ offset that means something different. → verify after patching
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | Node heartbeat stops; its `connectivity` becomes `unreachable`, its `admin` untouched † ‡ | `02-architecture.md` §9; `01-model.md` §3.4 |
+| 1 | Node heartbeat stops; after three declared intervals its `connectivity` becomes `unreachable`, its `admin` untouched † ‡ | `02-architecture.md` §9, §4.2; `01-model.md` §3.4 |
 | 2 | Observations become `unknown`, never a stale value shown as current | `11-surface-web.md` §2 |
 | 3 | The agent, unable to renew, fails static; the grantor's lease expires on its own clock; the workload's derived `on_lease_expiry` decides † | `02-architecture.md` §4.5 |
 | 4 | Metering records a gap with its cause | `15-observability.md` §2 |
 | 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2 |
 | 6 | Workloads whose only copy of data was local are **not**, and this is said plainly | `18-operations.md` §5 |
-| 7 | On return: adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4; `01-model.md` §3.4 |
+| 7 | On return: a fresh signed Hello replaces any half-open session; adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4, §7; `01-model.md` §3.4 |
 
 ‡ Updated 2026-10-13, from the implementation. Node status was one field, and the lifecycle took
 an unreachable node back to `ready` on reconnect, so a node cordoned for maintenance that lost its
 network for a minute came back taking placements. What the operator decided and whether the node
-is heard are now two states, and the status a client shows is derived from both.
+is heard are now two states, and the status a client shows is derived from both. Building the
+session showed that step 1 had a declared heartbeat interval nothing told the agent, and no rule
+for a stream that stays open while its agent is gone: the first answer to a Hello now declares the
+interval, and three missed heartbeats make the node unreachable whether or not its stream closed.
 
 **FINDING 5: What a `stable` address does while its workload is gone. `CONFIRMED`**
 

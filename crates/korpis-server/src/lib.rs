@@ -10,11 +10,13 @@ pub mod bodies;
 pub mod data;
 pub mod install;
 pub mod keys;
+pub mod sessions;
 pub mod tls;
 
 use api::Api;
 use connectrpc::Server;
 use korpis_app::App;
+use korpis_app::node::SessionTerms;
 use korpis_app::ports::SystemClock;
 use korpis_core::schedule::PlacementPolicy;
 use korpis_recipe::registry::Registry;
@@ -44,6 +46,8 @@ pub struct ServeConfig {
     pub placement_retry: Duration,
     /// How often a watcher re-reads what it watches when nothing was announced.
     pub watch_resync: Duration,
+    /// How often agents send their heartbeat; three missed make a node unreachable.
+    pub heartbeat_interval: Duration,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -103,15 +107,21 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.ensure_partitions(3).await?;
     let keys = keys::Keys::load_or_create(&config.data)?;
     let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));
+    let terms =
+        SessionTerms { heartbeat_interval: config.heartbeat_interval, ..Default::default() };
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)
-        .with_placement_policy(config.placement_policy.clone());
+        .with_placement_policy(config.placement_policy.clone())
+        .with_session_terms(terms);
     app.register_keys(&keys.public()).await?;
+    let forgotten = app.forget_connections().await?;
+    tracing::info!(nodes = forgotten, "nodes unknown until heard again");
     let tls = tls::server_config(&config.data)?;
     let bound = Server::bind(config.listen).await.map_err(|e| ServeError::Serve(e.to_string()))?;
     let addr = bound.local_addr()?;
     let bound = bound.with_tls(tls);
     let api = Arc::new(Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?));
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
+    tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     let router = api.router();
     let task = tokio::spawn(async move {
         bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
@@ -132,6 +142,21 @@ async fn retry_placements(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::debug!(tried = n, "placement retry"),
             Err(e) => tracing::warn!(error = %e, "placement retry failed"),
+        }
+    }
+}
+
+/// Marks unreachable, every heartbeat interval, each connected node not heard for three. The
+/// task ends with the process.
+async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
+    let mut tick = tokio::time::interval(every);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().sweep_silent_nodes().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(nodes = n, "nodes unreachable: three heartbeats missed"),
+            Err(e) => tracing::warn!(error = %e, "node sweep failed"),
         }
     }
 }

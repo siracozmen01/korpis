@@ -752,6 +752,12 @@ connectivity   registering ──▶ connected ⇄ unreachable
 
 Reconnecting returns a node to the `admin` state it had: a cordoned node comes back cordoned.
 
+A node is `connected` from a verified Hello (§7 of `02-architecture.md`) and while its heartbeats
+arrive; it is `unreachable` once three heartbeat intervals pass without one, whether its stream
+ended or merely went quiet, because a half-open stream and a dead machine look the same from the
+control plane. A control plane that starts marks every node it had recorded as connected
+`unknown`, since it has heard none of them.
+
 `cordoned` means no new placements; existing workloads keep running. `draining` means migrate
 everything off. Both are real states with real behaviour, not admin conveniences; they are what
 makes hardware maintenance possible without downtime.

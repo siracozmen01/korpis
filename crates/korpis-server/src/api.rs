@@ -51,13 +51,19 @@ pub struct Api {
     app: Arc<ServerApp>,
     /// What enrollment tokens tell agents to pin.
     ca_fingerprint: String,
+    /// The agent sessions this process holds.
+    sessions: Arc<crate::sessions::Sessions>,
 }
 
 impl Api {
     /// The API over `app`.
     #[must_use]
     pub fn new(app: ServerApp) -> Self {
-        Self { app: Arc::new(app), ca_fingerprint: String::new() }
+        Self {
+            app: Arc::new(app),
+            ca_fingerprint: String::new(),
+            sessions: Arc::new(crate::sessions::Sessions::default()),
+        }
     }
 
     /// Tells enrolling agents to pin the CA with `fingerprint` (§3 of docs/18-operations.md).

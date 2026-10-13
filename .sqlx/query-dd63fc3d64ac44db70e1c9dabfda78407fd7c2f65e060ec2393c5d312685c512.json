@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_auth_nonce (node_id, nonce, seen_at) VALUES ($1, $2, $3)\n             ON CONFLICT (node_id, nonce) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd63fc3d64ac44db70e1c9dabfda78407fd7c2f65e060ec2393c5d312685c512"
+}

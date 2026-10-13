@@ -62,6 +62,10 @@ enum Command {
         /// Seconds between re-reads of a watched workload when nothing was announced.
         #[arg(long, default_value_t = 15)]
         watch_resync_secs: u64,
+        /// Seconds between agent heartbeats; a node missing three is unreachable (question 6
+        /// of §10 of docs/02-architecture.md).
+        #[arg(long, default_value_t = 30)]
+        agent_heartbeat_secs: u64,
     },
 }
 
@@ -111,6 +115,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             placement_policy,
             placement_retry_secs,
             watch_resync_secs,
+            agent_heartbeat_secs,
         } => {
             let policy = match placement_policy {
                 Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
@@ -125,6 +130,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 placement_policy: policy,
                 placement_retry: Duration::from_secs(placement_retry_secs.max(1)),
                 watch_resync: Duration::from_secs(watch_resync_secs.max(1)),
+                heartbeat_interval: Duration::from_secs(agent_heartbeat_secs.max(1)),
             })
             .await?;
             tokio::select! {
