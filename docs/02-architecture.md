@@ -647,7 +647,9 @@ JournalRecord
 - **A record is believed only as far as the node's assignments reach.** An effect for a workload
   the node holds no assignment or placement for, or for a step that is not one of the node's steps
   of that workload's plan, moves nothing; it is kept as a `journal.rejected` effect naming why, and
-  the cursor passes it, so one bad record cannot block a journal. A believed effect is recorded with
+  the cursor passes it, so one bad record cannot block a journal. A record that cannot be read as
+  one at all (an identifier that does not parse, a gap misnumbered) is kept the same way, keeping
+  its number, with the reason it could not be read. A believed effect is recorded with
   the control plane as its actor (`system:reconciler`, §3.2 of `01-model.md`), since the node
   executed a decision already made, and with the grant the plan was approved under. A step's
   completion moves the plan's progress; the last step applies the plan, a failure fails it, and a
@@ -658,13 +660,50 @@ JournalRecord
 - **`JournalAck`** tells the agent the cursor. Nothing is discarded before it is acknowledged, and
   acknowledged records are kept for a further retention window (default seven days) before they
   are discarded, so that a control plane restored from an older backup can re-ingest them (§8 of
-  `03-state.md`). The window is part of the journal's declared bound.
+  `03-state.md`). The window is part of the journal's declared bound. A cursor lower than the one
+  the node last held means a restored control plane: what it has not ingested is no longer
+  acknowledged, and is kept until it is. A cursor above everything the node has numbered means
+  the node's own state is older than the control plane's (a node disk restored from a backup):
+  the agent numbers its next record after the cursor, so nothing new is dropped as a duplicate,
+  and whatever it held at or below the cursor is treated as ingested. That is a loss, and it is
+  stated here rather than hidden.
+- **A gap record stands for the numbers it names.** Its own sequence number is the last of them,
+  and the control plane admits it when the first is no more than one past the cursor, so a gap
+  fills a hole instead of waiting behind it. There are three causes. `journal exhausted` is the
+  bound below. `discarded before the control plane ingested it` answers a session whose cursor is
+  older than the journal's tail, which is how a control plane restored from a backup older than
+  the retention window learns what it will never receive (§8 of `03-state.md`). `journal damaged`
+  covers numbers a segment no longer reads. The last two are made as the journal is sent, because
+  the hole is only a hole relative to the cursor of the session that meets it.
 - **The journal is bounded, and the bound is declared.** A node partitioned for long enough fills
   it. Repeated identical events (a crash loop's restarts) are coalesced into one record with a count
   first; if the journal still fills, the agent writes a **gap record** naming the sequence range
   and the cause, exactly as streams and metering do (§3 of `14-streams.md`, §2 of
   `15-observability.md`). Workloads are never stopped to preserve the journal, because that would
   convert a full disk into an outage, and the loss is visible rather than silent.
+
+  > Added 2026-10-13, from the implementation: the order in which the bound is defended, and what
+  > coalescing costs. Coalescing comes first: the first of a run of identical effects is written at
+  > once, and repeats within a window (default ten seconds) are counted and written as one record
+  > with the count when the window passes or something else is recorded. Only effects coalesce; a
+  > record whose order matters (a break-glass session, a lease release) is always on disk before
+  > the append returns. The cost is that a count held in memory dies with the agent process, so a
+  > crash can understate a run by one window's repeats; it never loses a distinct event. If the
+  > journal still fills, acknowledged records still inside their retention window are discarded
+  > next, oldest segment first, because losing what a restored control plane might re-ingest is a
+  > smaller loss than losing what no control plane has seen; so the window is kept only while the
+  > bound allows it. Only then are records lost. Each lost record keeps its number, the range is
+  > kept durably beside the journal so a restart does not forget it, and its gap record is written
+  > as soon as there is room, from space reserved for it.
+
+**On disk** the journal is a directory of segment files (16 MiB by default, the unit of
+discarding), each record framed with its length and a CRC-32C and synced before the append
+returns. A record cut short by a crash at the end of the newest segment is cut away when the agent
+starts; a record that fails its checksum in an older segment ends what that segment is believed to
+hold, and the numbers after it go out as a `journal damaged` gap. The sender keeps a bounded number
+of records in flight ahead of the cursor, so a long backlog is paced by the control plane's
+ingestion rather than pushed down the stream at once, and it sends again from the cursor if the
+acknowledgements stop while records are outstanding.
 
 The bound is the node-local buffering horizon that §7 of `15-observability.md` left open. The
 default is 2 GiB per node, configurable. The horizon it buys depends on how busy the node is, so it
@@ -977,7 +1016,7 @@ surgery, the standard Pterodactyl fails (issues #4505, #3332).
 
 | Failure | Behaviour |
 |---|---|
-| Agent process dies | Workloads keep running. On restart the agent adopts them (§4.4) and resumes delivering its journal from the last acknowledged sequence (§4.10). |
+| Agent process dies | Workloads keep running. On restart the agent adopts them (§4.4) and resumes delivering its journal from the cursor the control plane names when the session opens (§4.10). |
 | Agent host reboots | Workloads restart per their assignment. Adoption finds what systemd already restarted. |
 | Network partition, node side | Agent keeps converging to its last assignments and journals what happens. Leases with `keep_running` persist; `stop` leases end at the holder's end of the term and those workloads stop. |
 | Network partition, control plane side | Node marked `unreachable`. Observations go `unknown`, never a stale value shown as current. No new placements on that node. `keep_running` workloads are not rescheduled automatically (§4.5); `stop` workloads are, once the grantor's end of their lease has passed. |

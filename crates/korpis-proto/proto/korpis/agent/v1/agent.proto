@@ -361,7 +361,11 @@ message BreakGlass {
   string session = 3;
 }
 
-// Records lost because the journal filled; a visible loss, never a silent one.
+// Records the node no longer has: lost because the journal filled ("journal exhausted"),
+// discarded before a control plane restored from an older backup ingested them, or unreadable on
+// the node's disk ("journal damaged"); a visible loss, never a silent one. A gap stands for
+// first_seq through last_seq, and the JournalRecord carrying it is numbered last_seq (§4.10 of
+// docs/02-architecture.md).
 message JournalGap {
   uint64 first_seq = 1;
   uint64 last_seq = 2;

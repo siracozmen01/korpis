@@ -16,6 +16,7 @@ base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
 clap = { version = "4", features = ["derive", "env", "string"] }
+crc = "3"
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }
 ed25519-dalek = "2.2"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

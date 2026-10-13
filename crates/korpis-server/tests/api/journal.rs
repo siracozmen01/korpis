@@ -153,3 +153,34 @@ async fn completions_apply_the_plan_once_and_a_completed_retirement_removes_the_
     assert_eq!(plan_status(&h, &retire).await, Some(pb::PlanStatus::PLAN_STATUS_APPLIED));
     assert_eq!(h.effects("workload.retire").await.len(), 1, "the identity is retired");
 }
+
+fn gap(seq: u64, first: u64, last: u64) -> agent::JournalRecord {
+    let gap = agent::JournalGap {
+        first_seq: first,
+        last_seq: last,
+        cause: "journal exhausted".into(),
+        ..Default::default()
+    };
+    agent::JournalRecord { seq, body: Some(B::Gap(Box::new(gap))), count: 1, ..Default::default() }
+}
+
+#[tokio::test]
+async fn a_malformed_record_is_kept_as_rejected_and_a_gap_stands_for_the_numbers_it_names() {
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-5", 2).await;
+    let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[2; 16])).await;
+    welcome(&first.unwrap());
+    assert_eq!(until(&mut s, ack).await, 0);
+
+    send(&mut s, vec![step_done(1, "not-an-id", "nor-this", 0)]).await;
+    assert_eq!(until(&mut s, ack).await, 1, "a record that does not translate still passes");
+    assert_eq!(h.effects("journal.rejected").await.len(), 1, "and is kept, visibly");
+
+    send(&mut s, vec![gap(5, 2, 5)]).await;
+    assert_eq!(until(&mut s, ack).await, 5, "the gap stands for 2 through 5");
+    send(&mut s, vec![gap(9, 7, 8)]).await;
+    assert_eq!(until(&mut s, ack).await, 5, "a gap not numbered by its last fills nothing");
+    send(&mut s, vec![gap(6, 6, 6)]).await;
+    assert_eq!(until(&mut s, ack).await, 6);
+    assert_eq!(h.effects("journal.gap").await.len(), 2);
+}

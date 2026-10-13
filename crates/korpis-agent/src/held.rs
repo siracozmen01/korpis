@@ -97,11 +97,8 @@ impl HeldSet {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
     }
 
-    /// Keeps the set at `path`, replacing what was there atomically.
+    /// Keeps the set at `path`, replacing what was there atomically and durably.
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
-        let tmp = path.with_extension("tmp");
-        std::fs::write(&tmp, self.raw.encode_to_vec())?;
-        std::fs::File::open(&tmp)?.sync_all()?;
-        std::fs::rename(tmp, path)
+        crate::durable::replace(path, &self.raw.encode_to_vec())
     }
 }

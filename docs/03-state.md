@@ -559,7 +559,9 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 journal records for a retention window after acknowledgement (default seven days, §4.10 of
 `02-architecture.md`). The restored cursor is the backup's, so a reconnecting agent resends
 everything after it and the effect log refills itself, exactly once, in order. A backup older than
-the retention window leaves a gap, and the gap is recorded as one.
+the retention window leaves a gap, and the gap is recorded as one: the agent answers a cursor older
+than its journal's tail with a gap record standing for the numbers it no longer holds (§4.10 of
+`02-architecture.md`).
 
 **What cannot be recovered, stated plainly.** A declaration that was made after the backup and never
 approved reached no node, so no node can present it; it is lost. Control-plane effects with no node

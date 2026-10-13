@@ -168,6 +168,12 @@ impl ControlPlane {
         sqlx::query_scalar(sql).fetch_one(store.pool()).await.unwrap()
     }
 
+    /// One statement against the control plane's database.
+    pub async fn execute(&self, sql: &'static str) {
+        let store = self.db.store().await.unwrap();
+        sqlx::query(sql).execute(store.pool()).await.unwrap();
+    }
+
     /// A one-time token for a node named `name`; the token and the CA fingerprint.
     pub async fn token(&self, name: &str) -> (String, String) {
         let created = self

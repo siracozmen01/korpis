@@ -7,8 +7,10 @@
 
 #![warn(missing_docs)]
 
+pub mod durable;
 pub mod held;
 pub mod join;
+pub mod journal;
 pub mod session;
 pub mod state;
 pub mod tls;

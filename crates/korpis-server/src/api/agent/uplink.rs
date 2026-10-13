@@ -131,7 +131,7 @@ impl Uplink {
     }
 
     async fn journal(&self, j: &agent::JournalRecords) -> Result<(), String> {
-        let records = records_from_pb(&j.records).map_err(|e| e.to_string())?;
+        let records = records_from_pb(&j.records);
         let through =
             self.app.ingest_journal(self.node, records).await.map_err(|e| e.to_string())?;
         self.tx.send(journal_ack(through)).await.map_err(|e| e.to_string())

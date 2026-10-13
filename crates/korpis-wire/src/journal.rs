@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Journal records: `korpis.agent.v1.JournalRecord` (§4.10 of docs/02-architecture.md). What a
-//! node reports is translated strictly; whether to believe it is the ingesting use case's.
+//! node reports is translated strictly; whether to believe it is the ingesting use case's. A
+//! record that does not translate is still a record: it keeps its sequence number and becomes a
+//! malformed one, so the cursor passes it and one bad record cannot block a journal.
 
 use crate::{Result, id, invalid, time};
 use korpis_core::audit::Outcome;
@@ -64,7 +66,14 @@ fn effect(field: &str, e: &pb::Effect) -> Result<NodeEffect> {
     })
 }
 
-fn body(field: &str, b: Option<&B>) -> Result<Body> {
+fn gap(field: &str, seq: u64, g: &agent::JournalGap) -> Result<Body> {
+    if g.first_seq > g.last_seq || g.last_seq != seq {
+        return Err(invalid(field, "a gap's sequence number is the last it stands for"));
+    }
+    Ok(Body::Gap { first: g.first_seq, last: g.last_seq, cause: g.cause.clone() })
+}
+
+fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
     Ok(match b.ok_or_else(|| invalid(field, "required"))? {
         B::Effect(e) => Body::Effect(effect(&format!("{field}.effect"), e)?),
         B::Metering(_) => Body::Metering,
@@ -81,28 +90,26 @@ fn body(field: &str, b: Option<&B>) -> Result<Body> {
             )?,
             epoch: l.epoch,
         },
-        B::Gap(g) => Body::Gap { first: g.first_seq, last: g.last_seq, cause: g.cause.clone() },
+        B::Gap(g) => gap(&format!("{field}.gap"), seq, g)?,
     })
 }
 
-/// The records a node sent.
-pub fn records_from_pb(records: &[agent::JournalRecord]) -> Result<Vec<Record>> {
+/// The records a node sent, each translated or kept as malformed.
+#[must_use]
+pub fn records_from_pb(records: &[agent::JournalRecord]) -> Vec<Record> {
     records
         .iter()
         .enumerate()
         .map(|(i, r)| {
             let field = format!("journal.records[{i}]");
+            // The node's clock is informational: a time that does not translate is dropped.
             let occurred_at = r
                 .occurred_at
                 .as_option()
-                .map(|t| time(&format!("{field}.occurred_at"), t))
-                .transpose()?;
-            Ok(Record {
-                seq: r.seq,
-                occurred_at,
-                body: body(&field, r.body.as_ref())?,
-                count: r.count.max(1),
-            })
+                .and_then(|t| time(&format!("{field}.occurred_at"), t).ok());
+            let body = body(&field, r.seq, r.body.as_ref())
+                .unwrap_or_else(|e| Body::Malformed { reason: e.to_string() });
+            Record { seq: r.seq, occurred_at, body, count: r.count.max(1) }
         })
         .collect()
 }

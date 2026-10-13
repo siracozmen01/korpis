@@ -55,7 +55,9 @@ pub enum Body {
         /// The epoch.
         epoch: u64,
     },
-    /// Records lost because the journal filled: a visible loss.
+    /// Records the node no longer has: lost because its journal filled, discarded before a
+    /// control plane restored from an older backup ingested them, or unreadable on its disk. A
+    /// gap stands for the sequence numbers it names, and its own is the last of them.
     Gap {
         /// The first lost.
         first: u64,
@@ -63,6 +65,12 @@ pub enum Body {
         last: u64,
         /// Why.
         cause: String,
+    },
+    /// A record that could not be read as one: kept as a rejection, so one bad record never
+    /// blocks a journal.
+    Malformed {
+        /// What was wrong with it.
+        reason: String,
     },
 }
 
@@ -79,10 +87,22 @@ pub struct Record {
     pub count: u64,
 }
 
-/// The records to ingest after `cursor`: in sequence order, one past the cursor and onward
-/// without a gap. Records at or below the cursor were ingested and are duplicates; records past
-/// a gap wait until the node sends what is missing, which it does because nothing past the
-/// cursor was acknowledged.
+impl Record {
+    /// The first sequence number the record stands for: a gap's first, any other record's own.
+    #[must_use]
+    pub fn first(&self) -> u64 {
+        match &self.body {
+            Body::Gap { first, .. } if *first <= self.seq => *first,
+            _ => self.seq,
+        }
+    }
+}
+
+/// The records to ingest after `cursor`: in sequence order, each standing for the number one
+/// past the cursor, onward without a gap. Records at or below the cursor were ingested and are
+/// duplicates; records past a hole wait until the node sends what is missing, which it does
+/// because nothing past the cursor was acknowledged. A gap record fills a hole by standing for
+/// every number it names.
 #[must_use]
 pub fn admit(cursor: u64, mut records: Vec<Record>) -> Vec<Record> {
     records.sort_by_key(|r| r.seq);
@@ -93,10 +113,10 @@ pub fn admit(cursor: u64, mut records: Vec<Record>) -> Vec<Record> {
         if r.seq < next {
             continue;
         }
-        if r.seq > next {
+        if r.first() > next {
             break;
         }
-        next = next.saturating_add(1);
+        next = r.seq.saturating_add(1);
         out.push(r);
     }
     out
@@ -127,6 +147,14 @@ mod tests {
         let batch = vec![record(5), record(3), record(4), record(4), record(2), record(7)];
         assert_eq!(seqs(admit(2, batch)), vec![3, 4, 5], "2 is a duplicate, 7 waits for 6");
         assert!(admit(9, vec![record(3)]).is_empty());
+        let gap = |seq, first| Record {
+            body: Body::Gap { first, last: seq, cause: "journal exhausted".into() },
+            ..record(seq)
+        };
+        let filled = admit(2, vec![record(9), gap(8, 3), record(10)]);
+        assert_eq!(seqs(filled), vec![8, 9, 10], "the gap stands for 3 through 8");
+        assert!(admit(2, vec![gap(8, 5)]).is_empty(), "3 and 4 are still missing");
+        assert_eq!(seqs(admit(4, vec![gap(8, 3)])), vec![8], "a gap may overlap the cursor");
         assert!(valid_action("workload.start") && !valid_action("Workload Start"));
     }
 }

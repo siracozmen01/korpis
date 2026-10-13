@@ -27,7 +27,8 @@ seventy-nine findings changed the mechanics several of these traces cross.
 
 §18 is a fifteenth trace, written from the implementation in October 2026 when deletion was
 built, and its finding is numbered on from the first fourteen. Finding 25 came from re-running
-§4 when recipe trust was built, and is numbered on from it.
+§4 when recipe trust was built, and Finding 26 from extending §6 when the agent's journal was
+built; each is numbered on from the one before.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -346,6 +347,28 @@ honestly.
 | 3 | Control plane starts; agents reconnect | `02-architecture.md` §4 |
 | 4 | Each presents a digest of its assignments; assignments newer than the backup whose signatures verify are recovered, not rolled back † | `03-state.md` §8; `10-api.md` §9 |
 | 5 | Workloads never stopped, they were never dependent on the control plane | `02-architecture.md` §4.6 |
+| 6 | Each agent resends its journal from the restored cursor; numbers it already discarded are answered with one gap record, which the cursor passes ‡ | `02-architecture.md` §4.10; `03-state.md` §8 |
+
+‡ Added 2026-10-13, when the agent's journal was built; it found Finding 26.
+
+**FINDING 26: A restored cursor older than a node's journal waits forever. `CONFIRMED`**
+
+§8 of `03-state.md` said a backup older than the retention window "leaves a gap, and the gap is
+recorded as one", and nothing recorded it. The control plane admits only the record one past its
+cursor (§4.10 of `02-architecture.md`); the node had discarded those records after their window,
+so the first record it could send was past a hole nobody could fill. Every later record from that
+node waited behind the hole, so a node whose backlog outlived the window lost not only the
+discarded records but every record it would ever send. The claim named an outcome and no
+component that evaluates it: the control plane cannot know what a node discarded, and the node did
+not know it was meant to say.
+
+**Resolution.** A gap record stands for every number it names, numbered by the last of them, and
+the control plane admits it when the first is no more than one past the cursor. The agent, which
+alone knows its tail, answers a cursor older than it with a gap record whose cause is
+`discarded before the control plane ingested it`, made as the journal is sent; the same rule
+carries `journal exhausted` and `journal damaged`. A record that cannot be read as one is kept as
+a rejection with its number, so it cannot block a journal either. → patched `02-architecture.md`
+§4.10, `03-state.md` §8
 
 **FINDING 9: Capability tokens outlive the database they were issued from. `CONFIRMED`**
 
@@ -791,6 +814,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 23 | The circuit breaker measures failure, and the failure mode is success | §14 | `16-extensions.md` §5, `15-observability.md` §5 |
 | 24 | A deleted workload's identity has no moment it is deleted | §18 | `01-model.md` §3.3, `02-architecture.md` §4.8 |
 | 25 | An organization without its own trust policy had no policy at all | §4 | `09-recipes.md` §7.1 |
+| 26 | A restored cursor older than a node's journal waits forever | §6 | `02-architecture.md` §4.10, `03-state.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

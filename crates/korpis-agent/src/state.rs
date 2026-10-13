@@ -7,7 +7,6 @@
 use buffa::Message as _;
 use ed25519_dalek::SigningKey;
 use korpis_proto::korpis::agent::v1::EnrollResponse;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 /// Why the state could not be read or written.
@@ -66,20 +65,9 @@ fn io(path: &Path) -> impl FnOnce(std::io::Error) -> StateError + '_ {
     move |source| StateError::Io { path: path.to_owned(), source }
 }
 
-/// Writes `bytes` to `path` readable by the owner alone, replacing it atomically.
+/// Writes `bytes` to `path` readable by the owner alone, replacing it atomically and durably.
 fn write_private(path: &Path, bytes: &[u8]) -> Result<(), StateError> {
-    let tmp = path.with_extension("tmp");
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    let mut file = options.open(&tmp).map_err(io(&tmp))?;
-    file.write_all(bytes).map_err(io(&tmp))?;
-    file.sync_all().map_err(io(&tmp))?;
-    std::fs::rename(&tmp, path).map_err(io(path))
+    crate::durable::replace(path, bytes).map_err(io(path))
 }
 
 impl StateDir {

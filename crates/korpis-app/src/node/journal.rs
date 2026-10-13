@@ -89,6 +89,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     ("cause", cause.clone().into()),
                 ]))
             }
+            Body::Malformed { reason } => rejected(reason, "malformed"),
             // Metering is stored with the metering of Phase 2 (§4 of docs/20-roadmap.md); until
             // then its arrival is recorded, so the loss is visible rather than silent.
             Body::Metering => system("journal.unsupported", Outcome::Skipped)

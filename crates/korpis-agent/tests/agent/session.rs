@@ -6,13 +6,14 @@
 use crate::support::{ControlPlane, facts};
 use korpis_agent::held::{HeldSet, Refused};
 use korpis_agent::join::{Join, join};
+use korpis_agent::journal::{Bounds, JournalHandle};
 use korpis_agent::session::{Event, Session};
 use korpis_agent::state::StateDir;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::Receiver;
 
-async fn until(events: &mut Receiver<Event>, pick: impl Fn(&Event) -> bool) -> Event {
+pub async fn until(events: &mut Receiver<Event>, pick: impl Fn(&Event) -> bool) -> Event {
     let wait = async {
         loop {
             let e = events.recv().await.unwrap();
@@ -35,7 +36,9 @@ async fn the_agent_holds_its_verified_set_and_is_told_in_sync_when_it_returns() 
         Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
     let identity = join(&state, &join_request).await.unwrap();
 
-    let (session, link) = Session::new(identity.clone(), state.clone(), Arc::new(facts));
+    let journal = JournalHandle::open(&state.root().join("journal"), Bounds::default()).unwrap();
+    let (session, link) =
+        Session::new(identity.clone(), state.clone(), Arc::new(facts), journal.clone());
     let mut events = link.events.subscribe();
     let running = tokio::spawn(session.run());
     until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
@@ -69,7 +72,7 @@ async fn the_agent_holds_its_verified_set_and_is_told_in_sync_when_it_returns() 
     assert_eq!(refused.unwrap_err(), Refused::BadSignature(0), "a tampered set is not believed");
 
     running.abort();
-    let (again, link) = Session::new(identity, state, Arc::new(facts));
+    let (again, link) = Session::new(identity, state, Arc::new(facts), journal);
     assert_eq!(link.held.borrow().digest, digest, "a restarted agent holds the set it kept");
     let mut events = link.events.subscribe();
     let _running = tokio::spawn(again.run());

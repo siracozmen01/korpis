@@ -7,6 +7,7 @@
 //! job meanwhile from the set it holds (§4.6).
 
 use crate::held::{HeldSet, Refused};
+use crate::journal::{JournalHandle, Shipper};
 use crate::state::{Identity, StateDir};
 use crate::tls;
 use buffa_types::google::protobuf::Timestamp;
@@ -69,7 +70,8 @@ pub enum Event {
 pub struct Link {
     /// The set held, as it changes.
     pub held: watch::Receiver<HeldSet>,
-    /// Everything else the control plane sends: lease answers, journal acknowledgements.
+    /// Everything else the control plane sends: lease answers, revocations. The session keeps
+    /// the journal's acknowledgements, since it sends the journal.
     pub inbound: mpsc::Receiver<Down>,
     /// What to send up.
     pub outbound: mpsc::Sender<agent::AgentMessage>,
@@ -82,6 +84,7 @@ pub struct Session {
     identity: Identity,
     state: StateDir,
     facts: Arc<dyn Fn() -> Facts + Send + Sync>,
+    journal: JournalHandle,
     held: watch::Sender<HeldSet>,
     inbound: mpsc::Sender<Down>,
     outbound: mpsc::Receiver<agent::AgentMessage>,
@@ -107,6 +110,15 @@ fn now() -> Timestamp {
     }
 }
 
+/// The journal's messages to send; a journal that cannot be read is reported, and the session
+/// carries on, since the records stay on disk for the next attempt.
+fn shipped(r: std::io::Result<Vec<agent::AgentMessage>>) -> Vec<agent::AgentMessage> {
+    r.unwrap_or_else(|e| {
+        tracing::error!(error = %e, "the journal could not be sent");
+        Vec::new()
+    })
+}
+
 /// Reads the stream into a channel, so the session's loop never cancels a read half done.
 async fn read(mut recv: Recv, out: mpsc::Sender<Result<agent::ControlMessage, String>>) {
     loop {
@@ -123,12 +135,14 @@ async fn read(mut recv: Recv, out: mpsc::Sender<Result<agent::ControlMessage, St
 }
 
 impl Session {
-    /// A session for `identity`, holding the set kept in `state` if it still verifies, and
-    /// reporting what `facts` says; and the link the rest of the agent uses.
+    /// A session for `identity`, holding the set kept in `state` if it still verifies,
+    /// reporting what `facts` says, and sending `journal`; and the link the rest of the agent
+    /// uses.
     pub fn new(
         identity: Identity,
         state: StateDir,
         facts: Arc<dyn Fn() -> Facts + Send + Sync>,
+        journal: JournalHandle,
     ) -> (Self, Link) {
         let kept = state.root().join("assignments.binpb");
         let initial = HeldSet::load(&kept, &identity.keys.assignment_keys, &identity.node)
@@ -146,7 +160,7 @@ impl Session {
             outbound: outbound_tx,
             events: events.clone(),
         };
-        (Self { identity, state, facts, held, inbound, outbound, events }, link)
+        (Self { identity, state, facts, journal, held, inbound, outbound, events }, link)
     }
 
     /// Holds the session for as long as the process runs, dialling again whenever it drops.
@@ -164,7 +178,7 @@ impl Session {
         }
     }
 
-    fn hello(&self) -> Result<agent::AgentMessage, String> {
+    fn hello(&self, (head, tail): (u64, u64)) -> Result<agent::AgentMessage, String> {
         let mut nonce = [0u8; 16];
         getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
         let at = now();
@@ -180,6 +194,8 @@ impl Session {
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             set_digest: self.held.borrow().digest.clone(),
+            journal_head: head,
+            journal_tail: tail,
             auth: agent::NodeAuth {
                 timestamp: at.into(),
                 nonce: nonce.to_vec(),
@@ -192,14 +208,22 @@ impl Session {
         Ok(message(Up::Hello(Box::new(hello))))
     }
 
-    fn heartbeat(&self) -> agent::AgentMessage {
+    async fn heartbeat(&self) -> agent::AgentMessage {
         let facts = (self.facts)();
-        let status = agent::NodeStatus {
+        let mut status = agent::NodeStatus {
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             drivers: facts.drivers,
             ..Default::default()
         };
+        match self.journal.usage().await {
+            Ok(u) => {
+                status.journal_bytes_used = u.used;
+                status.journal_bytes_bound = u.bound;
+                status.journal_horizon = u.horizon.map(korpis_wire::duration).into();
+            }
+            Err(e) => tracing::error!(error = %e, "the journal's usage could not be read"),
+        }
         message(Up::NodeStatus(Box::new(status)))
     }
 
@@ -214,7 +238,8 @@ impl Session {
         );
         let stream = client.session().await.map_err(|e| e.to_string())?;
         let (mut send, recv) = stream.into_split();
-        send.send(self.hello()?).await.map_err(|e| e.to_string())?;
+        let marks = self.journal.marks().await.map_err(|e| e.to_string())?;
+        send.send(self.hello(marks)?).await.map_err(|e| e.to_string())?;
         let (tx, mut rx) = mpsc::channel(64);
         let reader = tokio::spawn(read(recv, tx));
         let result = self.serve(&mut send, &mut rx).await;
@@ -240,32 +265,45 @@ impl Session {
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
         let mut tick = tokio::time::interval(interval);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let (journal, mut shipper) = (self.journal.clone(), Shipper::new(self.journal.clone()));
         loop {
-            tokio::select! {
+            let up = tokio::select! {
                 next = rx.recv() => {
                     let next = next.ok_or("the reader stopped")??;
-                    if let Some(ack) = self.receive(next).await {
-                        send.send(ack).await.map_err(|e| e.to_string())?;
-                    }
+                    self.receive(next, &mut shipper).await
                 }
-                _ = tick.tick() => send.send(self.heartbeat()).await.map_err(|e| e.to_string())?,
-                Some(up) = self.outbound.recv() => send.send(up).await.map_err(|e| e.to_string())?,
+                _ = tick.tick() => {
+                    let mut up = vec![self.heartbeat().await];
+                    up.extend(shipped(shipper.stalled().await));
+                    up
+                }
+                () = journal.changed() => shipped(shipper.pump().await),
+                Some(up) = self.outbound.recv() => vec![up],
+            };
+            for m in up {
+                send.send(m).await.map_err(|e| e.to_string())?;
             }
         }
     }
 
-    /// Handles one message; the acknowledgement to send, if it was a set.
-    async fn receive(&self, m: agent::ControlMessage) -> Option<agent::AgentMessage> {
-        match m.message? {
-            Down::AssignmentSet(set) => self.hold(&set),
-            Down::InSync(_) => {
+    /// Handles one message; what to send in answer.
+    async fn receive(
+        &self,
+        m: agent::ControlMessage,
+        shipper: &mut Shipper,
+    ) -> Vec<agent::AgentMessage> {
+        match m.message {
+            Some(Down::AssignmentSet(set)) => self.hold(&set).into_iter().collect(),
+            Some(Down::InSync(_)) => {
                 let _ = self.events.send(Event::InSync);
-                None
+                Vec::new()
             }
-            other => {
+            Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
+            Some(other) => {
                 let _ = self.inbound.send(other).await;
-                None
+                Vec::new()
             }
+            None => Vec::new(),
         }
     }
 

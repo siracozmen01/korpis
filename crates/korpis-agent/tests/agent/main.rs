@@ -12,5 +12,6 @@
 )]
 
 mod join;
+mod journal;
 mod session;
 mod support;

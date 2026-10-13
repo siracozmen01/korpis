@@ -1853,6 +1853,7 @@ dependencies = [
  "buffa-types",
  "clap",
  "connectrpc",
+ "crc",
  "ed25519-dalek",
  "futures-util",
  "getrandom 0.4.3",
