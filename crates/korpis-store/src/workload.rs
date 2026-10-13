@@ -120,6 +120,14 @@ impl WorkloadRead for PgStore {
         row.map(PlanRow::into_domain).transpose()
     }
 
+    async fn governing_grant(&self, workload: Uuid) -> StoreResult<Option<Uuid>> {
+        let row = sqlx::query_file_scalar!("queries/plan_governing_grant.sql", workload)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(row.flatten())
+    }
+
     async fn open_plans(&self, workload: Uuid) -> StoreResult<Vec<Plan>> {
         let rows = sqlx::query_file_as!(PlanRow, "queries/plans_open.sql", workload)
             .fetch_all(&self.pool)

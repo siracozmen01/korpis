@@ -79,6 +79,13 @@ pub trait WorkloadRead {
     /// A workload's plans that are proposed, approved, queued, or applying.
     fn open_plans(&self, workload: Uuid) -> impl Future<Output = StoreResult<Vec<Plan>>> + Send;
 
+    /// The grant of the plan most recently approved for `workload` that is applying or applied:
+    /// the decision a node keeping the workload's approved state is executing.
+    fn governing_grant(
+        &self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
+
     /// A workload's plans, oldest first, after the page's cursor.
     fn plans(
         &self,

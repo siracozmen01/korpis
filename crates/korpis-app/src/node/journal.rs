@@ -116,7 +116,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.workload = n.workload;
         e.error.clone_from(&n.error);
         e.after.clone_from(&n.after);
-        let Some(plan_id) = n.plan else { return Ok(e) };
+        let Some(plan_id) = n.plan else {
+            // Outside a plan the node is keeping a decision already made (a crash restart, an
+            // adoption), so the effect names the grant that decision was approved under.
+            if let Some(w) = n.workload {
+                e.grant = self.store.governing_grant(w).await?;
+            }
+            return Ok(e);
+        };
         let plan = tx.lock_plan(plan_id).await?;
         let step = n.step.filter(|s| {
             plan.as_ref().is_some_and(|p| {

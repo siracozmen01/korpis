@@ -9,9 +9,11 @@
 
 pub mod durable;
 pub mod held;
+pub mod host;
 pub mod join;
 pub mod journal;
 pub mod lease;
+pub mod reconcile;
 pub mod runtime;
 pub mod session;
 pub mod state;

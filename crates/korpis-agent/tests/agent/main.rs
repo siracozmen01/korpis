@@ -14,5 +14,6 @@
 mod join;
 mod journal;
 mod lease;
+mod reconcile;
 mod session;
 mod support;

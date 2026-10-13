@@ -159,6 +159,40 @@ impl ControlPlane {
         declared.workload.as_option().unwrap().id.clone()
     }
 
+    /// What the control plane says of a workload.
+    pub async fn status(&self, workload: &str) -> pb::WorkloadStatus {
+        let got = self
+            .workloads()
+            .get_workload(pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() })
+            .await
+            .unwrap()
+            .into_owned();
+        got.status.as_option().unwrap().clone()
+    }
+
+    /// Deletes a workload and approves its retirement.
+    pub async fn retire(&self, workload: &str) {
+        let deleted = self
+            .workloads()
+            .delete_workload(pb::DeleteWorkloadRequest {
+                mutation: mutation(&format!("delete-{workload}")).into(),
+                workload: workload.to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        let plan = deleted.plan.as_option().unwrap().id.clone();
+        pb::PlanServiceClient::new(self.http(), self.config())
+            .approve_plan(pb::ApprovePlanRequest {
+                mutation: mutation(&format!("approve-{plan}")).into(),
+                plan,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+    }
+
     /// One query against the control plane's database.
     pub async fn scalar<T>(&self, sql: &'static str) -> T
     where

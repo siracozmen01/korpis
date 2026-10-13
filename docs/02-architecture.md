@@ -308,6 +308,17 @@ trusted to say which one was applied (§8 of `03-state.md`). On startup the agen
 
 An agent upgrade is therefore a process restart, not a workload restart.
 
+**What the implementation records** (2026-10-13). Each adoption is a journal effect,
+`node.adopt`, naming the workload and the runtime object, so an agent restart that kept a
+workload running is visible in the effect log rather than inferred from the absence of a
+restart. Each orphan is a `node.orphan` effect naming the runtime object and the workload its
+label claims, reported once per agent start. A second object labelled with a workload that
+already has one is an orphan too: the agent keeps supervising the first and touches neither.
+Effects a node originates are named in two namespaces, `step.<action>` for a plan step's
+completion and `node.<event>` for what the node did on its own (`node.adopt`, `node.restart`,
+`node.superseded`, `node.orphan`), so that none can be mistaken for the control plane's own
+effects of the same subject, such as `workload.retire`.
+
 ### 4.5 Leases and fencing
 
 **Every running workload requires a valid lease. No lease, no execution.**
@@ -452,7 +463,7 @@ This is the payoff of P1, and it should be stated as a guarantee rather than a h
 | Capability | Control plane down |
 |---|---|
 | Running workloads | **keep running** |
-| Crash restarts, health checks, drift correction | **keep working**, the agent has the intent and does not need permission to execute a decision already made |
+| Crash restarts, health checks, drift correction | **keep working**, the agent has the intent and does not need permission to execute a decision already made; a crash restart under a lease that expired is the one change a `keep_running` workload still gets, and it waits a second after the first crash, doubling to five minutes, forgiven after a minute up |
 | Leases with `on_expiry: keep_running` | honoured until the control plane returns |
 | Leases with `on_expiry: stop` | workload stops when the lease expires, by design |
 | Plan steps already assigned to the node | continue to the end of their assignment; nothing new is assigned |
@@ -546,6 +557,17 @@ the gaps above:
   flight and does not begin the next. A lost update is repaired by the next sync, like everything
   else, and `plan.cancel` (§7 of `03-state.md`) is a change to desired state rather than a message
   that has to arrive.
+
+  > Added 2026-10-13, from the implementation: how a node executes steps. A completion is
+  > journalled before the agent keeps, in its own state, that the step is done, so a crash
+  > between the two runs the step again; the step is a no-op the second time and its second
+  > completion is recorded and moves nothing. A failed step is journalled and the agent does not
+  > go past it: the control plane fails the plan, and the next assignment no longer carries it.
+  > `reconfigure` validates the new target with the driver's `Prepare` and changes nothing
+  > running; the runtime object is rebuilt from the approved target whenever it is next started,
+  > so a reconfiguration takes effect at the next start or restart, never later and never
+  > unannounced. A node-local volume is detached when its runtime object is rebuilt or
+  > destroyed, which is what `detach_volume` records.
 - **`retire` is how deletion differs from forgetting.** A workload whose assignment carries
   `retire` is stopped and its runtime objects destroyed; its volumes are not touched, because
   deleting a volume is its own irreversible plan step (§3.6 of `01-model.md`). Once the agent
@@ -664,7 +686,10 @@ JournalRecord
   one at all (an identifier that does not parse, a gap misnumbered) is kept the same way, keeping
   its number, with the reason it could not be read. A believed effect is recorded with
   the control plane as its actor (`system:reconciler`, §3.2 of `01-model.md`), since the node
-  executed a decision already made, and with the grant the plan was approved under. A step's
+  executed a decision already made, and with the grant the plan was approved under. An effect
+  outside any plan (an adoption, a crash restart) names the grant of the plan most recently
+  approved for that workload that is applying or applied, because the decision the node is
+  keeping is that one; the control plane looks it up at ingestion, where the plans are. A step's
   completion moves the plan's progress; the last step applies the plan, a failure fails it, and a
   retire plan applied retires the workload (§4.8). A gap record and a break-glass record are
   effects in their own right. A metering sample is recorded only as having arrived
