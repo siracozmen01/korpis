@@ -18,6 +18,10 @@ use uuid::Uuid;
 /// docs/02-architecture.md).
 pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
 
+/// The form a proof signs: [`hello_message`] or
+/// [`data_hello_message`](korpis_core::node::identity::data_hello_message).
+pub(super) type ProofMessage = fn(&str, i64, u32, &[u8]) -> Vec<u8>;
+
 /// The shortest nonce accepted: 128 bits makes a collision across a skew window negligible.
 const MIN_NONCE: usize = 16;
 
@@ -119,18 +123,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let now = self.clock.now();
         let skew = self.session_terms.auth_skew;
-        let proof = &hello.proof;
-        if !signed_at(proof).is_some_and(|at| within(at, now, skew)) {
-            return Err(AppError::invalid("hello.auth.timestamp", "outside the skew window"));
-        }
-        if proof.nonce.len() < MIN_NONCE {
-            return Err(AppError::invalid("hello.auth.nonce", "at least 16 bytes"));
-        }
-        let key = self.store.node_key(hello.node).await?.ok_or(AppError::Unauthenticated)?;
-        let message = hello_message(&proof.signed_node, proof.seconds, proof.nanos, &proof.nonce);
-        if !verify(&key, &message, &proof.signature) {
-            return Err(AppError::Unauthenticated);
-        }
+        self.check_proof(hello.node, &hello.proof, (now, hello_message)).await?;
         hello.facts.agent = Some(AgentVersion {
             release: hello.agent_version.clone(),
             protocol: hello.protocol.clone(),
@@ -150,6 +143,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::Unauthenticated);
         }
         Ok(Session { node, protocol: hello.protocol, terms: self.session_terms })
+    }
+
+    /// Whether `proof` is `node`'s signature over `message` (the Hello's or the `DataHello`'s
+    /// form), made within the skew window of `now`. The nonce is the caller's to remember, in
+    /// the transaction that acts on the proof.
+    pub(super) async fn check_proof(
+        &self,
+        node: Uuid,
+        proof: &NodeProof,
+        (now, message): (SystemTime, ProofMessage),
+    ) -> Result<(), AppError> {
+        let skew = self.session_terms.auth_skew;
+        if !signed_at(proof).is_some_and(|at| within(at, now, skew)) {
+            return Err(AppError::invalid("hello.auth.timestamp", "outside the skew window"));
+        }
+        if proof.nonce.len() < MIN_NONCE {
+            return Err(AppError::invalid("hello.auth.nonce", "at least 16 bytes"));
+        }
+        let key = self.store.node_key(node).await?.ok_or(AppError::Unauthenticated)?;
+        let message = message(&proof.signed_node, proof.seconds, proof.nanos, &proof.nonce);
+        if verify(&key, &message, &proof.signature) {
+            Ok(())
+        } else {
+            Err(AppError::Unauthenticated)
+        }
     }
 
     /// Records a heartbeat: what the node reports now, and that it was heard.

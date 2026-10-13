@@ -72,6 +72,14 @@ pub fn internal(cause: &dyn std::fmt::Display) -> ConnectError {
     })
 }
 
+/// A data-path session refused, by the relay or by the node (§3.1 of
+/// docs/02-architecture.md). Only an unavailable node is worth trying again.
+#[must_use]
+pub fn session_refused(code: pb::ErrorCode, reason: &str, message: &str) -> ConnectError {
+    let retryable = code == pb::ErrorCode::ERROR_CODE_UNAVAILABLE;
+    build(&Wire { code, reason, field: "", message, retryable })
+}
+
 /// A refusal that is about who is asking or what they may use, as the client sees it.
 fn refusal(e: AppError) -> ConnectError {
     use pb::ErrorCode as C;

@@ -143,6 +143,25 @@ client ──TLS──▶ relay ◀──TLS, dialled out── agent
 - **On one machine the relay is a role of `korpis-server`,** enabled in the same process, speaking
   the same protocol. There is no separate thing to install until there is a reason to scale it.
 
+**As built, on one machine.** The relay role is two services on the control plane's listener.
+A node attaches with `DataService.Attach`, proving its key over a `DataHello`, which signs a
+message of its own form (`korpis.agent.v1.DataHello|…`), so a relay that sees one cannot present
+it as a control-stream Hello, and whose nonce joins the Hello's memory, so neither is replayed as
+itself. A client opens a session with `RelayService.Open`, naming the token, the action, the
+workload, and the node the API reports it placed on. The relay verifies the token offline,
+against the token keys, the revocation list (§6.3 of `08-identity.md`), and the client's address,
+and only a token scoped to the workload itself verifies, because a relay holds no ancestry (§6 of
+`08-identity.md`). It then asks the node to open the session under a random 128-bit identifier,
+good for one carry and told to that node alone, and the node carries it on a stream of its own
+(`DataService.Carry`), so one slow session never holds up another: each stream has its own flow
+control, and a relay buffers at most a few frames of either side before the faster side waits. A
+wrong node cannot misdirect a session, because the node verifies that it holds the workload; it
+refuses, and the client is told the node's reason (`not_here`, `refused`, `unimplemented`). A
+node that does not answer within ten seconds fails the open as unavailable. What it does not do
+yet: the role does not run as its own process, which Phase 1 still owes (§4 of
+`20-roadmap.md`), and a relay without the database will need the nodes' keys, and a `DataHello`
+bound to the relay it was sent to, since nonce memory is not shared between relays.
+
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is
 operator infrastructure with the same trust as the control plane, and it is deployed on machines

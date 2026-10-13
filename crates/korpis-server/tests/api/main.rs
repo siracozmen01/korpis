@@ -40,6 +40,7 @@ mod providers;
 mod quota;
 mod reads;
 mod recipes;
+mod relay;
 mod retire;
 mod revocation;
 mod sdk;

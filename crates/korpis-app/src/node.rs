@@ -4,6 +4,7 @@
 //! by grants over the organization it was enrolled into.
 
 mod assign;
+mod attach;
 mod enroll;
 mod identity;
 mod journal;

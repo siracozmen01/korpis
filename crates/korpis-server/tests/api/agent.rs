@@ -85,6 +85,31 @@ impl TestAgent {
         }
     }
 
+    /// A data connection's first message, signed now with `nonce`.
+    pub fn data_hello(&self, nonce: &[u8]) -> agent::AttachUp {
+        let since = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let (seconds, nanos) = (i64::try_from(since.as_secs()).unwrap(), since.subsec_nanos());
+        let message = korpis_core::node::identity::data_hello_message;
+        let signature = sign(&self.key, &message(&self.node, seconds, nanos, nonce));
+        let auth = agent::NodeAuth {
+            timestamp: Timestamp {
+                seconds,
+                nanos: i32::try_from(nanos).unwrap(),
+                ..Default::default()
+            }
+            .into(),
+            nonce: nonce.to_vec(),
+            signature,
+            ..Default::default()
+        };
+        let hello =
+            agent::DataHello { node: self.node.clone(), auth: auth.into(), ..Default::default() };
+        agent::AttachUp {
+            message: Some(agent::__buffa::oneof::attach_up::Message::Hello(Box::new(hello))),
+            ..Default::default()
+        }
+    }
+
     /// A Hello signed at `at` with `nonce`.
     pub fn hello_at(&self, at: SystemTime, nonce: &[u8]) -> agent::AgentMessage {
         let since = at.duration_since(UNIX_EPOCH).unwrap();

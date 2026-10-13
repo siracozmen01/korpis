@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The data path, as a client meets it (§3.1 of docs/02-architecture.md): a session with one
+// workload, opened at a relay with a capability token and carried to the node that runs the
+// workload over the connection that node dialled out. The relay verifies the token offline and
+// checks the client's address against it; the agent verifies it again. Console bytes, file
+// transfers, and stream segments travel here, never through the control plane.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service RelayService {
+  // A session: the first message opens it, then data flows both ways until either side ends it.
+  // A session the relay or the node refuses fails with the reason, and nothing is opened.
+  rpc Open(stream RelayRequest) returns (stream RelayResponse);
+}
+
+message RelayRequest {
+  oneof message {
+    // First, and only first.
+    RelayOpen open = 1;
+    SessionFrame frame = 2;
+  }
+}
+
+message RelayResponse {
+  oneof message {
+    // First: the node accepted the session.
+    RelayOpened opened = 1;
+    SessionFrame frame = 2;
+  }
+}
+
+message RelayOpen {
+  // A capability token for `action` on exactly `workload` (§6 of docs/08-identity.md).
+  string token = 1;
+  // The action the session performs, one the token carries; it chooses what the node runs.
+  string action = 2;
+  string workload = 3;
+  // The node the workload is placed on, as the API reports it. A wrong node refuses the
+  // session; it cannot misdirect one, because the node verifies that it holds the workload.
+  string node = 4;
+  // What the action needs to start, in the action's own message; empty if nothing.
+  bytes params = 5;
+}
+
+message RelayOpened {
+  // The session, for logs on either side.
+  string session = 1;
+  // When the token stops carrying the session unless renewed.
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// What a session carries, in either direction, between client, relay, and node.
+message SessionFrame {
+  oneof frame {
+    // Bytes of the action's own protocol.
+    bytes data = 1;
+    // The sender is done; nothing follows.
+    SessionEnd end = 2;
+    // A fresh token for the same action and workload, sent by the client before the one the
+    // session opened with expires. The relay and the node verify it as they verified the first;
+    // a session whose token expires unrenewed ends.
+    string renew = 3;
+    // The renewal was accepted; the new expiry. Sent towards the client.
+    google.protobuf.Timestamp renewed = 4;
+  }
+}
+
+message SessionEnd {
+  // Empty for a normal end; otherwise why: "expired", "revoked", "refused", "unavailable", or
+  // the action's own.
+  string code = 1;
+  string message = 2;
+}

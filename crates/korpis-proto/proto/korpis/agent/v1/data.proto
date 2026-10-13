@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The node's data connection (§3.1 of docs/02-architecture.md): dialled out to a relay, as the
+// control stream is dialled out to the control plane, and carrying no decisions. The agent
+// attaches, proving the node's identity as a Hello does; the relay asks it to open each session a
+// client opened; the agent verifies the client's token again and carries the session on a stream
+// of its own, so one slow session never holds up another.
+
+syntax = "proto3";
+
+package korpis.agent.v1;
+
+import "korpis/agent/v1/agent.proto";
+import "korpis/v1/relay.proto";
+
+service DataService {
+  // The node attaches for as long as it runs: the first message is a DataHello.
+  rpc Attach(stream AttachUp) returns (stream AttachDown);
+  // One session's frames, both ways. The first message names the session the relay asked for.
+  rpc Carry(stream CarryUp) returns (stream CarryDown);
+}
+
+message AttachUp {
+  oneof message {
+    DataHello hello = 1;
+    // The node will not open a session it was asked to.
+    OpenRefused refused = 2;
+  }
+}
+
+message AttachDown {
+  oneof message {
+    // The hello verified; sessions may follow.
+    Attached attached = 1;
+    OpenSession open = 2;
+  }
+}
+
+// The node's identity, proved as in Hello: NodeAuth over the node identifier.
+message DataHello {
+  string node = 1;
+  NodeAuth auth = 2;
+}
+
+message Attached {}
+
+// A client opened a session; the relay verified its token. Everything a client sent is here, so
+// the node judges it again from the same facts.
+message OpenSession {
+  // Random, unguessable, and good for one Carry.
+  string session = 1;
+  string token = 2;
+  string action = 3;
+  string workload = 4;
+  bytes params = 5;
+}
+
+message OpenRefused {
+  string session = 1;
+  // "refused" for a token the node does not accept, "not_here" for a workload it does not hold,
+  // "unimplemented" for an action it does not serve.
+  string code = 2;
+  string message = 3;
+}
+
+message CarryUp {
+  oneof message {
+    // First, and only first: the session being carried.
+    string session = 1;
+    korpis.v1.SessionFrame frame = 2;
+  }
+}
+
+message CarryDown {
+  korpis.v1.SessionFrame frame = 1;
+}

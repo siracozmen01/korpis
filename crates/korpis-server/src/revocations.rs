@@ -9,9 +9,11 @@
 use crate::api::Api;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_wire::revocation::revocation_to_pb;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
+use uuid::Uuid;
 
 /// How often the list is recomputed.
 pub const EVERY: Duration = Duration::from_secs(2);
@@ -33,6 +35,14 @@ impl Revocations {
     #[must_use]
     pub fn subscribe(&self) -> watch::Receiver<Option<Arc<agent::RevocationList>>> {
         self.tx.subscribe()
+    }
+
+    /// The grants the published list names, for a verifier in this process.
+    #[must_use]
+    pub fn revoked(&self) -> HashSet<Uuid> {
+        let held = self.tx.borrow();
+        let grants = held.as_ref().map(|l| l.grants.as_slice()).unwrap_or_default();
+        grants.iter().filter_map(|g| Uuid::parse_str(g).ok()).collect()
     }
 
     /// Publishes `list` unless it lists exactly what the published one does; whether it did.

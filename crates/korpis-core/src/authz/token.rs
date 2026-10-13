@@ -202,6 +202,8 @@ pub struct Verified {
     pub grant: Uuid,
     /// The grant chain, leaf first.
     pub chain: Vec<Uuid>,
+    /// When it stops working: the session it opened must be renewed by then.
+    pub expires_at: SystemTime,
 }
 
 /// Verifies `token` offline for `action` on `resource` at `now`, from `client`, against `keys`
@@ -269,7 +271,14 @@ pub fn verify<S: BuildHasher>(
     let leaf = leaf.first().and_then(|(g,)| Uuid::parse_str(g).ok()).ok_or(TokenError::NoChain)?;
     let subject: Vec<(String,)> = authorizer.query("data($s) <- subject($s)")?;
     let subject = subject.into_iter().next().map(|(s,)| s).unwrap_or_default();
-    Ok(Verified { subject, grant: leaf, chain })
+    // The earliest expiry any block states: attenuation can only shorten it.
+    let expiries: Vec<(SystemTime,)> = authorizer.query_all("data($t) <- expires($t)")?;
+    let expires_at = expiries
+        .into_iter()
+        .map(|(t,)| t)
+        .min()
+        .ok_or_else(|| TokenError::Invalid("the token states no expiry".into()))?;
+    Ok(Verified { subject, grant: leaf, chain, expires_at })
 }
 
 /// Refuses a client outside the token's networks; a token naming none allows any.
@@ -298,7 +307,7 @@ pub fn restrict_expiry(
     let mut params: HashMap<String, Term> = HashMap::new();
     params.insert("exp".into(), date(&expires_at));
     let block = biscuit_auth::BlockBuilder::new().code_with_params(
-        "check if time($t), $t < {exp};",
+        "expires({exp});\ncheck if time($t), $t < {exp};",
         params,
         HashMap::new(),
     )?;

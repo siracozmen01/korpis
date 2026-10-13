@@ -13,6 +13,8 @@ mod agent;
 mod audit;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod authz;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod data;
 pub mod error;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod event;
@@ -26,6 +28,8 @@ mod node;
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod provider;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod relay;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
@@ -43,7 +47,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     DeclaredSetServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
     NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
-    ServerInfoServiceExt, WorkloadServiceExt,
+    RelayServiceExt, ServerInfoServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -66,6 +70,8 @@ pub struct Api {
     providers: Arc<crate::providers::Providers>,
     /// The revocation list this process publishes to its sessions.
     revocations: Arc<crate::revocations::Revocations>,
+    /// The relay role: attached data connections and the sessions they carry.
+    relay: Arc<crate::relay::Relay>,
 }
 
 impl Api {
@@ -78,6 +84,7 @@ impl Api {
             sessions: Arc::new(crate::sessions::Sessions::default()),
             providers: Arc::new(crate::providers::Providers::default()),
             revocations: Arc::new(crate::revocations::Revocations::default()),
+            relay: Arc::new(crate::relay::Relay::default()),
         }
     }
 
@@ -107,6 +114,12 @@ impl Api {
         &self.revocations
     }
 
+    /// The relay role, for the composition root to give it the token keys.
+    #[must_use]
+    pub fn relay(&self) -> &crate::relay::Relay {
+        &self.relay
+    }
+
     /// The application, for the composition root's background work.
     #[must_use]
     pub fn app(&self) -> &ServerApp {
@@ -129,6 +142,9 @@ impl Api {
         let router = ExtensionServiceExt::register(Arc::clone(&self), router);
         let router = EventServiceExt::register(Arc::clone(&self), router);
         let router = ProviderServiceExt::register(Arc::clone(&self), router);
+        let router = RelayServiceExt::register(Arc::clone(&self), router);
+        let router =
+            korpis_proto::korpis::agent::v1::DataServiceExt::register(Arc::clone(&self), router);
         korpis_proto::korpis::agent::v1::AgentServiceExt::register(self, router)
     }
 

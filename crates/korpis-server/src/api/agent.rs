@@ -9,6 +9,8 @@ mod revocations;
 mod session;
 mod uplink;
 
+pub(super) use session::proof_from_pb;
+
 use super::wire::{timestamp, wire_id};
 use super::{Api, error};
 use connectrpc::{

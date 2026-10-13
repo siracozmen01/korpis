@@ -90,6 +90,13 @@ fn expiry_only_shortens_keys_restore_and_retired_keys_verify_nothing() {
     let shorter =
         token::restrict_expiry(&f.token, &f.keys, f.now + Duration::from_secs(10)).unwrap();
     f.verify(&shorter, CONSOLE, &f.w1, f.now).unwrap();
+    let at = (f.now, Client::Unseen);
+    let none = HashSet::new();
+    let verified = token::verify(&shorter, &f.keys, CONSOLE, &f.w1, &none, at).unwrap();
+    let earliest = f.now + Duration::from_secs(10);
+    // Biscuit states dates to the second, rounded down.
+    assert!(verified.expires_at <= earliest, "the earliest expiry");
+    assert!(verified.expires_at > earliest - Duration::from_secs(1), "the earliest expiry");
     assert!(f.verify(&shorter, CONSOLE, &f.w1, f.now + Duration::from_secs(11)).is_err());
 
     let restored = SigningKey::from_bytes(1, &f.key.private_bytes()).unwrap();

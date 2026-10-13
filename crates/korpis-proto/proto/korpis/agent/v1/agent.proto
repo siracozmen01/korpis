@@ -131,6 +131,9 @@ message Welcome {
   google.protobuf.Timestamp server_time = 3;
   // The window either side of server_time a NodeAuth timestamp must fall in.
   google.protobuf.Duration auth_skew = 4;
+  // The relays the node keeps a data connection to (§3.1 of docs/02-architecture.md). Empty:
+  // the control plane's own address, which serves the relay role.
+  repeated string relays = 5;
 }
 
 message Hello {

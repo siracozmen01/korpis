@@ -17,7 +17,19 @@ pub const PUBLIC_KEY_LEN: usize = 32;
 /// nonce in lowercase hexadecimal.
 #[must_use]
 pub fn hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
-    let mut s = format!("korpis.agent.v1.Hello|{node}|{seconds}.{nanos:09}|");
+    proof_message("korpis.agent.v1.Hello", node, seconds, nanos, nonce)
+}
+
+/// What a `DataHello`'s `NodeAuth.signature` signs: the same form as [`hello_message`] under
+/// `korpis.agent.v1.DataHello`, so a relay that sees one cannot present it as a control-stream
+/// Hello (§3.1 of docs/02-architecture.md).
+#[must_use]
+pub fn data_hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
+    proof_message("korpis.agent.v1.DataHello", node, seconds, nanos, nonce)
+}
+
+fn proof_message(purpose: &str, node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
+    let mut s = format!("{purpose}|{node}|{seconds}.{nanos:09}|");
     for b in nonce {
         // Writing to a String cannot fail.
         let _ = write!(s, "{b:02x}");

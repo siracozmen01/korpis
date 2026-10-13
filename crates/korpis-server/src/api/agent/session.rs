@@ -45,21 +45,29 @@ pub(super) fn facts(
     })
 }
 
-fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
-    let auth = h.auth.as_option().ok_or_else(|| error::invalid("hello.auth", "required"))?;
+/// The proof a Hello or a `DataHello` carries for `node`, exactly as signed.
+pub(in crate::api) fn proof_from_pb(
+    node: &str,
+    auth: Option<&agent::NodeAuth>,
+) -> Result<NodeProof, ConnectError> {
+    let auth = auth.ok_or_else(|| error::invalid("hello.auth", "required"))?;
     let at = auth.timestamp.as_option();
     let at = at.ok_or_else(|| error::invalid("hello.auth.timestamp", "required"))?;
     let nanos = u32::try_from(at.nanos)
         .map_err(|_| error::invalid("hello.auth.timestamp", "negative nanoseconds"))?;
+    Ok(NodeProof {
+        signed_node: node.to_owned(),
+        seconds: at.seconds,
+        nanos,
+        nonce: auth.nonce.clone(),
+        signature: auth.signature.clone(),
+    })
+}
+
+fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
     Ok(Hello {
         node: id(IdKind::Node, "hello.node", &h.node).refuse()?,
-        proof: NodeProof {
-            signed_node: h.node.clone(),
-            seconds: at.seconds,
-            nanos,
-            nonce: auth.nonce.clone(),
-            signature: auth.signature.clone(),
-        },
+        proof: proof_from_pb(&h.node, h.auth.as_option())?,
         agent_version: h.agent_version.clone(),
         protocol: h.protocol.clone(),
         facts: facts(

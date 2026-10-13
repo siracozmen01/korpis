@@ -12,6 +12,7 @@ pub mod install;
 pub mod keys;
 mod provider_calls;
 pub mod providers;
+pub mod relay;
 pub mod revocations;
 pub mod sealer;
 pub mod sessions;
@@ -143,6 +144,11 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let addr = bound.local_addr()?;
     let bound = bound.with_tls(tls);
     let api = Arc::new(Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?));
+    let token_keys = {
+        use korpis_app::ports::EnrollmentRead as _;
+        api.app().store().verify_keys("token").await.map_err(korpis_app::AppError::from)?
+    };
+    api.relay().trust(relay::token_ring(&token_keys));
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(&api)));
