@@ -15,9 +15,11 @@
 use super::scope::{Kind, ObjectRef, Resource};
 use biscuit_auth::builder::{Algorithm, Term, date, string};
 use biscuit_auth::{AuthorizerBuilder, AuthorizerLimits, Biscuit, KeyPair, PublicKey, error};
+use ipnet::IpNet;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::hash::BuildHasher;
+use std::net::IpAddr;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -105,6 +107,18 @@ pub struct Claims {
     pub scope: ObjectRef,
     /// When it stops working.
     pub expires_at: SystemTime,
+    /// The networks a client using it must be in, from the leaf's `source_cidr`; empty for any.
+    pub source_cidr: Vec<IpNet>,
+}
+
+/// What a verifier knows of the client's address (§3.1 of docs/02-architecture.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Client {
+    /// The client connected from this address: the relay, the first hop that sees it.
+    At(IpAddr),
+    /// The verifier never sees the client, and the relay in front of it checked the address:
+    /// the agent. A relay never says this.
+    Unseen,
 }
 
 /// Why a token was refused.
@@ -125,6 +139,9 @@ pub enum TokenError {
     /// The token names no chain.
     #[error("the token states no chain")]
     NoChain,
+    /// The client is outside the networks the token allows.
+    #[error("the client's address is not one the token allows")]
+    SourceNotAllowed,
 }
 
 impl From<error::Token> for TokenError {
@@ -157,6 +174,11 @@ pub fn mint(key: &SigningKey, claims: &Claims) -> Result<String, TokenError> {
         code.push_str("leaf({leaf});\n");
         params.insert("leaf".into(), string(&leaf.to_string()));
     }
+    for (i, net) in claims.source_cidr.iter().enumerate() {
+        let name = format!("n{i}");
+        let _ = writeln!(code, "source_cidr({{{name}}});");
+        params.insert(name, string(&net.to_string()));
+    }
     let token = Biscuit::builder()
         .code_with_params(&code, params, HashMap::new())?
         .root_key_id(key.key_id)
@@ -182,15 +204,16 @@ pub struct Verified {
     pub chain: Vec<Uuid>,
 }
 
-/// Verifies `token` offline for `action` on `resource` at `now`, against `keys` and the revoked
-/// grant identifiers. This is what a relay and an agent run; it needs no database.
+/// Verifies `token` offline for `action` on `resource` at `now`, from `client`, against `keys`
+/// and the revoked grant identifiers. This is what a relay and an agent run; it needs no
+/// database.
 pub fn verify<S: BuildHasher>(
     token: &str,
     keys: &KeyRing,
     action: &str,
     resource: &Resource,
     revoked: &HashSet<Uuid, S>,
-    now: SystemTime,
+    (now, client): (SystemTime, Client),
 ) -> Result<Verified, TokenError> {
     let biscuit = Biscuit::from_base64(token, |id: Option<u32>| {
         id.and_then(|id| keys.keys.get(&id).copied()).ok_or(error::Format::UnknownPublicKey)
@@ -212,9 +235,11 @@ pub fn verify<S: BuildHasher>(
         .build(&biscuit)?;
     authorizer.authorize().map_err(|e| TokenError::Unauthorized(e.to_string()))?;
 
+    check_source(&mut authorizer, client)?;
     // A private action does not reach into an organization from a scope above it, offline
-    // exactly as online (§3.3 of docs/08-identity.md): the token's scope must sit at or below
-    // the resource's owning organization in the resource's own chain.
+    // exactly as online (§3.3 of docs/08-identity.md): the token's scope must be the resource
+    // itself, which the gateway judged when it minted the token, or sit at or below the
+    // resource's owning organization in the resource's own chain.
     if super::action::PRIVATE.contains(&action) {
         let scope: Vec<(String, String)> = authorizer.query("data($k, $i) <- scope($k, $i)")?;
         let owner_at = resource.chain.iter().position(|n| n.object.kind == Kind::Organization);
@@ -224,7 +249,12 @@ pub fn verify<S: BuildHasher>(
                 .iter()
                 .position(|n| n.object.kind.as_str() == k && n.object.id.to_string() == *i)
         });
-        if !matches!((scope_at, owner_at), (Some(s), Some(o)) if s <= o) {
+        let reaches = match (scope_at, owner_at) {
+            (Some(0), _) => true,
+            (Some(s), Some(o)) => s <= o,
+            _ => false,
+        };
+        if !reaches {
             return Err(TokenError::Unauthorized(
                 "a private action does not reach into an organization from above".into(),
             ));
@@ -240,6 +270,20 @@ pub fn verify<S: BuildHasher>(
     let subject: Vec<(String,)> = authorizer.query("data($s) <- subject($s)")?;
     let subject = subject.into_iter().next().map(|(s,)| s).unwrap_or_default();
     Ok(Verified { subject, grant: leaf, chain })
+}
+
+/// Refuses a client outside the token's networks; a token naming none allows any.
+fn check_source(
+    authorizer: &mut biscuit_auth::Authorizer,
+    client: Client,
+) -> Result<(), TokenError> {
+    let nets: Vec<(String,)> = authorizer.query("data($n) <- source_cidr($n)")?;
+    if nets.is_empty() {
+        return Ok(());
+    }
+    let Client::At(ip) = client else { return Ok(()) };
+    let allowed = nets.iter().any(|(n,)| n.parse::<IpNet>().is_ok_and(|net| net.contains(&ip)));
+    if allowed { Ok(()) } else { Err(TokenError::SourceNotAllowed) }
 }
 
 /// Appends a block restricting the token to expire sooner: offline attenuation by its holder.

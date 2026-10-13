@@ -47,21 +47,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 Action::parse(name).map_err(|e| AppError::invalid("actions", e.to_string()))?;
             match self.decide(caller, &action, cmd.object, cmd.via).await? {
                 Decision::Permit(p)
-                    if !p.redeem && chain.as_ref().is_none_or(|c| *c == p.chain) =>
+                    if !p.redeem && chain.as_ref().is_none_or(|(c, _)| *c == p.chain) =>
                 {
-                    chain = Some(p.chain);
+                    chain = Some((p.chain, p.source_cidr));
                 }
                 _ => return Err(self.refuse(caller, &action, cmd.object).await),
             }
         }
         let ttl = cmd.ttl.map_or(SESSION_TOKEN_LIFETIME, |t| t.min(SESSION_TOKEN_LIFETIME));
         let expires_at = self.clock.now() + ttl;
+        let (chain, source_cidr) = chain.unwrap_or_default();
         let claims = Claims {
             subject: caller.subject.key.clone(),
-            chain: chain.unwrap_or_default(),
+            chain,
             actions: cmd.actions,
             scope: cmd.object,
             expires_at,
+            // The relay checks the client against them; the gateway checked the caller already.
+            source_cidr,
         };
         let token =
             token::mint(&self.token_key, &claims).map_err(|e| AppError::Internal(e.to_string()))?;

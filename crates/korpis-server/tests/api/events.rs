@@ -165,9 +165,10 @@ async fn delivery_is_in_order_judged_by_the_subjects_grants_and_resumes_after_it
     assert_eq!(name, Some("three"));
 }
 
-/// The next item of any kind, within ten seconds.
+/// The next item of any kind, within the delivery budget: a gap and the events after it wait on
+/// the horizon like any delivery.
 async fn item(stream: &mut Delivery) -> Item {
-    let got = tokio::time::timeout(Duration::from_secs(10), stream.message()).await;
+    let got = tokio::time::timeout(Duration::from_secs(DELIVERY), stream.message()).await;
     got.expect("an item").unwrap().expect("the stream is open").to_owned_message().item.unwrap()
 }
 

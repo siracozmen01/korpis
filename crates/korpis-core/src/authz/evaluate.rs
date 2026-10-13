@@ -64,6 +64,9 @@ pub struct Permit {
     /// The leaf has a use limit: the gateway must redeem one use atomically, in the transaction
     /// that performs the action (§6.2).
     pub redeem: bool,
+    /// The leaf's `source_cidr`, which attenuation keeps within every ancestor's (§3.2), so a
+    /// token minted from this chain carries it for the relay to check (§6.2).
+    pub source_cidr: Vec<ipnet::IpNet>,
 }
 
 /// Why a request was refused. The caller is told which action was missing, never which grant
@@ -193,6 +196,7 @@ fn permits(
         grant: leaf.id,
         chain: chain.iter().map(|g| g.id).collect(),
         redeem: leaf.conditions.max_uses.is_some(),
+        source_cidr: leaf.conditions.source_cidr.clone(),
     };
     // A propose-only grant proposes changes; reading under it is not a change (§3.6).
     Ok(match &leaf.conditions.requires_approval_by {

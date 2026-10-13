@@ -2,7 +2,7 @@
 
 //! Capability tokens, verified offline (§6 of docs/08-identity.md).
 
-use korpis_core::authz::token::{self, Claims, KeyRing, SigningKey, TokenError};
+use korpis_core::authz::token::{self, Claims, Client, KeyRing, SigningKey, TokenError};
 use korpis_core::authz::{Hierarchy, Resource};
 use std::collections::HashSet;
 use std::time::{Duration, SystemTime};
@@ -36,6 +36,7 @@ impl Fixture {
             actions: vec![CONSOLE.into()],
             scope: tree.w1,
             expires_at: now + token::SESSION_TOKEN_LIFETIME,
+            source_cidr: Vec::new(),
         };
         let token = token::mint(&key, &claims).unwrap();
         let w1 = tree.resource(tree.w1).unwrap();
@@ -49,14 +50,16 @@ impl Fixture {
         on: &Resource,
         at: SystemTime,
     ) -> Result<(), TokenError> {
-        token::verify(t, &self.keys, action, on, &HashSet::new(), at).map(|_| ())
+        token::verify(t, &self.keys, action, on, &HashSet::new(), (at, Client::Unseen)).map(|_| ())
     }
 }
 
 #[test]
 fn a_token_permits_exactly_what_it_states() {
     let f = Fixture::new();
-    let ok = token::verify(&f.token, &f.keys, CONSOLE, &f.w1, &HashSet::new(), f.now).unwrap();
+    let ok =
+        token::verify(&f.token, &f.keys, CONSOLE, &f.w1, &HashSet::new(), (f.now, Client::Unseen))
+            .unwrap();
     assert_eq!(ok.grant, f.claims.chain[0]);
     assert_eq!((ok.chain.len(), ok.subject.as_str()), (3, "user:alice"));
 
@@ -68,7 +71,14 @@ fn a_token_permits_exactly_what_it_states() {
 
     let parent = f.claims.chain[1];
     assert_eq!(
-        token::verify(&f.token, &f.keys, CONSOLE, &f.w1, &HashSet::from([parent]), f.now),
+        token::verify(
+            &f.token,
+            &f.keys,
+            CONSOLE,
+            &f.w1,
+            &HashSet::from([parent]),
+            (f.now, Client::Unseen)
+        ),
         Err(TokenError::Revoked(parent)),
         "revoking any link of the chain refuses the token offline (§6.3)"
     );
@@ -100,6 +110,7 @@ fn tokens_scoped_above_a_customer_reach_no_private_action_offline() {
             actions: vec![action.into()],
             scope,
             expires_at: f.now + Duration::from_secs(60),
+            source_cidr: Vec::new(),
         };
         token::mint(&f.key, &claims).unwrap()
     };
@@ -109,4 +120,32 @@ fn tokens_scoped_above_a_customer_reach_no_private_action_offline() {
     f.verify(&within, CONSOLE, &f.w1, f.now).unwrap();
     let operate = mint(f.tree.reseller, "workload.stop");
     f.verify(&operate, "workload.stop", &f.w1, f.now).expect("non-private actions still flow down");
+}
+
+#[test]
+fn a_token_scoped_to_the_resource_itself_needs_no_ancestry_offline() {
+    let f = Fixture::new();
+    let alone = Resource::alone(f.tree.w1);
+    f.verify(&f.token, CONSOLE, &alone, f.now).expect("the gateway judged this very object");
+    let customer = Claims { scope: f.tree.customer, ..f.claims.clone() };
+    let above = token::mint(&f.key, &customer).unwrap();
+    assert!(f.verify(&above, CONSOLE, &alone, f.now).is_err(), "nothing here says what is above");
+}
+
+#[test]
+fn the_relay_checks_the_client_against_the_leaf_networks() {
+    let f = Fixture::new();
+    let claims = Claims { source_cidr: vec!["10.1.0.0/16".parse().unwrap()], ..f.claims.clone() };
+    let fenced = token::mint(&f.key, &claims).unwrap();
+    let at = |ip: &str| (f.now, Client::At(ip.parse().unwrap()));
+    let none = HashSet::new();
+    token::verify(&fenced, &f.keys, CONSOLE, &f.w1, &none, at("10.1.2.3")).unwrap();
+    assert_eq!(
+        token::verify(&fenced, &f.keys, CONSOLE, &f.w1, &none, at("192.0.2.1")),
+        Err(TokenError::SourceNotAllowed)
+    );
+    token::verify(&fenced, &f.keys, CONSOLE, &f.w1, &none, (f.now, Client::Unseen))
+        .expect("an agent behind the relay never sees the client and never evaluates it");
+    token::verify(&f.token, &f.keys, CONSOLE, &f.w1, &none, at("192.0.2.1"))
+        .expect("a token naming no networks allows any");
 }

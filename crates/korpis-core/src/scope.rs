@@ -57,6 +57,14 @@ pub struct Resource {
 }
 
 impl Resource {
+    /// The object with no ancestry: what a verifier knows that holds only the object a request
+    /// names, such as a relay. A token scoped to the object itself verifies against it; one
+    /// scoped above it cannot, because nothing here says what is above.
+    #[must_use]
+    pub fn alone(object: ObjectRef) -> Self {
+        Self { chain: vec![Node { object, labels: BTreeMap::new() }] }
+    }
+
     /// The object itself.
     #[must_use]
     pub fn object(&self) -> Option<ObjectRef> {

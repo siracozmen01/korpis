@@ -626,6 +626,7 @@ CapabilityToken
   actions, scope  one concrete object; selector scopes are resolved before minting
   issued_at, expires_at
   epoch           the issuing control plane's key epoch
+  source_cidr     the leaf's networks, if it has any, for the relay to check the client against
 ```
 
 **The token is a Biscuit** whose authority block is signed by the control plane's token key and
@@ -642,6 +643,16 @@ checks (a shorter expiry, a narrower operation), never authority. Implemented in
 > *create* a grant, which happens online at the gateway, and an offline verifier has nothing to
 > create. What a verifier needs from the chain is its identifiers, so that the revocation list can
 > refuse a token when any link is revoked (§6.3), and that is what the token carries.
+
+Two conditions travel with a token because their verifier is offline. The leaf's `source_cidr` is
+carried because the relay is the first hop that sees the client's address (§3.1 of
+`02-architecture.md`) and must check it there; the leaf's networks are enough, because attenuation
+keeps each child's networks within its parent's (§3.2). An agent behind a relay never sees the
+client and does not check it. And a private action (§3.3) is judged offline against the resource's
+ancestry, which a relay does not hold: so a token whose scope is the resource itself verifies
+without any, because the gateway judged that very object when it minted it, and a token scoped
+above the resource is refused by a verifier that cannot see what lies between. The gateway always
+mints for the one object the request names, so the first case is the only one a client meets.
 
 The relays and the agents hold the control plane's public key and verify a token **offline**. This
 is what makes interactive work possible without a round trip per keystroke:

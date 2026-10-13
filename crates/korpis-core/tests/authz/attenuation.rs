@@ -33,7 +33,7 @@ fn the_moderator_mints_a_link_and_the_link_mints_nothing() {
         &[vec![link.clone(), moderator.clone(), root.clone()]],
         &tree,
     );
-    let Decision::Permit(Permit { grant, redeem, chain }) = decision else {
+    let Decision::Permit(Permit { grant, redeem, chain, .. }) = decision else {
         panic!("the link permits restarting W1: {decision:?}")
     };
     assert_eq!(grant, link.id);
