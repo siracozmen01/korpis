@@ -13,7 +13,7 @@ use korpis_recipe::registry::Registry;
 use uuid::Uuid;
 
 /// The DNS extension the recipe crate's tests load (§3.1 of docs/16-extensions.md).
-const DNS: &str = include_str!("../../../korpis-recipe/tests/recipe/dns.yaml");
+pub const DNS: &str = include_str!("../../../korpis-recipe/tests/recipe/dns.yaml");
 
 /// Pushes the DNS extension, signed by the signer every harness's root organization accepts;
 /// returns the repository.
@@ -24,11 +24,17 @@ pub async fn push_dns() -> String {
 /// Pushes an extension document, signed as [`push_dns`] signs; returns the repository.
 pub async fn push_document(document: &str) -> String {
     let repo = format!("{}/test/dns-{}", registry_address(), Uuid::now_v7().simple());
+    push_version(&repo, "1.0.0", document).await;
+    repo
+}
+
+/// Pushes `document` to `repo` as `tag`, signed; returns its digest.
+pub async fn push_version(repo: &str, tag: &str, document: &str) -> String {
     let registry = Registry::new(vec![registry_address()]);
     let artifact = Artifact { document: document.as_bytes().to_vec(), files: Vec::new() };
-    let digest = registry.push(&repo, "1.0.0", &artifact).await.unwrap();
-    registry.sign(&repo, &digest, &test_key()).await.unwrap();
-    repo
+    let digest = registry.push(repo, tag, &artifact).await.unwrap();
+    registry.sign(repo, &digest, &test_key()).await.unwrap();
+    digest
 }
 
 #[tokio::test]

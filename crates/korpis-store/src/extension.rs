@@ -143,6 +143,27 @@ impl ExtensionWrite for PgTx {
         Ok(())
     }
 
+    async fn upgrade_extension(
+        &mut self,
+        from_digest: &str,
+        to: &Installation,
+    ) -> StoreResult<bool> {
+        let n = sqlx::query!(
+            "UPDATE extension SET version = $3, api_version = $4, artifact_digest = $5
+              WHERE id = $1 AND artifact_digest = $2 AND uninstalled_at IS NULL",
+            to.id,
+            from_digest,
+            to.version,
+            to.api_version,
+            to.artifact_digest
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?
+        .rows_affected();
+        Ok(n == 1)
+    }
+
     async fn uninstall_extension(&mut self, id: Uuid, at: SystemTime) -> StoreResult<bool> {
         let n = sqlx::query!(
             "UPDATE extension SET uninstalled_at = $2 WHERE id = $1 AND uninstalled_at IS NULL",

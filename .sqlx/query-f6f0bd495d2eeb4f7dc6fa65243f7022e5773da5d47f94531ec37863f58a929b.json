@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE extension SET version = $3, api_version = $4, artifact_digest = $5\n              WHERE id = $1 AND artifact_digest = $2 AND uninstalled_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f6f0bd495d2eeb4f7dc6fa65243f7022e5773da5d47f94531ec37863f58a929b"
+}

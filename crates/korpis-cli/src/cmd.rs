@@ -12,6 +12,7 @@ pub mod get;
 pub mod grant;
 pub mod provider;
 pub mod sets;
+pub mod upgrade;
 
 use crate::complete;
 use clap::Subcommand;

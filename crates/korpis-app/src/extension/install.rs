@@ -76,11 +76,11 @@ struct Resolved {
 }
 
 /// Where an installation goes, checked and authorized.
-struct Target {
-    organization: Uuid,
-    project: Option<Uuid>,
-    workload_project: Uuid,
-    permit: Permit,
+pub(super) struct Target {
+    pub organization: Uuid,
+    pub project: Option<Uuid>,
+    pub workload_project: Uuid,
+    pub permit: Permit,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -107,7 +107,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             project: target.project,
             workload: prepared.workload(),
         };
-        let grants = self.need_grants(caller, (id, name.as_str()), &manifest.needs, &place).await?;
+        let needs: Vec<_> = manifest.needs.iter().enumerate().collect();
+        let grants = self.need_grants(caller, (id, name.as_str()), &needs, &place).await?;
         let installation = Installation {
             id,
             organization: target.organization,
@@ -223,7 +224,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// A provider is infrastructure for the whole organization (§4.1 of
     /// docs/16-extensions.md): installing one needs `extension.install` over the organization,
     /// and an identity provider is installed into the organization it authenticates into.
-    async fn provider_authority(
+    pub(super) async fn provider_authority(
         &self,
         caller: &Caller,
         target: &Target,
@@ -259,6 +260,17 @@ fn workload_declaration(cmd: &InstallExtension, target: &Target, name: &Name) ->
     }
 }
 
+/// A duplicate provider name, as the installer is told.
+pub(super) fn provider_taken(e: StoreError) -> AppError {
+    match e {
+        StoreError::Duplicate(Unique::ProviderName) => AppError::conflict(
+            "provider.taken",
+            "another installation serves a provider of that type and name here",
+        ),
+        other => other.into(),
+    }
+}
+
 /// Writes the installation, its grants, and their effects in `tx`.
 async fn write_installation<X: Tx>(
     tx: &mut X,
@@ -272,15 +284,9 @@ async fn write_installation<X: Tx>(
         StoreError::Duplicate(Unique::ExtensionName) => exists(),
         other => other.into(),
     })?;
-    tx.insert_provides(i.id, i.organization, &installed.manifest.provides).await.map_err(|e| {
-        match e {
-            StoreError::Duplicate(Unique::ProviderName) => AppError::conflict(
-                "provider.taken",
-                "another installation serves a provider of that type and name here",
-            ),
-            other => other.into(),
-        }
-    })?;
+    tx.insert_provides(i.id, i.organization, &installed.manifest.provides)
+        .await
+        .map_err(provider_taken)?;
     for NeedGrant { record, parent } in grants {
         tx.insert_grant(record).await?;
         tx.append_effect(&issued_effect(caller, record, parent.id)).await?;
@@ -292,7 +298,7 @@ async fn write_installation<X: Tx>(
 /// The subscriptions its document declares, held by the installation and starting at the end of
 /// the log; installed into a project, each is narrowed to that project (§4 of
 /// docs/16-extensions.md).
-fn subscriptions(
+pub(super) fn subscriptions(
     i: &Installation,
     manifest: &ExtensionManifest,
     start: u64,
@@ -315,7 +321,7 @@ fn exists() -> AppError {
     AppError::conflict("extension.exists", "an extension of this name is installed here already")
 }
 
-fn issued_effect(caller: &Caller, record: &GrantRecord, parent: Uuid) -> Effect {
+pub(super) fn issued_effect(caller: &Caller, record: &GrantRecord, parent: Uuid) -> Effect {
     Effect::new(caller.principal.clone(), "grant.issued", Outcome::Succeeded).under(parent).after(
         details([
             ("grant", record.grant.id.to_string().into()),

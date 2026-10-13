@@ -12,6 +12,7 @@ mod install;
 mod provider;
 mod read;
 mod uninstall;
+mod upgrade;
 
 pub use breaker::ProviderHealth;
 pub use call::{CallTarget, Called};
@@ -19,3 +20,4 @@ pub use install::{InstallExtension, Installed};
 pub use provider::Register;
 pub use read::{ExtensionStatus, ExtensionView};
 pub use uninstall::Uninstalled;
+pub use upgrade::{UpgradeExtension, Upgraded};

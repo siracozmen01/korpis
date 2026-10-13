@@ -46,6 +46,14 @@ pub trait ExtensionWrite {
         installation: &Installation,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// Records an upgrade: the installation, still installed and still at `from_digest`, takes
+    /// `to`'s version, contract version, and artifact digest; `false` if it had changed.
+    fn upgrade_extension(
+        &mut self,
+        from_digest: &str,
+        to: &Installation,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Records the uninstallation at `at`; `false` if it was already uninstalled.
     fn uninstall_extension(
         &mut self,

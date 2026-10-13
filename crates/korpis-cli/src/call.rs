@@ -86,6 +86,7 @@ table! {
     "korpis.v1.ExtensionService/GetExtension" => ExtensionServiceClient::get_extension(GetExtensionRequest);
     "korpis.v1.ExtensionService/ListExtensions" => ExtensionServiceClient::list_extensions(ListExtensionsRequest);
     "korpis.v1.ExtensionService/UninstallExtension" => ExtensionServiceClient::uninstall_extension(UninstallExtensionRequest);
+    "korpis.v1.ExtensionService/UpgradeExtension" => ExtensionServiceClient::upgrade_extension(UpgradeExtensionRequest);
     "korpis.v1.ProviderService/ListProviders" => ProviderServiceClient::list_providers(ListProvidersRequest);
     "korpis.v1.ProviderService/PingProvider" => ProviderServiceClient::ping_provider(PingProviderRequest);
     "korpis.v1.EventService/CreateSubscription" => EventServiceClient::create_subscription(CreateSubscriptionRequest);

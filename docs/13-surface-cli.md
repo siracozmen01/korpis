@@ -300,18 +300,21 @@ expires, while this token is checked online on every request, so the revocation 
 the pipeline's next call. `--to` issues to an existing subject instead; `grant list`, `grant show`
 (the grant and its chain), and `grant revoke` complete the set.
 
-Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are.
-`korpis extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension
-needs, over what, and why, what it reaches, provides, and subscribes to, and then the command
-that approves exactly that, with the artifact pinned by digest. `--approve` installs, and is
-refused unless `--version` is a digest, because a tag may move between reading the needs and
-approving them, and an approval is of what was read (§4 of `16-extensions.md`). `extension list`,
-`extension show`, and `extension uninstall` complete the set; a grant's holder may be written
-`ext_…` to name an installation. `extension providers` lists the provider streams registered in
-an organization, and `extension ping dns cloudflare` calls one's liveness check as the
-organization sees it and prints how the call ended: the registration and version that answered,
-or the failure's reason (`provider.deadline`, `provider.stream_ended`, `provider.unknown`), each
-under `extension.read` over the organization (§3.3 of `16-extensions.md`).
+Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are. `korpis
+extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension needs,
+over what, and why, what it reaches, provides, and subscribes to, and then the command that
+approves exactly that, with the artifact pinned by digest. `--approve` installs, and is refused
+unless `--version` is a digest, because a tag may move between reading the needs and approving
+them, and an approval is of what was read (§4 of `16-extensions.md`). `extension list`, `extension
+show`, and `extension uninstall` complete the set, with `extension upgrade ext_… --version 2.0.0`,
+which is two steps the same way: it shows the new needs and what would be kept, issued, and
+revoked, then `--approve` with the digest upgrades in place (§9 question 6 of `16-extensions.md`);
+a grant's holder may be written `ext_…` to name an installation. `extension providers` lists the
+provider streams registered in an organization, and `extension ping dns cloudflare` calls one's
+liveness check as the organization sees it and prints how the call ended: the registration and
+version that answered, or the failure's reason (`provider.deadline`, `provider.stream_ended`,
+`provider.unknown`), each under `extension.read` over the organization (§3.3 of
+`16-extensions.md`).
 
 Shell completion resolves against what the caller can actually read, for the same reason Discord's
 autocomplete does (§8 of `12-surface-discord.md`): existence follows read authority, so completion

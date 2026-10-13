@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO extension_provides (extension_id, organization_id, type, name)\n                 VALUES ($1, $2, $3, $4) ON CONFLICT (extension_id, type, name) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7de23eb4856d37c59127ab2615b473ead30b5d831254668cf3e7605e8d58209c"
+}

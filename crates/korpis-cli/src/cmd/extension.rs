@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension install|list|show|uninstall|providers|ping` (§7 of docs/13-surface-cli.md,
-//! §4 of docs/16-extensions.md). Installing is two steps, as planning and applying are: without
-//! `--approve` it shows what the extension needs and the command that approves exactly that, the
-//! artifact pinned by digest; with it, it installs, granting what the document at that digest
-//! declares.
+//! `korpis extension install|list|show|upgrade|uninstall|providers|ping` (§7 of
+//! docs/13-surface-cli.md, §4 of docs/16-extensions.md). Installing is two steps, as planning and
+//! applying are: without `--approve` it shows what the extension needs and the command that
+//! approves exactly that, the artifact pinned by digest; with it, it installs, granting what the
+//! document at that digest declares. Upgrading is the same two steps.
 
 use super::{Answer, json, mutation, pairs};
 use crate::connect::Connection;
@@ -37,6 +37,18 @@ pub enum ExtensionAction {
     Uninstall {
         /// The installation, `ext_…`.
         extension: String,
+    },
+    /// Shows what upgrading an installation changes, or, with `--approve`, upgrades it.
+    Upgrade {
+        /// The installation, `ext_…`.
+        extension: String,
+        /// A tag, or a digest, of the artifact it was installed from; `--approve` wants the
+        /// digest the first step printed.
+        #[arg(long)]
+        version: String,
+        /// Grants what the new version needs and upgrades it.
+        #[arg(long)]
+        approve: bool,
     },
     /// The provider streams registered in an organization.
     Providers {
@@ -226,6 +238,9 @@ pub async fn extension(c: &Connection, action: &ExtensionAction) -> Result<Answe
             let mut human = rows(std::slice::from_ref(&e));
             let _ = writeln!(human, "grants: {}", e.grants.join(", "));
             Ok(Answer { human, json: json(&e) })
+        }
+        ExtensionAction::Upgrade { extension, version, approve } => {
+            super::upgrade::upgrade(c, extension, version, *approve).await
         }
         ExtensionAction::Providers { organization } => {
             super::provider::providers(c, organization.as_deref()).await

@@ -26,7 +26,7 @@ pub(super) struct Place<'a> {
 
 impl Place<'_> {
     /// The object a need over `scope` is granted on.
-    fn object(&self, scope: NeedScope) -> ObjectRef {
+    pub(super) fn object(&self, scope: NeedScope) -> ObjectRef {
         match (scope, self.project) {
             (NeedScope::Target, Some(p)) => ObjectRef::new(Kind::Project, p),
             (NeedScope::Target | NeedScope::Organization, _) => {
@@ -50,12 +50,12 @@ fn label(extension: &str, reason: &str) -> String {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One grant per need, each with the installer's grant that covers it; a need none covers
-    /// is refused by its position in the list.
+    /// is refused by its position in the document's list, which each need is given with.
     pub(super) async fn need_grants(
         &self,
         caller: &Caller,
         (extension, name): (Uuid, &str),
-        needs: &[Need],
+        needs: &[(usize, &Need)],
         place: &Place<'_>,
     ) -> Result<Vec<NeedGrant>, AppError> {
         let workload = self.planned(place.workload).await?;
@@ -66,7 +66,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let holder = Principal::Extension(extension);
         let now = self.clock.now();
         let mut out = Vec::with_capacity(needs.len());
-        for (i, need) in needs.iter().enumerate() {
+        for &(i, need) in needs {
             let mut grant = Grant {
                 id: Uuid::now_v7(),
                 subject: holder.subject(),

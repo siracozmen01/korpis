@@ -144,6 +144,11 @@ service ExtensionService {
   // Revokes its grants, ends its subscriptions and registrations, and proposes the retirement
   // of its workload.
   rpc UninstallExtension(UninstallExtensionRequest) returns (UninstallExtensionResponse);
+  // Upgrades an installation in place to another version of the artifact it was installed from
+  // (§9 question 6 of docs/16-extensions.md): extension.install as installing needs, the new
+  // document's needs approved exactly, grants kept, issued, or revoked to match them, and the new
+  // digest declared on the same workload. A dry run returns what would change.
+  rpc UpgradeExtension(UpgradeExtensionRequest) returns (UpgradeExtensionResponse);
 }
 
 message InstallExtensionRequest {
@@ -201,4 +206,28 @@ message UninstallExtensionResponse {
   Extension extension = 1;
   Plan plan = 2;
   Consistency consistency = 3;
+}
+
+message UpgradeExtensionRequest {
+  Mutation mutation = 1;
+  string id = 2;
+  // A tag, or a digest, of the artifact it was installed from.
+  string version = 3;
+  // Exactly the new document's needs, which a dry run returns.
+  repeated Need approved_needs = 4;
+  bool dry_run = 5;
+}
+
+message UpgradeExtensionResponse {
+  // The installation as upgraded: its new version, manifest, artifact, and every grant it holds.
+  Extension extension = 1;
+  // Its workload's rolling update; absent for a dry run.
+  Plan plan = 2;
+  Consistency consistency = 3;
+  // Grants issued for needs no held grant served, and grants revoked because no need asks for
+  // them any more.
+  repeated string issued_grants = 4;
+  repeated string revoked_grants = 5;
+  // The version it was upgraded from.
+  string from_version = 6;
 }

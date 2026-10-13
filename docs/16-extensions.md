@@ -240,8 +240,8 @@ name stays taken until the workload is retired.
 
 **An extension's artifact is installed, never declared.** A declaration through the workload API
 that names an extension's artifact is refused, and so is one that gives an extension's workload
-any artifact but the digest it was installed from (§3.5 and §3.7 of `01-model.md`, §8 of
-`09-recipes.md`).
+any artifact but the digest it was installed from, or upgraded to through the extension service
+(§9 question 6) (§3.5 and §3.7 of `01-model.md`, §8 of `09-recipes.md`).
 Without the first rule the same code would run as a plain workload, holding none of its grants and
 authenticating as `workload:<id>`, which fails in ways nobody can diagnose; without the second, a
 new version could arrive with needs nobody approved. Everything else about the workload (its
@@ -404,8 +404,9 @@ to infer the cause from a graph.
 
 A health provider that is down reports nothing about the workloads it probes, and treating that as
 `unhealthy` would let a failed prober get every workload it probes restarted; so it is `unknown`,
-the observation's own value for health nobody has judged (§3.3 of `01-model.md`). A console or chat adapter serves one request at a
-time and nothing else depends on it, so its failure is that request's alone.
+the observation's own value for health nobody has judged (§3.3 of `01-model.md`). A console or chat
+adapter serves one request at a time and nothing else depends on it, so its failure is that
+request's alone.
 
 **As built in Phase 1: the breaker.** Each provider, by the organization whose installation
 serves it, its type, and its name, has one breaker, kept in Postgres because any replica may call
@@ -593,12 +594,30 @@ means registered most recently, and the routing is the claim rule of §3.3.
    though building it in-core would be easier. What remains genuinely open is how much of the
    widget vocabulary the adapter interface can carry across platforms, and that is answered by
    writing the second adapter, not by designing harder. → here
-6. **Upgrading an installation.** Added 2026-10-13, when §4 made an extension's workload run only
-   the digest it was installed from. Question 1 holds, since an upgrade is a rolling update of the
-   workload, but the rolling update must come from the extension service and not from a plain
-   declaration: the new version is resolved under the trust policy, its needs are compared with
-   the approved ones, a need that grew is approved again by someone whose grants cover it, grants
-   are issued or revoked for the difference, and only then is the new digest declared on the same
-   workload, keeping the subject `extension:<id>` and everything recorded against it. It is built
-   with the versioning of §6, where a contract version that changed is checked the same way.
-   → here
+6. **Upgrading an installation. Resolved here.** Added 2026-10-13, when §4 made an extension's
+   workload run only the digest it was installed from. Question 1 holds, since an upgrade is a
+   rolling update of the workload, but the rolling update must come from the extension service and
+   not from a plain declaration: the new version is resolved under the trust policy, its needs are
+   compared with the approved ones, a need that grew is approved again by someone whose grants
+   cover it, grants are issued or revoked for the difference, and only then is the new digest
+   declared on the same workload, keeping the subject `extension:<id>` and everything recorded
+   against it. It is built with the versioning of §6, where a contract version that changed is
+   checked the same way.
+
+As built, `ExtensionService.UpgradeExtension` takes the installation and a tag or digest of the
+artifact it was installed from; another extension's artifact, or the digest installed already, is
+refused. The upgrader needs what installing needed (`extension.install` where it is installed,
+and over the organization when it provides anything), the new version must pass §6's check, and
+the approved needs must be exactly the new document's, read from a dry run. Each grant the
+installation holds whose actions and object a new need still asks for is kept, so a need that did
+not change is not re-approved in substance and keeps its place in the grant tree; a need no held
+grant serves is granted from the upgrader's own grants, as at install; a grant no need asks for is
+revoked, with everything descended from it. `provides` entries the new version keeps keep their
+registrations, so the old version's streams go on serving until its replicas are replaced, the
+drain of question 1; dropped entries end with their registrations, and their calls in flight fail
+as retryable. Subscriptions whose filter is unchanged keep their position; new ones start at the
+end of the log. The new digest is declared on the same workload with the configuration it runs
+with now, and the plan that declaration produces is approved like any other. All of it is one
+transaction, which refuses with `extension.changed` if the installation changed since it was read.
+What it does not do: change the configuration, which the new document's schema must still accept
+as it stands, or the subscription filters an installer narrowed, which are the document's.

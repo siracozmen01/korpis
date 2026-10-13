@@ -1102,8 +1102,9 @@ Extension
   Pterodactyl core files).
 - An extension's effects appear in the effect stream attributed to its grant, exactly like a
   human's.
-- Its workload runs only the artifact digest it was installed from, and an extension's artifact
-  runs only as an installation, never as a plain workload (§4 of `16-extensions.md`).
+- Its workload runs only the artifact digest it was installed from, or was upgraded to through the
+  extension service, and an extension's artifact runs only as an installation, never as a plain
+  workload (§4 and §9 question 6 of `16-extensions.md`).
 - Core features use this same mechanism. If the contract is insufficient for something core needs,
   the contract is extended, core is never given a private door (P8).
 

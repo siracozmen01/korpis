@@ -13,9 +13,10 @@ use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::extension::{
-    ExtensionStatus, ExtensionView, InstallExtension, Installed, Uninstalled,
+    ExtensionStatus, ExtensionView, InstallExtension, Installed, Uninstalled, UpgradeExtension,
+    Upgraded,
 };
-use korpis_core::extension::{ExtensionManifest, Installation};
+use korpis_core::extension::{ExtensionManifest, Installation, Need};
 use korpis_core::id::IdKind;
 use korpis_core::recipe::RecipeRef;
 use korpis_proto::korpis::v1 as pb;
@@ -98,6 +99,29 @@ fn uninstalled(u: &Uninstalled) -> pb::UninstallExtensionResponse {
     }
 }
 
+fn upgraded(u: &Upgraded) -> pb::UpgradeExtensionResponse {
+    let grants = u.grants.iter().copied();
+    let stopped = ExtensionStatus::Stopped;
+    let extension = extension_to_pb(&u.installation, &u.manifest, &u.artifact, grants, stopped);
+    pb::UpgradeExtensionResponse {
+        extension: extension.into(),
+        plan: u.declared.as_ref().map(|d| plan_to_pb(&d.plan)).into(),
+        issued_grants: u.issued.iter().map(|g| wire_id(IdKind::Grant, g.grant.id)).collect(),
+        revoked_grants: u.revoked.iter().map(|g| wire_id(IdKind::Grant, *g)).collect(),
+        from_version: u.from_version.clone(),
+        ..Default::default()
+    }
+}
+
+fn approved(needs: &[pb::Need]) -> Result<Vec<Need>, connectrpc::ConnectError> {
+    needs
+        .iter()
+        .enumerate()
+        .map(|(i, n)| need_from_pb(&format!("approved_needs[{i}]"), n))
+        .collect::<Result<_, _>>()
+        .refuse()
+}
+
 fn optional_id(
     kind: IdKind,
     field: &str,
@@ -121,13 +145,7 @@ fn install_cmd(
         project: optional_id(IdKind::Project, "project", project)?,
         workload_project: optional_id(IdKind::Project, "workload_project", &req.workload_project)?,
         workload_name,
-        approved_needs: req
-            .approved_needs
-            .iter()
-            .enumerate()
-            .map(|(i, n)| need_from_pb(&format!("approved_needs[{i}]"), n))
-            .collect::<Result<_, _>>()
-            .refuse()?,
+        approved_needs: approved(&req.approved_needs)?,
         config: map_from_pb("config", &req.config).refuse()?,
         dry_run: req.dry_run,
     })
@@ -195,5 +213,26 @@ impl pb::ExtensionService for Api {
         let reply =
             self.app.uninstall_extension(&caller, &idem, id).await.map_err(error::from_app)?;
         respond(reply, uninstalled)
+    }
+
+    async fn upgrade_extension(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::UpgradeExtensionRequest>,
+    ) -> ServiceResult<pb::UpgradeExtensionResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let cmd = UpgradeExtension {
+            id: wire::id(IdKind::Extension, "id", &req.id).refuse()?,
+            version: req.version.clone(),
+            approved_needs: approved(&req.approved_needs)?,
+            dry_run: req.dry_run,
+        };
+        let encoder = |u: &Upgraded| encode(&upgraded(u));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply =
+            self.app.upgrade_extension(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, upgraded)
     }
 }

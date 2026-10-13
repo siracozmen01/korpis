@@ -107,6 +107,53 @@ impl ProviderWrite for PgTx {
         Ok(())
     }
 
+    async fn replace_provides(
+        &mut self,
+        extension: Uuid,
+        organization: Uuid,
+        provides: &[ProvidedInterface],
+    ) -> StoreResult<()> {
+        let kinds: Vec<String> = provides.iter().map(|p| p.kind.as_str().to_owned()).collect();
+        let names: Vec<String> = provides.iter().map(|p| p.name.clone()).collect();
+        // What it keeps is the pairs of the two arrays, side by side.
+        sqlx::query!(
+            "DELETE FROM provider_registration r
+              WHERE r.extension_id = $1
+                AND (r.type, r.name) NOT IN (SELECT * FROM unnest($2::text[], $3::text[]))",
+            extension,
+            kinds.as_slice(),
+            names.as_slice()
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        sqlx::query!(
+            "DELETE FROM extension_provides p
+              WHERE p.extension_id = $1
+                AND (p.type, p.name) NOT IN (SELECT * FROM unnest($2::text[], $3::text[]))",
+            extension,
+            kinds.as_slice(),
+            names.as_slice()
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        for p in provides {
+            sqlx::query!(
+                "INSERT INTO extension_provides (extension_id, organization_id, type, name)
+                 VALUES ($1, $2, $3, $4) ON CONFLICT (extension_id, type, name) DO NOTHING",
+                extension,
+                organization,
+                p.kind.as_str(),
+                p.name
+            )
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        }
+        Ok(())
+    }
+
     async fn delete_provides(&mut self, extension: Uuid) -> StoreResult<()> {
         sqlx::query!("DELETE FROM provider_registration WHERE extension_id = $1", extension)
             .execute(&mut *self.tx)

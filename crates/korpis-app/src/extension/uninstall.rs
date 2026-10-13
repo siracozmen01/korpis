@@ -102,12 +102,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-fn gone() -> AppError {
+pub(super) fn gone() -> AppError {
     AppError::conflict("extension.uninstalled", "the extension is uninstalled already")
 }
 
 /// Revokes every grant in `held` not revoked already, each with its effect; how many.
-async fn revoke_all<X: Tx>(
+pub(super) async fn revoke_all<X: Tx>(
     tx: &mut X,
     caller: &Caller,
     held: &[GrantRecord],

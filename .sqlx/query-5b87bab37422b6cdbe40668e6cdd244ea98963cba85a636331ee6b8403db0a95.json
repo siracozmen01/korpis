@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM provider_registration r\n              WHERE r.extension_id = $1\n                AND (r.type, r.name) NOT IN (SELECT * FROM unnest($2::text[], $3::text[]))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b87bab37422b6cdbe40668e6cdd244ea98963cba85a636331ee6b8403db0a95"
+}

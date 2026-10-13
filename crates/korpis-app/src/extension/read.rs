@@ -36,7 +36,8 @@ pub struct ExtensionView {
     pub manifest: ExtensionManifest,
     /// Its artifact as its workload's intent records it, with what vouched for it.
     pub artifact: RecipeRef,
-    /// The grants it holds, one per approved need.
+    /// The grants it holds, one per approved need; none, once uninstalled, since uninstalling
+    /// revokes them.
     pub grants: Vec<Uuid>,
     /// How it is doing.
     pub status: ExtensionStatus,
@@ -101,7 +102,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let observed = self.store.observation(installation.workload).await?;
         Ok(ExtensionView {
             status: status(observed.map(|o| o.state)),
-            grants: held.into_iter().map(|g| g.grant.id).collect(),
+            grants: held
+                .into_iter()
+                .filter(|g| g.revoked_at.is_none())
+                .map(|g| g.grant.id)
+                .collect(),
             artifact,
             manifest,
             installation,

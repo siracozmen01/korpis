@@ -37,6 +37,16 @@ pub trait ProviderWrite {
         provides: &[ProvidedInterface],
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// Makes an installation's provides exactly `provides`: entries it no longer has end with
+    /// the registrations serving them, entries it keeps keep theirs, and new ones are recorded,
+    /// a name already served as in [`ProviderWrite::insert_provides`].
+    fn replace_provides(
+        &mut self,
+        extension: Uuid,
+        organization: Uuid,
+        provides: &[ProvidedInterface],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// Ends an installation's provides and every registration of its streams.
     fn delete_provides(&mut self, extension: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 

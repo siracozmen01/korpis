@@ -45,5 +45,6 @@ mod support;
 mod tenancy;
 mod tokens;
 mod trust;
+mod upgrade;
 mod watch;
 mod workload;

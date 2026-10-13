@@ -875,7 +875,10 @@ the breaker, where, with what information): each caller, after its call finishes
 queue's own record of the provider's last twenty calls, under the breaker's row lock, so the
 provider of step 3 now trips it on latency and step 5 is cut short (§5 of `16-extensions.md`).
 It also found that §5 declared failure behaviour for two of the eight provider types while
-forbidding a guess for any; all eight are declared there now.
+forbidding a guess for any; all eight are declared there now. The upgrade question 6 of §9 of
+`16-extensions.md` recorded is built: the provider of step 3 can be replaced by its next version
+with the grants its needs still ask for kept, its streams draining, and the same subject throughout
+(§7 of `13-surface-cli.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by
