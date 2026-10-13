@@ -15,6 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "types/transfer/registry.proto",
         "services/containers/v1/containers.proto",
         "services/content/v1/content.proto",
+        "services/diff/v1/diff.proto",
         "services/images/v1/images.proto",
         "services/leases/v1/leases.proto",
         "services/namespaces/v1/namespace.proto",
@@ -24,7 +25,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "services/version/v1/version.proto",
     ];
     println!("cargo:rerun-if-changed=descriptor.binpb");
+    // Ordered maps, as in korpis-proto: a label set encodes the same way every time.
+    let mut buffa = connectrpc_build::CodeGenConfig::default();
+    buffa.map_fields = vec![(".".to_owned(), buffa_codegen::MapRepr::BTreeMap)];
     connectrpc_build::Config::new()
+        .buffa_config(buffa)
         .descriptor_set("descriptor.binpb")
         .files(FILES)
         .generate_json(true)

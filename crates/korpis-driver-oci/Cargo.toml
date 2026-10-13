@@ -13,7 +13,20 @@ workspace = true
 
 [dependencies]
 korpis-core = { workspace = true, features = ["content"] }
+korpis-containerd = { workspace = true }
 korpis-proto = { workspace = true }
+buffa = { version = "=0.9.2", features = ["json"] }
+buffa-types = { version = "=0.9.2", features = ["json"] }
+connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client"] }
+http = "1"
+tokio = { workspace = true }
+tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = { workspace = true }
+
+[dev-dependencies]
+korpis-agent = { path = "../korpis-agent" }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+tempfile = "3"
+uuid = { workspace = true }

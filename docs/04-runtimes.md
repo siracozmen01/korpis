@@ -395,6 +395,18 @@ checked to be a well-formed digest before it becomes a path. A driver reads the 
 writes it, and verifies again what it imports, since containerd checks every blob it commits
 against the digest it is given.
 
+**How the `oci` driver hands content to containerd.** It writes each blob from the store into
+containerd's content store, commits the manifest with the garbage-collection labels that tie its
+configuration and layers to it, and names the image, so what was imported stays until the image is
+removed. It unpacks each layer with containerd's diff service into a snapshot named by its chain
+identifier, so images that share a base share its snapshots, and refuses a layer that does not
+unpack to the uncompressed digest the image configuration names. All of it happens under a
+containerd lease taken for the create, so nothing half-assembled is collected and nothing is left
+behind if the create fails. The container's own snapshot is prepared remapped onto the workload's
+id range (containerd's `uidmapping` and `gidmapping` labels), which is what lets a read-only image
+owned by host root be the root filesystem of a process whose root is an unprivileged host id.
+Every object lives in containerd's `korpis` namespace and nothing outside it is read or written.
+
 ---
 
 ## 7. What is deliberately not in the interface

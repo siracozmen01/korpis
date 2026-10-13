@@ -8,6 +8,8 @@
 
 #![warn(missing_docs)]
 
+pub mod containerd;
+pub mod error;
 pub mod image;
 pub mod oci;
 pub mod seccomp;

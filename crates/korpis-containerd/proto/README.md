@@ -7,6 +7,6 @@ under the Apache License 2.0 by the containerd Authors; the licence is in `LICEN
 file, and each file keeps its own header.
 
 Only the services the `oci` driver uses, and the types they import, are here: containers,
-content, images, leases, namespaces, snapshots, tasks, transfer, and version. To update: replace
-the files from a newer tag of the same API module, record the tag and digest above, and run
+content, diff, images, leases, namespaces, snapshots, tasks, transfer, and version. To update:
+replace the files from a newer tag of the same API module, record the tag and digest above, and run
 `scripts/gen-proto.sh`. containerd keeps this API backward compatible within its major version.

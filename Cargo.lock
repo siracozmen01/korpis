@@ -1931,11 +1931,22 @@ dependencies = [
 name = "korpis-driver-oci"
 version = "0.0.0"
 dependencies = [
+ "buffa",
+ "buffa-types",
+ "connectrpc",
+ "http",
+ "korpis-agent",
+ "korpis-containerd",
  "korpis-core",
  "korpis-proto",
+ "rustls",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
