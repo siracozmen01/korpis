@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 mod authority;
+mod relay;
 
 pub struct ControlPlane {
     db: TestDb,
@@ -35,6 +36,11 @@ impl Drop for ControlPlane {
 
 impl ControlPlane {
     pub async fn start() -> Self {
+        Self::start_with(true).await
+    }
+
+    /// A control plane that serves the relay role itself only if `relay_role`.
+    pub async fn start_with(relay_role: bool) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
@@ -63,7 +69,7 @@ impl ControlPlane {
             lease_term: Duration::from_secs(2),
             denial_window: Duration::from_secs(60),
             event_retention: Duration::from_secs(30 * 86_400),
-            relay_role: true,
+            relay_role,
         })
         .await
         .expect("serve");
@@ -82,7 +88,7 @@ impl ControlPlane {
         }
     }
 
-    fn http(&self) -> HttpClient {
+    pub(crate) fn http(&self) -> HttpClient {
         let ca = CertificateDer::from_pem_file(self.data.tls().join("ca.pem")).expect("CA");
         let mut roots = rustls::RootCertStore::empty();
         roots.add(ca).expect("CA accepted");

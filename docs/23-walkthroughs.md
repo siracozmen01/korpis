@@ -400,8 +400,27 @@ honestly.
 | 4 | Each presents a digest of its assignments; assignments newer than the backup whose signatures verify are recovered, not rolled back † | `03-state.md` §8; `10-api.md` §9 |
 | 5 | Workloads never stopped, they were never dependent on the control plane | `02-architecture.md` §4.6 |
 | 6 | Each agent resends its journal from the restored cursor; numbers it already discarded are answered with one gap record, which the cursor passes ‡ | `02-architecture.md` §4.10; `03-state.md` §8 |
+| 7 | Relays running as their own process reopen their feeds; nodes are named the relays again § | `02-architecture.md` §3.1; `18-operations.md` §6 |
 
 ‡ Added 2026-10-13, when the agent's journal was built; it found Finding 26.
+§ Added 2026-10-14, when relays ran as their own process; it found Finding 27.
+
+**FINDING 27: A relay removed after the backup returns with it. `CONFIRMED`**
+
+A relay obtains its feed with its identity key, and removing it is the only revocation of that
+key. Restore to a backup older than the removal and the relay's row says joined, its key still
+verifies its feed request, and every node is named it again within seconds. A relay sees the
+plaintext of the sessions it carries (§8 of `17-security.md`), and the usual reason to remove one
+is that it can no longer be trusted, so this is Finding 9 again for a third kind of authority:
+the restored control plane honours something it can no longer account for.
+
+**Resolution.** Restore holds every relay the backup records as joined: its feed is answered as
+unavailable and it is named to no node until an operator readmits or removes it. A relay that
+joined after the backup is unknown and is refused, and joins again. Holding is chosen over
+rotation for the reason node identities are not rotated (Finding 16): readmitting a relay is one
+call, re-enrolling one is a visit to its machine during the incident. The cost is that sessions
+open only through the control plane's own relay role until the relays are readmitted. → patched
+`18-operations.md` §6
 
 **FINDING 26: A restored cursor older than a node's journal waits forever. `CONFIRMED`**
 
@@ -958,6 +977,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 24 | A deleted workload's identity has no moment it is deleted | §18 | `01-model.md` §3.3, `02-architecture.md` §4.8 |
 | 25 | An organization without its own trust policy had no policy at all | §4 | `09-recipes.md` §7.1 |
 | 26 | A restored cursor older than a node's journal waits forever | §6 | `02-architecture.md` §4.10, `03-state.md` §8 |
+| 27 | A relay removed after the backup returns with it | §6 | `18-operations.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `ServerInfoService`: what this control plane is, and the source it was built from (§2 of
-//! docs/19-governance.md). Unauthenticated: it reveals nothing a client could not learn by
-//! connecting, and a client needs it before it has credentials.
+//! `ServerInfoService`: what this control plane is, the source it was built from (§2 of
+//! docs/19-governance.md), and where sessions open (§3.1 of docs/02-architecture.md).
+//! Unauthenticated: it reveals nothing a client could not learn by connecting, since relays serve
+//! the clients that reach them, and a client needs it before it has credentials.
 
 use super::Api;
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
@@ -19,6 +20,7 @@ impl pb::ServerInfoService for Api {
         _ctx: RequestContext,
         _request: ServiceRequest<'_, pb::GetServerInfoRequest>,
     ) -> ServiceResult<pb::GetServerInfoResponse> {
+        let relays = self.named_relays.subscribe().borrow().as_ref().map(|r| r.urls.clone());
         Response::ok(pb::GetServerInfoResponse {
             version: build::VERSION.to_owned(),
             source_revision: build::SOURCE_REVISION.to_owned(),
@@ -26,6 +28,8 @@ impl pb::ServerInfoService for Api {
             capabilities: CAPABILITIES.iter().map(|c| (*c).to_owned()).collect(),
             agent_protocols: AGENT_PROTOCOLS.iter().map(|p| (*p).to_owned()).collect(),
             extension_contracts: CONTRACT_VERSIONS.iter().map(|v| (*v).to_owned()).collect(),
+            relays: relays.unwrap_or_default(),
+            control_plane_relay: self.serves_relay,
             ..Default::default()
         })
     }

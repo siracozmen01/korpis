@@ -188,10 +188,12 @@ two seconds of a change, every relay not removed, and whether the control plane 
 too, which it does unless `--relay-role false` turns it off. What it does not do: with its feed
 lost, a relay verifies by the last of each it received, which bounds a revocation it missed by one
 token lifetime, the same bound §4.6 states for the agent; before the first terms arrive it admits
-no node at all. What Phase 1 still owes (§4 of `20-roadmap.md`): clients do not yet find the
-relays, since the API names none, so a session opens through the control plane's own role; the
-PROXY protocol is not accepted, so a relay behind a load balancer sees the balancer's address as
-the client's; and a relay's certificate is not yet renewed over the feed.
+no node at all. A client finds where to open a session in `ServerInfo`, which lists the relays
+as the replica last named them to nodes and says whether the control plane serves the role too;
+any relay listed reaches every connected node, since each node attaches to all of them. What
+Phase 1 still owes (§4 of `20-roadmap.md`): the PROXY protocol is not accepted, so a relay behind
+a load balancer sees the balancer's address as the client's; a relay's certificate is not yet
+renewed over the feed; and `ListRelays` does not yet say whether a relay is connected.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is

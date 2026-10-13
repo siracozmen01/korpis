@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The data path end to end (§3.1 of docs/02-architecture.md): the agent attaches its data
-//! connection to the control plane's relay role, a client opens a session there with a token,
-//! and the node judges it again and serves it with the handler for its action.
+//! connection to each relay it is named, the control plane's own role or a relay running as its
+//! own process, a client opens a session there with a token, and the node judges it again and
+//! serves it with the handler for its action.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};
@@ -48,10 +49,13 @@ type Client = connectrpc::client::BidiStream<
     pb::__buffa::view::RelayResponseView<'static>,
 >;
 
-/// A session opened with `request`, retried while the node is not yet attached.
-async fn opened(cp: &ControlPlane, request: &pb::RelayRequest) -> Client {
+/// A session opened with `request` at `relay`, retried while the node is not yet attached.
+async fn opened(
+    relay: &pb::RelayServiceClient<connectrpc::client::HttpClient>,
+    request: &pb::RelayRequest,
+) -> Client {
     loop {
-        let mut client = cp.relay().open().await.unwrap();
+        let mut client = relay.open().await.unwrap();
         client.send(request.clone()).await.unwrap();
         let first = match client.message::<pb::RelayResponse>().await {
             Ok(m) => m.map(|m| m.to_owned_message()),
@@ -142,7 +146,7 @@ async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
     let cp = ControlPlane::start().await;
     let n = node(&cp, "fra-5").await;
     let console = cp.mint(&n.workload, &[CONSOLE]).await;
-    let mut client = opened(&cp, &open(&console, CONSOLE, &n.workload, &n.id)).await;
+    let mut client = opened(&cp.relay(), &open(&console, CONSOLE, &n.workload, &n.id)).await;
     client.send(data(b"ping")).await.unwrap();
     assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()));
     client.send(data(b"bye")).await.unwrap();
@@ -165,7 +169,7 @@ async fn a_session_lives_as_long_as_its_token_and_its_renewals() {
     let n = node(&cp, "fra-6").await;
     let (_, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
     let short = cp.mint_as(&secret, &n.workload, &[CONSOLE], 2).await;
-    let mut client = opened(&cp, &open(&short, CONSOLE, &n.workload, &n.id)).await;
+    let mut client = opened(&cp.relay(), &open(&short, CONSOLE, &n.workload, &n.id)).await;
     client.send(renew(&cp.mint_as(&secret, &n.workload, &[CONSOLE], 4).await)).await.unwrap();
     assert!(matches!(frame(&mut client).await, Frame::Renewed(_)), "the new expiry, acknowledged");
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -174,7 +178,7 @@ async fn a_session_lives_as_long_as_its_token_and_its_renewals() {
     assert_eq!(end_code(frame(&mut client).await), "expired", "and not past the renewal");
 
     let lasting = cp.mint_as(&secret, &n.workload, &[CONSOLE], 30).await;
-    let mut other = opened(&cp, &open(&lasting, CONSOLE, &n.workload, &n.id)).await;
+    let mut other = opened(&cp.relay(), &open(&lasting, CONSOLE, &n.workload, &n.id)).await;
     other.send(renew("not-a-token")).await.unwrap();
     assert_eq!(end_code(frame(&mut other).await), "refused", "the relay refuses a bad renewal");
 }
@@ -185,9 +189,32 @@ async fn revoking_a_grant_ends_the_live_sessions_its_tokens_opened() {
     let n = node(&cp, "fra-7").await;
     let (grant, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
     let token = cp.mint_as(&secret, &n.workload, &[CONSOLE], 0).await;
-    let mut client = opened(&cp, &open(&token, CONSOLE, &n.workload, &n.id)).await;
+    let mut client = opened(&cp.relay(), &open(&token, CONSOLE, &n.workload, &n.id)).await;
     client.send(data(b"ping")).await.unwrap();
     assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()));
     cp.revoke(&grant).await;
     assert_eq!(end_code(frame(&mut client).await), "revoked", "within seconds, not at expiry");
+}
+
+#[tokio::test]
+async fn a_relay_of_its_own_carries_sessions_and_ends_revoked_ones() {
+    let cp = ControlPlane::start_with(false).await;
+    let relay = cp.standalone_relay("edge-1").await;
+    let n = node(&cp, "fra-8").await;
+    let (grant, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
+    let token = cp.mint_as(&secret, &n.workload, &[CONSOLE], 0).await;
+    let request = open(&token, CONSOLE, &n.workload, &n.id);
+    let mut client = opened(&cp.relay_at(&relay.url), &request).await;
+    client.send(data(b"ping")).await.unwrap();
+    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()), "through the relay");
+
+    let mut direct = cp.relay().open().await.unwrap();
+    direct.send(request).await.unwrap();
+    // A route the control plane does not serve is answered once the request is complete.
+    direct.close_send();
+    let refused = direct.message::<pb::RelayResponse>().await;
+    assert!(refused.is_err(), "the control plane does not serve the role it was told not to");
+
+    cp.revoke(&grant).await;
+    assert_eq!(end_code(frame(&mut client).await), "revoked", "the fed list reaches the session");
 }

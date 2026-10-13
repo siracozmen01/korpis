@@ -61,6 +61,12 @@ message GetServerInfoResponse {
   repeated string agent_protocols = 5;
   // Extension contract versions this control plane serves, oldest first.
   repeated string extension_contracts = 6;
+  // Where a client opens a session with a workload (RelayService, §3.1 of
+  // docs/02-architecture.md): the relays running as their own process, each an https URL, as
+  // this replica last named them to nodes; any of them reaches every connected node.
+  repeated string relays = 7;
+  // Whether this control plane serves RelayService itself, at the address the client reached.
+  bool control_plane_relay = 8;
 }
 
 service OrganizationService {

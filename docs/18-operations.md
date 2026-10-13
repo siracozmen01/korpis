@@ -436,6 +436,19 @@ Sessions re-authenticate, which is a bounded and visible interruption during a d
 operator is already handling, and the short token lifetimes of §6 of `08-identity.md` bound how
 long it lasts.
 
+The same step holds the relays that run as their own process (§3.1 of `02-architecture.md`). A
+relay's identity key is the authority that obtains its feed, and removing a relay revokes it; a
+backup older than the removal restores the relay as joined, and a relay sees the plaintext of the
+sessions it carries (§8 of `17-security.md`), so a relay removed for being compromised would return
+unnoticed. So the restore holds every relay the backup records as joined: its feed is answered as
+unavailable, which it retries, and it is named to no node, until an operator readmits it
+(`NodeService.ReadmitRelay`) or removes it. A relay that joined after the backup is unknown to the
+restored control plane: its feed is refused, it stops, and it joins again with a new enrollment
+token. Holding rather than rotating follows the reasoning that leaves node identities unrotated:
+re-enrolling every relay during the incident lengthens it, while readmitting one is one call. The
+cost is that until a relay is readmitted, sessions open only through the control plane's own relay
+role, and not at all where `--relay-role false` turned that off.
+
 > **3. Recover the assignments the store no longer has, from the agents running them.**
 
 During the same settling window, agents present their signed assignments. Intents, workloads,
@@ -481,7 +494,7 @@ that will be improvised during an incident:
 |---|---|
 | node unreachable | confirm; `stop` workloads move once their leases provably end; `keep_running` ones move only through an `evacuate` Operation that names the split risk (§3 of `05-scheduling.md`) |
 | node compromised | revoke key, **increment lease epoch**, reschedule from intents, rebuild the host |
-| control plane lost | restore Postgres and keys, **advance the epoch floor, rotate the signing key, and recover assignments from agents** during the settling window, then serve |
+| control plane lost | restore Postgres and keys, **advance the epoch floor, rotate the signing key, hold the relays until readmitted, and recover assignments from agents** during the settling window, then serve |
 | Postgres lost, no backup | unrecoverable for configuration; workloads keep running; re-declare intents |
 | migration stuck | inspect phase; migration is resumable and reversible by construction (K-4, §8 of `05-scheduling.md`) |
 | agent version drift | expected and supported; upgrade at leisure within the supported window (§4 of `10-api.md`) |

@@ -57,6 +57,33 @@ async fn joined(h: &Harness) -> (tempfile::TempDir, RelayDir, String, tokio::net
     (dir, relay_dir, url, listener)
 }
 
+/// `a`'s data connection to the relay at `url`, once the relay's feed has sent `a`'s key, and the
+/// nonce it was admitted with.
+async fn admitted(h: &Harness, a: &TestAgent, url: &str) -> (Attachment, u8) {
+    for nonce in 10..100u8 {
+        let config = ClientConfig::new(url.parse().unwrap());
+        match attach(h, config, a.data_hello(url, &[nonce; 16])).await {
+            Ok(stream) => return (stream, nonce),
+            Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
+        }
+    }
+    panic!("not admitted within eighteen seconds")
+}
+
+/// Until `h` names relays in its server information; them.
+async fn named(h: &Harness) -> pb::GetServerInfoResponse {
+    let info = pb::ServerInfoServiceClient::new(h.http.clone(), h.config(None));
+    for _ in 0..50 {
+        let got = info.get_server_info(pb::GetServerInfoRequest::default()).await.unwrap();
+        let got = got.into_owned();
+        if !got.relays.is_empty() {
+            return got;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("no relay named within five seconds")
+}
+
 #[tokio::test]
 async fn a_relay_of_its_own_admits_nodes_by_its_feed_and_carries_their_sessions() {
     let h = Harness::new().await;
@@ -85,17 +112,7 @@ async fn a_relay_of_its_own_admits_nodes_by_its_feed_and_carries_their_sessions(
         "the control plane refuses a relay's"
     );
 
-    let mut attached = None;
-    for nonce in 10..60u8 {
-        match attach(&h, at_relay(), a.data_hello(&url, &[nonce; 16])).await {
-            Ok(stream) => {
-                attached = Some((stream, nonce));
-                break;
-            }
-            Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
-        }
-    }
-    let (mut attached, nonce) = attached.expect("admitted once the feed sent the node's key");
+    let (mut attached, nonce) = admitted(&h, &a, &url).await;
     let replayed = attach(&h, at_relay(), a.data_hello(&url, &[nonce; 16])).await;
     assert_eq!(replayed.err(), Some(ErrorCode::Unauthenticated), "a nonce is accepted once");
 
@@ -117,4 +134,42 @@ async fn a_relay_of_its_own_admits_nodes_by_its_feed_and_carries_their_sessions(
     let Some(Reply::Opened(opened)) = opened.message else { panic!("opened") };
     assert_eq!(opened.session, asked.session, "carried by the relay of its own");
     running.task.abort();
+}
+
+#[tokio::test]
+async fn the_relay_binary_serves_until_its_relay_is_removed() {
+    let h = Harness::new().await;
+    let (dir, _, url, listener) = joined(&h).await;
+    let listen = listener.local_addr().unwrap().to_string();
+    drop(listener);
+    let a = TestAgent::enroll(&h, "fra-3", 1).await;
+    let mut relay = tokio::process::Command::new(env!("CARGO_BIN_EXE_korpis-server"))
+        .args(["relay", "run", "--listen", &listen, "--dir"])
+        .arg(dir.path().join("relay"))
+        .stdout(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let info = named(&h).await;
+    assert_eq!((info.relays, info.control_plane_relay), (vec![url.clone()], true));
+    let _attached = admitted(&h, &a, &url).await;
+
+    let relays = h.nodes(h.root());
+    let enrolled = relays
+        .list_relays(pb::ListRelaysRequest { organization: h.root_org(), ..Default::default() })
+        .await
+        .unwrap()
+        .into_owned();
+    relays
+        .remove_relay(pb::RemoveRelayRequest {
+            mutation: mutation("remove-edge-1").into(),
+            organization: h.root_org(),
+            relay: enrolled.relays[0].id.clone(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let exited = tokio::time::timeout(Duration::from_secs(30), relay.wait()).await;
+    let status = exited.expect("a removed relay stops").unwrap();
+    assert!(!status.success(), "and says it was refused");
 }
