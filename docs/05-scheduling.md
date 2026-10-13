@@ -527,6 +527,10 @@ as a ceiling, and it is the one dimension with no graceful degradation on the wa
 process that forks without bound exhausts the node's PID space and takes every other tenant on that
 node down with it, the cheapest denial of service available to anyone with a shell. It is enforced
 by cgroup v2 `pids.max`, it has a default, and there is no configuration in which it is absent.
+The default is 4,096 processes and threads, applied by the driver's `Prepare` when the intent sets
+none, and a driver refuses a spec without one (§6.1 of `02-architecture.md`), so the default does
+not depend on the supervisor remembering it. (Added 2026-10-13, from the implementation: the
+sentence said there was a default and no document said what it was or what applied it.)
 
 - **Reservation** is guaranteed. It is subtracted from `Node.allocatable` and is never
   oversubscribed by anyone.

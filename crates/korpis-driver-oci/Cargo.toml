@@ -12,4 +12,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-korpis-core.workspace = true
+korpis-core = { workspace = true, features = ["content"] }
+korpis-proto = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = { workspace = true }

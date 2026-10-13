@@ -41,6 +41,22 @@ an option someone can forget to enable. An operator who wants weaker confinement
 explicitly and knowingly. Making the weak option require a deliberate downgrade rather than an
 omission is the difference between a default and a trap (P4).
 
+**What the `oci` driver makes of it** (2026-10-13, from the implementation, and checked against
+runc on a 6.8 kernel). The process runs in its own user, mount, PID, IPC, UTS, cgroup, and network
+namespaces, mapped onto the workload's id range (§4.5), with `no-new-privileges`, a read-only
+root, and `/tmp`, `/run`, and `/dev/shm` as small tmpfs mounts so a read-only root is livable. It
+keeps nine capabilities, all namespaced: `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `FSETID`, `KILL`,
+`NET_BIND_SERVICE`, `SETGID`, `SETUID`, `SETPCAP`; never `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`,
+`MKNOD`, or `SYS_PTRACE`. The seccomp profile is an allowlist, narrower than containerd's
+default: no `io_uring`, no `ptrace`, no keyrings, no mounting, and no creating or joining a
+namespace, which inside a user namespace would otherwise be open to the workload. The kernel's
+sensitive `/proc` and `/sys` entries are masked or read-only. Three limits are honest rather than
+hidden: until the networking of Phase 1 the network namespace holds only loopback, so a spec that
+publishes a port is refused rather than accepted and left unreachable; an image whose user is a
+name rather than a number is refused, because resolving it means reading the image's own
+`/etc/passwd`, which the driver does not do; and a volume is bind-mounted with an idmapped mount,
+so its files keep workload-relative ids on disk.
+
 **The tier is what an operator reasons about.** "This tenant runs code I did not write" →
 `microvm`. "This is my own service" → `container`. "This is a trusted helper and I need bare
 performance" → `process`. "The customer bought a VPS" → `vm`. That sentence is the entire
