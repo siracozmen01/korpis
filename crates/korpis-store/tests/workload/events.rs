@@ -76,6 +76,33 @@ async fn positions_follow_a_keys_commit_order_and_wait_for_every_earlier_transac
 }
 
 #[tokio::test]
+async fn a_keys_later_event_waits_for_its_earlier_one_whatever_their_transaction_ids() {
+    let f = fixture().await;
+    let pool = f.store.pool();
+    // The second writer takes its identifier first, an unrelated transaction next, and the
+    // first writer last; the first writer commits its event before the second writes its own.
+    let mut second = pool.begin().await.unwrap();
+    begin_writing(&mut second).await;
+    let mut unrelated = pool.begin().await.unwrap();
+    begin_writing(&mut unrelated).await;
+    let mut first = pool.begin().await.unwrap();
+    begin_writing(&mut first).await;
+    effect(&mut first, f.grant, "k.first").await;
+    first.commit().await.unwrap();
+    effect(&mut second, f.grant, "k.second").await;
+    second.commit().await.unwrap();
+    // The second is below the horizon the unrelated transaction holds, and the first is not.
+    assert_eq!(f.store.sequence_events().await.unwrap(), 0, "the key's second waits for its first");
+    unrelated.commit().await.unwrap();
+    sequenced(&f.store, 2).await;
+    let order: Vec<(String, i64)> = sqlx::query_as("SELECT kind, seq FROM event ORDER BY position")
+        .fetch_all(pool)
+        .await
+        .unwrap();
+    assert_eq!(order, [("k.first".to_owned(), 1), ("k.second".to_owned(), 2)]);
+}
+
+#[tokio::test]
 async fn an_effect_about_no_organization_is_no_event_and_old_events_are_pruned() {
     let f = fixture().await;
     let pool = f.store.pool();

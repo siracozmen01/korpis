@@ -284,6 +284,19 @@ so advancing past an `id` never skips one that commits late.
 > would mean reading other sessions' transaction identifiers from `pg_stat_activity`, which hides
 > them from an unprivileged role, and a writer the control plane cannot see would be skipped.
 
+> Corrected 2026-10-14, from a test that failed once in many runs. The argument above holds within
+> a batch and not across batches: "a later batch's transaction took the key's row only after the
+> earlier one committed" assumes batches follow commit order, and they follow transaction
+> identifiers, which are taken at a transaction's first write. A key's second event can come from
+> the transaction with the smaller identifier, one that wrote something else first and took the
+> key's row only after the first event's transaction committed; with an unrelated transaction
+> open whose identifier falls between the two, the second event is below the horizon and the
+> first is not, and the second was given the smaller `id`. The sequencer now holds an event back
+> while an earlier event of its key still waits, which keeps every key's `id`s in its commit
+> order and holds back no other key. The cost is one index on the waiting events by key, and a
+> key's later event waiting as long as its earlier one does, which it had to anyway to be
+> delivered in order.
+
 **Where conditions are decided** (2026-10-13, from the implementation). `health.changed` is
 written in the transaction that records the observation it differs in, from the node's previous
 observation. `convergence.changed` has no such transaction: convergence is derived when it is
