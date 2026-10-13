@@ -6,6 +6,8 @@
 //! docs/04-runtimes.md). The helper is a separate root process and the content store sits in
 //! front of the runtime's; adapters over both implement these, and so does [`InMemoryHost`].
 
+pub mod privileged;
+
 use korpis_proto::korpis::helper::v1 as helper;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::{Future, ready};

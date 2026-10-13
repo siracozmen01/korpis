@@ -182,6 +182,17 @@ none is named, to its own user only; it reads images from the node's content sto
 the driver stops nothing that runs: the containers are containerd's, and the next driver reads
 them back with `Recover`.
 
+The privileged helper runs only when asked. Its socket is a systemd socket unit
+(`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as
+`SocketGroup`), and its service starts `korpis-helper --inherit` with `StandardInput=socket`, so
+the helper receives the listening socket, serves whoever connects, and exits after a minute
+without a connection. It serves only the users `--allow-uid` names, root alone when none is
+named, keeps volumes in the `local` class under `--volume-root` (`/var/lib/korpis/volumes` by
+default) and its record of id ranges under `--state` (`/var/lib/korpis/helper`). Where systemd is
+absent, `--socket PATH` binds the socket itself and serves until stopped. A volume root on a
+filesystem mounted without `prjquota` makes `local` a `directory` class, which enforces no size
+and says so (§2 of `06-storage.md`).
+
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
 will land.

@@ -73,6 +73,15 @@ impl IdRange {
     pub fn slots() -> u32 {
         (u32::MAX - FIRST_WORKLOAD_ID) / IDS_PER_WORKLOAD
     }
+
+    /// The slot this range is, if it is exactly one: the only ranges a workload is ever given,
+    /// so anything else, a range reaching a host's own ids above all, is not a workload's.
+    #[must_use]
+    pub fn slot(self) -> Option<u32> {
+        let offset = self.base.checked_sub(FIRST_WORKLOAD_ID)?;
+        let slot = offset / IDS_PER_WORKLOAD;
+        (Self::of_slot(slot) == Some(self)).then_some(slot)
+    }
 }
 
 /// The steps of a plan a node executes (§4.8, §4.9 of docs/02-architecture.md).
@@ -157,6 +166,10 @@ mod tests {
         assert!(top.base.checked_add(top.count - 1).is_some_and(|l| l < u32::MAX));
         assert_eq!(IdRange::of_slot(last + 1), None);
         assert_eq!(IdRange::of_slot(u32::MAX), None);
+        assert_eq!(top.slot(), Some(last));
+        assert_eq!(IdRange { base: 0, count: 65536 }.slot(), None, "a host's own ids");
+        assert_eq!(IdRange { base: (1 << 30) + 1, count: 65536 }.slot(), None, "unaligned");
+        assert_eq!(IdRange { base: 1 << 30, count: 1 << 17 }.slot(), None, "two slots wide");
     }
 
     #[cfg(feature = "identity")]

@@ -11,5 +11,18 @@ publish.workspace = true
 [lints]
 workspace = true
 
+# No async runtime and no second thread, ever (§4 of docs/21-stack.md): every dependency here is
+# synchronous, and the list stays this short.
 [dependencies]
+buffa = { version = "=0.9.2" }
 korpis-core.workspace = true
+korpis-proto.workspace = true
+rustix = { version = "1", features = ["event", "fs", "net", "std"] }
+thiserror = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+korpis-agent = { path = "../korpis-agent" }
+tempfile = "3"
+tokio = { workspace = true }

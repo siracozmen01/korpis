@@ -196,6 +196,9 @@ enum StorageBackend {
   STORAGE_BACKEND_XFS_PROJECT = 4;
   STORAGE_BACKEND_EXT4_PROJECT = 5;
   STORAGE_BACKEND_NETWORK = 6;
+  // A directory on a filesystem with no project quota: nothing is enforced, and every capability
+  // says so (§2 of docs/06-storage.md).
+  STORAGE_BACKEND_DIRECTORY = 7;
 }
 
 message StorageCapabilities {

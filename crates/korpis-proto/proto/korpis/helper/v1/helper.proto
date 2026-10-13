@@ -4,14 +4,23 @@
 // root. It serves one structured request at a time over a local socket, from the supervisor
 // only, and performs exactly these operations. There is no request that runs a command or takes
 // a free-form path: every path it acts on is derived from identifiers it validates.
+//
+// The transport is not HTTP. The helper is synchronous and single-threaded (§4 of
+// docs/21-stack.md), and an HTTP/2 server is the code it should least carry, so the service below
+// names the verbs and the envelopes after it carry them: on a Unix stream socket, each message is
+// a 4-byte big-endian length followed by that many bytes of one HelperRequest or HelperResponse,
+// at most 1 MiB, and a connection carries one request at a time, answered in order.
 
 syntax = "proto3";
 
 package korpis.helper.v1;
 
+import "korpis/v1/placement.proto";
+
 service HelperService {
   // Create a workload volume in a storage class, with byte and inode quota enforced by the
-  // filesystem in the write path (§3 of docs/06-storage.md). Idempotent by volume.
+  // filesystem in the write path where the class can (§3 of docs/06-storage.md). Idempotent by
+  // volume.
   rpc EnsureVolume(EnsureVolumeRequest) returns (EnsureVolumeResponse);
   // Remove a volume. Reached only from an approved, irreversible plan step.
   rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
@@ -20,6 +29,48 @@ service HelperService {
   // Reserve a uid range for a workload, as its assignment names it, recorded on disk (§4.5 of
   // docs/04-runtimes.md).
   rpc EnsureIdRange(EnsureIdRangeRequest) returns (EnsureIdRangeResponse);
+  // The storage classes this node offers, with what each enforces (§2 of docs/06-storage.md).
+  rpc DescribeStorage(DescribeStorageRequest) returns (DescribeStorageResponse);
+}
+
+// One request, as the transport carries it.
+message HelperRequest {
+  oneof verb {
+    EnsureVolumeRequest ensure_volume = 1;
+    DeleteVolumeRequest delete_volume = 2;
+    VolumeUsageRequest volume_usage = 3;
+    EnsureIdRangeRequest ensure_id_range = 4;
+    DescribeStorageRequest describe_storage = 5;
+  }
+}
+
+// One answer, as the transport carries it: the verb's response, or why there is none.
+message HelperResponse {
+  oneof result {
+    EnsureVolumeResponse ensure_volume = 1;
+    DeleteVolumeResponse delete_volume = 2;
+    VolumeUsageResponse volume_usage = 3;
+    EnsureIdRangeResponse ensure_id_range = 4;
+    DescribeStorageResponse describe_storage = 5;
+    HelperError error = 15;
+  }
+}
+
+message HelperError {
+  HelperErrorCode code = 1;
+  string message = 2;
+}
+
+enum HelperErrorCode {
+  HELPER_ERROR_CODE_UNSPECIFIED = 0;
+  // The request is malformed or names something it may not: refused, and logged as such.
+  HELPER_ERROR_CODE_REFUSED = 1;
+  // The volume or class does not exist.
+  HELPER_ERROR_CODE_NOT_FOUND = 2;
+  // The verb is not one this helper knows: a newer supervisor talking to an older helper.
+  HELPER_ERROR_CODE_UNSUPPORTED = 3;
+  // The kernel or the filesystem refused.
+  HELPER_ERROR_CODE_FAILED = 4;
 }
 
 message EnsureVolumeRequest {
@@ -28,14 +79,19 @@ message EnsureVolumeRequest {
   string storage_class = 3;
   uint64 size_bytes = 4;
   uint64 inodes = 5;
-  // The uid range that owns the volume root.
-  uint32 uid_base = 6;
+  // Unused, and kept only so the field number is never reused. Files carry workload-relative
+  // ids (§4.5 of docs/04-runtimes.md), so the volume root is owned by id 0 as the workload sees
+  // it, whatever range the workload holds on this node.
+  uint32 uid_base = 6 [deprecated = true];
 }
 
 message EnsureVolumeResponse {
   // The host path of the volume root, for the driver's mount list.
   string host_path = 1;
   bool created = 2;
+  // Whether the size and inode limits asked for are enforced in the write path. False on a
+  // class that cannot (§2 of docs/06-storage.md), where they are kept nowhere and shown nowhere.
+  bool quota_enforced = 3;
 }
 
 message DeleteVolumeRequest {
@@ -55,6 +111,10 @@ message VolumeUsageResponse {
   uint64 used_inodes = 2;
   uint64 limit_bytes = 3;
   uint64 limit_inodes = 4;
+  // Whether the filesystem accounts the volume at all. A class without quota accounting answers
+  // false and zeros: usage is read, never computed by walking the tree (§3 of
+  // docs/06-storage.md).
+  bool accounted = 5;
 }
 
 message EnsureIdRangeRequest {
@@ -64,3 +124,9 @@ message EnsureIdRangeRequest {
 }
 
 message EnsureIdRangeResponse {}
+
+message DescribeStorageRequest {}
+
+message DescribeStorageResponse {
+  repeated korpis.v1.StorageClassInfo classes = 1;
+}

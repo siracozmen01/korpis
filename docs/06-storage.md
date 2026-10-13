@@ -71,10 +71,26 @@ the only protection, and the class says so.
 | **LVM-thin + XFS** | ✓ | ✗ block-level only | ✓ XFS project quota inside, the thin volume's size outside | ✓ | ✗ | acceptable |
 | **XFS / ext4 project quota** | ✗ | ✗ | ✓ | ✗ | ✗ | supported, degraded |
 | **Network (NFS/iSCSI/Ceph)** | backend-dependent | backend-dependent | backend-dependent | none | none | required for `shared_access` |
+| **Directory** | ✗ | ✗ | ✗ | ✗ | ✗ | a trial, or a machine without project quota |
 
 The scheduler reads these. A workload whose backup policy requires incremental backup will not be
 placed on an `ext4_project` node, because the class cannot deliver it, surfaced at scheduling time
 with a reason (§2.1 of `05-scheduling.md`), not discovered on the first slow backup.
+
+**A directory is a class too, and the least one.** It is a directory on a filesystem with no
+project quota: every capability is false, the size and inode count a volume asks for are enforced
+by nothing, and its usage is not accounted, because the only way to know it would be the walk of §3.
+The helper offers it where a filesystem cannot do better, which is any ext4 or XFS mounted without
+`prjquota`, and says so in what it declares. The control plane holds that declaration from the
+node's `Hello` (§4.2 of `02-architecture.md`), so the question of whether a volume's size may be
+shown has an answer where it is asked: a size is shown only for a volume in a class that declares
+`quota_enforced`, and nowhere else (Rule K-3). The cost is real: a tenant on such a class can fill
+the machine's disk, and the operator who chose it is told so when choosing it.
+
+> Note, 2026-10-13, from the implementation (`crates/korpis-helper`). The backend list had no
+> entry for a filesystem without quota, so a node on one could either claim a class it does not
+> have or offer no volumes at all. The development machine the helper was first run on is such a
+> node, as are most fresh installs.
 
 **Selecting a degraded class is allowed and is stated plainly.** Choosing ext4 means full backups
 forever and slower migrations. That is a legitimate choice for someone with existing hardware. What

@@ -218,7 +218,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 
 | Message | Purpose |
 |---|---|
-| `Hello` | agent version, protocol version, driver capabilities, node capacity, the set digest it holds |
+| `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, the set digest it holds |
 | `Observation` | current observed state of one workload, including what it has converged to (§4.3) |
 | `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, reachability (§3.1), and a digest of current observations |
 | `JournalRecords` | effects, metering samples, and break-glass records, in sequence order (§4.10) |
@@ -964,6 +964,16 @@ behaviour.
   assumed inside a node: the supervisor and the helper each support the other's current and
   previous internal version, so a supervisor that restarts first talks to the old helper until the
   helper's next socket activation replaces it.
+- **The helper's transport is not HTTP.** The helper is synchronous and single-threaded (§4 of
+  `21-stack.md`), and an HTTP/2 server is the code it should least carry. Its schema names the
+  verbs, and two envelopes carry them on a Unix stream socket: each message is a 4-byte
+  big-endian length and one `HelperRequest` or `HelperResponse`, at most 1 MiB, one request at a
+  time. A verb the helper does not know is answered as unsupported rather than misread, which is
+  what lets a newer supervisor talk to an older helper. The socket is systemd's, passed to the
+  helper as standard input when a connection arrives, so the one root process runs only while it
+  is asked something and exits when idle; the supervisor connects once per call. Each connection's
+  peer credentials must name the supervisor's user before a byte of it is read, as for a driver
+  (§6.1).
 - **Filesystem workers hold no state**, so a running worker finishes its sessions on the old
   version and its successor starts on the new one. Drivers are upgraded one at a time and re-adopt
   their runtime objects through `Recover` (§4.2 of `04-runtimes.md`), which is the same path an

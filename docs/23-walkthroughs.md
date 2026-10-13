@@ -60,7 +60,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
 | 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps, and the recipe document; the plan becomes `applying` as it is sealed † ‡ | `02-architecture.md` §4.8 |
 | 9 | `Prepare` from the intent and the carried recipe alone, configuration written as variables and arguments; content fetched by digest, signature verified, **pure** ‡ | `04-runtimes.md` §4.2; `09-recipes.md` §5.2 |
-| 10 | Volume created with byte and inode quota in the write path | `06-storage.md` §3 |
+| 10 | Volume created by the helper with byte and inode quota in the write path, or, in a `directory` class, with none, declared as none ‡ | `06-storage.md` §2, §3; `02-architecture.md` §6.2 |
 | 11 | Endpoint allocated, exposure mode applied | `07-networking.md` §3 |
 | 12 | `Create` over the driver's socket, to a peer the kernel's credentials name, the spec validated again; then `Start`, which the driver reports as an event ‡ | `04-runtimes.md` §4.2; `02-architecture.md` §6.1 |
 | 13 | Health probed at the application level | `04-runtimes.md` §5 |
@@ -92,7 +92,10 @@ how each value is written, and §4.2 of `04-runtimes.md` what the driver reads a
 Step 12 crossed a socket nothing guarded: §6.1 of `02-architecture.md` made the driver validate
 what it is asked, but not say who may ask, and a driver that holds containerd's privilege must.
 The kernel's record of the connecting user now decides it, and `Wait`, which the protocol never
-carried, is its `Events` stream.
+carried, is its `Events` stream. Step 10 assumed every node could enforce a volume's size; a
+filesystem without project quota cannot, and no class described one. The `directory` class of §2
+of `06-storage.md` does, with every capability false, and the helper that creates the volume is
+reached by a transport §6.2 of `02-architecture.md` now defines.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 
