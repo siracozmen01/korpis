@@ -15,6 +15,7 @@ mod agent;
 mod assignments;
 mod authority;
 mod authz;
+mod cancel;
 mod effects;
 mod enroll;
 mod journal;

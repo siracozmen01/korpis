@@ -152,6 +152,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         outcome: Outcome,
     ) -> Result<(), AppError> {
         let from = plan.status;
+        if from == PlanStatus::Cancelled {
+            return self.after_cancel(tx, plan, step, outcome).await;
+        }
         if !matches!(from, PlanStatus::Approved | PlanStatus::Queued | PlanStatus::Applying) {
             return Ok(());
         }
@@ -179,6 +182,26 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         if plan.status == PlanStatus::Applied && retires(&plan) {
             self.finish_retirement(tx, &plan).await?;
+        }
+        Ok(())
+    }
+
+    /// A step that was in flight when its plan was cancelled finished (§7 of
+    /// docs/03-state.md): it counts toward what the plan completed, and moves nothing else.
+    async fn after_cancel(
+        &self,
+        tx: &mut S::Tx,
+        mut plan: Plan,
+        step: u32,
+        outcome: Outcome,
+    ) -> Result<(), AppError> {
+        let done = matches!(outcome, Outcome::Succeeded | Outcome::Skipped);
+        if !done || plan.completed.is_some_and(|c| c >= step) {
+            return Ok(());
+        }
+        plan.completed = Some(step);
+        if !tx.update_plan(&plan, PlanStatus::Cancelled).await? {
+            return Err(AppError::conflict("plan.moved", "the plan changed meanwhile"));
         }
         Ok(())
     }

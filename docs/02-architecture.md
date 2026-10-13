@@ -555,10 +555,16 @@ the gaps above:
 - **`plan` carries ordered work without becoming a command.** It states which steps of which plan
   this node is to have executed, up to `through`. The agent executes the next unexecuted step,
   reports its completion as an effect keyed `(plan_id, step_index)`, and moves on. **Cancelling a
-  plan is lowering `through`** to the last step already started: the agent finishes the step in
+  plan is lowering `through`** below every step not yet started: the agent finishes the step in
   flight and does not begin the next. A lost update is repaired by the next sync, like everything
   else, and `plan.cancel` (§7 of `03-state.md`) is a change to desired state rather than a message
   that has to arrive.
+
+  > Corrected 2026-10-13, from the implementation. "The last step already started" is a fact
+  > only the node holds, and an index cannot say "none" when no step has completed, so a
+  > cancelled plan simply leaves the assignment, which is the lowest `through` there is. The agent
+  > reads its assignment again before every step, not only when a pass begins: one that read it
+  > once would run every remaining step of a pass before seeing the cancellation.
 
   > Added 2026-10-13, from the implementation: how a node executes steps. A completion is
   > journalled before the agent keeps, in its own state, that the step is done, so a crash

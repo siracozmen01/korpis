@@ -45,7 +45,7 @@ fn empty_set(d: &Down) -> Option<()> {
     matches!(d, Down::AssignmentSet(s) if s.assignments.is_empty()).then_some(())
 }
 
-fn step_done(seq: u64, workload: &str, plan: &str, step: u32) -> agent::JournalRecord {
+pub fn step_done(seq: u64, workload: &str, plan: &str, step: u32) -> agent::JournalRecord {
     let effect = pb::Effect {
         workload: Some(workload.to_owned()),
         plan: Some(plan.to_owned()),
@@ -62,7 +62,7 @@ fn step_done(seq: u64, workload: &str, plan: &str, step: u32) -> agent::JournalR
     }
 }
 
-async fn send(stream: &mut Stream, records: Vec<agent::JournalRecord>) {
+pub async fn send(stream: &mut Stream, records: Vec<agent::JournalRecord>) {
     let j = agent::JournalRecords { records, ..Default::default() };
     let m = agent::AgentMessage { message: Some(Up::Journal(Box::new(j))), ..Default::default() };
     stream.send(m).await.unwrap();
@@ -81,7 +81,7 @@ pub async fn complete(s: &mut Stream, workload: &str, plan: &agent::NodePlan, fr
     seq - 1
 }
 
-async fn plan_status(h: &Harness, plan: &str) -> Option<pb::PlanStatus> {
+pub async fn plan_status(h: &Harness, plan: &str) -> Option<pb::PlanStatus> {
     let got = h
         .plans(h.root())
         .get_plan(pb::GetPlanRequest { id: plan.to_owned(), ..Default::default() })

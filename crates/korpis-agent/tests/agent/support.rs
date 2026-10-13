@@ -193,6 +193,28 @@ impl ControlPlane {
             .unwrap();
     }
 
+    /// Cancels a plan.
+    pub async fn cancel(&self, plan: &str) {
+        pb::PlanServiceClient::new(self.http(), self.config())
+            .cancel_plan(pb::CancelPlanRequest {
+                mutation: mutation(&format!("cancel-{plan}")).into(),
+                plan: plan.to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+    }
+
+    /// One plan.
+    pub async fn plan(&self, plan: &str) -> pb::Plan {
+        let got = pb::PlanServiceClient::new(self.http(), self.config())
+            .get_plan(pb::GetPlanRequest { id: plan.to_owned(), ..Default::default() })
+            .await
+            .unwrap()
+            .into_owned();
+        got.plan.into_option().unwrap()
+    }
+
     /// One query against the control plane's database.
     pub async fn scalar<T>(&self, sql: &'static str) -> T
     where

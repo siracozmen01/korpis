@@ -31,6 +31,7 @@ struct State {
     calls: Vec<String>,
     failing: BTreeSet<String>,
     rejecting: Option<driver::Rejection>,
+    holding: BTreeSet<String>,
 }
 
 /// The in-memory runtime; clones share it.
@@ -38,11 +39,12 @@ struct State {
 pub struct InMemory {
     state: Arc<Mutex<State>>,
     changes: broadcast::Sender<String>,
+    released: Arc<tokio::sync::Notify>,
 }
 
 impl Default for InMemory {
     fn default() -> Self {
-        Self { state: Arc::default(), changes: broadcast::channel(64).0 }
+        Self { state: Arc::default(), changes: broadcast::channel(64).0, released: Arc::default() }
     }
 }
 
@@ -92,6 +94,44 @@ impl InMemory {
             } else {
                 s.failing.remove(verb);
             }
+        }
+    }
+
+    /// Makes every later call of `verb` wait until it is released, as a slow step would; a
+    /// held call is recorded as `held verb` when it begins waiting.
+    pub fn hold(&self, verb: &str, holding: bool) {
+        if let Ok(mut s) = self.lock() {
+            if holding {
+                s.holding.insert(verb.to_owned());
+            } else {
+                s.holding.remove(verb);
+            }
+        }
+        self.released.notify_waiters();
+    }
+
+    /// Whether `verb` is held, noting the call as held the first time it is.
+    fn holds(&self, verb: &str, noted: &mut bool) -> bool {
+        let Ok(mut s) = self.lock() else { return false };
+        if !s.holding.contains(verb) {
+            return false;
+        }
+        if !*noted {
+            s.calls.push(format!("held {verb}"));
+            *noted = true;
+        }
+        true
+    }
+
+    /// Waits while `verb` is held.
+    async fn held(&self, verb: &str) {
+        let mut noted = false;
+        loop {
+            let released = self.released.notified();
+            if !self.holds(verb, &mut noted) {
+                return;
+            }
+            released.await;
         }
     }
 
@@ -233,7 +273,11 @@ impl Runtime for InMemory {
         &self,
         spec: &driver::PreparedSpec,
     ) -> impl Future<Output = RuntimeResult<String>> + Send {
-        ready(self.create_now(spec))
+        let (this, spec) = (self.clone(), spec.clone());
+        async move {
+            this.held("create").await;
+            this.create_now(&spec)
+        }
     }
 
     fn start(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send {

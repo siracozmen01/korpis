@@ -4,8 +4,11 @@
 //!
 //! A proposed plan is withdrawn. An approved or queued plan none of whose steps has completed is
 //! withdrawn too, and the targets it moved are put back, so cancelling it leaves the workload as
-//! if it had never been approved. An applying plan is cancelled by lowering `through` on the
-//! nodes executing it, which arrives with the agent protocol.
+//! if it had never been approved. A plan nodes have begun is cancelled on a step boundary: it
+//! leaves every assignment that carries it, which is the lowest `through` there is, so a node
+//! finishes the step in flight and begins no other; that step's completion still counts, and
+//! what the completed steps made is kept, the targets where its approval moved them, as after a
+//! failure.
 
 use super::decide::effect;
 use crate::App;
@@ -53,16 +56,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::NotFound { kind: "workload" })?;
         let from = plan.status;
         match from {
-            PlanStatus::Proposed => {}
             PlanStatus::Approved | PlanStatus::Queued if plan.completed.is_none() => {
                 self.withdraw_approved(&mut tx, &plan, &w).await?;
             }
-            PlanStatus::Applying | PlanStatus::Approved | PlanStatus::Queued => {
-                return Err(AppError::NotYet {
-                    what: "cancelling a plan nodes have begun",
-                    phase: 0,
-                });
-            }
+            // Proposed: withdrawn. Begun: leaves the assignments, on a step boundary.
+            PlanStatus::Proposed
+            | PlanStatus::Applying
+            | PlanStatus::Approved
+            | PlanStatus::Queued => {}
             terminal => {
                 return Err(AppError::conflict(
                     "plan.finished",
@@ -74,7 +75,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.update_plan(&plan, from).await? {
             return Err(AppError::conflict("plan.not_proposed", "the plan changed meanwhile"));
         }
-        let after = details([("was", from.as_str().into())]);
+        let after = details([("was", from.as_str().into()), ("completed", plan.completed.into())]);
         tx.append_effect(
             &effect(caller.principal.clone(), "plan.cancel", &plan, after).under(permit.grant),
         )

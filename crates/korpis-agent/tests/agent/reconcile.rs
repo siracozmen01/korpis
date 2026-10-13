@@ -174,3 +174,41 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     assert_eq!(runtime.objects().len(), 1, "the runtime object is destroyed, the orphan kept");
     drop(agent);
 }
+
+/// Waits until the runtime has been asked for `call`.
+async fn called(runtime: &InMemory, call: &str) {
+    for _ in 0..200 {
+        if runtime.calls().iter().any(|c| c == call) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("{call} never happened: {:?}", runtime.calls());
+}
+
+#[tokio::test]
+async fn a_cancelled_plan_finishes_the_step_in_flight_and_begins_no_other() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    let (state, _) = node(&cp, &dir, &runtime).await;
+    runtime.hold("create", true);
+    let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
+    let w = cp.declare(&project, "mc").await;
+    called(&runtime, "held create").await;
+    let plan = cp.status(&w).await.active_plan.into_option().unwrap();
+    cp.cancel(&plan.id).await;
+    // The cancellation reaches the node while the step is in flight; then the step finishes.
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    runtime.hold("create", false);
+    counted(&cp, "SELECT count(*) FROM effect WHERE action = 'step.create'", 1).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let started = effects(&cp, "SELECT count(*) FROM effect WHERE action = 'step.start'").await;
+    assert_eq!(started, 0, "the step after the one in flight is never begun");
+    let create = plan.steps.iter().find(|s| s.action == "create").unwrap().index;
+    let now = cp.plan(&plan.id).await;
+    assert_eq!(now.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_CANCELLED));
+    assert_eq!(now.completed, Some(create), "the step in flight counts");
+    drop(agent);
+}

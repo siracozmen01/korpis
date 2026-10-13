@@ -49,7 +49,7 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
             plan.from_intent == w.target && plan.from_power == w.power_target_version
         }
         PlanTarget::Migrate => {
-            return Err(AppError::NotYet { what: "migration plans", phase: 0 });
+            return Err(AppError::NotYet { what: "migration plans", phase: 3 });
         }
     })
 }

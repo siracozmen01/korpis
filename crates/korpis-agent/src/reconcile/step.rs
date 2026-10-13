@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Executing a plan's node steps (§4.8 and §4.9 of docs/02-architecture.md): in order, the next
-//! one not yet executed, never past `through`. Each completion is journalled, keyed by plan and
+//! one not yet executed, never past `through`, and none once the plan is cancelled, which is read
+//! again before every step. Each completion is journalled, keyed by plan and
 //! step, before it is kept as done, and a failure is journalled and stops the plan here: the
 //! control plane fails it, and the next assignment no longer carries it.
 
@@ -52,6 +53,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .filter(|s| after.is_none_or(|i| s.index > i) && s.index <= plan.through)
             .collect();
         for s in outstanding {
+            if !self.still_assigned(&a.workload, &plan.plan, s.index) {
+                // Cancelled since this pass began: the step before finished, and this one is
+                // not begun (§7 of docs/03-state.md). The next pass acts on the new assignment.
+                return false;
+            }
             let result = self.execute(a, s, t).await;
             let ok = result.is_ok();
             let mut e = effect(Some(&a.workload), &format!("step.{}", s.action), ok);
@@ -81,6 +87,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         plan.steps.iter().all(|s| s.index <= plan.through)
+    }
+
+    /// Whether the set held now still lets this node execute step `index` of `plan` for
+    /// `workload`. A cancelled plan leaves the assignment, and a lowered `through` stops short
+    /// of the step; either is read between steps, never only when a pass begins.
+    fn still_assigned(&self, workload: &str, plan: &str, index: u32) -> bool {
+        let held = self.wiring.held.borrow();
+        held.assignments
+            .get(workload)
+            .and_then(|a| a.plan.as_option())
+            .is_some_and(|p| p.plan == plan && index <= p.through)
     }
 
     /// Executes one step.

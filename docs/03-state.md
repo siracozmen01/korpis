@@ -422,13 +422,20 @@ cancelling is a change to desired state rather than a message that must arrive:
 
 ```
 control plane: plan.cancel(plan_id)
-  → the plan's NodePlan.through is lowered to the last step already started,
-    in every assignment that carries it (§4.8 of 02-architecture.md)
+  → plan.status = cancelled, and the plan leaves every assignment that carries it, which
+    lowers its `through` below every step not yet started (§4.8 of 02-architecture.md)
   → control-plane and extension steps not yet claimed are withdrawn from the queue
-agent: finishes the step in flight, does not begin the next
-  ──effect: step N completed──▶ control plane
-plan.status = cancelled, plan.completed = N, resources from steps 1..N retained and named
+agent: reads its assignment before each step; finishes the step in flight, begins no other
+  ──effect: step N completed──▶ control plane: plan.completed = N, nothing else moves
+resources from steps 1..N retained and named; the targets stay where approval moved them
 ```
+
+> Corrected 2026-10-13, from the implementation (`crates/korpis-agent/tests/agent/reconcile.rs`
+> holds a step in flight, cancels, and checks the next is never begun). The plan is marked
+> cancelled at once rather than after the node's report, because a node with no step in flight
+> sends no report and the plan would never have become cancelled; a completion that arrives
+> afterwards still counts toward `completed`. A begun plan's targets stay where its approval moved
+> them, as after a failure: the steps it ran are the state the next plan is computed against.
 
 > Second external review, finding S1. The first version sent `plan.cancel` to the agent as a
 > message, which the agent protocol did not contain and which, being edge-triggered, could be lost
