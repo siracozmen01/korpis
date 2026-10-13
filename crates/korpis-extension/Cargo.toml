@@ -1,0 +1,21 @@
+[package]
+name = "korpis-extension"
+description = "The SDK a Korpis extension is written with: its identity, its events, and its provider stream"
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+connectrpc = { version = "=0.9.1", default-features = false, features = ["client", "client-tls"] }
+http = "1"
+korpis-proto = { workspace = true, features = ["client"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = "0.1"
+
+[lints]
+workspace = true

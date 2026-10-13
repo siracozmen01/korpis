@@ -39,6 +39,7 @@ mod quota;
 mod reads;
 mod recipes;
 mod retire;
+mod sdk;
 mod session;
 mod sets;
 mod support;

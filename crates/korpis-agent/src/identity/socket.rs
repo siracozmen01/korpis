@@ -31,13 +31,25 @@ const SOCKET: &str = "identity.sock";
 pub struct IdentitySockets {
     root: PathBuf,
     credentials: Arc<Credentials>,
+    control_plane: Arc<ControlPlane>,
     served: Mutex<HashMap<String, JoinHandle<()>>>,
+}
+
+/// Where a workload's credential is used, which the socket tells it with the credential: the
+/// node's own way to the control plane.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ControlPlane {
+    /// The control plane's address, as this node reaches it.
+    pub url: String,
+    /// The CA its certificate is verified under, PEM, as pinned at enrollment.
+    pub ca_pem: Vec<u8>,
 }
 
 /// One workload's socket, as a service.
 struct Socket {
     workload: String,
     credentials: Arc<Credentials>,
+    control_plane: Arc<ControlPlane>,
 }
 
 #[expect(refining_impl_trait, reason = "async fn handlers for the generated trait")]
@@ -50,6 +62,8 @@ impl agent::WorkloadIdentityService for Socket {
         match self.credentials.request(&self.workload).await {
             Ok(c) => Response::ok(agent::GetCredentialResponse {
                 credential: c.into(),
+                control_plane: self.control_plane.url.clone(),
+                ca_pem: self.control_plane.ca_pem.clone(),
                 ..Default::default()
             }),
             Err(NoCredential::Refused(reason)) => Err(ConnectError::permission_denied(reason)),
@@ -67,8 +81,13 @@ fn plain(workload: &str) -> bool {
 impl IdentitySockets {
     /// Sockets under `root`, forwarding through `credentials`.
     #[must_use]
-    pub fn new(root: PathBuf, credentials: Arc<Credentials>) -> Arc<Self> {
-        Arc::new(Self { root, credentials, served: Mutex::new(HashMap::new()) })
+    pub fn new(
+        root: PathBuf,
+        credentials: Arc<Credentials>,
+        control_plane: ControlPlane,
+    ) -> Arc<Self> {
+        let control_plane = Arc::new(control_plane);
+        Arc::new(Self { root, credentials, control_plane, served: Mutex::new(HashMap::new()) })
     }
 
     /// The directory holding `workload`'s socket, which the driver mounts.
@@ -99,8 +118,11 @@ impl IdentitySockets {
         std::fs::set_permissions(&self.root, std::fs::Permissions::from_mode(0o750))?;
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))?;
         let listener = bind(&dir.join(SOCKET))?;
-        let socket =
-            Socket { workload: workload.to_owned(), credentials: self.credentials.clone() };
+        let socket = Socket {
+            workload: workload.to_owned(),
+            credentials: self.credentials.clone(),
+            control_plane: self.control_plane.clone(),
+        };
         served.insert(workload.to_owned(), tokio::spawn(serve(listener, socket)));
         Ok(dir)
     }

@@ -21,4 +21,10 @@ message GetCredentialRequest {}
 
 message GetCredentialResponse {
   Credential credential = 1;
+  // Where the credential is used: the control plane's address as this node reaches it, and the
+  // CA its certificate is verified under, PEM, as the node pinned it at enrollment (§9.5 of
+  // docs/08-identity.md). Whether the address is reachable from inside the workload is its
+  // network's (§6 of docs/07-networking.md).
+  string control_plane = 2;
+  bytes ca_pem = 3;
 }

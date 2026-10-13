@@ -42,6 +42,7 @@ tempfile = "3"
 base64 = "0.22"
 korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+korpis-extension = { workspace = true }
 
 [lints]
 workspace = true

@@ -1035,6 +1035,14 @@ window is the cost of not making every API call round-trip to the node.
 > placement on the node it was issued to, so a move or a retirement ends every credential issued
 > for the old placement at once, at the cost of that lookup on every call a workload makes.
 
+**Where the credential is used.** Added 2026-10-13, while building the extension SDK, from the
+algebra question: a workload holding a credential still had no way to learn where the control
+plane is or how to trust its certificate, and its node is the one party that knows both. So the
+socket answers with the credential, the control plane's address as the node reaches it, and the
+CA the node pinned at enrollment (§3 of `18-operations.md`). Whether that address is reachable
+from inside the workload is the workload's network's: §6 of `07-networking.md` opens it for an
+installed extension and for nothing else by default.
+
 **Why not a secret in the intent.** A token written into the workload's configuration would be
 stored in the database in the clear, re-delivered on every placement, and readable by anyone with
 `workload.secret.read`; it would also survive the workload's move to a node that should no longer

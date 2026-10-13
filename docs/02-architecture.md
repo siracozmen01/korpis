@@ -915,8 +915,8 @@ and hands the directory to the driver, which mounts it read-only at `/run/korpis
 workload and nowhere else; the socket is `/run/korpis/identity.sock`. A request on it is forwarded
 as a `CredentialRequest` naming the workload the socket was created for; the request carries
 nothing the workload chose about who it is. The control plane decides whether to answer (§9.5 of
-`08-identity.md`). The supervisor holds no credential afterwards: it passes the answer back and
-keeps nothing.
+`08-identity.md`). The supervisor holds no credential afterwards: it passes the answer back,
+together with the control plane's address and the CA it pinned, and keeps nothing.
 
 The directory is mounted rather than the socket because a supervisor that restarts binds the
 socket again, as a new file, and a mount of the old file would keep pointing at nothing; the

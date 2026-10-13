@@ -7,7 +7,7 @@
 //! journal still holds in memory before the process exits.
 
 use crate::host::Host;
-use crate::identity::IdentitySockets;
+use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::reconcile::progress::Progress;
@@ -154,6 +154,8 @@ impl Agent {
         let progress =
             Progress::open(&state.root().join("progress")).map_err(io("the progress"))?;
         let node = identity.node.clone();
+        let control_plane =
+            ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
         let leases = Leases::new(journal.clone());
         let keeper =
@@ -169,6 +171,7 @@ impl Agent {
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),
+                control_plane,
             )),
         };
         let reconciler = Reconciler::new(runtime, host, wiring, progress);

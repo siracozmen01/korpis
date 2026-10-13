@@ -15,6 +15,7 @@ use korpis_agent::run::{Agent, Options};
 use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
+use korpis_extension::CredentialSource as _;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use std::os::unix::fs::PermissionsExt as _;
@@ -95,6 +96,13 @@ async fn a_running_workload_gets_its_credential_from_its_socket_and_loses_it_on_
     assert_eq!(e.code, ErrorCode::NotFound, "authenticated as the workload, which holds no grant");
     let plain = over_http1(&socket).await;
     assert!(plain.starts_with("HTTP/1.1 200") && plain.contains("korpiswl_"), "{plain}");
+    // The SDK an extension is written with reads the same socket.
+    let sdk = korpis_extension::IdentitySocket::at(&socket).fetch().await.unwrap();
+    assert!(sdk.secret.starts_with("korpiswl_") && sdk.control_plane == cp.url, "{sdk:?}");
+    assert!(sdk.ca_pem.starts_with(b"-----BEGIN CERTIFICATE-----"));
+    // It also says where to use it, and how to trust the control plane there.
+    let at = format!("\"controlPlane\":\"{}\"", cp.url);
+    assert!(plain.contains(&at) && plain.contains("\"caPem\":\""), "{plain}");
 
     cp.retire(&w).await;
     exists(&root.join(&w), false).await;

@@ -16,6 +16,9 @@ rules=(
     "korpis-recipe||sqlx connectrpc korpis-proto"
     "korpis-wire||korpis-app sqlx korpis-store"
     "korpis-helper||tokio hyper connectrpc sqlx biscuit-auth korpis-app korpis-store"
+    # The SDK is Apache-2.0 (§2 of docs/19-governance.md): it may link the wire contract and
+    # nothing of ours that is AGPL, or every extension would inherit the AGPL.
+    "korpis-extension||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent sqlx"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

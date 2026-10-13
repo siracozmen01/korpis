@@ -48,6 +48,8 @@ pub struct Harness {
     pub installed: Installation,
     pub http: HttpClient,
     base: http::Uri,
+    /// The installation's CA, PEM, as an extension's node would hand it over.
+    pub ca_pem: Vec<u8>,
     server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
 }
 
@@ -110,7 +112,8 @@ impl Harness {
         .expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
         let http = client_tls(&data);
-        let h = Self { db, _dir: dir, installed, http, base, server: running.task };
+        let ca_pem = std::fs::read(data.tls().join("ca.pem")).expect("CA");
+        let h = Self { db, _dir: dir, installed, http, base, ca_pem, server: running.task };
         h.accept_test_signer().await;
         h
     }
@@ -127,6 +130,11 @@ impl Harness {
             ..Default::default()
         };
         self.orgs(self.root()).set_trust_policy(request).await.expect("trust policy");
+    }
+
+    /// The control plane's address.
+    pub fn base_url(&self) -> String {
+        self.base.to_string().trim_end_matches('/').to_owned()
     }
 
     pub fn root_org(&self) -> String {

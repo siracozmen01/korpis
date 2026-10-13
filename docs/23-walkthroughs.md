@@ -879,6 +879,12 @@ forbidding a guess for any; all eight are declared there now. The upgrade questi
 `16-extensions.md` recorded is built: the provider of step 3 can be replaced by its next version
 with the grants its needs still ask for kept, its streams draining, and the same subject throughout
 (§7 of `13-surface-cli.md`).
+Writing the SDK the provider of step 2 is built with found that step 2 could still not happen
+from inside a container: the egress default of §6 of `07-networking.md` denied every workload the
+control plane, the one destination an extension exists to reach, and nothing told a workload
+where the control plane is or how to trust it. The default now opens the API's address to an
+installed extension's workload, decided by the control plane and applied by the node, and the
+identity socket answers with the address and the CA its node pinned (§9.5 of `08-identity.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

@@ -1883,6 +1883,7 @@ dependencies = [
  "hyper-util",
  "korpis-app",
  "korpis-core",
+ "korpis-extension",
  "korpis-proto",
  "korpis-recipe",
  "korpis-server",
@@ -2023,6 +2024,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-extension"
+version = "0.0.0"
+dependencies = [
+ "connectrpc",
+ "http",
+ "korpis-proto",
+ "rustls",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "korpis-helper"
 version = "0.0.0"
 dependencies = [
@@ -2087,6 +2101,7 @@ dependencies = [
  "http",
  "korpis-app",
  "korpis-core",
+ "korpis-extension",
  "korpis-proto",
  "korpis-recipe",
  "korpis-store",

@@ -7,7 +7,7 @@
 
 mod socket;
 
-pub use socket::{IdentitySockets, MOUNT_POINT};
+pub use socket::{ControlPlane, IdentitySockets, MOUNT_POINT};
 
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;

@@ -34,9 +34,13 @@ pub struct Installed {
 }
 
 pub async fn installed(h: &Harness, n: u8, project_name: &str) -> Installed {
+    installed_from(h, n, project_name, push_dns().await).await
+}
+
+/// An extension pushed to `repo`, installed, and its workload's credential obtained.
+pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String) -> Installed {
     let a = TestAgent::enroll(h, &format!("fra-{n}"), n).await;
     let mut session = connect(h, &a, n).await;
-    let repo = push_dns().await;
     let project = project(h, &h.root_org(), project_name).await;
     let approved = needs(h, &repo, &project).await;
     let req = pb::InstallExtensionRequest {

@@ -393,11 +393,21 @@ the public internet (finding S44):
 |---|---|---|
 | Other tenants' workloads | **deny** | lateral movement between customers |
 | Node management interfaces, SSH, the agent socket | **deny** | privilege escalation path |
-| The Korpis control plane | **deny** | a workload has no business reaching it |
+| The Korpis control plane's API | **deny**, except an installed extension's workload | a workload has no business reaching it; an extension's is how it works |
 | Link-local metadata (`169.254.169.254`, `fd00:ec2::254`) | **deny** | classic cloud-credential theft |
 | RFC1918 / ULA generally | **deny** | the operator's own infrastructure |
 | Public internet | **allow**, rate-limited | mod downloads, auth servers, updates |
 | SMTP (25, 465, 587) | **deny** by default | spam is the fastest way to lose an IP range's reputation |
+
+> Corrected 2026-10-13, while building the extension SDK. The control-plane row said **deny** for
+> every workload, and an extension's workload exists to dial out to the control plane: it fetches
+> its credential from its node and calls the API with it (§9.5 of `08-identity.md`), and a provider
+> holds a stream there (§3.3 of `16-extensions.md`). Under the default as written no extension
+> could ever work. The exception is decided by the control plane, which knows which workloads are
+> installations, and carried to the node in the assignment, where the policy is applied; the node
+> does not decide it. It opens the API's address alone, as the node reaches it, and nothing else of
+> the control plane's. Any other workload that is granted something and wants to use it opens that
+> address in its own policy, deliberately, like any other change to the default.
 
 The metadata endpoint deny is small and specific and closes a real, repeatedly-exploited hole: a
 workload that can reach `169.254.169.254` on a cloud node can often read the instance's IAM
