@@ -5,12 +5,19 @@
 //! the actions and UI slots it adds. Everything else in its document describes its workload, as
 //! any recipe does; this is the one section that makes the recipe an extension.
 
+mod breaker;
 mod call;
+mod condition;
 mod installation;
 mod registration;
 mod validate;
 
+pub use breaker::{
+    Admission, Breaker, FIRST_BACKOFF, FailurePolicy, MAX_BACKOFF, Measured, Sample, Trip,
+    WINDOW_AGE, WINDOW_CALLS, judge, measure, recovered,
+};
 pub use call::{CallFailure, CallOutcome, CallRequest, MAX_CALL_DEADLINE, ProviderCall};
+pub use condition::{ProviderChange, ProviderCondition};
 pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 

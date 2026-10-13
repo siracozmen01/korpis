@@ -115,6 +115,33 @@ message ListProvidersRequest {
 
 message ListProvidersResponse {
   repeated ProviderRegistration providers = 1;
+  // Every provider the organization's installations serve, registered or not.
+  repeated ProviderHealth health = 2;
+}
+
+// A provider's circuit breaker and what was last measured of it (§5 of docs/16-extensions.md).
+message ProviderHealth {
+  ProviderType type = 1;
+  string name = 2;
+  BreakerState breaker = 3;
+  // Open: when it is probed. Half open: when its probe's deadline passes.
+  google.protobuf.Timestamp until = 4;
+  // Its calls finished in the last five minutes, at most the last twenty.
+  uint32 calls = 5;
+  uint32 failed = 6;
+  google.protobuf.Duration median_latency = 7;
+  // The median share of its deadline a call took, in thousandths.
+  uint32 median_deadline_permille = 8;
+}
+
+enum BreakerState {
+  BREAKER_STATE_UNSPECIFIED = 0;
+  // Calls go through.
+  BREAKER_STATE_CLOSED = 1;
+  // Calls fail at once with provider.circuit_open until it is probed.
+  BREAKER_STATE_OPEN = 2;
+  // One call, the probe, is in flight; the others fail at once.
+  BREAKER_STATE_HALF_OPEN = 3;
 }
 
 message PingProviderRequest {
@@ -131,7 +158,7 @@ message PingProviderResponse {
   string registration = 2;
   string version = 3;
   google.protobuf.Duration elapsed = 4;
-  // Set when the call failed: provider.deadline, provider.stream_ended, provider.unknown, or a
-  // reason of the provider's own.
+  // Set when the call failed: provider.deadline, provider.stream_ended, provider.unknown,
+  // provider.circuit_open (with retry_after), or a reason of the provider's own.
   Error error = 5;
 }

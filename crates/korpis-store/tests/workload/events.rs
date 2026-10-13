@@ -26,7 +26,9 @@ async fn effect(tx: &mut Transaction<'_, Postgres>, grant: Uuid, action: &str) {
 /// transaction another test holds open, in another database, can hold positions back a while.
 async fn sequenced(store: &korpis_store::PgStore, n: u64) {
     let mut total = 0;
-    for _ in 0..200 {
+    // Up to a minute: the horizon is the shared test server's, which other tests' teardowns hold
+    // back for seconds at a time (§5 of docs/15-observability.md).
+    for _ in 0..1200 {
         total += store.sequence_events().await.unwrap();
         if total >= n {
             assert_eq!(total, n);

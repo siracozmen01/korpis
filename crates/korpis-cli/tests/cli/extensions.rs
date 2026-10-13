@@ -52,7 +52,9 @@ async fn an_extension_is_reviewed_then_approved_by_digest_then_uninstalled() {
 
     // Nothing serves its provider until its workload runs and registers a stream.
     let providers = ok(&cp.korpis(&s, &["extension", "providers"]).await);
-    assert_eq!(providers.lines().count(), 1, "only the header: {providers}");
+    assert!(!providers.contains("prv_"), "no stream is registered: {providers}");
+    let served = providers.lines().find(|l| l.starts_with("dns")).unwrap_or_default();
+    assert!(served.contains("cloudflare") && served.contains("closed"), "{providers}");
     let ping = ["extension", "ping", "dns", "cloudflare", "--timeout", "1"];
     let late = ok(&cp.korpis(&s, &ping).await);
     assert!(late.starts_with("provider.deadline after"), "{late}");

@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::task::JoinHandle;
 
 /// Pings `name` as the root organization sees it, in the background, waiting at most `timeout`.
-fn ping(h: &Harness, name: &str, timeout: Duration) -> JoinHandle<pb::PingProviderResponse> {
+pub fn ping(h: &Harness, name: &str, timeout: Duration) -> JoinHandle<pb::PingProviderResponse> {
     let client = pb::ProviderServiceClient::new(h.http.clone(), h.root());
     let req = pb::PingProviderRequest {
         organization: h.root_org(),
@@ -27,13 +27,13 @@ fn ping(h: &Harness, name: &str, timeout: Duration) -> JoinHandle<pb::PingProvid
 }
 
 /// The next message down a provider's stream, if one comes within `within`.
-async fn next(stream: &mut Serve, within: Duration) -> Option<Down> {
+pub async fn next(stream: &mut Serve, within: Duration) -> Option<Down> {
     let m = tokio::time::timeout(within, stream.message::<pb::ProviderControl>()).await.ok()?;
     m.unwrap().map(|m| m.to_owned_message().message).unwrap()
 }
 
 /// The call that comes down next, within five seconds.
-async fn call(stream: &mut Serve) -> Box<pb::ProviderCall> {
+pub async fn call(stream: &mut Serve) -> Box<pb::ProviderCall> {
     match next(stream, Duration::from_secs(5)).await {
         Some(Down::Call(c)) => c,
         other => panic!("expected a call, got {other:?}"),
@@ -41,7 +41,7 @@ async fn call(stream: &mut Serve) -> Box<pb::ProviderCall> {
 }
 
 /// Answers a ping with its nonce.
-async fn pong(stream: &mut Serve, c: &pb::ProviderCall) {
+pub async fn pong(stream: &mut Serve, c: &pb::ProviderCall) {
     let Some(korpis_proto::korpis::v1::__buffa::oneof::provider_call::Request::Ping(p)) =
         &c.request
     else {
@@ -57,14 +57,19 @@ async fn pong(stream: &mut Serve, c: &pb::ProviderCall) {
     stream.send(up).await.unwrap();
 }
 
-async fn registered(h: &Harness, secret: &str, version: &str, concurrency: u32) -> (Serve, String) {
+pub async fn registered(
+    h: &Harness,
+    secret: &str,
+    version: &str,
+    concurrency: u32,
+) -> (Serve, String) {
     let (stream, first) =
         open(h, h.config(Some(secret)), register("cloudflare", version, concurrency)).await;
     let Some(Down::Registered(r)) = first.unwrap().message else { panic!("Registered") };
     (stream, r.registration.clone())
 }
 
-fn reason(r: &pb::PingProviderResponse) -> &str {
+pub fn reason(r: &pb::PingProviderResponse) -> &str {
     r.error.as_option().map_or("", |e| e.reason.as_str())
 }
 

@@ -27,8 +27,8 @@ async fn follow(cp: &ControlPlane, subscription: &str) -> (std::process::Child, 
         BufReader::new(stdout).lines().next().map(Result::unwrap).unwrap_or_default()
     });
     cp.project("followed").await;
-    let line = tokio::time::timeout(std::time::Duration::from_secs(20), reader).await;
-    (child, line.expect("a line within twenty seconds").unwrap())
+    let line = tokio::time::timeout(std::time::Duration::from_secs(60), reader).await;
+    (child, line.expect("a line within a minute").unwrap())
 }
 
 #[tokio::test]

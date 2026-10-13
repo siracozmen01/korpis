@@ -387,6 +387,54 @@ slice of reconciliation capacity rather than all of it. `15-observability.md` §
 `provider.degraded` event, because the operator whose creates got slow this morning should not have
 to infer the cause from a graph.
 
+> Corrected 2026-10-13, while building the breaker. The second point above says failure behaviour
+> is declared per provider type, and this section declared it for two of the eight types (DNS and
+> identity); the other six were exactly the guess it forbids. They are declared below.
+
+**As built in Phase 1: what each type's failure means.** The declaration lives in the domain
+(`ProviderType::failure_policy`), so every call site reads it rather than deciding afresh:
+
+| Type | Its dependents, when it fails |
+|---|---|
+| `dns`, `backup_target`, `edge_router` | observed `unsatisfiable`, the provider named in the reason; reconciliation retries |
+| `identity` | fail closed: what it would have asserted is refused |
+| `step` | the install step fails with its reason, and the plan stops at that step |
+| `health` | the health it judges is `unknown`, never `unhealthy` |
+| `console`, `chat_adapter` | the request that needed it fails as unavailable and may be retried |
+
+A health provider that is down reports nothing about the workloads it probes, and treating that as
+`unhealthy` would let a failed prober get every workload it probes restarted; so it is `unknown`,
+the observation's own value for health nobody has judged (§3.3 of `01-model.md`). A console or chat adapter serves one request at a
+time and nothing else depends on it, so its failure is that request's alone.
+
+**As built in Phase 1: the breaker.** Each provider, by the organization whose installation
+serves it, its type, and its name, has one breaker, kept in Postgres because any replica may call
+any provider. What evaluates it is the caller of each call, after the call finishes, in a
+transaction holding the breaker's row lock, and the information it judges by is the queue of §3.3
+itself: the provider's last twenty calls finished within five minutes, so the evidence is never a
+second copy that could disagree. A call counts as failed if it failed retryably (its deadline
+passed, its stream ended, or the provider said retrying may help); a provider's answer that the
+request itself is wrong is a correct answer. With at least ten calls judged, the breaker trips
+when half of them failed, or when the median call took four fifths of its deadline or more, the
+time spent queued for a free slot included. Tripping opens it for ten seconds; while open, a call
+fails at once with `provider.circuit_open`, retryable, carrying when to retry, and is never
+queued. After the backoff the next call is the probe, and the others are refused until it
+finishes: a probe that neither failed nor took four fifths of its deadline closes the breaker,
+anything else reopens it for twice as long, up to five minutes. A probe whose caller died is
+replaced once its own deadline has passed. Tripping writes `provider.degraded` with what was
+measured and how many calls are queued behind it, and closing writes `provider.recovered` (§5 of
+`15-observability.md`). Operators read every provider's breaker and measurements through
+`ProviderService.ListProviders`, so latency is published, not merely logged.
+
+What it costs, and what it does not do. Each call takes two transactions more than §3.3's
+three, one to be admitted and one to be judged, and every caller of one provider takes that
+provider's row lock briefly. A provider called fewer than ten times in five minutes is never
+tripped: its failures reach each caller as they happen, bounded by their deadlines, but no pattern
+is drawn from so few. The judgement is made only when a call finishes, so a provider nobody calls
+stays as last judged, open or closed, until somebody does; an open breaker over a provider nobody
+calls costs nothing. Thresholds are fixed constants, not configuration, until a deployment shows
+a reason for another value.
+
 The tenant boundary already holds here and is worth naming: a provider installed by one tenant is
 bounded by the grants it was installed with (§4.1), so a slow tenant-installed provider degrades
 that tenant's own reconciliation and nobody else's. The fleet-wide case is a provider installed at

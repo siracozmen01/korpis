@@ -102,6 +102,13 @@ async fn open(h: &Harness, config: connectrpc::client::ClientConfig, s: &str) ->
     h.events(config).subscribe(req).await.unwrap()
 }
 
+/// How long a test waits for an event it expects. Delivery waits for every transaction on the
+/// PostgreSQL server that could still commit an earlier event (§5 of docs/15-observability.md),
+/// and the test server is shared by every test running at once, whose teardowns drop databases
+/// in transactions that last seconds while they wait for checkpoints; so an expected event may
+/// come many seconds late, and is never lost.
+const DELIVERY: u64 = 60;
+
 /// The next event delivered, within `seconds`; `None` if none comes.
 async fn next(stream: &mut Delivery, seconds: u64) -> Option<pb::Event> {
     let got = tokio::time::timeout(Duration::from_secs(seconds), stream.message()).await.ok()?;
@@ -124,8 +131,8 @@ async fn delivery_is_in_order_judged_by_the_subjects_grants_and_resumes_after_it
     let mut stream = open(&h, h.root(), &s).await;
     project(&h, &h.root_org(), "one").await;
     project(&h, &h.root_org(), "two").await;
-    let first = next(&mut stream, 10).await.expect("the first project");
-    let second = next(&mut stream, 10).await.expect("the second project");
+    let first = next(&mut stream, DELIVERY).await.expect("the first project");
+    let second = next(&mut stream, DELIVERY).await.expect("the second project");
     assert_eq!((first.kind.as_str(), second.kind.as_str()), ("project.create", "project.create"));
     assert_eq!(first.key, second.key, "both about the organization");
     assert_eq!(second.seq, first.seq + 1, "numbered in commit order, without gaps");
@@ -135,7 +142,7 @@ async fn delivery_is_in_order_judged_by_the_subjects_grants_and_resumes_after_it
     h.events(h.root()).ack(ack).await.unwrap();
     drop(stream);
     let mut again = open(&h, h.root(), &s).await;
-    let redelivered = next(&mut again, 10).await.expect("what was not acknowledged");
+    let redelivered = next(&mut again, DELIVERY).await.expect("what was not acknowledged");
     assert_eq!(redelivered.id, second.id, "at least once, resuming after the acknowledgement");
 
     // A subject without event.read is delivered nothing. Once it holds the grant, what it was
@@ -150,7 +157,7 @@ async fn delivery_is_in_order_judged_by_the_subjects_grants_and_resumes_after_it
     drop(blind);
     h.issue_to(token, "read", &["event.read"]).await;
     let mut seeing = open(&h, config(), &theirs).await;
-    let seen = next(&mut seeing, 10).await.expect("delivered once it may read it");
+    let seen = next(&mut seeing, DELIVERY).await.expect("delivered once it may read it");
     let name = seen.detail.get("name").and_then(|v| match &v.kind {
         Some(pb::__buffa::oneof::value::Kind::StringValue(s)) => Some(s.as_str()),
         _ => None,
@@ -173,8 +180,8 @@ async fn a_position_lost_to_retention_is_answered_with_a_gap_and_delivery_goes_o
     let store = h.db.store().await.unwrap();
     // Wait until both are positioned, then age every event past retention and prune.
     let mut stream = open(&h, h.root(), &s).await;
-    next(&mut stream, 10).await.unwrap();
-    next(&mut stream, 10).await.unwrap();
+    next(&mut stream, DELIVERY).await.unwrap();
+    next(&mut stream, DELIVERY).await.unwrap();
     drop(stream);
     sqlx::query("UPDATE event SET at = now() - interval '40 days'")
         .execute(store.pool())

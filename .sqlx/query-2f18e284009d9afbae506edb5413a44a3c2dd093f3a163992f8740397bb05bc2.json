@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT coalesce((outcome -> 'failed' ->> 'retryable')::boolean, false) AS \"failed!\",\n                      created_at, deadline, finished_at AS \"finished_at!\"\n                 FROM provider_call\n                WHERE organization_id = $1 AND type = $2 AND name = $3\n                  AND finished_at IS NOT NULL AND finished_at >= $4\n                  AND coalesce(outcome -> 'failed' ->> 'reason', '') <> 'provider.unknown'\n                ORDER BY finished_at DESC\n                LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "failed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "deadline",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "deadline"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "finished_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2f18e284009d9afbae506edb5413a44a3c2dd093f3a163992f8740397bb05bc2"
+}

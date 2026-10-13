@@ -32,6 +32,7 @@ mod operator;
 mod pin;
 mod placement;
 mod plans;
+mod provider_breaker;
 mod provider_calls;
 mod providers;
 mod quota;

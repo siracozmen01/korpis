@@ -20,6 +20,12 @@ pub trait ProviderCallRead {
         name: &str,
     ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
+    /// Every `provides` entry an installation in `organization` serves.
+    fn provides_in(
+        &self,
+        organization: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<korpis_core::extension::ProvidedInterface>>> + Send;
+
     /// Every registration serving in `organization`, of every type.
     fn registrations_in(
         &self,

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT korpis_append_event($1, $2, $3, $4, $5, NULL, NULL, $6)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "korpis_append_event",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "94afaf89882daa5ddaa36226e89062020abdaac41864ab992431d25e0fc529a6"
+}

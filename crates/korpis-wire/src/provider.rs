@@ -5,8 +5,11 @@
 //! that come back up it.
 
 use crate::extension::provider_type_to_pb;
-use crate::{IdKind, timestamp, wire_id};
-use korpis_core::extension::{CallFailure, CallOutcome, CallRequest, ProviderCall, Registration};
+use crate::{IdKind, duration, timestamp, wire_id};
+use korpis_core::extension::{
+    Breaker, CallFailure, CallOutcome, CallRequest, Measured, ProviderCall, ProviderType,
+    Registration,
+};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::call_result::Outcome;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_call::Request;
@@ -24,6 +27,34 @@ pub fn registration_to_pb(r: &Registration) -> pb::ProviderRegistration {
         concurrency: r.concurrency,
         connected: timestamp(r.connected_at).into(),
         seen: timestamp(r.seen_at).into(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a provider's health.
+#[must_use]
+pub fn health_to_pb(
+    kind: ProviderType,
+    name: &str,
+    b: &Breaker,
+    m: &Measured,
+) -> pb::ProviderHealth {
+    let (breaker, until) = match b {
+        Breaker::Closed => (pb::BreakerState::BREAKER_STATE_CLOSED, None),
+        Breaker::Open { until, .. } => (pb::BreakerState::BREAKER_STATE_OPEN, Some(*until)),
+        Breaker::HalfOpen { until, .. } => {
+            (pb::BreakerState::BREAKER_STATE_HALF_OPEN, Some(*until))
+        }
+    };
+    pb::ProviderHealth {
+        r#type: provider_type_to_pb(kind).into(),
+        name: name.to_owned(),
+        breaker: breaker.into(),
+        until: until.map(timestamp).into(),
+        calls: u32::try_from(m.calls).unwrap_or(u32::MAX),
+        failed: u32::try_from(m.failed).unwrap_or(u32::MAX),
+        median_latency: duration(m.median_elapsed).into(),
+        median_deadline_permille: m.median_share,
         ..Default::default()
     }
 }

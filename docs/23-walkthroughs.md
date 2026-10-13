@@ -870,7 +870,12 @@ Building the call path found that step 2 assumed the control-plane replica runni
 the provider's stream; with several replicas and no leader (§5 of `18-operations.md`) it rarely
 does. Calls are now queued in Postgres and claimed by the replica that holds a stream, and the
 bounded concurrency step 5 relies on is enforced by that claim, per stream (§3.3 of
-`16-extensions.md`).
+`16-extensions.md`). Building the breaker answered the algebra question of step 4 (what judges
+the breaker, where, with what information): each caller, after its call finishes, from the
+queue's own record of the provider's last twenty calls, under the breaker's row lock, so the
+provider of step 3 now trips it on latency and step 5 is cut short (§5 of `16-extensions.md`).
+It also found that §5 declared failure behaviour for two of the eight provider types while
+forbidding a guess for any; all eight are declared there now.
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

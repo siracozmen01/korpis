@@ -42,6 +42,8 @@ pub struct Called {
     pub outcome: CallOutcome,
     /// How long it took.
     pub elapsed: Duration,
+    /// When it may be asked again, if the provider's breaker refused it.
+    pub retry_at: Option<SystemTime>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -64,7 +66,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let started = self.clock.now();
         let Some(organization) = self.provider_owner(target).await? else {
             let outcome = CallOutcome::Failed(CallFailure::unknown());
-            return Ok(Called { id: Uuid::now_v7(), sent: None, outcome, elapsed: Duration::ZERO });
+            let elapsed = Duration::ZERO;
+            return Ok(Called { id: Uuid::now_v7(), sent: None, outcome, elapsed, retry_at: None });
         };
         let call = ProviderCall {
             id: Uuid::now_v7(),
@@ -78,29 +81,33 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             finished: None,
         };
         let mut wakeups = self.store.provider_calls();
-        let mut tx = self.store.begin().await?;
-        tx.insert_call(&call).await?;
-        tx.commit().await?;
-        let (sent, outcome) = self.finished(&call, &mut wakeups).await?;
-        let elapsed = self.clock.now().duration_since(started).unwrap_or_default();
-        Ok(Called { id: call.id, sent, outcome, elapsed })
+        if let Some(until) = self.admit_call(&call).await? {
+            let outcome = CallOutcome::Failed(CallFailure::circuit_open());
+            let elapsed = Duration::ZERO;
+            return Ok(Called { id: call.id, sent: None, outcome, elapsed, retry_at: Some(until) });
+        }
+        let (sent, outcome, at) = self.finished(&call, &mut wakeups).await?;
+        self.judge_provider(&call, &outcome, at).await?;
+        let elapsed = at.duration_since(started).unwrap_or_default();
+        Ok(Called { id: call.id, sent, outcome, elapsed, retry_at: None })
     }
 
-    /// Waits for `call` to finish, finishing it at its deadline if nothing else has.
+    /// Waits for `call` to finish, finishing it at its deadline if nothing else has: where it
+    /// was sent, how it ended, and when.
     async fn finished(
         &self,
         call: &ProviderCall,
         wakeups: &mut S::Wakeups,
-    ) -> Result<(Option<(Uuid, String)>, CallOutcome), AppError> {
+    ) -> Result<(Option<(Uuid, String)>, CallOutcome, SystemTime), AppError> {
         loop {
             let now = self.clock.now();
             let read = self.store.provider_call(call.id).await?;
             let read = read.ok_or_else(|| AppError::Internal("a queued call vanished".into()))?;
-            if let Some((outcome, _)) = read.finished {
-                return Ok((read.sent, outcome));
+            if let Some((outcome, at)) = read.finished {
+                return Ok((read.sent, outcome, at));
             }
             if now >= call.deadline && self.finish_late(call.id, now).await? {
-                return Ok((read.sent, CallOutcome::Failed(CallFailure::deadline())));
+                return Ok((read.sent, CallOutcome::Failed(CallFailure::deadline()), now));
             }
             // A wake-up or the deadline, whichever is first; then re-read.
             wakeups.next_before(call.deadline).await;

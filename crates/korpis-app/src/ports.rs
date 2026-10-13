@@ -9,6 +9,7 @@
 mod assignment;
 mod audit;
 mod authz;
+mod breaker;
 mod changes;
 mod clock;
 mod condition;
@@ -41,6 +42,7 @@ pub use audit::{
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
+pub use breaker::{BreakerWrite, ProviderKey};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
@@ -185,6 +187,7 @@ pub trait Tx:
     + SubscriptionWrite
     + ProviderWrite
     + ProviderCallWrite
+    + BreakerWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

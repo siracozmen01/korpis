@@ -5,6 +5,7 @@
 //! `extension:<id>` under grants attenuated from its installer's, so everything here is built
 //! from the workload and grant use cases.
 
+mod breaker;
 mod call;
 mod grants;
 mod install;
@@ -12,6 +13,7 @@ mod provider;
 mod read;
 mod uninstall;
 
+pub use breaker::ProviderHealth;
 pub use call::{CallTarget, Called};
 pub use install::{InstallExtension, Installed};
 pub use provider::Register;

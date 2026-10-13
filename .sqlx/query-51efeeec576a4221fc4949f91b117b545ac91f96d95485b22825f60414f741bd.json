@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO provider_breaker (organization_id, type, name, state, until, backoff_ms,\n                                           probe, changed_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n             ON CONFLICT (organization_id, type, name) DO UPDATE\n                SET state = $4, until = $5, backoff_ms = $6, probe = $7, changed_at = $8",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51efeeec576a4221fc4949f91b117b545ac91f96d95485b22825f60414f741bd"
+}

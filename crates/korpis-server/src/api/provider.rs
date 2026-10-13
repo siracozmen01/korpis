@@ -6,7 +6,7 @@
 //! registered and ping it.
 
 use super::wire::extension::provider_type_from_pb;
-use super::wire::provider::{failure_to_pb, outcome_from_pb, registration_to_pb};
+use super::wire::provider::{failure_to_pb, health_to_pb, outcome_from_pb, registration_to_pb};
 use super::wire::{self, Refuse, wire_id};
 use super::{Api, ServerApp, error};
 use crate::providers::Providers;
@@ -22,7 +22,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_control::Message as Down;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_message::Message as Up;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 
 /// How long a ping waits when the request does not say.
@@ -85,7 +85,12 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
         version,
         elapsed: wire::duration(c.elapsed).into(),
         error: match &c.outcome {
-            CallOutcome::Failed(f) => Some(failure_to_pb(f)).into(),
+            CallOutcome::Failed(f) => {
+                let mut e = failure_to_pb(f);
+                let after = c.retry_at.and_then(|t| t.duration_since(SystemTime::now()).ok());
+                e.retry_after = after.map(wire::duration).into();
+                Some(e).into()
+            }
             CallOutcome::Pong { .. } => None.into(),
         },
         ..Default::default()
@@ -158,8 +163,13 @@ impl pb::ProviderService for Api {
         let caller = self.caller(&ctx).await?;
         let org = wire::id(IdKind::Organization, "organization", request.organization).refuse()?;
         let listed = self.app.list_providers(&caller, org).await.map_err(error::from_app)?;
+        let health = self.app.provider_health(&caller, org).await.map_err(error::from_app)?;
         Response::ok(pb::ListProvidersResponse {
             providers: listed.iter().map(registration_to_pb).collect(),
+            health: health
+                .iter()
+                .map(|h| health_to_pb(h.kind, &h.name, &h.breaker, &h.measured))
+                .collect(),
             ..Default::default()
         })
     }

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO provider_breaker (organization_id, type, name, state, changed_at)\n             VALUES ($1, $2, $3, 'closed', $4) ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ef69038f7aebffc47dd233ca2eb36821ce546ca5bf48f27e13afab2c3f68db94"
+}

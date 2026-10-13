@@ -9,9 +9,9 @@ use crate::connect::Connection;
 use crate::error::CliError;
 use crate::resolve;
 use crate::show::{short, table, time};
+use buffa_types::google::protobuf::Duration;
 use korpis_core::extension::ProviderType;
 use korpis_proto::korpis::v1 as pb;
-use std::time::Duration;
 
 fn rows(list: &[pb::ProviderRegistration]) -> String {
     let mut all = vec![
@@ -34,13 +34,40 @@ fn rows(list: &[pb::ProviderRegistration]) -> String {
     table(&all)
 }
 
+fn health(list: &[pb::ProviderHealth]) -> String {
+    let mut all = vec![
+        ["TYPE", "NAME", "BREAKER", "UNTIL", "CALLS", "FAILED", "MEDIAN", "OF DEADLINE"]
+            .map(str::to_owned)
+            .to_vec(),
+    ];
+    all.extend(list.iter().map(|h| {
+        let median = h.median_latency.as_option().map_or(0, millis);
+        vec![
+            short(h.r#type, "PROVIDER_TYPE_").to_lowercase(),
+            h.name.clone(),
+            short(h.breaker, "BREAKER_STATE_").to_lowercase(),
+            h.until.as_option().map_or_else(|| "-".to_owned(), |t| time(Some(t))),
+            h.calls.to_string(),
+            h.failed.to_string(),
+            format!("{median} ms"),
+            format!("{}%", h.median_deadline_permille / 10),
+        ]
+    }));
+    table(&all)
+}
+
+fn millis(d: &Duration) -> i64 {
+    d.seconds.saturating_mul(1000) + i64::from(d.nanos) / 1_000_000
+}
+
 /// Answers `korpis extension providers`.
 pub async fn providers(c: &Connection, organization: Option<&str>) -> Result<Answer, CliError> {
     let client = pb::ProviderServiceClient::new(c.http(), c.config());
     let organization = resolve::organization(c, organization).await?;
     let request = pb::ListProvidersRequest { organization, ..Default::default() };
-    let list = client.list_providers(request).await?.into_owned().providers;
-    Ok(Answer { human: rows(&list), json: json(&list) })
+    let listed = client.list_providers(request).await?.into_owned();
+    let human = format!("{}\n{}", rows(&listed.providers), health(&listed.health));
+    Ok(Answer { human, json: json(&listed) })
 }
 
 /// Answers `korpis extension ping`.
@@ -49,7 +76,7 @@ pub async fn ping(
     kind: &str,
     name: &str,
     organization: Option<&str>,
-    timeout: Duration,
+    timeout: std::time::Duration,
 ) -> Result<Answer, CliError> {
     let kind = ProviderType::parse(kind).ok_or_else(|| {
         CliError::Local(format!("{kind:?}: a provider type, such as dns or backup_target"))
@@ -63,8 +90,7 @@ pub async fn ping(
         ..Default::default()
     };
     let r = client.ping_provider(request).await?.into_owned();
-    let elapsed =
-        r.elapsed.as_option().map_or(0, |d| d.seconds * 1000 + i64::from(d.nanos) / 1_000_000);
+    let elapsed = r.elapsed.as_option().map_or(0, millis);
     let human = match r.error.as_option() {
         Some(e) => {
             let again = if e.retryable { "; retrying may help" } else { "" };

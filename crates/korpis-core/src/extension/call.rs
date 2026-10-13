@@ -63,6 +63,13 @@ impl CallFailure {
         Self::of("provider.stream_ended", "the provider's stream ended before it answered", true)
     }
 
+    /// The provider's breaker is open: it failed or was too slow lately, and is not called
+    /// until it is probed again.
+    #[must_use]
+    pub fn circuit_open() -> Self {
+        Self::of("provider.circuit_open", "the provider is failing; its breaker is open", true)
+    }
+
     /// Nothing provides what the call names any more.
     #[must_use]
     pub fn unknown() -> Self {

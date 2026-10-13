@@ -10,7 +10,9 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{ProviderCallRead, ProviderCallWrite, StoreResult};
-use korpis_core::extension::{CallOutcome, ProviderCall, ProviderType, Registration};
+use korpis_core::extension::{
+    CallOutcome, ProvidedInterface, ProviderCall, ProviderType, Registration,
+};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -65,6 +67,20 @@ impl ProviderCallRead for PgStore {
         .fetch_all(&self.pool)
         .await
         .map_err(from_sqlx)
+    }
+
+    async fn provides_in(&self, organization: Uuid) -> StoreResult<Vec<ProvidedInterface>> {
+        let rows = sqlx::query!(
+            "SELECT type, name FROM extension_provides WHERE organization_id = $1
+              ORDER BY type, name",
+            organization
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter()
+            .map(|r| Ok(ProvidedInterface { kind: kind(&r.r#type)?, name: r.name }))
+            .collect()
     }
 
     async fn registrations_in(&self, organization: Uuid) -> StoreResult<Vec<Registration>> {

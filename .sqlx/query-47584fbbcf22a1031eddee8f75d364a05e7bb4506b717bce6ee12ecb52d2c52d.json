@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT state, until, backoff_ms, probe FROM provider_breaker\n              WHERE organization_id = $1 AND type = $2 AND name = $3 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_breaker",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_breaker",
+            "name": "until"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "backoff_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "provider_breaker",
+            "name": "backoff_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "probe",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_breaker",
+            "name": "probe"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "47584fbbcf22a1031eddee8f75d364a05e7bb4506b717bce6ee12ecb52d2c52d"
+}

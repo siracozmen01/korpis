@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"n!\" FROM provider_call\n                WHERE organization_id = $1 AND type = $2 AND name = $3\n                  AND registration_id IS NULL AND finished_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "df59d700fa3e2a4a3c3135b09f657dbcc6c57c55bd7d4194850b4aca74fb17fb"
+}

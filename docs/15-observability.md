@@ -244,7 +244,7 @@ Event
   seq           int            per key, from 1, with no gaps: a consumer sees a hole as a hole
   at            Timestamp      the ingest clock, as for an effect
   kind          string         an effect's action, or a condition: `health.changed`,
-                               `convergence.changed`, `provider.degraded`, ...
+                               `convergence.changed`, `provider.degraded`, `provider.recovered`, ...
   severity      info | warning | critical
   organization  OrgID
   workload      WorkloadID?
@@ -278,8 +278,8 @@ so advancing past an `id` never skips one that commits late.
 > and never passes over one. The cost is a delay of one sequencer pass (it is woken by every
 > event's commit, and looks once a second regardless), and one sequencer at a time, which several
 > control-plane processes take turns being. **The horizon is the whole PostgreSQL cluster's**, not
-> this database's: a transaction left open anywhere on the server, in any database, holds every
-> event back until it ends. Nothing is lost or reordered, but delivery stalls; §2 of
+> this database's: a transaction open anywhere on the server, idle or working, in any database,
+> holds every event back until it ends. Nothing is lost or reordered, but delivery stalls; §2 of
 > `18-operations.md` says what an operator does about it. Narrowing the horizon to this database
 > would mean reading other sessions' transaction identifiers from `pg_stat_activity`, which hides
 > them from an unprivileged role, and a writer the control plane cannot see would be skipped.
@@ -357,6 +357,17 @@ the fleet's reconciliation capacity, so it needs an event of its own: `provider.
 the provider, its measured latency, and what is queued behind it.
 
 The operator whose creates got slow this morning should not have to infer the cause from a graph.
+
+**As built** (2026-10-13). `provider.degraded` is written when a provider's breaker trips, in the
+transaction that trips it, keyed to the provider (`provider:<organization>:<type>:<name>`) in the
+organization whose installation serves it. It carries the provider, the reason (`failure` or
+`latency`), the calls judged and how many failed, the median latency and the median share of the
+deadline a call took, and the calls queued behind it. It is a warning, and critical for a
+provider whose failure fails closed (identity), since then what it guards is refused to everyone.
+`provider.recovered`, at `info`, is written when a probe closes the breaker again, so a consumer
+that raised an alert on the first can clear it on the second. Both are read under `event.read`
+over that organization; they concern no workload, so a workload selector passes them. The breaker
+itself is §5 of `16-extensions.md`.
 
 > Renamed 2026-10-13 from `provider_degraded`, when event kinds became filters: a kind is dotted
 > words, so that `provider.` selects every provider event, and the underscore spelling was the

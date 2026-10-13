@@ -61,7 +61,16 @@ has ended, and PostgreSQL knows that only for the whole server, not per database
 `15-observability.md`). A session left `idle in transaction` by anything on the server, another
 application's included, stops every subscriber's delivery until it ends; nothing is lost, but
 extensions and integrations see nothing new. On a shared server, set
-`idle_in_transaction_session_timeout` for the other applications' roles. The event log keeps
+`idle_in_transaction_session_timeout` for the other applications' roles. That bounds only the
+idle case. A transaction that is working, not idle, holds delivery back just the same for as long
+as it runs: an index built or a table loaded in one statement, or a `DROP DATABASE`, which waits
+for a checkpoint and on a busy server takes seconds, many of them at once longer still. No
+timeout separates those from legitimate work, which is the strongest reason for a server of its
+own.
+
+> Corrected 2026-10-13, from the test suite: its teardowns drop a database per test, dozens at
+> once, and each held every other test's events back for up to ten seconds, which this paragraph,
+> naming only idle sessions, did not predict. The event log keeps
 events for `--event-retention-days` (30 by default) of `korpis-server serve`; effects, the audit
 record, are kept regardless (§4 of `15-observability.md`).
 
