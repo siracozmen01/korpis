@@ -16,6 +16,7 @@ pub mod join;
 pub mod journal;
 pub mod lease;
 pub mod reconcile;
+pub mod revoked;
 pub mod run;
 pub mod runtime;
 pub mod session;

@@ -263,6 +263,37 @@ impl ControlPlane {
             .into_owned();
         (created.token, created.ca_fingerprint)
     }
+
+    /// Issues a grant on the root organization to a new token, then revokes it; the grant.
+    pub async fn revoked_grant(&self) -> uuid::Uuid {
+        use korpis_core::authz::{Kind, ObjectRef};
+        use korpis_core::id::{Id, IdKind};
+        let grants = pb::GrantServiceClient::new(self.http(), self.config());
+        let org = Id::parse(IdKind::Organization, &self.root_org).unwrap().uuid();
+        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Organization, org));
+        let issued = grants
+            .issue_grant(pb::IssueGrantRequest {
+                mutation: mutation("to-revoke").into(),
+                actions: vec!["org.read".into()],
+                scope: korpis_wire::scope::to_pb(&scope).into(),
+                label: "to revoke".into(),
+                to_new_token: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        let grant = issued.grant.as_option().unwrap().id.clone();
+        grants
+            .revoke_grant(pb::RevokeGrantRequest {
+                mutation: mutation("revoke").into(),
+                grant: grant.clone(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        Id::parse(IdKind::Grant, &grant).unwrap().uuid()
+    }
 }
 
 pub fn mutation(key: &str) -> pb::Mutation {

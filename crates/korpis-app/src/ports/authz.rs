@@ -48,6 +48,13 @@ pub trait GrantRead {
         subject_key: &str,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
+
+    /// Grants revoked at or after `since`, and grants suspended at or after it whose suspension
+    /// stands, sorted: the entries of the revocation list (§6.3 of docs/08-identity.md).
+    fn revoked_since(
+        &self,
+        since: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 }
 
 /// Writing grants.

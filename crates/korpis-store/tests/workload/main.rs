@@ -17,5 +17,6 @@ mod ids;
 mod nodes;
 mod placement;
 mod plans;
+mod revocation;
 mod support;
 mod trust;

@@ -23,6 +23,8 @@ pub mod record;
 /// Scopes are plain data shared with plans and placement; they live at the crate root.
 pub use crate::scope;
 #[cfg(feature = "authz")]
+pub mod revocation;
+#[cfg(feature = "authz")]
 pub mod token;
 
 pub use action::Action;

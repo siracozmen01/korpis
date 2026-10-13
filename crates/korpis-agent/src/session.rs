@@ -9,10 +9,12 @@
 use crate::held::{HeldSet, Refused};
 use crate::identity::Credentials;
 use crate::journal::{JournalHandle, Shipper};
+use crate::revoked::{Revoked, token_ring};
 use crate::state::{Identity, StateDir};
 use crate::tls;
 use buffa_types::google::protobuf::Timestamp;
 use connectrpc::client::{BidiRecvHalf, ClientConfig, ClientTransport, HttpClient};
+use korpis_core::authz::revocation::RevocationList;
 use korpis_core::node::identity::{hello_message, sign};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
@@ -62,6 +64,13 @@ pub enum Event {
     InSync,
     /// A set was refused.
     Refused(Refused),
+    /// A revocation list is held.
+    Revocations {
+        /// Its version.
+        version: u64,
+        /// How many grants it lists.
+        entries: usize,
+    },
     /// The stream ended, and why.
     Disconnected(String),
 }
@@ -71,7 +80,10 @@ pub enum Event {
 pub struct Link {
     /// The set held, as it changes.
     pub held: watch::Receiver<HeldSet>,
-    /// Everything else the control plane sends: lease answers, revocations. The session keeps
+    /// The revocation list held, as it changes: what token verification refuses (§6.3 of
+    /// docs/08-identity.md).
+    pub revoked: watch::Receiver<Arc<RevocationList>>,
+    /// Everything else the control plane sends, such as lease answers. The session keeps
     /// the journal's acknowledgements, since it sends the journal.
     pub inbound: mpsc::Receiver<Down>,
     /// What to send up.
@@ -90,6 +102,7 @@ pub struct Session {
     facts: Arc<dyn Fn() -> Facts + Send + Sync>,
     journal: JournalHandle,
     held: watch::Sender<HeldSet>,
+    revoked: Revoked,
     inbound: mpsc::Sender<Down>,
     outbound: mpsc::Receiver<agent::AgentMessage>,
     events: broadcast::Sender<Event>,
@@ -156,19 +169,32 @@ impl Session {
                 HeldSet::default()
             });
         let (held, held_rx) = watch::channel(initial);
+        let ring = token_ring(&identity.keys.token_keys);
+        let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring);
         let (inbound, inbound_rx) = mpsc::channel(256);
         let (outbound_tx, outbound) = mpsc::channel(1024);
         let (events, _) = broadcast::channel(64);
         let credentials = Credentials::new(outbound_tx.clone());
         let link = Link {
             held: held_rx,
+            revoked: revoked_rx,
             inbound: inbound_rx,
             outbound: outbound_tx,
             events: events.clone(),
             credentials: credentials.clone(),
         };
-        let session =
-            Self { identity, state, facts, journal, held, inbound, outbound, events, credentials };
+        let session = Self {
+            identity,
+            state,
+            facts,
+            journal,
+            held,
+            revoked,
+            inbound,
+            outbound,
+            events,
+            credentials,
+        };
         (session, link)
     }
 
@@ -308,6 +334,18 @@ impl Session {
                 Vec::new()
             }
             Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
+            Some(Down::RevocationList(list)) => {
+                match self.revoked.receive(&list) {
+                    Ok((version, entries)) => {
+                        let _ = self.events.send(Event::Revocations { version, entries });
+                    }
+                    // The list held stays; the control plane sends the next one within seconds.
+                    Err(e) => {
+                        tracing::error!(error = %e, "revocation list refused: a security event");
+                    }
+                }
+                Vec::new()
+            }
             Some(Down::WorkloadCredential(answer)) => {
                 self.credentials.answer(*answer);
                 Vec::new()

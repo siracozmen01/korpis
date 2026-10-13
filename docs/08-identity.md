@@ -852,6 +852,32 @@ bounded by the longest-lived outstanding token, and only grants revoked within t
 listed. Short-lived tokens never need an entry of their own; their chains are covered by their
 ancestors'.
 
+**As built.** The list is signed by the token key, not the assignment key, because the parties
+that read it are exactly the parties that verify tokens, and a relay holds the token key and has no
+use for the other. The signature covers a canonical form bound to its purpose
+(`korpis.revocation.v1`, the version, then each identifier in order), so nothing else the token key
+signs can be read as a list. An entry is a grant revoked, or suspended and not lifted, within the
+horizon, and the horizon is the longest lifetime of any token this control plane mints (120 s,
+the session token of §6) plus the clock skew an agent session allows (§4.2 of
+`02-architecture.md`), because a verifier whose clock runs behind still honours a token the
+control plane already considers expired. A longer-lived kind of token, break-glass among them,
+raises that bound in the same change that introduces it, or it outlives its own revocation.
+
+Every replica computes the list from the same rows every two seconds, and publishes it to the
+sessions it holds when the identifiers changed; a session sends the current list when it opens and
+every list published after. No replica tells another anything, so a revocation reaches a connected
+verifier within about two seconds of its commit, through whichever replica that verifier is
+connected to. Each list replaces the last whole, so a lifted suspension leaves the list on the next
+computation. The agent believes a list only once its signature verifies against the token keys
+enrollment returned, keeps it in its state directory with that signature (`revoked.binpb`), and
+verifies the kept copy again when it starts, so a restarted agent refuses the same chains before
+it reaches the control plane. It takes a list with a lower version than the one it holds: replicas
+compute independently, and refusing a lagging replica's list would keep one missing a later
+revocation no longer than the next computation, while accepting it loses at most the two seconds
+it lags. What it does not do yet: a suspended organization (§2.1) and an unverified binding (§5.1)
+suspend grants by derivation, and the list carries only grants whose own row says so, so their
+tokens are refused at renewal rather than within seconds (question 7, §10).
+
 Key rotation remains the answer to *"the key may be compromised"* and to control-plane restore
 (§6). It stops being the answer to *"this one credential should stop working"*.
 
@@ -1103,3 +1129,13 @@ the explicit, tenant-visible grant of §3.3.
    issuing another, which changes the grant's identifier that effects cite. A rotation that keeps
    the grant would keep the audit trail continuous, and needs a rule for how long the old secret
    keeps working while a pipeline is updated. → here
+7. **Derived suspension, offline.** A suspended organization (§2.1) and an unverified binding
+   (§5.1) suspend grants by derivation, and nothing writes a row per grant, so the revocation list
+   (§6.3), which lists grants whose own row is revoked or suspended, does not refuse their tokens
+   offline; they stop at renewal, within one token lifetime. Either the control plane expands a
+   suspension into the grants it suspends when it computes the list, which is a walk the
+   derivation exists to avoid, or the list also names suspended organizations and bindings and a
+   verifier refuses a token whose chain is rooted in one or whose resource lies beneath one, which
+   needs the root's identity in the token and the resource's ancestry at the verifier. Settled with
+   organization suspension and identity bindings, which Phase 2 builds (§4 of `20-roadmap.md`).
+   → here

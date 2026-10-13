@@ -24,7 +24,7 @@ getrandom = "0.4"
 http = "1"
 hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
-korpis-core = { workspace = true, features = ["content", "identity"] }
+korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-wire = { workspace = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }

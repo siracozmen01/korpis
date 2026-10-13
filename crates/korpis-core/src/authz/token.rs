@@ -56,6 +56,12 @@ impl SigningKey {
     pub fn public_bytes(&self) -> Vec<u8> {
         self.keypair.public().to_bytes()
     }
+
+    /// The Ed25519 seed, for signing what is not a token (the revocation list, §6.3).
+    pub(super) fn seed(&self) -> [u8; 32] {
+        let private = self.keypair.private().to_bytes();
+        <[u8; 32]>::try_from(private.as_slice()).unwrap_or_default()
+    }
 }
 
 /// The verify-only keys a relay or agent holds: current and historical, by key id.
@@ -76,6 +82,12 @@ impl KeyRing {
     /// Forgets a key, so that every token it signed stops verifying.
     pub fn retire(&mut self, key_id: u32) {
         self.keys.remove(&key_id);
+    }
+
+    /// The public key trusted under `key_id`, raw.
+    #[must_use]
+    pub fn public_bytes(&self, key_id: u32) -> Option<Vec<u8>> {
+        self.keys.get(&key_id).map(PublicKey::to_bytes)
     }
 }
 
@@ -252,6 +264,23 @@ pub fn restrict_expiry(
 /// The default and maximum lifetime of a session token (§6 of docs/08-identity.md): revocation
 /// latency equals the token lifetime, so it is short.
 pub const SESSION_TOKEN_LIFETIME: Duration = Duration::from_secs(120);
+
+/// The longest any token this control plane mints can live. The revocation list's horizon is
+/// derived from it (§6.3 of docs/08-identity.md), so a longer-lived kind of token raises it
+/// here or outlives its own revocation.
+pub const LONGEST_TOKEN_LIFETIME: Duration = SESSION_TOKEN_LIFETIME;
+
+/// The name a token key is published under: `token-<epoch>`.
+#[must_use]
+pub fn key_name(key_id: u32) -> String {
+    format!("token-{key_id}")
+}
+
+/// The epoch a published token key name stands for.
+#[must_use]
+pub fn parse_key_name(name: &str) -> Option<u32> {
+    name.strip_prefix("token-")?.parse().ok()
+}
 
 /// A convenience for verifiers that know only an object's kind and id and its ancestry.
 #[must_use]

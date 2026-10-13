@@ -207,7 +207,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `AssignmentDelta` | optimization only; carries the base set digest it applies to |
 | `LeaseGrant` | the answer to a `LeaseRequest`, echoing its nonce: an epoch and a term (§4.5) |
 | `LeaseRevoke` | an optimization that hastens a release; safety never depends on its delivery (§4.5) |
-| `RevocationList` | revoked token and grant identifiers, for offline verification (§6.3 of `08-identity.md`) |
+| `RevocationList` | revoked and suspended grant identifiers, signed by the token key, for offline verification (§6.3 of `08-identity.md`) |
 | `JournalAck` | the highest journal sequence durably ingested, so the agent may discard up to it (§4.10) |
 | `FeasibilityQuery` | a side-effect-free `Prepare` against a supplied manifest, for placement (§2.1 of `05-scheduling.md`) |
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |

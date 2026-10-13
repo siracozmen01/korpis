@@ -9,6 +9,7 @@ pub(crate) mod gateway;
 mod issue;
 mod mint;
 mod query;
+mod revocation;
 mod revoke;
 mod snapshot;
 

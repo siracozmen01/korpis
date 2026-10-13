@@ -84,7 +84,7 @@ impl Keys {
     /// The token key's identifier.
     #[must_use]
     pub fn token_key_id(&self) -> String {
-        format!("token-{}", self.token.key_id)
+        korpis_core::authz::token::key_name(self.token.key_id)
     }
 
     /// The public halves, to register with the store.

@@ -8,6 +8,7 @@ use super::downlink::Downlink;
 use super::uplink::{Uplink, journal_ack};
 use crate::api::wire::{Refuse, id, timestamp};
 use crate::api::{ServerApp, error};
+use crate::revocations::Revocations;
 use crate::sessions::Sessions;
 use connectrpc::{ConnectError, InboundStream};
 use futures_util::StreamExt as _;
@@ -87,6 +88,7 @@ fn welcome(app: &ServerApp, s: &Session) -> agent::ControlMessage {
 pub(super) async fn open(
     app: &Arc<ServerApp>,
     sessions: &Arc<Sessions>,
+    revocations: &Revocations,
     mut requests: InboundStream<agent::AgentMessage>,
 ) -> Result<mpsc::Receiver<agent::ControlMessage>, ConnectError> {
     let first = requests.next().await.ok_or_else(|| error::invalid("hello", "required"))??;
@@ -111,6 +113,8 @@ pub(super) async fn open(
         wake,
         held: hello.set_digest.clone(),
     };
+    let lists = revocations.subscribe();
+    tokio::spawn(super::revocations::push(Arc::clone(sessions), node, id, tx.clone(), lists));
     let uplink = Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx };
     tokio::spawn(downlink.run());
     tokio::spawn(uplink.run(requests));

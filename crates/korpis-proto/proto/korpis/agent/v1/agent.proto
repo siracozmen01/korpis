@@ -438,12 +438,24 @@ message ContentStatus {
   repeated string present = 1;
 }
 
+// The grants a verifier refuses in any token's chain (§6.3 of docs/08-identity.md), whole: each
+// list replaces the last. It is signed by the capability-token key, so a verifier trusts it
+// exactly as far as it trusts the tokens it checks, and a copy cached on disk or passed on to a
+// relay carries its own proof.
 message RevocationList {
-  // Revoked grant identifiers; a token is revoked if any link of its chain is listed (§6.3 of
-  // docs/08-identity.md).
+  // Revoked or suspended grant identifiers, sorted; a token is refused if any link of its chain
+  // is listed.
   repeated string grants = 1;
-  repeated string tokens = 2;
+  // Token identifiers were listed here once; the chain check made them unnecessary (finding S30).
+  reserved 2;
+  reserved "tokens";
+  // When the control plane computed the list, in milliseconds since the Unix epoch.
   uint64 version = 3;
+  // The token key that signed it, one of Enrolled.token_keys.
+  string key_id = 4;
+  // Ed25519 over the canonical form: "korpis.revocation.v1\n", the version in decimal and a
+  // newline, then each grant identifier in hyphenated lowercase followed by a newline.
+  bytes signature = 5;
 }
 
 message Probe {

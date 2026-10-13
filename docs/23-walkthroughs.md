@@ -732,6 +732,16 @@ reversible, and it fails closed for authority while failing loudly for the opera
 re-verification interval is the honest analogue of token lifetime: it is the bound on how long
 authority outlives its source, it is stated, and it is configurable rather than convenient.
 
+Building the revocation list re-ran step 3 against the question a trace does not ask: what refuses
+the console token offline, where, and with what information. The relay and the agent do, from the
+last list the control plane signed with the token key, which carries every grant whose own row is
+revoked or suspended (§6.3 of `08-identity.md`). The suspension of this trace is not such a row:
+a binding that fails re-verification suspends the grants rooted in it by derivation, as an
+organization's suspension does (§2.1, §3.5), so the console token of step 3 is refused at its next
+renewal, within the 120 seconds §6 promises, and not sooner. The list could do better, and how is
+question 7 of §10 of `08-identity.md`, settled with bindings and organization suspension in
+Phase 2.
+
 ---
 
 ## 12. A recipe install fails at step four of six

@@ -41,6 +41,7 @@ mod quota;
 mod reads;
 mod recipes;
 mod retire;
+mod revocation;
 mod sdk;
 mod session;
 mod sets;

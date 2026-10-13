@@ -27,6 +27,8 @@ pub struct TestAgent {
     pub node: String,
     /// The control plane's assignment verification keys, as enrollment returned them.
     pub assignment_keys: Vec<agent::SigningKey>,
+    /// Its capability-token verification keys, as enrollment returned them.
+    pub token_keys: Vec<agent::SigningKey>,
 }
 
 pub fn agents(h: &Harness) -> agent::AgentServiceClient<HttpClient> {
@@ -75,7 +77,12 @@ impl TestAgent {
             .execute(store.pool())
             .await
             .unwrap();
-        Self { key, node: enrolled.node, assignment_keys: enrolled.assignment_keys }
+        Self {
+            key,
+            node: enrolled.node,
+            assignment_keys: enrolled.assignment_keys,
+            token_keys: enrolled.token_keys,
+        }
     }
 
     /// A Hello signed at `at` with `nonce`.
@@ -147,8 +154,27 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
     }
 }
 
-/// The next message on a session, within five seconds.
+/// The next message on a session, within five seconds, passing over revocation lists, which
+/// arrive on their own schedule (§6.3 of docs/08-identity.md); [`next_list`] reads those.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
+    loop {
+        let m = any(stream).await;
+        if !matches!(m.message, Some(Down::RevocationList(_))) {
+            return m;
+        }
+    }
+}
+
+/// The next revocation list on a session, within five seconds of each message before it.
+pub async fn next_list(stream: &mut Stream) -> agent::RevocationList {
+    loop {
+        if let Some(Down::RevocationList(list)) = any(stream).await.message {
+            return *list;
+        }
+    }
+}
+
+async fn any(stream: &mut Stream) -> agent::ControlMessage {
     let received = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         stream.message::<agent::ControlMessage>(),

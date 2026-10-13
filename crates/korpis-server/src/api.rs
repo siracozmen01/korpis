@@ -64,6 +64,8 @@ pub struct Api {
     sessions: Arc<crate::sessions::Sessions>,
     /// The provider streams this process holds.
     providers: Arc<crate::providers::Providers>,
+    /// The revocation list this process publishes to its sessions.
+    revocations: Arc<crate::revocations::Revocations>,
 }
 
 impl Api {
@@ -75,6 +77,7 @@ impl Api {
             ca_fingerprint: String::new(),
             sessions: Arc::new(crate::sessions::Sessions::default()),
             providers: Arc::new(crate::providers::Providers::default()),
+            revocations: Arc::new(crate::revocations::Revocations::default()),
         }
     }
 
@@ -95,6 +98,13 @@ impl Api {
     #[must_use]
     pub fn providers(&self) -> &crate::providers::Providers {
         &self.providers
+    }
+
+    /// The revocation list published to the sessions, for the composition root's background
+    /// work.
+    #[must_use]
+    pub fn revocations(&self) -> &crate::revocations::Revocations {
+        &self.revocations
     }
 
     /// The application, for the composition root's background work.

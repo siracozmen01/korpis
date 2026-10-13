@@ -12,6 +12,7 @@ pub mod install;
 pub mod keys;
 mod provider_calls;
 pub mod providers;
+pub mod revocations;
 pub mod sealer;
 pub mod sessions;
 pub mod tls;
@@ -148,6 +149,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(track_conditions(Arc::clone(&api)));
     tokio::spawn(provider_calls::keep_registrations(Arc::clone(&api)));
     tokio::spawn(provider_calls::dispatch(Arc::clone(&api)));
+    tokio::spawn(revocations::keep(Arc::clone(&api)));
     tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
     let router = Arc::clone(&api).router();
     let task = tokio::spawn(async move {

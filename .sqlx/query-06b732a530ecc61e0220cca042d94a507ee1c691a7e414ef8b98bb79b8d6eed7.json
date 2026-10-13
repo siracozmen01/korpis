@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\" FROM grants WHERE revoked_at >= $1\n             UNION\n             SELECT id FROM grants WHERE revoked_at IS NULL AND suspended_at >= $1\n             ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "06b732a530ecc61e0220cca042d94a507ee1c691a7e414ef8b98bb79b8d6eed7"
+}

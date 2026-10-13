@@ -154,6 +154,19 @@ impl GrantRead for PgStore {
         .map_err(from_sqlx)?;
         all(rows)
     }
+
+    async fn revoked_since(&self, since: SystemTime) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_scalar!(
+            "SELECT id AS \"id!\" FROM grants WHERE revoked_at >= $1
+             UNION
+             SELECT id FROM grants WHERE revoked_at IS NULL AND suspended_at >= $1
+             ORDER BY 1",
+            from_time(since)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
 }
 
 impl GrantWrite for PgTx {
