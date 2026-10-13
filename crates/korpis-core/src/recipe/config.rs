@@ -175,8 +175,15 @@ fn check_authority(f: &ConfigField) -> Result<(), SchemaError> {
         ConfigDelivery::Env if !valid_env_name(&f.deliver_as) => {
             Err(err(k, "deliver env needs deliver_as naming the variable"))
         }
-        ConfigDelivery::Arg if f.deliver_as.is_empty() => {
+        ConfigDelivery::Arg if f.deliver_as.trim().is_empty() => {
             Err(err(k, "deliver arg needs deliver_as giving the argument"))
+        }
+        // Only a boolean may be a bare flag; any other value would vanish.
+        ConfigDelivery::Arg
+            if f.ty != ConfigType::Boolean
+                && !f.deliver_as.contains(super::deliver::PLACEHOLDER) =>
+        {
+            Err(err(k, "deliver arg needs deliver_as to place the value with {}"))
         }
         _ => Ok(()),
     }
@@ -187,9 +194,13 @@ impl ConfigSchema {
     /// and derived expressions may read only numeric fields that are not themselves derived.
     pub fn new(fields: Vec<ConfigField>) -> Result<Self, SchemaError> {
         let mut seen = BTreeSet::new();
+        let mut variables = BTreeSet::new();
         for f in &fields {
             if !seen.insert(f.key.as_str()) {
                 return Err(err(&f.key, "declared twice"));
+            }
+            if f.deliver == ConfigDelivery::Env && !variables.insert(f.deliver_as.as_str()) {
+                return Err(err(&f.key, "another field already delivers that variable"));
             }
             check_shape(f)?;
             check_authority(f)?;

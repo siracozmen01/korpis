@@ -5,6 +5,7 @@
 
 pub mod behaviour;
 pub mod config;
+pub mod deliver;
 pub mod derive;
 pub mod disruption;
 pub mod document;
@@ -18,6 +19,7 @@ pub mod trust;
 pub use config::{
     ConfigDelivery, ConfigField, ConfigSchema, ConfigType, FieldPermission, SchemaError,
 };
+pub use deliver::{Delivered, DeliveryError};
 pub use disruption::{Disruption, DisruptionDecl};
 pub use document::{Metadata, Recipe};
 pub use reference::{RecipeRef, RefError};

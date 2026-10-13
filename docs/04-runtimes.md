@@ -222,6 +222,18 @@ is what lets the Planner produce a plan that is known to be satisfiable before a
 and it is what makes dry-run genuinely free (P5). A `Prepare` with side effects would make every
 dry-run a partial apply.
 
+**What the `oci` driver's `Prepare` reads** is its arguments and nothing on the node: the intent,
+and the recipe document the assignment carries (§4.8 of `02-architecture.md`). From the recipe it
+takes the container target for this machine's architecture, pinned by digest, and the entry; from
+the intent's resolved configuration, the variables and arguments of §5.2 of `09-recipes.md`; from
+the intent, its volumes as mounts whose sources the helper names before `Create`, and its
+resources, with the default process limit where none is set (§5.2 of `05-scheduling.md`). It
+refuses, naming why, a tier other than `container`, an intent that names another driver or sets
+driver configuration (its declared schema admits none), a recipe with no image for this
+architecture, and a configuration that needs a managed file. It maps no ports: the container's
+network holds only loopback until the networking of Phase 1, the driver declares
+`network_modes: none`, and an endpoint stays without an address rather than claiming one.
+
 **`Recover` is not optional.** It is the adoption primitive of §4.4 of `02-architecture.md`. A
 driver that cannot enumerate and re-adopt the objects it created is a driver that turns every agent
 restart into a customer outage. It belongs in the interface, not in each implementation's good

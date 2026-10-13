@@ -1939,6 +1939,7 @@ dependencies = [
  "korpis-containerd",
  "korpis-core",
  "korpis-proto",
+ "korpis-recipe",
  "rustls",
  "serde",
  "serde_json",

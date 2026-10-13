@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod deliver;
 mod resolve;
 mod schema;
 mod support;

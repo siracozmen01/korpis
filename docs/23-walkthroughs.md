@@ -59,7 +59,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 6 | Plan persisted; non-disruptive by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `09-recipes.md` §5.1 |
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
 | 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps, and the recipe document; the plan becomes `applying` as it is sealed † ‡ | `02-architecture.md` §4.8 |
-| 9 | `Prepare`, content fetched by digest, signature verified, **pure** | `04-runtimes.md` §4.2 |
+| 9 | `Prepare` from the intent and the carried recipe alone, configuration written as variables and arguments; content fetched by digest, signature verified, **pure** ‡ | `04-runtimes.md` §4.2; `09-recipes.md` §5.2 |
 | 10 | Volume created with byte and inode quota in the write path | `06-storage.md` §3 |
 | 11 | Endpoint allocated, exposure mode applied | `07-networking.md` §3 |
 | 12 | `Create`, then `Start` | `04-runtimes.md` §4.2 |
@@ -85,7 +85,10 @@ unchanged: the schema's maps are now ordered, an unchanged assignment keeps its 
 the plan becomes applying in the transaction that first seals it. Step 2
 named no trust decision, though §7 of `09-recipes.md` makes one: the control plane decides it
 there, on the digest and the signatures kept with the recipe, under the policy that governs the
-declaring organization, and a dry run shows a refusal before anything is written.
+declaring organization, and a dry run shows a refusal before anything is written. Step 9 had no
+rule for how a configured value reaches the software: an `arg` field's template was never
+defined, and the example schema of §5 of `09-recipes.md` could not be loaded. §5.2 there now says
+how each value is written, and §4.2 of `04-runtimes.md` what the driver reads and what it refuses.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

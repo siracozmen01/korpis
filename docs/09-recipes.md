@@ -348,6 +348,7 @@ config:
       secret: true                         # redacted from streams (§7 of 14-streams.md)
       permission: operator
       deliver: env                         # §5.2: never into a tenant-writable file
+      deliver_as: RCON_PASSWORD
 
     - key: java_heap
       type: quantity
@@ -358,6 +359,8 @@ config:
       type: string
       permission: operator
       pattern: '^[-A-Za-z0-9:+=./ ]*$'
+      deliver: env                         # the java launcher splits this variable itself
+      deliver_as: JDK_JAVA_OPTIONS
 
     - key: eula
       type: boolean
@@ -430,6 +433,39 @@ effects (they record that it changed, not what to), and readable back only with
 > schema names the `file` channel `CONFIG_DELIVERY_TEMPLATE`: the field reaches the software only
 > through templates rendered into its volumes, which is the same tenant-writable channel. The
 > loader treats them as one, and refuses an `operator` or `secret` field that uses it.
+
+### How a value is written for the runtime
+
+`env` and `arg` values are set by the runtime driver when it prepares the workload (§4.2 of
+`04-runtimes.md`), from the resolved configuration the intent stores (§3.1), in the schema's
+declaration order.
+
+An `env` field's `deliver_as` names the variable; two fields may not name the same one. An `arg`
+field's `deliver_as` is a template of one or more arguments separated by spaces, and `{}` in an
+argument is replaced by the value: `--port {}` gives two arguments, `-Xmx{}` one. **A value is
+never split**: a value containing a space is still one argument, so no value can add a flag the
+template did not write. A field that needs a list of flags delivers it through a variable the
+software splits itself, which is why the example above sends `jvm_flags` to `JDK_JAVA_OPTIONS`. A
+template must place the value, except for a boolean, whose template without `{}` is a flag:
+present when the value is true, absent when it is false. A field with no value, or a null one,
+sets nothing.
+
+The value is written as text by its field's type, in one form whichever one was declared: a
+string or an enum as it is, an integer in decimal, a number in its shortest exact decimal, a
+boolean as `true` or `false`, a quantity in its base unit (`4Gi` is `4294967296`, `500m` is
+`0.5`), and a duration in seconds (`1h30m` is `5400`). When the recipe's `entry` names no command,
+the arguments replace the image's own `CMD`, as an OCI runtime does.
+
+A `managed_file` field is rendered by Korpis rather than set by the driver, and its rendering
+arrives with the templating of Phase 1 (§4 of `20-roadmap.md`). Until then a node refuses at
+`Prepare` an intent in which such a field has a value, and says which field: starting the software
+without a value its recipe promised it would be a quieter failure than not starting it.
+
+> Note, 2026-10-13, from the implementation (`crates/korpis-core/src/recipe/deliver.rs`). The
+> schema said `deliver_as` was "the argument template" and never said what a template was, and the
+> example above could not be loaded: `rcon_password` named no variable, and `jvm_flags`, an
+> operator field, fell to the default `file` channel that this section forbids it. The example is
+> corrected and the rules are this section.
 
 ### 5.3 Derived fields, and the language they are written in
 

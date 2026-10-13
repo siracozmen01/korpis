@@ -94,6 +94,18 @@ impl Quantity {
     pub fn units(self) -> u128 {
         self.millis / 1000
     }
+
+    /// The value in base units as decimal text, exactly: `4Gi` is `4294967296`, `500m` is
+    /// `0.5`.
+    #[must_use]
+    pub fn text(self) -> String {
+        let fraction = self.millis % 1000;
+        if fraction == 0 {
+            return self.units().to_string();
+        }
+        let digits = format!("{fraction:03}");
+        format!("{}.{}", self.units(), digits.trim_end_matches('0'))
+    }
 }
 
 /// Parses a duration: one or more `<integer><unit>` parts, units `ms`, `s`, `m`, `h`, `d`,
