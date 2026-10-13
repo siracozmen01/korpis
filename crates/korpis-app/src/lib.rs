@@ -42,6 +42,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     recipes: R,
     policy: PlacementPolicy,
     session_terms: node::SessionTerms,
+    assignment_sealer: Option<Arc<dyn ports::AssignmentSealer>>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -56,6 +57,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             recipes,
             policy,
             session_terms: node::SessionTerms::default(),
+            assignment_sealer: None,
         }
     }
 
@@ -64,6 +66,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_placement_policy(mut self, policy: PlacementPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Seals assignments with `sealer`: without one, no node can be told anything.
+    #[must_use]
+    pub fn with_assignment_sealer(mut self, sealer: Arc<dyn ports::AssignmentSealer>) -> Self {
+        self.assignment_sealer = Some(sealer);
         self
     }
 

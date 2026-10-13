@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE assignment SET active = false, updated_at = now()\n              WHERE workload_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de213c1a3d28df03bb650e6801ab345ed760e8aef40f09086244d5a1763987c4"
+}

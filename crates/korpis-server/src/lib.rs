@@ -10,6 +10,7 @@ pub mod bodies;
 pub mod data;
 pub mod install;
 pub mod keys;
+pub mod sealer;
 pub mod sessions;
 pub mod tls;
 
@@ -111,7 +112,11 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         SessionTerms { heartbeat_interval: config.heartbeat_interval, ..Default::default() };
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)
         .with_placement_policy(config.placement_policy.clone())
-        .with_session_terms(terms);
+        .with_session_terms(terms)
+        .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
+            keys.assignment.clone(),
+            keys.assignment_key_id.clone(),
+        )));
     app.register_keys(&keys.public()).await?;
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
@@ -122,6 +127,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let api = Arc::new(Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?));
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
+    tokio::spawn(dispatch_changes(Arc::clone(&api)));
     let router = api.router();
     let task = tokio::spawn(async move {
         bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
@@ -157,6 +163,25 @@ async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::info!(nodes = n, "nodes unreachable: three heartbeats missed"),
             Err(e) => tracing::warn!(error = %e, "node sweep failed"),
+        }
+    }
+}
+
+/// Wakes the session of every node a workload change concerns, so its set is recomputed and,
+/// if it changed, sent; a resync wakes them all. The task ends with the process.
+async fn dispatch_changes(api: Arc<Api>) {
+    use korpis_app::ports::{Change, Changes as _, Store as _};
+    let mut changes = api.app().store().subscribe();
+    while let Some(change) = changes.next().await {
+        match change {
+            Change::Workload(w) => match api.app().nodes_concerned(w).await {
+                Ok(nodes) => nodes.into_iter().for_each(|n| api.sessions().wake(n)),
+                Err(e) => {
+                    tracing::warn!(error = %e, "change dispatch failed; waking every session");
+                    api.sessions().wake_all();
+                }
+            },
+            Change::Resync => api.sessions().wake_all(),
         }
     }
 }

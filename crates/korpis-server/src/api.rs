@@ -73,6 +73,12 @@ impl Api {
         self
     }
 
+    /// The agent sessions, for the composition root's background work.
+    #[must_use]
+    pub fn sessions(&self) -> &crate::sessions::Sessions {
+        &self.sessions
+    }
+
     /// The application, for the composition root's background work.
     #[must_use]
     pub fn app(&self) -> &ServerApp {

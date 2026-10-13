@@ -4,6 +4,7 @@
 //! the control plane answers with a Welcome declaring the session's intervals, and from then on
 //! the stream carries facts up and decisions down.
 
+use super::downlink::Downlink;
 use crate::api::wire::{Refuse, id, timestamp};
 use crate::api::{ServerApp, error};
 use crate::sessions::Sessions;
@@ -94,8 +95,18 @@ pub(super) async fn open(
     let (tx, rx) = mpsc::channel(OUTBOUND);
     tx.send(welcome(app, &session)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;
-    let id = sessions.register(node, tx);
+    let (id, wake) = sessions.register(node, tx.clone());
     tracing::info!(%node, protocol = %session.protocol, "agent session opened");
+    let downlink = Downlink {
+        app: Arc::clone(app),
+        sessions: Arc::clone(sessions),
+        node,
+        id,
+        tx,
+        wake,
+        held: hello.set_digest.clone(),
+    };
+    tokio::spawn(downlink.run());
     tokio::spawn(inbound(Arc::clone(app), Arc::clone(sessions), node, id, requests));
     Ok(rx)
 }
@@ -127,6 +138,9 @@ async fn inbound(
 async fn handle(app: &ServerApp, node: Uuid, m: &StreamMessage<agent::AgentMessage>) {
     let m = m.to_owned_message();
     let result = match m.message.as_ref() {
+        Some(Up::Ack(a)) => {
+            app.acknowledge_set(node, &a.set_digest).await.map_err(|e| e.to_string())
+        }
         Some(Up::NodeStatus(s)) => {
             match facts(s.capacity.as_option(), s.allocatable.as_option(), &s.drivers, None) {
                 Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),

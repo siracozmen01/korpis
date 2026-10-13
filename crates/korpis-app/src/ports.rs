@@ -6,6 +6,7 @@
 //! and the effect recording it commit together or not at all (§4 of docs/03-state.md). Methods
 //! return `impl Future + Send` so a use case can run on any multi-threaded executor.
 
+mod assignment;
 mod audit;
 mod authz;
 mod changes;
@@ -22,6 +23,9 @@ mod tenancy;
 mod trust;
 mod workload;
 
+pub use assignment::{
+    AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
+};
 pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
@@ -93,6 +97,7 @@ pub trait Store:
     + PlacementRead
     + TrustRead
     + EnrollmentRead
+    + AssignmentRead
     + Send
     + Sync
     + 'static
@@ -125,6 +130,7 @@ pub trait Tx:
     + TrustWrite
     + EnrollmentWrite
     + SessionWrite
+    + AssignmentWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

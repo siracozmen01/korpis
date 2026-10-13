@@ -512,6 +512,35 @@ the gaps above:
 The set digest of §9 of `10-api.md` is computed over the assignments, generation by generation, so
 the resync optimization is unchanged.
 
+**How a generation moves.** The control plane recomputes a node's set whenever something it is made
+of changes (a target or power target moving, a plan's status, a placement) and on every resync. An
+assignment whose content is unchanged, judged by a digest over it with its generation zeroed, keeps
+its generation and its signature and is not sealed again; one whose content changed is sealed one
+generation higher. An assignment that leaves a node's set is kept, inactive, rather than deleted,
+so a workload placed on the same node again continues from the generation it had: a generation that
+started again at one would look, to an agent still holding a higher one, like going backward. The
+computation of one node's set is serialized, so two control-plane processes cannot seal two
+different assignments under one generation. The digest of the set is over each workload and its
+generation, sorted by workload, as `sha256:` and hexadecimal; the agent computes the same over what
+it holds.
+
+**An approved plan becomes `applying` when it is first assigned** (§7 of `03-state.md`): the plan
+the node is told to execute is the applying one, or, if none is, the earliest approved, which is
+marked applying in the transaction that seals the assignment carrying it. A plan approved while
+another is applying is queued, and §7 of `03-state.md` says when it preempts the applying one by
+lowering its `through`. That lowering waits on the ingestion of step completions (§4.10), which is
+what tells the control plane the last step started; until it lands, a queued plan reaches the node
+when the applying one is done, while the approved power and target the queued plan moved are in the
+assignment at once.
+
+**What Phase 0 resolves without the information to do better.** `on_lease_expiry` derived from the
+volumes (§4.5) needs to know whether a volume's class can be attached from a second node, and no
+storage class a Phase 0 node offers can: every one is node-local, so the derived answer is
+`keep_running`. A class that declares multi-node attachment, with the fencing of §2 of
+`06-storage.md`, changes the answer, and the derivation already takes it. Every change sends the
+whole set; the delta of §9 of `10-api.md` is an optimization not yet made, and its absence costs
+bandwidth, never correctness.
+
 ### 4.9 Which steps run where
 
 A plan's steps do not all run on the node. Allocating an address, holding quota, and asking a DNS

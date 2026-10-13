@@ -12,6 +12,7 @@
 )]
 
 mod agent;
+mod assignments;
 mod authority;
 mod authz;
 mod effects;

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT node_id AS \"node!\" FROM placement WHERE workload_id = $1\n               UNION\n               SELECT node_id FROM assignment WHERE workload_id = $1 AND active",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8c3048a035d54bf30b687276e2a860b375024f00d2ba47ba7992bbfbe742505f"
+}

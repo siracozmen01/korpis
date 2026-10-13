@@ -21,7 +21,7 @@ authz = ["dep:base64", "dep:biscuit-auth", "dep:getrandom", "dep:sha2"]
 trust = ["dep:base64", "dep:p256", "dep:sha2"]
 # Node identity: the Ed25519 key a node proves itself with (§7 of docs/02-architecture.md),
 # shared by the agent that signs and the control plane that verifies.
-identity = ["dep:ed25519-dalek"]
+identity = ["dep:ed25519-dalek", "dep:sha2"]
 
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }

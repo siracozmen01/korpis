@@ -19,7 +19,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/helper/v1/helper.proto",
     ];
     println!("cargo:rerun-if-changed=descriptor.binpb");
+    // Every map is a BTreeMap, so a message encodes to the same bytes every time: an
+    // assignment is signed over its bytes and compared by their digest (§4.8 of
+    // docs/02-architecture.md), and a HashMap's order would make every comparison a change.
+    let mut buffa = connectrpc_build::CodeGenConfig::default();
+    buffa.map_fields = vec![(".".to_owned(), buffa_codegen::MapRepr::BTreeMap)];
     connectrpc_build::Config::new()
+        .buffa_config(buffa)
         .descriptor_set("descriptor.binpb")
         .files(FILES)
         .generate_json(true)

@@ -1904,6 +1904,7 @@ name = "korpis-proto"
 version = "0.0.0"
 dependencies = [
  "buffa",
+ "buffa-codegen",
  "buffa-types",
  "connectrpc",
  "connectrpc-build",

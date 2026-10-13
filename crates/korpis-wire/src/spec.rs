@@ -35,7 +35,9 @@ enum_map!(tier_to_pb, tier_from_pb, IsolationTier, pb::IsolationTier, "an isolat
     IsolationTier::Vm => pb::IsolationTier::ISOLATION_TIER_VM,
 });
 
-fn continuity_to_pb(c: Continuity) -> pb::OnLeaseExpiry {
+/// The wire form of a continuity; `Derived` is the unspecified value.
+#[must_use]
+pub fn continuity_to_pb(c: Continuity) -> pb::OnLeaseExpiry {
     match c {
         Continuity::Derived => pb::OnLeaseExpiry::ON_LEASE_EXPIRY_UNSPECIFIED,
         Continuity::KeepRunning => pb::OnLeaseExpiry::ON_LEASE_EXPIRY_KEEP_RUNNING,

@@ -56,6 +56,14 @@ model and the client services), `korpis.agent.v1` (the agent protocol of §4 of
 of §6.2 of that document). `buf lint` and a committed descriptor set guard it, and the Rust code is
 generated from the descriptor set at build time, so building Korpis needs no protobuf compiler.
 
+**Encoding is deterministic.** Every `map` in the schema is generated as an ordered map, so a
+message encodes to the same bytes every time it is encoded. The protobuf encoding does not require
+this, and Korpis depends on it: an assignment is signed over its exact bytes and compared with the
+one a node already holds by their digest (§4.8 of `02-architecture.md`), and with an unordered map
+the same assignment would encode differently from one computation to the next and every
+comparison would read as a change. A third-party agent needs no such property: it verifies the
+bytes it was sent, whatever order they are in.
+
 Connect rather than raw gRPC because it speaks Connect, gRPC, and gRPC-Web on one endpoint, works
 through ordinary HTTP proxies and CDNs, and is reachable from a browser without a translating
 proxy.

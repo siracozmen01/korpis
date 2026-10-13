@@ -57,7 +57,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind in the approving transaction under the placement lock; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
 | 6 | Plan persisted; non-disruptive by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `09-recipes.md` §5.1 |
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
-| 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps † | `02-architecture.md` §4.8 |
+| 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps, and the recipe document; the plan becomes `applying` as it is sealed † ‡ | `02-architecture.md` §4.8 |
 | 9 | `Prepare`, content fetched by digest, signature verified, **pure** | `04-runtimes.md` §4.2 |
 | 10 | Volume created with byte and inode quota in the write path | `06-storage.md` §3 |
 | 11 | Endpoint allocated, exposure mode applied | `07-networking.md` §3 |
@@ -77,7 +77,11 @@ lock, and a target with no node is recorded with its explanation, shown as unpla
 Placing the example recipe also showed that §9 of `07-networking.md` kept any workload with an
 `overlay_only` endpoint off a node without the overlay; it is corrected there. Step 15 had a
 stream with no source: nothing said what wakes a watch, and a watch that polls is either late or
-expensive. The database announces each committed change, and the watch re-reads on it. Step 2
+expensive. The database announces each committed change, and the watch re-reads on it. Step 8
+had no rule for when a generation moves or when an approved plan becomes applying, and an
+assignment signed over bytes that encode differently each time could never be recognized as
+unchanged: the schema's maps are now ordered, an unchanged assignment keeps its generation, and
+the plan becomes applying in the transaction that first seals it. Step 2
 named no trust decision, though §7 of `09-recipes.md` makes one: the control plane decides it
 there, on the digest and the signatures kept with the recipe, under the policy that governs the
 declaring organization, and a dry run shows a refusal before anything is written.

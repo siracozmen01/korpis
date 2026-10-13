@@ -9,6 +9,7 @@
 
 #![warn(missing_docs)]
 
+mod assignment;
 mod audit;
 mod authz;
 mod enrollment;

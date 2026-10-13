@@ -25,6 +25,8 @@ pub type Stream = BidiStream<
 pub struct TestAgent {
     pub key: ed25519_dalek::SigningKey,
     pub node: String,
+    /// The control plane's assignment verification keys, as enrollment returned them.
+    pub assignment_keys: Vec<agent::SigningKey>,
 }
 
 pub fn agents(h: &Harness) -> agent::AgentServiceClient<HttpClient> {
@@ -62,7 +64,7 @@ impl TestAgent {
             .await
             .unwrap()
             .into_owned();
-        Self { key, node: enrolled.node }
+        Self { key, node: enrolled.node, assignment_keys: enrolled.assignment_keys }
     }
 
     /// A Hello signed at `at` with `nonce`.
@@ -132,4 +134,15 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
         Some(Down::Welcome(w)) => (**w).clone(),
         other => panic!("expected a Welcome, got {other:?}"),
     }
+}
+
+/// The next message on a session, within five seconds.
+pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
+    let received = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        stream.message::<agent::ControlMessage>(),
+    )
+    .await
+    .expect("a message within five seconds");
+    received.unwrap().expect("the stream is open").to_owned_message()
 }

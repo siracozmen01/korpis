@@ -9,13 +9,15 @@
 use korpis_proto::korpis::agent::v1::ControlMessage;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use tokio::sync::Notify;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
 struct Entry {
     id: u64,
     tx: Sender<ControlMessage>,
+    wake: Arc<Notify>,
 }
 
 /// The registry.
@@ -38,11 +40,28 @@ impl Sessions {
         self.open.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Registers the session of `node` sending through `tx`, replacing any other; its id.
-    pub fn register(&self, node: Uuid, tx: Sender<ControlMessage>) -> u64 {
+    /// Registers the session of `node` sending through `tx`, replacing any other; its id, and
+    /// what wakes it to recompute the node's set.
+    pub fn register(&self, node: Uuid, tx: Sender<ControlMessage>) -> (u64, Arc<Notify>) {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
-        self.guard().insert(node, Entry { id, tx });
-        id
+        let wake = Arc::new(Notify::new());
+        self.guard().insert(node, Entry { id, tx, wake: Arc::clone(&wake) });
+        (id, wake)
+    }
+
+    /// Wakes `node`'s session, if it has one here, to recompute its set. A wake while it is
+    /// computing is kept, so a change made meanwhile is not missed.
+    pub fn wake(&self, node: Uuid) {
+        if let Some(e) = self.guard().get(&node) {
+            e.wake.notify_one();
+        }
+    }
+
+    /// Wakes every session.
+    pub fn wake_all(&self) {
+        for e in self.guard().values() {
+            e.wake.notify_one();
+        }
     }
 
     /// Whether session `id` is still the one `node` holds.
