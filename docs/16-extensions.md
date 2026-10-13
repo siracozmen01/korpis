@@ -162,6 +162,16 @@ proposes the retirement of its workload. Installing needs `extension.install`, u
 > what an installer sees and not what installing does, so nothing said where an extension's grants
 > come from in the chain that §3 of `08-identity.md` requires every grant to descend through.
 
+**An extension's artifact is installed, never declared.** A declaration through the workload API
+that names an extension's artifact is refused, and so is one that gives an extension's workload
+any artifact but the digest it was installed from (§3.5 and §3.7 of `01-model.md`, §8 of
+`09-recipes.md`).
+Without the first rule the same code would run as a plain workload, holding none of its grants and
+authenticating as `workload:<id>`, which fails in ways nobody can diagnose; without the second, a
+new version could arrive with needs nobody approved. Everything else about the workload (its
+configuration, its power, its placement) is declared as for any workload. Moving an installation
+to another version is an operation of its own (§9, question 6).
+
 This is the phone-application permission model, and it works here for the reason it fails in most
 server software: grants already exist, so there is nothing to invent. A user can see what an
 extension may do by reading its grants, revoke one without uninstalling, and read every action it
@@ -434,3 +444,12 @@ breaker policy. It is a drain, applied to one registration rather than one node.
    though building it in-core would be easier. What remains genuinely open is how much of the
    widget vocabulary the adapter interface can carry across platforms, and that is answered by
    writing the second adapter, not by designing harder. → here
+6. **Upgrading an installation.** Added 2026-10-13, when §4 made an extension's workload run only
+   the digest it was installed from. Question 1 holds, since an upgrade is a rolling update of the
+   workload, but the rolling update must come from the extension service and not from a plain
+   declaration: the new version is resolved under the trust policy, its needs are compared with
+   the approved ones, a need that grew is approved again by someone whose grants cover it, grants
+   are issued or revoked for the difference, and only then is the new digest declared on the same
+   workload, keeping the subject `extension:<id>` and everything recorded against it. It is built
+   with the versioning of §6, where a contract version that changed is checked the same way.
+   → here

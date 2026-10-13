@@ -79,5 +79,6 @@ async fn an_extension_is_published_as_an_extension_and_fetched_back() {
     assert_eq!(pulled.kind, Kind::Extension);
     assert_eq!(Kind::Extension.artifact_type(), EXTENSION_ARTIFACT_TYPE);
     let fetched = RegistrySource::new(registry()).fetch(&repo, &digest).await.unwrap();
-    assert_eq!(fetched.recipe.metadata.name, "cloudflare-dns");
+    assert_eq!(fetched.described.recipe.metadata.name, "cloudflare-dns");
+    assert!(fetched.described.extension.is_some(), "the source reports what it fetched");
 }

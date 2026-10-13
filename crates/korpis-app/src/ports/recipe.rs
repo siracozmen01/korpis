@@ -4,6 +4,7 @@
 //! docs/09-recipes.md).
 
 use super::StoreResult;
+use korpis_core::extension::ExtensionManifest;
 use korpis_core::recipe::Recipe;
 use korpis_core::recipe::trust::Signature;
 use std::future::Future;
@@ -22,13 +23,23 @@ pub enum SourceError {
     Invalid(String),
 }
 
-/// A recipe fetched by digest: the document as published, and the recipe it describes.
+/// What a document describes: a workload, and, for an extension's document, the extension
+/// (§3.1 of docs/16-extensions.md).
+#[derive(Debug, Clone)]
+pub struct Described {
+    /// The validated recipe: all of a recipe's document, the workload of an extension's.
+    pub recipe: Recipe,
+    /// The validated `extension` block, exactly when the document is an extension's.
+    pub extension: Option<ExtensionManifest>,
+}
+
+/// A recipe fetched by digest: the document as published, and what it describes.
 #[derive(Debug, Clone)]
 pub struct Fetched {
     /// The document's bytes, kept so the recipe can be read again without its source.
     pub document: Vec<u8>,
-    /// The validated recipe.
-    pub recipe: Recipe,
+    /// What it describes.
+    pub described: Described,
 }
 
 /// A source of recipes: in practice, OCI registries.
@@ -56,7 +67,7 @@ pub trait RecipeSource: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Vec<Signature>, SourceError>> + Send;
 
     /// A document read back from the store. Validation runs again: the rules may have grown.
-    fn parse(&self, document: &[u8]) -> Result<Recipe, SourceError>;
+    fn parse(&self, document: &[u8]) -> Result<Described, SourceError>;
 }
 
 /// A recipe as the store keeps it.

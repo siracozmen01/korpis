@@ -12,6 +12,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("idempotency_pkey") => Unique::IdempotencyKey,
         Some("workload_name_in_project") => Unique::WorkloadName,
         Some("declared_set_name_in_project") => Unique::SetName,
+        Some("extension_installed_name") => Unique::ExtensionName,
         Some("node_name_key") => Unique::NodeName,
         Some("node_public_key_key") => Unique::NodeKey,
         _ => Unique::Other,

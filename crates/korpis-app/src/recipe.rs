@@ -6,7 +6,7 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{CachedRecipe, Clock, Fetched, RecipeSource, SourceError, Store};
+use crate::ports::{CachedRecipe, Clock, Described, Fetched, RecipeSource, SourceError, Store};
 use korpis_core::recipe::reference::is_digest;
 use korpis_core::recipe::trust::cosign::verified;
 use korpis_core::recipe::trust::{Signature, TrustPolicy, Untrusted, Vouched};
@@ -41,33 +41,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         version: &str,
     ) -> Result<(RecipeRef, Recipe), AppError> {
         let digest = self.digest_of(name, version).await?;
-        self.pinned(name, version, digest).await
+        let (reference, described) = self.pinned(name, version, digest).await?;
+        Ok((reference, described.recipe))
     }
 
-    /// The recipe with `digest`, from the store or else fetched and kept.
+    /// What the document with `digest` describes, from the store or else fetched and kept.
     async fn pinned(
         &self,
         name: &str,
         version: &str,
         digest: String,
-    ) -> Result<(RecipeRef, Recipe), AppError> {
+    ) -> Result<(RecipeRef, Described), AppError> {
         let reference =
             RecipeRef { name: name.to_owned(), version: version.to_owned(), digest, trust: None };
         reference.validate().map_err(|e| AppError::invalid("recipe", e.to_string()))?;
         if let Some(cached) = self.store.cached_recipe(&reference.digest).await? {
-            let recipe = self.recipes.parse(&cached.document).map_err(source_error)?;
-            return Ok((reference, recipe));
+            let described = self.recipes.parse(&cached.document).map_err(source_error)?;
+            return Ok((reference, described));
         }
-        let Fetched { document, recipe } =
+        let Fetched { document, described } =
             self.recipes.fetch(name, &reference.digest).await.map_err(source_error)?;
         let kept = CachedRecipe { name: name.to_owned(), version: version.to_owned(), document };
         self.store.cache_recipe(&reference.digest, &kept).await?;
-        Ok((reference, recipe))
+        Ok((reference, described))
     }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The recipe `name` at `version`, resolved for a workload of `organization` under the
+    /// What `name` at `version` describes, resolved for a workload of `organization` under the
     /// trust policy that governs it (§7 of docs/09-recipes.md), and recorded with what vouched
     /// for it. The policy is decided on the digest and its signatures before anything of the
     /// recipe is fetched; a recipe the store already holds is decided on the signatures kept
@@ -77,14 +78,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         name: &str,
         version: &str,
         organization: uuid::Uuid,
-    ) -> Result<(RecipeRef, Recipe), AppError> {
+    ) -> Result<(RecipeRef, Described), AppError> {
         let digest = self.digest_of(name, version).await?;
         let policy = self.store.trust_policy(organization).await?;
         let policy = policy.map(|p| p.policy).unwrap_or_default();
         let vouched = self.vouch(name, &digest, &policy).await?;
-        let (mut reference, recipe) = self.pinned(name, version, digest).await?;
+        let (mut reference, described) = self.pinned(name, version, digest).await?;
         reference.trust = Some(vouched);
-        Ok((reference, recipe))
+        Ok((reference, described))
     }
 
     async fn vouch(
@@ -145,7 +146,7 @@ impl RecipeSource for NoRecipes {
         std::future::ready(Err(SourceError::Unavailable("no recipe source is configured".into())))
     }
 
-    fn parse(&self, _: &[u8]) -> Result<Recipe, SourceError> {
+    fn parse(&self, _: &[u8]) -> Result<Described, SourceError> {
         Err(SourceError::Unavailable("no recipe source is configured".into()))
     }
 }

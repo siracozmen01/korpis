@@ -4,6 +4,7 @@
 //! docs/01-model.md). Declaring moves the head; only approving moves the target, and the plan is
 //! approved in the same call only when nothing in it needs a human (§3.2 of docs/03-state.md).
 
+mod base;
 mod commit;
 mod set;
 
@@ -14,7 +15,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
 use commit::{approval_effect, declaration_effects, moved};
-use korpis_core::authz::{Kind, ObjectRef, Permit};
+use korpis_core::authz::Permit;
 use korpis_core::labels::Labels;
 use korpis_core::recipe::Recipe;
 use korpis_core::recipe::resolve::Change;
@@ -26,7 +27,7 @@ use korpis_core::workload::plan::impact::delta;
 use korpis_core::workload::plan::{Approval, DriverClass, Proposing};
 use korpis_core::workload::set::Through;
 use korpis_core::workload::spec::IntentBody;
-use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
+use korpis_core::workload::{Intent, Plan, PlanTarget, PowerRecord, PowerState, Workload};
 use uuid::Uuid;
 
 const OPERATION: &str = "workload.declare_intent";
@@ -111,6 +112,8 @@ struct Base {
     permit: Permit,
     proposing: Proposing,
     action: &'static str,
+    /// The digest of the extension the workload was installed from, when it is an extension's.
+    extension: Option<String>,
 }
 
 impl Base {
@@ -150,6 +153,16 @@ fn declared(base: &Base, intent: Intent, plan: Plan, passage: Option<&set::Passa
     }
 }
 
+/// A declaration computed and checked against the state it was read from, not yet written.
+pub(crate) struct Prepared {
+    base: Base,
+    declared: Declared,
+    passage: Option<set::Passage>,
+    changes: Vec<Change>,
+    held: Option<Held>,
+    holds: Held,
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Declares an intent. A grant that may only propose produces a plan that waits for an
     /// approver; a plan nothing in which needs a human is approved at once and moves the target.
@@ -167,12 +180,39 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Ok(Reply::Replayed(r));
         }
-        let base = match &cmd.target {
+        let dry_run = cmd.dry_run;
+        // Boxed: preparing reads and resolves a great deal, and its state would otherwise be
+        // carried inline in every caller's future.
+        let mut prepared = Box::pin(self.prepare_declaration(caller, cmd, None)).await?;
+        let mut tx = self.store.begin().await?;
+        if dry_run {
+            // Admission runs, so the plan shows a quota refusal too, and the transaction is
+            // dropped: nothing is held and nothing is written.
+            let p = &prepared;
+            self.admit(&mut tx, &p.declared.workload, p.held.as_ref(), &p.holds).await?;
+            return Ok(Reply::Fresh(prepared.declared));
+        }
+        self.write_prepared(&mut tx, caller, &mut prepared).await?;
+        finish(tx, caller, idem, OPERATION, prepared.declared).await
+    }
+
+    /// Computes a declaration and checks it against the state it reads. `installing` names the
+    /// digest of the extension a new workload is installed from (§4 of docs/16-extensions.md).
+    pub(crate) async fn prepare_declaration(
+        &self,
+        caller: &Caller,
+        cmd: DeclareIntent,
+        installing: Option<String>,
+    ) -> Result<Prepared, AppError> {
+        let mut base = match &cmd.target {
             DeclareTarget::New(n) => self.base_new(caller, n).await?,
             DeclareTarget::Existing { workload, expected_version } => {
                 self.base_existing(caller, *workload, *expected_version).await?
             }
         };
+        if installing.is_some() {
+            base.extension = installing;
+        }
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
         let (body, recipe, changes) =
             self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
@@ -184,33 +224,38 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let driver =
             self.driver_class(base.workload.organization, intent.body.runtime.tier).await?;
         let plan = self.intent_plan(caller, &base, &intent, (&driver, &recipe), cmd.propose);
-        let mut declared = declared(&base, intent, plan, passage.as_ref());
+        let declared = declared(&base, intent, plan, passage.as_ref());
         let held = base.held();
         let holds = base.holding(&declared.intent);
-        let mut tx = self.store.begin().await?;
-        if cmd.dry_run {
-            // Admission runs, so the plan shows a quota refusal too, and the transaction is
-            // dropped: nothing is held and nothing is written.
-            self.admit(&mut tx, &declared.workload, held.as_ref(), &holds).await?;
-            return Ok(Reply::Fresh(declared));
+        Ok(Prepared { base, declared, passage, changes, held, holds })
+    }
+
+    /// Writes a prepared declaration in `tx`, approving and placing it when nothing in it needs
+    /// a human.
+    pub(crate) async fn write_prepared(
+        &self,
+        tx: &mut S::Tx,
+        caller: &Caller,
+        p: &mut Prepared,
+    ) -> Result<(), AppError> {
+        let Prepared { base, declared, passage, changes, held, holds } = p;
+        if let Some(p) = passage {
+            self.create_set(tx, p).await?;
         }
-        if let Some(p) = &passage {
-            self.create_set(&mut tx, p).await?;
-        }
-        self.write_declaration(&mut tx, &base, &declared, held.as_ref(), &holds).await?;
-        if let Some(p) = &passage {
-            self.record_passage(&mut tx, caller, &base, &declared, p).await?;
+        self.write_declaration(tx, base, declared, held.as_ref(), holds).await?;
+        if let Some(p) = passage {
+            self.record_passage(tx, caller, base, declared, p).await?;
         }
         let superseded = tx.supersede_proposed(&declared.plan).await?;
-        let approved = self.approve_declared(&mut tx, caller, &base, &mut declared).await?;
-        for effect in declaration_effects(caller, &base, &declared, &changes, superseded) {
+        let approved = self.approve_declared(tx, caller, base, declared).await?;
+        for effect in declaration_effects(caller, base, declared, changes, superseded) {
             tx.append_effect(&effect).await?;
         }
         if approved {
-            tx.append_effect(&approval_effect(caller, &base, &declared.plan)).await?;
-            self.place_target(&mut tx, &declared.workload, Some(&declared.intent)).await?;
+            tx.append_effect(&approval_effect(caller, base, &declared.plan)).await?;
+            self.place_target(tx, &declared.workload, Some(&declared.intent)).await?;
         }
-        finish(tx, caller, idem, OPERATION, declared).await
+        Ok(())
     }
 
     /// The intent `body` declares against `base`, through `passage` when the declaration goes
@@ -232,102 +277,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             body,
             managed_by: passage.map(set::Passage::set_id),
         }
-    }
-
-    /// The declared body completed from its recipe, resolved under the organization's trust
-    /// policy, with its configuration resolved and what that changed.
-    async fn complete_declaration(
-        &self,
-        caller: &Caller,
-        base: &Base,
-        (name, version): (&str, &str),
-        declaration: Declaration,
-    ) -> Result<(IntentBody, Recipe, Vec<Change>), AppError> {
-        let organization = base.workload.organization;
-        let (reference, recipe) = self.resolve_trusted(name, version, organization).await?;
-        let mut body = declaration
-            .complete(reference, &recipe)
-            .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
-        if !body.dependencies.is_empty() {
-            // The schema is frozen here (rule E); resolving a dependency and injecting its
-            // address arrive with service discovery (§4 of docs/20-roadmap.md). Accepting one now
-            // would store a promise nothing keeps.
-            return Err(AppError::NotYet { what: "dependencies", phase: 1 });
-        }
-        let previous = base.head.as_ref().map(|h| &h.body.config);
-        let changes = self.configure(caller, &mut body, &recipe, previous, organization).await?;
-        Ok((body, recipe, changes))
-    }
-
-    async fn base_new(&self, caller: &Caller, n: &NewWorkload) -> Result<Base, AppError> {
-        let object = ObjectRef::new(Kind::Project, n.project);
-        let (permit, proposing) =
-            self.authorize_declaration(caller, "workload.create", object).await?;
-        let project =
-            self.store.project(n.project).await?.ok_or(AppError::NotFound { kind: "project" })?;
-        let now = self.clock.now();
-        let id = Uuid::now_v7();
-        let workload = Workload {
-            id,
-            project: project.id,
-            organization: project.organization,
-            name: n.name.clone(),
-            labels: n.labels.clone(),
-            intent: Uuid::nil(),
-            intent_version: 0,
-            target: None,
-            target_version: 0,
-            power_version: 1,
-            power_target_version: 0,
-            version: 1,
-            created: now,
-            deleted_at: None,
-            set: None,
-            classification: Vec::new(),
-        };
-        let power = PowerRecord {
-            workload: id,
-            power: Power::initial(n.power),
-            set_by: caller.principal.clone(),
-            set_at: now,
-        };
-        let action = "workload.create";
-        Ok(Base { workload, power, head: None, target: None, permit, proposing, action })
-    }
-
-    async fn base_existing(
-        &self,
-        caller: &Caller,
-        id: Uuid,
-        expected: u64,
-    ) -> Result<Base, AppError> {
-        let object = ObjectRef::new(Kind::Workload, id);
-        let (permit, proposing) =
-            self.authorize_declaration(caller, "workload.write", object).await?;
-        let workload = self
-            .store
-            .workload(id)
-            .await?
-            .filter(|w| w.deleted_at.is_none())
-            .ok_or(AppError::NotFound { kind: "workload" })?;
-        if workload.intent_version != expected {
-            return Err(moved(&workload));
-        }
-        let intent = |i: Uuid| async move {
-            self.store.intent(i).await?.ok_or_else(|| AppError::Internal(format!("intent {i}")))
-        };
-        let head = Some(intent(workload.intent).await?);
-        let target = match workload.target {
-            Some(t) => Some(intent(t).await?),
-            None => None,
-        };
-        let power = self
-            .store
-            .power(id)
-            .await?
-            .ok_or_else(|| AppError::Internal(format!("workload {id} has no power")))?;
-        let action = "workload.write";
-        Ok(Base { workload, power, head, target, permit, proposing, action })
     }
 
     /// The plan of `to`; with `propose`, one that waits for confirmation whatever default policy

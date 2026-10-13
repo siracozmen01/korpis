@@ -12,6 +12,7 @@ mod authz;
 mod changes;
 mod clock;
 mod enrollment;
+mod extension;
 mod idempotency;
 mod journal;
 mod lease;
@@ -39,6 +40,7 @@ pub use authz::{
 pub use changes::{Change, Changes};
 pub use clock::{Clock, SystemClock};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
+pub use extension::{ExtensionRead, ExtensionWrite};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use journal::{JournalRead, JournalWrite};
 pub use lease::LeaseWrite;
@@ -46,7 +48,7 @@ pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
-pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
+pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
@@ -73,6 +75,8 @@ pub enum Unique {
     IdempotencyKey,
     /// Declared set names are unique within a project.
     SetName,
+    /// One installation of an extension's name per organization and project at a time.
+    ExtensionName,
     /// Any other.
     Other,
 }
@@ -114,6 +118,7 @@ pub trait Store:
     + JournalRead
     + ObservationRead
     + SetRead
+    + ExtensionRead
     + Send
     + Sync
     + 'static
@@ -152,6 +157,7 @@ pub trait Tx:
     + JournalWrite
     + ObservationWrite
     + SetWrite
+    + ExtensionWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

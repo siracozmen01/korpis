@@ -5,7 +5,10 @@
 //! the actions and UI slots it adds. Everything else in its document describes its workload, as
 //! any recipe does; this is the one section that makes the recipe an extension.
 
+mod installation;
 mod validate;
+
+pub use installation::Installation;
 
 use crate::authz::action::Action;
 use crate::event::EventFilter;

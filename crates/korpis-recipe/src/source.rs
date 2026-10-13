@@ -3,10 +3,9 @@
 //! The recipe source port, answered by OCI registries.
 
 use crate::artifact::check_files;
-use crate::document::{DocumentError, parse, parse_document};
+use crate::document::{DocumentError, Parsed, parse_document};
 use crate::registry::{Registry, RegistryError};
-use korpis_app::ports::{Fetched, RecipeSource, SourceError};
-use korpis_core::recipe::Recipe;
+use korpis_app::ports::{Described, Fetched, RecipeSource, SourceError};
 use korpis_core::recipe::trust::Signature;
 
 fn from_registry(e: RegistryError) -> SourceError {
@@ -19,6 +18,10 @@ fn from_registry(e: RegistryError) -> SourceError {
 
 fn from_document(e: &DocumentError) -> SourceError {
     SourceError::Invalid(e.to_string())
+}
+
+fn described(p: Parsed) -> Described {
+    Described { recipe: p.recipe, extension: p.extension }
 }
 
 /// Recipes from OCI registries.
@@ -50,14 +53,14 @@ impl RecipeSource for RegistrySource {
         }
         check_files(&parsed.recipe, &pulled.files)
             .map_err(|e| SourceError::Invalid(e.to_string()))?;
-        Ok(Fetched { document: pulled.document, recipe: parsed.recipe })
+        Ok(Fetched { document: pulled.document, described: described(parsed) })
     }
 
     async fn signatures(&self, name: &str, digest: &str) -> Result<Vec<Signature>, SourceError> {
         self.registry.signatures(name, digest).await.map_err(from_registry)
     }
 
-    fn parse(&self, document: &[u8]) -> Result<Recipe, SourceError> {
-        parse(document).map_err(|e| from_document(&e))
+    fn parse(&self, document: &[u8]) -> Result<Described, SourceError> {
+        parse_document(document).map(described).map_err(|e| from_document(&e))
     }
 }
