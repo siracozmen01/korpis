@@ -745,6 +745,16 @@ now ends the console of step 3 while it is open, because the node holding the se
 new list against the session's chain, and the token's renewal is carried on the session itself,
 judged by the relay and the node in turn (§3.1 of `02-architecture.md`).
 
+Running the relay as its own process asked the algebra question of step 3 once more: with what
+information does a relay that holds no database refuse the revoked token? With the list its feed
+sent, believed only once it verifies against the token keys the same feed sent, and pushed within
+about two seconds of the control plane computing it (§3.1 of `02-architecture.md`). A relay whose
+feed was lost keeps the last list it believed, so a revocation it missed is bounded by one token
+lifetime, the bound §4.6 of `02-architecture.md` already states for the agent, and the node
+refuses the session's next renewal by its own list regardless. The same build found that a node's
+proof to a relay could be replayed to another relay, since relays share no nonce memory; the
+proof now names the relay it was made for.
+
 ---
 
 ## 12. A recipe install fails at step four of six

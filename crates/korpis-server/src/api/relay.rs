@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `RelayService` (§3.1 of docs/02-architecture.md): a client opens a session with a workload.
-//! The relay verifies the token offline, as a relay without a database would: against the token
-//! keys, the revocation list this process publishes, and the client's address, which this is
-//! the first hop to see. Then it asks the node to carry the session and joins the two.
+//! The relay verifies the token offline, as a relay without a database does: against the token
+//! keys, the revocation list it holds, and the client's address, which this is the first hop to
+//! see. Then it asks the node to carry the session and joins the two.
+//!
+//! The same services serve in the control plane's process and in a relay's own, over a
+//! [`Verifier`] that is the control plane's state in one and the feed's in the other.
 
+use super::error;
 use super::wire::{Refuse as _, id, timestamp};
-use super::{Api, error};
-use crate::relay::Answer;
-use crate::revocations::Revocations;
-use connectrpc::ServiceStream;
+use crate::relay::{Answer, Relay, Verifier};
 use connectrpc::{ConnectError, InboundStream, RequestContext, Response, ServiceResult};
+use connectrpc::{Router, ServiceStream};
 use futures_util::StreamExt as _;
 use korpis_core::authz::token::{Client, KeyRing, Verified, verify};
 use korpis_core::authz::{Kind, ObjectRef, Resource};
@@ -46,10 +48,43 @@ fn unavailable(message: &str) -> ConnectError {
     error::session_refused(C::ERROR_CODE_UNAVAILABLE, "session.unavailable", message)
 }
 
+/// The relay role's services, `RelayService` and `DataService`, verifying by `V`.
+pub struct RelayRole<V> {
+    pub(super) relay: Arc<Relay>,
+    pub(super) verifier: Arc<V>,
+}
+
+impl<V> std::fmt::Debug for RelayRole<V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RelayRole").field("relay", &self.relay).finish_non_exhaustive()
+    }
+}
+
+impl<V: Verifier> RelayRole<V> {
+    /// The role, verifying by `verifier`.
+    #[must_use]
+    pub fn new(verifier: Arc<V>) -> Self {
+        Self { relay: Arc::new(Relay::default()), verifier }
+    }
+
+    /// What it verifies by.
+    #[must_use]
+    pub fn verifier(&self) -> &V {
+        &self.verifier
+    }
+
+    /// Registers its services on `router`.
+    #[must_use]
+    pub fn register(self: Arc<Self>, router: Router) -> Router {
+        let router = pb::RelayServiceExt::register(Arc::clone(&self), router);
+        agent::DataServiceExt::register(self, router)
+    }
+}
+
 /// What the relay judges a session's tokens by: the one it opened with, and every renewal.
-struct Judge {
+struct Judge<V> {
     keys: KeyRing,
-    revocations: Arc<Revocations>,
+    verifier: Arc<V>,
     action: String,
     on: Resource,
     client: Client,
@@ -57,9 +92,9 @@ struct Judge {
     subject: Option<String>,
 }
 
-impl Judge {
+impl<V: Verifier> Judge<V> {
     fn judge(&self, token: &str) -> Result<Verified, String> {
-        let revoked = self.revocations.revoked();
+        let revoked = self.verifier.revoked();
         let at = (SystemTime::now(), self.client);
         let verified = verify(token, &self.keys, &self.action, &self.on, &revoked, at)
             .map_err(|e| e.to_string())?;
@@ -79,10 +114,10 @@ fn end(code: &str, message: String) -> agent::CarryDown {
 /// Forwards what the client sends to the node until either side is done. A renewal is judged
 /// here first, as the token it renews was: one the relay refuses ends the session, with the
 /// reason, rather than reaching the node.
-async fn client_to_node(
+async fn client_to_node<V: Verifier>(
     mut requests: InboundStream<pb::RelayRequest>,
     to_node: mpsc::Sender<agent::CarryDown>,
-    judge: Judge,
+    judge: Judge<V>,
 ) {
     while let Some(Ok(m)) = requests.next().await {
         let Some(Request::Frame(frame)) = m.to_owned_message().message else { continue };
@@ -102,7 +137,7 @@ async fn client_to_node(
     }
 }
 
-impl pb::RelayService for Api {
+impl<V: Verifier> pb::RelayService for RelayRole<V> {
     async fn open(
         &self,
         ctx: RequestContext,
@@ -116,8 +151,8 @@ impl pb::RelayService for Api {
         let node = id(IdKind::Node, "open.node", &open.node).refuse()?;
         let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
         let mut judge = Judge {
-            keys: self.relay.keys(),
-            revocations: Arc::clone(&self.revocations),
+            keys: self.verifier.keys(),
+            verifier: Arc::clone(&self.verifier),
             action: open.action.clone(),
             on: Resource::alone(ObjectRef::new(Kind::Workload, workload)),
             client: Client::At(ip),

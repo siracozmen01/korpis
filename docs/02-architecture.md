@@ -143,38 +143,55 @@ client ──TLS──▶ relay ◀──TLS, dialled out── agent
 - **On one machine the relay is a role of `korpis-server`,** enabled in the same process, speaking
   the same protocol. There is no separate thing to install until there is a reason to scale it.
 
-**As built, on one machine.** The relay role is two services on the control plane's listener.
-A node attaches with `DataService.Attach`, proving its key over a `DataHello`, which signs a
-message of its own form (`korpis.agent.v1.DataHello|…`), so a relay that sees one cannot present
-it as a control-stream Hello, and whose nonce joins the Hello's memory, so neither is replayed as
-itself. A client opens a session with `RelayService.Open`, naming the token, the action, the
-workload, and the node the API reports it placed on. The relay verifies the token offline,
-against the token keys, the revocation list (§6.3 of `08-identity.md`), and the client's address,
-and only a token scoped to the workload itself verifies, because a relay holds no ancestry (§6 of
+**As built, on one machine.** The relay role is two services on the control plane's listener. A
+node attaches with `DataService.Attach`, proving its key over a `DataHello`, which signs a message
+of its own form (`korpis.agent.v1.DataHello|…`), so a relay that sees one cannot present it as a
+control-stream Hello, and whose nonce joins the Hello's memory, so neither is replayed as itself.
+The message ends with the URL the node dialled, so a hello made for one relay is good at no other
+(below). A client opens a session with `RelayService.Open`, naming the token, the action, the
+workload, and the node the API reports it placed on. The relay verifies the token offline, against
+the token keys, the revocation list (§6.3 of `08-identity.md`), and the client's address, and only
+a token scoped to the workload itself verifies, because a relay holds no ancestry (§6 of
 `08-identity.md`). It then asks the node to open the session under a random 128-bit identifier,
 good for one carry and told to that node alone, and the node carries it on a stream of its own
 (`DataService.Carry`), so one slow session never holds up another: each stream has its own flow
 control, and a relay buffers at most a few frames of either side before the faster side waits. A
 wrong node cannot misdirect a session, because the node verifies that it holds the workload; it
-refuses, and the client is told the node's reason (`not_here`, `refused`, `unimplemented`). A
-node that does not answer within ten seconds fails the open as unavailable. The agent keeps one
-data connection to each relay the last `Welcome` named, and to the control plane's own address
-when it names none, as it does today. It judges every session again from what the client sent:
-the token offline, with the token keys enrollment returned and the revocation list it holds, and
-never the client's address, which it does not see; the workload against the set it holds; and the
-action against the handlers it runs, so an action with no handler on the node is refused rather
-than accepted and left idle. A session ends when its handler returns, with the handler's reason
-delivered to the client before either stream closes, and the node ends it itself when its token
-expires unrenewed, when a revocation list names its chain, or when the relay refuses a renewal
-the client sent on the session (§6 of `08-identity.md`). What it does not do
-yet: the role does not yet serve from its own process. A relay can be enrolled as one, joining
-with its keys and receiving a certificate under the installation's authority (§3 of
-`18-operations.md`), and it is fed what it verifies by: `RelayControlService.Feed`, opened with a
-request its identity key signs over a fresh nonce the control plane accepts once, streams the
+refuses, and the client is told the node's reason (`not_here`, `refused`, `unimplemented`). A node
+that does not answer within ten seconds fails the open as unavailable. The agent keeps one data
+connection to each relay the last `Relays` message named, and to the control plane's own address
+when that message says the control plane serves the role. It judges every session again from what
+the client sent: the token offline, with the token keys enrollment returned and the revocation list
+it holds, and never the client's address, which it does not see; the workload against the set it
+holds; and the action against the handlers it runs, so an action with no handler on the node is
+refused rather than accepted and left idle. A session ends when its handler returns, with the
+handler's reason delivered to the client before either stream closes, and the node ends it itself
+when its token expires unrenewed, when a revocation list names its chain, or when the relay refuses
+a renewal the client sent on the session (§6 of `08-identity.md`).
+
+**As built, as its own process.** A relay is enrolled, joining with its keys and receiving a
+certificate under the installation's authority (§3 of `18-operations.md`), and then runs with
+`korpis-server relay run`, serving the same two services from no database. It is fed what it
+verifies by: `RelayControlService.Feed`, opened with a request its identity key signs over a fresh
+nonce the control plane accepts once, sends the control plane's auth skew window first, then the
 token keys, the signed revocation list, and the keys of every node not decommissioned, each when
-it changes, and ends when the relay is removed. Serving still needs what Phase 1 owes (§4 of
-`20-roadmap.md`): a `DataHello` bound to the relay it was sent to, since nonce memory is not shared
-between relays, and the relay process itself.
+it changes, and a heartbeat on a look that sent nothing; it ends when the relay is removed. The
+relay believes a list only once its signature verifies against the token keys it was fed. It
+takes a feed silent for three heartbeat intervals for lost and opens another, and a feed the
+control plane refuses to authenticate for a removal, and stops. It admits a node's `DataHello`
+only for its own URL, by the key the feed sent, within the skew window, and with a nonce it has
+not seen inside twice that window. Nonce memory is the relay's own, which is why the URL is
+signed: a relay holding a node's hello cannot replay it to another relay, and the control plane
+refuses a hello for any enrolled relay's URL, removed ones included. Every replica names to the
+nodes it holds sessions with, in a `Relays` message sent when the session opens and within about
+two seconds of a change, every relay not removed, and whether the control plane serves the role
+too, which it does unless `--relay-role false` turns it off. What it does not do: with its feed
+lost, a relay verifies by the last of each it received, which bounds a revocation it missed by one
+token lifetime, the same bound §4.6 states for the agent; before the first terms arrive it admits
+no node at all. What Phase 1 still owes (§4 of `20-roadmap.md`): clients do not yet find the
+relays, since the API names none, so a session opens through the control plane's own role; the
+PROXY protocol is not accepted, so a relay behind a load balancer sees the balancer's address as
+the client's; and a relay's certificate is not yet renewed over the feed.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is
@@ -246,7 +263,8 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |
 | `Probe` | liveness check with a nonce |
 | `ReachabilityProbe` | listen on a port of the node's range, over TCP and UDP, and answer nonces with the node key's signature, to measure whether the node can be reached at what it advertises (§9 of `07-networking.md`) |
-| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, the control plane's clock, and the relays to attach a data connection to (§3.1) |
+| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
+| `Relays` | the relays to keep a data connection to, and whether the control plane serves the role itself; sent when the session opens and when they change (§3.1) |
 | `WorkloadCredential` | the answer to a `CredentialRequest`: a credential for the workload and its expiry, or the refusal (§9.5 of `08-identity.md`) |
 
 **Agent → control plane**
@@ -273,6 +291,11 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 > Added 2026-10-13, from the implementation: `Welcome`. The heartbeat interval was declared
 > (question 6 of §10) and nothing carried the declaration to the agent, so an agent could only
 > guess how often to send what three missed would condemn it for.
+
+> Corrected 2026-10-14, from the implementation: the relays moved from `Welcome` to `Relays`. A
+> `Welcome` is sent once per session, and relays are enrolled and removed while sessions stay
+> open, so a node told only at `Welcome` would keep attaching to a removed relay until it
+> reconnected.
 
 > Second external review, findings S1 and S19. Recorded in §17 of `23-walkthroughs.md`. The first
 > version of this table carried `AssignedIntents`, which could not express a power change, an

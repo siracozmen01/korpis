@@ -5,11 +5,10 @@
 //! the stream carries facts up and decisions down.
 
 use super::downlink::Downlink;
+use super::published;
 use super::uplink::{Uplink, journal_ack};
 use crate::api::wire::{Refuse, id, timestamp};
-use crate::api::{ServerApp, error};
-use crate::revocations::Revocations;
-use crate::sessions::Sessions;
+use crate::api::{Api, ServerApp, error};
 use connectrpc::{ConnectError, InboundStream};
 use futures_util::StreamExt as _;
 use korpis_app::node::{Hello, NodeProof, Session};
@@ -104,11 +103,10 @@ fn welcome(app: &ServerApp, s: &Session) -> agent::ControlMessage {
 
 /// Reads the Hello, opens the session, and returns where the control plane's messages go out.
 pub(super) async fn open(
-    app: &Arc<ServerApp>,
-    sessions: &Arc<Sessions>,
-    revocations: &Revocations,
+    api: &Api,
     mut requests: InboundStream<agent::AgentMessage>,
 ) -> Result<mpsc::Receiver<agent::ControlMessage>, ConnectError> {
+    let (app, sessions) = (&api.app, &api.sessions);
     let first = requests.next().await.ok_or_else(|| error::invalid("hello", "required"))??;
     let first = first.to_owned_message();
     let Some(Up::Hello(hello)) = first.message.as_ref() else {
@@ -131,8 +129,11 @@ pub(super) async fn open(
         wake,
         held: hello.set_digest.clone(),
     };
-    let lists = revocations.subscribe();
-    tokio::spawn(super::revocations::push(Arc::clone(sessions), node, id, tx.clone(), lists));
+    let at = || (Arc::clone(sessions), node, id);
+    let lists = api.revocations.subscribe();
+    tokio::spawn(published::push(at(), tx.clone(), lists, Down::RevocationList));
+    let relays = api.named_relays.subscribe();
+    tokio::spawn(published::push(at(), tx.clone(), relays, Down::Relays));
     let uplink = Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx };
     tokio::spawn(downlink.run());
     tokio::spawn(uplink.run(requests));

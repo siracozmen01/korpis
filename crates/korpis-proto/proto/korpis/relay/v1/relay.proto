@@ -9,6 +9,7 @@ syntax = "proto3";
 
 package korpis.relay.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/agent/v1/agent.proto";
 
@@ -16,9 +17,11 @@ service RelayControlService {
   // Redeems an enrollment token. Asking again with the same token and identity key returns the
   // same relay with a fresh certificate; another key is refused.
   rpc Join(JoinRequest) returns (JoinResponse);
-  // What a joined relay verifies by, for as long as it runs: the token keys, the signed
-  // revocation list, and the nodes' identity keys, each sent whole when the relay connects and
-  // again whenever it changes. The stream ends when the relay is removed.
+  // What a joined relay verifies by, for as long as it runs: the terms, the token keys, the
+  // signed revocation list, and the nodes' identity keys, each sent whole when the relay
+  // connects and again whenever it changes, and a heartbeat when nothing else was sent for a
+  // while, so a relay can tell a quiet feed from a lost one. The stream ends when the relay is
+  // removed.
   rpc Feed(FeedRequest) returns (stream FeedUpdate);
 }
 
@@ -36,7 +39,23 @@ message FeedUpdate {
     TokenKeys token_keys = 1;
     korpis.agent.v1.RevocationList revocation_list = 2;
     NodeKeys node_keys = 3;
+    FeedTerms terms = 4;
+    Heartbeat heartbeat = 5;
   }
+}
+
+// What the relay judges a node's DataHello by, as the control plane judges a Hello.
+message FeedTerms {
+  // The window either side of the relay's clock a DataHello's timestamp must fall in.
+  google.protobuf.Duration auth_skew = 1;
+  // The longest the control plane goes without sending anything on the feed; a relay that
+  // hears nothing for three of these takes the feed for lost and opens another.
+  google.protobuf.Duration heartbeat_interval = 2;
+}
+
+message Heartbeat {
+  // The control plane's clock when it sent this; informational.
+  google.protobuf.Timestamp sent_at = 1;
 }
 
 // Every key that ever signed a capability token.

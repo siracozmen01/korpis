@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The node's data connections (§3.1 of docs/02-architecture.md): one dialled out to each relay
-//! the control plane names, the control plane's own address when it names none. Each attaches
-//! with a `DataHello`, then opens every session the relay asks for, after judging it again from
+//! the control plane names, its own address among them when it serves the relay role. Each
+//! attaches with a `DataHello` naming the relay dialled, then opens every session the relay asks for, after judging it again from
 //! what the client sent: the token, offline, against the token keys and the revocation list the
 //! node holds; the workload, against the set the node holds; the action, against the handlers
 //! the node runs. A node never sees the client's address, and never evaluates it.
@@ -118,14 +118,14 @@ impl Judged {
     }
 }
 
-/// The node's `DataHello`, signed now.
-fn hello(identity: &Identity) -> Result<agent::AttachUp, String> {
+/// The node's `DataHello` to `relay`, signed now.
+fn hello(identity: &Identity, relay: &str) -> Result<agent::AttachUp, String> {
     let mut nonce = [0u8; 16];
     getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
     let since = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     let seconds = i64::try_from(since.as_secs()).unwrap_or(i64::MAX);
     let nanos = since.subsec_nanos();
-    let signed = data_hello_message(&identity.node, seconds, nanos, &nonce);
+    let signed = data_hello_message((&identity.node, relay), seconds, nanos, &nonce);
     let auth = agent::NodeAuth {
         timestamp: Timestamp {
             seconds,
@@ -137,8 +137,12 @@ fn hello(identity: &Identity) -> Result<agent::AttachUp, String> {
         signature: sign(&identity.key, &signed),
         ..Default::default()
     };
-    let hello =
-        agent::DataHello { node: identity.node.clone(), auth: auth.into(), ..Default::default() };
+    let hello = agent::DataHello {
+        node: identity.node.clone(),
+        auth: auth.into(),
+        relay: relay.to_owned(),
+        ..Default::default()
+    };
     Ok(agent::AttachUp { message: Some(Up::Hello(Box::new(hello))), ..Default::default() })
 }
 
@@ -166,7 +170,7 @@ async fn attach(identity: &Identity, judged: &Arc<Judged>, relay: &str) -> Resul
         ClientConfig::new(uri),
     );
     let (mut send, recv) = client.attach().await.map_err(|e| e.to_string())?.into_split();
-    send.send(hello(identity)?).await.map_err(|e| e.to_string())?;
+    send.send(hello(identity, relay)?).await.map_err(|e| e.to_string())?;
     let (tx, mut rx) = mpsc::channel(64);
     let reader = tokio::spawn(read(recv, tx));
     let first = rx.recv().await.ok_or("the relay ended before attaching")??;
@@ -256,10 +260,7 @@ impl DataLink {
     pub async fn run(mut self) {
         let mut running: HashMap<String, JoinHandle<()>> = HashMap::new();
         loop {
-            let mut wanted = self.relays.borrow_and_update().clone();
-            if wanted.is_empty() {
-                wanted.push(self.identity.server.clone());
-            }
+            let wanted = self.relays.borrow_and_update().clone();
             self.keep(&mut running, &wanted);
             if self.relays.changed().await.is_err() {
                 // The session is gone, and with it any change; the connections stay as they are.

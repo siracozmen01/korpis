@@ -22,10 +22,20 @@ pub fn hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<
 
 /// What a `DataHello`'s `NodeAuth.signature` signs: the same form as [`hello_message`] under
 /// `korpis.agent.v1.DataHello`, so a relay that sees one cannot present it as a control-stream
-/// Hello (§3.1 of docs/02-architecture.md).
+/// Hello, followed by `|` and the URL of the relay the node dialled, so a relay cannot present
+/// it to another relay either: relays share no nonce memory (§3.1 of docs/02-architecture.md).
+/// The URL is last, after a nonce that holds no `|`, so whatever it contains is unambiguous.
 #[must_use]
-pub fn data_hello_message(node: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
-    proof_message("korpis.agent.v1.DataHello", node, seconds, nanos, nonce)
+pub fn data_hello_message(
+    (node, relay): (&str, &str),
+    seconds: i64,
+    nanos: u32,
+    nonce: &[u8],
+) -> Vec<u8> {
+    let mut m = proof_message("korpis.agent.v1.DataHello", node, seconds, nanos, nonce);
+    m.push(b'|');
+    m.extend_from_slice(relay.as_bytes());
+    m
 }
 
 /// What a relay signs to open its feed (§3.1 of docs/02-architecture.md): the same form as
@@ -100,5 +110,14 @@ mod tests {
         assert!(!verify(&other, &message, &signature));
         assert!(valid_public_key(&public));
         assert!(!valid_public_key(&public[..31]));
+    }
+
+    #[test]
+    fn a_data_hello_names_the_relay_dialled_after_everything_else() {
+        let m = data_hello_message(("nd_1", "https://r1.example"), 1_760_000_000, 5, &[0xab]);
+        let expected = b"korpis.agent.v1.DataHello|nd_1|1760000000.000000005|ab|https://r1.example";
+        assert_eq!(m, expected.to_vec());
+        let other = data_hello_message(("nd_1", "https://r2.example"), 1_760_000_000, 5, &[0xab]);
+        assert_ne!(m, other, "a hello for one relay is not one for another");
     }
 }

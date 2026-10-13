@@ -6,10 +6,10 @@
 //! attached node was told and which is good for one carry.
 
 use super::agent::proof_from_pb;
-use super::relay::FRAMES;
+use super::error;
+use super::relay::{FRAMES, RelayRole};
 use super::wire::{Refuse as _, id};
-use super::{Api, error};
-use crate::relay::{Answer, Relay};
+use crate::relay::{Answer, Relay, Verifier};
 use connectrpc::{InboundStream, RequestContext, Response, ServiceResult, ServiceStream};
 use futures_util::StreamExt as _;
 use korpis_core::id::IdKind;
@@ -60,7 +60,7 @@ async fn node_to_client(
     drop(done);
 }
 
-impl agent::DataService for Api {
+impl<V: Verifier> agent::DataService for RelayRole<V> {
     async fn attach(
         &self,
         _ctx: RequestContext,
@@ -72,7 +72,7 @@ impl agent::DataService for Api {
         };
         let node = id(IdKind::Node, "hello.node", &hello.node).refuse()?;
         let proof = proof_from_pb(&hello.node, hello.auth.as_option())?;
-        self.app.attach_node(node, &proof).await.map_err(error::from_app)?;
+        self.verifier.attach(node, &proof, &hello.relay).await?;
         let (tx, mut rx) = mpsc::channel(FRAMES);
         let attached = agent::AttachDown {
             message: Some(Down::Attached(Box::default())),

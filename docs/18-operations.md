@@ -241,7 +241,11 @@ trust has to be distributed for it. The certificate lives ninety days, shortened
 nine so relays that joined together do not expire together (§7); renewing it before then is the
 relay's, over the same channel. `ListRelays` shows each relay with its certificate's expiry, and
 `RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
-holds stays valid until it expires, since the installation does not revoke certificates.
+holds stays valid until it expires, since the installation does not revoke certificates. A joined
+relay runs with `korpis-server relay run`, listening by default on every IPv4 address at its URL's
+port (`--listen` overrides it), and stops on its own once the control plane refuses its feed. Where
+relays carry the sessions, `korpis-server serve --relay-role false` takes the role off the
+control plane, so nodes attach to the relays alone.
 
 ---
 

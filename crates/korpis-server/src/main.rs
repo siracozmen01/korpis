@@ -88,6 +88,10 @@ struct ServeArgs {
     /// (§5 of docs/15-observability.md). Effects are kept regardless.
     #[arg(long, default_value_t = 30)]
     event_retention_days: u64,
+    /// Whether this process serves the relay role, carrying console and file sessions; turn it
+    /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
+    #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
+    relay_role: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -107,6 +111,15 @@ enum RelayCommand {
         /// The fingerprint of the installation's authority, as the token's creation printed it.
         #[arg(long)]
         ca_fingerprint: String,
+    },
+    /// Serve as the relay that joined, verifying by what the control plane feeds it.
+    Run {
+        /// Where the relay keeps its keys, certificate, and identity.
+        #[arg(long, env = "KORPIS_RELAY_DIR", default_value = "/var/lib/korpis-relay")]
+        dir: PathBuf,
+        /// Where to listen; by default every IPv4 address, on the port of the relay's URL.
+        #[arg(long, env = "KORPIS_LISTEN")]
+        listen: Option<SocketAddr>,
     },
 }
 
@@ -155,7 +168,27 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!(relay = %id, "joined");
             Ok(())
         }
+        Command::Relay { command: RelayCommand::Run { dir, listen } } => {
+            relay_run(dir, listen).await
+        }
     }
+}
+
+/// Runs a joined relay until the process is interrupted, the control plane refuses it, or
+/// serving fails.
+async fn relay_run(
+    dir: PathBuf,
+    listen: Option<SocketAddr>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = korpis_server::standalone::RelayDir::new(dir);
+    let listen = listen.map_or_else(|| default_listen(&dir), Ok)?;
+    let listener = tokio::net::TcpListener::bind(listen).await?;
+    let running = korpis_server::standalone::run(dir, listener).await?;
+    tokio::select! {
+        r = running.task => r??,
+        _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
+    }
+    Ok(())
 }
 
 /// Serves the API until the process is interrupted or the server fails.
@@ -177,6 +210,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         lease_term: Duration::from_secs(args.lease_term_secs.max(1)),
         denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
         event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
+        relay_role: args.relay_role,
     })
     .await?;
     tokio::select! {
@@ -184,6 +218,15 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
     }
     Ok(())
+}
+
+/// Every IPv4 address, on the port of the relay's URL.
+fn default_listen(
+    dir: &korpis_server::standalone::RelayDir,
+) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+    let url = korpis_server::standalone::url(dir)?;
+    let port = korpis_core::relay::RelayUrl::parse(&url)?.port();
+    Ok(SocketAddr::from(([0, 0, 0, 0], port)))
 }
 
 #[expect(clippy::print_stdout, reason = "the installation report is this command's output")]

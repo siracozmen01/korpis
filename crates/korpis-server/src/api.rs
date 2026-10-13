@@ -42,6 +42,7 @@ pub mod wire;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod workload;
 
+use crate::relay::in_process::InProcess;
 use connectrpc::{ConnectError, RequestContext, Response, Router, ServiceResult};
 use korpis_app::ports::SystemClock;
 use korpis_app::{App, Caller, Page, Reply};
@@ -50,10 +51,11 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     DeclaredSetServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
     NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
-    RelayServiceExt, ServerInfoServiceExt, WorkloadServiceExt,
+    ServerInfoServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
+pub use relay::RelayRole;
 use std::sync::Arc;
 use uuid::Uuid;
 use wire::Refuse;
@@ -73,22 +75,44 @@ pub struct Api {
     providers: Arc<crate::providers::Providers>,
     /// The revocation list this process publishes to its sessions.
     revocations: Arc<crate::revocations::Revocations>,
-    /// The relay role: attached data connections and the sessions they carry.
-    relay: Arc<crate::relay::Relay>,
+    /// The relay role in this process: attached data connections and the sessions they carry.
+    relay: Arc<RelayRole<InProcess>>,
+    /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md).
+    serves_relay: bool,
+    /// The relays this process names to the nodes it holds sessions with.
+    named_relays: Arc<crate::named_relays::NamedRelays>,
 }
 
 impl Api {
     /// The API over `app`.
     #[must_use]
     pub fn new(app: ServerApp) -> Self {
+        let app = Arc::new(app);
+        let revocations = Arc::new(crate::revocations::Revocations::default());
+        let in_process = InProcess::new(Arc::clone(&app), Arc::clone(&revocations));
         Self {
-            app: Arc::new(app),
+            app,
             ca_fingerprint: String::new(),
             sessions: Arc::new(crate::sessions::Sessions::default()),
             providers: Arc::new(crate::providers::Providers::default()),
-            revocations: Arc::new(crate::revocations::Revocations::default()),
-            relay: Arc::new(crate::relay::Relay::default()),
+            revocations,
+            relay: Arc::new(RelayRole::new(Arc::new(in_process))),
+            serves_relay: true,
+            named_relays: Arc::default(),
         }
+    }
+
+    /// Whether this process serves the relay role; it does unless told not to.
+    #[must_use]
+    pub fn with_relay_role(mut self, serves: bool) -> Self {
+        self.serves_relay = serves;
+        self
+    }
+
+    /// Whether this process serves the relay role.
+    #[must_use]
+    pub fn serves_relay(&self) -> bool {
+        self.serves_relay
     }
 
     /// Tells enrolling agents to pin the CA with `fingerprint` (§3 of docs/18-operations.md).
@@ -117,10 +141,16 @@ impl Api {
         &self.revocations
     }
 
-    /// The relay role, for the composition root to give it the token keys.
+    /// The relays named to the nodes, for the composition root's background work.
     #[must_use]
-    pub fn relay(&self) -> &crate::relay::Relay {
-        &self.relay
+    pub fn named_relays(&self) -> &crate::named_relays::NamedRelays {
+        &self.named_relays
+    }
+
+    /// The relay role in this process, for the composition root to give it the token keys.
+    #[must_use]
+    pub fn relay(&self) -> &InProcess {
+        self.relay.verifier()
     }
 
     /// The application, for the composition root's background work.
@@ -145,9 +175,8 @@ impl Api {
         let router = ExtensionServiceExt::register(Arc::clone(&self), router);
         let router = EventServiceExt::register(Arc::clone(&self), router);
         let router = ProviderServiceExt::register(Arc::clone(&self), router);
-        let router = RelayServiceExt::register(Arc::clone(&self), router);
         let router =
-            korpis_proto::korpis::agent::v1::DataServiceExt::register(Arc::clone(&self), router);
+            if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
         let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(
             Arc::clone(&self),
             router,

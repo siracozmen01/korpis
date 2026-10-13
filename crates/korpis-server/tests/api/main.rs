@@ -47,6 +47,7 @@ mod revocation;
 mod sdk;
 mod session;
 mod sets;
+mod standalone;
 mod step;
 mod support;
 mod tenancy;

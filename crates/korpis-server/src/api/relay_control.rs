@@ -4,10 +4,11 @@
 //! process asks of the control plane. Joining is authenticated by the enrollment token in the
 //! request, as an agent's enrollment is; the feed by the relay's identity key.
 //!
-//! The feed sends each part whole when the relay connects and again when it changes: the
-//! revocation list as this process publishes it, and the token and node keys as a look every
-//! [`LOOK`] finds them. It ends when the relay is removed, so a removed relay stops verifying
-//! by anything newer than its last list.
+//! The feed sends the terms first, then each part whole when the relay connects and again when it
+//! changes: the revocation list as this process publishes it, and the token and node keys as a
+//! look every [`LOOK`] finds them; a look that sent nothing sends a heartbeat, so the relay can
+//! tell a quiet feed from a lost one. It ends when the relay is removed, so a removed relay stops
+//! verifying by anything newer than its last list.
 
 use super::agent::{key_to_pb, proof_from_pb};
 use super::wire::{self, Refuse as _, timestamp, wire_id};
@@ -18,6 +19,7 @@ use korpis_app::relay::JoinRelay;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::relay::v1 as relay;
 use korpis_proto::korpis::relay::v1::__buffa::oneof::feed_update::Message as Update;
+use korpis_wire::duration;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -25,6 +27,9 @@ use uuid::Uuid;
 
 /// How often the feed looks for changed keys, and for the relay's removal.
 const LOOK: Duration = Duration::from_secs(2);
+/// The longest the feed goes without sending, as the relay is told: a look sends at least a
+/// heartbeat, and a look takes [`LOOK`] and the time its reads take.
+const HEARTBEAT: Duration = Duration::from_secs(5);
 
 fn update(message: Update) -> relay::FeedUpdate {
     relay::FeedUpdate { message: Some(message), ..Default::default() }
@@ -42,12 +47,13 @@ fn node_keys(keys: &[(Uuid, Vec<u8>)]) -> relay::NodeKeys {
     relay::NodeKeys { nodes, ..Default::default() }
 }
 
-/// The keys as they stand, each sent when it differs from what was sent last.
+/// The keys as they stand, each sent when it differs from what was sent last; whether any was.
 async fn keys(
     app: &ServerApp,
     sent: &mut (Option<relay::TokenKeys>, Option<relay::NodeKeys>),
     tx: &mpsc::Sender<relay::FeedUpdate>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
+    let mut any = false;
     let feed = app.relay_feed().await.map_err(|e| e.to_string())?;
     let tokens = relay::TokenKeys {
         keys: feed.token_keys.iter().map(key_to_pb).collect(),
@@ -57,16 +63,29 @@ async fn keys(
         tx.send(update(Update::TokenKeys(Box::new(tokens.clone()))))
             .await
             .map_err(|e| e.to_string())?;
-        sent.0 = Some(tokens);
+        (sent.0, any) = (Some(tokens), true);
     }
     let nodes = node_keys(&feed.node_keys);
     if sent.1.as_ref() != Some(&nodes) {
         tx.send(update(Update::NodeKeys(Box::new(nodes.clone()))))
             .await
             .map_err(|e| e.to_string())?;
-        sent.1 = Some(nodes);
+        (sent.1, any) = (Some(nodes), true);
     }
-    Ok(())
+    Ok(any)
+}
+
+fn terms(app: &ServerApp) -> relay::FeedUpdate {
+    update(Update::Terms(Box::new(relay::FeedTerms {
+        auth_skew: duration(app.auth_skew()).into(),
+        heartbeat_interval: duration(HEARTBEAT).into(),
+        ..Default::default()
+    })))
+}
+
+fn heartbeat(app: &ServerApp) -> relay::FeedUpdate {
+    let beat = relay::Heartbeat { sent_at: timestamp(app.now()).into(), ..Default::default() };
+    update(Update::Heartbeat(Box::new(beat)))
 }
 
 /// Feeds `relay` until it is removed or goes away.
@@ -79,15 +98,21 @@ async fn feed(
     let mut lists = revocations.subscribe();
     let mut sent = (None, None);
     let mut list_sent = false;
+    if tx.send(terms(&app)).await.is_err() {
+        return;
+    }
     loop {
         if !matches!(app.relay_joined(relay).await, Ok(true)) {
             tracing::info!(%relay, "relay feed ended: removed");
             return;
         }
-        if let Err(e) = keys(&app, &mut sent, &tx).await {
-            tracing::warn!(%relay, error = %e, "relay feed ended");
-            return;
-        }
+        let mut sent_any = match keys(&app, &mut sent, &tx).await {
+            Ok(any) => any,
+            Err(e) => {
+                tracing::warn!(%relay, error = %e, "relay feed ended");
+                return;
+            }
+        };
         let current = (!list_sent || lists.has_changed().unwrap_or(false))
             .then(|| lists.borrow_and_update().clone())
             .flatten();
@@ -95,7 +120,10 @@ async fn feed(
             if tx.send(update(Update::RevocationList(Box::new((*list).clone())))).await.is_err() {
                 return;
             }
-            list_sent = true;
+            (list_sent, sent_any) = (true, true);
+        }
+        if !sent_any && tx.send(heartbeat(&app)).await.is_err() {
+            return;
         }
         tokio::select! {
             _ = lists.changed() => {}

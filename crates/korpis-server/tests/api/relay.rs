@@ -23,31 +23,31 @@ use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
 use korpis_wire::scope;
 use std::time::Duration;
 
-const CONSOLE: &str = "workload.console.write";
+pub(crate) const CONSOLE: &str = "workload.console.write";
 
-type Attachment = BidiStream<
+pub(crate) type Attachment = BidiStream<
     <HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
     agent::AttachUp,
     agent::__buffa::view::AttachDownView<'static>,
 >;
 
-async fn attach(h: &Harness, a: &TestAgent) -> Attachment {
+pub(crate) async fn attach(h: &Harness, a: &TestAgent) -> Attachment {
     let client = agent::DataServiceClient::new(h.http.clone(), h.config(None));
     let mut stream = client.attach().await.unwrap();
-    stream.send(a.data_hello(&[7; 16])).await.unwrap();
+    stream.send(a.data_hello(&h.base_url(), &[7; 16])).await.unwrap();
     let first = stream.message::<agent::AttachDown>().await.unwrap().unwrap().to_owned_message();
     assert!(matches!(first.message, Some(Down::Attached(_))), "{first:?}");
     stream
 }
 
-async fn asked(stream: &mut Attachment) -> agent::OpenSession {
+pub(crate) async fn asked(stream: &mut Attachment) -> agent::OpenSession {
     let next = tokio::time::timeout(Duration::from_secs(5), stream.message::<agent::AttachDown>());
     let m = next.await.unwrap().unwrap().unwrap().to_owned_message();
     let Some(Down::Open(open)) = m.message else { panic!("an open, got {m:?}") };
     *open
 }
 
-async fn token(h: &Harness, workload: &str) -> String {
+pub(crate) async fn token(h: &Harness, workload: &str) -> String {
     let w = Id::parse(IdKind::Workload, workload).unwrap().uuid();
     let on = scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Workload, w)));
     let minted = h
@@ -64,7 +64,7 @@ async fn token(h: &Harness, workload: &str) -> String {
     minted.token
 }
 
-fn open(token: &str, workload: &str, node: &str) -> pb::RelayRequest {
+pub(crate) fn open(token: &str, workload: &str, node: &str) -> pb::RelayRequest {
     let open = pb::RelayOpen {
         token: token.into(),
         action: CONSOLE.into(),
@@ -75,7 +75,7 @@ fn open(token: &str, workload: &str, node: &str) -> pb::RelayRequest {
     pb::RelayRequest { message: Some(Request::Open(Box::new(open))), ..Default::default() }
 }
 
-fn data(bytes: &[u8]) -> pb::SessionFrame {
+pub(crate) fn data(bytes: &[u8]) -> pb::SessionFrame {
     pb::SessionFrame { frame: Some(Frame::Data(bytes.to_vec())), ..Default::default() }
 }
 

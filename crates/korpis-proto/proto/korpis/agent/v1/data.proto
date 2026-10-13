@@ -36,10 +36,15 @@ message AttachDown {
   }
 }
 
-// The node's identity, proved as in Hello: NodeAuth over the node identifier.
+// The node's identity, proved as in Hello: NodeAuth over the node identifier, under its own
+// purpose and followed by the relay dialled:
+// "korpis.agent.v1.DataHello|<node>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<relay>".
 message DataHello {
   string node = 1;
   NodeAuth auth = 2;
+  // The URL the node dialled: one Relays named, or the control plane's own address. A relay
+  // running as its own process accepts only its own; the control plane refuses any relay's.
+  string relay = 3;
 }
 
 message Attached {}

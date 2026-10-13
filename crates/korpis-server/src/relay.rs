@@ -7,16 +7,42 @@
 //! random identifier; the node answers by carrying that identifier on a stream of its own, or by
 //! refusing it. The identifier is good for one carry, and only the attached node was told it.
 //! Nothing here is stored: a relay that restarts loses its sessions, and nodes attach again.
+//!
+//! What the role verifies by is a [`Verifier`]: the control plane's own state when the role runs
+//! in its process ([`in_process`]), or what the feed sent when it runs as its own
+//! ([`crate::standalone`]).
 
+pub mod in_process;
+
+use connectrpc::ConnectError;
+use korpis_app::node::NodeProof;
 use korpis_core::authz::token::KeyRing;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard, PoisonError, RwLock};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
+
+/// What the relay role verifies by.
+pub trait Verifier: Send + Sync + 'static {
+    /// The token keys trusted now.
+    fn keys(&self) -> KeyRing;
+
+    /// The grants the revocation list held names.
+    fn revoked(&self) -> HashSet<Uuid>;
+
+    /// Admits `node`'s data connection, if `proof` is its fresh signature over a `DataHello` for
+    /// `relay` that this role may accept and has not seen before.
+    fn attach(
+        &self,
+        node: Uuid,
+        proof: &NodeProof,
+        relay: &str,
+    ) -> impl Future<Output = Result<(), ConnectError>> + Send;
+}
 
 /// How a node answered a session it was asked to open.
 #[derive(Debug)]
@@ -61,7 +87,6 @@ pub struct Relay {
     attached: Mutex<HashMap<Uuid, Attachment>>,
     pending: Mutex<HashMap<String, Pending>>,
     next: AtomicU64,
-    keys: RwLock<KeyRing>,
 }
 
 impl std::fmt::Debug for Relay {
@@ -89,32 +114,21 @@ fn session_id() -> Result<String, getrandom::Error> {
     }))
 }
 
-/// The token keys among `keys`, as the relay trusts them; a key it cannot read is skipped and
-/// logged, and verifies nothing.
+/// The token keys among `keys`, each a key name and its public half, as the relay trusts them;
+/// a key it cannot read is skipped and logged, and verifies nothing.
 #[must_use]
-pub fn token_ring(keys: &[korpis_app::ports::VerifyKey]) -> KeyRing {
+pub fn token_ring<'a>(keys: impl IntoIterator<Item = (&'a str, &'a [u8])>) -> KeyRing {
     let mut ring = KeyRing::default();
-    for k in keys {
-        let Some(epoch) = korpis_core::authz::token::parse_key_name(&k.key_id) else { continue };
-        if let Err(e) = ring.insert(epoch, &k.public) {
-            tracing::warn!(key = %k.key_id, error = %e, "a token key is unusable");
+    for (name, public) in keys {
+        let Some(epoch) = korpis_core::authz::token::parse_key_name(name) else { continue };
+        if let Err(e) = ring.insert(epoch, public) {
+            tracing::warn!(key = %name, error = %e, "a token key is unusable");
         }
     }
     ring
 }
 
 impl Relay {
-    /// Trusts `keys` for the tokens clients present.
-    pub fn trust(&self, keys: KeyRing) {
-        *self.keys.write().unwrap_or_else(PoisonError::into_inner) = keys;
-    }
-
-    /// The token keys trusted now.
-    #[must_use]
-    pub fn keys(&self) -> KeyRing {
-        self.keys.read().unwrap_or_else(PoisonError::into_inner).clone()
-    }
-
     /// Records `node`'s data connection, sending through `tx`, replacing any other; its id.
     pub fn attach(&self, node: Uuid, tx: mpsc::Sender<agent::AttachDown>) -> u64 {
         let id = self.next.fetch_add(1, Ordering::Relaxed);

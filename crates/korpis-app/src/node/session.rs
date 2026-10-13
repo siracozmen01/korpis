@@ -20,7 +20,7 @@ pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
 
 /// The form a proof signs: [`hello_message`] or
 /// [`data_hello_message`](korpis_core::node::identity::data_hello_message).
-pub(super) type ProofMessage = fn(&str, i64, u32, &[u8]) -> Vec<u8>;
+pub(super) type ProofMessage<'a> = &'a (dyn Fn(&str, i64, u32, &[u8]) -> Vec<u8> + Sync);
 
 /// The shortest nonce accepted: 128 bits makes a collision across a skew window negligible.
 pub(crate) const MIN_NONCE: usize = 16;
@@ -112,6 +112,20 @@ pub(crate) fn within(at: SystemTime, now: SystemTime, skew: Duration) -> bool {
     }
 }
 
+/// Whether `proof` was made within `skew` of `now`, with a nonce long enough to remember.
+pub(crate) fn fresh(
+    proof: &NodeProof,
+    (now, skew): (SystemTime, Duration),
+) -> Result<(), AppError> {
+    if !signed_at(proof).is_some_and(|at| within(at, now, skew)) {
+        return Err(AppError::invalid("hello.auth.timestamp", "outside the skew window"));
+    }
+    if proof.nonce.len() < MIN_NONCE {
+        return Err(AppError::invalid("hello.auth.nonce", "at least 16 bytes"));
+    }
+    Ok(())
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Opens a session for the node a Hello names, if the Hello proves it holds the node's key.
     /// Every refusal of the proof is `Unauthenticated`, except a timestamp outside the window,
@@ -123,7 +137,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let now = self.clock.now();
         let skew = self.session_terms.auth_skew;
-        self.check_proof(hello.node, &hello.proof, (now, hello_message)).await?;
+        self.check_proof(hello.node, &hello.proof, (now, &hello_message)).await?;
         hello.facts.agent = Some(AgentVersion {
             release: hello.agent_version.clone(),
             protocol: hello.protocol.clone(),
@@ -152,15 +166,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         node: Uuid,
         proof: &NodeProof,
-        (now, message): (SystemTime, ProofMessage),
+        (now, message): (SystemTime, ProofMessage<'_>),
     ) -> Result<(), AppError> {
-        let skew = self.session_terms.auth_skew;
-        if !signed_at(proof).is_some_and(|at| within(at, now, skew)) {
-            return Err(AppError::invalid("hello.auth.timestamp", "outside the skew window"));
-        }
-        if proof.nonce.len() < MIN_NONCE {
-            return Err(AppError::invalid("hello.auth.nonce", "at least 16 bytes"));
-        }
+        fresh(proof, (now, self.session_terms.auth_skew))?;
         let key = self.store.node_key(node).await?.ok_or(AppError::Unauthenticated)?;
         let message = message(&proof.signed_node, proof.seconds, proof.nanos, &proof.nonce);
         if verify(&key, &message, &proof.signature) {

@@ -91,6 +91,29 @@ pub fn server_config(data: &DataDir) -> Result<Arc<rustls::ServerConfig>, TlsErr
     }
     let key = PrivateKeyDer::from_pem_file(dir.join("server.key"))
         .map_err(|e| TlsError::Pem(e.to_string()))?;
+    serving(certs, key)
+}
+
+/// A server configuration presenting the chain in the PEM file `chain` (the certificate, then
+/// its issuers) with the key in the PEM file `key`: what a relay running as its own process
+/// serves with.
+pub fn relay_server_config(
+    chain: &std::path::Path,
+    key: &std::path::Path,
+) -> Result<Arc<rustls::ServerConfig>, TlsError> {
+    let certs = CertificateDer::pem_file_iter(chain)
+        .map_err(|e| TlsError::Pem(e.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| TlsError::Pem(e.to_string()))?;
+    let key = PrivateKeyDer::from_pem_file(key).map_err(|e| TlsError::Pem(e.to_string()))?;
+    serving(certs, key)
+}
+
+/// Speaking HTTP/2 and HTTP/1.1 with `certs` and `key`.
+fn serving(
+    certs: Vec<CertificateDer<'static>>,
+    key: PrivateKeyDer<'static>,
+) -> Result<Arc<rustls::ServerConfig>, TlsError> {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let mut config = rustls::ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()?

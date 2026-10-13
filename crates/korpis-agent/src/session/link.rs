@@ -64,7 +64,8 @@ pub struct Link {
     /// The revocation list held, as it changes: what token verification refuses (§6.3 of
     /// docs/08-identity.md).
     pub revoked: watch::Receiver<Arc<RevocationList>>,
-    /// The relays the last Welcome named; empty for the control plane's own address.
+    /// The relays the last `Relays` named, the control plane's address among them when it serves
+    /// the relay role; none before the first.
     pub relays: watch::Receiver<Vec<String>>,
     /// Everything else the control plane sends, such as lease answers. The session keeps
     /// the journal's acknowledgements, since it sends the journal.

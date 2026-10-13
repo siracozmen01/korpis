@@ -109,6 +109,7 @@ impl Harness {
             lease_term: std::time::Duration::from_secs(2),
             denial_window: std::time::Duration::from_secs(1),
             event_retention: std::time::Duration::from_secs(30 * 86_400),
+            relay_role: true,
         })
         .await
         .expect("serve");

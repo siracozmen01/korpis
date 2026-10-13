@@ -63,6 +63,7 @@ impl ControlPlane {
             lease_term: Duration::from_secs(2),
             denial_window: Duration::from_secs(60),
             event_retention: Duration::from_secs(30 * 86_400),
+            relay_role: true,
         })
         .await
         .expect("serve");

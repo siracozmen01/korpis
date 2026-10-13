@@ -245,14 +245,6 @@ impl Session {
             .and_then(|d| korpis_wire::duration_from("heartbeat_interval", d).ok())
             .unwrap_or(Duration::from_secs(30));
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
-        let relays = welcome.relays;
-        self.relays.send_if_modified(|held| {
-            let changed = *held != relays;
-            if changed {
-                held.clone_from(&relays);
-            }
-            changed
-        });
         let mut tick = tokio::time::interval(interval);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let (journal, mut shipper) = (self.journal.clone(), Shipper::new(self.journal.clone()));
@@ -301,6 +293,10 @@ impl Session {
                 }
                 Vec::new()
             }
+            Some(Down::Relays(r)) => {
+                self.name_relays(&r);
+                Vec::new()
+            }
             Some(Down::ReachabilityProbe(p)) => {
                 vec![crate::probe::begin(&self.identity.node, &self.identity.key, *p).await]
             }
@@ -314,6 +310,24 @@ impl Session {
             }
             None => Vec::new(),
         }
+    }
+
+    /// Keeps one data connection to each relay `r` names, the control plane's own address
+    /// standing for its relay role.
+    fn name_relays(&self, r: &agent::Relays) {
+        let mut wanted = r.urls.clone();
+        if r.control_plane {
+            wanted.push(self.identity.server.clone());
+        }
+        wanted.sort();
+        wanted.dedup();
+        self.relays.send_if_modified(|held| {
+            let changed = *held != wanted;
+            if changed {
+                held.clone_from(&wanted);
+            }
+            changed
+        });
     }
 
     /// Believes, keeps, and acknowledges a set, or refuses it and keeps the one held.

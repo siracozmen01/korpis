@@ -5,7 +5,7 @@
 
 mod credential;
 mod downlink;
-mod revocations;
+mod published;
 mod session;
 mod uplink;
 
@@ -62,7 +62,7 @@ impl agent::AgentService for Api {
         _ctx: RequestContext,
         requests: InboundStream<agent::AgentMessage>,
     ) -> ServiceResult<ServiceStream<agent::ControlMessage>> {
-        let rx = session::open(&self.app, &self.sessions, &self.revocations, requests).await?;
+        let rx = session::open(self, requests).await?;
         let out = futures_util::stream::unfold(rx, |mut rx| async move {
             rx.recv().await.map(|m| (Ok(m), rx))
         });

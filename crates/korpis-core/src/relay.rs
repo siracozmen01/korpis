@@ -32,6 +32,7 @@ pub struct Relay {
 pub struct RelayUrl {
     url: String,
     host: String,
+    port: u16,
 }
 
 /// Why a URL cannot name a relay.
@@ -48,23 +49,25 @@ impl RelayUrl {
         if rest.is_empty() || rest.contains(['/', '?', '#', '@', ' ']) {
             return Err(refuse());
         }
-        let host = if let Some(v6) = rest.strip_prefix('[') {
+        let (host, port) = if let Some(v6) = rest.strip_prefix('[') {
             // An IPv6 literal, then an optional port.
             let (host, after) = v6.split_once(']').ok_or_else(refuse)?;
-            valid_port(after).ok_or_else(refuse)?;
+            let port = valid_port(after).ok_or_else(refuse)?;
             host.parse::<std::net::Ipv6Addr>().map_err(|_| refuse())?;
-            host.to_owned()
+            (host.to_owned(), port)
         } else {
             let (host, port) = rest.split_once(':').unwrap_or((rest, ""));
-            if !port.is_empty() {
-                valid_port(&format!(":{port}")).ok_or_else(refuse)?;
-            }
+            let port = if rest.contains(':') {
+                valid_port(&format!(":{port}")).ok_or_else(refuse)?
+            } else {
+                HTTPS_PORT
+            };
             if host.is_empty() {
                 return Err(refuse());
             }
-            host.to_ascii_lowercase()
+            (host.to_ascii_lowercase(), port)
         };
-        Ok(Self { url: format!("https://{}", rest.to_ascii_lowercase()), host })
+        Ok(Self { url: format!("https://{}", rest.to_ascii_lowercase()), host, port })
     }
 
     /// The URL.
@@ -78,14 +81,23 @@ impl RelayUrl {
     pub fn host(&self) -> &str {
         &self.host
     }
+
+    /// The port: the one it names, or 443.
+    #[must_use]
+    pub fn port(&self) -> u16 {
+        self.port
+    }
 }
 
-/// `Some` when `after` is empty or `:` and a port number.
-fn valid_port(after: &str) -> Option<()> {
+/// The port an `https` URL names when it names none.
+const HTTPS_PORT: u16 = 443;
+
+/// The port, when `after` is empty (443) or `:` and a port number.
+fn valid_port(after: &str) -> Option<u16> {
     if after.is_empty() {
-        return Some(());
+        return Some(HTTPS_PORT);
     }
-    after.strip_prefix(':')?.parse::<u16>().ok().filter(|p| *p > 0).map(|_| ())
+    after.strip_prefix(':')?.parse::<u16>().ok().filter(|p| *p > 0)
 }
 
 #[cfg(test)]
@@ -99,8 +111,10 @@ mod tests {
             (u.as_str(), u.host()),
             ("https://relay-1.example.net:8443", "relay-1.example.net")
         );
-        let v6 = RelayUrl::parse("https://[2001:db8::1]:443").unwrap();
-        assert_eq!(v6.host(), "2001:db8::1");
+        assert_eq!(u.port(), 8443);
+        let v6 = RelayUrl::parse("https://[2001:db8::1]:444").unwrap();
+        assert_eq!((v6.host(), v6.port()), ("2001:db8::1", 444));
+        assert_eq!(RelayUrl::parse("https://relay").unwrap().port(), 443);
         for bad in [
             "http://relay",
             "https://",

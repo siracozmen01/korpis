@@ -16,6 +16,7 @@ mod reachability;
 pub(crate) mod session;
 
 pub use assign::AssignmentSet;
+pub use attach::check_data_hello;
 pub use enroll::{
     CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
 };

@@ -11,6 +11,7 @@ pub mod bodies;
 pub mod data;
 pub mod install;
 pub mod keys;
+pub mod named_relays;
 mod provider_calls;
 pub mod providers;
 mod reachability;
@@ -62,6 +63,9 @@ pub struct ServeConfig {
     pub denial_window: Duration,
     /// How long the event log keeps an event (§5 of docs/15-observability.md).
     pub event_retention: Duration,
+    /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md); off where
+    /// relays run as their own processes and the control plane should carry no sessions.
+    pub relay_role: bool,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -147,12 +151,14 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let bound = Server::bind(config.listen).await.map_err(|e| ServeError::Serve(e.to_string()))?;
     let addr = bound.local_addr()?;
     let bound = bound.with_tls(tls);
-    let api = Arc::new(Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?));
+    let api = Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?);
+    let api = Arc::new(api.with_relay_role(config.relay_role));
     let token_keys = {
         use korpis_app::ports::EnrollmentRead as _;
         api.app().store().verify_keys("token").await.map_err(korpis_app::AppError::from)?
     };
-    api.relay().trust(relay::token_ring(&token_keys));
+    let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
+    api.relay().trust(relay::token_ring(names));
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(&api)));
@@ -160,6 +166,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(provider_calls::keep_registrations(Arc::clone(&api)));
     tokio::spawn(provider_calls::dispatch(Arc::clone(&api)));
     tokio::spawn(revocations::keep(Arc::clone(&api)));
+    tokio::spawn(named_relays::keep(Arc::clone(&api)));
     tokio::spawn(reachability::keep(Arc::clone(&api)));
     tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
     let router = Arc::clone(&api).router();

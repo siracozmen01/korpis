@@ -85,12 +85,12 @@ impl TestAgent {
         }
     }
 
-    /// A data connection's first message, signed now with `nonce`.
-    pub fn data_hello(&self, nonce: &[u8]) -> agent::AttachUp {
+    /// A data connection's first message to `relay`, signed now with `nonce`.
+    pub fn data_hello(&self, relay: &str, nonce: &[u8]) -> agent::AttachUp {
         let since = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let (seconds, nanos) = (i64::try_from(since.as_secs()).unwrap(), since.subsec_nanos());
         let message = korpis_core::node::identity::data_hello_message;
-        let signature = sign(&self.key, &message(&self.node, seconds, nanos, nonce));
+        let signature = sign(&self.key, &message((&self.node, relay), seconds, nanos, nonce));
         let auth = agent::NodeAuth {
             timestamp: Timestamp {
                 seconds,
@@ -102,8 +102,12 @@ impl TestAgent {
             signature,
             ..Default::default()
         };
-        let hello =
-            agent::DataHello { node: self.node.clone(), auth: auth.into(), ..Default::default() };
+        let hello = agent::DataHello {
+            node: self.node.clone(),
+            auth: auth.into(),
+            relay: relay.to_owned(),
+            ..Default::default()
+        };
         agent::AttachUp {
             message: Some(agent::__buffa::oneof::attach_up::Message::Hello(Box::new(hello))),
             ..Default::default()
@@ -179,13 +183,23 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
     }
 }
 
-/// The next message on a session, within five seconds, passing over revocation lists, which
-/// arrive on their own schedule (§6.3 of docs/08-identity.md); [`next_list`] reads those.
+/// The next message on a session, within five seconds, passing over revocation lists and the
+/// relays named, which arrive on their own schedule (§6.3 of docs/08-identity.md, §3.1 of
+/// docs/02-architecture.md); [`next_list`] and [`next_relays`] read those.
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;
-        if !matches!(m.message, Some(Down::RevocationList(_))) {
+        if !matches!(m.message, Some(Down::RevocationList(_) | Down::Relays(_))) {
             return m;
+        }
+    }
+}
+
+/// The next relays named on a session, within five seconds of each message before it.
+pub async fn next_relays(stream: &mut Stream) -> agent::Relays {
+    loop {
+        if let Some(Down::Relays(relays)) = any(stream).await.message {
+            return *relays;
         }
     }
 }
