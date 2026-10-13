@@ -102,6 +102,7 @@ impl Harness {
             placement_retry: std::time::Duration::from_millis(200),
             watch_resync: std::time::Duration::from_secs(1),
             heartbeat_interval: heartbeat,
+            lease_term: std::time::Duration::from_secs(2),
         })
         .await
         .expect("serve");

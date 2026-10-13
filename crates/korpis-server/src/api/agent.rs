@@ -5,6 +5,7 @@
 
 mod downlink;
 mod session;
+mod uplink;
 
 use super::wire::{timestamp, wire_id};
 use super::{Api, error};

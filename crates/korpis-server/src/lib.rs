@@ -49,6 +49,8 @@ pub struct ServeConfig {
     pub watch_resync: Duration,
     /// How often agents send their heartbeat; three missed make a node unreachable.
     pub heartbeat_interval: Duration,
+    /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
+    pub lease_term: Duration,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -108,8 +110,11 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.ensure_partitions(3).await?;
     let keys = keys::Keys::load_or_create(&config.data)?;
     let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));
-    let terms =
-        SessionTerms { heartbeat_interval: config.heartbeat_interval, ..Default::default() };
+    let terms = SessionTerms {
+        heartbeat_interval: config.heartbeat_interval,
+        lease_term: config.lease_term,
+        ..Default::default()
+    };
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)

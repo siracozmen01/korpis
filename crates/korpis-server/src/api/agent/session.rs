@@ -5,10 +5,11 @@
 //! the stream carries facts up and decisions down.
 
 use super::downlink::Downlink;
+use super::uplink::Uplink;
 use crate::api::wire::{Refuse, id, timestamp};
 use crate::api::{ServerApp, error};
 use crate::sessions::Sessions;
-use connectrpc::{ConnectError, InboundStream, StreamMessage};
+use connectrpc::{ConnectError, InboundStream};
 use futures_util::StreamExt as _;
 use korpis_app::node::{Hello, NodeProof, Session};
 use korpis_app::ports::NodeFacts;
@@ -20,12 +21,11 @@ use korpis_wire::duration;
 use korpis_wire::node::{drivers_from_pb, resources_from_pb, storage_classes_from_pb};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use uuid::Uuid;
 
 /// How many decisions may wait for a slow agent before the session is dropped and it resyncs.
 const OUTBOUND: usize = 64;
 
-fn facts(
+pub(super) fn facts(
     capacity: Option<&korpis_proto::korpis::v1::Resources>,
     allocatable: Option<&korpis_proto::korpis::v1::Resources>,
     drivers: &[korpis_proto::korpis::v1::DriverInfo],
@@ -102,55 +102,12 @@ pub(super) async fn open(
         sessions: Arc::clone(sessions),
         node,
         id,
-        tx,
+        tx: tx.clone(),
         wake,
         held: hello.set_digest.clone(),
     };
+    let uplink = Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx };
     tokio::spawn(downlink.run());
-    tokio::spawn(inbound(Arc::clone(app), Arc::clone(sessions), node, id, requests));
+    tokio::spawn(uplink.run(requests));
     Ok(rx)
-}
-
-/// Handles what the agent sends until the stream ends or another session replaces this one.
-async fn inbound(
-    app: Arc<ServerApp>,
-    sessions: Arc<Sessions>,
-    node: Uuid,
-    id: u64,
-    mut requests: InboundStream<agent::AgentMessage>,
-) {
-    while let Some(next) = requests.next().await {
-        if !sessions.is_current(node, id) {
-            break;
-        }
-        match next {
-            Ok(m) => handle(&app, node, &m).await,
-            Err(e) => {
-                tracing::debug!(%node, error = %e, "agent stream failed");
-                break;
-            }
-        }
-    }
-    sessions.unregister(node, id);
-    tracing::info!(%node, "agent session closed");
-}
-
-async fn handle(app: &ServerApp, node: Uuid, m: &StreamMessage<agent::AgentMessage>) {
-    let m = m.to_owned_message();
-    let result = match m.message.as_ref() {
-        Some(Up::Ack(a)) => {
-            app.acknowledge_set(node, &a.set_digest).await.map_err(|e| e.to_string())
-        }
-        Some(Up::NodeStatus(s)) => {
-            match facts(s.capacity.as_option(), s.allocatable.as_option(), &s.drivers, None) {
-                Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        // The rest of the protocol arrives with assignments, leases, and the journal.
-        _ => Ok(()),
-    };
-    if let Err(e) = result {
-        tracing::warn!(%node, error = %e, "agent message refused");
-    }
 }

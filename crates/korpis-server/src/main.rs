@@ -66,6 +66,10 @@ enum Command {
         /// of §10 of docs/02-architecture.md).
         #[arg(long, default_value_t = 30)]
         agent_heartbeat_secs: u64,
+        /// Seconds a lease lasts from the holder's request; a handoff from an unreachable node
+        /// waits this long (§4.5 of docs/02-architecture.md).
+        #[arg(long, default_value_t = 60)]
+        lease_term_secs: u64,
     },
 }
 
@@ -116,6 +120,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             placement_retry_secs,
             watch_resync_secs,
             agent_heartbeat_secs,
+            lease_term_secs,
         } => {
             let policy = match placement_policy {
                 Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
@@ -131,6 +136,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 placement_retry: Duration::from_secs(placement_retry_secs.max(1)),
                 watch_resync: Duration::from_secs(watch_resync_secs.max(1)),
                 heartbeat_interval: Duration::from_secs(agent_heartbeat_secs.max(1)),
+                lease_term: Duration::from_secs(lease_term_secs.max(1)),
             })
             .await?;
             tokio::select! {

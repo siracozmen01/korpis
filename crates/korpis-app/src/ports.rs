@@ -13,6 +13,7 @@ mod changes;
 mod clock;
 mod enrollment;
 mod idempotency;
+mod lease;
 mod node;
 mod placement;
 mod quota;
@@ -34,6 +35,7 @@ pub use changes::{Change, Changes};
 pub use clock::{Clock, SystemClock};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
+pub use lease::LeaseWrite;
 pub use node::{NodeRead, NodeWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
@@ -131,6 +133,7 @@ pub trait Tx:
     + EnrollmentWrite
     + SessionWrite
     + AssignmentWrite
+    + LeaseWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

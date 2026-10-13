@@ -28,11 +28,21 @@ pub struct SessionTerms {
     pub heartbeat_interval: Duration,
     /// How far a Hello's timestamp may be from the control plane's clock, either way.
     pub auth_skew: Duration,
+    /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
+    pub lease_term: Duration,
+    /// The declared bound on clock-rate error, in parts per million: the holder treats its
+    /// lease as ending `term × ρ` early.
+    pub rho_ppm: u32,
 }
 
 impl Default for SessionTerms {
     fn default() -> Self {
-        Self { heartbeat_interval: Duration::from_secs(30), auth_skew: Duration::from_secs(300) }
+        Self {
+            heartbeat_interval: Duration::from_secs(30),
+            auth_skew: Duration::from_secs(300),
+            lease_term: Duration::from_secs(60),
+            rho_ppm: 1000,
+        }
     }
 }
 

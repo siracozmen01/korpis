@@ -5,12 +5,14 @@
 
 mod assign;
 mod enroll;
+mod lease;
 mod session;
 
 pub use assign::AssignmentSet;
 pub use enroll::{
     CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
 };
+pub use lease::LeaseAnswer;
 pub use session::{AGENT_PROTOCOLS, Hello, NodeProof, Session, SessionTerms};
 
 use crate::App;

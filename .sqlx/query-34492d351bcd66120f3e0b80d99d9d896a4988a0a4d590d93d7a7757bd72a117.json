@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE lease SET received_at = $2::timestamptz,\n                              grantor_expiry = $2::timestamptz + term_ms * interval '1 millisecond'\n              WHERE workload_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34492d351bcd66120f3e0b80d99d9d896a4988a0a4d590d93d7a7757bd72a117"
+}

@@ -344,6 +344,33 @@ So there is no window in which two holders are both authorized, and the claim no
 a message nobody can guarantee. The cost is a handoff that can take one lease term when the source
 is unreachable, which is why terms are short and stated.
 
+**The stated values.** A term is 60 seconds, configurable per installation, and ρ is 1,000 parts per
+million. A quartz clock drifts by tens of parts per million and a disciplined one by far less, so
+ρ is a margin against a clock that is worse than it should be, at a cost of 60 milliseconds per
+term. Sixty seconds is the longest a handoff from an unreachable node waits, and the longest a
+`stop` workload keeps running after its node loses the control plane; shorter terms buy a faster
+handoff with more renewals, and the agent renews well before the end (a third of the term), so a
+renewal lost to one dropped packet costs nothing.
+
+**What a request is answered with**, given where the workload is placed and who holds its lease:
+
+| The node asking | holds the lease, unreleased | another node holds an unexpired lease | nobody does |
+|---|---|---|---|
+| is where the workload is placed | renewed, **same epoch** | refused, `UNAVAILABLE`: retry once the old lease is over | a new epoch |
+| is not | refused, `NOT_ASSIGNED` | refused, `SUPERSEDED`, naming the holder | refused, `NOT_ASSIGNED` |
+
+A renewal is not an issue, so it keeps the epoch: the epoch labels runtime objects (§4.4) and
+travels in the assignment, and an epoch that moved on every renewal would make every renewal a new
+assignment. The epoch increments on every *issue*, to a node acquiring the workload or to the same
+node acting again after it released it; epochs come from one sequence for the installation, so
+they are never reused, and a restored control plane raises the sequence's floor (§8 of
+`03-state.md`). The node's own unreleased lease is renewed whatever epoch the request says it
+holds, which is the fail-static row below: an agent that restarted, or a control plane that was
+restored, gets back the epoch that is still its own. Issuing an epoch is an effect,
+`lease.issue`, naming the holder it replaced; a renewal is not, since it changes nothing anyone is
+told. `LeaseRevoke` is not sent in Phase 0, where a workload leaves a node only by being retired;
+it arrives with migration, and safety never depended on it.
+
 **The epoch check is in the data path wherever the storage allows it.** Leases fence the agents.
 They do not, by themselves, fence a disk that a second node could attach. A storage class reachable
 from more than one node declares `fencing: storage_enforced` when the backend can refuse a
