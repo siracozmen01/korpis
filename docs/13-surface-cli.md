@@ -336,6 +336,7 @@ korpis exec mc-survival -- /bin/sh   a session, subject to the runtime's isolati
 korpis files sync ./world w:mc-survival/world   delta transfer, through a relay
 korpis forward mc-survival:25565     local port through the overlay, no public exposure
 korpis watch -f servers/             stream plans and effects as they occur
+korpis event follow sub_… --ack      print a subscription's events as they come, and record them
 korpis version                       client and server versions, and the source revision of each
 ```
 
@@ -349,6 +350,12 @@ control plane, for the same reason web upload does (§8 of `11-surface-web.md`):
 should not traverse the control plane, and the control plane should not be a data path. Where the
 node advertises a direct endpoint the CLI uses it, because the CLI pins the Korpis CA; the relay
 path always works (§3.1 of `02-architecture.md`).
+
+`event subscribe --kind workload.` keeps a position in the event log for you (§5 of
+`15-observability.md`); `event follow` prints what it is delivered as it comes, and with `--ack`
+records each line it printed as processed, so the next `follow` resumes after the last one, and
+a line it did not get to print is delivered again. `event list` and `event delete` complete the
+set.
 
 `exec` is not universally available and does not pretend to be. §4.3 of `04-runtimes.md` forbids
 the driver interface from assuming a shared filesystem or a POSIX process model, so `exec` exists

@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::Page;
-use korpis_core::event::Subscription;
+use korpis_core::event::{Event, Subscription};
 use std::future::Future;
 use uuid::Uuid;
 
@@ -18,6 +18,16 @@ pub trait SubscriptionRead {
 
     /// The position of the newest event positioned; 0 before the first.
     fn last_position(&self) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// The oldest event the log still keeps; `None` when it keeps none.
+    fn first_position(&self) -> impl Future<Output = StoreResult<Option<u64>>> + Send;
+
+    /// Up to `limit` events after position `after`, in position order.
+    fn events_after(
+        &self,
+        after: u64,
+        limit: u32,
+    ) -> impl Future<Output = StoreResult<Vec<Event>>> + Send;
 
     /// A subject's subscriptions, in identifier order after the page's cursor.
     fn subscriptions_of(

@@ -282,7 +282,7 @@ Console, logs, and events are server-streaming calls. Console input is client-st
 |---|---|
 | log / console output | bounded buffer; on overflow, drop and **emit a gap marker** with the byte range and duration lost |
 | console input | blocks; input is never dropped or reordered |
-| events | bounded; on overflow the subscription is terminated with `OVERFLOW` and must resubscribe from a recorded offset |
+| events | read from the durable log at the consumer's pace, so nothing overflows; a position past retention is answered with a **gap marker** (§5 of `15-observability.md`) |
 
 Silently dropping log lines is the standard behaviour and it is wrong under P4: a log with an
 invisible hole in it is worse than no log, because someone will conclude from its absence that

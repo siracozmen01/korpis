@@ -10,7 +10,7 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{StoreError, StoreResult, SubscriptionRead, SubscriptionWrite};
-use korpis_core::event::{EventFilter, Severity, Subscription};
+use korpis_core::event::{Event, EventFilter, Severity, Subscription};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -43,6 +43,49 @@ impl FilterDoc {
             min_severity,
             projects: self.projects,
             workloads: self.workloads.into_domain(),
+        })
+    }
+}
+
+struct EventRow {
+    position: i64,
+    key: String,
+    seq: i64,
+    at: DateTime<Utc>,
+    kind: String,
+    severity: String,
+    organization_id: Uuid,
+    workload_id: Option<Uuid>,
+    project_id: Option<Uuid>,
+    labels: Option<serde_json::Value>,
+    effect_id: Option<Uuid>,
+    detail: serde_json::Value,
+}
+
+impl EventRow {
+    fn into_domain(self) -> StoreResult<Event> {
+        let severity = Severity::parse(&self.severity)
+            .ok_or_else(|| StoreError::Corrupt(format!("severity {:?}", self.severity)))?;
+        let labels = match self.labels {
+            Some(l) => from_json("workload labels", l)?,
+            None => std::collections::BTreeMap::new(),
+        };
+        let serde_json::Value::Object(detail) = self.detail else {
+            return Err(StoreError::Corrupt("event detail is not an object".into()));
+        };
+        Ok(Event {
+            position: count("position", self.position)?,
+            key: self.key,
+            seq: count("seq", self.seq)?,
+            at: to_time(self.at),
+            kind: self.kind,
+            severity,
+            organization: self.organization_id,
+            workload: self.workload_id,
+            project: self.project_id,
+            labels,
+            effect: self.effect_id,
+            detail,
         })
     }
 }
@@ -90,6 +133,31 @@ impl SubscriptionRead for PgStore {
             .await
             .map_err(from_sqlx)?;
         count("last position", next - 1)
+    }
+
+    async fn first_position(&self) -> StoreResult<Option<u64>> {
+        let first = sqlx::query_scalar!("SELECT min(position) FROM event")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        first.map(|p| count("first position", p)).transpose()
+    }
+
+    async fn events_after(&self, after: u64, limit: u32) -> StoreResult<Vec<Event>> {
+        let rows = sqlx::query_as!(
+            EventRow,
+            r#"SELECT e.position AS "position!", e.key, e.seq, e.at, e.kind, e.severity,
+                      e.organization_id, e.workload_id, w.project_id AS "project_id?",
+                      w.labels AS "labels?", e.effect_id, e.detail
+                 FROM event e LEFT JOIN workload w ON w.id = e.workload_id
+                WHERE e.position > $1 ORDER BY e.position LIMIT $2"#,
+            to_count("after", after)?,
+            i64::from(limit)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter().map(EventRow::into_domain).collect()
     }
 
     async fn subscriptions_of(&self, subject: &str, page: Page) -> StoreResult<Vec<Subscription>> {

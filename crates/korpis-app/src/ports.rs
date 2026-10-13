@@ -39,7 +39,7 @@ pub use audit::{
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
-pub use changes::{Change, Changes};
+pub use changes::{Change, Changes, Positions};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
@@ -135,11 +135,17 @@ pub trait Store:
     /// A subscription to workload changes.
     type Changes: Changes;
 
+    /// Wake-ups for event subscribers.
+    type Positions: Positions;
+
     /// Opens a transaction.
     fn begin(&self) -> impl Future<Output = StoreResult<Self::Tx>> + Send;
 
     /// Subscribes to the changes of every workload, from now on.
     fn subscribe(&self) -> Self::Changes;
+
+    /// Wakes, from now on, whenever events are positioned.
+    fn positions(&self) -> Self::Positions;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.

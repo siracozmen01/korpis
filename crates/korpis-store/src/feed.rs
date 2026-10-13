@@ -21,6 +21,9 @@ const CHANNEL: &str = "korpis_workload";
 /// The channel a transaction that wrote an event announces on, at its commit.
 const EVENT_WRITTEN: &str = "korpis_event_written";
 
+/// The channel the sequencer announces newly positioned events on.
+const EVENT_POSITIONED: &str = "korpis_event_positioned";
+
 /// How many announcements a slow subscriber may fall behind before it is told to resync.
 const BACKLOG: usize = 1024;
 
@@ -34,12 +37,31 @@ pub(crate) struct Feed {
     resync: Duration,
     /// Woken when an event was written; the sequencer waits on it.
     pub(crate) events_written: tokio::sync::Notify,
+    /// Bumped whenever events are positioned; event subscribers wait on it.
+    positioned: tokio::sync::watch::Sender<u64>,
 }
 
 impl Feed {
     pub(crate) fn new(resync: Duration) -> Arc<Self> {
         let (sender, _) = broadcast::channel(BACKLOG);
-        Arc::new(Self { sender, resync, events_written: tokio::sync::Notify::new() })
+        let (positioned, _) = tokio::sync::watch::channel(0);
+        Arc::new(Self { sender, resync, events_written: tokio::sync::Notify::new(), positioned })
+    }
+}
+
+/// One event subscriber's wake-ups.
+#[derive(Debug)]
+pub struct EventPositions {
+    receiver: tokio::sync::watch::Receiver<u64>,
+    tick: Interval,
+}
+
+impl korpis_app::ports::Positions for EventPositions {
+    async fn next(&mut self) -> Option<()> {
+        tokio::select! {
+            changed = self.receiver.changed() => changed.ok(),
+            _ = self.tick.tick() => Some(()),
+        }
     }
 }
 
@@ -72,6 +94,14 @@ impl PgStore {
         Subscription { receiver: self.feed.sender.subscribe(), tick }
     }
 
+    /// Wake-ups for one event subscriber, from now on.
+    pub(crate) fn event_positions(&self) -> EventPositions {
+        let period = self.feed.resync;
+        let mut tick = tokio::time::interval_at(Instant::now() + period, period);
+        tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        EventPositions { receiver: self.feed.positioned.subscribe(), tick }
+    }
+
     /// Starts the one listener that feeds every subscription, for as long as the process runs.
     /// Without it, subscribers still hear the periodic resync, so a watch is late, never wrong.
     pub fn listen(&self) {
@@ -86,6 +116,7 @@ impl PgStore {
                 // Whatever was announced while disconnected is lost; everyone re-reads.
                 let _ = feed.sender.send(Change::Resync);
                 feed.events_written.notify_one();
+                feed.positioned.send_modify(|p| *p += 1);
                 tokio::time::sleep(RECONNECT).await;
             }
         });
@@ -95,12 +126,20 @@ impl PgStore {
 /// Relays announcements until the connection fails.
 async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
     let mut listener = PgListener::connect_with(pool).await?;
-    listener.listen_all([CHANNEL, EVENT_WRITTEN]).await?;
+    listener.listen_all([CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED]).await?;
     loop {
         let notification = listener.recv().await?;
-        if notification.channel() == EVENT_WRITTEN {
-            feed.events_written.notify_one();
-            continue;
+        match notification.channel() {
+            EVENT_WRITTEN => {
+                feed.events_written.notify_one();
+                continue;
+            }
+            EVENT_POSITIONED => {
+                let last = notification.payload().parse().unwrap_or(0);
+                feed.positioned.send_modify(|p| *p = last.max(*p + 1));
+                continue;
+            }
+            _ => {}
         }
         let change = notification.payload().parse().map_or(Change::Resync, Change::Workload);
         // No subscriber is not an error: nobody is watching.

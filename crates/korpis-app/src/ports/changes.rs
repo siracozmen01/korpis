@@ -21,3 +21,11 @@ pub trait Changes: Send + 'static {
     /// The next change; `None` once the feed has ended for good.
     fn next(&mut self) -> impl Future<Output = Option<Change>> + Send;
 }
+
+/// A wake-up for an event subscriber: new events may have been positioned. Like a change, it is
+/// a wake-up and not a record, and it also comes on a fixed interval, so a reader that missed one
+/// is late, never stuck.
+pub trait Positions: Send + 'static {
+    /// Waits for the next wake-up; `None` once the feed has ended for good.
+    fn next(&mut self) -> impl Future<Output = Option<()>> + Send;
+}

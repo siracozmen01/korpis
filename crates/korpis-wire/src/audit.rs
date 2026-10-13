@@ -31,7 +31,8 @@ fn value(v: &Value) -> pb::Value {
     pb::Value { kind: Some(kind), ..Default::default() }
 }
 
-fn map<M: FromIterator<(String, pb::Value)>>(m: Option<&Map<String, Value>>) -> M {
+/// A JSON object as a map of `korpis.v1.Value`s.
+pub(crate) fn map<M: FromIterator<(String, pb::Value)>>(m: Option<&Map<String, Value>>) -> M {
     m.into_iter().flatten().map(|(k, v)| (k.clone(), value(v))).collect()
 }
 

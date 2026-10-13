@@ -281,8 +281,9 @@ default to impose.
 
 Subscribe to the event stream, filtered by grant. Delivery is at-least-once with a persistent
 outbox; consumers are expected to be idempotent, and the delivery identifier makes that easy. A
-slow or dead consumer's queue is bounded and is dropped with a visible marker rather than growing
-until it becomes the control plane's problem.
+slow or dead consumer reads the log at its own pace, so its backlog never grows inside the
+control plane, and a position it let fall out of retention is answered with a visible gap marker
+(§5 of `15-observability.md`).
 
 **Delivery is ordered per workload.** Every event carries a sequence number scoped to the workload
 it concerns, the outbox delivers each workload's events in that order, and a consumer that sees a

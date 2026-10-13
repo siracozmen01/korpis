@@ -37,7 +37,7 @@ pub mod testing;
 mod trust;
 mod workload;
 
-pub use feed::Subscription;
+pub use feed::{EventPositions, Subscription};
 
 use korpis_app::ports::{IntentCodec, Store, StoreResult, Tx};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
@@ -137,9 +137,14 @@ pub struct PgTx {
 impl Store for PgStore {
     type Tx = PgTx;
     type Changes = feed::Subscription;
+    type Positions = feed::EventPositions;
 
     fn subscribe(&self) -> feed::Subscription {
         self.subscription()
+    }
+
+    fn positions(&self) -> feed::EventPositions {
+        self.event_positions()
     }
 
     async fn begin(&self) -> StoreResult<PgTx> {

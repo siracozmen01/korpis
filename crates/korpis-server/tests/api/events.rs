@@ -9,6 +9,8 @@ use crate::recipes::project;
 use crate::support::{Harness, detail, mutation};
 use connectrpc::ErrorCode;
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::subscribe_response::Item;
+use std::time::Duration;
 
 fn create(key: &str, kinds: &[&str]) -> pb::CreateSubscriptionRequest {
     pb::CreateSubscriptionRequest {
@@ -88,4 +90,102 @@ async fn an_extensions_subscriptions_come_and_go_with_its_installation() {
         pb::UninstallExtensionRequest { mutation: mutation("u").into(), id, ..Default::default() };
     h.extensions(h.root()).uninstall_extension(uninstall).await.unwrap();
     assert_eq!(count().await, 0, "they end with the installation");
+}
+
+type Delivery = connectrpc::client::ServerStream<
+    <connectrpc::client::HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
+    pb::__buffa::view::SubscribeResponseView<'static>,
+>;
+
+async fn open(h: &Harness, config: connectrpc::client::ClientConfig, s: &str) -> Delivery {
+    let req = pb::SubscribeRequest { subscription: s.to_owned(), ..Default::default() };
+    h.events(config).subscribe(req).await.unwrap()
+}
+
+/// The next event delivered, within `seconds`; `None` if none comes.
+async fn next(stream: &mut Delivery, seconds: u64) -> Option<pb::Event> {
+    let got = tokio::time::timeout(Duration::from_secs(seconds), stream.message()).await.ok()?;
+    let item = got.unwrap().expect("the stream is open").to_owned_message().item;
+    match item {
+        Some(Item::Event(e)) => Some(*e),
+        other => panic!("not an event: {other:?}"),
+    }
+}
+
+async fn subscribe(h: &Harness, config: connectrpc::client::ClientConfig, key: &str) -> String {
+    let made = h.events(config).create_subscription(create(key, &["project."])).await.unwrap();
+    made.into_owned().subscription.into_option().unwrap().id
+}
+
+#[tokio::test]
+async fn delivery_is_in_order_judged_by_the_subjects_grants_and_resumes_after_its_ack() {
+    let h = Harness::new().await;
+    let s = subscribe(&h, h.root(), "s").await;
+    let mut stream = open(&h, h.root(), &s).await;
+    project(&h, &h.root_org(), "one").await;
+    project(&h, &h.root_org(), "two").await;
+    let first = next(&mut stream, 10).await.expect("the first project");
+    let second = next(&mut stream, 10).await.expect("the second project");
+    assert_eq!((first.kind.as_str(), second.kind.as_str()), ("project.create", "project.create"));
+    assert_eq!(first.key, second.key, "both about the organization");
+    assert_eq!(second.seq, first.seq + 1, "numbered in commit order, without gaps");
+    assert!(first.id < second.id);
+
+    let ack = pb::AckRequest { subscription: s.clone(), through: first.id, ..Default::default() };
+    h.events(h.root()).ack(ack).await.unwrap();
+    drop(stream);
+    let mut again = open(&h, h.root(), &s).await;
+    let redelivered = next(&mut again, 10).await.expect("what was not acknowledged");
+    assert_eq!(redelivered.id, second.id, "at least once, resuming after the acknowledgement");
+
+    // A subject without event.read is delivered nothing. Once it holds the grant, what it was
+    // never delivered is delivered on its next connection: judged when sent, not when it
+    // happened, and never acknowledged in between.
+    let (token, secret) = h.bare_token().await;
+    let config = || h.config(Some(secret.expose()));
+    let theirs = subscribe(&h, config(), "t").await;
+    let mut blind = open(&h, config(), &theirs).await;
+    project(&h, &h.root_org(), "three").await;
+    assert!(next(&mut blind, 3).await.is_none(), "it may not read the organization's events");
+    drop(blind);
+    h.issue_to(token, "read", &["event.read"]).await;
+    let mut seeing = open(&h, config(), &theirs).await;
+    let seen = next(&mut seeing, 10).await.expect("delivered once it may read it");
+    let name = seen.detail.get("name").and_then(|v| match &v.kind {
+        Some(pb::__buffa::oneof::value::Kind::StringValue(s)) => Some(s.as_str()),
+        _ => None,
+    });
+    assert_eq!(name, Some("three"));
+}
+
+/// The next item of any kind, within ten seconds.
+async fn item(stream: &mut Delivery) -> Item {
+    let got = tokio::time::timeout(Duration::from_secs(10), stream.message()).await;
+    got.expect("an item").unwrap().expect("the stream is open").to_owned_message().item.unwrap()
+}
+
+#[tokio::test]
+async fn a_position_lost_to_retention_is_answered_with_a_gap_and_delivery_goes_on() {
+    let h = Harness::new().await;
+    let s = subscribe(&h, h.root(), "s").await;
+    project(&h, &h.root_org(), "one").await;
+    project(&h, &h.root_org(), "two").await;
+    let store = h.db.store().await.unwrap();
+    // Wait until both are positioned, then age every event past retention and prune.
+    let mut stream = open(&h, h.root(), &s).await;
+    next(&mut stream, 10).await.unwrap();
+    next(&mut stream, 10).await.unwrap();
+    drop(stream);
+    sqlx::query("UPDATE event SET at = now() - interval '40 days'")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    assert!(store.prune_events(Duration::from_secs(30 * 86_400)).await.unwrap() >= 2);
+
+    let mut stream = open(&h, h.root(), &s).await;
+    let Item::Gap(gap) = item(&mut stream).await else { panic!("the loss is said first") };
+    assert_eq!(gap.reason, "retention");
+    project(&h, &h.root_org(), "three").await;
+    let Item::Event(e) = item(&mut stream).await else { panic!("then delivery goes on") };
+    assert!(e.id >= gap.resumes_at);
 }

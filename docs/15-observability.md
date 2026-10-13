@@ -323,12 +323,22 @@ subscriptions are created with its installation, held by `extension:<id>`, narro
 target project when it is installed into one, and deleted when it is uninstalled (§4 of
 `16-extensions.md`).
 
-**Bounded, and the bound is visible.** The live stream holds a bounded buffer per subscriber; a
-consumer that falls behind it is disconnected with `OVERFLOW` (§7 of `10-api.md`) and resumes from
-its position, which the log itself holds. The log is kept for a retention window (thirty days by
-default, configurable); a subscription whose position falls out of it receives a gap marker naming
-the range it lost and continues from the oldest event still kept. Retention never touches
-effects, which are the audit record and are archived, never dropped (§4 above).
+**Bounded, and the bound is visible.** Delivery reads the log at the subscriber's pace: each
+batch is read when the subscriber has taken the last, so a slow subscriber falls behind in the
+log, not in a buffer, and holds one batch of memory however far behind it is. The log is kept for
+a retention window (thirty days by default, configurable); a subscription whose position falls
+out of it receives a gap marker naming where delivery resumes, the oldest event still kept, and
+continues from there. Retention never touches effects, which are the audit record and are
+archived, never dropped (§4 above).
+
+> Corrected 2026-10-13, when delivery was built. This paragraph gave each subscriber a bounded
+> live buffer and ended one that fell behind it with `OVERFLOW`. Delivery that reads the durable
+> log needs no live buffer, so there is nothing to overflow and nothing to resubscribe after:
+> the one bound left is retention, and it is the gap marker that makes it visible. `OVERFLOW`
+> stays for streams with a live buffer (§7 of `10-api.md`). Each batch is judged against the
+> subscriber's grants as they are when it is read, and an event it may not read is passed over
+> for that stream; it is not acknowledged, so a later connection, holding the grant by then,
+> is delivered it.
 
 What it costs: one counter row update per event, which serializes the events of one workload
 (never two workloads), and an event row beside every effect, about doubling the write volume of

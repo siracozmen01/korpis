@@ -82,8 +82,8 @@ service EventService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   rpc DeleteSubscription(DeleteSubscriptionRequest) returns (DeleteSubscriptionResponse);
-  // Delivers the subscription's events after its acknowledged position, then live ones. A
-  // subscriber that falls behind the live buffer is ended with OVERFLOW and resubscribes.
+  // Delivers the subscription's events after its acknowledged position, then live ones, read
+  // from the log at the subscriber's pace; a position past retention is answered with a gap.
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
   // Records how far the subscriber has processed; delivery resumes after it.
   rpc Ack(AckRequest) returns (AckResponse);

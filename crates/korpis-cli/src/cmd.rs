@@ -6,6 +6,7 @@
 
 pub mod act;
 pub mod classify;
+pub mod event;
 pub mod extension;
 pub mod get;
 pub mod grant;

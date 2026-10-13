@@ -6,6 +6,7 @@ use clap::{CommandFactory as _, Parser, Subcommand};
 use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
+use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
@@ -97,6 +98,9 @@ enum Command {
     /// Installs, lists, shows, and uninstalls extensions.
     #[command(subcommand)]
     Extension(ExtensionAction),
+    /// Subscribes to the event log, and follows a subscription.
+    #[command(subcommand)]
+    Event(EventAction),
     /// Prints the script that registers completion with a shell, e.g.
     /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
     /// offers only what the token in the environment can read.
@@ -180,6 +184,15 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Grant(a) => answer(cli, grant::grant(&cli.required()?, a).await),
         Command::Set(a) => answer(cli, sets::set(&cli.required()?, a).await),
         Command::Extension(a) => answer(cli, extension::extension(&cli.required()?, a).await),
+        Command::Event(EventAction::Follow { subscription, ack }) => {
+            let c = cli.required()?;
+            let json = cli.json;
+            event::follow(&c, subscription, *ack, &mut |text, value| {
+                if json { print(&value) } else { println!("{text}") }
+            })
+            .await
+        }
+        Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

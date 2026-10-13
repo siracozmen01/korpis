@@ -143,6 +143,18 @@ impl EventFilter {
         }
     }
 
+    /// Whether `event` passes the filter: its kind, its severity, and, when the filter narrows
+    /// by them, its workload's project and labels. An event about no workload is about no
+    /// project, so a filter naming projects passes none; a label selector narrows only events
+    /// about workloads.
+    #[must_use]
+    pub fn matches(&self, event: &Event) -> bool {
+        let projects =
+            self.projects.is_empty() || event.project.is_some_and(|p| self.projects.contains(&p));
+        let labels = event.workload.is_none() || self.workloads.matches(&event.labels);
+        self.matches_kind(&event.kind) && event.severity >= self.min_severity && projects && labels
+    }
+
     /// Whether an event of `kind` passes the kind patterns.
     #[must_use]
     pub fn matches_kind(&self, kind: &str) -> bool {
@@ -152,6 +164,35 @@ impl EventFilter {
                 None => kind == k,
             })
     }
+}
+
+/// An event as the log holds it (§5 of docs/15-observability.md).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Event {
+    /// Its position, which is its identifier.
+    pub position: u64,
+    /// What orders it: `workload:<id>` or `organization:<id>`.
+    pub key: String,
+    /// Its number within its key, from 1, without gaps.
+    pub seq: u64,
+    /// The ingest clock.
+    pub at: SystemTime,
+    /// An effect's action, or a condition.
+    pub kind: String,
+    /// How much it matters.
+    pub severity: Severity,
+    /// The organization it concerns.
+    pub organization: Uuid,
+    /// The workload it concerns, if one.
+    pub workload: Option<Uuid>,
+    /// That workload's project.
+    pub project: Option<Uuid>,
+    /// That workload's labels.
+    pub labels: std::collections::BTreeMap<String, String>,
+    /// The effect it reports, if it reports one.
+    pub effect: Option<Uuid>,
+    /// What happened.
+    pub detail: serde_json::Map<String, serde_json::Value>,
 }
 
 /// A subscription: a stored position in the log, and what it selects (§5 of
@@ -210,6 +251,44 @@ mod tests {
         assert!(Severity::Critical > Severity::Warning && Severity::Warning > Severity::Info);
         assert_eq!(Severity::parse("warning"), Some(Severity::Warning));
         assert_eq!(Severity::parse("loud"), None);
+    }
+
+    fn event(kind: &str, project: Option<Uuid>, labels: &[(&str, &str)]) -> Event {
+        Event {
+            position: 1,
+            key: "k".into(),
+            seq: 1,
+            at: SystemTime::UNIX_EPOCH,
+            kind: kind.into(),
+            severity: Severity::Warning,
+            organization: Uuid::nil(),
+            workload: project.map(|_| Uuid::nil()),
+            project,
+            labels: labels.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
+            effect: None,
+            detail: serde_json::Map::new(),
+        }
+    }
+
+    #[test]
+    fn a_filter_narrows_by_kind_severity_project_and_labels() {
+        let games = Uuid::from_u128(7);
+        let mut f = EventFilter { kinds: vec!["workload.".into()], ..EventFilter::default() };
+        assert!(f.matches(&event("workload.stop", Some(games), &[])));
+        assert!(!f.matches(&event("grant.issued", None, &[])));
+        f.min_severity = Severity::Critical;
+        assert!(!f.matches(&event("workload.stop", Some(games), &[])), "below the minimum");
+        f.min_severity = Severity::Info;
+        f.projects = vec![games];
+        assert!(f.matches(&event("workload.stop", Some(games), &[])));
+        assert!(!f.matches(&event("workload.stop", Some(Uuid::from_u128(8)), &[])));
+        f.kinds.clear();
+        assert!(!f.matches(&event("org.write", None, &[])), "about no project");
+        f.projects.clear();
+        f.workloads.match_labels.insert("tier".into(), "public".into());
+        assert!(f.matches(&event("org.write", None, &[])), "about no workload");
+        assert!(!f.matches(&event("workload.stop", Some(games), &[("tier", "internal")])));
+        assert!(f.matches(&event("workload.stop", Some(games), &[("tier", "public")])));
     }
 
     #[test]

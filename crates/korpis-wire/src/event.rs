@@ -5,7 +5,7 @@
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{IdKind, Result, id, invalid, timestamp, wire_id};
-use korpis_core::event::{EventFilter, Severity, Subscription, position_id, position_of};
+use korpis_core::event::{Event, EventFilter, Severity, Subscription, position_id, position_of};
 use korpis_proto::korpis::v1 as pb;
 
 enum_map!(severity_to_pb, severity_from_pb, Severity, pb::Severity, "a severity", {
@@ -51,6 +51,24 @@ pub fn event_id(position: u64) -> String {
 /// The position an event identifier from the field `field` names.
 pub fn position_from(field: &str, s: &str) -> Result<u64> {
     position_of(id(IdKind::Event, field, s)?).ok_or_else(|| invalid(field, "not an event"))
+}
+
+/// The wire form of an event.
+#[must_use]
+pub fn event_to_pb(e: &Event) -> pb::Event {
+    pb::Event {
+        id: event_id(e.position),
+        key: e.key.clone(),
+        seq: e.seq,
+        at: timestamp(e.at).into(),
+        kind: e.kind.clone(),
+        severity: severity_to_pb(e.severity).into(),
+        organization: wire_id(IdKind::Organization, e.organization),
+        workload: e.workload.map(|w| wire_id(IdKind::Workload, w)),
+        effect: e.effect.map(|x| wire_id(IdKind::Effect, x)),
+        detail: crate::audit::map(Some(&e.detail)),
+        ..Default::default()
+    }
 }
 
 /// The wire form of a subscription.

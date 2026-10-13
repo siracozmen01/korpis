@@ -1,0 +1,161 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.position AS \"position!\", e.key, e.seq, e.at, e.kind, e.severity,\n                      e.organization_id, e.workload_id, w.project_id AS \"project_id?\",\n                      w.labels AS \"labels?\", e.effect_id, e.detail\n                 FROM event e LEFT JOIN workload w ON w.id = e.workload_id\n                WHERE e.position > $1 ORDER BY e.position LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "position!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "position"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "severity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "project_id?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "labels?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "effect_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "effect_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "event",
+            "name": "detail"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "6a017587d97d253cf7218a93e3b3a4018abfa8bde2c496c7a12f752c4e06ab70"
+}

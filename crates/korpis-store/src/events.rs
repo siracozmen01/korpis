@@ -34,9 +34,10 @@ impl PgStore {
         }
     }
 
-    /// Deletes positioned events older than `retention`; how many. A subscriber whose position
-    /// falls before what is left is told of the gap when it next reads (§5 of
-    /// docs/15-observability.md). Effects, the audit record, are never touched.
+    /// Deletes the events up to the newest one older than `retention`; how many. What is left
+    /// is contiguous, so a subscriber whose position falls before it is told of exactly the gap
+    /// when it next reads (§5 of docs/15-observability.md). Effects, the audit record, are never
+    /// touched.
     ///
     /// # Errors
     /// The database's.
@@ -44,7 +45,8 @@ impl PgStore {
         let seconds = f64::from(u32::try_from(retention.as_secs()).unwrap_or(u32::MAX));
         let done = sqlx::query(
             "DELETE FROM event
-              WHERE position IS NOT NULL AND at < now() - make_interval(secs => $1)",
+              WHERE position <= (SELECT max(position) FROM event
+                                  WHERE at < now() - make_interval(secs => $1))",
         )
         .bind(seconds)
         .execute(&self.pool)
