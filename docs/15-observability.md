@@ -284,6 +284,18 @@ so advancing past an `id` never skips one that commits late.
 > would mean reading other sessions' transaction identifiers from `pg_stat_activity`, which hides
 > them from an unprivileged role, and a writer the control plane cannot see would be skipped.
 
+**Where conditions are decided** (2026-10-13, from the implementation). `health.changed` is
+written in the transaction that records the observation it differs in, from the node's previous
+observation. `convergence.changed` has no such transaction: convergence is derived when it is
+read, from the target, the plans, the observation, and the clock, and an observation going stale
+changes it without any write. So the control plane decides it on every workload change it is
+told of and on every resync, records what it decided, and writes the event when the decision
+differs from the last one, swapping the record so that of several processes deciding at once,
+one writes it. The cost is a recomputation of every workload's convergence each resync, and a
+change that only the clock makes (a node falling silent) is reported up to one resync late. The
+first decision about a workload is recorded without an event, since nothing changed. Both carry
+`from` and `to`, and a change for the worse (`unhealthy`, `failing`) is a warning.
+
 **What an effect's event carries.** Its `kind` is the effect's action, its `detail` the effect's
 `after` and `error`, its severity `info` for an effect that succeeded or was skipped and `warning`
 otherwise; `critical` is for conditions. It is keyed to the effect's workload when it has one,

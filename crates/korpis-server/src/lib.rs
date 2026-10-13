@@ -140,6 +140,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(&api)));
+    tokio::spawn(track_conditions(Arc::clone(&api)));
     tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
     let router = api.router();
     let task = tokio::spawn(async move {
@@ -193,6 +194,24 @@ async fn close_denial_runs(api: Arc<Api>, window: Duration) {
             Ok(n) => tracing::debug!(runs = n, "denial runs closed"),
             Err(e) => tracing::warn!(error = %e, "closing denial runs failed"),
         }
+    }
+}
+
+/// Decides workloads' convergence on every announced change and every resync, writing an event
+/// when it changed (§5 of docs/15-observability.md). The task ends with the process.
+async fn track_conditions(api: Arc<Api>) {
+    use korpis_app::ports::{Change, Changes as _, Store as _};
+    let mut changes = api.app().store().subscribe();
+    let mut next = Some(Change::Resync);
+    while let Some(change) = next {
+        let decided = match change {
+            Change::Workload(w) => api.app().track_convergence(w).await.map(u64::from),
+            Change::Resync => api.app().track_all_convergence().await,
+        };
+        if let Err(e) = decided {
+            tracing::warn!(error = %e, "deciding convergence failed");
+        }
+        next = changes.next().await;
     }
 }
 

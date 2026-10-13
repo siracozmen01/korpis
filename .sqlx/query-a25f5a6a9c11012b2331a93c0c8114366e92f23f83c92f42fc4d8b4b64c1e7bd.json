@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT korpis_append_event('workload:' || w.id, $2, $3, $4, w.organization_id,\n                                        w.id, NULL, $5)\n               FROM workload w WHERE w.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "korpis_append_event",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a25f5a6a9c11012b2331a93c0c8114366e92f23f83c92f42fc4d8b4b64c1e7bd"
+}

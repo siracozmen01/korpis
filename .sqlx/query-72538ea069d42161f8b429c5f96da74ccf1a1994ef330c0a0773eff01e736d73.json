@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload_condition SET convergence = $3, at = $4\n                  WHERE workload_id = $1 AND convergence = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "72538ea069d42161f8b429c5f96da74ccf1a1994ef330c0a0773eff01e736d73"
+}

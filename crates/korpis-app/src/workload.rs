@@ -6,6 +6,7 @@
 mod admit;
 mod cancel;
 mod classify;
+mod conditions;
 mod configure;
 mod decide;
 mod declare;

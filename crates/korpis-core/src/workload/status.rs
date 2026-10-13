@@ -31,6 +31,39 @@ pub enum Convergence {
     Unplaced,
 }
 
+impl Convergence {
+    /// Every convergence.
+    pub const ALL: [Self; 7] = [
+        Self::Converged,
+        Self::Applying,
+        Self::AwaitingApproval,
+        Self::Scheduled,
+        Self::Failing,
+        Self::Unknown,
+        Self::Unplaced,
+    ];
+
+    /// Its name in events and in the store.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Converged => "converged",
+            Self::Applying => "applying",
+            Self::AwaitingApproval => "awaiting_approval",
+            Self::Scheduled => "scheduled",
+            Self::Failing => "failing",
+            Self::Unknown => "unknown",
+            Self::Unplaced => "unplaced",
+        }
+    }
+
+    /// The convergence a name names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.as_str() == s)
+    }
+}
+
 /// The plan a status shows: the one applying, else one waiting for a human, else an approved
 /// one; the newest of its kind.
 #[must_use]

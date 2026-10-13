@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT convergence FROM workload_condition WHERE workload_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "convergence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workload_condition",
+            "name": "convergence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "313a98d2b129d2491420c0a3787ded2303f8fa2d505d743610fe25303dff9bf9"
+}

@@ -52,6 +52,18 @@ pub enum Health {
     Unknown,
 }
 
+impl Health {
+    /// Its name in events and documents.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Unhealthy => "unhealthy",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 /// Resources in use.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Usage {

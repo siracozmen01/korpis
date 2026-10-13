@@ -11,6 +11,7 @@ mod audit;
 mod authz;
 mod changes;
 mod clock;
+mod condition;
 mod enrollment;
 mod extension;
 mod idempotency;
@@ -39,6 +40,7 @@ pub use authz::{
 };
 pub use changes::{Change, Changes};
 pub use clock::{Clock, SystemClock};
+pub use condition::{ConditionRead, ConditionWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
@@ -119,6 +121,7 @@ pub trait Store:
     + ObservationRead
     + SetRead
     + ExtensionRead
+    + ConditionRead
     + Send
     + Sync
     + 'static
@@ -158,6 +161,7 @@ pub trait Tx:
     + ObservationWrite
     + SetWrite
     + ExtensionWrite
+    + ConditionWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

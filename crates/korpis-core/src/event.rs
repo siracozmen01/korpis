@@ -5,6 +5,9 @@
 //! the part of it a subscriber writes, and that an extension's document declares.
 
 use crate::labels::LabelSelector;
+use crate::workload::observation::Health;
+use crate::workload::status::Convergence;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// How much an event matters, in order.
@@ -34,6 +37,67 @@ impl Severity {
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         [Self::Info, Self::Warning, Self::Critical].into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// A condition the control plane decided changed: an event of its own, beside the effects
+/// (§5 of docs/15-observability.md). Keyed to its workload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Condition {
+    /// The workload it concerns.
+    pub workload: Uuid,
+    /// When it was decided, on the control plane's clock.
+    pub at: SystemTime,
+    /// What changed.
+    pub change: ConditionChange,
+}
+
+/// What a condition event reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConditionChange {
+    /// The application's health, as its node judged it.
+    Health {
+        /// Before.
+        from: Health,
+        /// After.
+        to: Health,
+    },
+    /// How far the workload is from what was approved.
+    Convergence {
+        /// Before.
+        from: Convergence,
+        /// After.
+        to: Convergence,
+    },
+}
+
+impl ConditionChange {
+    /// The event's kind.
+    #[must_use]
+    pub const fn kind(self) -> &'static str {
+        match self {
+            Self::Health { .. } => "health.changed",
+            Self::Convergence { .. } => "convergence.changed",
+        }
+    }
+
+    /// The event's severity: a change for the worse is a warning.
+    #[must_use]
+    pub const fn severity(self) -> Severity {
+        match self {
+            Self::Health { to: Health::Unhealthy, .. }
+            | Self::Convergence { to: Convergence::Failing, .. } => Severity::Warning,
+            _ => Severity::Info,
+        }
+    }
+
+    /// Before and after, by name.
+    #[must_use]
+    pub const fn names(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Health { from, to } => (from.as_str(), to.as_str()),
+            Self::Convergence { from, to } => (from.as_str(), to.as_str()),
+        }
     }
 }
 
