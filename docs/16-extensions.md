@@ -84,6 +84,22 @@ extension:
   ui_slots      []SlotDecl              Phase 4 (§5)
 ```
 
+**How the block is written and checked** (2026-10-13, from the implementation). A need is
+`{actions, scope, reason}`: `scope` is `target`, `organization`, or `self` (its own workload), and
+`reason` is required, because it is the line the installer reads before approving. An action is
+needed over a scope once. `egress` entries are `host:port`, an IPv6 host in brackets. A
+subscription is `{kinds, min_severity, workloads}`, the filter of §5 of `15-observability.md`
+without its projects: a document cannot know the projects of the organization it will be
+installed into, so the installation narrows them. A document that subscribes must need
+`event.read`, since delivery reaches only what that grant reaches, and a subscription without it
+would install cleanly and deliver nothing, forever. `provides` entries are `{type, name}`, the
+type one of `dns`, `backup_target`, `step`, `health`, `console`, `identity`, `edge_router`,
+`chat_adapter`, the name a lowercase word, and for `step` `<publisher>/<step>`. The extension's
+name, its document's `metadata.name`, is a lowercase word, because it names its actions
+(`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of kind
+`Extension` without one, does not load. Everything else in the document is read as any recipe's,
+by the same parser, so a driver preparing the extension's workload reads it unchanged.
+
 One format means one signing path and one trust policy: an extension is admitted by the trust
 policy that admits recipes (§7 of `09-recipes.md`), and nothing about extensions needs a second
 answer to "whose signature do we run". The cost is that an extension author writes a recipe, which
@@ -273,7 +289,7 @@ nothing about aggregate cost.**
 So latency is measured and published per provider, sustained latency trips the breaker the same way
 sustained failure does, and a bounded concurrency per provider means one slow dependency occupies a
 slice of reconciliation capacity rather than all of it. `15-observability.md` §5 carries the
-`provider_degraded` event, because the operator whose creates got slow this morning should not have
+`provider.degraded` event, because the operator whose creates got slow this morning should not have
 to infer the cause from a graph.
 
 The tenant boundary already holds here and is worth naming: a provider installed by one tenant is

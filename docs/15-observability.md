@@ -291,10 +291,14 @@ promise per-workload order across a control plane that writes from more than one
 
 A provider extension that fails trips its circuit breaker and its dependents say so (§5 of
 `16-extensions.md`). A provider that is merely **slow** produces no error anywhere while consuming
-the fleet's reconciliation capacity, so it needs an event of its own: `provider_degraded`, carrying
+the fleet's reconciliation capacity, so it needs an event of its own: `provider.degraded`, carrying
 the provider, its measured latency, and what is queued behind it.
 
 The operator whose creates got slow this morning should not have to infer the cause from a graph.
+
+> Renamed 2026-10-13 from `provider_degraded`, when event kinds became filters: a kind is dotted
+> words, so that `provider.` selects every provider event, and the underscore spelling was the
+> only one that could not be selected that way.
 
 ---
 

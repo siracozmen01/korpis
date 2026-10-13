@@ -7,18 +7,29 @@
 //! permitted by a chain of grants, and [`token`] is the wire form of a grant, verified offline
 //! by relays and agents. Nothing here touches a database; the caller supplies the grants and the
 //! object hierarchy, so the same code runs in the gateway, the relay, and the agent.
+//!
+//! The action vocabulary is plain data, needed wherever an extension's document is read, so it
+//! is compiled always; everything else is behind the `authz` feature.
 
 pub mod action;
+#[cfg(feature = "authz")]
 pub mod credential;
+#[cfg(feature = "authz")]
 pub mod evaluate;
+#[cfg(feature = "authz")]
 pub mod grant;
+#[cfg(feature = "authz")]
 pub mod record;
 /// Scopes are plain data shared with plans and placement; they live at the crate root.
 pub use crate::scope;
+#[cfg(feature = "authz")]
 pub mod token;
 
 pub use action::Action;
+#[cfg(feature = "authz")]
 pub use evaluate::{Decision, Denial, Permit, Request, evaluate};
+#[cfg(feature = "authz")]
 pub use grant::{AttenuationError, Conditions, Delegation, Grant, Subject, check_attenuation};
+#[cfg(feature = "authz")]
 pub use record::{GrantRecord, GrantState};
 pub use scope::{Hierarchy, Kind, LabelSelector, Node, ObjectRef, Resource, Scope};

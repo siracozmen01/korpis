@@ -3,7 +3,7 @@
 //! The recipe source port, answered by OCI registries.
 
 use crate::artifact::check_files;
-use crate::document::{DocumentError, parse};
+use crate::document::{DocumentError, parse, parse_document};
 use crate::registry::{Registry, RegistryError};
 use korpis_app::ports::{Fetched, RecipeSource, SourceError};
 use korpis_core::recipe::Recipe;
@@ -42,9 +42,15 @@ impl RecipeSource for RegistrySource {
 
     async fn fetch(&self, name: &str, digest: &str) -> Result<Fetched, SourceError> {
         let pulled = self.registry.pull(name, digest).await.map_err(from_registry)?;
-        let recipe = parse(&pulled.document).map_err(|e| from_document(&e))?;
-        check_files(&recipe, &pulled.files).map_err(|e| SourceError::Invalid(e.to_string()))?;
-        Ok(Fetched { document: pulled.document, recipe })
+        let parsed = parse_document(&pulled.document).map_err(|e| from_document(&e))?;
+        if parsed.kind() != pulled.kind {
+            let why =
+                format!("{name}@{digest}: its manifest and its document disagree on its kind");
+            return Err(SourceError::Invalid(why));
+        }
+        check_files(&parsed.recipe, &pulled.files)
+            .map_err(|e| SourceError::Invalid(e.to_string()))?;
+        Ok(Fetched { document: pulled.document, recipe: parsed.recipe })
     }
 
     async fn signatures(&self, name: &str, digest: &str) -> Result<Vec<Signature>, SourceError> {

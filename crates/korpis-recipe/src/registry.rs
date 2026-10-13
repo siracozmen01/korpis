@@ -5,8 +5,7 @@
 //! whatever the client library already checked: the digest is the recipe's identity.
 
 use crate::artifact::{
-    ARTIFACT_TYPE, Artifact, DOCUMENT_MEDIA_TYPE, EMPTY_CONFIG_MEDIA_TYPE, File, LayoutError,
-    TITLE, check_files,
+    Artifact, EMPTY_CONFIG_MEDIA_TYPE, File, Kind, LayoutError, TITLE, check_files,
 };
 use crate::document::MAX_DOCUMENT;
 use oci_client::client::{ClientConfig, ClientProtocol, Config, ImageLayer};
@@ -66,7 +65,9 @@ pub fn sha256(bytes: &[u8]) -> String {
 /// A pulled artifact, verified.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pulled {
-    /// The recipe document.
+    /// Which kind its manifest says it is.
+    pub kind: Kind,
+    /// The document.
     pub document: Vec<u8>,
     /// The paths of the files the artifact carries.
     pub files: Vec<String>,
@@ -153,30 +154,34 @@ impl Registry {
         }
         let manifest: OciImageManifest =
             serde_json::from_slice(&raw).map_err(|e| RegistryError::Invalid(e.to_string()))?;
-        if manifest.artifact_type.as_deref() != Some(ARTIFACT_TYPE) {
-            return Err(RegistryError::Invalid(format!("{name}@{digest} is not a Korpis recipe")));
-        }
-        let mut documents = manifest.layers.iter().filter(|l| l.media_type == DOCUMENT_MEDIA_TYPE);
+        let Some(kind) = manifest.artifact_type.as_deref().and_then(Kind::of_artifact_type) else {
+            let why = format!("{name}@{digest} is not a Korpis recipe or extension");
+            return Err(RegistryError::Invalid(why));
+        };
+        let document_type = kind.document_media_type();
+        let mut documents = manifest.layers.iter().filter(|l| l.media_type == document_type);
         let (Some(doc), None) = (documents.next(), documents.next()) else {
-            return Err(RegistryError::Invalid(
-                "a recipe artifact has exactly one document layer".into(),
-            ));
+            return Err(RegistryError::Invalid(format!(
+                "a {} artifact has exactly one document layer",
+                kind.artifact_type()
+            )));
         };
         let document = self.blob(&r, doc, MAX_DOCUMENT).await?;
         let files = manifest
             .layers
             .iter()
-            .filter(|l| l.media_type != DOCUMENT_MEDIA_TYPE)
+            .filter(|l| l.media_type != document_type)
             .map(|l| {
                 l.annotations.as_ref().and_then(|a| a.get(TITLE)).cloned().ok_or_else(|| {
                     RegistryError::Invalid(format!("layer {} has no {TITLE}", l.digest))
                 })
             })
             .collect::<Result<_, _>>()?;
-        Ok(Pulled { document, files })
+        Ok(Pulled { kind, document, files })
     }
 
-    /// Pushes `artifact` as `name:version`; returns the manifest's digest.
+    /// Pushes `artifact` as `name:version`, as the kind its document is; returns the manifest's
+    /// digest.
     pub async fn push(
         &self,
         name: &str,
@@ -185,19 +190,20 @@ impl Registry {
     ) -> Result<String, RegistryError> {
         let r = reference(&format!("{name}:{version}"))?;
         // What could not be pulled is not pushed.
-        let recipe = crate::document::parse(&artifact.document)
+        let parsed = crate::document::parse_document(&artifact.document)
             .map_err(|e| RegistryError::Invalid(e.to_string()))?;
+        let kind = parsed.kind();
         let titles: Vec<String> = artifact.files.iter().map(|f| f.path.clone()).collect();
-        check_files(&recipe, &titles).map_err(|e| RegistryError::Invalid(e.to_string()))?;
-        let mut layers =
-            vec![ImageLayer::new(artifact.document.clone(), DOCUMENT_MEDIA_TYPE.to_owned(), None)];
+        check_files(&parsed.recipe, &titles).map_err(|e| RegistryError::Invalid(e.to_string()))?;
+        let document_type = kind.document_media_type().to_owned();
+        let mut layers = vec![ImageLayer::new(artifact.document.clone(), document_type, None)];
         for File { path, media_type, data } in &artifact.files {
             let title = BTreeMap::from([(TITLE.to_owned(), path.clone())]);
             layers.push(ImageLayer::new(data.clone(), media_type.clone(), Some(title)));
         }
         let config = Config::new(b"{}".to_vec(), EMPTY_CONFIG_MEDIA_TYPE.to_owned(), None);
         let mut manifest = OciImageManifest::build(&layers, &config, None);
-        manifest.artifact_type = Some(ARTIFACT_TYPE.to_owned());
+        manifest.artifact_type = Some(kind.artifact_type().to_owned());
         // The response carries only URLs; the digest is read back so it is the registry's own.
         self.client
             .push(&r, &layers, config, &self.auth, Some(manifest))

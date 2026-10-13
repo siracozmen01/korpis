@@ -2,15 +2,19 @@
 
 //! The recipe document (§3 of docs/09-recipes.md): YAML in, a validated domain `Recipe` out.
 //! Recipes come from registries anyone can publish to, so the parser is bounded and panic-free,
-//! and a recipe that breaks any rule does not load.
+//! and a recipe that breaks any rule does not load. An extension's document is a recipe's with
+//! one more block (§3.1 of docs/16-extensions.md), and reads the same way.
 
 mod args;
 mod config;
 mod dto;
+mod extension;
 mod probes;
 mod scalars;
 mod steps;
 
+use crate::artifact::Kind;
+use korpis_core::extension::ExtensionManifest;
 use korpis_core::recipe::behaviour::{Hook, Level, LifecycleHooks, LogEventRule};
 use korpis_core::recipe::runtime::{
     Entry, Preset, PresetEndpoint, PresetResources, PresetVolume, RecipeRuntime, RuntimeTarget,
@@ -36,16 +40,57 @@ pub enum DocumentError {
     Invalid(#[from] RecipeError),
 }
 
-/// Parses and validates a recipe document.
+/// A document of either kind, validated.
+#[derive(Debug, Clone)]
+pub struct Parsed {
+    /// The workload it describes: all of a recipe's document, all but one block of an
+    /// extension's.
+    pub recipe: Recipe,
+    /// The `extension` block, exactly when the document's kind is `Extension`.
+    pub extension: Option<ExtensionManifest>,
+}
+
+impl Parsed {
+    /// Which kind of document it is.
+    #[must_use]
+    pub const fn kind(&self) -> Kind {
+        if self.extension.is_some() { Kind::Extension } else { Kind::Recipe }
+    }
+}
+
+/// Parses and validates a document of either kind; the workload it describes.
 pub fn parse(bytes: &[u8]) -> Result<Recipe, DocumentError> {
+    parse_document(bytes).map(|p| p.recipe)
+}
+
+/// Parses and validates a document of either kind, with its `extension` block.
+pub fn parse_document(bytes: &[u8]) -> Result<Parsed, DocumentError> {
     if bytes.len() > MAX_DOCUMENT {
         return Err(DocumentError::Syntax(format!("larger than {MAX_DOCUMENT} bytes")));
     }
     let doc: dto::Document =
         serde_saphyr::from_slice(bytes).map_err(|e| DocumentError::Syntax(e.to_string()))?;
-    if doc.api_version != "korpis.dev/v1" || doc.kind != "Recipe" {
-        return Err(RecipeError::new("apiVersion", "a korpis.dev/v1 Recipe").into());
-    }
+    let extension = match (doc.api_version.as_str(), doc.kind.as_str(), &doc.extension) {
+        ("korpis.dev/v1", "Recipe", None) => None,
+        ("korpis.dev/v1", "Extension", Some(b)) => {
+            Some(extension::manifest(b, &doc.metadata.name)?)
+        }
+        ("korpis.dev/v1", "Recipe", Some(_)) => {
+            return Err(RecipeError::new("extension", "only an Extension has this block").into());
+        }
+        ("korpis.dev/v1", "Extension", None) => {
+            return Err(RecipeError::new("extension", "an Extension declares this block").into());
+        }
+        _ => {
+            return Err(
+                RecipeError::new("apiVersion", "a korpis.dev/v1 Recipe or Extension").into()
+            );
+        }
+    };
+    Ok(Parsed { recipe: recipe(doc)?, extension })
+}
+
+fn recipe(doc: dto::Document) -> Result<Recipe, RecipeError> {
     let recipe = Recipe {
         metadata: metadata(doc.metadata),
         runtime: runtime(&doc.runtime)?,

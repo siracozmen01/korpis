@@ -1,0 +1,47 @@
+apiVersion: korpis.dev/v1
+kind: Extension
+metadata:
+  name: cloudflare-dns
+  version: "1.0.0"
+  description: Publishes endpoints as Cloudflare DNS records
+  license: Apache-2.0
+runtime:
+  targets:
+    - tier: container
+      arch: [amd64, arm64]
+      image: "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"
+  entry:
+    command: [/bin/sh, -c, "exec sleep 3600"]
+preset:
+  lifecycle: persistent
+  console: none
+  resources:
+    memory: {min: 32Mi, recommended: 64Mi}
+    cpu: {min: 50m, recommended: 100m}
+extension:
+  api_version: korpis.extension.v1
+  requires: [provider.dns]
+  needs:
+    - actions: [endpoint.read]
+      scope: organization
+      reason: to publish every endpoint of the organization
+    - actions: [event.read]
+      scope: organization
+      reason: to hear when an endpoint changes
+  egress: ["api.cloudflare.com:443", "[2606:4700::1111]:443"]
+  subscribes:
+    - kinds: [endpoint.]
+      min_severity: info
+      workloads:
+        match_labels: {dns: public}
+        expressions:
+          - {key: tier, operator: NotIn, values: [internal]}
+  provides:
+    - {type: dns, name: cloudflare}
+  actions:
+    - name: purge
+      description: Purges the cached records of one workload
+      arguments:
+        - {name: workload, type: workload, required: true}
+  ui_slots:
+    - {slot: workload.tab, descriptor: "https://dns.example/frame"}

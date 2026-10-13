@@ -8,11 +8,12 @@
 #![warn(missing_docs)]
 
 pub mod audit;
-#[cfg(feature = "authz")]
 pub mod authz;
 pub mod build;
 #[cfg(feature = "content")]
 pub mod content;
+pub mod event;
+pub mod extension;
 pub mod id;
 pub mod labels;
 pub mod node;

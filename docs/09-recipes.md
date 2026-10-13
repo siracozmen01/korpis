@@ -78,6 +78,12 @@ the artifact type, that there is exactly one document layer, and that every path
 names is a file the manifest carries. A recipe that fails any of these does not load. The files
 themselves are read by whatever installs the recipe, against the digests the manifest gives.
 
+An extension's artifact has this layout under types of its own, and its document's `kind` is
+`Extension` (§3.1 of `16-extensions.md`). The artifact type and the document must agree: a
+manifest typed as a recipe whose document is an extension's, or the reverse, does not load,
+because a registry is free to serve either and the kind decides whether the thing is declared or
+installed.
+
 Why this shape: it is the one the specification recommends, so `oras`, registry garbage
 collection, and referrers (where signatures attach, §7) all treat a recipe as a first-class
 artifact without knowing what Korpis is. This is checked rather than assumed:

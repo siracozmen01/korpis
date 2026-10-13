@@ -31,6 +31,9 @@ pub struct Document {
     pub lifecycle_hooks: Option<Hooks>,
     #[serde(default)]
     pub disruption: Option<Disruption>,
+    /// Present exactly when `kind` is `Extension`.
+    #[serde(default)]
+    pub extension: Option<super::extension::Block>,
 }
 
 #[derive(Debug, Deserialize)]

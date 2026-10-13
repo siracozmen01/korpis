@@ -2,15 +2,55 @@
 
 //! How a recipe is laid out as an OCI artifact (§2 of docs/09-recipes.md): an image manifest
 //! with an artifact type of its own, an empty config, the recipe document as one layer, and every
-//! file the recipe refers to as a further layer titled with its path inside the recipe.
+//! file the recipe refers to as a further layer titled with its path inside the recipe. An
+//! extension is laid out the same way under types of its own (§3.1 of docs/16-extensions.md).
 
 use korpis_core::recipe::{Recipe, artifact_path};
 use std::collections::BTreeSet;
 
-/// The manifest's `artifactType`.
+/// A recipe manifest's `artifactType`.
 pub const ARTIFACT_TYPE: &str = "application/vnd.korpis.recipe.v1";
-/// The recipe document's layer.
+/// A recipe document's layer.
 pub const DOCUMENT_MEDIA_TYPE: &str = "application/vnd.korpis.recipe.document.v1+yaml";
+/// An extension manifest's `artifactType`.
+pub const EXTENSION_ARTIFACT_TYPE: &str = "application/vnd.korpis.extension.v1";
+/// An extension document's layer.
+pub const EXTENSION_DOCUMENT_MEDIA_TYPE: &str = "application/vnd.korpis.extension.document.v1+yaml";
+
+/// Which kind of artifact: the two share a layout and differ in their types and their document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Kind {
+    /// A recipe, declared as a workload.
+    Recipe,
+    /// An extension, installed.
+    Extension,
+}
+
+impl Kind {
+    /// The manifest's `artifactType`.
+    #[must_use]
+    pub const fn artifact_type(self) -> &'static str {
+        match self {
+            Self::Recipe => ARTIFACT_TYPE,
+            Self::Extension => EXTENSION_ARTIFACT_TYPE,
+        }
+    }
+
+    /// The document layer's media type.
+    #[must_use]
+    pub const fn document_media_type(self) -> &'static str {
+        match self {
+            Self::Recipe => DOCUMENT_MEDIA_TYPE,
+            Self::Extension => EXTENSION_DOCUMENT_MEDIA_TYPE,
+        }
+    }
+
+    /// The kind whose manifest has `artifact_type`.
+    #[must_use]
+    pub fn of_artifact_type(artifact_type: &str) -> Option<Self> {
+        [Self::Recipe, Self::Extension].into_iter().find(|k| k.artifact_type() == artifact_type)
+    }
+}
 /// The empty config every OCI artifact without a config carries.
 pub const EMPTY_CONFIG_MEDIA_TYPE: &str = "application/vnd.oci.empty.v1+json";
 /// The annotation naming a file layer's path inside the recipe.
