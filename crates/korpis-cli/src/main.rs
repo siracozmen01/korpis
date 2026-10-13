@@ -2,12 +2,15 @@
 
 //! `korpis`: the reference client.
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory as _, Parser, Subcommand};
+use clap_complete::CompleteEnv;
+use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::apply::{Mode, apply_planned, declare, plans};
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, WorkloadAction, act, get, grant,
 };
+use korpis_cli::complete;
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::declared::read_all;
 use korpis_cli::error::CliError;
@@ -29,7 +32,7 @@ struct Cli {
     #[arg(long, env = "KORPIS_CA", global = true)]
     ca: Option<PathBuf>,
     /// A file holding the capability token; otherwise `KORPIS_TOKEN`.
-    #[arg(long, global = true)]
+    #[arg(long, env = "KORPIS_TOKEN_FILE", global = true)]
     token_file: Option<PathBuf>,
     /// Print the API's own JSON instead of the human form.
     #[arg(long, global = true)]
@@ -70,6 +73,7 @@ enum Command {
     /// A workload in detail: where it runs, what it is doing, and what it waits for.
     Status {
         /// The workload: an identifier, `project/name`, or a name.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
         workload: String,
     },
     /// Starts, stops, restarts, or deletes a workload.
@@ -81,6 +85,13 @@ enum Command {
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
+    /// Prints the script that registers completion with a shell, e.g.
+    /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
+    /// offers only what the token in the environment can read.
+    Completion {
+        /// The shell.
+        shell: Shell,
+    },
     /// The client's version and source revision, and the server's when one is named.
     Version,
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
@@ -140,6 +151,7 @@ fn print(v: &Value) {
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 async fn run(cli: &Cli) -> Result<(), CliError> {
     match &cli.command {
+        Command::Completion { shell } => registration(*shell),
         Command::Version => {
             let v = korpis_cli::version::both(cli.connection()?.as_ref()).await?;
             if cli.json {
@@ -231,12 +243,49 @@ async fn declared(
     Ok(())
 }
 
+/// The shells completion can be registered with.
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+    Elvish,
+    Powershell,
+}
+
+/// The environment variable that asks the binary for completions.
+const COMPLETE_VAR: &str = "KORPIS_COMPLETE";
+
+/// Writes the registration script for `shell`, pointing at this binary.
+fn registration(shell: Shell) -> Result<(), CliError> {
+    use clap_complete::env::{Bash, Elvish, EnvCompleter, Fish, Powershell, Zsh};
+    let completer: &dyn EnvCompleter = match shell {
+        Shell::Bash => &Bash,
+        Shell::Zsh => &Zsh,
+        Shell::Fish => &Fish,
+        Shell::Elvish => &Elvish,
+        Shell::Powershell => &Powershell,
+    };
+    let bin = std::env::current_exe().map_err(|e| CliError::Local(e.to_string()))?;
+    let bin = bin.to_string_lossy();
+    let mut out = std::io::stdout().lock();
+    completer
+        .write_registration(COMPLETE_VAR, "korpis", &bin, &bin, &mut out)
+        .map_err(|e| CliError::Local(e.to_string()))
+}
+
 #[expect(clippy::print_stderr, reason = "a failure is reported on standard error")]
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let _ = rustls::crypto::ring::default_provider().install_default();
+    // Answers a shell's completion request and exits, when the shell is the caller.
+    CompleteEnv::with_factory(Cli::command).var(COMPLETE_VAR).complete();
     let cli = Cli::parse();
-    match run(&cli).await {
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build();
+    let result = match runtime {
+        Ok(r) => r.block_on(run(&cli)),
+        Err(e) => Err(CliError::Local(format!("the runtime: {e}"))),
+    };
+    match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             if cli.json {

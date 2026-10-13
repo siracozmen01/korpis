@@ -22,7 +22,7 @@ pub async fn organizations(c: &Connection) -> Result<Vec<pb::Organization>, CliE
 }
 
 /// `Some` of what was read, `None` where the caller may not read it.
-fn readable<T>(r: Result<T, CliError>) -> Result<Option<T>, CliError> {
+pub fn readable<T>(r: Result<T, CliError>) -> Result<Option<T>, CliError> {
     match r {
         Ok(t) => Ok(Some(t)),
         Err(CliError::Api {
@@ -79,7 +79,7 @@ fn exactly_one(what: &str, named: &str, ids: &[String]) -> Result<String, CliErr
 
 /// The organizations reading starts from: those the caller may read, and those its grants are
 /// anchored at.
-async fn organization_ids(c: &Connection) -> Result<Vec<String>, CliError> {
+pub async fn organization_ids(c: &Connection) -> Result<Vec<String>, CliError> {
     let mut ids: Vec<String> = organizations(c).await?.into_iter().map(|o| o.id).collect();
     for o in anchors(c).await?.organizations {
         if !ids.contains(&o) {
@@ -117,7 +117,7 @@ pub async fn projects(c: &Connection, org: &str) -> Result<Vec<pb::Project>, Cli
 
 /// Every project the caller may read: listed from its organizations, and those its grants are
 /// anchored at.
-async fn readable_projects(c: &Connection) -> Result<Vec<pb::Project>, CliError> {
+pub async fn readable_projects(c: &Connection) -> Result<Vec<pb::Project>, CliError> {
     let mut found = Vec::new();
     for o in organization_ids(c).await? {
         found.extend(readable(projects(c, &o).await)?.unwrap_or_default());
@@ -166,6 +166,35 @@ async fn anchored_workloads(c: &Connection) -> Result<Vec<pb::Workload>, CliErro
     Ok(found)
 }
 
+/// Every workload the caller may read in `project`, or in every project it may read, with the
+/// name of the project each is in.
+pub async fn readable_workloads(
+    c: &Connection,
+    project: Option<&str>,
+) -> Result<Vec<(String, pb::Workload)>, CliError> {
+    let projects: Vec<pb::Project> = readable_projects(c).await?;
+    let name_of = |id: &str| projects.iter().find(|p| p.id == id).map(|p| p.name.clone());
+    let candidates: Vec<String> = match project {
+        Some(p) => vec![p.to_owned()],
+        None => projects.iter().map(|p| p.id.clone()).collect(),
+    };
+    let mut found: Vec<pb::Workload> = Vec::new();
+    for p in candidates {
+        let listed = readable(workloads(c, &p).await)?.unwrap_or_default();
+        found.extend(listed.into_iter().filter_map(|s| s.workload.into_option()));
+    }
+    for w in anchored_workloads(c).await? {
+        let in_scope = project.is_none_or(|p| p == w.project);
+        if in_scope && !found.iter().any(|f| f.id == w.id) {
+            found.push(w);
+        }
+    }
+    Ok(found
+        .into_iter()
+        .map(|w| (name_of(&w.project).unwrap_or_else(|| w.project.clone()), w))
+        .collect())
+}
+
 /// The workload `named`: a `wl_` identifier, `project/name`, or a name unique among the
 /// workloads the caller may read.
 pub async fn workload(c: &Connection, named: &str) -> Result<String, CliError> {
@@ -176,30 +205,14 @@ pub async fn workload(c: &Connection, named: &str) -> Result<String, CliError> {
         Some((p, n)) => (Some(project(c, p).await?), n),
         None => (None, named),
     };
-    let candidates = match &in_project {
-        Some(p) => vec![p.clone()],
-        None => readable_projects(c).await?.into_iter().map(|p| p.id).collect(),
-    };
-    let mut found: Vec<pb::Workload> = Vec::new();
-    for p in candidates {
-        let listed = readable(workloads(c, &p).await)?.unwrap_or_default();
-        found.extend(listed.into_iter().filter_map(|s| s.workload.into_option()));
-    }
-    for w in anchored_workloads(c).await? {
-        let in_scope = in_project.as_ref().is_none_or(|p| *p == w.project);
-        if in_scope && !found.iter().any(|f| f.id == w.id) {
-            found.push(w);
-        }
-    }
-    let ids: Vec<String> = found.into_iter().filter(|w| w.name == name).map(|w| w.id).collect();
+    let found = readable_workloads(c, in_project.as_deref()).await?;
+    let ids: Vec<String> =
+        found.into_iter().filter(|(_, w)| w.name == name).map(|(_, w)| w.id).collect();
     exactly_one("workload", named, &ids)
 }
 
-/// The node `named`: an `nd_` identifier, or a name unique among the nodes the caller may read.
-pub async fn node(c: &Connection, named: &str) -> Result<String, CliError> {
-    if named.starts_with("nd_") {
-        return Ok(named.to_owned());
-    }
+/// Every node the caller may read.
+pub async fn readable_nodes(c: &Connection) -> Result<Vec<pb::Node>, CliError> {
     let client = pb::NodeServiceClient::new(c.http(), c.config());
     let mut found: Vec<pb::Node> = Vec::new();
     for o in organization_ids(c).await? {
@@ -214,6 +227,15 @@ pub async fn node(c: &Connection, named: &str) -> Result<String, CliError> {
             found.extend(got.and_then(|r| r.into_owned().node.into_option()));
         }
     }
+    Ok(found)
+}
+
+/// The node `named`: an `nd_` identifier, or a name unique among the nodes the caller may read.
+pub async fn node(c: &Connection, named: &str) -> Result<String, CliError> {
+    if named.starts_with("nd_") {
+        return Ok(named.to_owned());
+    }
+    let found = readable_nodes(c).await?;
     let ids: Vec<String> = found.into_iter().filter(|n| n.name == named).map(|n| n.id).collect();
     exactly_one("node", named, &ids)
 }

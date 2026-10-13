@@ -9,6 +9,7 @@ pub mod apply;
 pub mod call;
 pub mod check;
 pub mod cmd;
+pub mod complete;
 pub mod connect;
 pub mod declared;
 pub mod error;

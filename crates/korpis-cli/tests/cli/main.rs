@@ -13,6 +13,7 @@
 
 mod call;
 mod commands;
+mod completion;
 mod declared;
 mod grants;
 mod support;

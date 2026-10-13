@@ -246,7 +246,7 @@ No long-lived admin key in a dotfile. Interactive login is a browser or device-c
 yields a short-lived capability token held in the OS keyring.
 
 Until that flow exists, the CLI keeps no credential at all: the token is read from `KORPIS_TOKEN`
-or from a file named with `--token-file`, the control plane from `KORPIS_SERVER` or `--server`,
+or from a file named with `--token-file` or `KORPIS_TOKEN_FILE`, the control plane from `KORPIS_SERVER` or `--server`,
 and its certificate authority from `KORPIS_CA` or `--ca`, a PEM file trusted alone for it, so no
 public authority can vouch for a Korpis control plane. Where the token comes from is the
 operator's decision and the operator's storage; the CLI writes nothing down.
@@ -276,6 +276,18 @@ the pipeline's next call. `--to` issues to an existing subject instead; `grant l
 Shell completion resolves against what the caller can actually read, for the same reason Discord's
 autocomplete does (§8 of `12-surface-discord.md`): existence follows read authority, so completion
 cannot become a name-disclosure oracle.
+
+`korpis completion bash|zsh|fish|elvish|powershell` prints a script that registers the binary
+itself as the completer, meant to be sourced at shell start (`source <(korpis completion bash)`)
+rather than saved, because the protocol between the script and the binary is the binary's own.
+On each completion the shell runs the binary, which lists through the API exactly as name
+resolution does (§2): workload, project, organization, and node names, plan and grant
+identifiers, and `--scope` as `kind:name`. Nothing is cached, so a revoked grant completes nothing
+on the next key. The costs: every completion is a process and a few API calls, a pause a person
+can notice on a slow link; and the completer sees the environment (`KORPIS_SERVER`, `KORPIS_CA`,
+`KORPIS_TOKEN`, `KORPIS_TOKEN_FILE`), not flags typed earlier on the same line. A failure of any
+kind completes nothing and prints nothing, because an error message in the middle of a command
+line is worse than no suggestion.
 
 ---
 

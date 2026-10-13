@@ -34,6 +34,7 @@ serde_json = "1"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
+clap_complete = { version = "4", features = ["unstable-dynamic"] }
 
 [dev-dependencies]
 korpis-recipe = { workspace = true }
