@@ -52,6 +52,9 @@ pub struct Request<'a> {
     /// Where it is placed now, and what that placement reserves, when it is re-placed for a
     /// new target.
     pub current: Option<Current<'a>>,
+    /// Whether an edge tier serves it, which decides what a declared `stable` endpoint
+    /// resolves to and so what it needs of a node (§3 of docs/07-networking.md).
+    pub edge_tier: bool,
 }
 
 /// A workload's existing placement.

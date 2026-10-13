@@ -120,6 +120,9 @@ every plan classified that row by the vocabulary alone. Drivers now declare it p
 `04-runtimes.md`), and the control plane reads it from the nodes that could run the workload.
 The operator's row, the last one, had no field and no action either; it is set with
 `workload.classify` (§5 of `10-api.md`), on the record, and can never undercut the floor.
+Step 5 placed the game endpoint by its declared `stable`, so a node behind NAT could take it on
+an installation with no edge tier to hold the address; the scheduler now judges reachability on
+the mode the declaration resolves to (§3 of `07-networking.md`).
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

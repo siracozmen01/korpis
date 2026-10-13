@@ -132,6 +132,11 @@ impl ControlPlane {
 
     /// Declares workload `name` from the example recipe in `project`; its wire id.
     pub async fn declare(&self, project: &str, name: &str) -> String {
+        // The recipe's game endpoint is `stable`, which without an edge tier needs a node
+        // reachable on its own address (§3 of docs/07-networking.md). Reachability is measured
+        // by a probe that arrives with the relay in Phase 1, and an enrolled node is edge-only
+        // until then; this stands in for the probe on the nodes the test has joined.
+        self.execute("UPDATE node SET reachability = 'public'").await;
         let repo = push_paper().await;
         let declared = self
             .workloads()

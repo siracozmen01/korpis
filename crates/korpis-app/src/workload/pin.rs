@@ -6,6 +6,7 @@
 //! nothing else: a node that cannot run the workload, or that its tenant's declaration excludes,
 //! is refused whoever chooses it. A workload already on a node moves only by migration.
 
+use super::place::EDGE_TIER;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -139,6 +140,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             owners: &owners,
             body: &target.body,
             current: None,
+            edge_tier: EDGE_TIER,
         };
         let standing = operator_refusals(&req, &c, &peers, &self.policy);
         if !standing.is_empty() {

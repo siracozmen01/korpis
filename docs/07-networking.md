@@ -79,6 +79,18 @@ and the plan says which and why.** A recipe's `exposure_default: stable` is a pr
 promise: on a single machine, or a fleet with no edge tier, it resolves to `node_bound`, and the
 plan that creates the endpoint shows the resolved mode and what it does not survive.
 
+> Added 2026-10-13, from the implementation: who resolves it, when, and with what. The intent
+> keeps the declared mode, because it is the preference and an installation that gains an edge
+> tier should be able to honour it. The scheduler resolves it for each placement, knowing whether
+> an edge tier serves the workload, and judges reachability (§9) on the resolved mode, so a
+> `stable` endpoint without an edge needs what `node_bound` needs: a node reachable on its own
+> address. Before this the filter read the declared mode, and a node behind NAT took a `stable`
+> endpoint whose address nothing could hold. No edge tier exists until Phase 3 (§4 of
+> `20-roadmap.md`), so until then every `stable` endpoint is placed as `node_bound`. The endpoint
+> object, which Phase 1 creates, records the resolved mode (`Endpoint.exposure` in §3.6 of
+> `01-model.md`), and the plan that creates it shows it then; Phase 0 creates no endpoint, so it
+> has no plan to show it in.
+
 > Second external review, finding S39. Recorded in §17 of `23-walkthroughs.md`. The first version
 > had one mode, `stable`, whose default edge was co-resident with the workload's node and forwarded
 > to a migration's destination "for the drain interval" and then stopped. After that the address
@@ -494,7 +506,7 @@ node's advertised addresses, and the result is part of `NodeStatus`:
 | Exposure | Requires of the node |
 |---|---|
 | `node_port`, `node_bound` | **inbound reachability** on the allocated ports |
-| `stable` | an outbound tunnel to its edge group, which the node dials, so NAT does not matter |
+| `stable` | an outbound tunnel to its edge group, which the node dials, so NAT does not matter; without an edge tier, what `node_bound` requires (§3) |
 | `ingress` | the same as `stable` |
 | `overlay_only` | nothing for consumers on the same node; a cross-node consumer is a dependency |
 | cross-node dependencies | a working overlay (`overlay: available`) |
@@ -504,6 +516,15 @@ host game servers **through an edge**, because the tunnel is dialled outward, an
 on its own address, because nobody can reach it. The first version said that a NAT-bound node "runs
 game servers perfectly", which was true only with an edge and false without one, and no filter
 existed to tell the two apart (finding S43).
+
+> Added 2026-10-13, from the implementation: what a node is before anything has measured it. The
+> probe is run by a relay or an edge, and neither exists before Phase 1 (§4 of `20-roadmap.md`),
+> so a node enrolls as `edge_only` and stays so until a probe says otherwise. Unmeasured is
+> treated as unreachable, because the opposite would place a workload on an address nobody may be
+> able to reach and report it as served (P4). What it costs in Phase 0: no enrolled node takes a
+> workload with a `node_port`, `node_bound`, or, without an edge tier, `stable` endpoint, so
+> Phase 0 runs workloads without public endpoints, which its done-when does, and the tests that
+> run a game server's recipe on an enrolled node stand in for the probe.
 
 ---
 

@@ -993,6 +993,9 @@ Endpoint
   protocol      tcp | udp | http | https | quic
   container_port  int
   exposure      node_port | node_bound | stable | ingress | dedicated_ip | overlay_only | none
+                                 the mode the declared one resolved to for this placement
+                                 (§3 of 07-networking.md): `stable` without an edge tier is
+                                 `node_bound`
   address       Address?         assigned; shape depends on exposure
   client_address  preserved | translated | proxy_protocol   how the workload sees the client
                                  (§3.4 of 07-networking.md)

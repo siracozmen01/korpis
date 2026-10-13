@@ -146,6 +146,7 @@ impl Case {
             owners: &[ORG],
             body: &self.body,
             current: None,
+            edge_tier: false,
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -275,6 +276,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         owners: &[ORG],
         body: &b,
         current: Some(Current { node: here.id, reserved: &reserved }),
+        edge_tier: false,
     };
     let e = place(
         &req,
@@ -306,6 +308,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         owners: &[ORG],
         body: b,
         current: None,
+        edge_tier: false,
     }
 }
 

@@ -22,6 +22,11 @@ use korpis_core::tenancy::quota::Bounds;
 use korpis_core::workload::{Intent, Workload};
 use uuid::Uuid;
 
+/// Whether an edge tier serves the installation's workloads. Edges arrive in Phase 3 (§4 of
+/// docs/20-roadmap.md); until then a declared `stable` endpoint is placed as the `node_bound` it
+/// resolves to, which needs a node reachable on its own address (§3 of docs/07-networking.md).
+pub(super) const EDGE_TIER: bool = false;
+
 /// What a bind writes, beside its explanation.
 struct Binding<'a> {
     w: &'a Workload,
@@ -133,6 +138,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             owners: &owners,
             body: &target.body,
             current: current.as_ref().map(|p| Current { node: p.node, reserved: &p.reserved }),
+            edge_tier: EDGE_TIER,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {

@@ -222,3 +222,19 @@ async fn two_binds_racing_for_one_slot_never_both_win() {
     }
     assert_eq!(placed_count, 1, "4 GiB each, 6 GiB free: the placement lock lets one win");
 }
+
+#[tokio::test]
+async fn a_stable_endpoint_without_an_edge_tier_needs_a_node_reachable_on_its_own_address() {
+    let h = Harness::new().await;
+    let org = h.installed.organization.id;
+    let mut behind_nat = korpis_store::testing::ready_node(org, "cgnat-1", &[]).unwrap();
+    behind_nat.reachability = korpis_core::node::Reachability::EdgeOnly;
+    h.enroll(behind_nat).await;
+    let (w, _) = workload(&h).await;
+    let s = status(&h, h.root(), &w).await;
+    assert_eq!(s.convergence.as_known(), Some(pb::Convergence::CONVERGENCE_UNPLACED));
+    let why = s.unplaced.as_option().unwrap().explanation.as_option().unwrap();
+    let refusal = &why.filtered[0];
+    assert_eq!(refusal.check, "reachability", "the recipe's game endpoint is stable");
+    assert!(refusal.detail.contains("without an edge tier"), "{}", refusal.detail);
+}

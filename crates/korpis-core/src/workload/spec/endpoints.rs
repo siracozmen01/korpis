@@ -41,6 +41,20 @@ pub enum Exposure {
     None,
 }
 
+impl Exposure {
+    /// What this declared exposure is where the installation does or does not have an edge tier
+    /// serving the workload (§3 of docs/07-networking.md). A declared `stable` is a preference:
+    /// without an edge to hold the address it resolves to `node_bound`, which needs the node to
+    /// be reachable itself. Every other mode is what it says.
+    #[must_use]
+    pub const fn resolved(self, edge_tier: bool) -> Self {
+        match self {
+            Self::Stable if !edge_tier => Self::NodeBound,
+            other => other,
+        }
+    }
+}
+
 /// Where a certificate comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TlsSpec {
