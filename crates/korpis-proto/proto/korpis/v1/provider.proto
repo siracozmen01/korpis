@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// How Korpis reaches a provider (§3.3 of docs/16-extensions.md): the extension dials out and
+// holds one bidirectional stream, authenticated by its workload credential; it registers what
+// it serves, and the control plane sends calls down the stream, each with a deadline. Each
+// provider type's calls and results are messages of their own, numbered from 20 in the
+// envelopes below (§5 of docs/16-extensions.md).
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/extension.proto";
+
+service ProviderService {
+  rpc Serve(stream ProviderMessage) returns (stream ProviderControl);
+}
+
+// Provider to control plane.
+message ProviderMessage {
+  oneof message {
+    // The first message on a stream, and only the first.
+    Register register = 1;
+    CallResult result = 2;
+  }
+}
+
+// Control plane to provider.
+message ProviderControl {
+  oneof message {
+    // The answer to Register: the registration this stream serves.
+    Registered registered = 1;
+    ProviderCall call = 2;
+    // The control plane no longer waits for this call; its result is discarded.
+    CancelCall cancel = 3;
+  }
+}
+
+message Register {
+  ProviderType type = 1;
+  // One of the provides entries its installation recorded.
+  string name = 2;
+  // The provider's own version, for the registry and for replacement as a drain (§9 of
+  // docs/16-extensions.md, question 1).
+  string version = 3;
+  // How many calls it accepts at once on this stream; the control plane never sends more.
+  uint32 concurrency = 4;
+}
+
+message Registered {
+  string registration = 1;
+}
+
+message ProviderCall {
+  string call = 1;
+  // The control plane stops waiting at this time.
+  google.protobuf.Timestamp deadline = 2;
+  oneof request {
+    // A liveness check every provider answers.
+    Ping ping = 10;
+  }
+}
+
+message CallResult {
+  string call = 1;
+  oneof outcome {
+    // A failure, with a reason the plan or the observation shows.
+    Error error = 2;
+    Pong pong = 10;
+  }
+}
+
+message CancelCall {
+  string call = 1;
+}
+
+message Ping {
+  string nonce = 1;
+}
+
+message Pong {
+  string nonce = 1;
+}

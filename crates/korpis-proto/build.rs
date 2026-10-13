@@ -14,7 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/v1/placement.proto",
         "korpis/v1/attached.proto",
         "korpis/v1/api.proto",
+        "korpis/v1/event.proto",
+        "korpis/v1/extension.proto",
+        "korpis/v1/provider.proto",
         "korpis/agent/v1/agent.proto",
+        "korpis/agent/v1/identity.proto",
         "korpis/driver/v1/driver.proto",
         "korpis/helper/v1/helper.proto",
     ];

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The service the agent serves a workload on its identity socket, mounted read-only at
+// /run/korpis/identity.sock inside that workload and nowhere else (§9.5 of
+// docs/08-identity.md). A workload asks it for a credential and renews by asking again; the
+// socket is the workload's identity, so the request carries no claim about who is asking.
+
+syntax = "proto3";
+
+package korpis.agent.v1;
+
+import "korpis/agent/v1/agent.proto";
+
+service WorkloadIdentityService {
+  // A credential for this socket's workload, valid until its expiry. Refused when the
+  // control plane no longer places the workload on this node.
+  rpc GetCredential(GetCredentialRequest) returns (GetCredentialResponse);
+}
+
+message GetCredentialRequest {}
+
+message GetCredentialResponse {
+  Credential credential = 1;
+}

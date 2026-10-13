@@ -68,8 +68,8 @@ pub enum Principal {
     Token(Uuid),
     /// A workload acting with its own identity.
     Workload(Uuid),
-    /// An installed extension, by name.
-    Extension(String),
+    /// An installed extension, by its installation (§3.2 of docs/16-extensions.md).
+    Extension(Uuid),
     /// The control plane itself.
     System(SystemActor),
     /// One person, verified by an identity provider extension.
@@ -113,7 +113,6 @@ impl Principal {
     /// every earlier part may not, which is what makes a key parse back unambiguously.
     pub fn validate(&self) -> Result<(), PrincipalError> {
         match self {
-            Self::Extension(name) => part("extension", name),
             Self::ExternalUser { provider, user } => {
                 part("provider", provider)?;
                 if user.is_empty() { Err(PrincipalError::BadPart("user")) } else { Ok(()) }
@@ -127,7 +126,11 @@ impl Principal {
                     Ok(())
                 }
             }
-            Self::User(_) | Self::Token(_) | Self::Workload(_) | Self::System(_) => Ok(()),
+            Self::User(_)
+            | Self::Token(_)
+            | Self::Workload(_)
+            | Self::Extension(_)
+            | Self::System(_) => Ok(()),
         }
     }
 
@@ -138,7 +141,7 @@ impl Principal {
             Self::User(id) => format!("user:{id}"),
             Self::Token(id) => format!("token:{id}"),
             Self::Workload(id) => format!("workload:{id}"),
-            Self::Extension(name) => format!("extension:{name}"),
+            Self::Extension(id) => format!("extension:{id}"),
             Self::System(actor) => format!("system:{}", actor.name()),
             Self::ExternalUser { provider, user } => format!("ext:{provider}:user:{user}"),
             Self::ExternalSet { provider, realm, member_of } => {
@@ -162,7 +165,7 @@ impl Principal {
             "user" => Self::User(uuid()?),
             "token" => Self::Token(uuid()?),
             "workload" => Self::Workload(uuid()?),
-            "extension" => Self::Extension(rest.to_owned()),
+            "extension" => Self::Extension(uuid()?),
             "system" => Self::System(
                 SystemActor::ALL.into_iter().find(|a| a.name() == rest).ok_or_else(bad)?,
             ),
@@ -207,7 +210,7 @@ mod tests {
             Principal::User(Uuid::now_v7()),
             Principal::Token(Uuid::now_v7()),
             Principal::Workload(Uuid::now_v7()),
-            Principal::Extension("billing".into()),
+            Principal::Extension(Uuid::now_v7()),
             Principal::System(SystemActor::Bootstrap),
             Principal::ExternalUser { provider: "discord".into(), user: "12:34".into() },
             Principal::ExternalSet {

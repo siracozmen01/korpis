@@ -213,6 +213,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |
 | `Probe` | liveness check with a nonce |
 | `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
+| `WorkloadCredential` | the answer to a `CredentialRequest`: a credential for the workload and its expiry, or the refusal (§9.5 of `08-identity.md`) |
 
 **Agent → control plane**
 
@@ -227,6 +228,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, or rejected with a reason |
 | `ContentStatus` | which recipe digests are present locally |
 | `Ack` | the assignment set digest the agent has received |
+| `CredentialRequest` | a workload asked its identity socket for a credential; names the workload and a request identifier (§9.5 of `08-identity.md`) |
 
 > Added 2026-10-13, from the implementation: `Welcome`. The heartbeat interval was declared
 > (question 6 of §10) and nothing carried the declaration to the agent, so an agent could only
@@ -906,6 +908,16 @@ namespace.
 > siblings, which is the defence by string that K-1 forbids. One worker per workload, in a namespace
 > built for it, makes that decision the kernel's. Workers are socket-activated and exit when idle,
 > so the cost is a process per workload in active use, not per workload in existence.
+
+**Each workload has an identity socket, and the supervisor serves it.** The supervisor creates one
+Unix socket per workload it runs and hands its path to the driver, which mounts it read-only at
+`/run/korpis/identity.sock` inside that workload and nowhere else. A request on it is forwarded as
+a `CredentialRequest` naming the workload the socket was created for; the request carries nothing
+the workload chose about who it is. The control plane decides whether to answer (§9.5 of
+`08-identity.md`). The supervisor holds no credential afterwards: it passes the answer back and
+keeps nothing.
+
+> Added 2026-10-13, with the workload identity of §9.5 of `08-identity.md`.
 
 **SFTP and the file manager are the same worker.** They are the two highest-risk surfaces in any
 panel, arbitrary paths, arbitrary names, arbitrary sizes, from untrusted users. Giving them one

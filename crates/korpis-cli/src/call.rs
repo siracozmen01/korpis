@@ -82,6 +82,16 @@ table! {
     "korpis.v1.WorkloadService/ListWorkloads" => WorkloadServiceClient::list_workloads(ListWorkloadsRequest);
     "korpis.v1.WorkloadService/ListIntents" => WorkloadServiceClient::list_intents(ListIntentsRequest);
     "korpis.v1.WorkloadService/WatchWorkload" => WorkloadServiceClient::watch_workload(WatchWorkloadRequest) stream WatchWorkloadResponse;
+    "korpis.v1.ExtensionService/InstallExtension" => ExtensionServiceClient::install_extension(InstallExtensionRequest);
+    "korpis.v1.ExtensionService/GetExtension" => ExtensionServiceClient::get_extension(GetExtensionRequest);
+    "korpis.v1.ExtensionService/ListExtensions" => ExtensionServiceClient::list_extensions(ListExtensionsRequest);
+    "korpis.v1.ExtensionService/UninstallExtension" => ExtensionServiceClient::uninstall_extension(UninstallExtensionRequest);
+    "korpis.v1.EventService/CreateSubscription" => EventServiceClient::create_subscription(CreateSubscriptionRequest);
+    "korpis.v1.EventService/GetSubscription" => EventServiceClient::get_subscription(GetSubscriptionRequest);
+    "korpis.v1.EventService/ListSubscriptions" => EventServiceClient::list_subscriptions(ListSubscriptionsRequest);
+    "korpis.v1.EventService/DeleteSubscription" => EventServiceClient::delete_subscription(DeleteSubscriptionRequest);
+    "korpis.v1.EventService/Subscribe" => EventServiceClient::subscribe(SubscribeRequest) stream SubscribeResponse;
+    "korpis.v1.EventService/Ack" => EventServiceClient::ack(AckRequest);
     "korpis.v1.DeclaredSetService/ListDeclaredSets" => DeclaredSetServiceClient::list_declared_sets(ListDeclaredSetsRequest);
     "korpis.v1.DeclaredSetService/SetDeclaredSetMode" => DeclaredSetServiceClient::set_declared_set_mode(SetDeclaredSetModeRequest);
     "korpis.v1.PlanService/GetPlan" => PlanServiceClient::get_plan(GetPlanRequest);
@@ -162,7 +172,12 @@ mod tests {
             .iter()
             .filter(|s| s.full_name().starts_with(&format!("{PACKAGE}.")))
             .flat_map(|s| {
-                s.methods().iter().map(move |m| format!("{}/{}", s.full_name(), m.name()))
+                // A method the client streams to (a provider's Serve) is served by a program
+                // holding a connection, not typed at a terminal.
+                s.methods()
+                    .iter()
+                    .filter(|m| !m.is_client_streaming())
+                    .map(move |m| format!("{}/{}", s.full_name(), m.name()))
             })
             .collect();
         let table: std::collections::BTreeSet<String> =

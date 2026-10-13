@@ -1,0 +1,204 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Extensions (§3.7 of docs/01-model.md, docs/16-extensions.md): what an extension's document
+// declares, what an installation is, and the service that installs one. An extension is a
+// recipe with one more section (§3.1 of docs/16-extensions.md), run as a workload, acting as
+// extension:<id> under grants attenuated from its installer's.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/api.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/event.proto";
+import "korpis/v1/recipe.proto";
+import "korpis/v1/tenancy.proto";
+import "korpis/v1/workload.proto";
+
+// The `extension` block of an extension's document.
+message ExtensionManifest {
+  // The contract it speaks, e.g. korpis.extension.v1 (§6 of docs/16-extensions.md).
+  string api_version = 1;
+  // Contract capabilities it cannot work without; missing ones refuse the install.
+  repeated string requires = 2;
+  repeated Need needs = 3;
+  // host:port it reaches; its workload's egress policy.
+  repeated string egress = 4;
+  repeated EventFilter subscribes = 5;
+  repeated ProvidedInterface provides = 6;
+  // ext.<name>.<action>, built in Phase 4.
+  repeated ActionDecl actions = 7;
+  // Built in Phase 4.
+  repeated SlotDecl ui_slots = 8;
+}
+
+// Actions the extension needs, and the scope it needs them over, resolved at install.
+message Need {
+  repeated string actions = 1;
+  NeedScope scope = 2;
+  // Why, for the installer reading the list.
+  string reason = 3;
+}
+
+enum NeedScope {
+  NEED_SCOPE_UNSPECIFIED = 0;
+  // The organization or project it is installed into.
+  NEED_SCOPE_TARGET = 1;
+  // The organization it is installed into, even when installed into one of its projects.
+  NEED_SCOPE_ORGANIZATION = 2;
+  // Its own workload only.
+  NEED_SCOPE_SELF = 3;
+}
+
+message ProvidedInterface {
+  ProviderType type = 1;
+  // Unique per type within the organization it serves; step kinds are <publisher>/<step>.
+  string name = 2;
+}
+
+enum ProviderType {
+  PROVIDER_TYPE_UNSPECIFIED = 0;
+  PROVIDER_TYPE_DNS = 1;
+  PROVIDER_TYPE_BACKUP_TARGET = 2;
+  PROVIDER_TYPE_STEP = 3;
+  PROVIDER_TYPE_HEALTH = 4;
+  PROVIDER_TYPE_CONSOLE = 5;
+  PROVIDER_TYPE_IDENTITY = 6;
+  PROVIDER_TYPE_EDGE_ROUTER = 7;
+  PROVIDER_TYPE_CHAT_ADAPTER = 8;
+}
+
+message ActionDecl {
+  // The part after ext.<extension>.
+  string name = 1;
+  string description = 2;
+  repeated ActionArgument arguments = 3;
+}
+
+message ActionArgument {
+  string name = 1;
+  // A value type (string, int, bool) or a resource reference (workload, project).
+  string type = 2;
+  // A resource argument is authorized for the invoker (§5 of docs/16-extensions.md).
+  bool resource = 3;
+  bool required = 4;
+}
+
+message SlotDecl {
+  string slot = 1;
+  // A declarative descriptor, or the URL of an isolated frame (§5 of docs/16-extensions.md).
+  string descriptor = 2;
+}
+
+// An installation.
+message Extension {
+  // Its subject is extension:<id>.
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  // The contract version it speaks.
+  string api_version = 4;
+  // Field 5 was one grant; an installation holds one per approved need (grants, 10).
+  reserved 5;
+  // Field 6 was event type names; subscriptions are filters (subscribes, 17).
+  reserved 6;
+  repeated string routes = 7;
+  repeated string ui_slots = 8;
+  ExtensionStatus status = 9;
+  repeated string grants = 10;
+  string organization = 11;
+  optional string project = 12;
+  // The workload it runs as.
+  string workload = 13;
+  // Its artifact, by digest, and what vouched for it.
+  RecipeRef artifact = 14;
+  ExtensionManifest manifest = 15;
+  repeated ProvidedInterface provides = 16;
+  repeated EventFilter subscribes = 17;
+  Subject installed_by = 18;
+  google.protobuf.Timestamp installed_at = 19;
+}
+
+enum ExtensionStatus {
+  EXTENSION_STATUS_UNSPECIFIED = 0;
+  EXTENSION_STATUS_RUNNING = 1;
+  EXTENSION_STATUS_STOPPED = 2;
+  EXTENSION_STATUS_FAILED = 3;
+  EXTENSION_STATUS_INCOMPATIBLE = 4;
+}
+
+service ExtensionService {
+  // Installs an extension: extension.install on the target, and on the organization when it
+  // provides anything (§4.1 of docs/16-extensions.md). The approved needs must be exactly the
+  // document's, so nothing is granted that the installer did not read; a dry run returns the
+  // document's manifest to read.
+  rpc InstallExtension(InstallExtensionRequest) returns (InstallExtensionResponse);
+  rpc GetExtension(GetExtensionRequest) returns (GetExtensionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListExtensions(ListExtensionsRequest) returns (ListExtensionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Revokes its grants, ends its subscriptions and registrations, and proposes the retirement
+  // of its workload.
+  rpc UninstallExtension(UninstallExtensionRequest) returns (UninstallExtensionResponse);
+}
+
+message InstallExtensionRequest {
+  Mutation mutation = 1;
+  // The artifact, by name and version, resolved to a digest under the trust policy.
+  string artifact = 2;
+  string version = 3;
+  // The organization it is installed into.
+  string organization = 4;
+  // When installed into one project rather than the whole organization.
+  optional string project = 5;
+  // The project its workload runs in; the target project when one is named.
+  string workload_project = 6;
+  // The workload's name; the extension's name when empty.
+  string workload_name = 7;
+  // Must equal the document's needs.
+  repeated Need approved_needs = 8;
+  // Its configuration, validated against its document's schema.
+  map<string, Value> config = 9;
+  // Resolve, check, and answer with the manifest; change nothing.
+  bool dry_run = 10;
+}
+
+message InstallExtensionResponse {
+  Extension extension = 1;
+  // The plan that runs its workload.
+  Plan plan = 2;
+  Consistency consistency = 3;
+}
+
+message GetExtensionRequest {
+  string id = 1;
+}
+
+message GetExtensionResponse {
+  Extension extension = 1;
+}
+
+message ListExtensionsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListExtensionsResponse {
+  repeated Extension extensions = 1;
+  PageResponse page = 2;
+}
+
+message UninstallExtensionRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message UninstallExtensionResponse {
+  Extension extension = 1;
+  Plan plan = 2;
+  Consistency consistency = 3;
+}

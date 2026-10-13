@@ -170,6 +170,8 @@ workload.exec                                        a new process inside; impli
 workload.file.read · workload.file.write
 workload.secret.read                                 read a field the recipe marks secret
 workload.classify                                    override how its plan steps are classified
+extension.read · extension.install · extension.uninstall
+event.read                                           receive events about what it reaches
 plan.read · plan.approve · plan.cancel
 volume.read · volume.snapshot.create · volume.delete
 endpoint.read · endpoint.write · endpoint.release
@@ -203,6 +205,13 @@ ext.<extension>.<action>              extensions define their own, namespaced
   included, because relaxing a step is choosing which changes a human sees before they happen,
   and a grant to edit configuration was never a grant to decide that. Added 2026-10-13, when the
   override was built: the model promised it and nothing could set it.
+- **`extension.install` is installing on a target the installer controls** (§4 and §4.1 of
+  `16-extensions.md`): on the project or organization installed into, and on the organization
+  whenever the extension provides anything, because a provider serves the organization's whole
+  subtree. It grants the extension nothing by itself; the extension's grants are attenuated from
+  the installer's own, need by need. `event.read` is what a subscription delivers through (§5 of
+  `15-observability.md`): an event about an object reaches a subscriber only if the subscriber
+  holds `event.read` on it. Added 2026-10-13, when the extension contract was built.
 - **`plan.approve` is what an approver holds** (§3.6 of `08-identity.md`). Approval was central to
   the model and had no action a gateway could check when someone pressed Approve.
 - **Delegating is not an action.** Whether a grant may be attenuated into children, how deep, and

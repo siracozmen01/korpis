@@ -41,7 +41,7 @@ pub fn from_pb(field: &str, s: &pb::Subject) -> Result<Principal, crate::WireErr
         subject::Kind::User(v) => Principal::User(id(IdKind::User, field, v)?),
         subject::Kind::Token(v) => Principal::Token(id(IdKind::Token, field, v)?),
         subject::Kind::Workload(v) => Principal::Workload(id(IdKind::Workload, field, v)?),
-        subject::Kind::Extension(name) => Principal::Extension(name.clone()),
+        subject::Kind::Extension(v) => Principal::Extension(id(IdKind::Extension, field, v)?),
         subject::Kind::System(a) => Principal::System(system_actor(*a).ok_or_else(none)?),
         subject::Kind::External(e) => external(e).ok_or_else(none)?,
     };
@@ -56,7 +56,7 @@ pub fn to_pb(p: &Principal) -> pb::Subject {
         Principal::User(u) => subject::Kind::User(wire_id(IdKind::User, *u)),
         Principal::Token(t) => subject::Kind::Token(wire_id(IdKind::Token, *t)),
         Principal::Workload(w) => subject::Kind::Workload(wire_id(IdKind::Workload, *w)),
-        Principal::Extension(name) => subject::Kind::Extension(name.clone()),
+        Principal::Extension(e) => subject::Kind::Extension(wire_id(IdKind::Extension, *e)),
         Principal::System(a) => subject::Kind::System(
             match a {
                 SystemActor::Reconciler => pb::SystemActor::SYSTEM_ACTOR_RECONCILER,

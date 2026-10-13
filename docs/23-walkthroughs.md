@@ -825,7 +825,7 @@ through the forwarding path and not from the process.
 | # | Step | Governed by |
 |---|---|---|
 | 1 | A workload declares an `ingress` endpoint needing a DNS record | `07-networking.md` §3.2 |
-| 2 | The Plan's step calls the DNS provider extension, under a deadline | `16-extensions.md` §5 |
+| 2 | The Plan's step calls the DNS provider extension, under a deadline, down the stream the extension opened as `extension:<id>` with a credential its node vouched for ¶ | `16-extensions.md` §3.2, §3.3, §5; `08-identity.md` §9.5 |
 | 3 | The provider answers at 90% of the deadline, every time, for every workload in the fleet | `16-extensions.md` §5 |
 | 4 | It never fails, so the circuit breaker never opens | `16-extensions.md` §5 |
 | 5 | Every create in the fleet now takes the deadline, and the reconciler's queue grows | `05-scheduling.md` §7 |
@@ -847,6 +847,16 @@ circuit breaker trips on sustained latency as well as on failure, and provider c
 bounded per provider rather than per call so that one slow dependency cannot occupy the fleet's
 reconciliation capacity. `15-observability.md` §5 gains the provider-degraded event, because the
 operator whose creates got slow this morning should not have to infer the cause from a graph.
+
+¶ Added 2026-10-13, while building the extension contract. Step 2 could not happen as written:
+the extension runs on a node that accepts no inbound connection, so nothing could call it, and it
+had no way to prove it was the subject its grants were issued to. The extension now dials out and
+is called down its own stream (§3.3 of `16-extensions.md`), and authenticates with a short-lived
+credential its node obtains for it while it runs there (§9.5 of `08-identity.md`). Its subject was
+keyed by name, so one extension installed into two organizations would have been one subject; it
+is keyed by the installation (§3.2 of `01-model.md`). The events the provider's slowness produces
+now have a log that says what an event is and how a consumer keeps its place (§5 of
+`15-observability.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

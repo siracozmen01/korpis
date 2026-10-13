@@ -203,7 +203,7 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 > of effects whose authority is the plan or approval they cite.
 
 > Added 2026-10-12, while building the store (`crates/korpis-core/src/principal.rs`). Every subject
-> has one **canonical key**: `user:<id>`, `token:<id>`, `workload:<id>`, `extension:<name>`,
+> has one **canonical key**: `user:<id>`, `token:<id>`, `workload:<id>`, `extension:<id>`,
 > `system:<actor>`, `ext:<provider>:user:<id>`, or `ext:<provider>:set:<realm>:<member>`. Grants
 > are indexed by it, effects record their actor as it, and it parses back to exactly one subject,
 > which holds because every part but the last is refused if it contains `:`. The first schema
@@ -1073,16 +1073,28 @@ Detail in `14-streams.md`.
 
 ```
 Extension
-  id            ExtensionID
+  id            ExtensionID      the installation; its subject is `extension:<id>`
   name          string
   version       SemVer
   api_version   string           the contract version it speaks
-  grant         GrantID          its authority, narrow, revocable, auditable
-  subscribes    []EventType
+  organization  OrgID            where it is installed
+  project       ProjectID?       when installed into one project rather than the organization
+  workload      WorkloadID       the workload it runs as (§3 of 16-extensions.md)
+  artifact      RecipeRef        its artifact, by digest, and what vouched for it
+  grants        []GrantID        one per approved need, each attenuated from the installer's
+  provides      []{type, name}   what it may register to serve
+  subscribes    []EventFilter
   routes        []RoutePrefix    served under /ext/<name>
   ui_slots      []SlotSpec       declared mount points in the web client
+  installed_by  Subject
   status        running | stopped | failed | incompatible
 ```
+
+> Corrected 2026-10-13, while building the contract. The first version had one `grant`, while
+> installation issues one per approved need (§4 of `16-extensions.md`), and nothing tied an
+> extension to its workload, its artifact, or where it was installed. Its subject was keyed by
+> name, `extension:<name>`, so the same extension installed into two organizations would have been
+> one subject holding both installations' grants; the key is now the installation's identifier.
 
 **Invariants**
 - An extension **cannot modify Korpis' own files.** It is a process with a token, not a script with

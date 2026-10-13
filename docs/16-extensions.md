@@ -59,6 +59,60 @@ It also means the answer to "can an extension take down my control plane" is the
 to "can a tenant's game server take down my node", which is a question this design has already
 spent `04-runtimes.md` and `17-security.md` answering.
 
+> Added 2026-10-13, while building the contract in Phase 1. This section said an extension is a
+> workload with a subject and grants, and nothing said what its artifact contains, how it proves
+> it is that subject, or how Korpis reaches it when nodes accept no inbound connection (§3 of
+> `02-architecture.md`). §3.1 to §3.3 answer the three.
+
+### 3.1 What an extension is made of
+
+**An extension is a recipe with one more section.** Its artifact has the layout of §2 of
+`09-recipes.md`, with artifact type `application/vnd.korpis.extension.v1` and a document of media
+type `application/vnd.korpis.extension.document.v1+yaml` whose `kind` is `Extension`. Everything a
+recipe document holds describes the extension's workload; the `extension` block describes the
+extension:
+
+```
+extension:
+  api_version   korpis.extension.v1     the contract it speaks (§6)
+  requires      []Capability            contract capabilities it cannot work without (§6)
+  needs         []Need                  actions, and the scope each is wanted over (§4)
+  egress        []host:port             what it reaches; its workload's egress policy
+  subscribes    []EventFilter           what it consumes (§5)
+  provides      []{type, name}          what it serves, `dns` / `cloudflare` (§5)
+  actions       []ActionDecl            `ext.<name>.<action>`, Phase 4 (§5)
+  ui_slots      []SlotDecl              Phase 4 (§5)
+```
+
+One format means one signing path and one trust policy: an extension is admitted by the trust
+policy that admits recipes (§7 of `09-recipes.md`), and nothing about extensions needs a second
+answer to "whose signature do we run". The cost is that an extension author writes a recipe, which
+is the one thing every Korpis workload author already writes.
+
+### 3.2 How it proves who it is
+
+It is a workload, so it proves it the way every workload does: its node vouches for it, through
+the identity socket of §9.5 of `08-identity.md`, and the control plane authenticates it as
+`extension:<id>`, the subject the installation's grants were issued to. It holds no secret that
+outlives its placement, and an uninstalled extension's workload can obtain nothing, because its
+grants are revoked and its workload retired.
+
+### 3.3 How Korpis reaches it
+
+**The extension dials out, and Korpis calls it down the connection it opened.** A provider opens
+`ProviderService.Serve`, a bidirectional stream to the control plane, authenticated by its
+workload credential. Its first message registers what it serves, which must be one of the
+`provides` entries its installation recorded. The control plane then sends calls down that stream,
+each with an identifier and a deadline, and the results come back on it. Several replicas of one
+provider register several streams and calls are spread across them; a stream that ends withdraws
+its registration, and a call in flight on it fails as retryable.
+
+This is the agent's connection direction (§3 of `02-architecture.md`) for the same reason: the
+party that runs on a node dials out, so a node needs no inbound port and an extension needs no
+address the control plane must reach. What it costs: the control plane holds one open stream per
+provider replica, and a provider whose stream has dropped is unavailable until it reconnects,
+which the breaker of §5 treats like any other failure.
+
 ---
 
 ## 4. Permissions are grants, declared and granted at install
@@ -75,6 +129,22 @@ extension: cloudflare-dns
   egress:
     api.cloudflare.com:443
 ```
+
+**What installation does.** An install names the extension's artifact, the organization or
+project it is installed into, the project its workload runs in, and the needs the installer
+approves. The control plane resolves the artifact under the trust policy, checks that the installer
+may install it there (§4.1), and issues one grant per approved need to `extension:<id>`, each
+attenuated from a grant the installer holds that covers it, which becomes its parent. A need no
+grant of the installer's covers is refused by name, before anything is created. Then the
+extension's workload is declared from its document, its subscriptions are recorded, and its
+`provides` entries become registrations its streams may claim. Uninstalling revokes those grants,
+which revokes everything descended from them, ends its subscriptions and registrations, and
+proposes the retirement of its workload. Installing needs `extension.install`, uninstalling
+`extension.uninstall`, and reading what is installed `extension.read` (§5 of `10-api.md`).
+
+> Added 2026-10-13, with §3.1 to §3.3. The example above and the paragraphs after it described
+> what an installer sees and not what installing does, so nothing said where an extension's grants
+> come from in the chain that §3 of `08-identity.md` requires every grant to descend through.
 
 This is the phone-application permission model, and it works here for the reason it fails in most
 server software: grants already exist, so there is nothing to invent. A user can see what an
@@ -155,15 +225,18 @@ until it becomes the control plane's problem.
 
 **Delivery is ordered per workload.** Every event carries a sequence number scoped to the workload
 it concerns, the outbox delivers each workload's events in that order, and a consumer that sees a
-gap in a sequence knows it, rather than inferring order from timestamps. Across workloads there is
+gap in a sequence knows it, rather than inferring order from timestamps. What an event is, where it
+is written, and how a subscription keeps its position are in the event log of §5 of
+`15-observability.md`; an extension's subscriptions are the `subscribes` entries of its document,
+recorded at install, and deliver only what its `event.read` grant reaches. Across workloads there is
 no order, because none is meaningful and providing one would make one slow workload's events hold
 up everyone else's. This answers the question §12 of `10-api.md` routed here (finding S18).
 
 ### Providers
 
-Korpis calls **out** to the extension to obtain a capability it does not implement: resolve a DNS
-record, run a health probe, install a Steam application, write a backup to an object store, verify
-an identity assertion, route a protocol.
+Korpis calls **out** to the extension, down the stream of §3.3, to obtain a capability it does not
+implement: resolve a DNS record, run a health probe, install a Steam application, write a backup to
+an object store, verify an identity assertion, route a protocol.
 
 Calling out is the direction that carries risk, so the contract is strict:
 

@@ -237,9 +237,11 @@ behaviour:
 **A compromised node.** The blast radius is that node's tenants, including the backups of the
 workloads placed on it, which the node could already read live, plus whatever its credentials
 reached, which §7 has deliberately made small: no other workload's backups, no other node's
-assignments, no registry beyond one artifact for a few minutes. Recovery: revoke the node key, and
-**increment the lease epoch**. §4.5 of `02-architecture.md` and §8 of `03-state.md` make epochs
-monotonic and fencing mandatory, so a compromised agent that keeps running cannot reacquire
+assignments, no registry beyond one artifact for a few minutes. It can also obtain the credentials
+of the workloads placed on it, which act as those workloads (§9.5 of `08-identity.md`): each lasts
+fifteen minutes, and none can be had for a workload placed elsewhere. Recovery: revoke the node
+key, and **increment the lease epoch**. §4.5 of `02-architecture.md` and §8 of `03-state.md` make
+epochs monotonic and fencing mandatory, so a compromised agent that keeps running cannot reacquire
 ownership of anything, and cannot write an observation the control plane will accept. Workloads are
 rescheduled elsewhere from their intents, which are unaffected. The node is not trusted to clean
 itself up; it is fenced and rebuilt.

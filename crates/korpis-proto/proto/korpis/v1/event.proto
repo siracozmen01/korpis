@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The event log and its subscriptions (§5 of docs/15-observability.md, §5 of
+// docs/16-extensions.md). Every event is written in the transaction of the fact it reports;
+// a key's events are numbered in commit order; a subscription is a stored position, delivered
+// at least once.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/api.proto";
+import "korpis/v1/common.proto";
+import "korpis/v1/tenancy.proto";
+
+message Event {
+  // Global and increasing; a subscriber's position is the last it acknowledged.
+  string id = 1;
+  // What it concerns, and so what orders it: workload:<id> or organization:<id>.
+  string key = 2;
+  // Per key, from 1, without gaps.
+  uint64 seq = 3;
+  // The ingest clock.
+  google.protobuf.Timestamp at = 4;
+  // An effect's action, or a condition such as health.changed or provider.degraded.
+  string kind = 5;
+  Severity severity = 6;
+  string organization = 7;
+  optional string workload = 8;
+  // For an event that reports an effect.
+  optional string effect = 9;
+  map<string, Value> detail = 10;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_CRITICAL = 3;
+}
+
+// Which events a subscription receives, within what its subject holds event.read on.
+message EventFilter {
+  // Kinds, each matched exactly or, ending in ".", as a prefix: "workload." matches
+  // "workload.stop". Empty matches every kind.
+  repeated string kinds = 1;
+  Severity min_severity = 2;
+  // Narrows to these projects; empty is every project the subject reaches.
+  repeated string projects = 3;
+  // Narrows to workloads whose labels match.
+  LabelSelector workloads = 4;
+}
+
+message Subscription {
+  string id = 1;
+  // Who receives; deliveries are judged by its grants as they are when each is sent.
+  Subject subject = 2;
+  EventFilter filter = 3;
+  // The last event acknowledged; empty before the first.
+  string acked = 4;
+  google.protobuf.Timestamp created = 5;
+  // Set for a subscription an extension's installation created (§4 of
+  // docs/16-extensions.md); it ends with the installation.
+  optional string extension = 6;
+}
+
+// Events a subscription lost: its position fell out of the retention window.
+message EventGap {
+  // The first event still kept, from which delivery continues.
+  string resumes_at = 1;
+  string reason = 2;
+}
+
+service EventService {
+  // A subscription for the caller.
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
+  rpc GetSubscription(GetSubscriptionRequest) returns (GetSubscriptionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc DeleteSubscription(DeleteSubscriptionRequest) returns (DeleteSubscriptionResponse);
+  // Delivers the subscription's events after its acknowledged position, then live ones. A
+  // subscriber that falls behind the live buffer is ended with OVERFLOW and resubscribes.
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  // Records how far the subscriber has processed; delivery resumes after it.
+  rpc Ack(AckRequest) returns (AckResponse);
+}
+
+message CreateSubscriptionRequest {
+  Mutation mutation = 1;
+  EventFilter filter = 2;
+}
+
+message CreateSubscriptionResponse {
+  Subscription subscription = 1;
+}
+
+message GetSubscriptionRequest {
+  string id = 1;
+}
+
+message GetSubscriptionResponse {
+  Subscription subscription = 1;
+}
+
+message ListSubscriptionsRequest {
+  PageRequest page = 1;
+}
+
+message ListSubscriptionsResponse {
+  repeated Subscription subscriptions = 1;
+  PageResponse page = 2;
+}
+
+message DeleteSubscriptionRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteSubscriptionResponse {}
+
+message SubscribeRequest {
+  string subscription = 1;
+}
+
+message SubscribeResponse {
+  oneof item {
+    Event event = 1;
+    EventGap gap = 2;
+  }
+}
+
+message AckRequest {
+  string subscription = 1;
+  // The last event processed; an earlier one than already acknowledged changes nothing.
+  string through = 2;
+}
+
+message AckResponse {
+  string acked = 1;
+}

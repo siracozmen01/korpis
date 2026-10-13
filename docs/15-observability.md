@@ -230,6 +230,59 @@ server; a healthy Minecraft server answers a query on its port. Health checks ar
 workload and defined per tier in §5 of `04-runtimes.md`, and it is health (not process liveness)
 that generates events.
 
+### The event log
+
+> Added 2026-10-13, while designing the extension contract of Phase 1. "The event stream is
+> published", and §5 of `16-extensions.md` promised its consumers per-workload order and
+> at-least-once delivery, but nothing said what an event is, where it is written, or what a
+> consumer's position in it is.
+
+```
+Event
+  id            EventID        global, increasing; a consumer's position is the last it acked
+  key           workload:<id> | organization:<id>    what it concerns, and so what orders it
+  seq           int            per key, from 1, with no gaps: a consumer sees a hole as a hole
+  at            Timestamp      the ingest clock, as for an effect
+  kind          string         an effect's action, or a condition: `health.changed`,
+                               `convergence.changed`, `provider.degraded`, ...
+  severity      info | warning | critical
+  organization  OrgID
+  workload      WorkloadID?
+  effect        EffectID?      for an event that reports an effect
+  detail        map[str]Value
+```
+
+**Every event is written in the transaction of the fact it reports.** Every effect is an event of
+its own action, so the log of what happened and the stream of what to react to cannot disagree,
+which is §4's reason for not having a second audit system applied to delivery. A condition (a
+workload's health changing, a provider becoming slow) is written where the control plane decides
+it. An event is never written afterwards by a process that might not run.
+
+**A key's events are numbered in commit order.** Writing an event takes the key's counter row, so
+two transactions about one workload are numbered in the order they commit, and an event's `id`
+follows the same order. A consumer is handed an event only once every transaction that could still
+commit an earlier `id` has ended, which the control plane reads from PostgreSQL's snapshot horizon,
+so advancing past an `id` never skips one that commits late.
+
+**A subscription is a stored position, not a connection.** It names its subject, a filter (kinds,
+a minimum severity, a selector over projects and workload labels), and the last `id` the consumer
+acknowledged. Delivery is at-least-once: a consumer that reconnects resumes after its last
+acknowledgement and may see again what it saw but did not acknowledge, and the event `id` is the
+delivery identifier that makes it idempotent. Only events about objects on which the subject holds
+`event.read` (§5 of `10-api.md`) are delivered, judged by its grants as they are when each is sent.
+
+**Bounded, and the bound is visible.** The live stream holds a bounded buffer per subscriber; a
+consumer that falls behind it is disconnected with `OVERFLOW` (§7 of `10-api.md`) and resumes from
+its position, which the log itself holds. The log is kept for a retention window (thirty days by
+default, configurable); a subscription whose position falls out of it receives a gap marker naming
+the range it lost and continues from the oldest event still kept. Retention never touches
+effects, which are the audit record and are archived, never dropped (§4 above).
+
+What it costs: one counter row update per event, which serializes the events of one workload
+(never two workloads), and an event row beside every effect, about doubling the write volume of
+the audit path. The alternative, deriving the stream from the effect log after the fact, cannot
+promise per-workload order across a control plane that writes from more than one process.
+
 ---
 
 ### Degraded dependencies are events

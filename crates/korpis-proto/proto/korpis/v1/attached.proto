@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Attached resources: volumes, endpoints, streams (§3.6 of docs/01-model.md), and extensions
-// (§3.7).
+// Attached resources: volumes, endpoints, and streams (§3.6 of docs/01-model.md). Extensions
+// (§3.7) are in extension.proto.
 
 syntax = "proto3";
 
@@ -104,28 +104,4 @@ enum StreamKind {
   STREAM_KIND_LOG = 2;
   STREAM_KIND_EVENT = 3;
   STREAM_KIND_METRIC = 4;
-}
-
-// A separate process that adds capability, holding a scoped grant and speaking a versioned
-// contract (docs/16-extensions.md).
-message Extension {
-  string id = 1;
-  string name = 2;
-  string version = 3;
-  // The contract version it speaks.
-  string api_version = 4;
-  // Its authority: narrow, revocable, auditable.
-  string grant = 5;
-  repeated string subscribes = 6;
-  repeated string routes = 7;
-  repeated string ui_slots = 8;
-  ExtensionStatus status = 9;
-}
-
-enum ExtensionStatus {
-  EXTENSION_STATUS_UNSPECIFIED = 0;
-  EXTENSION_STATUS_RUNNING = 1;
-  EXTENSION_STATUS_STOPPED = 2;
-  EXTENSION_STATUS_FAILED = 3;
-  EXTENSION_STATUS_INCOMPATIBLE = 4;
 }

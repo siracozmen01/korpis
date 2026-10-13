@@ -986,11 +986,53 @@ done from anywhere except the machine.
 | web session | refresh credential in an `HttpOnly`, `SameSite=Strict` cookie, rotated on every use; 12 hours idle, 7 days absolute, both configurable | the browser |
 | CLI session | a refresh credential from the OAuth device flow, stored in the OS keychain | the user's machine |
 | capability token | 120 s, minted per action or session from the refresh credential | memory only |
+| workload credential | 15 minutes, renewed from the node that runs the workload (§9.5) | the workload's memory |
 
 Every live session is listed for its user with where and when it was created, and any of them can
 be ended, including "end all others", which revokes the refresh credentials immediately and lets the
 outstanding capability tokens expire within their lifetime. A session never outlives the grants it
 exercises: each token is minted against current authority.
+
+### 9.5 A running workload's identity
+
+> Added 2026-10-13, while designing the extension contract of Phase 1. `Workload` and
+> `Extension` were subjects since the first version (§3.2 of `01-model.md`), and nothing said how
+> either proves who it is. An extension is a workload (§3 of `16-extensions.md`), so the answer is
+> the same for both, and every extension call depends on it.
+
+**A workload holds no long-lived secret. Its node vouches for it, and only while it runs there.**
+
+The agent serves each workload it runs a Unix socket of its own, which the driver mounts
+read-only into the workload at `/run/korpis/identity.sock`. A process in the workload asks it for
+a credential. The agent forwards the request over its stream, naming the workload the socket
+belongs to, and the control plane issues the credential only if the workload is assigned to that
+node, authoritatively, under a lease that has not expired. The workload is then authenticated as
+itself: `workload:<id>` for an ordinary workload, `extension:<id>` for an extension's (§3.2 of
+`01-model.md`), and it holds exactly the grants issued to that subject.
+
+The credential is a bearer secret of 256 bits that expires after fifteen minutes. The control
+plane stores only its digest, as it does for an API token (§3.7), together with the node and the
+lease epoch it was issued under. The workload renews it by asking the socket again, so a renewal is
+always a fresh proof that the node still runs it.
+
+**What evaluates this, where, and with what information.** The control plane, at issue, from its
+own placement and lease records and from the identity of the node session the request arrived on
+(§7 of `02-architecture.md`). Nothing on the node decides that a workload is who it says: the agent
+only says which socket a request came in on, and the socket is the workload's because the agent
+created it for that workload's container alone.
+
+**What it does not stop.** A compromised node can obtain credentials for every workload assigned
+to it, which is no more than it already has, since it runs them and reads their memory (§9 of
+`17-security.md`). It cannot obtain one for a workload placed elsewhere, because the control plane
+checks the placement, not the node's claim. A credential stolen out of a workload is usable until
+it expires, at most fifteen minutes, and moving or retiring the workload ends renewal; that window
+is the cost of not making every API call round-trip to the node.
+
+**Why not a secret in the intent.** A token written into the workload's configuration would be
+stored in the database in the clear, re-delivered on every placement, and readable by anyone with
+`workload.secret.read`; it would also survive the workload's move to a node that should no longer
+be trusted with it. Node attestation has none of those properties, and it is the same trust
+already placed in the node.
 
 ---
 

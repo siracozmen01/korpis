@@ -14,6 +14,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
+import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";
 
@@ -65,6 +66,7 @@ message AgentMessage {
     ContentStatus content_status = 8;
     Ack ack = 9;
     ProbeReply probe_reply = 10;
+    CredentialRequest credential_request = 11;
   }
 }
 
@@ -84,7 +86,35 @@ message ControlMessage {
     ContentHint content_hint = 10;
     Probe probe = 11;
     Welcome welcome = 12;
+    WorkloadCredential workload_credential = 13;
   }
+}
+
+// A workload asked its identity socket for a credential (§9.5 of docs/08-identity.md). The
+// workload is the one the socket was created for; nothing in the request is the workload's
+// claim about itself.
+message CredentialRequest {
+  // Echoed in the answer, so the agent can match it to the waiting socket call.
+  string request = 1;
+  string workload = 2;
+}
+
+// The answer to a CredentialRequest: a credential, or why there is none.
+message WorkloadCredential {
+  string request = 1;
+  oneof outcome {
+    Credential credential = 2;
+    korpis.v1.Error refused = 3;
+  }
+}
+
+// A workload's credential: a bearer secret the API authenticates as the workload, or as the
+// extension the workload runs (§9.5 of docs/08-identity.md).
+message Credential {
+  string secret = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // The subject it authenticates as.
+  korpis.v1.Subject subject = 3;
 }
 
 // The control plane's first message on a session, once the Hello is verified: what it accepted

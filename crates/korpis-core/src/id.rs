@@ -43,6 +43,12 @@ pub enum IdKind {
     Operation,
     /// A declared set (`set_`).
     Set,
+    /// An installed extension (`ext_`).
+    Extension,
+    /// An event of the event log (`evt_`).
+    Event,
+    /// An event subscription (`sub_`).
+    Subscription,
 }
 
 impl IdKind {
@@ -65,6 +71,9 @@ impl IdKind {
             Self::User => "usr",
             Self::Operation => "op",
             Self::Set => "set",
+            Self::Extension => "ext",
+            Self::Event => "evt",
+            Self::Subscription => "sub",
         }
     }
 }
