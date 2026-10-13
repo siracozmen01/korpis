@@ -177,7 +177,8 @@ The `Effect` log **is** the audit log. There is no second table, no separate wri
 no possibility of the two disagreeing.
 
 This falls out of §1 and §4 of `03-state.md`: an `Effect` is append-only and names the grant that
-authorized it. An effect of a control-plane decision is written in the same transaction as the
+authorized it (a denial, which nothing authorized, names its subject and the missing action, as
+below). An effect of a control-plane decision is written in the same transaction as the
 decision; an effect of something that happened on a node is ingested exactly once, in order, from
 that node's journal, in the same transaction as the state it explains. Nothing can change state
 without producing one, because producing one is how state changes. Bolt-on audit logs are

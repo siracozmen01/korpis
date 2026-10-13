@@ -103,6 +103,13 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let sql = "SELECT count(*) FROM effect WHERE (action LIKE 'step.%' OR action = 'node.adopt') \
                AND origin_seq IS NOT NULL AND grant_id IS NULL";
     assert_eq!(cp.scalar::<i64>(sql).await, 0, "every node action names its grant");
+    let sql = "SELECT count(*) FROM effect WHERE action IN ('workload.place', 'lease.issue') \
+               AND grant_id IS NULL";
+    assert_eq!(
+        cp.scalar::<i64>(sql).await,
+        0,
+        "and so does every decision the control plane carried out"
+    );
 
     // Retired: the container goes, the volume stays.
     cp.retire(&w).await;

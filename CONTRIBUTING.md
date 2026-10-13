@@ -82,13 +82,18 @@ scripts/dev-pg.sh up      a PostgreSQL for development and tests, in its own con
 scripts/dev-registry.sh up
                           an OCI registry for recipes, in its own container on
                           127.0.0.1:55000, plain HTTP on loopback only
-scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli), into .tools/;
-                          needed to change a .proto (then scripts/gen-proto.sh) or a query
+scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli, oras), into
+                          .tools/; needed to change a .proto (then scripts/gen-proto.sh) or a
+                          query, and to run the end-to-end script
 scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development
                           database and regenerates .sqlx/, which builds use offline
 scripts/check.sh          every check a commit must pass: the text rules, file length, the
                           layer rule, the schema, rustfmt, clippy with warnings denied, the
                           tests, and the dependency policy
+scripts/e2e-phase0.sh     the Phase 0 done-when (§4 of docs/20-roadmap.md) as an operator runs
+                          it: the five binaries as processes, the recipe published with oras,
+                          every step through the CLI; needs root and containerd, and leaves
+                          nothing behind
 ```
 
 Building needs only a Rust toolchain: the wire types are generated at build time from the

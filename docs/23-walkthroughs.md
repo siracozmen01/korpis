@@ -105,7 +105,12 @@ Disk is reported from the helper's classes, and §3.1 of `09-recipes.md` now say
 default costs. Step 1 through the CLI showed one more gap: `korpis plan` was to return a plan that
 `apply --plan` could name, and the API's only way to compute a plan without applying it, `dry_run`,
 persisted nothing. `propose` persists the plan unapproved (§4 of `13-surface-cli.md`, §3.3 of
-`01-model.md`).
+`01-model.md`). Running the trace once more as an operator would, with the five binaries as
+processes and only the CLI and `oras` (`scripts/e2e-phase0.sh`), found the last two: the done-when
+of §4 of `20-roadmap.md` asked a denial to name a grant, which nothing authorizing it can supply,
+and the scheduler's bind and the lease it issued named no grant though both carry out an approval.
+The done-when is corrected in place, and both effects now name the grant of the decision they
+carry out.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

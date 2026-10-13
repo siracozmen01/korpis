@@ -34,9 +34,11 @@ fn scheduler() -> Principal {
     Principal::System(SystemActor::Scheduler)
 }
 
-fn place_effect(w: &Workload, outcome: Outcome) -> Effect {
+/// A placement effect, naming the grant of the decision it carries out.
+fn place_effect(w: &Workload, outcome: Outcome, grant: Option<Uuid>) -> Effect {
     let mut e = Effect::new(scheduler(), "workload.place", outcome);
     e.workload = Some(w.id);
+    e.grant = grant;
     e
 }
 
@@ -100,7 +102,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(target) = target else {
             if current.is_some() {
                 tx.unbind(w.id).await?;
-                tx.append_effect(&place_effect(w, Outcome::RolledBack)).await?;
+                let grant = tx.decision_grant(w.id).await?;
+                tx.append_effect(&place_effect(w, Outcome::RolledBack, grant)).await?;
             }
             return Ok(());
         };
@@ -164,7 +167,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
-        let mut e = place_effect(w, Outcome::Succeeded).after(details([
+        let grant = tx.decision_grant(w.id).await?;
+        let mut e = place_effect(w, Outcome::Succeeded, grant).after(details([
             ("node", node.to_string().into()),
             ("intent", target.id.to_string().into()),
             ("followed", followed.into()),
@@ -186,7 +190,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let unplaced =
             Unplaced { workload: w.id, intent: target.id, since: self.clock.now(), explanation };
         if tx.record_unplaced(&unplaced).await? {
-            let e = place_effect(w, Outcome::Failed).error(details([
+            let grant = tx.decision_grant(w.id).await?;
+            let e = place_effect(w, Outcome::Failed, grant).error(details([
                 ("reason", "no node can run it".into()),
                 ("intent", target.id.to_string().into()),
                 ("candidates", candidates.into()),

@@ -261,7 +261,9 @@ a latency investigation needs, and a large gap between the two is itself a findi
   is *online*, not what exists.
 - **Every effect names the grant.** Not just the actor, the authority. `01-model.md` §3.3 explains
   why: "who did this" and "under what authority, delegated from whom" are different questions, and
-  only the second one is useful during an incident.
+  only the second one is useful during an incident. The control plane's own effects name the grant
+  of the decision they carry out; a denial, which nothing authorized, names its subject and the
+  action that was missing instead.
 - **Effects are written by drift correction too.** Restarts, recreations, and repairs are recorded
   even though they produce no `Plan` (§3.3 of `01-model.md`). The plan log answers "what did
   someone decide"; the effect log answers "what actually happened". They are not the same question

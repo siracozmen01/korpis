@@ -80,7 +80,9 @@ themselves are read by whatever installs the recipe, against the digests the man
 
 Why this shape: it is the one the specification recommends, so `oras`, registry garbage
 collection, and referrers (where signatures attach, §7) all treat a recipe as a first-class
-artifact without knowing what Korpis is. The `v1` in both media types is the format version: a
+artifact without knowing what Korpis is. This is checked rather than assumed:
+`scripts/e2e-phase0.sh` publishes its recipe with an unmodified `oras push`, and the control plane
+resolves and runs it. The `v1` in both media types is the format version: a
 second format is a new media type, never a reinterpretation of the old one, so a control plane
 that does not know a format refuses it by type instead of misreading it.
 

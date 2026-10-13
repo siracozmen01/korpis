@@ -87,7 +87,10 @@ async fn with_no_node_it_waits_unplaced_and_lands_when_one_arrives() {
     h.node(None, "fra-3", &[]).await;
     let s = until(&h, &w, placed).await;
     assert!(!s.unplaced.is_set(), "a bind forgets the failure");
-    assert_eq!(outcomes(&h.effects("workload.place").await), ["failed", "succeeded"]);
+    let placed = h.effects("workload.place").await;
+    assert_eq!(outcomes(&placed), ["failed", "succeeded"]);
+    let named = placed.iter().all(|(_, grant)| grant.is_some());
+    assert!(named, "the scheduler acts under the grant of the decision it carries out");
 }
 
 #[tokio::test]

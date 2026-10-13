@@ -94,6 +94,14 @@ impl PlacementRead for PgStore {
 }
 
 impl PlacementWrite for PgTx {
+    async fn decision_grant(&mut self, workload: Uuid) -> StoreResult<Option<Uuid>> {
+        let row = sqlx::query_file_scalar!("queries/plan_decision_grant.sql", workload)
+            .fetch_optional(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(row.flatten())
+    }
+
     async fn lock_placement(&mut self) -> StoreResult<()> {
         sqlx::query!("SELECT pg_advisory_xact_lock($1)", PLACEMENT_LOCK)
             .fetch_one(&mut *self.tx)

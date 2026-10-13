@@ -62,7 +62,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     released_at: None,
                 };
                 tx.put_lease(&lease).await?;
-                tx.append_effect(&issued(&lease, current.as_ref())).await?;
+                let grant = tx.decision_grant(lease.workload).await?;
+                tx.append_effect(&issued(&lease, current.as_ref(), grant)).await?;
                 epoch
             }
         };
@@ -96,8 +97,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 /// The effect of issuing an epoch: a decision of the control plane's own, naming the holder it
-/// replaced. Renewals are not effects: they change nothing anyone is told.
-fn issued(lease: &Lease, previous: Option<&Lease>) -> Effect {
+/// replaced and the grant of the decision the holder carries out. Renewals are not effects: they
+/// change nothing anyone is told.
+fn issued(lease: &Lease, previous: Option<&Lease>, grant: Option<Uuid>) -> Effect {
     let actor = Principal::System(SystemActor::Reconciler);
     let mut e = Effect::new(actor, "lease.issue", Outcome::Succeeded).after(details([
         ("epoch", lease.epoch.into()),
@@ -107,5 +109,6 @@ fn issued(lease: &Lease, previous: Option<&Lease>) -> Effect {
     ]));
     e.workload = Some(lease.workload);
     e.node = Some(lease.node);
+    e.grant = grant;
     e
 }

@@ -174,9 +174,18 @@ pub async fn readable_workloads(
 ) -> Result<Vec<(String, pb::Workload)>, CliError> {
     let projects: Vec<pb::Project> = readable_projects(c).await?;
     let name_of = |id: &str| projects.iter().find(|p| p.id == id).map(|p| p.name.clone());
-    let candidates: Vec<String> = match project {
-        Some(p) => vec![p.to_owned()],
-        None => projects.iter().map(|p| p.id.clone()).collect(),
+    let candidates: Vec<String> = if let Some(p) = project {
+        vec![p.to_owned()]
+    } else {
+        // A grant of workload.read on a project lists its workloads without reading the
+        // project itself, so the projects the caller's grants name are listed too.
+        let mut ids: Vec<String> = projects.iter().map(|p| p.id.clone()).collect();
+        for p in anchors(c).await?.projects {
+            if !ids.contains(&p) {
+                ids.push(p);
+            }
+        }
+        ids
     };
     let mut found: Vec<pb::Workload> = Vec::new();
     for p in candidates {

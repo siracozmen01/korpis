@@ -144,8 +144,17 @@ privileged surface and, eventually, two disagreeing APIs. The CLI is also an ord
 cheaper to build, so the model gets exercised sooner.
 
 **Done when:** `korpis apply -f` places a workload on a node, converges it, survives an agent
-restart without restarting the workload, and every action in that sequence (including the denied
-ones) is a row in the effect log naming its grant.
+restart without restarting the workload, and every action in that sequence is a row in the effect
+log naming its grant, the denied ones naming instead their subject and the action that was
+missing. `scripts/e2e-phase0.sh` checks exactly this, with the five binaries running as processes,
+the recipe published with `oras`, and every step taken through the `korpis` CLI.
+
+> Corrected 2026-10-13, by the script that checks it. This said that every action "including the
+> denied ones" names its grant. A denial is the one case no grant authorized, so there is no grant
+> to name; what §4 of `15-observability.md` records for it is its subject and the action that was
+> missing, which is what an investigator needs, and that is what the script checks. The same run
+> found the scheduler's bind and the lease it issues naming no grant at all, though both carry out
+> an approved decision; they now name the grant of that decision (§3.3 of `01-model.md`).
 
 That is the smallest artifact that proves the entire thesis.
 

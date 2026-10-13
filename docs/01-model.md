@@ -729,7 +729,15 @@ Effect
 **Invariants**
 - Append-only. Never updated, never deleted. Retention is by archival, not mutation.
 - Every effect names the **grant** that authorized it, not merely the actor. "Who did this" is
-  answerable; so is "under what authority, delegated from whom".
+  answerable; so is "under what authority, delegated from whom". An effect the control plane
+  writes as its own actor (a placement, a lease, a step a node executed) names the grant of the
+  decision it carries out: the plan that approved the target it acts on, or with none the plan
+  most recently approved. A denial names no grant, because none authorized it; it names its
+  subject and the action that was missing (§4 of `15-observability.md`).
+
+> Clarified 2026-10-13, from `scripts/e2e-phase0.sh`. The invariant read as if a denial could
+> name a grant, and the scheduler's bind and the lease issued for it named none, though both act
+> on an approval; §4 of `20-roadmap.md` records the correction to the done-when that said so.
 - An effect of a control-plane decision commits in the same transaction as the decision. An effect
   of something that happened on a node is ingested exactly once, in its journal order, in the same
   transaction as the state it explains (§4.10 of `02-architecture.md`).

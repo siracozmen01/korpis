@@ -34,6 +34,14 @@ pub trait PlacementRead {
 
 /// Binding workloads to nodes.
 pub trait PlacementWrite {
+    /// The grant of the plan whose decision `workload`'s placement and lease carry out: the plan
+    /// that approved its current target, or with none the plan most recently approved. The
+    /// control plane's own effects name it (§3.2 of docs/01-model.md).
+    fn decision_grant(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
+
     /// Takes the placement lock until the transaction ends. Every bind holds it from reading the
     /// nodes to writing the placement, and so does every change to whether a node takes
     /// placements, so two binds never both count the same free capacity and no bind lands on a

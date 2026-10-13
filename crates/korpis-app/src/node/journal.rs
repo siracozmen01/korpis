@@ -11,8 +11,8 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, EffectWrite, JournalWrite, LeaseWrite, RecipeSource, RetirementWrite, Store, Tx,
-    WorkloadWrite,
+    Clock, EffectWrite, JournalWrite, LeaseWrite, PlacementWrite, RecipeSource, RetirementWrite,
+    Store, Tx, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
 use korpis_core::node::journal::{Body, NodeEffect, Record, admit, valid_action};
@@ -73,6 +73,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let mut e = system("lease.release", Outcome::Succeeded)
                     .after(details([("epoch", (*epoch).into()), ("current", released.into())]));
                 e.workload = Some(*workload);
+                e.grant = tx.decision_grant(*workload).await?;
                 e
             }
             Body::BreakGlass { operator, reason, session } => {
