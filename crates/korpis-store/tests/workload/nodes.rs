@@ -46,3 +46,49 @@ async fn the_admin_state_moves_by_compare_and_swap() {
     let read = f.store.node(n.id).await.unwrap().unwrap();
     assert_eq!((read.admin, read.version), (NodeAdmin::Cordoned, 2));
 }
+
+#[tokio::test]
+async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() {
+    use korpis_app::ports::{NodeFacts, SessionWrite as _};
+    use korpis_core::node::Reachability;
+    use korpis_core::node::advertised::{Advertised, PortRange};
+    let f = fixture().await;
+    let n = ready_node(f.organization, "fra-3", &[]).unwrap();
+    enroll(&f.store, &n).await.unwrap();
+    let advertising = |address: &str| NodeFacts {
+        capacity: n.capacity.clone(),
+        allocatable: n.allocatable.clone(),
+        drivers: n.drivers.clone(),
+        storage_classes: None,
+        agent: None,
+        advertised: (!address.is_empty()).then(|| Advertised {
+            addresses: vec![address.parse().unwrap()],
+            ports: PortRange::DEFAULT,
+        }),
+    };
+    let report = |facts: NodeFacts| {
+        let store = f.store.clone();
+        async move {
+            let mut tx = store.begin().await.unwrap();
+            assert!(tx.record_node_facts(n.id, &facts, now()).await.unwrap());
+            tx.commit().await.unwrap();
+            let read = store.node(n.id).await.unwrap().unwrap();
+            (read.reachability, read.probed_at.is_some(), read.advertised)
+        }
+    };
+    let (reach, probed, advertised) = report(advertising("203.0.113.7")).await;
+    assert_eq!((reach, probed), (Reachability::EdgeOnly, false), "new addresses, unmeasured");
+    assert_eq!(advertised.unwrap().addresses, ["203.0.113.7".parse::<std::net::IpAddr>().unwrap()]);
+
+    sqlx::query("UPDATE node SET reachability = 'public', probed_at = now() WHERE id = $1")
+        .bind(n.id)
+        .execute(f.store.pool())
+        .await
+        .unwrap();
+    let (reach, probed, _) = report(advertising("203.0.113.7")).await;
+    assert_eq!((reach, probed), (Reachability::Public, true), "the same addresses keep it");
+    let (reach, probed, _) = report(advertising("")).await;
+    assert_eq!((reach, probed), (Reachability::Public, true), "a report that does not say");
+    let (reach, probed, _) = report(advertising("198.51.100.9")).await;
+    assert_eq!((reach, probed), (Reachability::EdgeOnly, false), "another address, unmeasured");
+}

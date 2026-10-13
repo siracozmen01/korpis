@@ -156,6 +156,8 @@ message Hello {
   map<string, string> labels = 11;
   // Proof that the agent holds the node identity key established at enrollment.
   NodeAuth auth = 12;
+  // As in NodeStatus.
+  Advertised advertised = 13;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -192,6 +194,19 @@ message NodeStatus {
   // observation is current without being rewritten (question 6 of §10 of
   // docs/02-architecture.md).
   string observation_digest = 8;
+  // The addresses clients reach the node at, and the ports its endpoints are allocated from (§9
+  // of docs/07-networking.md); a change of address makes its reachability unmeasured again.
+  Advertised advertised = 9;
+}
+
+// What the node offers for inbound traffic, before anything has measured it.
+message Advertised {
+  // IP addresses, as text; the operator's, or the one the node's traffic leaves from when it is
+  // globally routable.
+  repeated string addresses = 1;
+  // The inclusive range node_port and node_bound endpoints are allocated from.
+  uint32 first_port = 2;
+  uint32 last_port = 3;
 }
 
 // ---------------------------------------------------------------------------------------------

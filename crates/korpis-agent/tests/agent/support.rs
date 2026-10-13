@@ -385,5 +385,13 @@ pub fn facts() -> korpis_agent::session::Facts {
         storage_classes: Vec::new(),
         capacity: pb.capacity.into_option().unwrap_or_default(),
         allocatable: pb.allocatable.into_option().unwrap_or_default(),
+        // The loopback address, declared as an operator would declare a LAN address: what the
+        // reachability probe of a test control plane on this machine can reach.
+        advertised: korpis_proto::korpis::agent::v1::Advertised {
+            addresses: vec!["127.0.0.1".into()],
+            first_port: 30_000,
+            last_port: 32_767,
+            ..Default::default()
+        },
     }
 }

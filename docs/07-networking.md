@@ -565,6 +565,21 @@ existed to tell the two apart (finding S43).
 > Phase 0 runs workloads without public endpoints, which its done-when does, and the tests that
 > run a game server's recipe on an enrolled node stand in for the probe.
 
+**What a probe measures against.** A node advertises, in its Hello and in every heartbeat, the
+addresses clients would reach it at and the range its `node_port` and `node_bound` endpoints'
+ports are allocated from. The addresses are its operator's (`--advertise-address`, repeatable),
+or, when the operator names none, the address its traffic towards the control plane leaves from,
+and only if that address is routable on the internet; a node behind NAT therefore advertises
+nothing of its own accord, which is the truth about it. An operator can still name a private
+address, for clients on the same network, or a router's public address that forwards to the node,
+and the probe decides whether that holds. The port range defaults to 30000 to 32767, below Linux's
+ephemeral range (32768 and up), so an allocated port never collides with an outgoing connection's,
+and above the ports services conventionally listen on; it is `--ports` on the node, and it never
+reaches below 1024. A change of either makes the node's reachability unmeasured again, which is
+`edge_only`, because a measurement of other addresses says nothing about these. What this does not
+do: an address that changes is noticed at the next heartbeat, so for up to one heartbeat interval
+the node is judged on its old addresses.
+
 ---
 
 ## 10. What changes at migration cutover

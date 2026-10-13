@@ -6,6 +6,7 @@
 //! node keeps doing its job from the set it holds (§4.6), and a clean stop writes what the
 //! journal still holds in memory before the process exits.
 
+use crate::advertise::Advertise;
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
@@ -18,6 +19,7 @@ use crate::revoked::token_ring;
 use crate::runtime::{Runtime, RuntimeError};
 use crate::session::{Event, Facts, Session};
 use crate::state::{StateDir, StateError};
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use std::sync::Arc;
 use std::time::Duration;
@@ -120,6 +122,7 @@ pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
     host: &H,
     reserve: Reserve,
+    advertise: Advertise,
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
     let driver = runtime.describe().await?;
     let storage_classes = host.storage().await.unwrap_or_else(|e| {
@@ -132,8 +135,9 @@ pub async fn facts_of<R: Runtime, H: Host>(
     // docs/05-scheduling.md).
     capacity.disk_bytes = storage_classes.iter().map(|c| c.capacity_bytes).sum();
     allocatable.disk_bytes = storage_classes.iter().map(|c| c.free_bytes).sum();
-    let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable };
-    Ok(Arc::new(move || facts.clone()))
+    let advertised = agent::Advertised::default();
+    let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable, advertised };
+    Ok(Arc::new(move || Facts { advertised: advertise.current(), ..facts.clone() }))
 }
 
 /// The running agent.

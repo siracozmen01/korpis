@@ -128,6 +128,8 @@ fn enrolled_node(e: &Enrollment, id: Uuid, now: std::time::SystemTime) -> Node {
         drivers: Vec::new(),
         storage_classes: Vec::new(),
         reachability: Reachability::EdgeOnly,
+        advertised: None,
+        probed_at: None,
         admin: NodeAdmin::Active,
         connectivity: Connectivity::Registering,
         agent_version: None,

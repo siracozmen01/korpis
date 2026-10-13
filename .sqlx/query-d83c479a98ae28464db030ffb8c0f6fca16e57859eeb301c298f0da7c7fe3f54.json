@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The nodes organization $1 owns, in identifier order after $2, at most $3.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version\n  FROM node WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n ORDER BY id LIMIT $3\n",
+  "query": "-- One node ($1).\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE id = $1\n",
   "describe": {
     "columns": [
       {
@@ -178,13 +178,55 @@
             "name": "version"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "addresses",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "addresses"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "first_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "first_port"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "last_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "last_port"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "probed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "probed_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -203,8 +245,12 @@
       true,
       true,
       false,
-      false
+      false,
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "a22a01e8de74263c9733d6793285ad6e81f063fee847b430c89d127178ef4d0f"
+  "hash": "d83c479a98ae28464db030ffb8c0f6fca16e57859eeb301c298f0da7c7fe3f54"
 }

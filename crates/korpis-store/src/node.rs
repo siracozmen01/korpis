@@ -12,9 +12,11 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{NodeRead, NodeWrite, StoreError, StoreResult};
+use korpis_core::node::advertised::{Advertised, PortRange};
 use korpis_core::node::{Connectivity, DriverInfo, Node, NodeAdmin, Reachability};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use serde_json::Value;
+use std::net::IpAddr;
 use uuid::Uuid;
 
 pub(crate) struct NodeRow {
@@ -34,6 +36,27 @@ pub(crate) struct NodeRow {
     pub(crate) last_seen: Option<DateTime<Utc>>,
     pub(crate) enrolled_at: DateTime<Utc>,
     pub(crate) version: i64,
+    pub(crate) addresses: Vec<String>,
+    pub(crate) first_port: Option<i32>,
+    pub(crate) last_port: Option<i32>,
+    pub(crate) probed_at: Option<DateTime<Utc>>,
+}
+
+/// What a node advertises, from its columns; none until it has reported a range.
+fn advertised(
+    addresses: &[String],
+    first: Option<i32>,
+    last: Option<i32>,
+) -> StoreResult<Option<Advertised>> {
+    let (Some(first), Some(last)) = (first, last) else { return Ok(None) };
+    let port = |p: i32| u16::try_from(p).map_err(|_| corrupt("port", &p.to_string()));
+    let ports = PortRange::new(port(first)?, port(last)?)
+        .map_err(|e| StoreError::Corrupt(format!("node ports: {e}")))?;
+    let addresses = addresses
+        .iter()
+        .map(|a| a.parse::<IpAddr>().map_err(|_| corrupt("address", a)))
+        .collect::<StoreResult<Vec<_>>>()?;
+    Ok(Some(Advertised { addresses, ports }))
 }
 
 fn corrupt(what: &str, s: &str) -> StoreError {
@@ -100,6 +123,8 @@ impl NodeRow {
             drivers: drivers(self.drivers)?,
             storage_classes: storage_classes(self.storage_classes)?,
             reachability,
+            advertised: advertised(&self.addresses, self.first_port, self.last_port)?,
+            probed_at: self.probed_at.map(to_time),
             admin,
             connectivity,
             agent_version: self.agent_version,

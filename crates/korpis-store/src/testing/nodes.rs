@@ -96,6 +96,8 @@ pub fn ready_node(
         drivers: vec![oci_driver()],
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
+        advertised: None,
+        probed_at: None,
         admin: NodeAdmin::Active,
         connectivity: Connectivity::Connected,
         agent_version: Some("0.0.0".to_owned()),

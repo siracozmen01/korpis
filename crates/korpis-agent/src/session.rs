@@ -173,6 +173,7 @@ impl Session {
             storage_classes: facts.storage_classes,
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
+            advertised: facts.advertised.into(),
             set_digest: self.held.borrow().digest.clone(),
             journal_head: head,
             journal_tail: tail,
@@ -194,6 +195,7 @@ impl Session {
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             drivers: facts.drivers,
+            advertised: facts.advertised.into(),
             ..Default::default()
         };
         match self.journal.usage().await {

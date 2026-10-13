@@ -107,7 +107,8 @@ impl Uplink {
                 app.acknowledge_set(node, &a.set_digest).await.map_err(|e| e.to_string())
             }
             Some(Up::NodeStatus(s)) => {
-                match facts(s.capacity.as_option(), s.allocatable.as_option(), &s.drivers, None) {
+                let resources = (s.capacity.as_option(), s.allocatable.as_option());
+                match facts(resources, &s.drivers, None, s.advertised.as_option()) {
                     Ok(f) => app.heartbeat(node, &f).await.map_err(|e| e.to_string()),
                     Err(e) => Err(e.to_string()),
                 }

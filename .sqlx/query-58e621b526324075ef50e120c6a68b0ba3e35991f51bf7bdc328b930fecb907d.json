@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- One node ($1).\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version\n  FROM node WHERE id = $1\n",
+  "query": "-- The nodes any organization of $1 owns, decommissioned ones excepted, in identifier order.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE organization_id = ANY($1) AND admin <> 'decommissioned'\n ORDER BY id\n",
   "describe": {
     "columns": [
       {
@@ -178,11 +178,55 @@
             "name": "version"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "addresses",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "addresses"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "first_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "first_port"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "last_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "last_port"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "probed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "probed_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -201,8 +245,12 @@
       true,
       true,
       false,
-      false
+      false,
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "f3e104ef648db52fcbd64ab9e2efc80f2f4793c09149f674c0ba4b39c5a29afe"
+  "hash": "58e621b526324075ef50e120c6a68b0ba3e35991f51bf7bdc328b930fecb907d"
 }

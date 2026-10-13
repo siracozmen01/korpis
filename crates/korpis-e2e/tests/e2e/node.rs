@@ -6,6 +6,7 @@
 //! every boundary between them is the socket it is in production.
 
 use crate::support::ControlPlane;
+use korpis_agent::advertise::Advertise;
 use korpis_agent::content::ContentStore;
 use korpis_agent::host::node::NodeHost;
 use korpis_agent::host::privileged::HelperClient;
@@ -14,6 +15,7 @@ use korpis_agent::run::{Agent, Options, Reserve, facts_of};
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
+use korpis_core::node::advertised::PortRange;
 use korpis_driver_oci::containerd::Containerd;
 use korpis_driver_oci::validate::Policy;
 use std::collections::BTreeSet;
@@ -103,7 +105,11 @@ impl Node {
         let content = ContentStore::open(&self.state.root().join("content"), registries()).unwrap();
         let host = NodeHost::new(HelperClient::new(&self.helper), content);
         let runtime = self.runtime();
-        let facts = facts_of(&runtime, &host, Reserve::default()).await.unwrap();
+        let server = self.state.load().unwrap().server;
+        // As `--advertise-address 127.0.0.1` would: the test's control plane is on this machine.
+        let loopback = vec![std::net::Ipv4Addr::LOCALHOST.into()];
+        let advertise = Advertise::new(loopback, PortRange::DEFAULT, &server);
+        let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
         let options = Options { period: Duration::from_millis(500), ..Options::default() };
         let agent = Agent::start(&self.state, runtime, host, facts, options).unwrap();
         let mut events = agent.events();

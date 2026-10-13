@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The nodes any organization of $1 owns, decommissioned ones excepted, in identifier order.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version\n  FROM node WHERE organization_id = ANY($1) AND admin <> 'decommissioned'\n ORDER BY id\n",
+  "query": "-- One node ($1), locked until the transaction ends.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE id = $1 FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -178,11 +178,55 @@
             "name": "version"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "addresses",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "addresses"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "first_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "first_port"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "last_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "last_port"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "probed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "probed_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "UuidArray"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -201,8 +245,12 @@
       true,
       true,
       false,
-      false
+      false,
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "6dbeba7e5d7c0de5cc9eff7d919d2ba9bc62d0b5808816db2d8925a97daa0328"
+  "hash": "8d74f843495802672fb85b30b74b780b2c1f8c0a8146a3be9c3e5d567ec588a2"
 }

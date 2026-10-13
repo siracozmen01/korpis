@@ -193,7 +193,11 @@ exactly as it is and writes what the journal still counts in memory; the next st
 `--driver-socket` (`/run/korpis/driver-oci.sock`), and the helper on `--helper-socket`
 (`/run/korpis/helper.sock`); `--driver memory` runs nothing, for trying the agent alone. The
 node's content store is under its state directory, in `content`, and a development registry
-spoken to over plain HTTP is named with `--plain-http`.
+spoken to over plain HTTP is named with `--plain-http`. What the node offers for inbound traffic
+is `--advertise-address`, repeatable, for an address clients reach it at that it cannot see
+itself (a router forwarding to it, or a LAN address), and `--ports`, the range its endpoints'
+ports are allocated from (30000-32767 by default); both are measured before anything relies on
+them (§9 of `07-networking.md`).
 
 The container tier is a separate process, `korpis-driver-oci`, run as its own user with access to
 containerd's socket and to nothing else the agent holds (§6.1 of `02-architecture.md`). It serves

@@ -7,6 +7,7 @@
 
 #![warn(missing_docs)]
 
+pub mod advertise;
 pub mod content;
 pub mod data;
 pub mod durable;

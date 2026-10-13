@@ -49,6 +49,10 @@ impl SessionWrite for PgTx {
         let classes = f.storage_classes.as_ref().map(|_| classes);
         let release = f.agent.as_ref().map(|a| a.release.clone());
         let protocol = f.agent.as_ref().map(|a| a.protocol.clone());
+        let addresses: Option<Vec<String>> =
+            f.advertised.as_ref().map(|a| a.addresses.iter().map(ToString::to_string).collect());
+        let first = f.advertised.as_ref().map(|a| i32::from(a.ports.first()));
+        let last = f.advertised.as_ref().map(|a| i32::from(a.ports.last()));
         let done = sqlx::query_file!(
             "queries/node_facts.sql",
             node,
@@ -58,7 +62,10 @@ impl SessionWrite for PgTx {
             classes.map(|c| to_json("node storage classes", &c)).transpose()?,
             release,
             protocol,
-            from_time(at)
+            from_time(at),
+            addresses.as_deref(),
+            first,
+            last
         )
         .execute(&mut *self.tx)
         .await

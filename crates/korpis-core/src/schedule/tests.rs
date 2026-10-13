@@ -72,6 +72,8 @@ fn node(n: u128, labels: &[(&str, &str)]) -> Node {
         drivers: vec![driver(&["memory", "cpu"])],
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
+        advertised: None,
+        probed_at: None,
         admin: NodeAdmin::Active,
         connectivity: Connectivity::Connected,
         agent_version: None,

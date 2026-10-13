@@ -40,6 +40,13 @@ message Node {
   // docs/07-networking.md). A workload with a dependency or dependent on another node is placed
   // only where it is available.
   Overlay overlay = 17;
+  // The addresses the node advertises for inbound traffic, and the inclusive range its endpoints'
+  // ports are allocated from (§9 of docs/07-networking.md).
+  repeated string addresses = 18;
+  uint32 first_port = 19;
+  uint32 last_port = 20;
+  // When its reachability was last measured; absent if never since its addresses last changed.
+  google.protobuf.Timestamp probed_at = 21;
 }
 
 message Taint {

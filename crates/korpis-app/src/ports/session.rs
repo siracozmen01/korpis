@@ -25,6 +25,9 @@ pub struct NodeFacts {
     /// The agent's release and the protocol the session speaks; a Hello says, a heartbeat
     /// does not.
     pub agent: Option<AgentVersion>,
+    /// What it advertises for inbound traffic; `None` leaves it as it was, for an agent that
+    /// does not say.
+    pub advertised: Option<korpis_core::node::advertised::Advertised>,
 }
 
 /// An agent's release and protocol.

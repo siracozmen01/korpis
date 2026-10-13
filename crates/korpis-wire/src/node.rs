@@ -9,8 +9,9 @@ pub use facts::{drivers_from_pb, resources_from_pb};
 pub use storage::{storage_class_to_pb, storage_classes_from_pb};
 
 use crate::spec::{console_to_pb, tier_to_pb};
-use crate::{timestamp, wire_id};
+use crate::{Result, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::node::advertised::{Advertised, PortRange};
 use korpis_core::node::driver::{
     DeviceClass, FileAccess, GpuMode, NetworkMode, RootfsSource, VolumeSemantics,
 };
@@ -18,7 +19,9 @@ use korpis_core::node::{
     Capabilities, Connectivity, DriverInfo, Node, NodeAdmin, NodeStatus, Reachability,
 };
 use korpis_core::tenancy::quota::{Bounds, Dimension};
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
+use std::net::IpAddr;
 
 enum_map!(admin_to_pb, admin_from_pb, NodeAdmin, pb::NodeAdmin, "a node admin state", {
     NodeAdmin::Active => pb::NodeAdmin::NODE_ADMIN_ACTIVE,
@@ -214,6 +217,36 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         // Measured by the control plane (§9 of docs/07-networking.md); with no overlay built
         // yet (§4 of docs/20-roadmap.md), every node measures unavailable.
         overlay: pb::Overlay::OVERLAY_UNAVAILABLE.into(),
+        addresses: n
+            .advertised
+            .iter()
+            .flat_map(|a| a.addresses.iter().map(ToString::to_string))
+            .collect(),
+        first_port: n.advertised.as_ref().map_or(0, |a| u32::from(a.ports.first())),
+        last_port: n.advertised.as_ref().map_or(0, |a| u32::from(a.ports.last())),
+        probed_at: n.probed_at.map(timestamp).into(),
         ..Default::default()
     }
+}
+
+/// What a node says it advertises (§9 of docs/07-networking.md), from the field `field`. A port
+/// range of zeros is a node that does not say, and so is no value.
+pub fn advertised_from_pb(field: &str, a: &agent::Advertised) -> Result<Option<Advertised>> {
+    if a.first_port == 0 && a.last_port == 0 {
+        return Ok(None);
+    }
+    let port = |p: u32| {
+        u16::try_from(p).map_err(|_| crate::invalid(field, format!("port {p} is out of range")))
+    };
+    let ports = PortRange::new(port(a.first_port)?, port(a.last_port)?)
+        .map_err(|e| crate::invalid(field, e.to_string()))?;
+    let addresses = a
+        .addresses
+        .iter()
+        .map(|s| {
+            s.parse::<IpAddr>()
+                .map_err(|_| crate::invalid(field, format!("{s:?} is not an IP address")))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(Some(Advertised { addresses, ports }))
 }

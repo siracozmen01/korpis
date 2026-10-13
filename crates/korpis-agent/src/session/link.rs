@@ -24,6 +24,8 @@ pub struct Facts {
     pub capacity: pb::Resources,
     /// What placements may reserve.
     pub allocatable: pb::Resources,
+    /// What it advertises for inbound traffic (§9 of docs/07-networking.md).
+    pub advertised: agent::Advertised,
 }
 
 /// What happened on the session, for whoever watches it.

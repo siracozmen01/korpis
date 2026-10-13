@@ -19,7 +19,9 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_wire::duration;
-use korpis_wire::node::{drivers_from_pb, resources_from_pb, storage_classes_from_pb};
+use korpis_wire::node::{
+    advertised_from_pb, drivers_from_pb, resources_from_pb, storage_classes_from_pb,
+};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -27,10 +29,13 @@ use tokio::sync::mpsc;
 const OUTBOUND: usize = 64;
 
 pub(super) fn facts(
-    capacity: Option<&korpis_proto::korpis::v1::Resources>,
-    allocatable: Option<&korpis_proto::korpis::v1::Resources>,
+    (capacity, allocatable): (
+        Option<&korpis_proto::korpis::v1::Resources>,
+        Option<&korpis_proto::korpis::v1::Resources>,
+    ),
     drivers: &[korpis_proto::korpis::v1::DriverInfo],
     classes: Option<&[korpis_proto::korpis::v1::StorageClassInfo]>,
+    advertised: Option<&agent::Advertised>,
 ) -> Result<NodeFacts, ConnectError> {
     let zero = korpis_proto::korpis::v1::Resources::default();
     Ok(NodeFacts {
@@ -42,6 +47,11 @@ pub(super) fn facts(
             .transpose()
             .refuse()?,
         agent: None,
+        advertised: advertised
+            .map(|a| advertised_from_pb("advertised", a))
+            .transpose()
+            .refuse()?
+            .flatten(),
     })
 }
 
@@ -71,10 +81,10 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
         agent_version: h.agent_version.clone(),
         protocol: h.protocol.clone(),
         facts: facts(
-            h.capacity.as_option(),
-            h.allocatable.as_option(),
+            (h.capacity.as_option(), h.allocatable.as_option()),
             &h.drivers,
             Some(&h.storage_classes),
+            h.advertised.as_option(),
         )?,
     })
 }

@@ -5,6 +5,7 @@
 //! (`admin`) and whether the control plane can hear it (`connectivity`) change for different
 //! reasons, so they are kept apart and the status a client shows is derived from both.
 
+pub mod advertised;
 pub mod driver;
 #[cfg(feature = "identity")]
 pub mod identity;
@@ -121,6 +122,10 @@ pub struct Node {
     pub storage_classes: Vec<StorageClass>,
     /// Measured inbound reachability.
     pub reachability: Reachability,
+    /// What it advertises for inbound traffic; none until it says.
+    pub advertised: Option<advertised::Advertised>,
+    /// When its reachability was last measured; none since its addresses last changed.
+    pub probed_at: Option<SystemTime>,
     /// What the operator decided.
     pub admin: NodeAdmin,
     /// Whether it is heard.
@@ -193,6 +198,8 @@ mod tests {
             drivers: Vec::new(),
             storage_classes: Vec::new(),
             reachability: Reachability::EdgeOnly,
+            advertised: None,
+            probed_at: None,
             admin,
             connectivity,
             agent_version: None,

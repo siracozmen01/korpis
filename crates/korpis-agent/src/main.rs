@@ -3,6 +3,7 @@
 //! `korpis-agent`: join a control plane once, then run.
 
 use clap::{Parser, Subcommand};
+use korpis_agent::advertise::Advertise;
 use korpis_agent::content::ContentStore;
 use korpis_agent::host::node::NodeHost;
 use korpis_agent::host::privileged::HelperClient;
@@ -13,6 +14,8 @@ use korpis_agent::runtime::Runtime;
 use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::state::StateDir;
+use korpis_core::node::advertised::PortRange;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -65,6 +68,15 @@ enum Command {
         /// Bytes of memory kept back from placement for the machine's own system.
         #[arg(long, default_value_t = Reserve::default().memory_bytes)]
         reserve_memory_bytes: u64,
+        /// An address clients reach this node at, such as a router's public address forwarding
+        /// to it or a LAN address for clients on the LAN; repeatable. Unset: the node's own
+        /// address towards the control plane, if it is routable on the internet. Either way the
+        /// control plane measures it before anything relies on it.
+        #[arg(long = "advertise-address")]
+        advertise_address: Vec<IpAddr>,
+        /// The ports endpoints on this node are allocated from, as `FIRST-LAST`.
+        #[arg(long, default_value = "30000-32767")]
+        ports: PortRange,
     },
 }
 
@@ -84,12 +96,15 @@ async fn shutdown() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
-/// Where the node's runtime and host are.
+/// Where the node's runtime and host are, and what it keeps back and offers.
 struct Node {
     driver: String,
     driver_socket: PathBuf,
     helper_socket: PathBuf,
     plain_http: Vec<String>,
+    reserve: Reserve,
+    advertise_address: Vec<IpAddr>,
+    ports: PortRange,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
@@ -98,9 +113,17 @@ async fn serve<R: Runtime, H: Host>(
     state: &StateDir,
     runtime: R,
     host: H,
-    reserve: Reserve,
+    node: &Node,
 ) -> ExitCode {
-    let facts = match facts_of(&runtime, &host, reserve).await {
+    let server = match state.load() {
+        Ok(identity) => identity.server,
+        Err(e) => {
+            tracing::error!(error = %e, "the node's state could not be read");
+            return ExitCode::FAILURE;
+        }
+    };
+    let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
+    let facts = match facts_of(&runtime, &host, node.reserve, advertise).await {
         Ok(f) => f,
         Err(e) => {
             tracing::error!(error = %e, "the driver could not be described");
@@ -123,11 +146,12 @@ async fn serve<R: Runtime, H: Host>(
 }
 
 /// Runs the agent with the driver `node` names.
-async fn run(state: &StateDir, node: Node, reserve: Reserve) -> ExitCode {
+async fn run(state: &StateDir, node: Node) -> ExitCode {
     match node.driver.as_str() {
-        "memory" => serve(state, InMemory::new(), InMemoryHost::new(), reserve).await,
+        "memory" => serve(state, InMemory::new(), InMemoryHost::new(), &node).await,
         "oci" => {
-            let content = match ContentStore::open(&state.root().join("content"), node.plain_http) {
+            let plain_http = node.plain_http.clone();
+            let content = match ContentStore::open(&state.root().join("content"), plain_http) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!(error = %e, "the content store could not be opened");
@@ -135,7 +159,7 @@ async fn run(state: &StateDir, node: Node, reserve: Reserve) -> ExitCode {
                 }
             };
             let host = NodeHost::new(HelperClient::new(&node.helper_socket), content);
-            serve(state, DriverRuntime::connect(&node.driver_socket), host, reserve).await
+            serve(state, DriverRuntime::connect(&node.driver_socket), host, &node).await
         }
         other => {
             tracing::error!(driver = %other, "no such driver in this build");
@@ -174,10 +198,21 @@ async fn main() -> ExitCode {
             plain_http,
             reserve_cpu_millis,
             reserve_memory_bytes,
+            advertise_address,
+            ports,
         } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
-            run(&state, Node { driver, driver_socket, helper_socket, plain_http }, reserve).await
+            let node = Node {
+                driver,
+                driver_socket,
+                helper_socket,
+                plain_http,
+                reserve,
+                advertise_address,
+                ports,
+            };
+            run(&state, node).await
         }
     }
 }
