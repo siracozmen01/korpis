@@ -20,6 +20,7 @@ mod classify;
 mod denials;
 mod effects;
 mod enroll;
+mod identity;
 mod journal;
 mod leases;
 mod lifecycle;

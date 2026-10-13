@@ -234,7 +234,8 @@ pub const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820
 pub const VERSION: &str = "1.0.0";
 
 /// A thin recipe (§2 of docs/09-recipes.md): an image by digest, an entry that records each
-/// start in its volume, and a configured greeting it writes there.
+/// start in its volume, a configured greeting it writes there, and what it finds of its
+/// identity socket (§9.5 of docs/08-identity.md).
 fn sleeper() -> String {
     format!(
         r#"apiVersion: korpis.dev/v1
@@ -244,7 +245,14 @@ runtime:
   targets:
     - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
   entry:
-    command: [/bin/sh, -c, "echo $GREETING > /data/greeting; date +%s%N >> /data/starts; exec sleep 3600"]
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        echo $GREETING > /data/greeting;
+        {{ test -S /run/korpis/identity.sock && echo socket;
+        touch /run/korpis/x 2>/dev/null || echo read-only; }} > /data/identity;
+        date +%s%N >> /data/starts; exec sleep 3600
 preset:
   lifecycle: persistent
   console: none

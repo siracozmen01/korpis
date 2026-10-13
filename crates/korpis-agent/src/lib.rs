@@ -11,6 +11,7 @@ pub mod content;
 pub mod durable;
 pub mod held;
 pub mod host;
+pub mod identity;
 pub mod join;
 pub mod journal;
 pub mod lease;

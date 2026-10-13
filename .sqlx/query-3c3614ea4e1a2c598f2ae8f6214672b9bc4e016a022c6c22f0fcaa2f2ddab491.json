@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workload_credential\n                    (secret_hash, workload_id, subject, node_id, epoch, issued_at, expires_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3c3614ea4e1a2c598f2ae8f6214672b9bc4e016a022c6c22f0fcaa2f2ddab491"
+}

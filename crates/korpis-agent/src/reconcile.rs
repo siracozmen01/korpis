@@ -17,6 +17,7 @@ mod workload;
 
 use crate::held::HeldSet;
 use crate::host::Host;
+use crate::identity::IdentitySockets;
 use crate::journal::JournalHandle;
 use crate::lease::Leases;
 use crate::runtime::Runtime;
@@ -27,6 +28,7 @@ use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use progress::Progress;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::{broadcast, mpsc, watch};
 
@@ -77,6 +79,9 @@ pub struct Wiring {
     pub events: broadcast::Receiver<Event>,
     /// How often it looks without being told to.
     pub period: Duration,
+    /// The workloads' identity sockets (§9.5 of docs/08-identity.md); none where the node
+    /// gives its workloads no identity, as in tests of other things.
+    pub identity: Option<Arc<IdentitySockets>>,
 }
 
 /// The reconciler.
@@ -204,6 +209,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 ..Tracked::default()
             };
             self.tracked.insert(workload.clone(), t);
+            // A restarted agent serves the socket again at the path the container mounts.
+            if let Some(Err(e)) = self.wiring.identity.as_ref().map(|i| i.ensure(&workload)) {
+                tracing::error!(%workload, error = %e, "an identity socket could not be served");
+            }
             let mut e = effect(Some(&workload), "node.adopt", true);
             e.after.insert("runtime_id".into(), text(&o.runtime_id));
             e.after.insert("running".into(), text(if running { "true" } else { "false" }));
@@ -214,6 +223,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Forgets a workload that left the set with nothing left of it on the node.
     fn forget(&mut self, workload: &str) {
         self.tracked.remove(workload);
+        if let Some(identity) = &self.wiring.identity {
+            identity.remove(workload);
+        }
         if let Err(e) = self.progress.forget(workload) {
             tracing::error!(error = %e, "progress could not be kept");
         }

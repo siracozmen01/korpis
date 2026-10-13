@@ -24,7 +24,10 @@ const MAX_STRING: usize = 64 << 10;
 /// The most arguments, environment entries, or mounts accepted.
 const MAX_ITEMS: usize = 4096;
 /// Where inside a container nothing may be mounted over: the kernel's interfaces, and the root.
-const RESERVED: [&str; 4] = ["/", "/proc", "/sys", "/dev"];
+const RESERVED: [&str; 5] = ["/", "/proc", "/sys", "/dev", IDENTITY_MOUNT];
+
+/// Where a workload's identity socket directory is mounted.
+pub const IDENTITY_MOUNT: &str = "/run/korpis";
 
 /// Why a spec is refused: a security event, reported as one.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -43,8 +46,11 @@ fn refuse<T>(field: &str, why: &str) -> Result<T, Violation> {
 /// What the driver allows, beyond the tier's invariants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Policy {
-    /// The directory the helper keeps volumes under; no other host path is ever mounted.
+    /// The directory the helper keeps volumes under.
     pub volume_root: PathBuf,
+    /// The directory the agent makes the workloads' identity sockets under, one directory each
+    /// (§9.5 of docs/08-identity.md). These two roots are the only host paths ever mounted.
+    pub identity_root: PathBuf,
 }
 
 /// A spec that passed every check.
@@ -106,6 +112,21 @@ fn mounts(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation>
     Ok(())
 }
 
+/// The identity directory, if any, is the one the agent made for this workload: exactly the
+/// workload's directory under the identity root, so no spec can mount another's socket.
+fn identity(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
+    if spec.identity_dir.is_empty() {
+        return Ok(());
+    }
+    let own = policy.identity_root.join(&spec.workload);
+    let plain =
+        spec.workload.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_');
+    if !plain || !clean_absolute(&spec.identity_dir) || Path::new(&spec.identity_dir) != own {
+        return refuse("identity_dir", "only the workload's own identity directory is mounted");
+    }
+    Ok(())
+}
+
 fn process(spec: &driver::PreparedSpec) -> Result<(), Violation> {
     if spec.command.len() + spec.args.len() > MAX_ITEMS || spec.env.len() > MAX_ITEMS {
         return refuse("command", "too many arguments or variables");
@@ -160,6 +181,7 @@ pub fn validate(spec: driver::PreparedSpec, policy: &Policy) -> Result<Valid, Vi
     }
     ids(&spec)?;
     mounts(&spec, policy)?;
+    identity(&spec, policy)?;
     process(&spec)?;
     resources(&spec)?;
     Ok(Valid(spec))
@@ -170,7 +192,10 @@ mod tests {
     use super::*;
 
     fn policy() -> Policy {
-        Policy { volume_root: PathBuf::from("/var/lib/korpis/volumes") }
+        Policy {
+            volume_root: PathBuf::from("/var/lib/korpis/volumes"),
+            identity_root: PathBuf::from("/var/lib/korpis-agent/identity"),
+        }
     }
 
     fn honest() -> driver::PreparedSpec {
@@ -239,5 +264,23 @@ mod tests {
         let port = |s: &mut driver::PreparedSpec| s.ports.push(driver::PortMapping::default());
         assert_eq!(refused(port), "ports");
         assert_eq!(refused(|s| s.labels = driver::RuntimeLabels::default().into()), "labels");
+    }
+
+    #[test]
+    fn only_the_workloads_own_identity_directory_is_mounted() {
+        let mut own = honest();
+        own.identity_dir = "/var/lib/korpis-agent/identity/wl_1".into();
+        assert!(validate(own, &policy()).is_ok());
+        let other = |s: &mut driver::PreparedSpec| {
+            s.identity_dir = "/var/lib/korpis-agent/identity/wl_2".into();
+        };
+        assert_eq!(refused(other), "identity_dir", "another workload's socket");
+        let up = |s: &mut driver::PreparedSpec| {
+            s.identity_dir = "/var/lib/korpis-agent/identity/wl_1/..".into();
+        };
+        assert_eq!(refused(up), "identity_dir");
+        assert_eq!(refused(|s| s.identity_dir = "/etc".into()), "identity_dir");
+        let shadow = |s: &mut driver::PreparedSpec| s.mounts[0].destination = IDENTITY_MOUNT.into();
+        assert_eq!(refused(shadow), "mounts.destination", "a volume cannot cover the socket");
     }
 }

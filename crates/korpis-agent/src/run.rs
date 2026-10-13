@@ -7,6 +7,7 @@
 //! journal still holds in memory before the process exits.
 
 use crate::host::Host;
+use crate::identity::IdentitySockets;
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::reconcile::progress::Progress;
@@ -55,7 +56,7 @@ impl Default for Reserve {
 }
 
 /// How the agent runs.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Options {
     /// How often the reconciler looks without being told to.
     pub period: Duration,
@@ -63,6 +64,9 @@ pub struct Options {
     pub maintain_every: Duration,
     /// The journal's bound.
     pub journal: Bounds,
+    /// Where the workloads' identity sockets are made, one directory each; `identity` in the
+    /// state directory when unset. The driver must be given the same root.
+    pub identity_root: Option<std::path::PathBuf>,
 }
 
 impl Default for Options {
@@ -71,6 +75,7 @@ impl Default for Options {
             period: Duration::from_secs(2),
             maintain_every: Duration::from_secs(5),
             journal: Bounds::default(),
+            identity_root: None,
         }
     }
 }
@@ -161,6 +166,10 @@ impl Agent {
             outbound: link.outbound.clone(),
             events: link.events.subscribe(),
             period: options.period,
+            identity: Some(IdentitySockets::new(
+                options.identity_root.unwrap_or_else(|| state.root().join("identity")),
+                link.credentials.clone(),
+            )),
         };
         let reconciler = Reconciler::new(runtime, host, wiring, progress);
         let tasks = vec![

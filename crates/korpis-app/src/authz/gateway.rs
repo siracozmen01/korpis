@@ -9,7 +9,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, GrantWrite, RecipeSource, Store, Tx};
-use korpis_core::authz::credential::Secret;
+use korpis_core::authz::credential::{Secret, SecretKind};
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::principal::Principal;
 use korpis_core::workload::plan::Proposing;
@@ -17,19 +17,26 @@ use std::net::IpAddr;
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Authenticates an API token secret presented from `source_ip`.
+    /// Authenticates a secret presented from `source_ip`: an API token's, or a running
+    /// workload's credential (§9.5 of docs/08-identity.md).
     pub async fn authenticate(
         &self,
         presented: &str,
         source_ip: Option<IpAddr>,
     ) -> Result<Caller, AppError> {
-        let secret = Secret::presented(presented).ok_or(AppError::Unauthenticated)?;
-        let token = self
-            .store
-            .authenticate(&secret.digest(), self.clock.now())
-            .await?
-            .ok_or(AppError::Unauthenticated)?;
-        Ok(Caller::new(Principal::Token(token.id), source_ip, false))
+        let (kind, secret) = Secret::presented_any(presented).ok_or(AppError::Unauthenticated)?;
+        let now = self.clock.now();
+        let principal = match kind {
+            SecretKind::ApiToken => {
+                let token = self.store.authenticate(&secret.digest(), now).await?;
+                Principal::Token(token.ok_or(AppError::Unauthenticated)?.id)
+            }
+            SecretKind::Workload => {
+                let held = self.store.authenticate_workload(&secret.digest(), now).await?;
+                held.ok_or(AppError::Unauthenticated)?.subject
+            }
+        };
+        Ok(Caller::new(principal, source_ip, false))
     }
 
     /// Evaluates `action` on `object` for `caller` without recording anything; through only the

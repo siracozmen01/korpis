@@ -5,6 +5,7 @@
 
 mod assign;
 mod enroll;
+mod identity;
 mod journal;
 mod lease;
 mod observe;
@@ -14,6 +15,7 @@ pub use assign::AssignmentSet;
 pub use enroll::{
     CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
 };
+pub use identity::{CredentialRefusal, IssuedCredential};
 pub use lease::LeaseAnswer;
 pub use session::{AGENT_PROTOCOLS, Hello, NodeProof, Session, SessionTerms};
 

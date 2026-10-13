@@ -85,6 +85,10 @@ message PreparedSpec {
   uint32 uid_base = 12;
   uint32 uid_count = 13;
   repeated PortMapping ports = 14;
+  // The directory holding the workload's identity socket, which the agent made for it alone:
+  // mounted read-only at /run/korpis inside the workload (§9.5 of docs/08-identity.md). Empty
+  // when the node gives the workload no identity.
+  string identity_dir = 15;
 }
 
 message Mount {

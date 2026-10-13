@@ -4,6 +4,7 @@
 //! releases (§4.2, §4.5 of docs/02-architecture.md). A lease request is answered on the same
 //! stream, echoing its nonce.
 
+use super::credential;
 use super::session::facts;
 use crate::api::ServerApp;
 use crate::api::wire::{Refuse, id, wire_id};
@@ -115,6 +116,7 @@ impl Uplink {
             Some(Up::LeaseReleased(r)) => self.released(r).await,
             Some(Up::Journal(j)) => self.journal(j).await,
             Some(Up::Observation(o)) => self.observed(o).await,
+            Some(Up::CredentialRequest(r)) => self.credential(r).await,
             // Feasibility answers and content status arrive with their consumers.
             _ => Ok(()),
         };
@@ -128,6 +130,18 @@ impl Uplink {
             id(IdKind::Workload, "workload", &r.workload).refuse().map_err(|e| e.to_string())?;
         let a = self.app.request_lease(self.node, workload).await.map_err(|e| e.to_string())?;
         self.tx.send(answer(r, a)).await.map_err(|e| e.to_string())
+    }
+
+    async fn credential(&self, r: &agent::CredentialRequest) -> Result<(), String> {
+        let issued = match credential::workload(r) {
+            Ok(workload) => self
+                .app
+                .issue_workload_credential(self.node, workload)
+                .await
+                .map_err(|e| credential::unavailable(&e)),
+            Err(e) => Err(e),
+        };
+        self.tx.send(credential::answer(r, issued)).await.map_err(|e| e.to_string())
     }
 
     async fn journal(&self, j: &agent::JournalRecords) -> Result<(), String> {

@@ -24,9 +24,13 @@ struct Cli {
     /// The node's content store, which the agent fills and the driver only reads.
     #[arg(long, default_value = "/var/lib/korpis-agent/content")]
     content: PathBuf,
-    /// The directory the helper keeps volumes under: no other host path is ever mounted.
+    /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
+    /// The directory the agent makes workload identity sockets under; with the volume root,
+    /// the only host paths ever mounted.
+    #[arg(long, default_value = "/var/lib/korpis-agent/identity")]
+    identity_root: PathBuf,
     /// A user allowed to connect, by uid; repeatable. Without one, only the driver's own user.
     #[arg(long = "allow-uid")]
     allow_uids: Vec<u32>,
@@ -59,7 +63,10 @@ async fn run(cli: Cli) -> Result<(), String> {
         .await
         .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?;
     let listener = bind(&cli.socket).map_err(|e| format!("{}: {e}", cli.socket.display()))?;
-    let (driver, watcher) = Driver::new(containerd, Policy { volume_root: cli.volume_root });
+    let (driver, watcher) = Driver::new(
+        containerd,
+        Policy { volume_root: cli.volume_root, identity_root: cli.identity_root },
+    );
     tracing::info!(socket = %cli.socket.display(), ?allowed, "serving");
     serve(listener, allowed, driver, shutdown()).await;
     watcher.abort();

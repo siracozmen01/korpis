@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::authz::credential::ApiToken;
+use korpis_core::authz::credential::{ApiToken, WorkloadCredential};
 use korpis_core::authz::{GrantRecord, Node, ObjectRef};
 use korpis_core::principal::Principal;
 use std::future::Future;
@@ -84,6 +84,14 @@ pub trait CredentialRead {
         digest: &[u8; 32],
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Option<ApiToken>>> + Send;
+
+    /// The live workload credential whose secret has `digest`, if its workload is still placed,
+    /// authoritatively, on the node it was issued through (§9.5 of docs/08-identity.md).
+    fn authenticate_workload(
+        &self,
+        digest: &[u8; 32],
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<WorkloadCredential>>> + Send;
 }
 
 /// Creating API tokens.
@@ -94,6 +102,14 @@ pub trait CredentialWrite {
         token: &ApiToken,
         digest: &[u8; 32],
         created_by: &Principal,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Stores a workload credential by the digest of its secret, and forgets the ones that have
+    /// expired.
+    fn insert_workload_credential(
+        &mut self,
+        credential: &WorkloadCredential,
+        digest: &[u8; 32],
     ) -> impl Future<Output = StoreResult<()>> + Send;
 }
 

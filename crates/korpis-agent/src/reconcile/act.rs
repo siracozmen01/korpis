@@ -90,6 +90,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     async fn build(&mut self, a: &agent::Assignment, t: &mut Tracked) -> Result<String, Failure> {
         let mut spec = self.prepare(a, t).await?;
         self.mount(a, &mut spec).await?;
+        if let Some(identity) = &self.wiring.identity {
+            let dir = identity.ensure(&a.workload).map_err(|e| {
+                Failure(format!("the workload's identity socket could not be served: {e}"))
+            })?;
+            spec.identity_dir = dir.to_string_lossy().into_owned();
+        }
         let power = a.power.as_option();
         spec.labels = driver::RuntimeLabels {
             workload: a.workload.clone(),

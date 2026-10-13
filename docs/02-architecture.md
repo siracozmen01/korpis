@@ -910,14 +910,23 @@ namespace.
 > so the cost is a process per workload in active use, not per workload in existence.
 
 **Each workload has an identity socket, and the supervisor serves it.** The supervisor creates one
-Unix socket per workload it runs and hands its path to the driver, which mounts it read-only at
-`/run/korpis/identity.sock` inside that workload and nowhere else. A request on it is forwarded as
-a `CredentialRequest` naming the workload the socket was created for; the request carries nothing
-the workload chose about who it is. The control plane decides whether to answer (§9.5 of
+Unix socket per workload it runs, in a directory of that workload's own under its identity root,
+and hands the directory to the driver, which mounts it read-only at `/run/korpis` inside that
+workload and nowhere else; the socket is `/run/korpis/identity.sock`. A request on it is forwarded
+as a `CredentialRequest` naming the workload the socket was created for; the request carries
+nothing the workload chose about who it is. The control plane decides whether to answer (§9.5 of
 `08-identity.md`). The supervisor holds no credential afterwards: it passes the answer back and
 keeps nothing.
 
-> Added 2026-10-13, with the workload identity of §9.5 of `08-identity.md`.
+The directory is mounted rather than the socket because a supervisor that restarts binds the
+socket again, as a new file, and a mount of the old file would keep pointing at nothing; the
+container keeps the directory and finds the new socket in it. On the host, the identity root is
+readable by the supervisor's user and group alone, so no other local user can connect to a
+workload's socket and obtain its credential. Anyone who can act as the supervisor can, which is no
+more than the supervisor already holds.
+
+> Added 2026-10-13, with the workload identity of §9.5 of `08-identity.md`. The directory mount
+> and the root's mode were settled when the socket was built.
 
 **SFTP and the file manager are the same worker.** They are the two highest-risk surfaces in any
 panel, arbitrary paths, arbitrary names, arbitrary sizes, from untrusted users. Giving them one
@@ -947,7 +956,9 @@ So the boundary is drawn at each driver, not at the supervisor:
 - **Every driver validates every spec against the invariants of its tier**, independently of the
   supervisor, and refuses anything outside them: for `container`, user-namespace remapping,
   the seccomp profile, `no-new-privileges`, a read-only root filesystem, the dropped capability set,
-  and no mount other than the volume mounts the helper prepared (§2 of `04-runtimes.md`). A spec
+  and no mount other than the volume mounts the helper prepared and the workload's own identity
+  directory, read-only and only the one under the identity root that bears the workload's
+  identifier (§2 of `04-runtimes.md`). A spec
   the supervisor could not have produced from an honest assignment is refused, logged, and reported
   as a security event.
 - **Each driver runs as its own user with access only to what its runtime needs**, so the union of

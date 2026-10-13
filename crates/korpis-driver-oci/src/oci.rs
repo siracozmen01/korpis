@@ -10,7 +10,7 @@
 
 use crate::image::ImageConfig;
 use crate::seccomp::{Seccomp, profile};
-use crate::validate::Valid;
+use crate::validate::{IDENTITY_MOUNT, Valid};
 use serde::Serialize;
 
 /// The OCI runtime specification version written.
@@ -304,6 +304,13 @@ pub fn runtime_spec(
         volume.uid_mappings.clone_from(&map);
         volume.gid_mappings.clone_from(&map);
         mounts.push(volume);
+    }
+    // The identity socket's directory: read-only, and not id-mapped, so the socket keeps the
+    // agent's ownership and the workload connects through its mode (§9.5 of
+    // docs/08-identity.md).
+    if !s.identity_dir.is_empty() {
+        let options = ["rbind", "nosuid", "nodev", "noexec", "ro"];
+        mounts.push(mount(IDENTITY_MOUNT, "bind", &s.identity_dir, &options));
     }
     let caps: Vec<&'static str> = CAPABILITIES.to_vec();
     let cwd =

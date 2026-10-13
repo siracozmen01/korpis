@@ -67,6 +67,23 @@ fn volumes_resolve(valid: &Valid, policy: &Policy) -> DriverResult<()> {
             return Err(Violation { field: "mounts.source".into(), why: why.into() }.into());
         }
     }
+    identity_resolves(valid, policy)
+}
+
+/// The identity directory, if any, resolves to the workload's own directory under the identity
+/// root, and not through a symbolic link to another workload's.
+fn identity_resolves(valid: &Valid, policy: &Policy) -> DriverResult<()> {
+    let spec = valid.spec();
+    if spec.identity_dir.is_empty() {
+        return Ok(());
+    }
+    let own = std::fs::canonicalize(&policy.identity_root)?.join(&spec.workload);
+    let real = std::fs::canonicalize(&spec.identity_dir)
+        .map_err(|e| DriverError::Rejected(format!("the identity directory is not made: {e}")))?;
+    if real != own || !real.is_dir() {
+        let why = "the identity directory resolves to the workload's own";
+        return Err(Violation { field: "identity_dir".into(), why: why.into() }.into());
+    }
     Ok(())
 }
 

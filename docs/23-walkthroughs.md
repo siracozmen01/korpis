@@ -856,7 +856,12 @@ credential its node obtains for it while it runs there (§9.5 of `08-identity.md
 keyed by name, so one extension installed into two organizations would have been one subject; it
 is keyed by the installation (§3.2 of `01-model.md`). The events the provider's slowness produces
 now have a log that says what an event is and how a consumer keeps its place (§5 of
-`15-observability.md`).
+`15-observability.md`). Building the credential then found two more gaps. The driver's door
+(§6.1 of `02-architecture.md`) allowed no mount but volumes, so the socket could not reach the
+extension at all until the door named the workload's own identity directory as the one other
+mount, read-only. And the identity root was readable by every user on the host, so any local
+process could have asked a workload's socket for its credential; it is now the supervisor's alone
+(§6 of `02-architecture.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

@@ -132,7 +132,8 @@ JOIN=$(korpis --json node token create "e2e-$$")
 start helper "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$NODE/volumes" \
     --state "$NODE/helper"
 start driver "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
-    --content "$NODE/agent/content" --volume-root "$NODE/volumes"
+    --content "$NODE/agent/content" --volume-root "$NODE/volumes" \
+    --identity-root "$NODE/agent/identity"
 until_ok 10 test -S "$NODE/helper.sock"
 until_ok 10 test -S "$NODE/driver.sock"
 agent() {

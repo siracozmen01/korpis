@@ -88,6 +88,8 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let vol = volume(&node);
     assert_eq!(lines(&vol.join("greeting")).await, ["hello"], "the configured value");
     assert_eq!(lines(&vol.join("starts")).await.len(), 1);
+    let identity = lines(&vol.join("identity")).await;
+    assert_eq!(identity, ["socket", "read-only"], "its identity socket, mounted read-only");
     let runtime = node.runtime();
     let pid = runtime.inspect(&observed.runtime_id).await.unwrap().pid;
     assert!(pid > 0);

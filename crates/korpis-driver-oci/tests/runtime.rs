@@ -76,7 +76,10 @@ async fn started(dir: &Path) -> DriverRuntime {
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let socket = dir.join("driver.sock");
     let listener = bind(&socket).unwrap();
-    let (d, _watcher) = Driver::new(containerd, Policy { volume_root: dir.join("volumes") });
+    let (d, _watcher) = Driver::new(
+        containerd,
+        Policy { volume_root: dir.join("volumes"), identity_root: dir.join("identity") },
+    );
     let own = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata("/proc/self").unwrap());
     tokio::spawn(serve(listener, BTreeSet::from([own]), d, std::future::pending()));
     DriverRuntime::connect(&socket)

@@ -3,6 +3,7 @@
 //! `AgentService` (§4 of docs/02-architecture.md): enrollment, and the control stream. The
 //! agent dials out to the same listener the clients use, over the same TLS.
 
+mod credential;
 mod downlink;
 mod session;
 mod uplink;

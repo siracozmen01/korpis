@@ -42,9 +42,10 @@ fn spec(command: &[&str]) -> Valid {
             volume: "world".into(),
             ..Default::default()
         }],
+        identity_dir: "/i/wl_1".into(),
         ..Default::default()
     };
-    validate(s, &Policy { volume_root: "/v".into() }).unwrap()
+    validate(s, &Policy { volume_root: "/v".into(), identity_root: "/i".into() }).unwrap()
 }
 
 fn image() -> ImageConfig {
@@ -83,6 +84,11 @@ fn the_tiers_hardening_is_always_there() {
         u64::from(FIRST_WORKLOAD_ID),
         "an idmapped mount"
     );
+    let identity =
+        j["mounts"].as_array().unwrap().iter().find(|m| m["destination"] == "/run/korpis").unwrap();
+    assert_eq!(identity["source"], "/i/wl_1");
+    assert!(identity["options"].as_array().unwrap().iter().any(|o| o == "ro"));
+    assert!(identity.get("uidMappings").is_none_or(|m| m.as_array().is_none_or(Vec::is_empty)));
     let r = &j["linux"]["resources"];
     assert_eq!(
         (r["memory"]["limit"].as_i64(), r["pids"]["limit"].as_i64()),

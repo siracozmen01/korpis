@@ -181,8 +181,11 @@ containerd's socket and to nothing else the agent holds (§6.1 of `02-architectu
 the driver protocol on `/run/korpis/driver-oci.sock`, to the users named by `--allow-uid` and, when
 none is named, to its own user only; it reads images from the node's content store at
 `/var/lib/korpis-agent/content`, which the agent fills, and mounts nothing but directories under
-`/var/lib/korpis/volumes`, which the helper keeps; `--socket`, `--content`, `--volume-root`, and
-`--containerd` move them. Stopping
+`/var/lib/korpis/volumes`, which the helper keeps, and each workload's own identity directory under
+`/var/lib/korpis-agent/identity`, which the agent keeps at mode `0750` (§6 of
+`02-architecture.md`); `--socket`, `--content`, `--volume-root`, `--identity-root`, and
+`--containerd` move them, and an agent given another state directory needs the driver told the
+same identity root. Stopping
 the driver stops nothing that runs: the containers are containerd's, and the next driver reads
 them back with `Recover`.
 

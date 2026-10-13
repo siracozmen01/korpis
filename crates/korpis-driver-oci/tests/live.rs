@@ -81,10 +81,25 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     std::fs::create_dir_all(volumes.join("data")).unwrap();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
     let c = Containerd::connect(Path::new(SOCKET), &content).await.unwrap();
-    let valid = validate(spec(&volumes, &nonce), &Policy { volume_root: volumes.clone() }).unwrap();
-    let id = c.create(&valid, &Policy { volume_root: volumes.clone() }).await.unwrap();
+    let valid = validate(
+        spec(&volumes, &nonce),
+        &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") },
+    )
+    .unwrap();
+    let id = c
+        .create(
+            &valid,
+            &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") },
+        )
+        .await
+        .unwrap();
     assert_eq!(
-        c.create(&valid, &Policy { volume_root: volumes.clone() }).await.unwrap(),
+        c.create(
+            &valid,
+            &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") }
+        )
+        .await
+        .unwrap(),
         id,
         "idempotent"
     );

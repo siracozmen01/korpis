@@ -56,11 +56,14 @@ fn helper(socket: &Path, volumes: &Path, state: &Path) {
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
 }
 
-/// The oci driver, serving on `socket` for the rest of the test.
-async fn driver(socket: &Path, content: &Path, volumes: &Path) {
-    let containerd = Containerd::connect(Path::new(CONTAINERD), content).await.unwrap();
+/// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
+/// from the agent's default root, `identity` in its state directory.
+async fn driver(socket: &Path, state: &StateDir, volumes: &Path) {
+    let content = state.root().join("content");
+    let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let listener = korpis_driver_oci::serve::bind(socket).unwrap();
-    let policy = Policy { volume_root: volumes.to_owned() };
+    let identity_root = state.root().join("identity");
+    let policy = Policy { volume_root: volumes.to_owned(), identity_root };
     let (d, _watcher) = korpis_driver_oci::service::Driver::new(containerd, policy);
     let allowed = BTreeSet::from([0]);
     tokio::spawn(korpis_driver_oci::serve::serve(listener, allowed, d, std::future::pending()));
@@ -79,7 +82,7 @@ impl Node {
         let (driver_socket, helper_socket) =
             (dir.path().join("driver.sock"), dir.path().join("helper.sock"));
         helper(&helper_socket, &volumes, &dir.path().join("helper"));
-        driver(&driver_socket, &state.root().join("content"), &volumes).await;
+        driver(&driver_socket, &state, &volumes).await;
         Self {
             _dir: dir,
             state,

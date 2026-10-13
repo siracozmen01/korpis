@@ -104,6 +104,13 @@ impl ControlPlane {
         pb::WorkloadServiceClient::new(self.http(), self.config())
     }
 
+    /// The workload service as whoever `secret` authenticates.
+    pub fn workloads_as(&self, secret: &str) -> pb::WorkloadServiceClient<HttpClient> {
+        let config = ClientConfig::new(self.url.parse().unwrap())
+            .with_default_header("authorization", format!("Bearer {secret}"));
+        pb::WorkloadServiceClient::new(self.http(), config)
+    }
+
     /// A project in the root organization, whose policy runs unsigned recipes: the agent's
     /// tests are about the node, not about trust (§7 of docs/09-recipes.md).
     pub async fn project(&self) -> String {

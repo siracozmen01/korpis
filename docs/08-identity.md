@@ -1002,8 +1002,9 @@ exercises: each token is minted against current authority.
 
 **A workload holds no long-lived secret. Its node vouches for it, and only while it runs there.**
 
-The agent serves each workload it runs a Unix socket of its own, which the driver mounts
-read-only into the workload at `/run/korpis/identity.sock`. A process in the workload asks it for
+The agent serves each workload it runs a Unix socket of its own, whose directory the driver mounts
+read-only into the workload at `/run/korpis`, so the socket is `/run/korpis/identity.sock` (§6 of
+`02-architecture.md`). A process in the workload asks it for
 a credential. The agent forwards the request over its stream, naming the workload the socket
 belongs to, and the control plane issues the credential only if the workload is assigned to that
 node, authoritatively, under a lease that has not expired. The workload is then authenticated as
@@ -1024,9 +1025,15 @@ created it for that workload's container alone.
 **What it does not stop.** A compromised node can obtain credentials for every workload assigned
 to it, which is no more than it already has, since it runs them and reads their memory (§9 of
 `17-security.md`). It cannot obtain one for a workload placed elsewhere, because the control plane
-checks the placement, not the node's claim. A credential stolen out of a workload is usable until
-it expires, at most fifteen minutes, and moving or retiring the workload ends renewal; that window
-is the cost of not making every API call round-trip to the node.
+checks the placement, not the node's claim. A credential stolen out of a workload is usable from
+anywhere until it expires, at most fifteen minutes, while the workload stays where it was; that
+window is the cost of not making every API call round-trip to the node.
+
+> Corrected 2026-10-13, when the credential was built. The first version said that moving or
+> retiring the workload ends renewal, leaving a stolen credential good for the rest of its
+> fifteen minutes. Authentication now looks up, with the credential, the workload's authoritative
+> placement on the node it was issued to, so a move or a retirement ends every credential issued
+> for the old placement at once, at the cost of that lookup on every call a workload makes.
 
 **Why not a secret in the intent.** A token written into the workload's configuration would be
 stored in the database in the clear, re-delivered on every placement, and readable by anyone with

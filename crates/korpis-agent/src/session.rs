@@ -7,6 +7,7 @@
 //! job meanwhile from the set it holds (§4.6).
 
 use crate::held::{HeldSet, Refused};
+use crate::identity::Credentials;
 use crate::journal::{JournalHandle, Shipper};
 use crate::state::{Identity, StateDir};
 use crate::tls;
@@ -77,6 +78,9 @@ pub struct Link {
     pub outbound: mpsc::Sender<agent::AgentMessage>,
     /// What happens, for watching.
     pub events: broadcast::Sender<Event>,
+    /// Workload credential requests, sent up this session and answered down it (§9.5 of
+    /// docs/08-identity.md).
+    pub credentials: Arc<Credentials>,
 }
 
 /// The session.
@@ -89,6 +93,7 @@ pub struct Session {
     inbound: mpsc::Sender<Down>,
     outbound: mpsc::Receiver<agent::AgentMessage>,
     events: broadcast::Sender<Event>,
+    credentials: Arc<Credentials>,
 }
 
 impl std::fmt::Debug for Session {
@@ -154,13 +159,17 @@ impl Session {
         let (inbound, inbound_rx) = mpsc::channel(256);
         let (outbound_tx, outbound) = mpsc::channel(1024);
         let (events, _) = broadcast::channel(64);
+        let credentials = Credentials::new(outbound_tx.clone());
         let link = Link {
             held: held_rx,
             inbound: inbound_rx,
             outbound: outbound_tx,
             events: events.clone(),
+            credentials: credentials.clone(),
         };
-        (Self { identity, state, facts, journal, held, inbound, outbound, events }, link)
+        let session =
+            Self { identity, state, facts, journal, held, inbound, outbound, events, credentials };
+        (session, link)
     }
 
     /// Holds the session for as long as the process runs, dialling again whenever it drops.
@@ -299,6 +308,10 @@ impl Session {
                 Vec::new()
             }
             Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
+            Some(Down::WorkloadCredential(answer)) => {
+                self.credentials.answer(*answer);
+                Vec::new()
+            }
             Some(other) => {
                 let _ = self.inbound.send(other).await;
                 Vec::new()

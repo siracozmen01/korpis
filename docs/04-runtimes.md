@@ -55,7 +55,10 @@ hidden: until the networking of Phase 1 the network namespace holds only loopbac
 publishes a port is refused rather than accepted and left unreachable; an image whose user is a
 name rather than a number is refused, because resolving it means reading the image's own
 `/etc/passwd`, which the driver does not do; and a volume is bind-mounted with an idmapped mount,
-so its files keep workload-relative ids on disk.
+so its files keep workload-relative ids on disk. The workload's identity directory is the one
+mount that is not idmapped: it is bound read-only, `nosuid`, `nodev`, and `noexec` at
+`/run/korpis`, keeps the supervisor's ownership, and is reached through the socket's mode, so the
+workload can connect and cannot replace or remove the socket (§6 of `02-architecture.md`).
 
 **The tier is what an operator reasons about.** "This tenant runs code I did not write" →
 `microvm`. "This is my own service" → `container`. "This is a trusted helper and I need bare
