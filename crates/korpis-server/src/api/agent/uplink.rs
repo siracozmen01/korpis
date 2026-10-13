@@ -18,6 +18,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_wire::duration;
 use korpis_wire::journal::records_from_pb;
+use korpis_wire::observation::observation_from_pb;
 use korpis_wire::spec::continuity_to_pb;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -113,7 +114,8 @@ impl Uplink {
             Some(Up::LeaseRequest(r)) => self.lease(r).await,
             Some(Up::LeaseReleased(r)) => self.released(r).await,
             Some(Up::Journal(j)) => self.journal(j).await,
-            // Observations and feasibility answers arrive with their consumers.
+            Some(Up::Observation(o)) => self.observed(o).await,
+            // Feasibility answers and content status arrive with their consumers.
             _ => Ok(()),
         };
         if let Err(e) = result {
@@ -133,6 +135,11 @@ impl Uplink {
         let through =
             self.app.ingest_journal(self.node, records).await.map_err(|e| e.to_string())?;
         self.tx.send(journal_ack(through)).await.map_err(|e| e.to_string())
+    }
+
+    async fn observed(&self, o: &korpis_proto::korpis::v1::Observation) -> Result<(), String> {
+        let observation = observation_from_pb(self.node, o).map_err(|e| e.to_string())?;
+        self.app.observe(self.node, observation).await.map_err(|e| e.to_string())
     }
 
     async fn released(&self, r: &agent::LeaseReleased) -> Result<(), String> {

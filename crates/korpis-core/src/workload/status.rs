@@ -7,8 +7,9 @@
 //! measured from what the node reports; with no report there is no measurement, and the answer
 //! is `Unknown` (or `Unplaced`, when no node was chosen), never a remembered value (P4).
 
+use super::observation::{Observation, ObservedState};
 use super::plan::PlanStatus;
-use super::{Plan, PlanTarget, Workload};
+use super::{Plan, PlanTarget, Power, PowerState, Workload};
 use std::time::SystemTime;
 
 /// A workload's convergence.
@@ -56,12 +57,33 @@ fn for_head(plan: &Plan, w: &Workload) -> bool {
     }
 }
 
-/// The convergence the control plane can state without a node, from the workload's open plans
-/// and whether it is placed. A declaration ahead of what was approved, with a plan proposed for
-/// it, is awaiting approval; an approved plan with a window still ahead is scheduled.
-/// Observations refine `Unknown` once nodes report them.
+/// What a node reported about a workload, with what it is measured against.
+#[derive(Debug, Clone, Copy)]
+pub struct Reported<'a> {
+    /// The latest observation.
+    pub observation: &'a Observation,
+    /// Whether the node is heard. An observation from a node that missed three heartbeats is
+    /// not current, however recent it looks (question 6 of §10 of docs/02-architecture.md).
+    pub fresh: bool,
+    /// The generation of the node's assignment now.
+    pub generation: u64,
+    /// The approved power declaration.
+    pub power: &'a Power,
+}
+
+/// How far a workload is from what was approved (§4.3 of docs/02-architecture.md). A
+/// declaration ahead of what was approved, with a plan proposed for it, is awaiting approval; an
+/// approved plan with a window still ahead is scheduled; an approved target with no node is
+/// unplaced. Those are the control plane's facts. Everything else is measured from what the node
+/// reported, and with no current report the answer is `Unknown`.
 #[must_use]
-pub fn convergence(w: &Workload, open: &[Plan], placed: bool, now: SystemTime) -> Convergence {
+pub fn convergence(
+    w: &Workload,
+    open: &[Plan],
+    placed: bool,
+    now: SystemTime,
+    reported: Option<Reported<'_>>,
+) -> Convergence {
     let has = |f: &dyn Fn(&Plan) -> bool| open.iter().any(f);
     if has(&|p| p.status == PlanStatus::Proposed && for_head(p, w)) {
         return Convergence::AwaitingApproval;
@@ -76,8 +98,23 @@ pub fn convergence(w: &Workload, open: &[Plan], placed: bool, now: SystemTime) -
     if !placed {
         return Convergence::Unplaced;
     }
-    if has(&|p| p.status == PlanStatus::Applying) {
+    let Some(r) = reported.filter(|r| r.fresh) else { return Convergence::Unknown };
+    let o = r.observation;
+    if o.assignment_seen < r.generation || has(&|p| p.status == PlanStatus::Applying) {
         return Convergence::Applying;
     }
-    Convergence::Unknown
+    let desired = match r.power.desired {
+        PowerState::Running => ObservedState::Running,
+        PowerState::Stopped => ObservedState::Stopped,
+    };
+    let at_target = o.intent_seen == w.target
+        && o.power_seen == r.power.version
+        && o.cycle_seen == r.power.cycle;
+    match o.state {
+        ObservedState::Unsatisfiable | ObservedState::Crashed => Convergence::Failing,
+        state if at_target && state == desired => Convergence::Converged,
+        ObservedState::Starting | ObservedState::Stopping => Convergence::Applying,
+        // The node holds the assignment, nothing is outstanding, and it still disagrees.
+        _ => Convergence::Failing,
+    }
 }

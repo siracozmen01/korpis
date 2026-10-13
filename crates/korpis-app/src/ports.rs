@@ -16,6 +16,7 @@ mod idempotency;
 mod journal;
 mod lease;
 mod node;
+mod observation;
 mod placement;
 mod quota;
 mod recipe;
@@ -39,6 +40,7 @@ pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use journal::{JournalRead, JournalWrite};
 pub use lease::LeaseWrite;
 pub use node::{NodeRead, NodeWrite};
+pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
@@ -103,6 +105,7 @@ pub trait Store:
     + EnrollmentRead
     + AssignmentRead
     + JournalRead
+    + ObservationRead
     + Send
     + Sync
     + 'static
@@ -138,6 +141,7 @@ pub trait Tx:
     + AssignmentWrite
     + LeaseWrite
     + JournalWrite
+    + ObservationWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

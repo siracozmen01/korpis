@@ -21,6 +21,7 @@ mod journal;
 mod leases;
 mod lifecycle;
 mod nodes;
+mod observe;
 mod operator;
 mod placement;
 mod plans;

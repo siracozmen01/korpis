@@ -142,6 +142,8 @@ message NodeAuth {
 }
 
 // The heartbeat: sent every Welcome.heartbeat_interval, and whenever capacity or drivers change.
+// Every heartbeat carries the node's full facts: an empty driver list means the node offers no
+// driver, not that the drivers are unchanged. Storage classes are reported only in the Hello.
 message NodeStatus {
   korpis.v1.Resources capacity = 1;
   korpis.v1.Resources allocatable = 2;

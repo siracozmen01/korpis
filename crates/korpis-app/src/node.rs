@@ -7,6 +7,7 @@ mod assign;
 mod enroll;
 mod journal;
 mod lease;
+mod observe;
 mod session;
 
 pub use assign::AssignmentSet;

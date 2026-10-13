@@ -19,6 +19,7 @@ mod idempotency;
 mod journal;
 mod lease;
 mod node;
+mod observation;
 mod placement;
 mod quota;
 mod recipe;

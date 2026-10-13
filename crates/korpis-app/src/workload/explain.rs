@@ -63,6 +63,11 @@ impl Found {
     pub(super) fn placed_for(&self, target: Option<Uuid>) -> bool {
         self.placement.as_ref().is_some_and(|(p, ..)| p.authoritative && Some(p.intent) == target)
     }
+
+    /// The node the workload is placed on, if any.
+    pub(super) fn node(&self) -> Option<Uuid> {
+        self.placement.as_ref().map(|(p, ..)| p.node)
+    }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

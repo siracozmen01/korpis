@@ -36,6 +36,7 @@ pub mod authz;
 pub mod body;
 pub mod journal;
 pub mod node;
+pub mod observation;
 pub mod placement;
 pub mod plan;
 pub mod principal;

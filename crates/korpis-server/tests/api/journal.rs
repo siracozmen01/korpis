@@ -17,7 +17,7 @@ use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
 /// The next message `pick` accepts, skipping the others.
-async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
+pub async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     for _ in 0..30 {
         if let Some(found) = next(stream).await.message.as_ref().and_then(&pick) {
             return found;
@@ -26,12 +26,12 @@ async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     panic!("not received within thirty messages");
 }
 
-fn ack(d: &Down) -> Option<u64> {
+pub fn ack(d: &Down) -> Option<u64> {
     if let Down::JournalAck(a) = d { Some(a.seq) } else { None }
 }
 
 /// The first assignment of the next set whose assignment satisfies `pick`.
-fn assignment(
+pub fn assignment(
     pick: impl Fn(&agent::Assignment) -> bool,
 ) -> impl Fn(&Down) -> Option<agent::Assignment> {
     move |d| {
@@ -69,7 +69,7 @@ async fn send(stream: &mut Stream, records: Vec<agent::JournalRecord>) {
 }
 
 /// Completes every step of `plan` from journal sequence `from`; the last sequence used.
-async fn complete(s: &mut Stream, workload: &str, plan: &agent::NodePlan, from: u64) -> u64 {
+pub async fn complete(s: &mut Stream, workload: &str, plan: &agent::NodePlan, from: u64) -> u64 {
     let mut seq = from;
     let mut records = Vec::new();
     for step in &plan.steps {

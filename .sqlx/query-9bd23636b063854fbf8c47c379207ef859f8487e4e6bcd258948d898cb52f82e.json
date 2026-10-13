@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO observation_latest (workload_id, node_id, observed_at, received_at, state,\n                                             body)\n             VALUES ($1, $2, $3, $4, $5, $6)\n             ON CONFLICT (workload_id) DO UPDATE SET\n                 node_id = EXCLUDED.node_id, observed_at = EXCLUDED.observed_at,\n                 received_at = EXCLUDED.received_at, state = EXCLUDED.state, body = EXCLUDED.body",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9bd23636b063854fbf8c47c379207ef859f8487e4e6bcd258948d898cb52f82e"
+}

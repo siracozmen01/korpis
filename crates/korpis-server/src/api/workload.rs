@@ -26,6 +26,7 @@ use korpis_core::id::IdKind;
 use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+use korpis_wire::observation::observation_to_pb;
 use std::sync::Arc;
 
 /// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
@@ -46,6 +47,15 @@ fn status(v: &WorkloadView) -> pb::WorkloadStatus {
                 since: timestamp(u.since).into(),
                 explanation: explanation_to_pb(&u.explanation).into(),
                 ..Default::default()
+            })
+            .into(),
+        observation: v
+            .observation
+            .as_ref()
+            .map(|o| {
+                // The node is named only to a caller who may see where the workload is placed.
+                let visible = v.placement.as_ref().and_then(|p| p.node) == Some(o.observation.node);
+                observation_to_pb(&o.observation, o.current, visible)
             })
             .into(),
         ..Default::default()

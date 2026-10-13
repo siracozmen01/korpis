@@ -4,6 +4,7 @@
 //! honestly, and the intent chain. Existence is gated by read authority (§8 of docs/10-api.md).
 
 use super::explain::{Found, PlacementView, UnplacedView};
+use super::observed::Observed;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -11,7 +12,7 @@ use crate::page::{Page, Paged};
 use crate::ports::{Clock, RecipeSource, Store, WorkloadFilter};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::labels::LabelSelector;
-use korpis_core::workload::status::{Convergence, active_plan, convergence};
+use korpis_core::workload::status::{Convergence, active_plan};
 use korpis_core::workload::{Intent, Plan, PowerRecord, Workload};
 use uuid::Uuid;
 
@@ -34,6 +35,8 @@ pub struct WorkloadView {
     pub placement: Option<PlacementView>,
     /// Why its target has no node, if the newest attempt found none.
     pub unplaced: Option<UnplacedView>,
+    /// What its node last reported, and whether that is current.
+    pub observation: Option<Observed>,
 }
 
 /// Which workloads to list: in a project or under an organization, matching a selector.
@@ -61,7 +64,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let active = active_plan(&open).cloned();
         let found = self.found(&workload, target.as_ref()).await?;
         let placed = found.placed_for(workload.target);
-        let convergence = convergence(&workload, &open, placed, self.clock.now());
+        let (convergence, observation) =
+            self.measure(&workload, &open, found.node(), placed).await?;
         let view = WorkloadView {
             workload,
             power,
@@ -71,6 +75,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             convergence,
             placement: None,
             unplaced: None,
+            observation,
         };
         Ok((view, found))
     }

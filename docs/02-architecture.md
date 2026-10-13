@@ -259,6 +259,18 @@ Those fields make the whole system honest:
 - No observation within the staleness window → `unknown`. Never a remembered value presented as
   current (P4).
 
+An observation is **current** only while it comes from the node the workload is placed on and that
+node is heard; the staleness window is the node's, three missed heartbeats (question 6 of §10),
+not a per-workload clock. One that is not current is still shown, with its time, and with its
+state `unknown`, so a reader sees what was last known without mistaking it for now. A node's
+observation is believed only for a workload it holds an assignment or placement for, as its
+journal records are (§4.10); the latest replaces the one before, and history is the effect log.
+`intent_seen` is compared with the approved target, `power_seen` with the approved power
+declaration's version and cycle, `assignment_seen` with the generation of the node's assignment,
+and the state with `Power.desired`. A state the node reports as crashed or unsatisfiable is
+failing whatever else matches; a transitional state (starting, stopping) with everything else
+matching is applying.
+
 Two states that are not about the node at all are computed in the control plane, never inferred
 from an observation: a declared intent waiting for approval (`Workload.intent` ahead of
 `Workload.target`, or the power head ahead of `Workload.power_target`, with a plan proposed for the
