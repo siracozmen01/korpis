@@ -191,6 +191,16 @@ on the intent or discovered through a name service, and what a name resolves to 
 between placements. What can wait for Phase 3 is the distributed implementation, because on one
 machine the answer is a local resolver and the semantics are the same.
 
+> Corrected 2026-10-13, during the Phase 0 spec sync. The decision was already made (§5 of
+> `07-networking.md`: dependencies declared on the intent), so the schema was Phase 0's under rule
+> E, and leaving it to Phase 1 would have been the very change to a frozen schema this paragraph
+> warns against. `IntentBody.dependencies` and the node's measured `overlay` are now in the Phase 0
+> schema. What Phase 1 owes is resolving a dependency and injecting its address; until then a
+> declaration naming one is refused as not yet available, rather than stored as a promise nothing
+> keeps. The overlay itself, which a dependency across nodes needs, is built in Phase 3 with the
+> other machinery of workloads that span nodes; until then every node measures `unavailable`, and
+> a workload and what it depends on are placed together.
+
 ### Phase 2: Multi-tenant, and the two bets that live there
 
 Organizations and recursive delegation. `GrantTemplate`. `IdentityBinding` and role-to-template
@@ -211,7 +221,8 @@ created anywhere.
 The `firecracker` driver. Rule D's validation of the driver interface. Migration, all seven phases,
 resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
 `stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
-`07-networking.md`). Devices, including GPU.
+`07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
+Devices, including GPU.
 
 **Done when:** a running workload with a 40 GB volume moves between nodes, keeps its public
 address, and its meter neither resets nor double-counts across the cutover.

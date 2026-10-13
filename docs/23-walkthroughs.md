@@ -917,6 +917,13 @@ document.
 | R18 | Whether `stable` puts a hop in front of latency-sensitive traffic | partly answered, now explicit | `07-networking.md` §3.1 |
 | R19 | Service discovery is parked in a later phase than the requirement | real | `20-roadmap.md` §4 |
 
+R6 and R19 came back during the Phase 0 spec sync (2026-10-13), each a correction that had reached
+the documents and not the build. R6: cancelling a plan nodes had begun still answered "not yet",
+in the phase that owed it; it is built, and §7 of `03-state.md` now says how a node learns of it
+between steps. R19: the roadmap had moved the decision to Phase 1 and still left the schema there,
+after §5 of `07-networking.md` had made the decision; the schema is now in Phase 0's, and Phase 1
+owes only the resolver.
+
 ### What the two methods caught, and why it differs
 
 The traces found **seam** defects: two documents each believing the other held something. The

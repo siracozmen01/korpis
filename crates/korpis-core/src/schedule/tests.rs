@@ -106,6 +106,7 @@ fn body(memory: u64) -> IntentBody {
         config: ValueMap::new(),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        dependencies: Vec::new(),
     }
 }
 

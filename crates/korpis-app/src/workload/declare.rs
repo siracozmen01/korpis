@@ -246,6 +246,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut body = declaration
             .complete(reference, &recipe)
             .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
+        if !body.dependencies.is_empty() {
+            // The schema is frozen here (rule E); resolving a dependency and injecting its
+            // address arrive with service discovery (§4 of docs/20-roadmap.md). Accepting one now
+            // would store a promise nothing keeps.
+            return Err(AppError::NotYet { what: "dependencies", phase: 1 });
+        }
         let previous = base.head.as_ref().map(|h| &h.body.config);
         let changes = self.configure(caller, &mut body, &recipe, previous, organization).await?;
         Ok((body, recipe, changes))

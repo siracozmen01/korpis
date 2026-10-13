@@ -209,6 +209,9 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         organization: wire_id(IdKind::Organization, n.organization),
         admin: admin_to_pb(n.admin).into(),
         connectivity: connectivity_to_pb(n.connectivity).into(),
+        // Measured by the control plane (§9 of docs/07-networking.md); with no overlay built
+        // yet (§4 of docs/20-roadmap.md), every node measures unavailable.
+        overlay: pb::Overlay::OVERLAY_UNAVAILABLE.into(),
         ..Default::default()
     }
 }

@@ -334,6 +334,10 @@ model was chosen over the familiar one:
 The cost is that an address change requires a restart or a reload. Mitigated by the file form for
 workloads that watch for changes, and by DNS where the class supports it.
 
+The field is in the Phase 0 schema (`IntentBody.dependencies`), so it never has to be added to a
+frozen one; resolving and injecting arrive in Phase 1, and until then a declaration that names a
+dependency is refused as not yet available (§4 of `20-roadmap.md`).
+
 ### 5.1 The resolver a workload uses
 
 > Second external review, finding S45.

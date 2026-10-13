@@ -102,6 +102,7 @@ pub fn body(motd: &str) -> IntentBody {
         config: ValueMap::from([("motd".to_owned(), Value::String(motd.into()))]),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        dependencies: Vec::new(),
     }
 }
 

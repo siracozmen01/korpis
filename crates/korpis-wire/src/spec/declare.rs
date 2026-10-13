@@ -122,6 +122,10 @@ pub fn declaration_from_pb(
         config: map_from_pb(&f("config"), &b.config)?,
         placement: placement_from_pb(&f("placement"), b.placement.as_option())?,
         continuity: continuity_from_pb(&f("continuity"), b.continuity.as_option())?,
+        dependencies: super::dependencies::dependencies_from_pb(
+            &f("dependencies"),
+            &b.dependencies,
+        )?,
     };
     Ok((RecipeRequest { name: r.name.clone(), version }, declaration))
 }

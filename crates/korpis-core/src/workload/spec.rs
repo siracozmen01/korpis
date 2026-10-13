@@ -6,12 +6,14 @@
 //! the application's.
 
 mod cron;
+pub mod dependencies;
 pub mod endpoints;
 pub mod health;
 pub mod placement;
 pub mod resources;
 pub mod volumes;
 
+pub use dependencies::Dependency;
 pub use endpoints::EndpointSpec;
 pub use health::HealthSpec;
 pub use placement::PlacementSpec;
@@ -137,6 +139,8 @@ pub struct IntentBody {
     pub placement: PlacementSpec,
     /// What happens when a node loses its lease.
     pub continuity: Continuity,
+    /// What it reaches by name.
+    pub dependencies: Vec<Dependency>,
 }
 
 impl IntentBody {
@@ -159,6 +163,7 @@ impl IntentBody {
         volumes::validate(&self.volumes)?;
         endpoints::validate(&self.endpoints)?;
         self.health.validate(&self.endpoints)?;
+        dependencies::validate(&self.dependencies)?;
         self.placement.validate()
     }
 }

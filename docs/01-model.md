@@ -400,6 +400,8 @@ Intent
   placement     PlacementSpec  constraints, affinities, preferred region
   continuity    ContinuitySpec on_lease_expiry: derived | keep_running | stop
                                (§4.5 of 02-architecture.md); derived when unset
+  dependencies  []Dependency   name, target (workload, endpoint, or selector), inject, required
+                               (§5 of 07-networking.md); refused until Phase 1 resolves them
 ```
 
 **Invariants**
@@ -769,6 +771,7 @@ Node
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
   admin         active | cordoned | draining | decommissioned      what the operator decided
   connectivity  registering | connected | unreachable | unknown    whether it is heard
+  overlay       available | unavailable    measured (§9 of 07-networking.md)
   status        derived from the two, below
   agent_version string
   last_seen     Timestamp

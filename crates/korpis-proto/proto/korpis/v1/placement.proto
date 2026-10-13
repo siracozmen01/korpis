@@ -36,6 +36,10 @@ message Node {
   // connectivity problem outranking the decision (§3.4 of docs/01-model.md).
   NodeAdmin admin = 15;
   NodeConnectivity connectivity = 16;
+  // Whether the node is in the WireGuard mesh other nodes reach it through, as measured (§9 of
+  // docs/07-networking.md). A workload with a dependency or dependent on another node is placed
+  // only where it is available.
+  Overlay overlay = 17;
 }
 
 message Taint {
@@ -69,6 +73,13 @@ enum NodeStatus {
   NODE_STATUS_UNREACHABLE = 5;
   NODE_STATUS_UNKNOWN = 6;
   NODE_STATUS_DECOMMISSIONED = 7;
+}
+
+enum Overlay {
+  OVERLAY_UNSPECIFIED = 0;
+  OVERLAY_AVAILABLE = 1;
+  // Not in the mesh: no overlay is built yet, or its peers cannot reach it.
+  OVERLAY_UNAVAILABLE = 2;
 }
 
 enum Reachability {

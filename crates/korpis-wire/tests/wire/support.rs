@@ -5,6 +5,8 @@
 use korpis_core::labels::{LabelExpression, LabelSelector};
 use korpis_core::recipe::RecipeRef;
 use korpis_core::value::{Value, ValueMap};
+use korpis_core::workload::spec::Dependency;
+use korpis_core::workload::spec::dependencies::{DependencyTarget, Injection};
 use korpis_core::workload::spec::endpoints::{
     ConntrackLimits, Exposure, NetworkAction, NetworkPolicy, NetworkRule, Peer, PortRange,
     Protocol, ShapingSpec, TlsSpec,
@@ -113,6 +115,34 @@ fn placement() -> PlacementSpec {
     }
 }
 
+/// One dependency of each kind of target.
+fn dependencies() -> Vec<Dependency> {
+    let selector = LabelSelector {
+        match_labels: [("tier".to_owned(), "db".to_owned())].into(),
+        ..Default::default()
+    };
+    vec![
+        Dependency {
+            name: "db".into(),
+            target: DependencyTarget::Workload(Uuid::from_u128(7)),
+            inject: Injection::Env,
+            required: true,
+        },
+        Dependency {
+            name: "cache".into(),
+            target: DependencyTarget::Endpoint(Uuid::from_u128(8)),
+            inject: Injection::File,
+            required: false,
+        },
+        Dependency {
+            name: "peers".into(),
+            target: DependencyTarget::Selector(selector),
+            inject: Injection::Both,
+            required: false,
+        },
+    ]
+}
+
 pub fn body() -> IntentBody {
     IntentBody {
         recipe: RecipeRef {
@@ -162,5 +192,6 @@ pub fn body() -> IntentBody {
         config: config(),
         placement: placement(),
         continuity: Continuity::KeepRunning,
+        dependencies: dependencies(),
     }
 }

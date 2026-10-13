@@ -33,6 +33,7 @@ fn body() -> IntentBody {
         config: ValueMap::new(),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        dependencies: Vec::new(),
     }
 }
 

@@ -267,6 +267,32 @@ message AffinityRule {
   string topology_key = 4;
 }
 
+// A dependency declared explicitly, so the graph is visible to the scheduler and to plans (§5
+// of docs/07-networking.md). Its current address is injected at start.
+message Dependency {
+  // Names what is injected: KORPIS_DEP_<NAME>_HOST and _PORT, and /korpis/deps/<name>.json.
+  // Lowercase letters, digits, and underscores, starting with a letter; unique in the body.
+  string name = 1;
+  // What it reaches: a workload or an endpoint by identifier, or the workloads a selector
+  // matches within the dependent's project.
+  oneof target {
+    string workload = 2;
+    string endpoint = 3;
+    LabelSelector selector = 4;
+  }
+  DependencyInjection inject = 5;
+  // Start only once the dependency is healthy.
+  bool required = 6;
+}
+
+enum DependencyInjection {
+  // Both.
+  DEPENDENCY_INJECTION_UNSPECIFIED = 0;
+  DEPENDENCY_INJECTION_ENV = 1;
+  DEPENDENCY_INJECTION_FILE = 2;
+  DEPENDENCY_INJECTION_BOTH = 3;
+}
+
 // What a workload does when its lease ends and cannot be renewed (§4.5 of
 // docs/02-architecture.md).
 message ContinuitySpec {

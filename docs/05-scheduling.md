@@ -43,6 +43,7 @@ A node survives the filter only if all hold:
 | is `ready`: active and connected, so not cordoned, draining, or unheard | `Node.admin`, `Node.connectivity` (§3.4 of `01-model.md`) |
 | belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
 | can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
+| is in the overlay, when a dependency or a dependent is placed on another node | `Node.overlay` (§9 of `07-networking.md`) |
 | the tenancy's quota admits it | §5 |
 
 **`allocatable` is measured by the agent, less a reserve the operator sets on the node.** The

@@ -60,6 +60,7 @@ pub fn body() -> IntentBody {
         config: ValueMap::from([("motd".to_owned(), Value::String("Survival".into()))]),
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
+        dependencies: Vec::new(),
     }
 }
 

@@ -14,8 +14,8 @@ mod parts;
 pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_driver};
 
 use super::spec::{
-    ConsoleMode, Continuity, HealthSpec, IntentBody, Lifecycle, PlacementSpec, ResourceSpec,
-    SpecError,
+    ConsoleMode, Continuity, Dependency, HealthSpec, IntentBody, Lifecycle, PlacementSpec,
+    ResourceSpec, SpecError,
 };
 use crate::recipe::{Recipe, RecipeRef};
 use crate::value::ValueMap;
@@ -45,6 +45,8 @@ pub struct Declaration {
     pub placement: PlacementSpec,
     /// What happens when a node loses its lease.
     pub continuity: Continuity,
+    /// What it reaches by name.
+    pub dependencies: Vec<Dependency>,
 }
 
 impl Declaration {
@@ -68,6 +70,7 @@ impl Declaration {
             config: self.config,
             placement: self.placement,
             continuity: self.continuity,
+            dependencies: self.dependencies,
         };
         body.validate()?;
         Ok(body)

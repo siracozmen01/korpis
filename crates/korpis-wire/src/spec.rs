@@ -3,6 +3,7 @@
 //! The intent body: `korpis.v1.IntentBody` and its parts.
 
 pub mod declare;
+pub mod dependencies;
 pub mod endpoints;
 pub mod health;
 pub mod resources;
@@ -81,6 +82,7 @@ pub fn body_to_pb(b: &IntentBody) -> pb::IntentBody {
             ..Default::default()
         }
         .into(),
+        dependencies: b.dependencies.iter().map(dependencies::dependency_to_pb).collect(),
         ..Default::default()
     }
 }
@@ -122,5 +124,6 @@ pub fn body_from_pb(field: &str, b: &pb::IntentBody) -> Result<IntentBody> {
         config: map_from_pb(&f("config"), &b.config)?,
         placement: health::placement_from_pb(&f("placement"), b.placement.as_option())?,
         continuity: continuity_from_pb(&f("continuity"), b.continuity.as_option())?,
+        dependencies: dependencies::dependencies_from_pb(&f("dependencies"), &b.dependencies)?,
     })
 }

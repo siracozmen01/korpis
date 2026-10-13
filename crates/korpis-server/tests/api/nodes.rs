@@ -47,6 +47,12 @@ async fn a_node_reads_as_enrolled_owned_by_its_organization() {
     let caps = driver.capabilities.as_option().unwrap();
     assert_eq!(caps.tiers[0].as_known(), Some(pb::IsolationTier::ISOLATION_TIER_CONTAINER));
     assert!(caps.enforcement["memory"].enforced);
+    let overlay = n.overlay.as_known();
+    assert_eq!(
+        overlay,
+        Some(pb::Overlay::OVERLAY_UNAVAILABLE),
+        "measured, and no overlay is built"
+    );
 }
 
 #[tokio::test]
