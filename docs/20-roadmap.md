@@ -167,13 +167,14 @@ written in-core and moved out later (rule E).
 
 Then: the relay tier (§3.1 of `02-architecture.md`), which every console and file transfer runs
 through. The web client. Durable streams and console. Volumes with kernel-enforced byte and inode
-quota, snapshots, and content-defined-chunking backup with per-workload keys. The install DSL with
-its built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain; the
+quota, snapshots, deletion, and content-defined-chunking backup with per-workload keys. The
+shareable link of §6.1 of `08-identity.md`, the first test of Bet 1. The install DSL with its
+built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain; the
 shortlist `FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality
-and churn signals (§2.1 and §2.2 of `05-scheduling.md`).
-Networking: `node_port` and `node_bound` exposure, and the default egress policy of §6 of
-`07-networking.md`. Rate limits, with the web client's login and link redemption that are the
-first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
+and churn signals (§2.1 and §2.2 of `05-scheduling.md`). Networking: `node_port` and `node_bound`
+exposure, each node's reachability measured by the relay's probe (§9 of `07-networking.md`), and
+the default egress policy of §6 there. Rate limits, with the web client's login and link redemption
+that are the first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
 `10-api.md`, and the recording of unauthenticated failures beside the denials Phase 0 already
 coalesces.
 
@@ -208,7 +209,8 @@ machine the answer is a local resolver and the semantics are the same.
 
 ### Phase 2: Multi-tenant, and the two bets that live there
 
-Organizations and recursive delegation. `GrantTemplate`. `IdentityBinding` and role-to-template
+Organizations and recursive delegation, and suspending one (§2.1 of `08-identity.md`).
+`GrantTemplate`. `IdentityBinding` and role-to-template
 mapping. Quota sets. Metering, with the exactness guarantees of §2 of `15-observability.md`.
 Tenant-visible audit. External identity through OIDC, as a provider on the Phase 1 contract core.
 
