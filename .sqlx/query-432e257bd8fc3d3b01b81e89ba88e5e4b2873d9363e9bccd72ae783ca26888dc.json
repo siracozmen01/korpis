@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET set_id = $2 WHERE id = $1 AND set_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "432e257bd8fc3d3b01b81e89ba88e5e4b2873d9363e9bccd72ae783ca26888dc"
+}

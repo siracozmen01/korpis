@@ -12,6 +12,8 @@ use crate::page::{Page, Paged};
 use crate::ports::{Clock, RecipeSource, Store, WorkloadFilter};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::labels::LabelSelector;
+use korpis_core::tenancy::Name;
+use korpis_core::workload::set::drifted;
 use korpis_core::workload::status::{Convergence, active_plan};
 use korpis_core::workload::{Intent, Plan, PowerRecord, Workload};
 use uuid::Uuid;
@@ -37,6 +39,17 @@ pub struct WorkloadView {
     pub unplaced: Option<UnplacedView>,
     /// What its node last reported, and whether that is current.
     pub observation: Option<Observed>,
+    /// Present when it belongs to a set and its head was declared outside it.
+    pub drift: Option<Drift>,
+}
+
+/// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Drift {
+    /// The set.
+    pub set: Uuid,
+    /// The newest intent the set declared, which its files still say.
+    pub set_intent: Option<Uuid>,
 }
 
 /// Which workloads to list: in a project or under an organization, matching a selector.
@@ -48,6 +61,8 @@ pub struct ListWorkloads {
     pub organization: Option<Uuid>,
     /// Matching these labels.
     pub selector: LabelSelector,
+    /// Members of the declared set of this name; needs `project`.
+    pub set: Option<Name>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -66,7 +81,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let placed = found.placed_for(workload.target);
         let (convergence, observation) =
             self.measure(&workload, &open, found.node(), placed).await?;
+        let drift = match workload.set.filter(|_| drifted(&workload, &head)) {
+            Some(set) => Some(Drift { set, set_intent: self.store.set_intent(id, set).await? }),
+            None => None,
+        };
         let view = WorkloadView {
+            drift,
             workload,
             power,
             head,
@@ -121,7 +141,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         };
         self.authorize(caller, "workload.read", within).await?;
-        let filter = WorkloadFilter { project: q.project, organization: q.organization };
+        let set = match (&q.set, q.project) {
+            (None, _) => None,
+            (Some(_), None) => return Err(AppError::invalid("set", "a set is named in a project")),
+            (Some(n), Some(p)) => match self.store.declared_set(p, n.as_str()).await? {
+                Some(s) => Some(s.id),
+                None => return Ok(Paged { items: Vec::new(), next: None }),
+            },
+        };
+        let filter = WorkloadFilter { project: q.project, organization: q.organization, set };
         let read = self.store.workloads(&filter, page).await?;
         let next = page.next(&read, |w| w.id);
         let matching = read.into_iter().filter(|w| q.selector.matches(w.labels.as_map())).collect();

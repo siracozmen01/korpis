@@ -5,6 +5,7 @@
 use crate::spec::body_to_pb;
 use crate::{Result, invalid, principal, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::set::{DeclaredSet, DriftMode};
 use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
 use korpis_proto::korpis::v1 as pb;
 
@@ -52,6 +53,7 @@ pub fn workload_to_pb(w: &Workload, power: &PowerRecord) -> pb::Workload {
         power: power_to_pb(power).into(),
         created: timestamp(w.created).into(),
         deleted_at: w.deleted_at.map(timestamp).into(),
+        set: w.set.map(|s| wire_id(IdKind::Set, s)),
         ..Default::default()
     }
 }
@@ -67,6 +69,44 @@ pub fn intent_to_pb(i: &Intent) -> pb::Intent {
         declared_by: principal::to_pb(&i.declared_by).into(),
         declared_at: timestamp(i.declared_at).into(),
         body: body_to_pb(&i.body).into(),
+        managed_by: i.managed_by.map(|s| wire_id(IdKind::Set, s)),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a drift mode.
+#[must_use]
+pub fn drift_mode_to_pb(m: DriftMode) -> pb::DriftMode {
+    match m {
+        DriftMode::Advisory => pb::DriftMode::DRIFT_MODE_ADVISORY,
+        DriftMode::Strict => pb::DriftMode::DRIFT_MODE_STRICT,
+    }
+}
+
+/// The drift mode a request names.
+///
+/// # Errors
+///
+/// When it names none.
+pub fn drift_mode_from_pb(field: &str, m: buffa::EnumValue<pb::DriftMode>) -> Result<DriftMode> {
+    match m.as_known() {
+        Some(pb::DriftMode::DRIFT_MODE_ADVISORY) => Ok(DriftMode::Advisory),
+        Some(pb::DriftMode::DRIFT_MODE_STRICT) => Ok(DriftMode::Strict),
+        _ => Err(invalid(field, "advisory or strict")),
+    }
+}
+
+/// The wire form of a declared set.
+#[must_use]
+pub fn declared_set_to_pb(s: &DeclaredSet) -> pb::DeclaredSet {
+    pb::DeclaredSet {
+        id: wire_id(IdKind::Set, s.id),
+        project: wire_id(IdKind::Project, s.project),
+        name: s.name.as_str().to_owned(),
+        mode: drift_mode_to_pb(s.mode).into(),
+        version: s.version,
+        created_by: principal::to_pb(&s.created_by).into(),
+        created_at: timestamp(s.created_at).into(),
         ..Default::default()
     }
 }

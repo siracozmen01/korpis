@@ -211,6 +211,15 @@ Neither mode ever silently loses a human's emergency fix. `advisory` is the defa
 03:00 fix is usually right, and a system that punishes people for fixing outages gets worked around
 within a month.
 
+The set is a `DeclaredSet` of §3.3 of `01-model.md`, named within a project and created by the
+first apply through it; `managed_by` names it on every intent its applies declare, and drift is
+derived from that pointer rather than stored. The control plane, not the CLI, decides what a
+declaration through the set does to a drifted member, because the panel and any other client can
+declare through a set too: a body equal to the drifted head is the files catching up with the fix
+and is accepted in either mode; anything else is declared over the fix by a `strict` set, refused
+with `CONFLICT` reason `set.drifted` by an `advisory` one unless the declaration says `reconcile`,
+and the discarded intent is recorded with its author whenever one is declared over.
+
 ### What a pipeline does when it arrives at drift
 
 > Finding 18 of `23-walkthroughs.md`.

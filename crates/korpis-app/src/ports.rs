@@ -22,6 +22,7 @@ mod quota;
 mod recipe;
 mod retire;
 mod session;
+mod set;
 mod tenancy;
 mod trust;
 mod workload;
@@ -46,6 +47,7 @@ pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
+pub use set::{SetRead, SetWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
@@ -67,6 +69,8 @@ pub enum Unique {
     NodeKey,
     /// One response per caller and idempotency key.
     IdempotencyKey,
+    /// Declared set names are unique within a project.
+    SetName,
     /// Any other.
     Other,
 }
@@ -106,6 +110,7 @@ pub trait Store:
     + AssignmentRead
     + JournalRead
     + ObservationRead
+    + SetRead
     + Send
     + Sync
     + 'static
@@ -142,6 +147,7 @@ pub trait Tx:
     + LeaseWrite
     + JournalWrite
     + ObservationWrite
+    + SetWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

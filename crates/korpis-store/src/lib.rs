@@ -24,6 +24,7 @@ mod placement;
 mod quota;
 mod recipe;
 mod session;
+mod set;
 mod stored;
 mod tenancy;
 #[cfg(feature = "testing")]

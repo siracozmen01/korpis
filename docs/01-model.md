@@ -344,6 +344,7 @@ Workload
   power_target  PowerVersion?  the approved power declaration nodes are told; moved only by
                                approval, null until one is approved
   observation   ObservationID? the most recent observed state, null if never observed
+  set           SetID?         the declared set it was created through or adopted into (below)
   created       Timestamp
   deleted_at    Timestamp?     soft; the id is retained forever
 ```
@@ -382,6 +383,8 @@ Intent
   parent        IntentID?      the intent this was derived from
   declared_by   Subject
   declared_at   Timestamp
+  managed_by    SetID?         the declared set whose apply declared it; null for any other
+                               declaration (the panel, a chat command, `korpis workload ...`)
 
   // --- the declaration itself ---
   recipe        RecipeRef      name + version + digest (see 09-recipes.md)
@@ -408,6 +411,54 @@ Intent
 
 Because intents are immutable and chained, the full history of a workload's declared state is a
 linked list, and rollback is "declare intent N again" rather than an inverse operation (P9).
+
+#### DeclaredSet
+
+> A named group of workloads that one declarative source owns: the files a pipeline applies with
+> `korpis apply -f servers/ --set community-servers` (§5 and §6 of `13-surface-cli.md`).
+
+> Added 2026-10-13, from the implementation. §6 of `13-surface-cli.md` said that "every `Intent`
+> carries `managed_by`" and that drift behaviour "is declared per set", and neither the field nor
+> the set existed anywhere in the model, so nothing could hold a set's mode or tell an
+> out-of-band change from the set's own.
+
+```
+DeclaredSet
+  id            SetID          immutable
+  project       ProjectID      a set and its members live in one project
+  name          string         unique within the project
+  mode          advisory | strict    what declaring through it does with drift (§6 of
+                               13-surface-cli.md)
+  version       int            compare-and-swap on mode changes
+  created_by    Subject
+  created_at    Timestamp
+```
+
+**Invariants**
+- **A workload belongs to at most one set, and a set touches only its own.** A workload joins a
+  set by being created through it, or by a declaration through it that asks to adopt a workload
+  belonging to no set. A declaration through a set onto another set's member is refused, and so
+  is one onto a workload in no set that did not ask to adopt it: a hand-made workload is never
+  claimed, and so never pruned, by someone's pipeline.
+- **Drift is derived, never stored.** A member has drifted when its head intent's `managed_by` is
+  not its set: someone declared it through the panel, a chat command, or an imperative command.
+  The head already names who did it and when, so recording drift would be a second copy of a fact
+  that could disagree with the first.
+- **Declaring through a set onto a drifted member** is decided by the control plane at
+  declaration, which holds the workload's set, the head, and the declaration's completed body:
+  - a body equal to the head's is the files catching up with the fix, and is accepted in either
+    mode, recorded as `set.drift_adopted`;
+  - otherwise a `strict` set declares over it, and an `advisory` set refuses with `CONFLICT`
+    reason `set.drifted` unless the declaration asks to `reconcile`; either way the discarded
+    intent and its author are recorded as `set.drift_discarded`.
+- A set is created by the first declaration through it, in `advisory` mode, with the authority
+  that declaration already needed; nothing else creates one. Changing a set's mode is project
+  configuration and needs `project.write`. Reading a project's sets needs `project.read`.
+
+The cost is one more refusal reason an operator has to understand, and one more pointer on two
+objects. A set spanning projects is not expressible: a pipeline that applies to three projects
+holds three sets of the same name, because the project is where workload authority and names
+live, and a set wider than that would need authority over objects its applier cannot touch.
 
 #### Power is declared separately from configuration
 
@@ -969,6 +1020,8 @@ Organization ──┬─▶ Organization        (recursive: this is reselling)
                ├──▶ Quota              (inherited, enforced, metered)
                │
                └──▶ Project ──▶ Workload
+                                  │
+                                  ├──▶ DeclaredSet?                 (the files that own it)
                                   │
                                   ├──▶ Intent  ──▶ Intent ──▶ …   (immutable chain)
                                   │       │

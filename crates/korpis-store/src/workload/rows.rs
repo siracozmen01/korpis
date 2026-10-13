@@ -30,6 +30,7 @@ pub(crate) struct WorkloadRow {
     pub(crate) version: i64,
     pub(crate) created: DateTime<Utc>,
     pub(crate) deleted_at: Option<DateTime<Utc>>,
+    pub(crate) set_id: Option<Uuid>,
 }
 
 impl WorkloadRow {
@@ -49,6 +50,7 @@ impl WorkloadRow {
             version: count("workload version", self.version)?,
             created: to_time(self.created),
             deleted_at: self.deleted_at.map(to_time),
+            set: self.set_id,
         })
     }
 }
@@ -62,6 +64,7 @@ pub(crate) struct IntentRow {
     pub(crate) declared_at: DateTime<Utc>,
     pub(crate) body: Option<String>,
     pub(crate) schema_version: String,
+    pub(crate) managed_by: Option<Uuid>,
 }
 
 impl IntentRow {
@@ -77,6 +80,7 @@ impl IntentRow {
             body: bodies
                 .decode(&json, &self.schema_version)
                 .map_err(|e| corrupt("intent body", e))?,
+            managed_by: self.managed_by,
         })
     }
 }

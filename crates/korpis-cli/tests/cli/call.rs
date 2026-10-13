@@ -27,7 +27,8 @@ async fn the_cli_calls_the_api_and_exits_with_its_codes() {
     assert!(v["server"]["sourceRevision"].is_string());
 
     let list = cp.korpis(&s, &["call", "--list"]).await;
-    assert_eq!(String::from_utf8_lossy(&list.stdout).lines().count(), 37);
+    let listed = String::from_utf8_lossy(&list.stdout).lines().count();
+    assert_eq!(listed, korpis_cli::call::METHODS.len(), "every method, one per line");
 
     // A mutation needs no hand-made idempotency key.
     let data = format!(r#"{{"organization": "{}", "name": "games"}}"#, cp.root_org);

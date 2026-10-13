@@ -20,7 +20,7 @@ use connectrpc::{
 use korpis_app::Idempotent;
 use korpis_app::workload::{
     ChangePower, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
-    NewWorkload, PlacementView, PowerChanged, Watch, WorkloadView,
+    NewWorkload, PlacementView, PowerChanged, SetDeclaration, Watch, WorkloadView,
 };
 use korpis_core::id::IdKind;
 use korpis_core::workload::{Plan, PowerChange};
@@ -58,8 +58,36 @@ fn status(v: &WorkloadView) -> pb::WorkloadStatus {
                 observation_to_pb(&o.observation, o.current, visible)
             })
             .into(),
+        drift: v
+            .drift
+            .as_ref()
+            .map(|d| pb::Drift {
+                set: wire_id(IdKind::Set, d.set),
+                intent: wire_id(IdKind::Intent, v.head.id),
+                declared_by: korpis_wire::principal::to_pb(&v.head.declared_by).into(),
+                declared_at: timestamp(v.head.declared_at).into(),
+                set_intent: d.set_intent.map(|i| wire_id(IdKind::Intent, i)),
+                ..Default::default()
+            })
+            .into(),
         ..Default::default()
     }
+}
+
+/// The set a request names, if it names one.
+fn set_name(field: &str, name: &str) -> Result<Option<korpis_core::tenancy::Name>, ConnectError> {
+    (!name.is_empty()).then(|| wire::name(field, name)).transpose().refuse()
+}
+
+/// The set a declaration goes through; `adopt` and `reconcile` mean nothing without one.
+fn through_set(req: &pb::DeclareIntentRequest) -> Result<Option<SetDeclaration>, ConnectError> {
+    let Some(name) = set_name("set", &req.set)? else {
+        if req.adopt || req.reconcile {
+            return Err(error::invalid("set", "adopt and reconcile go through a set"));
+        }
+        return Ok(None);
+    };
+    Ok(Some(SetDeclaration { name, adopt: req.adopt, reconcile: req.reconcile }))
 }
 
 fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
@@ -189,6 +217,7 @@ impl pb::WorkloadService for Api {
             declaration,
             dry_run: req.dry_run,
             propose: req.propose,
+            set: through_set(&req)?,
         };
         let encoder = |d: &Declared| encode(&declared(d));
         let idem = Idempotent { key, encode: &encoder };
@@ -275,6 +304,7 @@ impl pb::WorkloadService for Api {
                 .transpose()
                 .refuse()?,
             selector: selector_from_pb("selector", req.selector.as_option()).refuse()?,
+            set: set_name("set", req.set.as_deref().unwrap_or_default())?,
         };
         let listed = self.app.list_workloads(&caller, &q, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListWorkloadsResponse {

@@ -36,6 +36,8 @@ pub struct WorkloadFilter {
     pub project: Option<Uuid>,
     /// Owned by this organization.
     pub organization: Option<Uuid>,
+    /// Members of this declared set.
+    pub set: Option<Uuid>,
 }
 
 /// Reading workloads and what hangs from them.

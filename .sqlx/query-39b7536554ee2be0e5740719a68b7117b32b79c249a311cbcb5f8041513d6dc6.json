@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO intent (id, workload_id, version, parent_id, declared_by, declared_at,\n                                 body, schema_version, managed_by)\n             VALUES ($1, $2, $3, $4, $5, $6, ($7::text)::jsonb, $8, $9)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "39b7536554ee2be0e5740719a68b7117b32b79c249a311cbcb5f8041513d6dc6"
+}

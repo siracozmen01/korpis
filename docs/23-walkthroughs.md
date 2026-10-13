@@ -652,6 +652,14 @@ token, scoped to the project, could read no organization, so the CLI could not r
 project's name in the file it was applying. Names now resolve from the caller's own grant anchors
 as well (§2 of `13-surface-cli.md`), and `crates/korpis-cli/tests/cli/grants.rs` runs the step.
 
+Steps 1, 3, and 6, added the same day. Asked what evaluates "the set is marked drifted" and with
+what information, the model had no answer: `managed_by` and the per-set mode appeared only in
+§6 of `13-surface-cli.md`, and no object held either. `DeclaredSet` (§3.3 of `01-model.md`) now
+holds the mode, the workload names its set and each intent the set that declared it, and the
+control plane derives drift from those two pointers at declaration and in every status read, so
+the panel's 03:00 change is drift without anything having to mark it.
+`crates/korpis-server/tests/api/sets.rs` runs steps 1, 3, and 6 against both modes.
+
 ---
 
 ## 11. The moderator loses the role

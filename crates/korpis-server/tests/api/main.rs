@@ -30,6 +30,7 @@ mod reads;
 mod recipes;
 mod retire;
 mod session;
+mod sets;
 mod support;
 mod tenancy;
 mod tokens;

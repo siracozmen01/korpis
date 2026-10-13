@@ -20,7 +20,7 @@ impl WorkloadRead for PgStore {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at
+                    created, deleted_at, set_id
                FROM workload WHERE id = $1",
             id
         )
@@ -35,17 +35,19 @@ impl WorkloadRead for PgStore {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at
+                    created, deleted_at, set_id
                FROM workload
               WHERE deleted_at IS NULL
                 AND ($1::uuid IS NULL OR project_id = $1)
                 AND ($2::uuid IS NULL OR organization_id = $2)
                 AND ($3::uuid IS NULL OR id > $3)
+                AND ($5::uuid IS NULL OR set_id = $5)
               ORDER BY id LIMIT $4",
             f.project,
             f.organization,
             page.after,
-            i64::from(page.size)
+            i64::from(page.size),
+            f.set
         )
         .fetch_all(&self.pool)
         .await
@@ -57,7 +59,7 @@ impl WorkloadRead for PgStore {
         let row = sqlx::query_as!(
             IntentRow,
             r#"SELECT id, workload_id, version, parent_id, declared_by, declared_at,
-                      body::text AS "body", schema_version
+                      body::text AS "body", schema_version, managed_by
                  FROM intent WHERE id = $1"#,
             id
         )
@@ -71,7 +73,7 @@ impl WorkloadRead for PgStore {
         let rows = sqlx::query_as!(
             IntentRow,
             r#"SELECT id, workload_id, version, parent_id, declared_by, declared_at,
-                      body::text AS "body", schema_version
+                      body::text AS "body", schema_version, managed_by
                  FROM intent
                 WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)
                 ORDER BY id LIMIT $3"#,

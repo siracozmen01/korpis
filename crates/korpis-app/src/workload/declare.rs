@@ -5,6 +5,7 @@
 //! approved in the same call only when nothing in it needs a human (§3.2 of docs/03-state.md).
 
 mod commit;
+mod set;
 
 use super::propose::{self, Proposal};
 use crate::App;
@@ -23,6 +24,7 @@ use korpis_core::workload::declare::Declaration;
 use korpis_core::workload::plan::compute::intent_steps;
 use korpis_core::workload::plan::impact::delta;
 use korpis_core::workload::plan::{Approval, DriverClass, Proposing};
+use korpis_core::workload::set::Through;
 use korpis_core::workload::spec::IntentBody;
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
 use uuid::Uuid;
@@ -72,6 +74,19 @@ pub struct DeclareIntent {
     /// Persist everything and approve nothing: the plan waits for its proposer to confirm it
     /// even when default policy would approve it (§3.3 of docs/01-model.md).
     pub propose: bool,
+    /// Through a declared set (§3.3 of docs/01-model.md).
+    pub set: Option<SetDeclaration>,
+}
+
+/// A declaration through a declared set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetDeclaration {
+    /// The set's name in the workload's project; the declaration creates it if it is new.
+    pub name: Name,
+    /// Onto a workload that belongs to no set: take it in.
+    pub adopt: bool,
+    /// Onto a member drifted in advisory mode: discard the out-of-band change.
+    pub reconcile: bool,
 }
 
 /// What a declaration produced.
@@ -118,6 +133,23 @@ impl Base {
     }
 }
 
+/// What declaring `intent` with `plan` against `base` produces.
+fn declared(base: &Base, intent: Intent, plan: Plan, passage: Option<&set::Passage>) -> Declared {
+    // Created through a set, or adopted into one, the workload is its member from now on.
+    let joins = passage.filter(|p| matches!(p.through, None | Some(Through::Adopted)));
+    Declared {
+        workload: Workload {
+            intent: intent.id,
+            intent_version: intent.version,
+            set: joins.map(set::Passage::set_id).or(base.workload.set),
+            ..base.workload.clone()
+        },
+        intent,
+        power: base.power.clone(),
+        plan,
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Declares an intent. A grant that may only propose produces a plan that waits for an
     /// approver; a plan nothing in which needs a human is approved at once and moves the target.
@@ -144,26 +176,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
         let (body, recipe, changes) =
             self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
-        let intent = Intent {
-            id: Uuid::now_v7(),
-            workload: base.workload.id,
-            version: base.head.as_ref().map_or(1, |h| h.version + 1),
-            parent: base.head.as_ref().map(|h| h.id),
-            declared_by: caller.principal.clone(),
-            declared_at: self.clock.now(),
-            body,
+        let passage = match &cmd.set {
+            Some(through) => Some(self.passage(caller, &base, through, &body).await?),
+            None => None,
         };
+        let intent = self.intent_of(caller, &base, body, passage.as_ref());
         let plan = self.intent_plan(caller, &base, &intent, &recipe, cmd.propose);
-        let mut declared = Declared {
-            workload: Workload {
-                intent: intent.id,
-                intent_version: intent.version,
-                ..base.workload.clone()
-            },
-            intent,
-            power: base.power.clone(),
-            plan,
-        };
+        let mut declared = declared(&base, intent, plan, passage.as_ref());
         let held = base.held();
         let holds = base.holding(&declared.intent);
         let mut tx = self.store.begin().await?;
@@ -173,7 +192,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.admit(&mut tx, &declared.workload, held.as_ref(), &holds).await?;
             return Ok(Reply::Fresh(declared));
         }
+        if let Some(p) = &passage {
+            self.create_set(&mut tx, p).await?;
+        }
         self.write_declaration(&mut tx, &base, &declared, held.as_ref(), &holds).await?;
+        if let Some(p) = &passage {
+            self.record_passage(&mut tx, caller, &base, &declared, p).await?;
+        }
         let superseded = tx.supersede_proposed(&declared.plan).await?;
         let approved = self.approve_declared(&mut tx, caller, &base, &mut declared).await?;
         for effect in declaration_effects(caller, &base, &declared, &changes, superseded) {
@@ -184,6 +209,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.place_target(&mut tx, &declared.workload, Some(&declared.intent)).await?;
         }
         finish(tx, caller, idem, OPERATION, declared).await
+    }
+
+    /// The intent `body` declares against `base`, through `passage` when the declaration goes
+    /// through a set.
+    fn intent_of(
+        &self,
+        caller: &Caller,
+        base: &Base,
+        body: IntentBody,
+        passage: Option<&set::Passage>,
+    ) -> Intent {
+        Intent {
+            id: Uuid::now_v7(),
+            workload: base.workload.id,
+            version: base.head.as_ref().map_or(1, |h| h.version + 1),
+            parent: base.head.as_ref().map(|h| h.id),
+            declared_by: caller.principal.clone(),
+            declared_at: self.clock.now(),
+            body,
+            managed_by: passage.map(set::Passage::set_id),
+        }
     }
 
     /// The declared body completed from its recipe, resolved under the organization's trust
@@ -228,6 +274,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             version: 1,
             created: now,
             deleted_at: None,
+            set: None,
         };
         let power = PowerRecord {
             workload: id,

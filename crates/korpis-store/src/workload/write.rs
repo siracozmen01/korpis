@@ -20,8 +20,8 @@ impl PgTx {
         let body = encoded(self, i)?;
         sqlx::query!(
             "INSERT INTO intent (id, workload_id, version, parent_id, declared_by, declared_at,
-                                 body, schema_version)
-             VALUES ($1, $2, $3, $4, $5, $6, ($7::text)::jsonb, $8)",
+                                 body, schema_version, managed_by)
+             VALUES ($1, $2, $3, $4, $5, $6, ($7::text)::jsonb, $8, $9)",
             i.id,
             i.workload,
             to_count("intent version", i.version)?,
@@ -29,7 +29,8 @@ impl PgTx {
             i.declared_by.key(),
             from_time(i.declared_at),
             body,
-            self.bodies.schema_version()
+            self.bodies.schema_version(),
+            i.managed_by
         )
         .execute(&mut *self.tx)
         .await
@@ -61,7 +62,7 @@ impl WorkloadWrite for PgTx {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at
+                    created, deleted_at, set_id
                FROM workload WHERE id = $1 FOR UPDATE",
             id
         )
@@ -78,14 +79,15 @@ impl WorkloadWrite for PgTx {
         power: &PowerRecord,
     ) -> StoreResult<()> {
         sqlx::query!(
-            "INSERT INTO workload (id, project_id, organization_id, name, labels, created)
-             VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO workload (id, project_id, organization_id, name, labels, created, set_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)",
             w.id,
             w.project,
             w.organization,
             w.name.as_str(),
             to_json("labels", w.labels.as_map())?,
-            from_time(w.created)
+            from_time(w.created),
+            w.set
         )
         .execute(&mut *self.tx)
         .await

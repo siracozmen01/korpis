@@ -114,6 +114,7 @@ pub fn intent(workload: Uuid, version: u64, parent: Option<Uuid>, motd: &str) ->
         declared_by: alice(),
         declared_at: now(),
         body: body(motd),
+        managed_by: None,
     }
 }
 
@@ -140,6 +141,7 @@ pub async fn create(f: &Fixture, name: &str) -> (Workload, Intent) {
         version: 1,
         created: now(),
         deleted_at: None,
+        set: None,
     };
     let mut tx = f.store.begin().await.unwrap();
     tx.create_workload(&w, &first, &power(id, Power::initial(PowerState::Running))).await.unwrap();

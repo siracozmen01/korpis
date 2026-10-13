@@ -80,6 +80,8 @@ table! {
     "korpis.v1.WorkloadService/ListWorkloads" => WorkloadServiceClient::list_workloads(ListWorkloadsRequest);
     "korpis.v1.WorkloadService/ListIntents" => WorkloadServiceClient::list_intents(ListIntentsRequest);
     "korpis.v1.WorkloadService/WatchWorkload" => WorkloadServiceClient::watch_workload(WatchWorkloadRequest) stream WatchWorkloadResponse;
+    "korpis.v1.DeclaredSetService/ListDeclaredSets" => DeclaredSetServiceClient::list_declared_sets(ListDeclaredSetsRequest);
+    "korpis.v1.DeclaredSetService/SetDeclaredSetMode" => DeclaredSetServiceClient::set_declared_set_mode(SetDeclaredSetModeRequest);
     "korpis.v1.PlanService/GetPlan" => PlanServiceClient::get_plan(GetPlanRequest);
     "korpis.v1.PlanService/ListPlans" => PlanServiceClient::list_plans(ListPlansRequest);
     "korpis.v1.PlanService/ApprovePlan" => PlanServiceClient::approve_plan(ApprovePlanRequest);

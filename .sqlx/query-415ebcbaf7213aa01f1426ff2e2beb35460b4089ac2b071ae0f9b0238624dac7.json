@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE declared_set SET mode = $2, version = version + 1\n              WHERE id = $1 AND version = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "415ebcbaf7213aa01f1426ff2e2beb35460b4089ac2b071ae0f9b0238624dac7"
+}

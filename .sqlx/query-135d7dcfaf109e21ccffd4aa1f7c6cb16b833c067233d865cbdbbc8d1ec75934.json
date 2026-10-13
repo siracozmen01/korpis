@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at\n               FROM workload WHERE id = $1 FOR UPDATE",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id\n               FROM workload WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -156,6 +156,17 @@
             "name": "deleted_at"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "set_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "set_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -177,8 +188,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "5c89cbb9db7096c152be46e24e41a39f5a77db28833812843543f7d358e9be3d"
+  "hash": "135d7dcfaf109e21ccffd4aa1f7c6cb16b833c067233d865cbdbbc8d1ec75934"
 }

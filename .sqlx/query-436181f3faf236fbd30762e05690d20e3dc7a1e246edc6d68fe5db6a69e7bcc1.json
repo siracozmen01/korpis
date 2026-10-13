@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version\n                 FROM intent WHERE id = $1",
+  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version, managed_by\n                 FROM intent WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -85,6 +85,17 @@
             "name": "schema_version"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "managed_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "managed_by"
+          }
+        }
       }
     ],
     "parameters": {
@@ -100,8 +111,9 @@
       false,
       false,
       null,
-      false
+      false,
+      true
     ]
   },
-  "hash": "71de848c62b829a31880fefe3ec2eaafa7e1bbe9b1f4b66d58706810fba9aed5"
+  "hash": "436181f3faf236fbd30762e05690d20e3dc7a1e246edc6d68fe5db6a69e7bcc1"
 }

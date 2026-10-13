@@ -8,6 +8,7 @@ pub mod declare;
 pub mod lease;
 pub mod observation;
 pub mod plan;
+pub mod set;
 pub mod spec;
 pub mod status;
 
@@ -53,6 +54,8 @@ pub struct Workload {
     pub created: SystemTime,
     /// Soft deletion; the identifier is retained forever.
     pub deleted_at: Option<SystemTime>,
+    /// The declared set it was created through or adopted into.
+    pub set: Option<Uuid>,
 }
 
 /// What someone declared should be true. Immutable: a change is a new intent with the next
@@ -73,6 +76,8 @@ pub struct Intent {
     pub declared_at: SystemTime,
     /// The declaration.
     pub body: IntentBody,
+    /// The declared set whose apply declared it; `None` for any other declaration.
+    pub managed_by: Option<Uuid>,
 }
 
 /// Whether the workload should be running.

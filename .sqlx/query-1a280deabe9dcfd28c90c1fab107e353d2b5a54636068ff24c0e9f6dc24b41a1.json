@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version\n                 FROM intent\n                WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)\n                ORDER BY id LIMIT $3",
+  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version, managed_by\n                 FROM intent\n                WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)\n                ORDER BY id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -85,6 +85,17 @@
             "name": "schema_version"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "managed_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "intent",
+            "name": "managed_by"
+          }
+        }
       }
     ],
     "parameters": {
@@ -102,8 +113,9 @@
       false,
       false,
       null,
-      false
+      false,
+      true
     ]
   },
-  "hash": "cb84efd6718a334da5c2b19260e578c55d8238859afe1310cec65da0135be272"
+  "hash": "1a280deabe9dcfd28c90c1fab107e353d2b5a54636068ff24c0e9f6dc24b41a1"
 }

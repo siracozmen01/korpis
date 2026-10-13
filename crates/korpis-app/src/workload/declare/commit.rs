@@ -57,7 +57,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // The plan was computed from the target; if it moved, the plan is for a state that
             // no longer exists (§3.3 of docs/01-model.md).
             let stale = now.target != base.workload.target
-                || now.intent_version != base.workload.intent_version;
+                || now.intent_version != base.workload.intent_version
+                || now.set != base.workload.set;
             if stale {
                 return Err(moved(&now));
             }

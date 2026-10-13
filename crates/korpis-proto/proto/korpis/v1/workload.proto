@@ -35,6 +35,9 @@ message Workload {
   // The approved power declaration nodes are told, by version; `power` is the newest declared,
   // which may be waiting for approval. 0 until one is approved.
   uint64 power_target = 12;
+  // The declared set it was created through or adopted into; absent if none (§3.3 of
+  // docs/01-model.md, §5 of docs/13-surface-cli.md).
+  optional string set = 13;
 }
 
 // What someone declared should be true. Immutable and versioned.
@@ -49,6 +52,44 @@ message Intent {
   // The declaration itself. Stored as canonical ProtoJSON with defaults emitted (§3.1 of
   // docs/03-state.md).
   IntentBody body = 7;
+  // The declared set whose apply declared it; absent for any other declaration.
+  optional string managed_by = 8;
+}
+
+// A named group of workloads one declarative source owns, in one project (§3.3 of
+// docs/01-model.md). Created by the first declaration through it.
+message DeclaredSet {
+  string id = 1;
+  string project = 2;
+  // Unique within the project.
+  string name = 3;
+  DriftMode mode = 4;
+  // Incremented on every mode change, for compare-and-swap.
+  uint64 version = 5;
+  Subject created_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// What a set does with a member whose head was declared outside it (§6 of
+// docs/13-surface-cli.md).
+enum DriftMode {
+  DRIFT_MODE_UNSPECIFIED = 0;
+  // The out-of-band change stands; declaring over it through the set is refused unless asked to
+  // reconcile.
+  DRIFT_MODE_ADVISORY = 1;
+  // Declaring through the set reconciles it back, and records the change it discarded.
+  DRIFT_MODE_STRICT = 2;
+}
+
+// A member of a set whose head was declared outside it. Derived, never stored.
+message Drift {
+  string set = 1;
+  // The head: the out-of-band intent, with who declared it and when.
+  string intent = 2;
+  Subject declared_by = 3;
+  google.protobuf.Timestamp declared_at = 4;
+  // The newest intent the set declared, which the declared files still say.
+  optional string set_intent = 5;
 }
 
 // The declaration a subject writes. Everything else on Intent is set by the control plane.

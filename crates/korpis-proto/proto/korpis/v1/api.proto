@@ -267,6 +267,14 @@ message DeclareIntentRequest {
   // default policy would approve it at once, so the plan a person reviews is the one that
   // applies (§3.3 of docs/01-model.md). Not with `dry_run`.
   bool propose = 6;
+  // Declare through the set of this name in the workload's project, creating it in advisory
+  // mode if it does not exist (§5 and §6 of docs/13-surface-cli.md).
+  string set = 7;
+  // With `set`, onto a member drifted in an advisory set: discard the out-of-band change, which
+  // is recorded with its author.
+  bool reconcile = 8;
+  // With `set`, onto a workload that belongs to no set: take it into the set.
+  bool adopt = 9;
 }
 
 message NewWorkload {
@@ -337,6 +345,8 @@ message WorkloadStatus {
   Plan active_plan = 7;
   // Why no node took the approved target, if the newest attempt found none.
   Unplaced unplaced = 8;
+  // Present when the workload belongs to a set and its head was declared outside it.
+  Drift drift = 9;
 }
 
 enum Convergence {
@@ -357,6 +367,8 @@ message ListWorkloadsRequest {
   LabelSelector selector = 3;
   PageRequest page = 4;
   Consistency consistency = 5;
+  // Only the members of the set of this name; needs `project`.
+  optional string set = 6;
 }
 
 message ListWorkloadsResponse {
@@ -380,6 +392,37 @@ message WatchWorkloadRequest {
 
 message WatchWorkloadResponse {
   WorkloadStatus status = 1;
+}
+
+// Declared sets (§3.3 of docs/01-model.md). project.read lists them; project.write changes a
+// mode.
+service DeclaredSetService {
+  rpc ListDeclaredSets(ListDeclaredSetsRequest) returns (ListDeclaredSetsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc SetDeclaredSetMode(SetDeclaredSetModeRequest) returns (SetDeclaredSetModeResponse);
+}
+
+message ListDeclaredSetsRequest {
+  string project = 1;
+  PageRequest page = 2;
+}
+
+message ListDeclaredSetsResponse {
+  repeated DeclaredSet sets = 1;
+  PageResponse page = 2;
+}
+
+message SetDeclaredSetModeRequest {
+  // expected_version is the set's current version.
+  Mutation mutation = 1;
+  string project = 2;
+  string name = 3;
+  DriftMode mode = 4;
+}
+
+message SetDeclaredSetModeResponse {
+  DeclaredSet set = 1;
 }
 
 service PlanService {

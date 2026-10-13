@@ -41,6 +41,8 @@ pub enum IdKind {
     User,
     /// A long-running operation (`op_`).
     Operation,
+    /// A declared set (`set_`).
+    Set,
 }
 
 impl IdKind {
@@ -62,6 +64,7 @@ impl IdKind {
             Self::Token => "tok",
             Self::User => "usr",
             Self::Operation => "op",
+            Self::Set => "set",
         }
     }
 }

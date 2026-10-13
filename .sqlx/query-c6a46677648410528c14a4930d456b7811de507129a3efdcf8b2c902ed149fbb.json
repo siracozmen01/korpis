@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at\n               FROM workload WHERE id = $1",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id\n               FROM workload\n              WHERE deleted_at IS NULL\n                AND ($1::uuid IS NULL OR project_id = $1)\n                AND ($2::uuid IS NULL OR organization_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n                AND ($5::uuid IS NULL OR set_id = $5)\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -156,10 +156,25 @@
             "name": "deleted_at"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "set_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "set_id"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int8",
         "Uuid"
       ]
     },
@@ -177,8 +192,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "12c745ecbf4d64873b7412d5bbc939543d8ba65976da7694c9eb9baa65057069"
+  "hash": "c6a46677648410528c14a4930d456b7811de507129a3efdcf8b2c902ed149fbb"
 }
