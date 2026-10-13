@@ -264,6 +264,34 @@ follows the same order. A consumer is handed an event only once every transactio
 commit an earlier `id` has ended, which the control plane reads from PostgreSQL's snapshot horizon,
 so advancing past an `id` never skips one that commits late.
 
+> Corrected 2026-10-13, when the log was built. As written, the paragraph above assigned `id` from
+> a sequence at insert and delivered below the horizon. That is not enough: a transaction's
+> identifier is assigned at its first write and an event's `id` at its insert, so the two orders
+> can disagree, and a consumer resuming after `id` N could pass over an event with a smaller `id`
+> whose transaction was still open when N was delivered. What is built instead: an event is
+> inserted with an internal insertion number, and a **sequencer** gives it its `id`, a dense
+> position, once its transaction and every older one have ended (below the snapshot horizon),
+> in batches ordered by insertion number. Within a batch that order agrees with every key's
+> numbering, because a key's number is taken under its counter row before the insertion number;
+> across batches it agrees too, because a later batch's transaction took the key's row only after
+> the earlier one committed. So delivering by `id` never hands out a key's events out of order
+> and never passes over one. The cost is a delay of one sequencer pass (it is woken by every
+> event's commit, and looks once a second regardless), and one sequencer at a time, which several
+> control-plane processes take turns being. **The horizon is the whole PostgreSQL cluster's**, not
+> this database's: a transaction left open anywhere on the server, in any database, holds every
+> event back until it ends. Nothing is lost or reordered, but delivery stalls; §2 of
+> `18-operations.md` says what an operator does about it. Narrowing the horizon to this database
+> would mean reading other sessions' transaction identifiers from `pg_stat_activity`, which hides
+> them from an unprivileged role, and a writer the control plane cannot see would be skipped.
+
+**What an effect's event carries.** Its `kind` is the effect's action, its `detail` the effect's
+`after` and `error`, its severity `info` for an effect that succeeded or was skipped and `warning`
+otherwise; `critical` is for conditions. It is keyed to the effect's workload when it has one,
+and otherwise to the organization that owns the effect's node or its grant's scope. An effect
+that concerns no organization at all, which is only the installation's own bootstrap before any
+organization exists to read it, is no event: every event is read under `event.read` on an
+object, and such an effect has none.
+
 **A subscription is a stored position, not a connection.** It names its subject, a filter (kinds,
 a minimum severity, a selector over projects and workload labels), and the last `id` the consumer
 acknowledged. Delivery is at-least-once: a consumer that reconnects resumes after its last

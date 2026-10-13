@@ -12,6 +12,7 @@
 )]
 
 mod chain;
+mod events;
 mod ids;
 mod nodes;
 mod placement;

@@ -53,6 +53,8 @@ pub struct ServeConfig {
     pub lease_term: Duration,
     /// The window repeated identical denials are coalesced over (§10 of docs/10-api.md).
     pub denial_window: Duration,
+    /// How long the event log keeps an event (§5 of docs/15-observability.md).
+    pub event_retention: Duration,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -109,7 +111,9 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     .await?
     .with_watch_resync(config.watch_resync);
     store.listen();
+    store.run_sequencer();
     store.ensure_partitions(3).await?;
+    tokio::spawn(prune_events(store.clone(), config.event_retention));
     let keys = keys::Keys::load_or_create(&config.data)?;
     let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));
     let terms = SessionTerms {
@@ -188,6 +192,20 @@ async fn close_denial_runs(api: Arc<Api>, window: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::debug!(runs = n, "denial runs closed"),
             Err(e) => tracing::warn!(error = %e, "closing denial runs failed"),
+        }
+    }
+}
+
+/// Prunes the event log hourly to its retention window. The task ends with the process.
+async fn prune_events(store: PgStore, retention: Duration) {
+    let mut tick = tokio::time::interval(Duration::from_secs(3600));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match store.prune_events(retention).await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(events = n, "events past retention pruned"),
+            Err(e) => tracing::warn!(error = %e, "pruning the event log failed"),
         }
     }
 }

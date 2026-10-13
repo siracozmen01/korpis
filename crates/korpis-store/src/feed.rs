@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The workload change feed: one `LISTEN korpis_workload` connection for the whole process,
-//! fanned out to every subscriber (migration 0010). A subscriber also hears a resync on a fixed
-//! interval and whenever the listener fell behind or reconnected, because a notification is a
-//! wake-up, not a record, and what was missed is not replayed.
+//! The change feed: one listening connection for the whole process, holding one connection of the
+//! pool however many channels it hears. Workload changes (migration 0010) are fanned out to every
+//! subscriber, who also hears a resync on a fixed interval and whenever the listener fell behind
+//! or reconnected, because a notification is a wake-up, not a record, and what was missed is not
+//! replayed. Events written (migration 0023) wake the event sequencer.
 
 use crate::PgStore;
 use korpis_app::ports::{Change, Changes};
@@ -14,8 +15,11 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::{Instant, Interval, MissedTickBehavior};
 
-/// The channel the triggers announce on.
+/// The channel the workload triggers announce on.
 const CHANNEL: &str = "korpis_workload";
+
+/// The channel a transaction that wrote an event announces on, at its commit.
+const EVENT_WRITTEN: &str = "korpis_event_written";
 
 /// How many announcements a slow subscriber may fall behind before it is told to resync.
 const BACKLOG: usize = 1024;
@@ -28,12 +32,14 @@ const RECONNECT: Duration = Duration::from_secs(1);
 pub(crate) struct Feed {
     sender: broadcast::Sender<Change>,
     resync: Duration,
+    /// Woken when an event was written; the sequencer waits on it.
+    pub(crate) events_written: tokio::sync::Notify,
 }
 
 impl Feed {
     pub(crate) fn new(resync: Duration) -> Arc<Self> {
         let (sender, _) = broadcast::channel(BACKLOG);
-        Arc::new(Self { sender, resync })
+        Arc::new(Self { sender, resync, events_written: tokio::sync::Notify::new() })
     }
 }
 
@@ -73,12 +79,13 @@ impl PgStore {
         let feed = Arc::clone(&self.feed);
         tokio::spawn(async move {
             loop {
-                match relay(&pool, &feed.sender).await {
+                match relay(&pool, &feed).await {
                     Ok(()) => return,
                     Err(e) => tracing::warn!(error = %e, "workload change feed reconnecting"),
                 }
                 // Whatever was announced while disconnected is lost; everyone re-reads.
                 let _ = feed.sender.send(Change::Resync);
+                feed.events_written.notify_one();
                 tokio::time::sleep(RECONNECT).await;
             }
         });
@@ -86,13 +93,17 @@ impl PgStore {
 }
 
 /// Relays announcements until the connection fails.
-async fn relay(pool: &sqlx::PgPool, sender: &broadcast::Sender<Change>) -> Result<(), sqlx::Error> {
+async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
     let mut listener = PgListener::connect_with(pool).await?;
-    listener.listen(CHANNEL).await?;
+    listener.listen_all([CHANNEL, EVENT_WRITTEN]).await?;
     loop {
         let notification = listener.recv().await?;
+        if notification.channel() == EVENT_WRITTEN {
+            feed.events_written.notify_one();
+            continue;
+        }
         let change = notification.payload().parse().map_or(Change::Resync, Change::Workload);
         // No subscriber is not an error: nobody is watching.
-        let _ = sender.send(change);
+        let _ = feed.sender.send(change);
     }
 }

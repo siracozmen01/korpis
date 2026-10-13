@@ -15,6 +15,7 @@ mod authz;
 mod denial;
 mod enrollment;
 mod errors;
+mod events;
 mod extension;
 mod feed;
 mod idempotency;

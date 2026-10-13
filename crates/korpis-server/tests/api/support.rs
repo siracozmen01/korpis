@@ -104,6 +104,7 @@ impl Harness {
             heartbeat_interval: heartbeat,
             lease_term: std::time::Duration::from_secs(2),
             denial_window: std::time::Duration::from_secs(1),
+            event_retention: std::time::Duration::from_secs(30 * 86_400),
         })
         .await
         .expect("serve");

@@ -55,6 +55,16 @@ would undermine the model in exchange for a nicer README. The installer provisio
 the system package manager or a container and gets out of the way; Korpis does not vendor, fork, or
 supervise a database it did not write.
 
+**Give it a PostgreSQL server of its own, or bound idle transactions on the one it shares.** The
+event log hands out an event only once every transaction that could still commit an earlier one
+has ended, and PostgreSQL knows that only for the whole server, not per database (§5 of
+`15-observability.md`). A session left `idle in transaction` by anything on the server, another
+application's included, stops every subscriber's delivery until it ends; nothing is lost, but
+extensions and integrations see nothing new. On a shared server, set
+`idle_in_transaction_session_timeout` for the other applications' roles. The event log keeps
+events for `--event-retention-days` (30 by default) of `korpis-server serve`; effects, the audit
+record, are kept regardless (§4 of `15-observability.md`).
+
 ### The binary is its own installer
 
 > Resolves open question 1 of §10.

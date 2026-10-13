@@ -60,6 +60,7 @@ impl ControlPlane {
             heartbeat_interval: Duration::from_secs(30),
             lease_term: Duration::from_secs(2),
             denial_window: Duration::from_secs(60),
+            event_retention: Duration::from_secs(30 * 86_400),
         })
         .await
         .expect("serve");

@@ -74,6 +74,10 @@ enum Command {
         /// count; the first of each run is written at once (§10 of docs/10-api.md).
         #[arg(long, default_value_t = 60)]
         denial_window_secs: u64,
+        /// Days the event log keeps an event; a subscriber further behind is told of the gap
+        /// (§5 of docs/15-observability.md). Effects are kept regardless.
+        #[arg(long, default_value_t = 30)]
+        event_retention_days: u64,
     },
 }
 
@@ -126,6 +130,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             agent_heartbeat_secs,
             lease_term_secs,
             denial_window_secs,
+            event_retention_days,
         } => {
             let policy = match placement_policy {
                 Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
@@ -143,6 +148,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 heartbeat_interval: Duration::from_secs(agent_heartbeat_secs.max(1)),
                 lease_term: Duration::from_secs(lease_term_secs.max(1)),
                 denial_window: Duration::from_secs(denial_window_secs.max(1)),
+                event_retention: Duration::from_secs(event_retention_days.max(1) * 86_400),
             })
             .await?;
             tokio::select! {
