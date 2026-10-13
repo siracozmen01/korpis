@@ -11,6 +11,8 @@ pub mod audit;
 #[cfg(feature = "authz")]
 pub mod authz;
 pub mod build;
+#[cfg(feature = "content")]
+pub mod content;
 pub mod id;
 pub mod labels;
 pub mod node;

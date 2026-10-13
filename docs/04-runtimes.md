@@ -369,6 +369,16 @@ Drivers **reference** content by digest and never fetch it themselves. Consequen
 - Prefetch is a scheduling concern: the control plane can hint a digest to a node before placing a
   workload there, so start latency is not a download.
 
+**How the store is kept** (2026-10-13, from the implementation). Content is fetched by digest
+only: a reference without one is refused, because a tag is a question the registry may answer
+differently tomorrow. An index is resolved on the node to the manifest for the node's own
+platform. Every blob is written to an ingest file that refuses bytes beyond the size its
+descriptor declares and is hashed as it is written, then synced, then renamed to a file named by
+its digest, so a file in the store is always whole and always what its name says; a name is
+checked to be a well-formed digest before it becomes a path. A driver reads the store and never
+writes it, and verifies again what it imports, since containerd checks every blob it commits
+against the digest it is given.
+
 ---
 
 ## 7. What is deliberately not in the interface

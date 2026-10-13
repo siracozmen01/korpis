@@ -22,6 +22,9 @@ trust = ["dep:base64", "dep:p256", "dep:sha2"]
 # Node identity: the Ed25519 key a node proves itself with (§7 of docs/02-architecture.md),
 # shared by the agent that signs and the control plane that verifies.
 identity = ["dep:ed25519-dalek", "dep:sha2"]
+# Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
+# agent that fetches them and the driver that imports them.
+content = ["dep:serde", "dep:sha2"]
 
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
@@ -31,6 +34,7 @@ getrandom = { version = "0.4", optional = true }
 ipnet = "2"
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pem", "pkcs8", "std"], optional = true }
 regex = "1"
+serde = { version = "1", features = ["derive"], optional = true }
 serde_json = "1"
 sha2 = { version = "0.10", optional = true }
 thiserror = { workspace = true }

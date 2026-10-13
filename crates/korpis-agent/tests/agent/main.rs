@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod content;
 mod join;
 mod journal;
 mod lease;
