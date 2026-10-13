@@ -36,7 +36,7 @@ Same pattern as runtime drivers (§4.1 of `04-runtimes.md`): declared, never inf
 ```
 StorageClass
   name              string
-  backend           zfs | btrfs | lvm_thin | xfs_project | ext4_project | network
+  backend           zfs | btrfs | lvm_thin | xfs_project | ext4_project | network | directory
   capabilities
     snapshot            bool
     snapshot_atomic     bool     consistent point-in-time without pausing writers
@@ -54,6 +54,15 @@ StorageClass
     fencing             none | lease_only | storage_enforced
                                  whether the backend itself can refuse a superseded writer
 ```
+
+> Added 2026-10-13, from the implementation. The helper declared all of this and the control
+> plane kept only each class's name and size, so a node's classes said nothing through the API
+> about what they could do, and nothing that later reads them (backup planning, the lease rule
+> below, a migration's choice of destination) had the declaration to read. The control plane now
+> keeps the backend and every capability as declared, refuses a class that names no backend or
+> no fencing mode rather than assuming one, and shows them on the node. A class stored before
+> this is read as `directory` with nothing, which claims no capability it may lack, until the
+> agent's next `Hello` replaces it with the helper's declaration.
 
 `multi_node_attach` is the property that decides lease behaviour, not `shared_access`. A
 single-attach Ceph RBD image or iSCSI LUN is never mounted twice at once, but after a reschedule a

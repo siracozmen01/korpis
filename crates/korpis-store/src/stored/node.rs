@@ -5,8 +5,8 @@
 use super::from_json;
 use korpis_app::ports::{StoreError, StoreResult};
 use korpis_core::node::driver::{
-    DeviceClass, FileAccess, GpuMode, IdMapCaps, NetworkMode, RootfsSource, SnapshotCaps,
-    VolumeSemantics,
+    DeviceClass, Fencing, FileAccess, GpuMode, IdMapCaps, NetworkMode, RootfsSource, SnapshotCaps,
+    StorageBackend, StorageCaps, StorageFeature, VolumeSemantics,
 };
 use korpis_core::node::{Capabilities, DriverInfo, Enforcement, StorageClass, Taint};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
@@ -108,8 +108,49 @@ pub(crate) struct DriverDoc {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StorageClassDoc {
     name: String,
+    // Absent from classes stored before the helper's declaration was kept; read as what every
+    // such class claimed, which is nothing (§2 of docs/06-storage.md).
+    #[serde(default = "directory")]
+    backend: BackendDoc,
+    #[serde(default)]
+    features: Vec<FeatureDoc>,
+    #[serde(default = "unfenced")]
+    fencing: FencingDoc,
     capacity_bytes: u64,
     free_bytes: u64,
+}
+
+mirror!(
+    BackendDoc,
+    StorageBackend { Zfs, Btrfs, LvmThin, XfsProject, Ext4Project, Network, Directory }
+);
+mirror!(FencingDoc, Fencing { None, LeaseOnly, StorageEnforced });
+mirror!(
+    FeatureDoc,
+    StorageFeature {
+        Snapshot,
+        SnapshotAtomic,
+        IncrementalSend,
+        QuotaEnforced,
+        QuotaCapacity,
+        QuotaInodes,
+        ThinProvision,
+        OnlineGrow,
+        OnlineShrink,
+        ReflinkCopy,
+        Compression,
+        EncryptionAtRest,
+        SharedAccess,
+        MultiNodeAttach,
+    }
+);
+
+const fn directory() -> BackendDoc {
+    BackendDoc::Directory
+}
+
+const fn unfenced() -> FencingDoc {
+    FencingDoc::None
 }
 
 impl CapsDoc {
@@ -236,6 +277,9 @@ pub(crate) fn node_docs(
     });
     let classes = classes.iter().map(|c| StorageClassDoc {
         name: c.name.clone(),
+        backend: c.backend.into(),
+        features: c.capabilities.features.iter().map(|f| (*f).into()).collect(),
+        fencing: c.capabilities.fencing.into(),
         capacity_bytes: c.capacity_bytes,
         free_bytes: c.free_bytes,
     });
@@ -271,6 +315,11 @@ pub(crate) fn storage_classes(v: Value) -> StoreResult<Vec<StorageClass>> {
         .into_iter()
         .map(|c| StorageClass {
             name: c.name,
+            backend: c.backend.into(),
+            capabilities: StorageCaps {
+                features: c.features.into_iter().map(Into::into).collect(),
+                fencing: c.fencing.into(),
+            },
             capacity_bytes: c.capacity_bytes,
             free_bytes: c.free_bytes,
         })

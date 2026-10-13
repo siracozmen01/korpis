@@ -11,7 +11,7 @@ use super::{
 use crate::spec::{console_from_pb, tier_from_pb};
 use crate::{Result, invalid};
 use korpis_core::node::driver::{IdMapCaps, SnapshotCaps};
-use korpis_core::node::{Capabilities, DriverInfo, Enforcement, StorageClass};
+use korpis_core::node::{Capabilities, DriverInfo, Enforcement};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use korpis_core::workload::plan::StepAction;
 use korpis_core::workload::spec::IsolationTier;
@@ -139,19 +139,6 @@ pub fn drivers_from_pb(field: &str, drivers: &[pb::DriverInfo]) -> Result<Vec<Dr
                 healthy: d.healthy,
                 capabilities: capabilities_from_pb(&format!("{at}.capabilities"), caps)?,
             })
-        })
-        .collect()
-}
-
-/// The storage classes an agent reports.
-#[must_use]
-pub fn storage_classes_from_pb(classes: &[pb::StorageClassInfo]) -> Vec<StorageClass> {
-    classes
-        .iter()
-        .map(|c| StorageClass {
-            name: c.name.clone(),
-            capacity_bytes: c.capacity_bytes,
-            free_bytes: c.free_bytes,
         })
         .collect()
 }

@@ -7,6 +7,8 @@
 use crate::agent::{TestAgent, welcome};
 use crate::support::{Harness, detail, reason};
 use connectrpc::ErrorCode;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message;
+use korpis_proto::korpis::agent::v1::AgentMessage;
 use korpis_proto::korpis::v1 as pb;
 use std::time::{Duration, SystemTime};
 
@@ -92,4 +94,45 @@ async fn a_node_that_stops_its_heartbeats_is_unreachable_after_three() {
     back.unwrap();
     let returned = node(&h, &a.node).await;
     assert_eq!(returned.status.as_known(), Some(pb::NodeStatus::NODE_STATUS_READY), "back");
+}
+
+/// A Hello from `a` declaring `classes`.
+fn declaring(a: &TestAgent, n: u8, classes: Vec<pb::StorageClassInfo>) -> AgentMessage {
+    let mut hello = a.hello_at(SystemTime::now(), &nonce(n));
+    if let Some(Message::Hello(x)) = hello.message.as_mut() {
+        x.storage_classes = classes;
+    }
+    hello
+}
+
+#[tokio::test]
+async fn a_storage_class_is_kept_as_the_helper_declared_it() {
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-3", 1).await;
+    let quota = pb::StorageCapabilities {
+        quota_enforced: true,
+        quota_capacity: true,
+        quota_inodes: true,
+        fencing: pb::Fencing::FENCING_NONE.into(),
+        ..Default::default()
+    };
+    let class = pb::StorageClassInfo {
+        name: "local".into(),
+        backend: pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT.into(),
+        capabilities: quota.clone().into(),
+        capacity_bytes: 1 << 40,
+        free_bytes: 1 << 39,
+        ..Default::default()
+    };
+    let (_s, first) = TestAgent::open(&h, declaring(&a, 1, vec![class.clone()])).await;
+    first.unwrap();
+    let kept = node(&h, &a.node).await.storage_classes;
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].backend.as_known(), Some(pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT));
+    assert_eq!(kept[0].capabilities.as_option(), Some(&quota), "what it can do, as declared");
+
+    let unspecified = pb::StorageBackend::STORAGE_BACKEND_UNSPECIFIED.into();
+    let unnamed = pb::StorageClassInfo { backend: unspecified, ..class };
+    let (_s, refused) = TestAgent::open(&h, declaring(&a, 2, vec![unnamed])).await;
+    assert_eq!(detail(&refused.unwrap_err()).field, "storage_classes[0].backend");
 }

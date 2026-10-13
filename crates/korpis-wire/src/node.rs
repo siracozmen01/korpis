@@ -3,8 +3,10 @@
 //! Nodes, their drivers and storage, and amounts per dimension.
 
 mod facts;
+mod storage;
 
-pub use facts::{drivers_from_pb, resources_from_pb, storage_classes_from_pb};
+pub use facts::{drivers_from_pb, resources_from_pb};
+pub use storage::{storage_class_to_pb, storage_classes_from_pb};
 
 use crate::spec::{console_to_pb, tier_to_pb};
 use crate::{timestamp, wire_id};
@@ -13,7 +15,7 @@ use korpis_core::node::driver::{
     DeviceClass, FileAccess, GpuMode, NetworkMode, RootfsSource, VolumeSemantics,
 };
 use korpis_core::node::{
-    Capabilities, Connectivity, DriverInfo, Node, NodeAdmin, NodeStatus, Reachability, StorageClass,
+    Capabilities, Connectivity, DriverInfo, Node, NodeAdmin, NodeStatus, Reachability,
 };
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use korpis_proto::korpis::v1 as pb;
@@ -181,15 +183,6 @@ fn driver_to_pb(d: &DriverInfo) -> pb::DriverInfo {
         protocol: d.protocol.clone(),
         capabilities: capabilities_to_pb(&d.capabilities).into(),
         healthy: d.healthy,
-        ..Default::default()
-    }
-}
-
-fn storage_class_to_pb(c: &StorageClass) -> pb::StorageClassInfo {
-    pb::StorageClassInfo {
-        name: c.name.clone(),
-        capacity_bytes: c.capacity_bytes,
-        free_bytes: c.free_bytes,
         ..Default::default()
     }
 }

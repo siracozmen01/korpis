@@ -36,7 +36,10 @@ pub(super) fn facts(
         capacity: resources_from_pb(capacity.unwrap_or(&zero)),
         allocatable: resources_from_pb(allocatable.unwrap_or(&zero)),
         drivers: drivers_from_pb("drivers", drivers).refuse()?,
-        storage_classes: classes.map(storage_classes_from_pb),
+        storage_classes: classes
+            .map(|c| storage_classes_from_pb("storage_classes", c))
+            .transpose()
+            .refuse()?,
         agent: None,
     })
 }

@@ -191,8 +191,93 @@ pub struct DriverInfo {
 pub struct StorageClass {
     /// Its name.
     pub name: String,
+    /// What implements it.
+    pub backend: StorageBackend,
+    /// What it can do, declared by the helper and never inferred from the backend.
+    pub capabilities: StorageCaps,
     /// Total bytes.
     pub capacity_bytes: u64,
     /// Free bytes, as last reported.
     pub free_bytes: u64,
+}
+
+/// What implements a storage class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum StorageBackend {
+    /// ZFS datasets.
+    Zfs,
+    /// Btrfs subvolumes.
+    Btrfs,
+    /// LVM thin volumes.
+    LvmThin,
+    /// XFS with a project quota per volume.
+    XfsProject,
+    /// ext4 with a project quota per volume.
+    Ext4Project,
+    /// Storage reached over the network.
+    Network,
+    /// A directory on a filesystem with no project quota: nothing is enforced.
+    Directory,
+}
+
+/// One thing a storage class can do (§2 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum StorageFeature {
+    /// Point-in-time snapshots.
+    Snapshot,
+    /// Snapshots atomic across the volume.
+    SnapshotAtomic,
+    /// Sending only what changed since a snapshot.
+    IncrementalSend,
+    /// The kernel fails the write at the quota, not a monitor after it.
+    QuotaEnforced,
+    /// A byte quota.
+    QuotaCapacity,
+    /// An inode quota.
+    QuotaInodes,
+    /// Space taken as written, not at creation.
+    ThinProvision,
+    /// Grows while mounted.
+    OnlineGrow,
+    /// Shrinks while mounted.
+    OnlineShrink,
+    /// Copies by reference.
+    ReflinkCopy,
+    /// Compresses.
+    Compression,
+    /// Encrypts at rest.
+    EncryptionAtRest,
+    /// More than one workload may mount it.
+    SharedAccess,
+    /// More than one node may attach it.
+    MultiNodeAttach,
+}
+
+/// How a storage class stops a writer that has lost its lease (§2 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Fencing {
+    /// It does not.
+    #[default]
+    None,
+    /// Only by the lease: a writer that keeps writing is not stopped by the storage.
+    LeaseOnly,
+    /// The storage refuses the old writer.
+    StorageEnforced,
+}
+
+/// What a storage class declares it can do.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StorageCaps {
+    /// The features it has; one absent is a feature it lacks.
+    pub features: std::collections::BTreeSet<StorageFeature>,
+    /// How it fences.
+    pub fencing: Fencing,
+}
+
+impl StorageCaps {
+    /// Whether it has `feature`.
+    #[must_use]
+    pub fn has(&self, feature: StorageFeature) -> bool {
+        self.features.contains(&feature)
+    }
 }
