@@ -18,6 +18,7 @@ mod authz;
 mod cancel;
 mod classify;
 mod denials;
+mod dns;
 mod effects;
 mod enroll;
 mod events;

@@ -87,6 +87,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Called { id: call.id, sent: None, outcome, elapsed, retry_at: Some(until) });
         }
         let (sent, outcome, at) = self.finished(&call, &mut wakeups).await?;
+        let outcome = if call.request.answered_by(&outcome) {
+            outcome
+        } else {
+            CallOutcome::Failed(CallFailure::malformed())
+        };
         self.judge_provider(&call, &outcome, at).await?;
         let elapsed = at.duration_since(started).unwrap_or_default();
         Ok(Called { id: call.id, sent, outcome, elapsed, retry_at: None })
@@ -171,6 +176,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         call: Uuid,
         outcome: &CallOutcome,
     ) -> Result<bool, AppError> {
+        // An answer that answers another question is recorded as the provider's malfunction, so
+        // its caller and its breaker both see it.
+        let malformed = CallOutcome::Failed(CallFailure::malformed());
+        let outcome = match self.store.provider_call(call).await? {
+            Some(c) if !c.request.answered_by(outcome) => &malformed,
+            _ => outcome,
+        };
         let mut tx = self.store.begin().await?;
         let done = tx.finish_call(call, Some(registration), outcome, self.clock.now()).await?;
         tx.commit().await?;

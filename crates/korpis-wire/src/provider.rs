@@ -4,6 +4,7 @@
 //! `korpis.v1.ProviderRegistration`, and the calls sent down a provider's stream and the results
 //! that come back up it.
 
+use crate::dns::record_to_pb;
 use crate::extension::provider_type_to_pb;
 use crate::{IdKind, duration, timestamp, wire_id};
 use korpis_core::extension::{
@@ -66,6 +67,13 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::Ping { nonce } => {
             Request::Ping(Box::new(pb::Ping { nonce: nonce.clone(), ..Default::default() }))
         }
+        CallRequest::ApplyRecords { owner, records } => {
+            Request::ApplyRecords(Box::new(pb::ApplyRecords {
+                owner: owner.clone(),
+                records: records.iter().map(record_to_pb).collect(),
+                ..Default::default()
+            }))
+        }
     };
     pb::ProviderCall {
         call: wire_id(IdKind::ProviderCall, c.id),
@@ -81,6 +89,11 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
 pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
     match &r.outcome {
         Some(Outcome::Pong(p)) => CallOutcome::Pong { nonce: p.nonce.clone() },
+        Some(Outcome::RecordsApplied(a)) => CallOutcome::RecordsApplied {
+            created: a.created,
+            updated: a.updated,
+            deleted: a.deleted,
+        },
         Some(Outcome::Error(e)) => CallOutcome::Failed(CallFailure {
             reason: if e.reason.is_empty() { "provider.failed".into() } else { e.reason.clone() },
             message: e.message.clone(),

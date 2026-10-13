@@ -190,15 +190,17 @@ async fn uninstalling_revokes_its_grants_proposes_its_retirement_and_frees_its_n
 async fn an_extension_this_control_plane_cannot_serve_is_refused_at_install_naming_why() {
     let h = Harness::new().await;
     let project = project(&h, &h.root_org(), "dns").await;
-    let requires = "requires: [provider.serve, events.subscribe]";
-    let wants_dns = push_document(&DNS.replace(requires, "requires: [provider.dns]")).await;
+    // Backup targets' calls are not part of the contract yet.
+    let requires = "requires: [provider.serve, provider.dns, events.subscribe]";
+    let wants = DNS.replace(requires, "requires: [provider.backup_target]");
+    let wants_dns = push_document(&wants).await;
     let dry = |repo: &str| pb::InstallExtensionRequest {
         dry_run: true,
         ..install(&h, "dry", repo, &project)
     };
     let e = h.extensions(h.root()).install_extension(dry(&wants_dns)).await.unwrap_err();
     assert_eq!(reason(&e), "extension.incompatible");
-    assert!(e.message.as_deref().unwrap_or_default().contains("provider.dns"), "{e:?}");
+    assert!(e.message.as_deref().unwrap_or_default().contains("provider.backup_target"), "{e:?}");
 
     let later = DNS.replace("api_version: korpis.extension.v1", "api_version: korpis.extension.v2");
     let e = h.extensions(h.root()).install_extension(dry(&push_document(&later).await)).await;

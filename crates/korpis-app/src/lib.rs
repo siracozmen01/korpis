@@ -12,6 +12,7 @@
 pub mod audit;
 pub mod authz;
 pub mod caller;
+pub mod dns;
 pub mod error;
 pub mod event;
 pub mod extension;

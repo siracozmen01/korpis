@@ -19,6 +19,13 @@ pub enum CallRequest {
         /// Echoed back, so an answer is matched to its question.
         nonce: String,
     },
+    /// `dns`: make an owner's records exactly these (§3.5 of docs/07-networking.md).
+    ApplyRecords {
+        /// Who the records belong to.
+        owner: String,
+        /// Every record it should have.
+        records: Vec<crate::dns::DnsRecord>,
+    },
 }
 
 /// How a call ended.
@@ -29,8 +36,31 @@ pub enum CallOutcome {
         /// The nonce it was asked with.
         nonce: String,
     },
+    /// The answer to [`CallRequest::ApplyRecords`]: what it changed.
+    RecordsApplied {
+        /// Records created.
+        created: u32,
+        /// Records changed.
+        updated: u32,
+        /// Records removed.
+        deleted: u32,
+    },
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
+}
+
+impl CallRequest {
+    /// Whether `outcome` answers this request: a failure answers anything, and a success only
+    /// the request it is the answer to. A provider answering with another is broken.
+    #[must_use]
+    pub const fn answered_by(&self, outcome: &CallOutcome) -> bool {
+        matches!(
+            (self, outcome),
+            (_, CallOutcome::Failed(_))
+                | (Self::Ping { .. }, CallOutcome::Pong { .. })
+                | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. })
+        )
+    }
 }
 
 /// A failed call, with a reason the plan or the observation shows.
@@ -45,6 +75,14 @@ pub struct CallFailure {
 }
 
 impl CallFailure {
+    /// Whether it says the provider is unwell, as its breaker counts failures: a retryable
+    /// failure (its deadline, its stream, or the provider's own word), or an answer that answers
+    /// nothing. A refusal of the request itself is a correct answer.
+    #[must_use]
+    pub fn unwell(&self) -> bool {
+        self.retryable || self.reason == "provider.malformed"
+    }
+
     /// A failure the control plane records on the provider's behalf.
     #[must_use]
     pub fn of(reason: &str, message: &str, retryable: bool) -> Self {
@@ -68,6 +106,12 @@ impl CallFailure {
     #[must_use]
     pub fn circuit_open() -> Self {
         Self::of("provider.circuit_open", "the provider is failing; its breaker is open", true)
+    }
+
+    /// The provider answered with something that is not an answer to the call.
+    #[must_use]
+    pub fn malformed() -> Self {
+        Self::of("provider.malformed", "the provider's answer does not answer the call", false)
     }
 
     /// Nothing provides what the call names any more.

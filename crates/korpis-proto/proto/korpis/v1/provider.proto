@@ -70,6 +70,8 @@ message ProviderCall {
   oneof request {
     // A liveness check every provider answers.
     Ping ping = 10;
+    // dns: make an owner's records exactly these.
+    ApplyRecords apply_records = 20;
   }
 }
 
@@ -79,6 +81,7 @@ message CallResult {
     // A failure, with a reason the plan or the observation shows.
     Error error = 2;
     Pong pong = 10;
+    RecordsApplied records_applied = 20;
   }
 }
 
@@ -161,4 +164,42 @@ message PingProviderResponse {
   // Set when the call failed: provider.deadline, provider.stream_ended, provider.unknown,
   // provider.circuit_open (with retry_after), or a reason of the provider's own.
   Error error = 5;
+}
+
+// DNS (§3.5 of docs/07-networking.md). The control plane holds what each owner's records should
+// be; a provider makes them so in the zones it manages, removing records the owner no longer has
+// and leaving every record it does not own alone. A name in no zone it manages fails
+// dns.zone_not_found; a name held by a record it does not own fails dns.conflict.
+message ApplyRecords {
+  // Who the records belong to, e.g. an endpoint, `ep_...`: stable for as long as they exist.
+  string owner = 1;
+  // Every record the owner should have; empty removes them all.
+  repeated DnsRecord records = 2;
+}
+
+message DnsRecord {
+  // A fully qualified name, lowercase, without the trailing dot.
+  string name = 1;
+  DnsRecordType type = 2;
+  // Seconds, 30 to 86400.
+  uint32 ttl = 3;
+  // As the type writes them: an address for A and AAAA, a name for CNAME, "priority weight port
+  // target" for SRV, the text for TXT.
+  repeated string values = 4;
+}
+
+enum DnsRecordType {
+  DNS_RECORD_TYPE_UNSPECIFIED = 0;
+  DNS_RECORD_TYPE_A = 1;
+  DNS_RECORD_TYPE_AAAA = 2;
+  DNS_RECORD_TYPE_CNAME = 3;
+  DNS_RECORD_TYPE_SRV = 4;
+  DNS_RECORD_TYPE_TXT = 5;
+}
+
+// What applying changed.
+message RecordsApplied {
+  uint32 created = 1;
+  uint32 updated = 2;
+  uint32 deleted = 3;
 }

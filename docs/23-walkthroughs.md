@@ -885,6 +885,10 @@ control plane, the one destination an extension exists to reach, and nothing tol
 where the control plane is or how to trust it. The default now opens the API's address to an
 installed extension's workload, decided by the control plane and applied by the node, and the
 identity socket answers with the address and the CA its node pinned (§9.5 of `08-identity.md`).
+The call of step 2 now exists in the contract: an endpoint's records are sent whole to the DNS
+provider, which makes its zones agree and refuses names outside them (§3.5 of
+`07-networking.md`), so a retry after the slow provider of step 3 times out converges rather than
+duplicating records.
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

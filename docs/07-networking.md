@@ -269,6 +269,35 @@ whether the workload accepts it. Where it does not, the endpoint's `client_addre
 `translated` (§3.6 of `01-model.md`), and the interface says that this workload sees the router,
 not the player.
 
+### 3.5 Records are published through a DNS provider
+
+> Added 2026-10-13, when the DNS provider interface was built (§5 of `16-extensions.md`). Ingress
+> names, `SRV` records for games, and ACME's DNS-01 challenge all needed records published, and
+> nothing said in what form Korpis asks for them.
+
+**Korpis sends an owner's records whole, and the provider makes its zones agree.** An owner is the
+object the records exist for, an endpoint (`ep_…`), and the call `ApplyRecords` carries every
+record that owner should have: `A`, `AAAA`, `CNAME`, `SRV`, or `TXT`, each a lowercase name, a TTL
+of 30 to 86 400 seconds, and its values, at most a hundred records per owner. The provider creates
+what is missing, changes what differs, and removes what the owner had and no longer has; an empty
+list removes them all. It never touches a record it does not own, so it must know which are
+Korpis's and whose (a TXT ownership marker beside each, the way external-dns keeps its registry,
+or the provider's own tags). A name in no zone it manages fails `dns.zone_not_found`, and a name
+already held by a record it does not own fails `dns.conflict`, neither retryable; an unreachable
+DNS service fails retryably. Every record is checked by the control plane before any provider is
+called, so all providers are asked the same well-formed thing.
+
+The reason for whole sets rather than add and delete: the call is then idempotent, so a retry
+after a lost answer, a provider replaced mid-way, or a resync after an outage all converge on the
+same records, and the control plane's reconciliation, which already works from desired state,
+needs nothing else. What it costs: every change resends the owner's whole set, a hundred records at
+most, and every provider must keep an ownership registry, which is the price of never deleting a
+record a person made. What it does not decide: which names an organization may publish. Zones are
+not yet objects with owners (§4.1 of `16-extensions.md`), so a DNS provider publishes, within the
+zones it manages, whatever its organization's endpoints ask for; when zones become objects, the
+check moves to the control plane, before the call. A failure makes the endpoint's observation
+`unsatisfiable` with the provider named, and reconciliation retries (§5 of `16-extensions.md`).
+
 ---
 
 ## 4. Addressing

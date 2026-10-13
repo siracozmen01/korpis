@@ -100,6 +100,9 @@ pub struct Running {
     pub addr: SocketAddr,
     /// The server; it ends only on failure.
     pub task: tokio::task::JoinHandle<Result<(), ServeError>>,
+    /// The services' state, for a host that embeds the control plane: its use cases, called
+    /// in-process, such as the ones only the control plane's own work calls.
+    pub api: Arc<Api>,
 }
 
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can
@@ -146,12 +149,12 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(provider_calls::keep_registrations(Arc::clone(&api)));
     tokio::spawn(provider_calls::dispatch(Arc::clone(&api)));
     tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
-    let router = api.router();
+    let router = Arc::clone(&api).router();
     let task = tokio::spawn(async move {
         bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
     });
     tracing::info!(%addr, "serving");
-    Ok(Running { addr, task })
+    Ok(Running { addr, task, api })
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

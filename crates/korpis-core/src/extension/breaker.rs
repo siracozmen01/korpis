@@ -67,7 +67,8 @@ impl ProviderType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Sample {
     /// Whether it failed in a way that says the provider is unwell: a retryable failure,
-    /// including its deadline passing and its stream ending. A provider's answer that the
+    /// including its deadline passing and its stream ending, or an answer that answers nothing
+    /// ([`CallFailure::unwell`](super::CallFailure::unwell)). A provider's answer that the
     /// request itself is wrong is a correct answer.
     pub failed: bool,
     /// From queueing to finishing, so the wait for a free slot counts.

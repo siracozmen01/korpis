@@ -17,6 +17,8 @@ pub const CAPABILITIES: &[&str] = &[
     "events.subscribe",
     // The workload credential socket of §9.5 of docs/08-identity.md.
     "identity.credential",
+    // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.
+    "provider.dns",
     // A provider's stream: registering, being pinged, and being cancelled, §3.3.
     "provider.serve",
 ];
@@ -82,11 +84,12 @@ mod tests {
         assert_eq!(manifest("korpis.extension.v1", &["provider.serve"]).compatible(), Ok(()));
         let later = manifest("korpis.extension.v2", &[]).compatible().unwrap_err();
         assert_eq!(later, Incompatible::Version { wanted: "korpis.extension.v2".into() });
-        let missing = manifest("korpis.extension.v1", &["provider.dns", "events.subscribe", "x.y"])
-            .compatible()
-            .unwrap_err();
+        let missing =
+            manifest("korpis.extension.v1", &["provider.step", "events.subscribe", "x.y"])
+                .compatible()
+                .unwrap_err();
         let Incompatible::Capabilities { missing: names } = &missing else { panic!("{missing}") };
-        assert_eq!(names, &["provider.dns", "x.y"], "every missing one, at once");
+        assert_eq!(names, &["provider.step", "x.y"], "every missing one, at once");
         assert!(missing.to_string().contains("it offers events.subscribe, identity"), "{missing}");
     }
 }

@@ -39,7 +39,7 @@ fn key(call: &ProviderCall) -> ProviderKey<'_> {
 fn sample(call: &ProviderCall, outcome: &CallOutcome, at: SystemTime) -> Sample {
     let span = |to: SystemTime| to.duration_since(call.created_at).unwrap_or_default();
     Sample {
-        failed: matches!(outcome, CallOutcome::Failed(f) if f.retryable),
+        failed: matches!(outcome, CallOutcome::Failed(f) if f.unwell()),
         elapsed: span(at),
         allowed: span(call.deadline),
     }

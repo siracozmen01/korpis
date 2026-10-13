@@ -50,6 +50,8 @@ pub struct Harness {
     base: http::Uri,
     /// The installation's CA, PEM, as an extension's node would hand it over.
     pub ca_pem: Vec<u8>,
+    /// The control plane's state, to call use cases no RPC reaches yet.
+    pub api: std::sync::Arc<korpis_server::api::Api>,
     server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
 }
 
@@ -113,7 +115,8 @@ impl Harness {
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
         let http = client_tls(&data);
         let ca_pem = std::fs::read(data.tls().join("ca.pem")).expect("CA");
-        let h = Self { db, _dir: dir, installed, http, base, ca_pem, server: running.task };
+        let api = running.api;
+        let h = Self { db, _dir: dir, installed, http, base, ca_pem, api, server: running.task };
         h.accept_test_signer().await;
         h
     }

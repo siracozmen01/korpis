@@ -91,7 +91,7 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
                 e.retry_after = after.map(wire::duration).into();
                 Some(e).into()
             }
-            CallOutcome::Pong { .. } => None.into(),
+            CallOutcome::Pong { .. } | CallOutcome::RecordsApplied { .. } => None.into(),
         },
         ..Default::default()
     }

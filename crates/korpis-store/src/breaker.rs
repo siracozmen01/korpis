@@ -142,7 +142,9 @@ impl BreakerWrite for PgTx {
     ) -> StoreResult<Vec<Sample>> {
         // A call that failed because nothing provides it any more says nothing of the provider.
         let rows = sqlx::query!(
-            r#"SELECT coalesce((outcome -> 'failed' ->> 'retryable')::boolean, false) AS "failed!",
+            r#"SELECT (coalesce((outcome -> 'failed' ->> 'retryable')::boolean, false)
+                       OR coalesce(outcome -> 'failed' ->> 'reason', '') = 'provider.malformed')
+                       AS "failed!",
                       created_at, deadline, finished_at AS "finished_at!"
                  FROM provider_call
                 WHERE organization_id = $1 AND type = $2 AND name = $3

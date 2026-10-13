@@ -11,6 +11,7 @@
 //! extension may carry any licence its author chooses. It depends on the wire contract alone.
 
 pub mod consumer;
+pub mod dns;
 pub mod error;
 pub mod identity;
 pub mod provider;

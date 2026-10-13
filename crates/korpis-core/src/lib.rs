@@ -12,6 +12,7 @@ pub mod authz;
 pub mod build;
 #[cfg(feature = "content")]
 pub mod content;
+pub mod dns;
 pub mod event;
 pub mod extension;
 pub mod id;
