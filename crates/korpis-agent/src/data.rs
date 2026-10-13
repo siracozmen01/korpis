@@ -17,7 +17,7 @@ use buffa_types::google::protobuf::Timestamp;
 use connectrpc::client::{BidiRecvHalf, ClientConfig, ClientTransport, HttpClient};
 use handler::{Handler, Handlers, Opened};
 use korpis_core::authz::revocation::RevocationList;
-use korpis_core::authz::token::{Client, KeyRing, verify};
+use korpis_core::authz::token::{Client, KeyRing, Verified, verify};
 use korpis_core::authz::{Kind, ObjectRef, Resource};
 use korpis_core::id::IdKind;
 use korpis_core::node::identity::{data_hello_message, sign};
@@ -70,19 +70,35 @@ fn refusal(session: &str, code: &str, message: String) -> agent::AttachUp {
 }
 
 impl Judged {
+    /// Verifies `token` offline for `action` on `workload`, as a verifier that never sees the
+    /// client.
+    fn check(&self, token: &str, action: &str, workload: &str) -> Result<Verified, String> {
+        let id =
+            korpis_wire::id(IdKind::Workload, "workload", workload).map_err(|e| e.to_string())?;
+        let on = Resource::alone(ObjectRef::new(Kind::Workload, id));
+        let revoked: HashSet<_> = self.revoked.borrow().grants.iter().copied().collect();
+        let at = (SystemTime::now(), Client::Unseen);
+        verify(token, &self.keys, action, &on, &revoked, at).map_err(|e| e.to_string())
+    }
+
+    /// A renewal of `opened`: the same action on the same workload, for the same subject.
+    pub(super) fn verify(&self, token: &str, opened: &Opened) -> Result<Verified, String> {
+        let verified = self.check(token, &opened.action, &opened.workload)?;
+        if verified.subject != opened.subject {
+            return Err("a renewal must be the same subject's".to_owned());
+        }
+        Ok(verified)
+    }
+
     /// The session, with what serves it, if this node accepts it; the refusal to send if not.
     fn admit(
         &self,
         open: &agent::OpenSession,
     ) -> Result<(Arc<dyn Handler>, Opened), agent::AttachUp> {
         let refuse = |code, message| refusal(&open.session, code, message);
-        let workload = korpis_wire::id(IdKind::Workload, "workload", &open.workload)
-            .map_err(|e| refuse("refused", e.to_string()))?;
-        let on = Resource::alone(ObjectRef::new(Kind::Workload, workload));
-        let revoked: HashSet<_> = self.revoked.borrow().grants.iter().copied().collect();
-        let at = (SystemTime::now(), Client::Unseen);
-        let verified = verify(&open.token, &self.keys, &open.action, &on, &revoked, at)
-            .map_err(|e| refuse("refused", e.to_string()))?;
+        let verified = self
+            .check(&open.token, &open.action, &open.workload)
+            .map_err(|e| refuse("refused", e))?;
         if !self.held.borrow().assignments.contains_key(&open.workload) {
             return Err(refuse("not_here", "this node does not hold that workload".into()));
         }
@@ -191,7 +207,7 @@ async fn open_session(
     match judged.admit(&open) {
         Ok((handler, opened)) => {
             let session = opened.session.clone();
-            if let Err(e) = carry::carry(&client, handler, opened).await {
+            if let Err(e) = carry::carry(&client, &judged, handler, opened).await {
                 tracing::warn!(%session, error = %e, "session ended abnormally");
             }
         }

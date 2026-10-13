@@ -372,7 +372,10 @@ revocation latency is its lifetime (§6). That is the right trade for a 24-hour 
 times; it is the wrong one for a pipeline credential that lives 90 days, where "revoking it is
 revoking one row" (§7 of `13-surface-cli.md`) would be false for 90 days. An API token is
 authenticated online on every request, so revoking its grant takes effect at the next request,
-which is what a leaked CI secret needs.
+which is what a leaked CI secret needs. While the control plane is reachable, the revocation list
+(§6.3) shortens a link's revocation to seconds, but only by listing its grant for as long as any
+token of it can live, which is the horizon a 90-day credential would impose on every verifier; so
+the argument stands.
 
 **The parent may be left unnamed.** When the issuer names no parent, the control plane, which holds
 every grant the issuer holds, checks the attenuation against each of them; if exactly one is valid
@@ -674,6 +677,16 @@ client attaches to console
 **Revocation latency equals the token lifetime.** That is the honest trade, and it is why the
 lifetime is short and configurable rather than convenient. Revoking a grant stops the *next*
 renewal, not the current window.
+
+> Corrected 2026-10-14, from the implementation. That is the bound when the control plane is
+> unreachable, and it holds. While it is reachable the revocation list (§6.3) does better, and
+> this paragraph predated it: a node ends every live session whose chain a new list names, with
+> the reason `revoked`, within about two seconds of the revocation, without waiting for the
+> renewal. A session renews in band: the client sends a fresh token on the session before the
+> one it holds expires, the relay and the node verify it as they verified the first, and it must
+> be the same subject's; a session whose token expires unrenewed is ended by the node as
+> `expired`, and one whose renewal the relay refuses as `refused` (§3.1 of
+> `02-architecture.md`).
 
 Two things fall out:
 

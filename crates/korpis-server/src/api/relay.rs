@@ -8,17 +8,20 @@
 use super::wire::{Refuse as _, id, timestamp};
 use super::{Api, error};
 use crate::relay::Answer;
+use crate::revocations::Revocations;
 use connectrpc::ServiceStream;
 use connectrpc::{ConnectError, InboundStream, RequestContext, Response, ServiceResult};
 use futures_util::StreamExt as _;
-use korpis_core::authz::token::{Client, verify};
+use korpis_core::authz::token::{Client, KeyRing, Verified, verify};
 use korpis_core::authz::{Kind, ObjectRef, Resource};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::relay_request::Message as Request;
+use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
 use pb::ErrorCode as C;
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
 
 /// How many frames may wait for a slow reader, each way, before the faster side waits too.
@@ -43,14 +46,56 @@ fn unavailable(message: &str) -> ConnectError {
     error::session_refused(C::ERROR_CODE_UNAVAILABLE, "session.unavailable", message)
 }
 
-/// Forwards what the client sends to the node until either side is done.
+/// What the relay judges a session's tokens by: the one it opened with, and every renewal.
+struct Judge {
+    keys: KeyRing,
+    revocations: Arc<Revocations>,
+    action: String,
+    on: Resource,
+    client: Client,
+    /// Who opened the session; a renewal must be theirs. None until the first token verifies.
+    subject: Option<String>,
+}
+
+impl Judge {
+    fn judge(&self, token: &str) -> Result<Verified, String> {
+        let revoked = self.revocations.revoked();
+        let at = (SystemTime::now(), self.client);
+        let verified = verify(token, &self.keys, &self.action, &self.on, &revoked, at)
+            .map_err(|e| e.to_string())?;
+        if self.subject.as_ref().is_some_and(|s| *s != verified.subject) {
+            return Err("a renewal must be the same subject's".to_owned());
+        }
+        Ok(verified)
+    }
+}
+
+fn end(code: &str, message: String) -> agent::CarryDown {
+    let end = pb::SessionEnd { code: code.to_owned(), message, ..Default::default() };
+    let frame = pb::SessionFrame { frame: Some(Frame::End(Box::new(end))), ..Default::default() };
+    agent::CarryDown { frame: frame.into(), ..Default::default() }
+}
+
+/// Forwards what the client sends to the node until either side is done. A renewal is judged
+/// here first, as the token it renews was: one the relay refuses ends the session, with the
+/// reason, rather than reaching the node.
 async fn client_to_node(
     mut requests: InboundStream<pb::RelayRequest>,
     to_node: mpsc::Sender<agent::CarryDown>,
+    judge: Judge,
 ) {
     while let Some(Ok(m)) = requests.next().await {
         let Some(Request::Frame(frame)) = m.to_owned_message().message else { continue };
-        let down = agent::CarryDown { frame: (*frame).into(), ..Default::default() };
+        let down = match &frame.frame {
+            Some(Frame::Renew(token)) => match judge.judge(token) {
+                Ok(_) => agent::CarryDown { frame: (*frame).into(), ..Default::default() },
+                Err(e) => {
+                    let _ = to_node.send(end("refused", e)).await;
+                    return;
+                }
+            },
+            _ => agent::CarryDown { frame: (*frame).into(), ..Default::default() },
+        };
         if to_node.send(down).await.is_err() {
             return;
         }
@@ -70,11 +115,16 @@ impl pb::RelayService for Api {
         let workload = id(IdKind::Workload, "open.workload", &open.workload).refuse()?;
         let node = id(IdKind::Node, "open.node", &open.node).refuse()?;
         let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
-        let on = Resource::alone(ObjectRef::new(Kind::Workload, workload));
-        let revoked = self.revocations.revoked();
-        let at = (self.app.now(), Client::At(ip));
-        let verified = verify(&open.token, &self.relay.keys(), &open.action, &on, &revoked, at)
-            .map_err(|e| refused("refused", &e.to_string()))?;
+        let mut judge = Judge {
+            keys: self.relay.keys(),
+            revocations: Arc::clone(&self.revocations),
+            action: open.action.clone(),
+            on: Resource::alone(ObjectRef::new(Kind::Workload, workload)),
+            client: Client::At(ip),
+            subject: None,
+        };
+        let verified = judge.judge(&open.token).map_err(|e| refused("refused", &e))?;
+        judge.subject = Some(verified.subject);
         let asked = agent::OpenSession {
             token: open.token,
             action: open.action,
@@ -101,7 +151,7 @@ impl pb::RelayService for Api {
             }
         };
         tracing::debug!(%session, %node, "session opened");
-        tokio::spawn(client_to_node(requests, to_node));
+        tokio::spawn(client_to_node(requests, to_node, judge));
         let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));
         Response::stream_ok(out)
     }

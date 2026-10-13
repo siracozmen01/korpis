@@ -83,11 +83,17 @@ fn data(bytes: &[u8]) -> pb::RelayRequest {
     pb::RelayRequest { message: Some(Request::Frame(Box::new(frame))), ..Default::default() }
 }
 
-#[tokio::test]
-async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
-    let cp = ControlPlane::start().await;
+/// A node holding one workload, serving `Echo` for the console through its data connection.
+struct Node {
+    id: String,
+    workload: String,
+    _tasks: Vec<tokio::task::JoinHandle<()>>,
+    _dir: tempfile::TempDir,
+}
+
+async fn node(cp: &ControlPlane, name: &str) -> Node {
     let project = cp.project().await;
-    let (token, ca) = cp.token("fra-5").await;
+    let (token, ca) = cp.token(name).await;
     let dir = tempfile::tempdir().unwrap();
     let state = StateDir::new(dir.path().join("agent"));
     let join_request =
@@ -96,7 +102,7 @@ async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
     let journal = JournalHandle::open(&state.root().join("journal"), Bounds::default()).unwrap();
     let (session, link) = Session::new(identity.clone(), state, Arc::new(facts), journal);
     let mut events = link.events.subscribe();
-    let _running = tokio::spawn(session.run());
+    let running = tokio::spawn(session.run());
     until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
     let workload = cp.declare(&project, "mc").await;
     while !link.held.borrow().assignments.contains_key(&workload) {
@@ -108,25 +114,80 @@ async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
         held: link.held.clone(),
         handlers: Handlers::default().with(CONSOLE, Arc::new(Echo)),
     };
-    let _data = tokio::spawn(DataLink::new(identity.clone(), judged, link.relays.clone()).run());
+    let data = tokio::spawn(DataLink::new(identity.clone(), judged, link.relays.clone()).run());
+    Node { id: identity.node, workload, _tasks: vec![running, data], _dir: dir }
+}
 
-    let console = cp.mint(&workload, &[CONSOLE]).await;
-    let mut client = opened(&cp, &open(&console, CONSOLE, &workload, &identity.node)).await;
-    client.send(data(b"ping")).await.unwrap();
-    let frame = |m: Option<pb::RelayResponse>| match m.and_then(|m| m.message) {
-        Some(Reply::Frame(f)) => f.frame,
+/// The next frame the client is sent.
+async fn frame(client: &mut Client) -> Frame {
+    let next = tokio::time::timeout(Duration::from_secs(10), client.message::<pb::RelayResponse>());
+    match next.await.unwrap().unwrap().map(|m| m.to_owned_message()).and_then(|m| m.message) {
+        Some(Reply::Frame(f)) => f.frame.unwrap(),
         other => panic!("a frame, got {other:?}"),
-    };
-    let echoed = client.message::<pb::RelayResponse>().await.unwrap().map(|m| m.to_owned_message());
-    assert_eq!(frame(echoed), Some(Frame::Data(b"ping".to_vec())));
-    client.send(data(b"bye")).await.unwrap();
-    let ended = client.message::<pb::RelayResponse>().await.unwrap().map(|m| m.to_owned_message());
-    let Some(Frame::End(end)) = frame(ended) else { panic!("the end") };
-    assert_eq!(end.code, "bye", "the handler's reason reaches the client");
+    }
+}
 
-    let exec = cp.mint(&workload, &["workload.exec"]).await;
+fn renew(token: &str) -> pb::RelayRequest {
+    let frame = pb::SessionFrame { frame: Some(Frame::Renew(token.into())), ..Default::default() };
+    pb::RelayRequest { message: Some(Request::Frame(Box::new(frame))), ..Default::default() }
+}
+
+fn end_code(f: Frame) -> String {
+    let Frame::End(end) = f else { panic!("the end, got {f:?}") };
+    end.code
+}
+
+#[tokio::test]
+async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
+    let cp = ControlPlane::start().await;
+    let n = node(&cp, "fra-5").await;
+    let console = cp.mint(&n.workload, &[CONSOLE]).await;
+    let mut client = opened(&cp, &open(&console, CONSOLE, &n.workload, &n.id)).await;
+    client.send(data(b"ping")).await.unwrap();
+    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()));
+    client.send(data(b"bye")).await.unwrap();
+    assert_eq!(
+        end_code(frame(&mut client).await),
+        "bye",
+        "the handler's reason reaches the client"
+    );
+
+    let exec = cp.mint(&n.workload, &["workload.exec"]).await;
     let mut unserved = cp.relay().open().await.unwrap();
-    unserved.send(open(&exec, "workload.exec", &workload, &identity.node)).await.unwrap();
+    unserved.send(open(&exec, "workload.exec", &n.workload, &n.id)).await.unwrap();
     let e = unserved.message::<pb::RelayResponse>().await.unwrap_err();
     assert_eq!(e.code, connectrpc::ErrorCode::FailedPrecondition, "no handler for exec: {e:?}");
+}
+
+#[tokio::test]
+async fn a_session_lives_as_long_as_its_token_and_its_renewals() {
+    let cp = ControlPlane::start().await;
+    let n = node(&cp, "fra-6").await;
+    let (_, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
+    let short = cp.mint_as(&secret, &n.workload, &[CONSOLE], 2).await;
+    let mut client = opened(&cp, &open(&short, CONSOLE, &n.workload, &n.id)).await;
+    client.send(renew(&cp.mint_as(&secret, &n.workload, &[CONSOLE], 4).await)).await.unwrap();
+    assert!(matches!(frame(&mut client).await, Frame::Renewed(_)), "the new expiry, acknowledged");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    client.send(data(b"still")).await.unwrap();
+    assert_eq!(frame(&mut client).await, Frame::Data(b"still".to_vec()), "alive past the first");
+    assert_eq!(end_code(frame(&mut client).await), "expired", "and not past the renewal");
+
+    let lasting = cp.mint_as(&secret, &n.workload, &[CONSOLE], 30).await;
+    let mut other = opened(&cp, &open(&lasting, CONSOLE, &n.workload, &n.id)).await;
+    other.send(renew("not-a-token")).await.unwrap();
+    assert_eq!(end_code(frame(&mut other).await), "refused", "the relay refuses a bad renewal");
+}
+
+#[tokio::test]
+async fn revoking_a_grant_ends_the_live_sessions_its_tokens_opened() {
+    let cp = ControlPlane::start().await;
+    let n = node(&cp, "fra-7").await;
+    let (grant, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
+    let token = cp.mint_as(&secret, &n.workload, &[CONSOLE], 0).await;
+    let mut client = opened(&cp, &open(&token, CONSOLE, &n.workload, &n.id)).await;
+    client.send(data(b"ping")).await.unwrap();
+    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()));
+    cp.revoke(&grant).await;
+    assert_eq!(end_code(frame(&mut client).await), "revoked", "within seconds, not at expiry");
 }

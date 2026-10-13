@@ -740,7 +740,10 @@ a binding that fails re-verification suspends the grants rooted in it by derivat
 organization's suspension does (§2.1, §3.5), so the console token of step 3 is refused at its next
 renewal, within the 120 seconds §6 promises, and not sooner. The list could do better, and how is
 question 7 of §10 of `08-identity.md`, settled with bindings and organization suspension in
-Phase 2.
+Phase 2. Building the data path then answered the trace's other half: a grant that *is* revoked
+now ends the console of step 3 while it is open, because the node holding the session checks each
+new list against the session's chain, and the token's renewal is carried on the session itself,
+judged by the relay and the node in turn (§3.1 of `02-architecture.md`).
 
 ---
 
