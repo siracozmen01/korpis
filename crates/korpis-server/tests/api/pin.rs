@@ -46,6 +46,7 @@ async fn an_operator_places_on_a_node_they_cordoned_and_nowhere_it_cannot_run() 
     let p = placed.placement.as_option().unwrap();
     assert_eq!(p.node, node);
     assert_eq!(p.bound_by.as_known(), Some(pb::BoundBy::BOUND_BY_OPERATOR));
+    assert!(p.reserved.memory_bytes > 0, "what it holds on the node is part of the placement");
     let after = h.effects("workload.place").await;
     assert_eq!(after.last().map(|(o, g)| (o.as_str(), g.is_some())), Some(("succeeded", true)));
 

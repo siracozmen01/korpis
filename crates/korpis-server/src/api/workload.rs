@@ -27,6 +27,7 @@ use korpis_core::placement::Placement;
 use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+use korpis_wire::node::resources_to_pb;
 use korpis_wire::observation::observation_to_pb;
 use std::sync::Arc;
 
@@ -103,6 +104,7 @@ fn placed(p: &Placement) -> pb::PlaceWorkloadResponse {
         reason: p.reason.clone(),
         authoritative: p.authoritative,
         intent: wire_id(IdKind::Intent, p.intent),
+        reserved: resources_to_pb(&p.reserved).into(),
         ..Default::default()
     };
     pb::PlaceWorkloadResponse { placement: placement.into(), ..Default::default() }
@@ -120,6 +122,7 @@ fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
         region: p.region.clone().unwrap_or_default(),
         tier: tier_to_pb(p.tier).into(),
         intent: wire_id(IdKind::Intent, p.intent),
+        reserved: resources_to_pb(&p.reserved).into(),
         ..Default::default()
     }
 }

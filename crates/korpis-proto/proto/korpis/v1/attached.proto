@@ -75,6 +75,27 @@ message Stream {
   bool indexed = 6;
   // Bytes held only on the node, not yet offloaded (§4 of docs/14-streams.md).
   uint64 node_only_bytes = 7;
+  // Its segments, oldest first, as the control plane last heard of them.
+  repeated StreamSegment segments = 8;
+}
+
+// A contiguous run of a stream's records, the unit a node seals, offloads, and migrates (§4 of
+// docs/14-streams.md). The agent journals each seal and offload; the control plane holds this
+// index, so offloaded segments stay findable when their node is gone.
+message StreamSegment {
+  // The offset of its first record, and one past its last.
+  uint64 first_offset = 1;
+  uint64 end_offset = 2;
+  // The node-clock times of its first and last records; informational, as offsets order.
+  google.protobuf.Timestamp first_at = 3;
+  google.protobuf.Timestamp last_at = 4;
+  uint64 bytes = 5;
+  // sha256: of the sealed content, its address; empty while the segment is still written.
+  string digest = 6;
+  // Held on the node that wrote it; empty once the node no longer holds it.
+  string node = 7;
+  // Held by the offload target.
+  bool offloaded = 8;
 }
 
 enum StreamKind {

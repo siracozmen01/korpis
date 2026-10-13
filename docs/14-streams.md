@@ -95,6 +95,17 @@ written. Where no target is configured (a single machine with no object storage)
 says how much of each stream exists only on its node, because §3.6 of `01-model.md` promises
 durability per failure and this is the failure it does not cover.
 
+**The control plane holds the index of segments, never their bytes.** Each seal and each offload
+is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
+the control plane knows every segment's offsets, digest, and where it is held: the `segments` of
+the `Stream` in §3.6 of `01-model.md`. That index is what answers the question offload exists
+for. When a node is gone, its offloaded segments are found from the index rather than by listing
+the offload target, and a reader is told which offsets were held only on the node and are lost,
+as a gap (§3). What it costs is two journal records per segment, one at its seal and one at its
+offload, so the index grows with the number of segments and never with the number of records.
+The index arrives with streams in Phase 1, and is in
+the schema from Phase 0 by rule E of `20-roadmap.md`.
+
 **A stream is part of the workload's durable state, so it migrates with it.**
 
 > Finding 3 of `23-walkthroughs.md`.

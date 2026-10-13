@@ -96,7 +96,7 @@ async fn node(
 /// The workload converged, running in its one runtime object, every completion granted; the
 /// object's identifier.
 async fn converges(cp: &ControlPlane, w: &str, runtime: &InMemory, orphan: &str) -> String {
-    let s = status(cp, w, converged).await;
+    let s = Box::pin(status(cp, w, converged)).await;
     let observed = s.observation.as_option().unwrap();
     assert_eq!(observed.state.as_known(), Some(pb::ObservedState::OBSERVED_STATE_RUNNING));
     let mut objects = runtime.objects();

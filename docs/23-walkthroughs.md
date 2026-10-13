@@ -204,7 +204,8 @@ offset that means something different. → verify after patching
 | 4 | Metering records a gap with its cause | `15-observability.md` §2 |
 | 5 | Workloads on replicated storage whose class fences the old writer are rescheduled † | `18-operations.md` §5; `06-storage.md` §2 |
 | 6 | Workloads whose only copy of data was local are **not**, and this is said plainly | `18-operations.md` §5 |
-| 7 | On return: a fresh signed Hello replaces any half-open session; adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4, §7; `01-model.md` §3.4 |
+| 7 | Its consoles survive as far as offload reached: the control plane's segment index finds the offloaded segments, and the offsets held only on the node become a gap ¶ | `14-streams.md` §3, §4; `01-model.md` §3.6 |
+| 8 | On return: a fresh signed Hello replaces any half-open session; adoption by label, epoch checked; if fenced, it cannot resume; a node cordoned before it dropped out returns cordoned ‡ | `02-architecture.md` §4.4, §7; `01-model.md` §3.4 |
 
 ‡ Updated 2026-10-13, from the implementation. Node status was one field, and the lifecycle took
 an unreachable node back to `ready` on reconnect, so a node cordoned for maintenance that lost its
@@ -216,6 +217,12 @@ interval, and three missed heartbeats make the node unreachable whether or not i
 A node cordoned for maintenance can still be given one workload deliberately: `PlaceWorkload` binds
 it there by hand, overriding the cordon and taints and nothing else (§2.3 of `05-scheduling.md`),
 which is what `bound_by: operator` had promised without anything to do it.
+
+¶ Added 2026-10-13, from auditing `01-model.md` against the wire schema. The model gave a stream
+its `segments` and the schema had no field for them, and nothing said who held that list: the
+agent owns every byte of a stream, so after this step's failure the one component that knew which
+segments had been offloaded was the one that died. The agent now journals each seal and offload,
+and the control plane keeps the index from those records (§4 of `14-streams.md`).
 
 **FINDING 5: What a `stable` address does while its workload is gone. `CONFIRMED`**
 

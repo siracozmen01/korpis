@@ -42,6 +42,8 @@ Endpoint
   container_port              int
   exposure                    Exposure
   address                     Address?        assigned; shape depends on exposure
+  client_address              preserved | translated | proxy_protocol   how the workload
+                                              sees the client (§3.4)
   domains                     []Domain
   tls                         TLSSpec?
   policy                      NetworkPolicy

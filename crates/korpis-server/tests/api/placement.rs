@@ -69,7 +69,9 @@ async fn an_approved_workload_lands_on_a_node_and_says_why() {
     let nodes = h.nodes(h.root());
     let got = nodes.get_node(pb::GetNodeRequest { id: node, ..Default::default() });
     let allocated = got.await.unwrap().into_owned().node.into_option().unwrap().allocated;
-    assert!(allocated.as_option().unwrap().memory_bytes >= GIB, "the reservation is held");
+    let held = allocated.as_option().unwrap().memory_bytes;
+    assert!(held >= GIB, "the reservation is held");
+    assert_eq!(placement.reserved.memory_bytes, held, "and the placement says what it holds");
     assert_eq!(outcomes(&h.effects("workload.place").await), ["succeeded"]);
 }
 

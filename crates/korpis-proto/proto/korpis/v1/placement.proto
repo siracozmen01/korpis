@@ -255,6 +255,9 @@ message Placement {
   IsolationTier tier = 9;
   // The approved intent the placement was bound for.
   string intent = 10;
+  // What it holds on the node: that intent's reservations (§5.2 of docs/05-scheduling.md). A
+  // node's allocated is the sum of these over its placements, authoritative or not.
+  Resources reserved = 11;
 }
 
 // Why no node took a workload's approved target, from the newest attempt.

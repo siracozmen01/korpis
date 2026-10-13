@@ -11,6 +11,7 @@ use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::placement::{BoundBy, Placement, Unplaced};
 use korpis_core::schedule::view::{ExplanationView, Sight, named, render};
+use korpis_core::tenancy::quota::Bounds;
 use korpis_core::workload::spec::IsolationTier;
 use korpis_core::workload::{Intent, Workload};
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,6 +37,9 @@ pub struct PlacementView {
     pub reason: String,
     /// Whether it is the authoritative one.
     pub authoritative: bool,
+    /// What it holds on the node: its intent's reservations, which every reader of the
+    /// workload may already compute from the intent.
+    pub reserved: Bounds,
     /// The derivation, filtered.
     pub explanation: ExplanationView,
 }
@@ -140,6 +144,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 bound_by: p.bound_by,
                 reason: p.reason,
                 authoritative: p.authoritative,
+                reserved: p.reserved,
                 explanation: render(&p.explanation, &sight),
             });
             v.unplaced = f.unplaced.map(|u| UnplacedView {

@@ -73,6 +73,13 @@ be true), and where relevant a **lifecycle**.
 
 Field types are indicative, not a schema. The normative schema lives in `10-api.md`.
 
+> Audited 2026-10-13 against the wire schema (`crates/korpis-proto`), object by object, because
+> rule E of `20-roadmap.md` freezes every field a later phase needs in Phase 0. Two fields this
+> catalogue promised were missing from the schema, `Placement.reserved` and `Stream.segments`, and
+> are added there. The `Recipe` below had fallen behind §2 of `09-recipes.md` and is corrected in
+> place. Fields the schema carried and this catalogue did not name are now named here, each where
+> its object is, so the catalogue stays the complete list it claims to be.
+
 ---
 
 ### 3.1 Tenancy
@@ -335,6 +342,7 @@ This is the centre of the model.
 Workload
   id            WorkloadID     immutable, never reused
   project       ProjectID
+  organization  OrgID          the project's, denormalized so authorization reads one row
   name          string         mutable, unique within project
   labels        map[str]str
   intent        IntentID       the newest declared intent, the head of the chain
@@ -551,9 +559,12 @@ Plan
   to_power      PowerVersion?  required iff kind = power
   computed_at   Timestamp
   computed_by   Subject
+  proposed_under GrantID       the grant that permitted the declaration; confirmation
+                               re-evaluates it, and requires_approval_by is read from it
 
   steps         []Step
-  impact        Impact         disruptive?, downtime estimate, data at risk, cost delta
+  impact        Impact         disruptive?, downtime estimate, data at risk, cost delta, and
+                               why it does or does not auto-approve
   status        proposed | approved | queued | applying | applied
                 | failed | cancelled | rejected | expired | superseded
   completed     int?           the last step whose completion effect has been ingested
@@ -570,6 +581,8 @@ Step
   executor      control_plane | node | extension    (§4.9 of 02-architecture.md)
   target        object reference
   reversible    bool
+  timeout       Duration       how long the step may run before the plan reports it stuck
+                               (§4.3 of 02-architecture.md)
   disruptive    bool           resolved through the override chain below, never inferred
   classified_by vocabulary | driver | recipe | operator   the layer that decided `disruptive`
   reason        string         why, in words
@@ -726,6 +739,9 @@ Effect
   error         Error?
   before        map[str]Value?
   after         map[str]Value?
+  count         int            repeats coalesced into this one (§4 of 15-observability.md); 1
+                               for an effect that stands alone
+  window_end    Timestamp?     the last repeat it covers
 ```
 
 **Invariants**
@@ -769,6 +785,10 @@ Node
   allocatable   Resources      capacity minus system reserve (§2.1 of 05-scheduling.md)
   allocated     Resources      sum of what its placements reserve
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
+  storage_classes []StorageClassInfo  the classes its helper provides, with what each can do
+                               (§2 of 06-storage.md)
+  reachability  public | edge_only    whether inbound traffic can reach it directly (§9 of
+                               07-networking.md)
   admin         active | cordoned | draining | decommissioned      what the operator decided
   connectivity  registering | connected | unreachable | unknown    whether it is heard
   overlay       available | unavailable    measured (§9 of 07-networking.md)
@@ -837,6 +857,10 @@ Placement
   node          NodeID
   intent        IntentID        the approved intent it was bound for
   reserved      Resources       that intent's reservations, held on the node
+  tier          IsolationTier   the tier it runs at, from the target it was bound with
+  region        string          the node's `region` label, which every reader of the workload
+                                sees though not every reader may see the node (§8 of
+                                08-identity.md)
   bound_at      Timestamp
   bound_by      scheduler | operator | migration
   reason        string          human-readable explanation of why this node
@@ -863,17 +887,32 @@ Placement
 > replacement for the egg.
 
 ```
-Recipe
-  ref           name + version    e.g. korpis.io/minecraft/paper:1.21.4
-  digest        sha256            content address; the true identity
-  image         OCIRef            the runtime image
-  preset        PresetSpec        default lifecycle, console, endpoints, volumes, health
-  config_schema JSONSchema        typed settings with constraints and per-field permissions
-  install       []InstallStep     restricted DSL, fetch(url, sha256) / extract / template / chmod
-  templates     []TemplateSpec    config file rendering, sandboxed variable set
-  probes        HealthSpec        readiness and liveness appropriate to the shape
-  signatures    []Signature       cosign
+Recipe                            an OCI artifact (§2 of 09-recipes.md)
+  ref           name + version    e.g. korpis.io/minecraft/paper:1.21.4; a mutable pointer
+  digest        sha256            the manifest's content address; the true identity
+  document                        the one document layer (§3 of 09-recipes.md):
+    metadata      name, version, description, maintainers, license, annotations
+    runtime       targets per tier and architecture (an image by digest, or a file of the
+                  artifact), and the entry command
+    preset        PresetSpec      default lifecycle, console, endpoints, volumes, resources
+    config        ConfigSchema    typed settings with constraints and per-field permissions
+    install       []InstallStep   restricted DSL, fetch(url, sha256) / extract / template / chmod
+    templates     []TemplateSpec  config file rendering, sandboxed variable set
+    probes        Probes          readiness and liveness appropriate to the shape
+    logs          LogRules        patterns that become events
+    lifecycle_hooks               what to do before a stop, such as a console write
+    disruption    Disruption      what this software costs to interrupt (§5.1 of 09-recipes.md)
+  files                           the other layers, named by their paths in the artifact
+  signatures                      not part of the artifact: cosign signatures beside it in the
+                                  registry (§7 of 09-recipes.md)
 ```
+
+> Corrected 2026-10-13, in the audit noted at the head of this section. The first version gave a
+> recipe one `image`, which the per-tier targets of §3 of `09-recipes.md` replaced, had no
+> `logs`, `lifecycle_hooks`, or `disruption`, and listed `signatures` as a field. A signature cannot
+> be a field of what it signs: it is made over the digest, after the artifact exists, and lives
+> beside it. What an intent records of it is `RecipeRef.trust`, the accepted signer that vouched or
+> the fact that none did (§7 of `09-recipes.md`).
 
 **Invariants**
 - Identity is the **digest**, not the name. `name:version` is a mutable pointer resolved through a
@@ -913,6 +952,8 @@ Volume
   attached_to   WorkloadID?
   mode          rw | ro | shared
   snapshots     []SnapshotRef
+  created       Timestamp
+  deleted_at    Timestamp?       soft, as for a workload (§5)
 ```
 
 **Invariants**
@@ -936,7 +977,7 @@ Endpoint
   container_port  int
   exposure      node_port | node_bound | stable | ingress | dedicated_ip | overlay_only | none
   address       Address?         assigned; shape depends on exposure
-  client_address  preserved | translated   how the workload sees the client
+  client_address  preserved | translated | proxy_protocol   how the workload sees the client
                                  (§3.4 of 07-networking.md)
   domains       []Domain         for ingress exposure
   tls           TLSSpec?         certificate source and policy
@@ -969,8 +1010,21 @@ Stream
   kind          console | log | event | metric
   retention     Duration | bytes
   indexed       bool
-  segments      []SegmentRef     content-addressed, offloadable to object storage
+  segments      []Segment        content-addressed, offloadable to object storage
+  node_only_bytes  bytes         held only on the node, not yet offloaded (§4 of 14-streams.md)
+
+Segment
+  first_offset, end_offset       the records it holds, by offset (§2 of 14-streams.md)
+  first_at, last_at  Timestamp   node clock; informational, as offsets order
+  bytes         bytes
+  digest        sha256?          its address once sealed
+  node          NodeID?          the node holding it, while one does
+  offloaded     bool             held by the offload target
 ```
+
+The agent seals and offloads segments and journals each (§4.10 of `02-architecture.md`); the
+control plane keeps the index from those effects. That is what lets an offloaded segment be found
+after its node is gone, which is the one failure §4 of `14-streams.md` says offload covers.
 
 **Invariants**
 - Streams are durable and seekable, not ephemeral websocket pipes. Reconnecting resumes at an
