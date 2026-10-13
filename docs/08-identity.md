@@ -758,6 +758,20 @@ unreachable, and a token without `max_uses` is. That is the trade and it is the 
 the feature that needs a counter is the one that gives up offline operation, rather than every
 token giving up a guarantee to support one condition.
 
+**A use is spent when the call is authorized, not when it succeeds.** The gateway takes the use by
+compare-and-swap on the grant row the moment the grant permits the call, and the call proceeds
+only if the swap won. A call that then fails, a duplicate name or a conflict, has still spent its
+use. The alternative, spending the use in the transaction of the change itself, would make every
+use case responsible for remembering to do it, and one that forgot would be a use limit displayed
+and not enforced. So the counter can be spent by a failed call, it can never be exceeded, and a use
+case that must not waste a use (enrollment, §3 of `18-operations.md`) checks what it can before it
+asks.
+
+> Corrected 2026-10-13, from the implementation. This said the counter is decremented "in the
+> same transaction that authorizes the call", which the implementation read as the transaction
+> of the change, and then redeemed nothing: no use case held the grant's limit, so `max_uses` was
+> stored and never counted. It is now counted at authorization, for every use case at once.
+
 The cost is stated where a user meets it. A share link with a use limit is described in the
 interface as requiring the control plane; the console token of §6, which carries no use limit,
 keeps its documented survival window. Break-glass tokens (§6, below) never carry `max_uses` at all,

@@ -11,6 +11,7 @@
 
 mod audit;
 mod authz;
+mod enrollment;
 mod errors;
 mod feed;
 mod idempotency;

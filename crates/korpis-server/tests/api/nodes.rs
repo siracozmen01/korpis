@@ -119,21 +119,6 @@ async fn reading_a_node_does_not_cordon_it_and_no_grant_sees_nothing() {
     assert_eq!(reason(&e), "authorization.denied");
 }
 
-#[tokio::test]
-async fn enrollment_tokens_wait_for_the_agent_protocol() {
-    let h = Harness::new().await;
-    let e = h
-        .nodes(h.root())
-        .create_enrollment_token(pb::CreateEnrollmentTokenRequest {
-            mutation: mutation("t").into(),
-            node_name: "fra-3".into(),
-            ..Default::default()
-        })
-        .await
-        .unwrap_err();
-    assert_eq!(e.code, connectrpc::ErrorCode::Unimplemented);
-}
-
 fn root_grant(h: &Harness) -> uuid::Uuid {
     Id::parse(IdKind::Grant, &h.root_grant()).unwrap().uuid()
 }

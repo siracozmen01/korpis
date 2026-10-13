@@ -139,6 +139,24 @@ pinned to the control plane's certificate, and never uses the join token again. 
 firewall requires no inbound rule, NAT is irrelevant, and a node behind a residential connection is
 an ordinary node rather than an unsupported configuration.
 
+What the token is, precisely. Creating one needs `node.enroll` over the organization the node will
+belong to. The token is an ordinary Token subject holding a grant of `node.enroll` over that
+organization, attenuated from the creator's, with `max_uses: 1` and an expiry of one hour unless
+the operator asks for less or more, and never more than a day: it is a bearer credential for a
+machine. The node's name and labels are bound to the token when it is created, so the node an
+agent enrolls is the one the operator described, whatever the agent claims. The answer carries the
+fingerprint of the installation's certificate authority, and the join command carries it to the
+agent, so the agent's first connection is verified against it rather than trusted. The secret is
+shown once and never stored (§6 of `10-api.md`).
+
+The agent sends the token with the public half of an Ed25519 key it generated (§7 of
+`02-architecture.md`). The control plane redeems the token's one use online (§6.2 of
+`08-identity.md`), records the node and its key in one transaction, and returns the keys that sign
+assignments and capability tokens. An agent whose answer was lost asks again with the same token
+and the same key and is told the same node; a different key is refused. A token whose use was
+spent by a failed enrollment, a name taken meanwhile, is not given back: the operator creates
+another, which is the cost of a counter that can never be exceeded.
+
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
 will land.

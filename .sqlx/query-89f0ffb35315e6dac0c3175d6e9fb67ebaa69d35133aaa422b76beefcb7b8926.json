@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE node_enrollment SET node_id = $2, enrolled_at = $3\n              WHERE token_id = $1 AND node_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "89f0ffb35315e6dac0c3175d6e9fb67ebaa69d35133aaa422b76beefcb7b8926"
+}

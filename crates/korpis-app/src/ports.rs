@@ -10,6 +10,7 @@ mod audit;
 mod authz;
 mod changes;
 mod clock;
+mod enrollment;
 mod idempotency;
 mod node;
 mod placement;
@@ -26,6 +27,7 @@ pub use authz::{
 };
 pub use changes::{Change, Changes};
 pub use clock::{Clock, SystemClock};
+pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use node::{NodeRead, NodeWrite};
 pub use placement::{PlacementRead, PlacementWrite};
@@ -47,6 +49,10 @@ pub enum Unique {
     ProjectName,
     /// Workload names are unique within a project among workloads not deleted.
     WorkloadName,
+    /// Node names are unique in the installation.
+    NodeName,
+    /// A node identity key enrolls one node.
+    NodeKey,
     /// One response per caller and idempotency key.
     IdempotencyKey,
     /// Any other.
@@ -84,6 +90,7 @@ pub trait Store:
     + NodeRead
     + PlacementRead
     + TrustRead
+    + EnrollmentRead
     + Send
     + Sync
     + 'static
@@ -114,6 +121,7 @@ pub trait Tx:
     + PlacementWrite
     + RetirementWrite
     + TrustWrite
+    + EnrollmentWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

@@ -25,10 +25,13 @@ service AgentService {
   rpc Session(stream AgentMessage) returns (stream ControlMessage);
 }
 
+// Retrying with the same token and the same public key returns the same node, so an agent
+// whose response was lost can ask again; a different key is refused.
 message EnrollRequest {
   string enrollment_token = 1;
   // The node's public key (Ed25519, raw 32 bytes); the private key never leaves the node.
   bytes node_public_key = 2;
+  // Informational: recorded in the enrollment effect. The node's name is the token's.
   string hostname = 3;
 }
 
@@ -104,9 +107,14 @@ message Hello {
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
 // proves the other half, that the agent holds the node key. Ed25519 by the node key over the
-// UTF-8 bytes of "korpis.agent.v1.Hello|" + node + "|" + RFC 3339 timestamp + "|" + hex(nonce).
-// The control plane rejects timestamps outside a declared skew window and nonces it has seen
-// within that window.
+// UTF-8 bytes of "korpis.agent.v1.Hello|" + node + "|" + seconds + "." + nanos + "|" +
+// hex(nonce), where seconds and nanos are the timestamp's fields in decimal, nanos in exactly
+// nine digits, and hex is lowercase. The control plane rejects timestamps outside a declared
+// skew window and nonces it has seen within that window.
+//
+// Corrected 2026-10-13, from the implementation: the timestamp was an RFC 3339 string, which
+// does not fix the number of fractional digits or the zone designator, so two conforming
+// implementations could sign different strings for the same instant.
 message NodeAuth {
   google.protobuf.Timestamp timestamp = 1;
   bytes nonce = 2;

@@ -110,7 +110,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let bound = Server::bind(config.listen).await.map_err(|e| ServeError::Serve(e.to_string()))?;
     let addr = bound.local_addr()?;
     let bound = bound.with_tls(tls);
-    let api = Arc::new(Api::new(app));
+    let api = Arc::new(Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?));
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     let router = api.router();
     let task = tokio::spawn(async move {

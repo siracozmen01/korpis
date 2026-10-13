@@ -8,6 +8,7 @@ syntax = "proto3";
 
 package korpis.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/authority.proto";
 import "korpis/v1/common.proto";
@@ -464,8 +465,9 @@ message ListEffectsResponse {
 }
 
 service NodeService {
-  // node.enroll: a one-time token the agent exchanges for its node identity (§3 of
-  // docs/18-operations.md).
+  // node.enroll over the organization: a one-time token the agent exchanges for its node
+  // identity (§3 of docs/18-operations.md). The token is a Token subject holding a grant of
+  // node.enroll attenuated from the caller's, with max_uses 1 (§7 of docs/02-architecture.md).
   rpc CreateEnrollmentToken(CreateEnrollmentTokenRequest) returns (CreateEnrollmentTokenResponse);
   rpc GetNode(GetNodeRequest) returns (GetNodeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -480,13 +482,25 @@ service NodeService {
 
 message CreateEnrollmentTokenRequest {
   Mutation mutation = 1;
+  // The node's name, unique in the installation, and its labels: bound to the token, so the
+  // node enrolled with it has them whatever the agent says.
   string node_name = 2;
   map<string, string> labels = 3;
+  // The organization the node will belong to and serve, with every organization below it.
+  string organization = 4;
+  // How long the token may be redeemed; absent is one hour, and at most a day.
+  google.protobuf.Duration expires_in = 5;
 }
 
 message CreateEnrollmentTokenResponse {
+  // Shown once and never stored. A replay of the same mutation returns the response without
+  // it: a secret recorded for replay would be a secret stored (§6 of docs/10-api.md).
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
+  // sha256: of the DER of the certificate authority the agent pins at enrollment (§3 of
+  // docs/18-operations.md), so the join command can carry it and the first connection is
+  // verified rather than trusted.
+  string ca_fingerprint = 3;
 }
 
 message GetNodeRequest {

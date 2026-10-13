@@ -1874,6 +1874,7 @@ version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
  "biscuit-auth",
+ "ed25519-dalek",
  "getrandom 0.4.3",
  "ipnet",
  "p256",
@@ -1953,6 +1954,7 @@ dependencies = [
  "rcgen",
  "rustls",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tempfile",
  "thiserror 2.0.21",

@@ -3,6 +3,12 @@
 //! Nodes (§3.4 of docs/01-model.md): reading them, and the operator's cordon. A node is covered
 //! by grants over the organization it was enrolled into.
 
+mod enroll;
+
+pub use enroll::{
+    CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
+};
+
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;

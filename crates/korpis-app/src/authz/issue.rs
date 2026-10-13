@@ -116,7 +116,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Checks the attenuation against the parent's chain as it stands; returns the parent.
-    async fn check_issue(&self, caller: &Caller, child: &Grant) -> Result<Grant, AppError> {
+    pub(crate) async fn check_issue(
+        &self,
+        caller: &Caller,
+        child: &Grant,
+    ) -> Result<Grant, AppError> {
         let parent_id = child.parent.ok_or(AppError::invalid("parent", "required"))?;
         let chain: Vec<Grant> =
             self.store.grant_chain(parent_id).await?.into_iter().map(|r| r.grant).collect();

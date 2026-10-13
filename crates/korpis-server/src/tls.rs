@@ -50,6 +50,22 @@ pub fn generate(data: &DataDir, names: &[String]) -> Result<(), TlsError> {
     Ok(())
 }
 
+/// `sha256:` of the DER of the installation's CA: what an enrollment token's join command
+/// carries, so an agent verifies its first connection rather than trusting it (§3 of
+/// docs/18-operations.md).
+pub fn ca_fingerprint(data: &DataDir) -> Result<String, TlsError> {
+    use sha2::{Digest, Sha256};
+    use std::fmt::Write as _;
+    let ca = CertificateDer::from_pem_file(data.tls().join("ca.pem"))
+        .map_err(|e| TlsError::Pem(e.to_string()))?;
+    let digest = Sha256::digest(ca.as_ref());
+    Ok(digest.iter().fold(String::from("sha256:"), |mut s, b| {
+        // Writing to a String cannot fail.
+        let _ = write!(s, "{b:02x}");
+        s
+    }))
+}
+
 /// The server configuration, speaking HTTP/2 and HTTP/1.1.
 pub fn server_config(data: &DataDir) -> Result<Arc<rustls::ServerConfig>, TlsError> {
     let dir = data.tls();

@@ -4,11 +4,12 @@
 
 use super::wire::node::node_to_pb;
 use super::wire::scope::selector_from_pb;
+use super::wire::tenancy::labels;
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
-use korpis_app::node::NodeView;
-use korpis_app::{AppError, Idempotent};
+use korpis_app::Idempotent;
+use korpis_app::node::{CreateEnrollment, EnrollmentToken, NodeView};
 use korpis_core::id::IdKind;
 use korpis_core::node::NodeAdmin;
 use korpis_proto::korpis::v1 as pb;
@@ -26,14 +27,39 @@ fn uncordoned(v: &NodeView) -> pb::UncordonNodeResponse {
 }
 
 impl pb::NodeService for Api {
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn create_enrollment_token(
         &self,
-        _ctx: RequestContext,
-        _request: ServiceRequest<'_, pb::CreateEnrollmentTokenRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::CreateEnrollmentTokenRequest>,
     ) -> ServiceResult<pb::CreateEnrollmentTokenResponse> {
-        // Enrollment lands with the agent protocol's server side, later in Phase 0.
-        Err(error::from_app(AppError::NotYet { what: "node enrollment tokens", phase: 0 }))
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let expires_in = req.expires_in.as_option();
+        let cmd = CreateEnrollment {
+            organization: wire::id(IdKind::Organization, "organization", &req.organization)
+                .refuse()?,
+            node_name: wire::name("node_name", &req.node_name).refuse()?,
+            labels: labels("labels", &req.labels).refuse()?,
+            expires_in: expires_in
+                .map(|d| wire::duration_from("expires_in", d))
+                .transpose()
+                .refuse()?,
+        };
+        // The record kept for a replay leaves the secret out: a secret recorded is a secret
+        // stored (§6 of docs/10-api.md).
+        let fingerprint = self.ca_fingerprint.clone();
+        let response = |t: &EnrollmentToken, secret: bool| pb::CreateEnrollmentTokenResponse {
+            token: if secret { t.secret.expose().to_owned() } else { String::new() },
+            expires_at: wire::timestamp(t.enrollment.expires_at).into(),
+            ca_fingerprint: fingerprint.clone(),
+            ..Default::default()
+        };
+        let encoder = |t: &EnrollmentToken| encode(&response(t, false));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply =
+            self.app.create_enrollment(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, |t| response(t, true))
     }
 
     async fn get_node(

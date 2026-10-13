@@ -8,7 +8,7 @@ use super::Snapshot;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, RecipeSource, Store, Tx};
+use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store, Tx};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::credential::Secret;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
@@ -139,11 +139,37 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Permit, AppError> {
         let action = core_action(action)?;
         match self.decide(caller, &action, object, None).await? {
-            Decision::Permit(permit) => Ok(permit),
+            Decision::Permit(permit) => self.redeem(caller, &action, object, permit).await,
             Decision::Propose { .. } | Decision::Deny(_) => {
                 Err(self.refuse(caller, &action, object).await)
             }
         }
+    }
+
+    /// Spends one use of a use-limited grant that permitted a call, by compare-and-swap, before
+    /// the call proceeds (§6.2 of docs/08-identity.md). A use is spent when the call is
+    /// authorized, whether or not the call then succeeds, so a grant is never used more often
+    /// than it allows; a grant whose last use a concurrent call took refuses this one.
+    async fn redeem(
+        &self,
+        caller: &Caller,
+        action: &Action,
+        object: ObjectRef,
+        permit: Permit,
+    ) -> Result<Permit, AppError> {
+        if !permit.redeem {
+            return Ok(permit);
+        }
+        let chain = self.store.grant_chain(permit.grant).await?;
+        let max = chain.first().and_then(|leaf| leaf.grant.conditions.max_uses);
+        let Some(max) = max else { return Ok(permit) };
+        let mut tx = self.store.begin().await?;
+        if !tx.take_uses(permit.grant, 1, max).await? {
+            drop(tx);
+            return Err(self.refuse(caller, action, object).await);
+        }
+        tx.commit().await?;
+        Ok(permit)
     }
 
     /// Authorizes a declaration: like [`App::authorize`], except that a propose-only grant
@@ -157,8 +183,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(Permit, Proposing), AppError> {
         let action = core_action(action)?;
         match self.decide(caller, &action, object, None).await? {
-            Decision::Permit(permit) => Ok((permit, Proposing::Permitted)),
+            Decision::Permit(permit) => {
+                Ok((self.redeem(caller, &action, object, permit).await?, Proposing::Permitted))
+            }
             Decision::Propose { permit, approval_scope } => {
+                let permit = self.redeem(caller, &action, object, permit).await?;
                 Ok((permit, Proposing::ProposeOnly { approval_scope }))
             }
             Decision::Deny(_) => Err(self.refuse(caller, &action, object).await),

@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! `AgentService` (§4 of docs/02-architecture.md): enrollment, and the control stream. The
+//! agent dials out to the same listener the clients use, over the same TLS.
+
+use super::wire::{timestamp, wire_id};
+use super::{Api, error};
+use connectrpc::{
+    InboundStream, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
+};
+use korpis_app::AppError;
+use korpis_app::node::{Enroll, Enrolled};
+use korpis_app::ports::VerifyKey;
+use korpis_core::id::IdKind;
+use korpis_proto::korpis::agent::v1 as agent;
+
+fn key_to_pb(k: &VerifyKey) -> agent::SigningKey {
+    agent::SigningKey {
+        key_id: k.key_id.clone(),
+        public_key: k.public.clone(),
+        not_before: timestamp(k.not_before).into(),
+        not_after: k.not_after.map(timestamp).into(),
+        ..Default::default()
+    }
+}
+
+fn enrolled_to_pb(e: &Enrolled) -> agent::EnrollResponse {
+    agent::EnrollResponse {
+        node: wire_id(IdKind::Node, e.node),
+        assignment_keys: e.assignment_keys.iter().map(key_to_pb).collect(),
+        token_keys: e.token_keys.iter().map(key_to_pb).collect(),
+        ..Default::default()
+    }
+}
+
+impl agent::AgentService for Api {
+    async fn enroll(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, agent::EnrollRequest>,
+    ) -> ServiceResult<agent::EnrollResponse> {
+        let req = request.to_owned_message();
+        let cmd = Enroll {
+            token: req.enrollment_token,
+            public_key: req.node_public_key,
+            hostname: req.hostname,
+            source_ip: ctx.peer_addr().map(|a| a.ip()),
+        };
+        let enrolled = self.app.enroll(cmd).await.map_err(error::from_app)?;
+        Response::ok(enrolled_to_pb(&enrolled))
+    }
+
+    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
+    async fn session(
+        &self,
+        _ctx: RequestContext,
+        _requests: InboundStream<agent::AgentMessage>,
+    ) -> ServiceResult<ServiceStream<agent::ControlMessage>> {
+        Err(error::from_app(AppError::NotYet { what: "agent sessions", phase: 0 }))
+    }
+}

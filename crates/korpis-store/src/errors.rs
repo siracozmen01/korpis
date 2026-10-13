@@ -11,6 +11,8 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("project_organization_id_name_key") => Unique::ProjectName,
         Some("idempotency_pkey") => Unique::IdempotencyKey,
         Some("workload_name_in_project") => Unique::WorkloadName,
+        Some("node_name_key") => Unique::NodeName,
+        Some("node_public_key_key") => Unique::NodeKey,
         _ => Unique::Other,
     }
 }

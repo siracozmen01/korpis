@@ -6,6 +6,8 @@
 //! reasons, so they are kept apart and the status a client shows is derived from both.
 
 pub mod driver;
+#[cfg(feature = "identity")]
+pub mod identity;
 
 pub use driver::{Capabilities, DriverInfo, Enforcement, StorageClass};
 

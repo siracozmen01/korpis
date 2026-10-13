@@ -220,7 +220,11 @@ and `18-operations.md` §5 refuses to tell it.
 
 ‡ Added 2026-10-13, from the implementation. A node had no owner, so nothing said whose workloads
 could land on a customer's own machine, and no grant above the node itself could read or cordon
-it. Enrollment was already scoped to one organization; the node now belongs to it. Step 9: the
+it. Enrollment was already scoped to one organization; the node now belongs to it. Building
+enrollment showed that step 8 rested on a `max_uses` nothing counted, and that the token's request
+named no organization at all: the token now binds the organization, the name, and the labels, and
+its one use is redeemed at authorization (§3 of `18-operations.md`, §6.2 of `08-identity.md`).
+Step 9: the
 trust policy was per organization and the customer had none, so no policy governed the customer's
 declarations at all. The nearest ancestor's now does. The customer may set one the reseller would
 not, because the policy protects the workloads that run the recipe, and the reseller's machines

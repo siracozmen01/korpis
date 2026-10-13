@@ -14,6 +14,7 @@
 mod authority;
 mod authz;
 mod effects;
+mod enroll;
 mod lifecycle;
 mod nodes;
 mod operator;

@@ -9,7 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-korpis-core = { workspace = true, features = ["authz", "trust"] }
+korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 serde_json = "1"
 thiserror = { workspace = true }
 uuid = { workspace = true }

@@ -8,6 +8,8 @@
 // signatures. The futures are Send (the router requires it), and nothing outside relies on the
 // refinement.
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod agent;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod audit;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod authz;
@@ -47,13 +49,22 @@ pub type ServerApp = App<PgStore, SystemClock, RegistrySource>;
 #[derive(Debug)]
 pub struct Api {
     app: Arc<ServerApp>,
+    /// What enrollment tokens tell agents to pin.
+    ca_fingerprint: String,
 }
 
 impl Api {
     /// The API over `app`.
     #[must_use]
     pub fn new(app: ServerApp) -> Self {
-        Self { app: Arc::new(app) }
+        Self { app: Arc::new(app), ca_fingerprint: String::new() }
+    }
+
+    /// Tells enrolling agents to pin the CA with `fingerprint` (§3 of docs/18-operations.md).
+    #[must_use]
+    pub fn with_ca_fingerprint(mut self, fingerprint: String) -> Self {
+        self.ca_fingerprint = fingerprint;
+        self
     }
 
     /// The application, for the composition root's background work.
@@ -62,7 +73,7 @@ impl Api {
         &self.app
     }
 
-    /// Registers every client service on a router.
+    /// Registers every client service, and the agent service, on a router.
     #[must_use]
     pub fn router(self: Arc<Self>) -> Router {
         let router = Router::new();
@@ -73,7 +84,8 @@ impl Api {
         let router = WorkloadServiceExt::register(Arc::clone(&self), router);
         let router = PlanServiceExt::register(Arc::clone(&self), router);
         let router = NodeServiceExt::register(Arc::clone(&self), router);
-        EffectServiceExt::register(self, router)
+        let router = EffectServiceExt::register(Arc::clone(&self), router);
+        korpis_proto::korpis::agent::v1::AgentServiceExt::register(self, router)
     }
 
     /// The caller of a request: the bearer API token, from the peer address.

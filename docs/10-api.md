@@ -221,6 +221,13 @@ workload at the same moment is normal rather than exotic.
 `idempotency_key` makes retry safe at the API boundary, matching §4.7 of `02-architecture.md` at
 the agent boundary. A client that times out and retries never double-applies.
 
+**A secret in a response is not recorded for replay.** A retry returns the original response from
+a record kept for that purpose, and a secret in that record would be a secret stored, readable by
+anyone who can read the database. So a mutation whose response carries one (an enrollment token,
+§3 of `18-operations.md`) records the response without it, and a replay returns the outcome with
+the secret empty. The client that lost the first response has lost the secret and asks for a new
+one; the one it lost expires unused.
+
 ### Read-your-writes
 
 > Resolves open question 5 of `03-state.md`.
