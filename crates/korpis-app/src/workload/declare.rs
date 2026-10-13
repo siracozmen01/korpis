@@ -163,6 +163,18 @@ pub(crate) struct Prepared {
     holds: Held,
 }
 
+impl Prepared {
+    /// The workload it creates or declares for.
+    pub(crate) const fn workload(&self) -> &Workload {
+        &self.declared.workload
+    }
+
+    /// What it produced.
+    pub(crate) fn into_declared(self) -> Declared {
+        self.declared
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Declares an intent. A grant that may only propose produces a plan that waits for an
     /// approver; a plan nothing in which needs a human is approved at once and moves the target.

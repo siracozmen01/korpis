@@ -14,7 +14,7 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::credential::{ApiToken, Secret};
 use korpis_core::authz::evaluate::{IssueError, issue};
-use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Scope};
+use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Resource, Scope};
 use korpis_core::principal::Principal;
 use std::collections::BTreeSet;
 use uuid::Uuid;
@@ -230,6 +230,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         child: &Grant,
     ) -> Result<Grant, AppError> {
+        self.check_issue_assuming(caller, child, None).await
+    }
+
+    /// [`Self::check_issue`], with `assumed` standing for an object the caller's transaction
+    /// is about to create, such as the workload an installation runs as.
+    pub(crate) async fn check_issue_assuming(
+        &self,
+        caller: &Caller,
+        child: &Grant,
+        assumed: Option<&Resource>,
+    ) -> Result<Grant, AppError> {
         let parent_id = child.parent.ok_or(AppError::invalid("parent", "required"))?;
         let chain: Vec<Grant> =
             self.store.grant_chain(parent_id).await?.into_iter().map(|r| r.grant).collect();
@@ -237,6 +248,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::NotFound { kind: "grant" });
         };
         let mut snapshot = Snapshot::default();
+        if let Some(r) = assumed {
+            snapshot.assume(r.clone());
+        }
         for g in chain.iter().chain(std::iter::once(child)) {
             snapshot.load_grant(&self.store, g).await?;
         }

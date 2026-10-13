@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! `ExtensionService` (§4 of docs/16-extensions.md): installing an extension and reading what is
+//! installed.
+
+use super::wire::extension::{filter_to_pb, manifest_to_pb, need_from_pb, provided_to_pb};
+use super::wire::plan::plan_to_pb;
+use super::wire::recipe::ref_to_pb;
+use super::wire::value::map_from_pb;
+use super::wire::{self, Refuse, principal, timestamp, wire_id};
+use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use korpis_app::Idempotent;
+use korpis_app::extension::{ExtensionStatus, ExtensionView, InstallExtension, Installed};
+use korpis_core::extension::{ExtensionManifest, Installation};
+use korpis_core::id::IdKind;
+use korpis_core::recipe::RecipeRef;
+use korpis_proto::korpis::v1 as pb;
+use uuid::Uuid;
+
+fn status_to_pb(s: ExtensionStatus) -> pb::ExtensionStatus {
+    match s {
+        ExtensionStatus::Running => pb::ExtensionStatus::EXTENSION_STATUS_RUNNING,
+        ExtensionStatus::Stopped => pb::ExtensionStatus::EXTENSION_STATUS_STOPPED,
+        ExtensionStatus::Failed => pb::ExtensionStatus::EXTENSION_STATUS_FAILED,
+    }
+}
+
+/// An installation as the wire shows it.
+fn extension_to_pb(
+    i: &Installation,
+    manifest: &ExtensionManifest,
+    artifact: &RecipeRef,
+    grants: impl Iterator<Item = Uuid>,
+    status: ExtensionStatus,
+) -> pb::Extension {
+    pb::Extension {
+        id: wire_id(IdKind::Extension, i.id),
+        name: i.name.clone(),
+        version: i.version.clone(),
+        api_version: i.api_version.clone(),
+        ui_slots: manifest.ui_slots.iter().map(|s| s.slot.clone()).collect(),
+        status: status_to_pb(status).into(),
+        grants: grants.map(|g| wire_id(IdKind::Grant, g)).collect(),
+        organization: wire_id(IdKind::Organization, i.organization),
+        project: i.project.map(|p| wire_id(IdKind::Project, p)),
+        workload: wire_id(IdKind::Workload, i.workload),
+        artifact: ref_to_pb(artifact).into(),
+        manifest: manifest_to_pb(manifest).into(),
+        provides: manifest.provides.iter().map(provided_to_pb).collect(),
+        subscribes: manifest.subscribes.iter().map(filter_to_pb).collect(),
+        installed_by: principal::to_pb(&i.installed_by).into(),
+        installed_at: timestamp(i.installed_at).into(),
+        ..Default::default()
+    }
+}
+
+fn view_to_pb(v: &ExtensionView) -> pb::Extension {
+    let grants = v.grants.iter().copied();
+    extension_to_pb(&v.installation, &v.manifest, &v.artifact, grants, v.status)
+}
+
+fn installed(i: &Installed) -> pb::InstallExtensionResponse {
+    let grants = i.grants.iter().map(|g| g.grant.id);
+    let stopped = ExtensionStatus::Stopped;
+    let extension = extension_to_pb(&i.installation, &i.manifest, &i.artifact, grants, stopped);
+    pb::InstallExtensionResponse {
+        extension: extension.into(),
+        plan: i.declared.as_ref().map(|d| plan_to_pb(&d.plan)).into(),
+        ..Default::default()
+    }
+}
+
+fn optional_id(
+    kind: IdKind,
+    field: &str,
+    s: &str,
+) -> Result<Option<Uuid>, connectrpc::ConnectError> {
+    if s.is_empty() { Ok(None) } else { wire::id(kind, field, s).refuse().map(Some) }
+}
+
+fn install_cmd(
+    req: &pb::InstallExtensionRequest,
+) -> Result<InstallExtension, connectrpc::ConnectError> {
+    let project = req.project.as_deref().unwrap_or_default();
+    let workload_name = match req.workload_name.as_str() {
+        "" => None,
+        n => Some(wire::name("workload_name", n).refuse()?),
+    };
+    Ok(InstallExtension {
+        artifact: req.artifact.clone(),
+        version: req.version.clone(),
+        organization: wire::id(IdKind::Organization, "organization", &req.organization).refuse()?,
+        project: optional_id(IdKind::Project, "project", project)?,
+        workload_project: optional_id(IdKind::Project, "workload_project", &req.workload_project)?,
+        workload_name,
+        approved_needs: req
+            .approved_needs
+            .iter()
+            .enumerate()
+            .map(|(i, n)| need_from_pb(&format!("approved_needs[{i}]"), n))
+            .collect::<Result<_, _>>()
+            .refuse()?,
+        config: map_from_pb("config", &req.config).refuse()?,
+        dry_run: req.dry_run,
+    })
+}
+
+impl pb::ExtensionService for Api {
+    async fn install_extension(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::InstallExtensionRequest>,
+    ) -> ServiceResult<pb::InstallExtensionResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let cmd = install_cmd(&req)?;
+        let encoder = |i: &Installed| encode(&installed(i));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply =
+            self.app.install_extension(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, installed)
+    }
+
+    async fn get_extension(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetExtensionRequest>,
+    ) -> ServiceResult<pb::GetExtensionResponse> {
+        let caller = self.caller(&ctx).await?;
+        let id = wire::id(IdKind::Extension, "id", request.id).refuse()?;
+        let view = self.app.get_extension(&caller, id).await.map_err(error::from_app)?;
+        Response::ok(pb::GetExtensionResponse {
+            extension: view_to_pb(&view).into(),
+            ..Default::default()
+        })
+    }
+
+    async fn list_extensions(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListExtensionsRequest>,
+    ) -> ServiceResult<pb::ListExtensionsResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let page = page(req.page.as_option(), IdKind::Extension)?;
+        let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
+        let listed = self.app.list_extensions(&caller, org, page).await.map_err(error::from_app)?;
+        Response::ok(pb::ListExtensionsResponse {
+            extensions: listed.items.iter().map(view_to_pb).collect(),
+            page: next_page(listed.next, IdKind::Extension).into(),
+            ..Default::default()
+        })
+    }
+
+    async fn uninstall_extension(
+        &self,
+        ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::UninstallExtensionRequest>,
+    ) -> ServiceResult<pb::UninstallExtensionResponse> {
+        self.caller(&ctx).await?;
+        Err(error::from_app(korpis_app::AppError::NotYet { what: "uninstalling", phase: 1 }))
+    }
+}

@@ -162,6 +162,22 @@ proposes the retirement of its workload. Installing needs `extension.install`, u
 > what an installer sees and not what installing does, so nothing said where an extension's grants
 > come from in the chain that §3 of `08-identity.md` requires every grant to descend through.
 
+**How an install is decided** (2026-10-13, from the implementation). A dry run resolves the
+artifact, checks where it goes and who may install it, and answers with the document's manifest
+and the grants it would issue, so the installer reads the needs before approving them. The real
+install then requires `approved_needs` to equal the document's needs exactly, in their order,
+with their reasons: an approval is of the list the installer read, never of a list rebuilt from
+it. A need over `target` is granted on the project when the extension is installed into one, on
+the organization otherwise; over `organization`, on the organization; over `self`, on the
+extension's own workload, which the same transaction creates. Each grant's parent is the first,
+in identifier order, of the installer's grants that the attenuation check of §3.2 of
+`08-identity.md` accepts, so an installer whose grants may not be delegated can install nothing
+that needs anything, whatever actions those grants carry. The workload, its plan, every grant,
+the installation record, and their effects (`grant.issued` for each grant, `extension.install`
+under the installer's grant) commit together. An installation's status is its workload's, as
+observed: `running`, `failed` when it crashed or its node cannot run it, `stopped` otherwise;
+`incompatible` arrives with §6.
+
 **An extension's artifact is installed, never declared.** A declaration through the workload API
 that names an extension's artifact is refused, and so is one that gives an extension's workload
 any artifact but the digest it was installed from (§3.5 and §3.7 of `01-model.md`, §8 of
@@ -221,6 +237,14 @@ declared, the step kinds it uses are resolved against the registrations visible 
 organization and the provider's **artifact digest is recorded in the lockfile** beside the recipe's
 own (§8 of `09-recipes.md`), so a workload never changes provider because someone registered a new
 one later.
+
+**As built in Phase 1.** Zones, backup repositories, and edges are not yet objects with owners
+of their own, so the resource a provider serves belongs to the organization its registration
+belongs to: installing anything that provides needs `extension.install` over the organization as
+well as where it is installed, and an identity provider is installed into the organization
+itself, never one of its projects. When those resources become objects with owners (backup
+repositories, §5.3 of `06-storage.md`; the edge, §3.1 of `07-networking.md`; DNS zones, which no
+document models yet), the check narrows to their owner; it never widens past the organization.
 
 Tenant-direction extensions need nothing new. Authority is bounded structurally, consumption is
 metered against the installer, and egress obeys the tenant's egress policy, so an operator who

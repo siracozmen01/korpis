@@ -37,6 +37,14 @@ impl Snapshot {
         Ok(())
     }
 
+    /// Records `resource` for an object the decision's own transaction will create, so a grant
+    /// can be issued over it in that transaction; the ancestry is the caller's to state truly.
+    pub(crate) fn assume(&mut self, resource: Resource) {
+        if let Some(object) = resource.object() {
+            self.resources.insert(object, Some(resource));
+        }
+    }
+
     /// Loads every object a grant's validity depends on: its scope and its approval scope.
     pub(crate) async fn load_grant(
         &mut self,

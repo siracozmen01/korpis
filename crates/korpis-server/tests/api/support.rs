@@ -172,6 +172,10 @@ impl Harness {
         pb::DeclaredSetServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn extensions(&self, config: ClientConfig) -> pb::ExtensionServiceClient<HttpClient> {
+        pb::ExtensionServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn effect_log(&self, config: ClientConfig) -> pb::EffectServiceClient<HttpClient> {
         pb::EffectServiceClient::new(self.http.clone(), config)
     }

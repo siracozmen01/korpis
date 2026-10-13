@@ -75,6 +75,29 @@ impl ExtensionRead for PgStore {
         row.map(ExtensionRow::into_domain).transpose()
     }
 
+    async fn installed_extension(
+        &self,
+        organization: Uuid,
+        project: Option<Uuid>,
+        name: &str,
+    ) -> StoreResult<Option<Installation>> {
+        let row = sqlx::query_as!(
+            ExtensionRow,
+            "SELECT id, organization_id, project_id, name, version, api_version, workload_id,
+                    artifact_name, artifact_digest, installed_by, installed_at, uninstalled_at
+               FROM extension
+              WHERE organization_id = $1 AND project_id IS NOT DISTINCT FROM $2 AND name = $3
+                AND uninstalled_at IS NULL",
+            organization,
+            project,
+            name
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(ExtensionRow::into_domain).transpose()
+    }
+
     async fn extensions(&self, organization: Uuid, page: Page) -> StoreResult<Vec<Installation>> {
         let rows = sqlx::query_as!(
             ExtensionRow,

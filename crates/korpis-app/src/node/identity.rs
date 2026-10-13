@@ -3,7 +3,9 @@
 //! A running workload's identity (§9.5 of docs/08-identity.md): its node asks for a credential
 //! on the workload's behalf, and the control plane issues one only for a workload it places on
 //! that node, authoritatively, under a lease that node holds and that has not expired. The
-//! node's word is only which workload asked; who that workload is, is the control plane's.
+//! node's word is only which workload asked; who that workload is, is the control plane's: an
+//! installed extension's workload is `extension:<id>`, every other `workload:<id>` (§3.2 of
+//! docs/16-extensions.md).
 //!
 //! Issuing is not an effect, as minting a capability token is not: what the credential is used
 //! for is, and every such effect names the workload or extension that acted.
@@ -60,6 +62,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         workload: Uuid,
     ) -> Result<Result<IssuedCredential, CredentialRefusal>, AppError> {
         let now = self.clock.now();
+        let subject = match self.store.extension_of_workload(workload).await? {
+            Some(e) if e.is_installed() => e.principal(),
+            _ => Principal::Workload(workload),
+        };
         let mut tx = self.store.begin().await?;
         let placed = tx.placement_in(workload).await?;
         if placed.is_none_or(|p| p.node != node || !p.authoritative) {
@@ -75,7 +81,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .map_err(|e| AppError::Internal(e.to_string()))?;
         let credential = WorkloadCredential {
             workload,
-            subject: Principal::Workload(workload),
+            subject,
             node,
             epoch: lease.epoch,
             issued_at: now,

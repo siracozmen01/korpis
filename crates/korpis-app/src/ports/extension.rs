@@ -21,6 +21,14 @@ pub trait ExtensionRead {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
 
+    /// The extension of `name` installed now in `organization`, or in `project` of it.
+    fn installed_extension(
+        &self,
+        organization: Uuid,
+        project: Option<Uuid>,
+        name: &str,
+    ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
+
     /// An organization's installed extensions, in identifier order after the page's cursor.
     fn extensions(
         &self,

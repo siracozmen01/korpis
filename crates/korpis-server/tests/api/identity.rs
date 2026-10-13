@@ -104,3 +104,38 @@ async fn a_node_obtains_a_credential_only_for_what_it_runs_and_it_acts_as_the_wo
     let e = as_workload.get_workload(read).await.unwrap_err();
     assert_eq!(e.code, ErrorCode::Unauthenticated, "a credential is only good where it runs");
 }
+
+#[tokio::test]
+async fn an_installed_extensions_workload_authenticates_as_the_installation() {
+    use crate::extensions::{install, needs, push_dns};
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-5", 3).await;
+    let mut stream = connect(&h, &a, 3).await;
+    let repo = push_dns().await;
+    let project = project(&h, &h.root_org(), "dns").await;
+    let approved = needs(&h, &repo, &project).await;
+    let req = pb::InstallExtensionRequest {
+        approved_needs: approved,
+        ..install(&h, "install", &repo, &project)
+    };
+    let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
+    let extension = done.extension.into_option().unwrap();
+
+    let lease = agent::LeaseRequest {
+        workload: extension.workload.clone(),
+        nonce: vec![3; 8],
+        ..Default::default()
+    };
+    send(&mut stream, Up::LeaseRequest(Box::new(lease))).await;
+    let Outcome::Credential(issued) = ask(&mut stream, &extension.workload, "x1").await else {
+        panic!("its node obtains its credential like any workload's");
+    };
+    let subject = issued.subject.as_option().and_then(|s| s.kind.clone());
+    assert!(
+        matches!(&subject, Some(pb::__buffa::oneof::subject::Kind::Extension(e)) if *e == extension.id),
+        "{subject:?}"
+    );
+    let own = h.grants(h.config(Some(&issued.secret)));
+    let held = own.list_grants(pb::ListGrantsRequest::default()).await.unwrap().into_owned();
+    assert_eq!(held.grants.len(), 2, "it acts under exactly the grants its installation issued");
+}

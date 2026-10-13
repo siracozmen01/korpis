@@ -34,6 +34,7 @@ pub mod assignment;
 pub mod audit;
 pub mod authz;
 pub mod body;
+pub mod extension;
 pub mod journal;
 pub mod node;
 pub mod observation;

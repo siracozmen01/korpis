@@ -13,6 +13,7 @@ pub mod audit;
 pub mod authz;
 pub mod caller;
 pub mod error;
+pub mod extension;
 pub mod idempotency;
 pub mod install;
 pub mod node;
