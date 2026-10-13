@@ -381,28 +381,40 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fourteen traces and their findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: fifteen traces and their findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not Phase 0 |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
+| `ARCHITECTURE.md`, `crates/` | Phase 0 built: thirteen crates, about 53,000 lines of Rust, 276 tests, twenty migrations, and the 41 calls of the public API |
 
-Fifty-nine numbered open questions remain open, of 118 recorded, distributed across the documents,
-each assigned to the one that will settle it. They are the design's honest edges, not omissions: an
-open question with an owner is a decision deferred deliberately, and every one of them was recorded
-where the person who hits it will find it.
+Sixty-nine numbered open questions remain open, of 126 recorded. Ten of them carry a question
+into the document that will settle it, so fifty-nine decisions are open, each assigned to the one
+that will settle it. They are the design's honest edges, not omissions: an open question with an
+owner is a decision deferred deliberately, and every one of them was recorded where the person who
+hits it will find it.
 
-**Nothing blocks the start of Phase 0.** The intent body's representation (§3.1 of
-`03-state.md`), whether the agent caches grants (§10 of `02-architecture.md`: it does not, it
-verifies tokens), break-glass access during an outage (a local socket, not a listener), and the
-implementation language (§3 of `21-stack.md`: Rust throughout) are settled. One question is owed
-during Phase 0 rather than before it: whether the protocol freeze waits for a 1.0 of the Rust
-Connect implementation (question 7 of `21-stack.md`). Everything else left open belongs to phases
-that have not started.
+**Phase 0 is built, and its done-when holds.** `scripts/e2e-phase0.sh` runs it as an operator
+would: the five programs as processes, the recipe published with `oras`, and every step through
+the `korpis` CLI. A workload is applied, placed, and converged; the agent restarts and the
+workload keeps running in the same process; a reader's refused change is recorded with its
+subject and the action that was missing; and every permitted action in the log names its grant.
+Building it found the specification wrong or silent in more places than the reviews did, and each
+is corrected in place where it was found, with the trace that crosses it noting the correction.
+The one question owed during Phase 0, whether the protocol freeze waits for a 1.0 of the Rust
+Connect implementation, is resolved in question 7 of `21-stack.md`: it does not.
 
-> Corrected 2026-10-12, twice in one day. This said everything blocking Phase 0 was closed,
-> including every component's language. Question 6 of `21-stack.md` was then reopened, which made
-> it false, and closed the same day with the decision for Rust throughout, which made it true
-> again.
+**What Phase 0 does not do is homed.** Every refusal the code answers with "arrives in Phase N"
+names a phase that names it in §4, and every part of a specified behaviour Phase 0 left unbuilt
+says so where it is specified: the shortlist query and re-placement (§2.1 of
+`05-scheduling.md`), the reachability probe (§9 of `07-networking.md`), rate limits (§10 of
+`10-api.md`), and the assignment delta (§9 there). The succession document still blocks the first
+release.
 
-The model is drawn. What remains is to build it.
+> Corrected 2026-10-13, as Phase 0 closed. This section said that nothing blocked the start of
+> Phase 0 and that what remained was to build the model. Both were true when written, and
+> neither describes a repository whose Phase 0 is built. The counts were also behind: the open
+> questions had grown to 126 as building raised new ones, and a trace (§18 of
+> `23-walkthroughs.md`) had been added to the fourteen.
+
+The model is drawn, and its first phase is built. What remains is Phase 1.

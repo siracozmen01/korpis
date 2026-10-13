@@ -9,8 +9,11 @@ job, a virtual machine) on hardware you own. It places the workload on a node, i
 strongly as you ask, gives it storage and network, keeps it in the state you declared, and lets you
 and the people you delegate to operate it from a panel, a terminal, chat, or the API.
 
-> **The design comes first, and the code is just starting.** Phase 0 of the build order is under
-> way in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)); nothing is usable yet.
+> **The design comes first, and the code has finished its first phase.** Phase 0 of the build
+> order is built in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)): a workload
+> declared through the CLI is placed, run, and audited end to end, which
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) checks. It is not yet usable as a panel; the
+> web client, backups, and public endpoints arrive in Phase 1.
 >
 > Twenty-four documents, and they are the specification the code is held to. Some decisions in a
 > system like this cannot be retrofitted: how state is stored, how authority is delegated, where the

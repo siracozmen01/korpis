@@ -12,8 +12,11 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Önce tasarım geldi, kod yeni başlıyor.** Yapım sırasının Phase 0'ı `crates/` altında sürüyor
-> (Rust, [`21-stack.md`](./docs/21-stack.md) §3); henüz kullanılabilir bir şey yok.
+> **Önce tasarım geldi, kod ilk aşamasını tamamladı.** Yapım sırasının Phase 0'ı `crates/`
+> altında kuruldu (Rust, [`21-stack.md`](./docs/21-stack.md) §3): CLI ile beyan edilen bir iş yükü
+> uçtan uca yerleştirilir, çalıştırılır ve denetim kaydına geçer; bunu
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) doğrular. Henüz bir panel olarak
+> kullanılamaz; web istemcisi, yedekler ve dışa açık uç noktalar Phase 1'de gelir.
 >
 > Yirmi dört doküman var ve kod onlara göre yazılıyor. Böyle bir sistemde bazı kararlar sonradan
 > takılamaz: durumun nasıl saklandığı, yetkinin nasıl devredildiği, güvenlik sınırının nerede

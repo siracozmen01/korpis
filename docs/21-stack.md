@@ -63,7 +63,7 @@ The first version chose Go for the control plane on five grounds. Each was check
   has an official Rust implementation, `connectrpc`, adopted into the Connect project and passing
   its full conformance suite, serving Connect, gRPC, and gRPC-Web on one endpoint exactly as §3 of
   `10-api.md` requires. It is pre-1.0, which is a real cost and is carried as question 7 rather than
-  waved away.
+  waved away; question 7 is resolved, and says what the cost is.
 - **"The PostgreSQL tooling is mature."** So is Rust's: `sqlx` checks every query against the schema
   at compile time, and `tokio-postgres` is long-established.
 - **"A single static binary."** Rust produces one as readily as Go does.
@@ -333,3 +333,17 @@ an arbitrary grant set, and small enough that a host serving it from a cheap CDN
    client on gRPC-Web, which loses plain-JSON `curl` access until a replacement exists. When to
    require a 1.0, and whether the fallback is ever exercised, is decided before Phase 0's protocol
    freeze. → here
+
+   **Resolved here, 2026-10-13, as Phase 0 closes: the freeze does not wait for a 1.0.** What
+   freezes is the wire contract, the schema in `crates/korpis-proto` and the Connect, gRPC, and
+   gRPC-Web protocols as their own specifications define them; the conformance suite tests the
+   crate against those, and neither is a property of the crate's Rust API. Every Korpis crate pins
+   `connectrpc` and `buffa` to an exact version, so no release reaches a build unreviewed, and
+   the domain and application crates never hold a generated type, which the layer rule checks
+   (§3 of `ARCHITECTURE.md`). A breaking release of the crate is therefore an update to the adapters
+   that changes no byte on the wire, which the API, agent, and CLI tests check end to end. The
+   fallback stays as described and is exercised only if a release Korpis needs fails the
+   conformance suite, or a security advisory against the crate goes unfixed upstream. What this
+   costs: until a 1.0, every upgrade of the crate is reviewed by hand rather than taken as a
+   compatible bump, and a long stall would leave Korpis maintaining a pinned version it did not
+   write.
