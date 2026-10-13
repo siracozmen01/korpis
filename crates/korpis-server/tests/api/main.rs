@@ -42,6 +42,7 @@ mod reads;
 mod recipes;
 mod relay;
 mod relays;
+mod renewal;
 mod retire;
 mod revocation;
 mod sdk;

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE relay SET certificate_alert = $2\n              WHERE id = $1 AND certificate_alert IS NOT DISTINCT FROM $3\n                AND certificate_expires_at = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2a839bc9d41bee1052a2e337715aed1356ecaa14637902958737387e7a409e14"
+}

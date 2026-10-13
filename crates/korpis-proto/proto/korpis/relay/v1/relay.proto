@@ -23,6 +23,26 @@ service RelayControlService {
   // while, so a relay can tell a quiet feed from a lost one. The stream ends when the relay is
   // removed.
   rpc Feed(FeedRequest) returns (stream FeedUpdate);
+  // A fresh certificate for a new TLS key, issued as Join issued the first: for the relay's URL's
+  // host, under the installation's authority, as long-lived as the relay's certificates are. A
+  // relay asks at about two thirds of its certificate's life (§7 of docs/18-operations.md).
+  rpc Renew(RenewRequest) returns (RenewResponse);
+}
+
+message RenewRequest {
+  string relay = 1;
+  // The relay identity key's Ed25519 signature over
+  // "korpis.relay.v1.Renew|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<tls_key in lowercase hex>",
+  // fresh and never replayed, as a FeedRequest's.
+  korpis.agent.v1.NodeAuth auth = 2;
+  // The new TLS key's public half: an uncompressed P-256 point, 65 bytes.
+  bytes tls_key = 3;
+}
+
+message RenewResponse {
+  // The relay's new certificate, PEM, followed by the authority's.
+  string certificate_chain_pem = 1;
+  google.protobuf.Timestamp certificate_expires_at = 2;
 }
 
 message FeedRequest {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE relay SET certificate_expires_at = $2 WHERE id = $1",
+  "query": "UPDATE relay SET certificate_expires_at = $2, certificate_alert = NULL WHERE id = $1",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "0606df100d34524daa89db6b03021b3919a1c5bda51494747afba2a20a8faa6b"
+  "hash": "4abcb87e6c30562d3ad12688cc0f0ac1aaeea501b74d9fed17aef69d9cc3291b"
 }

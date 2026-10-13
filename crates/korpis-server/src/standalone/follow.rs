@@ -44,18 +44,23 @@ enum Ended {
     Refused,
 }
 
-async fn open(dir: &RelayDir, relay_id: &str) -> Result<Feed, Ended> {
-    let read = |name: &str| {
-        std::fs::read(dir.file(name)).map_err(|e| Ended::Again(format!("{name}: {e}")))
-    };
-    let server = String::from_utf8(read("server")?).map_err(|e| Ended::Again(e.to_string()))?;
-    let config = korpis_tls::trusting(&read("ca.pem")?).map_err(|e| Ended::Again(e.to_string()))?;
-    let uri =
-        server.trim().parse().map_err(|e: http::uri::InvalidUri| Ended::Again(e.to_string()))?;
-    let client = relay::RelayControlServiceClient::new(
+/// A client of the control plane the relay in `dir` joined, trusting it by the authority the
+/// relay pinned.
+pub(super) fn control(
+    dir: &RelayDir,
+) -> Result<relay::RelayControlServiceClient<HttpClient>, String> {
+    let read = |name: &str| std::fs::read(dir.file(name)).map_err(|e| format!("{name}: {e}"));
+    let server = String::from_utf8(read("server")?).map_err(|e| e.to_string())?;
+    let config = korpis_tls::trusting(&read("ca.pem")?).map_err(|e| e.to_string())?;
+    let uri = server.trim().parse().map_err(|e: http::uri::InvalidUri| e.to_string())?;
+    Ok(relay::RelayControlServiceClient::new(
         HttpClient::with_tls(Arc::new(config)),
         ClientConfig::new(uri),
-    );
+    ))
+}
+
+async fn open(dir: &RelayDir, relay_id: &str) -> Result<Feed, Ended> {
+    let client = control(dir).map_err(Ended::Again)?;
     let key = dir.identity().map_err(|e| Ended::Again(e.to_string()))?;
     let request = signed_request(relay_id, &key).map_err(|e| Ended::Again(e.to_string()))?;
     client.feed(request).await.map_err(|e| ended(&e))

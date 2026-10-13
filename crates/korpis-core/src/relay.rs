@@ -6,8 +6,9 @@
 //! The control plane's own relay role is not one of these: it needs no enrollment, since it is
 //! the control plane.
 
+use crate::event::Severity;
 use crate::tenancy::Name;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 /// A relay running as its own process.
@@ -25,6 +26,55 @@ pub struct Relay {
     pub certificate_expires_at: Option<SystemTime>,
     /// When it was removed; a removed relay is told nothing more and named to no node.
     pub removed_at: Option<SystemTime>,
+}
+
+/// How close a relay's certificate is to expiring, as an event says it (§7 of
+/// docs/18-operations.md): a warning within [`WARN_WITHIN`], critical within [`CRITICAL_WITHIN`],
+/// and nothing before. Each step is reported once; a renewal starts the count again.
+#[must_use]
+pub fn certificate_alert(expires_at: SystemTime, now: SystemTime) -> Option<Severity> {
+    let left = expires_at.duration_since(now).unwrap_or_default();
+    if left <= CRITICAL_WITHIN {
+        Some(Severity::Critical)
+    } else if left <= WARN_WITHIN {
+        Some(Severity::Warning)
+    } else {
+        None
+    }
+}
+
+/// A relay's certificate expires within this: a warning.
+pub const WARN_WITHIN: Duration = Duration::from_secs(14 * 24 * 60 * 60);
+/// Within this: critical.
+pub const CRITICAL_WITHIN: Duration = Duration::from_secs(3 * 24 * 60 * 60);
+
+/// A relay's certificate came a step closer to expiring: an event, keyed to the relay, in the
+/// root organization whose relays they are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CertificateAlert {
+    /// The relay.
+    pub relay: Uuid,
+    /// Its name.
+    pub name: String,
+    /// The root organization.
+    pub organization: Uuid,
+    /// When its certificate expires.
+    pub expires_at: SystemTime,
+    /// How close that is.
+    pub severity: Severity,
+    /// When it was decided, on the control plane's clock.
+    pub at: SystemTime,
+}
+
+impl CertificateAlert {
+    /// The event's kind.
+    pub const KIND: &'static str = "relay.certificate_expiring";
+
+    /// The event's key: one ordered history per relay.
+    #[must_use]
+    pub fn key(&self) -> String {
+        format!("relay:{}", self.relay)
+    }
 }
 
 /// Where a relay is reached: an `https` URL with a host, an optional port, and nothing else.
@@ -103,6 +153,16 @@ fn valid_port(after: &str) -> Option<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_certificate_is_alerted_on_twice_as_it_nears_expiry() {
+        let now = SystemTime::now();
+        let in_days = |d: u64| now + Duration::from_secs(d * 24 * 60 * 60);
+        assert_eq!(certificate_alert(in_days(30), now), None);
+        assert_eq!(certificate_alert(in_days(14), now), Some(Severity::Warning));
+        assert_eq!(certificate_alert(in_days(3), now), Some(Severity::Critical));
+        assert_eq!(certificate_alert(now - Duration::from_secs(1), now), Some(Severity::Critical));
+    }
 
     #[test]
     fn a_relay_is_named_by_an_https_origin() {

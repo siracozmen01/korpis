@@ -159,22 +159,28 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     };
     let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
     api.relay().trust(relay::token_ring(names));
-    tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
-    tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
-    tokio::spawn(dispatch_changes(Arc::clone(&api)));
-    tokio::spawn(track_conditions(Arc::clone(&api)));
-    tokio::spawn(provider_calls::keep_registrations(Arc::clone(&api)));
-    tokio::spawn(provider_calls::dispatch(Arc::clone(&api)));
-    tokio::spawn(revocations::keep(Arc::clone(&api)));
-    tokio::spawn(named_relays::keep(Arc::clone(&api)));
-    tokio::spawn(reachability::keep(Arc::clone(&api)));
-    tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
+    background(&api, &config);
     let router = Arc::clone(&api).router();
     let task = tokio::spawn(async move {
         bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
     });
     tracing::info!(%addr, "serving");
     Ok(Running { addr, task, api })
+}
+
+/// Starts the control plane's own work, each task ending with the process.
+fn background(api: &Arc<Api>, config: &ServeConfig) {
+    tokio::spawn(retry_placements(Arc::clone(api), config.placement_retry));
+    tokio::spawn(sweep_silent_nodes(Arc::clone(api), config.heartbeat_interval));
+    tokio::spawn(dispatch_changes(Arc::clone(api)));
+    tokio::spawn(track_conditions(Arc::clone(api)));
+    tokio::spawn(provider_calls::keep_registrations(Arc::clone(api)));
+    tokio::spawn(provider_calls::dispatch(Arc::clone(api)));
+    tokio::spawn(revocations::keep(Arc::clone(api)));
+    tokio::spawn(named_relays::keep(Arc::clone(api)));
+    tokio::spawn(alert_relay_certificates(Arc::clone(api)));
+    tokio::spawn(reachability::keep(Arc::clone(api)));
+    tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node
@@ -239,6 +245,21 @@ async fn track_conditions(api: Arc<Api>) {
             tracing::warn!(error = %e, "deciding convergence failed");
         }
         next = changes.next().await;
+    }
+}
+
+/// Reports, hourly, each relay certificate that came a step closer to expiring (§7 of
+/// docs/18-operations.md). The task ends with the process.
+async fn alert_relay_certificates(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(3600));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().alert_relay_certificates().await {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(relays = n, "relay certificates nearing expiry"),
+            Err(e) => tracing::warn!(error = %e, "checking relay certificates failed"),
+        }
     }
 }
 

@@ -8,8 +8,11 @@ use crate::stored::{from_time, principal, to_time};
 use crate::tenancy::name;
 use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
-use korpis_app::ports::{RelayEnrollment, RelayRead, RelayWrite, StoreError, StoreResult};
-use korpis_core::relay::{Relay, RelayUrl};
+use korpis_app::ports::{
+    RelayCertificate, RelayEnrollment, RelayRead, RelayWrite, StoreError, StoreResult,
+};
+use korpis_core::event::Severity;
+use korpis_core::relay::{CertificateAlert, Relay, RelayUrl};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -20,6 +23,10 @@ struct RelayRow {
     joined_at: DateTime<Utc>,
     certificate_expires_at: Option<DateTime<Utc>>,
     removed_at: Option<DateTime<Utc>>,
+}
+
+fn severity(s: &str) -> StoreResult<Severity> {
+    Severity::parse(s).ok_or_else(|| StoreError::Corrupt(format!("certificate_alert {s:?}")))
 }
 
 fn url(s: &str) -> StoreResult<RelayUrl> {
@@ -70,6 +77,38 @@ impl RelayRead for PgStore {
             .fetch_optional(&self.pool)
             .await
             .map_err(from_sqlx)
+    }
+
+    async fn relay_certificates(&self) -> StoreResult<Vec<RelayCertificate>> {
+        let rows = sqlx::query!(
+            r#"SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS "expires_at!",
+                      r.certificate_alert, e.organization_id
+                 FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id
+                WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL
+                ORDER BY r.name"#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter()
+            .map(|r| {
+                let alerted = r.certificate_alert.as_deref().map(severity).transpose()?;
+                let relay = RelayRow {
+                    id: r.id,
+                    name: r.name,
+                    url: r.url,
+                    joined_at: r.joined_at,
+                    certificate_expires_at: Some(r.expires_at),
+                    removed_at: None,
+                };
+                Ok(RelayCertificate {
+                    relay: relay.into_domain()?,
+                    organization: r.organization_id,
+                    expires_at: to_time(r.expires_at),
+                    alerted,
+                })
+            })
+            .collect()
     }
 
     async fn relay_enrollment(&self, token: Uuid) -> StoreResult<Option<RelayEnrollment>> {
@@ -152,7 +191,7 @@ impl RelayWrite for PgTx {
         expires_at: SystemTime,
     ) -> StoreResult<()> {
         sqlx::query!(
-            "UPDATE relay SET certificate_expires_at = $2 WHERE id = $1",
+            "UPDATE relay SET certificate_expires_at = $2, certificate_alert = NULL WHERE id = $1",
             relay,
             from_time(expires_at)
         )
@@ -188,6 +227,46 @@ impl RelayWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(inserted.rows_affected() == 1)
+    }
+
+    async fn alert_relay_certificate(
+        &mut self,
+        alert: &CertificateAlert,
+        expected: Option<Severity>,
+    ) -> StoreResult<bool> {
+        let swapped = sqlx::query!(
+            "UPDATE relay SET certificate_alert = $2
+              WHERE id = $1 AND certificate_alert IS NOT DISTINCT FROM $3
+                AND certificate_expires_at = $4",
+            alert.relay,
+            alert.severity.as_str(),
+            expected.map(Severity::as_str),
+            from_time(alert.expires_at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if swapped.rows_affected() != 1 {
+            return Ok(false);
+        }
+        let detail = serde_json::json!({
+            "relay": alert.relay.to_string(),
+            "name": alert.name,
+            "expires_at": chrono::DateTime::<Utc>::from(alert.expires_at).to_rfc3339(),
+        });
+        sqlx::query!(
+            "SELECT korpis_append_event($1, $2, $3, $4, $5, NULL, NULL, $6)",
+            alert.key(),
+            from_time(alert.at),
+            CertificateAlert::KIND,
+            alert.severity.as_str(),
+            alert.organization,
+            detail
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(true)
     }
 
     async fn remove_relay(&mut self, relay: Uuid, at: SystemTime) -> StoreResult<bool> {

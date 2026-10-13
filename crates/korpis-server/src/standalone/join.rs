@@ -85,6 +85,8 @@ pub async fn join(
     let ca = pinned.ca_pem().ok_or_else(|| JoinError::Connect("no authority was pinned".into()))?;
     dir.public("ca.pem", &ca)?;
     dir.public("tls.pem", joined.certificate_chain_pem.as_bytes())?;
+    let expires = joined.certificate_expires_at.as_option().map_or(0, |t| t.seconds);
+    dir.public("tls.expires", expires.to_string().as_bytes())?;
     dir.public("server", server.as_bytes())?;
     dir.public("url", joined.url.as_bytes())?;
     dir.public("relay", joined.relay.as_bytes())?;

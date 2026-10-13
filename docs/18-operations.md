@@ -238,8 +238,13 @@ two keys it generated and kept before sending anything: an Ed25519 identity key 
 requests to the control plane with, and a P-256 TLS key. And it is given a certificate for its
 URL's host, issued by the installation's authority, which agents and the CLI already trust, so no
 trust has to be distributed for it. The certificate lives ninety days, shortened per relay by up to
-nine so relays that joined together do not expire together (§7); renewing it before then is the
-relay's, over the same channel. `ListRelays` shows each relay with its certificate's expiry, and
+nine so relays that joined together do not expire together (§7). The relay renews it itself at
+about two thirds of its life, shifted by up to a day by its identifier: it makes a fresh TLS key,
+asks with `RelayControlService.Renew` signed by its identity key over that key, writes the new
+key, chain, and expiry as a generation of their own, points its directory at it, and serves it
+from the next handshake without a restart. A renewal that stops half way leaves the generation
+before in service. The authority's issuing is an effect of its own (`relay.certificate_renew`,
+by `system:authority`). `ListRelays` shows each relay with its certificate's expiry, and
 `RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
 holds stays valid until it expires, since the installation does not revoke certificates. A joined
 relay runs with `korpis-server relay run`, listening by default on every IPv4 address at its URL's
@@ -479,7 +484,9 @@ every node disconnecting within the same hour, at 03:00, on a holiday.
 - Lifetimes are **staggered at issue**, so a fleet enrolled on one afternoon does not expire on one
   afternoon.
 - Approaching expiry is an event with escalating severity (§5 of `15-observability.md`), not a log
-  line nobody reads.
+  line nobody reads. As built for relays: a relay certificate fourteen days from expiry is a
+  `relay.certificate_expiring` warning, three days from it critical, each reported once, and a
+  renewal starts the count again; the control plane looks hourly.
 - Manual rotation exists and is a documented, rehearsed operation, because it is what a compromise
   requires (§9 of `17-security.md`).
 

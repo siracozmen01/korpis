@@ -240,17 +240,25 @@ that generates events.
 ```
 Event
   id            EventID        global, increasing; a consumer's position is the last it acked
-  key           workload:<id> | organization:<id>    what it concerns, and so what orders it
+  key           workload:<id> | organization:<id> | provider:<org>:<type>:<name> | relay:<id>
+                               what it concerns, and so what orders it
   seq           int            per key, from 1, with no gaps: a consumer sees a hole as a hole
   at            Timestamp      the ingest clock, as for an effect
   kind          string         an effect's action, or a condition: `health.changed`,
-                               `convergence.changed`, `provider.degraded`, `provider.recovered`, ...
+                               `convergence.changed`, `provider.degraded`, `provider.recovered`,
+                               `relay.certificate_expiring`, ...
   severity      info | warning | critical
   organization  OrgID
   workload      WorkloadID?
   effect        EffectID?      for an event that reports an effect
   detail        map[str]Value
 ```
+
+> Corrected 2026-10-14, when relay certificate events were built. The key was listed as a
+> workload's or an organization's. A provider's condition has been keyed to the provider since the
+> breaker was built (below, under "Degraded dependencies are events"), and a relay certificate's
+> approach to expiry is keyed to the relay; both carry the organization they belong to, which is
+> what a subscription's reach is judged by.
 
 **Every event is written in the transaction of the fact it reports.** Every effect is an event of
 its own action, so the log of what happened and the stream of what to react to cannot disagree,

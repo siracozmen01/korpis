@@ -16,6 +16,7 @@ fn system_actor(a: EnumValue<pb::SystemActor>) -> Option<SystemActor> {
         pb::SystemActor::SYSTEM_ACTOR_RECONCILER => Some(SystemActor::Reconciler),
         pb::SystemActor::SYSTEM_ACTOR_SCHEDULER => Some(SystemActor::Scheduler),
         pb::SystemActor::SYSTEM_ACTOR_BOOTSTRAP => Some(SystemActor::Bootstrap),
+        pb::SystemActor::SYSTEM_ACTOR_AUTHORITY => Some(SystemActor::Authority),
         pb::SystemActor::SYSTEM_ACTOR_UNSPECIFIED => None,
     }
 }
@@ -62,6 +63,7 @@ pub fn to_pb(p: &Principal) -> pb::Subject {
                 SystemActor::Reconciler => pb::SystemActor::SYSTEM_ACTOR_RECONCILER,
                 SystemActor::Scheduler => pb::SystemActor::SYSTEM_ACTOR_SCHEDULER,
                 SystemActor::Bootstrap => pb::SystemActor::SYSTEM_ACTOR_BOOTSTRAP,
+                SystemActor::Authority => pb::SystemActor::SYSTEM_ACTOR_AUTHORITY,
             }
             .into(),
         ),

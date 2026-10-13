@@ -8,6 +8,7 @@
 mod enroll;
 mod feed;
 mod join;
+mod renew;
 
 pub use enroll::{CreateRelayEnrollment, RelayEnrollmentToken};
 pub use feed::RelayFeed;

@@ -4,10 +4,25 @@
 //! certificate chain and the installation's authority; the control plane it joined and the URL
 //! it serves; and, written last, its identifier, so a join that stopped half way is not taken
 //! for one that finished.
+//!
+//! The TLS key, chain, and expiry come in generations: the join writes the first, each renewal
+//! writes the next in full, and only then points `tls.current` at it, so a renewal that stops
+//! half way leaves the relay serving the generation before.
 
 use crate::data::{replace_public, write_secret};
 use std::os::unix::fs::DirBuilderExt as _;
 use std::path::{Path, PathBuf};
+
+/// One generation of a relay's TLS material.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TlsFiles {
+    /// The private key, PEM, readable by the relay alone.
+    pub key: PathBuf,
+    /// The certificate, then the authority's, PEM.
+    pub chain: PathBuf,
+    /// When the certificate expires, in seconds since the Unix epoch.
+    pub expires: PathBuf,
+}
 
 /// A relay's directory.
 #[derive(Debug, Clone)]
@@ -65,9 +80,69 @@ impl RelayDir {
         }
     }
 
+    /// Generation `n` of the TLS material: the join's is the first.
+    #[must_use]
+    pub fn tls_files(&self, n: u64) -> TlsFiles {
+        let name = |ext: &str| {
+            if n == 0 { format!("tls.{ext}") } else { format!("tls.{n}.{ext}") }
+        };
+        TlsFiles {
+            key: self.file(&name("key")),
+            chain: self.file(&name("pem")),
+            expires: self.file(&name("expires")),
+        }
+    }
+
+    /// The generation served.
+    pub fn tls_generation(&self) -> std::io::Result<u64> {
+        match read_text(&self.file("tls.current"))? {
+            None => Ok(0),
+            Some(n) => n.parse().map_err(|_| std::io::Error::other("tls.current is not a number")),
+        }
+    }
+
+    /// Serves generation `n` from now on, and forgets the ones before it.
+    pub fn switch_tls(&self, n: u64) -> std::io::Result<()> {
+        let before = self.tls_generation()?;
+        replace_public(&self.file("tls.current"), n.to_string().as_bytes())?;
+        for old in before..n {
+            let files = self.tls_files(old);
+            [files.key, files.chain, files.expires].iter().try_for_each(|p| forget(p))?;
+        }
+        Ok(())
+    }
+
+    /// When the certificate of `files` expires, if that was recorded.
+    pub fn expires(&self, files: &TlsFiles) -> std::io::Result<Option<std::time::SystemTime>> {
+        let Some(text) = read_text(&files.expires)? else { return Ok(None) };
+        let seconds: u64 =
+            text.parse().map_err(|_| std::io::Error::other("an expiry is not a number"))?;
+        Ok(std::time::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(seconds)))
+    }
+
+    /// Writes a secret file of a generation not yet served, replacing what an attempt that
+    /// stopped half way left there.
+    pub fn secret(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        forget(path)?;
+        write_secret(path, bytes)
+    }
+
     /// Writes a public file, replacing what was there.
     pub fn public(&self, name: &str, bytes: &[u8]) -> std::io::Result<()> {
         replace_public(&self.file(name), bytes)
+    }
+
+    /// Writes the public file at `path`, one of this directory's, replacing what was there.
+    pub fn public_at(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        replace_public(path, bytes)
+    }
+}
+
+/// Removes `path`, if it is there.
+fn forget(path: &Path) -> std::io::Result<()> {
+    match std::fs::remove_file(path) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+        _ => Ok(()),
     }
 }
 

@@ -43,10 +43,12 @@ pub enum SystemActor {
     Scheduler,
     /// Installation, before any grant exists.
     Bootstrap,
+    /// The installation's authority, renewing the certificate of a relay it admitted.
+    Authority,
 }
 
 impl SystemActor {
-    const ALL: [Self; 3] = [Self::Reconciler, Self::Scheduler, Self::Bootstrap];
+    const ALL: [Self; 4] = [Self::Reconciler, Self::Scheduler, Self::Bootstrap, Self::Authority];
 
     /// The name used in keys.
     #[must_use]
@@ -55,6 +57,7 @@ impl SystemActor {
             Self::Reconciler => "reconciler",
             Self::Scheduler => "scheduler",
             Self::Bootstrap => "bootstrap",
+            Self::Authority => "authority",
         }
     }
 }

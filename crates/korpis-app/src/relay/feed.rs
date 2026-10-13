@@ -10,7 +10,7 @@
 use crate::App;
 use crate::error::AppError;
 use crate::node::NodeProof;
-use crate::node::session::{MIN_NONCE, signed_at, within};
+use crate::node::session::{ProofMessage, fresh};
 use crate::ports::{Clock, RecipeSource, RelayWrite as _, Store, Tx as _, VerifyKey};
 use korpis_core::node::identity::{relay_feed_message, verify};
 use korpis_core::relay::Relay;
@@ -27,26 +27,31 @@ pub struct RelayFeed {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The relay `proof` was signed for, if it is that relay's fresh signature and the relay is
-    /// not removed.
+    /// The relay `proof` was signed for, if it is that relay's fresh signature over a feed
+    /// request and the relay is not removed.
     pub async fn authenticate_relay(
         &self,
         relay: Uuid,
         proof: &NodeProof,
     ) -> Result<Relay, AppError> {
+        self.check_relay(relay, proof, &relay_feed_message).await
+    }
+
+    /// The relay `proof` was signed for, if it is that relay's fresh signature over `message`'s
+    /// form, with a nonce never seen from it, and the relay is not removed.
+    pub(super) async fn check_relay(
+        &self,
+        relay: Uuid,
+        proof: &NodeProof,
+        message: ProofMessage<'_>,
+    ) -> Result<Relay, AppError> {
         let now = self.clock.now();
         let skew = self.session_terms.auth_skew;
-        if !signed_at(proof).is_some_and(|at| within(at, now, skew)) {
-            return Err(AppError::invalid("auth.timestamp", "outside the skew window"));
-        }
-        if proof.nonce.len() < MIN_NONCE {
-            return Err(AppError::invalid("auth.nonce", "at least 16 bytes"));
-        }
+        fresh(proof, (now, skew))?;
         let found = self.store.relay(relay).await?.filter(|r| r.removed_at.is_none());
         let found = found.ok_or(AppError::Unauthenticated)?;
         let key = self.store.relay_key(relay).await?.ok_or(AppError::Unauthenticated)?;
-        let message =
-            relay_feed_message(&proof.signed_node, proof.seconds, proof.nanos, &proof.nonce);
+        let message = message(&proof.signed_node, proof.seconds, proof.nanos, &proof.nonce);
         if !verify(&key, &message, &proof.signature) {
             return Err(AppError::Unauthenticated);
         }

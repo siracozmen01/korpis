@@ -59,7 +59,9 @@ pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
-pub use relay::{CertificateIssuer, IssuedCertificate, RelayEnrollment, RelayRead, RelayWrite};
+pub use relay::{
+    CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
+};
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};

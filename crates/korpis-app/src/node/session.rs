@@ -20,10 +20,10 @@ pub const AGENT_PROTOCOLS: &[&str] = &["korpis.agent.v1"];
 
 /// The form a proof signs: [`hello_message`] or
 /// [`data_hello_message`](korpis_core::node::identity::data_hello_message).
-pub(super) type ProofMessage<'a> = &'a (dyn Fn(&str, i64, u32, &[u8]) -> Vec<u8> + Sync);
+pub(crate) type ProofMessage<'a> = &'a (dyn Fn(&str, i64, u32, &[u8]) -> Vec<u8> + Sync);
 
 /// The shortest nonce accepted: 128 bits makes a collision across a skew window negligible.
-pub(crate) const MIN_NONCE: usize = 16;
+const MIN_NONCE: usize = 16;
 
 /// The declared intervals of a session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,13 +99,13 @@ pub struct Session {
     pub terms: SessionTerms,
 }
 
-pub(crate) fn signed_at(proof: &NodeProof) -> Option<SystemTime> {
+fn signed_at(proof: &NodeProof) -> Option<SystemTime> {
     let seconds = u64::try_from(proof.seconds).ok()?;
     let at = UNIX_EPOCH.checked_add(Duration::from_secs(seconds))?;
     at.checked_add(Duration::from_nanos(u64::from(proof.nanos)))
 }
 
-pub(crate) fn within(at: SystemTime, now: SystemTime, skew: Duration) -> bool {
+fn within(at: SystemTime, now: SystemTime, skew: Duration) -> bool {
     match at.duration_since(now) {
         Ok(ahead) => ahead <= skew,
         Err(behind) => behind.duration() <= skew,

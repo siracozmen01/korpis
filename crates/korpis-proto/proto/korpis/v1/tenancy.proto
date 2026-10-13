@@ -122,4 +122,6 @@ enum SystemActor {
   SYSTEM_ACTOR_RECONCILER = 1;
   SYSTEM_ACTOR_SCHEDULER = 2;
   SYSTEM_ACTOR_BOOTSTRAP = 3;
+  // The installation's authority, renewing the certificate of a relay it admitted.
+  SYSTEM_ACTOR_AUTHORITY = 4;
 }

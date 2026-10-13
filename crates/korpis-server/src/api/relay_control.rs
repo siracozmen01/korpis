@@ -2,7 +2,7 @@
 
 //! `RelayControlService` (§3.1 of docs/02-architecture.md): what a relay running as its own
 //! process asks of the control plane. Joining is authenticated by the enrollment token in the
-//! request, as an agent's enrollment is; the feed by the relay's identity key.
+//! request, as an agent's enrollment is; the feed and renewals by the relay's identity key.
 //!
 //! The feed sends the terms first, then each part whole when the relay connects and again when it
 //! changes: the revocation list as this process publishes it, and the token and node keys as a
@@ -172,5 +172,22 @@ impl relay::RelayControlService for Api {
         tokio::spawn(feed(Arc::clone(&self.app), Arc::clone(&self.revocations), id, tx));
         let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));
         Response::stream_ok(out)
+    }
+
+    async fn renew(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, relay::RenewRequest>,
+    ) -> ServiceResult<relay::RenewResponse> {
+        let req = request.to_owned_message();
+        let id = wire::id(IdKind::Relay, "relay", &req.relay).refuse()?;
+        let proof = proof_from_pb(&req.relay, req.auth.as_option())?;
+        let issued =
+            self.app.renew_relay(id, &proof, &req.tls_key).await.map_err(error::from_app)?;
+        Response::ok(relay::RenewResponse {
+            certificate_chain_pem: issued.chain_pem,
+            certificate_expires_at: timestamp(issued.expires_at).into(),
+            ..Default::default()
+        })
     }
 }

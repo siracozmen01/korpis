@@ -194,7 +194,7 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 | `ExternalIdentity` | a claim from an identity provider | Discord user `123`, Discord role `@mod` in guild `456`, an OIDC group |
 | `Workload` | a running workload acting for itself | a bot that restarts its own sibling |
 | `Extension` | a running extension | a backup extension reading volumes |
-| `System` | the control plane acting on a decision already made | the reconciler correcting drift, the scheduler binding a placement, the bootstrap that creates the root grant |
+| `System` | the control plane acting on a decision already made | the reconciler correcting drift, the scheduler binding a placement, the bootstrap that creates the root grant, the authority renewing an admitted relay's certificate |
 
 > Added 2026-10-12, while writing the wire schema (`crates/korpis-proto`). Every `Effect` names an
 > actor, and drift correction, placement, and installation bootstrap had none to name: they are

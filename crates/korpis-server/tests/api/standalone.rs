@@ -36,7 +36,9 @@ async fn attach(
 
 /// A relay joined with a URL on a port it can listen on: its directory, kept while the
 /// returned guard lives, its URL, and the listener.
-async fn joined(h: &Harness) -> (tempfile::TempDir, RelayDir, String, tokio::net::TcpListener) {
+pub(crate) async fn joined(
+    h: &Harness,
+) -> (tempfile::TempDir, RelayDir, String, tokio::net::TcpListener) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("https://localhost:{}", listener.local_addr().unwrap().port());
     let created = h
@@ -59,7 +61,7 @@ async fn joined(h: &Harness) -> (tempfile::TempDir, RelayDir, String, tokio::net
 
 /// `a`'s data connection to the relay at `url`, once the relay's feed has sent `a`'s key, and the
 /// nonce it was admitted with.
-async fn admitted(h: &Harness, a: &TestAgent, url: &str) -> (Attachment, u8) {
+pub(crate) async fn admitted(h: &Harness, a: &TestAgent, url: &str) -> (Attachment, u8) {
     for nonce in 10..100u8 {
         let config = ClientConfig::new(url.parse().unwrap());
         match attach(h, config, a.data_hello(url, &[nonce; 16])).await {

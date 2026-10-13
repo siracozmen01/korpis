@@ -56,7 +56,7 @@ pub struct JoinedRelay {
 }
 
 /// The lifetime of `relay`'s certificates.
-fn lifetime(relay: Uuid) -> Duration {
+pub(super) fn lifetime(relay: Uuid) -> Duration {
     let stagger = relay.as_u128() % (9 * 24 * 60 * 60);
     RELAY_CERTIFICATE_LIFETIME
         .saturating_sub(Duration::from_secs(u64::try_from(stagger).unwrap_or(0)))
@@ -78,9 +78,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !valid_public_key(&cmd.identity_key) {
             return Err(AppError::invalid("identity_key", "an Ed25519 public key, 32 bytes"));
         }
-        if cmd.tls_key.len() != 65 || cmd.tls_key.first() != Some(&4) {
-            return Err(AppError::invalid("tls_key", "an uncompressed P-256 point, 65 bytes"));
-        }
+        super::renew::valid_tls_key(&cmd.tls_key)?;
         let issuer = self
             .certificate_issuer
             .clone()

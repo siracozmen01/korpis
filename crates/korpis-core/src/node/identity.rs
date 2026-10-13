@@ -46,6 +46,25 @@ pub fn relay_feed_message(relay: &str, seconds: i64, nanos: u32, nonce: &[u8]) -
     proof_message("korpis.relay.v1.Feed", relay, seconds, nanos, nonce)
 }
 
+/// What a relay signs to renew its certificate (§3.1 of docs/02-architecture.md): the same form as
+/// [`relay_feed_message`] under `korpis.relay.v1.Renew`, followed by `|` and the new TLS public
+/// key in lowercase hexadecimal, so the signature vouches for the key the certificate will name.
+#[must_use]
+pub fn relay_renew_message(
+    (relay, tls_key): (&str, &[u8]),
+    seconds: i64,
+    nanos: u32,
+    nonce: &[u8],
+) -> Vec<u8> {
+    let mut m = proof_message("korpis.relay.v1.Renew", relay, seconds, nanos, nonce);
+    m.push(b'|');
+    for b in tls_key {
+        // Writing to a Vec cannot fail.
+        let _ = std::io::Write::write_fmt(&mut m, format_args!("{b:02x}"));
+    }
+    m
+}
+
 /// What a node signs to answer a reachability probe's `nonce` on `port` (§9 of
 /// docs/07-networking.md): the same form as [`hello_message`] under
 /// `korpis.agent.v1.Reachability`, with the port in place of the timestamp, so the answer proves

@@ -4,8 +4,9 @@
 //! their record, and the certificates the installation's authority issues them.
 
 use super::StoreResult;
+use korpis_core::event::Severity;
 use korpis_core::principal::Principal;
-use korpis_core::relay::{Relay, RelayUrl};
+use korpis_core::relay::{CertificateAlert, Relay, RelayUrl};
 use korpis_core::tenancy::Name;
 use std::future::Future;
 use std::time::SystemTime;
@@ -34,6 +35,19 @@ pub struct RelayEnrollment {
     pub relay: Option<Uuid>,
 }
 
+/// A joined relay's certificate, as the expiry sweep sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelayCertificate {
+    /// The relay, not removed.
+    pub relay: Relay,
+    /// The root organization it was enrolled under.
+    pub organization: Uuid,
+    /// When its certificate expires.
+    pub expires_at: SystemTime,
+    /// The last step an event reported since the certificate was issued.
+    pub alerted: Option<Severity>,
+}
+
 /// Reading relays.
 pub trait RelayRead {
     /// Every relay, removed ones included, by name.
@@ -44,6 +58,10 @@ pub trait RelayRead {
 
     /// A relay's identity key, its public half.
     fn relay_key(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Vec<u8>>>> + Send;
+
+    /// The certificate of every relay not removed that holds one.
+    fn relay_certificates(&self)
+    -> impl Future<Output = StoreResult<Vec<RelayCertificate>>> + Send;
 
     /// The relay enrollment `token` binds, if it is a relay enrollment token.
     fn relay_enrollment(
@@ -69,7 +87,7 @@ pub trait RelayWrite {
         token: Uuid,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Records when the certificate last issued to `relay` expires.
+    /// Records when the certificate last issued to `relay` expires, clearing any alert.
     fn record_relay_certificate(
         &mut self,
         relay: Uuid,
@@ -84,6 +102,14 @@ pub trait RelayWrite {
         nonce: &[u8],
         at: SystemTime,
         forget_before: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records that `alert` was reported, with its event, if the relay's last report is still
+    /// `expected`; false if another report or a renewal came first.
+    fn alert_relay_certificate(
+        &mut self,
+        alert: &CertificateAlert,
+        expected: Option<Severity>,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Removes `relay` at `at`; false if it was already removed or does not exist.
