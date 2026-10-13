@@ -12,7 +12,7 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{NodeRead, NodeWrite, StoreError, StoreResult};
-use korpis_core::node::{Connectivity, Node, NodeAdmin, Reachability};
+use korpis_core::node::{Connectivity, DriverInfo, Node, NodeAdmin, Reachability};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use serde_json::Value;
 use uuid::Uuid;
@@ -141,6 +141,22 @@ impl NodeRead for PgStore {
                 Ok((d, count("node allocated", r.total)?))
             })
             .collect()
+    }
+
+    async fn serving_drivers(&self, owners: &[Uuid]) -> StoreResult<Vec<DriverInfo>> {
+        let docs = sqlx::query_scalar!(
+            "SELECT drivers FROM node
+              WHERE organization_id = ANY($1) AND admin <> 'decommissioned' ORDER BY id",
+            owners
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        let mut all = Vec::new();
+        for doc in docs {
+            all.extend(drivers(doc)?);
+        }
+        Ok(all)
     }
 }
 

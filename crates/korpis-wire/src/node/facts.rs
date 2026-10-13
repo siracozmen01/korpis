@@ -13,6 +13,8 @@ use crate::{Result, invalid};
 use korpis_core::node::driver::{IdMapCaps, SnapshotCaps};
 use korpis_core::node::{Capabilities, DriverInfo, Enforcement, StorageClass};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
+use korpis_core::workload::plan::StepAction;
+use korpis_core::workload::spec::IsolationTier;
 use korpis_proto::korpis::v1 as pb;
 
 /// Amounts per dimension as reported; a zero is absent.
@@ -87,7 +89,33 @@ fn capabilities_from_pb(field: &str, c: &pb::Capabilities) -> Result<Capabilitie
             },
         ),
         config_schema: c.config_schema.clone(),
+        disruptive: disruption_from_pb(&f("disruption"), &c.disruption)?,
     })
+}
+
+/// A driver's classification layer. An action name outside the vocabulary is refused: the layer
+/// only makes steps more disruptive, so one silently dropped would make a step less so than its
+/// driver declared.
+fn disruption_from_pb(
+    field: &str,
+    d: &[pb::TierDisruption],
+) -> Result<Vec<(IsolationTier, Vec<StepAction>)>> {
+    d.iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let at = format!("{field}[{i}]");
+            let tier = tier_from_pb(&format!("{at}.tier"), t.tier)?;
+            let actions = t
+                .actions
+                .iter()
+                .map(|a| {
+                    StepAction::parse(a)
+                        .ok_or_else(|| invalid(&format!("{at}.actions"), "not a step action"))
+                })
+                .collect::<Result<_>>()?;
+            Ok((tier, actions))
+        })
+        .collect()
 }
 
 /// The drivers an agent reports, each with its capabilities.

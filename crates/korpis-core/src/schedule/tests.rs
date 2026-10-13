@@ -54,6 +54,7 @@ fn driver(enforced: &[&str]) -> DriverInfo {
             file_access: FileAccess::HostWorker,
             id_mapping: IdMapCaps::default(),
             config_schema: String::new(),
+            disruptive: vec![],
         },
     }
 }
@@ -332,4 +333,25 @@ fn an_operator_overrides_their_own_decisions_about_a_node_and_nothing_else() {
     let c = Candidate { node: &chosen, allocated: &empty };
     let refused = operator_refusals(&req(&labels, &body(GIB)), &c, &[], &policy);
     assert_eq!(refused.iter().map(|r| r.check).collect::<Vec<_>>(), [Check::Status], "not a drain");
+}
+
+#[test]
+fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_declares() {
+    use crate::workload::plan::{DriverClass, StepAction};
+    let declaring = |tier, actions: Vec<StepAction>| {
+        let mut d = driver(&[]);
+        d.capabilities.disruptive = vec![(tier, actions)];
+        d
+    };
+    let mut vm_only = declaring(IsolationTier::Vm, vec![StepAction::Restart]);
+    vm_only.capabilities.tiers = vec![IsolationTier::Vm];
+    let drivers = [
+        declaring(IsolationTier::Container, vec![StepAction::Stop]),
+        declaring(IsolationTier::Container, vec![StepAction::Start, StepAction::Stop]),
+        vm_only,
+    ];
+    let class = DriverClass::of(&drivers, IsolationTier::Container);
+    assert_eq!(class.disruptive, [StepAction::Start, StepAction::Stop]);
+    assert_eq!(DriverClass::of(&drivers, IsolationTier::Vm).disruptive, [StepAction::Restart]);
+    assert!(DriverClass::of(&drivers, IsolationTier::Process).disruptive.is_empty());
 }

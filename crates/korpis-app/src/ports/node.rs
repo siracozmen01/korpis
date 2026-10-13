@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::node::Node;
+use korpis_core::node::{DriverInfo, Node};
 use korpis_core::tenancy::quota::Bounds;
 use std::future::Future;
 use uuid::Uuid;
@@ -23,6 +23,13 @@ pub trait NodeRead {
 
     /// What the placements on a node reserve, summed per dimension: its `allocated`.
     fn allocated(&self, node: Uuid) -> impl Future<Output = StoreResult<Bounds>> + Send;
+
+    /// The drivers of every node any of `owners` owns, decommissioned ones excepted: what a
+    /// workload of those organizations could run on.
+    fn serving_drivers(
+        &self,
+        owners: &[Uuid],
+    ) -> impl Future<Output = StoreResult<Vec<DriverInfo>>> + Send;
 }
 
 /// Changing nodes.

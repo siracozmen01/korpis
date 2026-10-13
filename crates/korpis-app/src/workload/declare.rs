@@ -181,7 +181,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             None => None,
         };
         let intent = self.intent_of(caller, &base, body, passage.as_ref());
-        let plan = self.intent_plan(caller, &base, &intent, &recipe, cmd.propose);
+        let driver =
+            self.driver_class(base.workload.organization, intent.body.runtime.tier).await?;
+        let plan = self.intent_plan(caller, &base, &intent, (&driver, &recipe), cmd.propose);
         let mut declared = declared(&base, intent, plan, passage.as_ref());
         let held = base.held();
         let holds = base.holding(&declared.intent);
@@ -334,11 +336,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         base: &Base,
         to: &Intent,
-        recipe: &Recipe,
+        (driver, recipe): (&DriverClass, &Recipe),
         propose: bool,
     ) -> Plan {
-        let driver = DriverClass::default();
-        let classifier = propose::classifier(&driver, &recipe.disruption);
+        let classifier = propose::classifier(driver, &recipe.disruption);
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
         let steps = intent_steps(
             to.workload,

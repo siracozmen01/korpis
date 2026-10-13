@@ -161,6 +161,15 @@ fn capabilities_to_pb(c: &Capabilities) -> pb::Capabilities {
         }
         .into(),
         config_schema: c.config_schema.clone(),
+        disruption: c
+            .disruptive
+            .iter()
+            .map(|(tier, actions)| pb::TierDisruption {
+                tier: tier_to_pb(*tier).into(),
+                actions: actions.iter().map(|a| a.as_str().to_owned()).collect(),
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }

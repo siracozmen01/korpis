@@ -4,6 +4,8 @@
 
 use crate::recipes::{body, change, create, project, push_paper, text};
 use crate::support::{Harness, detail, reason};
+use korpis_core::workload::plan::StepAction;
+use korpis_core::workload::spec::IsolationTier;
 use korpis_proto::korpis::v1 as pb;
 
 const GIB: u64 = 1 << 30;
@@ -135,4 +137,36 @@ async fn a_dependency_is_refused_until_something_resolves_it() {
     let e = e.unwrap_err();
     assert_eq!(e.code, connectrpc::ErrorCode::Unimplemented, "{e:?}");
     assert!(e.message.as_deref().unwrap_or_default().contains("Phase 1"), "{e:?}");
+}
+
+#[tokio::test]
+async fn a_driver_that_declares_starting_disruptive_on_its_tier_makes_a_human_confirm_it() {
+    let h = Harness::new().await;
+    let org = h.installed.organization.id;
+    let mut node = korpis_store::testing::ready_node(org, "slow-boot", &[]).unwrap();
+    node.drivers[0].capabilities.disruptive = vec![
+        (IsolationTier::Vm, vec![StepAction::Create]),
+        (IsolationTier::Container, vec![StepAction::Start]),
+    ];
+    h.enroll(node).await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let declared = h
+        .workloads(h.root())
+        .declare_intent(create("d1", &project, "mc", body(&repo, &[])))
+        .await
+        .unwrap()
+        .into_owned();
+    let plan = declared.plan.as_option().unwrap();
+    assert_eq!(plan.approval.as_known(), Some(pb::PlanApproval::PLAN_APPROVAL_CONFIRMATION));
+    let layer = |action: &str| {
+        let step = plan.steps.iter().find(|s| s.action == action).unwrap();
+        (step.disruptive, step.classified_by.as_known())
+    };
+    assert_eq!(layer("start"), (true, Some(pb::StepLayer::STEP_LAYER_DRIVER)));
+    assert_eq!(
+        layer("create"),
+        (false, Some(pb::StepLayer::STEP_LAYER_VOCABULARY)),
+        "what a driver declares for another tier does not reach this one"
+    );
 }

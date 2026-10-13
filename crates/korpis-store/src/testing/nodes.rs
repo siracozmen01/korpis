@@ -56,6 +56,7 @@ pub fn oci_driver() -> DriverInfo {
             file_access: FileAccess::HostWorker,
             id_mapping: IdMapCaps { idmapped_mounts: true, user_namespaces: true },
             config_schema: "{}".to_owned(),
+            disruptive: vec![],
         },
     }
 }

@@ -56,7 +56,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
 | 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind in the approving transaction under the placement lock; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
-| 6 | Plan persisted; non-disruptive by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `09-recipes.md` §5.1 |
+| 6 | Plan persisted; non-disruptive by the drivers that could run it and by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `04-runtimes.md` §4.1; `09-recipes.md` §5.1 |
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
 | 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps, and the recipe document; the plan becomes `applying` as it is sealed † ‡ | `02-architecture.md` §4.8 |
 | 9 | `Prepare` from the intent and the carried recipe alone, configuration written as variables and arguments; content fetched by digest, signature verified, **pure** ‡ | `04-runtimes.md` §4.2; `09-recipes.md` §5.2 |
@@ -114,7 +114,10 @@ carry out. The same run's refused stop is a single denial; a client retrying it 
 have written one effect per attempt, the unbounded write path finding S15 closed on paper only.
 Repeats are now coalesced as §10 of `10-api.md` says, with the count held in the database so that
 a restart neither loses nor doubles it, and reading the log showed that an effect's `error`,
-which names the missing action, had never reached the wire; it does now.
+which names the missing action, had never reached the wire; it does now. Step 6 named a
+driver layer nothing could fill: no driver could say that a step costs more on its tier, so
+every plan classified that row by the vocabulary alone. Drivers now declare it per tier (§4.1 of
+`04-runtimes.md`), and the control plane reads it from the nodes that could run the workload.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

@@ -671,6 +671,11 @@ author or a driver, and an operator who wants a quieter approval flow has to say
 > classification and the reason in words, so "both in the Plan and both visible" holds for the
 > answer as well as for the rules.
 
+> Added 2026-10-13, from the implementation. Who evaluates the driver's row, and with what: the
+> control plane, when it computes a plan, from the `disruption` each node's drivers declared
+> (§4.1 of `04-runtimes.md`), as the union over every node that serves the workload's
+> organization and offers its tier. Until then every plan used the floor for that row.
+
 `Impact.downtime_estimate` and `Impact.data_at_risk` follow the same rule. Where they cannot be
 computed they are reported as `unknown` rather than zero, and a plan whose impact is `unknown` is
 **not** auto-approvable. P4 applied to the one number that decides whether a human sees the change.

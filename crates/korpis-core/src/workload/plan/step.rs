@@ -4,9 +4,11 @@
 //! finding R9): one override chain, every layer visible, and no layer below the operator able to
 //! make a step less disruptive than the layer beneath it.
 
+use crate::node::driver::DriverInfo;
 use crate::object::ObjectRef;
 use crate::recipe::Disruption;
 use crate::value::ValueMap;
+use crate::workload::spec::IsolationTier;
 use std::time::Duration;
 
 /// The action vocabulary.
@@ -128,6 +130,26 @@ pub enum Layer {
 pub struct DriverClass {
     /// Actions the driver makes disruptive on its tier, e.g. `stop` on a `vm` costs a boot.
     pub disruptive: Vec<StepAction>,
+}
+
+impl DriverClass {
+    /// The driver layer for a workload at `tier`, from every driver that could run it: the
+    /// union of what each makes disruptive there. A union, because the layer may only make a
+    /// step more disruptive, so the strictest declaration is the one no placement can undercut,
+    /// and a plan computed before a workload is placed is classified as it will be after.
+    #[must_use]
+    pub fn of<'a>(drivers: impl IntoIterator<Item = &'a DriverInfo>, tier: IsolationTier) -> Self {
+        let mut disruptive: Vec<StepAction> = drivers
+            .into_iter()
+            .filter(|d| d.capabilities.tiers.contains(&tier))
+            .flat_map(|d| &d.capabilities.disruptive)
+            .filter(|(t, _)| *t == tier)
+            .flat_map(|(_, actions)| actions.iter().copied())
+            .collect();
+        disruptive.sort_by_key(|a| a.as_str());
+        disruptive.dedup();
+        Self { disruptive }
+    }
 }
 
 /// An operator's override of one action's classification for one workload. Recorded as an

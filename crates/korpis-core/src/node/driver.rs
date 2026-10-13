@@ -3,6 +3,7 @@
 //! What a node's drivers and storage declare they can do (§4.1 of docs/04-runtimes.md). Declared,
 //! never inferred: the scheduler asks these and never assumes from a version (Rule K-9).
 
+use crate::workload::plan::StepAction;
 use crate::workload::spec::{ConsoleMode, IsolationTier};
 use std::collections::BTreeMap;
 
@@ -151,6 +152,9 @@ pub struct Capabilities {
     pub id_mapping: IdMapCaps,
     /// Its configuration's JSON Schema document.
     pub config_schema: String,
+    /// Per tier, the step actions it makes disruptive there: the driver's layer of the
+    /// classification chain (§3.3 of docs/01-model.md), which only ever adds to the floor.
+    pub disruptive: Vec<(IsolationTier, Vec<StepAction>)>,
 }
 
 impl Capabilities {

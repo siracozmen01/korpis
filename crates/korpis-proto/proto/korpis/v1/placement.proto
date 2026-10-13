@@ -122,6 +122,16 @@ message Capabilities {
   IdMapCaps id_mapping = 16;
   // A JSON Schema document, driver-specific configuration.
   string config_schema = 17;
+  // Per tier, the plan step actions it makes disruptive there: the driver's layer of the
+  // classification chain (§3.3 of docs/01-model.md), which may only add to the vocabulary's floor.
+  repeated TierDisruption disruption = 18;
+}
+
+// What a driver makes disruptive on one tier: `stop` on a `vm` costs a boot.
+message TierDisruption {
+  IsolationTier tier = 1;
+  // Step action names, as in Step.action.
+  repeated string actions = 2;
 }
 
 message SnapshotCaps {

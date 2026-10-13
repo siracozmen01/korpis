@@ -10,6 +10,7 @@ use korpis_core::node::driver::{
 };
 use korpis_core::node::{Capabilities, DriverInfo, Enforcement, StorageClass, Taint};
 use korpis_core::tenancy::quota::{Bounds, Dimension};
+use korpis_core::workload::plan::StepAction;
 use korpis_core::workload::spec::{ConsoleMode, IsolationTier};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -84,6 +85,9 @@ struct CapsDoc {
     file_access: FileAccessDoc,
     id_mapping: IdMapDoc,
     config_schema: String,
+    // Absent from documents a driver stored before it could declare any.
+    #[serde(default)]
+    disruption: Vec<(TierDoc, Vec<String>)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,11 +151,17 @@ impl CapsDoc {
                 user_namespaces: c.id_mapping.user_namespaces,
             },
             config_schema: c.config_schema.clone(),
+            disruption: c
+                .disruptive
+                .iter()
+                .map(|(t, a)| ((*t).into(), a.iter().map(|a| a.as_str().to_owned()).collect()))
+                .collect(),
         }
     }
 
-    fn into_domain(self) -> Capabilities {
-        Capabilities {
+    fn into_domain(self) -> StoreResult<Capabilities> {
+        let disruptive = disruption(self.disruption)?;
+        Ok(Capabilities {
             tiers: all(&self.tiers),
             console: all(&self.console),
             exec: self.exec,
@@ -188,8 +198,26 @@ impl CapsDoc {
                 user_namespaces: self.id_mapping.user_namespaces,
             },
             config_schema: self.config_schema,
-        }
+            disruptive,
+        })
     }
+}
+
+fn disruption(
+    docs: Vec<(TierDoc, Vec<String>)>,
+) -> StoreResult<Vec<(IsolationTier, Vec<StepAction>)>> {
+    docs.into_iter()
+        .map(|(tier, actions)| {
+            let parsed = actions
+                .iter()
+                .map(|a| {
+                    StepAction::parse(a)
+                        .ok_or_else(|| StoreError::Corrupt(format!("driver disruption {a:?}")))
+                })
+                .collect::<StoreResult<_>>()?;
+            Ok((tier.into(), parsed))
+        })
+        .collect()
 }
 
 /// Taints, drivers, and storage classes to store.
@@ -223,16 +251,17 @@ pub(crate) fn taints(v: Value) -> StoreResult<Vec<Taint>> {
 /// Stored drivers.
 pub(crate) fn drivers(v: Value) -> StoreResult<Vec<DriverInfo>> {
     let docs: Vec<DriverDoc> = from_json("node drivers", v)?;
-    Ok(docs
-        .into_iter()
-        .map(|d| DriverInfo {
-            name: d.name,
-            version: d.version,
-            protocol: d.protocol,
-            healthy: d.healthy,
-            capabilities: d.capabilities.into_domain(),
+    docs.into_iter()
+        .map(|d| {
+            Ok(DriverInfo {
+                name: d.name,
+                version: d.version,
+                protocol: d.protocol,
+                healthy: d.healthy,
+                capabilities: d.capabilities.into_domain()?,
+            })
         })
-        .collect())
+        .collect()
 }
 
 /// Stored storage classes.

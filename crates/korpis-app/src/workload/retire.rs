@@ -22,7 +22,7 @@ use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::plan::compute::retire_steps;
 use korpis_core::workload::plan::impact::delta;
-use korpis_core::workload::plan::{DriverClass, PlanStatus, StepExecutor};
+use korpis_core::workload::plan::{PlanStatus, StepExecutor};
 use korpis_core::workload::{Plan, PlanTarget, PowerState, Workload};
 use uuid::Uuid;
 
@@ -114,8 +114,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.store.power_at(w.id, v).await?.map_or(PowerState::Stopped, |p| p.power.desired)
             }
         };
-        let disruption = self.running_disruption(w).await?;
-        let driver = DriverClass::default();
+        let (driver, disruption) = self.running_layers(w).await?;
         let body = target.as_ref().map(|t| &t.body);
         let steps = retire_steps(w.id, body, power, propose::classifier(&driver, &disruption));
         let held = match &target {

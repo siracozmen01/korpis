@@ -125,6 +125,8 @@ Capabilities
   file_access          host_worker | guest_worker | none     (§4.4)
   id_mapping           IdMapCaps          how workload uids reach the disk (§4.5)
   config_schema        JSONSchema         driver-specific configuration
+  disruption           map[Tier][]StepAction   what it makes disruptive on each tier: the
+                                          driver's layer of the classification chain
 
 EnforcementDecl
   enforced      bool
@@ -142,6 +144,21 @@ SnapshotCaps
 > compatible CPU template, the same hypervisor version, and a compatible host kernel. The
 > compatibility is now part of the capability, so the scheduler filters destinations by it and a
 > live-state migration to an incompatible node falls back to stop-and-start, stated in its plan.
+
+> Added 2026-10-13, from the implementation. §3.3 of `01-model.md` gives the driver a layer in the
+> chain that decides whether a step is disruptive (`stop` on a `vm` costs a boot, on a `process`
+> it does not), and nothing let a driver say so: every plan used the vocabulary's floor for that
+> layer. `disruption` is that declaration, per tier, in the step actions of the plan vocabulary;
+> a name outside the vocabulary is refused rather than ignored, because the layer only adds and
+> an ignored entry would make a step less disruptive than its driver declared. The control plane
+> evaluates it when it computes a plan, from the drivers its nodes last reported, and takes the
+> union over every node that serves the workload's organization and offers its tier. A union,
+> because the layer may only add, so the strictest declaration is the one a placement cannot
+> undercut, and a plan computed before the workload has a node is classified as it would be
+> after. What that costs: one driver that declares an action disruptive makes it disruptive for
+> every workload of that tier its organization's nodes could run, including those placed on a
+> node whose driver does not. The `oci` driver declares nothing, because stopping and starting a
+> container costs no more than the process inside it does.
 
 The control plane **asks** and never assumes, following Nomad's task driver interface. A version
 number is not a capability statement: two builds of the same driver on different kernels have

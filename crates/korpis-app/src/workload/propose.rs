@@ -3,15 +3,17 @@
 //! Plans as a declaration produces them: computed, classified, and, when nothing in them needs a
 //! human, approved in the same transaction (§3.3 of docs/01-model.md).
 
+use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::WorkloadWrite;
+use crate::ports::{Clock, RecipeSource, Store, WorkloadWrite};
 use korpis_core::recipe::Disruption;
 use korpis_core::workload::plan::impact::assess;
 use korpis_core::workload::plan::{
     Approval, Classifier, DriverClass, PROPOSAL_LIFETIME, PlanStatus, Proposing, ResourceDelta,
     Step, approval,
 };
+use korpis_core::workload::spec::IsolationTier;
 use korpis_core::workload::{Plan, PlanTarget};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -31,11 +33,25 @@ pub(super) struct Proposal<'a> {
     pub grant: Uuid,
 }
 
-/// How a step is classified for a workload of this recipe. The driver's layer is the
-/// vocabulary's until drivers declare their classes (§3.3 of docs/01-model.md), and no operator
-/// override is recorded yet, so neither can relax anything.
+/// How a step is classified for a workload of this recipe on these drivers. No operator
+/// override is recorded yet, so nothing below the recipe can be relaxed.
 pub(super) fn classifier<'a>(driver: &'a DriverClass, recipe: &'a Disruption) -> Classifier<'a> {
     Classifier { driver, recipe, overrides: &[] }
+}
+
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// The driver's layer of the classification chain for a workload of `organization` at
+    /// `tier`: what every driver that could run it there makes disruptive (§3.3 of
+    /// docs/01-model.md).
+    pub(super) async fn driver_class(
+        &self,
+        organization: Uuid,
+        tier: IsolationTier,
+    ) -> Result<DriverClass, AppError> {
+        let owners = self.owners(organization).await?;
+        let drivers = self.store.serving_drivers(&owners).await?;
+        Ok(DriverClass::of(&drivers, tier))
+    }
 }
 
 /// The plan for a proposal, proposed by `caller` at `now`.

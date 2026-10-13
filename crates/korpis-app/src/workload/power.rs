@@ -153,8 +153,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             0 => Power { desired: PowerState::Stopped, cycle: 0, version: 0 },
             v => self.power_record(w.id, v).await?.power,
         };
-        let disruption = self.running_disruption(w).await?;
-        let driver = DriverClass::default();
+        let (driver, disruption) = self.running_layers(w).await?;
         let steps = power_steps(w.id, from, to.power, propose::classifier(&driver, &disruption));
         let proposal = Proposal {
             workload: w.id,
@@ -169,17 +168,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(propose::plan(caller, proposal, self.clock.now()))
     }
 
-    /// What interrupting the workload costs, by the recipe of what it runs: its target, or its
-    /// head while nothing is approved.
-    pub(super) async fn running_disruption(&self, w: &Workload) -> Result<Disruption, AppError> {
+    /// The driver's and the recipe's layers of the classification chain for what the workload
+    /// runs: its target, or its head while nothing is approved.
+    pub(super) async fn running_layers(
+        &self,
+        w: &Workload,
+    ) -> Result<(DriverClass, Disruption), AppError> {
         let id = w.target.unwrap_or(w.intent);
         let intent = self
             .store
             .intent(id)
             .await?
             .ok_or_else(|| AppError::Internal(format!("intent {id}")))?;
+        let driver = self.driver_class(w.organization, intent.body.runtime.tier).await?;
         let r = &intent.body.recipe;
         let (_, recipe) = self.resolve_recipe(&r.name, &r.digest).await?;
-        Ok(recipe.disruption)
+        Ok((driver, recipe.disruption))
     }
 }
