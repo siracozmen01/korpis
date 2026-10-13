@@ -80,6 +80,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-agent` | its own hexagon | AGPL-3.0 | the node supervisor (§4 of `02-architecture.md`) |
 | `korpis-helper` | its own hexagon | AGPL-3.0 | the privileged helper, synchronous, minimal |
 | `korpis-driver-oci` | driven adapter | AGPL-3.0 | the `oci` runtime driver over containerd |
+| `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 
 The agent and the helper are separate programs with their own use cases; they share the domain

@@ -1894,6 +1894,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-containerd"
+version = "0.0.0"
+dependencies = [
+ "buffa",
+ "buffa-codegen",
+ "buffa-types",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "korpis-core"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,5 @@
+# containerd's API, vendored unchanged (proto/README.md). Third-party schema: not linted to
+# Korpis's rules, and its compatibility is containerd's to keep.
+version: v2
+modules:
+  - path: proto

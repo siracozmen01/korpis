@@ -11,8 +11,9 @@ dependencies pointing inward) and written to the code rules of `CONTRIBUTING.md`
 lines, functions under 60, no panics outside tests, every public item documented. Every commit
 passes `scripts/check.sh` (formatting, clippy with warnings denied, the layer rule, file length,
 tests, the supply-chain policy of `deny.toml`, and the text checks below). Every source file
-starts with its SPDX licence line: `Apache-2.0` in `korpis-proto`, `AGPL-3.0-or-later` everywhere
-else (§2 of `docs/19-governance.md`).
+starts with its SPDX licence line: `Apache-2.0` in `korpis-proto` and `korpis-containerd` (wire
+contracts: Korpis's own, and containerd's vendored API), `AGPL-3.0-or-later` everywhere else (§2
+of `docs/19-governance.md`).
 
 ## Hard rules
 

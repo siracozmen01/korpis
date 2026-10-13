@@ -28,6 +28,13 @@ if [ -x .tools/bin/buf ]; then
         echo "descriptor.binpb is stale: run scripts/gen-proto.sh"; exit 1
     fi
     rm -f "$fresh"
+    fresh=$(mktemp)
+    (cd crates/korpis-containerd && ../../.tools/bin/buf build --as-file-descriptor-set -o "$fresh")
+    if ! cmp -s "$fresh" crates/korpis-containerd/descriptor.binpb; then
+        rm -f "$fresh"
+        echo "korpis-containerd/descriptor.binpb is stale: run scripts/gen-proto.sh"; exit 1
+    fi
+    rm -f "$fresh"
 else
     echo "buf not installed (scripts/tools.sh), schema lint skipped"
 fi

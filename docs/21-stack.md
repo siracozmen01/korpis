@@ -190,7 +190,7 @@ driver is Rust:
 
 | Driver | Talks to | Note |
 |---|---|---|
-| `oci` | containerd, over its gRPC API, through containerd's own Rust client crate | the driver's spec validation is security-critical (§6.1 of `02-architecture.md`) |
+| `oci` | containerd, over its gRPC API, generated from containerd's own schema (§6) | the driver's spec validation is security-critical (§6.1 of `02-architecture.md`) |
 | `firecracker` | Firecracker's HTTP API | Firecracker is itself Rust |
 | `qemu` | QEMU's machine protocol (QMP) | spawns and supervises a process |
 | `native` | the kernel directly | it *is* the confinement path, the argument of §4 |
@@ -215,6 +215,19 @@ It is not free. The Go containerd client wraps that API in conveniences (image p
 preparation, task management) that the Rust client does not, so the driver implements those itself
 against the raw API. That is more code in a security-critical component, and it is written and
 reviewed as such.
+
+> Corrected 2026-10-13, from the implementation. The table above named containerd's own Rust
+> client crate (`containerd-client`). That crate generates its code at build time with `tonic` and
+> `prost`, which needs a protobuf compiler on every build machine and puts a second protobuf runtime
+> and a second HTTP/2 client into the one process whose validation is the boundary, beside the
+> `buffa` and `connectrpc` every other Korpis program uses. containerd's schema is published and
+> Apache-2.0, and `connectrpc` speaks gRPC over a Unix socket, so the driver uses containerd's
+> `.proto` files themselves, vendored unchanged at the version they were taken from and generated
+> by the same toolchain as Korpis's own schema (`crates/korpis-containerd`, whose
+> `proto/README.md` records the tag and digest). The cost is keeping the vendored schema current
+> by hand, which containerd's backward compatibility within a major version makes a rare chore,
+> and owning what the client crate would have wrapped; the second point was already true, since
+> the Rust client never had the Go client's conveniences.
 
 Worth noting and not worth weighting: Wings is Go, and Calagopus is Rust. Neither fact influenced
 this decision in either version.
