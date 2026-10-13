@@ -643,6 +643,15 @@ human fixed something at 03:00 is the correct outcome: the fix survives, and the
 between the file and reality is escalated to a person instead of being resolved by whichever ran
 last.
 
+Step 5, added 2026-10-13 from the implementation. Building `korpis grant issue` found that the
+"scoped token" of step 5 could not exist: the model had a `Token` subject and nothing that created
+one, and a link-form grant, the only bearer form described, would have kept working for its whole
+90-day life after revocation. §3.7 of `08-identity.md` now issues a grant to a token created to
+hold it, authenticated online. Running the step end to end then stopped one call later: the
+token, scoped to the project, could read no organization, so the CLI could not resolve the
+project's name in the file it was applying. Names now resolve from the caller's own grant anchors
+as well (§2 of `13-surface-cli.md`), and `crates/korpis-cli/tests/cli/grants.rs` runs the step.
+
 ---
 
 ## 11. The moderator loses the role

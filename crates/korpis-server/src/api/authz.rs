@@ -8,29 +8,47 @@ use super::wire::{self, principal, scope};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
-use korpis_app::authz::{GrantsFilter, IssueGrant, MintToken, Revoked};
-use korpis_core::authz::GrantRecord;
+use korpis_app::authz::{GrantsFilter, Holder, IssueGrant, Issued, MintToken, Revoked};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::list_grants_request::Filter;
 use std::time::{Duration, SystemTime};
 
+fn holder(req: &pb::IssueGrantRequest) -> Result<Holder, ConnectError> {
+    match (req.subject.as_option(), req.to_new_token) {
+        (Some(s), false) => Ok(Holder::Principal(principal::from_pb("subject", s).refuse()?)),
+        (None, true) => Ok(Holder::NewToken),
+        (Some(_), true) => Err(error::invalid("subject", "absent when to_new_token is set")),
+        (None, false) => Err(error::invalid("subject", "required")),
+    }
+}
+
 fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError> {
-    let subject = req.subject.as_option().ok_or_else(|| error::invalid("subject", "required"))?;
     let scope_pb = req.scope.as_option().ok_or_else(|| error::invalid("scope", "required"))?;
     Ok(IssueGrant {
-        parent: wire::id(IdKind::Grant, "parent", &req.parent).refuse()?,
-        holder: principal::from_pb("subject", subject).refuse()?,
+        parent: (!req.parent.is_empty())
+            .then(|| wire::id(IdKind::Grant, "parent", &req.parent))
+            .transpose()
+            .refuse()?,
+        holder: holder(req)?,
         actions: actions("actions", &req.actions).refuse()?,
         scope: scope::from_pb("scope", scope_pb).refuse()?,
         conditions: conditions_from_pb(req.conditions.as_option()).refuse()?,
         delegation: delegation_from_pb(req.delegation.as_option()).refuse()?,
         link_form: req.link_form,
+        label: req.label.clone(),
     })
 }
 
-fn issued(g: &GrantRecord, now: SystemTime) -> pb::IssueGrantResponse {
-    pb::IssueGrantResponse { grant: grant_to_pb(g, now).into(), ..Default::default() }
+/// The answer to an issue; the record kept for a replay leaves the token's secret out, because a
+/// secret recorded is a secret stored (§6 of docs/10-api.md).
+fn issued(i: &Issued, now: SystemTime, secret: bool) -> pb::IssueGrantResponse {
+    let token = i.secret.as_ref().filter(|_| secret).map(|s| s.expose().to_owned());
+    pb::IssueGrantResponse {
+        grant: grant_to_pb(&i.record, now).into(),
+        token: token.unwrap_or_default(),
+        ..Default::default()
+    }
 }
 
 fn revoked(r: &Revoked, now: SystemTime) -> pb::RevokeGrantResponse {
@@ -62,10 +80,10 @@ impl pb::GrantService for Api {
         let key = mutation_key(req.mutation.as_option())?;
         let cmd = issue_command(&req)?;
         let now = self.app.now();
-        let encoder = |g: &GrantRecord| encode(&issued(g, now));
+        let encoder = |i: &Issued| encode(&issued(i, now, false));
         let idem = Idempotent { key, encode: &encoder };
         let reply = self.app.issue_grant(&caller, &idem, cmd).await.map_err(error::from_app)?;
-        respond(reply, |g| issued(g, now))
+        respond(reply, |i| issued(i, now, true))
     }
 
     async fn get_grant(

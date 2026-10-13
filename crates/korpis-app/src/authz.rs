@@ -11,7 +11,7 @@ mod query;
 mod revoke;
 mod snapshot;
 
-pub use issue::IssueGrant;
+pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};
 pub use mint::{MintToken, Minted};
 pub use query::{GrantWithChain, GrantsFilter};
 pub use revoke::Revoked;

@@ -14,4 +14,5 @@
 mod call;
 mod commands;
 mod declared;
+mod grants;
 mod support;

@@ -5,7 +5,9 @@
 use clap::{Parser, Subcommand};
 use korpis_cli::apply::{Mode, apply_planned, declare, plans};
 use korpis_cli::call::{METHODS, call};
-use korpis_cli::cmd::{Answer, Get, NodeAction, PlanAction, WorkloadAction, act, get};
+use korpis_cli::cmd::{
+    Answer, Get, GrantAction, NodeAction, PlanAction, WorkloadAction, act, get, grant,
+};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::declared::read_all;
 use korpis_cli::error::CliError;
@@ -76,6 +78,9 @@ enum Command {
     /// Enrolls, cordons, or uncordons a node.
     #[command(subcommand)]
     Node(NodeAction),
+    /// Issues, revokes, lists, and shows grants.
+    #[command(subcommand)]
+    Grant(GrantAction),
     /// The client's version and source revision, and the server's when one is named.
     Version,
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
@@ -148,6 +153,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Plan { files, action: None } => declared(cli, files, &[], true).await,
         Command::Get(g) => answer(cli, get::get(&cli.required()?, g).await),
         Command::Status { workload } => answer(cli, get::status(&cli.required()?, workload).await),
+        Command::Grant(a) => answer(cli, grant::grant(&cli.required()?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

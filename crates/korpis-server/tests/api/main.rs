@@ -32,6 +32,7 @@ mod retire;
 mod session;
 mod support;
 mod tenancy;
+mod tokens;
 mod trust;
 mod watch;
 mod workload;

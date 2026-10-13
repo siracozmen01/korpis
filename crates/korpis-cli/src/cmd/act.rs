@@ -3,7 +3,9 @@
 //! The imperative commands: one object, right now (§2 of docs/13-surface-cli.md). Each is one
 //! call of the API after its names are resolved, and answers with what the API answered.
 
-use super::{Answer, NodeAction, PlanAction, TokenAction, WorkloadAction, json, mutation};
+use super::{
+    Answer, NodeAction, PlanAction, TokenAction, WorkloadAction, json, mutation, pairs, seconds,
+};
 use crate::connect::Connection;
 use crate::error::CliError;
 use crate::resolve;
@@ -112,33 +114,6 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
     Ok(powered(&response.into_owned()))
 }
 
-/// `text` as seconds: a whole number followed by `s`, `m`, `h`, or `d`.
-fn seconds(text: &str) -> Result<i64, CliError> {
-    let bad = || CliError::Local(format!("--expires {text:?}: a number then s, m, h, or d"));
-    let unit = text.chars().last().ok_or_else(bad)?;
-    let scale = match unit {
-        's' => 1,
-        'm' => 60,
-        'h' => 3600,
-        'd' => 86_400,
-        _ => return Err(bad()),
-    };
-    let n: i64 = text.trim_end_matches(unit).parse().map_err(|_| bad())?;
-    n.checked_mul(scale).filter(|s| *s > 0).ok_or_else(bad)
-}
-
-/// `key=value` labels as a map.
-fn labels(given: &[String]) -> Result<std::collections::BTreeMap<String, String>, CliError> {
-    given
-        .iter()
-        .map(|l| {
-            l.split_once('=')
-                .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                .ok_or_else(|| CliError::Local(format!("--label {l:?}: key=value")))
-        })
-        .collect()
-}
-
 /// Answers `korpis node token create`: the token, once, and the command that redeems it.
 async fn token(c: &Connection, server: &str, t: &TokenAction) -> Result<Answer, CliError> {
     let TokenAction::Create { name, organization, labels: given, expires } = t;
@@ -149,7 +124,7 @@ async fn token(c: &Connection, server: &str, t: &TokenAction) -> Result<Answer, 
     let request = pb::CreateEnrollmentTokenRequest {
         mutation: mutation(None).into(),
         node_name: name.clone(),
-        labels: labels(given)?,
+        labels: pairs("--label", given)?,
         organization: resolve::organization(c, organization.as_deref()).await?,
         expires_in: expires_in.into(),
         ..Default::default()
@@ -208,7 +183,7 @@ mod tests {
         assert!(seconds("1").is_err());
         assert!(seconds("0h").is_err());
         assert!(seconds("h").is_err());
-        assert!(labels(&["region=eu".into()]).is_ok_and(|l| l["region"] == "eu"));
-        assert!(labels(&["region".into()]).is_err());
+        assert!(pairs("--label", &["region=eu".into()]).is_ok_and(|l| l["region"] == "eu"));
+        assert!(pairs("--label", &["region".into()]).is_err());
     }
 }

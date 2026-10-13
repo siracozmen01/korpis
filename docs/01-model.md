@@ -183,7 +183,7 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 | Variant | Is | Example |
 |---|---|---|
 | `User` | a local account | someone who signed up |
-| `Token` | a bearer credential | a CI pipeline, a billing integration |
+| `Token` | a bearer credential, created holding the one grant it was issued for (§3.7 of `08-identity.md`) | a CI pipeline, a billing integration |
 | `ExternalIdentity` | a claim from an identity provider | Discord user `123`, Discord role `@mod` in guild `456`, an OIDC group |
 | `Workload` | a running workload acting for itself | a bot that restarts its own sibling |
 | `Extension` | a running extension | a backup extension reading volumes |
@@ -226,6 +226,8 @@ Grant
   from_template TemplateRef?    provenance only; no authorization decision reads it
   issued_at     Timestamp
   revoked_at    Timestamp?
+  label         string          what it is for, for people; no decision reads it (§3.7 of
+                                08-identity.md)
 
 Conditions
   expires_at    Timestamp?

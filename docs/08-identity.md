@@ -349,6 +349,44 @@ a project they controlled and approve their own requests. The definitions:
 - The approval is an effect naming both subjects and both chains, and `requires_approval_by` is
   never cached (§5.1 of `02-architecture.md`).
 
+### 3.7 A token issued to hold one grant
+
+> Added 2026-10-13, from the implementation of `korpis grant issue` (§7 of `13-surface-cli.md`).
+> The model had a `Token` subject "for a CI pipeline" (§3.2 of `01-model.md`) and no way for one
+> to come into existence except installation; the CLI's flagship automation example could not be
+> carried out.
+
+**Decision.** Issuing a grant may name, instead of a holder, a **new token**: the control plane
+creates an API token principal in the same transaction as the grant, gives it the grant as its only
+authority, names it by the grant's label (which is then required), expires it with the grant, and
+answers its secret once. The secret is stored only as its digest, and a replay of the issuing
+mutation answers without it (§6 of `10-api.md`). Creating the token needs no action of its own:
+it is part of issuing, which is governed by the parent's delegation policy alone (§3.2), and a
+token that holds one attenuated grant can do nothing its issuer could not have delegated anyway.
+
+A grant also carries a **label**, free text of at most 200 characters, shown wherever the grant is
+listed and recorded in the effect that issued it. No authorization decision reads it.
+
+**Why not a link-form grant (§6.1).** A link is a capability token, verified offline, so its
+revocation latency is its lifetime (§6). That is the right trade for a 24-hour link redeemed a few
+times; it is the wrong one for a pipeline credential that lives 90 days, where "revoking it is
+revoking one row" (§7 of `13-surface-cli.md`) would be false for 90 days. An API token is
+authenticated online on every request, so revoking its grant takes effect at the next request,
+which is what a leaked CI secret needs.
+
+**The parent may be left unnamed.** When the issuer names no parent, the control plane, which holds
+every grant the issuer holds, checks the attenuation against each of them; if exactly one is valid
+it becomes the parent, and if several are, the request is refused rather than resolved to one,
+because the parent decides what revoking cascades to and a guess would make that invisible. A
+caller holding one grant, the common case, never has to look its identifier up.
+
+**What it costs.** A token is a bearer secret with no second factor, exactly as weak as the Phase 0
+root token (§9.1), and it is bounded by its grant rather than protected by anything about its
+holder; `source_cidr` is the condition that narrows where it works. Online authentication is a
+store read on every request that a capability token would not need. A lost secret cannot be shown
+again: the issuer revokes the grant and issues another, and the dead token remains as a principal
+holding nothing.
+
 ---
 
 ## 4. Templates: roles in the interface, not in the model
@@ -1003,3 +1041,8 @@ the explicit, tenant-visible grant of §3.3.
    restarted. Can it see which of the child's users did it? Operationally useful for support,
    uncomfortable for privacy, and the answer probably differs between a hosting provider and a
    community. → here
+6. **Rotating a token's secret without reissuing its grant.** A token issued to hold a grant
+   (§3.7) cannot have its secret replaced; a suspected leak is answered by revoking the grant and
+   issuing another, which changes the grant's identifier that effects cite. A rotation that keeps
+   the grant would keep the audit trail continuous, and needs a rule for how long the old secret
+   keeps working while a pipeline is updated. → here

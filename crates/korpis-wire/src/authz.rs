@@ -110,6 +110,7 @@ pub fn grant_to_pb(r: &GrantRecord, now: SystemTime) -> pb::Grant {
         revoked_at: r.revoked_at.map(timestamp).into(),
         link_form: g.link_form,
         state: state(r.state(now)).into(),
+        label: r.label.clone(),
         ..Default::default()
     }
 }

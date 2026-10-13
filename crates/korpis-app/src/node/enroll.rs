@@ -112,6 +112,7 @@ fn enrollment_grant(permit: &Permit, enrollment: &Enrollment) -> Result<GrantRec
         issued_at: enrollment.created_at,
         revoked_at: None,
         suspended_at: None,
+        label: format!("enrollment of node {}", enrollment.node_name.as_str()),
     })
 }
 

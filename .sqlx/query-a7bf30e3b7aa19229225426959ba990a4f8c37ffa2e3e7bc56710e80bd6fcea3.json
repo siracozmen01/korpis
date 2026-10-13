@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override\n               FROM grants\n              WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
+  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override, label\n               FROM grants\n              WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -167,11 +167,23 @@
             "name": "irreversible_override"
           }
         }
+      },
+      {
+        "ordinal": 15,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "label"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
         "Text",
+        "Uuid",
         "Uuid",
         "Int8"
       ]
@@ -191,8 +203,9 @@
       true,
       true,
       false,
+      false,
       false
     ]
   },
-  "hash": "e9d081c495fc873e478ed6fdd9c73a2e4d241c26be8772e542668e2cd08f1c2a"
+  "hash": "a7bf30e3b7aa19229225426959ba990a4f8c37ffa2e3e7bc56710e80bd6fcea3"
 }

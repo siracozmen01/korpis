@@ -36,6 +36,9 @@ message Grant {
   bool link_form = 13;
   // State as computed by the control plane; never written by a client.
   GrantState state = 14;
+  // What the grant is for, for the people who read it later ("github actions ·
+  // korpis-community/servers"). Provenance only; no authorization decision reads it.
+  string label = 15;
 }
 
 enum GrantState {

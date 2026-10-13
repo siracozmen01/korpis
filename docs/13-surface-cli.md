@@ -60,7 +60,10 @@ create|cordon|uncordon`, each one call of the API once its names are resolved. A
 by its identifier, by its name, or, for a workload, as `project/name`. A name is resolved by
 listing what the caller may read, never by a lookup the API does not offer, so a name the caller
 cannot read is the same local refusal (exit 1) as a name that does not exist, and the CLI learns
-nothing by resolving that the API would not have told it (§8 of `10-api.md`). A name that matches
+nothing by resolving that the API would not have told it (§8 of `10-api.md`). Listing starts from
+the organizations the caller may read and from the objects its own grants are anchored at, so a
+token scoped to one project names that project though it can read no organization to list it
+from. A name that matches
 more than one object is refused with the advice to use the identifier, not resolved to the first.
 The cost is calls: a bare workload name lists every project the caller can read, which a caller
 who can read many pays for on each command; `project/name` or the identifier avoids it. A power
@@ -262,6 +265,13 @@ That token can deploy one project, expires on a date, appears in every `Effect` 
 because grants only ever produce weaker children (P6), **cannot be used to mint a broader one.** A
 leaked CI secret in this market is normally an admin key; here it is a bounded, dated, attributable
 delegation, and revoking it is revoking one row.
+
+The command issues the grant to a token created to hold it alone, attenuated from the one grant
+the issuer holds that it is valid from, and prints the token's secret once (§3.7 of
+`08-identity.md`). It is not a link-form grant: a link is verified offline and stays good until it
+expires, while this token is checked online on every request, so the revocation takes effect at
+the pipeline's next call. `--to` issues to an existing subject instead; `grant list`, `grant show`
+(the grant and its chain), and `grant revoke` complete the set.
 
 Shell completion resolves against what the caller can actually read, for the same reason Discord's
 autocomplete does (§8 of `12-surface-discord.md`): existence follows read authority, so completion

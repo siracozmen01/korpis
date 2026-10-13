@@ -33,6 +33,7 @@ struct GrantRow {
     suspended_at: Option<DateTime<Utc>>,
     root: bool,
     irreversible_override: bool,
+    label: String,
 }
 
 impl GrantRow {
@@ -62,6 +63,7 @@ impl GrantRow {
             issued_at: to_time(self.issued_at),
             revoked_at: self.revoked_at.map(to_time),
             suspended_at: self.suspended_at.map(to_time),
+            label: self.label,
         })
     }
 }
@@ -84,7 +86,7 @@ async fn chain(db: impl PgExecutor<'_>, id: Uuid) -> StoreResult<Vec<GrantRecord
                   delegation AS "delegation!", issued_by AS "issued_by!",
                   link_form AS "link_form!", uses AS "uses!", issued_at AS "issued_at!",
                   revoked_at, suspended_at, root AS "root!",
-                  irreversible_override AS "irreversible_override!"
+                  irreversible_override AS "irreversible_override!", label AS "label!"
            FROM c ORDER BY depth"#,
         id
     )
@@ -119,7 +121,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override
+                    irreversible_override, label
                FROM grants
               WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)
               ORDER BY id LIMIT $4",
@@ -139,7 +141,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override
+                    irreversible_override, label
                FROM grants
               WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -162,8 +164,8 @@ impl GrantWrite for PgTx {
         sqlx::query!(
             "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id, conditions,
                                  parent_id, delegation, issued_by, link_form, uses, issued_at,
-                                 root, irreversible_override)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+                                 root, irreversible_override, label)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
             g.id,
             g.subject.key,
             &actions,
@@ -178,7 +180,8 @@ impl GrantWrite for PgTx {
             to_count("uses", g.uses)?,
             from_time(r.issued_at),
             g.root,
-            g.irreversible_override
+            g.irreversible_override,
+            r.label
         )
         .execute(&mut *self.tx)
         .await

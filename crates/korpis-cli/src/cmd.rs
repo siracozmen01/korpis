@@ -6,6 +6,7 @@
 
 pub mod act;
 pub mod get;
+pub mod grant;
 
 use clap::Subcommand;
 use serde_json::Value;
@@ -144,6 +145,105 @@ pub enum NodeAction {
         /// The node, by name or identifier.
         node: String,
     },
+}
+
+/// `korpis grant …` (§7 of docs/13-surface-cli.md).
+#[derive(Debug, Clone, Subcommand)]
+pub enum GrantAction {
+    /// Attenuates a grant you hold into a new one: to a new token by default, whose secret is
+    /// printed once, or to `--to`.
+    Issue(Box<Issue>),
+    /// Revokes a grant and everything attenuated from it.
+    Revoke {
+        /// The grant.
+        grant: String,
+    },
+    /// Lists the grants you hold, or those on a scope or held by a subject.
+    List {
+        /// Only those on this scope, as for `issue`.
+        #[arg(long, conflicts_with = "to")]
+        scope: Option<String>,
+        /// Only those held by this subject, as for `issue`.
+        #[arg(long)]
+        to: Option<String>,
+    },
+    /// A grant and the chain it was attenuated through.
+    Show {
+        /// The grant.
+        grant: String,
+    },
+}
+
+/// `korpis grant issue`.
+#[derive(Debug, Clone, clap::Args)]
+pub struct Issue {
+    /// What it permits, comma-separated, e.g. `workload.read,workload.write`.
+    #[arg(long, value_delimiter = ',', required = true)]
+    pub actions: Vec<String>,
+    /// Where: `org:`, `project:`, `workload:`, or `node:` followed by a name or identifier, or
+    /// `volume:`, `endpoint:`, or `stream:` followed by an identifier.
+    #[arg(long)]
+    pub scope: String,
+    /// Narrows the scope to what carries this label, `key=value`; repeatable (§3.4 of
+    /// docs/08-identity.md).
+    #[arg(long = "select")]
+    pub select: Vec<String>,
+    /// How long it lasts, as `90s`, `30m`, `12h`, or `90d`; as long as its parent otherwise.
+    #[arg(long)]
+    pub expires: Option<String>,
+    /// What it is for, shown wherever it is listed; required for a new token.
+    #[arg(long, default_value = "")]
+    pub label: String,
+    /// Who holds it: `usr_…`, `tok_…`, `wl_…`, `extension:NAME`, `ext:PROVIDER:user:ID`, or
+    /// `ext:PROVIDER:set:REALM:MEMBER`. A new token when absent.
+    #[arg(long)]
+    pub to: Option<String>,
+    /// The grant to attenuate; the one you hold that it is valid from when absent.
+    #[arg(long)]
+    pub parent: Option<String>,
+    /// Lets the holder pass these of its actions on, comma-separated.
+    #[arg(long, value_delimiter = ',')]
+    pub delegate: Vec<String>,
+    /// How many further levels may exist beneath it when it delegates.
+    #[arg(long, default_value_t = 1)]
+    pub depth: u32,
+    /// A source network it may be used from, as a CIDR; repeatable.
+    #[arg(long = "source-cidr")]
+    pub source_cidr: Vec<String>,
+    /// It may propose, not apply: its plans wait for someone holding `plan.approve` on this
+    /// scope, written as for `--scope`.
+    #[arg(long)]
+    pub requires_approval_by: Option<String>,
+}
+
+/// `text` as seconds: a whole number followed by `s`, `m`, `h`, or `d`.
+pub fn seconds(text: &str) -> Result<i64, crate::error::CliError> {
+    let bad = || crate::error::CliError::Local(format!("{text:?}: a number then s, m, h, or d"));
+    let unit = text.chars().last().ok_or_else(bad)?;
+    let scale = match unit {
+        's' => 1,
+        'm' => 60,
+        'h' => 3600,
+        'd' => 86_400,
+        _ => return Err(bad()),
+    };
+    let n: i64 = text.trim_end_matches(unit).parse().map_err(|_| bad())?;
+    n.checked_mul(scale).filter(|s| *s > 0).ok_or_else(bad)
+}
+
+/// `key=value` pairs as a map; `flag` names them in a refusal.
+pub fn pairs(
+    flag: &str,
+    given: &[String],
+) -> Result<std::collections::BTreeMap<String, String>, crate::error::CliError> {
+    given
+        .iter()
+        .map(|l| {
+            l.split_once('=')
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .ok_or_else(|| crate::error::CliError::Local(format!("{flag} {l:?}: key=value")))
+        })
+        .collect()
 }
 
 /// A fresh mutation, with `expected` as its compare-and-swap version.

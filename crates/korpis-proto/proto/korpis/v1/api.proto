@@ -566,14 +566,22 @@ service GrantService {
 
 message IssueGrantRequest {
   Mutation mutation = 1;
-  // The grant to attenuate; the caller must hold it.
+  // The grant to attenuate; the caller must hold it. Empty: the one grant the caller holds that
+  // this attenuation is valid from, refused when there are several (§3.2 of
+  // docs/08-identity.md).
   string parent = 2;
+  // Who holds it. Absent exactly when `to_new_token` is set.
   Subject subject = 3;
   repeated string actions = 4;
   Scope scope = 5;
   Conditions conditions = 6;
   DelegationPolicy delegation = 7;
   bool link_form = 8;
+  // Provenance only; required with `to_new_token`, which it names.
+  string label = 9;
+  // Issue to an API token created in the same transaction, which exists only to hold this grant
+  // and expires with it (§3.7 of docs/08-identity.md).
+  bool to_new_token = 10;
 }
 
 message IssueGrantResponse {
@@ -581,6 +589,9 @@ message IssueGrantResponse {
   // For link-form grants: the bearer token, shown once.
   string link_token = 2;
   Consistency consistency = 3;
+  // With `to_new_token`: the token's secret, shown once and never stored. A replay of the same
+  // mutation returns the response without it (§6 of docs/10-api.md).
+  string token = 4;
 }
 
 message GetGrantRequest {

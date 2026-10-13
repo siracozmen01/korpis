@@ -134,5 +134,6 @@ fn root_grant(
         issued_at: now,
         revoked_at: None,
         suspended_at: None,
+        label: "the installation's root grant".to_owned(),
     })
 }

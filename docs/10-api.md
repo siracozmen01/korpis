@@ -232,9 +232,10 @@ the agent boundary. A client that times out and retries never double-applies.
 **A secret in a response is not recorded for replay.** A retry returns the original response from
 a record kept for that purpose, and a secret in that record would be a secret stored, readable by
 anyone who can read the database. So a mutation whose response carries one (an enrollment token,
-§3 of `18-operations.md`) records the response without it, and a replay returns the outcome with
-the secret empty. The client that lost the first response has lost the secret and asks for a new
-one; the one it lost expires unused.
+§3 of `18-operations.md`; a token issued to hold a grant, §3.7 of `08-identity.md`) records the
+response without it, and a replay returns the outcome with the secret empty. The client that lost
+the first response has lost the secret and asks for a new one; a lost enrollment token expires
+unused, and a lost grant-holding token is disarmed by revoking its grant.
 
 ### Read-your-writes
 

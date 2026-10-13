@@ -23,6 +23,8 @@ pub struct GrantRecord {
     pub revoked_at: Option<SystemTime>,
     /// When it was suspended, if it is.
     pub suspended_at: Option<SystemTime>,
+    /// What it is for, for people; no decision reads it.
+    pub label: String,
 }
 
 /// What a grant's state is, as a client is told (§3 of docs/08-identity.md).
