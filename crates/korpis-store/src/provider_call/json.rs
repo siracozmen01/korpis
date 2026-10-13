@@ -3,10 +3,14 @@
 //! How a provider call's request and outcome are stored: one JSON object with one key naming
 //! the variant, so a type added later is a key added, never a column.
 
+use super::value::{map_from, map_to};
 use korpis_app::ports::{StoreError, StoreResult};
 use korpis_core::dns::{DnsRecord, RecordType};
-use korpis_core::extension::{CallFailure, CallOutcome, CallRequest};
+use korpis_core::extension::{
+    CallFailure, CallOutcome, CallRequest, Platform, StepArtifact, StepResult,
+};
 use serde_json::{Value, json};
+use uuid::Uuid;
 
 fn corrupt(what: &str, v: &Value) -> StoreError {
     StoreError::Corrupt(format!("provider call {what}: {v}"))
@@ -34,10 +38,62 @@ fn record_from(v: &Value) -> Option<DnsRecord> {
     })
 }
 
+fn run_step_from(r: &Value) -> Option<CallRequest> {
+    let platform = r.get("platform")?;
+    Some(CallRequest::RunStep {
+        step: text(r, "step")?,
+        arguments: map_from(r.get("arguments")?)?,
+        workload: Uuid::parse_str(r.get("workload")?.as_str()?).ok()?,
+        platform: Platform { os: text(platform, "os")?, arch: text(platform, "arch")? },
+    })
+}
+
+fn step_result_to(r: &StepResult) -> Value {
+    let artifacts: Vec<Value> = r
+        .artifacts
+        .iter()
+        .map(|a| {
+            json!({
+                "path": a.path, "url": a.url, "sha256": a.sha256, "size": a.size,
+                "mode": a.mode, "extract": a.extract,
+            })
+        })
+        .collect();
+    json!({ "step_result": { "artifacts": artifacts, "pinned": r.pinned, "resolved": r.resolved } })
+}
+
+fn artifact_from(a: &Value) -> Option<StepArtifact> {
+    Some(StepArtifact {
+        path: text(a, "path")?,
+        url: text(a, "url")?,
+        sha256: text(a, "sha256")?,
+        size: a.get("size")?.as_u64()?,
+        mode: u32::try_from(a.get("mode")?.as_u64()?).ok()?,
+        extract: a.get("extract")?.as_bool()?,
+    })
+}
+
+fn step_result_from(r: &Value) -> Option<CallOutcome> {
+    let artifacts = r.get("artifacts")?.as_array()?;
+    Some(CallOutcome::StepResult(StepResult {
+        artifacts: artifacts.iter().map(artifact_from).collect::<Option<_>>()?,
+        pinned: r.get("pinned")?.as_bool()?,
+        resolved: text(r, "resolved")?,
+    }))
+}
+
 /// A request to store.
 pub(crate) fn request_to(r: &CallRequest) -> Value {
     match r {
         CallRequest::Ping { nonce } => json!({ "ping": { "nonce": nonce } }),
+        CallRequest::RunStep { step, arguments, workload, platform } => json!({
+            "run_step": {
+                "step": step,
+                "arguments": map_to(arguments),
+                "workload": workload.to_string(),
+                "platform": { "os": platform.os, "arch": platform.arch },
+            }
+        }),
         CallRequest::ApplyRecords { owner, records } => json!({
             "apply_records": {
                 "owner": owner,
@@ -53,6 +109,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
         let nonce = text(ping, "nonce").ok_or_else(|| corrupt("request", v))?;
         return Ok(CallRequest::Ping { nonce });
     }
+    if let Some(r) = v.get("run_step") {
+        return run_step_from(r).ok_or_else(|| corrupt("request", v));
+    }
     let apply = v.get("apply_records").ok_or_else(|| corrupt("request", v))?;
     let owner = text(apply, "owner").ok_or_else(|| corrupt("request", v))?;
     let records = apply
@@ -67,6 +126,7 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
 pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
     match o {
         CallOutcome::Pong { nonce } => json!({ "pong": { "nonce": nonce } }),
+        CallOutcome::StepResult(r) => step_result_to(r),
         CallOutcome::RecordsApplied { created, updated, deleted } => json!({
             "records_applied": { "created": created, "updated": updated, "deleted": deleted }
         }),
@@ -81,6 +141,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
     if let Some(pong) = v.get("pong") {
         let nonce = text(pong, "nonce").ok_or_else(|| corrupt("outcome", v))?;
         return Ok(CallOutcome::Pong { nonce });
+    }
+    if let Some(r) = v.get("step_result") {
+        return step_result_from(r).ok_or_else(|| corrupt("outcome", v));
     }
     if let Some(a) = v.get("records_applied") {
         let n = |k: &str| a.get(k).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok());
@@ -117,6 +180,18 @@ mod tests {
         for o in [
             CallOutcome::Pong { nonce: "n1".into() },
             CallOutcome::RecordsApplied { created: 1, updated: 2, deleted: 3 },
+            CallOutcome::StepResult(StepResult {
+                artifacts: vec![StepArtifact {
+                    path: "game".into(),
+                    url: "https://cdn.example/g.tar".into(),
+                    sha256: "a".repeat(64),
+                    size: 5,
+                    mode: 0o644,
+                    extract: true,
+                }],
+                pinned: false,
+                resolved: "manifest 1".into(),
+            }),
             CallOutcome::Failed(CallFailure::deadline()),
             CallOutcome::Failed(CallFailure::unknown()),
         ] {

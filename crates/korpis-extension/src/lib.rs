@@ -15,6 +15,7 @@ pub mod dns;
 pub mod error;
 pub mod identity;
 pub mod provider;
+pub mod step;
 
 pub use error::Error;
 pub use identity::{Connection, Credential, CredentialSource, Fixed, IdentitySocket};

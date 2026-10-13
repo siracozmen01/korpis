@@ -6,6 +6,7 @@
 
 use crate::dns::record_to_pb;
 use crate::extension::provider_type_to_pb;
+use crate::step::{run_step_to_pb, step_result_from_pb};
 use crate::{IdKind, duration, timestamp, wire_id};
 use korpis_core::extension::{
     Breaker, CallFailure, CallOutcome, CallRequest, Measured, ProviderCall, ProviderType,
@@ -67,6 +68,9 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
         CallRequest::Ping { nonce } => {
             Request::Ping(Box::new(pb::Ping { nonce: nonce.clone(), ..Default::default() }))
         }
+        CallRequest::RunStep { step, arguments, workload, platform } => {
+            Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
+        }
         CallRequest::ApplyRecords { owner, records } => {
             Request::ApplyRecords(Box::new(pb::ApplyRecords {
                 owner: owner.clone(),
@@ -89,6 +93,7 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
 pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
     match &r.outcome {
         Some(Outcome::Pong(p)) => CallOutcome::Pong { nonce: p.nonce.clone() },
+        Some(Outcome::StepResult(r)) => CallOutcome::StepResult(step_result_from_pb(r)),
         Some(Outcome::RecordsApplied(a)) => CallOutcome::RecordsApplied {
             created: a.created,
             updated: a.updated,

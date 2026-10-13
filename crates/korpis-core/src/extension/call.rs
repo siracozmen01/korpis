@@ -12,7 +12,7 @@ use uuid::Uuid;
 pub const MAX_CALL_DEADLINE: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// What a call asks. Each provider type adds its own requests; a liveness check is common to all.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CallRequest {
     /// A liveness check every provider answers.
     Ping {
@@ -26,6 +26,17 @@ pub enum CallRequest {
         /// Every record it should have.
         records: Vec<crate::dns::DnsRecord>,
     },
+    /// `step`: resolve an install step (§4 of docs/09-recipes.md).
+    RunStep {
+        /// The step kind, `<publisher>/<step>`.
+        step: String,
+        /// Its arguments, as the recipe gives them.
+        arguments: crate::value::ValueMap,
+        /// The workload being installed.
+        workload: Uuid,
+        /// The node's platform.
+        platform: super::Platform,
+    },
 }
 
 /// How a call ended.
@@ -36,6 +47,8 @@ pub enum CallOutcome {
         /// The nonce it was asked with.
         nonce: String,
     },
+    /// The answer to [`CallRequest::RunStep`].
+    StepResult(super::StepResult),
     /// The answer to [`CallRequest::ApplyRecords`]: what it changed.
     RecordsApplied {
         /// Records created.
@@ -51,15 +64,17 @@ pub enum CallOutcome {
 
 impl CallRequest {
     /// Whether `outcome` answers this request: a failure answers anything, and a success only
-    /// the request it is the answer to. A provider answering with another is broken.
+    /// the request it is the answer to, in a form the control plane can act on. A provider
+    /// answering otherwise is broken.
     #[must_use]
-    pub const fn answered_by(&self, outcome: &CallOutcome) -> bool {
-        matches!(
-            (self, outcome),
+    pub fn answered_by(&self, outcome: &CallOutcome) -> bool {
+        match (self, outcome) {
             (_, CallOutcome::Failed(_))
-                | (Self::Ping { .. }, CallOutcome::Pong { .. })
-                | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. })
-        )
+            | (Self::Ping { .. }, CallOutcome::Pong { .. })
+            | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. }) => true,
+            (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
+            _ => false,
+        }
     }
 }
 
@@ -122,7 +137,7 @@ impl CallFailure {
 }
 
 /// One call, as the queue holds it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProviderCall {
     /// Its identifier.
     pub id: Uuid,

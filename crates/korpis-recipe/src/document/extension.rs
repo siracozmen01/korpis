@@ -77,6 +77,9 @@ pub struct ProvidesDto {
     #[serde(rename = "type")]
     pub kind: String,
     pub name: String,
+    /// A step's arguments.
+    #[serde(default)]
+    pub arguments: Vec<ArgumentDto>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -179,19 +182,41 @@ fn provides(i: usize, p: &ProvidesDto) -> Result<ProvidedInterface, RecipeError>
     Ok(ProvidedInterface { kind, name: p.name.clone() })
 }
 
-fn action(i: usize, a: &ActionDto) -> Result<ActionDecl, RecipeError> {
-    let arguments = a
-        .arguments
-        .iter()
+/// Arguments as declared at `at`, `extension.actions[0]` say.
+fn arguments(at: &str, list: &[ArgumentDto]) -> Result<Vec<ActionArgument>, RecipeError> {
+    list.iter()
         .enumerate()
         .map(|(j, x)| {
-            let at = format!("extension.actions[{i}].arguments[{j}].type");
+            let field = format!("{at}.arguments[{j}].type");
             let types = ["string", "int", "bool", "workload", "project"];
-            let kind = ArgumentType::parse(&x.kind).ok_or_else(|| unknown(&at, &x.kind, types))?;
+            let kind =
+                ArgumentType::parse(&x.kind).ok_or_else(|| unknown(&field, &x.kind, types))?;
             Ok(ActionArgument { name: x.name.clone(), kind, required: x.required })
         })
-        .collect::<Result<_, RecipeError>>()?;
+        .collect()
+}
+
+fn action(i: usize, a: &ActionDto) -> Result<ActionDecl, RecipeError> {
+    let arguments = arguments(&format!("extension.actions[{i}]"), &a.arguments)?;
     Ok(ActionDecl { name: a.name.clone(), description: a.description.clone(), arguments })
+}
+
+/// The arguments of the steps among `provides`, by step kind; another type takes none.
+fn step_arguments(
+    provides: &[ProvidesDto],
+) -> Result<BTreeMap<String, Vec<ActionArgument>>, RecipeError> {
+    let mut out = BTreeMap::new();
+    for (i, p) in provides.iter().enumerate().filter(|(_, p)| !p.arguments.is_empty()) {
+        let at = format!("extension.provides[{i}]");
+        if p.kind != ProviderType::Step.as_str() {
+            return Err(RecipeError::new(
+                &format!("{at}.arguments"),
+                "only a step takes arguments",
+            ));
+        }
+        out.insert(p.name.clone(), arguments(&at, &p.arguments)?);
+    }
+    Ok(out)
 }
 
 /// The block as the domain holds it, validated for the extension named `name`.
@@ -213,6 +238,7 @@ pub fn manifest(b: &Block, name: &str) -> Result<ExtensionManifest, RecipeError>
             .enumerate()
             .map(|(i, p)| provides(i, p))
             .collect::<Result<_, _>>()?,
+        step_arguments: step_arguments(&b.provides)?,
         actions: b
             .actions
             .iter()

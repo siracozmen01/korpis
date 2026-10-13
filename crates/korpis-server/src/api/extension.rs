@@ -4,7 +4,7 @@
 //! installed.
 
 use super::wire::event::filter_to_pb;
-use super::wire::extension::{manifest_to_pb, need_from_pb, provided_to_pb};
+use super::wire::extension::{manifest_to_pb, need_from_pb, provided_in_pb};
 use super::wire::plan::plan_to_pb;
 use super::wire::recipe::ref_to_pb;
 use super::wire::value::map_from_pb;
@@ -51,7 +51,7 @@ fn extension_to_pb(
         workload: wire_id(IdKind::Workload, i.workload),
         artifact: ref_to_pb(artifact).into(),
         manifest: manifest_to_pb(manifest).into(),
-        provides: manifest.provides.iter().map(provided_to_pb).collect(),
+        provides: manifest.provides.iter().map(|p| provided_in_pb(manifest, p)).collect(),
         subscribes: manifest.subscribes.iter().map(filter_to_pb).collect(),
         installed_by: principal::to_pb(&i.installed_by).into(),
         installed_at: timestamp(i.installed_at).into(),

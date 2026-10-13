@@ -72,6 +72,8 @@ message ProviderCall {
     Ping ping = 10;
     // dns: make an owner's records exactly these.
     ApplyRecords apply_records = 20;
+    // step: resolve an install step into artifacts.
+    RunStep run_step = 21;
   }
 }
 
@@ -82,6 +84,7 @@ message CallResult {
     Error error = 2;
     Pong pong = 10;
     RecordsApplied records_applied = 20;
+    StepResult step_result = 21;
   }
 }
 
@@ -202,4 +205,46 @@ message RecordsApplied {
   uint32 created = 1;
   uint32 updated = 2;
   uint32 deleted = 3;
+}
+
+// Recipe steps (§4 of docs/09-recipes.md). A step provider resolves a step into content-addressed
+// artifacts; the node's content store fetches each by its hash and the workload's own filesystem
+// worker writes it, so the provider never touches a tenant's volume and re-running a step
+// overwrites the same targets.
+message RunStep {
+  // The step kind, `<publisher>/<step>`.
+  string step = 1;
+  map<string, Value> arguments = 2;
+  // The workload being installed.
+  string workload = 3;
+  // The platform of the node that will run it.
+  Platform platform = 4;
+}
+
+message Platform {
+  string os = 1;
+  string arch = 2;
+}
+
+message StepResult {
+  // At most 1000; an application of many files ships as archives.
+  repeated StepArtifact artifacts = 1;
+  // Whether the request named the content exactly; an unpinned result marks the workload
+  // non-reproducible.
+  bool pinned = 2;
+  // What it resolved to, e.g. the manifest a channel held.
+  string resolved = 3;
+}
+
+message StepArtifact {
+  // Relative to the volume root; never absolute, never through `..`.
+  string path = 1;
+  // http or https; fetched once per node by the content store.
+  string url = 2;
+  // Lowercase hex, mandatory.
+  string sha256 = 3;
+  uint64 size = 4;
+  uint32 mode = 5;
+  // An archive unpacked at `path` under the `extract` verb's rules.
+  bool extract = 6;
 }

@@ -22,6 +22,7 @@ pub mod node;
 pub mod page;
 pub mod ports;
 pub mod recipe;
+pub mod step;
 pub mod tenancy;
 pub mod workload;
 

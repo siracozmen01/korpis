@@ -7,8 +7,8 @@ use crate::event::filter_to_pb;
 use crate::{Result, invalid};
 use korpis_core::authz::Action;
 use korpis_core::extension::{
-    ActionDecl, Egress, ExtensionManifest, Need, NeedScope, ProvidedInterface, ProviderType,
-    SlotDecl,
+    ActionArgument, ActionDecl, Egress, ExtensionManifest, Need, NeedScope, ProvidedInterface,
+    ProviderType, SlotDecl,
 };
 use korpis_proto::korpis::v1 as pb;
 
@@ -74,23 +74,33 @@ pub fn provided_to_pb(p: &ProvidedInterface) -> pb::ProvidedInterface {
     }
 }
 
+fn argument_to_pb(x: &ActionArgument) -> pb::ActionArgument {
+    pb::ActionArgument {
+        name: x.name.clone(),
+        r#type: x.kind.as_str().to_owned(),
+        resource: x.kind.is_resource(),
+        required: x.required,
+        ..Default::default()
+    }
+}
+
 fn action_to_pb(a: &ActionDecl) -> pb::ActionDecl {
     pb::ActionDecl {
         name: a.name.clone(),
         description: a.description.clone(),
-        arguments: a
-            .arguments
-            .iter()
-            .map(|x| pb::ActionArgument {
-                name: x.name.clone(),
-                r#type: x.kind.as_str().to_owned(),
-                resource: x.kind.is_resource(),
-                required: x.required,
-                ..Default::default()
-            })
-            .collect(),
+        arguments: a.arguments.iter().map(argument_to_pb).collect(),
         ..Default::default()
     }
+}
+
+/// A provided interface with the arguments the manifest declares for it, if it is a step.
+#[must_use]
+pub fn provided_in_pb(m: &ExtensionManifest, p: &ProvidedInterface) -> pb::ProvidedInterface {
+    let arguments = match (p.kind, m.step_arguments.get(&p.name)) {
+        (ProviderType::Step, Some(list)) => list.iter().map(argument_to_pb).collect(),
+        _ => Vec::new(),
+    };
+    pb::ProvidedInterface { arguments, ..provided_to_pb(p) }
 }
 
 fn slot_to_pb(s: &SlotDecl) -> pb::SlotDecl {
@@ -106,7 +116,7 @@ pub fn manifest_to_pb(m: &ExtensionManifest) -> pb::ExtensionManifest {
         needs: m.needs.iter().map(need_to_pb).collect(),
         egress: m.egress.iter().map(egress_to_pb).collect(),
         subscribes: m.subscribes.iter().map(filter_to_pb).collect(),
-        provides: m.provides.iter().map(provided_to_pb).collect(),
+        provides: m.provides.iter().map(|p| provided_in_pb(m, p)).collect(),
         actions: m.actions.iter().map(action_to_pb).collect(),
         ui_slots: m.ui_slots.iter().map(slot_to_pb).collect(),
         ..Default::default()

@@ -21,6 +21,8 @@ pub const CAPABILITIES: &[&str] = &[
     "provider.dns",
     // A provider's stream: registering, being pinged, and being cancelled, §3.3.
     "provider.serve",
+    // Recipe step providers' calls: resolving a step into artifacts, §4 of docs/09-recipes.md.
+    "provider.step",
 ];
 
 /// Why a manifest cannot be served here.
@@ -69,6 +71,7 @@ mod tests {
             egress: Vec::new(),
             subscribes: Vec::new(),
             provides: Vec::new(),
+            step_arguments: std::collections::BTreeMap::new(),
             actions: Vec::new(),
             ui_slots: Vec::new(),
         }
@@ -85,11 +88,11 @@ mod tests {
         let later = manifest("korpis.extension.v2", &[]).compatible().unwrap_err();
         assert_eq!(later, Incompatible::Version { wanted: "korpis.extension.v2".into() });
         let missing =
-            manifest("korpis.extension.v1", &["provider.step", "events.subscribe", "x.y"])
+            manifest("korpis.extension.v1", &["provider.edge_router", "events.subscribe", "x.y"])
                 .compatible()
                 .unwrap_err();
         let Incompatible::Capabilities { missing: names } = &missing else { panic!("{missing}") };
-        assert_eq!(names, &["provider.step", "x.y"], "every missing one, at once");
+        assert_eq!(names, &["provider.edge_router", "x.y"], "every missing one, at once");
         assert!(missing.to_string().contains("it offers events.subscribe, identity"), "{missing}");
     }
 }

@@ -212,11 +212,11 @@ needs to start: a declaration below it is refused, not placed and left to crash.
 no exposure, declared or proposed, is `stable`, which placement resolves to `node_bound` where the
 installation cannot deliver it (§3 of `07-networking.md`).
 
-Why at declaration and on the server: an intent is immutable and must mean the same thing
-forever (§3.1 of `03-state.md`), so it cannot depend on reading its recipe again; and every client,
-the CLI, the web panel and a chat command, gets the same completion because only one place
-performs it, which is what lets `korpis plan` show the body that will run. Why merge entries by
-name rather than replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
+Why at declaration and on the server: an intent is immutable and must mean the same thing forever
+(§3.1 of `03-state.md`), so it cannot depend on reading its recipe again; and every client, the
+CLI, the web panel and a chat command, gets the same completion because only one place performs it,
+which is what lets `korpis plan` show the body that will run. Why merge entries by name rather than
+replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
 endpoint's exposure should not have to restate the others to keep its readiness probe valid.
 
 A console is a capability the node's driver must declare (§4.1 of `04-runtimes.md`), so the
@@ -292,7 +292,17 @@ The verb list being closed is what makes the fix cheap. Each verb declares what 
 | `chmod` / `chown` | sets the declared value; idempotent by definition |
 | `symlink` | replaces a link at the path; refuses to replace anything that is not a link |
 | `delete` | no-op if already absent |
-| a provider step | the provider declares it, and a provider that cannot is refused at install |
+| a provider step | re-resolves, and the worker overwrites the targets with what it returns, as for `copy` |
+
+> Corrected 2026-10-13, when the step provider interface was built (§5 of `16-extensions.md`). The
+> provider-step row said the provider declares its idempotence and one that cannot is refused at
+> install. The interface made the declaration unnecessary rather than unenforced: a provider only
+> resolves a step into content-addressed artifacts, and the node fetches them and the workload's
+> worker writes them, so no provider can write the volume at all, and re-running a step can only
+> re-resolve it and overwrite the same targets. The guarantee is now the interface's, which holds
+> for every provider, where a declaration would have held only for the honest ones. What a re-run
+> does not promise is the same bytes: an unpinned step may resolve to newer content, which is the
+> non-reproducible mark below.
 
 > Second external review, finding S73. The first version of this table listed `verify`, which is not
 > a verb, and omitted six verbs that are, so the guarantee "each verb states its own idempotence"

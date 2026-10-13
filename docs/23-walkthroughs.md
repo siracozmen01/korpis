@@ -889,6 +889,9 @@ The call of step 2 now exists in the contract: an endpoint's records are sent wh
 provider, which makes its zones agree and refuses names outside them (§3.5 of
 `07-networking.md`), so a retry after the slow provider of step 3 times out converges rather than
 duplicating records.
+Step providers, the other provider of the install path, now answer with content-addressed
+artifacts the node fetches by hash, so a provider that fails at step four of an install (§12) can
+be retried without any risk to the volume: no provider can write it (§4 of `09-recipes.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

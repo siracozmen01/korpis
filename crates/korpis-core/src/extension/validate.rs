@@ -4,7 +4,9 @@
 //! installer approves must say what it is, nothing may be declared twice, and a subscription
 //! without the grant that reads it is refused here rather than delivering nothing forever.
 
-use super::{ActionDecl, Egress, ExtensionManifest, Need, ProvidedInterface, ProviderType};
+use super::{
+    ActionDecl, ArgumentType, Egress, ExtensionManifest, Need, ProvidedInterface, ProviderType,
+};
 use crate::authz::action::Action;
 use crate::recipe::RecipeError;
 use std::collections::BTreeSet;
@@ -47,6 +49,23 @@ fn host(s: &str) -> bool {
 fn bounded<T>(field: &str, items: &[T]) -> Result<(), RecipeError> {
     if items.len() > MAX_ITEMS {
         return Err(RecipeError::new(field, format!("at most {MAX_ITEMS} entries")));
+    }
+    Ok(())
+}
+
+/// One step's arguments at `at`: scalar types, each named once.
+fn step_schema(at: &str, arguments: &[super::ActionArgument]) -> Result<(), RecipeError> {
+    bounded(at, arguments)?;
+    let mut names = BTreeSet::new();
+    if let Some(j) = arguments.iter().position(|a| !dotted(&a.name) || !names.insert(&a.name)) {
+        return Err(RecipeError::new(&format!("{at}[{j}].name"), "named once"));
+    }
+    let scalar = |a: &super::ActionArgument| {
+        matches!(a.kind, ArgumentType::String | ArgumentType::Int | ArgumentType::Bool)
+    };
+    if let Some(j) = arguments.iter().position(|a| !scalar(a)) {
+        let why = "string, int, or bool: a step is handed no resource to act on";
+        return Err(RecipeError::new(&format!("{at}[{j}].type"), why));
     }
     Ok(())
 }
@@ -149,7 +168,10 @@ impl ExtensionManifest {
         let mut seen = BTreeSet::new();
         for (i, p @ ProvidedInterface { kind, name }) in self.provides.iter().enumerate() {
             let well_formed = match kind {
-                ProviderType::Step => name.split_once('/').is_some_and(|(a, b)| slug(a) && slug(b)),
+                // The step part is words joined by dots, as `valve/steam.app` is.
+                ProviderType::Step => name
+                    .split_once('/')
+                    .is_some_and(|(a, b)| slug(a) && b.len() <= 63 && b.split('.').all(slug)),
                 _ => slug(name),
             };
             if !well_formed || !seen.insert(p) {
@@ -159,6 +181,20 @@ impl ExtensionManifest {
                 };
                 return Err(RecipeError::new(&format!("extension.provides[{i}].name"), why));
             }
+        }
+        self.step_schemas()
+    }
+
+    /// Each step's arguments: a step it provides, scalar types, each named once.
+    fn step_schemas(&self) -> Result<(), RecipeError> {
+        for (step, arguments) in &self.step_arguments {
+            let Some(i) =
+                self.provides.iter().position(|p| p.kind == ProviderType::Step && &p.name == step)
+            else {
+                let why = "only a step this extension provides takes arguments";
+                return Err(RecipeError::new("extension.provides", why));
+            };
+            step_schema(&format!("extension.provides[{i}].arguments"), arguments)?;
         }
         Ok(())
     }

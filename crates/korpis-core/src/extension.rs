@@ -11,6 +11,7 @@ mod condition;
 mod contract;
 mod installation;
 mod registration;
+mod step;
 mod validate;
 
 pub use breaker::{
@@ -22,6 +23,7 @@ pub use condition::{ProviderChange, ProviderCondition};
 pub use contract::{CAPABILITIES, CONTRACT_VERSIONS, Incompatible};
 pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
+pub use step::{MAX_ARTIFACTS, Platform, StepArtifact, StepResult, check_arguments};
 
 use crate::authz::action::Action;
 use crate::event::EventFilter;
@@ -44,6 +46,10 @@ pub struct ExtensionManifest {
     pub subscribes: Vec<EventFilter>,
     /// What it serves.
     pub provides: Vec<ProvidedInterface>,
+    /// The arguments each step it provides takes, by step kind (§4 of docs/09-recipes.md):
+    /// scalar values only, since a step runs under the extension's grant and not the recipe
+    /// author's, so it is never handed a resource to act on.
+    pub step_arguments: std::collections::BTreeMap<String, Vec<ActionArgument>>,
     /// The actions it adds, `ext.<name>.<action>`.
     pub actions: Vec<ActionDecl>,
     /// Its contributions to the web surface.

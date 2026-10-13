@@ -27,6 +27,7 @@ fn dns() -> ExtensionManifest {
         egress: vec![Egress { host: "api.cloudflare.com".into(), port: 443 }],
         subscribes: vec![EventFilter { kinds: vec!["endpoint.".into()], ..EventFilter::default() }],
         provides: vec![ProvidedInterface { kind: ProviderType::Dns, name: "cloudflare".into() }],
+        step_arguments: std::collections::BTreeMap::new(),
         actions: vec![ActionDecl {
             name: "purge".into(),
             description: "Purges the zone's cache".into(),
@@ -84,6 +85,24 @@ fn subscriptions_providers_actions_and_slots_say_what_they_are_once() {
         m.provides.push(ProvidedInterface { kind: ProviderType::Step, name: "steam".into() });
     };
     assert_eq!(refused(step), "extension.provides[1].name", "a step kind is <publisher>/<step>");
+    let dotted = |m: &mut ExtensionManifest| {
+        m.provides
+            .push(ProvidedInterface { kind: ProviderType::Step, name: "valve/Steam.app".into() });
+    };
+    assert_eq!(refused(dotted), "extension.provides[1].name", "lowercase words, joined by dots");
+    let mut m = dns();
+    m.provides.push(ProvidedInterface { kind: ProviderType::Step, name: "valve/steam.app".into() });
+    assert!(m.validate("cloudflare-dns").is_ok(), "the documents' own example");
+    let schema = |kind| vec![ActionArgument { name: "appid".into(), kind, required: true }];
+    m.step_arguments.insert("valve/steam.app".into(), schema(ArgumentType::Int));
+    assert!(m.validate("cloudflare-dns").is_ok());
+    m.step_arguments.insert("valve/steam.app".into(), schema(ArgumentType::Workload));
+    let e = m.validate("cloudflare-dns").unwrap_err();
+    assert_eq!(e.field, "extension.provides[1].arguments[0].type", "no resource arguments");
+    m.step_arguments.clear();
+    m.step_arguments.insert("cloudflare".into(), schema(ArgumentType::Int));
+    let e = m.validate("cloudflare-dns").unwrap_err();
+    assert_eq!(e.field, "extension.provides", "only a step takes arguments");
     let named = |m: &mut ExtensionManifest| m.actions[0].name = "Purge".into();
     assert_eq!(refused(named), "extension.actions[0].name");
     let argument = |m: &mut ExtensionManifest| {

@@ -47,6 +47,7 @@ pub mod provider;
 pub mod recipe;
 pub mod scope;
 pub mod spec;
+pub mod step;
 pub mod tenancy;
 pub mod value;
 pub mod workload;

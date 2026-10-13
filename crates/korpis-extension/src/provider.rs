@@ -62,6 +62,23 @@ impl Handler for Unsupported {
     }
 }
 
+/// Why a provider could not answer a call, in the terms its type's interface names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Failure {
+    /// A stable reason, `dns.zone_not_found` say, or one of the provider's own.
+    pub reason: String,
+    /// For display.
+    pub message: String,
+    /// Whether asking again may succeed (its upstream service was unreachable, say).
+    pub retryable: bool,
+}
+
+impl From<Failure> for Outcome {
+    fn from(f: Failure) -> Self {
+        failure(&f.reason, &f.message, f.retryable)
+    }
+}
+
 /// A failed call, as a handler answers one.
 #[must_use]
 pub fn failure(reason: &str, message: &str, retryable: bool) -> Outcome {

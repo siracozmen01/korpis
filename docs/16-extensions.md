@@ -79,7 +79,8 @@ extension:
   needs         []Need                  actions, and the scope each is wanted over (§4)
   egress        []host:port             what it reaches; its workload's egress policy
   subscribes    []EventFilter           what it consumes (§5)
-  provides      []{type, name}          what it serves, `dns` / `cloudflare` (§5)
+  provides      []{type, name, arguments}  what it serves, `dns` / `cloudflare` (§5); a step's
+                                        arguments, scalar types only
   actions       []ActionDecl            `ext.<name>.<action>`, Phase 4 (§5)
   ui_slots      []SlotDecl              Phase 4 (§5)
 ```
@@ -89,16 +90,19 @@ extension:
 `reason` is required, because it is the line the installer reads before approving. An action is
 needed over a scope once. `egress` entries are `host:port`, an IPv6 host in brackets. A
 subscription is `{kinds, min_severity, workloads}`, the filter of §5 of `15-observability.md`
-without its projects: a document cannot know the projects of the organization it will be
-installed into, so the installation narrows them. A document that subscribes must need
-`event.read`, since delivery reaches only what that grant reaches, and a subscription without it
-would install cleanly and deliver nothing, forever. `provides` entries are `{type, name}`, the
-type one of `dns`, `backup_target`, `step`, `health`, `console`, `identity`, `edge_router`,
-`chat_adapter`, the name a lowercase word, and for `step` `<publisher>/<step>`. The extension's
-name, its document's `metadata.name`, is a lowercase word, because it names its actions
-(`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of kind
-`Extension` without one, does not load. Everything else in the document is read as any recipe's,
-by the same parser, so a driver preparing the extension's workload reads it unchanged.
+without its projects: a document cannot know the projects of the organization it will be installed
+into, so the installation narrows them. A document that subscribes must need `event.read`, since
+delivery reaches only what that grant reaches, and a subscription without it would install cleanly
+and deliver nothing, forever. `provides` entries are `{type, name}`, with a step's `arguments`
+(§5), the type one of `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
+`edge_router`, `chat_adapter`, the name a lowercase word, and for `step` `<publisher>/<step>`, the
+step part one or more lowercase words joined by dots (`valve/steam.app`; corrected 2026-10-13, when
+the first step provider was built: the rule had left the step part undefined, the validation read
+it as one word, and every example in §4 of `09-recipes.md` and §4 of `22-first-party.md` failed
+it). The extension's name, its document's `metadata.name`, is a lowercase word, because it names
+its actions (`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of
+kind `Extension` without one, does not load. Everything else in the document is read as any
+recipe's, by the same parser, so a driver preparing the extension's workload reads it unchanged.
 
 One format means one signing path and one trust policy: an extension is admitted by the trust
 policy that admits recipes (§7 of `09-recipes.md`), and nothing about extensions needs a second
@@ -387,6 +391,19 @@ Calling out is the direction that carries risk, so the contract is strict:
   failed step's reason. This is the contract §10 of `09-recipes.md` routed here and that this
   section had not yet written down.
 
+  **As built in Phase 1.** `RunStep` carries the step kind, its arguments, the workload, and the
+  node's platform; the answer lists at most a thousand artifacts, each a path beneath the volume
+  root, an `http` or `https` URL, its SHA-256, its size and mode, and whether it is an archive to
+  unpack under the `extract` verb's rules, with `pinned` and what it `resolved` to. An answer whose
+  path leaves the volume or whose content has no hash is recorded as `provider.malformed` and
+  never reaches a node, and the breaker counts it. The argument schema is the `arguments` of the
+  step's `provides` entry, in the form an action declares its own, restricted to `string`, `int`,
+  and `bool`: a step runs under the extension's grant, not the recipe author's, so a resource
+  argument would hand the author's choice of object to authority the author does not hold. A
+  recipe's step is checked against it before any provider is called. The idempotence declaration
+  is corrected in place: see §4 of `09-recipes.md`. Failure reasons are the provider's own, in
+  the answer, as for every other type.
+
 > Finding 23 of `23-walkthroughs.md`.
 
 The last point exists because the first three all describe a provider that is broken, and the
@@ -530,20 +547,20 @@ that silently orphans an operator's DNS provider is an outage the operator did n
 **As built in Phase 1.** The contract version is `korpis.extension.v1`, and a capability names an
 interface of the contract the control plane actually speaks, never one it merely tolerates:
 `events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
-`identity.credential` (the credential socket, §9.5 of `08-identity.md`), and `provider.serve`
-(a provider's stream, §3.3: registering, being pinged, being cancelled), and `provider.dns` (a DNS
+`identity.credential` (the credential socket, §9.5 of `08-identity.md`), and `provider.serve` (a
+provider's stream, §3.3: registering, being pinged, being cancelled), and `provider.dns` (a DNS
 provider's calls, §3.5 of `07-networking.md`). Another `provider.<type>` is added when that type's
-own calls join the contract, which for backup targets and steps is the provider interfaces of
-Phase 1 (§4 of `20-roadmap.md`); until then an extension requiring `provider.backup_target` is
-refused, because installing it would leave it waiting for calls nothing makes, the failure six
-weeks later this section forbids. A capability is offered once its calls are in the contract and
-the SDK, even while the control plane's own use of them is still being built (DNS records are
-published for endpoints, which Phase 1 creates later), since the provider is then correct to wait. The check runs at install, a dry run included,
-so the installer reads the refusal before approving anything: an unknown contract version, or
-every required capability that is missing, at once, is refused as `extension.incompatible`
-naming what is missing and what is offered. A client reads both lists from `ServerInfo`
-(`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates rather than
-compares version numbers.
+own calls join the contract, which for backup targets and steps is the provider interfaces of Phase
+1 (§4 of `20-roadmap.md`); until then an extension requiring `provider.backup_target` is refused,
+because installing it would leave it waiting for calls nothing makes, the failure six weeks later
+this section forbids. A capability is offered once its calls are in the contract and the SDK, even
+while the control plane's own use of them is still being built (DNS records are published for
+endpoints, which Phase 1 creates later), since the provider is then correct to wait. The check runs
+at install, a dry run included, so the installer reads the refusal before approving anything: an
+unknown contract version, or every required capability that is missing, at once, is refused as
+`extension.incompatible` naming what is missing and what is offered. A client reads both lists from
+`ServerInfo` (`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates
+rather than compares version numbers.
 
 ---
 

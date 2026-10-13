@@ -56,6 +56,8 @@ message ProvidedInterface {
   ProviderType type = 1;
   // Unique per type within the organization it serves; step kinds are <publisher>/<step>.
   string name = 2;
+  // A step's arguments, scalar types only (§4 of docs/09-recipes.md).
+  repeated ActionArgument arguments = 3;
 }
 
 enum ProviderType {

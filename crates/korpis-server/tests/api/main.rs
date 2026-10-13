@@ -43,6 +43,7 @@ mod retire;
 mod sdk;
 mod session;
 mod sets;
+mod step;
 mod support;
 mod tenancy;
 mod tokens;
