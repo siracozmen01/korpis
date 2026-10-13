@@ -11,7 +11,9 @@ use super::wire::{self, Refuse, principal, timestamp, wire_id};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
-use korpis_app::extension::{ExtensionStatus, ExtensionView, InstallExtension, Installed};
+use korpis_app::extension::{
+    ExtensionStatus, ExtensionView, InstallExtension, Installed, Uninstalled,
+};
 use korpis_core::extension::{ExtensionManifest, Installation};
 use korpis_core::id::IdKind;
 use korpis_core::recipe::RecipeRef;
@@ -67,6 +69,30 @@ fn installed(i: &Installed) -> pb::InstallExtensionResponse {
     pb::InstallExtensionResponse {
         extension: extension.into(),
         plan: i.declared.as_ref().map(|d| plan_to_pb(&d.plan)).into(),
+        ..Default::default()
+    }
+}
+
+/// An uninstallation: the installation as it stood, its grants revoked, and the proposed
+/// retirement of its workload.
+fn uninstalled(u: &Uninstalled) -> pb::UninstallExtensionResponse {
+    let i = &u.installation;
+    let extension = pb::Extension {
+        id: wire_id(IdKind::Extension, i.id),
+        name: i.name.clone(),
+        version: i.version.clone(),
+        api_version: i.api_version.clone(),
+        status: pb::ExtensionStatus::EXTENSION_STATUS_STOPPED.into(),
+        organization: wire_id(IdKind::Organization, i.organization),
+        project: i.project.map(|p| wire_id(IdKind::Project, p)),
+        workload: wire_id(IdKind::Workload, i.workload),
+        installed_by: principal::to_pb(&i.installed_by).into(),
+        installed_at: timestamp(i.installed_at).into(),
+        ..Default::default()
+    };
+    pb::UninstallExtensionResponse {
+        extension: extension.into(),
+        plan: u.plan.as_ref().map(plan_to_pb).into(),
         ..Default::default()
     }
 }
@@ -157,9 +183,16 @@ impl pb::ExtensionService for Api {
     async fn uninstall_extension(
         &self,
         ctx: RequestContext,
-        _request: ServiceRequest<'_, pb::UninstallExtensionRequest>,
+        request: ServiceRequest<'_, pb::UninstallExtensionRequest>,
     ) -> ServiceResult<pb::UninstallExtensionResponse> {
-        self.caller(&ctx).await?;
-        Err(error::from_app(korpis_app::AppError::NotYet { what: "uninstalling", phase: 1 }))
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Extension, "id", &req.id).refuse()?;
+        let encoder = |u: &Uninstalled| encode(&uninstalled(u));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply =
+            self.app.uninstall_extension(&caller, &idem, id).await.map_err(error::from_app)?;
+        respond(reply, uninstalled)
     }
 }

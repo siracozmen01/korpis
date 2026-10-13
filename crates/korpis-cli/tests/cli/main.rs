@@ -15,6 +15,7 @@ mod call;
 mod commands;
 mod completion;
 mod declared;
+mod extensions;
 mod grants;
 mod sets;
 mod support;

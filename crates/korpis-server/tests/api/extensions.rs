@@ -140,3 +140,37 @@ async fn needs_are_approved_exactly_and_only_from_grants_the_installer_can_give(
     let e = h.extensions(h.root()).install_extension(reordered).await.unwrap_err();
     assert_eq!(detail(&e).field, "approved_needs", "the list as the document gives it");
 }
+
+#[tokio::test]
+async fn uninstalling_revokes_its_grants_proposes_its_retirement_and_frees_its_name() {
+    let h = Harness::new().await;
+    let repo = push_dns().await;
+    let project = project(&h, &h.root_org(), "dns").await;
+    let needs = needs(&h, &repo, &project).await;
+    let req = |key: &str| pb::InstallExtensionRequest {
+        approved_needs: needs.clone(),
+        ..install(&h, key, &repo, &project)
+    };
+    let done = h.extensions(h.root()).install_extension(req("i1")).await.unwrap().into_owned();
+    let first = done.extension.into_option().unwrap();
+
+    let uninstall = |key: &str| pb::UninstallExtensionRequest {
+        mutation: mutation(key).into(),
+        id: first.id.clone(),
+        ..Default::default()
+    };
+    let gone = h.extensions(h.root()).uninstall_extension(uninstall("u1")).await.unwrap();
+    let plan = gone.into_owned().plan.into_option().expect("its workload's retirement");
+    assert_eq!(plan.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_PROPOSED));
+    assert_eq!(h.effects("grant.revoke").await.len(), 2, "both of its grants");
+    let e = h.extensions(h.root()).uninstall_extension(uninstall("u2")).await.unwrap_err();
+    assert_eq!(reason(&e), "extension.uninstalled");
+    let list = pb::ListExtensionsRequest { organization: h.root_org(), ..Default::default() };
+    let listed = h.extensions(h.root()).list_extensions(list).await.unwrap().into_owned();
+    assert!(listed.extensions.is_empty(), "an uninstalled extension is not listed");
+
+    // Its name is free again where it was installed; its workload's name is not, until retired.
+    let again = pb::InstallExtensionRequest { workload_name: "dns-2".into(), ..req("i2") };
+    let second = h.extensions(h.root()).install_extension(again).await.unwrap().into_owned();
+    assert_ne!(second.extension.into_option().unwrap().id, first.id, "a new subject");
+}

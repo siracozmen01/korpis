@@ -6,6 +6,7 @@
 
 pub mod act;
 pub mod classify;
+pub mod extension;
 pub mod get;
 pub mod grant;
 pub mod sets;
@@ -273,8 +274,8 @@ pub struct Issue {
     /// What it is for, shown wherever it is listed; required for a new token.
     #[arg(long, default_value = "")]
     pub label: String,
-    /// Who holds it: `usr_…`, `tok_…`, `wl_…`, `extension:NAME`, `ext:PROVIDER:user:ID`, or
-    /// `ext:PROVIDER:set:REALM:MEMBER`. A new token when absent.
+    /// Who holds it: `usr_…`, `tok_…`, `wl_…`, `ext_…` (an installed extension),
+    /// `ext:PROVIDER:user:ID`, or `ext:PROVIDER:set:REALM:MEMBER`. A new token when absent.
     #[arg(long)]
     pub to: Option<String>,
     /// The grant to attenuate; the one you hold that it is valid from when absent.

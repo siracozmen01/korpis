@@ -861,7 +861,11 @@ now have a log that says what an event is and how a consumer keeps its place (§
 extension at all until the door named the workload's own identity directory as the one other
 mount, read-only. And the identity root was readable by every user on the host, so any local
 process could have asked a workload's socket for its credential; it is now the supervisor's alone
-(§6 of `02-architecture.md`).
+(§6 of `02-architecture.md`). Building install and uninstall found one restatement the re-keying
+of the subject had missed: the CLI still wrote an extension holder as `extension:NAME`, which
+named no installation; it is `ext_…` now (§7 of `13-surface-cli.md`). It also found that §9 of
+`16-extensions.md` called an upgrade a plain rolling update, which would let a new version arrive
+with needs nobody approved; question 6 there records how an upgrade is approved instead.
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

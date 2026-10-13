@@ -69,7 +69,7 @@ fn subject(text: &str) -> Result<pb::Subject, CliError> {
         [id] if id.starts_with("usr_") => S::User((*id).to_owned()),
         [id] if id.starts_with("tok_") => S::Token((*id).to_owned()),
         [id] if id.starts_with("wl_") => S::Workload((*id).to_owned()),
-        ["extension", name] => S::Extension((*name).to_owned()),
+        [id] if id.starts_with("ext_") => S::Extension((*id).to_owned()),
         ["ext", provider, "user", user] => {
             external(provider, external_identity::Selector::User((*user).to_owned()))
         }
@@ -89,8 +89,7 @@ fn subject(text: &str) -> Result<pb::Subject, CliError> {
 /// A subject as a person reads it.
 fn who(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
-        Some(S::User(id) | S::Token(id) | S::Workload(id)) => id.clone(),
-        Some(S::Extension(name)) => format!("extension:{name}"),
+        Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
         Some(S::External(e)) => match &e.selector {
             Some(external_identity::Selector::User(u)) => format!("ext:{}:user:{u}", e.provider),
             Some(external_identity::Selector::Set(s)) => {
@@ -249,18 +248,14 @@ mod tests {
 
     #[test]
     fn a_subject_is_read_back_as_written() {
-        for text in [
-            "usr_1",
-            "tok_1",
-            "wl_1",
-            "extension:backup",
-            "ext:discord:user:42",
-            "ext:discord:set:456:mod",
-        ] {
+        for text in
+            ["usr_1", "tok_1", "wl_1", "ext_1", "ext:discord:user:42", "ext:discord:set:456:mod"]
+        {
             let s = subject(text).unwrap_or_default();
             assert_eq!(who(Some(&s)), text);
         }
         assert!(subject("prj_1").is_err());
+        assert!(subject("extension:backup").is_err(), "an installation is named by its id");
         assert!(subject("ext:discord:role:1").is_err());
     }
 }

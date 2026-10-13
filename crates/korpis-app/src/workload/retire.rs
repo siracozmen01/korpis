@@ -68,6 +68,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let plan = self.retire_plan(caller, &w, &proposing, permit.grant).await?;
         let mut tx = self.store.begin().await?;
+        self.write_retirement(&mut tx, caller, &w, &plan, permit.grant).await?;
+        finish(tx, caller, idem, OPERATION, plan).await
+    }
+
+    /// Proposes `plan`, the retirement of `w`, in `tx`, if `w` has not moved since the plan was
+    /// computed and is not being retired already, with the effect that records it under
+    /// `grant`.
+    pub(crate) async fn write_retirement(
+        &self,
+        tx: &mut S::Tx,
+        caller: &Caller,
+        w: &Workload,
+        plan: &Plan,
+        grant: Uuid,
+    ) -> Result<(), AppError> {
         let locked = tx
             .lock_workload(w.id)
             .await?
@@ -79,23 +94,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if tx.retiring(w.id).await? {
             return Err(retiring());
         }
-        tx.insert_plan(&plan).await?;
-        let superseded = tx.supersede_proposed(&plan).await?;
+        tx.insert_plan(plan).await?;
+        let superseded = tx.supersede_proposed(plan).await?;
         let mut effect =
             Effect::new(caller.principal.clone(), "workload.delete", Outcome::Succeeded)
-                .under(permit.grant)
+                .under(grant)
                 .after(details([
-                    ("approval", propose::approval_name(&plan).into()),
+                    ("approval", propose::approval_name(plan).into()),
                     ("superseded_plans", superseded.into()),
                 ]));
         effect.workload = Some(w.id);
         effect.plan = Some(plan.id);
         tx.append_effect(&effect).await?;
-        finish(tx, caller, idem, OPERATION, plan).await
+        Ok(())
     }
 
     /// The retire plan from what the workload was approved to be and to do.
-    async fn retire_plan(
+    pub(crate) async fn retire_plan(
         &self,
         caller: &Caller,
         w: &Workload,

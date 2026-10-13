@@ -6,6 +6,7 @@ use clap::{CommandFactory as _, Parser, Subcommand};
 use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
+use korpis_cli::cmd::extension::{self, ExtensionAction};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
@@ -93,6 +94,9 @@ enum Command {
     /// Lists a project's declared sets, or changes what one does with drift.
     #[command(subcommand)]
     Set(SetAction),
+    /// Installs, lists, shows, and uninstalls extensions.
+    #[command(subcommand)]
+    Extension(ExtensionAction),
     /// Prints the script that registers completion with a shell, e.g.
     /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
     /// offers only what the token in the environment can read.
@@ -175,6 +179,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Status { workload } => answer(cli, get::status(&cli.required()?, workload).await),
         Command::Grant(a) => answer(cli, grant::grant(&cli.required()?, a).await),
         Command::Set(a) => answer(cli, sets::set(&cli.required()?, a).await),
+        Command::Extension(a) => answer(cli, extension::extension(&cli.required()?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

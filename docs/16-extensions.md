@@ -178,6 +178,17 @@ under the installer's grant) commit together. An installation's status is its wo
 observed: `running`, `failed` when it crashed or its node cannot run it, `stopped` otherwise;
 `incompatible` arrives with §6.
 
+**How an uninstall is decided** (2026-10-13, from the implementation). Uninstalling needs
+`extension.uninstall` where the extension is installed and `workload.delete` on its workload,
+since it proposes that workload's retirement. One transaction revokes every grant the
+installation holds (each with its `grant.revoke` effect), records when it was uninstalled, and
+proposes the retirement, which waits for a human like every retirement (§3.3 of `01-model.md`).
+The extension can do nothing meanwhile: its workload still runs until the retirement is approved,
+but it holds no grant, and a credential its node obtains for it now authenticates as
+`workload:<id>`. The installation's record stays, because effects name its subject for as long
+as the audit record is kept; its name is free again where it was installed, while its workload's
+name stays taken until the workload is retired.
+
 **An extension's artifact is installed, never declared.** A declaration through the workload API
 that names an extension's artifact is refused, and so is one that gives an extension's workload
 any artifact but the digest it was installed from (§3.5 and §3.7 of `01-model.md`, §8 of

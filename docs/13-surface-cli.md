@@ -300,6 +300,15 @@ expires, while this token is checked online on every request, so the revocation 
 the pipeline's next call. `--to` issues to an existing subject instead; `grant list`, `grant show`
 (the grant and its chain), and `grant revoke` complete the set.
 
+Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are.
+`korpis extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension
+needs, over what, and why, what it reaches, provides, and subscribes to, and then the command
+that approves exactly that, with the artifact pinned by digest. `--approve` installs, and is
+refused unless `--version` is a digest, because a tag may move between reading the needs and
+approving them, and an approval is of what was read (§4 of `16-extensions.md`). `extension list`,
+`extension show`, and `extension uninstall` complete the set; a grant's holder may be written
+`ext_…` to name an installation.
+
 Shell completion resolves against what the caller can actually read, for the same reason Discord's
 autocomplete does (§8 of `12-surface-discord.md`): existence follows read authority, so completion
 cannot become a name-disclosure oracle.
