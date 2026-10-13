@@ -12,6 +12,7 @@
 )]
 
 mod chain;
+mod ids;
 mod nodes;
 mod placement;
 mod plans;

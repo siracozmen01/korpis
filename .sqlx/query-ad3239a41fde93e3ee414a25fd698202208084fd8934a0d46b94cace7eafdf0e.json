@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM node_id_slot s USING workload w\n              WHERE s.workload_id = w.id AND s.node_id = $1 AND w.deleted_at IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ad3239a41fde93e3ee414a25fd698202208084fd8934a0d46b94cace7eafdf0e"
+}

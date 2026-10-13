@@ -41,6 +41,8 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         recipe_manifest: a.recipe_manifest.clone(),
         node: wire_id(IdKind::Node, a.node),
         lease_epoch: a.lease_epoch,
+        uid_base: a.ids.base,
+        uid_count: a.ids.count,
         ..Default::default()
     }
 }

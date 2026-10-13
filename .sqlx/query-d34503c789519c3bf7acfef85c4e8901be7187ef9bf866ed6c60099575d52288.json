@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT slot FROM node_id_slot WHERE node_id = $1 AND workload_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slot",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node_id_slot",
+            "name": "slot"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d34503c789519c3bf7acfef85c4e8901be7187ef9bf866ed6c60099575d52288"
+}

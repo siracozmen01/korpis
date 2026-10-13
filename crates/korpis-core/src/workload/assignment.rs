@@ -38,6 +38,41 @@ pub struct Assignment {
     pub node: Uuid,
     /// The lease epoch under which the node may act for the workload; zero until it holds one.
     pub lease_epoch: u64,
+    /// The host ids the workload's user namespace maps onto (§4.5 of docs/04-runtimes.md).
+    pub ids: IdRange,
+}
+
+/// How many ids a workload's user namespace maps: the workload sees 0 to 65535.
+pub const IDS_PER_WORKLOAD: u32 = 1 << 16;
+/// The first host id given to workloads: above every id a host's own users and the subordinate
+/// ranges of its rootless users conventionally take.
+pub const FIRST_WORKLOAD_ID: u32 = 1 << 30;
+
+/// A range of host ids, for users and groups alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IdRange {
+    /// The host id the workload's id 0 maps to.
+    pub base: u32,
+    /// How many ids.
+    pub count: u32,
+}
+
+impl IdRange {
+    /// The range of node slot `slot`, if the id space has one: slots are consecutive ranges of
+    /// [`IDS_PER_WORKLOAD`] from [`FIRST_WORKLOAD_ID`], and the last valid id is `u32::MAX - 1`,
+    /// since `u32::MAX` is `-1` to the kernel.
+    #[must_use]
+    pub fn of_slot(slot: u32) -> Option<Self> {
+        let base = slot.checked_mul(IDS_PER_WORKLOAD)?.checked_add(FIRST_WORKLOAD_ID)?;
+        let last = base.checked_add(IDS_PER_WORKLOAD - 1)?;
+        (last < u32::MAX).then_some(Self { base, count: IDS_PER_WORKLOAD })
+    }
+
+    /// How many slots a node has.
+    #[must_use]
+    pub fn slots() -> u32 {
+        (u32::MAX - FIRST_WORKLOAD_ID) / IDS_PER_WORKLOAD
+    }
 }
 
 /// The steps of a plan a node executes (§4.8, §4.9 of docs/02-architecture.md).
@@ -112,6 +147,16 @@ mod tests {
         assert_eq!(Continuity::Derived.resolved(false), Continuity::KeepRunning);
         assert_eq!(Continuity::Derived.resolved(true), Continuity::Stop);
         assert_eq!(Continuity::KeepRunning.resolved(true), Continuity::KeepRunning);
+    }
+
+    #[test]
+    fn slots_tile_the_id_space_above_the_host_and_stop_short_of_minus_one() {
+        assert_eq!(IdRange::of_slot(0), Some(IdRange { base: 1 << 30, count: 65536 }));
+        let last = IdRange::slots() - 1;
+        let top = IdRange::of_slot(last).unwrap();
+        assert!(top.base.checked_add(top.count - 1).is_some_and(|l| l < u32::MAX));
+        assert_eq!(IdRange::of_slot(last + 1), None);
+        assert_eq!(IdRange::of_slot(u32::MAX), None);
     }
 
     #[cfg(feature = "identity")]

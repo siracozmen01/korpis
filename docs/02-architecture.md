@@ -525,6 +525,8 @@ Assignment
   plan          NodePlan?      present while an applying plan has steps this node executes
   retire        RetireRef?     present when the workload is to be removed from this node
   migration     MigrationRole? present during a migration: role, phase, peer
+  ids           IdRange        the host ids the workload's user namespace maps onto, unique
+                               on this node (§4.5 of 04-runtimes.md)
   signature     the control plane's signature over all of the above
 
 NodePlan

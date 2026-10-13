@@ -17,7 +17,7 @@ service HelperService {
   rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
   // Report a volume's usage as the filesystem accounts it.
   rpc VolumeUsage(VolumeUsageRequest) returns (VolumeUsageResponse);
-  // Reserve a uid range for a workload, cluster-wide unique, recorded on disk (§4.5 of
+  // Reserve a uid range for a workload, as its assignment names it, recorded on disk (§4.5 of
   // docs/04-runtimes.md).
   rpc EnsureIdRange(EnsureIdRangeRequest) returns (EnsureIdRangeResponse);
 }

@@ -288,8 +288,25 @@ said where ranges come from. If each node allocated its own, a workload migrated
 file-level sync would arrive with its files owned by host uids that mean another workload, or
 nobody, on the destination.
 
-- **Ranges are allocated by the control plane, per workload, cluster-wide**, recorded in the
-  assignment, and never reused while any volume carrying them exists.
+- **Ranges are allocated by the control plane, per workload, unique on the node it is placed on**,
+  recorded in the assignment (`ids`, §4.8 of `02-architecture.md`), and given back when the
+  workload is retired.
+
+  > Corrected 2026-10-13, from the implementation. This said ranges were unique cluster-wide and
+  > never reused while a volume carried them, and the assignment had no field to record one. Both
+  > halves of the cluster-wide rule are answered by the next item instead: files carry
+  > workload-relative ids, so ownership on disk does not depend on the host range, and the
+  > fallback shifts ownership at copy time, from whatever range the source used to whatever range
+  > the destination gives. What a range has to be is distinct from every other range **on the
+  > same kernel**, which is isolation; distinct across machines buys nothing. The cluster-wide
+  > rule also had a cost nobody stated: ranges of 65,536 ids in a 32-bit id space are at most
+  > 49,151 above the host's own ids, so it capped a whole installation at that many workloads,
+  > a limit by scale that P10 rules out. Unique per node, the same arithmetic bounds what one
+  > machine runs, which no machine approaches. The control plane allocates under the per-node lock
+  > it already takes to seal a node's set, the lowest free slot of 65,536 ids from 2^30 upward,
+  > above every id a host's own users and the subordinate ranges of its rootless users
+  > conventionally take; a range is reused only once its workload is retired, because a runtime
+  > object that outlived its assignment, an orphan, still runs under it until then.
 - **Files on disk carry workload-relative ids** (0 to 65535 as the workload sees them), and the
   range is applied at mount time with idmapped mounts, so on-disk ownership does not depend on which
   host range the workload holds on which node. Migration copies bytes and ownership survives,

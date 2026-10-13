@@ -9,6 +9,12 @@ use korpis_app::ports::{AssignmentRead, AssignmentWrite, Sealed, StoreResult, St
 use std::time::SystemTime;
 use uuid::Uuid;
 
+/// A stored id slot, which the schema keeps non-negative.
+fn slot_of(n: i32) -> Result<u32, korpis_app::ports::StoreError> {
+    u32::try_from(n)
+        .map_err(|_| korpis_app::ports::StoreError::Corrupt("id slot is negative".into()))
+}
+
 /// The namespace of the per-node advisory locks that serialize computing a node's set.
 const ASSIGNMENT_LOCKS: i32 = 0x6b6f_7271;
 
@@ -108,6 +114,49 @@ impl AssignmentWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn id_slot(
+        &mut self,
+        node: Uuid,
+        workload: Uuid,
+        slots: u32,
+    ) -> StoreResult<Option<u32>> {
+        sqlx::query!(
+            "DELETE FROM node_id_slot s USING workload w
+              WHERE s.workload_id = w.id AND s.node_id = $1 AND w.deleted_at IS NOT NULL",
+            node
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let held = sqlx::query_scalar!(
+            "SELECT slot FROM node_id_slot WHERE node_id = $1 AND workload_id = $2",
+            node,
+            workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if let Some(slot) = held {
+            return Ok(Some(slot_of(slot)?));
+        }
+        let free = sqlx::query_file_scalar!("queries/id_slot_free.sql", node, i64::from(slots))
+            .fetch_optional(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?
+            .flatten();
+        let Some(slot) = free else { return Ok(None) };
+        sqlx::query!(
+            "INSERT INTO node_id_slot (node_id, workload_id, slot) VALUES ($1, $2, $3)",
+            node,
+            workload,
+            slot
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(Some(slot_of(slot)?))
     }
 
     async fn deactivate_assignment(&mut self, node: Uuid, workload: Uuid) -> StoreResult<()> {

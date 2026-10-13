@@ -14,7 +14,7 @@ use crate::ports::{
     WorkloadWrite,
 };
 use korpis_core::workload::Plan;
-use korpis_core::workload::assignment::{Assignment, NodePlan, retires, set_digest};
+use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
@@ -68,6 +68,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.stored_assignments(node).await?.into_iter().map(|s| (s.workload, s)).collect();
         let mut out = Vec::with_capacity(desired.len());
         for (mut assignment, plan) in desired {
+            let slot = tx.id_slot(node, assignment.workload, IdRange::slots()).await?;
+            assignment.ids = slot.and_then(IdRange::of_slot).ok_or_else(|| {
+                AppError::conflict(
+                    "node.ids_exhausted",
+                    "every user-namespace id range on the node is held",
+                )
+            })?;
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let kept = stored.get(&assignment.workload);
             let current = match kept {
@@ -166,6 +173,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 recipe_manifest: manifest.document,
                 node,
                 lease_epoch,
+                ids: IdRange { base: 0, count: 0 },
             },
             plan,
         )))

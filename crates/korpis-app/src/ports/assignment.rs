@@ -86,6 +86,15 @@ pub trait AssignmentWrite {
         assignment: &StoredAssignment,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// `workload`'s id slot on `node`: the one it holds, or the lowest free below `slots`,
+    /// after giving back the slots of retired workloads; `None` if every slot is held.
+    fn id_slot(
+        &mut self,
+        node: Uuid,
+        workload: Uuid,
+        slots: u32,
+    ) -> impl Future<Output = StoreResult<Option<u32>>> + Send;
+
     /// Takes `workload`'s assignment out of `node`'s set, keeping its generation.
     fn deactivate_assignment(
         &mut self,

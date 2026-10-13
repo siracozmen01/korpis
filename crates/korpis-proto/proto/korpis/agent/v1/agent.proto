@@ -215,6 +215,11 @@ message Assignment {
   string node = 13;
   // The lease epoch under which this node may act for the workload.
   uint64 lease_epoch = 14;
+  // The host ids the workload's user namespace maps its ids 0 to uid_count - 1 onto, for users
+  // and groups alike: allocated by the control plane, unique on this node while the workload is
+  // here (§4.5 of docs/04-runtimes.md).
+  uint32 uid_base = 15;
+  uint32 uid_count = 16;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

@@ -72,6 +72,7 @@ async fn a_node_is_sent_its_signed_set_when_it_changes_and_not_when_it_holds_it(
     let intent = declared.intent.as_option().unwrap();
     assert_eq!(assignment.target.as_option().unwrap().id, intent.id, "the approved intent");
     assert!(!assignment.recipe_manifest.is_empty(), "the node needs no registry to know it");
+    assert_eq!((assignment.uid_base, assignment.uid_count), (1 << 30, 1 << 16), "slot 0");
     let plan = assignment.plan.as_option().expect("the applying plan's node steps");
     assert!(!plan.steps.is_empty());
     let ack = agent::Ack { set_digest: first.set_digest.clone(), ..Default::default() };
@@ -88,6 +89,7 @@ async fn a_node_is_sent_its_signed_set_when_it_changes_and_not_when_it_holds_it(
     let second = set(&next(&mut stream).await);
     let changed = only(&a, &second);
     assert_eq!(changed.generation, 2, "a change is a new generation");
+    assert_eq!(changed.uid_base, assignment.uid_base, "a workload keeps its range");
     let state = changed.power.as_option().unwrap().desired.as_known();
     assert_eq!(state, Some(pb::PowerState::POWER_STATE_STOPPED));
     drop(stream);
