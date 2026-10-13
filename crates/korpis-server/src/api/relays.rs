@@ -58,7 +58,7 @@ pub(super) async fn list(
     let org = wire::id(IdKind::Organization, "organization", request.organization).refuse()?;
     let relays = api.app.list_relays(&caller, org).await.map_err(error::from_app)?;
     Response::ok(pb::ListRelaysResponse {
-        relays: relays.iter().map(relay_to_pb).collect(),
+        relays: relays.iter().map(|r| relay_to_pb(r, api.app.now())).collect(),
         ..Default::default()
     })
 }
@@ -73,8 +73,10 @@ pub(super) async fn remove(
     let key = mutation_key(req.mutation.as_option())?;
     let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
     let relay = wire::id(IdKind::Relay, "relay", &req.relay).refuse()?;
-    let response =
-        |r: &Relay| pb::RemoveRelayResponse { relay: relay_to_pb(r).into(), ..Default::default() };
+    let response = |r: &Relay| pb::RemoveRelayResponse {
+        relay: relay_to_pb(r, api.app.now()).into(),
+        ..Default::default()
+    };
     let encoder = |r: &Relay| encode(&response(r));
     let idem = Idempotent { key, encode: &encoder };
     let reply =

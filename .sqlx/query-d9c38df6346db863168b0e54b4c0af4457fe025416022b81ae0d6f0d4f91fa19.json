@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS \"expires_at!\",\n                      r.certificate_alert, e.organization_id\n                 FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id\n                WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL\n                ORDER BY r.name",
+  "query": "SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS \"expires_at!\",\n                      r.certificate_alert, r.last_seen_at, e.organization_id\n                 FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id\n                WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL\n                ORDER BY r.name",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,17 @@
       },
       {
         "ordinal": 6,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "organization_id",
         "type_info": "Uuid",
         "origin": {
@@ -91,8 +102,9 @@
       false,
       true,
       true,
+      true,
       false
     ]
   },
-  "hash": "2df1587b98bda02d710d155513ccf8a5552587496296b91050817bb00aa44d16"
+  "hash": "d9c38df6346db863168b0e54b4c0af4457fe025416022b81ae0d6f0d4f91fa19"
 }

@@ -26,6 +26,22 @@ pub struct Relay {
     pub certificate_expires_at: Option<SystemTime>,
     /// When it was removed; a removed relay is told nothing more and named to no node.
     pub removed_at: Option<SystemTime>,
+    /// When its feed was last served, to within [`SEEN_EVERY`].
+    pub last_seen_at: Option<SystemTime>,
+}
+
+/// How often the replica feeding a relay records that it did.
+pub const SEEN_EVERY: Duration = Duration::from_secs(30);
+
+impl Relay {
+    /// Whether its feed was served within three [`SEEN_EVERY`] of `now`.
+    #[must_use]
+    pub fn connected(&self, now: SystemTime) -> bool {
+        self.removed_at.is_none()
+            && self.last_seen_at.is_some_and(|seen| {
+                now.duration_since(seen).unwrap_or_default() <= SEEN_EVERY.saturating_mul(3)
+            })
+    }
 }
 
 /// How close a relay's certificate is to expiring, as an event says it (§7 of

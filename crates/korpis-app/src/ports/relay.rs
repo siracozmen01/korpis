@@ -112,6 +112,13 @@ pub trait RelayWrite {
         expected: Option<Severity>,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Records that `relay`'s feed was served at `at`.
+    fn relay_seen(
+        &mut self,
+        relay: Uuid,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// Removes `relay` at `at`; false if it was already removed or does not exist.
     fn remove_relay(
         &mut self,

@@ -23,6 +23,7 @@ struct RelayRow {
     joined_at: DateTime<Utc>,
     certificate_expires_at: Option<DateTime<Utc>>,
     removed_at: Option<DateTime<Utc>>,
+    last_seen_at: Option<DateTime<Utc>>,
 }
 
 fn severity(s: &str) -> StoreResult<Severity> {
@@ -42,6 +43,7 @@ impl RelayRow {
             joined_at: to_time(self.joined_at),
             certificate_expires_at: self.certificate_expires_at.map(to_time),
             removed_at: self.removed_at.map(to_time),
+            last_seen_at: self.last_seen_at.map(to_time),
         })
     }
 }
@@ -50,7 +52,7 @@ impl RelayRead for PgStore {
     async fn relays(&self) -> StoreResult<Vec<Relay>> {
         let rows = sqlx::query_as!(
             RelayRow,
-            "SELECT id, name, url, joined_at, certificate_expires_at, removed_at
+            "SELECT id, name, url, joined_at, certificate_expires_at, removed_at, last_seen_at
                FROM relay ORDER BY name"
         )
         .fetch_all(&self.pool)
@@ -62,7 +64,7 @@ impl RelayRead for PgStore {
     async fn relay(&self, id: Uuid) -> StoreResult<Option<Relay>> {
         let row = sqlx::query_as!(
             RelayRow,
-            "SELECT id, name, url, joined_at, certificate_expires_at, removed_at
+            "SELECT id, name, url, joined_at, certificate_expires_at, removed_at, last_seen_at
                FROM relay WHERE id = $1",
             id
         )
@@ -82,7 +84,7 @@ impl RelayRead for PgStore {
     async fn relay_certificates(&self) -> StoreResult<Vec<RelayCertificate>> {
         let rows = sqlx::query!(
             r#"SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS "expires_at!",
-                      r.certificate_alert, e.organization_id
+                      r.certificate_alert, r.last_seen_at, e.organization_id
                  FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id
                 WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL
                 ORDER BY r.name"#
@@ -100,6 +102,7 @@ impl RelayRead for PgStore {
                     joined_at: r.joined_at,
                     certificate_expires_at: Some(r.expires_at),
                     removed_at: None,
+                    last_seen_at: r.last_seen_at,
                 };
                 Ok(RelayCertificate {
                     relay: relay.into_domain()?,
@@ -267,6 +270,18 @@ impl RelayWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(true)
+    }
+
+    async fn relay_seen(&mut self, relay: Uuid, at: SystemTime) -> StoreResult<()> {
+        sqlx::query!(
+            "UPDATE relay SET last_seen_at = greatest(last_seen_at, $2) WHERE id = $1",
+            relay,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
     }
 
     async fn remove_relay(&mut self, relay: Uuid, at: SystemTime) -> StoreResult<bool> {

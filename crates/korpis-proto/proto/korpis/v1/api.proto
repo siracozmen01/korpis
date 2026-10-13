@@ -634,6 +634,11 @@ message Relay {
   // When the certificate the control plane last issued it expires.
   google.protobuf.Timestamp certificate_expires_at = 5;
   google.protobuf.Timestamp removed_at = 6;
+  // When its feed was last served, to within thirty seconds; absent before the first.
+  google.protobuf.Timestamp last_seen_at = 7;
+  // Whether its feed was served within the last ninety seconds: the relay is running and
+  // verifying by what it is sent.
+  bool connected = 8;
 }
 
 message CreateEnrollmentTokenRequest {

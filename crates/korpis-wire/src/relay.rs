@@ -7,9 +7,9 @@ use korpis_core::id::IdKind;
 use korpis_core::relay::Relay;
 use korpis_proto::korpis::v1 as pb;
 
-/// The wire form of a relay.
+/// The wire form of a relay, connected or not as of `now`.
 #[must_use]
-pub fn relay_to_pb(r: &Relay) -> pb::Relay {
+pub fn relay_to_pb(r: &Relay, now: std::time::SystemTime) -> pb::Relay {
     pb::Relay {
         id: wire_id(IdKind::Relay, r.id),
         name: r.name.as_str().to_owned(),
@@ -17,6 +17,8 @@ pub fn relay_to_pb(r: &Relay) -> pb::Relay {
         joined_at: timestamp(r.joined_at).into(),
         certificate_expires_at: r.certificate_expires_at.map(timestamp).into(),
         removed_at: r.removed_at.map(timestamp).into(),
+        last_seen_at: r.last_seen_at.map(timestamp).into(),
+        connected: r.connected(now),
         ..Default::default()
     }
 }

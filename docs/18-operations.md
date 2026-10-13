@@ -244,7 +244,7 @@ asks with `RelayControlService.Renew` signed by its identity key over that key, 
 key, chain, and expiry as a generation of their own, points its directory at it, and serves it
 from the next handshake without a restart. A renewal that stops half way leaves the generation
 before in service. The authority's issuing is an effect of its own (`relay.certificate_renew`,
-by `system:authority`). `ListRelays` shows each relay with its certificate's expiry, and
+by `system:authority`). `ListRelays` shows each relay with its certificate's expiry and whether it is connected, and
 `RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
 holds stays valid until it expires, since the installation does not revoke certificates. A joined
 relay runs with `korpis-server relay run`, listening by default on every IPv4 address at its URL's

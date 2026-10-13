@@ -192,8 +192,10 @@ no node at all. A client finds where to open a session in `ServerInfo`, which li
 as the replica last named them to nodes and says whether the control plane serves the role too;
 any relay listed reaches every connected node, since each node attaches to all of them. What
 Phase 1 still owes (§4 of `20-roadmap.md`): the PROXY protocol is not accepted, so a relay behind
-a load balancer sees the balancer's address as the client's; and `ListRelays` does not yet say
-whether a relay is connected. A relay renews its own certificate (§3 of `18-operations.md`).
+a load balancer sees the balancer's address as the client's. A relay renews its own certificate
+(§3 of `18-operations.md`), and `ListRelays` says whether each is connected: the replica feeding
+a relay records it at most every thirty seconds, and a relay whose feed was served within ninety
+is connected.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is

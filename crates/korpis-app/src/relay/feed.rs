@@ -72,6 +72,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
+    /// Records that `relay`'s feed is being served now.
+    pub async fn relay_seen(&self, relay: Uuid) -> Result<(), AppError> {
+        let mut tx = self.store.begin().await?;
+        tx.relay_seen(relay, self.clock.now()).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     /// Whether `relay` is still joined: not removed.
     pub async fn relay_joined(&self, relay: Uuid) -> Result<bool, AppError> {
         Ok(self.store.relay(relay).await?.is_some_and(|r| r.removed_at.is_none()))

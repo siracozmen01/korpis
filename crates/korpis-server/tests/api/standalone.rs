@@ -162,7 +162,12 @@ async fn the_relay_binary_serves_until_its_relay_is_removed() {
         .await
         .unwrap()
         .into_owned();
-    relays
+    let running_relay = &enrolled.relays[0];
+    assert!(
+        running_relay.connected && running_relay.last_seen_at.as_option().is_some(),
+        "a running relay is connected"
+    );
+    let removed = relays
         .remove_relay(pb::RemoveRelayRequest {
             mutation: mutation("remove-edge-1").into(),
             organization: h.root_org(),
@@ -171,6 +176,8 @@ async fn the_relay_binary_serves_until_its_relay_is_removed() {
         })
         .await
         .unwrap();
+    let removed = removed.into_owned().relay.into_option().unwrap();
+    assert!(!removed.connected, "a removed relay is not");
     let exited = tokio::time::timeout(Duration::from_secs(30), relay.wait()).await;
     let status = exited.expect("a removed relay stops").unwrap();
     assert!(!status.success(), "and says it was refused");

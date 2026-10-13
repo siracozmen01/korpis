@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE relay SET last_seen_at = greatest(last_seen_at, $2) WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cdee0b4e5a8e4e4ba73eae33d1ea85b2dc76b079f5097aca675db024d6f12904"
+}

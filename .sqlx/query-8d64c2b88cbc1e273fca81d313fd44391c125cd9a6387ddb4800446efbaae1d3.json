@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, url, joined_at, certificate_expires_at, removed_at\n               FROM relay ORDER BY name",
+  "query": "SELECT id, name, url, joined_at, certificate_expires_at, removed_at, last_seen_at\n               FROM relay WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -68,10 +68,23 @@
             "name": "removed_at"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay",
+            "name": "last_seen_at"
+          }
+        }
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Uuid"
+      ]
     },
     "nullable": [
       false,
@@ -79,8 +92,9 @@
       false,
       false,
       true,
+      true,
       true
     ]
   },
-  "hash": "3efc46210757fea519fd2ab287f50e102dac2d1ef8eb7ea44eca92ef4a67772d"
+  "hash": "8d64c2b88cbc1e273fca81d313fd44391c125cd9a6387ddb4800446efbaae1d3"
 }

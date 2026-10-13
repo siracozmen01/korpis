@@ -17,6 +17,7 @@ use crate::revocations::Revocations;
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::relay::JoinRelay;
 use korpis_core::id::IdKind;
+use korpis_core::relay::SEEN_EVERY;
 use korpis_proto::korpis::relay::v1 as relay;
 use korpis_proto::korpis::relay::v1::__buffa::oneof::feed_update::Message as Update;
 use korpis_wire::duration;
@@ -98,6 +99,7 @@ async fn feed(
     let mut lists = revocations.subscribe();
     let mut sent = (None, None);
     let mut list_sent = false;
+    let mut seen: Option<tokio::time::Instant> = None;
     if tx.send(terms(&app)).await.is_err() {
         return;
     }
@@ -105,6 +107,13 @@ async fn feed(
         if !matches!(app.relay_joined(relay).await, Ok(true)) {
             tracing::info!(%relay, "relay feed ended: removed");
             return;
+        }
+        if seen.is_none_or(|at| at.elapsed() >= SEEN_EVERY) {
+            match app.relay_seen(relay).await {
+                Ok(()) => seen = Some(tokio::time::Instant::now()),
+                // The next look records it; ListRelays shows the relay as quiet meanwhile.
+                Err(e) => tracing::warn!(%relay, error = %e, "recording the relay as seen failed"),
+            }
         }
         let mut sent_any = match keys(&app, &mut sent, &tx).await {
             Ok(any) => any,
