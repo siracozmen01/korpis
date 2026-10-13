@@ -2,7 +2,7 @@
 
 //! The reconciler against a real control plane, with the in-memory runtime standing in for a
 //! driver (§4 of docs/02-architecture.md): a declared workload is placed, its plan executed step
-//! by step under a lease, and it converges; the agent restarts and adopts it without touching
+//! by step under a lease, and it converges, all wired as `korpis-agent run` wires them; the agent restarts and adopts it without touching
 //! it; a crash is restarted; and a retirement removes the runtime object, keeps the volumes,
 //! releases the lease, and retires the workload.
 
@@ -10,64 +10,26 @@ use crate::session::until;
 use crate::support::{ControlPlane, facts};
 use korpis_agent::host::InMemoryHost;
 use korpis_agent::join::{Join, join};
-use korpis_agent::journal::{Bounds, JournalHandle};
-use korpis_agent::lease::{Keeper, Leases};
-use korpis_agent::reconcile::progress::Progress;
-use korpis_agent::reconcile::{Reconciler, Wiring};
+use korpis_agent::run::{Agent, Options};
 use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::runtime::{Prepared, Runtime};
-use korpis_agent::session::{Event, Session};
-use korpis_agent::state::{Identity, StateDir};
+use korpis_agent::session::Event;
+use korpis_agent::state::StateDir;
 use korpis_proto::korpis::v1 as pb;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::JoinHandle;
 
-/// An agent: its session, lease keeper, journal maintenance, and reconciler.
-struct Agent {
-    tasks: Vec<JoinHandle<()>>,
-}
-
-impl Drop for Agent {
-    fn drop(&mut self) {
-        for t in &self.tasks {
-            t.abort();
-        }
-    }
-}
-
-async fn start(
-    identity: &Identity,
-    state: &StateDir,
-    runtime: &InMemory,
-    host: &InMemoryHost,
-) -> Agent {
-    let journal = JournalHandle::open(&state.root().join("journal"), Bounds::default()).unwrap();
-    let (session, link) =
-        Session::new(identity.clone(), state.clone(), Arc::new(facts), journal.clone());
-    let mut events = link.events.subscribe();
-    let leases = Leases::new(journal.clone());
-    let keeper =
-        Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
-    let wiring = Wiring {
-        node: identity.node.clone(),
-        held: link.held.clone(),
-        leases,
-        journal: journal.clone(),
-        outbound: link.outbound.clone(),
-        events: link.events.subscribe(),
+async fn start(state: &StateDir, runtime: &InMemory, host: &InMemoryHost) -> Agent {
+    let options = Options {
         period: Duration::from_millis(200),
+        maintain_every: Duration::from_millis(500),
+        ..Options::default()
     };
-    let progress = Progress::open(&state.root().join("progress")).unwrap();
-    let reconciler = Reconciler::new(runtime.clone(), host.clone(), wiring, progress);
-    let tasks = vec![
-        tokio::spawn(session.run()),
-        tokio::spawn(keeper.run()),
-        journal.maintain_every(Duration::from_millis(500)),
-        tokio::spawn(reconciler.run()),
-    ];
+    let agent =
+        Agent::start(state, runtime.clone(), host.clone(), Arc::new(facts), options).unwrap();
+    let mut events = agent.events();
     until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
-    Agent { tasks }
+    agent
 }
 
 /// Waits until `pick` holds of the workload's status.
@@ -110,12 +72,12 @@ async fn node(
     cp: &ControlPlane,
     dir: &tempfile::TempDir,
     runtime: &InMemory,
-) -> (Identity, StateDir, String) {
+) -> (StateDir, String) {
     let (token, ca) = cp.token("fra-7").await;
     let state = StateDir::new(dir.path().join("agent"));
     let request =
         Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
-    let identity = join(&state, &request).await.unwrap();
+    join(&state, &request).await.unwrap();
     let stranger = pb::Intent { id: "in_stranger".into(), ..Default::default() };
     let Ok(Prepared::Spec(mut spec)) = runtime.prepare("wl_stranger", &stranger, b"").await else {
         panic!("the memory runtime prepares anything");
@@ -126,7 +88,7 @@ async fn node(
     }
     .into();
     let orphan = runtime.create(&spec).await.unwrap();
-    (identity, state, orphan)
+    (state, orphan)
 }
 
 /// The workload converged, running in its one runtime object, every completion granted; the
@@ -187,15 +149,15 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
-    let (identity, state, orphan) = node(&cp, &dir, &runtime).await;
-    let agent = start(&identity, &state, &runtime, &host).await;
+    let (state, orphan) = node(&cp, &dir, &runtime).await;
+    let agent = start(&state, &runtime, &host).await;
     let w = cp.declare(&project, "mc").await;
     let id = converges(&cp, &w, &runtime, &orphan).await;
     assert_eq!(host.content().len(), 1, "the recipe's content was fetched once");
 
-    drop(agent);
+    agent.stop().await;
     let before = runtime.calls().len();
-    let agent = start(&identity, &state, &runtime, &host).await;
+    let agent = start(&state, &runtime, &host).await;
     adopted(&cp, &w, &runtime, before).await;
     revived(&cp, &w, &runtime, &id).await;
 

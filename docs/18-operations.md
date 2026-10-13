@@ -164,6 +164,14 @@ and the same key and is told the same node; a different key is refused. A token 
 spent by a failed enrollment, a name taken meanwhile, is not given back: the operator creates
 another, which is the cost of a counter that can never be exceeded.
 
+Once joined, `korpis-agent run` is the node: it holds the control stream, keeps the journal,
+asks for leases, and reconciles, and it starts whether or not the control plane is reachable,
+because a node keeps doing its job from the set it holds (§4.6 of `02-architecture.md`). It is
+told which driver to use and how much of the machine to keep back for the machine's own system
+(§2.1 of `05-scheduling.md`). Stopping it, for an upgrade or by `SIGTERM`, leaves every workload
+exactly as it is and writes what the journal still counts in memory; the next start adopts them
+(§4.4 of `02-architecture.md`).
+
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
 will land.

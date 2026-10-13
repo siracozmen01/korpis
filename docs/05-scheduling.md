@@ -45,6 +45,19 @@ A node survives the filter only if all hold:
 | can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
 | the tenancy's quota admits it | §5 |
 
+**`allocatable` is measured by the agent, less a reserve the operator sets on the node.** The
+agent reports capacity as the machine has it (a thousand millicores per core, and total memory)
+and `allocatable` as capacity less a system reserve: by default 500 millicores and 1 GiB, each
+capped at a quarter of capacity so a small machine is not reserved away, and set per node with
+`korpis-agent run` (§3 of `18-operations.md`). The reserve is what the machine's own system, the
+agent, and the runtime need; without it a node fully reserved on paper is overcommitted in fact.
+It limits nothing an operator may run (P10): it is a measurement the operator corrects, not a
+gate. The cost is a default that is wrong for an unusual machine. Disk joins the report with the
+volumes of Phase 1 (§4 of `20-roadmap.md`).
+
+> Added 2026-10-13, from the implementation. `allocatable` was defined in §3.4 of `01-model.md`
+> as "capacity minus system reserve", and nothing said what the reserve was or who set it.
+
 Asking the driver before committing is the part other systems lack, and it happens in two layers,
 because the scheduler runs in the control plane and `Prepare` runs on the node.
 

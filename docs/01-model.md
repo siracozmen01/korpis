@@ -702,7 +702,7 @@ Node
   labels        map[str]str    region, rack, arch, os, gpu, storage-class, ...
   taints        []Taint        workloads must tolerate these to land here
   capacity      Resources      total
-  allocatable   Resources      capacity minus system reserve
+  allocatable   Resources      capacity minus system reserve (§2.1 of 05-scheduling.md)
   allocated     Resources      sum of what its placements reserve
   drivers       []DriverInfo   which runtime drivers this node offers, with capabilities
   admin         active | cordoned | draining | decommissioned      what the operator decided
