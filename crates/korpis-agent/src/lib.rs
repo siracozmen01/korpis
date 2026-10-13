@@ -11,6 +11,8 @@ pub mod durable;
 pub mod held;
 pub mod join;
 pub mod journal;
+pub mod lease;
+pub mod runtime;
 pub mod session;
 pub mod state;
 pub mod tls;

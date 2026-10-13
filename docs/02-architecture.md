@@ -364,6 +364,19 @@ term. Sixty seconds is the longest a handoff from an unreachable node waits, and
 handoff with more renewals, and the agent renews well before the end (a third of the term), so a
 renewal lost to one dropped packet costs nothing.
 
+**How the holder keeps its side**, from the implementation (2026-10-13). A request unanswered
+within five seconds, or a third of the term if that is shorter, is sent again with a fresh nonce,
+and an answer whose nonce is not the one awaited is ignored, so a grant delayed past its retry
+cannot extend a lease from the wrong send time. A refusal for `UNAVAILABLE` or `NOT_ASSIGNED`
+does not shorten a lease already held: its validity is a property of the clocks above, and it
+runs to the end the holder counted, with nothing mutated after that. A `SUPERSEDED` refusal ends
+it at once, since the control plane issues another node an epoch only once this one's lease is
+provably over. An assignment whose `on_lease_expiry` arrives unspecified, which a resolved one
+never is, is treated as `stop`, the answer that cannot make two writers. A lease the node has
+released is not asked for again while the workload's assignment is still held, which it is
+between a retirement finishing on the node and its completion being ingested; asking would
+undo the release.
+
 **What a request is answered with**, given where the workload is placed and who holds its lease:
 
 | The node asking | holds the lease, unreleased | another node holds an unexpired lease | nobody does |
