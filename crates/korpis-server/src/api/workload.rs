@@ -188,6 +188,7 @@ impl pb::WorkloadService for Api {
             recipe_version: recipe.version,
             declaration,
             dry_run: req.dry_run,
+            propose: req.propose,
         };
         let encoder = |d: &Declared| encode(&declared(d));
         let idem = Idempotent { key, encode: &encoder };

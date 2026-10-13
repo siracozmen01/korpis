@@ -3,9 +3,14 @@
 //! `korpis`: the reference client.
 
 use clap::{Parser, Subcommand};
+use korpis_cli::apply::{Mode, apply_planned, declare, plans};
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
+use korpis_cli::declared::read_all;
 use korpis_cli::error::CliError;
+use korpis_cli::show;
+use korpis_proto::korpis::v1 as pb;
+use korpis_recipe::registry::Registry;
 use serde_json::Value;
 use std::io::Read as _;
 use std::path::PathBuf;
@@ -26,12 +31,32 @@ struct Cli {
     /// Print the API's own JSON instead of the human form.
     #[arg(long, global = true)]
     json: bool,
+    /// A registry spoken to over plain HTTP when a recipe is fetched to check a file, as
+    /// `host:port`; repeatable. For a development registry only.
+    #[arg(long = "plain-http", global = true)]
+    plain_http: Vec<String>,
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
+    /// Declares the files and shows the real plan, persisted and waiting to be applied.
+    Plan {
+        /// A declared file, or a directory of them; repeatable.
+        #[arg(short = 'f', long = "file", required = true)]
+        files: Vec<PathBuf>,
+    },
+    /// Declares the files and applies what default policy approves; with `--plan`, applies
+    /// exactly the plans named, if the files still declare what they planned.
+    Apply {
+        /// A declared file, or a directory of them; repeatable.
+        #[arg(short = 'f', long = "file", required = true)]
+        files: Vec<PathBuf>,
+        /// A plan `korpis plan` showed; repeatable, one per workload.
+        #[arg(long = "plan")]
+        plans: Vec<String>,
+    },
     /// The client's version and source revision, and the server's when one is named.
     Version,
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
@@ -100,6 +125,8 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             }
             Ok(())
         }
+        Command::Plan { files } => declared(cli, files, &[], true).await,
+        Command::Apply { files, plans } => declared(cli, files, plans, false).await,
         Command::Call { list: true, .. } => {
             for m in METHODS {
                 println!("{m}");
@@ -114,6 +141,49 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             call(&c, method, request(data)?, &mut |v| print(&v)).await
         }
     }
+}
+
+/// `plan` or `apply` over `paths`.
+#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
+async fn declared(
+    cli: &Cli,
+    paths: &[PathBuf],
+    ids: &[String],
+    propose: bool,
+) -> Result<(), CliError> {
+    let c = cli.required()?;
+    let registry = Registry::new(cli.plain_http.clone());
+    let files = read_all(paths)?;
+    let (mut out, mut waiting) = (Vec::new(), Vec::new());
+    if ids.is_empty() {
+        let mode = if propose { Mode::Propose } else { Mode::Apply };
+        for f in &files {
+            let d = declare(&c, &registry, f, mode).await?;
+            let p = d.plan.as_option().cloned().unwrap_or_default();
+            if p.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {
+                waiting.push(p.id.clone());
+            }
+            out.push((f.declared.workload.clone(), p));
+        }
+    } else {
+        let plans = plans(&c, ids).await?;
+        for f in &files {
+            out.push((f.declared.workload.clone(), apply_planned(&c, &registry, f, &plans).await?));
+        }
+    }
+    if cli.json {
+        let plans: Vec<&pb::Plan> = out.iter().map(|(_, p)| p).collect();
+        print(&serde_json::to_value(plans).unwrap_or_default());
+        return Ok(());
+    }
+    for (workload, p) in &out {
+        println!("{}", show::plan(p, workload));
+    }
+    if !waiting.is_empty() {
+        let shown: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+        println!("{}", show::apply_with(&shown, &waiting));
+    }
+    Ok(())
 }
 
 #[expect(clippy::print_stderr, reason = "a failure is reported on standard error")]

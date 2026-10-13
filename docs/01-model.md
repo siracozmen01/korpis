@@ -565,7 +565,8 @@ Step
 >   declaration, and a `plan.approve` effect says it was approved by default policy: no other
 >   subject's authority is claimed for it.
 > - **Confirmation**: the proposer's grant permits the action outright, but the plan is not
->   auto-approvable. It waits in `proposed` until someone confirms it, and the proposer may: P5
+>   auto-approvable, or its proposer asked to confirm it (`propose`, §4 of `13-surface-cli.md`).
+>   It waits in `proposed` until someone confirms it, and the proposer may: P5
 >   asks that a human see the change, and the proposer reading the plan is that human. Confirming
 >   re-evaluates the proposer's authority for the plan's action.
 > - **Authority**: the plan was proposed under a grant with `requires_approval_by`. It needs a

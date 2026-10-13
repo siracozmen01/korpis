@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+use super::*;
+
+const SURVIVAL: &str = r#"workload: mc-survival
+project: community-servers
+recipe:  ghcr.io/korpis/recipes/minecraft-paper@sha256:9d2f000000000000000000000000000000000000000000000000000000000000
+lifecycle: persistent
+console: interactive
+resources:
+  memory: { reservation: 4Gi, limit: 6Gi }
+  cpu:    { reservation: 2 }
+volumes:
+  - name: world
+    size: 40Gi
+    class: replicated
+endpoints:
+  - name: game
+    port: 25565
+    exposure: stable
+config:
+  motd: "Survival · season 4"
+  difficulty: hard
+  max_players: 40
+"#;
+
+#[test]
+fn the_example_of_the_document_is_a_body() {
+    let d: Declared = serde_saphyr::from_str(SURVIVAL).unwrap();
+    let b = d.body().unwrap();
+    let r = b.recipe.as_option().unwrap();
+    assert_eq!(r.name, "ghcr.io/korpis/recipes/minecraft-paper");
+    assert!(r.digest.starts_with("sha256:9d2f") && r.version.is_empty());
+    assert_eq!(b.lifecycle.as_known(), Some(pb::Lifecycle::LIFECYCLE_PERSISTENT));
+    let res = b.resources.as_option().unwrap();
+    assert_eq!(res.memory.as_option().unwrap().limit, 6 << 30);
+    assert_eq!(res.cpu.as_option().unwrap().reservation_millis, 2000);
+    assert_eq!(b.volumes[0].size_bytes, 40 << 30);
+    assert_eq!(b.volumes[0].storage_class, "replicated");
+    assert_eq!(b.endpoints[0].exposure.as_known(), Some(pb::Exposure::EXPOSURE_STABLE));
+    assert_eq!(b.config["max_players"].kind, Some(V::IntValue(40)));
+    assert_eq!(b.config["difficulty"].kind, Some(V::StringValue("hard".into())));
+}
+
+#[test]
+fn a_tag_is_a_version_and_anything_unknown_is_refused() {
+    let d: Declared =
+        serde_saphyr::from_str("workload: a\nproject: p\nrecipe: reg:5000/x/y:1.2\n").unwrap();
+    let r = d.body().unwrap().recipe.into_option().unwrap();
+    assert_eq!((r.name.as_str(), r.version.as_str()), ("reg:5000/x/y", "1.2"));
+    let typo =
+        serde_saphyr::from_str::<Declared>("workload: a\nproject: p\nrecipe: x:1\nvolume: []\n");
+    assert!(typo.unwrap_err().to_string().contains("volume"));
+    let bad: Declared =
+        serde_saphyr::from_str("workload: a\nproject: p\nrecipe: x:1\nlifecycle: forever\n")
+            .unwrap();
+    assert!(bad.body().is_err(), "an enum the API does not have");
+}
+
+#[test]
+fn a_key_is_found_on_its_line() {
+    assert_eq!(line_of(SURVIVAL, Some("config"), "difficulty"), Some(19));
+    assert_eq!(line_of(SURVIVAL, None, "workload"), Some(1));
+    assert_eq!(line_of(SURVIVAL, Some("config"), "absent"), None);
+}

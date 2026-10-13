@@ -143,3 +143,30 @@ async fn cancelling_an_approved_plan_before_it_starts_puts_the_targets_back() {
     );
     assert_eq!(pointers(&h, &w).await, (false, 1, 0), "as if it had never been approved");
 }
+
+#[tokio::test]
+async fn a_proposed_declaration_waits_to_be_confirmed_even_when_it_could_apply_at_once() {
+    use crate::recipes::{create, project, push_paper};
+    let h = Harness::new().await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let mut request = create("w", &project, "mc", body(&repo, &[]));
+    request.propose = true;
+    let workloads = h.workloads(h.root());
+    let declared = workloads.declare_intent(request.clone()).await.unwrap().into_owned();
+    let plan = declared.plan.as_option().unwrap();
+    let w = declared.workload.as_option().unwrap().id.clone();
+    assert_eq!(status(plan), Some(pb::PlanStatus::PLAN_STATUS_PROPOSED), "persisted, waiting");
+    assert_eq!(plan.approval.as_known(), Some(pb::PlanApproval::PLAN_APPROVAL_CONFIRMATION));
+    assert!(!pointers(&h, &w).await.0, "nothing is told to a node yet");
+    let plans = h.plans(h.root());
+    let got = plans.get_plan(pb::GetPlanRequest { id: plan.id.clone(), ..Default::default() });
+    assert!(got.await.is_ok(), "a real plan, with an identifier that can be applied");
+    plans.approve_plan(approve("a", &plan.id)).await.unwrap();
+    assert!(pointers(&h, &w).await.0, "confirmed, and the target moved");
+
+    let mut both = create("w2", &project, "mc2", body(&repo, &[]));
+    (both.propose, both.dry_run) = (true, true);
+    let e = workloads.declare_intent(both).await.unwrap_err();
+    assert_eq!(reason(&e), "request.invalid");
+}

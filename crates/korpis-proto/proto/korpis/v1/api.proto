@@ -228,7 +228,9 @@ message ListProjectsResponse {
 service WorkloadService {
   // workload.create (new workload) or workload.write (new intent). Validates the body against
   // the recipe's config schema and field permissions, holds quota in the same transaction, and
-  // computes the plan. `dry_run` computes and returns the plan without persisting anything.
+  // computes the plan. `dry_run` computes and returns the plan without persisting anything;
+  // `propose` persists the intent and its plan and approves nothing (§4 of
+  // docs/13-surface-cli.md).
   rpc DeclareIntent(DeclareIntentRequest) returns (DeclareIntentResponse);
   // workload.start.
   rpc Start(StartRequest) returns (PowerResponse);
@@ -261,6 +263,10 @@ message DeclareIntentRequest {
   }
   IntentBody body = 4;
   bool dry_run = 5;
+  // Persist the intent and its plan, and leave the plan waiting for confirmation even when
+  // default policy would approve it at once, so the plan a person reviews is the one that
+  // applies (§3.3 of docs/01-model.md). Not with `dry_run`.
+  bool propose = 6;
 }
 
 message NewWorkload {

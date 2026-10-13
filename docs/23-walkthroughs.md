@@ -102,7 +102,10 @@ the whole trace on a real node (`crates/korpis-e2e`) stopped at step 5 twice. Th
 disk, because §2.1 of `05-scheduling.md` deferred disk to Phase 1 while the scheduler already
 counted volumes; and a preset with no console asked for `logs`, which no Phase 0 driver offers.
 Disk is reported from the helper's classes, and §3.1 of `09-recipes.md` now says what the console
-default costs.
+default costs. Step 1 through the CLI showed one more gap: `korpis plan` was to return a plan that
+`apply --plan` could name, and the API's only way to compute a plan without applying it, `dry_run`,
+persisted nothing. `propose` persists the plan unapproved (§4 of `13-surface-cli.md`, §3.3 of
+`01-model.md`).
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

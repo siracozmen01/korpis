@@ -12,4 +12,5 @@
 )]
 
 mod call;
+mod declared;
 mod support;

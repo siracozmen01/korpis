@@ -22,7 +22,7 @@ use korpis_core::tenancy::quota::Held;
 use korpis_core::workload::declare::Declaration;
 use korpis_core::workload::plan::compute::intent_steps;
 use korpis_core::workload::plan::impact::delta;
-use korpis_core::workload::plan::{DriverClass, Proposing};
+use korpis_core::workload::plan::{Approval, DriverClass, Proposing};
 use korpis_core::workload::spec::IntentBody;
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
 use uuid::Uuid;
@@ -69,6 +69,9 @@ pub struct DeclareIntent {
     pub declaration: Declaration,
     /// Compute and return everything, persist nothing.
     pub dry_run: bool,
+    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it
+    /// even when default policy would approve it (§3.3 of docs/01-model.md).
+    pub propose: bool,
 }
 
 /// What a declaration produced.
@@ -124,6 +127,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, Declared>,
         cmd: DeclareIntent,
     ) -> Result<Reply<Declared>, AppError> {
+        if cmd.dry_run && cmd.propose {
+            return Err(AppError::invalid("propose", "a dry run persists nothing to propose"));
+        }
         if !cmd.dry_run
             && let Some(r) = self.replay(caller, idem, OPERATION).await?
         {
@@ -147,7 +153,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             declared_at: self.clock.now(),
             body,
         };
-        let plan = self.intent_plan(caller, &base, &intent, &recipe);
+        let plan = self.intent_plan(caller, &base, &intent, &recipe, cmd.propose);
         let mut declared = Declared {
             workload: Workload {
                 intent: intent.id,
@@ -268,7 +274,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Base { workload, power, head, target, permit, proposing, action })
     }
 
-    fn intent_plan(&self, caller: &Caller, base: &Base, to: &Intent, recipe: &Recipe) -> Plan {
+    /// The plan of `to`; with `propose`, one that waits for confirmation whatever default policy
+    /// would do with it (§3.3 of docs/01-model.md).
+    fn intent_plan(
+        &self,
+        caller: &Caller,
+        base: &Base,
+        to: &Intent,
+        recipe: &Recipe,
+        propose: bool,
+    ) -> Plan {
         let driver = DriverClass::default();
         let classifier = propose::classifier(&driver, &recipe.disruption);
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
@@ -289,6 +304,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             proposing: &base.proposing,
             grant: base.permit.grant,
         };
-        propose::plan(caller, proposal, self.clock.now())
+        let mut plan = propose::plan(caller, proposal, self.clock.now());
+        if propose && plan.approval == Approval::Auto {
+            plan.approval = Approval::Confirmation;
+            plan.approval_reason = "its proposer asked to confirm it".into();
+        }
+        plan
     }
 }

@@ -92,6 +92,21 @@ What the file leaves out (the runtime, the probes, the volume's mount path above
 the recipe's preset, on the control plane, at declaration (§3.1 of `09-recipes.md`), and the plan
 shows the completed body.
 
+The keys are the ones above and a few more: `power` (`running` or `stopped`) and `labels` for a
+new workload; `pids` among the resources; `path`, `mode`, and `existing` on a volume; `protocol`
+and `domains` on an endpoint. Quantities are written as `4Gi` or `500m`, and enum values as the
+API names them, lower-case and without their prefix (`node_port`, `overlay_only`). The recipe is
+a repository with `@sha256:…` or `:tag`; the project is a name, looked up among the projects the
+caller may read and required to be unique there, or a `prj_` identifier. `-f` takes a file or a
+directory, whose `.yaml` and `.yml` files are read in name order. A key the format does not know is
+refused, never ignored.
+
+The check before sending is the control plane's own code run locally: the recipe is fetched by
+digest, the declaration completed from it, and the configuration resolved against its schema, so
+`config.greting` is refused as `servers/mc.yaml:5: config.greting: not declared by the recipe`.
+What only the control plane can decide (authority, quota, placement) it decides when the file
+arrives.
+
 ---
 
 ## 4. Plan is the diff, and it is the real one
@@ -123,6 +138,17 @@ apply with:  korpis apply -f servers/ --plan pl_3c81
 Applying a Plan by identifier applies **that** Plan. If the world moved in between, apply returns
 `CONFLICT` (§6 of `10-api.md`) and shows the new Plan, rather than silently executing something the
 operator never read. A plan reviewed in a pull request is therefore the plan that runs.
+
+> Note, 2026-10-13, from the implementation (`crates/korpis-cli`). The API's `dry_run` persists
+> nothing, so a plan computed by it has an identifier nothing can apply, and this section's
+> `--plan` had nothing to name. `DeclareIntent` gained `propose`: the intent and its plan are
+> persisted and the plan waits for confirmation even when default policy would approve it at once
+> (§3.3 of `01-model.md`). `korpis plan` declares with it; `korpis apply --plan` confirms the plan
+> after declaring the same files as a dry run and comparing the completed body with the one the
+> plan was computed for, and a difference is the `CONFLICT` above. Plans are per workload, as
+> the model has them, so a directory of files gives one plan each, and `--plan` is given once per
+> workload. Planning again supersedes the plan before it, so only the newest plan for a workload
+> can be applied. Without `--plan`, `apply` declares and default policy approves what it may.
 
 ---
 
