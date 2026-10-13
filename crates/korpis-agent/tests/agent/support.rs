@@ -5,6 +5,9 @@
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+use korpis_recipe::artifact::{Artifact, File};
+use korpis_recipe::registry::Registry;
 use korpis_server::data::DataDir;
 use korpis_server::install::{InstallConfig, install};
 use korpis_store::testing::TestDb;
@@ -13,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub struct ControlPlane {
-    _db: TestDb,
+    db: TestDb,
     _dir: tempfile::TempDir,
     pub data: DataDir,
     pub url: String,
@@ -64,7 +67,7 @@ impl ControlPlane {
             installed.organization.id,
         );
         Self {
-            _db: db,
+            db,
             _dir: dir,
             data,
             url: format!("https://localhost:{}", running.addr.port()),
@@ -87,10 +90,82 @@ impl ControlPlane {
         HttpClient::with_tls(Arc::new(tls))
     }
 
+    fn config(&self) -> ClientConfig {
+        ClientConfig::new(self.url.parse().unwrap())
+            .with_default_header("authorization", format!("Bearer {}", self.secret))
+    }
+
     pub fn nodes(&self) -> pb::NodeServiceClient<HttpClient> {
-        let config = ClientConfig::new(self.url.parse().unwrap())
-            .with_default_header("authorization", format!("Bearer {}", self.secret));
-        pb::NodeServiceClient::new(self.http(), config)
+        pb::NodeServiceClient::new(self.http(), self.config())
+    }
+
+    pub fn workloads(&self) -> pb::WorkloadServiceClient<HttpClient> {
+        pb::WorkloadServiceClient::new(self.http(), self.config())
+    }
+
+    /// A project in the root organization, whose policy runs unsigned recipes: the agent's
+    /// tests are about the node, not about trust (§7 of docs/09-recipes.md).
+    pub async fn project(&self) -> String {
+        let policy = pb::TrustPolicy { allow_unsigned: true, ..Default::default() };
+        pb::OrganizationServiceClient::new(self.http(), self.config())
+            .set_trust_policy(pb::SetTrustPolicyRequest {
+                mutation: mutation("unsigned").into(),
+                organization: self.root_org.clone(),
+                policy: policy.into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let created = pb::ProjectServiceClient::new(self.http(), self.config())
+            .create_project(pb::CreateProjectRequest {
+                mutation: mutation("project").into(),
+                organization: self.root_org.clone(),
+                name: "games".into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        created.project.as_option().unwrap().id.clone()
+    }
+
+    /// Declares workload `name` from the example recipe in `project`; its wire id.
+    pub async fn declare(&self, project: &str, name: &str) -> String {
+        let repo = push_paper().await;
+        let declared = self
+            .workloads()
+            .declare_intent(pb::DeclareIntentRequest {
+                mutation: mutation(&format!("declare-{name}")).into(),
+                target: Some(Target::Create(Box::new(pb::NewWorkload {
+                    project: project.to_owned(),
+                    name: name.to_owned(),
+                    ..Default::default()
+                }))),
+                body: pb::IntentBody {
+                    recipe: pb::RecipeRef {
+                        name: repo,
+                        version: "1.21.4".into(),
+                        ..Default::default()
+                    }
+                    .into(),
+                    ..Default::default()
+                }
+                .into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        declared.workload.as_option().unwrap().id.clone()
+    }
+
+    /// One query against the control plane's database.
+    pub async fn scalar<T>(&self, sql: &'static str) -> T
+    where
+        T: Send + Unpin + for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::Postgres>,
+    {
+        let store = self.db.store().await.unwrap();
+        sqlx::query_scalar(sql).fetch_one(store.pool()).await.unwrap()
     }
 
     /// A one-time token for a node named `name`; the token and the CA fingerprint.
@@ -111,5 +186,48 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         (created.token, created.ca_fingerprint)
+    }
+}
+
+pub fn mutation(key: &str) -> pb::Mutation {
+    pb::Mutation { idempotency_key: key.to_owned(), ..Default::default() }
+}
+
+/// The example recipe of §3 of docs/09-recipes.md.
+const PAPER: &str = include_str!("../../../korpis-recipe/tests/recipe/paper.yaml");
+
+/// Pushes the example to a repository no other test uses; returns the repository.
+pub async fn push_paper() -> String {
+    let registry =
+        std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
+    let repo = format!("{registry}/test/paper-{}", uuid::Uuid::now_v7().simple());
+    let file = |path: &str, data: &[u8]| File {
+        path: path.to_owned(),
+        media_type: "application/octet-stream".to_owned(),
+        data: data.to_vec(),
+    };
+    let artifact = Artifact {
+        document: PAPER.as_bytes().to_vec(),
+        files: vec![
+            file("layers/rootfs.tar.zst", b"not really a rootfs"),
+            file("templates/server.properties", b"motd={{motd}}\n"),
+        ],
+    };
+    Registry::new(vec![registry]).push(&repo, "1.21.4", &artifact).await.unwrap();
+    repo
+}
+
+/// What a test node reports: the `oci` driver and the fixtures' capacity.
+pub fn facts() -> korpis_agent::session::Facts {
+    let node = korpis_store::testing::ready_node(uuid::Uuid::now_v7(), "reported", &[]).unwrap();
+    let pb = korpis_server::api::wire::node::node_to_pb(
+        &node,
+        &korpis_core::tenancy::quota::Bounds::default(),
+    );
+    korpis_agent::session::Facts {
+        drivers: pb.drivers,
+        storage_classes: Vec::new(),
+        capacity: pb.capacity.into_option().unwrap_or_default(),
+        allocatable: pb.allocatable.into_option().unwrap_or_default(),
     }
 }

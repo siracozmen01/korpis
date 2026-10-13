@@ -546,7 +546,12 @@ the gaps above:
   ever converges to "you are the destination, in `replicate`, from node 4".
 - **`signature`** lets an agent prove what it was told. §8 of `03-state.md` uses that to recover
   assignments a restored control plane no longer remembers, and it means a compromised relay or
-  proxy on the path cannot alter an assignment unnoticed.
+  proxy on the path cannot alter an assignment unnoticed. The agent believes a set only when every
+  assignment in it verifies under a key enrollment gave it, names this node, and the set's digest
+  is the digest of what it carries; a set that fails any of these is refused whole, reported as a
+  security event, and not acknowledged, and the node keeps the set it held. A believed set is kept
+  on disk as it arrived, signatures included, and verified again when the agent starts, so what is
+  on disk is believed no more than what arrives.
 
 The set digest of §9 of `10-api.md` is computed over the assignments, generation by generation, so
 the resync optimization is unchanged.
