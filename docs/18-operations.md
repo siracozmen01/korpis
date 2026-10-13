@@ -189,9 +189,11 @@ the helper receives the listening socket, serves whoever connects, and exits aft
 without a connection. It serves only the users `--allow-uid` names, root alone when none is
 named, keeps volumes in the `local` class under `--volume-root` (`/var/lib/korpis/volumes` by
 default) and its record of id ranges under `--state` (`/var/lib/korpis/helper`). Where systemd is
-absent, `--socket PATH` binds the socket itself and serves until stopped. A volume root on a
-filesystem mounted without `prjquota` makes `local` a `directory` class, which enforces no size
-and says so (§2 of `06-storage.md`).
+absent, `--socket PATH` binds the socket itself and serves until stopped. The class's backend is
+read from the filesystem under `--volume-root`: ext4 made with `-O quota,project` or XFS, mounted
+with `prjquota`, makes `local` a project class with byte and inode limits in the write path (§3 of
+`06-storage.md`); any other filesystem makes it a `directory` class, which enforces no size and
+says so (§2 of `06-storage.md`).
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

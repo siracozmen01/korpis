@@ -37,20 +37,20 @@ impl Helper {
     }
 
     /// The class `name` names; the default when it names none.
-    fn class(&self, name: &str) -> HelperResult<&Class> {
+    fn class(&mut self, name: &str) -> HelperResult<&mut Class> {
         let found = if name.is_empty() {
-            self.classes.first()
+            self.classes.first_mut()
         } else {
-            self.classes.iter().find(|c| c.name() == name)
+            self.classes.iter_mut().find(|c| c.name() == name)
         };
         found.ok_or_else(|| HelperError::NotFound(format!("storage class {name:?}")))
     }
 
     /// The class that holds `volume`, if any does.
-    fn holding(&self, volume: &str) -> HelperResult<&Class> {
+    fn holding(&mut self, volume: &str) -> HelperResult<&mut Class> {
         crate::error::identifier("volume", volume)?;
         self.classes
-            .iter()
+            .iter_mut()
             .find(|c| c.path_of(volume).symlink_metadata().is_ok())
             .ok_or_else(|| HelperError::NotFound(format!("volume {volume}")))
     }

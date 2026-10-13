@@ -1964,6 +1964,7 @@ dependencies = [
  "korpis-agent",
  "korpis-core",
  "korpis-proto",
+ "libc",
  "rustix",
  "tempfile",
  "thiserror 2.0.21",

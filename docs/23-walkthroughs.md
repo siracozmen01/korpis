@@ -95,7 +95,9 @@ The kernel's record of the connecting user now decides it, and `Wait`, which the
 carried, is its `Events` stream. Step 10 assumed every node could enforce a volume's size; a
 filesystem without project quota cannot, and no class described one. The `directory` class of §2
 of `06-storage.md` does, with every capability false, and the helper that creates the volume is
-reached by a transport §6.2 of `02-architecture.md` now defines.
+reached by a transport §6.2 of `02-architecture.md` now defines. On ext4 and XFS the limit is a
+quota project per volume, read from the filesystem and checked in a test against a real one (§3
+of `06-storage.md`), and the section now says what passes it: root on the host.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

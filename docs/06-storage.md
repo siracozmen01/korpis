@@ -118,6 +118,19 @@ against a number produced by a background process. Neither is in the write path.
 | XFS / ext4 | project quota on the project ID, bytes and inodes | `write()` returns `EDQUOT`, immediately |
 | LVM-thin + XFS | XFS project quota inside; the thin volume's size bounds the filesystem | `EDQUOT` from the quota; `ENOSPC` from the filesystem if the volume is full |
 
+**On ext4 and XFS, each volume is a project of its own.** The helper gives the volume's directory
+a project identifier that everything created under it inherits, sets the project's byte and inode
+limits, and reads its usage back through `quotactl_fd(2)` on the class root, so no block device is
+ever named. Identifiers are given from 2^24 upward and recorded beside the volumes, in the class
+root, so the record moves with the data and stays clear of the small numbers an operator assigns
+by hand on the same filesystem. Which backend a class has is read from the filesystem when the
+helper starts, never configured: ext4 or XFS with project quota on is a project class, anything
+else a `directory` (§2). Two things follow that the limit does not say. The volume's own
+directory counts against it, one inode and one block. And a process holding `CAP_SYS_RESOURCE` in
+the host's user namespace passes a hard limit, as the kernel allows root to; a workload never
+holds it, because its capabilities are its own user namespace's (§2 of `04-runtimes.md`), but the
+helper does, and so does anything else running as root on the host.
+
 **Thin pools are the one place where exceeding capacity is not a clean error.** A thin volume that
 fills returns `ENOSPC` from its filesystem like any full disk. A thin **pool** that runs out of real
 blocks underneath its volumes either queues writes or fails them with I/O errors, depending on its

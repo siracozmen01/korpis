@@ -1,31 +1,65 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The storage classes the helper offers (§2 of docs/06-storage.md), each a directory it owns
-//! with the backend that holds its volumes. The `directory` backend is a directory on a
-//! filesystem without project quota: it enforces nothing, and every capability it declares says
-//! so, so a size asked of it is kept nowhere and shown nowhere (Rule K-3).
+//! with the backend that holds its volumes, chosen from what the filesystem can do rather than
+//! from what anyone says it can. On ext4 or XFS with project quota on, a volume is a project with
+//! byte and inode limits in the write path. Anywhere else a class is a `directory`: it enforces
+//! nothing, and every capability it declares says so, so a size asked of it is kept nowhere and
+//! shown nowhere (Rule K-3).
 
+use crate::projects::Projects;
+use crate::quota;
 use korpis_proto::korpis::v1 as pb;
+use std::fs::File;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
+
+/// `statfs` magic numbers of the filesystems with project quota.
+const EXT4_MAGIC: u64 = 0xEF53;
+const XFS_MAGIC: u64 = 0x5846_5342;
 
 /// How a class keeps its volumes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
     /// Plain directories; no quota, no accounting, no snapshots.
     Directory,
+    /// One quota project per volume, on ext4.
+    Ext4Project,
+    /// One quota project per volume, on XFS.
+    XfsProject,
+}
+
+impl Backend {
+    /// Whether limits are enforced in the write path.
+    #[must_use]
+    pub fn enforces(self) -> bool {
+        !matches!(self, Self::Directory)
+    }
 }
 
 /// A storage class.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Class {
     name: String,
     root: PathBuf,
     backend: Backend,
+    /// The root, held open: quota calls name the filesystem through it.
+    pub(crate) handle: File,
+    pub(crate) projects: Projects,
 }
 
 /// The root's mode: root's own, and traversable by the driver that mounts what is in it.
 const ROOT_MODE: u32 = 0o711;
+
+/// What the filesystem holding `root` can do.
+fn backend_of(root: &File) -> Backend {
+    let magic = rustix::fs::fstatfs(root).ok().and_then(|s| u64::try_from(s.f_type).ok());
+    match magic {
+        Some(EXT4_MAGIC) if quota::enabled(root) => Backend::Ext4Project,
+        Some(XFS_MAGIC) if quota::enabled(root) => Backend::XfsProject,
+        _ => Backend::Directory,
+    }
+}
 
 impl Class {
     /// The class `name` keeping its volumes under `root`, which is created if missing and must
@@ -37,7 +71,11 @@ impl Class {
             return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, why));
         }
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(ROOT_MODE))?;
-        Ok(Self { name: name.to_owned(), root: root.to_owned(), backend: Backend::Directory })
+        let handle = File::open(root)?;
+        let backend = backend_of(&handle);
+        tracing::info!(class = %name, root = %root.display(), ?backend, "storage class");
+        let projects = Projects::open(root)?;
+        Ok(Self { name: name.to_owned(), root: root.to_owned(), backend, handle, projects })
     }
 
     /// Its name.
@@ -67,17 +105,26 @@ impl Class {
     /// What it offers and what it holds, as the filesystem reports it.
     #[must_use]
     pub fn describe(&self) -> pb::StorageClassInfo {
-        let (capacity, free) = rustix::fs::statvfs(&self.root).map_or((0, 0), |s| {
+        let (capacity, free) = rustix::fs::fstatvfs(&self.handle).map_or((0, 0), |s| {
             (s.f_blocks.saturating_mul(s.f_frsize), s.f_bavail.saturating_mul(s.f_frsize))
         });
-        // Every capability false: a plain directory has none of them.
+        let backend = match self.backend {
+            Backend::Directory => pb::StorageBackend::STORAGE_BACKEND_DIRECTORY,
+            Backend::Ext4Project => pb::StorageBackend::STORAGE_BACKEND_EXT4_PROJECT,
+            Backend::XfsProject => pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT,
+        };
+        // Quota is all a project backend has; a directory has nothing (§2 of 06-storage).
+        let enforces = self.backend.enforces();
         let capabilities = pb::StorageCapabilities {
+            quota_enforced: enforces,
+            quota_capacity: enforces,
+            quota_inodes: enforces,
             fencing: pb::Fencing::FENCING_NONE.into(),
             ..Default::default()
         };
         pb::StorageClassInfo {
             name: self.name.clone(),
-            backend: pb::StorageBackend::STORAGE_BACKEND_DIRECTORY.into(),
+            backend: backend.into(),
             capabilities: capabilities.into(),
             capacity_bytes: capacity,
             free_bytes: free,
