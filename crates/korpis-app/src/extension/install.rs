@@ -140,7 +140,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Everything an install is refused for before anything is computed: where it goes, who
-    /// installs it, what it is, whether it is installed there already, and what was approved.
+    /// installs it, what it is and whether this control plane speaks its contract, whether it is
+    /// installed there already, and what was approved.
     async fn checked(
         &self,
         caller: &Caller,
@@ -148,6 +149,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(Target, Resolved), AppError> {
         let target = self.install_target(caller, cmd).await?;
         let resolved = self.extension_artifact(cmd).await?;
+        // At install, a dry run's included, and never at first use (§6 of docs/16-extensions.md).
+        resolved.manifest.compatible().map_err(|e| AppError::Unsatisfiable {
+            reason: "extension.incompatible",
+            message: e.to_string(),
+        })?;
         self.provider_authority(caller, &target, &resolved.manifest).await?;
         // Checked here so the answer names the installation rather than its workload's name;
         // the store's unique index still decides between two installs racing.

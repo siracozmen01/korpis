@@ -512,6 +512,21 @@ contract version shipped by a release that is still supported, every LTS include
 same: extensions live on machines and in registries that Korpis does not control, and an upgrade
 that silently orphans an operator's DNS provider is an outage the operator did not choose.
 
+**As built in Phase 1.** The contract version is `korpis.extension.v1`, and a capability names an
+interface of the contract the control plane actually speaks, never one it merely tolerates:
+`events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
+`identity.credential` (the credential socket, §9.5 of `08-identity.md`), and `provider.serve`
+(a provider's stream, §3.3: registering, being pinged, being cancelled). `provider.<type>` is added
+when that type's own calls join the contract, which for DNS, backup targets, and steps is the
+provider interfaces of Phase 1 (§4 of `20-roadmap.md`); until then a DNS extension requiring
+`provider.dns` is refused, because installing it would leave it waiting for calls nothing makes,
+the failure six weeks later this section forbids. The check runs at install, a dry run included,
+so the installer reads the refusal before approving anything: an unknown contract version, or
+every required capability that is missing, at once, is refused as `extension.incompatible`
+naming what is missing and what is offered. A client reads both lists from `ServerInfo`
+(`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates rather than
+compares version numbers.
+
 ---
 
 ## 7. What extensions cannot do

@@ -20,7 +20,7 @@ preset:
     cpu: {min: 50m, recommended: 100m}
 extension:
   api_version: korpis.extension.v1
-  requires: [provider.dns]
+  requires: [provider.serve, events.subscribe]
   needs:
     - actions: [endpoint.read]
       scope: organization

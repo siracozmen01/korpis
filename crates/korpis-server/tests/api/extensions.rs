@@ -18,9 +18,14 @@ const DNS: &str = include_str!("../../../korpis-recipe/tests/recipe/dns.yaml");
 /// Pushes the DNS extension, signed by the signer every harness's root organization accepts;
 /// returns the repository.
 pub async fn push_dns() -> String {
+    push_document(DNS).await
+}
+
+/// Pushes an extension document, signed as [`push_dns`] signs; returns the repository.
+pub async fn push_document(document: &str) -> String {
     let repo = format!("{}/test/dns-{}", registry_address(), Uuid::now_v7().simple());
     let registry = Registry::new(vec![registry_address()]);
-    let artifact = Artifact { document: DNS.as_bytes().to_vec(), files: Vec::new() };
+    let artifact = Artifact { document: document.as_bytes().to_vec(), files: Vec::new() };
     let digest = registry.push(&repo, "1.0.0", &artifact).await.unwrap();
     registry.sign(&repo, &digest, &test_key()).await.unwrap();
     repo
@@ -173,4 +178,33 @@ async fn uninstalling_revokes_its_grants_proposes_its_retirement_and_frees_its_n
     let again = pb::InstallExtensionRequest { workload_name: "dns-2".into(), ..req("i2") };
     let second = h.extensions(h.root()).install_extension(again).await.unwrap().into_owned();
     assert_ne!(second.extension.into_option().unwrap().id, first.id, "a new subject");
+}
+
+#[tokio::test]
+async fn an_extension_this_control_plane_cannot_serve_is_refused_at_install_naming_why() {
+    let h = Harness::new().await;
+    let project = project(&h, &h.root_org(), "dns").await;
+    let requires = "requires: [provider.serve, events.subscribe]";
+    let wants_dns = push_document(&DNS.replace(requires, "requires: [provider.dns]")).await;
+    let dry = |repo: &str| pb::InstallExtensionRequest {
+        dry_run: true,
+        ..install(&h, "dry", repo, &project)
+    };
+    let e = h.extensions(h.root()).install_extension(dry(&wants_dns)).await.unwrap_err();
+    assert_eq!(reason(&e), "extension.incompatible");
+    assert!(e.message.as_deref().unwrap_or_default().contains("provider.dns"), "{e:?}");
+
+    let later = DNS.replace("api_version: korpis.extension.v1", "api_version: korpis.extension.v2");
+    let e = h.extensions(h.root()).install_extension(dry(&push_document(&later).await)).await;
+    let e = e.unwrap_err();
+    assert_eq!(reason(&e), "extension.incompatible");
+    assert!(e.message.as_deref().unwrap_or_default().contains("korpis.extension.v2"), "{e:?}");
+
+    let info = pb::ServerInfoServiceClient::new(h.http.clone(), h.config(None))
+        .get_server_info(pb::GetServerInfoRequest::default())
+        .await
+        .unwrap()
+        .into_owned();
+    assert_eq!(info.extension_contracts, ["korpis.extension.v1"]);
+    assert!(info.capabilities.iter().any(|c| c == "provider.serve"), "{:?}", info.capabilities);
 }

@@ -54,9 +54,13 @@ message GetServerInfoResponse {
   // The exact source revision, and where it is published (§2 of docs/19-governance.md).
   string source_revision = 2;
   string source_url = 3;
+  // The capabilities of the extension contract this control plane offers (§6 of
+  // docs/16-extensions.md): an extension requiring one not listed is refused at install.
   repeated string capabilities = 4;
   // Agent protocol versions this control plane accepts (§4 of docs/10-api.md).
   repeated string agent_protocols = 5;
+  // Extension contract versions this control plane serves, oldest first.
+  repeated string extension_contracts = 6;
 }
 
 service OrganizationService {

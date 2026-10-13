@@ -7,6 +7,7 @@
 use super::Api;
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_core::build;
+use korpis_core::extension::{CAPABILITIES, CONTRACT_VERSIONS};
 use korpis_proto::korpis::v1 as pb;
 
 use korpis_app::node::AGENT_PROTOCOLS;
@@ -22,8 +23,9 @@ impl pb::ServerInfoService for Api {
             version: build::VERSION.to_owned(),
             source_revision: build::SOURCE_REVISION.to_owned(),
             source_url: build::SOURCE_URL.to_owned(),
-            capabilities: Vec::new(),
+            capabilities: CAPABILITIES.iter().map(|c| (*c).to_owned()).collect(),
             agent_protocols: AGENT_PROTOCOLS.iter().map(|p| (*p).to_owned()).collect(),
+            extension_contracts: CONTRACT_VERSIONS.iter().map(|v| (*v).to_owned()).collect(),
             ..Default::default()
         })
     }

@@ -8,6 +8,7 @@
 mod breaker;
 mod call;
 mod condition;
+mod contract;
 mod installation;
 mod registration;
 mod validate;
@@ -18,6 +19,7 @@ pub use breaker::{
 };
 pub use call::{CallFailure, CallOutcome, CallRequest, MAX_CALL_DEADLINE, ProviderCall};
 pub use condition::{ProviderChange, ProviderCondition};
+pub use contract::{CAPABILITIES, CONTRACT_VERSIONS, Incompatible};
 pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 
