@@ -309,7 +309,9 @@ an arbitrary grant set, and small enough that a host serving it from a cheap CDN
    thread the runtime creates is born confined (§4). The control plane, the relay, the supervisor,
    and the CLI use Tokio as well, now that they are Rust. The privileged helper stays synchronous
    and single-threaded: it serves one structured request at a time, and an async runtime would add
-   threads and code to the one process where both are least welcome.
+   threads and code to the one process where both are least welcome. It does not even link one:
+   the generated Connect services, which bring Tokio with them, are a feature of the wire crate
+   that the helper leaves off, and the repository's layer check fails if Tokio reaches it.
 3. **Windows driver language. Carried by §9 of `04-runtimes.md`, question 6.** The default is now
    Rust, through Microsoft's `windows` crate, which reaches Job Objects and the Host Compute Service
    without a third toolchain. C# remains the fallback if an API the drivers need proves unreachable

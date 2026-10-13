@@ -19,7 +19,7 @@ getrandom = "0.4"
 http = "1"
 korpis-app = { workspace = true }
 korpis-core = { workspace = true, features = ["authz", "identity"] }
-korpis-proto = { workspace = true }
+korpis-proto = { workspace = true, features = ["services"] }
 korpis-recipe = { workspace = true }
 korpis-store = { workspace = true }
 korpis-wire = { workspace = true }

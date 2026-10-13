@@ -87,7 +87,10 @@ live in the adapters, are tested there, and are the only code that knows both si
 The agent and the helper are separate programs with their own use cases; they share the domain
 crate and the wire contract and nothing else. The helper does not link the authority module of the
 domain (the `authz` feature is off for it), because its attack surface is the reason it exists
-(§6.1 of `02-architecture.md`).
+(§6.1 of `02-architecture.md`). Nor does it link an RPC stack or an async runtime: the wire crate's
+generated services are its `services` feature, which the helper leaves off, so it takes the
+messages alone, and `scripts/check-layers.sh` fails if tokio, hyper, or connectrpc ever reaches
+its dependency graph.
 
 `korpis-wire` is the one translation between the domain and `korpis.v1`, shared by every program
 that speaks the schema: the API adapter today, the CLI and the agent next. A translation that

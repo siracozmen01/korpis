@@ -18,7 +18,8 @@
     reason = "generated code is not ours to restyle; the schema is what is reviewed"
 )]
 
-connectrpc::include_generated!();
+// The module tree; without the `services` feature each service's file is empty (build.rs).
+include!(concat!(env!("OUT_DIR"), "/_connectrpc.rs"));
 
 /// The schema as a compiled `FileDescriptorSet`, the same bytes the code above is generated
 /// from. Readers that need the schema at run time (to emit a message's default fields, for

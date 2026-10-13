@@ -32,5 +32,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .gate_client_feature(true)
         .include_file("_connectrpc.rs")
         .compile()?;
+    // The service code is the only generated code that names connectrpc. Without the
+    // `services` feature it is emptied, so the messages compile with no RPC stack linked.
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_SERVICES");
+    if std::env::var_os("CARGO_FEATURE_SERVICES").is_none() {
+        let out = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
+        for entry in std::fs::read_dir(&out)? {
+            let path = entry?.path();
+            if path.to_string_lossy().ends_with(".__connect.rs") {
+                std::fs::write(&path, "// services not built: the `services` feature is off\n")?;
+            }
+        }
+    }
     Ok(())
 }
