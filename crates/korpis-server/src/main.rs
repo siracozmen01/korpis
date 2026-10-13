@@ -39,45 +39,74 @@ enum Command {
         tls_names: Vec<String>,
     },
     /// Serve the API.
-    Serve {
-        #[arg(long, env = "KORPIS_DATA_DIR")]
-        data_dir: PathBuf,
-        #[arg(long, env = "KORPIS_DATABASE_URL")]
-        database_url: String,
-        #[arg(long, env = "KORPIS_LISTEN", default_value = "127.0.0.1:7443")]
-        listen: SocketAddr,
-        #[arg(long, default_value_t = 16)]
-        max_connections: u32,
-        /// A registry to speak plain HTTP to, as host:port; for a development registry on
-        /// loopback. Repeatable.
-        #[arg(long = "plain-http-registry")]
-        plain_http_registries: Vec<String>,
-        /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without
-        /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
-        #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
-        placement_policy: Option<PathBuf>,
-        /// Seconds between passes that retry workloads no node could take.
-        #[arg(long, default_value_t = 10)]
-        placement_retry_secs: u64,
-        /// Seconds between re-reads of a watched workload when nothing was announced.
-        #[arg(long, default_value_t = 15)]
-        watch_resync_secs: u64,
-        /// Seconds between agent heartbeats; a node missing three is unreachable (question 6
-        /// of §10 of docs/02-architecture.md).
-        #[arg(long, default_value_t = 30)]
-        agent_heartbeat_secs: u64,
-        /// Seconds a lease lasts from the holder's request; a handoff from an unreachable node
-        /// waits this long (§4.5 of docs/02-architecture.md).
-        #[arg(long, default_value_t = 60)]
-        lease_term_secs: u64,
-        /// Seconds over which repeated identical denials are written as one effect with a
-        /// count; the first of each run is written at once (§10 of docs/10-api.md).
-        #[arg(long, default_value_t = 60)]
-        denial_window_secs: u64,
-        /// Days the event log keeps an event; a subscriber further behind is told of the gap
-        /// (§5 of docs/15-observability.md). Effects are kept regardless.
-        #[arg(long, default_value_t = 30)]
-        event_retention_days: u64,
+    Serve(ServeArgs),
+    /// A relay of the data path running as its own process (§3.1 of docs/02-architecture.md).
+    Relay {
+        #[command(subcommand)]
+        command: RelayCommand,
+    },
+}
+
+/// What `serve` is told.
+#[derive(Debug, clap::Args)]
+struct ServeArgs {
+    #[arg(long, env = "KORPIS_DATA_DIR")]
+    data_dir: PathBuf,
+    #[arg(long, env = "KORPIS_DATABASE_URL")]
+    database_url: String,
+    #[arg(long, env = "KORPIS_LISTEN", default_value = "127.0.0.1:7443")]
+    listen: SocketAddr,
+    #[arg(long, default_value_t = 16)]
+    max_connections: u32,
+    /// A registry to speak plain HTTP to, as host:port; for a development registry on
+    /// loopback. Repeatable.
+    #[arg(long = "plain-http-registry")]
+    plain_http_registries: Vec<String>,
+    /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without
+    /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
+    #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
+    placement_policy: Option<PathBuf>,
+    /// Seconds between passes that retry workloads no node could take.
+    #[arg(long, default_value_t = 10)]
+    placement_retry_secs: u64,
+    /// Seconds between re-reads of a watched workload when nothing was announced.
+    #[arg(long, default_value_t = 15)]
+    watch_resync_secs: u64,
+    /// Seconds between agent heartbeats; a node missing three is unreachable (question 6
+    /// of §10 of docs/02-architecture.md).
+    #[arg(long, default_value_t = 30)]
+    agent_heartbeat_secs: u64,
+    /// Seconds a lease lasts from the holder's request; a handoff from an unreachable node
+    /// waits this long (§4.5 of docs/02-architecture.md).
+    #[arg(long, default_value_t = 60)]
+    lease_term_secs: u64,
+    /// Seconds over which repeated identical denials are written as one effect with a
+    /// count; the first of each run is written at once (§10 of docs/10-api.md).
+    #[arg(long, default_value_t = 60)]
+    denial_window_secs: u64,
+    /// Days the event log keeps an event; a subscriber further behind is told of the gap
+    /// (§5 of docs/15-observability.md). Effects are kept regardless.
+    #[arg(long, default_value_t = 30)]
+    event_retention_days: u64,
+}
+
+#[derive(Debug, Subcommand)]
+enum RelayCommand {
+    /// Join the control plane once, with an enrollment token from
+    /// `korpis call korpis.v1.NodeService/CreateRelayEnrollmentToken`.
+    Join {
+        /// Where the relay keeps its keys, certificate, and identity.
+        #[arg(long, env = "KORPIS_RELAY_DIR", default_value = "/var/lib/korpis-relay")]
+        dir: PathBuf,
+        /// The control plane, e.g. `https://korpis.example:7443`.
+        #[arg(long)]
+        server: String,
+        /// The enrollment token.
+        #[arg(long, env = "KORPIS_JOIN_TOKEN")]
+        token: String,
+        /// The fingerprint of the installation's authority, as the token's creation printed it.
+        #[arg(long)]
+        ca_fingerprint: String,
     },
 }
 
@@ -118,46 +147,43 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             report(&config, &done);
             Ok(())
         }
-        Command::Serve {
-            data_dir,
-            database_url,
-            listen,
-            max_connections,
-            plain_http_registries,
-            placement_policy,
-            placement_retry_secs,
-            watch_resync_secs,
-            agent_heartbeat_secs,
-            lease_term_secs,
-            denial_window_secs,
-            event_retention_days,
-        } => {
-            let policy = match placement_policy {
-                Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
-                None => PlacementPolicy::default(),
-            };
-            let running = korpis_server::serve(korpis_server::ServeConfig {
-                data: DataDir::new(data_dir),
-                database_url,
-                listen,
-                max_connections,
-                plain_http_registries,
-                placement_policy: policy,
-                placement_retry: Duration::from_secs(placement_retry_secs.max(1)),
-                watch_resync: Duration::from_secs(watch_resync_secs.max(1)),
-                heartbeat_interval: Duration::from_secs(agent_heartbeat_secs.max(1)),
-                lease_term: Duration::from_secs(lease_term_secs.max(1)),
-                denial_window: Duration::from_secs(denial_window_secs.max(1)),
-                event_retention: Duration::from_secs(event_retention_days.max(1) * 86_400),
-            })
-            .await?;
-            tokio::select! {
-                r = running.task => r??,
-                _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
-            }
+        Command::Serve(args) => serve(args).await,
+        Command::Relay { command: RelayCommand::Join { dir, server, token, ca_fingerprint } } => {
+            let dir = korpis_server::standalone::RelayDir::new(dir);
+            let id =
+                korpis_server::standalone::join(&dir, &server, &token, &ca_fingerprint).await?;
+            tracing::info!(relay = %id, "joined");
             Ok(())
         }
     }
+}
+
+/// Serves the API until the process is interrupted or the server fails.
+async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let policy = match args.placement_policy {
+        Some(path) => korpis_server::placement_policy(&std::fs::read_to_string(&path)?)?,
+        None => PlacementPolicy::default(),
+    };
+    let running = korpis_server::serve(korpis_server::ServeConfig {
+        data: DataDir::new(args.data_dir),
+        database_url: args.database_url,
+        listen: args.listen,
+        max_connections: args.max_connections,
+        plain_http_registries: args.plain_http_registries,
+        placement_policy: policy,
+        placement_retry: Duration::from_secs(args.placement_retry_secs.max(1)),
+        watch_resync: Duration::from_secs(args.watch_resync_secs.max(1)),
+        heartbeat_interval: Duration::from_secs(args.agent_heartbeat_secs.max(1)),
+        lease_term: Duration::from_secs(args.lease_term_secs.max(1)),
+        denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
+        event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
+    })
+    .await?;
+    tokio::select! {
+        r = running.task => r??,
+        _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
+    }
+    Ok(())
 }
 
 #[expect(clippy::print_stdout, reason = "the installation report is this command's output")]

@@ -27,13 +27,21 @@ pub enum TlsError {
     Config(#[from] rustls::Error),
 }
 
-/// Creates the CA and a server certificate valid for `names` (DNS names or IP addresses).
-pub fn generate(data: &DataDir, names: &[String]) -> Result<(), TlsError> {
-    let ca_key = KeyPair::generate()?;
+/// The installation authority's parameters. Issuing under it later rebuilds the issuer from
+/// these and the authority's key, so they are written once, here: a certificate issued under
+/// different parameters would name an issuer that does not exist.
+pub(crate) fn ca_params() -> Result<CertificateParams, TlsError> {
     let mut ca = CertificateParams::new(Vec::<String>::new())?;
     ca.distinguished_name.push(DnType::CommonName, "Korpis installation CA");
     ca.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
     ca.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign];
+    Ok(ca)
+}
+
+/// Creates the CA and a server certificate valid for `names` (DNS names or IP addresses).
+pub fn generate(data: &DataDir, names: &[String]) -> Result<(), TlsError> {
+    let ca_key = KeyPair::generate()?;
+    let ca = ca_params()?;
     let ca_cert = ca.self_signed(&ca_key)?;
 
     let server_key = KeyPair::generate()?;

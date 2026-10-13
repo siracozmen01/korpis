@@ -19,6 +19,8 @@ rules=(
     # The SDK is Apache-2.0 (§2 of docs/19-governance.md): it may link the wire contract and
     # nothing of ours that is AGPL, or every extension would inherit the AGPL.
     "korpis-extension||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent sqlx"
+    # Trust bootstrap is TLS alone: nothing of ours, no RPC stack, no runtime.
+    "korpis-tls||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

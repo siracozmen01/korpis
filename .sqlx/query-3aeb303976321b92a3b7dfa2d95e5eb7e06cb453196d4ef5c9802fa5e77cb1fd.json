@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT token_id, grant_id, organization_id, relay_name, relay_url, created_by,\n                    created_at, expires_at, relay_id\n               FROM relay_enrollment WHERE token_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "token_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "token_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "grant_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "grant_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "relay_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "relay_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "relay_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "relay_url"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "relay_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "relay_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3aeb303976321b92a3b7dfa2d95e5eb7e06cb453196d4ef5c9802fa5e77cb1fd"
+}

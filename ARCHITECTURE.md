@@ -82,6 +82,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-driver-oci` | driven adapter | AGPL-3.0 | the `oci` runtime driver over containerd |
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
 | `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream |
+| `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 | `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
 
@@ -114,6 +115,7 @@ cannot disagree about what a valid recipe is.
 | `korpis-store` | `korpis-core`, `korpis-app` | `connectrpc`, `korpis-proto` |
 | `korpis-recipe` | `korpis-core`, `korpis-app` | `sqlx`, `connectrpc`, `korpis-proto` |
 | `korpis-extension` | `korpis-proto` | every AGPL crate of ours, and `sqlx` |
+| `korpis-tls` | nothing | every other crate of ours, `connectrpc`, `tokio`, `sqlx` |
 | `korpis-server` | all of the above | |
 
 `scripts/check-layers.sh` reads the dependency graph with `cargo tree` and fails the build if any

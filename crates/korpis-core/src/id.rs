@@ -53,6 +53,8 @@ pub enum IdKind {
     Registration,
     /// A call to a provider (`pcl_`).
     ProviderCall,
+    /// A relay of the data path (`rly_`).
+    Relay,
 }
 
 impl IdKind {
@@ -80,6 +82,7 @@ impl IdKind {
             Self::Subscription => "sub",
             Self::Registration => "prv",
             Self::ProviderCall => "pcl",
+            Self::Relay => "rly",
         }
     }
 }

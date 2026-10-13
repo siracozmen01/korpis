@@ -41,6 +41,7 @@ mod quota;
 mod reads;
 mod recipes;
 mod relay;
+mod relays;
 mod retire;
 mod revocation;
 mod sdk;

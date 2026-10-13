@@ -1888,6 +1888,7 @@ dependencies = [
  "korpis-recipe",
  "korpis-server",
  "korpis-store",
+ "korpis-tls",
  "korpis-wire",
  "oci-client",
  "rustls",
@@ -2105,6 +2106,7 @@ dependencies = [
  "korpis-proto",
  "korpis-recipe",
  "korpis-store",
+ "korpis-tls",
  "korpis-wire",
  "p256",
  "rcgen",
@@ -2114,6 +2116,7 @@ dependencies = [
  "sqlx",
  "tempfile",
  "thiserror 2.0.21",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -2136,6 +2139,16 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "korpis-tls"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "rustls",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

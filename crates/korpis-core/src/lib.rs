@@ -23,6 +23,7 @@ pub mod placement;
 pub mod principal;
 pub mod quantity;
 pub mod recipe;
+pub mod relay;
 pub mod schedule;
 pub mod scope;
 pub mod tenancy;

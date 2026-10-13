@@ -21,7 +21,7 @@ use korpis_app::ports::VerifyKey;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 
-fn key_to_pb(k: &VerifyKey) -> agent::SigningKey {
+pub(super) fn key_to_pb(k: &VerifyKey) -> agent::SigningKey {
     agent::SigningKey {
         key_id: k.key_id.clone(),
         public_key: k.public.clone(),

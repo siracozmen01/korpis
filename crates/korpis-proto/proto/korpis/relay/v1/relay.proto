@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// What a relay running as its own process asks of the control plane (§3.1 of
+// docs/02-architecture.md). It joins once with an enrollment token an operator created, and is
+// given an identity and a certificate under the installation's authority, which agents and
+// clients already trust.
+
+syntax = "proto3";
+
+package korpis.relay.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/agent/v1/agent.proto";
+
+service RelayControlService {
+  // Redeems an enrollment token. Asking again with the same token and identity key returns the
+  // same relay with a fresh certificate; another key is refused.
+  rpc Join(JoinRequest) returns (JoinResponse);
+}
+
+message JoinRequest {
+  string enrollment_token = 1;
+  // The relay identity key's public half: Ed25519, raw 32 bytes. The private half never leaves
+  // the relay; it signs the relay's requests to the control plane.
+  bytes identity_key = 2;
+  // The relay TLS key's public half: an uncompressed P-256 point, 65 bytes.
+  bytes tls_key = 3;
+}
+
+message JoinResponse {
+  string relay = 1;
+  string name = 2;
+  string url = 3;
+  // The relay's certificate, PEM, followed by the authority's.
+  string certificate_chain_pem = 4;
+  google.protobuf.Timestamp certificate_expires_at = 5;
+  // The installation's authority, PEM: what the relay trusts the control plane by.
+  string authority_pem = 6;
+  // Every key that ever signed a capability token.
+  repeated korpis.agent.v1.SigningKey token_keys = 7;
+}

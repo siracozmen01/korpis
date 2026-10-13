@@ -6,6 +6,8 @@
 mod assign;
 mod attach;
 mod enroll;
+
+pub(crate) use enroll::{OneUse, enrollment_grant};
 mod identity;
 mod journal;
 mod lease;

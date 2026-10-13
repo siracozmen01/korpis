@@ -26,6 +26,7 @@ hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
 korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
 korpis-proto = { workspace = true, features = ["client"] }
+korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }

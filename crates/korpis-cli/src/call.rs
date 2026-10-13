@@ -108,6 +108,9 @@ table! {
     "korpis.v1.NodeService/ListNodes" => NodeServiceClient::list_nodes(ListNodesRequest);
     "korpis.v1.NodeService/CordonNode" => NodeServiceClient::cordon_node(CordonNodeRequest);
     "korpis.v1.NodeService/UncordonNode" => NodeServiceClient::uncordon_node(UncordonNodeRequest);
+    "korpis.v1.NodeService/CreateRelayEnrollmentToken" => NodeServiceClient::create_relay_enrollment_token(CreateRelayEnrollmentTokenRequest);
+    "korpis.v1.NodeService/ListRelays" => NodeServiceClient::list_relays(ListRelaysRequest);
+    "korpis.v1.NodeService/RemoveRelay" => NodeServiceClient::remove_relay(RemoveRelayRequest);
     "korpis.v1.GrantService/IssueGrant" => GrantServiceClient::issue_grant(IssueGrantRequest);
     "korpis.v1.GrantService/GetGrant" => GrantServiceClient::get_grant(GetGrantRequest);
     "korpis.v1.GrantService/ListGrants" => GrantServiceClient::list_grants(ListGrantsRequest);

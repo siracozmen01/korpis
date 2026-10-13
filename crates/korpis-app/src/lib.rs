@@ -23,6 +23,7 @@ pub mod node;
 pub mod page;
 pub mod ports;
 pub mod recipe;
+pub mod relay;
 pub mod step;
 pub mod tenancy;
 pub mod workload;
@@ -48,6 +49,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     policy: PlacementPolicy,
     session_terms: node::SessionTerms,
     assignment_sealer: Option<Arc<dyn ports::AssignmentSealer>>,
+    certificate_issuer: Option<Arc<dyn ports::CertificateIssuer>>,
     denial_window: std::time::Duration,
 }
 
@@ -64,6 +66,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             policy,
             session_terms: node::SessionTerms::default(),
             assignment_sealer: None,
+            certificate_issuer: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
         }
     }
@@ -80,6 +83,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_assignment_sealer(mut self, sealer: Arc<dyn ports::AssignmentSealer>) -> Self {
         self.assignment_sealer = Some(sealer);
+        self
+    }
+
+    /// Issues relays' certificates with `issuer`: without one, no relay can join.
+    #[must_use]
+    pub fn with_certificate_issuer(mut self, issuer: Arc<dyn ports::CertificateIssuer>) -> Self {
+        self.certificate_issuer = Some(issuer);
         self
     }
 

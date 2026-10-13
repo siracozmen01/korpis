@@ -16,6 +16,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("extension_provides_name_in_organization") => Unique::ProviderName,
         Some("node_name_key") => Unique::NodeName,
         Some("node_public_key_key") => Unique::NodeKey,
+        Some("relay_name_key" | "relay_url_key" | "relay_public_key_key") => Unique::Relay,
         _ => Unique::Other,
     }
 }

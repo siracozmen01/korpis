@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod api;
+pub mod authority;
 pub mod bodies;
 pub mod data;
 pub mod install;
@@ -17,6 +18,7 @@ pub mod relay;
 pub mod revocations;
 pub mod sealer;
 pub mod sessions;
+pub mod standalone;
 pub mod tls;
 
 use api::Api;
@@ -133,6 +135,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)
         .with_denial_window(config.denial_window)
+        .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
             keys.assignment.clone(),
             keys.assignment_key_id.clone(),

@@ -1,0 +1,18 @@
+[package]
+name = "korpis-tls"
+description = "Korpis trust bootstrap: pinning the installation CA by fingerprint, then trusting it alone"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
+sha2 = "0.10"
+thiserror = { workspace = true }

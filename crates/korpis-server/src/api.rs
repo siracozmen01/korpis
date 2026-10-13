@@ -31,6 +31,9 @@ mod provider;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod relay;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod relay_control;
+mod relays;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
@@ -145,6 +148,10 @@ impl Api {
         let router = RelayServiceExt::register(Arc::clone(&self), router);
         let router =
             korpis_proto::korpis::agent::v1::DataServiceExt::register(Arc::clone(&self), router);
+        let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(
+            Arc::clone(&self),
+            router,
+        );
         korpis_proto::korpis::agent::v1::AgentServiceExt::register(self, router)
     }
 

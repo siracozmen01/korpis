@@ -25,6 +25,7 @@ mod provider;
 mod provider_call;
 mod quota;
 mod recipe;
+mod relay;
 mod retire;
 mod session;
 mod set;
@@ -58,6 +59,7 @@ pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
+pub use relay::{CertificateIssuer, IssuedCertificate, RelayEnrollment, RelayRead, RelayWrite};
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
@@ -79,6 +81,8 @@ pub enum Unique {
     WorkloadName,
     /// Node names are unique in the installation.
     NodeName,
+    /// Relay names, URLs, and identity keys are each unique in the installation.
+    Relay,
     /// A node identity key enrolls one node.
     NodeKey,
     /// One response per caller and idempotency key.
@@ -135,6 +139,7 @@ pub trait Store:
     + SubscriptionRead
     + ProviderRead
     + ProviderCallRead
+    + RelayRead
     + Send
     + Sync
     + 'static
@@ -188,6 +193,7 @@ pub trait Tx:
     + ProviderWrite
     + ProviderCallWrite
     + BreakerWrite
+    + RelayWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

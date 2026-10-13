@@ -167,9 +167,11 @@ than accepted and left idle. A session ends when its handler returns, with the h
 delivered to the client before either stream closes, and the node ends it itself when its token
 expires unrenewed, when a revocation list names its chain, or when the relay refuses a renewal
 the client sent on the session (§6 of `08-identity.md`). What it does not do
-yet: the role does not run as its own process, which Phase 1 still owes (§4 of
-`20-roadmap.md`), and a relay without the database will need the nodes' keys, and a `DataHello`
-bound to the relay it was sent to, since nonce memory is not shared between relays.
+yet: the role does not yet serve from its own process. A relay can be enrolled as one, joining
+with its keys and receiving a certificate under the installation's authority (§3 of
+`18-operations.md`), but serving needs what Phase 1 still owes (§4 of `20-roadmap.md`): the nodes'
+keys and the revocation list sent to it as they change, and a `DataHello` bound to the relay it
+was sent to, since nonce memory is not shared between relays.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is

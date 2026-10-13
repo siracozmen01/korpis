@@ -54,7 +54,8 @@ fn random32() -> Result<[u8; 32], KeyError> {
     Ok(b)
 }
 
-fn load_or_create(path: PathBuf) -> Result<[u8; 32], KeyError> {
+/// The 32 secret bytes at `path`, creating them, readable by the owner alone, if there are none.
+pub(crate) fn load_or_create(path: PathBuf) -> Result<[u8; 32], KeyError> {
     match std::fs::read(&path) {
         Ok(bytes) => bytes.try_into().map_err(|_| KeyError::Malformed(path)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

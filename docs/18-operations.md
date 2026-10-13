@@ -229,6 +229,20 @@ Removing a node is the reverse and is never abrupt: cordon, drain, decommission 
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
 will land.
 
+**Enrolling a relay** that runs as its own process (§3.1 of `02-architecture.md`) is the same
+procedure with three differences. The token is created over the root organization only
+(`NodeService.CreateRelayEnrollmentToken`), because a relay carries every organization's sessions,
+and it binds the relay's name and the URL clients and nodes will reach it at. The relay joins with
+`korpis-server relay join --server … --token … --ca-fingerprint …`, presenting the public halves of
+two keys it generated and kept before sending anything: an Ed25519 identity key it signs its
+requests to the control plane with, and a P-256 TLS key. And it is given a certificate for its
+URL's host, issued by the installation's authority, which agents and the CLI already trust, so no
+trust has to be distributed for it. The certificate lives ninety days, shortened per relay by up to
+nine so relays that joined together do not expire together (§7); renewing it before then is the
+relay's, over the same channel. `ListRelays` shows each relay with its certificate's expiry, and
+`RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
+holds stays valid until it expires, since the installation does not revoke certificates.
+
 ---
 
 ## 4. Upgrade

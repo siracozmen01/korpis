@@ -567,6 +567,67 @@ service NodeService {
   // node.cordon, both ways.
   rpc CordonNode(CordonNodeRequest) returns (CordonNodeResponse);
   rpc UncordonNode(UncordonNodeRequest) returns (UncordonNodeResponse);
+  // node.enroll over the root organization: a one-time token a relay exchanges for its identity
+  // and its certificate (§3.1 of docs/02-architecture.md). A relay carries every organization's
+  // sessions, so only authority over the root enrolls one.
+  rpc CreateRelayEnrollmentToken(CreateRelayEnrollmentTokenRequest)
+      returns (CreateRelayEnrollmentTokenResponse);
+  // node.read over the root organization: every relay, removed ones included.
+  rpc ListRelays(ListRelaysRequest) returns (ListRelaysResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // node.enroll over the root organization. A removed relay is named to no node and told
+  // nothing more.
+  rpc RemoveRelay(RemoveRelayRequest) returns (RemoveRelayResponse);
+}
+
+message CreateRelayEnrollmentTokenRequest {
+  Mutation mutation = 1;
+  // The root organization.
+  string organization = 2;
+  // The relay's name, unique in the installation.
+  string name = 3;
+  // Where clients and nodes will reach it, https://host[:port]; its certificate names the host.
+  string url = 4;
+  // How long the token may be redeemed; absent is one hour, and at most a day.
+  google.protobuf.Duration expires_in = 5;
+}
+
+message CreateRelayEnrollmentTokenResponse {
+  // Shown once and never stored, as an agent's enrollment token is.
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // sha256: of the DER of the certificate authority the relay pins when it joins.
+  string ca_fingerprint = 3;
+}
+
+message ListRelaysRequest {
+  string organization = 1;
+}
+
+message ListRelaysResponse {
+  repeated Relay relays = 1;
+}
+
+message RemoveRelayRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string relay = 3;
+}
+
+message RemoveRelayResponse {
+  Relay relay = 1;
+}
+
+// A relay running as its own process (§3.1 of docs/02-architecture.md).
+message Relay {
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  google.protobuf.Timestamp joined_at = 4;
+  // When the certificate the control plane last issued it expires.
+  google.protobuf.Timestamp certificate_expires_at = 5;
+  google.protobuf.Timestamp removed_at = 6;
 }
 
 message CreateEnrollmentTokenRequest {

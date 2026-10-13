@@ -84,17 +84,34 @@ pub struct Enrolled {
     pub token_keys: Vec<VerifyKey>,
 }
 
-fn enrollment_grant(permit: &Permit, enrollment: &Enrollment) -> Result<GrantRecord, AppError> {
+/// A one-use enrollment token's grant: `node.enroll` over one organization, attenuated from
+/// the creator's, redeemable once before it expires. Nodes and relays are enrolled with it.
+pub(crate) struct OneUse {
+    /// The Token subject that holds it.
+    pub(crate) token: Uuid,
+    /// The grant.
+    pub(crate) grant: Uuid,
+    /// Where it enrolls.
+    pub(crate) organization: Uuid,
+    /// Who created it, and when.
+    pub(crate) created: (Principal, std::time::SystemTime),
+    /// When it may no longer be redeemed.
+    pub(crate) expires_at: std::time::SystemTime,
+    /// What it is for, for humans.
+    pub(crate) label: String,
+}
+
+pub(crate) fn enrollment_grant(permit: &Permit, one: OneUse) -> Result<GrantRecord, AppError> {
     let enroll = Action::parse("node.enroll").map_err(|e| AppError::Internal(e.to_string()))?;
-    let holder = Principal::Token(enrollment.token);
+    let holder = Principal::Token(one.token);
     Ok(GrantRecord {
         grant: Grant {
-            id: enrollment.grant,
+            id: one.grant,
             subject: holder.subject(),
             actions: BTreeSet::from([enroll]),
-            scope: Scope::Object(ObjectRef::new(Kind::Organization, enrollment.organization)),
+            scope: Scope::Object(ObjectRef::new(Kind::Organization, one.organization)),
             conditions: Conditions {
-                expires_at: Some(enrollment.expires_at),
+                expires_at: Some(one.expires_at),
                 max_uses: Some(1),
                 ..Conditions::default()
             },
@@ -108,11 +125,11 @@ fn enrollment_grant(permit: &Permit, enrollment: &Enrollment) -> Result<GrantRec
             root: false,
         },
         holder,
-        issued_by: enrollment.created_by.clone(),
-        issued_at: enrollment.created_at,
+        issued_by: one.created.0,
+        issued_at: one.created.1,
         revoked_at: None,
         suspended_at: None,
-        label: format!("enrollment of node {}", enrollment.node_name.as_str()),
+        label: one.label,
     })
 }
 
@@ -181,7 +198,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at: now + ttl,
             node: None,
         };
-        let record = enrollment_grant(&permit, &enrollment)?;
+        let one = OneUse {
+            token: enrollment.token,
+            grant: enrollment.grant,
+            organization: enrollment.organization,
+            created: (enrollment.created_by.clone(), enrollment.created_at),
+            expires_at: enrollment.expires_at,
+            label: format!("enrollment of node {}", enrollment.node_name.as_str()),
+        };
+        let record = enrollment_grant(&permit, one)?;
         let parent = self.check_issue(caller, &record.grant).await?;
         let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
         let token = ApiToken {

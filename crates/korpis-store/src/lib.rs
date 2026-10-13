@@ -30,6 +30,7 @@ mod provider;
 mod provider_call;
 mod quota;
 mod recipe;
+mod relay;
 mod session;
 mod set;
 mod stored;

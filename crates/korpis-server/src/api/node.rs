@@ -129,4 +129,28 @@ impl pb::NodeService for Api {
             .map_err(error::from_app)?;
         respond(reply, uncordoned)
     }
+
+    async fn create_relay_enrollment_token(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::CreateRelayEnrollmentTokenRequest>,
+    ) -> ServiceResult<pb::CreateRelayEnrollmentTokenResponse> {
+        super::relays::create_token(self, ctx, request).await
+    }
+
+    async fn list_relays(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListRelaysRequest>,
+    ) -> ServiceResult<pb::ListRelaysResponse> {
+        super::relays::list(self, ctx, request).await
+    }
+
+    async fn remove_relay(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RemoveRelayRequest>,
+    ) -> ServiceResult<pb::RemoveRelayResponse> {
+        super::relays::remove(self, ctx, request).await
+    }
 }

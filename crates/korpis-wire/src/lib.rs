@@ -46,6 +46,7 @@ pub mod plan;
 pub mod principal;
 pub mod provider;
 pub mod recipe;
+pub mod relay;
 pub mod revocation;
 pub mod scope;
 pub mod spec;

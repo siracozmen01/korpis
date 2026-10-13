@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/v1/relay.proto",
         "korpis/agent/v1/agent.proto",
         "korpis/agent/v1/data.proto",
+        "korpis/relay/v1/relay.proto",
         "korpis/agent/v1/identity.proto",
         "korpis/driver/v1/driver.proto",
         "korpis/helper/v1/helper.proto",

@@ -70,3 +70,13 @@ pub fn write_public(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     f.write_all(bytes)?;
     f.sync_all()
 }
+
+/// Replaces a public file (certificates) atomically: written beside it, then renamed over it.
+pub fn replace_public(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut beside = path.as_os_str().to_owned();
+    beside.push(".new");
+    let beside = Path::new(&beside);
+    let _ = fs::remove_file(beside);
+    write_public(beside, bytes)?;
+    fs::rename(beside, path)
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE relay_enrollment SET relay_id = $2, joined_at = $3\n              WHERE token_id = $1 AND relay_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "38b0f9f0e5fe0a8af0d5b22a8d96479ac9430b387618dfac93c1828edbb4eb38"
+}
