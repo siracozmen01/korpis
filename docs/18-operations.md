@@ -131,7 +131,8 @@ The agent dials out (§3 of `02-architecture.md`), so enrollment opens nothing:
 
 ```
 korpis node token create --label fra-3 --expires 1h
-→ korpis-agent join --server korpis.example --token nj_8f2a…
+→ korpis-agent join --server https://korpis.example:7443 --token korpis_8f2a… \
+      --ca-fingerprint sha256:4c1a…
 ```
 
 The join token is single-use and short-lived. The agent presents it once, receives a per-node key
@@ -150,7 +151,13 @@ agent, so the agent's first connection is verified against it rather than truste
 shown once and never stored (§6 of `10-api.md`).
 
 The agent sends the token with the public half of an Ed25519 key it generated (§7 of
-`02-architecture.md`). The control plane redeems the token's one use online (§6.2 of
+`02-architecture.md`), over a connection it verifies before trusting: the control plane presents
+the installation CA behind its own certificate, and the agent proceeds only if that CA has the
+fingerprint the join command carries and the certificate verifies under it. It keeps that CA and
+from then on trusts it alone. The key is written to the agent's state directory, readable by the
+agent's user only, before it is ever sent, so a join whose answer was lost is retried with the
+same key; the node's identifier is written last, so a join that stopped half way is not mistaken
+for an enrollment. The control plane redeems the token's one use online (§6.2 of
 `08-identity.md`), records the node and its key in one transaction, and returns the keys that sign
 assignments and capability tokens. An agent whose answer was lost asks again with the same token
 and the same key and is told the same node; a different key is refused. A token whose use was

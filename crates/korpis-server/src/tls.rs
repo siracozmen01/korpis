@@ -69,10 +69,18 @@ pub fn ca_fingerprint(data: &DataDir) -> Result<String, TlsError> {
 /// The server configuration, speaking HTTP/2 and HTTP/1.1.
 pub fn server_config(data: &DataDir) -> Result<Arc<rustls::ServerConfig>, TlsError> {
     let dir = data.tls();
-    let certs = CertificateDer::pem_file_iter(dir.join("server.pem"))
+    let mut certs = CertificateDer::pem_file_iter(dir.join("server.pem"))
         .map_err(|e| TlsError::Pem(e.to_string()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| TlsError::Pem(e.to_string()))?;
+    // The certificate install issued is presented with the installation CA behind it, so an
+    // enrolling agent can pin the CA by the fingerprint its join command carries (§3 of
+    // docs/18-operations.md). A server.pem an operator replaced carries its own chain.
+    if certs.len() == 1 {
+        let ca = CertificateDer::from_pem_file(dir.join("ca.pem"))
+            .map_err(|e| TlsError::Pem(e.to_string()))?;
+        certs.push(ca);
+    }
     let key = PrivateKeyDer::from_pem_file(dir.join("server.key"))
         .map_err(|e| TlsError::Pem(e.to_string()))?;
     let provider = Arc::new(rustls::crypto::ring::default_provider());
