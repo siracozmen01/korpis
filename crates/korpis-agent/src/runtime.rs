@@ -7,17 +7,19 @@
 //! [`memory`] runtime that tests and a driverless trial run use.
 //!
 //! Liveness is read with `inspect`, polled by the reconciler, which is the level-triggered
-//! reading anyway (§4.1 of docs/02-architecture.md). The protocol's `Events` stream makes a
-//! crash visible sooner and arrives with the oci driver's adapter; the capability-gated verbs
+//! reading anyway (§4.1 of docs/02-architecture.md); `changes`, the protocol's `Events`, only
+//! makes it look sooner, so a crash is seen when it happens. The capability-gated verbs
 //! (exec, console, resize) arrive with the console and resizing of Phase 1 (§4 of
 //! docs/20-roadmap.md).
 
 pub mod memory;
+pub mod process;
 
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::future::Future;
 use std::time::Duration;
+use tokio::sync::broadcast;
 
 /// What `prepare` answers: a spec the driver will build, or why it will not.
 #[derive(Debug, Clone, PartialEq)]
@@ -98,4 +100,8 @@ pub trait Runtime: Send + Sync + 'static {
 
     /// Sends it a driver-declared signal.
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
+
+    /// The runtime objects whose status changes, by identifier, as the driver reports them: a
+    /// reason to look sooner, never a reading, which `inspect` is.
+    fn changes(&self) -> broadcast::Receiver<String>;
 }

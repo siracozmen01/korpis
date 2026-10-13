@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::{Future, ready};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
+use tokio::sync::broadcast;
 
 /// The driver name it declares.
 pub const NAME: &str = "memory";
@@ -33,9 +34,16 @@ struct State {
 }
 
 /// The in-memory runtime; clones share it.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct InMemory {
     state: Arc<Mutex<State>>,
+    changes: broadcast::Sender<String>,
+}
+
+impl Default for InMemory {
+    fn default() -> Self {
+        Self { state: Arc::default(), changes: broadcast::channel(64).0 }
+    }
 }
 
 fn state(s: driver::RuntimeState, exit_code: Option<i32>) -> driver::RuntimeStatus {
@@ -94,13 +102,14 @@ impl InMemory {
         }
     }
 
-    /// The object `id` exits by itself with `code`, as a crash would.
+    /// The object `id` exits by itself with `code`, as a crash would, and says so.
     pub fn exit(&self, id: &str, code: i32) {
         if let Ok(mut s) = self.lock()
             && let Some(o) = s.objects.get_mut(id)
         {
             o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(code));
         }
+        let _ = self.changes.send(id.to_owned());
     }
 
     /// The objects, by identifier: their workload, and whether they are running.
@@ -265,6 +274,10 @@ impl Runtime for InMemory {
 
     fn signal(&self, id: &str, _signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         ready(self.signal_now(id))
+    }
+
+    fn changes(&self) -> broadcast::Receiver<String> {
+        self.changes.subscribe()
     }
 }
 

@@ -3,7 +3,7 @@
 //! The reconciler against a real control plane, with the in-memory runtime standing in for a
 //! driver (§4 of docs/02-architecture.md): a declared workload is placed, its plan executed step
 //! by step under a lease, and it converges, all wired as `korpis-agent run` wires them; the agent restarts and adopts it without touching
-//! it; a crash is restarted; and a retirement removes the runtime object, keeps the volumes,
+//! it; a crash is restarted as soon as the runtime reports it; and a retirement removes the runtime object, keeps the volumes,
 //! releases the lease, and retires the workload.
 
 use crate::session::until;
@@ -19,12 +19,14 @@ use korpis_proto::korpis::v1 as pb;
 use std::sync::Arc;
 use std::time::Duration;
 
-async fn start(state: &StateDir, runtime: &InMemory, host: &InMemoryHost) -> Agent {
-    let options = Options {
-        period: Duration::from_millis(200),
-        maintain_every: Duration::from_millis(500),
-        ..Options::default()
-    };
+async fn start(
+    state: &StateDir,
+    runtime: &InMemory,
+    host: &InMemoryHost,
+    period: Duration,
+) -> Agent {
+    let options =
+        Options { period, maintain_every: Duration::from_millis(500), ..Options::default() };
     let agent =
         Agent::start(state, runtime.clone(), host.clone(), Arc::new(facts), options).unwrap();
     let mut events = agent.events();
@@ -150,14 +152,16 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     let dir = tempfile::tempdir().unwrap();
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
     let (state, orphan) = node(&cp, &dir, &runtime).await;
-    let agent = start(&state, &runtime, &host).await;
+    let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
     let w = cp.declare(&project, "mc").await;
     let id = converges(&cp, &w, &runtime, &orphan).await;
     assert_eq!(host.content().len(), 1, "the recipe's content was fetched once");
 
     agent.stop().await;
     let before = runtime.calls().len();
-    let agent = start(&state, &runtime, &host).await;
+    // A period nothing in the test outlasts: from here on the reconciler moves only when it
+    // is told something changed, so the crash below is seen because the runtime reported it.
+    let agent = start(&state, &runtime, &host, Duration::from_secs(3600)).await;
     adopted(&cp, &w, &runtime, before).await;
     revived(&cp, &w, &runtime, &id).await;
 

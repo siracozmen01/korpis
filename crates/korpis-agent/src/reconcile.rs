@@ -98,6 +98,15 @@ fn text(s: &str) -> pb::Value {
     }
 }
 
+/// Resolves when the driver reports a runtime object changed; never, once it cannot.
+async fn reported(reports: &mut Option<broadcast::Receiver<String>>) {
+    let Some(rx) = reports else { return std::future::pending().await };
+    match rx.recv().await {
+        Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+        Err(broadcast::error::RecvError::Closed) => *reports = None,
+    }
+}
+
 /// An effect the node records.
 fn effect(workload: Option<&str>, action: &str, ok: bool) -> pb::Effect {
     let outcome = if ok {
@@ -136,6 +145,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.adopt().await;
         let mut tick = tokio::time::interval(self.wiring.period);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut reports = Some(self.runtime.changes());
         loop {
             self.pass().await;
             let leases = self.wiring.leases.clone();
@@ -143,6 +153,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 changed = self.wiring.held.changed() => changed.is_ok(),
                 () = leases.changed() => true,
                 _ = tick.tick() => true,
+                () = reported(&mut reports) => true,
                 e = self.wiring.events.recv() => self.heard(&e),
             };
             if !open {
