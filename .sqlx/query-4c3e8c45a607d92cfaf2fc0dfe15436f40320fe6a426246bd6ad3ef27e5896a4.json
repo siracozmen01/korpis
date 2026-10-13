@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT opened, repeats, first_repeat, last_repeat FROM denial_run\n              WHERE actor = $1 AND action = $2 AND object_kind = $3 AND object_id = $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "opened",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "opened"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repeats",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "repeats"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "first_repeat",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "first_repeat"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_repeat",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "last_repeat"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "4c3e8c45a607d92cfaf2fc0dfe15436f40320fe6a426246bd6ad3ef27e5896a4"
+}

@@ -12,6 +12,7 @@
 mod assignment;
 mod audit;
 mod authz;
+mod denial;
 mod enrollment;
 mod errors;
 mod feed;

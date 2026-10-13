@@ -8,8 +8,7 @@ use super::Snapshot;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store, Tx};
-use korpis_core::audit::{Effect, Outcome, details};
+use crate::ports::{Clock, GrantWrite, RecipeSource, Store, Tx};
 use korpis_core::authz::credential::Secret;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::principal::Principal;
@@ -210,26 +209,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Ok(false) => AppError::NotFound { kind: object.kind.as_str() },
             Err(e) => e,
         }
-    }
-
-    pub(crate) async fn record_denial(
-        &self,
-        caller: &Caller,
-        action: &Action,
-        object: ObjectRef,
-    ) -> Result<(), AppError> {
-        let mut effect = Effect::new(caller.principal.clone(), action.as_str(), Outcome::Denied)
-            .error(details([
-                ("missing_action", action.as_str().into()),
-                ("object_kind", object.kind.as_str().into()),
-                ("object", object.id.to_string().into()),
-            ]));
-        effect.workload = (object.kind == Kind::Workload).then_some(object.id);
-        effect.node = (object.kind == Kind::Node).then_some(object.id);
-        let mut tx = self.store.begin().await?;
-        tx.append_effect(&effect).await?;
-        tx.commit().await?;
-        Ok(())
     }
 }
 

@@ -4,6 +4,9 @@
 
 use super::StoreResult;
 use korpis_core::audit::Effect;
+use korpis_core::audit::denial::DenialRun;
+use korpis_core::object::ObjectRef;
+use korpis_core::principal::Principal;
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -56,4 +59,46 @@ pub trait EffectWrite {
         &mut self,
         effect: &Effect,
     ) -> impl Future<Output = StoreResult<SystemTime>> + Send;
+}
+
+/// What a run of identical denials is keyed by: who was refused, what, and on which object
+/// (§10 of docs/10-api.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DenialKey {
+    /// The refused subject.
+    pub actor: Principal,
+    /// The action that was missing.
+    pub action: String,
+    /// The object it was refused on.
+    pub object: ObjectRef,
+}
+
+/// Finding the runs of identical denials whose window has closed.
+pub trait DenialRead {
+    /// Runs opened at or before `opened_by`, at most `limit`, oldest first.
+    fn denial_runs_opened_by(
+        &self,
+        opened_by: SystemTime,
+        limit: u32,
+    ) -> impl Future<Output = StoreResult<Vec<DenialKey>>> + Send;
+}
+
+/// The working state of runs of identical denials: mutable, and not the log, which receives a
+/// run's repeats as one effect when its window closes.
+pub trait DenialWrite {
+    /// Locks the run for `key` until the transaction ends, and reads it.
+    fn lock_denial_run(
+        &mut self,
+        key: &DenialKey,
+    ) -> impl Future<Output = StoreResult<Option<DenialRun>>> + Send;
+
+    /// Stores the run for `key`, replacing any.
+    fn put_denial_run(
+        &mut self,
+        key: &DenialKey,
+        run: &DenialRun,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Removes the run for `key`.
+    fn drop_denial_run(&mut self, key: &DenialKey) -> impl Future<Output = StoreResult<()>> + Send;
 }

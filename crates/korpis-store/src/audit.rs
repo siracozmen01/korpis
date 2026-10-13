@@ -30,6 +30,7 @@ struct EffectRow {
     before: Option<Value>,
     after: Option<Value>,
     count: i64,
+    window_end: Option<DateTime<Utc>>,
     origin_node: Option<Uuid>,
     origin_seq: Option<i64>,
 }
@@ -65,6 +66,7 @@ impl EffectRow {
             before: object("before", self.before)?,
             after: object("after", self.after)?,
             count: count("count", self.count)?,
+            window_end: self.window_end.map(to_time),
             origin,
         })
     }
@@ -84,7 +86,8 @@ impl EffectRead for PgStore {
         let rows = sqlx::query_as!(
             EffectRow,
             "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, actor, grant_id,
-                    action, outcome, error, before, after, count, origin_node, origin_seq
+                    action, outcome, error, before, after, count, window_end, origin_node,
+                    origin_seq
                FROM effect
               WHERE ($1::uuid IS NULL OR workload_id = $1)
                 AND ($2::uuid IS NULL OR plan_id = $2)
@@ -135,8 +138,9 @@ impl EffectWrite for PgTx {
         let at = sqlx::query_scalar!(
             "INSERT INTO effect (id, occurred_at, plan_id, step, workload_id, node_id, actor,
                                  grant_id, action, outcome, error, before, after, count,
-                                 origin_node, origin_seq)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                                 window_end, origin_node, origin_seq)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                     $17)
              RETURNING at",
             e.id,
             e.occurred_at.map(from_time),
@@ -152,6 +156,7 @@ impl EffectWrite for PgTx {
             json("before", e.before.as_ref())?,
             json("after", e.after.as_ref())?,
             to_count("count", e.count)?,
+            e.window_end.map(from_time),
             origin_node,
             origin_seq
         )

@@ -3,6 +3,8 @@
 //! The effect log's record (§4 of docs/03-state.md): what was done, by whom, under which grant,
 //! and how it turned out. Every action is one, refusals included.
 
+pub mod denial;
+
 use crate::principal::Principal;
 use serde_json::{Map, Value};
 use std::time::SystemTime;
@@ -89,6 +91,8 @@ pub struct Effect {
     pub after: Option<Map<String, Value>>,
     /// Coalesced repeats: how many this entry stands for (§10 of docs/10-api.md).
     pub count: u64,
+    /// For coalesced repeats: the last one it covers; `occurred_at` is the first.
+    pub window_end: Option<SystemTime>,
     /// For node-originated effects.
     pub origin: Option<JournalOrigin>,
 }
@@ -113,6 +117,7 @@ impl Effect {
             before: None,
             after: None,
             count: 1,
+            window_end: None,
             origin: None,
         }
     }

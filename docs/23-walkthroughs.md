@@ -110,7 +110,11 @@ processes and only the CLI and `oras` (`scripts/e2e-phase0.sh`), found the last 
 of §4 of `20-roadmap.md` asked a denial to name a grant, which nothing authorizing it can supply,
 and the scheduler's bind and the lease it issued named no grant though both carry out an approval.
 The done-when is corrected in place, and both effects now name the grant of the decision they
-carry out.
+carry out. The same run's refused stop is a single denial; a client retrying it in a loop would
+have written one effect per attempt, the unbounded write path finding S15 closed on paper only.
+Repeats are now coalesced as §10 of `10-api.md` says, with the count held in the database so that
+a restart neither loses nor doubles it, and reading the log showed that an effect's `error`,
+which names the missing action, had never reached the wire; it does now.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

@@ -390,6 +390,25 @@ identical denials from one subject within a window are recorded as one effect wi
 window's bounds, so a client in a retry loop cannot turn the audit log into an unbounded write path.
 Unauthenticated failures are recorded the same way, aggregated per source and target.
 
+> Built 2026-10-13, in Phase 0, because refusals are recorded from Phase 0 and the write path this
+> bounds exists as soon as they are. A run is keyed by subject, action, and object. Its first
+> refusal is written at once, so an auditor sees it as it happens. Its repeats within the window
+> (sixty seconds by default, `korpis-server serve --denial-window-secs`) are counted beside the
+> log and written as one effect when the window closes, by the next repeat or by a pass the
+> control plane makes four times a window: `count` is how many, `occurred_at` the first, and
+> `window_end` the last (§3.3 of `01-model.md`). The count is held in the database rather than in
+> memory, so a restarted control plane, or a second one, neither loses nor doubles it, which the
+> agent's in-memory coalescing cannot promise (§4.10 of `02-architecture.md`). What it costs: a
+> refused request still writes one row, of working state rather than of the log, and an auditor
+> sees a burst's repeats up to a window and a quarter late.
+>
+> Not yet built: the buckets of this section, and recording unauthenticated failures. They
+> arrive together in Phase 1 (§4 of `20-roadmap.md`), with the web client whose login and link
+> redemption are the first unauthenticated endpoints that take a secret a person chose. Until
+> then a request presenting an unknown API token is refused without an effect; such a token is
+> 256 random bits, so guessing one is not a threat the record would reveal, but the record this
+> section promises is still missing until Phase 1.
+
 Expensive operations carry their own budgets, plan computation, migration, backup initiation, and
 recipe fetches are not comparable to a status read and are not counted against the same allowance.
 Limits appear in response metadata so a client can pace itself rather than discovering the ceiling

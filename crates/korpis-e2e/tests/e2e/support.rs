@@ -60,6 +60,7 @@ impl ControlPlane {
             watch_resync: Duration::from_secs(1),
             heartbeat_interval: Duration::from_secs(30),
             lease_term: Duration::from_secs(2),
+            denial_window: Duration::from_secs(60),
         })
         .await
         .expect("serve");

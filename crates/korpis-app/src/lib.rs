@@ -43,6 +43,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     policy: PlacementPolicy,
     session_terms: node::SessionTerms,
     assignment_sealer: Option<Arc<dyn ports::AssignmentSealer>>,
+    denial_window: std::time::Duration,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -58,6 +59,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             policy,
             session_terms: node::SessionTerms::default(),
             assignment_sealer: None,
+            denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
         }
     }
 
@@ -80,6 +82,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_session_terms(mut self, terms: node::SessionTerms) -> Self {
         self.session_terms = terms;
+        self
+    }
+
+    /// Coalesces repeated identical denials over `window` instead of the default (§10 of
+    /// docs/10-api.md).
+    #[must_use]
+    pub fn with_denial_window(mut self, window: std::time::Duration) -> Self {
+        self.denial_window = window;
         self
     }
 

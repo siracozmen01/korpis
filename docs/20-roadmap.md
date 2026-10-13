@@ -170,7 +170,10 @@ through. The web client. Durable streams and console. Volumes with kernel-enforc
 quota, snapshots, and content-defined-chunking backup with per-workload keys. The install DSL with
 its built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain.
 Networking: `node_port` and `node_bound` exposure, and the default egress policy of §6 of
-`07-networking.md`.
+`07-networking.md`. Rate limits, with the web client's login and link redemption that are the
+first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
+`10-api.md`, and the recording of unauthenticated failures beside the denials Phase 0 already
+coalesces.
 
 **Done when:** the single-machine constraint of §1 of `18-operations.md` is real, install, run
 workloads, back them up, restore them, and read an honest console, with every displayed limit

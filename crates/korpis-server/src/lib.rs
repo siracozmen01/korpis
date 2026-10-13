@@ -51,6 +51,8 @@ pub struct ServeConfig {
     pub heartbeat_interval: Duration,
     /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
     pub lease_term: Duration,
+    /// The window repeated identical denials are coalesced over (§10 of docs/10-api.md).
+    pub denial_window: Duration,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -118,6 +120,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)
+        .with_denial_window(config.denial_window)
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
             keys.assignment.clone(),
             keys.assignment_key_id.clone(),
@@ -133,6 +136,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(retry_placements(Arc::clone(&api), config.placement_retry));
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(&api)));
+    tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
     let router = api.router();
     let task = tokio::spawn(async move {
         bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
@@ -168,6 +172,22 @@ async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::info!(nodes = n, "nodes unreachable: three heartbeats missed"),
             Err(e) => tracing::warn!(error = %e, "node sweep failed"),
+        }
+    }
+}
+
+/// Writes, four times a window, the repeats of every run of denials whose window has closed,
+/// so a run that stops repeating is in the log within about a window and a quarter of its last
+/// repeat. The task ends with the process.
+async fn close_denial_runs(api: Arc<Api>, window: Duration) {
+    let mut tick = tokio::time::interval((window / 4).max(Duration::from_millis(250)));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().close_denial_runs().await {
+            Ok(0) => {}
+            Ok(n) => tracing::debug!(runs = n, "denial runs closed"),
+            Err(e) => tracing::warn!(error = %e, "closing denial runs failed"),
         }
     }
 }

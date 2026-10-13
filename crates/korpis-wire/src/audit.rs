@@ -35,6 +35,22 @@ fn map<M: FromIterator<(String, pb::Value)>>(m: Option<&Map<String, Value>>) -> 
     m.into_iter().flatten().map(|(k, v)| (k.clone(), value(v))).collect()
 }
 
+/// The wire form of what went wrong: `reason` and `message` where the record names them, and
+/// everything else as detail.
+fn error_to_pb(m: &Map<String, Value>) -> pb::Error {
+    let text = |k: &str| m.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
+    pb::Error {
+        reason: text("reason"),
+        message: text("message"),
+        detail: m
+            .iter()
+            .filter(|(k, _)| !matches!(k.as_str(), "reason" | "message"))
+            .map(|(k, v)| (k.clone(), value(v)))
+            .collect(),
+        ..Default::default()
+    }
+}
+
 fn outcome(o: Outcome) -> pb::EffectOutcome {
     match o {
         Outcome::Succeeded => pb::EffectOutcome::EFFECT_OUTCOME_SUCCEEDED,
@@ -70,7 +86,9 @@ pub fn effect_to_pb(e: &Effect) -> pb::Effect {
         outcome: outcome(e.outcome).into(),
         before: map(e.before.as_ref()),
         after: map(e.after.as_ref()),
+        error: e.error.as_ref().map(error_to_pb).into(),
         count: e.count,
+        window_end: e.window_end.map(timestamp).into(),
         ..Default::default()
     }
 }

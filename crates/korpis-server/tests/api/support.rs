@@ -103,6 +103,7 @@ impl Harness {
             watch_resync: std::time::Duration::from_secs(1),
             heartbeat_interval: heartbeat,
             lease_term: std::time::Duration::from_secs(2),
+            denial_window: std::time::Duration::from_secs(1),
         })
         .await
         .expect("serve");

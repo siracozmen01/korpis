@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM denial_run\n              WHERE actor = $1 AND action = $2 AND object_kind = $3 AND object_id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8255ddb835c3cdbd465e5710cc9939ecb0527108c8a97710dfa877bb68ec26f2"
+}

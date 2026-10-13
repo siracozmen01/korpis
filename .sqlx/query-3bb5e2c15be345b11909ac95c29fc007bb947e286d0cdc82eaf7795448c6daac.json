@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT actor, action, object_kind, object_id FROM denial_run\n              WHERE opened <= $1 ORDER BY opened LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "actor",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "actor"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "action",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "object_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "object_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "object_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "denial_run",
+            "name": "object_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3bb5e2c15be345b11909ac95c29fc007bb947e286d0cdc82eaf7795448c6daac"
+}

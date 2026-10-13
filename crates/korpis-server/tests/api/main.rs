@@ -16,6 +16,7 @@ mod assignments;
 mod authority;
 mod authz;
 mod cancel;
+mod denials;
 mod effects;
 mod enroll;
 mod journal;

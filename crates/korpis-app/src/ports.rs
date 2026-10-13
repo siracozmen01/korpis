@@ -30,7 +30,9 @@ mod workload;
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
 };
-pub use audit::{EffectCursor, EffectFilter, EffectRead, EffectWrite};
+pub use audit::{
+    DenialKey, DenialRead, DenialWrite, EffectCursor, EffectFilter, EffectRead, EffectWrite,
+};
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
@@ -99,6 +101,7 @@ pub trait Store:
     + GrantRead
     + CredentialRead
     + EffectRead
+    + DenialRead
     + IdempotencyRead
     + KeyRegistry
     + RecipeCache
@@ -134,6 +137,7 @@ pub trait Tx:
     + GrantWrite
     + CredentialWrite
     + EffectWrite
+    + DenialWrite
     + IdempotencyWrite
     + WorkloadWrite
     + QuotaWrite
