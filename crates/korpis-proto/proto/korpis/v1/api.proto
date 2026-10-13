@@ -240,6 +240,11 @@ service WorkloadService {
   rpc Restart(RestartRequest) returns (PowerResponse);
   // workload.delete: a plan of kind retire. Volumes are not deleted by it.
   rpc DeleteWorkload(DeleteWorkloadRequest) returns (DeleteWorkloadResponse);
+  // Binds a workload whose approved target has no node to a node an operator chooses, with the
+  // operator's reason (§2.3 of docs/05-scheduling.md). The choice overrides the node's cordon
+  // and taints, the operator's own decisions about it, and nothing else. node.place on the
+  // node, and workload.write on the workload. A placed workload moves only by migration.
+  rpc PlaceWorkload(PlaceWorkloadRequest) returns (PlaceWorkloadResponse);
   rpc GetWorkload(GetWorkloadRequest) returns (GetWorkloadResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -316,6 +321,18 @@ message PowerResponse {
 message DeleteWorkloadRequest {
   Mutation mutation = 1;
   string workload = 2;
+}
+
+message PlaceWorkloadRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+  string node = 3;
+  // Why, for the record; required.
+  string reason = 4;
+}
+
+message PlaceWorkloadResponse {
+  Placement placement = 1;
 }
 
 message DeleteWorkloadResponse {

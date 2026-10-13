@@ -213,6 +213,9 @@ is heard are now two states, and the status a client shows is derived from both.
 session showed that step 1 had a declared heartbeat interval nothing told the agent, and no rule
 for a stream that stays open while its agent is gone: the first answer to a Hello now declares the
 interval, and three missed heartbeats make the node unreachable whether or not its stream closed.
+A node cordoned for maintenance can still be given one workload deliberately: `PlaceWorkload` binds
+it there by hand, overriding the cordon and taints and nothing else (§2.3 of `05-scheduling.md`),
+which is what `bound_by: operator` had promised without anything to do it.
 
 **FINDING 5: What a `stable` address does while its workload is gone. `CONFIRMED`**
 

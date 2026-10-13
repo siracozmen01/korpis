@@ -66,6 +66,15 @@ pub enum AppError {
         /// For humans: which digest, and that no accepted signer signed it.
         message: String,
     },
+    /// No state of the system can satisfy the request as asked: a node that cannot run the
+    /// workload, whoever chooses it (§8 of docs/10-api.md).
+    #[error("{message}")]
+    Unsatisfiable {
+        /// A stable reason clients branch on, e.g. `placement.unsatisfiable`.
+        reason: &'static str,
+        /// For humans: every check that failed.
+        message: String,
+    },
     /// Specified, scheduled, not yet built (§4 of docs/20-roadmap.md).
     #[error("{what} arrive in Phase {phase}")]
     NotYet {

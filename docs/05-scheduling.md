@@ -215,6 +215,20 @@ not starting.*
 Manual placement remains available (`bound_by: operator`) and is recorded as an override with the
 reason the operator gives. The scheduler is not a wall.
 
+What the override reaches, decided 2026-10-13 when it was built (`WorkloadService.PlaceWorkload`,
+`korpis workload place`). An operator binds a workload whose approved target has no node to the
+node they name. The choice overrides the node's cordon and taints, because those record the
+operator's own decisions about the node, and nothing else: every other check of §2.1 is a fact
+about whether the workload can run there (a driver, a tier, capacity, a storage class, the
+overlay) or its tenant's own declaration (constraints, affinity) or tenancy (the node's
+organization), and a node failing one is refused with `UNSATISFIABLE` naming each check,
+whoever chooses it. A draining or decommissioned node is not overridden: draining is the operator
+emptying it. It needs `node.place` on the node and `workload.write` on the workload, and the effect
+names the `node.place` grant and the reason. A workload already on a node moves only by migration
+(§8), so placing it elsewhere is refused until migration exists in Phase 3. The cost is that an
+operator cannot force a workload onto a node it does not fit, even when they know better than the
+measurement; the honest remedy is to correct the measurement, not to bind past it.
+
 **When a placement is bound.** In the transaction that approves a target (§3.3 of `01-model.md`),
 whether by default policy or by an approver, so an approved workload either has a node or a
 recorded reason it has none before the approval commits. A scheduled window does not delay it:

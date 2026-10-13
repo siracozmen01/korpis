@@ -20,9 +20,10 @@ use connectrpc::{
 use korpis_app::Idempotent;
 use korpis_app::workload::{
     ChangePower, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
-    NewWorkload, PlacementView, PowerChanged, SetDeclaration, Watch, WorkloadView,
+    NewWorkload, PlaceWorkload, PlacementView, PowerChanged, SetDeclaration, Watch, WorkloadView,
 };
 use korpis_core::id::IdKind;
+use korpis_core::placement::Placement;
 use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
@@ -89,6 +90,22 @@ fn through_set(req: &pb::DeclareIntentRequest) -> Result<Option<SetDeclaration>,
         return Ok(None);
     };
     Ok(Some(SetDeclaration { name, adopt: req.adopt, reconcile: req.reconcile }))
+}
+
+/// A placement made by hand, as its maker sees it: the node they named, when, and why. The
+/// derivation is read with the workload, filtered for whoever reads it.
+fn placed(p: &Placement) -> pb::PlaceWorkloadResponse {
+    let placement = pb::Placement {
+        workload: wire_id(IdKind::Workload, p.workload),
+        node: wire_id(IdKind::Node, p.node),
+        bound_at: timestamp(p.bound_at).into(),
+        bound_by: bound_by_to_pb(p.bound_by).into(),
+        reason: p.reason.clone(),
+        authoritative: p.authoritative,
+        intent: wire_id(IdKind::Intent, p.intent),
+        ..Default::default()
+    };
+    pb::PlaceWorkloadResponse { placement: placement.into(), ..Default::default() }
 }
 
 fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
@@ -251,6 +268,25 @@ impl pb::WorkloadService for Api {
     ) -> ServiceResult<pb::PowerResponse> {
         let req = request.to_owned_message();
         self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Restart).await
+    }
+
+    async fn place_workload(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::PlaceWorkloadRequest>,
+    ) -> ServiceResult<pb::PlaceWorkloadResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let cmd = PlaceWorkload {
+            workload: wire::id(IdKind::Workload, "workload", &req.workload).refuse()?,
+            node: wire::id(IdKind::Node, "node", &req.node).refuse()?,
+            reason: req.reason.clone(),
+        };
+        let encoder = |p: &Placement| encode(&placed(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.place_workload(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, placed)
     }
 
     async fn delete_workload(

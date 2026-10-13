@@ -76,14 +76,39 @@ fn powered(r: &pb::PowerResponse) -> Answer {
     Answer { json: json(r), human }
 }
 
-/// Answers `korpis workload start|stop|restart|delete`.
+/// Answers `korpis workload place`.
+async fn place(
+    c: &Connection,
+    workload: String,
+    node: &str,
+    reason: &str,
+) -> Result<Answer, CliError> {
+    let request = pb::PlaceWorkloadRequest {
+        mutation: mutation(None).into(),
+        workload,
+        node: resolve::node(c, node).await?,
+        reason: reason.to_owned(),
+        ..Default::default()
+    };
+    let client = pb::WorkloadServiceClient::new(c.http(), c.config());
+    let r = client.place_workload(request).await?.into_owned();
+    let p = r.placement.as_option().cloned().unwrap_or_default();
+    let human = format!("placed on {} by an operator: {}\n", p.node, p.reason);
+    Ok(Answer { json: json(&r), human })
+}
+
+/// Answers `korpis workload start|stop|restart|place|delete`.
 pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer, CliError> {
     let client = pb::WorkloadServiceClient::new(c.http(), c.config());
     let (WorkloadAction::Start { workload }
     | WorkloadAction::Stop { workload }
     | WorkloadAction::Restart { workload }
+    | WorkloadAction::Place { workload, .. }
     | WorkloadAction::Delete { workload }) = action;
     let id = resolve::workload(c, workload).await?;
+    if let WorkloadAction::Place { node, reason, .. } = action {
+        return place(c, id, node, reason).await;
+    }
     if matches!(action, WorkloadAction::Delete { .. }) {
         let request = pb::DeleteWorkloadRequest {
             mutation: mutation(None).into(),
@@ -105,7 +130,9 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
                 pb::StopRequest { mutation: m.into(), workload: id, ..Default::default() };
             client.stop(request).await?
         }
-        WorkloadAction::Restart { .. } | WorkloadAction::Delete { .. } => {
+        WorkloadAction::Restart { .. }
+        | WorkloadAction::Delete { .. }
+        | WorkloadAction::Place { .. } => {
             let request =
                 pb::RestartRequest { mutation: m.into(), workload: id, ..Default::default() };
             client.restart(request).await?

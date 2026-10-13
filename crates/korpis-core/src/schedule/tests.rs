@@ -296,3 +296,40 @@ fn reservation_counts_only_what_placement_guarantees() {
     let r = reservation(&b);
     assert_eq!(r, Bounds::from([(Dimension::Cpu, 1_000), (Dimension::Memory, GIB)]));
 }
+
+fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'a> {
+    Request {
+        workload: Uuid::from_u128(1000),
+        project: PROJECT,
+        labels,
+        owners: &[ORG],
+        body: b,
+        current: None,
+    }
+}
+
+#[test]
+fn an_operator_overrides_their_own_decisions_about_a_node_and_nothing_else() {
+    let mut chosen = node(1, &[]);
+    chosen.admin = NodeAdmin::Cordoned;
+    chosen.taints.push(Taint { key: "dedicated".into(), value: "ops".into() });
+    let labels = BTreeMap::new();
+    let mut b = body(GIB);
+    let empty = Bounds::new();
+    let c = Candidate { node: &chosen, allocated: &empty };
+    let policy = PlacementPolicy::default();
+    let scheduled = place(&req(&labels, &b), &[c], &[], &policy);
+    assert_eq!(scheduled.chosen, None, "the scheduler respects the cordon and the taint");
+    assert!(
+        operator_refusals(&req(&labels, &b), &c, &[], &policy).is_empty(),
+        "the operator overrides both"
+    );
+
+    b.resources.memory.reservation = 1 << 50;
+    let refused = operator_refusals(&req(&labels, &b), &c, &[], &policy);
+    assert_eq!(refused.iter().map(|r| r.check).collect::<Vec<_>>(), [Check::Capacity]);
+    chosen.admin = NodeAdmin::Draining;
+    let c = Candidate { node: &chosen, allocated: &empty };
+    let refused = operator_refusals(&req(&labels, &body(GIB)), &c, &[], &policy);
+    assert_eq!(refused.iter().map(|r| r.check).collect::<Vec<_>>(), [Check::Status], "not a drain");
+}

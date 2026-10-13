@@ -209,8 +209,8 @@ installation cannot deliver it (§3 of `07-networking.md`).
 Why at declaration and on the server: an intent is immutable and must mean the same thing
 forever (§3.1 of `03-state.md`), so it cannot depend on reading its recipe again; and every client,
 the CLI, the web panel and a chat command, gets the same completion because only one place
-performs it, which is what lets `korpis plan` show the body that will run. Why merge entries by name rather
-than replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
+performs it, which is what lets `korpis plan` show the body that will run. Why merge entries by
+name rather than replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
 endpoint's exposure should not have to restate the others to keep its readiness probe valid.
 
 A console is a capability the node's driver must declare (§4.1 of `04-runtimes.md`), so the

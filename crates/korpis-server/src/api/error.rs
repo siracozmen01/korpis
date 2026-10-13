@@ -135,6 +135,13 @@ pub fn from_app(e: AppError) -> ConnectError {
             message: &message,
             retryable: reason == "idempotency.in_flight",
         }),
+        AppError::Unsatisfiable { reason, message } => build(&Wire {
+            code: C::ERROR_CODE_UNSATISFIABLE,
+            reason,
+            field: "",
+            message: &message,
+            retryable: false,
+        }),
         AppError::QuotaExceeded { dimension, message } => build(&Wire {
             code: C::ERROR_CODE_QUOTA_EXCEEDED,
             reason: "quota.exceeded",

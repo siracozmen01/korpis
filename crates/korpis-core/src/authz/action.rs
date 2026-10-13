@@ -54,6 +54,7 @@ pub const CORE: &[&str] = &[
     "node.cordon",
     "node.drain",
     "node.evacuate",
+    "node.place",
 ];
 
 /// Irreversible actions: excluded from set-subject and link-form grants by default, and routed

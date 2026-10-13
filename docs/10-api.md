@@ -177,7 +177,7 @@ stream.share
 grant.read · grant.revoke
 org.read · org.create · org.write · org.suspend · org.quota.write
 project.read · project.create · project.write · project.delete
-node.read · node.enroll · node.cordon · node.drain · node.evacuate
+node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place
 ext.<extension>.<action>              extensions define their own, namespaced
 ```
 
@@ -192,6 +192,10 @@ ext.<extension>.<action>              extensions define their own, namespaced
   `08-identity.md` excludes from set-subject and link-form grants by default, and what the chat
   client and the panel route to an explicit confirmation. There is one list, here, and every other
   document refers to it (finding S35).
+- **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
+  authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
+  manual placement was built: the model had `bound_by: operator` and no action anyone could hold
+  to do it.
 - **`plan.approve` is what an approver holds** (§3.6 of `08-identity.md`). Approval was central to
   the model and had no action a gateway could check when someone pressed Approve.
 - **Delegating is not an action.** Whether a grant may be attenuated into children, how deep, and

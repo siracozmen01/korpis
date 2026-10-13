@@ -24,6 +24,7 @@ mod lifecycle;
 mod nodes;
 mod observe;
 mod operator;
+mod pin;
 mod placement;
 mod plans;
 mod quota;

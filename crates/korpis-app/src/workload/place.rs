@@ -55,7 +55,7 @@ fn reason(followed: bool) -> String {
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The organizations whose nodes may serve one owned by `organization`: it and every
     /// ancestor (§3.4 of docs/01-model.md).
-    async fn owners(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
+    pub(super) async fn owners(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
         let chain = self.store.ancestry(ObjectRef::new(Kind::Organization, organization)).await?;
         Ok(chain.into_iter().map(|n| n.object.id).collect())
     }

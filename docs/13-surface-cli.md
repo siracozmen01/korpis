@@ -55,7 +55,7 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
-`status`, `plan approve|reject|cancel`, `workload start|stop|restart|delete`, and `node token
+`status`, `plan approve|reject|cancel`, `workload start|stop|restart|place|delete`, and `node token
 create|cordon|uncordon`, each one call of the API once its names are resolved. An object is named
 by its identifier, by its name, or, for a workload, as `project/name`. A name is resolved by
 listing what the caller may read, never by a lookup the API does not offer, so a name the caller
@@ -271,10 +271,11 @@ No long-lived admin key in a dotfile. Interactive login is a browser or device-c
 yields a short-lived capability token held in the OS keyring.
 
 Until that flow exists, the CLI keeps no credential at all: the token is read from `KORPIS_TOKEN`
-or from a file named with `--token-file` or `KORPIS_TOKEN_FILE`, the control plane from `KORPIS_SERVER` or `--server`,
-and its certificate authority from `KORPIS_CA` or `--ca`, a PEM file trusted alone for it, so no
-public authority can vouch for a Korpis control plane. Where the token comes from is the
-operator's decision and the operator's storage; the CLI writes nothing down.
+or from a file named with `--token-file` or `KORPIS_TOKEN_FILE`, the control plane from
+`KORPIS_SERVER` or `--server`, and its certificate authority from `KORPIS_CA` or `--ca`, a PEM
+file trusted alone for it, so no public authority can vouch for a Korpis control plane. Where the
+token comes from is the operator's decision and the operator's storage; the CLI writes nothing
+down.
 
 For automation, §3 of `08-identity.md` does something RBAC systems cannot:
 

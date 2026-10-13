@@ -118,6 +118,19 @@ pub enum WorkloadAction {
         /// The workload.
         workload: String,
     },
+    /// Places it by hand on a node you choose, overriding the node's cordon and taints and
+    /// nothing else (§2.3 of docs/05-scheduling.md).
+    Place {
+        /// The workload.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
+        workload: String,
+        /// The node, by name or identifier.
+        #[arg(long, add = ArgValueCompleter::new(complete::nodes))]
+        node: String,
+        /// Why, for the record.
+        #[arg(long)]
+        reason: String,
+    },
     /// Proposes its retirement; its volumes are kept.
     Delete {
         #[arg(add = ArgValueCompleter::new(complete::workloads))]

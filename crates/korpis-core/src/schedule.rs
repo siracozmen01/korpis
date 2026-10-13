@@ -199,6 +199,31 @@ pub struct Explanation {
     pub policy: PlacementPolicy,
 }
 
+/// The refusals of `c` that stand when an operator chooses it by hand (§2.3 of
+/// docs/05-scheduling.md). A cordon and a taint record the operator's own decisions about the
+/// node, so choosing it overrides them; every other check is a fact about whether the workload
+/// can run there, or its tenant's own declaration, and holds.
+#[must_use]
+pub fn operator_refusals(
+    req: &Request<'_>,
+    c: &Candidate<'_>,
+    peers: &[Peer],
+    policy: &PlacementPolicy,
+) -> Vec<Rejection> {
+    let fleet: topology::Fleet<'_> = std::iter::once((c.node.id, c.node)).collect();
+    let cordoned = c.node.admin == crate::node::NodeAdmin::Cordoned
+        && c.node.connectivity == crate::node::Connectivity::Connected;
+    filter::rejections(req, c, &fleet, peers, policy)
+        .into_iter()
+        .filter(|(check, _)| match check {
+            Check::Taint => false,
+            Check::Status => !cordoned,
+            _ => true,
+        })
+        .map(|(check, detail)| Rejection { node: c.node.id, check, detail })
+        .collect()
+}
+
 /// Filters, scores, and chooses. Ties go to the lower node identifier, so the same inputs
 /// always choose the same node.
 #[must_use]

@@ -75,6 +75,7 @@ table! {
     "korpis.v1.WorkloadService/Start" => WorkloadServiceClient::start(StartRequest);
     "korpis.v1.WorkloadService/Stop" => WorkloadServiceClient::stop(StopRequest);
     "korpis.v1.WorkloadService/Restart" => WorkloadServiceClient::restart(RestartRequest);
+    "korpis.v1.WorkloadService/PlaceWorkload" => WorkloadServiceClient::place_workload(PlaceWorkloadRequest);
     "korpis.v1.WorkloadService/DeleteWorkload" => WorkloadServiceClient::delete_workload(DeleteWorkloadRequest);
     "korpis.v1.WorkloadService/GetWorkload" => WorkloadServiceClient::get_workload(GetWorkloadRequest);
     "korpis.v1.WorkloadService/ListWorkloads" => WorkloadServiceClient::list_workloads(ListWorkloadsRequest);
