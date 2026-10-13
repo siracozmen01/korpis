@@ -62,7 +62,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 9 | `Prepare` from the intent and the carried recipe alone, configuration written as variables and arguments; content fetched by digest, signature verified, **pure** ‡ | `04-runtimes.md` §4.2; `09-recipes.md` §5.2 |
 | 10 | Volume created with byte and inode quota in the write path | `06-storage.md` §3 |
 | 11 | Endpoint allocated, exposure mode applied | `07-networking.md` §3 |
-| 12 | `Create`, then `Start` | `04-runtimes.md` §4.2 |
+| 12 | `Create` over the driver's socket, to a peer the kernel's credentials name, the spec validated again; then `Start`, which the driver reports as an event ‡ | `04-runtimes.md` §4.2; `02-architecture.md` §6.1 |
 | 13 | Health probed at the application level | `04-runtimes.md` §5 |
 | 14 | `Observation` reported; node-originated effects journaled and acknowledged exactly once † | `02-architecture.md` §4.3, §4.10 |
 | 15 | Web shows converging, then converged, with the lag, each change pushed to its watch as it commits ‡ | `11-surface-web.md` §3; `10-api.md` §7 |
@@ -89,6 +89,10 @@ declaring organization, and a dry run shows a refusal before anything is written
 rule for how a configured value reaches the software: an `arg` field's template was never
 defined, and the example schema of §5 of `09-recipes.md` could not be loaded. §5.2 there now says
 how each value is written, and §4.2 of `04-runtimes.md` what the driver reads and what it refuses.
+Step 12 crossed a socket nothing guarded: §6.1 of `02-architecture.md` made the driver validate
+what it is asked, but not say who may ask, and a driver that holds containerd's privilege must.
+The kernel's record of the connecting user now decides it, and `Wait`, which the protocol never
+carried, is its `Events` stream.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

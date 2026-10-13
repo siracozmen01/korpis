@@ -934,6 +934,11 @@ So the boundary is drawn at each driver, not at the supervisor:
   as a security event.
 - **Each driver runs as its own user with access only to what its runtime needs**, so the union of
   driver privileges never lands in one process (§3 of `04-runtimes.md`).
+- **Only the supervisor may ask.** A driver's socket opens to its owner and group alone, and each
+  connection's peer credentials, which the kernel records at `connect` and no client can state,
+  must name a user the driver was told to allow, or the connection is closed before a byte of it
+  is read. What this does not stop is root on the node, which can open containerd's socket
+  without asking the driver at all.
 - **Driver validation code is held to the same review standard as the helper**, because for the
   `oci` driver it is the only thing between a compromised supervisor and root. §6 of `21-stack.md`
   records what this meant for the language choice, and why it no longer splits it.

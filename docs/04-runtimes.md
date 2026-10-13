@@ -234,6 +234,13 @@ architecture, and a configuration that needs a managed file. It maps no ports: t
 network holds only loopback until the networking of Phase 1, the driver declares
 `network_modes: none`, and an endpoint stays without an address rather than claiming one.
 
+**`Wait` is a stream of events.** The protocol carries it as `Events`: for every task of the
+driver's objects that starts, exits, pauses, resumes, is deleted, or runs out of memory, the status
+it leaves the object in, read back with `Inspect` rather than built from the event. An event can
+therefore only make the supervisor look sooner, never tell it something `Inspect` would not, and
+one lost in a reconnection costs that latency and nothing else, because the reconciler reads every
+object on its period anyway (§4.1 of `02-architecture.md`).
+
 **`Recover` is not optional.** It is the adoption primitive of §4.4 of `02-architecture.md`. A
 driver that cannot enumerate and re-adopt the objects it created is a driver that turns every agent
 restart into a customer outage. It belongs in the interface, not in each implementation's good

@@ -4,6 +4,7 @@
 //! `korpis` namespace and nowhere else, and, while a create is under way, under a containerd
 //! lease, so the content and snapshots it is assembling are not collected half way.
 
+mod events;
 mod import;
 mod inspect;
 mod lifecycle;
@@ -96,6 +97,12 @@ impl Containerd {
         let hex =
             korpis_core::content::hex_of(digest).map_err(|e| DriverError::Failed(e.to_string()))?;
         Ok(self.content.join("blobs/sha256").join(hex))
+    }
+
+    /// Whether containerd answers.
+    pub async fn ping(&self) -> bool {
+        let client = svc::version::v1::VersionClient::new(self.conn.clone(), self.config.clone());
+        client.version(buffa_types::google::protobuf::Empty::default()).await.is_ok()
     }
 
     /// Takes a lease that keeps what is made under it until it is released.

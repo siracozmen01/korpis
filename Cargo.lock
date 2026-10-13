@@ -1933,8 +1933,12 @@ version = "0.0.0"
 dependencies = [
  "buffa",
  "buffa-types",
+ "clap",
  "connectrpc",
+ "futures-util",
  "http",
+ "hyper",
+ "hyper-util",
  "korpis-agent",
  "korpis-containerd",
  "korpis-core",
@@ -1946,7 +1950,9 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tower-service",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

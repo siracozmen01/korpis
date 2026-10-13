@@ -16,12 +16,18 @@ korpis-core = { workspace = true, features = ["content"] }
 korpis-containerd = { workspace = true }
 korpis-recipe = { path = "../korpis-recipe", default-features = false }
 korpis-proto = { workspace = true }
+clap = { version = "4", features = ["derive", "env", "string"] }
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
-connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client"] }
+connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "server"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 http = "1"
+hyper = { version = "1", features = ["server", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+tower-service = "0.3"
 tokio = { workspace = true }
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = { workspace = true }

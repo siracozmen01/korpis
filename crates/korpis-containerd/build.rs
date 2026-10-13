@@ -5,7 +5,10 @@
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     const FILES: &[&str] = &[
+        "events/task.proto",
         "types/descriptor.proto",
+        "types/event.proto",
+        "types/fieldpath.proto",
         "types/metrics.proto",
         "types/mount.proto",
         "types/platform.proto",
@@ -16,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "services/containers/v1/containers.proto",
         "services/content/v1/content.proto",
         "services/diff/v1/diff.proto",
+        "services/events/v1/events.proto",
         "services/images/v1/images.proto",
         "services/leases/v1/leases.proto",
         "services/namespaces/v1/namespace.proto",

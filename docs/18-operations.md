@@ -172,6 +172,16 @@ told which driver to use and how much of the machine to keep back for the machin
 exactly as it is and writes what the journal still counts in memory; the next start adopts them
 (§4.4 of `02-architecture.md`).
 
+The container tier is a separate process, `korpis-driver-oci`, run as its own user with access to
+containerd's socket and to nothing else the agent holds (§6.1 of `02-architecture.md`). It serves
+the driver protocol on `/run/korpis/driver-oci.sock`, to the users named by `--allow-uid` and, when
+none is named, to its own user only; it reads images from the node's content store at
+`/var/lib/korpis-agent/content`, which the agent fills, and mounts nothing but directories under
+`/var/lib/korpis/volumes`, which the helper keeps; `--socket`, `--content`, `--volume-root`, and
+`--containerd` move them. Stopping
+the driver stops nothing that runs: the containers are containerd's, and the next driver reads
+them back with `Recover`.
+
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
 will land.
