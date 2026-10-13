@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE provider_call c SET outcome = $1, finished_at = $2\n              WHERE c.registration_id IS NOT NULL AND c.finished_at IS NULL\n                AND NOT EXISTS (SELECT 1 FROM provider_registration r\n                                 WHERE r.id = c.registration_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3767bf7c30542f150b4e403af140ed162ddb2b8688112b203d64c78c804aebd9"
+}

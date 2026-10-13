@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE provider_call SET outcome = $3, finished_at = $4\n              WHERE id = $1 AND finished_at IS NULL\n                AND ($2::uuid IS NULL OR registration_id = $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0920fba4db05fa44f5c104c611bf95ef89879310f5c81e17d85386a96179e410"
+}

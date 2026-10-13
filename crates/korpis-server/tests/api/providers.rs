@@ -20,20 +20,20 @@ use korpis_proto::korpis::v1::__buffa::oneof::provider_control::Message as Down;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_message::Message as Up;
 use std::time::Duration;
 
-type Serve = BidiStream<
+pub type Serve = BidiStream<
     <HttpClient as ClientTransport>::ResponseBody,
     pb::ProviderMessage,
     pb::__buffa::view::ProviderControlView<'static>,
 >;
 
 /// An installed DNS extension, its node's session kept open, and its workload's credential.
-struct Installed {
-    extension: pb::Extension,
-    secret: String,
+pub struct Installed {
+    pub extension: pb::Extension,
+    pub secret: String,
     _session: agent::Stream,
 }
 
-async fn installed(h: &Harness, n: u8, project_name: &str) -> Installed {
+pub async fn installed(h: &Harness, n: u8, project_name: &str) -> Installed {
     let a = TestAgent::enroll(h, &format!("fra-{n}"), n).await;
     let mut session = connect(h, &a, n).await;
     let repo = push_dns().await;
@@ -57,32 +57,41 @@ async fn installed(h: &Harness, n: u8, project_name: &str) -> Installed {
     Installed { extension, secret: issued.secret.clone(), _session: session }
 }
 
-fn register(name: &str) -> pb::ProviderMessage {
+pub fn register(name: &str, version: &str, concurrency: u32) -> pb::ProviderMessage {
     let r = pb::Register {
         r#type: pb::ProviderType::PROVIDER_TYPE_DNS.into(),
         name: name.to_owned(),
-        version: "1.0.0".into(),
-        concurrency: 4,
+        version: version.to_owned(),
+        concurrency,
         ..Default::default()
     };
     pb::ProviderMessage { message: Some(Up::Register(Box::new(r))), ..Default::default() }
 }
 
-/// Opens a stream as `secret` and registers `name`; the stream and the first answer.
-async fn serve(
+/// Opens a stream as `as_` and sends `first`; the stream and the first answer.
+pub async fn open(
     h: &Harness,
     as_: ClientConfig,
-    name: &str,
+    first: pb::ProviderMessage,
 ) -> (Serve, Result<pb::ProviderControl, ConnectError>) {
     let client = pb::ProviderServiceClient::new(h.http.clone(), as_);
     let mut stream = client.serve().await.unwrap();
-    stream.send(register(name)).await.unwrap();
+    stream.send(first).await.unwrap();
     let first = match stream.message::<pb::ProviderControl>().await {
         Ok(Some(m)) => Ok(m.to_owned_message()),
         Ok(None) => Err(ConnectError::internal("the stream ended")),
         Err(e) => Err(e),
     };
     (stream, first)
+}
+
+/// Opens a stream as `as_` and registers `name` at version 1.0.0.
+async fn serve(
+    h: &Harness,
+    as_: ClientConfig,
+    name: &str,
+) -> (Serve, Result<pb::ProviderControl, ConnectError>) {
+    open(h, as_, register(name, "1.0.0", 4)).await
 }
 
 async fn registrations(h: &Harness, extension: &str) -> i64 {

@@ -147,10 +147,36 @@ is held by exactly one of them and every registration records which. The holding
 its registrations every five seconds; one not confirmed for thirty seconds belongs to a replica
 that is gone, and whichever replica notices withdraws it. What it costs: when a replica dies,
 its registrations stand for up to thirty seconds although no stream is behind them, and a call
-routed to one in that window fails as retryable rather than reaching the provider. A replica that
-is not holding a provider's stream still has to send it calls; how those calls reach the holding
-replica is the call path still to be built in Phase 1 (§4 of `20-roadmap.md`), and the queue it
-uses is recorded here when it is.
+routed to one in that window fails as retryable rather than reaching the provider.
+
+**A call is queued in Postgres, because the replica that wants a provider called is rarely the
+one holding its stream.** The caller writes the call with its deadline (at most five minutes) to
+the organization whose installation serves it: the calling organization's own, or failing that
+its nearest ancestor's, which is how a child organization's provider shadows its parent's. Each
+replica claims, with `FOR UPDATE SKIP LOCKED`, the queued calls the streams it holds may take: only
+a stream of the version registered most recently for that provider, and only as many as its
+declared concurrency leaves free. One task per replica claims for all its streams, so no stream's
+free slots are counted twice. It sends each call down its stream, and the provider's result, the
+stream's end, or the deadline finishes it; at the deadline the provider is sent `CancelCall`, and
+an answer after it is discarded. Queueing and finishing announce on one notification channel that
+wakes the claiming replicas and the waiting callers, and both also re-read every second, so a
+lost announcement makes a call late, never stuck. A call that finds no installation providing
+what it names fails at once as `provider.unknown`, not retryable; one sent down a stream that then
+ends, or whose registration is withdrawn or expires, fails at once as `provider.stream_ended`,
+retryable; one nobody answered fails at its deadline as `provider.deadline`, retryable. A provider
+whose stream has dropped is therefore unavailable only until it reconnects within the deadline:
+a call queued meanwhile waits for it rather than failing.
+
+"Newest" is the version registered most recently, not the highest by any ordering of version
+strings, which a provider's own versions need not follow. This is the drain of §9 question 1: a
+replacement registers beside the old version, new calls go only to it, the old one answers what it
+already holds, and its stream is then closed. A rollback is the same operation, which is the
+point. What it costs: a newer registration whose replica has died attracts every new call for up
+to the thirty seconds before it expires, and those calls wait, then fail by their deadline if it
+is shorter, even though the older version is still connected. Every call is one row written,
+claimed, and finished, three transactions where an in-process call would need none; provider
+calls are control-path operations (a record published, a backup started, a step run), not
+per-request traffic, which is what makes that acceptable. Finished calls are kept an hour.
 
 ---
 
@@ -486,7 +512,8 @@ A provider replacement registers the new version beside the old one; new calls g
 version; calls in flight on the old one finish within their deadline; then the old registration is
 withdrawn. Dependents see no failure window, because no call is ever sent to a provider that is not
 registered, and a call that fails during the switch is retried under the provider's ordinary
-breaker policy. It is a drain, applied to one registration rather than one node.
+breaker policy. It is a drain, applied to one registration rather than one node. As built, "new"
+means registered most recently, and the routing is the claim rule of §3.3.
 2. **Extension-to-extension dependency.** A game-query extension and a Discord-notification
    extension composing is natural, and a dependency graph invites version-resolution complexity
    that has eaten larger projects. Possibly the answer is that they compose only through the event

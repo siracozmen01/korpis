@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, extension_id, organization_id, type AS kind, name, version,\n                      concurrency, replica, connected_at, seen_at\n                 FROM provider_registration\n                WHERE organization_id = $1 ORDER BY type, name, connected_at, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "extension_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "extension_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "concurrency",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "concurrency"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "replica",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "replica"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "connected_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "connected_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_registration",
+            "name": "seen_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "eb61a4d789c4e7a358bcbe63c2e1b0ff0bc8324a79ecf1ea32c6aae6dcc56617"
+}

@@ -1,0 +1,152 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH me AS (\n                   SELECT r.id, r.version, r.concurrency FROM provider_registration r\n                    WHERE r.id = $1\n                      AND r.version = (SELECT n.version FROM provider_registration n\n                                        WHERE n.organization_id = r.organization_id\n                                          AND n.type = r.type AND n.name = r.name\n                                        ORDER BY n.connected_at DESC, n.id DESC LIMIT 1)\n               ), free AS (\n                   SELECT GREATEST(me.concurrency - (SELECT count(*) FROM provider_call c\n                                                      WHERE c.registration_id = me.id\n                                                        AND c.finished_at IS NULL), 0) AS n\n                     FROM me\n               ), picked AS (\n                   SELECT c.id FROM provider_call c\n                    WHERE c.organization_id = $2 AND c.type = $3 AND c.name = $4\n                      AND c.registration_id IS NULL AND c.finished_at IS NULL\n                      AND c.deadline > $5\n                    ORDER BY c.created_at, c.id\n                    LIMIT COALESCE((SELECT n FROM free), 0)\n                    FOR UPDATE SKIP LOCKED\n               )\n               UPDATE provider_call c\n                  SET registration_id = me.id, version = me.version, sent_at = $5\n                 FROM picked, me\n                WHERE c.id = picked.id\n            RETURNING c.id, c.organization_id, c.type AS kind, c.name, c.request, c.deadline,\n                      c.created_at, c.registration_id, c.version, c.outcome, c.finished_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "request",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "request"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "deadline",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "deadline"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "registration_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "registration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "outcome",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "provider_call",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0a0099180baa6c2adcc97c5fb059ff05d7c0e5d9b3a0e998a083cb822562cfd3"
+}

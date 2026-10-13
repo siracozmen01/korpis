@@ -10,7 +10,7 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, Positions, RecipeSource, Store};
+use crate::ports::{Clock, RecipeSource, Store, Wakeups};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::event::Event;
 use uuid::Uuid;
@@ -53,7 +53,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         caller: &Caller,
         id: Uuid,
-    ) -> Result<Delivery<S::Positions>, AppError> {
+    ) -> Result<Delivery<S::Wakeups>, AppError> {
         let positions = self.store.positions();
         let subscription = self.get_subscription(caller, id).await?;
         Ok(Delivery { subscription: id, cursor: subscription.acked, positions })
@@ -64,7 +64,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub async fn next_delivery(
         &self,
         caller: &Caller,
-        d: &mut Delivery<S::Positions>,
+        d: &mut Delivery<S::Wakeups>,
     ) -> Result<Option<Vec<Delivered>>, AppError> {
         loop {
             let subscription = self.get_subscription(caller, d.subscription).await?;

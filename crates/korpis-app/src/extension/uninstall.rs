@@ -11,12 +11,12 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::Page;
 use crate::ports::{
-    Clock, EffectWrite, ExtensionWrite, ProviderWrite, RecipeSource, RetirementWrite, Store,
-    SubscriptionWrite, Tx,
+    Clock, EffectWrite, ExtensionWrite, ProviderCallWrite, ProviderWrite, RecipeSource,
+    RetirementWrite, Store, SubscriptionWrite, Tx,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{GrantRecord, Kind, ObjectRef};
-use korpis_core::extension::Installation;
+use korpis_core::extension::{CallFailure, CallOutcome, Installation};
 use korpis_core::workload::Plan;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -78,6 +78,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let ended = tx.delete_extension_subscriptions(id).await?;
         tx.delete_provides(id).await?;
+        super::provider::fail_in_flight(&mut tx, now).await?;
+        let unknown = CallOutcome::Failed(CallFailure::unknown());
+        tx.fail_calls_without_provider(&unknown, now).await?;
         installation.uninstalled_at = Some(now);
         let mut plan = None;
         if let Some((w, p, grant)) = retire

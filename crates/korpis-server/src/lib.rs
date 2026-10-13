@@ -10,6 +10,7 @@ pub mod bodies;
 pub mod data;
 pub mod install;
 pub mod keys;
+mod provider_calls;
 pub mod providers;
 pub mod sealer;
 pub mod sessions;
@@ -142,7 +143,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     tokio::spawn(sweep_silent_nodes(Arc::clone(&api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(&api)));
     tokio::spawn(track_conditions(Arc::clone(&api)));
-    tokio::spawn(keep_registrations(Arc::clone(&api)));
+    tokio::spawn(provider_calls::keep_registrations(Arc::clone(&api)));
+    tokio::spawn(provider_calls::dispatch(Arc::clone(&api)));
     tokio::spawn(close_denial_runs(Arc::clone(&api), config.denial_window));
     let router = api.router();
     let task = tokio::spawn(async move {
@@ -214,30 +216,6 @@ async fn track_conditions(api: Arc<Api>) {
             tracing::warn!(error = %e, "deciding convergence failed");
         }
         next = changes.next().await;
-    }
-}
-
-/// How often this replica confirms the provider streams it holds.
-const REGISTRATIONS_SEEN: Duration = Duration::from_secs(5);
-
-/// Confirms, every few seconds, the provider streams this replica holds, closing any whose
-/// registration was withdrawn elsewhere, and withdraws registrations no replica has confirmed
-/// for six times as long: their replica is gone (§3.3 of docs/16-extensions.md). The task ends
-/// with the process.
-async fn keep_registrations(api: Arc<Api>) {
-    let mut tick = tokio::time::interval(REGISTRATIONS_SEEN);
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().keep_registrations(api.providers().replica()).await {
-            Ok(alive) => api.providers().keep_only(&alive),
-            Err(e) => tracing::warn!(error = %e, "confirming provider streams failed"),
-        }
-        match api.app().expire_registrations(REGISTRATIONS_SEEN * 6).await {
-            Ok(0) => {}
-            Ok(n) => tracing::info!(registrations = n, "provider registrations of a lost replica"),
-            Err(e) => tracing::warn!(error = %e, "expiring provider registrations failed"),
-        }
     }
 }
 

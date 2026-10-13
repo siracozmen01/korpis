@@ -23,7 +23,10 @@ fn exceeded(e: &Exceeded) -> AppError {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The organization and every organization above it, nearest first.
-    async fn organization_chain(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
+    pub(crate) async fn organization_chain(
+        &self,
+        organization: Uuid,
+    ) -> Result<Vec<Uuid>, AppError> {
         let mut chain = Vec::new();
         let mut next = Some(organization);
         while let Some(id) = next {

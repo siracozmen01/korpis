@@ -11,10 +11,11 @@ use crate::error::AppError;
 use crate::ports::{Clock, EffectWrite, ProviderWrite, RecipeSource, Store, Tx};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::extension::{
-    MAX_CONCURRENCY, MAX_VERSION, ProvidedInterface, ProviderType, Registration,
+    CallFailure, CallOutcome, MAX_CONCURRENCY, MAX_VERSION, ProvidedInterface, ProviderType,
+    Registration,
 };
 use korpis_core::principal::{Principal, SystemActor};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 /// What a stream asks to serve.
@@ -51,6 +52,15 @@ fn effect(actor: Principal, action: &str, r: &Registration, workload: Option<Uui
     ]));
     e.workload = workload;
     e
+}
+
+/// Fails, in the transaction that withdrew their registrations, the calls sent to streams that
+/// are gone: they fail as retryable rather than waiting out their deadline (§3.3 of
+/// docs/16-extensions.md).
+pub(super) async fn fail_in_flight(tx: &mut impl Tx, now: SystemTime) -> Result<(), AppError> {
+    let ended = CallOutcome::Failed(CallFailure::stream_ended());
+    tx.fail_calls_without_registration(&ended, now).await?;
+    Ok(())
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -105,6 +115,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if tx.delete_registration(registration.id).await? {
             let actor = Principal::Extension(registration.extension);
             tx.append_effect(&effect(actor, "provider.withdraw", registration, workload)).await?;
+            fail_in_flight(&mut tx, self.clock.now()).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -129,6 +140,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let workload = self.store.extension(r.extension).await?.map(|i| i.workload);
             let actor = Principal::System(SystemActor::Reconciler);
             tx.append_effect(&effect(actor, "provider.withdraw", r, workload)).await?;
+        }
+        if !gone.is_empty() {
+            fail_in_flight(&mut tx, self.clock.now()).await?;
         }
         tx.commit().await?;
         Ok(u64::try_from(gone.len()).unwrap_or(u64::MAX))

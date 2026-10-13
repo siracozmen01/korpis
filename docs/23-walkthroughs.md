@@ -866,6 +866,11 @@ of the subject had missed: the CLI still wrote an extension holder as `extension
 named no installation; it is `ext_…` now (§7 of `13-surface-cli.md`). It also found that §9 of
 `16-extensions.md` called an upgrade a plain rolling update, which would let a new version arrive
 with needs nobody approved; question 6 there records how an upgrade is approved instead.
+Building the call path found that step 2 assumed the control-plane replica running the step holds
+the provider's stream; with several replicas and no leader (§5 of `18-operations.md`) it rarely
+does. Calls are now queued in Postgres and claimed by the replica that holds a stream, and the
+bounded concurrency step 5 relies on is enforced by that claim, per stream (§3.3 of
+`16-extensions.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

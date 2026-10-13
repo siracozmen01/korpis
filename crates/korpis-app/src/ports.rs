@@ -21,6 +21,7 @@ mod node;
 mod observation;
 mod placement;
 mod provider;
+mod provider_call;
 mod quota;
 mod recipe;
 mod retire;
@@ -40,7 +41,7 @@ pub use audit::{
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
-pub use changes::{Change, Changes, Positions};
+pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
@@ -52,6 +53,7 @@ pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use provider::{ProviderRead, ProviderWrite};
+pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
@@ -130,6 +132,7 @@ pub trait Store:
     + ConditionRead
     + SubscriptionRead
     + ProviderRead
+    + ProviderCallRead
     + Send
     + Sync
     + 'static
@@ -140,8 +143,8 @@ pub trait Store:
     /// A subscription to workload changes.
     type Changes: Changes;
 
-    /// Wake-ups for event subscribers.
-    type Positions: Positions;
+    /// Wake-ups for event subscribers and provider calls.
+    type Wakeups: Wakeups;
 
     /// Opens a transaction.
     fn begin(&self) -> impl Future<Output = StoreResult<Self::Tx>> + Send;
@@ -150,7 +153,10 @@ pub trait Store:
     fn subscribe(&self) -> Self::Changes;
 
     /// Wakes, from now on, whenever events are positioned.
-    fn positions(&self) -> Self::Positions;
+    fn positions(&self) -> Self::Wakeups;
+
+    /// Wakes, from now on, whenever a provider call is queued or finished.
+    fn provider_calls(&self) -> Self::Wakeups;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.
@@ -178,6 +184,7 @@ pub trait Tx:
     + ConditionWrite
     + SubscriptionWrite
     + ProviderWrite
+    + ProviderCallWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

@@ -5,8 +5,8 @@
 //! cursor.
 
 pub use korpis_wire::{
-    audit, authz, duration_from, event, extension, id, name, node, placement, plan, principal,
-    recipe, scope, spec, tenancy, time, timestamp, value, wire_id, workload,
+    audit, authz, duration, duration_from, event, extension, id, name, node, placement, plan,
+    principal, provider, recipe, scope, spec, tenancy, time, timestamp, value, wire_id, workload,
 };
 
 use super::error::invalid;

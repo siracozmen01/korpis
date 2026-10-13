@@ -4,7 +4,8 @@
 //! pool however many channels it hears. Workload changes (migration 0010) are fanned out to every
 //! subscriber, who also hears a resync on a fixed interval and whenever the listener fell behind
 //! or reconnected, because a notification is a wake-up, not a record, and what was missed is not
-//! replayed. Events written (migration 0023) wake the event sequencer.
+//! replayed. Events written (migration 0023) wake the event sequencer, and provider calls queued
+//! or finished (migration 0027) wake their callers and the dispatchers.
 
 use crate::PgStore;
 use korpis_app::ports::{Change, Changes};
@@ -24,6 +25,13 @@ const EVENT_WRITTEN: &str = "korpis_event_written";
 /// The channel the sequencer announces newly positioned events on.
 const EVENT_POSITIONED: &str = "korpis_event_positioned";
 
+/// The channel a provider call announces on when it is queued and when it finishes.
+const PROVIDER_CALL: &str = "korpis_provider_call";
+
+/// How often a provider call's waiter re-reads without a wake-up: calls are short-lived, so a
+/// missed announcement costs at most this.
+const CALL_TICK: Duration = Duration::from_secs(1);
+
 /// How many announcements a slow subscriber may fall behind before it is told to resync.
 const BACKLOG: usize = 1024;
 
@@ -39,29 +47,38 @@ pub(crate) struct Feed {
     pub(crate) events_written: tokio::sync::Notify,
     /// Bumped whenever events are positioned; event subscribers wait on it.
     positioned: tokio::sync::watch::Sender<u64>,
+    /// Bumped whenever a provider call is queued or finished.
+    calls: tokio::sync::watch::Sender<u64>,
 }
 
 impl Feed {
     pub(crate) fn new(resync: Duration) -> Arc<Self> {
         let (sender, _) = broadcast::channel(BACKLOG);
         let (positioned, _) = tokio::sync::watch::channel(0);
-        Arc::new(Self { sender, resync, events_written: tokio::sync::Notify::new(), positioned })
+        let (calls, _) = tokio::sync::watch::channel(0);
+        let events_written = tokio::sync::Notify::new();
+        Arc::new(Self { sender, resync, events_written, positioned, calls })
     }
 }
 
-/// One event subscriber's wake-ups.
+/// One waiter's wake-ups: an event subscriber's, or a provider call's.
 #[derive(Debug)]
-pub struct EventPositions {
+pub struct Wakeups {
     receiver: tokio::sync::watch::Receiver<u64>,
     tick: Interval,
 }
 
-impl korpis_app::ports::Positions for EventPositions {
+impl korpis_app::ports::Wakeups for Wakeups {
     async fn next(&mut self) -> Option<()> {
         tokio::select! {
             changed = self.receiver.changed() => changed.ok(),
             _ = self.tick.tick() => Some(()),
         }
+    }
+
+    async fn next_before(&mut self, deadline: std::time::SystemTime) {
+        let left = deadline.duration_since(std::time::SystemTime::now()).unwrap_or_default();
+        let _ = tokio::time::timeout(left, self.next()).await;
     }
 }
 
@@ -95,11 +112,18 @@ impl PgStore {
     }
 
     /// Wake-ups for one event subscriber, from now on.
-    pub(crate) fn event_positions(&self) -> EventPositions {
+    pub(crate) fn event_positions(&self) -> Wakeups {
         let period = self.feed.resync;
         let mut tick = tokio::time::interval_at(Instant::now() + period, period);
         tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
-        EventPositions { receiver: self.feed.positioned.subscribe(), tick }
+        Wakeups { receiver: self.feed.positioned.subscribe(), tick }
+    }
+
+    /// Wake-ups for one provider call's caller or dispatcher, from now on.
+    pub(crate) fn provider_call_wakeups(&self) -> Wakeups {
+        let mut tick = tokio::time::interval_at(Instant::now() + CALL_TICK, CALL_TICK);
+        tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        Wakeups { receiver: self.feed.calls.subscribe(), tick }
     }
 
     /// Starts the one listener that feeds every subscription, for as long as the process runs.
@@ -117,6 +141,7 @@ impl PgStore {
                 let _ = feed.sender.send(Change::Resync);
                 feed.events_written.notify_one();
                 feed.positioned.send_modify(|p| *p += 1);
+                feed.calls.send_modify(|c| *c += 1);
                 tokio::time::sleep(RECONNECT).await;
             }
         });
@@ -126,12 +151,16 @@ impl PgStore {
 /// Relays announcements until the connection fails.
 async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
     let mut listener = PgListener::connect_with(pool).await?;
-    listener.listen_all([CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED]).await?;
+    listener.listen_all([CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED, PROVIDER_CALL]).await?;
     loop {
         let notification = listener.recv().await?;
         match notification.channel() {
             EVENT_WRITTEN => {
                 feed.events_written.notify_one();
+                continue;
+            }
+            PROVIDER_CALL => {
+                feed.calls.send_modify(|c| *c += 1);
                 continue;
             }
             EVENT_POSITIONED => {

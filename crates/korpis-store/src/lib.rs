@@ -26,6 +26,7 @@ mod node;
 mod observation;
 mod placement;
 mod provider;
+mod provider_call;
 mod quota;
 mod recipe;
 mod session;
@@ -38,7 +39,7 @@ pub mod testing;
 mod trust;
 mod workload;
 
-pub use feed::{EventPositions, Subscription};
+pub use feed::{Subscription, Wakeups};
 
 use korpis_app::ports::{IntentCodec, Store, StoreResult, Tx};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
@@ -138,14 +139,18 @@ pub struct PgTx {
 impl Store for PgStore {
     type Tx = PgTx;
     type Changes = feed::Subscription;
-    type Positions = feed::EventPositions;
+    type Wakeups = feed::Wakeups;
 
     fn subscribe(&self) -> feed::Subscription {
         self.subscription()
     }
 
-    fn positions(&self) -> feed::EventPositions {
+    fn positions(&self) -> feed::Wakeups {
         self.event_positions()
+    }
+
+    fn provider_calls(&self) -> feed::Wakeups {
+        self.provider_call_wakeups()
     }
 
     async fn begin(&self) -> StoreResult<PgTx> {

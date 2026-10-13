@@ -4,6 +4,7 @@
 //! when it changes instead of polling it.
 
 use std::future::Future;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// Something a watcher should act on.
@@ -22,10 +23,14 @@ pub trait Changes: Send + 'static {
     fn next(&mut self) -> impl Future<Output = Option<Change>> + Send;
 }
 
-/// A wake-up for an event subscriber: new events may have been positioned. Like a change, it is
-/// a wake-up and not a record, and it also comes on a fixed interval, so a reader that missed one
-/// is late, never stuck.
-pub trait Positions: Send + 'static {
+/// A wake-up for something that re-reads what it waits on: an event subscriber (new events may
+/// have been positioned), or a provider call's caller and dispatcher (a call was queued or
+/// finished). Like a change, it is a wake-up and not a record, and it also comes on a fixed
+/// interval, so a reader that missed one is late, never stuck.
+pub trait Wakeups: Send + 'static {
     /// Waits for the next wake-up; `None` once the feed has ended for good.
     fn next(&mut self) -> impl Future<Output = Option<()>> + Send;
+
+    /// Waits for the next wake-up, or until `deadline` if that comes first.
+    fn next_before(&mut self, deadline: SystemTime) -> impl Future<Output = ()> + Send;
 }

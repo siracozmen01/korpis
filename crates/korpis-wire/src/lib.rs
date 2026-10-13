@@ -42,6 +42,7 @@ pub mod observation;
 pub mod placement;
 pub mod plan;
 pub mod principal;
+pub mod provider;
 pub mod recipe;
 pub mod scope;
 pub mod spec;

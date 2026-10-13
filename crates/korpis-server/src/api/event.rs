@@ -36,7 +36,7 @@ fn item(d: Delivered) -> pb::SubscribeResponse {
 fn delivered(
     app: Arc<ServerApp>,
     caller: Caller,
-    delivery: Delivery<korpis_store::EventPositions>,
+    delivery: Delivery<korpis_store::Wakeups>,
 ) -> impl futures_util::Stream<Item = Result<pb::SubscribeResponse, ConnectError>> + Send + use<> {
     let batches = futures_util::stream::unfold(Some((app, caller, delivery)), |state| async move {
         let (app, caller, mut delivery) = state?;

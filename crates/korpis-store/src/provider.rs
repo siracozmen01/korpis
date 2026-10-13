@@ -11,25 +11,25 @@ use korpis_core::extension::{ProvidedInterface, ProviderType, Registration};
 use std::time::SystemTime;
 use uuid::Uuid;
 
-fn kind(s: &str) -> StoreResult<ProviderType> {
+pub(crate) fn kind(s: &str) -> StoreResult<ProviderType> {
     ProviderType::parse(s).ok_or_else(|| StoreError::Corrupt(format!("provider type {s:?}")))
 }
 
-struct RegistrationRow {
-    id: Uuid,
-    extension_id: Uuid,
-    organization_id: Uuid,
-    kind: String,
-    name: String,
-    version: String,
-    concurrency: i32,
-    replica: Uuid,
-    connected_at: DateTime<Utc>,
-    seen_at: DateTime<Utc>,
+pub(crate) struct RegistrationRow {
+    pub(crate) id: Uuid,
+    pub(crate) extension_id: Uuid,
+    pub(crate) organization_id: Uuid,
+    pub(crate) kind: String,
+    pub(crate) name: String,
+    pub(crate) version: String,
+    pub(crate) concurrency: i32,
+    pub(crate) replica: Uuid,
+    pub(crate) connected_at: DateTime<Utc>,
+    pub(crate) seen_at: DateTime<Utc>,
 }
 
 impl RegistrationRow {
-    fn into_domain(self) -> StoreResult<Registration> {
+    pub(crate) fn into_domain(self) -> StoreResult<Registration> {
         Ok(Registration {
             id: self.id,
             extension: self.extension_id,

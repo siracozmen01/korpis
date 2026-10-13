@@ -50,6 +50,17 @@ async fn an_extension_is_reviewed_then_approved_by_digest_then_uninstalled() {
     let shown = ok(&cp.korpis(&s, &["extension", "show", &id]).await);
     assert_eq!(shown.lines().last().unwrap().matches("grt_").count(), 2, "{shown}");
 
+    // Nothing serves its provider until its workload runs and registers a stream.
+    let providers = ok(&cp.korpis(&s, &["extension", "providers"]).await);
+    assert_eq!(providers.lines().count(), 1, "only the header: {providers}");
+    let ping = ["extension", "ping", "dns", "cloudflare", "--timeout", "1"];
+    let late = ok(&cp.korpis(&s, &ping).await);
+    assert!(late.starts_with("provider.deadline after"), "{late}");
+    let unknown = ok(&cp.korpis(&s, &["extension", "ping", "dns", "route53"]).await);
+    assert!(unknown.starts_with("provider.unknown"), "{unknown}");
+    let typo = cp.korpis(&s, &["extension", "ping", "dnz", "cloudflare"]).await;
+    assert!(!typo.status.success(), "an unknown type is refused before anything is called");
+
     let gone = ok(&cp.korpis(&s, &["extension", "uninstall", &id]).await);
     assert!(gone.contains("retirement waits for approval"), "{gone}");
     assert!(!ok(&cp.korpis(&s, &["extension", "list"]).await).contains("cloudflare-dns"));

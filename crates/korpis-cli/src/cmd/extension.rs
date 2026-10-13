@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `korpis extension install|list|show|uninstall` (§8 of docs/13-surface-cli.md, §4 of
-//! docs/16-extensions.md). Installing is two steps, as planning and applying are: without
+//! `korpis extension install|list|show|uninstall|providers|ping` (§7 of docs/13-surface-cli.md,
+//! §4 of docs/16-extensions.md). Installing is two steps, as planning and applying are: without
 //! `--approve` it shows what the extension needs and the command that approves exactly that, the
 //! artifact pinned by digest; with it, it installs, granting what the document at that digest
 //! declares.
@@ -15,6 +15,7 @@ use clap::Subcommand;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::value::Kind as V;
 use std::fmt::Write as _;
+use std::time::Duration;
 
 /// `korpis extension …`.
 #[derive(Debug, Clone, Subcommand)]
@@ -36,6 +37,26 @@ pub enum ExtensionAction {
     Uninstall {
         /// The installation, `ext_…`.
         extension: String,
+    },
+    /// The provider streams registered in an organization.
+    Providers {
+        /// The organization, by name or identifier; the top one you can read by default.
+        #[arg(long)]
+        organization: Option<String>,
+    },
+    /// Calls a provider's liveness check, as an organization sees it, and reports the answer.
+    Ping {
+        /// Its type: `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
+        /// `edge_router`, or `chat_adapter`.
+        kind: String,
+        /// Its name, as its installation provides it.
+        name: String,
+        /// The organization, by name or identifier; the top one you can read by default.
+        #[arg(long)]
+        organization: Option<String>,
+        /// How many seconds to wait, at most 300.
+        #[arg(long, default_value_t = 5)]
+        timeout: u64,
     },
 }
 
@@ -205,6 +226,13 @@ pub async fn extension(c: &Connection, action: &ExtensionAction) -> Result<Answe
             let mut human = rows(std::slice::from_ref(&e));
             let _ = writeln!(human, "grants: {}", e.grants.join(", "));
             Ok(Answer { human, json: json(&e) })
+        }
+        ExtensionAction::Providers { organization } => {
+            super::provider::providers(c, organization.as_deref()).await
+        }
+        ExtensionAction::Ping { kind, name, organization, timeout } => {
+            let timeout = Duration::from_secs(*timeout);
+            super::provider::ping(c, kind, name, organization.as_deref(), timeout).await
         }
         ExtensionAction::Uninstall { extension } => {
             let request = pb::UninstallExtensionRequest {

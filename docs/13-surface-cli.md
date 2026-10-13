@@ -307,7 +307,11 @@ that approves exactly that, with the artifact pinned by digest. `--approve` inst
 refused unless `--version` is a digest, because a tag may move between reading the needs and
 approving them, and an approval is of what was read (§4 of `16-extensions.md`). `extension list`,
 `extension show`, and `extension uninstall` complete the set; a grant's holder may be written
-`ext_…` to name an installation.
+`ext_…` to name an installation. `extension providers` lists the provider streams registered in
+an organization, and `extension ping dns cloudflare` calls one's liveness check as the
+organization sees it and prints how the call ended: the registration and version that answered,
+or the failure's reason (`provider.deadline`, `provider.stream_ended`, `provider.unknown`), each
+under `extension.read` over the organization (§3.3 of `16-extensions.md`).
 
 Shell completion resolves against what the caller can actually read, for the same reason Discord's
 autocomplete does (§8 of `12-surface-discord.md`): existence follows read authority, so completion

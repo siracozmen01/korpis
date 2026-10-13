@@ -10,12 +10,22 @@ syntax = "proto3";
 
 package korpis.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/extension.proto";
 
 service ProviderService {
+  // A provider's stream: authenticated as an installed extension, its first message registers
+  // one of the provides entries its installation recorded.
   rpc Serve(stream ProviderMessage) returns (stream ProviderControl);
+  // The registrations serving in an organization: extension.read over it.
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Calls a provider's Ping as an organization sees it (its own provider shadows its
+  // ancestors'), and reports how the call ended: extension.read over the organization.
+  rpc PingProvider(PingProviderRequest) returns (PingProviderResponse);
 }
 
 // Provider to control plane.
@@ -82,4 +92,46 @@ message Ping {
 
 message Pong {
   string nonce = 1;
+}
+
+// One open provider stream, registered.
+message ProviderRegistration {
+  string id = 1;
+  // The installation serving.
+  string extension = 2;
+  string organization = 3;
+  ProviderType type = 4;
+  string name = 5;
+  string version = 6;
+  uint32 concurrency = 7;
+  google.protobuf.Timestamp connected = 8;
+  // When the replica holding its stream last confirmed it open.
+  google.protobuf.Timestamp seen = 9;
+}
+
+message ListProvidersRequest {
+  string organization = 1;
+}
+
+message ListProvidersResponse {
+  repeated ProviderRegistration providers = 1;
+}
+
+message PingProviderRequest {
+  string organization = 1;
+  ProviderType type = 2;
+  string name = 3;
+  // How long to wait; five seconds when unset, never more than five minutes.
+  google.protobuf.Duration timeout = 4;
+}
+
+message PingProviderResponse {
+  string call = 1;
+  // The registration the call was sent to, and its version; empty if it was never sent.
+  string registration = 2;
+  string version = 3;
+  google.protobuf.Duration elapsed = 4;
+  // Set when the call failed: provider.deadline, provider.stream_ended, provider.unknown, or a
+  // reason of the provider's own.
+  Error error = 5;
 }
