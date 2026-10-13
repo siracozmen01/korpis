@@ -75,15 +75,15 @@ async fn run(state: &StateDir, driver: &str, reserve: Reserve) -> ExitCode {
         tracing::error!(%driver, "no such driver in this build");
         return ExitCode::FAILURE;
     }
-    let runtime = InMemory::new();
-    let facts = match facts_of(&runtime, reserve).await {
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    let facts = match facts_of(&runtime, &host, reserve).await {
         Ok(f) => f,
         Err(e) => {
             tracing::error!(error = %e, "the driver could not be described");
             return ExitCode::FAILURE;
         }
     };
-    match Agent::start(state, runtime, InMemoryHost::new(), facts, Options::default()) {
+    match Agent::start(state, runtime, host, facts, Options::default()) {
         Ok(agent) => {
             tracing::info!(%driver, "agent running");
             shutdown().await;

@@ -101,14 +101,21 @@ pub fn machine(reserve: Reserve) -> (pb::Resources, pb::Resources) {
     (capacity, allocatable)
 }
 
-/// The facts a node reports: its driver, as the driver declares itself, and this machine.
-pub async fn facts_of<R: Runtime>(
+/// The facts a node reports: its driver, as the driver declares itself, its storage, as the
+/// helper declares it, and this machine. A helper that cannot be reached leaves the node
+/// offering no storage class rather than keeping it from starting.
+pub async fn facts_of<R: Runtime, H: Host>(
     runtime: &R,
+    host: &H,
     reserve: Reserve,
 ) -> Result<Arc<dyn Fn() -> Facts + Send + Sync>, RuntimeError> {
     let driver = runtime.describe().await?;
+    let storage_classes = host.storage().await.unwrap_or_else(|e| {
+        tracing::warn!(error = %e, "the helper did not declare its storage; offering none");
+        Vec::new()
+    });
     let (capacity, allocatable) = machine(reserve);
-    let facts = Facts { drivers: vec![driver], storage_classes: Vec::new(), capacity, allocatable };
+    let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable };
     Ok(Arc::new(move || facts.clone()))
 }
 

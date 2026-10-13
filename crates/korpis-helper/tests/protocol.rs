@@ -96,3 +96,20 @@ async fn an_unknown_verb_and_an_unnamed_peer_get_nothing_done() {
     let refused = started(other.path(), [u32::MAX - 1].into());
     assert!(refused.describe_storage().await.is_err(), "closed before a byte was read");
 }
+
+#[tokio::test]
+async fn the_agents_node_host_reaches_the_helper_for_storage_and_ids() {
+    use korpis_agent::host::Host as _;
+    use korpis_agent::host::node::NodeHost;
+    let dir = tempfile::tempdir().unwrap();
+    let client = started(dir.path(), [own()].into());
+    let content =
+        korpis_agent::content::ContentStore::open(&dir.path().join("content"), Vec::new());
+    let host = NodeHost::new(client, content.unwrap());
+    let classes = host.storage().await.unwrap();
+    assert_eq!(classes[0].name, "local", "what Hello will carry");
+    let range = IdRange::of_slot(9).unwrap();
+    host.ensure_ids("wl_9", range.base, range.count).await.unwrap();
+    assert!(host.ensure_ids("wl_9", 1000, 65536).await.is_err());
+    assert!(host.fetch("not-a-digest-reference").await.is_err(), "only content by digest");
+}

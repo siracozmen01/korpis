@@ -6,9 +6,11 @@
 //! docs/04-runtimes.md). The helper is a separate root process and the content store sits in
 //! front of the runtime's; adapters over both implement these, and so does [`InMemoryHost`].
 
+pub mod node;
 pub mod privileged;
 
 use korpis_proto::korpis::helper::v1 as helper;
+use korpis_proto::korpis::v1 as pb;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::{Future, ready};
 use std::sync::{Arc, Mutex};
@@ -32,12 +34,25 @@ pub trait Host: Send + Sync + 'static {
     /// Fetches the content `reference` names onto the node, verified against its digest;
     /// idempotent, and shared by every workload that references it.
     fn fetch(&self, reference: &str) -> impl Future<Output = Result<(), HostError>> + Send;
+
+    /// Records the id range `workload` holds on this node, as its assignment names it (§4.5 of
+    /// docs/04-runtimes.md); a range that is not one workload's is refused.
+    fn ensure_ids(
+        &self,
+        workload: &str,
+        base: u32,
+        count: u32,
+    ) -> impl Future<Output = Result<(), HostError>> + Send;
+
+    /// The storage classes the node offers, as the helper declares them.
+    fn storage(&self) -> impl Future<Output = Result<Vec<pb::StorageClassInfo>, HostError>> + Send;
 }
 
 #[derive(Debug, Default)]
 struct Kept {
     volumes: BTreeMap<String, String>,
     content: BTreeSet<String>,
+    ids: BTreeMap<String, (u32, u32)>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -69,6 +84,12 @@ impl InMemoryHost {
     pub fn content(&self) -> BTreeSet<String> {
         self.with(|k| k.content.clone()).unwrap_or_default()
     }
+
+    /// The id ranges recorded, by workload: base and count.
+    #[must_use]
+    pub fn ids(&self) -> BTreeMap<String, (u32, u32)> {
+        self.with(|k| k.ids.clone()).unwrap_or_default()
+    }
 }
 
 impl Host for InMemoryHost {
@@ -94,5 +115,20 @@ impl Host for InMemoryHost {
         ready(self.with(|k| {
             k.content.insert(reference.to_owned());
         }))
+    }
+
+    fn ensure_ids(
+        &self,
+        workload: &str,
+        base: u32,
+        count: u32,
+    ) -> impl Future<Output = Result<(), HostError>> + Send {
+        ready(self.with(|k| {
+            k.ids.insert(workload.to_owned(), (base, count));
+        }))
+    }
+
+    fn storage(&self) -> impl Future<Output = Result<Vec<pb::StorageClassInfo>, HostError>> + Send {
+        ready(Ok(Vec::new()))
     }
 }

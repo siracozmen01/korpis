@@ -102,6 +102,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         .into();
         spec.uid_base = a.uid_base;
         spec.uid_count = a.uid_count;
+        if a.uid_count > 0 {
+            self.host.ensure_ids(&a.workload, a.uid_base, a.uid_count).await?;
+        }
         let id = self.runtime.create(&spec).await?;
         t.runtime = Some(id.clone());
         t.labels = spec.labels.as_option().cloned();

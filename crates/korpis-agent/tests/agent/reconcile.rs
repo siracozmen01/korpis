@@ -156,6 +156,9 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     let w = cp.declare(&project, "mc").await;
     let id = converges(&cp, &w, &runtime, &orphan).await;
     assert_eq!(host.content().len(), 1, "the recipe's content was fetched once");
+    let ids = host.ids();
+    let (base, count) = ids.get(&w).copied().expect("its id range was recorded before create");
+    assert!(base >= 1 << 30 && count == 1 << 16, "a workload slot: {base} {count}");
 
     agent.stop().await;
     let before = runtime.calls().len();
