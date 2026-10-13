@@ -13,6 +13,14 @@ mechanically enforced: **every API operation has a command, and no command has a
 endpoint.** Coverage is checked in CI against the schema, so "the API can do something no client
 exposes" and "a client does something the API cannot" are both build failures rather than opinions.
 
+The check is a command that reaches every method by name: `korpis call WorkloadService/GetWorkload
+-d '{"id": "wl_…"}'` sends the request as the API's JSON and prints the answer the same way, and a
+server stream prints each message as it arrives. Its table of methods is written out by hand, and a
+test compares it with the schema's own list of `korpis.v1` methods, so a method added to the API
+without a command fails the build. The friendlier commands are built over the same calls, never
+beside them. A mutating request is given a fresh idempotency key when it carries none, so a retry
+the CLI makes is safe and two invocations are two requests (§6 of `10-api.md`).
+
 The daemons (control plane and node agent) are separate binaries with their own operational
 surface, covered in `18-operations.md`. This document is about the client.
 
@@ -33,7 +41,18 @@ Human output by default; `--json` emits **the API's own object shape**, not a CL
 rendering. Nothing exists in the JSON that a program calling the API directly would not receive, so
 a script that outgrows the CLI does not have to be rewritten to move to the SDK. Exit codes are
 meaningful and map to the error codes of §8 of `10-api.md`, `DENIED`, `CONFLICT`, and
-`UNSATISFIABLE` are distinguishable without parsing text.
+`UNSATISFIABLE` are distinguishable without parsing text:
+
+| Exit | Meaning |
+|---|---|
+| 0 | done |
+| 1 | refused by the CLI itself before anything was sent: a file, an argument, a value |
+| 2 | the command line does not parse |
+| 3 | the control plane could not be reached, or answered without a structured error |
+| 10 to 19 | `INVALID`, `UNAUTHENTICATED`, `DENIED`, `NOT_FOUND`, `CONFLICT`, `UNSATISFIABLE`, `QUOTA_EXCEEDED`, `OVERFLOW`, `UNAVAILABLE`, `INTERNAL`, in that order |
+
+With `--json` a failure is written to standard error as the API's error (code, reason, field, and
+message), so a script reads the same object whether it called the API or the CLI.
 
 ---
 
@@ -183,6 +202,12 @@ its author, which is what makes choosing `strict` an informed decision rather th
 
 No long-lived admin key in a dotfile. Interactive login is a browser or device-code flow that
 yields a short-lived capability token held in the OS keyring.
+
+Until that flow exists, the CLI keeps no credential at all: the token is read from `KORPIS_TOKEN`
+or from a file named with `--token-file`, the control plane from `KORPIS_SERVER` or `--server`,
+and its certificate authority from `KORPIS_CA` or `--ca`, a PEM file trusted alone for it, so no
+public authority can vouch for a Korpis control plane. Where the token comes from is the
+operator's decision and the operator's storage; the CLI writes nothing down.
 
 For automation, §3 of `08-identity.md` does something RBAC systems cannot:
 

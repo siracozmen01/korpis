@@ -1891,7 +1891,23 @@ dependencies = [
 name = "korpis-cli"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
+ "buffa",
+ "buffa-descriptor",
+ "clap",
+ "connectrpc",
+ "http",
  "korpis-core",
+ "korpis-proto",
+ "korpis-server",
+ "korpis-store",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
