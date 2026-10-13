@@ -130,7 +130,7 @@ the reason hibernation (§6 of `22-first-party.md`) exists.
 The agent dials out (§3 of `02-architecture.md`), so enrollment opens nothing:
 
 ```
-korpis node token create --label fra-3 --expires 1h
+korpis node token create fra-3 --label region=eu --expires 1h
 → korpis-agent join --server https://korpis.example:7443 --token korpis_8f2a… \
       --ca-fingerprint sha256:4c1a…
 ```

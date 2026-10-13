@@ -252,7 +252,9 @@ it. Enrollment was already scoped to one organization; the node now belongs to i
 enrollment showed that step 8 rested on a `max_uses` nothing counted, and that the token's request
 named no organization at all: the token now binds the organization, the name, and the labels, and
 its one use is redeemed at authorization (§3 of `18-operations.md`, §6.2 of `08-identity.md`).
-Step 9: the
+Building `korpis node token create` showed the example in §3 of `18-operations.md` passing the
+node's name as a label; the token binds a name and labels separately, and the example now says
+so. Step 9: the
 trust policy was per organization and the customer had none, so no policy governed the customer's
 declarations at all. The nearest ancestor's now does. The customer may set one the reseller would
 not, because the policy protects the workloads that run the recipe, and the reseller's machines

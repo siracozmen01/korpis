@@ -1894,6 +1894,7 @@ dependencies = [
  "base64 0.22.1",
  "buffa",
  "buffa-descriptor",
+ "buffa-types",
  "clap",
  "connectrpc",
  "http",

@@ -8,8 +8,10 @@
 pub mod apply;
 pub mod call;
 pub mod check;
+pub mod cmd;
 pub mod connect;
 pub mod declared;
 pub mod error;
+pub mod resolve;
 pub mod show;
 pub mod version;

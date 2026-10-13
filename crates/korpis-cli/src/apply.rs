@@ -34,31 +34,6 @@ fn conflict(message: String) -> CliError {
     }
 }
 
-/// The project `named`: an identifier, or a name looked up in every organization the caller
-/// may read, which must find exactly one.
-async fn project_id(c: &Connection, named: &str) -> Result<String, CliError> {
-    if named.starts_with("prj_") {
-        return Ok(named.to_owned());
-    }
-    let orgs = pb::OrganizationServiceClient::new(c.http(), c.config())
-        .list_organizations(pb::ListOrganizationsRequest::default())
-        .await?
-        .into_owned()
-        .organizations;
-    let projects = pb::ProjectServiceClient::new(c.http(), c.config());
-    let mut found = Vec::new();
-    for o in orgs {
-        let request = pb::ListProjectsRequest { organization: o.id, ..Default::default() };
-        let listed = projects.list_projects(request).await?.into_owned().projects;
-        found.extend(listed.into_iter().filter(|p| p.name == named).map(|p| p.id));
-    }
-    match found.as_slice() {
-        [one] => Ok(one.clone()),
-        [] => Err(CliError::Local(format!("no project named {named:?} that you can read"))),
-        _ => Err(CliError::Local(format!("{named:?} names several projects; use its id"))),
-    }
-}
-
 /// The workload `name` in `project`, with its head intent's version, if it exists.
 async fn existing(
     c: &Connection,
@@ -88,7 +63,7 @@ pub async fn declare(
     let d = &file.declared;
     let body = d.body().map_err(|e| CliError::Local(format!("{}: {e}", file.path.display())))?;
     check(file, &body, registry).await?;
-    let project = project_id(c, &d.project).await?;
+    let project = crate::resolve::project(c, &d.project).await?;
     let mut mutation =
         pb::Mutation { idempotency_key: uuid::Uuid::now_v7().to_string(), ..Default::default() };
     let target = match existing(c, &project, &d.workload).await? {

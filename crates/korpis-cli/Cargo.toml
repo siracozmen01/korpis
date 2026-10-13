@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
+buffa-types = { version = "=0.9.2", features = ["json"] }
 buffa-descriptor = { version = "=0.9.2", features = ["reflect"] }
 clap = { version = "4", features = ["derive", "env", "string"] }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }

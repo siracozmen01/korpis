@@ -5,6 +5,7 @@
 use clap::{Parser, Subcommand};
 use korpis_cli::apply::{Mode, apply_planned, declare, plans};
 use korpis_cli::call::{METHODS, call};
+use korpis_cli::cmd::{Answer, Get, NodeAction, PlanAction, WorkloadAction, act, get};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::declared::read_all;
 use korpis_cli::error::CliError;
@@ -41,11 +42,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Declares the files and shows the real plan, persisted and waiting to be applied.
+    /// Declares the files and shows the real plan, persisted and waiting to be applied; or
+    /// approves, rejects, or cancels a plan.
+    #[command(args_conflicts_with_subcommands = true)]
     Plan {
         /// A declared file, or a directory of them; repeatable.
-        #[arg(short = 'f', long = "file", required = true)]
+        #[arg(short = 'f', long = "file")]
         files: Vec<PathBuf>,
+        #[command(subcommand)]
+        action: Option<PlanAction>,
     },
     /// Declares the files and applies what default policy approves; with `--plan`, applies
     /// exactly the plans named, if the files still declare what they planned.
@@ -57,6 +62,20 @@ enum Command {
         #[arg(long = "plan")]
         plans: Vec<String>,
     },
+    /// Lists what you can read.
+    #[command(subcommand)]
+    Get(Get),
+    /// A workload in detail: where it runs, what it is doing, and what it waits for.
+    Status {
+        /// The workload: an identifier, `project/name`, or a name.
+        workload: String,
+    },
+    /// Starts, stops, restarts, or deletes a workload.
+    #[command(subcommand)]
+    Workload(WorkloadAction),
+    /// Enrolls, cordons, or uncordons a node.
+    #[command(subcommand)]
+    Node(NodeAction),
     /// The client's version and source revision, and the server's when one is named.
     Version,
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
@@ -125,7 +144,15 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             }
             Ok(())
         }
-        Command::Plan { files } => declared(cli, files, &[], true).await,
+        Command::Plan { action: Some(a), .. } => answer(cli, act::plan(&cli.required()?, a).await),
+        Command::Plan { files, action: None } => declared(cli, files, &[], true).await,
+        Command::Get(g) => answer(cli, get::get(&cli.required()?, g).await),
+        Command::Status { workload } => answer(cli, get::status(&cli.required()?, workload).await),
+        Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
+        Command::Node(a) => {
+            let server = cli.server.clone().unwrap_or_default();
+            answer(cli, act::node(&cli.required()?, &server, a).await)
+        }
         Command::Apply { files, plans } => declared(cli, files, plans, false).await,
         Command::Call { list: true, .. } => {
             for m in METHODS {
@@ -141,6 +168,18 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             call(&c, method, request(data)?, &mut |v| print(&v)).await
         }
     }
+}
+
+/// Prints `a` in the form asked for.
+#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
+fn answer(cli: &Cli, a: Result<Answer, CliError>) -> Result<(), CliError> {
+    let a = a?;
+    if cli.json {
+        print(&a.json);
+    } else {
+        print!("{}", a.human);
+    }
+    Ok(())
 }
 
 /// `plan` or `apply` over `paths`.

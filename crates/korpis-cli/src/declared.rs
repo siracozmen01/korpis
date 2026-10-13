@@ -253,7 +253,7 @@ pub fn read_all(paths: &[PathBuf]) -> Result<Vec<File>, CliError> {
         }
     }
     if files.is_empty() {
-        return Err(CliError::Local("no declared files".into()));
+        return Err(CliError::Local("no declared files; name them with -f".into()));
     }
     Ok(files)
 }

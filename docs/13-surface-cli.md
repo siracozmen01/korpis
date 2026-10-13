@@ -54,6 +54,19 @@ meaningful and map to the error codes of §8 of `10-api.md`, `DENIED`, `CONFLICT
 With `--json` a failure is written to standard error as the API's error (code, reason, field, and
 message), so a script reads the same object whether it called the API or the CLI.
 
+The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
+`status`, `plan approve|reject|cancel`, `workload start|stop|restart|delete`, and `node token
+create|cordon|uncordon`, each one call of the API once its names are resolved. An object is named
+by its identifier, by its name, or, for a workload, as `project/name`. A name is resolved by
+listing what the caller may read, never by a lookup the API does not offer, so a name the caller
+cannot read is the same local refusal (exit 1) as a name that does not exist, and the CLI learns
+nothing by resolving that the API would not have told it (§8 of `10-api.md`). A name that matches
+more than one object is refused with the advice to use the identifier, not resolved to the first.
+The cost is calls: a bare workload name lists every project the caller can read, which a caller
+who can read many pays for on each command; `project/name` or the identifier avoids it. A power
+change is made against the power version the CLI has just read, so two operators who stop and
+start the same workload at once see one of them get `CONFLICT` rather than both silently winning.
+
 ---
 
 ## 3. Declared files are intent bodies
