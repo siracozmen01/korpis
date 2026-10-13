@@ -1957,6 +1957,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-e2e"
+version = "0.0.0"
+dependencies = [
+ "buffa",
+ "connectrpc",
+ "korpis-agent",
+ "korpis-core",
+ "korpis-driver-oci",
+ "korpis-helper",
+ "korpis-proto",
+ "korpis-recipe",
+ "korpis-server",
+ "korpis-store",
+ "rustls",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "korpis-helper"
 version = "0.0.0"
 dependencies = [

@@ -3,10 +3,15 @@
 //! `korpis-agent`: join a control plane once, then run.
 
 use clap::{Parser, Subcommand};
-use korpis_agent::host::InMemoryHost;
+use korpis_agent::content::ContentStore;
+use korpis_agent::host::node::NodeHost;
+use korpis_agent::host::privileged::HelperClient;
+use korpis_agent::host::{Host, InMemoryHost};
 use korpis_agent::join::{Join, join};
 use korpis_agent::run::{Agent, Options, Reserve, facts_of};
+use korpis_agent::runtime::Runtime;
 use korpis_agent::runtime::memory::InMemory;
+use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::state::StateDir;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -40,10 +45,20 @@ enum Command {
     },
     /// Run the node: hold the control stream, keep the journal, and reconcile.
     Run {
-        /// The runtime driver: `memory` runs nothing, for trying the agent on a machine
-        /// without one.
-        #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "memory")]
+        /// The runtime driver: `oci`, the container tier through the `korpis-driver-oci`
+        /// process, or `memory`, which runs nothing, for trying the agent without one.
+        #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
         driver: String,
+        /// The oci driver's socket.
+        #[arg(long, default_value = "/run/korpis/driver-oci.sock")]
+        driver_socket: PathBuf,
+        /// The privileged helper's socket.
+        #[arg(long, default_value = "/run/korpis/helper.sock")]
+        helper_socket: PathBuf,
+        /// A registry spoken to over plain HTTP, as `host:port`; repeatable. For a development
+        /// registry only: content is verified by digest either way.
+        #[arg(long = "plain-http")]
+        plain_http: Vec<String>,
         /// Millicores kept back from placement for the machine's own system.
         #[arg(long, default_value_t = Reserve::default().cpu_millis)]
         reserve_cpu_millis: u64,
@@ -69,13 +84,22 @@ async fn shutdown() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
-/// Runs the agent until it is asked to stop; workloads are left running.
-async fn run(state: &StateDir, driver: &str, reserve: Reserve) -> ExitCode {
-    if driver != "memory" {
-        tracing::error!(%driver, "no such driver in this build");
-        return ExitCode::FAILURE;
-    }
-    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+/// Where the node's runtime and host are.
+struct Node {
+    driver: String,
+    driver_socket: PathBuf,
+    helper_socket: PathBuf,
+    plain_http: Vec<String>,
+}
+
+/// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
+/// running.
+async fn serve<R: Runtime, H: Host>(
+    state: &StateDir,
+    runtime: R,
+    host: H,
+    reserve: Reserve,
+) -> ExitCode {
     let facts = match facts_of(&runtime, &host, reserve).await {
         Ok(f) => f,
         Err(e) => {
@@ -85,7 +109,7 @@ async fn run(state: &StateDir, driver: &str, reserve: Reserve) -> ExitCode {
     };
     match Agent::start(state, runtime, host, facts, Options::default()) {
         Ok(agent) => {
-            tracing::info!(%driver, "agent running");
+            tracing::info!("agent running");
             shutdown().await;
             agent.stop().await;
             tracing::info!("agent stopped; workloads left as they are");
@@ -93,6 +117,28 @@ async fn run(state: &StateDir, driver: &str, reserve: Reserve) -> ExitCode {
         }
         Err(e) => {
             tracing::error!(error = %e, "the agent could not start");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Runs the agent with the driver `node` names.
+async fn run(state: &StateDir, node: Node, reserve: Reserve) -> ExitCode {
+    match node.driver.as_str() {
+        "memory" => serve(state, InMemory::new(), InMemoryHost::new(), reserve).await,
+        "oci" => {
+            let content = match ContentStore::open(&state.root().join("content"), node.plain_http) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!(error = %e, "the content store could not be opened");
+                    return ExitCode::FAILURE;
+                }
+            };
+            let host = NodeHost::new(HelperClient::new(&node.helper_socket), content);
+            serve(state, DriverRuntime::connect(&node.driver_socket), host, reserve).await
+        }
+        other => {
+            tracing::error!(driver = %other, "no such driver in this build");
             ExitCode::FAILURE
         }
     }
@@ -121,10 +167,17 @@ async fn main() -> ExitCode {
                 }
             }
         }
-        Command::Run { driver, reserve_cpu_millis, reserve_memory_bytes } => {
+        Command::Run {
+            driver,
+            driver_socket,
+            helper_socket,
+            plain_http,
+            reserve_cpu_millis,
+            reserve_memory_bytes,
+        } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
-            run(&state, &driver, reserve).await
+            run(&state, Node { driver, driver_socket, helper_socket, plain_http }, reserve).await
         }
     }
 }

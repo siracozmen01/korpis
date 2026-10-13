@@ -114,7 +114,12 @@ pub async fn facts_of<R: Runtime, H: Host>(
         tracing::warn!(error = %e, "the helper did not declare its storage; offering none");
         Vec::new()
     });
-    let (capacity, allocatable) = machine(reserve);
+    let (mut capacity, mut allocatable) = machine(reserve);
+    // Disk is what the storage classes hold, and what is free in them now: anything already
+    // on their filesystems, this node's own volumes included, counts as taken (§2.1 of
+    // docs/05-scheduling.md).
+    capacity.disk_bytes = storage_classes.iter().map(|c| c.capacity_bytes).sum();
+    allocatable.disk_bytes = storage_classes.iter().map(|c| c.free_bytes).sum();
     let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable };
     Ok(Arc::new(move || facts.clone()))
 }

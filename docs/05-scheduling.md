@@ -52,11 +52,23 @@ capped at a quarter of capacity so a small machine is not reserved away, and set
 `korpis-agent run` (§3 of `18-operations.md`). The reserve is what the machine's own system, the
 agent, and the runtime need; without it a node fully reserved on paper is overcommitted in fact.
 It limits nothing an operator may run (P10): it is a measurement the operator corrects, not a
-gate. The cost is a default that is wrong for an unusual machine. Disk joins the report with the
-volumes of Phase 1 (§4 of `20-roadmap.md`).
+gate. The cost is a default that is wrong for an unusual machine.
+
+Disk is reported from the storage classes the helper declares (§2 of `06-storage.md`): capacity
+is their size, and `allocatable` what is free in them when the agent starts, with no reserve,
+since the filesystem's own free space already leaves out what the machine has written. Everything
+already on those filesystems counts as taken, this node's own volumes included, so after a
+restart a node reports less room than it has and never more. The cost is that conservatism: a
+node with large volumes that are mostly empty is offered fewer new ones than it could hold, until
+quota accounting lets the agent subtract what its own volumes reserve instead of what they use.
 
 > Added 2026-10-13, from the implementation. `allocatable` was defined in §3.4 of `01-model.md`
 > as "capacity minus system reserve", and nothing said what the reserve was or who set it.
+>
+> Corrected 2026-10-13, from the implementation. This section said disk joined the report with the
+> volumes of Phase 1, while the scheduler already counted a volume's size against the node's disk
+> and Phase 0 creates volumes. Every workload with a volume was unplaceable: the first run of a
+> real recipe on a real node, in `crates/korpis-e2e`, was refused with "needs 67108864, 0 free".
 
 Asking the driver before committing is the part other systems lack, and it happens in two layers,
 because the scheduler runs in the control plane and `Prepare` runs on the node.

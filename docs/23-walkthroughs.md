@@ -97,7 +97,12 @@ filesystem without project quota cannot, and no class described one. The `direct
 of `06-storage.md` does, with every capability false, and the helper that creates the volume is
 reached by a transport §6.2 of `02-architecture.md` now defines. On ext4 and XFS the limit is a
 quota project per volume, read from the filesystem and checked in a test against a real one (§3
-of `06-storage.md`), and the section now says what passes it: root on the host.
+of `06-storage.md`), and the section now says what passes it: root on the host. The first run of
+the whole trace on a real node (`crates/korpis-e2e`) stopped at step 5 twice. The node reported no
+disk, because §2.1 of `05-scheduling.md` deferred disk to Phase 1 while the scheduler already
+counted volumes; and a preset with no console asked for `logs`, which no Phase 0 driver offers.
+Disk is reported from the helper's classes, and §3.1 of `09-recipes.md` now says what the console
+default costs.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 
