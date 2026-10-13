@@ -162,6 +162,37 @@ pub struct Override {
     pub disruptive: bool,
 }
 
+/// Why a set of overrides cannot be recorded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverrideRefusal {
+    /// The action is overridden twice; which entry wins would be a guess.
+    Duplicate(StepAction),
+    /// It would make an action the vocabulary holds disruptive less so, which no layer may.
+    BelowFloor(StepAction),
+}
+
+impl Override {
+    /// Checks a whole set of overrides for one workload: at most one per action, and none that
+    /// relaxes the vocabulary's floor. The classifier would ignore such an entry; refusing it
+    /// instead keeps the record saying only what takes effect.
+    ///
+    /// # Errors
+    /// The first entry that cannot be recorded, and why.
+    pub fn check(set: &[Self]) -> Result<(), OverrideRefusal> {
+        let mut seen = Vec::with_capacity(set.len());
+        for o in set {
+            if seen.contains(&o.action) {
+                return Err(OverrideRefusal::Duplicate(o.action));
+            }
+            seen.push(o.action);
+            if o.action.floor().0 && !o.disruptive {
+                return Err(OverrideRefusal::BelowFloor(o.action));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Everything a classification reads.
 #[derive(Debug, Clone, Copy)]
 pub struct Classifier<'a> {

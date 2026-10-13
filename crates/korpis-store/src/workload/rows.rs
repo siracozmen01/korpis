@@ -6,8 +6,9 @@ use crate::stored::{ImpactDoc, ScopeDoc, StepDoc, count, from_json, principal, t
 use crate::tenancy::{labels, name};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{IntentCodec, StoreError, StoreResult};
-use korpis_core::workload::plan::{Approval, PlanStatus};
+use korpis_core::workload::plan::{Approval, Override, PlanStatus, StepAction};
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -31,6 +32,7 @@ pub(crate) struct WorkloadRow {
     pub(crate) created: DateTime<Utc>,
     pub(crate) deleted_at: Option<DateTime<Utc>>,
     pub(crate) set_id: Option<Uuid>,
+    pub(crate) classification: Value,
 }
 
 impl WorkloadRow {
@@ -51,8 +53,35 @@ impl WorkloadRow {
             created: to_time(self.created),
             deleted_at: self.deleted_at.map(to_time),
             set: self.set_id,
+            classification: classification(self.classification)?,
         })
     }
+}
+
+/// An operator's override as stored: an action name and whether it is disruptive.
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct OverrideDoc {
+    action: String,
+    disruptive: bool,
+}
+
+/// Overrides to store.
+pub(crate) fn classification_doc(overrides: &[Override]) -> Vec<OverrideDoc> {
+    overrides
+        .iter()
+        .map(|o| OverrideDoc { action: o.action.as_str().to_owned(), disruptive: o.disruptive })
+        .collect()
+}
+
+fn classification(v: Value) -> StoreResult<Vec<Override>> {
+    let docs: Vec<OverrideDoc> = from_json("workload classification", v)?;
+    docs.into_iter()
+        .map(|d| {
+            let action = StepAction::parse(&d.action)
+                .ok_or_else(|| corrupt("classification action", &d.action))?;
+            Ok(Override { action, disruptive: d.disruptive })
+        })
+        .collect()
 }
 
 pub(crate) struct IntentRow {

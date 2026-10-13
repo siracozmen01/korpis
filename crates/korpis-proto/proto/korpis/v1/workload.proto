@@ -38,6 +38,20 @@ message Workload {
   // The declared set it was created through or adopted into; absent if none (§3.3 of
   // docs/01-model.md, §5 of docs/13-surface-cli.md).
   optional string set = 13;
+  // The operator's overrides of how its plan steps are classified, at most one per action: the
+  // last layer of the chain (§3.3 of docs/01-model.md).
+  repeated ClassificationOverride classification = 14;
+  // The version of its metadata, the classification among it: what a change to them compares
+  // against. Declarations and power have versions of their own (intent, power).
+  uint64 version = 15;
+}
+
+// One action's classification for one workload, as an operator set it. It may relax what the
+// driver or the recipe declared, never the vocabulary's floor.
+message ClassificationOverride {
+  // A step action name, as in Step.action.
+  string action = 1;
+  bool disruptive = 2;
 }
 
 // What someone declared should be true. Immutable and versioned.

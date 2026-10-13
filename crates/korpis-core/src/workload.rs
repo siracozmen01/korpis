@@ -56,6 +56,9 @@ pub struct Workload {
     pub deleted_at: Option<SystemTime>,
     /// The declared set it was created through or adopted into.
     pub set: Option<Uuid>,
+    /// The operator's overrides of how its plan steps are classified: the last layer of the
+    /// chain (§3.3 of docs/01-model.md), at most one per action.
+    pub classification: Vec<plan::Override>,
 }
 
 /// What someone declared should be true. Immutable: a change is a new intent with the next

@@ -5,6 +5,7 @@
 //! prints whichever was asked for.
 
 pub mod act;
+pub mod classify;
 pub mod get;
 pub mod grant;
 pub mod sets;
@@ -127,6 +128,20 @@ pub enum WorkloadAction {
         /// The node, by name or identifier.
         #[arg(long, add = ArgValueCompleter::new(complete::nodes))]
         node: String,
+        /// Why, for the record.
+        #[arg(long)]
+        reason: String,
+    },
+    /// Sets how its plan steps are classified: the operator's layer, over the driver's and the
+    /// recipe's and never below the vocabulary's floor (§3.3 of docs/01-model.md). The whole
+    /// set: none clears it.
+    Classify {
+        /// The workload.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
+        workload: String,
+        /// A step action and its class, e.g. `stop=routine`; repeatable.
+        #[arg(value_name = "ACTION=disruptive|routine")]
+        overrides: Vec<String>,
         /// Why, for the record.
         #[arg(long)]
         reason: String,

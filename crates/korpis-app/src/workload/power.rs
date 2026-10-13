@@ -154,7 +154,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             v => self.power_record(w.id, v).await?.power,
         };
         let (driver, disruption) = self.running_layers(w).await?;
-        let steps = power_steps(w.id, from, to.power, propose::classifier(&driver, &disruption));
+        let steps = power_steps(w.id, from, to.power, propose::classifier(&driver, &disruption, w));
         let proposal = Proposal {
             workload: w.id,
             target: PlanTarget::Power(to.power.version),

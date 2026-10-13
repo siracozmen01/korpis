@@ -5,7 +5,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::plan::{Override, PlanStatus};
 use korpis_core::workload::{Intent, IntentBody, Plan, PowerRecord, Workload};
 use std::future::Future;
 use uuid::Uuid;
@@ -146,6 +146,15 @@ pub trait WorkloadWrite {
     /// many there were: a newer declaration supersedes every unapproved plan for an older one
     /// (§3.3 of docs/01-model.md), and a power change leaves a pending intent plan alone.
     fn supersede_proposed(&mut self, keep: &Plan) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Replaces the operator's classification overrides, if the workload's version is still
+    /// `expected`, and moves the version on.
+    fn set_classification(
+        &mut self,
+        workload: Uuid,
+        overrides: &[Override],
+        expected: u64,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Moves the target to `to`, if the target version is still `expected` and `to` is the
     /// head: only the head is approvable (§3.2 of docs/03-state.md). The first time a target is

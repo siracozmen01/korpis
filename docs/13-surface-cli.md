@@ -55,8 +55,9 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
-`status`, `plan approve|reject|cancel`, `workload start|stop|restart|place|delete`, and `node token
-create|cordon|uncordon`, each one call of the API once its names are resolved. An object is named
+`status`, `plan approve|reject|cancel`, `workload
+start|stop|restart|place|classify|delete`, and `node token create|cordon|uncordon`, each one
+call of the API once its names are resolved. An object is named
 by its identifier, by its name, or, for a workload, as `project/name`. A name is resolved by
 listing what the caller may read, never by a lookup the API does not offer, so a name the caller
 cannot read is the same local refusal (exit 1) as a name that does not exist, and the CLI learns

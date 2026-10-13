@@ -60,6 +60,13 @@ async fn the_commands_are_the_api_by_name() {
     let restarted = ok(&cp.korpis(&s, &["workload", "restart", "games/sleeper"]).await);
     assert!(restarted.contains("cycle 1"), "{restarted}");
 
+    let quiet = ["workload", "classify", "sleeper", "stop=routine", "--reason", "drained first"];
+    let classified = ok(&cp.korpis(&s, &quiet).await);
+    assert!(classified.contains("stop") && classified.contains("routine"), "{classified}");
+    let bad =
+        cp.korpis(&s, &["workload", "classify", "sleeper", "stop=quiet", "--reason", "x"]).await;
+    assert_eq!(bad.status.code(), Some(1), "a class is disruptive or routine");
+
     let effects = ok(&cp.korpis(&s, &["get", "effects", "--workload", "sleeper"]).await);
     assert!(effects.lines().count() > 2 && effects.contains("grt_"), "named grants: {effects}");
 

@@ -5,6 +5,7 @@
 use crate::spec::body_to_pb;
 use crate::{Result, invalid, principal, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::plan::{Override, StepAction};
 use korpis_core::workload::set::{DeclaredSet, DriftMode};
 use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
 use korpis_proto::korpis::v1 as pb;
@@ -54,8 +55,35 @@ pub fn workload_to_pb(w: &Workload, power: &PowerRecord) -> pb::Workload {
         created: timestamp(w.created).into(),
         deleted_at: w.deleted_at.map(timestamp).into(),
         set: w.set.map(|s| wire_id(IdKind::Set, s)),
+        classification: w
+            .classification
+            .iter()
+            .map(|o| pb::ClassificationOverride {
+                action: o.action.as_str().to_owned(),
+                disruptive: o.disruptive,
+                ..Default::default()
+            })
+            .collect(),
+        version: w.version,
         ..Default::default()
     }
+}
+
+/// An operator's classification overrides. An action outside the vocabulary is refused; the
+/// rules on the set itself are the domain's (`Override::check`).
+pub fn classification_from_pb(
+    field: &str,
+    overrides: &[pb::ClassificationOverride],
+) -> Result<Vec<Override>> {
+    overrides
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let action = StepAction::parse(&o.action)
+                .ok_or_else(|| invalid(&format!("{field}[{i}].action"), "not a step action"))?;
+            Ok(Override { action, disruptive: o.disruptive })
+        })
+        .collect()
 }
 
 /// The wire form of an intent.

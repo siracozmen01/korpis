@@ -245,6 +245,11 @@ service WorkloadService {
   // and taints, the operator's own decisions about it, and nothing else. node.place on the
   // node, and workload.write on the workload. A placed workload moves only by migration.
   rpc PlaceWorkload(PlaceWorkloadRequest) returns (PlaceWorkloadResponse);
+  // Replaces the operator's classification overrides of a workload, under its version, with
+  // the operator's reason (§3.3 of docs/01-model.md). workload.classify on the workload. Plans
+  // computed after it read the new set; a plan already proposed keeps the classification its
+  // proposer saw. An override that would relax the vocabulary's floor is refused.
+  rpc SetClassification(SetClassificationRequest) returns (SetClassificationResponse);
   rpc GetWorkload(GetWorkloadRequest) returns (GetWorkloadResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -333,6 +338,20 @@ message PlaceWorkloadRequest {
 
 message PlaceWorkloadResponse {
   Placement placement = 1;
+}
+
+message SetClassificationRequest {
+  // expected_version is the workload's version.
+  Mutation mutation = 1;
+  string workload = 2;
+  // The whole set; empty clears it.
+  repeated ClassificationOverride overrides = 3;
+  // Why, for the record; required.
+  string reason = 4;
+}
+
+message SetClassificationResponse {
+  Workload workload = 1;
 }
 
 message DeleteWorkloadResponse {

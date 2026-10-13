@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id\n               FROM workload WHERE id = $1 FOR UPDATE",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id, classification\n               FROM workload WHERE id = $1 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -167,6 +167,17 @@
             "name": "set_id"
           }
         }
+      },
+      {
+        "ordinal": 15,
+        "name": "classification",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "classification"
+          }
+        }
       }
     ],
     "parameters": {
@@ -189,8 +200,9 @@
       false,
       false,
       true,
-      true
+      true,
+      false
     ]
   },
-  "hash": "911671610f879b430738853fd16c4c03983a547563cbd97b570d089f23233d4a"
+  "hash": "712a02202d592b8bdf57b2cfeb6927807dc0d157ffc9f579d70742cee34f39dc"
 }

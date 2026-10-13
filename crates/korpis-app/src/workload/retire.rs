@@ -116,7 +116,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let (driver, disruption) = self.running_layers(w).await?;
         let body = target.as_ref().map(|t| &t.body);
-        let steps = retire_steps(w.id, body, power, propose::classifier(&driver, &disruption));
+        let steps = retire_steps(w.id, body, power, propose::classifier(&driver, &disruption, w));
         let held = match &target {
             Some(t) => Some(t.body.clone()),
             None => self.store.intent(w.intent).await?.map(|i| i.body),

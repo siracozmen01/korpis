@@ -143,6 +143,7 @@ pub async fn create(f: &Fixture, name: &str) -> (Workload, Intent) {
         created: now(),
         deleted_at: None,
         set: None,
+        classification: Vec::new(),
     };
     let mut tx = f.store.begin().await.unwrap();
     tx.create_workload(&w, &first, &power(id, Power::initial(PowerState::Running))).await.unwrap();

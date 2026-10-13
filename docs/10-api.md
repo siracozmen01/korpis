@@ -169,6 +169,7 @@ workload.console.read · workload.console.write
 workload.exec                                        a new process inside; implied by nothing
 workload.file.read · workload.file.write
 workload.secret.read                                 read a field the recipe marks secret
+workload.classify                                    override how its plan steps are classified
 plan.read · plan.approve · plan.cancel
 volume.read · volume.snapshot.create · volume.delete
 endpoint.read · endpoint.write · endpoint.release
@@ -196,6 +197,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold
   to do it.
+- **`workload.classify` sets the operator's layer of the classification chain** (§3.3 of
+  `01-model.md`): which of a workload's plan steps are disruptive, over what its driver and recipe
+  declared and never below the vocabulary's floor. It is implied by nothing, `workload.write`
+  included, because relaxing a step is choosing which changes a human sees before they happen,
+  and a grant to edit configuration was never a grant to decide that. Added 2026-10-13, when the
+  override was built: the model promised it and nothing could set it.
 - **`plan.approve` is what an approver holds** (§3.6 of `08-identity.md`). Approval was central to
   the model and had no action a gateway could check when someone pressed Approve.
 - **Delegating is not an action.** Whether a grant may be attenuated into children, how deep, and

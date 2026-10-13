@@ -13,7 +13,9 @@ pub mod step;
 pub use approval::{Approval, Proposing};
 pub use impact::{Estimate, Impact, ResourceDelta};
 pub use status::PlanStatus;
-pub use step::{Classifier, DriverClass, Layer, Override, Step, StepAction, StepExecutor};
+pub use step::{
+    Classifier, DriverClass, Layer, Override, OverrideRefusal, Step, StepAction, StepExecutor,
+};
 
 use crate::principal::Principal;
 use std::time::{Duration, SystemTime};

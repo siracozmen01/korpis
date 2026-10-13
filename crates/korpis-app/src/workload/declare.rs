@@ -283,6 +283,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             created: now,
             deleted_at: None,
             set: None,
+            classification: Vec::new(),
         };
         let power = PowerRecord {
             workload: id,
@@ -339,7 +340,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         (driver, recipe): (&DriverClass, &Recipe),
         propose: bool,
     ) -> Plan {
-        let classifier = propose::classifier(driver, &recipe.disruption);
+        let classifier = propose::classifier(driver, &recipe.disruption, &base.workload);
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
         let steps = intent_steps(
             to.workload,

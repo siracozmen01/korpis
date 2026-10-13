@@ -5,6 +5,7 @@
 
 mod admit;
 mod cancel;
+mod classify;
 mod configure;
 mod decide;
 mod declare;
@@ -19,6 +20,7 @@ mod retire;
 mod sets;
 mod watch;
 
+pub use classify::{Classified, SetClassification};
 pub use decide::{ApprovePlan, RejectPlan};
 pub use declare::{DeclareIntent, DeclareTarget, Declared, NewWorkload, SetDeclaration};
 pub use explain::{PlacementView, UnplacedView};

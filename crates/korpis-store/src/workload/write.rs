@@ -2,12 +2,12 @@
 
 //! Writing workloads: creation, the head and target compare-and-swaps, power, and plans.
 
-use super::rows::{PlanRow, WorkloadRow, approval_columns, desired_str};
+use super::rows::{PlanRow, WorkloadRow, approval_columns, classification_doc, desired_str};
 use crate::PgTx;
 use crate::errors::from_sqlx;
 use crate::stored::{ImpactDoc, StepDoc, from_time, to_count, to_json};
 use korpis_app::ports::{StoreError, StoreResult, WorkloadWrite};
-use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::plan::{Override, PlanStatus};
 use korpis_core::workload::{Intent, Plan, PlanTarget, PowerRecord, Workload};
 use uuid::Uuid;
 
@@ -62,7 +62,7 @@ impl WorkloadWrite for PgTx {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at, set_id
+                    created, deleted_at, set_id, classification
                FROM workload WHERE id = $1 FOR UPDATE",
             id
         )
@@ -248,6 +248,25 @@ impl WorkloadWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(done.rows_affected())
+    }
+
+    async fn set_classification(
+        &mut self,
+        workload: Uuid,
+        overrides: &[Override],
+        expected: u64,
+    ) -> StoreResult<bool> {
+        let set = sqlx::query!(
+            "UPDATE workload SET classification = $2, version = version + 1
+              WHERE id = $1 AND version = $3 AND deleted_at IS NULL",
+            workload,
+            to_json("workload classification", &classification_doc(overrides))?,
+            to_count("workload version", expected)?
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(set.rows_affected() == 1)
     }
 
     async fn move_target(&mut self, workload: Uuid, to: Uuid, expected: u64) -> StoreResult<bool> {

@@ -14,7 +14,7 @@ use korpis_core::workload::plan::{
     Step, approval,
 };
 use korpis_core::workload::spec::IsolationTier;
-use korpis_core::workload::{Plan, PlanTarget};
+use korpis_core::workload::{Plan, PlanTarget, Workload};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -33,10 +33,14 @@ pub(super) struct Proposal<'a> {
     pub grant: Uuid,
 }
 
-/// How a step is classified for a workload of this recipe on these drivers. No operator
-/// override is recorded yet, so nothing below the recipe can be relaxed.
-pub(super) fn classifier<'a>(driver: &'a DriverClass, recipe: &'a Disruption) -> Classifier<'a> {
-    Classifier { driver, recipe, overrides: &[] }
+/// How a step is classified for a workload of this recipe on these drivers, with the operator's
+/// overrides of the workload (§3.3 of docs/01-model.md).
+pub(super) fn classifier<'a>(
+    driver: &'a DriverClass,
+    recipe: &'a Disruption,
+    w: &'a Workload,
+) -> Classifier<'a> {
+    Classifier { driver, recipe, overrides: &w.classification }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

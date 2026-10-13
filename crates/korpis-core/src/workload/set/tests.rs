@@ -66,6 +66,7 @@ fn workload(in_set: Option<u128>) -> Workload {
         created: SystemTime::UNIX_EPOCH,
         deleted_at: None,
         set: in_set.map(Uuid::from_u128),
+        classification: Vec::new(),
     }
 }
 

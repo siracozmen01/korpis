@@ -118,6 +118,8 @@ which names the missing action, had never reached the wire; it does now. Step 6 
 driver layer nothing could fill: no driver could say that a step costs more on its tier, so
 every plan classified that row by the vocabulary alone. Drivers now declare it per tier (§4.1 of
 `04-runtimes.md`), and the control plane reads it from the nodes that could run the workload.
+The operator's row, the last one, had no field and no action either; it is set with
+`workload.classify` (§5 of `10-api.md`), on the record, and can never undercut the floor.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

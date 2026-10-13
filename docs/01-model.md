@@ -353,6 +353,10 @@ Workload
                                approval, null until one is approved
   observation   ObservationID? the most recent observed state, null if never observed
   set           SetID?         the declared set it was created through or adopted into (below)
+  classification []Override    the operator's layer of the classification chain (below), at most
+                               one per action
+  version       int            its metadata's version, the classification among it: what a
+                               change to them compares against
   created       Timestamp
   deleted_at    Timestamp?     soft; the id is retained forever
 ```
@@ -670,6 +674,14 @@ author or a driver, and an operator who wants a quieter approval flow has to say
 > floor, which the first row says cannot be relaxed. Each step records the layer that decided its
 > classification and the reason in words, so "both in the Plan and both visible" holds for the
 > answer as well as for the rules.
+
+> Added 2026-10-13, from the implementation. The operator's row had no way to be set. It is now
+> `Workload.classification`, replaced as a whole by `SetClassification` under the workload's
+> version, with the action `workload.classify` (§5 of `10-api.md`) and a required reason; the
+> effect records the set before and after. An entry that would relax the floor is refused rather
+> than stored and ignored, so the record says only what takes effect. Plans computed after a
+> change read the new set; a plan already proposed keeps the classification its proposer saw,
+> because its approval kind is what they were shown.
 
 > Added 2026-10-13, from the implementation. Who evaluates the driver's row, and with what: the
 > control plane, when it computes a plan, from the `disruption` each node's drivers declared
