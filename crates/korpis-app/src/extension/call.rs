@@ -17,6 +17,9 @@ use korpis_core::extension::{
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
+/// How long an access answer keeps its secret if its caller never reads it.
+const SECRET_KEPT: Duration = Duration::from_secs(60);
+
 /// How long a finished call is kept, for whoever reads it after.
 const FINISHED_KEPT: Duration = Duration::from_secs(3600);
 
@@ -198,6 +201,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let orphaned = tx.fail_calls_without_registration(&ended, now).await?;
         let unknown = CallOutcome::Failed(CallFailure::unknown());
         let unserved = tx.fail_calls_without_provider(&unknown, now).await?;
+        // Access its caller never read, because it died, keeps its secret a minute at most.
+        tx.redact_calls(now.checked_sub(SECRET_KEPT).unwrap_or(SystemTime::UNIX_EPOCH)).await?;
         tx.prune_calls(now.checked_sub(FINISHED_KEPT).unwrap_or(SystemTime::UNIX_EPOCH)).await?;
         tx.commit().await?;
         Ok(orphaned + unserved)

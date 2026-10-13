@@ -26,6 +26,29 @@ pub enum CallRequest {
         /// Every record it should have.
         records: Vec<crate::dns::DnsRecord>,
     },
+    /// `backup_target`: access to `prefix` for one job (§5.6 of docs/06-storage.md).
+    GrantAccess {
+        /// The repository prefix.
+        prefix: String,
+        /// What for.
+        mode: super::AccessMode,
+        /// How long.
+        ttl: std::time::Duration,
+    },
+    /// `backup_target`: keys under `prefix` after `after`, at most `limit`.
+    ListObjects {
+        /// The repository prefix.
+        prefix: String,
+        /// The last key of the previous page; empty for the first.
+        after: String,
+        /// How many.
+        limit: u32,
+    },
+    /// `backup_target`: delete these keys, with the target's own credential.
+    DeleteObjects {
+        /// The keys.
+        keys: Vec<String>,
+    },
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -46,6 +69,20 @@ pub enum CallOutcome {
     Pong {
         /// The nonce it was asked with.
         nonce: String,
+    },
+    /// The answer to [`CallRequest::GrantAccess`].
+    Access(super::ObjectAccess),
+    /// The answer to [`CallRequest::ListObjects`]: the objects, and whether more follow.
+    Objects {
+        /// The page.
+        objects: Vec<super::StoredObject>,
+        /// Whether more follow the last.
+        more: bool,
+    },
+    /// The answer to [`CallRequest::DeleteObjects`].
+    Deleted {
+        /// How many were deleted.
+        count: u32,
     },
     /// The answer to [`CallRequest::RunStep`].
     StepResult(super::StepResult),
@@ -73,6 +110,16 @@ impl CallRequest {
             | (Self::Ping { .. }, CallOutcome::Pong { .. })
             | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. }) => true,
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
+            (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {
+                a.s3.key_prefix.ends_with(prefix.as_str())
+            }
+            (Self::ListObjects { prefix, limit, .. }, CallOutcome::Objects { objects, .. }) => {
+                objects.len() <= usize::try_from(*limit).unwrap_or(usize::MAX)
+                    && objects.iter().all(|o| super::is_beneath(&o.key, prefix))
+            }
+            (Self::DeleteObjects { keys }, CallOutcome::Deleted { count }) => {
+                usize::try_from(*count).is_ok_and(|n| n <= keys.len())
+            }
             _ => false,
         }
     }

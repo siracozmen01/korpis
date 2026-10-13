@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE provider_call\n                  SET outcome = outcome #- '{access,s3,secret_access_key}'\n                                        #- '{access,s3,session_token}'\n                WHERE id = $1 AND outcome ? 'access'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc634acde9ba844d0ae4869e45d5ef8c98bf80caaa95fe6ae1af1d90c344031c"
+}

@@ -457,6 +457,49 @@ and deleted only after a grace period longer than the longest backup job, so eve
 crash cannot race a writer into a hole. Recipe content, shared across prefixes, is never pruned
 while any manifest in the repository refers to its digest.
 
+### 5.6 The backup target interface
+
+> Added 2026-10-13, when the interface was built (§5 of `16-extensions.md`). §5.5 says what a
+> node receives and who holds which credential; this is the call that delivers it, and the calls
+> pruning runs on.
+
+**A backup target is a provider that holds the target's credential and never hands it out.**
+Every object store a repository can name (§5.3) is reached through a provider of type
+`backup_target`, an extension like any other (§2 of `16-extensions.md`), so the store's own
+credential lives in that extension's configuration and nowhere else. It answers three calls, and
+no object byte passes through any of them:
+
+| Call | Asked by | Answers |
+|---|---|---|
+| `GrantAccess{prefix, mode, ttl}` | the control plane, per job, for the job's node | access to that prefix alone for 60 seconds to 12 hours: `write` puts and lists, never deletes; `read` gets and lists |
+| `ListObjects{prefix, after, limit}` | the control plane, pruning | up to a thousand keys beneath the prefix, in key order |
+| `DeleteObjects{keys}` | the control plane, pruning | how many of up to a thousand keys it deleted, with its own credential |
+
+Access is S3-shaped (endpoint, region, bucket, the granted prefix's place in the bucket, and a
+temporary key, secret, and session token), because the S3 API is what every store in §5.3 either
+speaks or fronts, and the node then needs one client, not one per store. A store that can scope a
+temporary credential to a prefix (§5.5 names the mechanism for each) is a provider that issues one.
+A store that cannot answers `backup.unscoped`, and how a job then reaches it is open (question 7
+below): §5.5 sends such a job through a relay holding the store's credential, and with the store
+behind a provider that credential is the provider's alone. The control plane checks every request
+before a provider sees it (a relative prefix ending in `/`, a deletion only beneath the prefix it
+prunes) and every answer before anything acts on it: access whose place in the bucket is not the
+prefix asked for, or a listing that strays outside it, is recorded as `provider.malformed`, counted
+by the breaker, and never reaches a node.
+
+**The secret is in the database for as long as it takes to be read.** A call's answer travels
+back through the call queue (§3.3 of `16-extensions.md`), which is a Postgres row, so the
+temporary secret is written there. The caller removes it from the row in the transaction after it
+reads it, and the sweep removes it from any answer whose caller died, a minute after the answer
+came. What that costs: a database reader within that window, or a backup of the database taken
+within it, holds a credential that can write one workload's prefix until it expires. That is less
+than the database already holds, since with `operator` custody it holds the key-encryption keys
+(§5.5), and it is why access is granted per job and never for longer than twelve hours.
+What it does not do: make an overwrite impossible. A scoped write credential on S3 can put a key
+that exists; chunks are content-addressed, so an overwrite writes the same bytes, and a manifest's
+key names its backup, which no other job writes. Where the store supports conditional writes, a
+provider should refuse overwrites outright.
+
 ---
 
 ## 6. The content store
@@ -576,3 +619,12 @@ serves the rest. Korpis ships no object store and does not become one.
    (question 2) and not carried until now (finding S18). A move is a migration of the volume
    alone, with every guarantee of §8 of `05-scheduling.md`, and waking would then pay for the move
    back; whether that trade is worth automating is a measurement, not a principle. → here
+7. **A store that cannot scope access, behind a provider.** Added 2026-10-13, when the backup
+   target interface was built (§5.6). §5.5 sends a job for an SFTP or self-hosted store through a
+   relay that holds the store's credential, because the node must not. Behind a provider, the
+   credential is the provider's, and the relay is not the provider. Either the provider grants the
+   relay whole-store access, which puts a standing credential on a relay §5.5 meant to hold one, or
+   the provider accepts the relay's ciphertext stream and writes it, which makes the provider a
+   data path and needs it reachable from the relay. The second keeps every credential where it is
+   and costs throughput through one extension; it is the likelier answer, decided with the relay
+   tier (§3.1 of `02-architecture.md`) and the backup flow it serves. → here

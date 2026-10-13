@@ -93,7 +93,10 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             }
             CallOutcome::Pong { .. }
             | CallOutcome::RecordsApplied { .. }
-            | CallOutcome::StepResult(_) => None.into(),
+            | CallOutcome::StepResult(_)
+            | CallOutcome::Access(_)
+            | CallOutcome::Objects { .. }
+            | CallOutcome::Deleted { .. } => None.into(),
         },
         ..Default::default()
     }

@@ -10,6 +10,7 @@
 //! The SDK is Apache-2.0, like the protocol it speaks (§2 of docs/19-governance.md), so an
 //! extension may carry any licence its author chooses. It depends on the wire contract alone.
 
+pub mod backup;
 pub mod consumer;
 pub mod dns;
 pub mod error;

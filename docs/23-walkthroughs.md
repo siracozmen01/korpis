@@ -892,6 +892,9 @@ duplicating records.
 Step providers, the other provider of the install path, now answer with content-addressed
 artifacts the node fetches by hash, so a provider that fails at step four of an install (§12) can
 be retried without any risk to the volume: no provider can write it (§4 of `09-recipes.md`).
+Backup targets, the third provider type built, issue scoped access per job rather than holding a
+node's data, and building them found that a store unable to scope access has no path yet once its
+credential is a provider's (question 7 of §9 of `06-storage.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by

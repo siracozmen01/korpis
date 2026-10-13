@@ -2,6 +2,7 @@
 
 //! The provider call queue (§3.3 of docs/16-extensions.md, migration 0027).
 
+mod backup;
 mod json;
 mod value;
 
@@ -240,6 +241,35 @@ impl ProviderCallWrite for PgTx {
                                    AND p.type = c.type AND p.name = c.name)",
             json::outcome_to(outcome),
             from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
+    }
+
+    async fn redact_call(&mut self, id: Uuid) -> StoreResult<()> {
+        sqlx::query!(
+            r#"UPDATE provider_call
+                  SET outcome = outcome #- '{access,s3,secret_access_key}'
+                                        #- '{access,s3,session_token}'
+                WHERE id = $1 AND outcome ? 'access'"#,
+            id
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn redact_calls(&mut self, before: SystemTime) -> StoreResult<u64> {
+        let done = sqlx::query!(
+            r#"UPDATE provider_call
+                  SET outcome = outcome #- '{access,s3,secret_access_key}'
+                                        #- '{access,s3,session_token}'
+                WHERE finished_at < $1 AND outcome ? 'access'
+                  AND (outcome #> '{access,s3}') ?| array['secret_access_key', 'session_token']"#,
+            from_time(before)
         )
         .execute(&mut *self.tx)
         .await

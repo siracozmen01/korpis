@@ -94,6 +94,12 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
                 "platform": { "os": platform.os, "arch": platform.arch },
             }
         }),
+        CallRequest::GrantAccess { .. }
+        | CallRequest::ListObjects { .. }
+        | CallRequest::DeleteObjects { .. } => {
+            // Always some for these three.
+            super::backup::request_to(r).unwrap_or(Value::Null)
+        }
         CallRequest::ApplyRecords { owner, records } => json!({
             "apply_records": {
                 "owner": owner,
@@ -108,6 +114,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
     if let Some(ping) = v.get("ping") {
         let nonce = text(ping, "nonce").ok_or_else(|| corrupt("request", v))?;
         return Ok(CallRequest::Ping { nonce });
+    }
+    if let Some(r) = super::backup::request_from(v) {
+        return Ok(r);
     }
     if let Some(r) = v.get("run_step") {
         return run_step_from(r).ok_or_else(|| corrupt("request", v));
@@ -127,6 +136,10 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
     match o {
         CallOutcome::Pong { nonce } => json!({ "pong": { "nonce": nonce } }),
         CallOutcome::StepResult(r) => step_result_to(r),
+        CallOutcome::Access(_) | CallOutcome::Objects { .. } | CallOutcome::Deleted { .. } => {
+            // Always some for these three.
+            super::backup::outcome_to(o).unwrap_or(Value::Null)
+        }
         CallOutcome::RecordsApplied { created, updated, deleted } => json!({
             "records_applied": { "created": created, "updated": updated, "deleted": deleted }
         }),
@@ -141,6 +154,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
     if let Some(pong) = v.get("pong") {
         let nonce = text(pong, "nonce").ok_or_else(|| corrupt("outcome", v))?;
         return Ok(CallOutcome::Pong { nonce });
+    }
+    if let Some(o) = super::backup::outcome_from(v) {
+        return Ok(o);
     }
     if let Some(r) = v.get("step_result") {
         return step_result_from(r).ok_or_else(|| corrupt("outcome", v));

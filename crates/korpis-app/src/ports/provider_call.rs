@@ -79,6 +79,14 @@ pub trait ProviderCallWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
+    /// Removes the secrets from `id`'s answer, if it was access: its caller has read it.
+    fn redact_call(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Removes the secrets from every access answer finished before `before`, which its caller
+    /// never read (it died); how many.
+    fn redact_calls(&mut self, before: SystemTime)
+    -> impl Future<Output = StoreResult<u64>> + Send;
+
     /// Deletes every call finished before `before`; how many.
     fn prune_calls(&mut self, before: SystemTime) -> impl Future<Output = StoreResult<u64>> + Send;
 }

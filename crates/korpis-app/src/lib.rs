@@ -11,6 +11,7 @@
 
 pub mod audit;
 pub mod authz;
+pub mod backup_target;
 pub mod caller;
 pub mod dns;
 pub mod error;

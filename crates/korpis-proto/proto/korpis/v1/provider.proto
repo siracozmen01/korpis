@@ -74,6 +74,10 @@ message ProviderCall {
     ApplyRecords apply_records = 20;
     // step: resolve an install step into artifacts.
     RunStep run_step = 21;
+    // backup_target: scoped access for one job, and the control plane's listing and pruning.
+    GrantAccess grant_access = 22;
+    ListObjects list_objects = 23;
+    DeleteObjects delete_objects = 24;
   }
 }
 
@@ -85,6 +89,9 @@ message CallResult {
     Pong pong = 10;
     RecordsApplied records_applied = 20;
     StepResult step_result = 21;
+    ObjectAccess object_access = 22;
+    ObjectList object_list = 23;
+    ObjectsDeleted objects_deleted = 24;
   }
 }
 
@@ -247,4 +254,73 @@ message StepArtifact {
   uint32 mode = 5;
   // An archive unpacked at `path` under the `extract` verb's rules.
   bool extract = 6;
+}
+
+// Backup targets (§5.6 of docs/06-storage.md). Object bytes never cross this stream: a node writes
+// or reads with access scoped to one workload's prefix, which the provider issues per job, and
+// the control plane prunes through the provider, which alone holds the target's own credential.
+message GrantAccess {
+  // A key prefix in the repository, ending in "/", e.g. "workloads/wl_.../".
+  string prefix = 1;
+  AccessMode mode = 2;
+  // How long the access lasts, 60 to 43200 seconds.
+  uint32 ttl_seconds = 3;
+}
+
+enum AccessMode {
+  ACCESS_MODE_UNSPECIFIED = 0;
+  // Put new objects and list them, under the prefix only; never delete.
+  ACCESS_MODE_WRITE = 1;
+  // Get and list, under the prefix only.
+  ACCESS_MODE_READ = 2;
+}
+
+// Access the node uses directly. A target that cannot scope access to a prefix fails
+// backup.unscoped, and the node's data goes through a relay instead (§5.5 of
+// docs/06-storage.md).
+message ObjectAccess {
+  google.protobuf.Timestamp expires_at = 1;
+  oneof protocol {
+    S3Access s3 = 10;
+  }
+}
+
+message S3Access {
+  string endpoint = 1;
+  string region = 2;
+  string bucket = 3;
+  // Where the granted prefix lives in the bucket; the node writes beneath it.
+  string key_prefix = 4;
+  string access_key_id = 5;
+  string secret_access_key = 6;
+  string session_token = 7;
+}
+
+message ListObjects {
+  string prefix = 1;
+  // Keys after this one, in key order; empty for the first page.
+  string after = 2;
+  // At most 1000.
+  uint32 limit = 3;
+}
+
+message ObjectList {
+  repeated StoredObject objects = 1;
+  // Whether more follow the last.
+  bool more = 2;
+}
+
+message StoredObject {
+  string key = 1;
+  uint64 size = 2;
+  google.protobuf.Timestamp modified = 3;
+}
+
+message DeleteObjects {
+  // At most 1000, each beneath a prefix the control plane manages.
+  repeated string keys = 1;
+}
+
+message ObjectsDeleted {
+  uint32 deleted = 1;
 }

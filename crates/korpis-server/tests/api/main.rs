@@ -15,6 +15,7 @@ mod agent;
 mod assignments;
 mod authority;
 mod authz;
+mod backup_target;
 mod cancel;
 mod classify;
 mod denials;

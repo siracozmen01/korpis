@@ -365,7 +365,8 @@ up everyone else's. This answers the question §12 of `10-api.md` routed here (f
 
 Korpis calls **out** to the extension, down the stream of §3.3, to obtain a capability it does not
 implement: publish DNS records (§3.5 of `07-networking.md`), run a health probe, install a Steam
-application, write a backup to an object store, verify an identity assertion, route a protocol.
+application, keep backups in an object store (§5.6 of `06-storage.md`), verify an identity
+assertion, route a protocol.
 
 Calling out is the direction that carries risk, so the contract is strict:
 
@@ -547,20 +548,20 @@ that silently orphans an operator's DNS provider is an outage the operator did n
 **As built in Phase 1.** The contract version is `korpis.extension.v1`, and a capability names an
 interface of the contract the control plane actually speaks, never one it merely tolerates:
 `events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
-`identity.credential` (the credential socket, §9.5 of `08-identity.md`), and `provider.serve` (a
-provider's stream, §3.3: registering, being pinged, being cancelled), and `provider.dns` (a DNS
-provider's calls, §3.5 of `07-networking.md`). Another `provider.<type>` is added when that type's
-own calls join the contract, which for backup targets and steps is the provider interfaces of Phase
-1 (§4 of `20-roadmap.md`); until then an extension requiring `provider.backup_target` is refused,
-because installing it would leave it waiting for calls nothing makes, the failure six weeks later
-this section forbids. A capability is offered once its calls are in the contract and the SDK, even
-while the control plane's own use of them is still being built (DNS records are published for
-endpoints, which Phase 1 creates later), since the provider is then correct to wait. The check runs
-at install, a dry run included, so the installer reads the refusal before approving anything: an
-unknown contract version, or every required capability that is missing, at once, is refused as
-`extension.incompatible` naming what is missing and what is offered. A client reads both lists from
-`ServerInfo` (`extension_contracts` and `capabilities`), which is how an extension's SDK negotiates
-rather than compares version numbers.
+`identity.credential` (the credential socket, §9.5 of `08-identity.md`), `provider.serve` (a
+provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of three
+provider types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
+`07-networking.md`), and `provider.step` (§4 of `09-recipes.md`). The `provider.<type>` of health,
+console, identity, edge router, and chat adapter providers is added when that type's own calls join
+the contract; until then an extension requiring one is refused, because installing it would leave
+it waiting for calls nothing makes, the failure six weeks later this section forbids. A capability
+is offered once its calls are in the contract and the SDK, even while the control plane's own use
+of them is still being built (DNS records are published for endpoints, which Phase 1 creates
+later), since the provider is then correct to wait. The check runs at install, a dry run included,
+so the installer reads the refusal before approving anything: an unknown contract version, or every
+required capability that is missing, at once, is refused as `extension.incompatible` naming what is
+missing and what is offered. A client reads both lists from `ServerInfo` (`extension_contracts` and
+`capabilities`), which is how an extension's SDK negotiates rather than compares version numbers.
 
 ---
 

@@ -5,6 +5,7 @@
 //! the actions and UI slots it adds. Everything else in its document describes its workload, as
 //! any recipe does; this is the one section that makes the recipe an extension.
 
+mod backup;
 mod breaker;
 mod call;
 mod condition;
@@ -14,6 +15,10 @@ mod registration;
 mod step;
 mod validate;
 
+pub use backup::{
+    AccessMode, MAX_ACCESS, MAX_KEYS, MIN_ACCESS, ObjectAccess, S3Access, StoredObject, is_beneath,
+    is_prefix,
+};
 pub use breaker::{
     Admission, Breaker, FIRST_BACKOFF, FailurePolicy, MAX_BACKOFF, Measured, Sample, Trip,
     WINDOW_AGE, WINDOW_CALLS, judge, measure, recovered,
