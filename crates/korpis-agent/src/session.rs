@@ -6,7 +6,7 @@
 //! acknowledges it. When the stream drops it dials again, backing off; the node keeps doing its
 //! job meanwhile from the set it holds (§4.6).
 
-use crate::held::{HeldSet, Refused};
+use crate::held::HeldSet;
 use crate::identity::Credentials;
 use crate::journal::{JournalHandle, Shipper};
 use crate::revoked::{Revoked, token_ring};
@@ -14,15 +14,17 @@ use crate::state::{Identity, StateDir};
 use crate::tls;
 use buffa_types::google::protobuf::Timestamp;
 use connectrpc::client::{BidiRecvHalf, ClientConfig, ClientTransport, HttpClient};
-use korpis_core::authz::revocation::RevocationList;
 use korpis_core::node::identity::{hello_message, sign};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
-use korpis_proto::korpis::v1 as pb;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{broadcast, mpsc, watch};
+
+mod link;
+
+pub use link::{Event, Facts, Link};
 
 /// The protocol this agent speaks.
 pub const PROTOCOL: &str = "korpis.agent.v1";
@@ -34,67 +36,6 @@ type Recv = BidiRecvHalf<
     agent::__buffa::view::ControlMessageView<'static>,
 >;
 
-/// What the node reports about itself: in the Hello, and in every heartbeat.
-#[derive(Debug, Clone, Default)]
-pub struct Facts {
-    /// Its drivers, each with its capabilities.
-    pub drivers: Vec<pb::DriverInfo>,
-    /// Its storage classes.
-    pub storage_classes: Vec<pb::StorageClassInfo>,
-    /// Total.
-    pub capacity: pb::Resources,
-    /// What placements may reserve.
-    pub allocatable: pb::Resources,
-}
-
-/// What happened on the session, for whoever watches it.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Event {
-    /// The Hello was accepted.
-    Welcomed {
-        /// The heartbeat interval the control plane declared.
-        heartbeat: Duration,
-    },
-    /// A new set is held.
-    Held {
-        /// Its digest.
-        digest: String,
-    },
-    /// The control plane said the set held is current.
-    InSync,
-    /// A set was refused.
-    Refused(Refused),
-    /// A revocation list is held.
-    Revocations {
-        /// Its version.
-        version: u64,
-        /// How many grants it lists.
-        entries: usize,
-    },
-    /// The stream ended, and why.
-    Disconnected(String),
-}
-
-/// What the rest of the agent holds of the session.
-#[derive(Debug)]
-pub struct Link {
-    /// The set held, as it changes.
-    pub held: watch::Receiver<HeldSet>,
-    /// The revocation list held, as it changes: what token verification refuses (§6.3 of
-    /// docs/08-identity.md).
-    pub revoked: watch::Receiver<Arc<RevocationList>>,
-    /// Everything else the control plane sends, such as lease answers. The session keeps
-    /// the journal's acknowledgements, since it sends the journal.
-    pub inbound: mpsc::Receiver<Down>,
-    /// What to send up.
-    pub outbound: mpsc::Sender<agent::AgentMessage>,
-    /// What happens, for watching.
-    pub events: broadcast::Sender<Event>,
-    /// Workload credential requests, sent up this session and answered down it (§9.5 of
-    /// docs/08-identity.md).
-    pub credentials: Arc<Credentials>,
-}
-
 /// The session.
 pub struct Session {
     identity: Identity,
@@ -103,6 +44,7 @@ pub struct Session {
     journal: JournalHandle,
     held: watch::Sender<HeldSet>,
     revoked: Revoked,
+    relays: watch::Sender<Vec<String>>,
     inbound: mpsc::Sender<Down>,
     outbound: mpsc::Receiver<agent::AgentMessage>,
     events: broadcast::Sender<Event>,
@@ -171,6 +113,7 @@ impl Session {
         let (held, held_rx) = watch::channel(initial);
         let ring = token_ring(&identity.keys.token_keys);
         let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring);
+        let (relays, relays_rx) = watch::channel(Vec::new());
         let (inbound, inbound_rx) = mpsc::channel(256);
         let (outbound_tx, outbound) = mpsc::channel(1024);
         let (events, _) = broadcast::channel(64);
@@ -178,6 +121,7 @@ impl Session {
         let link = Link {
             held: held_rx,
             revoked: revoked_rx,
+            relays: relays_rx,
             inbound: inbound_rx,
             outbound: outbound_tx,
             events: events.clone(),
@@ -190,6 +134,7 @@ impl Session {
             journal,
             held,
             revoked,
+            relays,
             inbound,
             outbound,
             events,
@@ -298,6 +243,14 @@ impl Session {
             .and_then(|d| korpis_wire::duration_from("heartbeat_interval", d).ok())
             .unwrap_or(Duration::from_secs(30));
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
+        let relays = welcome.relays;
+        self.relays.send_if_modified(|held| {
+            let changed = *held != relays;
+            if changed {
+                held.clone_from(&relays);
+            }
+            changed
+        });
         let mut tick = tokio::time::interval(interval);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let (journal, mut shipper) = (self.journal.clone(), Shipper::new(self.journal.clone()));

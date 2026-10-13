@@ -19,8 +19,9 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::attach_up::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::carry_up::Message as Carried;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::relay_response::Message as Response_;
+use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 /// Reads a node's refusals until its data connection ends, then forgets the connection.
@@ -40,18 +41,23 @@ async fn attach_uplink(
     tracing::info!(%node, "data connection detached");
 }
 
-/// Forwards what the node sends to the client until either side is done.
+/// Forwards what the node sends to the client until either side is done. Dropping `done` when
+/// it returns ends the carry towards the node too, so the node knows its end was delivered and
+/// the client's stream ends with the node's.
 async fn node_to_client(
     mut requests: InboundStream<agent::CarryUp>,
     to_client: mpsc::Sender<pb::RelayResponse>,
+    done: oneshot::Sender<()>,
 ) {
     while let Some(Ok(m)) = requests.next().await {
         let Some(Carried::Frame(frame)) = m.to_owned_message().message else { continue };
+        let ended = matches!(frame.frame, Some(Frame::End(_)));
         let up = pb::RelayResponse { message: Some(Response_::Frame(frame)), ..Default::default() };
-        if to_client.send(up).await.is_err() {
-            return;
+        if to_client.send(up).await.is_err() || ended {
+            break;
         }
     }
+    drop(done);
 }
 
 impl agent::DataService for Api {
@@ -98,12 +104,19 @@ impl agent::DataService for Api {
             ..Default::default()
         };
         to_client.send(opened).await.map_err(|_| gone())?;
-        let (to_node, mut rx) = mpsc::channel(FRAMES);
+        let (to_node, rx) = mpsc::channel(FRAMES);
         if !pending.answer(Answer::Carried(to_node)) {
             return Err(gone());
         }
-        tokio::spawn(node_to_client(requests, to_client));
-        let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));
+        let (done, ended) = oneshot::channel();
+        tokio::spawn(node_to_client(requests, to_client, done));
+        // Towards the node: the client's frames, until the client is done or the node is.
+        let out = futures_util::stream::unfold((rx, ended), |(mut rx, mut ended)| async move {
+            tokio::select! {
+                m = rx.recv() => m.map(|m| (Ok(m), (rx, ended))),
+                _ = &mut ended => None,
+            }
+        });
         Response::stream_ok(out)
     }
 }

@@ -8,6 +8,7 @@
 #![warn(missing_docs)]
 
 pub mod content;
+pub mod data;
 pub mod durable;
 pub mod held;
 pub mod host;

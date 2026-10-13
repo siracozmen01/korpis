@@ -6,12 +6,15 @@
 //! node keeps doing its job from the set it holds (§4.6), and a clean stop writes what the
 //! journal still holds in memory before the process exits.
 
+use crate::data::handler::Handlers;
+use crate::data::{DataLink, Judged};
 use crate::host::Host;
 use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::reconcile::progress::Progress;
 use crate::reconcile::{Reconciler, Wiring};
+use crate::revoked::token_ring;
 use crate::runtime::{Runtime, RuntimeError};
 use crate::session::{Event, Facts, Session};
 use crate::state::{StateDir, StateError};
@@ -67,6 +70,9 @@ pub struct Options {
     /// Where the workloads' identity sockets are made, one directory each; `identity` in the
     /// state directory when unset. The driver must be given the same root.
     pub identity_root: Option<std::path::PathBuf>,
+    /// What serves each action of the sessions clients open through a relay (§3.1 of
+    /// docs/02-architecture.md); an action with none is refused.
+    pub handlers: Handlers,
 }
 
 impl Default for Options {
@@ -76,6 +82,7 @@ impl Default for Options {
             maintain_every: Duration::from_secs(5),
             journal: Bounds::default(),
             identity_root: None,
+            handlers: Handlers::default(),
         }
     }
 }
@@ -156,7 +163,15 @@ impl Agent {
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
+        let data = identity.clone();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let judged = Judged {
+            keys: token_ring(&data.keys.token_keys),
+            revoked: link.revoked.clone(),
+            held: link.held.clone(),
+            handlers: options.handlers,
+        };
+        let data = DataLink::new(data, judged, link.relays.clone());
         let leases = Leases::new(journal.clone());
         let keeper =
             Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
@@ -180,6 +195,7 @@ impl Agent {
             tokio::spawn(keeper.run()),
             journal.maintain_every(options.maintain_every),
             tokio::spawn(reconciler.run()),
+            tokio::spawn(data.run()),
         ];
         Ok(Self { tasks, journal, events: link.events })
     }

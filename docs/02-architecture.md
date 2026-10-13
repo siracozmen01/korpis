@@ -157,7 +157,14 @@ good for one carry and told to that node alone, and the node carries it on a str
 control, and a relay buffers at most a few frames of either side before the faster side waits. A
 wrong node cannot misdirect a session, because the node verifies that it holds the workload; it
 refuses, and the client is told the node's reason (`not_here`, `refused`, `unimplemented`). A
-node that does not answer within ten seconds fails the open as unavailable. What it does not do
+node that does not answer within ten seconds fails the open as unavailable. The agent keeps one
+data connection to each relay the last `Welcome` named, and to the control plane's own address
+when it names none, as it does today. It judges every session again from what the client sent:
+the token offline, with the token keys enrollment returned and the revocation list it holds, and
+never the client's address, which it does not see; the workload against the set it holds; and the
+action against the handlers it runs, so an action with no handler on the node is refused rather
+than accepted and left idle. A session ends when its handler returns, with the handler's reason
+delivered to the client before either stream closes. What it does not do
 yet: the role does not run as its own process, which Phase 1 still owes (§4 of
 `20-roadmap.md`), and a relay without the database will need the nodes' keys, and a `DataHello`
 bound to the relay it was sent to, since nonce memory is not shared between relays.

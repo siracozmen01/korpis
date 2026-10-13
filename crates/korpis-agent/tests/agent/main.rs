@@ -12,6 +12,7 @@
 )]
 
 mod content;
+mod data;
 mod identity;
 mod join;
 mod journal;

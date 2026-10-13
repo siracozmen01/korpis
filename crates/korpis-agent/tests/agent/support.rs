@@ -264,6 +264,29 @@ impl ControlPlane {
         (created.token, created.ca_fingerprint)
     }
 
+    /// The relay service, as an anonymous client: a session is authorized by its token alone.
+    pub fn relay(&self) -> pb::RelayServiceClient<HttpClient> {
+        pb::RelayServiceClient::new(self.http(), ClientConfig::new(self.url.parse().unwrap()))
+    }
+
+    /// A capability token for `actions` on exactly `workload`, minted by the root token.
+    pub async fn mint(&self, workload: &str, actions: &[&str]) -> String {
+        use korpis_core::authz::{Kind, ObjectRef};
+        use korpis_core::id::{Id, IdKind};
+        let w = Id::parse(IdKind::Workload, workload).unwrap().uuid();
+        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Workload, w));
+        let minted = pb::GrantServiceClient::new(self.http(), self.config())
+            .mint_token(pb::MintTokenRequest {
+                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
+                scope: korpis_wire::scope::to_pb(&scope).into(),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        minted.token
+    }
+
     /// Issues a grant on the root organization to a new token, then revokes it; the grant.
     pub async fn revoked_grant(&self) -> uuid::Uuid {
         use korpis_core::authz::{Kind, ObjectRef};

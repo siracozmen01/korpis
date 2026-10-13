@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! What the session shares with the rest of the agent: the facts it reports, what happens on
+//! it, and the link through which the rest of the agent reads what it holds and sends up.
+
+use crate::held::{HeldSet, Refused};
+use crate::identity::Credentials;
+use korpis_core::authz::revocation::RevocationList;
+use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
+use korpis_proto::korpis::v1 as pb;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{broadcast, mpsc, watch};
+
+/// What the node reports about itself: in the Hello, and in every heartbeat.
+#[derive(Debug, Clone, Default)]
+pub struct Facts {
+    /// Its drivers, each with its capabilities.
+    pub drivers: Vec<pb::DriverInfo>,
+    /// Its storage classes.
+    pub storage_classes: Vec<pb::StorageClassInfo>,
+    /// Total.
+    pub capacity: pb::Resources,
+    /// What placements may reserve.
+    pub allocatable: pb::Resources,
+}
+
+/// What happened on the session, for whoever watches it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Event {
+    /// The Hello was accepted.
+    Welcomed {
+        /// The heartbeat interval the control plane declared.
+        heartbeat: Duration,
+    },
+    /// A new set is held.
+    Held {
+        /// Its digest.
+        digest: String,
+    },
+    /// The control plane said the set held is current.
+    InSync,
+    /// A set was refused.
+    Refused(Refused),
+    /// A revocation list is held.
+    Revocations {
+        /// Its version.
+        version: u64,
+        /// How many grants it lists.
+        entries: usize,
+    },
+    /// The stream ended, and why.
+    Disconnected(String),
+}
+
+/// What the rest of the agent holds of the session.
+#[derive(Debug)]
+pub struct Link {
+    /// The set held, as it changes.
+    pub held: watch::Receiver<HeldSet>,
+    /// The revocation list held, as it changes: what token verification refuses (§6.3 of
+    /// docs/08-identity.md).
+    pub revoked: watch::Receiver<Arc<RevocationList>>,
+    /// The relays the last Welcome named; empty for the control plane's own address.
+    pub relays: watch::Receiver<Vec<String>>,
+    /// Everything else the control plane sends, such as lease answers. The session keeps
+    /// the journal's acknowledgements, since it sends the journal.
+    pub inbound: mpsc::Receiver<Down>,
+    /// What to send up.
+    pub outbound: mpsc::Sender<agent::AgentMessage>,
+    /// What happens, for watching.
+    pub events: broadcast::Sender<Event>,
+    /// Workload credential requests, sent up this session and answered down it (§9.5 of
+    /// docs/08-identity.md).
+    pub credentials: Arc<Credentials>,
+}
