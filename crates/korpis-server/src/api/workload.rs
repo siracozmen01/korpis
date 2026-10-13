@@ -67,6 +67,7 @@ fn status(v: &WorkloadView) -> pb::WorkloadStatus {
                 declared_by: korpis_wire::principal::to_pb(&v.head.declared_by).into(),
                 declared_at: timestamp(v.head.declared_at).into(),
                 set_intent: d.set_intent.map(|i| wire_id(IdKind::Intent, i)),
+                effect: d.effect.map(|e| wire_id(IdKind::Effect, e)),
                 ..Default::default()
             })
             .into(),

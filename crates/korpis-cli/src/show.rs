@@ -40,11 +40,19 @@ pub fn plan(p: &pb::Plan, workload: &str) -> String {
     out
 }
 
-/// One line for a plan that waits: how to apply it.
+/// One line for plans that wait: how to apply exactly them, with the flags they were planned
+/// under.
 #[must_use]
-pub fn apply_with(paths: &[String], ids: &[String]) -> String {
+pub fn apply_with(paths: &[String], ids: &[String], flags: &str) -> String {
     let plans: Vec<String> = ids.iter().map(|i| format!("--plan {i}")).collect();
-    format!("apply with:  korpis apply -f {} {}", paths.join(" -f "), plans.join(" "))
+    let mut line = format!("apply with:  korpis apply -f {}", paths.join(" -f "));
+    for part in [flags, &plans.join(" ")] {
+        if !part.is_empty() {
+            line.push(' ');
+            line.push_str(part);
+        }
+    }
+    line
 }
 
 /// An enum value as a person reads it: `CONVERGENCE_CONVERGED` under `CONVERGENCE_` is

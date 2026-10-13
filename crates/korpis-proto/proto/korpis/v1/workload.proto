@@ -90,6 +90,8 @@ message Drift {
   google.protobuf.Timestamp declared_at = 4;
   // The newest intent the set declared, which the declared files still say.
   optional string set_intent = 5;
+  // The effect that recorded declaring the head outside the set.
+  optional string effect = 6;
 }
 
 // The declaration a subject writes. Everything else on Intent is set by the control plane.

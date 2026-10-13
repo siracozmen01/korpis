@@ -658,7 +658,10 @@ what information, the model had no answer: `managed_by` and the per-set mode app
 holds the mode, the workload names its set and each intent the set that declared it, and the
 control plane derives drift from those two pointers at declaration and in every status read, so
 the panel's 03:00 change is drift without anything having to mark it.
-`crates/korpis-server/tests/api/sets.rs` runs steps 1, 3, and 6 against both modes.
+`crates/korpis-server/tests/api/sets.rs` runs steps 1, 3, and 6 against both modes, and
+`crates/korpis-cli/tests/cli/sets.rs` runs the whole trace through the CLI: the 09:00 apply exits
+with `CONFLICT` naming the 03:00 change and its effect, `--accept-drift` applies the rest, and a
+member removed from the files is deleted only by the `apply --plan` that names its retire plan.
 
 ---
 

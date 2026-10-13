@@ -7,6 +7,7 @@
 pub mod act;
 pub mod get;
 pub mod grant;
+pub mod sets;
 
 use crate::complete;
 use clap::Subcommand;
@@ -163,6 +164,33 @@ pub enum NodeAction {
         #[arg(add = ArgValueCompleter::new(complete::nodes))]
         /// The node, by name or identifier.
         node: String,
+    },
+}
+
+/// A set's drift mode, as typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum Mode {
+    /// The out-of-band change stands, and an apply that meets it fails.
+    Advisory,
+    /// An apply declares over it, on the record.
+    Strict,
+}
+
+/// `korpis set …` (§5 and §6 of docs/13-surface-cli.md).
+#[derive(Debug, Clone, Subcommand)]
+pub enum SetAction {
+    /// The declared sets of a project.
+    List {
+        /// The project, by name or identifier.
+        #[arg(add = ArgValueCompleter::new(complete::projects))]
+        project: String,
+    },
+    /// Changes what a set does with drift.
+    Mode {
+        /// The set, as `project/name`.
+        set: String,
+        /// The mode.
+        mode: Mode,
     },
 }
 

@@ -50,6 +50,8 @@ pub struct Drift {
     pub set: Uuid,
     /// The newest intent the set declared, which its files still say.
     pub set_intent: Option<Uuid>,
+    /// The effect that recorded declaring the head outside the set.
+    pub effect: Option<Uuid>,
 }
 
 /// Which workloads to list: in a project or under an organization, matching a selector.
@@ -82,7 +84,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (convergence, observation) =
             self.measure(&workload, &open, found.node(), placed).await?;
         let drift = match workload.set.filter(|_| drifted(&workload, &head)) {
-            Some(set) => Some(Drift { set, set_intent: self.store.set_intent(id, set).await? }),
+            Some(set) => Some(Drift {
+                set,
+                set_intent: self.store.set_intent(id, set).await?,
+                effect: self.store.declaring_effect(id, head.id).await?,
+            }),
             None => None,
         };
         let view = WorkloadView {

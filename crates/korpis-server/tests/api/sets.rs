@@ -52,6 +52,7 @@ async fn a_set_owns_its_members_and_never_loses_a_fix_silently() {
     let drift = status(&h, &w.id).await.drift.into_option().expect("declared outside the set");
     assert_eq!(drift.set, set);
     assert!(drift.set_intent.is_some(), "what the files still say");
+    assert!(drift.effect.as_deref().is_some_and(|e| e.starts_with("eff_")), "and what changed it");
 
     let e = declare(&h, &repo, &w.id, "c", "servers", (false, false)).await.unwrap_err();
     assert_eq!(reason(&e), "set.drifted", "advisory never overwrites a fix unasked");

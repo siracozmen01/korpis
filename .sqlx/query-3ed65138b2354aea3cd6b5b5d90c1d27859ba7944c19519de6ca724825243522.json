@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM effect\n              WHERE workload_id = $1 AND outcome = 'succeeded'\n                AND action IN ('workload.create', 'workload.write')\n                AND after ->> 'intent' = $2::uuid::text\n              ORDER BY at LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "effect",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3ed65138b2354aea3cd6b5b5d90c1d27859ba7944c19519de6ca724825243522"
+}

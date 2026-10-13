@@ -39,6 +39,14 @@ pub trait EffectRead {
         after: Option<EffectCursor>,
         limit: u32,
     ) -> impl Future<Output = StoreResult<Vec<Effect>>> + Send;
+
+    /// The entry that recorded declaring `intent` of `workload`: the change a drifted member's
+    /// head was made by (§6 of docs/13-surface-cli.md).
+    fn declaring_effect(
+        &self,
+        workload: Uuid,
+        intent: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
 }
 
 /// Appending to the log. The log is append-only: there is no other write.

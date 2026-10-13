@@ -13,6 +13,8 @@ pub mod complete;
 pub mod connect;
 pub mod declared;
 pub mod error;
+pub mod files;
 pub mod resolve;
+pub mod sets;
 pub mod show;
 pub mod version;

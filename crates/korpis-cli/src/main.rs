@@ -5,15 +5,16 @@
 use clap::{CommandFactory as _, Parser, Subcommand};
 use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
-use korpis_cli::apply::{Mode, apply_planned, declare, plans};
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::{
-    Answer, Get, GrantAction, NodeAction, PlanAction, WorkloadAction, act, get, grant,
+    Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
+    sets,
 };
 use korpis_cli::complete;
 use korpis_cli::connect::{Connection, Endpoint, token_from};
-use korpis_cli::declared::read_all;
 use korpis_cli::error::CliError;
+use korpis_cli::files;
+use korpis_cli::sets::SetArgs;
 use korpis_cli::show;
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::registry::Registry;
@@ -54,6 +55,8 @@ enum Command {
         /// A declared file, or a directory of them; repeatable.
         #[arg(short = 'f', long = "file")]
         files: Vec<PathBuf>,
+        #[command(flatten)]
+        set: SetArgs,
         #[command(subcommand)]
         action: Option<PlanAction>,
     },
@@ -66,6 +69,8 @@ enum Command {
         /// A plan `korpis plan` showed; repeatable, one per workload.
         #[arg(long = "plan")]
         plans: Vec<String>,
+        #[command(flatten)]
+        set: SetArgs,
     },
     /// Lists what you can read.
     #[command(subcommand)]
@@ -85,6 +90,9 @@ enum Command {
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
+    /// Lists a project's declared sets, or changes what one does with drift.
+    #[command(subcommand)]
+    Set(SetAction),
     /// Prints the script that registers completion with a shell, e.g.
     /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
     /// offers only what the token in the environment can read.
@@ -162,16 +170,17 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             Ok(())
         }
         Command::Plan { action: Some(a), .. } => answer(cli, act::plan(&cli.required()?, a).await),
-        Command::Plan { files, action: None } => declared(cli, files, &[], true).await,
+        Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
         Command::Get(g) => answer(cli, get::get(&cli.required()?, g).await),
         Command::Status { workload } => answer(cli, get::status(&cli.required()?, workload).await),
         Command::Grant(a) => answer(cli, grant::grant(&cli.required()?, a).await),
+        Command::Set(a) => answer(cli, sets::set(&cli.required()?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
             answer(cli, act::node(&cli.required()?, &server, a).await)
         }
-        Command::Apply { files, plans } => declared(cli, files, plans, false).await,
+        Command::Apply { files, plans, set } => declared(cli, files, plans, false, set).await,
         Command::Call { list: true, .. } => {
             for m in METHODS {
                 println!("{m}");
@@ -207,40 +216,41 @@ async fn declared(
     paths: &[PathBuf],
     ids: &[String],
     propose: bool,
+    set: &SetArgs,
 ) -> Result<(), CliError> {
     let c = cli.required()?;
     let registry = Registry::new(cli.plain_http.clone());
-    let files = read_all(paths)?;
-    let (mut out, mut waiting) = (Vec::new(), Vec::new());
-    if ids.is_empty() {
-        let mode = if propose { Mode::Propose } else { Mode::Apply };
-        for f in &files {
-            let d = declare(&c, &registry, f, mode).await?;
-            let p = d.plan.as_option().cloned().unwrap_or_default();
-            if p.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {
-                waiting.push(p.id.clone());
-            }
-            out.push((f.declared.workload.clone(), p));
-        }
-    } else {
-        let plans = plans(&c, ids).await?;
-        for f in &files {
-            out.push((f.declared.workload.clone(), apply_planned(&c, &registry, f, &plans).await?));
-        }
-    }
+    let out = files::run(&c, &registry, files::Run { paths, ids, propose, set }).await?;
     if cli.json {
-        let plans: Vec<&pb::Plan> = out.iter().map(|(_, p)| p).collect();
+        let plans: Vec<&pb::Plan> = out.plans.iter().map(|(_, p)| p).collect();
         print(&serde_json::to_value(plans).unwrap_or_default());
         return Ok(());
     }
-    for (workload, p) in &out {
+    for (workload, p) in &out.plans {
         println!("{}", show::plan(p, workload));
     }
-    if !waiting.is_empty() {
+    for w in &out.left {
+        println!("left as it is: {w} drifted, and --accept-drift was given");
+    }
+    if !out.waiting.is_empty() {
         let shown: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
-        println!("{}", show::apply_with(&shown, &waiting));
+        println!("{}", show::apply_with(&shown, &out.waiting, &set_flags(set)));
     }
     Ok(())
+}
+
+/// The set flags `apply` must be given again to apply what `plan` showed.
+fn set_flags(set: &SetArgs) -> String {
+    let mut flags = Vec::new();
+    if let Some(name) = &set.set {
+        flags.push(format!("--set {name}"));
+    }
+    for (on, flag) in [(set.adopt, "--adopt"), (set.reconcile, "--reconcile")] {
+        if on {
+            flags.push(flag.to_owned());
+        }
+    }
+    flags.join(" ")
 }
 
 /// The shells completion can be registered with.

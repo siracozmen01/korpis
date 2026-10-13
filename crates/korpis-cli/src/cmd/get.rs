@@ -132,6 +132,51 @@ fn unplaced(out: &mut String, s: &pb::WorkloadStatus) {
     }
 }
 
+/// The quota-bearing figures of a declaration, by name.
+fn figures(b: Option<&pb::IntentBody>) -> [(&'static str, u64); 6] {
+    let r = b.and_then(|b| b.resources.as_option()).cloned().unwrap_or_default();
+    let (cpu, memory, disk) = (
+        r.cpu.into_option().unwrap_or_default(),
+        r.memory.into_option().unwrap_or_default(),
+        r.disk.into_option().unwrap_or_default(),
+    );
+    [
+        ("cpu reservation (millicores)", cpu.reservation_millis),
+        ("cpu limit (millicores)", cpu.limit_millis),
+        ("memory reservation (bytes)", memory.reservation),
+        ("memory limit (bytes)", memory.limit),
+        ("disk reservation (bytes)", disk.reservation),
+        ("disk limit (bytes)", disk.limit),
+    ]
+}
+
+/// A member changed outside its set: who changed it, and how far quota moved from what the
+/// set's files say (finding 17 of docs/23-walkthroughs.md).
+async fn drift(c: &Connection, out: &mut String, s: &pb::WorkloadStatus) -> Result<(), CliError> {
+    let Some(d) = s.drift.as_option() else { return Ok(()) };
+    let _ = writeln!(
+        out,
+        "drift:     changed outside set {} by {} at {} (effect {})",
+        d.set,
+        subject(d.declared_by.as_option()),
+        time(d.declared_at.as_option()),
+        d.effect.as_deref().unwrap_or("unknown"),
+    );
+    let Some(said) = &d.set_intent else { return Ok(()) };
+    let workload = s.workload.as_option().map(|w| w.id.clone()).unwrap_or_default();
+    let request = pb::ListIntentsRequest { workload, ..Default::default() };
+    let client = pb::WorkloadServiceClient::new(c.http(), c.config());
+    let intents = client.list_intents(request).await?.into_owned().intents;
+    let files = intents.iter().find(|i| i.id == *said).and_then(|i| i.body.as_option());
+    let now = s.head.as_option().and_then(|h| h.body.as_option());
+    for ((what, set_says), (_, holds)) in figures(files).into_iter().zip(figures(now)) {
+        if set_says != holds {
+            let _ = writeln!(out, "           {what}: the set's files say {set_says}, now {holds}");
+        }
+    }
+    Ok(())
+}
+
 /// Answers `korpis status`: where the workload is, what it is doing, and what it waits for.
 pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> {
     let id = resolve::workload(c, workload).await?;
@@ -160,5 +205,6 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
         let _ = writeln!(out, "plan:      {} {}", p.id, short(p.status, "PLAN_STATUS_"));
     }
     unplaced(&mut out, &s);
+    drift(c, &mut out, &s).await?;
     Ok(Answer { json: json(&s), human: out })
 }

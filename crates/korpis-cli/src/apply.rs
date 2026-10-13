@@ -34,12 +34,23 @@ fn conflict(message: String) -> CliError {
     }
 }
 
-/// The workload `name` in `project`, with its head intent's version, if it exists.
-async fn existing(
+/// A declaration through a declared set (§5 and §6 of docs/13-surface-cli.md).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Through {
+    /// The set's name in each file's project.
+    pub name: String,
+    /// Take workloads that belong to no set into it.
+    pub adopt: bool,
+    /// Discard out-of-band changes to members of an advisory set.
+    pub reconcile: bool,
+}
+
+/// The workload `name` in `project`, as the API renders it, if it exists.
+pub async fn existing(
     c: &Connection,
     project: &str,
     name: &str,
-) -> Result<Option<(String, u64)>, CliError> {
+) -> Result<Option<pb::WorkloadStatus>, CliError> {
     let request =
         pb::ListWorkloadsRequest { project: Some(project.to_owned()), ..Default::default() };
     let listed = pb::WorkloadServiceClient::new(c.http(), c.config())
@@ -47,18 +58,29 @@ async fn existing(
         .await?
         .into_owned()
         .workloads;
-    Ok(listed.into_iter().find_map(|s| {
-        let w = s.workload.as_option()?;
-        (w.name == name).then(|| (w.id.clone(), s.head.as_option().map_or(0, |h| h.version)))
-    }))
+    Ok(listed.into_iter().find(|s| s.workload.as_option().is_some_and(|w| w.name == name)))
 }
 
-/// Declares `file` in `mode`, checked first against its recipe.
+/// Declares `file` in `mode`, checked first against its recipe, through `through` when it names
+/// a set.
 pub async fn declare(
     c: &Connection,
     registry: &Registry,
     file: &File,
     mode: Mode,
+    through: Option<&Through>,
+) -> Result<pb::DeclareIntentResponse, CliError> {
+    // The request and its recipe check make a large future; it is boxed here, once, rather than
+    // at every caller.
+    Box::pin(declared(c, registry, file, mode, through)).await
+}
+
+async fn declared(
+    c: &Connection,
+    registry: &Registry,
+    file: &File,
+    mode: Mode,
+    through: Option<&Through>,
 ) -> Result<pb::DeclareIntentResponse, CliError> {
     let d = &file.declared;
     let body = d.body().map_err(|e| CliError::Local(format!("{}: {e}", file.path.display())))?;
@@ -66,10 +88,12 @@ pub async fn declare(
     let project = crate::resolve::project(c, &d.project).await?;
     let mut mutation =
         pb::Mutation { idempotency_key: uuid::Uuid::now_v7().to_string(), ..Default::default() };
-    let target = match existing(c, &project, &d.workload).await? {
-        Some((id, version)) => {
-            mutation.expected_version = Some(version);
-            Target::Workload(id)
+    let found = existing(c, &project, &d.workload).await?;
+    let found = found.as_ref().and_then(|s| Some((s.workload.as_option()?, s.head.as_option()?)));
+    let target = match found {
+        Some((w, head)) => {
+            mutation.expected_version = Some(head.version);
+            Target::Workload(w.id.clone())
         }
         None => Target::Create(Box::new(pb::NewWorkload {
             project,
@@ -88,6 +112,9 @@ pub async fn declare(
         body: body.into(),
         dry_run: mode == Mode::DryRun,
         propose: mode == Mode::Propose,
+        set: through.map(|t| t.name.clone()).unwrap_or_default(),
+        adopt: through.is_some_and(|t| t.adopt),
+        reconcile: through.is_some_and(|t| t.reconcile),
         ..Default::default()
     };
     let client = pb::WorkloadServiceClient::new(c.http(), c.config());
@@ -112,8 +139,9 @@ pub async fn apply_planned(
     registry: &Registry,
     file: &File,
     plans: &[pb::Plan],
+    through: Option<&Through>,
 ) -> Result<pb::Plan, CliError> {
-    let now = declare(c, registry, file, Mode::DryRun).await?;
+    let now = declare(c, registry, file, Mode::DryRun, through).await?;
     let workload = now.workload.as_option().map(|w| w.id.clone()).unwrap_or_default();
     let plan = plans.iter().find(|p| p.workload == workload).ok_or_else(|| {
         CliError::Local(format!(

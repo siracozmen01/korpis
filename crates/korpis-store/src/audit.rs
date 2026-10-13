@@ -105,6 +105,21 @@ impl EffectRead for PgStore {
         .map_err(from_sqlx)?;
         rows.into_iter().map(EffectRow::into_domain).collect()
     }
+
+    async fn declaring_effect(&self, workload: Uuid, intent: Uuid) -> StoreResult<Option<Uuid>> {
+        sqlx::query_scalar!(
+            "SELECT id FROM effect
+              WHERE workload_id = $1 AND outcome = 'succeeded'
+                AND action IN ('workload.create', 'workload.write')
+                AND after ->> 'intent' = $2::uuid::text
+              ORDER BY at LIMIT 1",
+            workload,
+            intent
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
 }
 
 impl EffectWrite for PgTx {

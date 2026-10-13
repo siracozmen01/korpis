@@ -191,6 +191,19 @@ pruned", and:
 - An object that never belonged to the set is never touched by it, so two sets cannot fight and a
   hand-created workload cannot be pruned by someone else's pipeline.
 
+How the CLI carries this out (the set itself is §3.3 of `01-model.md`). The set is named within
+each project the files declare into, and the first apply through it creates it. Before anything
+is declared, every file is declared as a dry run through the set, so drift (§6) fails the apply
+before the first change rather than after half of them; `--adopt` takes into the set a workload
+the files declare that belongs to no set, and without it such a workload is a refusal, not a
+silent claim. A deletion is a retire plan, which always waits for a person (§3.3 of
+`01-model.md`): `korpis plan --set` proposes it and lists it with the other plans, `korpis apply
+--set` proposes and confirms it in the same run, and `apply --plan` deletes exactly the members
+whose retire plans it names. `--delete-volumes` is refused in Phase 0, because deleting a volume
+arrives with volumes in Phase 1 (§4 of `20-roadmap.md`); until then a deleted workload's volumes
+are kept, which is the safe half of the rule. `korpis set list` and `korpis set mode` read a
+project's sets and change one's mode.
+
 ---
 
 ## 6. Two sources of truth, reconciled honestly
@@ -233,9 +246,12 @@ Three behaviours are defensible and picking none means implementations pick diff
 operators find out by being surprised. So:
 
 **An `advisory` set with drift fails the apply and applies nothing.** The failure names each
-drifted object and the `Effect` that caused the drift, with its author and timestamp.
-`--accept-drift` proceeds while leaving the drifted objects untouched, for the pipeline whose
-operator has decided the disagreement is known and tolerated.
+drifted object and the `Effect` that caused the drift, with its author and timestamp, and exits
+with `CONFLICT` (§2). `--accept-drift` proceeds while leaving the drifted objects untouched, for
+the pipeline whose operator has decided the disagreement is known and tolerated; `--reconcile`
+declares over them, and each discarded change is recorded with its author. `korpis status` shows
+a drifted member's author and effect and every quota-bearing figure on which the drift and the
+set's files disagree (finding 17 of `23-walkthroughs.md`).
 
 Failing the whole apply rather than skipping the drifted objects is deliberate: a partial apply
 against a set someone is actively editing by hand is how two sources of truth become three.
