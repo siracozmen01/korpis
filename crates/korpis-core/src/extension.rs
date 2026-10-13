@@ -6,9 +6,11 @@
 //! any recipe does; this is the one section that makes the recipe an extension.
 
 mod installation;
+mod registration;
 mod validate;
 
 pub use installation::Installation;
+pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 
 use crate::authz::action::Action;
 use crate::event::EventFilter;

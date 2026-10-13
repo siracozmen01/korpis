@@ -129,6 +129,29 @@ address the control plane must reach. What it costs: the control plane holds one
 provider replica, and a provider whose stream has dropped is unavailable until it reconnects,
 which the breaker of §5 treats like any other failure.
 
+**As built in Phase 1: the name is claimed at install, the stream at registration.** Installing an
+extension records its `provides` entries, and an entry whose type and name another live
+installation already serves in the same organization refuses the install with `provider.taken`;
+so the uniqueness §4.1 states for step providers holds for every type, and it is decided once, in
+the install's transaction, rather than racily between two streams. A registration is then one
+open stream: its caller must authenticate as an installed extension (§9.5 of `08-identity.md`,
+the `extension:<id>` subject), and its `Register` must name one of that installation's entries,
+with a version and a concurrency of 1 to 1024 calls at once. Several streams of one installation,
+its replicas, register beside each other. Each registration and each withdrawal is an effect,
+`provider.register` and `provider.withdraw`, and so an event (§5 of `15-observability.md`).
+Uninstalling deletes the entries and every registration with them, and the streams of withdrawn
+registrations are closed.
+
+The control plane runs as several replicas with no leader (§5 of `18-operations.md`), so a stream
+is held by exactly one of them and every registration records which. The holding replica confirms
+its registrations every five seconds; one not confirmed for thirty seconds belongs to a replica
+that is gone, and whichever replica notices withdraws it. What it costs: when a replica dies,
+its registrations stand for up to thirty seconds although no stream is behind them, and a call
+routed to one in that window fails as retryable rather than reaching the provider. A replica that
+is not holding a provider's stream still has to send it calls; how those calls reach the holding
+replica is the call path still to be built in Phase 1 (§4 of `20-roadmap.md`), and the queue it
+uses is recorded here when it is.
+
 ---
 
 ## 4. Permissions are grants, declared and granted at install

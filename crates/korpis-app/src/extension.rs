@@ -7,9 +7,11 @@
 
 mod grants;
 mod install;
+mod provider;
 mod read;
 mod uninstall;
 
 pub use install::{InstallExtension, Installed};
+pub use provider::Register;
 pub use read::{ExtensionStatus, ExtensionView};
 pub use uninstall::Uninstalled;

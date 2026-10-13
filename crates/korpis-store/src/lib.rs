@@ -25,6 +25,7 @@ mod lease;
 mod node;
 mod observation;
 mod placement;
+mod provider;
 mod quota;
 mod recipe;
 mod session;

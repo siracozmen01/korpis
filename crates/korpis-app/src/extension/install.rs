@@ -261,9 +261,19 @@ async fn write_installation<X: Tx>(
     grants: &[NeedGrant],
     under: Uuid,
 ) -> Result<(), AppError> {
-    tx.insert_extension(&installed.installation).await.map_err(|e| match e {
+    let i = &installed.installation;
+    tx.insert_extension(i).await.map_err(|e| match e {
         StoreError::Duplicate(Unique::ExtensionName) => exists(),
         other => other.into(),
+    })?;
+    tx.insert_provides(i.id, i.organization, &installed.manifest.provides).await.map_err(|e| {
+        match e {
+            StoreError::Duplicate(Unique::ProviderName) => AppError::conflict(
+                "provider.taken",
+                "another installation serves a provider of that type and name here",
+            ),
+            other => other.into(),
+        }
     })?;
     for NeedGrant { record, parent } in grants {
         tx.insert_grant(record).await?;

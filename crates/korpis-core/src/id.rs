@@ -49,6 +49,10 @@ pub enum IdKind {
     Event,
     /// An event subscription (`sub_`).
     Subscription,
+    /// A provider registration (`prv_`).
+    Registration,
+    /// A call to a provider (`pcl_`).
+    ProviderCall,
 }
 
 impl IdKind {
@@ -74,6 +78,8 @@ impl IdKind {
             Self::Extension => "ext",
             Self::Event => "evt",
             Self::Subscription => "sub",
+            Self::Registration => "prv",
+            Self::ProviderCall => "pcl",
         }
     }
 }

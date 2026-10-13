@@ -11,7 +11,8 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::Page;
 use crate::ports::{
-    Clock, EffectWrite, ExtensionWrite, RecipeSource, RetirementWrite, Store, SubscriptionWrite, Tx,
+    Clock, EffectWrite, ExtensionWrite, ProviderWrite, RecipeSource, RetirementWrite, Store,
+    SubscriptionWrite, Tx,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{GrantRecord, Kind, ObjectRef};
@@ -76,6 +77,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(gone());
         }
         let ended = tx.delete_extension_subscriptions(id).await?;
+        tx.delete_provides(id).await?;
         installation.uninstalled_at = Some(now);
         let mut plan = None;
         if let Some((w, p, grant)) = retire

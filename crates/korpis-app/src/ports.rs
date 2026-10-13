@@ -20,6 +20,7 @@ mod lease;
 mod node;
 mod observation;
 mod placement;
+mod provider;
 mod quota;
 mod recipe;
 mod retire;
@@ -50,6 +51,7 @@ pub use lease::LeaseWrite;
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
+pub use provider::{ProviderRead, ProviderWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use retire::RetirementWrite;
@@ -81,6 +83,8 @@ pub enum Unique {
     SetName,
     /// One installation of an extension's name per organization and project at a time.
     ExtensionName,
+    /// A provider name is served by one installation per type in an organization.
+    ProviderName,
     /// Any other.
     Other,
 }
@@ -125,6 +129,7 @@ pub trait Store:
     + ExtensionRead
     + ConditionRead
     + SubscriptionRead
+    + ProviderRead
     + Send
     + Sync
     + 'static
@@ -172,6 +177,7 @@ pub trait Tx:
     + ExtensionWrite
     + ConditionWrite
     + SubscriptionWrite
+    + ProviderWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

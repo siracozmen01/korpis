@@ -25,6 +25,8 @@ mod node;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod provider;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
@@ -40,7 +42,7 @@ use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     DeclaredSetServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
-    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt,
+    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
     ServerInfoServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
@@ -60,6 +62,8 @@ pub struct Api {
     ca_fingerprint: String,
     /// The agent sessions this process holds.
     sessions: Arc<crate::sessions::Sessions>,
+    /// The provider streams this process holds.
+    providers: Arc<crate::providers::Providers>,
 }
 
 impl Api {
@@ -70,6 +74,7 @@ impl Api {
             app: Arc::new(app),
             ca_fingerprint: String::new(),
             sessions: Arc::new(crate::sessions::Sessions::default()),
+            providers: Arc::new(crate::providers::Providers::default()),
         }
     }
 
@@ -84,6 +89,12 @@ impl Api {
     #[must_use]
     pub fn sessions(&self) -> &crate::sessions::Sessions {
         &self.sessions
+    }
+
+    /// The provider streams, for the composition root's background work.
+    #[must_use]
+    pub fn providers(&self) -> &crate::providers::Providers {
+        &self.providers
     }
 
     /// The application, for the composition root's background work.
@@ -107,6 +118,7 @@ impl Api {
         let router = DeclaredSetServiceExt::register(Arc::clone(&self), router);
         let router = ExtensionServiceExt::register(Arc::clone(&self), router);
         let router = EventServiceExt::register(Arc::clone(&self), router);
+        let router = ProviderServiceExt::register(Arc::clone(&self), router);
         korpis_proto::korpis::agent::v1::AgentServiceExt::register(self, router)
     }
 

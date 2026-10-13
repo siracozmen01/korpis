@@ -32,6 +32,7 @@ mod operator;
 mod pin;
 mod placement;
 mod plans;
+mod providers;
 mod quota;
 mod reads;
 mod recipes;

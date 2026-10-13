@@ -15,19 +15,19 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::workload_credential::Outcom
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
-async fn connect(h: &Harness, a: &TestAgent, n: u8) -> Stream {
+pub async fn connect(h: &Harness, a: &TestAgent, n: u8) -> Stream {
     let (stream, first) = TestAgent::open(h, a.hello_at(SystemTime::now(), &[n; 16])).await;
     welcome(&first.unwrap());
     stream
 }
 
-async fn send(stream: &mut Stream, message: Up) {
+pub async fn send(stream: &mut Stream, message: Up) {
     let m = agent::AgentMessage { message: Some(message), ..Default::default() };
     stream.send(m).await.unwrap();
 }
 
 /// Asks for `workload`'s credential and waits for the answer to that request.
-async fn ask(stream: &mut Stream, workload: &str, request: &str) -> Outcome {
+pub async fn ask(stream: &mut Stream, workload: &str, request: &str) -> Outcome {
     let up = agent::CredentialRequest {
         request: request.to_owned(),
         workload: workload.to_owned(),
