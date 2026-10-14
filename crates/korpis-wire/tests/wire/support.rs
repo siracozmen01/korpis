@@ -201,6 +201,7 @@ pub fn body() -> IntentBody {
             retention: korpis_core::workload::spec::streams::Retention::Duration(
                 std::time::Duration::from_secs(86_400),
             ),
+            offload_retention: std::time::Duration::from_secs(7 * 86_400),
         },
     }
 }

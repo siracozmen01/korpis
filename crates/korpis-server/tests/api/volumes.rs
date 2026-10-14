@@ -55,8 +55,16 @@ pub(crate) async fn placed() -> (Harness, Stream, String, String) {
     (h, s, project, workload)
 }
 
-/// As [`placed`], with the assignment that carried the workload's first plan.
-pub(crate) async fn placing() -> (Harness, Stream, String, String, agent::Assignment) {
+/// As [`placed`], with the assignment that carried the workload's first plan. Boxed, since what
+/// it holds is large for a future that every test awaits.
+pub(crate) fn placing() -> std::pin::Pin<Box<impl Future<Output = Placing>>> {
+    Box::pin(start_placing())
+}
+
+/// The harness, the node's stream, the project, the workload, and its first assignment.
+pub(crate) type Placing = (Harness, Stream, String, String, agent::Assignment);
+
+async fn start_placing() -> Placing {
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
     let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[1; 16])).await;

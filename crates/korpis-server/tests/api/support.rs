@@ -115,6 +115,7 @@ impl Harness {
             lease_term: std::time::Duration::from_secs(2),
             denial_window: std::time::Duration::from_secs(1),
             event_retention: std::time::Duration::from_secs(30 * 86_400),
+            stream_retention_floor: std::time::Duration::ZERO,
             relay_role: true,
             proxy_protocol_from: Vec::new(),
         })

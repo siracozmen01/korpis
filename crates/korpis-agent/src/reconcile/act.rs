@@ -108,7 +108,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             size_bytes: limits.disk_bound(),
             ..Default::default()
         };
-        let name = format!("stream_{}", StreamKind::Console.as_str());
+        let name = StreamKind::Console.volume_name();
         capture.dir = self.ensure_volume(&name, Why::Stream, &request).await?.host_path;
         self.streams
             .watch(&a.workload, Path::new(&capture.dir))

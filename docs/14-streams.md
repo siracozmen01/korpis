@@ -129,8 +129,7 @@ sent once one does, if the node still holds it; one pruned first was held only o
 
 What it costs: an hour of write access to a stream prefix in the control plane's access record
 for each stream that seals, and each segment written twice, once on the node and once to the
-target. What it does not do yet: delete offloaded segments when the stream's retention passes,
-which is the next work.
+target.
 
 **Reading an offloaded stream, as built, 2026-10-14.** The index records which repository holds
 each offloaded segment, as the grant the node offloaded it with named it, and believes that only
@@ -151,6 +150,27 @@ operator's custody of the key (§5.5 of `06-storage.md`). What it does not do: s
 those stay on the node, where the records are written. Nor does the control plane check that a
 segment journaled as offloaded is in the target until someone reads it: a node given access could
 say it sent a segment it did not, and the read then reports it altered rather than missing.
+
+**How long an offloaded segment is kept, as built, 2026-10-14.** The node's retention (§5) bounds
+what its quota pays for; it is not how long evidence should last, and offload exists for the
+longer. A workload declares `offload_retention` with its stream's limits, thirty days when it says
+nothing, and an offloaded segment is kept that long from when the control plane heard it was
+offloaded, by the control plane's clock, since a segment's own times are the node's and
+informational (§2). The operator's retention floor raises it where it is lower, and every tenant
+is shown both with the stream (§8 of `17-security.md`). The declared retention is kept on the
+stream and refreshed from the intent its workload runs at each segment the node reports, so a
+retired workload keeps the last it declared, and one query finds every segment past its own. An
+hourly pass of the control plane deletes those with the target's own credential, beneath the
+workload's stream prefix only, and forgets each in the index only once its object is gone, so a
+failure is tried again by the next pass rather than leaving an object nothing names; each deletion
+is recorded as `stream.offload_expired`. A segment its node still holds stays readable there.
+
+What it costs: the floor applies to offloaded segments and not to the node's retention, which a
+floor would have to enlarge at the tenant's quota; evidence the operator wants kept is kept off
+the node, where it survives the node anyway. What it does not do: a reader that listed a segment
+just before the pass deleted it is told the segment was altered, not that it expired; and a
+segment past its retention and no longer on its node is counted among the offsets lost, which they
+are, without saying that retention, not a failure, lost them.
 
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
@@ -220,7 +240,11 @@ plan deletes that volume by its own irreversible step after the runtime is remov
 `06-storage.md`). Before the agent deletes it, it reads the changes log through and journals what
 is left, so the index hears of the last segment before it hears the volume is gone; the control
 plane then holds that no segment of the stream is on the node, and every offset not offloaded is
-reported lost.
+reported lost. Its offloaded segments go too, at the next hourly pass, kept no longer than the
+operator's disclosed floor (§8 of `17-security.md`): deleting a stream that left copies behind
+would not delete it. What ends the stream is the approved plan's step deleting its volume, as the
+control plane records the step done, never the node's report that the volume is gone, so a node
+cannot have a stream's offloaded evidence deleted by saying it deleted the stream.
 
 What it costs. The writer is the only reader of the workload's pipes, so if it dies the
 workload's next write to its console fails with `EPIPE`, or kills it with `SIGPIPE` if it does not

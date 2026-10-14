@@ -47,6 +47,10 @@ message StreamSpec {
     // Sealed segments beyond this many bytes are pruned, oldest first.
     uint64 retention_bytes = 4;
   }
+  // How long an offloaded segment is kept in the repository that took it, from when it was
+  // offloaded (§4 of docs/14-streams.md); 30 days when unset. The operator's disclosed floor
+  // raises it where it is lower (§8 of docs/17-security.md).
+  google.protobuf.Duration offload_retention = 5;
 }
 
 message RuntimeSpec {

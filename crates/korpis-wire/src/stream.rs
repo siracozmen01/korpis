@@ -23,6 +23,7 @@ pub fn spec_to_pb(s: &StreamSpec) -> pb::StreamSpec {
             Retention::Bytes(b) => R::RetentionBytes(b),
             Retention::Duration(d) => R::RetentionDuration(Box::new(duration(d))),
         }),
+        offload_retention: duration(s.offload_retention).into(),
         ..Default::default()
     }
 }
@@ -39,10 +40,18 @@ pub fn spec_from_pb(field: &str, s: Option<&pb::StreamSpec>) -> Result<StreamSpe
             Retention::Duration(duration_from(&format!("{field}.retention_duration"), d)?)
         }
     };
+    let offload_retention = match s.offload_retention.as_option() {
+        None => default.offload_retention,
+        Some(d) => match duration_from(&format!("{field}.offload_retention"), d)? {
+            d if d.is_zero() => default.offload_retention,
+            d => d,
+        },
+    };
     Ok(StreamSpec {
         rate: or(s.rate_bytes_per_sec, default.rate),
         burst: or(s.burst_bytes, default.burst),
         retention,
+        offload_retention,
     })
 }
 

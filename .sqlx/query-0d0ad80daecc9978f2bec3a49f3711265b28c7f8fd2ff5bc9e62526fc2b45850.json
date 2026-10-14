@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO stream (id, workload_id, kind, created_at) VALUES ($1, $2, $3, now())\n             ON CONFLICT (workload_id, kind) DO UPDATE SET kind = EXCLUDED.kind\n             RETURNING id",
+  "query": "INSERT INTO stream (id, workload_id, kind, created_at, offload_retention_s)\n             VALUES ($1, $2, $3, now(), $4)\n             ON CONFLICT (workload_id, kind) DO UPDATE\n                SET offload_retention_s = EXCLUDED.offload_retention_s\n             RETURNING id",
   "describe": {
     "columns": [
       {
@@ -19,12 +19,13 @@
       "Left": [
         "Uuid",
         "Uuid",
-        "Text"
+        "Text",
+        "Int8"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "9c44e0fdf9f7aab1fcf2ab983c4b8f9c754bb492652dffb073a6872eb69ae9b5"
+  "hash": "0d0ad80daecc9978f2bec3a49f3711265b28c7f8fd2ff5bc9e62526fc2b45850"
 }

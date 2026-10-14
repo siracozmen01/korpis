@@ -55,6 +55,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     certificate_issuer: Option<Arc<dyn ports::CertificateIssuer>>,
     vault: Option<Arc<dyn ports::KeyVault>>,
     denial_window: std::time::Duration,
+    stream_floor: std::time::Duration,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -73,6 +74,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             certificate_issuer: None,
             vault: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
+            stream_floor: std::time::Duration::ZERO,
         }
     }
 
@@ -118,6 +120,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_denial_window(mut self, window: std::time::Duration) -> Self {
         self.denial_window = window;
+        self
+    }
+
+    /// Keeps offloaded stream segments at least `floor`, whatever a workload declares: the
+    /// operator's retention floor, disclosed to every tenant with the stream (§8 of
+    /// docs/17-security.md). None by default.
+    #[must_use]
+    pub const fn with_stream_floor(mut self, floor: std::time::Duration) -> Self {
+        self.stream_floor = floor;
         self
     }
 

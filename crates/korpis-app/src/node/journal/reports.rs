@@ -10,7 +10,7 @@ use super::{rejected, system};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    BackupWrite as _, Clock, RecipeSource, SnapshotWrite as _, Store, StreamWrite as _,
+    BackupWrite as _, Clock, RecipeSource, Reported, SnapshotWrite as _, Store, StreamWrite as _,
     VolumeWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
@@ -44,7 +44,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(rejected(why, event.action()));
         }
         let segment = &segment;
-        tx.record_segment((workload, kind), event, segment, node).await?;
+        let kept = self.offload_retention(workload).await?;
+        let reported = Reported { event, segment, node, at: self.clock.now() };
+        tx.record_segment((workload, kind, kept), reported).await?;
         let mut e = system(event.action(), Outcome::Succeeded).after(details([
             ("stream", kind.as_str().into()),
             ("first_offset", segment.first_offset.into()),
@@ -55,6 +57,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.workload = Some(workload);
         e.grant = self.store.governing_grant(workload).await?;
         Ok(e)
+    }
+
+    /// How long `workload`'s offloaded segments are kept, as the intent it runs declares.
+    async fn offload_retention(&self, workload: Uuid) -> Result<std::time::Duration, AppError> {
+        let w =
+            self.store.workload(workload).await?.ok_or(AppError::NotFound { kind: "workload" })?;
+        let runs = w.target.unwrap_or(w.intent);
+        let intent = self.store.intent(runs).await?.ok_or_else(|| {
+            AppError::Internal(format!("workload {workload} names intent {runs}, which is gone"))
+        })?;
+        Ok(intent.body.streams.offload_retention)
     }
 
     /// Whether `node` may say it offloaded a segment of `workload`'s stream to `repository`.

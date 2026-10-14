@@ -45,7 +45,20 @@ impl StreamKind {
     /// its `_` is a character no declared volume's name may hold, so it never meets one.
     #[must_use]
     pub fn volume(self, workload: &str) -> String {
-        format!("{workload}.stream_{}", self.as_str())
+        format!("{workload}.{}", self.volume_name())
+    }
+
+    /// The name the workload's plans give the volume holding a stream of this kind: what a
+    /// deletion names to delete the stream (§4 of docs/14-streams.md).
+    #[must_use]
+    pub fn volume_name(self) -> String {
+        format!("stream_{}", self.as_str())
+    }
+
+    /// The kind of stream the volume named `name` holds, if it holds one.
+    #[must_use]
+    pub fn of_volume(name: &str) -> Option<Self> {
+        Self::parse(name.strip_prefix("stream_")?)
     }
 }
 
@@ -68,6 +81,18 @@ pub struct Segment {
     pub node: Option<Uuid>,
     /// The repository holding it once offloaded (§4 of docs/14-streams.md).
     pub repository: Option<Uuid>,
+}
+
+/// The name of the object an offloaded segment is kept as, beneath its workload's stream prefix
+/// (§4 of docs/14-streams.md): its first offset and the hexadecimal digits of its digest, so the
+/// same segment offloaded twice is one object and a listing reads in offset order. `None` for a
+/// digest that is not `sha256:` and 64 lowercase hexadecimal digits. `korpis-backup` writes by the
+/// same rule, which it cannot take from here, and a test holds the two to it.
+#[must_use]
+pub fn segment_object(first_offset: u64, digest: &str) -> Option<String> {
+    let hex = digest.strip_prefix("sha256:")?;
+    let plain = hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    plain.then(|| format!("segments/{first_offset:020}-{hex}"))
 }
 
 impl Segment {

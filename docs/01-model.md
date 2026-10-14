@@ -415,7 +415,8 @@ Intent
   dependencies  []Dependency   name, target (workload, endpoint, or selector), inject, required
                                (§5 of 07-networking.md); refused until Phase 1 resolves them
   streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
-                               duration); each left unset is the default (§5 of 14-streams.md)
+                               duration), and how long its offloaded segments are kept; each
+                               left unset is the default (§4 and §5 of 14-streams.md)
 ```
 
 > Corrected 2026-10-14, when streams were built. §5 of `14-streams.md` made a stream's rate "a

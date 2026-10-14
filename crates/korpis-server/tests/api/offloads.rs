@@ -17,7 +17,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as
 use korpis_proto::korpis::agent::v1::__buffa::oneof::job_access::Outcome;
 use korpis_proto::korpis::v1 as pb;
 
-fn made(
+pub(crate) fn made(
     key: &str,
     prefix: &str,
     project: Option<String>,
@@ -36,7 +36,7 @@ fn made(
     }
 }
 
-async fn create(
+pub(crate) async fn create(
     h: &Harness,
     mut r: pb::CreateRepositoryRequest,
 ) -> Result<pb::Repository, connectrpc::ConnectError> {
@@ -46,7 +46,7 @@ async fn create(
 }
 
 /// Asks to offload `workload`'s stream; the outcome.
-async fn offload(s: &mut Stream, request: &str, workload: &str) -> Outcome {
+pub(crate) async fn offload(s: &mut Stream, request: &str, workload: &str) -> Outcome {
     let up = agent::JobAccessRequest {
         request: request.into(),
         offload: workload.into(),
@@ -115,7 +115,11 @@ async fn a_node_that_ran_the_workload_is_given_its_stream_prefix_and_no_other_no
 
 /// A sealed segment of `lines` from offset `first`, as a node seals it: its bytes and what the
 /// index is told of it.
-fn sealed(dir: &std::path::Path, first: u64, lines: &[&str]) -> (Vec<u8>, pb::StreamSegment) {
+pub(crate) fn sealed(
+    dir: &std::path::Path,
+    first: u64,
+    lines: &[&str],
+) -> (Vec<u8>, pb::StreamSegment) {
     use korpis_stream::record::{Kind, Record, Source};
     let path = dir.join(format!("{first}.kseg"));
     let mut w = korpis_stream::segment::SegmentWriter::create(&path, first).unwrap();
@@ -137,7 +141,7 @@ fn sealed(dir: &std::path::Path, first: u64, lines: &[&str]) -> (Vec<u8>, pb::St
 }
 
 /// The journal record of `event` to `segment` of `workload`'s console.
-fn journaled(
+pub(crate) fn journaled(
     seq: u64,
     workload: &str,
     event: agent::SegmentEvent,
@@ -160,7 +164,7 @@ fn journaled(
 }
 
 /// Reads `workload`'s offloaded console from `from`, at most `limit` records: the chunks.
-async fn read(
+pub(crate) async fn read(
     h: &Harness,
     workload: &str,
     (from, limit): (u64, u64),
@@ -179,7 +183,7 @@ async fn read(
     Ok(all)
 }
 
-fn bodies(chunks: &[pb::ConsoleChunk]) -> Vec<String> {
+pub(crate) fn bodies(chunks: &[pb::ConsoleChunk]) -> Vec<String> {
     let records = chunks.iter().flat_map(|c| c.records.iter());
     records.map(|r| String::from_utf8_lossy(&r.body).into_owned()).collect()
 }

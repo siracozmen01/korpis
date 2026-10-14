@@ -12,6 +12,9 @@ use std::time::Duration;
 pub const MAX_RECORD: u64 = 64 * 1024;
 /// The size at which a segment is sealed.
 pub const SEGMENT_BYTES: u64 = 8 * 1024 * 1024;
+/// How long an offloaded segment is kept unless the workload says otherwise: a month of
+/// evidence, as the console's own history of an incident is wanted weeks after it.
+pub const OFFLOAD_RETENTION: Duration = Duration::from_secs(30 * 86_400);
 
 /// How much of a stream is kept.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,8 +32,11 @@ pub struct StreamSpec {
     pub rate: u64,
     /// Bytes admitted at once after a quiet period.
     pub burst: u64,
-    /// How much is kept.
+    /// How much is kept on the node.
     pub retention: Retention,
+    /// How long an offloaded segment is kept, from when it was offloaded (§4 of
+    /// docs/14-streams.md).
+    pub offload_retention: Duration,
 }
 
 impl Default for StreamSpec {
@@ -40,6 +46,7 @@ impl Default for StreamSpec {
             rate: 256 * 1024,
             burst: 4 * 1024 * 1024,
             retention: Retention::Bytes(64 * 1024 * 1024),
+            offload_retention: OFFLOAD_RETENTION,
         }
     }
 }
@@ -64,8 +71,18 @@ impl StreamSpec {
             Retention::Duration(d) if d.is_zero() => {
                 Err(SpecError::new("streams.retention_duration", "more than zero"))
             }
+            _ if self.offload_retention.is_zero() => {
+                Err(SpecError::new("streams.offload_retention", "more than zero"))
+            }
             _ => Ok(()),
         }
+    }
+
+    /// How long an offloaded segment is kept under an operator floor of `floor`: what the
+    /// workload declares, or the floor where that is longer (§8 of docs/17-security.md).
+    #[must_use]
+    pub fn offload_kept(&self, floor: Duration) -> Duration {
+        self.offload_retention.max(floor)
     }
 
     /// The most the stream can hold on disk: what its retention keeps, the segment still being
@@ -99,7 +116,12 @@ mod tests {
             rate: 1000,
             burst: MAX_RECORD,
             retention: Retention::Duration(Duration::from_secs(86_400)),
+            offload_retention: Duration::from_secs(86_400),
         };
         assert_eq!(day.disk_bound(), 86_400_000 + MAX_RECORD + SEGMENT_BYTES);
+        assert_eq!(day.offload_kept(Duration::from_secs(7 * 86_400)).as_secs(), 7 * 86_400);
+        assert_eq!(day.offload_kept(Duration::ZERO).as_secs(), 86_400, "no floor");
+        let none = StreamSpec { offload_retention: Duration::ZERO, ..StreamSpec::default() };
+        assert_eq!(none.validate().unwrap_err().field, "streams.offload_retention");
     }
 }

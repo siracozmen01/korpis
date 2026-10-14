@@ -72,7 +72,9 @@ own.
 > once, and each held every other test's events back for up to ten seconds, which this paragraph,
 > naming only idle sessions, did not predict. The event log keeps
 events for `--event-retention-days` (30 by default) of `korpis-server serve`; effects, the audit
-record, are kept regardless (§4 of `15-observability.md`).
+record, are kept regardless (§4 of `15-observability.md`). `--stream-retention-floor-days` (none
+by default) is the operator's floor on how long offloaded console segments are kept, disclosed to
+every tenant with the stream (§8 of `17-security.md`).
 
 ### The binary is its own installer
 

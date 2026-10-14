@@ -243,6 +243,12 @@ behaviour:
 > setting. An operator cannot silently retain more than they declared. This is the same shape as
 > `min_retention` on backup retention policies (§5.3 of `06-storage.md`), and the disclosure is the
 > part that makes it legitimate rather than surveillance.
+>
+> **As built, 2026-10-14:** `korpis-server serve --stream-retention-floor-days N`, none by default,
+> keeps every offloaded console segment at least N days whatever its workload declares, and
+> `StreamService.GetStream` shows every reader of a stream the floor beside the retention it
+> results in (§4 of `14-streams.md`). It applies to offloaded segments, not to what a node holds:
+> raising a node's retention would enlarge the tenant's quota for the operator's purpose.
 
 ---
 

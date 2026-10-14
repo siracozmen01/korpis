@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{
     Clock, EffectWrite, JournalWrite, LeaseWrite, PlacementWrite, RecipeSource, RetirementWrite,
-    Store, Tx, WorkloadWrite,
+    Store, StreamWrite as _, Tx, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
 use korpis_core::authz::{Action, Kind, ObjectRef};
@@ -227,6 +227,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.update_plan(&plan, from).await? {
             return Err(AppError::conflict("plan.moved", "the plan changed meanwhile"));
         }
+        if outcome == Outcome::Succeeded
+            && let Some(kind) = deletes_stream(&plan, step)
+        {
+            tx.end_stream((plan.workload, kind), self.clock.now()).await?;
+        }
         if plan.status == PlanStatus::Applied && retires(&plan) {
             self.finish_retirement(tx, &plan).await?;
         }
@@ -269,5 +274,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.grant = Some(plan.proposed_under);
         tx.append_effect(&e).await?;
         Ok(())
+    }
+}
+
+/// The kind of stream step `step` of `plan` deletes, if it is the deletion of a stream's volume
+/// (§4 of docs/14-streams.md): the tenant's approved decision, not the node's report, ends the
+/// stream, so a node cannot have a stream's offloaded evidence deleted by saying it deleted it.
+fn deletes_stream(plan: &Plan, step: u32) -> Option<korpis_core::workload::stream::StreamKind> {
+    let s = plan.steps.iter().find(|s| s.index == step)?;
+    if s.action != korpis_core::workload::plan::step::StepAction::DeleteVolume {
+        return None;
+    }
+    match s.detail.get("volume")? {
+        korpis_core::value::Value::String(name) => {
+            korpis_core::workload::stream::StreamKind::of_volume(name)
+        }
+        _ => None,
     }
 }

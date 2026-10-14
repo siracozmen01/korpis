@@ -21,6 +21,9 @@ pub struct StreamView {
     pub stream: Stream,
     /// The limits it is written to, from the intent its node runs.
     pub limits: StreamSpec,
+    /// The operator's floor on how long offloaded segments are kept, disclosed with the stream
+    /// (§8 of docs/17-security.md); zero is none.
+    pub floor: std::time::Duration,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -49,6 +52,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let stream =
             indexed.unwrap_or(Stream { id: Uuid::nil(), workload, kind, segments: Vec::new() });
-        Ok(StreamView { stream, limits: intent.body.streams })
+        Ok(StreamView { stream, limits: intent.body.streams, floor: self.stream_floor })
     }
 }

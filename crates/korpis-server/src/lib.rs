@@ -66,6 +66,9 @@ pub struct ServeConfig {
     pub denial_window: Duration,
     /// How long the event log keeps an event (§5 of docs/15-observability.md).
     pub event_retention: Duration,
+    /// The operator's floor on how long offloaded stream segments are kept, disclosed to every
+    /// tenant with the stream (§8 of docs/17-security.md); zero is none.
+    pub stream_retention_floor: Duration,
     /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md); off where
     /// relays run as their own processes and the control plane should carry no sessions.
     pub relay_role: bool,
@@ -145,6 +148,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)
         .with_denial_window(config.denial_window)
+        .with_stream_floor(config.stream_retention_floor)
         .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
             keys.assignment.clone(),
@@ -188,6 +192,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(alert_relay_certificates(Arc::clone(api)));
     tokio::spawn(reachability::keep(Arc::clone(api)));
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
+    tokio::spawn(expire_offloaded(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
 }
@@ -268,6 +273,28 @@ async fn alert_relay_certificates(api: Arc<Api>) {
             Ok(0) => {}
             Ok(n) => tracing::warn!(relays = n, "relay certificates nearing expiry"),
             Err(e) => tracing::warn!(error = %e, "checking relay certificates failed"),
+        }
+    }
+}
+
+/// Deletes, hourly, offloaded stream segments past their retention (§4 of docs/14-streams.md).
+/// The task ends with the process.
+async fn expire_offloaded(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(3600));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().expire_offloaded().await {
+            Ok(pass) => {
+                if pass.deleted > 0 {
+                    tracing::info!(segments = pass.deleted, "offloaded segments past retention");
+                }
+                for (repository, workload, e) in pass.failed {
+                    tracing::warn!(%repository, %workload, error = %e,
+                        "offloaded segments past their retention were not deleted");
+                }
+            }
+            Err(e) => tracing::warn!(error = %e, "expiring offloaded segments failed"),
         }
     }
 }

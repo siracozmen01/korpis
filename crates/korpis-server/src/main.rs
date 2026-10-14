@@ -88,6 +88,11 @@ struct ServeArgs {
     /// (§5 of docs/15-observability.md). Effects are kept regardless.
     #[arg(long, default_value_t = 30)]
     event_retention_days: u64,
+    /// Days below which no workload's offloaded console segments are deleted, whatever it
+    /// declares; every tenant is shown it with the stream (§8 of docs/17-security.md). Zero is
+    /// none.
+    #[arg(long, default_value_t = 0)]
+    stream_retention_floor_days: u64,
     /// Whether this process serves the relay role, carrying console and file sessions; turn it
     /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
     #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
@@ -223,6 +228,9 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         lease_term: Duration::from_secs(args.lease_term_secs.max(1)),
         denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
         event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
+        stream_retention_floor: Duration::from_secs(
+            args.stream_retention_floor_days.saturating_mul(86_400),
+        ),
         relay_role: args.relay_role,
         proxy_protocol_from: args.proxy_protocol_from,
     })

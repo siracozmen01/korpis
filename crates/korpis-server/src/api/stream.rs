@@ -27,6 +27,8 @@ impl pb::StreamService for Api {
             Retention::Bytes(b) => R::RetentionBytes(b),
             Retention::Duration(d) => R::RetentionDuration(Box::new(wire::duration(d))),
         });
+        stream.offload_retention = wire::duration(view.limits.offload_kept(view.floor)).into();
+        stream.retention_floor = wire::duration(view.floor).into();
         let lost = view.stream.lost().into_iter().map(|(first, end)| pb::OffsetRange {
             first,
             end,

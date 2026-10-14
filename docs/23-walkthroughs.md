@@ -1667,6 +1667,7 @@ stack trace; an hour later `fra-3`'s disk fails.
 | 6 | The index marks the segment offloaded; the stream reports nothing held only on `fra-3` | `14-streams.md` §4; `01-model.md` §3.6 |
 | 7 | `fra-3` is lost. The crash log's segment is in `nightly`, and the index names `nightly` as holding it, believed because `fra-3` was given access there ‡ | `14-streams.md` §4; `06-storage.md` §5.6 |
 | 8 | The owner runs `korpis logs mc-survival --offloaded`; the control plane records the read, takes read access to the stream prefix, checks the segment's digest against the index, and sends the stack trace | `14-streams.md` §4, §9; `13-surface-cli.md` §8; `15-observability.md` §4 |
+| 9 | Thirty days after it was offloaded, past the retention the stream declares and the operator's floor, which `GetStream` showed the owner, the control plane's hourly pass deletes the segment with the target's credential and forgets it | `14-streams.md` §4; `17-security.md` §8; `18-operations.md` §2 |
 
 **FINDING 43: An offload target that nothing names. `CONFIRMED`**
 

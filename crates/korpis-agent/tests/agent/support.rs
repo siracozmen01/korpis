@@ -69,6 +69,7 @@ impl ControlPlane {
             lease_term: Duration::from_secs(2),
             denial_window: Duration::from_secs(60),
             event_retention: Duration::from_secs(30 * 86_400),
+            stream_retention_floor: std::time::Duration::ZERO,
             relay_role,
             proxy_protocol_from: Vec::new(),
         })

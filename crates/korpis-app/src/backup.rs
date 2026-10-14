@@ -3,6 +3,7 @@
 //! Backups (§5 of docs/06-storage.md): repositories, where an organization's backups are kept and
 //! under whose key, and the backups of each workload's volumes.
 
+pub mod expire;
 pub mod job;
 pub mod offload;
 pub mod prune;

@@ -107,6 +107,11 @@ message Stream {
   uint64 node_only_bytes = 7;
   // Its segments, oldest first, as the control plane last heard of them.
   repeated StreamSegment segments = 8;
+  // How long an offloaded segment is kept: what the workload declares, raised to the operator's
+  // floor where it is lower.
+  google.protobuf.Duration offload_retention = 9;
+  // The operator's floor, disclosed (§8 of docs/17-security.md); zero when there is none.
+  google.protobuf.Duration retention_floor = 10;
 }
 
 // A contiguous run of a stream's records, the unit a node seals, offloads, and migrates (§4 of

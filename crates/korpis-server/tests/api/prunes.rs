@@ -118,7 +118,7 @@ fn prune(key: &str, w: &World) -> pb::PruneBackupsRequest {
 
 /// Runs `statement` as the database's owner: moving the times the control plane recorded back
 /// is how a test lets the hours pass, which the application role may not do.
-async fn sql(h: &Harness, statement: &str) {
+pub(crate) async fn sql(h: &Harness, statement: &str) {
     use sqlx::Connection as _;
     let mut owner = sqlx::PgConnection::connect(&h.db.owner_url).await.unwrap();
     sqlx::query(sqlx::AssertSqlSafe(statement.to_owned())).execute(&mut owner).await.unwrap();

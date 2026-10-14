@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO stream_segment (stream_id, first_offset, end_offset, first_at, last_at,\n                                         bytes, digest, node_id, repository_id, offloaded_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n             ON CONFLICT (stream_id, first_offset) DO UPDATE\n                SET node_id = CASE WHEN stream_segment.node_id IS DISTINCT FROM $11 THEN\n                                       stream_segment.node_id ELSE EXCLUDED.node_id END,\n                    repository_id = COALESCE(stream_segment.repository_id,\n                                             EXCLUDED.repository_id),\n                    offloaded_at = CASE WHEN stream_segment.repository_id IS NULL\n                                        THEN EXCLUDED.offloaded_at\n                                        ELSE stream_segment.offloaded_at END",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e96c7accf8d206fbd544209d3894cfa1b4f86f3c8b2d108d0586d9d94ab6b7be"
+}
