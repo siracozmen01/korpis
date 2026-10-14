@@ -124,7 +124,8 @@ pub fn segment_from_pb(field: &str, s: &pb::StreamSegment) -> Result<Segment> {
 #[must_use]
 pub fn stream_to_pb(s: &Stream) -> pb::Stream {
     pb::Stream {
-        id: wire_id(IdKind::Stream, s.id),
+        // Nil until the index first hears of the stream, at its first sealed segment.
+        id: if s.id.is_nil() { String::new() } else { wire_id(IdKind::Stream, s.id) },
         workload: wire_id(IdKind::Workload, s.workload),
         kind: kind_to_pb(s.kind).into(),
         node_only_bytes: s.node_only_bytes(),

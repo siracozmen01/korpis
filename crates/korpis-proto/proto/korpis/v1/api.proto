@@ -10,8 +10,10 @@ package korpis.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/v1/attached.proto";
 import "korpis/v1/authority.proto";
 import "korpis/v1/common.proto";
+import "korpis/v1/console.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/recipe.proto";
 import "korpis/v1/tenancy.proto";
@@ -442,6 +444,31 @@ message WatchWorkloadResponse {
 
 // Declared sets (§3.3 of docs/01-model.md). project.read lists them; project.write changes a
 // mode.
+// A workload's streams as the control plane knows them (§4 of docs/14-streams.md): the index of
+// their segments, never their records, which the node serves over the data path (console.proto).
+service StreamService {
+  // The stream and its index. Takes workload.console.read: how much a workload wrote, and when,
+  // is part of what it wrote. NOT_FOUND for a workload with no stream of that kind.
+  rpc GetStream(GetStreamRequest) returns (GetStreamResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetStreamRequest {
+  string workload = 1;
+  // The console when unspecified.
+  StreamKind kind = 2;
+}
+
+message GetStreamResponse {
+  // Its identifier is empty until the first segment is sealed, when the index first hears of it;
+  // its retention is the one the intent its node runs declares.
+  Stream stream = 1;
+  // Offsets held nowhere: pruned from the node before they were offloaded (§3 of
+  // docs/14-streams.md).
+  repeated OffsetRange lost = 2;
+}
+
 service DeclaredSetService {
   rpc ListDeclaredSets(ListDeclaredSetsRequest) returns (ListDeclaredSetsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;

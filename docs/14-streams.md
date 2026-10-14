@@ -104,7 +104,12 @@ the offload target, and a reader is told which offsets were held only on the nod
 as a gap (§3). What it costs is two journal records per segment, one at its seal and one at its
 offload, so the index grows with the number of segments and never with the number of records.
 The index arrives with streams in Phase 1, and is in
-the schema from Phase 0 by rule E of `20-roadmap.md`.
+the schema from Phase 0 by rule E of `20-roadmap.md`. A client reads it with `StreamService`: the
+segments, the bytes held only on the node, the offsets lost, and the retention the stream is kept
+to, under `workload.console.read`, because how much a workload wrote, and when, is part of what it
+wrote. Before its first seal a stream is reported with no segments and no identifier yet, since
+the index first hears of it then; a workload whose console mode is `none` has none, and is not
+found.
 
 **A stream is part of the workload's durable state, so it migrates with it.**
 

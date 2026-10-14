@@ -17,6 +17,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::stream::Retention;
 use std::time::SystemTime;
 
 fn segment_record(
@@ -87,6 +88,10 @@ async fn the_index_follows_what_the_node_seals_and_prunes() {
         .into_owned();
     let workload = declared.workload.as_option().unwrap().id.clone();
     until(&mut s, assignment(|a| a.plan.is_set())).await;
+    let get = pb::GetStreamRequest { workload: workload.clone(), ..Default::default() };
+    let before = h.streams(h.root()).get_stream(get.clone()).await.unwrap().into_owned();
+    let unsealed = before.stream.as_option().unwrap();
+    assert!(unsealed.id.is_empty() && unsealed.segments.is_empty(), "known before any seal");
     held_and_released(&mut s, &workload).await;
 
     send(
@@ -113,4 +118,12 @@ async fn the_index_follows_what_the_node_seals_and_prunes() {
     assert_eq!(stream.lost(), [(0, 100)], "and its records, never offloaded, are gone");
     assert_eq!(h.effects("stream.segment.seal").await.len(), 2);
     assert_eq!(h.effects("journal.rejected").await.len(), 1, "a stranger's segment is refused");
+
+    let got = h.streams(h.root()).get_stream(get).await.unwrap().into_owned();
+    let indexed = got.stream.as_option().unwrap();
+    assert!(indexed.id.starts_with("str_"), "{indexed:?}");
+    assert_eq!((indexed.segments.len(), indexed.node_only_bytes), (2, 4096));
+    let lost: Vec<_> = got.lost.iter().map(|r| (r.first, r.end)).collect();
+    assert_eq!(lost, [(0, 100)], "pruned before it was offloaded");
+    assert_eq!(indexed.retention, Some(Retention::RetentionBytes(64 * 1024 * 1024)), "the default");
 }

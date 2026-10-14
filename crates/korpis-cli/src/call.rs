@@ -116,6 +116,7 @@ table! {
     "korpis.v1.GrantService/ListGrants" => GrantServiceClient::list_grants(ListGrantsRequest);
     "korpis.v1.GrantService/RevokeGrant" => GrantServiceClient::revoke_grant(RevokeGrantRequest);
     "korpis.v1.GrantService/MintToken" => GrantServiceClient::mint_token(MintTokenRequest);
+    "korpis.v1.StreamService/GetStream" => StreamServiceClient::get_stream(GetStreamRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

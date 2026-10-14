@@ -36,6 +36,8 @@ mod relays;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod set;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod stream;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
 mod trust;
 pub mod wire;
@@ -51,7 +53,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     DeclaredSetServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
     NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
-    ServerInfoServiceExt, WorkloadServiceExt,
+    ServerInfoServiceExt, StreamServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -175,6 +177,7 @@ impl Api {
         let router = ExtensionServiceExt::register(Arc::clone(&self), router);
         let router = EventServiceExt::register(Arc::clone(&self), router);
         let router = ProviderServiceExt::register(Arc::clone(&self), router);
+        let router = StreamServiceExt::register(Arc::clone(&self), router);
         let router =
             if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
         let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(

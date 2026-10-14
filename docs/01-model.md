@@ -1038,7 +1038,6 @@ Stream
   workload      WorkloadID
   kind          console | log | event | metric
   retention     Duration | bytes
-  indexed       bool
   segments      []Segment        content-addressed, offloadable to object storage
   node_only_bytes  bytes         held only on the node, not yet offloaded (§4 of 14-streams.md)
 
@@ -1050,6 +1049,12 @@ Segment
   node          NodeID?          the node holding it, while one does
   offloaded     bool             held by the offload target
 ```
+
+> Corrected 2026-10-14, when stream reading was built. The model gave a stream an `indexed bool`
+> that no document defined, and §8 of `14-streams.md` decides the opposite of an index: a stream is
+> searched by scanning the node's segment files, within its retention, because search is a
+> property of those files and not a search product. A field with nothing to mean was a promise
+> nothing kept, so it is gone, and its wire field number is reserved.
 
 The agent seals and offloads segments and journals each (§4.10 of `02-architecture.md`); the
 control plane keeps the index from those effects. That is what lets an offloaded segment be found

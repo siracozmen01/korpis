@@ -72,7 +72,10 @@ message Stream {
     google.protobuf.Duration retention_duration = 4;
     uint64 retention_bytes = 5;
   }
-  bool indexed = 6;
+  // Was `bool indexed`, a field the model gave no meaning: a stream is searched by scanning the
+  // node's segment files (§8 of docs/14-streams.md), so there is no index to turn on.
+  reserved 6;
+  reserved "indexed";
   // Bytes held only on the node, not yet offloaded (§4 of docs/14-streams.md).
   uint64 node_only_bytes = 7;
   // Its segments, oldest first, as the control plane last heard of them.

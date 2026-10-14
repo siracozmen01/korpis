@@ -182,6 +182,10 @@ impl Harness {
         pb::GrantServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn streams(&self, config: ClientConfig) -> pb::StreamServiceClient<HttpClient> {
+        pb::StreamServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn sets(&self, config: ClientConfig) -> pb::DeclaredSetServiceClient<HttpClient> {
         pb::DeclaredSetServiceClient::new(self.http.clone(), config)
     }

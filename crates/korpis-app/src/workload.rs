@@ -19,6 +19,7 @@ mod propose;
 mod read;
 mod retire;
 mod sets;
+mod stream;
 mod watch;
 
 pub use classify::{Classified, SetClassification};
@@ -31,4 +32,5 @@ pub use power::{ChangePower, PowerChanged};
 pub use read::{Drift, ListWorkloads, WorkloadView};
 pub use retire::DeleteWorkload;
 pub use sets::SetDriftMode;
+pub use stream::StreamView;
 pub use watch::Watch;
