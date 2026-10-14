@@ -15,4 +15,4 @@ allow-print-in-tests = true
 allow-dbg-in-tests = true
 allow-indexing-slicing-in-tests = true
 # Proper names the documentation uses that are not code.
-doc-valid-idents = ["MinIO", ".."]
+doc-valid-idents = ["MinIO", "OpenBao", ".."]

@@ -2345,6 +2345,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-kms-openbao"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "korpis-extension",
+ "korpis-proto",
+ "reqwest",
+ "rustls",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "zeroize",
+]
+
+[[package]]
 name = "korpis-proto"
 version = "0.0.0"
 dependencies = [

@@ -37,13 +37,19 @@ The generality sells itself later, to people who arrived for something else.
 | Hibernation and wake-on-connect | extension | health consumer + edge hook |
 | Core recipes: Minecraft (Paper/Fabric/Vanilla), Source engine, Rust, ARK, Valheim, Palworld, Terraria | recipes | none |
 | DNS providers, backup targets, OIDC/SAML | extension | provider interfaces |
+| Key management for tenant custody: OpenBao and Vault Transit | extension | key management provider |
 | Discord client, and the chat-adapter interface | extension | actions + events + streams |
 
 **As built, 2026-10-14.** The first of the set is the backup target for S3-compatible stores,
 `korpis-target-s3` (§5.6 of `06-storage.md`). It depends on the extension SDK and the wire
 contract alone, and `scripts/check-layers.sh` fails the build if it ever links anything else of
 ours, which is what keeps "built through the same mechanism a third party would use" true of it
-rather than merely intended.
+rather than merely intended. The second is `korpis-kms-openbao`, the key management provider for
+tenant custody (§5.5 of `06-storage.md`): a tenant's data keys made by its own OpenBao or Vault
+Transit engine (`datakey/plaintext`) and opened by it (`decrypt`), each with its
+`<repository>/<workload>` context, refusing a key that is not `derived`, since such a key ignores
+the context and a credential taken from the provider would open every workload's keys. It is held
+to the same rule, and tested against a real OpenBao run as a host process.
 
 Four of these are worth explaining, because they are the ones our architecture makes possible and
 the incumbents structurally cannot match.
