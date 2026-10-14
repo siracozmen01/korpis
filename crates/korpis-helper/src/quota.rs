@@ -5,7 +5,7 @@
 //! inode limits the kernel checks in the write path, where exceeding them is `EDQUOT`. Usage is
 //! read from the same accounting, never computed.
 //!
-//! This is the crate's one unsafe module, and the only one in the helper: neither the ioctl that
+//! This is one of the crate's two unsafe modules, with [`crate::btrfs`]: neither the ioctl that
 //! sets a directory's project nor `quotactl_fd(2)` has a safe wrapper in the libraries the helper
 //! may link. Each call passes a descriptor borrowed for its duration and a pointer to one
 //! correctly laid out structure owned by the caller, and nothing else. `quotactl_fd` takes any

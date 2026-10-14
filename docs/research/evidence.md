@@ -475,6 +475,13 @@ Primary:
   against the crate's documentation ([regex: untrusted
   input](https://docs.rs/regex/latest/regex/#untrusted-input)). What makes a reader's search
   pattern safe for the node to run (§8 of `../14-streams.md`).
+- **[V]** On btrfs with qgroups on and consistent, destroying the stale qgroup a deleted
+  subvolume leaves behind (`btrfs qgroup destroy`, after `btrfs subvolume sync`) marked the
+  qgroup accounting inconsistent at the next commit, after which a 1 MiB qgroup limit let 2.5 MiB
+  through and the accounting read zero until a rescan. Without the destroy, the same sequence
+  stayed consistent and the limit refused the write with `EDQUOT`. Reproduced 2026-10-14 on a
+  loop-mounted filesystem, Linux 6.8.0, btrfs-progs 6.6.3. Why the helper never destroys a qgroup
+  and enforces only while the accounting is consistent (§3 of `../06-storage.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

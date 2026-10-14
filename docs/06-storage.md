@@ -140,6 +140,22 @@ the host's user namespace passes a hard limit, as the kernel allows root to; a w
 holds it, because its capabilities are its own user namespace's (§2 of `04-runtimes.md`), but the
 helper does, and so does anything else running as root on the host.
 
+**On btrfs, each volume is a subvolume.** The helper creates it with the subvolume ioctl, limits
+the bytes it references with its qgroup, and reads usage from the qgroup accounting in the quota
+tree, so `statfs` is never asked. btrfs has no inode quota, so a btrfs class declares capacity
+alone and an inode limit asked of it is enforced by nothing and shown nowhere (Rule K-3). The class
+is btrfs only when qgroups are on and their accounting is consistent when the helper starts:
+inconsistent accounting enforces no limit at all, so a class on such a filesystem is a
+`directory`, and the helper logs the command that fixes it rather than running it (§2 of
+`18-operations.md`: it does not silently modify the host). A usage read made while the accounting
+is inconsistent says it is not accounted. Deleting a volume destroys its subvolume and leaves its
+empty qgroup: on Linux 6.8 destroying that qgroup marked the whole filesystem's accounting
+inconsistent, which lifted every limit until a rescan (`research/evidence.md`), so stale qgroups
+are left for an operator's `btrfs qgroup clear-stale`. What it costs: one small item per deleted
+volume in the quota tree until then, and a filesystem whose accounting goes inconsistent while the
+helper runs keeps its class until the helper restarts, its usage reads saying they are not
+accounted meanwhile.
+
 **Thin pools are the one place where exceeding capacity is not a clean error.** A thin volume that
 fills returns `ENOSPC` from its filesystem like any full disk. A thin **pool** that runs out of real
 blocks underneath its volumes either queues writes or fails them with I/O errors, depending on its
@@ -159,8 +175,10 @@ Three consequences follow, and all three are improvements:
    true on XFS and ext4 for a directory under project quota and on ZFS, and false on btrfs, where
    `statfs` reports the whole filesystem (finding S52).
 3. **Inode quotas exist.** A tenant can exhaust a filesystem with millions of empty files without
-   using meaningful capacity. `quota_dimensions` includes inodes, and both are enforced. No panel
-   in this market does this.
+   using meaningful capacity. `quota_dimensions` includes inodes, and both are enforced on the
+   backends that have an inode quota: ZFS, XFS, and ext4. btrfs has none, so a btrfs class
+   declares capacity alone (§2) and an inode limit on it is shown nowhere. No panel in this market
+   does this.
 
 ### I/O limits
 
