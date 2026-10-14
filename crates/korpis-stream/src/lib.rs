@@ -8,7 +8,11 @@
 //! what exceeds the stream's rate, or a record's size, is dropped and said to be dropped, as a gap
 //! record with an offset of its own (§3, §5); secret values are redacted before a record reaches
 //! the file (§7). Synchronous and small on purpose: the writer runs once per workload, beside it.
+//!
+//! The crate's one unsafe module is the writer binary's `fds`, which adopts the descriptors the
+//! containerd shim passes its logging binary; no safe form exists for that.
 
+pub mod changes;
 pub mod dir;
 pub mod lines;
 pub mod read;

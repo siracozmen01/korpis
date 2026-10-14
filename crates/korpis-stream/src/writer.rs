@@ -149,6 +149,20 @@ impl StreamWriter {
         Ok(())
     }
 
+    /// Counts `records` and `bytes` lost between `first` and `last` before they reached here, for
+    /// `reason`: what the caller dropped while it could not write at all. The gap record is
+    /// written now.
+    pub fn lost(
+        &mut self,
+        (records, bytes): (u64, u64),
+        (first, last): (i64, i64),
+        reason: &'static str,
+    ) -> io::Result<()> {
+        self.flush_gap()?;
+        self.dropped = Some(Dropped { records, bytes, first, last, reason });
+        self.flush_gap()
+    }
+
     /// Counts `bytes` of an overlong record dropped before they reached here, at `now`.
     pub fn dropped_bytes(&mut self, bytes: u64, now: i64) -> io::Result<()> {
         self.drop_bytes(0, bytes, now, TOO_LONG);

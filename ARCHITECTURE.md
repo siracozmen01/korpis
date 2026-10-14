@@ -83,7 +83,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
 | `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream |
 | `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
-| `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits; written beside each workload, read by the agent (`14-streams.md`) |
+| `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits, read by the agent; and `korpis-stream-writer`, the binary a containerd shim starts beside each workload to write its stream (`14-streams.md`) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 | `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
 
