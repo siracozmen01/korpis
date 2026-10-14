@@ -4,7 +4,7 @@
 //! of §4.2 of docs/04-runtimes.md mapped onto [`Containerd`], every spec validated again at
 //! `Create` whatever `Prepare` said, and every failure given the code the agent branches on.
 
-use crate::containerd::{Containerd, signal_number};
+use crate::containerd::{Containerd, Sender, signal_number};
 use crate::describe::info;
 use crate::error::DriverError;
 use crate::prepare::prepare;
@@ -202,6 +202,35 @@ impl driver::DriverService for Driver {
     ) -> impl Future<Output = ServiceResult<ServiceStream<driver::EventsResponse>>> + Send {
         let out = futures_util::stream::unfold(self.events.subscribe(), next_event);
         ready(Response::stream_ok(out))
+    }
+
+    async fn console_input(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::ConsoleInputRequest>,
+    ) -> ServiceResult<driver::ConsoleInputResponse> {
+        let from = Sender { by: request.by, session: request.session };
+        self.containerd
+            .console_input(request.runtime_id, from, request.data)
+            .await
+            .map_err(status)?;
+        Response::ok(driver::ConsoleInputResponse::default())
+    }
+
+    async fn resize_console(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, driver::ResizeConsoleRequest>,
+    ) -> ServiceResult<driver::ResizeConsoleResponse> {
+        let from = Sender { by: request.by, session: request.session };
+        let size = |n: u32| {
+            u16::try_from(n).map_err(|_| {
+                status(DriverError::Rejected("a terminal is at most 65535 columns or rows".into()))
+            })
+        };
+        let size = (size(request.cols)?, size(request.rows)?);
+        self.containerd.resize_console(request.runtime_id, from, size).await.map_err(status)?;
+        Response::ok(driver::ResizeConsoleResponse::default())
     }
 
     async fn signal(

@@ -3,7 +3,7 @@
 //! The verbs that are one request and one answer.
 
 use super::{CREATE, DriverRuntime, QUICK, error, within};
-use crate::runtime::{RuntimeError, RuntimeResult};
+use crate::runtime::{RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 
@@ -57,6 +57,41 @@ impl DriverRuntime {
         let request = driver::StatsRequest { runtime_id: id.to_owned(), ..Default::default() };
         let r = self.client.stats_with_options(request, within(QUICK)).await.map_err(error)?;
         Ok(r.into_owned().usage.into_option().unwrap_or_default())
+    }
+
+    pub(super) async fn input_call(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        data: &[u8],
+    ) -> RuntimeResult<()> {
+        let request = driver::ConsoleInputRequest {
+            runtime_id: id.to_owned(),
+            by: from.by.to_owned(),
+            session: from.session.to_owned(),
+            data: data.to_vec(),
+            ..Default::default()
+        };
+        self.client.console_input_with_options(request, within(QUICK)).await.map_err(error)?;
+        Ok(())
+    }
+
+    pub(super) async fn resize_call(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        (cols, rows): (u16, u16),
+    ) -> RuntimeResult<()> {
+        let request = driver::ResizeConsoleRequest {
+            runtime_id: id.to_owned(),
+            by: from.by.to_owned(),
+            session: from.session.to_owned(),
+            cols: u32::from(cols),
+            rows: u32::from(rows),
+            ..Default::default()
+        };
+        self.client.resize_console_with_options(request, within(QUICK)).await.map_err(error)?;
+        Ok(())
     }
 
     pub(super) async fn signal_call(&self, id: &str, signal: &str) -> RuntimeResult<()> {

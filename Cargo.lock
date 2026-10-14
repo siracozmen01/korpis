@@ -2045,6 +2045,7 @@ dependencies = [
 name = "korpis-driver-oci"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "buffa",
  "buffa-types",
  "clap",
@@ -2060,6 +2061,7 @@ dependencies = [
  "korpis-recipe",
  "korpis-stream",
  "korpis-wire",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",
@@ -2223,6 +2225,7 @@ name = "korpis-stream"
 version = "0.0.0"
 dependencies = [
  "aho-corasick",
+ "base64 0.22.1",
  "crc",
  "regex",
  "serde_json",

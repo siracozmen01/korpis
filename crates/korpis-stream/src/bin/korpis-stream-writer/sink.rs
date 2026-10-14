@@ -6,6 +6,7 @@
 //! The writer is reopened at each tick until it takes writes again, and its first record is the
 //! gap that says what was lost meanwhile.
 
+use crate::input::{Input, What};
 use korpis_stream::changes::{self, Change};
 use korpis_stream::dir::StreamDir;
 use korpis_stream::lines::{Lines, Piece};
@@ -16,6 +17,7 @@ use korpis_stream::{Kind, Source};
 /// A line still unfinished after this long without bytes is written as it stands.
 const PARTIAL_AFTER: i64 = 200_000_000;
 const UNWRITABLE: &str = "the stream's storage refused writes (full, or failing)";
+const UNREAD: &str = "console input the workload was not reading";
 
 #[expect(clippy::print_stderr, reason = "the writer's only voice is its standard error")]
 fn warn(what: &str, e: &std::io::Error) {
@@ -108,6 +110,30 @@ impl Sink {
         }
         for p in pieces {
             self.piece(source, &p, now);
+        }
+    }
+
+    /// Records `input` in the stream, its data redacted, before it reaches the workload.
+    pub fn input(&mut self, input: &Input, now: i64) {
+        let (kind, redacted) = match &input.what {
+            What::Data(data) => (Kind::Structured, self.redactor.apply(data).into_owned()),
+            What::Resize(..) => (Kind::Control, Vec::new()),
+        };
+        let body = crate::input::body(input, &redacted);
+        let Some(w) = &mut self.writer else { return self.count_lost(1, 0, now) };
+        if let Err(e) = w.write(Source::Input, kind, &body, now) {
+            warn("writing input", &e);
+            self.writer = None;
+            self.count_lost(1, 0, now);
+        }
+    }
+
+    /// Says that `bytes` of input were dropped because the workload is not reading its stdin.
+    pub fn input_dropped(&mut self, bytes: u64, now: i64) {
+        if let Some(w) = &mut self.writer
+            && let Err(e) = w.lost((0, bytes), (now, now), UNREAD)
+        {
+            warn("writing a gap", &e);
         }
     }
 

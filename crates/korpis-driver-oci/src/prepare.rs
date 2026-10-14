@@ -116,6 +116,7 @@ fn stream(body: &pb::IntentBody, secrets: Vec<(String, String)>) -> Option<drive
         burst_bytes: limits.burst,
         retention_bytes,
         retention_seconds,
+        input: mode == Some(M::CONSOLE_MODE_INTERACTIVE),
         secrets: secrets
             .into_iter()
             .map(|(name, value)| driver::StreamSecret { name, value, ..Default::default() })

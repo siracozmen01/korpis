@@ -17,6 +17,9 @@ korpis-containerd = { workspace = true }
 korpis-recipe = { path = "../korpis-recipe", default-features = false }
 korpis-proto = { workspace = true, features = ["services"] }
 korpis-wire = { workspace = true }
+base64 = "0.22"
+# FIFOs for console input, made and opened without waiting, with no unsafe code of ours.
+rustix = { version = "1", features = ["fs"] }
 clap = { version = "4", features = ["derive", "env", "string"] }
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }

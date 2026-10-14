@@ -4,6 +4,7 @@
 //! `korpis` namespace and nowhere else, and, while a create is under way, under a containerd
 //! lease, so the content and snapshots it is assembling are not collected half way.
 
+mod console;
 mod events;
 mod import;
 mod inspect;
@@ -11,6 +12,7 @@ mod lifecycle;
 pub mod stream;
 mod unpack;
 
+pub use console::Sender;
 pub use inspect::Usage;
 pub use lifecycle::signal_number;
 

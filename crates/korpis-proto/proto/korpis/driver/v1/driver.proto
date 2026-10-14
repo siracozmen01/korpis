@@ -44,6 +44,11 @@ service DriverService {
   // Server-streaming lifecycle events (exits, OOM kills) for every object this driver holds.
   rpc Events(EventsRequest) returns (stream EventsResponse);
   rpc Signal(SignalRequest) returns (SignalResponse);
+  // Input to an interactive console (§6 of docs/14-streams.md): recorded in the stream with who
+  // sent it, then handed to the workload. Capability-gated: a console mode that takes input.
+  rpc ConsoleInput(ConsoleInputRequest) returns (ConsoleInputResponse);
+  // The terminal of an interactive console was resized; recorded as a control record.
+  rpc ResizeConsole(ResizeConsoleRequest) returns (ResizeConsoleResponse);
 }
 
 message DescribeRequest {}
@@ -106,6 +111,9 @@ message StreamCapture {
   uint64 retention_bytes = 4;
   uint64 retention_seconds = 5;
   repeated StreamSecret secrets = 6;
+  // The console takes input: the task runs with a terminal, and its stdin is the writer's to
+  // hold and to feed (§6 of docs/14-streams.md).
+  bool input = 7;
 }
 
 message StreamSecret {
@@ -239,3 +247,24 @@ message SignalRequest {
 }
 
 message SignalResponse {}
+
+message ConsoleInputRequest {
+  string runtime_id = 1;
+  // Who sent it: the session token's subject.
+  string by = 2;
+  // The data-path session it came on.
+  string session = 3;
+  bytes data = 4;
+}
+
+message ConsoleInputResponse {}
+
+message ResizeConsoleRequest {
+  string runtime_id = 1;
+  string by = 2;
+  string session = 3;
+  uint32 cols = 4;
+  uint32 rows = 5;
+}
+
+message ResizeConsoleResponse {}

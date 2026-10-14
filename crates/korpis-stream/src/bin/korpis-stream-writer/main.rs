@@ -14,6 +14,7 @@
 
 mod args;
 mod fds;
+mod input;
 mod sink;
 
 use korpis_stream::dir::StreamDir;
@@ -35,6 +36,7 @@ const LAST_DRAIN: Duration = Duration::from_secs(3);
 enum Message {
     Bytes(usize, Vec<u8>),
     Ended,
+    Input(input::Input),
 }
 
 fn now() -> i64 {
@@ -98,15 +100,50 @@ fn main() -> ExitCode {
         // A reader still blocked when the writer is done ends with the process.
         std::thread::spawn(move || drain(file, source, &tx));
     }
+    let stdin = match &args.input {
+        Some((frames, stdin)) => match console(frames, stdin, &tx) {
+            Ok(s) => Some(s),
+            Err(e) => return fail(&e),
+        },
+        None => None,
+    };
     drop(tx);
     // Ready: the shim starts the task once this is closed.
     drop(passed.ready);
-    run(&mut sink, &rx, &terminated);
+    run(&mut sink, &rx, (&terminated, stdin.as_ref()));
     ExitCode::SUCCESS
 }
 
+/// Opens an interactive workload's input: the frames the driver sends, read on a thread of their
+/// own, and the task's stdin.
+fn console(
+    frames: &std::path::Path,
+    stdin: &std::path::Path,
+    tx: &mpsc::Sender<Message>,
+) -> Result<input::Stdin, String> {
+    let from = input::open_frames(frames).map_err(|e| format!("{}: {e}", frames.display()))?;
+    let stdin = input::Stdin::open(stdin).map_err(|e| format!("{}: {e}", stdin.display()))?;
+    let tx = tx.clone();
+    std::thread::spawn(move || input::read_frames(from, &tx, Message::Input));
+    Ok(stdin)
+}
+
+/// Records `i` and hands its data to the workload.
+fn take_input(sink: &mut Sink, stdin: Option<&input::Stdin>, i: &input::Input, now: i64) {
+    sink.input(i, now);
+    if let (input::What::Data(data), Some(stdin)) = (&i.what, stdin)
+        && !stdin.send(data.clone())
+    {
+        sink.input_dropped(u64::try_from(data.len()).unwrap_or(u64::MAX), now);
+    }
+}
+
 /// Writes what arrives until both sources end, or for [`LAST_DRAIN`] after `terminated` is set.
-fn run(sink: &mut Sink, rx: &mpsc::Receiver<Message>, terminated: &AtomicBool) {
+fn run(
+    sink: &mut Sink,
+    rx: &mpsc::Receiver<Message>,
+    (terminated, stdin): (&AtomicBool, Option<&input::Stdin>),
+) {
     let mut open = 2;
     let mut ticked = now();
     let mut deadline: Option<Instant> = None;
@@ -117,6 +154,7 @@ fn run(sink: &mut Sink, rx: &mpsc::Receiver<Message>, terminated: &AtomicBool) {
         match rx.recv_timeout(TICK) {
             Ok(Message::Bytes(source, bytes)) => sink.push(source, &bytes, now()),
             Ok(Message::Ended) => open -= 1,
+            Ok(Message::Input(i)) => take_input(sink, stdin, &i, now()),
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }

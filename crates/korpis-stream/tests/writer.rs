@@ -106,3 +106,55 @@ fn sigterm_seals_what_was_written_though_the_pipes_stay_open() {
         "the one record is sealed and recorded: {logged:?}"
     );
 }
+
+fn frame(json: &str) -> Vec<u8> {
+    let mut f = u32::try_from(json.len()).unwrap().to_be_bytes().to_vec();
+    f.extend_from_slice(json.as_bytes());
+    f
+}
+
+#[test]
+fn input_is_recorded_redacted_with_who_typed_it_and_then_reaches_the_workload() {
+    let tmp = tempfile::tempdir().unwrap();
+    let names = ["out", "err", "ready", "input", "stdin"];
+    let [out, err, ready, input, stdin] = names.map(|n| tmp.path().join(n));
+    for p in [&out, &err, &ready, &input, &stdin] {
+        fifo(p);
+    }
+    let secrets = tmp.path().join("secrets.json");
+    std::fs::write(&secrets, br#"[{"name":"rcon_password","value":"hunter22"}]"#).unwrap();
+    let dir = tmp.path().join("stream");
+    let mut writer = Command::new("sh")
+        .arg("-c")
+        .arg(
+            r#"exec "$0" --dir "$1" --secrets "$2" --input "$3" --stdin "$4" 3<"$5" 4<"$6" 5>"$7""#,
+        )
+        .arg(env!("CARGO_BIN_EXE_korpis-stream-writer"))
+        .args([&dir, &secrets, &input, &stdin, &out, &err, &ready])
+        .spawn()
+        .unwrap();
+    let stdout = std::fs::OpenOptions::new().write(true).open(&out).unwrap();
+    let stderr = std::fs::OpenOptions::new().write(true).open(&err).unwrap();
+    std::fs::File::open(&ready).unwrap().read_to_end(&mut Vec::new()).unwrap();
+    // The workload's side of its stdin, as the shim would read it.
+    let mut workload = std::fs::File::open(&stdin).unwrap();
+    let mut driver = std::fs::OpenOptions::new().write(true).open(&input).unwrap();
+    // "login hunter22\n", in base64.
+    driver
+        .write_all(&frame(r#"{"by":"user:alex","session":"s1","data":"bG9naW4gaHVudGVyMjIK"}"#))
+        .unwrap();
+    driver.write_all(&frame(r#"{"by":"user:alex","session":"s1","resize":[120,40]}"#)).unwrap();
+    let mut got = [0u8; 15];
+    workload.read_exact(&mut got).unwrap();
+    assert_eq!(&got, b"login hunter22\n", "the workload gets what was typed, unredacted");
+    drop((stdout, stderr));
+    assert!(writer.wait().unwrap().success());
+
+    let records = read(&StreamDir::new(&dir), 0, 10).unwrap().records;
+    assert_eq!(records.len(), 2, "{records:?}");
+    let typed: serde_json::Value = serde_json::from_slice(&records[0].body).unwrap();
+    assert_eq!(records[0].source, korpis_stream::Source::Input);
+    assert_eq!(typed["by"], "user:alex");
+    assert_eq!(typed["text"], "login ████████ (redacted: rcon_password)\n", "the stream does not");
+    assert_eq!(records[1].kind, korpis_stream::Kind::Control);
+}

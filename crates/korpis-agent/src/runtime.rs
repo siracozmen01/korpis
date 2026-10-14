@@ -8,9 +8,9 @@
 //!
 //! Liveness is read with `inspect`, polled by the reconciler, which is the level-triggered
 //! reading anyway (§4.1 of docs/02-architecture.md); `changes`, the protocol's `Events`, only
-//! makes it look sooner, so a crash is seen when it happens. The capability-gated verbs
-//! (exec, console, resize) arrive with the console and resizing of Phase 1 (§4 of
-//! docs/20-roadmap.md).
+//! makes it look sooner, so a crash is seen when it happens. Of the capability-gated verbs,
+//! console input and resizing are here (§6 of docs/14-streams.md); exec and resource resizing
+//! arrive with the rest of Phase 1 (§4 of docs/20-roadmap.md).
 
 pub mod memory;
 pub mod process;
@@ -46,6 +46,15 @@ pub enum RuntimeError {
 
 /// A result from a driver.
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
+
+/// Who sent a console input, and on which data-path session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Sender<'a> {
+    /// The session token's subject.
+    pub by: &'a str,
+    /// The session.
+    pub session: &'a str,
+}
 
 /// A runtime driver.
 pub trait Runtime: Send + Sync + 'static {
@@ -100,6 +109,23 @@ pub trait Runtime: Send + Sync + 'static {
 
     /// Sends it a driver-declared signal.
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
+
+    /// Sends `data` to its interactive console, from the subject and session `from` names, to
+    /// be recorded with them.
+    fn console_input(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        data: &[u8],
+    ) -> impl Future<Output = RuntimeResult<()>> + Send;
+
+    /// Resizes its interactive console's terminal to `(cols, rows)`.
+    fn resize_console(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        size: (u16, u16),
+    ) -> impl Future<Output = RuntimeResult<()>> + Send;
 
     /// The runtime objects whose status changes, by identifier, as the driver reports them: a
     /// reason to look sooner, never a reading, which `inspect` is.

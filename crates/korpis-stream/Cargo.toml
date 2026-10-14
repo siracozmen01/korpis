@@ -17,6 +17,8 @@ workspace = true
 aho-corasick = "1"
 # CRC-32C over each record frame, so a torn write is found rather than read.
 crc = "3"
+# Console input arrives from the driver as JSON frames with the bytes in base64.
+base64 = "0.22"
 # Search within the retention window (§8 of docs/14-streams.md): a regex engine with no
 # backtracking, so a reader's pattern runs in time linear in the stream.
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode"] }

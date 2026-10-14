@@ -319,7 +319,8 @@ pub fn runtime_spec(
     Ok(RuntimeSpec {
         oci_version: OCI_VERSION,
         process: Process {
-            terminal: false,
+            // An interactive console runs under a terminal (§6 of docs/14-streams.md).
+            terminal: s.stream.as_option().is_some_and(|c| c.input),
             user: User { uid: image.user.0, gid: image.user.1 },
             args,
             env: environment(valid, image),

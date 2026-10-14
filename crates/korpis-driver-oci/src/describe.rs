@@ -62,6 +62,7 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         console: vec![
             pb::ConsoleMode::CONSOLE_MODE_NONE.into(),
             pb::ConsoleMode::CONSOLE_MODE_LOGS.into(),
+            pb::ConsoleMode::CONSOLE_MODE_INTERACTIVE.into(),
         ],
         signals: SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
         gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],

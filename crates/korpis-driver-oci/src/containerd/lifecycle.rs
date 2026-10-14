@@ -100,6 +100,10 @@ fn labels(valid: &Valid) -> BTreeMap<String, String> {
 
 impl Containerd {
     fn containers(&self) -> containers::ContainersClient<super::Transport> {
+        self.containers_client()
+    }
+
+    pub(crate) fn containers_client(&self) -> containers::ContainersClient<super::Transport> {
         containers::ContainersClient::new(self.conn.clone(), self.config.clone())
     }
 
@@ -108,13 +112,15 @@ impl Containerd {
     }
 
     /// Where a task of container `id` writes its stdout and stderr: the stream writer, if the
-    /// container has a stream, and nowhere otherwise.
-    async fn stdio(&self, id: &str) -> DriverResult<String> {
-        let Some(streams) = &self.streams else { return Ok(String::new()) };
+    /// container has a stream, and nowhere otherwise; and, for a console that takes input, the
+    /// stdin the writer feeds, read through a terminal.
+    async fn stdio(&self, id: &str) -> DriverResult<(String, Option<String>)> {
+        let Some(streams) = &self.streams else { return Ok((String::new(), None)) };
         let request = containers::GetContainerRequest { id: id.to_owned(), ..Default::default() };
         let container = self.containers().get(request).await?.into_owned().container;
         let labels = container.as_option().map(|c| c.labels.clone()).unwrap_or_default();
-        Ok(streams.stdio(id, &labels.into_iter().collect()).unwrap_or_default())
+        let labels: BTreeMap<String, String> = labels.into_iter().collect();
+        Ok((streams.stdio(id, &labels).unwrap_or_default(), streams.stdin(id, &labels)))
     }
 
     /// Whether the container `id` exists.
@@ -140,6 +146,7 @@ impl Containerd {
                 DriverError::Rejected("this driver has no stream writer configured".into())
             })?;
             streams.write_secrets(valid, &id)?;
+            streams.make_input(valid, &id)?;
         }
         let lease = self.lease().await?;
         let made = self.assemble(&lease, valid, &id).await;
@@ -238,12 +245,16 @@ impl Containerd {
         };
         let client = snapshots::SnapshotsClient::new(self.conn.clone(), self.config.clone());
         let rootfs = client.mounts(mounts).await?.into_owned().mounts;
-        let stdio = self.stdio(id).await?;
+        let (writer, input) = self.stdio(id).await?;
+        // A terminal merges stderr into stdout, so only stdout names the writer.
+        let terminal = input.is_some();
         let create = tasks::CreateTaskRequest {
             container_id: id.to_owned(),
             rootfs,
-            stdout: stdio.clone(),
-            stderr: stdio,
+            stdin: input.unwrap_or_default(),
+            stderr: if terminal { String::new() } else { writer.clone() },
+            stdout: writer,
+            terminal,
             ..Default::default()
         };
         self.tasks().create(create).await?;

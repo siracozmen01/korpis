@@ -16,6 +16,8 @@ pub struct Args {
     pub limits: Limits,
     /// The secret values to redact, as a JSON file, if there are any.
     pub secrets: Option<PathBuf>,
+    /// For an interactive workload: the FIFO the driver sends input on, and the task's stdin.
+    pub input: Option<(PathBuf, PathBuf)>,
 }
 
 fn number(key: &str, value: &str) -> Result<u64, String> {
@@ -25,12 +27,16 @@ fn number(key: &str, value: &str) -> Result<u64, String> {
 /// The arguments `args` names.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     let mut args = args.into_iter();
-    let mut parsed = Args { dir: PathBuf::new(), limits: Limits::default(), secrets: None };
+    let mut parsed =
+        Args { dir: PathBuf::new(), limits: Limits::default(), secrets: None, input: None };
+    let (mut input, mut stdin) = (None, None);
     while let Some(key) = args.next() {
         let value = args.next().ok_or_else(|| format!("{key} needs a value"))?;
         match key.as_str() {
             "--dir" => parsed.dir = PathBuf::from(value),
             "--secrets" => parsed.secrets = Some(PathBuf::from(value)),
+            "--input" => input = Some(PathBuf::from(value)),
+            "--stdin" => stdin = Some(PathBuf::from(value)),
             "--rate" => parsed.limits.rate = number(&key, &value)?,
             "--burst" => parsed.limits.burst = number(&key, &value)?,
             "--retention-bytes" => {
@@ -46,5 +52,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     if parsed.dir.as_os_str().is_empty() {
         return Err("--dir is required".to_owned());
     }
+    parsed.input = match (input, stdin) {
+        (Some(i), Some(s)) => Some((i, s)),
+        (None, None) => None,
+        _ => return Err("--input and --stdin go together".to_owned()),
+    };
     Ok(parsed)
 }

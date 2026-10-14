@@ -16,7 +16,7 @@
 
 use korpis_agent::content::ContentStore;
 use korpis_agent::runtime::process::DriverRuntime;
-use korpis_agent::runtime::{Prepared, Runtime, RuntimeError};
+use korpis_agent::runtime::{Prepared, Runtime, RuntimeError, Sender};
 use korpis_core::workload::assignment::IdRange;
 use korpis_core::workload::stream::StreamKind;
 use korpis_driver_oci::containerd::Containerd;
@@ -37,7 +37,11 @@ use std::time::Duration;
 const CONTAINERD: &str = "/run/containerd/containerd.sock";
 const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
 
-fn recipe() -> Vec<u8> {
+const SAYS_HELLO: &str = "echo $GREETING > /data/said; echo said $GREETING; exec sleep 300";
+/// Answers each line of its input, which is what a game server's console does.
+const ANSWERS: &str = "while read line; do echo got $line; done";
+
+fn recipe(entry: &str) -> Vec<u8> {
     format!(
         r#"apiVersion: korpis.dev/v1
 kind: Recipe
@@ -45,7 +49,7 @@ metadata: {{name: sleeper, version: "1.0.0", description: sleeps, license: MIT}}
 runtime:
   targets:
     - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
-  entry: {{command: [/bin/sh, -c, "echo $GREETING > /data/said; echo said $GREETING; exec sleep 300"]}}
+  entry: {{command: [/bin/sh, -c, "{entry}"]}}
 config:
   fields:
     - {{key: greeting, type: string, default: hi, deliver: env, deliver_as: GREETING}}
@@ -54,13 +58,13 @@ config:
     .into_bytes()
 }
 
-fn intent(nonce: &str) -> pb::Intent {
+fn intent(nonce: &str, console: pb::ConsoleMode) -> pb::Intent {
     let hello = pb::Value {
         kind: Some(pb::value::Kind::StringValue("hello".into())),
         ..Default::default()
     };
     let body = pb::IntentBody {
-        console: pb::ConsoleMode::CONSOLE_MODE_LOGS.into(),
+        console: console.into(),
         runtime: pb::RuntimeSpec {
             tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
             ..Default::default()
@@ -95,10 +99,15 @@ async fn started(dir: &Path) -> DriverRuntime {
 }
 
 /// The spec the reconciler would build: prepared, its volume placed, labelled, and mapped.
-async fn built(rt: &DriverRuntime, dir: &Path, nonce: &str) -> driver::PreparedSpec {
+async fn built(
+    rt: &DriverRuntime,
+    dir: &Path,
+    nonce: &str,
+    (console, entry): (pb::ConsoleMode, &str),
+) -> driver::PreparedSpec {
     let workload = format!("wl_rt{nonce}");
-    let Prepared::Spec(spec) = rt.prepare(&workload, &intent(nonce), &recipe()).await.unwrap()
-    else {
+    let intent = intent(nonce, console);
+    let Prepared::Spec(spec) = rt.prepare(&workload, &intent, &recipe(entry)).await.unwrap() else {
         panic!("the thin recipe was refused");
     };
     let mut spec = *spec;
@@ -134,7 +143,8 @@ async fn the_agent_runs_a_thin_recipe_through_the_driver_process() {
     assert!(rt.describe().await.unwrap().healthy);
     let mut changes = rt.changes();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
-    let id = rt.create(&built(&rt, dir.path(), &nonce).await).await.unwrap();
+    let logs = (pb::ConsoleMode::CONSOLE_MODE_LOGS, SAYS_HELLO);
+    let id = rt.create(&built(&rt, dir.path(), &nonce, logs).await).await.unwrap();
     rt.start(&id).await.unwrap();
     let said = dir.path().join("volumes/data/said");
     for _ in 0..50 {
@@ -193,4 +203,53 @@ fn writer() -> PathBuf {
         .unwrap();
     assert!(built.success(), "korpis-stream-writer did not build");
     profile_dir.join("korpis-stream-writer")
+}
+
+/// The bodies of the stream in `dir`, once one satisfies `done`.
+async fn bodies_until(dir: &Path, done: impl Fn(&[String]) -> bool) -> Vec<String> {
+    for _ in 0..100 {
+        let records = read(&StreamDir::new(dir), 0, 100).map(|b| b.records).unwrap_or_default();
+        let bodies: Vec<String> =
+            records.iter().map(|r| String::from_utf8_lossy(&r.body).into_owned()).collect();
+        if done(&bodies) {
+            return bodies;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the stream in {} never held what was awaited", dir.display());
+}
+
+#[tokio::test]
+async fn an_interactive_console_takes_input_records_who_typed_it_and_resizes() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    if std::os::unix::net::UnixStream::connect(CONTAINERD).is_err() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("volumes/data")).unwrap();
+    let rt = started(dir.path()).await;
+    let nonce = uuid::Uuid::now_v7().simple().to_string();
+    let interactive = (pb::ConsoleMode::CONSOLE_MODE_INTERACTIVE, ANSWERS);
+    let id = rt.create(&built(&rt, dir.path(), &nonce, interactive).await).await.unwrap();
+    rt.start(&id).await.unwrap();
+    let alex = Sender { by: "user:alex", session: "s1" };
+    rt.resize_console(&id, alex, (100, 30)).await.unwrap();
+    rt.console_input(&id, alex, b"hello\n").await.unwrap();
+    let console = dir.path().join(format!("volumes/wl_rt{nonce}.stream_console"));
+    let said = bodies_until(&console, |b| b.iter().any(|l| l.contains("got hello"))).await;
+    let typed = said.iter().find(|b| b.contains("\"text\"")).expect("the input, recorded");
+    let typed: serde_json::Value = serde_json::from_str(typed).unwrap();
+    assert_eq!(
+        (typed["by"].as_str(), typed["text"].as_str()),
+        (Some("user:alex"), Some("hello\n"))
+    );
+    assert!(said.iter().any(|b| b.contains("\"resize\":[100,30]")), "{said:?}");
+
+    let logs_only = (pb::ConsoleMode::CONSOLE_MODE_LOGS, SAYS_HELLO);
+    let other = rt.create(&built(&rt, dir.path(), &format!("{nonce}b"), logs_only).await).await;
+    let other = other.unwrap();
+    let refused = rt.console_input(&other, alex, b"x").await;
+    rt.destroy(&other).await.unwrap();
+    rt.destroy(&id).await.unwrap();
+    assert!(refused.is_err(), "a console of logs takes no input: {refused:?}");
 }

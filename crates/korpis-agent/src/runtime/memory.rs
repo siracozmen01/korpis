@@ -6,7 +6,7 @@
 //! machine without a driver. Every call is logged, so a test can say what was done, and any
 //! verb can be made to fail.
 
-use super::{Prepared, Runtime, RuntimeError, RuntimeResult};
+use super::{Prepared, Runtime, RuntimeError, RuntimeResult, Sender};
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::{BTreeMap, BTreeSet};
@@ -249,6 +249,12 @@ impl InMemory {
             .ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
 
+    /// Logs `verb id what`, for an object that exists.
+    fn console_now(&self, verb: &str, id: &str, what: &str) -> RuntimeResult<()> {
+        let s = self.call(verb, &format!("{id} {what}"))?;
+        s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
+    }
+
     fn signal_now(&self, id: &str) -> RuntimeResult<()> {
         let s = self.call("signal", id)?;
         s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
@@ -318,6 +324,29 @@ impl Runtime for InMemory {
 
     fn signal(&self, id: &str, _signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
         ready(self.signal_now(id))
+    }
+
+    fn console_input(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        data: &[u8],
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        let text = String::from_utf8_lossy(data);
+        ready(self.console_now(
+            "console_input",
+            id,
+            &format!("{} {} {text}", from.by, from.session),
+        ))
+    }
+
+    fn resize_console(
+        &self,
+        id: &str,
+        from: Sender<'_>,
+        (cols, rows): (u16, u16),
+    ) -> impl Future<Output = RuntimeResult<()>> + Send {
+        ready(self.console_now("resize_console", id, &format!("{} {cols}x{rows}", from.by)))
     }
 
     fn changes(&self) -> broadcast::Receiver<String> {
