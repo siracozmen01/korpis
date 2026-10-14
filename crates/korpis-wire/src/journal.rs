@@ -63,6 +63,13 @@ fn effect(field: &str, e: &pb::Effect) -> Result<NodeEffect> {
         outcome: outcome(&format!("{field}.outcome"), e.outcome)?,
         error: e.error.as_option().map(error_map),
         after: (!e.after.is_empty()).then(|| json_map(&e.after)),
+        actor: e
+            .actor
+            .as_option()
+            .filter(|s| s.kind.is_some())
+            .map(|s| crate::principal::from_pb(&format!("{field}.actor"), s))
+            .transpose()?,
+        grant: optional(IdKind::Grant, "grant", e.grant.as_ref())?,
     })
 }
 

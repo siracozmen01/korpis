@@ -221,6 +221,33 @@ written.
 are independently delegable. Reading a stream a viewer is not entitled to read returns `NOT_FOUND`,
 not `DENIED` (§8 of `10-api.md`).
 
+**As built** (Phase 1), input is a data-path session of `workload.console.write`, each frame a
+`ConsoleInput`: bytes for the workload, or a new terminal size. The node journals each input as
+an effect before it does anything else with it: the session's subject sent so many bytes on that
+session, under the grant the session's token was minted from. Only then does it hand the bytes to
+the driver, so an input the workload received is never one the journal lacks. The `oci` driver
+runs an `interactive` console under a terminal and sends input to the stream writer, which records
+it in the stream as an input record naming its sender, redacted like every record (§7), and then
+feeds the workload's stdin, which it holds open for the task's whole life (§4.2 of
+`04-runtimes.md`). A resize is recorded as a control record and applied to the terminal. The
+stream says what was typed and the effect log says who typed it under which authority, which is
+the row the paragraph above promises, with the secret a person types at a prompt kept out of the
+effect log, which holds only how many bytes were sent.
+
+**The control plane does not take the node's word for whose input it was.** It records the
+effect as the act of the subject the node names only if the grant named is that subject's and, as
+issued, permitted `workload.console.write` on the workload when the node says the input happened;
+otherwise the record is kept as a rejection. So a node can attribute input only to someone who
+could have given it. What that check leaves to the components that judged it at the time:
+revocation, which the node judged against the list it held (§6.3 of `08-identity.md`); the
+client's network, which the relay judged; and a second factor, which the gateway judged when it
+minted the token. What it costs, and what it does not do: a compromised node that carried a
+subject's session can still attribute input to that subject that the subject never typed, during
+or after the session, because nothing the client sends is signed by the client; the check bounds
+whom a node can implicate, not what it can claim they did. Input that finds the workload not
+reading its stdin is dropped and recorded as dropped, so the writer never stops draining the
+workload's output to wait for it.
+
 ---
 
 ## 7. Redaction happens before persistence

@@ -8,6 +8,7 @@
 
 use crate::advertise::Advertise;
 use crate::data::console::{self, ConsoleRead};
+use crate::data::console_write::{self, ConsoleWrite};
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
@@ -154,7 +155,7 @@ pub struct Agent {
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
-    pub fn start<R: Runtime, H: Host>(
+    pub fn start<R: Runtime + Clone, H: Host>(
         state: &StateDir,
         runtime: R,
         host: H,
@@ -174,13 +175,22 @@ impl Agent {
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let data = identity.clone();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
         let judged = Judged {
             keys: token_ring(&data.keys.token_keys),
             revoked: link.revoked.clone(),
             held: link.held.clone(),
             handlers: options
                 .handlers
-                .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located()))),
+                .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located())))
+                .with(
+                    console_write::ACTION,
+                    Arc::new(ConsoleWrite::new(
+                        runtime.clone(),
+                        runtimes.subscribe(),
+                        journal.clone(),
+                    )),
+                ),
         };
         let data = DataLink::new(data, judged, link.relays.clone());
         let leases = Leases::new(journal.clone());
@@ -194,6 +204,7 @@ impl Agent {
             outbound: link.outbound.clone(),
             events: link.events.subscribe(),
             period: options.period,
+            runtimes,
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),

@@ -9,6 +9,7 @@
 
 mod carry;
 pub mod console;
+pub mod console_write;
 pub mod handler;
 
 use crate::held::HeldSet;

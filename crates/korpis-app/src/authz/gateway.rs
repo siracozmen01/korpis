@@ -57,7 +57,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// The caller's grant chains, through only the grant `via` when it is given, with what each
     /// depends on loaded into `snapshot`.
-    async fn held_chains(
+    pub(crate) async fn held_chains(
         &self,
         caller: &Caller,
         via: Option<Uuid>,

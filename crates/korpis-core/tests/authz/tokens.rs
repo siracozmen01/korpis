@@ -62,6 +62,18 @@ fn a_token_permits_exactly_what_it_states() {
             .unwrap();
     assert_eq!(ok.grant, f.claims.chain[0]);
     assert_eq!((ok.chain.len(), ok.subject.as_str()), (3, "user:alice"));
+    // A Datalog query answers a set; the chain comes back in its order, leaf first, every time.
+    for _ in 0..50 {
+        let again = token::verify(
+            &f.token,
+            &f.keys,
+            CONSOLE,
+            &f.w1,
+            &HashSet::new(),
+            (f.now, Client::Unseen),
+        );
+        assert_eq!(again.unwrap().chain, f.claims.chain, "leaf first, root last");
+    }
 
     assert!(f.verify(&f.token, "workload.exec", &f.w1, f.now).is_err());
     let w2 = f.tree.resource(f.tree.w2).unwrap();

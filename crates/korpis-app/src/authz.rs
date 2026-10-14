@@ -4,6 +4,7 @@
 //! (P6), and the grant use cases of docs/08-identity.md.
 
 mod approve;
+mod attest;
 mod denial;
 pub(crate) mod gateway;
 mod issue;

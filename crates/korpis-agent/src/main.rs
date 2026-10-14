@@ -109,7 +109,7 @@ struct Node {
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
 /// running.
-async fn serve<R: Runtime, H: Host>(
+async fn serve<R: Runtime + Clone, H: Host>(
     state: &StateDir,
     runtime: R,
     host: H,

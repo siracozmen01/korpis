@@ -15,12 +15,17 @@ use crate::ports::{
     Store, StreamWrite as _, Tx, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
+use korpis_core::authz::{Action, Kind, ObjectRef};
 use korpis_core::node::journal::{Body, NodeEffect, Record, admit, valid_action};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::retires;
 use korpis_core::workload::plan::{PlanStatus, StepExecutor};
+use std::time::SystemTime;
 use uuid::Uuid;
+
+/// The action a node reports console input under.
+const CONSOLE_WRITE: &str = "workload.console.write";
 
 fn system(action: &str, outcome: Outcome) -> Effect {
     Effect::new(Principal::System(SystemActor::Reconciler), action, outcome)
@@ -67,6 +72,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Applies one record; the effect that records it.
     async fn apply(&self, tx: &mut S::Tx, node: Uuid, r: &Record) -> Result<Effect, AppError> {
         Ok(match &r.body {
+            Body::Effect(e) if e.action == CONSOLE_WRITE => {
+                let at = r.occurred_at.unwrap_or_else(|| self.clock.now());
+                self.console_input(node, e, at).await?
+            }
             Body::Effect(e) => self.node_effect(tx, node, e).await?,
             Body::LeaseReleased { workload, epoch } => {
                 let released = tx.release_lease(*workload, node, *epoch, self.clock.now()).await?;
@@ -117,6 +126,36 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Body::Metering => system("journal.unsupported", Outcome::Skipped)
                 .after(details([("kind", "metering".into())])),
         })
+    }
+
+    /// Console input the node carried, recorded as the act of the subject it names, if that
+    /// subject could have given it (§6 of docs/14-streams.md): the node held the workload's
+    /// lease, and the grant named is the subject's and permitted the input when it happened.
+    async fn console_input(
+        &self,
+        node: Uuid,
+        n: &NodeEffect,
+        at: SystemTime,
+    ) -> Result<Effect, AppError> {
+        let (Some(w), Some(actor), Some(grant)) = (n.workload, &n.actor, n.grant) else {
+            let why = "console input names its workload, who sent it, and their grant";
+            return Ok(rejected(why, &n.action));
+        };
+        if !self.store.ever_leased(w, node).await? {
+            return Ok(rejected("the node never held the workload's lease", &n.action));
+        }
+        let action = Action::parse(CONSOLE_WRITE).map_err(|e| AppError::Internal(e.to_string()))?;
+        let on = (ObjectRef::new(Kind::Workload, w), grant);
+        if !self.attest(actor, &action, on, at).await? {
+            let why = "the grant named did not permit its subject console input then";
+            return Ok(rejected(why, &n.action));
+        }
+        let mut e = Effect::new(actor.clone(), &n.action, n.outcome);
+        e.workload = Some(w);
+        e.grant = Some(grant);
+        e.after.clone_from(&n.after);
+        e.error.clone_from(&n.error);
+        Ok(e)
     }
 
     /// An effect the node reports, checked against what the node was told.

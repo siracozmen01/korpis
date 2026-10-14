@@ -160,9 +160,11 @@ pub fn mint(key: &SigningKey, claims: &Claims) -> Result<String, TokenError> {
     params.insert("exp".into(), date(&claims.expires_at));
     code.push_str("subject({subject});\nscope({kind}, {id});\nexpires({exp});\n");
     code.push_str("check if time($t), $t < {exp};\n");
+    // Each link once as a member, which revocation asks about, and once with its place, leaf
+    // at 0, because a Datalog query answers a set and the chain is an order.
     for (i, grant) in claims.chain.iter().enumerate() {
         let name = format!("g{i}");
-        let _ = writeln!(code, "grant({{{name}}});");
+        let _ = writeln!(code, "grant({{{name}}});\nlink({i}, {{{name}}});");
         params.insert(name, string(&grant.to_string()));
     }
     for (i, action) in claims.actions.iter().enumerate() {
@@ -262,8 +264,7 @@ pub fn verify<S: BuildHasher>(
             ));
         }
     }
-    let chain: Vec<(String,)> = authorizer.query("chain($g) <- grant($g)")?;
-    let chain: Vec<Uuid> = chain.into_iter().filter_map(|(g,)| Uuid::parse_str(&g).ok()).collect();
+    let chain = chain_of(&mut authorizer)?;
     if let Some(r) = chain.iter().find(|g| revoked.contains(g)) {
         return Err(TokenError::Revoked(*r));
     }
@@ -279,6 +280,20 @@ pub fn verify<S: BuildHasher>(
         .min()
         .ok_or_else(|| TokenError::Invalid("the token states no expiry".into()))?;
     Ok(Verified { subject, grant: leaf, chain, expires_at })
+}
+
+/// The chain a token states, leaf first: each link once as a member and once with its place,
+/// because a Datalog query answers a set and the chain is an order.
+fn chain_of(authorizer: &mut biscuit_auth::Authorizer) -> Result<Vec<Uuid>, TokenError> {
+    let mut links: Vec<(i64, String)> = authorizer.query("chain($i, $g) <- link($i, $g)")?;
+    links.sort_unstable_by_key(|(i, _)| *i);
+    let chain: Vec<Uuid> =
+        links.into_iter().filter_map(|(_, g)| Uuid::parse_str(&g).ok()).collect();
+    let members: Vec<(String,)> = authorizer.query("member($g) <- grant($g)")?;
+    if members.len() != chain.len() {
+        return Err(TokenError::Invalid("the token's chain and its links disagree".into()));
+    }
+    Ok(chain)
 }
 
 /// Refuses a client outside the token's networks; a token naming none allows any.

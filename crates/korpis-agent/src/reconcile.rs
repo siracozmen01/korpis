@@ -85,6 +85,8 @@ pub struct Wiring {
     /// The workloads' identity sockets (§9.5 of docs/08-identity.md); none where the node
     /// gives its workloads no identity, as in tests of other things.
     pub identity: Option<Arc<IdentitySockets>>,
+    /// Where it says which runtime object each workload runs as, for the console's input.
+    pub runtimes: watch::Sender<BTreeMap<String, String>>,
 }
 
 /// The reconciler.
@@ -269,5 +271,22 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.tail(&held).await;
+        self.publish_runtimes();
+    }
+
+    /// Says which runtime object each workload runs as, when that changed.
+    fn publish_runtimes(&self) {
+        let now: BTreeMap<String, String> = self
+            .tracked
+            .iter()
+            .filter_map(|(w, t)| t.runtime.clone().map(|r| (w.clone(), r)))
+            .collect();
+        self.wiring.runtimes.send_if_modified(|held| {
+            let changed = *held != now;
+            if changed {
+                held.clone_from(&now);
+            }
+            changed
+        });
     }
 }

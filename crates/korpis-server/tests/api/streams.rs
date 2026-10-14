@@ -54,7 +54,7 @@ async fn up(s: &mut Stream, message: Up) {
 }
 
 /// Takes `workload`'s lease and gives it back, as a node that ran it and was then retired.
-async fn held_and_released(s: &mut Stream, workload: &str) {
+pub(crate) async fn held_and_released(s: &mut Stream, workload: &str) {
     let request = agent::LeaseRequest {
         workload: workload.to_owned(),
         nonce: vec![7; 8],

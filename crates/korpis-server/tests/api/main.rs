@@ -18,6 +18,7 @@ mod authz;
 mod backup_target;
 mod cancel;
 mod classify;
+mod console;
 mod denials;
 mod dns;
 mod effects;

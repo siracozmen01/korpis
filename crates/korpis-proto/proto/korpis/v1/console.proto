@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Reading a workload's console stream over the data path (§2 and §8 of docs/14-streams.md): a
-// session of the action `workload.console.read`, opened at a relay (relay.proto) and served by
-// the node that holds the workload. The session's params are a ConsoleRead; every data frame the
-// node sends is one ConsoleChunk. Records are identified by offset, so a reader that reconnects
-// asks for the offset it was told to read from next and misses nothing and repeats nothing.
+// Reading and writing a workload's console over the data path (§2, §6, and §8 of
+// docs/14-streams.md), each a session opened at a relay (relay.proto) and served by the node that
+// holds the workload. A `workload.console.read` session's params are a ConsoleRead, and every
+// data frame the node sends is one ConsoleChunk. Records are identified by offset, so a reader
+// that reconnects asks for the offset it was told to read from next and misses nothing and
+// repeats nothing. A `workload.console.write` session takes no params, and every data frame the
+// client sends is one ConsoleInput. Reading and writing are separate actions, so watching and
+// typing are delegated separately.
 
 syntax = "proto3";
 
@@ -89,4 +92,21 @@ message StreamGap {
   uint64 millis = 3;
   // Why, for a person: "write rate exceeded the stream's limit", for example.
   string reason = 4;
+}
+
+// What a writer sends: every data frame of a `workload.console.write` session is one (§6 of
+// docs/14-streams.md). The node sends nothing back but the session's end, whose reason says why
+// an input was refused.
+message ConsoleInput {
+  oneof input {
+    // Bytes for the workload's stdin, as typed.
+    bytes data = 1;
+    // The writer's terminal changed size.
+    TerminalSize resize = 2;
+  }
+}
+
+message TerminalSize {
+  uint32 cols = 1;
+  uint32 rows = 2;
 }

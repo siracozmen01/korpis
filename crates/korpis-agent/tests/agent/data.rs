@@ -82,7 +82,7 @@ pub fn open(token: &str, action: &str, workload: &str, node: &str) -> pb::RelayR
     pb::RelayRequest { message: Some(Request::Open(Box::new(open))), ..Default::default() }
 }
 
-fn data(bytes: &[u8]) -> pb::RelayRequest {
+pub fn data(bytes: &[u8]) -> pb::RelayRequest {
     let frame = pb::SessionFrame { frame: Some(Frame::Data(bytes.to_vec())), ..Default::default() };
     pb::RelayRequest { message: Some(Request::Frame(Box::new(frame))), ..Default::default() }
 }

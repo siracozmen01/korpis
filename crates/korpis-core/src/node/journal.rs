@@ -6,6 +6,7 @@
 //! record it expects.
 
 use crate::audit::Outcome;
+use crate::principal::Principal;
 use crate::workload::stream::{Segment, SegmentEvent, StreamKind};
 use serde_json::{Map, Value};
 use std::time::SystemTime;
@@ -31,6 +32,11 @@ pub struct NodeEffect {
     pub error: Option<Map<String, Value>>,
     /// What it left behind.
     pub after: Option<Map<String, Value>>,
+    /// Who acted, when the node carried an act of a subject's rather than executing a decision:
+    /// console input (§6 of docs/14-streams.md). Believed only as far as `grant` permits it.
+    pub actor: Option<Principal>,
+    /// The grant the actor's session token was minted from, the leaf of its chain.
+    pub grant: Option<Uuid>,
 }
 
 /// What a record holds.
