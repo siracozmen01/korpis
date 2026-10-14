@@ -83,6 +83,11 @@ async fn a_console_is_read_searched_limited_and_followed_through_the_relay() {
     let c = chunk(&mut limited).await;
     assert_eq!((bodies(&c), c.next_offset), (vec!["Player Alex joined".to_owned()], 2));
 
+    let tail = pb::ConsoleRead { last: 2, ..Default::default() };
+    let mut scrollback = opened(&cp.relay(), &session(tail)).await;
+    let c = chunk(&mut scrollback).await;
+    assert_eq!(bodies(&c), ["Player Alex joined", "Saved the game"], "the last two held");
+
     let follow = pb::ConsoleRead { from_offset: 3, follow: true, ..Default::default() };
     let mut live = opened(&cp.relay(), &session(follow)).await;
     let caught = chunk(&mut live).await;

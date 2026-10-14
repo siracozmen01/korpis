@@ -34,6 +34,9 @@ message ConsoleRead {
   // Whether pattern is a regular expression, matched in time linear in the input, rather than a
   // substring.
   bool regex = 6;
+  // Start at the last this many records the node holds, as a console attaching shows its
+  // scrollback; from_offset and since are then ignored.
+  uint64 last = 7;
 }
 
 // A run of records, in offset order, and where to read from next.

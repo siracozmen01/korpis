@@ -17,4 +17,5 @@ pub mod files;
 pub mod resolve;
 pub mod sets;
 pub mod show;
+pub mod terminal;
 pub mod version;

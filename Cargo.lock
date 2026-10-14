@@ -1996,6 +1996,7 @@ dependencies = [
  "korpis-server",
  "korpis-store",
  "korpis-wire",
+ "rustix",
  "rustls",
  "serde",
  "serde-saphyr",

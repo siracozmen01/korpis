@@ -17,7 +17,7 @@ use buffa::Message as _;
 use buffa_types::google::protobuf::Timestamp;
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
-use korpis_stream::read::{Batch, offset_since, read};
+use korpis_stream::read::{Batch, end_offset, offset_since, read};
 use korpis_stream::record::{Gap, Kind, Record};
 use korpis_stream::search::Matcher;
 use std::path::PathBuf;
@@ -191,12 +191,14 @@ async fn serve(dir: Option<PathBuf>, opened: Opened, mut io: Io) -> Result<(), E
         .map_err(|e| ended("invalid", format!("pattern: {e}")))?;
     let dir =
         dir.ok_or_else(|| ended("no_stream", "the workload writes no console stream here"))?;
-    let next = match asked.since.as_option().map(nanos) {
-        Some(since) => {
-            let at = dir.clone();
-            blocking(move || offset_since(&StreamDir::new(&at), since)).await?
+    let at = dir.clone();
+    let next = match (asked.last, asked.since.as_option().map(nanos)) {
+        (last, _) if last > 0 => {
+            blocking(move || end_offset(&StreamDir::new(&at)).map(|e| e.saturating_sub(last)))
+                .await?
         }
-        None => asked.from_offset,
+        (_, Some(since)) => blocking(move || offset_since(&StreamDir::new(&at), since)).await?,
+        _ => asked.from_offset,
     };
     let left = (asked.limit > 0).then_some(asked.limit);
     let mut reader = Reader { dir, matcher, next, left, caught_up: false };

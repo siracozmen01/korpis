@@ -40,6 +40,13 @@ by time cannot express "resume exactly where I stopped". A client reconnecting s
 offset and receives what follows it, the same level-triggered discipline the agent protocol uses
 (§4.1 of `02-architecture.md`).
 
+A text record is the bytes as written, its line end included: `\n`, or `\r\n` from a terminal.
+A line still unfinished when the writer flushes it, a prompt waiting for input, is a record of its
+own with no line end, so a reader reproduces the output exactly and can tell a finished line from
+a prompt. Added 2026-10-14, when the console was built: records first dropped their line ends,
+which made every flushed prompt indistinguishable from a line and a terminal's output impossible
+to render as it was written.
+
 `kind: structured` exists because a workload emitting JSON lines has already done the hard part,
 and flattening that into text to re-parse it downstream is destructive. Structured records survive
 intact and are exported as structured to `15-observability.md`'s consumers.

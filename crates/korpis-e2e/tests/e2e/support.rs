@@ -303,12 +303,74 @@ config:
     )
 }
 
-/// Pushes the thin recipe to a repository no other test uses; returns the repository.
-pub async fn push_sleeper() -> String {
+/// A recipe with an interactive console that answers every line typed into it, as a game
+/// server's console does (§6 of docs/14-streams.md).
+fn answerer() -> String {
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: answerer, version: "{VERSION}", description: answers, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+  entry:
+    command: [/bin/sh, -c, "echo ready; while read line; do echo got $line; done"]
+preset:
+  lifecycle: persistent
+  console: interactive
+  resources:
+    memory: {{min: 64Mi, recommended: 128Mi}}
+    cpu:    {{min: 100m, recommended: 250m}}
+"#
+    )
+}
+
+/// Pushes `document` to a repository no other test uses, named for `name`; the repository.
+async fn push(name: &str, document: String) -> String {
     let registry =
         std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
-    let repo = format!("{registry}/test/sleeper-{}", uuid::Uuid::now_v7().simple());
-    let artifact = Artifact { document: sleeper().into_bytes(), files: Vec::new() };
+    let repo = format!("{registry}/test/{name}-{}", uuid::Uuid::now_v7().simple());
+    let artifact = Artifact { document: document.into_bytes(), files: Vec::new() };
     Registry::new(vec![registry]).push(&repo, VERSION, &artifact).await.unwrap();
     repo
+}
+
+/// Pushes the thin recipe to a repository no other test uses; returns the repository.
+pub async fn push_sleeper() -> String {
+    push("sleeper", sleeper()).await
+}
+
+/// Pushes the interactive recipe to a repository no other test uses; returns the repository.
+pub async fn push_answerer() -> String {
+    push("answerer", answerer()).await
+}
+
+/// The `korpis` binary, built where this test was if it is not already.
+pub fn korpis() -> std::path::PathBuf {
+    let exe = std::env::current_exe().unwrap();
+    let profile_dir = exe.parent().and_then(std::path::Path::parent).unwrap();
+    let target = profile_dir.parent().unwrap();
+    let profile = match profile_dir.file_name().unwrap().to_str().unwrap() {
+        "debug" => "dev",
+        other => other,
+    };
+    let built = std::process::Command::new(env!("CARGO"))
+        .args(["build", "-q", "-p", "korpis-cli", "--bin", "korpis"])
+        .args(["--profile", profile, "--target-dir"])
+        .arg(target)
+        .status()
+        .unwrap();
+    assert!(built.success(), "korpis did not build");
+    profile_dir.join("korpis")
+}
+
+impl ControlPlane {
+    /// What the CLI is told to reach this control plane as whoever `secret` authenticates.
+    pub fn cli_env(&self, secret: &str) -> [(&'static str, String); 3] {
+        [
+            ("KORPIS_SERVER", self.url.clone()),
+            ("KORPIS_CA", self.data.tls().join("ca.pem").to_string_lossy().into_owned()),
+            ("KORPIS_TOKEN", secret.to_owned()),
+        ]
+    }
 }

@@ -13,21 +13,19 @@
 //! twice and nothing is skipped.
 
 use super::json;
+use super::session::{Minted, Session, mint, open, relay, renew};
 use crate::connect::Connection;
 use crate::error::CliError;
 use crate::resolve;
 use buffa::Message as _;
 use clap::Args;
 use korpis_proto::korpis::v1 as pb;
-use korpis_proto::korpis::v1::__buffa::oneof::relay_request::Message as Request;
 use korpis_proto::korpis::v1::__buffa::oneof::relay_response::Message as Reply;
 use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
 use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const ACTION: &str = "workload.console.read";
-/// How long before its token expires a following session renews it.
-const RENEW_BEFORE: Duration = Duration::from_secs(30);
 /// The longest wait between attempts to open a lost session again.
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
@@ -40,8 +38,11 @@ pub struct Logs {
     #[arg(long, short)]
     pub follow: bool,
     /// Start at this offset rather than the oldest record held.
-    #[arg(long, conflicts_with = "since")]
+    #[arg(long, conflicts_with_all = ["since", "tail"])]
     pub from: Option<u64>,
+    /// Start at the last this many records the node holds.
+    #[arg(long, conflicts_with = "since")]
+    pub tail: Option<u64>,
     /// Start at the first record written this long ago or later, e.g. `1h` or `15m`.
     #[arg(long)]
     pub since: Option<String>,
@@ -62,59 +63,8 @@ pub struct Logs {
     pub relay: Option<String>,
 }
 
-type Session = connectrpc::client::BidiStream<
-    <connectrpc::client::HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
-    pb::RelayRequest,
-    pb::__buffa::view::RelayResponseView<'static>,
->;
-
 /// What is printed: a line for a person, and the API's JSON.
 pub type Out<'a> = &'a mut dyn FnMut(String, Value);
-
-/// A token with the route it came with.
-struct Minted {
-    token: String,
-    route: String,
-    expires_at: SystemTime,
-}
-
-async fn mint(c: &Connection, workload: &str) -> Result<Minted, CliError> {
-    let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, workload)
-        .map_err(|e| CliError::Local(e.to_string()))?;
-    let on = korpis_core::authz::ObjectRef::new(korpis_core::authz::Kind::Workload, id.uuid());
-    let request = pb::MintTokenRequest {
-        actions: vec![ACTION.to_owned()],
-        scope: korpis_wire::scope::to_pb(&korpis_core::scope::Scope::Object(on)).into(),
-        ..Default::default()
-    };
-    let minted = pb::GrantServiceClient::new(c.http(), c.config()).mint_token(request).await?;
-    let minted = minted.into_owned();
-    if minted.route.is_empty() {
-        return Err(CliError::Local(format!("{workload} is not placed on a node: no console")));
-    }
-    let at = minted.expires_at.as_option().map_or(0, |t| t.seconds);
-    let expires_at = UNIX_EPOCH + Duration::from_secs(u64::try_from(at).unwrap_or(0));
-    Ok(Minted { token: minted.token, route: minted.route, expires_at })
-}
-
-/// Where sessions are opened: the relay named, the control plane if it serves the role, or the
-/// first relay it names.
-async fn relay(c: &Connection, named: Option<&str>) -> Result<Connection, CliError> {
-    if let Some(url) = named {
-        return c.at(url);
-    }
-    let info = pb::ServerInfoServiceClient::new(c.http(), c.config())
-        .get_server_info(pb::GetServerInfoRequest::default())
-        .await?
-        .into_owned();
-    if info.control_plane_relay {
-        return Ok(c.clone());
-    }
-    let url = info.relays.first().ok_or_else(|| {
-        CliError::Local("no relay serves sessions: the control plane names none".into())
-    })?;
-    c.at(url)
-}
 
 fn params(a: &Logs, from: Option<u64>) -> Result<pb::ConsoleRead, CliError> {
     let since = match (&a.since, from) {
@@ -130,39 +80,14 @@ fn params(a: &Logs, from: Option<u64>) -> Result<pb::ConsoleRead, CliError> {
     Ok(pb::ConsoleRead {
         from_offset: from.or(a.from).unwrap_or(0),
         since: since.into(),
+        // After a reconnection the next offset is known, and the tail is behind it.
+        last: if from.is_some() { 0 } else { a.tail.unwrap_or(0) },
         follow: a.follow,
         limit: a.limit.unwrap_or(0),
         pattern: a.grep.clone().unwrap_or_default(),
         regex: a.regex,
         ..Default::default()
     })
-}
-
-fn request(message: Request) -> pb::RelayRequest {
-    pb::RelayRequest { message: Some(message), ..Default::default() }
-}
-
-/// A session opened at `at` for `workload` with `minted`, asking `read`.
-async fn open(
-    at: &Connection,
-    workload: &str,
-    minted: &Minted,
-    read: &pb::ConsoleRead,
-) -> Result<Session, CliError> {
-    let mut session = pb::RelayServiceClient::new(at.http(), at.config()).open().await?;
-    let open = pb::RelayOpen {
-        token: minted.token.clone(),
-        action: ACTION.to_owned(),
-        workload: workload.to_owned(),
-        route: minted.route.clone(),
-        params: read.encode_to_vec(),
-        ..Default::default()
-    };
-    session.send(request(Request::Open(Box::new(open)))).await?;
-    match session.message::<pb::RelayResponse>().await?.map(|m| m.to_owned_message().message) {
-        Some(Some(Reply::Opened(_))) => Ok(session),
-        _ => Err(CliError::Transport("the relay answered the open with no session".into())),
-    }
 }
 
 /// How one session ended.
@@ -183,7 +108,7 @@ fn line(r: &pb::StreamRecord, timestamps: bool) -> String {
             Duration::from_millis(g.millis).as_secs_f64(),
             g.reason
         ),
-        _ => String::from_utf8_lossy(&r.body).trim_end_matches('\n').to_owned(),
+        _ => String::from_utf8_lossy(&r.body).trim_end_matches(['\n', '\r']).to_owned(),
     };
     if timestamps { format!("{} {body}", crate::show::time(r.time.as_option())) } else { body }
 }
@@ -206,16 +131,10 @@ async fn print(
     out: Out<'_>,
 ) -> Result<Ended, CliError> {
     loop {
-        let renew_at = minted.expires_at.checked_sub(RENEW_BEFORE).unwrap_or(UNIX_EPOCH);
-        let wait = renew_at.duration_since(SystemTime::now()).unwrap_or_default();
         let message = tokio::select! {
             m = session.message::<pb::RelayResponse>() => m,
-            () = tokio::time::sleep(wait), if a.follow => {
-                minted = mint(c, workload).await?;
-                session.send(request(Request::Frame(Box::new(pb::SessionFrame {
-                    frame: Some(Frame::Renew(minted.token.clone())),
-                    ..Default::default()
-                })))).await?;
+            () = tokio::time::sleep(minted.renew_in()), if a.follow => {
+                renew(c, workload, session, &mut minted).await?;
                 continue;
             }
         };
@@ -260,9 +179,9 @@ pub async fn logs(c: &Connection, a: &Logs, out: Out<'_>) -> Result<(), CliError
     let mut next: Option<u64> = None;
     let mut backoff = Duration::from_secs(1);
     loop {
-        let minted = mint(c, &workload).await?;
+        let minted = mint(c, &workload, ACTION).await?;
         let read = params(a, next)?;
-        let lost = match open(&at, &workload, &minted, &read).await {
+        let lost = match open(&at, &workload, &minted, read.encode_to_vec()).await {
             Ok(mut session) => {
                 let ended =
                     print(c, &workload, (&mut session, minted), (a, &mut next), out).await?;

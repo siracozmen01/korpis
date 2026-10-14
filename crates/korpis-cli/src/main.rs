@@ -8,11 +8,11 @@ use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
-use korpis_cli::cmd::logs;
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
 };
+use korpis_cli::cmd::{console, logs};
 use korpis_cli::complete;
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
@@ -105,6 +105,9 @@ enum Command {
     /// A workload's console, read without attaching: from the oldest record its node holds,
     /// an offset, or a time ago; searched; followed as it is written.
     Logs(logs::Logs),
+    /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
+    /// type, your keys; `Ctrl-]` detaches.
+    Console(console::Console),
     /// Prints the script that registers completion with a shell, e.g.
     /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
     /// offers only what the token in the environment can read.
@@ -197,6 +200,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             .await
         }
         Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
+        Command::Console(a) => console::console(&cli.required()?, a).await,
         Command::Logs(a) => {
             let c = cli.required()?;
             let json = cli.json;

@@ -172,7 +172,7 @@ async fn the_agent_runs_a_thin_recipe_through_the_driver_process() {
     let sealed = sealed.await.expect("the writer sealed the console when the task went");
     let records = read(&StreamDir::new(&console), 0, 10).unwrap().records;
     let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
-    assert_eq!(said, ["said hello"], "what the workload printed, in its stream");
+    assert_eq!(said, ["said hello\n"], "what the workload printed, as it printed it");
     assert_eq!(sealed.end_offset, 1);
 }
 

@@ -126,4 +126,5 @@ fn a_time_is_found_as_the_first_record_written_at_or_after_it() {
     assert_eq!(crate::read::offset_since(&d, T0 + SECOND / 2).unwrap(), 1, "at or after");
     assert_eq!(crate::read::offset_since(&d, 0).unwrap(), 0);
     assert_eq!(crate::read::offset_since(&d, T0 + 9 * SECOND).unwrap(), 3, "past the end");
+    assert_eq!(crate::read::end_offset(&d).unwrap(), 3);
 }

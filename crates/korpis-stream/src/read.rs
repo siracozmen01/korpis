@@ -43,6 +43,18 @@ pub fn read(dir: &StreamDir, from: u64, limit: usize) -> io::Result<Batch> {
     Ok(Batch { missing, records, next })
 }
 
+/// One past the last record of the stream in `dir`: where a reader that wants only what comes
+/// next starts.
+pub fn end_offset(dir: &StreamDir) -> io::Result<u64> {
+    let Some(last) = dir.segments()?.pop() else { return Ok(0) };
+    if last.sealed
+        && let Some(info) = segment::sealed_info(&last.path)?
+    {
+        return Ok(info.end_offset);
+    }
+    Ok(segment::scan(&last.path)?.end_offset)
+}
+
 /// The offset of the first record, in offset order, written at or after `since` (nanoseconds
 /// since the Unix epoch, node clock), in the stream in `dir`; one past its last record if none
 /// was. A sealed segment whose last record is older is skipped by its footer alone.

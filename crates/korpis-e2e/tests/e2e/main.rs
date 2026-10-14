@@ -12,6 +12,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod console;
 mod node;
 mod oci;
 mod support;

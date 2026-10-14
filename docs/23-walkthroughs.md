@@ -792,6 +792,15 @@ workload. The relay opens it with that key, carried in its feed beside the token
 moderator learns nothing about the host's machines, not even which of their own servers share one.
 → patched into `02-architecture.md` §3.1, `08-identity.md` §6, and `17-security.md` §8
 
+Building console input asked the algebra question of step 3's other half: when the moderator
+types `stop`, what records that they did, and with what information is it believed? The node
+that carried the session journals it as the moderator's act under the grant their token was
+minted from, and the control plane records it so only if that grant is the moderator's and
+permitted the input when it happened (§6 of `14-streams.md`). After step 5 the effect still names
+them, which is the point: the record is of who typed, under the authority they then held. What
+the check cannot do is stop a compromised node from putting words in the mouth of a moderator
+whose session it carried; it bounds whom a node can implicate, not what it claims.
+
 ---
 
 ## 12. A recipe install fails at step four of six

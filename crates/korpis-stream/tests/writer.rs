@@ -60,9 +60,9 @@ fn the_writer_drains_both_streams_redacts_and_seals_when_the_workload_ends() {
     assert_eq!(
         bodies,
         [
-            "RCON password ████████ (redacted: rcon_password)",
-            "Starting server",
-            "a warning",
+            "RCON password ████████ (redacted: rcon_password)\n",
+            "Starting server\n",
+            "a warning\n",
             "prompt> ",
         ]
     );

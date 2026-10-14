@@ -45,6 +45,7 @@ fn logs_args() -> Logs {
         workload: String::new(),
         follow: false,
         from: None,
+        tail: None,
         since: None,
         grep: None,
         regex: false,
@@ -156,6 +157,6 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     counted(&cp, sql, 1).await;
     let records = read(&StreamDir::new(&console), 0, 10).unwrap().records;
     let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
-    assert_eq!(said, ["said hello"], "what it printed, and nothing else");
+    assert_eq!(said, ["said hello\n"], "what it printed, as it printed it");
     agent.stop().await;
 }

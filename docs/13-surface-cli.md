@@ -360,6 +360,18 @@ nor skips a record. `--json` prints each record as the API's own object. What it
 read a retired workload's stream (question 6 of `14-streams.md`), or anything already pruned from
 the node, which waits for offload.
 
+**`console` as built** (Phase 1): `korpis console mc-survival [--scrollback N] [--read-only]
+[--relay URL]` opens two sessions at a relay: one reading the stream from its last hundred records
+(or `N`) and following it, and, where the token may type, one writing input (§6 of
+`14-streams.md`). Reading and writing are separate actions, so a caller who may only watch is
+attached read-only and told so. On a terminal the command puts it in raw mode, so every key
+reaches the workload as typed, sends the terminal's size and each change of it, and detaches on
+`Ctrl-]`; output is written as the workload wrote it, line ends included. With input from a pipe
+it sends what the pipe holds, closes its input, shows two more seconds of output, and ends, so
+`echo save-all | korpis console mc-survival` is a script's way to type a command. Both sessions
+renew their tokens on the session, and a lost one is opened again, the reader from the offset it
+had reached.
+
 `version` names the exact source revision each binary was built from and where its source is
 published, for the client and for the control plane it is talking to. That is how an unmodified
 distribution meets the AGPL's obligation for conveyed copies without anyone doing anything (§2 of

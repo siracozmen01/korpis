@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bytes from a pipe, cut into records at line ends. A line longer than the stream's largest
-//! record is kept up to that size and the rest of it dropped and counted, so a workload that
-//! prints a 200 MB line costs a gap record rather than the memory to hold it (question 5 of §9 of
-//! docs/14-streams.md). A line still unfinished when the caller flushes, a prompt waiting for
-//! input, is a record of its own.
+//! Bytes from a pipe, cut into records at line ends. A record is the bytes as written, its line
+//! end included (`\n`, or `\r\n` from a terminal), so a reader reproduces the output exactly and
+//! can tell a finished line from a prompt still waiting for input, which the caller flushes as a
+//! record of its own with no line end (§2 of docs/14-streams.md). A line longer than the stream's
+//! largest record is kept up to that size and the rest of it dropped and counted, so a workload
+//! that prints a 200 MB line costs a gap record rather than the memory to hold it (question 5 of
+//! §9).
 
 /// What the splitter yields.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Piece {
-    /// A line, without its line end.
+    /// A line with its line end, or what was flushed of an unfinished one without.
     Line(Vec<u8>),
     /// Bytes of an overlong line that were dropped.
     Dropped(u64),
@@ -25,10 +27,11 @@ pub struct Lines {
 }
 
 impl Lines {
-    /// Lines of at most `max` bytes.
+    /// Records of at most `max` bytes, line end included.
     #[must_use]
     pub fn new(max: usize) -> Self {
-        Self { max: max.max(1), held: Vec::new(), dropping: None }
+        // Room is kept for the longest line end, `\r\n`, so a full-length line keeps its end.
+        Self { max: max.saturating_sub(2).max(1), held: Vec::new(), dropping: None }
     }
 
     /// Takes in `bytes`; the pieces they complete.
@@ -72,9 +75,7 @@ impl Lines {
             return;
         }
         let mut line = std::mem::take(&mut self.held);
-        if line.last() == Some(&b'\r') {
-            line.pop();
-        }
+        line.push(b'\n');
         out.push(Piece::Line(line));
     }
 
@@ -92,20 +93,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lines_are_cut_at_their_ends_and_an_overlong_one_is_counted() {
-        let mut l = Lines::new(8);
+    fn lines_are_cut_at_their_ends_kept_whole_and_an_overlong_one_is_counted() {
+        let mut l = Lines::new(10);
         assert_eq!(l.push(b"hel"), []);
         assert_eq!(
             l.push(b"lo\r\nworld\nthis line is long\nok"),
             [
-                Piece::Line(b"hello".to_vec()),
-                Piece::Line(b"world".to_vec()),
+                Piece::Line(b"hello\r\n".to_vec()),
+                Piece::Line(b"world\n".to_vec()),
                 Piece::Line(b"this lin".to_vec()),
                 Piece::Dropped(9),
             ]
         );
-        assert_eq!(l.flush(), Some(Piece::Line(b"ok".to_vec())), "a prompt is a record");
+        assert_eq!(l.flush(), Some(Piece::Line(b"ok".to_vec())), "a prompt is a record, unended");
         assert_eq!(l.flush(), None);
-        assert_eq!(l.push(b"\n"), [Piece::Line(Vec::new())], "an empty line is a line");
+        assert_eq!(l.push(b"\n"), [Piece::Line(b"\n".to_vec())], "an empty line is a line");
     }
 }
