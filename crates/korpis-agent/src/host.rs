@@ -55,6 +55,21 @@ pub trait Host: Send + Sync + 'static {
     /// idempotent, and shared by every workload that references it.
     fn fetch(&self, reference: &str) -> impl Future<Output = Result<(), HostError>> + Send;
 
+    /// Fetches the artifact `reference` names, a recipe's, with its files; each file's path in
+    /// the artifact and its digest (§2 of docs/09-recipes.md).
+    fn fetch_files(
+        &self,
+        reference: &str,
+    ) -> impl Future<Output = Result<BTreeMap<String, String>, HostError>> + Send;
+
+    /// Fetches what `url` serves, kept only if it hashes to `digest`; idempotent by digest
+    /// (§4 of docs/09-recipes.md).
+    fn fetch_url(
+        &self,
+        url: &str,
+        digest: &str,
+    ) -> impl Future<Output = Result<(), HostError>> + Send;
+
     /// Records the id range `workload` holds on this node, as its assignment names it (§4.5 of
     /// docs/04-runtimes.md); a range that is not one workload's is refused.
     fn ensure_ids(
@@ -94,6 +109,8 @@ pub trait Host: Send + Sync + 'static {
 struct Kept {
     volumes: BTreeMap<String, String>,
     content: BTreeSet<String>,
+    /// Each artifact's files, as a test made them available.
+    files: BTreeMap<String, BTreeMap<String, String>>,
     ids: BTreeMap<String, (u32, u32)>,
     snapshots: BTreeSet<(String, String)>,
     jobs: BTreeMap<String, helper::JobStatusResponse>,
@@ -127,6 +144,11 @@ impl InMemoryHost {
     #[must_use]
     pub fn content(&self) -> BTreeSet<String> {
         self.with(|k| k.content.clone()).unwrap_or_default()
+    }
+
+    /// Makes the artifact `reference` available with `files`, by path and digest.
+    pub fn offer_files(&self, reference: &str, files: BTreeMap<String, String>) {
+        let _ = self.with(|k| k.files.insert(reference.to_owned(), files));
     }
 
     /// The snapshots, by volume and snapshot.
@@ -193,6 +215,27 @@ impl Host for InMemoryHost {
     fn fetch(&self, reference: &str) -> impl Future<Output = Result<(), HostError>> + Send {
         ready(self.with(|k| {
             k.content.insert(reference.to_owned());
+        }))
+    }
+
+    fn fetch_files(
+        &self,
+        reference: &str,
+    ) -> impl Future<Output = Result<BTreeMap<String, String>, HostError>> + Send {
+        let found = self.with(|k| {
+            k.content.insert(reference.to_owned());
+            k.files.get(reference).cloned().unwrap_or_default()
+        });
+        ready(found)
+    }
+
+    fn fetch_url(
+        &self,
+        _url: &str,
+        digest: &str,
+    ) -> impl Future<Output = Result<(), HostError>> + Send {
+        ready(self.with(|k| {
+            k.content.insert(digest.to_owned());
         }))
     }
 

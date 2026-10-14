@@ -865,6 +865,18 @@ ContentStore
 - **Prefetched on a scheduler hint** (`ContentHint`, §4.2 of `02-architecture.md`), so placing a
   workload on a node that lacks its image is a scheduling cost, not a startup delay.
 
+**Install content, as built, 2026-10-14** (`crates/korpis-agent/src/content/url.rs`). The store
+keeps two more things beside images, both by digest. A recipe's files: the node fetches the
+recipe's artifact by digest and keeps every layer, and an install finds each file by the path its
+title gives (§2 of `09-recipes.md`). And what an install's `fetch` names: the store downloads the
+URL once per node, hashing as it writes, keeps it under `sha256` or `sha512` as the recipe declared
+only if the hash matches, and deletes it unkept otherwise, so a second workload installing the
+same file fetches nothing. The hash is what is trusted, so `http` is allowed; redirects are
+followed at most ten times, no proxy is taken from the environment, and a fetch that sends more
+than 256 GiB is stopped. What it costs: a hostile URL can still make a node download up to that
+bound before the hash refuses it, and a URL that disappears before a node fetches it fails the
+install on that node, which is what a fat recipe (§2 of `09-recipes.md`) is for.
+
 The content store and the backup repository both use content addressing and are deliberately
 **separate systems**. Different trust models (one holds operator-supplied public artifacts, the
 other tenant-private encrypted data) different lifetimes, and different failure consequences.

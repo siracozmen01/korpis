@@ -85,3 +85,96 @@ async fn an_image_is_fetched_by_digest_for_this_machine_and_kept_by_digest() {
     let by_tag = format!("{}/{repo}:latest", registry());
     assert!(matches!(store.fetch(&by_tag).await, Err(FetchError::Reference(_))));
 }
+
+/// Serves `body` to every request for `/file` on loopback, and 404 otherwise; the URL, and how
+/// many requests were answered.
+async fn serving(body: &'static [u8]) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use std::sync::atomic::Ordering;
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let at = listener.local_addr().unwrap();
+    let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counting = std::sync::Arc::clone(&count);
+    tokio::spawn(async move {
+        while let Ok((mut s, _)) = listener.accept().await {
+            counting.fetch_add(1, Ordering::SeqCst);
+            let mut request = [0u8; 2048];
+            let n = s.read(&mut request).await.unwrap_or(0);
+            let found = String::from_utf8_lossy(&request[..n]).starts_with("GET /file ");
+            let head = if found {
+                format!(
+                    "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                    body.len()
+                )
+            } else {
+                "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                    .to_owned()
+            };
+            let _ = s.write_all(head.as_bytes()).await;
+            if found {
+                let _ = s.write_all(body).await;
+            }
+        }
+    });
+    (format!("http://{at}/file"), count)
+}
+
+fn sha(bytes: &[u8], wide: bool) -> String {
+    use sha2::Digest as _;
+    let hex = |b: &[u8]| {
+        b.iter().fold(String::new(), |mut s, x| {
+            let _ = std::fmt::Write::write_fmt(&mut s, format_args!("{x:02x}"));
+            s
+        })
+    };
+    if wide {
+        format!("sha512:{}", hex(&sha2::Sha512::digest(bytes)))
+    } else {
+        format!("sha256:{}", hex(&sha2::Sha256::digest(bytes)))
+    }
+}
+
+#[tokio::test]
+async fn a_fetch_is_kept_only_when_it_hashes_to_what_was_declared_and_fetched_once() {
+    use std::sync::atomic::Ordering;
+    const BODY: &[u8] = b"a server jar, as it were";
+    let (url, count) = serving(BODY).await;
+    let dir = tempfile::tempdir().unwrap();
+    let store = ContentStore::open(&dir.path().join("content"), Vec::new()).unwrap();
+
+    let wrong = sha(b"something else", false);
+    let e = store.fetch_url(&url, &wrong).await.unwrap_err();
+    assert!(matches!(e, FetchError::Mismatch(_)), "{e:?}");
+    assert!(!store.file_of(&wrong).unwrap().exists(), "nothing kept under the declared hash");
+    let leftovers = std::fs::read_dir(dir.path().join("content/ingest")).unwrap().count();
+    assert_eq!(leftovers, 0, "and nothing left half-kept");
+
+    for wide in [false, true] {
+        let digest = sha(BODY, wide);
+        let path = store.fetch_url(&url, &digest).await.unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), BODY);
+        let before = count.load(Ordering::SeqCst);
+        assert_eq!(store.fetch_url(&url, &digest).await.unwrap(), path);
+        assert_eq!(count.load(Ordering::SeqCst), before, "held: not fetched again");
+    }
+    let missing = url.replace("/file", "/gone");
+    assert!(store.fetch_url(&missing, &sha(b"x", false)).await.is_err(), "a 404 is a failure");
+    let e = store.fetch_url("ftp://example.org/x", &sha(b"x", false)).await.unwrap_err();
+    assert!(matches!(e, FetchError::Reference(_)), "only http and https: {e:?}");
+    assert!(store.file_of("sha256:NOTHEX").is_err());
+}
+
+#[tokio::test]
+async fn a_recipe_s_files_are_fetched_with_their_paths_and_kept_by_digest() {
+    let repo = crate::support::push_paper().await;
+    let registry = registry();
+    let tags = korpis_recipe::registry::Registry::new(vec![registry.clone()]);
+    let digest = tags.resolve(&repo, "1.21.4").await.unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let store = ContentStore::open(&dir.path().join("content"), vec![registry]).unwrap();
+    let files = store.fetch_files(&format!("{repo}@{digest}")).await.unwrap();
+    let paths: Vec<&str> = files.keys().map(String::as_str).collect();
+    assert_eq!(paths, ["layers/rootfs.tar.zst", "templates/server.properties"]);
+    let template = &files["templates/server.properties"];
+    assert_eq!(std::fs::read(store.path_of(template).unwrap()).unwrap(), b"motd={{motd}}\n");
+}

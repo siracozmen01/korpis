@@ -49,6 +49,21 @@ pub struct Descriptor {
     /// For an index entry, the platform it is for.
     #[serde(default)]
     pub platform: Option<Platform>,
+    /// Its annotations; a recipe's file layer is named by its title (§2 of
+    /// docs/09-recipes.md).
+    #[serde(default)]
+    pub annotations: std::collections::BTreeMap<String, String>,
+}
+
+/// The annotation a layer's path inside an artifact is given by.
+pub const TITLE: &str = "org.opencontainers.image.title";
+
+impl Descriptor {
+    /// The layer's title: a recipe file's path inside the artifact.
+    #[must_use]
+    pub fn title(&self) -> Option<&str> {
+        self.annotations.get(TITLE).map(String::as_str)
+    }
 }
 
 /// A platform, as an index names it.

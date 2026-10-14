@@ -34,6 +34,8 @@ korpis-backup = { path = "../korpis-backup" }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
+# An install's `fetch`, by URL and hash, into the content store (§4 of docs/09-recipes.md).
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2"] }
 # inotify on a stream's directory, which wakes a console's followers (data/wake.rs).
 rustix = { version = "1", features = ["fs"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }

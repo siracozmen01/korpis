@@ -2130,6 +2130,7 @@ dependencies = [
  "korpis-tls",
  "korpis-wire",
  "oci-client",
+ "reqwest",
  "rustix",
  "rustls",
  "sha2 0.10.9",

@@ -80,11 +80,15 @@ impl AsyncWrite for Capped {
     }
 }
 
+mod url;
+
 /// The content store.
 pub struct ContentStore {
     root: PathBuf,
     client: Client,
     auth: RegistryAuth,
+    /// For an install's `fetch` (§4 of docs/09-recipes.md).
+    http: reqwest::Client,
 }
 
 impl std::fmt::Debug for ContentStore {
@@ -108,6 +112,7 @@ impl ContentStore {
     /// `plain_http`, which are development registries on loopback.
     pub fn open(root: &Path, plain_http: Vec<String>) -> std::io::Result<Self> {
         std::fs::create_dir_all(root.join("blobs/sha256"))?;
+        std::fs::create_dir_all(root.join("blobs/sha512"))?;
         std::fs::create_dir_all(root.join("ingest"))?;
         let _ = rustls::crypto::ring::default_provider().install_default();
         let protocol = if plain_http.is_empty() {
@@ -116,7 +121,8 @@ impl ContentStore {
             ClientProtocol::HttpsExcept(plain_http)
         };
         let client = Client::new(ClientConfig { protocol, ..ClientConfig::default() });
-        Ok(Self { root: root.to_owned(), client, auth: RegistryAuth::Anonymous })
+        let http = url::client().map_err(std::io::Error::other)?;
+        Ok(Self { root: root.to_owned(), client, auth: RegistryAuth::Anonymous, http })
     }
 
     /// Where the blob `digest` is, or would be.
@@ -130,6 +136,31 @@ impl ContentStore {
             .ok()
             .and_then(|p| std::fs::metadata(p).ok())
             .is_some_and(|m| m.len() == d.size)
+    }
+
+    /// Fetches the artifact `reference` names (`name@sha256:...`), a recipe's (§2 of
+    /// docs/09-recipes.md), with every layer; each titled layer's title and digest, which is how
+    /// an install finds a recipe's files.
+    pub async fn fetch_files(
+        &self,
+        reference: &str,
+    ) -> Result<std::collections::BTreeMap<String, String>, FetchError> {
+        let r: Reference =
+            reference.parse().map_err(|e| FetchError::Reference(format!("{reference:?}: {e}")))?;
+        let Some(digest) = r.digest().map(str::to_owned) else {
+            return Err(FetchError::Reference(format!("{reference:?} names no digest")));
+        };
+        let Document::Image { layers, .. } = self.manifest(&r, &digest).await? else {
+            return Err(ContentError::Format("an artifact is an image manifest".into()).into());
+        };
+        let mut files = std::collections::BTreeMap::new();
+        for d in &layers {
+            self.blob(&r, d).await?;
+            if let Some(title) = d.title() {
+                files.insert(title.to_owned(), d.digest.clone());
+            }
+        }
+        Ok(files)
     }
 
     /// Fetches the image `reference` names (`name@sha256:...`) with every blob it needs for this

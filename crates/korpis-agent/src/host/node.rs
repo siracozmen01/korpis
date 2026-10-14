@@ -48,6 +48,26 @@ impl Host for NodeHost {
             .map_err(|e| HostError(format!("fetching {reference}: {e}")))
     }
 
+    async fn fetch_files(
+        &self,
+        reference: &str,
+    ) -> Result<std::collections::BTreeMap<String, String>, HostError> {
+        let content = Arc::clone(&self.content);
+        content
+            .fetch_files(reference)
+            .await
+            .map_err(|e| HostError(format!("fetching {reference}: {e}")))
+    }
+
+    async fn fetch_url(&self, url: &str, digest: &str) -> Result<(), HostError> {
+        let content = Arc::clone(&self.content);
+        content
+            .fetch_url(url, digest)
+            .await
+            .map(|_| ())
+            .map_err(|e| HostError(format!("fetching {url}: {e}")))
+    }
+
     fn ensure_ids(
         &self,
         workload: &str,
