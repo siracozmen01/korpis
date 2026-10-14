@@ -190,12 +190,17 @@ lost, a relay verifies by the last of each it received, which bounds a revocatio
 token lifetime, the same bound §4.6 states for the agent; before the first terms arrive it admits
 no node at all. A client finds where to open a session in `ServerInfo`, which lists the relays
 as the replica last named them to nodes and says whether the control plane serves the role too;
-any relay listed reaches every connected node, since each node attaches to all of them. What
-Phase 1 still owes (§4 of `20-roadmap.md`): the PROXY protocol is not accepted, so a relay behind
-a load balancer sees the balancer's address as the client's. A relay renews its own certificate
-(§3 of `18-operations.md`), and `ListRelays` says whether each is connected: the replica feeding
-a relay records it at most every thirty seconds, and a relay whose feed was served within ninety
-is connected.
+any relay listed reaches every connected node, since each node attaches to all of them. A relay
+renews its own certificate (§3 of `18-operations.md`), and `ListRelays` says whether each is
+connected: the replica feeding a relay records it at most every thirty seconds, and a relay whose
+feed was served within ninety is connected. Behind a load balancer, `--proxy-protocol-from` names
+the balancer's addresses: a connection from one of them must open with a PROXY header (version 1
+or 2) within ten seconds, and the client it names is the address `source_cidr` is judged by; a
+connection from one of them without a header is closed, and a connection from anywhere else is
+its own client, whatever it sends. The control plane takes the same flag, for the gateway's
+`source_cidr` on API calls and for its own relay role. What the header cannot do: it is believed
+because the balancer is, so a balancer that forwards a header its own client wrote hands that
+client any address it likes; configure the balancer to write the header itself.
 
 **What a relay can see, stated plainly.** TLS terminates at the relay, so it sees the plaintext of
 the sessions it carries: console output, keystrokes, and file contents in transit. A relay is

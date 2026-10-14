@@ -62,8 +62,18 @@ pub(crate) async fn joined(
 /// `a`'s data connection to the relay at `url`, once the relay's feed has sent `a`'s key, and the
 /// nonce it was admitted with.
 pub(crate) async fn admitted(h: &Harness, a: &TestAgent, url: &str) -> (Attachment, u8) {
+    admitted_at(h, a, url, url).await
+}
+
+/// As [`admitted`], dialling `dial` for the relay whose URL is `url`.
+pub(crate) async fn admitted_at(
+    h: &Harness,
+    a: &TestAgent,
+    url: &str,
+    dial: &str,
+) -> (Attachment, u8) {
     for nonce in 10..100u8 {
-        let config = ClientConfig::new(url.parse().unwrap());
+        let config = ClientConfig::new(dial.parse().unwrap());
         match attach(h, config, a.data_hello(url, &[nonce; 16])).await {
             Ok(stream) => return (stream, nonce),
             Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
@@ -91,7 +101,7 @@ async fn a_relay_of_its_own_admits_nodes_by_its_feed_and_carries_their_sessions(
     let h = Harness::new().await;
     let (_dir, relay_dir, url, listener) = joined(&h).await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
-    let running = run(relay_dir, listener).await.unwrap();
+    let running = run(relay_dir, listener, Vec::new()).await.unwrap();
     let at_relay = || ClientConfig::new(url.parse().unwrap());
 
     let (mut session, _) =

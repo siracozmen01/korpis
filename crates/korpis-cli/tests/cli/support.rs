@@ -86,6 +86,7 @@ impl ControlPlane {
             denial_window: Duration::from_secs(60),
             event_retention: Duration::from_secs(30 * 86_400),
             relay_role: true,
+            proxy_protocol_from: Vec::new(),
         })
         .await
         .expect("serve");

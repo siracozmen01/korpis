@@ -17,6 +17,11 @@ ed25519-dalek = "2.2"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 getrandom = "0.4"
 http = "1"
+# The accept loop that reads a PROXY header before TLS (src/accept.rs): connectrpc's own server
+# cannot, so the connection is served by the same hyper it uses.
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
+ipnet = "2"
 korpis-app = { workspace = true }
 korpis-core = { workspace = true, features = ["authz", "identity"] }
 korpis-proto = { workspace = true, features = ["client", "services"] }
@@ -32,6 +37,8 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+tower-service = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { workspace = true }

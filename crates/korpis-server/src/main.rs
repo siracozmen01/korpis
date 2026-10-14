@@ -92,6 +92,10 @@ struct ServeArgs {
     /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
     #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
     relay_role: bool,
+    /// A load balancer whose connections open with a PROXY header (version 1 or 2) naming the
+    /// client, as a CIDR; repeatable. Connections from anywhere else are their own client.
+    #[arg(long = "proxy-protocol-from", env = "KORPIS_PROXY_PROTOCOL_FROM", value_delimiter = ',')]
+    proxy_protocol_from: Vec<ipnet::IpNet>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -120,6 +124,14 @@ enum RelayCommand {
         /// Where to listen; by default every IPv4 address, on the port of the relay's URL.
         #[arg(long, env = "KORPIS_LISTEN")]
         listen: Option<SocketAddr>,
+        /// A load balancer whose connections open with a PROXY header (version 1 or 2) naming
+        /// the client, as a CIDR; repeatable. Connections from anywhere else are their own client.
+        #[arg(
+            long = "proxy-protocol-from",
+            env = "KORPIS_PROXY_PROTOCOL_FROM",
+            value_delimiter = ','
+        )]
+        proxy_protocol_from: Vec<ipnet::IpNet>,
     },
 }
 
@@ -168,8 +180,8 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!(relay = %id, "joined");
             Ok(())
         }
-        Command::Relay { command: RelayCommand::Run { dir, listen } } => {
-            relay_run(dir, listen).await
+        Command::Relay { command: RelayCommand::Run { dir, listen, proxy_protocol_from } } => {
+            relay_run(dir, listen, proxy_protocol_from).await
         }
     }
 }
@@ -179,11 +191,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 async fn relay_run(
     dir: PathBuf,
     listen: Option<SocketAddr>,
+    proxies: Vec<ipnet::IpNet>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = korpis_server::standalone::RelayDir::new(dir);
     let listen = listen.map_or_else(|| default_listen(&dir), Ok)?;
     let listener = tokio::net::TcpListener::bind(listen).await?;
-    let running = korpis_server::standalone::run(dir, listener).await?;
+    let running = korpis_server::standalone::run(dir, listener, proxies).await?;
     tokio::select! {
         r = running.task => r??,
         _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
@@ -211,6 +224,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
         event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
         relay_role: args.relay_role,
+        proxy_protocol_from: args.proxy_protocol_from,
     })
     .await?;
     tokio::select! {

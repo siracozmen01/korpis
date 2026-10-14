@@ -37,6 +37,7 @@ mod plans;
 mod provider_breaker;
 mod provider_calls;
 mod providers;
+mod proxy;
 mod quota;
 mod reads;
 mod recipes;

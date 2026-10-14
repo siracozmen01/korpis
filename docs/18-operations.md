@@ -248,7 +248,10 @@ by `system:authority`). `ListRelays` shows each relay with its certificate's exp
 `RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
 holds stays valid until it expires, since the installation does not revoke certificates. A joined
 relay runs with `korpis-server relay run`, listening by default on every IPv4 address at its URL's
-port (`--listen` overrides it), and stops on its own once the control plane refuses its feed. Where
+port (`--listen` overrides it), and stops on its own once the control plane refuses its feed.
+Behind a load balancer, both `relay run` and `serve` take `--proxy-protocol-from` with the
+balancer's addresses, which must then write a PROXY header on every connection (§3.1 of
+`02-architecture.md`). Where
 relays carry the sessions, `korpis-server serve --relay-role false` takes the role off the
 control plane, so nodes attach to the relays alone.
 

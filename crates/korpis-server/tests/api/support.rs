@@ -110,6 +110,7 @@ impl Harness {
             denial_window: std::time::Duration::from_secs(1),
             event_retention: std::time::Duration::from_secs(30 * 86_400),
             relay_role: true,
+            proxy_protocol_from: Vec::new(),
         })
         .await
         .expect("serve");

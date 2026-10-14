@@ -43,7 +43,7 @@ impl ControlPlane {
         let dir = tempfile::tempdir().unwrap();
         let relay_dir = RelayDir::new(dir.path().join("relay"));
         join(&relay_dir, &self.url, &created.token, &created.ca_fingerprint).await.unwrap();
-        let running = run(relay_dir, listener).await.unwrap();
+        let running = run(relay_dir, listener, Vec::new()).await.unwrap();
         Relay { url, running, _dir: dir }
     }
 

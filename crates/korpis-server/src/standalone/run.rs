@@ -12,7 +12,6 @@ use super::renew::keep_renewed;
 use super::served::{Served, load};
 use crate::api::RelayRole;
 use connectrpc::Router;
-use connectrpc::server::Server;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -55,8 +54,13 @@ pub fn url(dir: &RelayDir) -> Result<String, RunError> {
     Ok(std::fs::read_to_string(dir.file("url"))?.trim().to_owned())
 }
 
-/// Runs the relay kept in `dir` on `listener`. Returns once it is serving.
-pub async fn run(dir: RelayDir, listener: TcpListener) -> Result<RunningRelay, RunError> {
+/// Runs the relay kept in `dir` on `listener`, reading a PROXY header from connections whose peer
+/// is in `proxies`. Returns once it is serving.
+pub async fn run(
+    dir: RelayDir,
+    listener: TcpListener,
+    proxies: Vec<ipnet::IpNet>,
+) -> Result<RunningRelay, RunError> {
     let Some(relay) = dir.joined()? else { return Err(RunError::NotJoined) };
     let served = Arc::new(Served::new(load(&dir.tls_files(dir.tls_generation()?))?));
     let resolver: Arc<dyn rustls::server::ResolvesServerCert> = served.clone();
@@ -64,12 +68,13 @@ pub async fn run(dir: RelayDir, listener: TcpListener) -> Result<RunningRelay, R
     let fed = Arc::new(Fed::new(url(&dir)?));
     let addr = listener.local_addr()?;
     let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
-    let bound = Server::from_listener(listener).with_tls(tls);
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
     let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
     let task = tokio::spawn(async move {
         let ended = tokio::select! {
-            served = bound.serve(router) => served.map_err(|e| RunError::Serve(e.to_string())),
+            served = crate::accept::serve_on(listener, tls, router, proxies.into()) => {
+                served.map_err(RunError::Serve)
+            }
             refused = following => match refused {
                 Ok(e) => Err(RunError::Follow(e)),
                 Err(e) => Err(RunError::Serve(e.to_string())),

@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+pub mod accept;
 pub mod api;
 pub mod authority;
 pub mod bodies;
@@ -23,7 +24,6 @@ pub mod standalone;
 pub mod tls;
 
 use api::Api;
-use connectrpc::Server;
 use korpis_app::App;
 use korpis_app::node::SessionTerms;
 use korpis_app::ports::SystemClock;
@@ -66,6 +66,9 @@ pub struct ServeConfig {
     /// Whether this process serves the relay role (§3.1 of docs/02-architecture.md); off where
     /// relays run as their own processes and the control plane should carry no sessions.
     pub relay_role: bool,
+    /// The load balancers whose connections open with a PROXY header naming the client (§3.1 of
+    /// docs/02-architecture.md); none reads no header from anyone.
+    pub proxy_protocol_from: Vec<ipnet::IpNet>,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -148,9 +151,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
     let tls = tls::server_config(&config.data)?;
-    let bound = Server::bind(config.listen).await.map_err(|e| ServeError::Serve(e.to_string()))?;
-    let addr = bound.local_addr()?;
-    let bound = bound.with_tls(tls);
+    let listener = tokio::net::TcpListener::bind(config.listen).await?;
+    let addr = listener.local_addr()?;
     let api = Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?);
     let api = Arc::new(api.with_relay_role(config.relay_role));
     let token_keys = {
@@ -161,8 +163,9 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     api.relay().trust(relay::token_ring(names));
     background(&api, &config);
     let router = Arc::clone(&api).router();
+    let proxies: Arc<[ipnet::IpNet]> = config.proxy_protocol_from.clone().into();
     let task = tokio::spawn(async move {
-        bound.serve(router).await.map_err(|e| ServeError::Serve(e.to_string()))
+        accept::serve_on(listener, tls, router, proxies).await.map_err(ServeError::Serve)
     });
     tracing::info!(%addr, "serving");
     Ok(Running { addr, task, api })
