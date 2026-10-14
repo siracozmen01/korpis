@@ -81,6 +81,7 @@ mod tests {
             scope: ObjectRef::new(Kind::Workload, Uuid::now_v7()),
             expires_at: now + Duration::from_secs(120),
             source_cidr: Vec::new(),
+            stream_range: None,
         };
         let token = mint(&key, &claims).unwrap();
         let read = renewed(&token, &ring, now).unwrap();

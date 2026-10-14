@@ -70,6 +70,9 @@ pub struct Permit {
     /// The leaf's `source_cidr`, which attenuation keeps within every ancestor's (§3.2), so a
     /// token minted from this chain carries it for the relay to check (§6.2).
     pub source_cidr: Vec<ipnet::IpNet>,
+    /// The leaf's stream range, which attenuation keeps within every ancestor's: whatever reads
+    /// the stream under this permit reads only that range (§8 of docs/14-streams.md).
+    pub stream_range: Option<super::grant::StreamRange>,
 }
 
 /// Why a request was refused. The caller is told which action was missing, never which grant
@@ -200,6 +203,7 @@ fn permits(
         chain: chain.iter().map(|g| g.id).collect(),
         redeem: leaf.conditions.max_uses.is_some() && !request.renewal,
         source_cidr: leaf.conditions.source_cidr.clone(),
+        stream_range: leaf.conditions.stream_range,
     };
     // A propose-only grant proposes changes; reading under it is not a change (§3.6).
     Ok(match &leaf.conditions.requires_approval_by {

@@ -97,6 +97,16 @@ message Conditions {
   Scope requires_approval_by = 5;
   // Redeemed online (§6.2 of docs/08-identity.md).
   optional uint64 max_uses = 6;
+  // Only the records of a workload's stream written in this range, by the node's clock, may be
+  // read under it; a grant carrying one permits nothing but workload.console.read (§8 of
+  // docs/14-streams.md).
+  TimeRange stream_range = 7;
+}
+
+// A span of time: from included, to excluded.
+message TimeRange {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
 }
 
 // Whether, how deep, and with which actions a grant may be attenuated into children (§3.2 of

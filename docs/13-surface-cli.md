@@ -414,7 +414,11 @@ records the read (§4 of `14-streams.md`); it prints offsets in no offloaded seg
 says where offloaded records end. It neither follows nor searches. `korpis stream mc-survival`
 shows the stream as the control plane indexes it: how much its node keeps, how long its offloaded
 segments are kept and the operator's floor beneath that (§8 of `17-security.md`), how much is held
-only on the node, and which offsets are lost.
+only on the node, and which offsets are lost. `korpis stream share mc-survival --from 14:30
+[--to 14:45] [--expires 24h] [--uses 3]` makes a share link to read what the console wrote between
+the two times and nothing else (§8 of `14-streams.md`); a time is RFC 3339 or a time of day today
+in the local zone, and `--to` is now when absent. It prints the link once, and the command its
+recipient reads it with.
 
 **`console` as built** (Phase 1): `korpis console mc-survival [--scrollback N] [--read-only]
 [--relay URL]` opens two sessions at a relay: one reading the stream from its last hundred records

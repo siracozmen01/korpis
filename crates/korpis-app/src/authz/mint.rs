@@ -69,6 +69,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if renewal.is_some_and(|r| chain.as_ref().is_none_or(|(c, _)| *c != r.chain)) {
             return Err(AppError::invalid("renews", "a renewal continues the same chain"));
         }
+        // Every action came through one chain, so one leaf, and its range is the token's.
+        let stream_range = first.as_ref().and_then(|(_, p)| p.stream_range);
         // One use for the token, whatever it carries; none for a renewal, whose permit says so.
         if let Some((action, permit)) = first {
             self.redeem(caller, &action, cmd.object, permit).await?;
@@ -84,6 +86,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at,
             // The relay checks the client against them; the gateway checked the caller already.
             source_cidr,
+            // The node reading the stream holds the session to it.
+            stream_range,
         };
         let token =
             token::mint(&self.token_key, &claims).map_err(|e| AppError::Internal(e.to_string()))?;

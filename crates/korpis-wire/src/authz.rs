@@ -5,7 +5,7 @@
 use crate::invalid;
 use crate::{principal, scope, time, timestamp, wire_id};
 
-use korpis_core::authz::{Action, Conditions, Delegation, GrantRecord, GrantState};
+use korpis_core::authz::{Action, Conditions, Delegation, GrantRecord, GrantState, StreamRange};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeSet;
@@ -43,7 +43,20 @@ pub fn conditions_from_pb(c: Option<&pb::Conditions>) -> Result<Conditions, crat
             .map(|s| scope::from_pb("conditions.requires_approval_by", s))
             .transpose()?,
         max_uses: c.max_uses,
+        stream_range: c.stream_range.as_option().map(range_from_pb).transpose()?,
     })
+}
+
+fn range_from_pb(r: &pb::TimeRange) -> Result<StreamRange, crate::WireError> {
+    let field = "conditions.stream_range";
+    let at = |t: Option<&buffa_types::google::protobuf::Timestamp>| {
+        t.ok_or_else(|| invalid(field, "from and to are both given")).and_then(|t| time(field, t))
+    };
+    let range = StreamRange { from: at(r.from.as_option())?, to: at(r.to.as_option())? };
+    if range.from >= range.to {
+        return Err(invalid(field, "from is before to"));
+    }
+    Ok(range)
 }
 
 /// The wire form of conditions.
@@ -56,6 +69,14 @@ pub fn conditions_to_pb(c: &Conditions) -> pb::Conditions {
         requires_mfa: c.requires_mfa,
         requires_approval_by: c.requires_approval_by.as_ref().map(scope::to_pb).into(),
         max_uses: c.max_uses,
+        stream_range: c
+            .stream_range
+            .map(|r| pb::TimeRange {
+                from: Some(timestamp(r.from)).into(),
+                to: Some(timestamp(r.to)).into(),
+                ..Default::default()
+            })
+            .into(),
         ..Default::default()
     }
 }

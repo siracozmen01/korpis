@@ -367,17 +367,44 @@ a tenant, because the tenant is not always the party being protected.
 
 ## 8. Sharing and replay
 
-A stream range is a scope, so sharing one is a grant:
+A stream range is a narrowing of a grant, so sharing one is a grant:
 
 ```
 korpis stream share mc-survival --from 14:30 --to 14:45 --expires 7d
-→ https://panel.example/s/st_4b19#g_c22e…
+→ https://panel.example/g/#korpislk_c22e…
 ```
 
 The recipient sees exactly that range of exactly that stream, with no account, and the link stops
 working on its date. This is the operation support teams currently perform by pasting a screenshot
 into a ticket, and it is possible here for the same reason the workload share link is (§6.1 of
 `08-identity.md`), not as a stream feature, but because authority is attenuable.
+
+**As built, 2026-10-14.** The range is a condition of a grant, `stream_range`, beside its expiry
+and networks, on a grant whose one action is `workload.console.read` and whose scope is the
+workload; attenuation keeps a child's range within its parent's (§3.2 of `08-identity.md`).
+
+> Corrected 2026-10-14, when ranges were built (Finding 47 of `23-walkthroughs.md`). This said a
+> stream range is a scope. A scope names an object, and the object a range would name, the
+> stream, has an identifier the node never learns: the control plane gives it one when its first
+> segment is indexed. The node verifies a session token offline against the workload it serves,
+> so the only scope it can check is the workload; the range has to travel beside the scope, in
+> the token, and be enforced by whatever reads the records.
+
+Three readers enforce it. The node's console reader, which the session token minted under such a
+grant carries the range to, starts at the first record written at the range's start, sends only
+records written within it, searches only them, and ends at the first record written at or after
+its end, or, following, once its clock is past the end with nothing left to read. The control
+plane's reader of offloaded segments sends only records within it, does not fetch a segment
+wholly before it, and stops at the first record past it. And the stream's index, which says how
+much was written and when, shows only the segments that hold some of the range. The node refuses
+any other action under a ranged token, so a reader that did not know of ranges could not serve
+one whole. `korpis stream share` makes such a grant as a link (§6.1 of `08-identity.md`), with
+the expiry and use cap every link has; each reading spends a use.
+
+What it costs: the bounds are the node's clock, as each record states its time, so a record
+written after the node's clock stepped back into the range is not shown, and the range means
+what that node's clock said, not the reader's. The recipient learns the range's records and
+nothing else of the stream, its index included.
 
 Replay is a seek. The web console, the Discord window, and `korpis console --at` are all views onto
 the same offsets, so "what did it look like at the moment it crashed" is a query rather than a

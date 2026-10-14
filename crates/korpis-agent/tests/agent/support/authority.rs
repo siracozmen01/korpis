@@ -56,6 +56,45 @@ impl ControlPlane {
             .into_owned()
     }
 
+    /// A share link to read `workload`'s console written from `from` to `to`, in nanoseconds of
+    /// the node clock (§8 of docs/14-streams.md).
+    pub async fn share_range(&self, workload: &str, (from, to): (i64, i64)) -> String {
+        use korpis_core::authz::{Kind, ObjectRef};
+        use korpis_core::id::{Id, IdKind};
+        let w = Id::parse(IdKind::Workload, workload).unwrap().uuid();
+        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Workload, w));
+        let at = |n: i64| buffa_types::google::protobuf::Timestamp {
+            seconds: n / 1_000_000_000,
+            nanos: i32::try_from(n % 1_000_000_000).unwrap(),
+            ..Default::default()
+        };
+        let hour = std::time::SystemTime::now() + std::time::Duration::from_secs(3600);
+        let conditions = pb::Conditions {
+            expires_at: Some(korpis_wire::timestamp(hour)).into(),
+            max_uses: Some(5),
+            stream_range: Some(pb::TimeRange {
+                from: Some(at(from)).into(),
+                to: Some(at(to)).into(),
+                ..Default::default()
+            })
+            .into(),
+            ..Default::default()
+        };
+        let issued = pb::GrantServiceClient::new(self.http(), self.config())
+            .issue_grant(pb::IssueGrantRequest {
+                mutation: mutation("share-range").into(),
+                actions: vec!["workload.console.read".into()],
+                scope: korpis_wire::scope::to_pb(&scope).into(),
+                conditions: conditions.into(),
+                link_form: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned();
+        issued.link_token
+    }
+
     /// Issues `actions` on the root organization to a new API token; the grant and the token's
     /// secret.
     pub async fn grant_to_new_token(&self, key: &str, actions: &[&str]) -> (String, String) {

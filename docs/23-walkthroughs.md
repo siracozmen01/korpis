@@ -1061,6 +1061,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 44 | Tenant custody claimed the operator cannot read | §25 | `06-storage.md` §5.5, `17-security.md` §8, `16-extensions.md` §5 |
 | 45 | A link verified offline would outlive its revocation | §26 | `08-identity.md` §3.7, §6.1, §6.3; `13-surface-cli.md` §7 |
 | 46 | A use limit that most paths did not count | §26 | `08-identity.md` §6.1, §6.2 |
+| 47 | A stream range as a scope the node cannot check | §27 | `14-streams.md` §8, `08-identity.md` §3.2, §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1752,12 +1753,12 @@ server crashes again, and the moderator revokes the link while the player is sti
 
 **FINDING 45: A link verified offline would outlive its revocation. `CONFIRMED`**
 
-§3.7 of `08-identity.md` set a link apart from an API token because a link is verified offline,
-so its revocation latency is its lifetime, and §7 of `13-surface-cli.md` said the same. Asked what verifies it offline,
-with what information, the answer was a relay or an agent holding a revocation list that keeps a
-grant for one session token's lifetime (§6.3): a 24-hour link they accepted would be honoured for a
-day after it was revoked. And no use of a link could start there anyway: an action is an API call,
-and a session needs the route only the gateway seals (step 4).
+§3.7 of `08-identity.md` set a link apart from an API token because a link is verified offline, so
+its revocation latency is its lifetime, and §7 of `13-surface-cli.md` said the same. Asked what
+verifies it offline, with what information, the answer was a relay or an agent holding a revocation
+list that keeps a grant for one session token's lifetime (§6.3): a 24-hour link they accepted would
+be honoured for a day after it was revoked. And no use of a link could start there anyway: an
+action is an API call, and a session needs the route only the gateway seals (step 4).
 
 **Resolution.** A link is a token that states only its grant and expiry, with no right and no
 scope, so the offline check refuses it for every action, and the gateway alone accepts it, online,
@@ -1778,3 +1779,37 @@ it continues (step 5); a check that spends nothing permits nothing to a use-limi
 approval spends a use. → patched into `08-identity.md` §6.1
 
 † Step 4 is where the trace found Finding 45, and step 5 Finding 46.
+
+## 27. A crash log for a support ticket
+
+Written 2026-10-14, from the implementation, when stream ranges were built. A server crashed at
+14:41; its owner sends the host's support team the console from 14:30 to 14:45, the operation
+§8 of `14-streams.md` says replaces pasting a screenshot. Part of that range is still on the
+node; the rest was offloaded overnight, and the node has since pruned it.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis stream share mc-survival --from 14:30 --to 14:45`: a link-form grant of `workload.console.read` on the workload, carrying the range, within the owner's grant | `14-streams.md` §8; `08-identity.md` §3.2, §6.1; `13-surface-cli.md` §8 |
+| 2 | Support presents the link; minting a session token spends a use and puts the range in the token beside the scope † | `08-identity.md` §6, §6.1 |
+| 3 | The relay verifies the token and carries the session; the node verifies it against the workload, starts at the first record written at 14:30, and sends records up to 14:45 | `02-architecture.md` §3.1; `14-streams.md` §8 |
+| 4 | Support asks for what the node pruned: the control plane reads the offloaded segments, passes over one wholly before 14:30, sends the records within the range, and stops at the first past it | `14-streams.md` §4, §8 |
+| 5 | The stream's index, read under the link, shows only the segments holding some of the range | `14-streams.md` §8 |
+| 6 | The link expires, or the owner revokes it; the next reading is refused | `08-identity.md` §6.1, §6.3 |
+
+**FINDING 47: A stream range as a scope the node cannot check. `CONFIRMED`**
+
+§8 of `14-streams.md` said a stream range is a scope. Asked what evaluates it at step 3, and with
+what information: a node, offline, verifying a session token against the workload it serves. A
+scope names an object; the stream's identifier is given by the control plane when its first
+segment is indexed, and the node never learns it, so a token scoped to the stream could not be
+checked there, and one scoped to the workload, with nothing else, would read the whole stream.
+
+**Resolution.** The range is a condition of the grant, attenuated like the others, carried by the
+token beside its scope, and enforced by every reader of the records: the node's, the control
+plane's reader of offloaded segments, and the stream's index. A grant carrying one may hold no
+other action, and the node refuses any other action under a ranged token. → patched into
+`14-streams.md` §8 and `08-identity.md` §3.2 and §6
+
+† Step 2 is where the trace found Finding 47.

@@ -6,7 +6,9 @@ use super::{from_time, to_time};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::StoreError;
 use korpis_core::authz::scope::LabelExpression;
-use korpis_core::authz::{Action, Conditions, Delegation, Kind, LabelSelector, ObjectRef, Scope};
+use korpis_core::authz::{
+    Action, Conditions, Delegation, Kind, LabelSelector, ObjectRef, Scope, StreamRange,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
@@ -133,6 +135,9 @@ pub(crate) struct ConditionsDoc {
     requires_mfa: bool,
     requires_approval_by: Option<ScopeDoc>,
     max_uses: Option<u64>,
+    /// Absent from every grant issued before stream ranges existed, which have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stream_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
 }
 
 impl ConditionsDoc {
@@ -144,6 +149,7 @@ impl ConditionsDoc {
             requires_mfa: c.requires_mfa,
             requires_approval_by: c.requires_approval_by.as_ref().map(ScopeDoc::from_domain),
             max_uses: c.max_uses,
+            stream_range: c.stream_range.map(|r| (from_time(r.from), from_time(r.to))),
         }
     }
 
@@ -163,6 +169,9 @@ impl ConditionsDoc {
                 .map(ScopeDoc::into_domain)
                 .transpose()?,
             max_uses: self.max_uses,
+            stream_range: self
+                .stream_range
+                .map(|(from, to)| StreamRange { from: to_time(from), to: to_time(to) }),
         })
     }
 }

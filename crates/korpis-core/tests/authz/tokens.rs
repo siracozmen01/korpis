@@ -37,6 +37,7 @@ impl Fixture {
             scope: tree.w1,
             expires_at: now + token::SESSION_TOKEN_LIFETIME,
             source_cidr: Vec::new(),
+            stream_range: None,
         };
         let token = token::mint(&key, &claims).unwrap();
         let w1 = tree.resource(tree.w1).unwrap();
@@ -130,6 +131,7 @@ fn tokens_scoped_above_a_customer_reach_no_private_action_offline() {
             scope,
             expires_at: f.now + Duration::from_secs(60),
             source_cidr: Vec::new(),
+            stream_range: None,
         };
         token::mint(&f.key, &claims).unwrap()
     };
@@ -167,4 +169,43 @@ fn the_relay_checks_the_client_against_the_leaf_networks() {
         .expect("an agent behind the relay never sees the client and never evaluates it");
     token::verify(&f.token, &f.keys, CONSOLE, &f.w1, &none, at("192.0.2.1"))
         .expect("a token naming no networks allows any");
+}
+
+#[test]
+fn a_token_carries_its_stream_range_and_a_holder_cannot_change_it() {
+    use korpis_core::authz::StreamRange;
+    let f = Fixture::new();
+    let range = StreamRange { from: f.now - Duration::from_secs(600), to: f.now };
+    let mut claims = f.claims.clone();
+    claims.stream_range = Some(range);
+    let minted = token::mint(&f.key, &claims).unwrap();
+    let resource = f.w1.clone();
+    let none: HashSet<Uuid> = HashSet::new();
+    let at = (f.now, Client::Unseen);
+    let v = token::verify(&minted, &f.keys, CONSOLE, &resource, &none, at).unwrap();
+    let secs = |t: SystemTime| t.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    let read = v.stream_range.unwrap();
+    assert_eq!((secs(read.from), secs(read.to)), (secs(range.from), secs(range.to)));
+
+    let biscuit = biscuit_auth::Biscuit::from_base64(&minted, |_| {
+        Ok(biscuit_auth::PublicKey::from_bytes(
+            &f.key.public_bytes(),
+            biscuit_auth::builder::Algorithm::Ed25519,
+        )
+        .unwrap())
+    })
+    .unwrap();
+    let wider = biscuit_auth::BlockBuilder::new()
+        .code("stream_range(1970-01-01T00:00:00Z, 2100-01-01T00:00:00Z);")
+        .unwrap();
+    let widened = biscuit.append(wider).unwrap().to_base64().unwrap();
+    let v = token::verify(&widened, &f.keys, CONSOLE, &resource, &none, at).unwrap();
+    assert_eq!(
+        secs(v.stream_range.unwrap().to),
+        secs(range.to),
+        "a holder's block is not believed"
+    );
+
+    let plain = token::verify(&f.token, &f.keys, CONSOLE, &resource, &none, at).unwrap();
+    assert!(plain.stream_range.is_none());
 }

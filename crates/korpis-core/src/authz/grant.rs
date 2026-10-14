@@ -27,6 +27,48 @@ pub struct Conditions {
     pub requires_approval_by: Option<Scope>,
     /// Redeemed online (§6.2).
     pub max_uses: Option<u64>,
+    /// Only the records of a workload's stream written within this range may be read under it
+    /// (§8 of docs/14-streams.md); a grant carrying one permits nothing but reading the stream.
+    pub stream_range: Option<StreamRange>,
+}
+
+/// A range of a stream by the node clock that wrote it: records written at or after `from` and
+/// before `to`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StreamRange {
+    /// The first instant included.
+    pub from: SystemTime,
+    /// The first instant past it.
+    pub to: SystemTime,
+}
+
+impl StreamRange {
+    /// The only action a ranged grant may carry: reading a stream, which is what the range
+    /// narrows; any other action would be held whole.
+    pub const ACTION: &'static str = "workload.console.read";
+
+    /// Whether `nanos`, a record's time in nanoseconds since the Unix epoch, falls inside it.
+    #[must_use]
+    pub fn holds(&self, nanos: i64) -> bool {
+        let (from, to) = self.nanos();
+        from <= nanos && nanos < to
+    }
+
+    /// Its bounds in nanoseconds since the Unix epoch, as records state their time.
+    #[must_use]
+    pub fn nanos(&self) -> (i64, i64) {
+        let n = |t: SystemTime| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| i64::try_from(d.as_nanos()).unwrap_or(i64::MAX))
+        };
+        (n(self.from), n(self.to))
+    }
+
+    /// Whether it lies within `outer`.
+    #[must_use]
+    pub fn within(&self, outer: &Self) -> bool {
+        outer.from <= self.from && self.to <= outer.to
+    }
 }
 
 /// Whether, how deep, and with which actions a grant may be attenuated (§3.2).
@@ -135,6 +177,12 @@ pub enum AttenuationError {
     /// An irreversible action would go to a bearer link or a set (§5.2).
     #[error("action {0} is irreversible and cannot be held by a link-form or set-subject grant")]
     IrreversibleToBearerOrSet(Action),
+    /// The child's stream range is missing or reaches outside the parent's.
+    #[error("the child's stream range must lie within the parent's")]
+    RangeWider,
+    /// A stream range is empty, or carried by a grant that does more than read the stream.
+    #[error("a stream range is non-empty and narrows only workload.console.read")]
+    RangeMisused,
 }
 
 /// Whether the use-count dimension is part of the check. At issue it is: the child's limit is
@@ -181,6 +229,11 @@ pub fn check_attenuation(
         return Err(AttenuationError::ScopeNotContained);
     }
     check_conditions(&parent.conditions, &child.conditions, hierarchy)?;
+    if let Some(r) = &child.conditions.stream_range
+        && (r.from >= r.to || child.actions.iter().any(|a| a.as_str() != StreamRange::ACTION))
+    {
+        return Err(AttenuationError::RangeMisused);
+    }
     if at == At::Issue
         && let Some(remaining) = parent.remaining_uses()
         && child.conditions.max_uses.is_none_or(|m| m > remaining)
@@ -213,6 +266,11 @@ fn check_conditions(
     }
     if parent.requires_mfa && !child.requires_mfa {
         return Err(AttenuationError::MfaWeaker);
+    }
+    if let Some(p) = &parent.stream_range
+        && child.stream_range.is_none_or(|c| !c.within(p))
+    {
+        return Err(AttenuationError::RangeWider);
     }
     // "At least as strict" means equal or larger: approval may move up the tree toward fewer,
     // more senior approvers, never down toward the child's holder (§3.6).

@@ -10,12 +10,18 @@
 //!
 //! A search is a scan of the files the node holds, with the pattern bounded as `korpis-stream`
 //! bounds it. Gap records are sent whatever the pattern, so a search says where it could not look.
+//!
+//! A session whose grant is limited to a range of the stream (§8 of docs/14-streams.md) reads
+//! from the first record written at its start, sends only records written within it, and ends at
+//! the first record written at or after its end, or, following, once the node's clock passes it
+//! with nothing left to read. Its bounds are the node's clock, as each record states its time.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use super::wake::Wake;
 use crate::reconcile::streams::Located;
 use buffa::Message as _;
 use buffa_types::google::protobuf::Timestamp;
+use korpis_core::authz::StreamRange;
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::{Batch, end_offset, offset_since, read};
@@ -23,7 +29,7 @@ use korpis_stream::record::Record;
 use korpis_stream::search::Matcher;
 use korpis_wire::record::record_to_pb;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 /// The action.
 pub const ACTION: &str = "workload.console.read";
@@ -82,6 +88,9 @@ struct Reader {
     next: u64,
     left: Option<u64>,
     caught_up: bool,
+    /// The range it may read, in nanoseconds; it is done once it has examined a record past it.
+    range: Option<StreamRange>,
+    done: bool,
 }
 
 impl Reader {
@@ -100,13 +109,18 @@ impl Reader {
             if self.left == Some(0) {
                 break;
             }
+            if self.range.is_some_and(|g| g.nanos().1 <= r.time_nanos) {
+                self.done = true;
+                break;
+            }
             examined = r.offset + 1;
-            if self.matcher.keeps(&r) {
+            let inside = self.range.is_none_or(|g| g.holds(r.time_nanos));
+            if inside && self.matcher.keeps(&r) {
                 self.left = self.left.map(|n| n - 1);
                 kept.push(r);
             }
         }
-        self.next = if self.left == Some(0) { examined } else { next };
+        self.next = if self.left == Some(0) || self.done { examined } else { next };
         kept
     }
 
@@ -179,20 +193,30 @@ async fn serve(dir: Option<PathBuf>, opened: Opened, mut io: Io) -> Result<(), E
         (_, Some(since)) => blocking(move || offset_since(&StreamDir::new(&at), since)).await?,
         _ => asked.from_offset,
     };
+    let range = opened.stream_range;
+    let next = match range {
+        Some(r) => {
+            let (from, at) = (r.nanos().0, dir.clone());
+            next.max(blocking(move || offset_since(&StreamDir::new(&at), from)).await?)
+        }
+        None => next,
+    };
     let left = (asked.limit > 0).then_some(asked.limit);
     // A follower that cannot watch, out of inotify watches say, still follows by looking.
     let mut wake = if asked.follow { Wake::watch(&dir).ok() } else { None };
-    let mut reader = Reader { dir, matcher, next, left, caught_up: false };
+    let mut reader = Reader { dir, matcher, next, left, caught_up: false, range, done: false };
     loop {
         let batch = reader.batch().await?;
         let more = batch.records.len() >= READ;
-        if !reader.send(batch, &io).await || reader.left == Some(0) {
+        if !reader.send(batch, &io).await || reader.left == Some(0) || reader.done {
             return Ok(());
         }
         if more {
             continue;
         }
-        if !asked.follow {
+        // A record written just before the range ends may not be readable yet: a follower waits
+        // one more look past it.
+        if !asked.follow || range.is_some_and(|r| SystemTime::now() >= r.to + FALLBACK) {
             return Ok(());
         }
         tokio::select! {

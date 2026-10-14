@@ -29,7 +29,9 @@ pub struct StreamView {
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The workload's stream of `kind`. Reading it takes `workload.console.read`, the authority
     /// to read the records themselves: how much a workload wrote, and when, is part of what it
-    /// wrote. A workload whose console mode is `none` has no stream, and is not found.
+    /// wrote. A workload whose console mode is `none` has no stream, and is not found. For the
+    /// same reason a caller whose grant is limited to a range of the stream is shown only the
+    /// segments that hold some of it (§8 of docs/14-streams.md).
     pub async fn get_stream(
         &self,
         caller: &Caller,
@@ -37,7 +39,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         kind: StreamKind,
     ) -> Result<StreamView, AppError> {
         let on = ObjectRef::new(Kind::Workload, workload);
-        self.authorize(caller, "workload.console.read", on).await?;
+        let permit = self.authorize(caller, "workload.console.read", on).await?;
         let not_found = AppError::NotFound { kind: "stream" };
         let w = self.store.workload(workload).await?.ok_or(not_found.clone())?;
         let runs = w.target.unwrap_or(w.intent);
@@ -50,8 +52,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Err(not_found);
         }
-        let stream =
+        let mut stream =
             indexed.unwrap_or(Stream { id: Uuid::nil(), workload, kind, segments: Vec::new() });
+        if let Some(r) = permit.stream_range {
+            stream.segments.retain(|s| s.first_at < r.to && s.last_at >= r.from);
+        }
         Ok(StreamView { stream, limits: intent.body.streams, floor: self.stream_floor })
     }
 }

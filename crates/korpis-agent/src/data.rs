@@ -21,7 +21,7 @@ use connectrpc::client::{BidiRecvHalf, ClientConfig, ClientTransport, HttpClient
 use handler::{Handler, Handlers, Opened};
 use korpis_core::authz::revocation::RevocationList;
 use korpis_core::authz::token::{Client, KeyRing, Verified, verify};
-use korpis_core::authz::{Kind, ObjectRef, Resource};
+use korpis_core::authz::{Kind, ObjectRef, Resource, StreamRange};
 use korpis_core::id::IdKind;
 use korpis_core::node::identity::{data_hello_message, sign};
 use korpis_proto::korpis::agent::v1 as agent;
@@ -109,6 +109,11 @@ impl Judged {
         let handler = self.handlers.get(&open.action).ok_or_else(|| {
             refuse("unimplemented", format!("{} is not served here", open.action))
         })?;
+        // A ranged grant permits nothing but reading the stream, which is the one handler that
+        // holds a session to its range; anything else would serve it whole.
+        if verified.stream_range.is_some() && open.action != StreamRange::ACTION {
+            return Err(refuse("refused", "a stream range is read, and nothing else".into()));
+        }
         let opened = Opened {
             session: open.session.clone(),
             workload: open.workload.clone(),
@@ -117,6 +122,7 @@ impl Judged {
             subject: verified.subject,
             chain: verified.chain,
             expires_at: verified.expires_at,
+            stream_range: verified.stream_range,
         };
         Ok((handler, opened))
     }

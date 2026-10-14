@@ -61,6 +61,7 @@ mod sets;
 mod snapshots;
 mod standalone;
 mod step;
+mod stream_share;
 mod streams;
 mod support;
 mod tenancy;

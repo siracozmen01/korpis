@@ -5,6 +5,7 @@
 //! and the session's bytes both ways; the session ends when the handler returns, with the reason
 //! it gives. An action no handler serves is refused as `unimplemented`.
 
+use korpis_core::authz::StreamRange;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -30,6 +31,9 @@ pub struct Opened {
     pub chain: Vec<Uuid>,
     /// When the token stops carrying the session unless renewed.
     pub expires_at: SystemTime,
+    /// The only records of the stream it may read, when its grant is limited to a range (§8 of
+    /// docs/14-streams.md). Renewals continue the same chain, so the same range.
+    pub stream_range: Option<StreamRange>,
 }
 
 /// The session's bytes: what the client sent, and where to send to it. The client is done when

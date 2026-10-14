@@ -18,7 +18,7 @@ use crate::error::AppError;
 use crate::extension::CallTarget;
 use crate::ports::{Area, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::audit::{Effect, Outcome, details};
-use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::authz::{Kind, ObjectRef, StreamRange};
 use korpis_core::extension::{AccessMode, CallOutcome, ProviderType};
 use korpis_core::workload::stream::{Segment, StreamKind};
 use std::collections::BTreeMap;
@@ -40,6 +40,9 @@ pub struct Offloaded {
     pub segments: Vec<(Segment, Uuid)>,
     /// The key and read access for each repository holding one.
     pub grants: BTreeMap<Uuid, JobGrant>,
+    /// The only records the caller may read, when its grant is limited to a range of the stream
+    /// (§8 of docs/14-streams.md): whatever sends the records sends those alone.
+    pub stream_range: Option<StreamRange>,
 }
 
 type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
@@ -75,8 +78,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             })
             .collect();
         let mut grants = BTreeMap::new();
+        let stream_range = permit.stream_range;
         if segments.is_empty() {
-            return Ok(Offloaded { segments, grants });
+            return Ok(Offloaded { segments, grants, stream_range });
         }
         let mut e =
             Effect::new(caller.principal.clone(), "workload.console.read", Outcome::Succeeded)
@@ -85,6 +89,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     ("stream", kind.as_str().into()),
                     ("from_offset", from.into()),
                     ("offloaded", true.into()),
+                    ("ranged", stream_range.is_some().into()),
                 ]));
         e.workload = Some(workload);
         let mut tx = self.store.begin().await?;
@@ -97,7 +102,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.control_plane_access((&repo, Area::Streams), workload, READ_ACCESS).await?;
             grants.insert(repo.id, grant);
         }
-        Ok(Offloaded { segments, grants })
+        Ok(Offloaded { segments, grants, stream_range })
     }
 
     /// The key and access `node` offloads `workload`'s console stream with.

@@ -37,7 +37,9 @@ pub use action::Action;
 #[cfg(feature = "authz")]
 pub use evaluate::{Decision, Denial, Permit, Request, evaluate};
 #[cfg(feature = "authz")]
-pub use grant::{AttenuationError, Conditions, Delegation, Grant, Subject, check_attenuation};
+pub use grant::{
+    AttenuationError, Conditions, Delegation, Grant, StreamRange, Subject, check_attenuation,
+};
 #[cfg(feature = "authz")]
 pub use record::{GrantRecord, GrantState};
 pub use scope::{Hierarchy, Kind, LabelSelector, Node, ObjectRef, Resource, Scope};

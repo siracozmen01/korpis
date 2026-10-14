@@ -121,6 +121,7 @@ A child grant is valid only if **all** hold against its parent:
 | MFA | `child.requires_mfa ≥ parent.requires_mfa` |
 | uses | `child.max_uses ≤ parent.remaining_uses` |
 | approval | `child.requires_approval_by` at least as strict, as defined in §3.6 |
+| stream range | `child.stream_range ⊆ parent.stream_range`; a grant with one carries only `workload.console.read` (§8 of `14-streams.md`) |
 | delegation | the parent permits it, and the child's policy is no wider (below) |
 
 Checked at issue **and re-checked at every use**, because a parent may have been revoked in
@@ -632,6 +633,8 @@ CapabilityToken
   issued_at, expires_at
   epoch           the issuing control plane's key epoch
   source_cidr     the leaf's networks, if it has any, for the relay to check the client against
+  stream_range    the leaf's range of a stream, if it has one, for the node reading it to hold
+                  the session to (§8 of `14-streams.md`)
 ```
 
 **The token is a Biscuit** whose authority block is signed by the control plane's token key and

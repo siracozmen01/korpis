@@ -170,3 +170,51 @@ fn irreversible_actions_stay_out_of_links_and_chat_roles() {
     role.actions = actions(&["workload.restart"]);
     check_attenuation(&root, &role, &tree, At::Issue).unwrap();
 }
+
+#[test]
+fn a_stream_range_only_narrows_and_only_reading() {
+    use korpis_core::authz::StreamRange;
+    use std::time::Duration;
+    let tree = Tree::new();
+    let now = SystemTime::now();
+    let root = root(&tree, now);
+    let mut reader =
+        child(&root, "user:support", &["workload.console.read"], Scope::Object(tree.w1));
+    reader.delegation = Delegation {
+        allowed: true,
+        max_depth: Some(1),
+        actions: actions(&["workload.console.read"]),
+    };
+    let at = |h: u64| now - days(1) + Duration::from_secs(h * 3600);
+    let range = |from, to| Some(StreamRange { from: at(from), to: at(to) });
+    reader.conditions.stream_range = range(2, 6);
+    check_attenuation(&root, &reader, &tree, At::Issue).unwrap();
+
+    let mut share = link(&tree, &reader, now);
+    share.actions = actions(&["workload.console.read"]);
+    share.conditions.stream_range = range(3, 4);
+    check_attenuation(&reader, &share, &tree, At::Issue).unwrap();
+    for (wider, why) in
+        [(range(1, 4), "starts earlier"), (range(3, 7), "ends later"), (None, "none")]
+    {
+        share.conditions.stream_range = wider;
+        assert_eq!(
+            check_attenuation(&reader, &share, &tree, At::Issue),
+            Err(AttenuationError::RangeWider),
+            "{why}"
+        );
+    }
+    share.conditions.stream_range = range(4, 4);
+    assert_eq!(
+        check_attenuation(&reader, &share, &tree, At::Issue),
+        Err(AttenuationError::RangeMisused),
+        "an empty range"
+    );
+    let mut restart = child(&root, "user:x", &["workload.restart"], Scope::Object(tree.w1));
+    restart.conditions.stream_range = range(2, 6);
+    assert_eq!(
+        check_attenuation(&root, &restart, &tree, At::Issue),
+        Err(AttenuationError::RangeMisused),
+        "a range narrows reading, so it is carried by nothing else"
+    );
+}

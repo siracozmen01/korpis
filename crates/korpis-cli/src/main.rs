@@ -16,7 +16,7 @@ use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
 };
-use korpis_cli::cmd::{console, logs, stream};
+use korpis_cli::cmd::{console, logs, stream_share};
 use korpis_cli::complete;
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
@@ -119,11 +119,9 @@ enum Command {
     /// an offset, or a time ago; searched; followed as it is written.
     Logs(logs::Logs),
     /// A workload's console stream as the control plane indexes it: how long it is kept, on the
-    /// node and offloaded, the operator's floor, what is held only on the node, what is lost.
-    Stream {
-        /// The workload: an identifier, `project/name`, or a name.
-        workload: String,
-    },
+    /// node and offloaded, the operator's floor, what is held only on the node, what is lost;
+    /// `share` makes a link to read a range of it.
+    Stream(stream_share::StreamArgs),
     /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
     /// type, your keys; `Ctrl-]` detaches.
     Console(console::Console),
@@ -242,9 +240,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
         Command::Console(a) => console::console(&cli.required()?, a).await,
         Command::Logs(a) => logs::logs(&cli.required()?, a, &mut printer(cli.json)).await,
-        Command::Stream { workload } => {
-            answer(cli, stream::stream(&cli.required()?, workload).await)
-        }
+        Command::Stream(a) => answer(cli, stream_share::run(&cli.required()?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),

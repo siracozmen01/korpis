@@ -48,6 +48,7 @@ fn a_link_is_refused_by_every_offline_verifier_and_a_session_token_is_not_a_link
         scope: workload,
         expires_at: now + Duration::from_secs(120),
         source_cidr: Vec::new(),
+        stream_range: None,
     };
     let token = mint_session(&key, &claims).unwrap();
     assert!(verify(&format!("{LINK_PREFIX}{token}"), &ring(&key), now).is_err());

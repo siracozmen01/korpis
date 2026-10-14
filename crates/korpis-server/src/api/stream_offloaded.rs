@@ -13,8 +13,10 @@ use korpis_app::backup::offload::Offloaded;
 use korpis_backup::Repo;
 use korpis_backup::offload::segment_id;
 use korpis_backup::s3::S3Store;
+use korpis_core::authz::StreamRange;
 use korpis_core::workload::stream::Segment;
 use korpis_proto::korpis::v1 as pb;
+use korpis_stream::record::Record;
 use korpis_wire::record::record_to_pb;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -25,6 +27,9 @@ struct Reading {
     repos: BTreeMap<Uuid, Repo<S3Store>>,
     next: u64,
     left: u64,
+    /// The range the caller may read: records outside it are never sent, a segment wholly before
+    /// it is passed over without being fetched, and the reading ends at the first past it.
+    range: Option<StreamRange>,
 }
 
 /// The repositories `read` reaches, opened.
@@ -48,7 +53,7 @@ async fn fetched(
     repo: &Repo<S3Store>,
     s: &Segment,
     (from, left): (u64, u64),
-) -> Result<Vec<pb::StreamRecord>, ConnectError> {
+) -> Result<Vec<Record>, ConnectError> {
     let id = segment_id(s.first_offset, &s.digest).ok_or_else(|| {
         error::altered("stream.segment_altered", "a segment's digest is malformed")
     })?;
@@ -65,8 +70,7 @@ async fn fetched(
         korpis_stream::offloaded::records(&bytes, &digest, (from, limit))
     });
     let records = read.await.map_err(|e| error::internal(&e))?;
-    let records = records.map_err(|e| error::altered("stream.segment_altered", &e.to_string()))?;
-    Ok(records.into_iter().map(record_to_pb).collect())
+    records.map_err(|e| error::altered("stream.segment_altered", &e.to_string()))
 }
 
 impl Reading {
@@ -75,7 +79,16 @@ impl Reading {
         if self.left == 0 {
             return None;
         }
-        let Some((s, repository)) = self.segments.next() else {
+        let range = self.range;
+        let mut found = self.segments.next();
+        while let (Some(r), Some((s, _))) = (range, &found)
+            && s.last_at < r.from
+        {
+            self.next = s.end_offset;
+            found = self.segments.next();
+        }
+        let found = found.filter(|(s, _)| range.is_none_or(|r| s.first_at < r.to));
+        let Some((s, repository)) = found else {
             self.left = 0;
             let last =
                 pb::ConsoleChunk { next_offset: self.next, caught_up: true, ..Default::default() };
@@ -87,13 +100,21 @@ impl Reading {
             end: s.first_offset,
             ..Default::default()
         });
-        let records = match fetched(repo, &s, (self.next, self.left)).await {
+        let mut records = match fetched(repo, &s, (self.next, self.left)).await {
             Ok(records) => records,
             Err(e) => {
                 self.left = 0;
                 return Some(Err(e));
             }
         };
+        if let Some(r) = range {
+            if let Some(past) = records.iter().position(|rec| rec.time_nanos >= r.nanos().1) {
+                records.truncate(past);
+                self.segments = Vec::new().into_iter();
+            }
+            records.retain(|rec| r.holds(rec.time_nanos));
+        }
+        let records: Vec<pb::StreamRecord> = records.into_iter().map(record_to_pb).collect();
         let sent = u64::try_from(records.len()).unwrap_or(u64::MAX);
         self.left = self.left.saturating_sub(sent);
         self.next = match records.last() {
@@ -116,7 +137,8 @@ pub(super) fn chunks(
     (from, limit): (u64, u64),
 ) -> impl futures_util::Stream<Item = Result<pb::ConsoleChunk, ConnectError>> + Send {
     let left = if limit == 0 { u64::MAX } else { limit };
-    let state = Reading { segments: read.segments.into_iter(), repos, next: from, left };
+    let range = read.stream_range;
+    let state = Reading { segments: read.segments.into_iter(), repos, next: from, left, range };
     futures_util::stream::unfold(state, |mut state| async move {
         let item = state.chunk().await?;
         Some((item, state))

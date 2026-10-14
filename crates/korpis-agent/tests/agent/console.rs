@@ -102,3 +102,41 @@ async fn a_console_is_read_searched_limited_and_followed_through_the_relay() {
     let mut refused = opened(&cp.relay(), &session(bad)).await;
     assert_eq!(end_code(frame(&mut refused).await), "invalid");
 }
+
+#[tokio::test]
+async fn a_shared_range_is_all_a_reader_is_sent_and_its_end_ends_the_reading() {
+    let cp = ControlPlane::start().await;
+    let streams = tempfile::tempdir().unwrap();
+    let (located, watching) = tokio::sync::watch::channel(BTreeMap::new());
+    let handlers = Handlers::default().with(ACTION, Arc::new(ConsoleRead::new(watching)));
+    let n = node_with(&cp, "fra-10", handlers).await;
+    let dir = streams.path().join("console");
+    let mut w = writer(&dir);
+    let lines = ["Starting server", "Player Alex joined", "Alex fell", "Saved the game"];
+    for (i, line) in lines.iter().enumerate() {
+        let at = T0 + 1_000_000_000 * i64::try_from(i).unwrap();
+        w.write(Source::Stdout, Kind::Text, line.as_bytes(), at).unwrap();
+    }
+    w.tick(T0 + 4_000_000_000).unwrap();
+    located.send_replace(BTreeMap::from([(n.workload.clone(), dir.clone())]));
+    let link = cp.share_range(&n.workload, (T0 + 1_000_000_000, T0 + 3_000_000_000)).await;
+    let token = cp.mint_as(&link, &n.workload, &[ACTION], 0).await;
+    let session = |read: pb::ConsoleRead| {
+        let mut request = open(&token, ACTION, &n.workload, &n.id);
+        if let Some(pb::__buffa::oneof::relay_request::Message::Open(o)) = request.message.as_mut()
+        {
+            o.params = asking(&read);
+        }
+        request
+    };
+
+    let everything = pb::ConsoleRead { follow: true, ..Default::default() };
+    let mut read = opened(&cp.relay(), &session(everything)).await;
+    let first = chunk(&mut read).await;
+    assert_eq!(bodies(&first), ["Player Alex joined", "Alex fell"], "the range and no more");
+    assert_eq!(end_code(frame(&mut read).await), "", "its end ends even a follower");
+
+    let found = pb::ConsoleRead { pattern: "Saved".into(), ..Default::default() };
+    let mut search = opened(&cp.relay(), &session(found)).await;
+    assert!(bodies(&chunk(&mut search).await).is_empty(), "a search sees only the range");
+}

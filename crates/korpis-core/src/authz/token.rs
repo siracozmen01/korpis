@@ -12,6 +12,7 @@
 //! so the online-only conditions (`max_uses`, `requires_mfa`, `requires_approval_by`) are settled
 //! before a token exists, and tokens never carry them (§6.2).
 
+use super::grant::StreamRange;
 use super::scope::{Kind, ObjectRef, Resource};
 use biscuit_auth::builder::{Algorithm, Term, date, string};
 use biscuit_auth::{AuthorizerBuilder, AuthorizerLimits, Biscuit, KeyPair, PublicKey, error};
@@ -121,6 +122,8 @@ pub struct Claims {
     pub expires_at: SystemTime,
     /// The networks a client using it must be in, from the leaf's `source_cidr`; empty for any.
     pub source_cidr: Vec<IpNet>,
+    /// The leaf's stream range, which the node reading the stream holds the session to.
+    pub stream_range: Option<StreamRange>,
 }
 
 /// What a verifier knows of the client's address (§3.1 of docs/02-architecture.md).
@@ -193,6 +196,11 @@ pub fn mint(key: &SigningKey, claims: &Claims) -> Result<String, TokenError> {
         let _ = writeln!(code, "source_cidr({{{name}}});");
         params.insert(name, string(&net.to_string()));
     }
+    if let Some(r) = &claims.stream_range {
+        code.push_str("stream_range({rf}, {rt});\n");
+        params.insert("rf".into(), date(&r.from));
+        params.insert("rt".into(), date(&r.to));
+    }
     let token = Biscuit::builder()
         .code_with_params(&code, params, HashMap::new())?
         .root_key_id(key.key_id)
@@ -218,6 +226,8 @@ pub struct Verified {
     pub chain: Vec<Uuid>,
     /// When it stops working: the session it opened must be renewed by then.
     pub expires_at: SystemTime,
+    /// The only records of the stream it may read, when it is limited to a range.
+    pub stream_range: Option<StreamRange>,
 }
 
 /// Verifies `token` offline for `action` on `resource` at `now`, from `client`, against `keys`
@@ -289,7 +299,14 @@ pub fn verify<S: BuildHasher>(
         .map(|(t,)| t)
         .min()
         .ok_or_else(|| TokenError::Invalid("the token states no expiry".into()))?;
-    Ok(Verified { subject, grant: leaf, chain, expires_at })
+    let ranges: Vec<(SystemTime, SystemTime)> =
+        authorizer.query("data($f, $t) <- stream_range($f, $t)")?;
+    let stream_range = match ranges.as_slice() {
+        [] => None,
+        [(from, to)] => Some(StreamRange { from: *from, to: *to }),
+        _ => return Err(TokenError::Invalid("a token states one stream range".into())),
+    };
+    Ok(Verified { subject, grant: leaf, chain, expires_at, stream_range })
 }
 
 /// The chain a token states, leaf first: each link once as a member and once with its place,
