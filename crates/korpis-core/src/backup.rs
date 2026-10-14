@@ -3,6 +3,9 @@
 //! Backups (§5 of docs/06-storage.md): the repository a workload's backups are kept in, how long
 //! they are kept, and each backup as the node that ran it reported it.
 
+pub mod calendar;
+pub mod retention;
+
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 

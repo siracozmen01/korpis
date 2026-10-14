@@ -442,6 +442,15 @@ still the tenant's question, whatever the cryptography makes safe.
 against a misconfigured retention rule quietly destroying the history that a ransomware incident
 would need.
 
+**What a policy keeps, as built, 2026-10-14.** A whole backup is kept if it is one of the newest
+`keep_last`, or the newest of its hour, day, ISO week (Monday to Sunday, belonging to the year of
+its Thursday), month, or year, among the newest that many of each that have a backup, all in
+UTC: periods without a backup are not counted, so a server that was off for a week still keeps
+seven daily backups. Whatever the policy says, a backup younger than `min_retention` is kept, as
+is one not yet finished, and one an open plan restores (§5.5); a failed backup's record is kept
+for `keep_failed`, so why it failed can still be read. Every decision names the rules that keep
+the backup, so a prune's plan shows why each one survives.
+
 ### 5.4 Restore
 
 | Mode | Does |
