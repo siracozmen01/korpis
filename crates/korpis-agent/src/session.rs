@@ -8,6 +8,7 @@
 
 use crate::held::HeldSet;
 use crate::identity::Credentials;
+use crate::jobs::JobAccesses;
 use crate::journal::{JournalHandle, Shipper};
 use crate::revoked::{Revoked, token_ring};
 use crate::state::{Identity, StateDir};
@@ -49,6 +50,7 @@ pub struct Session {
     outbound: mpsc::Receiver<agent::AgentMessage>,
     events: broadcast::Sender<Event>,
     credentials: Arc<Credentials>,
+    jobs: Arc<JobAccesses>,
 }
 
 impl std::fmt::Debug for Session {
@@ -118,6 +120,7 @@ impl Session {
         let (outbound_tx, outbound) = mpsc::channel(1024);
         let (events, _) = broadcast::channel(64);
         let credentials = Credentials::new(outbound_tx.clone());
+        let jobs = JobAccesses::new(outbound_tx.clone());
         let link = Link {
             held: held_rx,
             revoked: revoked_rx,
@@ -126,6 +129,7 @@ impl Session {
             outbound: outbound_tx,
             events: events.clone(),
             credentials: credentials.clone(),
+            jobs: jobs.clone(),
         };
         let session = Self {
             identity,
@@ -139,6 +143,7 @@ impl Session {
             outbound,
             events,
             credentials,
+            jobs,
         };
         (session, link)
     }
@@ -302,6 +307,10 @@ impl Session {
             }
             Some(Down::WorkloadCredential(answer)) => {
                 self.credentials.answer(*answer);
+                Vec::new()
+            }
+            Some(Down::JobAccess(answer)) => {
+                self.jobs.answer(*answer);
                 Vec::new()
             }
             Some(other) => {

@@ -14,6 +14,8 @@ mod audit;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod authz;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod backup;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod data;
 pub mod error;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
@@ -55,10 +57,10 @@ use korpis_app::{App, Caller, Page, Reply};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
-    DeclaredSetServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
-    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
-    RepositoryServiceExt, ServerInfoServiceExt, StreamServiceExt, VolumeServiceExt,
-    WorkloadServiceExt,
+    BackupServiceExt, DeclaredSetServiceExt, EffectServiceExt, EventServiceExt,
+    ExtensionServiceExt, GrantServiceExt, NodeServiceExt, OrganizationServiceExt, PlanServiceExt,
+    ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, ServerInfoServiceExt,
+    StreamServiceExt, VolumeServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -185,6 +187,7 @@ impl Api {
         let router = StreamServiceExt::register(Arc::clone(&self), router);
         let router = VolumeServiceExt::register(Arc::clone(&self), router);
         let router = RepositoryServiceExt::register(Arc::clone(&self), router);
+        let router = BackupServiceExt::register(Arc::clone(&self), router);
         let router =
             if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
         let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(

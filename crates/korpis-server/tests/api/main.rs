@@ -16,6 +16,7 @@ mod assignments;
 mod authority;
 mod authz;
 mod backup_target;
+mod backups;
 mod cancel;
 mod classify;
 mod console;

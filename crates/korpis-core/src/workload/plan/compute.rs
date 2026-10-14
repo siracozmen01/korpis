@@ -254,8 +254,45 @@ pub fn snapshot_steps(
         VolumeOp::Rollback => b.push(StepAction::RollbackVolume, detail, &[]),
         VolumeOp::DeleteSnapshot => b.push(StepAction::DeleteSnapshot, detail, &[]),
         VolumeOp::Delete => b.push(StepAction::DeleteVolume, deletion(v), &[]),
+        // A backup's step is `backup_steps`'s, with what only it carries.
+        VolumeOp::Backup => {}
     }
     b.steps
+}
+
+/// A backup a plan takes: its identifier, its repository, the parent whose unchanged files it
+/// need not read, and whether the node reads it from a snapshot it takes for the job.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackupStep {
+    /// The backup.
+    pub backup: Uuid,
+    /// The repository it is kept in.
+    pub repository: Uuid,
+    /// The volume's last whole backup in that repository.
+    pub parent: Option<Uuid>,
+    /// Whether the class can snapshot, so the job reads a single point in time.
+    pub consistent: bool,
+}
+
+/// The one step of a plan backing up `v`: the node snapshots it for the job where `consistent`,
+/// reads it, and releases the snapshot, all inside the step (§5.1 of docs/06-storage.md), so
+/// taking a backup changes nothing a workload sees and loses nothing.
+#[must_use]
+pub fn backup_steps(
+    workload: Uuid,
+    v: &Volume,
+    b: BackupStep,
+    classifier: Classifier<'_>,
+) -> Vec<Step> {
+    let mut steps =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    let mut detail = deletion(v);
+    detail.insert("backup".into(), text(&b.backup.to_string()));
+    detail.insert("repository".into(), text(&b.repository.to_string()));
+    detail.insert("parent".into(), text(&b.parent.map(|p| p.to_string()).unwrap_or_default()));
+    detail.insert("consistent".into(), Value::Bool(b.consistent));
+    steps.push(StepAction::BackupVolume, detail, &[]);
+    steps.steps
 }
 
 /// What a node needs to delete `v`: the helper's identifier for it, as the node reported it,

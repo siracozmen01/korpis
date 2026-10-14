@@ -522,6 +522,50 @@ message ListRepositoriesResponse {
   PageResponse page = 2;
 }
 
+// Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
+service BackupService {
+  // Proposes backing a volume up into a repository, under backup.create on the volume's
+  // workload: a plan of one step that changes nothing the workload sees and applies at once.
+  rpc CreateBackup(CreateBackupRequest) returns (CreateBackupResponse);
+  rpc GetBackup(GetBackupRequest) returns (GetBackupResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // A workload's backups, newest first; pruned ones only when asked for.
+  rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message CreateBackupRequest {
+  Mutation mutation = 1;
+  string volume = 2;
+  string repository = 3;
+}
+
+message CreateBackupResponse {
+  Plan plan = 1;
+  Backup backup = 2;
+}
+
+message GetBackupRequest {
+  string id = 1;
+}
+
+message GetBackupResponse {
+  Backup backup = 1;
+}
+
+message ListBackupsRequest {
+  string workload = 1;
+  bool include_deleted = 2;
+  PageRequest page = 3;
+}
+
+message ListBackupsResponse {
+  repeated Backup backups = 1;
+  PageResponse page = 2;
+}
+
 // Volumes as the control plane knows them (§7 of docs/06-storage.md): kept from what nodes
 // report, outliving the workloads they were made for. Reading one takes volume.read.
 service VolumeService {

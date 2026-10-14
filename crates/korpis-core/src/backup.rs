@@ -185,3 +185,20 @@ pub struct Backup {
     /// When it was pruned.
     pub deleted_at: Option<SystemTime>,
 }
+
+/// How a backup ended, as the node that ran its job reports it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportedBackup {
+    /// The workload whose volume it is of.
+    pub workload: Uuid,
+    /// The backup.
+    pub backup: Uuid,
+    /// Whether its record is in the repository.
+    pub ok: bool,
+    /// Why not.
+    pub error: Option<String>,
+    /// Whether it was read from a snapshot.
+    pub consistent: bool,
+    /// What it read and stored.
+    pub stats: BackupStats,
+}

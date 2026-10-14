@@ -10,6 +10,7 @@
 //! (§4.5): without one it changes nothing, and when another node holds the workload it stops it.
 
 mod act;
+mod backup;
 mod observe;
 pub mod progress;
 mod step;
@@ -88,6 +89,8 @@ pub struct Wiring {
     pub identity: Option<Arc<IdentitySockets>>,
     /// Where it says which runtime object each workload runs as, for the console's input.
     pub runtimes: watch::Sender<BTreeMap<String, String>>,
+    /// Where backup and restore jobs ask for their key and access.
+    pub jobs: Arc<crate::jobs::JobAccesses>,
 }
 
 /// The reconciler.

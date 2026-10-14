@@ -30,6 +30,8 @@ pub enum StepAction {
     RollbackVolume,
     /// Delete one snapshot of a volume.
     DeleteSnapshot,
+    /// Back a volume up into a repository.
+    BackupVolume,
     /// Create the runtime instance.
     Create,
     /// Start it.
@@ -63,6 +65,7 @@ impl StepAction {
             Self::SnapshotVolume => "snapshot_volume",
             Self::RollbackVolume => "rollback_volume",
             Self::DeleteSnapshot => "delete_snapshot",
+            Self::BackupVolume => "backup_volume",
             Self::Create => "create",
             Self::Start => "start",
             Self::Stop => "stop",
@@ -75,7 +78,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 17] = [
+    const ALL: [Self; 18] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -84,6 +87,7 @@ impl StepAction {
         Self::SnapshotVolume,
         Self::RollbackVolume,
         Self::DeleteSnapshot,
+        Self::BackupVolume,
         Self::Create,
         Self::Start,
         Self::Stop,

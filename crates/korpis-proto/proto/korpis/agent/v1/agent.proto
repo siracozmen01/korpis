@@ -12,9 +12,11 @@ package korpis.agent.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/backup/v1/backup.proto";
 import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
+import "korpis/v1/provider.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";
@@ -69,6 +71,7 @@ message AgentMessage {
     ProbeReply probe_reply = 10;
     CredentialRequest credential_request = 11;
     ProbeListening probe_listening = 12;
+    JobAccessRequest job_access_request = 13;
   }
 }
 
@@ -91,6 +94,7 @@ message ControlMessage {
     WorkloadCredential workload_credential = 13;
     ReachabilityProbe reachability_probe = 14;
     Relays relays = 15;
+    JobAccess job_access = 16;
   }
 }
 
@@ -103,6 +107,41 @@ message Relays {
   // Whether the control plane serves the relay role itself, at the address the agent dials it
   // by.
   bool control_plane = 2;
+}
+
+// A node executing a backup or restore step asks for what its job needs (§5.5 of
+// docs/06-storage.md): the workload's data key, and access to the workload's prefix in the
+// repository's store. The control plane answers only a node holding the workload's lease whose
+// assignment carries that step.
+message JobAccessRequest {
+  // Echoed in the answer.
+  string request = 1;
+  string plan = 2;
+  uint32 step = 3;
+}
+
+message JobAccess {
+  string request = 1;
+  oneof outcome {
+    JobGrant grant = 2;
+    korpis.v1.Error refused = 3;
+  }
+}
+
+// What one job may use, for as long as the access lasts. The agent hands it to the helper, which
+// hands it to the job, and none of them keeps it.
+message JobGrant {
+  // 32 bytes.
+  bytes data_key = 1;
+  korpis.v1.S3Access store = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// A backup job ended on the node: what its result says.
+message BackupEvent {
+  string workload = 1;
+  string backup = 2;
+  korpis.backup.v1.JobResult result = 3;
 }
 
 // A workload asked its identity socket for a credential (§9.5 of docs/08-identity.md). The
@@ -418,6 +457,7 @@ message JournalRecord {
     StreamSegmentEvent stream_segment = 9;
     VolumeEvent volume = 10;
     SnapshotEvent snapshot = 11;
+    BackupEvent backup = 12;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;

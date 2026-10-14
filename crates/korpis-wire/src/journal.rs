@@ -116,6 +116,9 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
         B::Snapshot(s) => {
             Body::Snapshot(crate::volume::snapshot_from_pb(&format!("{field}.snapshot"), s)?)
         }
+        B::Backup(b) => {
+            Body::Backup(crate::repository::reported_backup_from_pb(&format!("{field}.backup"), b)?)
+        }
     })
 }
 

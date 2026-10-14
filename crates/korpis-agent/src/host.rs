@@ -66,6 +66,21 @@ pub trait Host: Send + Sync + 'static {
 
     /// The storage classes the node offers, as the helper declares them.
     fn storage(&self) -> impl Future<Output = Result<Vec<pb::StorageClassInfo>, HostError>> + Send;
+
+    /// Starts a backup or restore job, or finds the one started; whether it started now.
+    fn start_job(
+        &self,
+        request: &helper::StartJobRequest,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send;
+
+    /// Where a job is.
+    fn job_status(
+        &self,
+        job: &str,
+    ) -> impl Future<Output = Result<helper::JobStatusResponse, HostError>> + Send;
+
+    /// Removes what is kept of a job that ended.
+    fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send;
 }
 
 #[derive(Debug, Default)]
@@ -74,6 +89,7 @@ struct Kept {
     content: BTreeSet<String>,
     ids: BTreeMap<String, (u32, u32)>,
     snapshots: BTreeSet<(String, String)>,
+    jobs: BTreeMap<String, helper::JobStatusResponse>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -186,5 +202,64 @@ impl Host for InMemoryHost {
 
     fn storage(&self) -> impl Future<Output = Result<Vec<pb::StorageClassInfo>, HostError>> + Send {
         ready(Ok(Vec::new()))
+    }
+
+    /// A job finishes as it starts: a backup with a record, a restore verified.
+    fn start_job(
+        &self,
+        request: &helper::StartJobRequest,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send {
+        let finished = finished_at_once(request);
+        ready(self.with(|k| {
+            let started = !k.jobs.contains_key(&request.job);
+            k.jobs.entry(request.job.clone()).or_insert(finished);
+            started
+        }))
+    }
+
+    fn job_status(
+        &self,
+        job: &str,
+    ) -> impl Future<Output = Result<helper::JobStatusResponse, HostError>> + Send {
+        ready(self.with(|k| {
+            k.jobs.get(job).cloned().unwrap_or_else(|| helper::JobStatusResponse {
+                state: helper::JobState::JOB_STATE_UNKNOWN.into(),
+                ..Default::default()
+            })
+        }))
+    }
+
+    fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
+        ready(self.with(|k| {
+            k.jobs.remove(job);
+        }))
+    }
+}
+
+/// The status of `request`'s job once it finished as the in-memory host finishes jobs.
+fn finished_at_once(request: &helper::StartJobRequest) -> helper::JobStatusResponse {
+    use korpis_proto::korpis::backup::v1 as backup;
+    use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
+    let mut result = backup::JobResult { ok: true, ..Default::default() };
+    match &request.work {
+        Some(Work::Backup(b)) => {
+            let stats = backup::BackupStats { files: 1, ..Default::default() };
+            result.backup = backup::Backup {
+                id: b.backup.clone(),
+                consistent: b.take_snapshot || !b.snapshot.is_empty(),
+                stats: stats.into(),
+                ..Default::default()
+            }
+            .into();
+        }
+        Some(Work::Restore(_)) => {
+            result.restored = backup::Restored { verified: true, ..Default::default() }.into();
+        }
+        None => result.ok = false,
+    }
+    helper::JobStatusResponse {
+        state: helper::JobState::JOB_STATE_FINISHED.into(),
+        result: result.into(),
+        ..Default::default()
     }
 }

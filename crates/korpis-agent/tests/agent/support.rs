@@ -122,6 +122,26 @@ impl ControlPlane {
         pb::WorkloadServiceClient::new(self.http(), config)
     }
 
+    /// A client of `S` as the operator.
+    pub fn client<S>(&self, make: impl FnOnce(HttpClient, ClientConfig) -> S) -> S {
+        make(self.http(), self.config())
+    }
+
+    /// The identifier of the volume `name` in `project`, once its node has reported it.
+    pub async fn volume_named(&self, project: &str, name: &str) -> String {
+        let client = pb::VolumeServiceClient::new(self.http(), self.config());
+        for _ in 0..200 {
+            let request =
+                pb::ListVolumesRequest { project: project.to_owned(), ..Default::default() };
+            let listed = client.list_volumes(request).await.unwrap().into_owned().volumes;
+            if let Some(v) = listed.into_iter().find(|v| v.name == name) {
+                return v.id;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        panic!("no volume {name} was reported");
+    }
+
     /// A project in the root organization, whose policy runs unsigned recipes: the agent's
     /// tests are about the node, not about trust (§7 of docs/09-recipes.md).
     pub async fn project(&self) -> String {

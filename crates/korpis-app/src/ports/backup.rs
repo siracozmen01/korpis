@@ -42,6 +42,21 @@ pub trait BackupRead {
     /// A backup, pruned or not.
     fn backup(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Backup>>> + Send;
 
+    /// Whether a backup of `workload` into `repository` is pending under a plan still open:
+    /// one writer per workload prefix (§5.5 of docs/06-storage.md).
+    fn backup_open(
+        &self,
+        repository: Uuid,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// The newest succeeded, unpruned backup of `volume` in `repository`.
+    fn last_backup(
+        &self,
+        repository: Uuid,
+        volume: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
+
     /// A workload's backups, newest first after the page's cursor; pruned ones only when
     /// `deleted`.
     fn backups(
@@ -54,7 +69,10 @@ pub trait BackupRead {
 
 /// Writing repositories, keys, and backups.
 pub trait BackupWrite {
-    /// Adds a repository, its key-encryption key sealed as `kek`.
+    /// Adds a repository, its key-encryption key sealed as `kek`; refused as
+    /// [`Unique::RepositoryPrefix`](super::Unique::RepositoryPrefix) when a live repository of
+    /// the organization and provider name has a place its prune could reach into, checked under
+    /// a lock that two additions take in turn.
     fn insert_repository(
         &mut self,
         r: &Repository,

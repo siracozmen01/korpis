@@ -37,8 +37,11 @@ async fn a_repository_is_made_read_and_listed_as_its_grants_allow() {
     assert_eq!(reason(&e), "repository.name_taken");
 
     let p = project(&h, &h.root_org(), "games").await;
-    let scoped =
-        pb::CreateRepositoryRequest { project: Some(p.clone()), ..create(&h, "r3", "games-only") };
+    let scoped = pb::CreateRepositoryRequest {
+        project: Some(p.clone()),
+        prefix: "games/".into(),
+        ..create(&h, "r3", "games-only")
+    };
     repos.create_repository(scoped).await.unwrap();
     let list = |project: Option<String>| pb::ListRepositoriesRequest {
         organization: h.root_org(),
@@ -92,6 +95,31 @@ async fn what_a_repository_cannot_be_is_refused_with_its_reason() {
         repos.create_repository(nothing).await.unwrap_err().code,
         ErrorCode::InvalidArgument
     );
+    repos.create_repository(create(&h, "base", "base")).await.unwrap();
+    let workload_place = "korpis/workloads/0193a5b0-0000-7000-8000-000000000000/x/";
+    for (key, prefix) in [("in", workload_place), ("same", "korpis/")] {
+        let overlapping =
+            pb::CreateRepositoryRequest { prefix: prefix.into(), ..create(&h, key, key) };
+        let refused = repos.create_repository(overlapping).await.unwrap_err();
+        assert_eq!(
+            reason(&refused),
+            "repository.prefix_overlaps",
+            "{prefix}: one prune would empty the other"
+        );
+    }
+    for (key, prefix) in [("beside", "korpis-other/"), ("inner", "korpis/inner/")] {
+        let apart = pb::CreateRepositoryRequest { prefix: prefix.into(), ..create(&h, key, key) };
+        repos.create_repository(apart).await.unwrap();
+    }
+    let around = pb::CreateRepositoryRequest {
+        prefix: "korpis/inner/workloads/".into(),
+        ..create(&h, "around", "around")
+    };
+    let refused = repos.create_repository(around).await.unwrap_err();
+    assert_eq!(reason(&refused), "repository.prefix_overlaps", "the other way round too");
+    let elsewhere =
+        pb::CreateRepositoryRequest { provider: "b2".into(), ..create(&h, "else", "elsewhere") };
+    repos.create_repository(elsewhere).await.unwrap();
     for prefix in ["", "korpis", "../up/", "/abs/"] {
         let bad =
             pb::CreateRepositoryRequest { prefix: prefix.into(), ..create(&h, prefix, "bad") };

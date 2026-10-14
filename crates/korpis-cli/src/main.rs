@@ -6,6 +6,7 @@ use clap::{CommandFactory as _, Parser, Subcommand};
 use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
+use korpis_cli::cmd::backup::{self, BackupAction};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
 use korpis_cli::cmd::repository::{self, RepositoryAction};
@@ -98,6 +99,9 @@ enum Command {
     /// Makes, lists, and shows backup repositories.
     #[command(subcommand)]
     Repository(RepositoryAction),
+    /// Takes, lists, and shows backups.
+    #[command(subcommand)]
+    Backup(BackupAction),
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
@@ -179,19 +183,23 @@ fn print(v: &Value) {
     println!("{}", serde_json::to_string_pretty(v).unwrap_or_default());
 }
 
+/// `korpis version`: this binary's, and the server's when there is one to ask.
+#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
+async fn version(cli: &Cli) -> Result<(), CliError> {
+    let v = korpis_cli::version::both(cli.connection()?.as_ref()).await?;
+    if cli.json {
+        print(&v);
+    } else {
+        println!("{}", korpis_cli::version::human(&v));
+    }
+    Ok(())
+}
+
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 async fn run(cli: &Cli) -> Result<(), CliError> {
     match &cli.command {
         Command::Completion { shell } => registration(*shell),
-        Command::Version => {
-            let v = korpis_cli::version::both(cli.connection()?.as_ref()).await?;
-            if cli.json {
-                print(&v);
-            } else {
-                println!("{}", korpis_cli::version::human(&v));
-            }
-            Ok(())
-        }
+        Command::Version => version(cli).await,
         Command::Plan { action: Some(a), .. } => answer(cli, act::plan(&cli.required()?, a).await),
         Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
         Command::Get(g) => answer(cli, get::get(&cli.required()?, g).await),
@@ -220,6 +228,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
+        Command::Backup(a) => answer(cli, backup::backup(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
             answer(cli, act::node(&cli.required()?, &server, a).await)

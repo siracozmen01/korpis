@@ -103,6 +103,10 @@ pub enum Unique {
     ProviderName,
     /// Repository names are unique within an organization among live repositories.
     RepositoryName,
+    /// No two live repositories of one provider name in an organization have places one's
+    /// prune could reach into: the same prefix, or one that is the other's followed by
+    /// `workloads/` and more.
+    RepositoryPrefix,
     /// Any other.
     Other,
 }

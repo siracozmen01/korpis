@@ -102,6 +102,21 @@ pub fn table(rows: &[Vec<String>]) -> String {
     out
 }
 
+/// A byte count as a person reads it, in powers of 1024.
+#[must_use]
+pub fn bytes(n: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let (mut whole, mut unit) = (n, 0);
+    let mut tenths = 0;
+    while whole >= 1024 && unit + 1 < UNITS.len() {
+        tenths = (whole % 1024) * 10 / 1024;
+        whole /= 1024;
+        unit += 1;
+    }
+    let name = UNITS.get(unit).copied().unwrap_or("B");
+    if unit == 0 { format!("{whole} {name}") } else { format!("{whole}.{tenths} {name}") }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -53,11 +53,14 @@ pub enum VolumeOp {
     Rollback,
     /// Deletes one of its snapshots.
     DeleteSnapshot,
+    /// Backs it up into a repository.
+    Backup,
 }
 
 impl VolumeOp {
     /// Every operation.
-    pub const ALL: [Self; 4] = [Self::Delete, Self::Snapshot, Self::Rollback, Self::DeleteSnapshot];
+    pub const ALL: [Self; 5] =
+        [Self::Delete, Self::Snapshot, Self::Rollback, Self::DeleteSnapshot, Self::Backup];
 
     /// The stored kind of a plan doing it.
     #[must_use]
@@ -67,6 +70,7 @@ impl VolumeOp {
             Self::Snapshot => "snapshot_volume",
             Self::Rollback => "rollback_volume",
             Self::DeleteSnapshot => "delete_snapshot",
+            Self::Backup => "backup_volume",
         }
     }
 

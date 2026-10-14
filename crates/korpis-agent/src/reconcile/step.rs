@@ -61,7 +61,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 // not begun (§7 of docs/03-state.md). The next pass acts on the new assignment.
                 return false;
             }
-            let result = self.execute(a, s, t).await;
+            let result = match self.execute(a, &plan.plan, s, t).await {
+                Ok(None) => return false,
+                Ok(Some(left)) => Ok(left),
+                Err(e) => Err(e),
+            };
             let ok = result.is_ok();
             let mut e = effect(Some(&a.workload), &format!("step.{}", s.action), ok);
             e.plan = Some(plan.plan.clone());
@@ -103,15 +107,18 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .is_some_and(|p| p.plan == plan && index <= p.through)
     }
 
-    /// Executes one step.
+    /// Executes one step: what it leaves, or `None` for a step that has not ended yet, which a
+    /// later pass moves on.
     async fn execute(
         &mut self,
         a: &agent::Assignment,
+        plan: &str,
         s: &pb::Step,
         t: &mut Tracked,
-    ) -> Result<After, Failure> {
+    ) -> Result<Option<After>, Failure> {
         let mut after = After::new();
         match s.action.as_str() {
+            "backup_volume" => return self.backup_step(a, plan, s).await,
             "pull_recipe" => {
                 let spec = self.prepare(a, t).await?;
                 self.host.fetch(&spec.rootfs).await?;
@@ -145,6 +152,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             "retire" => self.destroy(t).await?,
             other => return Err(Failure(format!("a node does not execute {other:?}"))),
         }
-        Ok(after)
+        Ok(Some(after))
     }
 }

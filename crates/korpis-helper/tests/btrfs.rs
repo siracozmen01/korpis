@@ -14,39 +14,14 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod fixture;
+
+use fixture::mounted;
 use korpis_helper::storage::{Backend, Class};
 use korpis_proto::korpis::helper::v1 as helper;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-/// A btrfs filesystem, mounted until dropped.
-struct Mounted(PathBuf);
-
-impl Drop for Mounted {
-    fn drop(&mut self) {
-        let _ = Command::new("umount").arg(&self.0).status();
-    }
-}
-
-fn mounted(dir: &Path, quota: bool) -> Option<Mounted> {
-    let image = dir.join("fs.img");
-    std::fs::File::create(&image).unwrap().set_len(256 << 20).unwrap();
-    let made = Command::new("mkfs.btrfs").arg("-q").arg(&image).status().ok()?;
-    let at = dir.join("mnt");
-    std::fs::create_dir(&at).unwrap();
-    let on = Command::new("mount").args(["-o", "loop"]).arg(&image).arg(&at).status().ok()?;
-    if !(made.success() && on.success()) {
-        return None;
-    }
-    let m = Mounted(at);
-    if quota {
-        let btrfs = |args: &[&str]| Command::new("btrfs").args(args).arg(&m.0).status();
-        assert!(btrfs(&["quota", "enable"]).unwrap().success());
-        assert!(btrfs(&["quota", "rescan", "-w"]).unwrap().success());
-    }
-    Some(m)
-}
 
 /// Runs `script` as nobody, without the capability that would let it pass the quota.
 fn as_nobody(cwd: &Path, script: &str) -> std::process::Output {

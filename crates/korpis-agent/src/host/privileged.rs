@@ -158,6 +158,33 @@ impl HelperClient {
         }
     }
 
+    /// Starts a job; whether it started now.
+    pub async fn start_job(&self, request: &helper::StartJobRequest) -> Result<bool, HostError> {
+        match self.call(Verb::StartJob(Box::new(request.clone()))).await? {
+            Answer::StartJob(a) => Ok(a.started),
+            // The request carries a data key and a credential: it is never printed.
+            _ => Err(failed("the helper answered starting a job with something else")),
+        }
+    }
+
+    /// Where a job is.
+    pub async fn job_status(&self, job: &str) -> Result<helper::JobStatusResponse, HostError> {
+        let r = helper::JobStatusRequest { job: job.to_owned(), ..Default::default() };
+        match self.call(Verb::JobStatus(Box::new(r))).await? {
+            Answer::JobStatus(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// Removes what is kept of a job.
+    pub async fn forget_job(&self, job: &str) -> Result<(), HostError> {
+        let r = helper::ForgetJobRequest { job: job.to_owned(), ..Default::default() };
+        match self.call(Verb::ForgetJob(Box::new(r))).await? {
+            Answer::ForgetJob(_) => Ok(()),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// The storage classes the node offers.
     pub async fn describe_storage(
         &self,

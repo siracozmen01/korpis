@@ -116,6 +116,7 @@ fn volume_kind(op: VolumeOp) -> pb::PlanKind {
         VolumeOp::Snapshot => pb::PlanKind::PLAN_KIND_SNAPSHOT_VOLUME,
         VolumeOp::Rollback => pb::PlanKind::PLAN_KIND_ROLLBACK_VOLUME,
         VolumeOp::DeleteSnapshot => pb::PlanKind::PLAN_KIND_DELETE_SNAPSHOT,
+        VolumeOp::Backup => pb::PlanKind::PLAN_KIND_BACKUP_VOLUME,
     }
 }
 

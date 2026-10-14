@@ -175,3 +175,36 @@ message RetentionPolicy {
   // A floor beneath which nothing prunes.
   google.protobuf.Duration min_retention = 8;
 }
+
+// One backup of one volume, as the node that ran it reported it (§5 of docs/06-storage.md).
+message Backup {
+  string id = 1;
+  string repository = 2;
+  string workload = 3;
+  string volume = 4;
+  string plan = 5;
+  // The volume's backup whose unchanged files it did not read again.
+  optional string parent = 6;
+  BackupStatus status = 7;
+  // Read from a snapshot, a single point in time; false when read live.
+  bool consistent = 8;
+  uint64 files = 9;
+  uint64 directories = 10;
+  uint64 bytes = 11;
+  uint64 chunks_new = 12;
+  uint64 bytes_new = 13;
+  uint64 stored_bytes = 14;
+  uint64 files_unchanged = 15;
+  repeated string skipped = 16;
+  string error = 17;
+  google.protobuf.Timestamp created = 18;
+  google.protobuf.Timestamp finished = 19;
+  google.protobuf.Timestamp deleted_at = 20;
+}
+
+enum BackupStatus {
+  BACKUP_STATUS_UNSPECIFIED = 0;
+  BACKUP_STATUS_PENDING = 1;
+  BACKUP_STATUS_SUCCEEDED = 2;
+  BACKUP_STATUS_FAILED = 3;
+}

@@ -205,6 +205,7 @@ impl Agent {
             events: link.events.subscribe(),
             period: options.period,
             runtimes,
+            jobs: link.jobs.clone(),
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),

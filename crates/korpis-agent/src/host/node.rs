@@ -69,4 +69,22 @@ impl Host for NodeHost {
     ) -> impl Future<Output = Result<(), HostError>> + Send {
         self.helper.snapshot(op, volume, snapshot)
     }
+
+    fn start_job(
+        &self,
+        request: &helper::StartJobRequest,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send {
+        self.helper.start_job(request)
+    }
+
+    fn job_status(
+        &self,
+        job: &str,
+    ) -> impl Future<Output = Result<helper::JobStatusResponse, HostError>> + Send {
+        self.helper.job_status(job)
+    }
+
+    fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
+        self.helper.forget_job(job)
+    }
 }

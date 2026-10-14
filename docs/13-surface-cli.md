@@ -217,12 +217,16 @@ Backups are kept in repositories. `korpis repository create nightly --provider s
 korpis/` makes one for the organization, or for one project with `--project`, keeping by default
 the last backup of each of seven days, four weeks, and six months above a one-day floor;
 `korpis repository list` and `korpis repository get rep_…` read them (§5.3 of `06-storage.md`).
+`korpis backup create vol_… --repository rep_…` backs a volume up, a plan that applies at once;
+`korpis backup list <workload>` shows its backups newest first, read from a snapshot or live, and
+`korpis backup get bkp_…` one, with why it failed and what it did not read (§5.1 there).
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The
 > other half is built now; the flag's bare names became `member/volume`, because a set deletes
-> several members at once and one bare name could match a volume of each. `korpis set list` and `korpis set mode` read a
-project's sets and change one's mode.
+> several members at once and one bare name could match a volume of each.
+
+`korpis set list` and `korpis set mode` read a project's sets and change one's mode.
 
 ---
 

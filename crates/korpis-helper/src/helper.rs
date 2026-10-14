@@ -61,15 +61,18 @@ impl Helper {
         use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work as R;
         match &r.work {
             Some(R::Backup(b)) => {
-                let directory = self.holding(&b.volume)?.backup_source(&b.volume, &b.snapshot)?;
+                crate::error::identifier("job", &r.job)?;
+                let (directory, release) = self
+                    .holding(&b.volume)?
+                    .backup_source((&b.volume, &b.snapshot), (&r.job, b.take_snapshot))?;
                 let work = pb::BackupWork {
                     backup: b.backup.clone(),
                     parent: b.parent.clone(),
-                    consistent: !b.snapshot.is_empty(),
+                    consistent: !b.snapshot.is_empty() || b.take_snapshot,
                     content: b.content.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Backup(Box::new(work)) })
+                Ok(Placed { directory, work: W::Backup(Box::new(work)), release })
             }
             Some(R::Restore(w)) => {
                 let volume = self.holding(&w.volume)?.path_of(&w.volume);
@@ -80,7 +83,7 @@ impl Helper {
                     path: w.path.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Restore(Box::new(work)) })
+                Ok(Placed { directory, work: W::Restore(Box::new(work)), release: None })
             }
             None => Err(HelperError::Refused("a job names its work".into())),
         }
@@ -107,6 +110,16 @@ impl Helper {
                 }))
             }
             Verb::ForgetJob(r) => {
+                // The snapshot a running job reads is not released under it.
+                let state = self.jobs()?.status(&r.job)?.state;
+                if state.as_known() == Some(helper::JobState::JOB_STATE_RUNNING) {
+                    return Err(HelperError::Refused(format!("job {} is running", r.job)));
+                }
+                if let Some((volume, snapshot)) = self.jobs()?.release_of(&r.job)?
+                    && let Ok(class) = self.holding(&volume)
+                {
+                    class.delete_snapshot(&volume, &snapshot)?;
+                }
                 self.jobs()?.forget(&r.job)?;
                 Answer::ForgetJob(Box::default())
             }

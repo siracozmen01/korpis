@@ -106,6 +106,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             Body::Volume(v) => self.volume(tx, node, v).await?,
             Body::Snapshot(snap) => self.snapshot(tx, node, snap).await?,
+            Body::Backup(b) => self.backup(tx, node, b).await?,
             Body::Malformed { reason } => rejected(reason, "malformed"),
             // Metering is stored with the metering of Phase 2 (§4 of docs/20-roadmap.md); until
             // then its arrival is recorded, so the loss is visible rather than silent.

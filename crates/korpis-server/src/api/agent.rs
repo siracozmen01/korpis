@@ -5,6 +5,7 @@
 
 mod credential;
 mod downlink;
+mod job;
 mod published;
 mod session;
 mod uplink;

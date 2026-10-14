@@ -55,12 +55,28 @@ pub struct Placed {
     pub directory: PathBuf,
     /// The work, as the job's spec carries it.
     pub work: pb::__buffa::oneof::job_spec::Work,
+    /// A snapshot taken for the job, by volume and name, which forgetting it releases.
+    pub release: Option<(String, String)>,
 }
 
 impl crate::storage::Class {
-    /// What a backup of `volume` reads: the snapshot `snapshot` of it, or the live volume when
-    /// that is empty.
-    pub fn backup_source(&self, volume: &str, snapshot: &str) -> HelperResult<PathBuf> {
+    /// What a backup of `volume` reads for job `job`: the snapshot `snapshot` of it; one taken
+    /// for the job when `take`, which is then also returned to be released; or the live volume.
+    pub fn backup_source(
+        &mut self,
+        (volume, snapshot): (&str, &str),
+        (job, take): (&str, bool),
+    ) -> HelperResult<(PathBuf, Option<(String, String)>)> {
+        if snapshot.is_empty() && take {
+            let name = format!("job-{job}");
+            self.snapshot(volume, &name)?;
+            let taken = self.snapshot_dir(volume).join(&name);
+            return Ok((taken, Some((volume.to_owned(), name))));
+        }
+        Ok((self.existing_source(volume, snapshot)?, None))
+    }
+
+    fn existing_source(&self, volume: &str, snapshot: &str) -> HelperResult<PathBuf> {
         if snapshot.is_empty() {
             return Ok(self.path_of(volume));
         }
@@ -117,6 +133,9 @@ impl Jobs {
                 .unwrap_or_default(),
             ..Default::default()
         };
+        if let Some((volume, snapshot)) = &placed.release {
+            std::fs::write(dir.join("snapshot"), format!("{volume}\n{snapshot}"))?;
+        }
         let log = std::fs::File::create(dir.join("log"))?;
         let mut child = Command::new(&self.config.binary)
             .env_clear()
@@ -222,6 +241,16 @@ impl Jobs {
         rustix::process::kill_process(pid, rustix::process::Signal::KILL)
             .map_err(std::io::Error::from)?;
         Ok(true)
+    }
+
+    /// The snapshot taken for `job`, by volume and name, if one was.
+    pub fn release_of(&self, job: &str) -> HelperResult<Option<(String, String)>> {
+        identifier("job", job)?;
+        match std::fs::read_to_string(self.dir(job).join("snapshot")) {
+            Ok(s) => Ok(s.split_once('\n').map(|(v, n)| (v.to_owned(), n.to_owned()))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Removes what is kept of `job`, which must have ended.

@@ -79,6 +79,8 @@ pub enum Body {
     /// A snapshot was taken, rolled back to, or deleted on the node (§4 of
     /// docs/06-storage.md).
     Snapshot(ReportedSnapshot),
+    /// A backup job ended (§5 of docs/06-storage.md).
+    Backup(crate::backup::ReportedBackup),
     /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
     /// docs/14-streams.md).
     Segment {

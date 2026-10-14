@@ -12,12 +12,15 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
+use crate::ports::{BackupWrite as _, Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::backup::{Backup, BackupStats, BackupStatus};
 use korpis_core::node::driver::StorageFeature;
 use korpis_core::workload::plan::VolumeOp;
-use korpis_core::workload::plan::compute::{delete_volume_steps, snapshot_steps};
+use korpis_core::workload::plan::compute::{
+    BackupStep, backup_steps, delete_volume_steps, snapshot_steps,
+};
 use korpis_core::workload::plan::impact::ResourceDelta;
 use korpis_core::workload::volume::{Volume, VolumeKind};
 use korpis_core::workload::{Plan, PlanTarget, PowerState};
@@ -43,14 +46,41 @@ pub(crate) fn undeletable(v: &Volume) -> Option<AppError> {
     })
 }
 
+/// The record of backup `b`, pending, as its plan `plan` of `workload` on `volume` proposes it.
+fn pending(
+    b: BackupStep,
+    (workload, volume, plan): (Uuid, Uuid, Uuid),
+    now: std::time::SystemTime,
+) -> Backup {
+    Backup {
+        id: b.backup,
+        repository: b.repository,
+        workload,
+        volume,
+        plan,
+        parent: b.parent,
+        status: BackupStatus::Pending,
+        consistent: b.consistent,
+        stats: BackupStats::default(),
+        error: None,
+        created: now,
+        finished: None,
+        deleted_at: None,
+    }
+}
+
 /// A plan asked of a volume.
-struct Ask<'a> {
-    volume: Volume,
-    op: VolumeOp,
-    /// The action it is proposed under, on the volume.
-    action: &'static str,
+pub(crate) struct Ask<'a> {
+    pub volume: Volume,
+    pub op: VolumeOp,
+    /// The action it is proposed under, and the object that action is authorized on: the
+    /// volume, or for a backup the volume's workload.
+    pub action: &'static str,
+    pub object: ObjectRef,
     /// The snapshot it concerns, by identifier and name.
-    snapshot: Option<(Uuid, &'a str)>,
+    pub snapshot: Option<(Uuid, &'a str)>,
+    /// The backup it takes.
+    pub backup: Option<BackupStep>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -65,7 +95,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(e) = undeletable(&volume) {
             return Err(e);
         }
-        let ask = Ask { volume, op: VolumeOp::Delete, action: "volume.delete", snapshot: None };
+        let object = ObjectRef::new(Kind::Volume, volume.id);
+        let ask = Ask {
+            volume,
+            op: VolumeOp::Delete,
+            action: "volume.delete",
+            object,
+            snapshot: None,
+            backup: None,
+        };
         self.propose_on_volume(caller, idem, ask).await
     }
 
@@ -92,8 +130,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let snapshot = Some((Uuid::now_v7(), name.as_str()));
-        let ask =
-            Ask { volume, op: VolumeOp::Snapshot, action: "volume.snapshot.create", snapshot };
+        let object = ObjectRef::new(Kind::Volume, volume.id);
+        let (op, action) = (VolumeOp::Snapshot, "volume.snapshot.create");
+        let ask = Ask { volume, op, action, object, snapshot, backup: None };
         self.propose_on_volume(caller, idem, ask).await
     }
 
@@ -112,11 +151,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let action = match op {
             VolumeOp::Rollback => "volume.snapshot.rollback",
             VolumeOp::DeleteSnapshot => "volume.snapshot.delete",
-            VolumeOp::Delete | VolumeOp::Snapshot => {
+            VolumeOp::Delete | VolumeOp::Snapshot | VolumeOp::Backup => {
                 return Err(AppError::Internal("not an operation on a snapshot".into()));
             }
         };
-        let ask = Ask { volume, op, action, snapshot: Some((s.id, s.name.as_str())) };
+        let object = ObjectRef::new(Kind::Volume, volume.id);
+        let snapshot = Some((s.id, s.name.as_str()));
+        let ask = Ask { volume, op, action, object, snapshot, backup: None };
         self.propose_on_volume(caller, idem, ask).await
     }
 
@@ -134,13 +175,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(holder(&v) == plan.workload && deletable)
     }
 
-    async fn live_volume(&self, id: Uuid) -> Result<Volume, AppError> {
+    pub(crate) async fn live_volume(&self, id: Uuid) -> Result<Volume, AppError> {
         let v = self.store.volume(id).await?.filter(|v| v.deleted_at.is_none());
         v.ok_or(AppError::NotFound { kind: "volume" })
     }
 
     /// That `v`'s class, on its node, declares snapshots, or why not.
-    async fn can_snapshot(&self, v: &Volume) -> Result<(), AppError> {
+    pub(crate) async fn can_snapshot(&self, v: &Volume) -> Result<(), AppError> {
         let node = self.store.node(v.node).await?;
         let class = node.as_ref().and_then(|n| {
             n.storage_classes
@@ -160,9 +201,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
+    /// The steps of `ask`, a plan of `w` on its volume.
+    async fn volume_steps(
+        &self,
+        w: &korpis_core::workload::Workload,
+        ask: &Ask<'_>,
+        classifier: korpis_core::workload::plan::step::Classifier<'_>,
+    ) -> Result<Vec<korpis_core::workload::plan::Step>, AppError> {
+        let v = &ask.volume;
+        Ok(match (ask.backup, ask.snapshot) {
+            (Some(b), _) => backup_steps(w.id, v, b, classifier),
+            (None, None) => delete_volume_steps(w.id, v, classifier),
+            (None, Some(snapshot)) => {
+                let running = self.runs(w, v).await?;
+                snapshot_steps(w.id, (v, ask.op), snapshot, running, classifier)
+            }
+        })
+    }
+
     /// Proposes `ask` as a plan of the volume's holder, approved at once if nothing in it needs
-    /// a person, which only taking a snapshot can be.
-    async fn propose_on_volume(
+    /// a person, which taking a snapshot or a backup can be.
+    pub(crate) async fn propose_on_volume(
         &self,
         caller: &Caller,
         idem: &Idempotent<'_, Plan>,
@@ -173,8 +232,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Reply::Replayed(r));
         }
         let v = &ask.volume;
-        let object = ObjectRef::new(Kind::Volume, v.id);
-        let (permit, proposing) = self.authorize_declaration(caller, ask.action, object).await?;
+        let (permit, proposing) =
+            self.authorize_declaration(caller, ask.action, ask.object).await?;
         let w = self.store.workload(holder(v)).await?.ok_or_else(|| {
             AppError::Internal(format!("volume {} names a missing workload", v.id))
         })?;
@@ -183,13 +242,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let (driver, disruption) = self.running_layers(&w).await?;
         let classifier = propose::classifier(&driver, &disruption, &w);
-        let steps = match ask.snapshot {
-            None => delete_volume_steps(w.id, v, classifier),
-            Some(snapshot) => {
-                let running = self.runs(&w, v).await?;
-                snapshot_steps(w.id, (v, ask.op), snapshot, running, classifier)
-            }
-        };
+        let steps = self.volume_steps(&w, &ask, classifier).await?;
         let gone = ask.op == VolumeOp::Delete && v.kind == VolumeKind::Declared;
         let proposal = Proposal {
             workload: w.id,
@@ -204,6 +257,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut plan = propose::plan(caller, proposal, self.clock.now());
         let mut tx = self.store.begin().await?;
         tx.insert_plan(&plan).await?;
+        if let Some(b) = ask.backup {
+            tx.insert_backup(&pending(b, (w.id, v.id, plan.id), self.clock.now())).await?;
+        }
         if approve_if_auto(&mut tx, &mut plan, caller, self.clock.now()).await? {
             tx.update_plan(&plan, korpis_core::workload::plan::PlanStatus::Proposed).await?;
         }
@@ -211,6 +267,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("volume", v.id.to_string().into()),
             ("approval", propose::approval_name(&plan).into()),
         ]);
+        if let Some(b) = ask.backup {
+            after.insert("backup".into(), b.backup.to_string().into());
+            after.insert("repository".into(), b.repository.to_string().into());
+        }
         if let Some((id, name)) = ask.snapshot {
             after.insert("snapshot".into(), id.to_string().into());
             after.insert("name".into(), name.into());

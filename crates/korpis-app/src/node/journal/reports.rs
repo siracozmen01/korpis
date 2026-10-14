@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What a node reports of the state it keeps beside its workloads: stream segments (§4 of
-//! docs/14-streams.md), volumes, and snapshots (§4 and §7 of docs/06-storage.md). Each is believed
+//! docs/14-streams.md), volumes, snapshots, and backups (§4, §5, and §7 of docs/06-storage.md). Each is believed
 //! from a node that once held the workload's lease, released or not: a segment is pruned, a
 //! volume deleted, and a snapshot taken of a retained volume long after the workload left the
 //! node, and the node that keeps them is the one that ran it.
@@ -10,9 +10,11 @@ use super::{rejected, system};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, RecipeSource, SnapshotWrite as _, Store, StreamWrite as _, VolumeWrite as _,
+    BackupWrite as _, Clock, RecipeSource, SnapshotWrite as _, Store, StreamWrite as _,
+    VolumeWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::backup::{BackupStatus, ReportedBackup};
 use korpis_core::workload::stream::{Segment, SegmentEvent, StreamKind};
 use korpis_core::workload::volume::{ReportedSnapshot, ReportedVolume, VolumeEvent};
 use uuid::Uuid;
@@ -92,6 +94,46 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         ]));
         e.workload = Some(s.workload);
         e.grant = self.store.governing_grant(s.workload).await?;
+        Ok(e)
+    }
+
+    /// A backup job that ended on the node (§5 of docs/06-storage.md): believed only from the
+    /// node holding the backup's volume, which once ran the workload, and only once.
+    pub(super) async fn backup(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        r: &ReportedBackup,
+    ) -> Result<Effect, AppError> {
+        let action = "backup.finished";
+        let Some(mut b) = self.store.backup(r.backup).await?.filter(|b| b.workload == r.workload)
+        else {
+            return Ok(rejected("no such backup of the workload", action));
+        };
+        let held = self.store.volume(b.volume).await?.is_some_and(|v| v.node == node);
+        if !held || !self.store.ever_leased(r.workload, node).await? {
+            return Ok(rejected("the node does not hold the backup's volume", action));
+        }
+        b.status = if r.ok { BackupStatus::Succeeded } else { BackupStatus::Failed };
+        (b.consistent, b.stats, b.error) = (r.consistent, r.stats.clone(), r.error.clone());
+        b.finished = Some(self.clock.now());
+        if !tx.finish_backup(&b).await? {
+            return Ok(rejected("the backup had already ended", action));
+        }
+        let outcome = if r.ok { Outcome::Succeeded } else { Outcome::Failed };
+        let mut e = system(action, outcome).after(details([
+            ("backup", b.id.to_string().into()),
+            ("consistent", b.consistent.into()),
+            ("bytes", b.stats.bytes.into()),
+            ("bytes_new", b.stats.bytes_new.into()),
+            ("stored_bytes", b.stats.stored_bytes.into()),
+        ]));
+        if let Some(why) = &b.error {
+            e = e.error(details([("message", why.clone().into())]));
+        }
+        e.workload = Some(r.workload);
+        e.plan = Some(b.plan);
+        e.grant = self.store.governing_grant(r.workload).await?;
         Ok(e)
     }
 }

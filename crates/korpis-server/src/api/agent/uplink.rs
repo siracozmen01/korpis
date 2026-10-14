@@ -118,6 +118,10 @@ impl Uplink {
             Some(Up::Journal(j)) => self.journal(j).await,
             Some(Up::Observation(o)) => self.observed(o).await,
             Some(Up::CredentialRequest(r)) => self.credential(r).await,
+            Some(Up::JobAccessRequest(r)) => {
+                super::job::answer(app, node, (**r).clone(), self.tx.clone());
+                Ok(())
+            }
             Some(Up::ProbeListening(p)) => {
                 self.sessions.probe_listening(&p.probe, p.error.clone());
                 Ok(())

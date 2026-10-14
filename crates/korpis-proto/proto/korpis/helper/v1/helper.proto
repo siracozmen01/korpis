@@ -213,6 +213,9 @@ message BackupVolume {
   string backup = 3;
   string parent = 4;
   repeated korpis.backup.v1.RecipeContent content = 5;
+  // Snapshot the volume for the job, in a class that can, and read that: a single point in
+  // time. ForgetJob releases the snapshot. Ignored when `snapshot` names one already taken.
+  bool take_snapshot = 6;
 }
 
 message RestoreVolume {

@@ -314,6 +314,25 @@ On a class without `snapshot`, Korpis falls back to reading the live tree and **
 backup record. A backup that might be inconsistent is labelled as such rather than presented as
 equivalent.
 
+**As built, 2026-10-14.** `korpis backup create vol_… --repository rep_…` proposes, under
+`backup.create` on the volume's workload and `repository.read` on the repository, a plan of one
+step, `backup_volume`, which changes nothing the workload sees, loses nothing, and applies at
+once. Steps 1 and 6 are inside that step rather than steps of their own: the helper snapshots the
+volume for the job where its class can and releases the snapshot when the job is forgotten,
+because a step deleting a snapshot is irreversible (§5 of `10-api.md`) and would make every backup
+wait for a person. The repository must serve the workload's project; one backup of a workload
+into a repository is open at a time (`backup.busy`), which is the one writer per prefix of §5.5;
+and the volume's last whole backup in that repository is the new one's parent, whose unchanged
+files are not read again (§5.7). The backup is recorded pending with its plan and made whole only
+by the report of the node that ran its job; one whose plan ended without such a report reads as
+failed, with the reason. When the step begins, the node holding the volume asks for the job's key
+and access naming the plan and the step, and the control plane answers only that node, only while
+the plan is open and the backup pending: it makes the workload's data key at its first backup
+there, opens it, and asks the repository's backup target for twelve hours of write access to the
+workload's prefix (§5.5, §5.6). A backup's record is read under `workload.read` (§5 of
+`10-api.md`). Nothing here takes a backup on a schedule: a nightly backup is a `scheduled`
+workload whose run proposes one under its own grants (Finding 33 of `23-walkthroughs.md`).
+
 ### 5.2 What the design gives, and which issue each one closes
 
 | Property | Mechanism | Closes |
@@ -382,6 +401,18 @@ relative prefix; each workload's objects are beneath `<prefix>workloads/<workloa
 that workload's jobs write. A retention policy that keeps nothing is refused, since a prune under
 it would remove everything above the floor. `dedup_scope` is not a field: it is the workload,
 plus recipe content by reference, and nothing widens it yet.
+
+**Two repositories of an organization never share a place** (Finding 32 of
+`23-walkthroughs.md`). A second repository naming the same provider at the same prefix, or at one
+that begins with the other's followed by `workloads/`, is refused (`repository.prefix_overlaps`):
+the same workload backed up into both would write one prefix under two keys, and each prune would
+take the other's objects for garbage. Within an organization a provider name resolves to one
+installation, which is what makes the comparison meaningful. Across organizations no check is
+needed and none is made, since it would tell one tenant where another keeps its backups: a
+workload is only backed up into its own organization's repositories, beneath its own identifier,
+so no prefix one organization chooses can put its places inside another's. What this does not
+catch is two provider names that the operator pointed at the same bucket and prefix; the control
+plane cannot see that, and the provider's configuration is where it has to be avoided.
 
 #### Widening the dedup scope is decided by the people inside it
 
@@ -534,7 +565,10 @@ already existed, which is how deduplicating backup systems lose data. The rule t
 simple because the keys made it so: a workload's chunks live only under its own prefix, and the
 control plane schedules every job that touches a prefix, so it never runs two at once. Backups of
 one workload are serialized by the control plane, which schedules them, and a prune of a prefix
-takes the same lock. Pruning itself is two-phase and runs with the repository's own
+takes the same lock. With prefixes that never coincide (§5.3), one open backup per workload and
+repository is one writer per prefix. A prune lists and deletes beneath one workload's prefix at a
+time, never beneath the repository's whole prefix, which is what keeps a place another repository
+chose inside it out of its reach. Pruning itself is two-phase and runs with the repository's own
 credential, which only the control plane or a relay holds: chunks no manifest references are marked,
 and deleted only after a grace period longer than the longest backup job, so even a lock lost to a
 crash cannot race a writer into a hole. Recipe content, shared across prefixes, is never pruned

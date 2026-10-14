@@ -19,7 +19,7 @@ use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
 /// A storage class that can snapshot, named as the volumes the test reports name it.
-fn snapshotting() -> pb::StorageClassInfo {
+pub(crate) fn snapshotting() -> pb::StorageClassInfo {
     pb::StorageClassInfo {
         name: "local".into(),
         backend: pb::StorageBackend::STORAGE_BACKEND_BTRFS.into(),
@@ -60,7 +60,9 @@ fn reported(
 
 /// A node declaring `storage`, running a workload with a reported volume `data`: the harness,
 /// the node's stream, the workload, the volume, and the next journal sequence.
-async fn running(storage: Vec<pb::StorageClassInfo>) -> (Harness, Stream, String, String, u64) {
+pub(crate) async fn running(
+    storage: Vec<pb::StorageClassInfo>,
+) -> (Harness, Stream, String, String, u64) {
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
     let (mut s, first) =

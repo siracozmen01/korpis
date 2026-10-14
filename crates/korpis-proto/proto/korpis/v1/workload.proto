@@ -298,6 +298,8 @@ enum PlanKind {
   PLAN_KIND_ROLLBACK_VOLUME = 7;
   // Deleting one snapshot of a volume.
   PLAN_KIND_DELETE_SNAPSHOT = 8;
+  // Backs a volume up into a repository (§5 of docs/06-storage.md).
+  PLAN_KIND_BACKUP_VOLUME = 9;
 }
 
 enum PlanStatus {

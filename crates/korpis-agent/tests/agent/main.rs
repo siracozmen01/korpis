@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod backup;
 mod console;
 mod console_write;
 mod content;

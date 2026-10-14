@@ -5,6 +5,7 @@
 
 use crate::held::{HeldSet, Refused};
 use crate::identity::Credentials;
+use crate::jobs::JobAccesses;
 use korpis_core::authz::revocation::RevocationList;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
@@ -77,4 +78,7 @@ pub struct Link {
     /// Workload credential requests, sent up this session and answered down it (§9.5 of
     /// docs/08-identity.md).
     pub credentials: Arc<Credentials>,
+    /// Backup and restore jobs' access requests, sent up this session and answered down it
+    /// (§5.5 of docs/06-storage.md).
+    pub jobs: Arc<JobAccesses>,
 }

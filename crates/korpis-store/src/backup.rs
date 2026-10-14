@@ -2,139 +2,17 @@
 
 //! Repositories, their sealed keys, and backups (§5 of docs/06-storage.md).
 
+mod rows;
+
 use crate::errors::from_sqlx;
-use crate::stored::{from_time, to_time};
+use crate::stored::from_time;
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{BackupRead, BackupWrite, SealedKey, StoreError, StoreResult};
-use korpis_core::backup::{Backup, BackupStats, BackupStatus, KeyCustody, Repository, Retention};
+use korpis_core::backup::{Backup, Repository};
+use rows::{BackupRow, RepositoryRow, signed};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
-
-type Time = chrono::DateTime<chrono::Utc>;
-
-/// One stored repository.
-struct RepositoryRow {
-    id: Uuid,
-    organization_id: Uuid,
-    project_id: Option<Uuid>,
-    name: String,
-    provider_name: String,
-    prefix: String,
-    key_custody: String,
-    keep_last: i32,
-    keep_hourly: i32,
-    keep_daily: i32,
-    keep_weekly: i32,
-    keep_monthly: i32,
-    keep_yearly: i32,
-    keep_failed_s: i64,
-    min_retention_s: i64,
-    created_at: Time,
-    deleted_at: Option<Time>,
-}
-
-fn count(v: i32) -> StoreResult<u32> {
-    u32::try_from(v).map_err(|_| StoreError::Corrupt(format!("a retention count {v}")))
-}
-
-fn seconds(v: i64) -> StoreResult<Duration> {
-    u64::try_from(v)
-        .map(Duration::from_secs)
-        .map_err(|_| StoreError::Corrupt(format!("a duration {v}")))
-}
-
-impl RepositoryRow {
-    fn into_domain(self) -> StoreResult<Repository> {
-        let custody = KeyCustody::parse(&self.key_custody)
-            .ok_or_else(|| StoreError::Corrupt(format!("key custody {}", self.key_custody)))?;
-        let retention = Retention {
-            keep_last: count(self.keep_last)?,
-            keep_hourly: count(self.keep_hourly)?,
-            keep_daily: count(self.keep_daily)?,
-            keep_weekly: count(self.keep_weekly)?,
-            keep_monthly: count(self.keep_monthly)?,
-            keep_yearly: count(self.keep_yearly)?,
-            keep_failed: seconds(self.keep_failed_s)?,
-            min_retention: seconds(self.min_retention_s)?,
-        };
-        Ok(Repository {
-            id: self.id,
-            organization: self.organization_id,
-            project: self.project_id,
-            name: self.name,
-            provider: self.provider_name,
-            prefix: self.prefix,
-            custody,
-            retention,
-            created: to_time(self.created_at),
-            deleted_at: self.deleted_at.map(to_time),
-        })
-    }
-}
-
-/// One stored backup.
-struct BackupRow {
-    id: Uuid,
-    repository_id: Uuid,
-    workload_id: Uuid,
-    volume_id: Uuid,
-    plan_id: Uuid,
-    parent_id: Option<Uuid>,
-    status: String,
-    consistent: bool,
-    files: i64,
-    directories: i64,
-    bytes: i64,
-    chunks_new: i64,
-    bytes_new: i64,
-    stored_bytes: i64,
-    files_unchanged: i64,
-    skipped: Vec<String>,
-    error: Option<String>,
-    created_at: Time,
-    finished_at: Option<Time>,
-    deleted_at: Option<Time>,
-}
-
-fn unsigned(v: i64) -> u64 {
-    u64::try_from(v).unwrap_or(0)
-}
-
-fn signed(v: u64) -> i64 {
-    i64::try_from(v).unwrap_or(i64::MAX)
-}
-
-impl BackupRow {
-    fn into_domain(self) -> StoreResult<Backup> {
-        let status = BackupStatus::parse(&self.status)
-            .ok_or_else(|| StoreError::Corrupt(format!("backup status {}", self.status)))?;
-        Ok(Backup {
-            id: self.id,
-            repository: self.repository_id,
-            workload: self.workload_id,
-            volume: self.volume_id,
-            plan: self.plan_id,
-            parent: self.parent_id,
-            status,
-            consistent: self.consistent,
-            stats: BackupStats {
-                files: unsigned(self.files),
-                directories: unsigned(self.directories),
-                bytes: unsigned(self.bytes),
-                chunks_new: unsigned(self.chunks_new),
-                bytes_new: unsigned(self.bytes_new),
-                stored_bytes: unsigned(self.stored_bytes),
-                files_unchanged: unsigned(self.files_unchanged),
-                skipped: self.skipped,
-            },
-            error: self.error,
-            created: to_time(self.created_at),
-            finished: self.finished_at.map(to_time),
-            deleted_at: self.deleted_at.map(to_time),
-        })
-    }
-}
 
 impl BackupRead for PgStore {
     async fn repository(&self, id: Uuid) -> StoreResult<Option<Repository>> {
@@ -179,6 +57,37 @@ impl BackupRead for PgStore {
         rows.into_iter().map(RepositoryRow::into_domain).collect()
     }
 
+    async fn backup_open(&self, repository: Uuid, workload: Uuid) -> StoreResult<bool> {
+        let open = sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                   SELECT 1 FROM backup b JOIN plan p ON p.id = b.plan_id
+                    WHERE b.repository_id = $1 AND b.workload_id = $2 AND b.status = 'pending'
+                      AND p.status IN ('proposed', 'approved', 'queued', 'applying')
+               ) AS "open!""#,
+            repository,
+            workload
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(open)
+    }
+
+    async fn last_backup(&self, repository: Uuid, volume: Uuid) -> StoreResult<Option<Uuid>> {
+        let id = sqlx::query_scalar!(
+            "SELECT id FROM backup
+              WHERE repository_id = $1 AND volume_id = $2 AND status = 'succeeded'
+                AND deleted_at IS NULL
+              ORDER BY id DESC LIMIT 1",
+            repository,
+            volume
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(id)
+    }
+
     async fn backup(&self, id: Uuid) -> StoreResult<Option<Backup>> {
         let row = sqlx::query_file_as!(
             BackupRow,
@@ -214,6 +123,10 @@ impl BackupRead for PgStore {
 
 impl BackupWrite for PgTx {
     async fn insert_repository(&mut self, r: &Repository, kek: &SealedKey) -> StoreResult<()> {
+        sqlx::query!("SELECT pg_advisory_xact_lock(hashtext('repository:' || $1))", r.provider)
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
         let t = &r.retention;
         let n = |v: u32| i32::try_from(v).unwrap_or(i32::MAX);
         let s = |d: Duration| i64::try_from(d.as_secs()).unwrap_or(i64::MAX);
@@ -246,6 +159,20 @@ impl BackupWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
+        // After the insert, so that a name taken is told as that rather than as an overlap.
+        let overlaps = sqlx::query_file_scalar!(
+            "queries/repository_overlaps.sql",
+            r.organization,
+            r.provider,
+            r.prefix,
+            r.id
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if overlaps {
+            return Err(StoreError::Duplicate(korpis_app::ports::Unique::RepositoryPrefix));
+        }
         Ok(())
     }
 

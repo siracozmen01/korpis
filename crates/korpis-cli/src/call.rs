@@ -127,6 +127,9 @@ table! {
     "korpis.v1.RepositoryService/CreateRepository" => RepositoryServiceClient::create_repository(CreateRepositoryRequest);
     "korpis.v1.RepositoryService/GetRepository" => RepositoryServiceClient::get_repository(GetRepositoryRequest);
     "korpis.v1.RepositoryService/ListRepositories" => RepositoryServiceClient::list_repositories(ListRepositoriesRequest);
+    "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
+    "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
+    "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

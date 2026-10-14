@@ -206,7 +206,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   2026-10-14, when repositories were built (§5.3 of `06-storage.md`). Making a repository
   decides where an organization's backups go and who holds their key, which no existing action
   covered; reading one shows that decision. A workload's backups are authorized on the workload,
-  under the `backup.*` actions.
+  under the `backup.*` actions. Taking one is `backup.create`, held beside `repository.read` on
+  the repository it goes into. Reading a backup's record (whether it succeeded, how much it read
+  and stored, whether it came from a snapshot) is `workload.read`, added 2026-10-14 when backups
+  were built: that a backup exists and what it costs is the workload's state, which §7 of
+  `08-identity.md` gives the parent organization, while its file tree and its contents are
+  `backup.browse` and `backup.read`, the private actions of §3.3 there.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

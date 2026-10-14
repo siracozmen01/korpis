@@ -5,6 +5,7 @@
 //! prints whichever was asked for.
 
 pub mod act;
+pub mod backup;
 pub mod classify;
 pub mod console;
 pub mod event;

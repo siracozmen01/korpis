@@ -3,8 +3,10 @@
 //! Jobs through the helper's verbs, with the real job binary and a real store: a volume backed up
 //! live, recorded as such; one path of it restored into a directory the helper makes in another
 //! volume, owned as that volume is; a job started twice runs once; one stuck on a store that
-//! never answers is cancelled and reported lost; and what the helper kept is forgotten. It needs
-//! root and MinIO (`scripts/test-tools.sh`), and is skipped without them.
+//! never answers is cancelled and reported lost; what the helper kept is forgotten; and on btrfs a
+//! job reads a snapshot the helper took for it, released only when the job is forgotten. It needs
+//! root and MinIO (`scripts/test-tools.sh`), and btrfs where it is named, and is skipped without
+//! them.
 
 #![allow(
     clippy::unwrap_used,
@@ -13,6 +15,8 @@
     clippy::print_stderr,
     reason = "a failing test should fail loudly, and a skipped one should say so"
 )]
+
+mod fixture;
 
 use buffa::Message as _;
 use korpis_backup::testing::Minio;
@@ -242,6 +246,7 @@ async fn a_job_stuck_on_its_store_is_cancelled_and_lost() {
     tokio::time::sleep(Duration::from_millis(500)).await;
     assert_eq!(status(&mut h, "stuck").state.as_known(), Some(helper::JobState::JOB_STATE_RUNNING));
     assert!(h.busy(), "it does not exit while a job runs");
+    assert!(matches!(forget(&mut h, "stuck"), Answer::Error(_)), "never forgotten while it runs");
     let cancel = ask(
         &mut h,
         Verb::CancelJob(Box::new(helper::CancelJobRequest {
@@ -259,4 +264,58 @@ async fn a_job_stuck_on_its_store_is_cancelled_and_lost() {
         })),
     );
     assert!(matches!(refused, Answer::Error(_)));
+}
+
+fn forget(h: &mut Helper, job: &str) -> Answer {
+    ask(
+        h,
+        Verb::ForgetJob(Box::new(helper::ForgetJobRequest {
+            job: job.into(),
+            ..Default::default()
+        })),
+    )
+}
+
+#[tokio::test]
+async fn a_job_on_btrfs_reads_a_snapshot_taken_for_it_and_released_when_forgotten() {
+    if !rustix::process::geteuid().is_root() {
+        return;
+    }
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let Some(m) = fixture::mounted(tmp.path(), true) else { return };
+    let Some(minio) = Minio::start(tmp.path()).await.unwrap() else { return };
+    minio.bucket("backups").await.unwrap();
+    let mut class = Class::open("snap", &m.0.join("volumes")).unwrap();
+    let r = helper::EnsureVolumeRequest {
+        volume: "wl_1.data".into(),
+        workload: "wl_1".into(),
+        size_bytes: 1 << 30,
+        ..Default::default()
+    };
+    class.ensure(&r).unwrap();
+    std::fs::write(class.path_of("wl_1.data").join("level.dat"), b"the world").unwrap();
+    let config = JobConfig {
+        binary: job_binary(),
+        state: tmp.path().join("state"),
+        cgroups: None,
+        content: None,
+    };
+    let mut h = Helper::new(vec![class], Ledger::open(&tmp.path().join("state")).unwrap())
+        .with_jobs(config);
+    let work = Work::Backup(Box::new(helper::BackupVolume {
+        volume: "wl_1.data".into(),
+        backup: "b1".into(),
+        take_snapshot: true,
+        ..Default::default()
+    }));
+    let started = ask(&mut h, start("bkp-1", work, &minio.endpoint));
+    assert!(matches!(started, Answer::StartJob(ref s) if s.started), "{started:?}");
+    let taken = m.0.join("volumes/.snapshots/wl_1.data/job-bkp-1");
+    assert!(taken.exists(), "taken before the job reads");
+    let result = finished(&mut h, "bkp-1").await;
+    assert!(result.ok, "{}", result.error);
+    assert!(result.backup.as_option().unwrap().consistent, "read from one point in time");
+    assert!(taken.exists(), "kept while the job is known");
+    assert!(matches!(forget(&mut h, "bkp-1"), Answer::ForgetJob(_)));
+    assert!(!taken.exists(), "released with the job");
 }

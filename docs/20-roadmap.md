@@ -176,7 +176,10 @@ exposure, each node's reachability measured by the relay's probe (§9 of `07-net
 the default egress policy of §6 there. Rate limits, with the web client's login and link redemption
 that are the first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
 `10-api.md`, and the recording of unauthenticated failures beside the denials Phase 0 already
-coalesces.
+coalesces. Workloads of lifecycle `task` and `scheduled`, with their runs and `RunPolicy` (§4 of
+`05-scheduling.md`), after backups, so that a nightly backup is a scheduled run rather than a
+command someone has to type; added 2026-10-14 by Finding 33 of `23-walkthroughs.md`, since no
+phase had named them.
 
 **Done when:** the single-machine constraint of §1 of `18-operations.md` is real, install, run
 workloads, back them up, restore them, and read an honest console, with every displayed limit

@@ -20,8 +20,8 @@ use std::time::{Duration, SystemTime};
 
 /// A bucket in memory. Under `evil/` it misbehaves: its access and its listings stray outside
 /// the prefix asked for.
-#[derive(Clone)]
-struct Bucket(Arc<Mutex<BTreeSet<String>>>);
+#[derive(Clone, Default)]
+pub struct Bucket(Arc<Mutex<BTreeSet<String>>>);
 
 impl Bucket {
     fn keys(&self) -> std::sync::MutexGuard<'_, BTreeSet<String>> {
@@ -81,7 +81,8 @@ impl BackupTarget for Bucket {
     }
 }
 
-async fn serving(h: &Harness, bucket: Bucket) -> CallTarget {
+/// A backup target named `local` serving the root organization from `bucket`.
+pub async fn serving(h: &Harness, bucket: Bucket) -> CallTarget {
     let document = DNS
         .replace("    - {type: dns, name: cloudflare}", "    - {type: backup_target, name: local}")
         .replace(

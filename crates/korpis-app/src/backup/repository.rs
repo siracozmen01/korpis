@@ -100,6 +100,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.vault()?.new_kek(created.id).map_err(|e| AppError::Internal(e.to_string()))?;
         let mut tx = self.store.begin().await?;
         tx.insert_repository(&created, &kek).await.map_err(|e| match e {
+            StoreError::Duplicate(Unique::RepositoryPrefix) => AppError::conflict(
+                "repository.prefix_overlaps",
+                "a repository of this provider holds that prefix, or one its prune would reach",
+            ),
             StoreError::Duplicate(Unique::RepositoryName) => {
                 AppError::conflict("repository.name_taken", "the name is taken here")
             }

@@ -29,7 +29,8 @@ seventy-nine findings changed the mechanics several of these traces cross.
 built, and its finding is numbered on from the first fourteen. Finding 25 came from re-running
 §4 when recipe trust was built, and Finding 26 from extending §6 when the agent's journal was
 built; each is numbered on from the one before. §19 is a sixteenth trace, written when snapshots
-were built, and Findings 28 to 31 came from the implementation of streams and volumes.
+were built, and Findings 28 to 31 came from the implementation of streams and volumes. §20 is a
+seventeenth, written when backups were built, and it found Findings 32 and 33.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1021,6 +1022,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 29 | A client who may not read the node could not reach the workload | §11 | `02-architecture.md` §3.1, `08-identity.md` §6 |
 | 30 | A retained volume was listed by nothing | §18 | `06-storage.md` §7, `01-model.md` §3.6 |
 | 31 | A rollback under a running workload replaces what it has open | §19 | `06-storage.md` §4, §7 |
+| 32 | Two repositories at one place would prune each other | §20 | `06-storage.md` §5.3, §5.5 |
+| 33 | A nightly backup had nothing to run it | §20 | `20-roadmap.md` Phase 1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1382,3 +1385,58 @@ workload's mounts again from the volume's path, which is now the snapshot's copy
 workload runs on is rolled back alone. → patched into `06-storage.md` §4 and §7
 
 ‡ Step 5 is where the trace found Finding 31.
+
+## 20. A world is backed up every night
+
+Written 2026-10-14, from the implementation, when backups were built. The operator keeps
+`mc-survival`'s backups in an S3 bucket behind the organization's backup target provider `s3`,
+and wants one every night at 03:00 without anyone typing a command.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis repository create nightly --provider s3 --prefix korpis/` under `repository.write`; the key-encryption key is made and sealed by the control plane's backup key. A second repository, `offsite`, naming `s3` at `korpis/` again is refused ‡ | `06-storage.md` §5.3, §5.5; `10-api.md` §5 |
+| 2 | The nightly backup is a `scheduled` workload whose run, at 03:00 with `concurrency: forbid`, calls `korpis backup create vol_… --repository rep_…` with its own workload credential, holding `backup.create` on `mc-survival` and `repository.read` on `nightly` † | `01-model.md` §2; `05-scheduling.md` §4; `08-identity.md` §9.5 |
+| 3 | The control plane finds the volume live, the repository serving the workload's project, and no backup of the workload into it open; it names the last whole backup the parent and reads from what `fra-3` declared whether the class can snapshot. A plan of one `backup_volume` step changes nothing the workload sees, so it applies at once, and the backup is recorded pending | `06-storage.md` §5.1, §5.5; `01-model.md` §3.3 |
+| 4 | `mc-survival`'s assignment carries the step to `fra-3`. The agent asks the helper for job `bkp-<backup>`; the helper knows none, so the agent asks the control plane for the job's key and access, naming the plan and the step | `02-architecture.md` §4.8, §4.9; `06-storage.md` §5.5 |
+| 5 | The control plane answers because `fra-3` holds the volume, the plan is open, and the backup is pending: it makes the workload's data key at its first backup there, opens it, and asks `s3` for twelve hours of write access to the workload's prefix alone | `06-storage.md` §5.5, §5.6 |
+| 6 | The helper snapshots the volume for the job and starts it confined to its cgroup, to the snapshot and the store's port by Landlock, with no capabilities; the agent's loop goes on serving the node's other workloads while it runs | `06-storage.md` §5.5; `17-security.md` §6; `02-architecture.md` §4.9 |
+| 7 | When the job has ended, the agent journals its result and has the helper forget it, which releases the snapshot; the control plane believes the result only from the node holding the volume, marks the backup whole, and then the plan applied | `02-architecture.md` §4.10; `06-storage.md` §5.1 |
+| 8 | `korpis backup list mc-survival` shows it under `workload.read`; the parent organization sees that it exists and what it stores, and neither its file tree nor its contents | `10-api.md` §5; `08-identity.md` §3.3, §7 |
+| 9 | The next night's backup names this one its parent, and the job reads again only the files whose size, times, or inode changed | `06-storage.md` §5.7 |
+
+**FINDING 32: Two repositories at one place would prune each other. `CONFIRMED`**
+
+§5.3 of `06-storage.md` let a repository name any provider and any prefix, and §5.5 there rests
+"one writer per workload prefix" on the control plane scheduling every job that touches a prefix.
+Asked what evaluates that, the answer was a check on open backups per workload *and repository*,
+which is one writer per prefix only if two repositories never share one. Nothing said so: the same
+workload backed up into `nightly` and `offsite` at the same place writes one prefix under two
+keys, and each repository's prune, finding objects none of its manifests reference, deletes the
+other's backups.
+
+**Resolution.** Within an organization, where a provider name resolves to one installation, a
+repository is refused at the same prefix as another of the same provider, or at one beginning with
+the other's followed by `workloads/`. Across organizations nothing is checked, because a check
+would tell one tenant where another keeps its backups, and none is needed: a workload is only
+backed up into its own organization's repositories, beneath its own identifier, and a prune lists
+one workload's prefix at a time, never a repository's whole prefix. Two provider names the
+operator pointed at one bucket stay invisible to the control plane, and §5.3 says so. → patched
+into `06-storage.md` §5.3 and §5.5
+
+**FINDING 33: A nightly backup had nothing to run it. `CONFIRMED`**
+
+§2 of `01-model.md` gives "nightly backup" as the example of a `scheduled` workload, §4 of
+`05-scheduling.md` defines its runs and their policy, and §7 of `22-first-party.md` answers
+scheduled restarts and wipes with the same. No phase of `20-roadmap.md` builds either lifecycle,
+so a backup existed only when someone typed it, and Phase 1's "back them up" would have been met
+by a command nobody runs at 03:00.
+
+**Resolution.** `task` and `scheduled` workloads, their runs, and `RunPolicy` are Phase 1 work,
+built after backups so that a scheduled run is the first thing to take one. What evaluates the
+schedule is the control plane, which holds the intent's policy and the time; what proposes the
+backup is the run, under its own grants, so a nightly backup is authority someone granted rather
+than a feature of the backup subsystem. → patched into `20-roadmap.md` Phase 1
+
+‡ Step 1 is where the trace found Finding 32. † Step 2 is where it found Finding 33.

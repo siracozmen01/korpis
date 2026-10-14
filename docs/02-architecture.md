@@ -679,9 +679,9 @@ the gaps above:
 - **`retire` is how deletion differs from forgetting.** A workload whose assignment carries
   `retire` is stopped and its runtime objects destroyed; its volumes are not touched, because
   deleting a volume is its own irreversible plan step (§3.6 of `01-model.md`), which follows
-  `retire` in the same plan only for a volume the deletion named (§7 of `06-storage.md`). Once the agent
-  reports the retirement complete and the effect is ingested, the assignment leaves the set, the
-  placement is removed, and the workload's identity is retired (§3.3 of `01-model.md`). A
+  `retire` in the same plan only for a volume the deletion named (§7 of `06-storage.md`). Once
+  the agent reports the retirement complete and the effect is ingested, the assignment leaves the
+  set, the placement is removed, and the workload's identity is retired (§3.3 of `01-model.md`). A
   runtime object with no assignment and no retirement is still an orphan (§4.4) and is still never
   deleted on the node's own initiative.
 - **`migration` makes each phase a desired state on each side.** The control plane advances the
@@ -745,6 +745,14 @@ The plan's order is global across executors. The control plane does not place st
 assignment until steps before it have completed, whatever executed them, and it does not mark the
 plan `applied` until every step's completion effect has been ingested. That is how a plan with steps
 on two nodes and one extension is still one ordered, resumable sequence.
+
+**A node step may outlast a pass of the agent's loop.** Added 2026-10-14, when backups were
+built. A backup step runs for as long as a volume takes to read, and the loop that executes steps
+serves every workload on the node, so such a step does not hold it: each pass asks the helper
+where the step's job is, starts it only when the helper knows none by the step's name, moves on
+while it runs, and records the step's completion once the job has ended and its result is in the
+journal. A job is named after what it does (`bkp-<backup>`), so an agent that restarts finds the
+one already running rather than starting a second.
 
 ### 4.10 What the node records: the journal
 
