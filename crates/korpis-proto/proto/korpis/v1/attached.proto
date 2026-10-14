@@ -135,3 +135,43 @@ enum StreamKind {
   STREAM_KIND_EVENT = 3;
   STREAM_KIND_METRIC = 4;
 }
+
+// A place in a backup target that workloads' backups are kept in (§5.3 of docs/06-storage.md).
+message Repository {
+  string id = 1;
+  string organization = 2;
+  // The project it serves; the whole organization when unset.
+  optional string project = 3;
+  // Unique among the organization's live repositories.
+  string name = 4;
+  // The organization's backup target provider, by name.
+  string provider = 5;
+  // Its place in the target: a relative prefix ending in '/'.
+  string prefix = 6;
+  KeyCustody key_custody = 7;
+  RetentionPolicy retention = 8;
+  google.protobuf.Timestamp created = 9;
+}
+
+// Who holds a repository's key-encryption key (§5.5 of docs/06-storage.md).
+enum KeyCustody {
+  KEY_CUSTODY_UNSPECIFIED = 0;
+  // The control plane: the operator can read tenants' backups, through a grant naming the
+  // tenant, which the tenant sees.
+  KEY_CUSTODY_OPERATOR = 1;
+  // A key management service the tenant controls, asked per job: the operator cannot.
+  KEY_CUSTODY_TENANT = 2;
+}
+
+message RetentionPolicy {
+  uint32 keep_last = 1;
+  uint32 keep_hourly = 2;
+  uint32 keep_daily = 3;
+  uint32 keep_weekly = 4;
+  uint32 keep_monthly = 5;
+  uint32 keep_yearly = 6;
+  // How long a failed backup's record is kept.
+  google.protobuf.Duration keep_failed = 7;
+  // A floor beneath which nothing prunes.
+  google.protobuf.Duration min_retention = 8;
+}

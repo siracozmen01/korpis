@@ -196,6 +196,10 @@ impl Harness {
         pb::VolumeServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn repositories(&self, config: ClientConfig) -> pb::RepositoryServiceClient<HttpClient> {
+        pb::RepositoryServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn sets(&self, config: ClientConfig) -> pb::DeclaredSetServiceClient<HttpClient> {
         pb::DeclaredSetServiceClient::new(self.http.clone(), config)
     }

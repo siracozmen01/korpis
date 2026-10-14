@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workload_key (repository_id, workload_id, dek_sealed, created_at)\n             VALUES ($1, $2, $3, $4) ON CONFLICT (repository_id, workload_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d1c2da78d0d379f103e6d0e98b9bfcae6f4c7e81c2600c9f62b5a6617ecf17ad"
+}

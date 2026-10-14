@@ -12,6 +12,8 @@ publish.workspace = true
 korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 serde_json = "1"
 thiserror = { workspace = true }
+# An opened data key is wiped when the job that needed it has it.
+zeroize = "1"
 uuid = { workspace = true }
 
 [lints]

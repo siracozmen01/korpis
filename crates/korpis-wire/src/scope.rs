@@ -43,6 +43,7 @@ fn object_from_kind(field: &str, kind: &K) -> Result<ObjectRef, crate::WireError
         K::Endpoint(v) => (Kind::Endpoint, v),
         K::Stream(v) => (Kind::Stream, v),
         K::Node(v) => (Kind::Node, v),
+        K::Repository(v) => (Kind::Repository, v),
         K::Selector(_) => return Err(invalid(field, "expected an object, not a selector")),
     };
     Ok(ObjectRef::new(k, id(id_kind(k), field, value)?))
@@ -60,6 +61,7 @@ pub fn object_to_pb(o: ObjectRef) -> pb::Scope {
         Kind::Endpoint => K::Endpoint(id),
         Kind::Stream => K::Stream(id),
         Kind::Node => K::Node(id),
+        Kind::Repository => K::Repository(id),
     };
     pb::Scope { kind: Some(kind), ..Default::default() }
 }
@@ -149,5 +151,6 @@ pub fn object_kind_to_pb(k: Kind) -> pb::ObjectKind {
         Kind::Endpoint => pb::ObjectKind::OBJECT_KIND_ENDPOINT,
         Kind::Stream => pb::ObjectKind::OBJECT_KIND_STREAM,
         Kind::Node => pb::ObjectKind::OBJECT_KIND_NODE,
+        Kind::Repository => pb::ObjectKind::OBJECT_KIND_REPOSITORY,
     }
 }

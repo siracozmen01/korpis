@@ -9,6 +9,7 @@
 
 pub mod audit;
 pub mod authz;
+pub mod backup;
 pub mod build;
 #[cfg(feature = "content")]
 pub mod content;

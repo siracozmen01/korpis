@@ -374,6 +374,15 @@ reference, and recipe content is public by definition, so there is nothing to co
 repository scope remains the organization, for billing and retention reasons rather than for
 secrecy.
 
+**As built, 2026-10-14.** A repository belongs to an organization and serves it whole or one of
+its projects; making one takes `repository.write` there and reading one `repository.read` (§5 of
+`10-api.md`). It names the organization's backup target provider by name, as every call does, so
+a provider need not be serving when the repository is made, and its place in that target by a
+relative prefix; each workload's objects are beneath `<prefix>workloads/<workload>/`, which only
+that workload's jobs write. A retention policy that keeps nothing is refused, since a prune under
+it would remove everything above the floor. `dedup_scope` is not a field: it is the workload,
+plus recipe content by reference, and nothing widens it yet.
+
 #### Widening the dedup scope is decided by the people inside it
 
 > Finding 14 of `23-walkthroughs.md`.
@@ -509,6 +518,15 @@ exits: the helper does not exit idle while one runs, and a restarted helper find
 by the process its pid file names, if that process is still the job binary, and reports one that
 ended without a result as lost. What each confinement held is in the result, as the kernel
 reported it, so a host that cannot apply one shows it as absent (§6 of `17-security.md`).
+
+**The vault, as built.** With `operator` custody the control plane's vault holds the key
+hierarchy: a backup key in the data directory (`keys/backup-1.key`, made at first start) seals
+each repository's key-encryption key, made with the repository, which seals each workload's data
+key, made at its first backup there. Each seal is XChaCha20-Poly1305 with what it is for bound in,
+so a sealed key copied to another repository or workload does not open. The database holds only
+sealed keys, so a copy of it alone opens no backup; the backup key is what a restore of the
+control plane must keep, and keep unrotated, or every backup made under it is lost (§6 of
+`18-operations.md`).
 
 **One writer per workload prefix, and pruning only in the control plane.** Pruning while a backup
 is running can delete a chunk that the running backup has just decided not to upload because it
@@ -851,3 +869,9 @@ serves the rest. Korpis ships no object store and does not become one.
    every object, from a target, with the mounts it lists. Reporting the volumes each build mounts,
    and releasing a claim once a build of a target without it is reported, would end the cost
    without a window in which two workloads write one directory. → here
+9. **Tenant key custody.** Added 2026-10-14, when repositories were built (§5.3). `tenant` custody
+   asks a key management service the tenant controls to unwrap a workload's data key per job,
+   and no provider type yet reaches such a service, so a repository asking for it is refused with
+   `repository.custody_unavailable` rather than made with `operator` custody in its place. It
+   needs a `key_management` provider type whose call unwraps one key for one job and whose
+   answer the control plane passes to the node without keeping. → `16-extensions.md`

@@ -12,6 +12,7 @@
 mod assignment;
 mod audit;
 mod authz;
+mod backup;
 mod breaker;
 mod condition;
 mod denial;

@@ -43,13 +43,15 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     let h = Harness::new().await;
     let x = installed(&h, 31, "dns").await;
     let (mut stream, _) = registered(&h, &x.secret, "1.0.0", 10).await;
-    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(6))).collect();
+    let asked = tokio::time::Instant::now();
+    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(10))).collect();
     let mut calls = Vec::new();
     for _ in 0..10 {
         calls.push(call(&mut stream).await);
     }
-    // Every call succeeds, at over four fifths of its deadline and a second before it.
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    // Every call succeeds, at over four fifths of its deadline and a second and a half before it,
+    // counted from when it was asked: delivery under load does not eat the margin.
+    tokio::time::sleep_until(asked + Duration::from_millis(8500)).await;
     for c in &calls {
         pong(&mut stream, c).await;
     }

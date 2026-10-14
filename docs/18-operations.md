@@ -398,6 +398,7 @@ client-side encrypted, restorable to a new volume.
 | the control plane's grant signing key | grants and capability tokens verify against it; rotated on restore |
 | the assignment-signing keyring | every public key that ever signed an assignment, verify-only, so a restore can recover assignments the store lost (§8 of `03-state.md`) |
 | the node identity certificate | agents' per-node keys are pinned to it, and it is **not** rotated on restore |
+| the control plane's backup key | it seals every `operator`-custody repository's key-encryption key (§5.5 of `06-storage.md`); without it no tenant backup made under it can be read, so it is **not** rotated on restore |
 | the `max_issued_epoch` watermark and the epoch issue-rate cap | the first fence mechanism of §8 of `03-state.md` computes its bound from both |
 
 **The backup lives outside the system it protects.**

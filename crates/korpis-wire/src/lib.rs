@@ -47,6 +47,7 @@ pub mod principal;
 pub mod provider;
 pub mod recipe;
 pub mod relay;
+pub mod repository;
 pub mod revocation;
 pub mod scope;
 pub mod spec;
@@ -105,6 +106,7 @@ pub fn id_kind(kind: Kind) -> IdKind {
         Kind::Endpoint => IdKind::Endpoint,
         Kind::Stream => IdKind::Stream,
         Kind::Node => IdKind::Node,
+        Kind::Repository => IdKind::Repository,
     }
 }
 

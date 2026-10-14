@@ -8,6 +8,7 @@ use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
+use korpis_cli::cmd::repository::{self, RepositoryAction};
 use korpis_cli::cmd::volume::{self, VolumeAction};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
@@ -94,6 +95,9 @@ enum Command {
     /// Deletes a retained volume; takes, lists, rolls back to, and deletes snapshots.
     #[command(subcommand)]
     Volume(VolumeAction),
+    /// Makes, lists, and shows backup repositories.
+    #[command(subcommand)]
+    Repository(RepositoryAction),
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
@@ -215,6 +219,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         }
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
+        Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
             answer(cli, act::node(&cli.required()?, &server, a).await)

@@ -177,6 +177,7 @@ volume.read · volume.snapshot.create · volume.snapshot.rollback · volume.snap
 volume.delete
 endpoint.read · endpoint.write · endpoint.release
 backup.create · backup.browse · backup.read · backup.restore · backup.prune
+repository.read · repository.write                   where an organization's backups are kept
 stream.share
 grant.read · grant.revoke
 org.read · org.create · org.write · org.suspend · org.quota.write
@@ -193,14 +194,19 @@ ext.<extension>.<action>              extensions define their own, namespaced
   and the second is strictly stronger.
 - **Some actions are marked irreversible in the schema**: `workload.delete`, `volume.delete`,
   `volume.snapshot.rollback` (what was written since the snapshot is lost),
-  `volume.snapshot.delete`, `endpoint.release` (giving up an address), and `backup.prune`. The mark is what §5.2 of
-  `08-identity.md` excludes from set-subject and link-form grants by default, and what the chat
-  client and the panel route to an explicit confirmation. There is one list, here, and every other
-  document refers to it (finding S35).
+  `volume.snapshot.delete`, `endpoint.release` (giving up an address), and `backup.prune`. The mark
+  is what §5.2 of `08-identity.md` excludes from set-subject and link-form grants by default, and
+  what the chat client and the panel route to an explicit confirmation. There is one list, here,
+  and every other document refers to it (finding S35).
 - **`volume.snapshot.rollback` and `volume.snapshot.delete` are new actions implied by nothing.**
   Added 2026-10-14, when snapshots were built (§4 of `06-storage.md`). Neither power existed
   before, so by the rule above no grant that already exists gains it; both lose data, so both are
   irreversible. Taking a snapshot loses nothing and stays `volume.snapshot.create`.
+- **`repository.read` and `repository.write` are new actions implied by nothing.** Added
+  2026-10-14, when repositories were built (§5.3 of `06-storage.md`). Making a repository
+  decides where an organization's backups go and who holds their key, which no existing action
+  covered; reading one shows that decision. A workload's backups are authorized on the workload,
+  under the `backup.*` actions.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

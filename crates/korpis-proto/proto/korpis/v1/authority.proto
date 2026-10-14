@@ -74,6 +74,7 @@ message Scope {
     string stream = 6;
     string node = 7;
     SelectorScope selector = 8;
+    string repository = 9;
   }
 }
 

@@ -1027,6 +1027,57 @@ keeps the object from what the node reports it did.
   so does deleting a snapshot. Taking one changes nothing a workload sees, and applies at once.
 - A snapshot goes with its volume: deleting the volume deletes its snapshots.
 
+#### Repository
+
+> Where an organization's backups are kept, and under whose key. §5.3 of `06-storage.md`.
+
+```
+Repository
+  id            RepositoryID
+  organization  OrganizationID
+  project       ProjectID?       the whole organization when null
+  name          string           unique among the organization's live repositories
+  provider      string           the organization's backup target provider, by name
+  prefix        string           its place in the target, ending in '/'
+  key_custody   operator | tenant
+  retention     RetentionPolicy
+  created       Timestamp
+```
+
+Added 2026-10-14, when repositories were built. Its key-encryption key is not a field: the vault
+holds it sealed (§5.5 of `06-storage.md`), and no read of the object returns it.
+
+**Invariants**
+- A workload's objects in a repository are beneath one prefix of its own, which only that
+  workload's jobs write and only the control plane prunes.
+- A retention policy keeps at least one backup, and nothing prunes below its `min_retention`.
+
+#### Backup
+
+> One backup of one volume, as the node that ran it reported it.
+
+```
+Backup
+  id            BackupID
+  repository    RepositoryID
+  workload      WorkloadID
+  volume        VolumeID
+  plan          PlanID           the plan that takes it
+  parent        BackupID?        whose unchanged files it did not read again
+  status        pending | succeeded | failed
+  consistent    bool             read from a snapshot, or live
+  stats         files, directories, bytes, new chunks and bytes, stored bytes, skipped
+  created       Timestamp
+  finished      Timestamp?
+  deleted_at    Timestamp?       pruned; marked, never removed
+```
+
+**Invariants**
+- A backup is succeeded only once its record is in the repository (§5.7 of `06-storage.md`), so
+  a succeeded backup is whole.
+- A backup is authorized on its workload: `backup.read`, `backup.browse`, and `backup.restore`
+  there reach that workload's backups and no other's.
+
 #### Endpoint
 
 > A way the network reaches a workload. The replacement for the allocation.

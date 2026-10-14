@@ -22,6 +22,7 @@ pub mod sealer;
 pub mod sessions;
 pub mod standalone;
 pub mod tls;
+pub mod vault;
 
 use api::Api;
 use korpis_app::App;
@@ -146,7 +147,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
             keys.assignment.clone(),
             keys.assignment_key_id.clone(),
-        )));
+        )))
+        .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?));
     app.register_keys(&keys.public()).await?;
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");

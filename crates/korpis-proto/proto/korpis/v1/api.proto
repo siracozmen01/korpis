@@ -473,6 +473,55 @@ message GetStreamResponse {
   repeated OffsetRange lost = 2;
 }
 
+// Repositories (§5.3 of docs/06-storage.md): where an organization's backups are kept and under
+// whose key. Making one takes repository.write on its project or organization; reading one,
+// repository.read.
+service RepositoryService {
+  rpc CreateRepository(CreateRepositoryRequest) returns (CreateRepositoryResponse);
+  rpc GetRepository(GetRepositoryRequest) returns (GetRepositoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // An organization's live repositories, or those serving one project: the project's own and
+  // the organization's.
+  rpc ListRepositories(ListRepositoriesRequest) returns (ListRepositoriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message CreateRepositoryRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  optional string project = 3;
+  string name = 4;
+  string provider = 5;
+  string prefix = 6;
+  KeyCustody key_custody = 7;
+  RetentionPolicy retention = 8;
+}
+
+message CreateRepositoryResponse {
+  Repository repository = 1;
+}
+
+message GetRepositoryRequest {
+  string id = 1;
+}
+
+message GetRepositoryResponse {
+  Repository repository = 1;
+}
+
+message ListRepositoriesRequest {
+  string organization = 1;
+  optional string project = 2;
+  PageRequest page = 3;
+}
+
+message ListRepositoriesResponse {
+  repeated Repository repositories = 1;
+  PageResponse page = 2;
+}
+
 // Volumes as the control plane knows them (§7 of docs/06-storage.md): kept from what nodes
 // report, outliving the workloads they were made for. Reading one takes volume.read.
 service VolumeService {

@@ -1,0 +1,260 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- One backup ($1), or a workload's ($2) backups, newest first after a cursor ($4), at most $5;\n-- pruned ones only when $3.\nSELECT id, repository_id, workload_id, volume_id, plan_id, parent_id, status, consistent,\n       files, directories, bytes, chunks_new, bytes_new, stored_bytes, files_unchanged,\n       skipped, error, created_at, finished_at, deleted_at\n  FROM backup\n WHERE ($1::uuid IS NULL OR id = $1)\n   AND ($2::uuid IS NULL OR workload_id = $2)\n   AND ($3 OR deleted_at IS NULL)\n   AND ($4::uuid IS NULL OR id < $4)\n ORDER BY id DESC\n LIMIT $5\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "volume_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "volume_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "plan_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "plan_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "parent_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "parent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "consistent",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "consistent"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "files",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "files"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "directories",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "directories"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "chunks_new",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "chunks_new"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "bytes_new",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "bytes_new"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "stored_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "stored_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "files_unchanged",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "files_unchanged"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "skipped",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "skipped"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "deleted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "backup",
+            "name": "deleted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bool",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "0f31fabd42ba2afc12154f960cd059a73cfa852441dea87751d8bdb103c9233a"
+}

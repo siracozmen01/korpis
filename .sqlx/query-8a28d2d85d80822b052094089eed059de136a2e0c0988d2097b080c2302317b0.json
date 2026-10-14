@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT dek_sealed FROM workload_key WHERE repository_id = $1 AND workload_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dek_sealed",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "workload_key",
+            "name": "dek_sealed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8a28d2d85d80822b052094089eed059de136a2e0c0988d2097b080c2302317b0"
+}

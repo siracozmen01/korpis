@@ -21,6 +21,8 @@ pub enum Kind {
     Stream,
     /// A node.
     Node,
+    /// A backup repository.
+    Repository,
 }
 
 impl Kind {
@@ -35,6 +37,7 @@ impl Kind {
             Self::Endpoint => "endpoint",
             Self::Stream => "stream",
             Self::Node => "node",
+            Self::Repository => "repository",
         }
     }
 
@@ -49,6 +52,7 @@ impl Kind {
             "endpoint" => Self::Endpoint,
             "stream" => Self::Stream,
             "node" => Self::Node,
+            "repository" => Self::Repository,
             _ => return None,
         })
     }

@@ -9,6 +9,7 @@
 mod assignment;
 mod audit;
 mod authz;
+mod backup;
 mod breaker;
 mod changes;
 mod clock;
@@ -45,6 +46,7 @@ pub use audit::{
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
+pub use backup::{BackupRead, BackupWrite, DataKey, KeyVault, SealedKey, VaultError};
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
@@ -99,6 +101,8 @@ pub enum Unique {
     ExtensionName,
     /// A provider name is served by one installation per type in an organization.
     ProviderName,
+    /// Repository names are unique within an organization among live repositories.
+    RepositoryName,
     /// Any other.
     Other,
 }
@@ -149,6 +153,7 @@ pub trait Store:
     + StreamRead
     + VolumeRead
     + SnapshotRead
+    + BackupRead
     + Send
     + Sync
     + 'static
@@ -206,6 +211,7 @@ pub trait Tx:
     + StreamWrite
     + VolumeWrite
     + SnapshotWrite
+    + BackupWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

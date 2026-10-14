@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kek_sealed, kek_sealed_by FROM repository WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kek_sealed",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kek_sealed"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kek_sealed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kek_sealed_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b1ea2843740523ca1a64924b0b38bd288a3f922e828072f8d06bc9124ff36c5c"
+}

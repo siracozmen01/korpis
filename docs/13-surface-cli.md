@@ -213,6 +213,11 @@ takes a snapshot where the volume's class can, `korpis volume snapshots vol_…`
 `korpis volume rollback snp_…` and `korpis volume delete-snapshot snp_…` propose the two that
 lose data, each waiting for a person (§4 of `06-storage.md`).
 
+Backups are kept in repositories. `korpis repository create nightly --provider s3 --prefix
+korpis/` makes one for the organization, or for one project with `--project`, keeping by default
+the last backup of each of seven days, four weeks, and six months above a one-day floor;
+`korpis repository list` and `korpis repository get rep_…` read them (§5.3 of `06-storage.md`).
+
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The
 > other half is built now; the flag's bare names became `member/volume`, because a set deletes

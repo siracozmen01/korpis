@@ -44,6 +44,8 @@ pub const CORE: &[&str] = &[
     "backup.read",
     "backup.restore",
     "backup.prune",
+    "repository.read",
+    "repository.write",
     "stream.share",
     "grant.read",
     "grant.revoke",

@@ -124,6 +124,9 @@ table! {
     "korpis.v1.VolumeService/ListSnapshots" => VolumeServiceClient::list_snapshots(ListSnapshotsRequest);
     "korpis.v1.VolumeService/RollbackVolume" => VolumeServiceClient::rollback_volume(RollbackVolumeRequest);
     "korpis.v1.VolumeService/DeleteSnapshot" => VolumeServiceClient::delete_snapshot(DeleteSnapshotRequest);
+    "korpis.v1.RepositoryService/CreateRepository" => RepositoryServiceClient::create_repository(CreateRepositoryRequest);
+    "korpis.v1.RepositoryService/GetRepository" => RepositoryServiceClient::get_repository(GetRepositoryRequest);
+    "korpis.v1.RepositoryService/ListRepositories" => RepositoryServiceClient::list_repositories(ListRepositoriesRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

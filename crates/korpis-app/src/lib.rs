@@ -11,6 +11,7 @@
 
 pub mod audit;
 pub mod authz;
+pub mod backup;
 pub mod backup_target;
 pub mod caller;
 pub mod dns;
@@ -51,6 +52,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     session_terms: node::SessionTerms,
     assignment_sealer: Option<Arc<dyn ports::AssignmentSealer>>,
     certificate_issuer: Option<Arc<dyn ports::CertificateIssuer>>,
+    vault: Option<Arc<dyn ports::KeyVault>>,
     denial_window: std::time::Duration,
 }
 
@@ -68,6 +70,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             session_terms: node::SessionTerms::default(),
             assignment_sealer: None,
             certificate_issuer: None,
+            vault: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
         }
     }
@@ -91,6 +94,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_certificate_issuer(mut self, issuer: Arc<dyn ports::CertificateIssuer>) -> Self {
         self.certificate_issuer = Some(issuer);
+        self
+    }
+
+    /// Keeps repository keys in `vault`: without one, no repository can be made and no backup
+    /// taken or restored.
+    #[must_use]
+    pub fn with_vault(mut self, vault: Arc<dyn ports::KeyVault>) -> Self {
+        self.vault = Some(vault);
         self
     }
 

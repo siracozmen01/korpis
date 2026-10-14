@@ -57,6 +57,10 @@ pub enum IdKind {
     Relay,
     /// A snapshot of a volume (`snp_`).
     Snapshot,
+    /// A backup repository (`rep_`).
+    Repository,
+    /// A backup (`bkp_`).
+    Backup,
 }
 
 impl IdKind {
@@ -86,6 +90,8 @@ impl IdKind {
             Self::ProviderCall => "pcl",
             Self::Relay => "rly",
             Self::Snapshot => "snp",
+            Self::Repository => "rep",
+            Self::Backup => "bkp",
         }
     }
 }
