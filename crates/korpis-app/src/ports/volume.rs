@@ -30,7 +30,8 @@ pub trait VolumeRead {
 pub trait VolumeWrite {
     /// Records what `node` reports of a volume, at `now`: a volume ensured is created on first
     /// report, in the project of the workload it is for, and attached to that workload; one
-    /// deleted is marked so, never removed.
+    /// deleted is marked so, never removed, and a console stream's deletion leaves no segment
+    /// of the stream held on `node`.
     fn record_volume(
         &mut self,
         node: Uuid,

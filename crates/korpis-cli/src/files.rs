@@ -12,6 +12,7 @@ use crate::error::CliError;
 use crate::sets::{SetArgs, confirm, orphans, preflight, propose_deletion, refusal};
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::registry::Registry;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 /// What a run of `plan` or `apply` did.
@@ -40,13 +41,6 @@ pub struct Run<'a> {
 
 /// Runs `plan` or `apply`.
 pub async fn run(c: &Connection, registry: &Registry, r: Run<'_>) -> Result<Outcome, CliError> {
-    if !r.set.delete_volumes.is_empty() {
-        return Err(CliError::Local(
-            "--delete-volumes: deleting a volume arrives with volumes themselves in Phase 1 \
-             (§4 of docs/20-roadmap.md); until then a deleted workload's volumes are kept"
-                .into(),
-        ));
-    }
     let files = read_all(r.paths)?;
     let through = r.set.through();
     let mut out = Outcome::default();
@@ -79,6 +73,30 @@ pub async fn run(c: &Connection, registry: &Registry, r: Run<'_>) -> Result<Outc
     Ok(out)
 }
 
+/// The volumes `--delete-volumes` names for each member being deleted, each as `member/volume`.
+/// A name for a workload that is not being deleted is refused, never ignored: deleting data is
+/// never guessed at.
+fn volumes_named(
+    named: &[String],
+    gone: &[pb::Workload],
+) -> Result<BTreeMap<String, Vec<String>>, CliError> {
+    let mut by_member: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for n in named {
+        let Some((member, volume)) =
+            n.split_once('/').filter(|(m, v)| !m.is_empty() && !v.is_empty())
+        else {
+            return Err(CliError::Local(format!("--delete-volumes {n}: name it as member/volume")));
+        };
+        if !gone.iter().any(|w| w.name == member) {
+            return Err(CliError::Local(format!(
+                "--delete-volumes {n}: {member} is not a member this apply deletes"
+            )));
+        }
+        by_member.entry(member.to_owned()).or_default().push(volume.to_owned());
+    }
+    Ok(by_member)
+}
+
 /// Deletes the set's members that no file declares: proposed by `plan`, proposed and confirmed
 /// by `apply`, and with `--plan` confirmed only where a named plan is that deletion.
 async fn prune(
@@ -90,6 +108,7 @@ async fn prune(
     out: &mut Outcome,
 ) -> Result<(), CliError> {
     let gone = orphans(c, files, &through.name).await?;
+    let deleting = volumes_named(&r.set.delete_volumes, &gone)?;
     let retire = |p: &&pb::Plan| p.kind.as_known() == Some(pb::PlanKind::PLAN_KIND_RETIRE);
     for stray in named.iter().filter(retire) {
         if !gone.iter().any(|w| w.id == stray.workload) {
@@ -101,7 +120,8 @@ async fn prune(
     }
     for w in gone {
         let plan = if r.ids.is_empty() {
-            let proposed = propose_deletion(c, &w).await?;
+            let volumes = deleting.get(&w.name).cloned().unwrap_or_default();
+            let proposed = propose_deletion(c, &w, volumes).await?;
             if r.propose { proposed } else { confirm(c, &proposed.id).await? }
         } else {
             match named.iter().filter(retire).find(|p| p.workload == w.id) {

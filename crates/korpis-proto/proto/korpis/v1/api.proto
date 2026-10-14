@@ -338,6 +338,10 @@ message PowerResponse {
 message DeleteWorkloadRequest {
   Mutation mutation = 1;
   string workload = 2;
+  // Volumes to delete with it, by the name the workload knows each by (`stream_console` for its
+  // console stream's), each one named explicitly; every other volume is retained. Each is deleted
+  // by its own irreversible step under `volume.delete` (§7 of docs/06-storage.md).
+  repeated string delete_volumes = 3;
 }
 
 message PlaceWorkloadRequest {

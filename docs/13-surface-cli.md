@@ -145,7 +145,7 @@ Plan pl_3c81 · 3 changes
   + mc-creative        create on node fra-3      fra-3: most free memory after packing
                                                  (see: korpis explain pl_3c81 mc-creative)
   - mc-testing         delete                    volume "world" 12Gi will be RETAINED
-                                                 (pass --delete-volumes to remove)
+                                         (pass --delete-volumes mc-testing/world to remove)
 
 quota  community-servers   memory 18Gi → 24Gi of 32Gi
 
@@ -200,9 +200,18 @@ the files declare that belongs to no set, and without it such a workload is a re
 silent claim. A deletion is a retire plan, which always waits for a person (§3.3 of
 `01-model.md`): `korpis plan --set` proposes it and lists it with the other plans, `korpis apply
 --set` proposes and confirms it in the same run, and `apply --plan` deletes exactly the members
-whose retire plans it names. `--delete-volumes` is refused in Phase 0, because deleting a volume
-arrives with volumes in Phase 1 (§4 of `20-roadmap.md`); until then a deleted workload's volumes
-are kept, which is the safe half of the rule. `korpis set list` and `korpis set mode` read a
+whose retire plans it names. `--delete-volumes` names each volume as `member/volume`, and a name
+for a member the apply does not delete is refused rather than ignored, because deleting data is
+never inferred from a name that happens to match; outside a set, `korpis workload delete
+--delete-volumes world,stream_console` names the workload's own (`stream_console` is its console
+stream's volume, §4 of `14-streams.md`). Each named volume becomes its own irreversible step after
+the runtime is removed, under `volume.delete` on the volume, and the plan view marks those steps
+`IRREVERSIBLE` (§7 of `06-storage.md`).
+
+> Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
+> was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The
+> other half is built now; the flag's bare names became `member/volume`, because a set deletes
+> several members at once and one bare name could match a volume of each. `korpis set list` and `korpis set mode` read a
 project's sets and change one's mode.
 
 ---

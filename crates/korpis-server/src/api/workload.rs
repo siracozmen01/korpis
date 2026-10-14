@@ -231,6 +231,7 @@ impl pb::WorkloadService for Api {
         let cmd = DeleteWorkload {
             workload: wire::id(IdKind::Workload, "workload", &req.workload).refuse()?,
             expected_version: mutation.and_then(|m| m.expected_version),
+            delete_volumes: req.delete_volumes.clone(),
         };
         let encoder = |p: &Plan| encode(&deleted(p));
         let idem = Idempotent { key, encode: &encoder };

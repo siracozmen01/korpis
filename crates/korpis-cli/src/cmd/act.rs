@@ -105,7 +105,7 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
     | WorkloadAction::Restart { workload }
     | WorkloadAction::Place { workload, .. }
     | WorkloadAction::Classify { workload, .. }
-    | WorkloadAction::Delete { workload }) = action;
+    | WorkloadAction::Delete { workload, .. }) = action;
     let id = resolve::workload(c, workload).await?;
     match action {
         WorkloadAction::Place { node, reason, .. } => return place(c, id, node, reason).await,
@@ -114,10 +114,11 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
         }
         _ => {}
     }
-    if matches!(action, WorkloadAction::Delete { .. }) {
+    if let WorkloadAction::Delete { delete_volumes, .. } = action {
         let request = pb::DeleteWorkloadRequest {
             mutation: mutation(None).into(),
             workload: id,
+            delete_volumes: delete_volumes.clone(),
             ..Default::default()
         };
         let plan = client.delete_workload(request).await?.into_owned().plan;

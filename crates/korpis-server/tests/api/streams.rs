@@ -20,7 +20,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::stream::Retention;
 use std::time::SystemTime;
 
-fn segment_record(
+pub(crate) fn segment_record(
     seq: u64,
     workload: &str,
     event: agent::SegmentEvent,

@@ -31,7 +31,7 @@ pub struct SetArgs {
     /// Take workloads the files declare that belong to no set into this one.
     #[arg(long, requires = "set")]
     pub adopt: bool,
-    /// Delete these volumes of the members deleted; comma-separated.
+    /// Delete these volumes of the members deleted, each as `member/volume`; comma-separated.
     #[arg(long = "delete-volumes", requires = "set", value_delimiter = ',')]
     pub delete_volumes: Vec<String>,
 }
@@ -156,12 +156,17 @@ pub async fn orphans(
     Ok(out)
 }
 
-/// Proposes deleting `w`: a retire plan, which always waits for a person (§3.3 of
-/// docs/01-model.md).
-pub async fn propose_deletion(c: &Connection, w: &pb::Workload) -> Result<pb::Plan, CliError> {
+/// Proposes deleting `w` and the volumes of it named in `volumes`: a retire plan, which always
+/// waits for a person (§3.3 of docs/01-model.md).
+pub async fn propose_deletion(
+    c: &Connection,
+    w: &pb::Workload,
+    volumes: Vec<String>,
+) -> Result<pb::Plan, CliError> {
     let request = pb::DeleteWorkloadRequest {
         mutation: crate::cmd::mutation(None).into(),
         workload: w.id.clone(),
+        delete_volumes: volumes,
         ..Default::default()
     };
     let client = pb::WorkloadServiceClient::new(c.http(), c.config());

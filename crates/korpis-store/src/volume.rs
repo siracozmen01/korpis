@@ -109,6 +109,9 @@ impl VolumeWrite for PgTx {
         match v.event {
             VolumeEvent::Ensured => ensured(self, node, v, now).await,
             VolumeEvent::Deleted => {
+                if v.kind == VolumeKind::Stream {
+                    stream_gone(self, node, v.workload).await?;
+                }
                 sqlx::query!(
                     "UPDATE volume SET deleted_at = $3, attached_to = NULL,
                                        detached_at = coalesce(detached_at, $3)
@@ -124,6 +127,22 @@ impl VolumeWrite for PgTx {
             }
         }
     }
+}
+
+/// A console stream's volume deleted on `node`: no segment of the stream is held there any more,
+/// so what was not offloaded is lost, as its index now says.
+async fn stream_gone(tx: &mut PgTx, node: Uuid, workload: Uuid) -> StoreResult<()> {
+    sqlx::query!(
+        "UPDATE stream_segment SET node_id = NULL
+          WHERE node_id = $1
+            AND stream_id IN (SELECT id FROM stream WHERE workload_id = $2 AND kind = 'console')",
+        node,
+        workload
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(())
 }
 
 /// A volume ensured: created on its first report, and on a later one attached to the workload

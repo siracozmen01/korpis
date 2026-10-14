@@ -1315,7 +1315,11 @@ released or not: leases are never deleted, so the control plane holds that histo
 writes a stream only while it runs the workload, which takes a lease. Retiring keeps the stream as
 it keeps volumes, and deleting it is the volume deletion step. → patched into `14-streams.md` §4
 
-¶ Added 2026-10-14, from the implementation, when volume objects were built.
+¶ Added 2026-10-14, from the implementation, when volume objects were built. Had the deletion
+named `world`, step 2 would retain nothing and add, after `retire`, an irreversible
+`delete_volume` step carrying the helper's identifier the node reported; step 7 would then be the
+node's deletion record, which marks the volume deleted rather than removing it (§7 of
+`06-storage.md`).
 
 **FINDING 30: A retained volume was listed by nothing. `CONFIRMED`**
 

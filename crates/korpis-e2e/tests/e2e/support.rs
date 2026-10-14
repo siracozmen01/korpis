@@ -219,10 +219,15 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         let plan = deleted.plan.as_option().unwrap().id.clone();
+        self.approve(&plan).await;
+    }
+
+    /// Approves `plan` as the operator.
+    pub async fn approve(&self, plan: &str) {
         pb::PlanServiceClient::new(self.http(), self.config())
             .approve_plan(pb::ApprovePlanRequest {
                 mutation: mutation(&format!("approve-{plan}")).into(),
-                plan,
+                plan: plan.to_owned(),
                 ..Default::default()
             })
             .await

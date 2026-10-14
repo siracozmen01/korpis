@@ -28,6 +28,10 @@ fn detail<'a>(s: &'a pb::Step, key: &str) -> Option<&'a str> {
     }
 }
 
+fn flag(s: &pb::Step, key: &str) -> bool {
+    matches!(s.detail.get(key).and_then(|v| v.kind.as_ref()), Some(Kind::BoolValue(true)))
+}
+
 fn number(s: &pb::Step, key: &str) -> u64 {
     match s.detail.get(key).and_then(|v| v.kind.as_ref()) {
         Some(Kind::IntValue(n)) => u64::try_from(*n).unwrap_or(0),
@@ -133,10 +137,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             "detach_volume" => {
                 after.insert("applies_at".into(), text("the next rebuild of the runtime object"));
             }
+            // The helper's identifier as the node reported it, which the control plane put in
+            // the step; never one derived again from the name.
             "delete_volume" => {
                 let name = detail(s, "volume").unwrap_or_default();
-                let id = volume_id(&a.workload, name, detail(s, "existing"));
-                self.delete_volume(&a.workload, name, &id).await?;
+                let id = detail(s, "helper_id")
+                    .ok_or_else(|| Failure("the step names no helper identifier".into()))?;
+                let why = if flag(s, "stream") { Why::Stream } else { Why::Declared };
+                self.delete_volume(&a.workload, (name, why), id).await?;
+                after.insert("volume".into(), text(id));
             }
             "create" => {
                 let id = self.current(a, t).await?;

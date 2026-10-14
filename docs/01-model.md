@@ -624,7 +624,8 @@ Step
 - Plans expire. A stale plan is not an approvable plan.
 - **A retire plan moves no pointer, and approving it freezes the workload.** Deleting a workload
   proposes one: stop, detach and retain every volume, remove the runtime (§4.8 of
-  `02-architecture.md`). Removing a runtime is disruptive by the vocabulary's floor, so it always
+  `02-architecture.md`), and then delete, each by its own irreversible step, only the volumes the
+  deletion named (§7 of `06-storage.md`). Removing a runtime is disruptive by the vocabulary's floor, so it always
   waits for a human. Once it is approved, every other proposal is superseded and nothing else may
   be declared or approved until it finishes or is cancelled. `deleted_at` is set when the
   retirement is complete, which releases the name and the quota: when the node reports the runtime

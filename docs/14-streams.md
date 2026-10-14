@@ -174,8 +174,13 @@ long after: the node that wrote a stream is the one that ran the workload.
 outlive the workload, and deleting a volume is a separate, irreversible plan step). The agent reads
 the changes log once more after the workload leaves its set and then stops watching it; the
 segments stay where they are and in the index. A crashed and retired workload's last output is
-there to be read, which is the invariant's point. Deleting a retired workload's stream is the same
-step that deletes its volumes, built with volume deletion in Phase 1 (§4 of `20-roadmap.md`).
+there to be read, which is the invariant's point. Deleting a workload's stream is the same step
+that deletes its volumes: the deletion names `stream_console` (§5 of `13-surface-cli.md`), and the
+plan deletes that volume by its own irreversible step after the runtime is removed (§7 of
+`06-storage.md`). Before the agent deletes it, it reads the changes log through and journals what
+is left, so the index hears of the last segment before it hears the volume is gone; the control
+plane then holds that no segment of the stream is on the node, and every offset not offloaded is
+reported lost.
 
 What it costs. The writer is the only reader of the workload's pipes, so if it dies the
 workload's next write to its console fails with `EPIPE`, or kills it with `SIGPIPE` if it does not

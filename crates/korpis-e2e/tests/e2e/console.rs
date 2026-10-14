@@ -74,5 +74,41 @@ async fn korpis_console_types_into_an_interactive_workload_as_whoever_typed() {
     assert!(watched.contains("read-only"), "said so: {watched:?}");
     assert!(watched.contains("got hello"), "and shown the console: {watched:?}");
     assert!(!watched.contains("got ignored"), "typing nothing: {watched:?}");
+
+    deleted_with_its_stream(&cp, &node, &w).await;
     agent.stop().await;
+}
+
+/// `korpis workload delete --delete-volumes stream_console`, approved by someone else: the
+/// runtime goes, then the stream's volume, after its last segment reached the index, which then
+/// holds that nothing of the stream is on the node.
+async fn deleted_with_its_stream(cp: &ControlPlane, node: &Node, w: &str) {
+    let proposer = cp.token_for(&["workload.read", "workload.delete", "volume.delete"]).await;
+    let out = tokio::process::Command::new(korpis())
+        .envs(cp.cli_env(&proposer))
+        .args(["workload", "delete", w, "--delete-volumes", "stream_console"])
+        .output()
+        .await
+        .unwrap();
+    let printed = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(out.status.success(), "{printed} {}", String::from_utf8_lossy(&out.stderr));
+    assert!(printed.contains("delete_volume") && printed.contains("IRREVERSIBLE"), "{printed}");
+    let plan = printed.split_whitespace().find(|t| t.starts_with("pln_")).unwrap().to_owned();
+    cp.approve(&plan).await;
+    let deleted = "SELECT count(*) FROM volume WHERE kind = 'stream' AND deleted_at IS NOT NULL";
+    for _ in 0..300 {
+        if cp.scalar::<i64>(deleted).await == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert_eq!(cp.scalar::<i64>(deleted).await, 1, "the stream's volume was deleted");
+    let retired = "SELECT count(*) FROM effect WHERE action = 'workload.retire'";
+    assert_eq!(cp.scalar::<i64>(retired).await, 1, "with the workload");
+    let indexed = "SELECT count(*) FROM stream_segment";
+    assert!(cp.scalar::<i64>(indexed).await >= 1, "its last segment reached the index");
+    let held = "SELECT count(*) FROM stream_segment WHERE node_id IS NOT NULL";
+    assert_eq!(cp.scalar::<i64>(held).await, 0, "and none is held on the node any more");
+    let left: Vec<_> = std::fs::read_dir(&node.volumes).unwrap().filter_map(Result::ok).collect();
+    assert!(left.is_empty(), "nothing is left on the node: {left:?}");
 }

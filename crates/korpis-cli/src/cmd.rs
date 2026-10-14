@@ -166,11 +166,15 @@ pub enum WorkloadAction {
         #[arg(long)]
         reason: String,
     },
-    /// Proposes its retirement; its volumes are kept.
+    /// Proposes its retirement; its volumes are kept unless named.
     Delete {
         #[arg(add = ArgValueCompleter::new(complete::workloads))]
         /// The workload.
         workload: String,
+        /// Delete these of its volumes too, by name (`stream_console` for its console stream);
+        /// comma-separated. Irreversible: each is its own step, and the plan waits for a person.
+        #[arg(long = "delete-volumes", value_delimiter = ',')]
+        delete_volumes: Vec<String>,
     },
 }
 

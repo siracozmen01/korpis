@@ -115,8 +115,9 @@ impl Stream {
         only.fold(0u64, |a, s| a.saturating_add(s.bytes))
     }
 
-    /// Offsets no longer held anywhere: the ranges between and before the segments it holds,
-    /// down to the stream's first offset.
+    /// Offsets no longer held anywhere: the ranges before, between, and after the segments it
+    /// holds, from the stream's first offset to the last one the index has heard of. A stream
+    /// whose volume was deleted, with nothing offloaded, is lost whole.
     #[must_use]
     pub fn lost(&self) -> Vec<(u64, u64)> {
         let mut lost = Vec::new();
@@ -126,6 +127,10 @@ impl Stream {
                 lost.push((next, s.first_offset));
             }
             next = next.max(s.end_offset);
+        }
+        let heard = self.segments.iter().map(|s| s.end_offset).max().unwrap_or(0);
+        if heard > next {
+            lost.push((next, heard));
         }
         lost
     }
@@ -163,5 +168,18 @@ mod tests {
         };
         assert_eq!(stream.node_only_bytes(), 200);
         assert_eq!(stream.lost(), [(0, 10), (30, 40)]);
+    }
+
+    #[test]
+    fn what_is_gone_after_the_last_segment_held_is_lost_too() {
+        let mut stream = Stream {
+            id: Uuid::now_v7(),
+            workload: Uuid::now_v7(),
+            kind: StreamKind::Console,
+            segments: vec![segment(0, 10, true, false), segment(10, 20, false, false)],
+        };
+        assert_eq!(stream.lost(), [(10, 20)]);
+        stream.segments[0].node = None;
+        assert_eq!(stream.lost(), [(0, 20)], "nothing held: lost whole");
     }
 }

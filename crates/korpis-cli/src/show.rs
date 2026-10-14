@@ -35,7 +35,14 @@ pub fn plan(p: &pb::Plan, workload: &str) -> String {
         let details: Vec<String> =
             s.detail.iter().map(|(k, v)| format!("{k}={}", detail(v))).collect();
         let flag = if s.disruptive { "  disruptive" } else { "" };
-        let _ = writeln!(out, "  {:>2}. {:<16}{}{flag}", s.index + 1, s.action, details.join(" "));
+        let gone = if s.reversible { "" } else { "  IRREVERSIBLE" };
+        let _ = writeln!(
+            out,
+            "  {:>2}. {:<16}{}{flag}{gone}",
+            s.index + 1,
+            s.action,
+            details.join(" ")
+        );
     }
     out
 }

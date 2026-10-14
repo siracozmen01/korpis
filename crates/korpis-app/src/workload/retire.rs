@@ -2,8 +2,8 @@
 
 //! Deleting a workload: a retire plan (§3.3 of docs/01-model.md, §4.8 of
 //! docs/02-architecture.md). The workload stops, its volumes are detached and retained, and its
-//! runtime is removed from its node; deleting a volume is never part of it (§7 of
-//! docs/06-storage.md).
+//! runtime is removed from its node. A volume is deleted only when the deletion names it, each
+//! by its own irreversible step under `volume.delete` (§7 of docs/06-storage.md).
 //!
 //! A retire plan moves no pointer. Approving it means the workload is being retired: nothing else
 //! may be declared or approved for it, and every other proposal is superseded. Its identity is
@@ -16,6 +16,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
+use crate::page::Page;
 use crate::ports::{Clock, EffectWrite, RecipeSource, RetirementWrite, Store, WorkloadWrite};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -23,19 +24,22 @@ use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::plan::compute::retire_steps;
 use korpis_core::workload::plan::impact::delta;
 use korpis_core::workload::plan::{PlanStatus, StepExecutor};
+use korpis_core::workload::volume::{Volume, VolumeKind};
 use korpis_core::workload::{Plan, PlanTarget, PowerState, Workload};
 use uuid::Uuid;
 
 const OPERATION: &str = "workload.delete_workload";
 
 /// A workload to delete.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeleteWorkload {
     /// The workload.
     pub workload: Uuid,
     /// The head intent version the deletion was asked against, if the client states one (§6 of
     /// docs/10-api.md).
     pub expected_version: Option<u64>,
+    /// The names of its volumes to delete with it, each named explicitly; the rest are kept.
+    pub delete_volumes: Vec<String>,
 }
 
 /// The refusal for anything asked of a workload being retired.
@@ -66,7 +70,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 format!("the newest declaration is version {}", w.intent_version),
             ));
         }
-        let plan = self.retire_plan(caller, &w, &proposing, permit.grant).await?;
+        let deleting = self.volumes_to_delete(caller, &w, &cmd.delete_volumes).await?;
+        let plan = self.retire_plan(caller, &w, (&proposing, &deleting), permit.grant).await?;
         let mut tx = self.store.begin().await?;
         self.write_retirement(&mut tx, caller, &w, &plan, permit.grant).await?;
         finish(tx, caller, idem, OPERATION, plan).await
@@ -109,12 +114,54 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// The retire plan from what the workload was approved to be and to do.
+    /// The volumes of `w` that `names` names, each one the caller may delete: attached to `w`,
+    /// not deleted, and on the node that holds `w`, which is the one that executes the plan. A
+    /// name that is not such a volume is refused, never skipped: deleting data is never guessed.
+    async fn volumes_to_delete(
+        &self,
+        caller: &Caller,
+        w: &Workload,
+        names: &[String],
+    ) -> Result<Vec<Volume>, AppError> {
+        if names.is_empty() {
+            return Ok(Vec::new());
+        }
+        let page = Page::new(None, Page::MAX);
+        let attached: Vec<Volume> = self
+            .store
+            .volumes(w.project, Some(w.id), false, page)
+            .await?
+            .into_iter()
+            .filter(|v| v.attached_to == Some(w.id))
+            .collect();
+        let node = self.store.placement(w.id).await?.map(|p| p.node);
+        let mut deleting = Vec::new();
+        for name in names {
+            let v = attached.iter().find(|v| &v.name == name).ok_or_else(|| {
+                AppError::invalid(
+                    "delete_volumes",
+                    format!("{name} is not a volume its node has reported for the workload"),
+                )
+            })?;
+            if node != Some(v.node) {
+                let why = format!("{name} is not on the node that holds the workload");
+                return Err(AppError::conflict("volume.elsewhere", why));
+            }
+            self.authorize(caller, "volume.delete", ObjectRef::new(Kind::Volume, v.id)).await?;
+            if !deleting.iter().any(|d: &Volume| d.id == v.id) {
+                deleting.push(v.clone());
+            }
+        }
+        Ok(deleting)
+    }
+
+    /// The retire plan from what the workload was approved to be and to do, deleting the
+    /// volumes in `deleting`.
     pub(crate) async fn retire_plan(
         &self,
         caller: &Caller,
         w: &Workload,
-        proposing: &korpis_core::workload::plan::Proposing,
+        (proposing, deleting): (&korpis_core::workload::plan::Proposing, &[Volume]),
         grant: Uuid,
     ) -> Result<Plan, AppError> {
         let target = match w.target {
@@ -131,13 +178,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let (driver, disruption) = self.running_layers(w).await?;
         let body = target.as_ref().map(|t| &t.body);
-        let steps = retire_steps(w.id, body, power, propose::classifier(&driver, &disruption, w));
+        let classifier = propose::classifier(&driver, &disruption, w);
+        let steps = retire_steps(w.id, (body, power), deleting, classifier);
         let held = match &target {
             Some(t) => Some(t.body.clone()),
             None => self.store.intent(w.intent).await?.map(|i| i.body),
         };
         let mut cost = delta(held.as_ref(), None);
-        cost.volumes = 0;
+        // Retained volumes stay; only those deleted leave.
+        let declared = |v: &&Volume| v.kind == VolumeKind::Declared;
+        cost.volumes = -i64::try_from(deleting.iter().filter(declared).count()).unwrap_or(0);
         let proposal = Proposal {
             workload: w.id,
             target: PlanTarget::Retire,

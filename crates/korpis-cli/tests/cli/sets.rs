@@ -68,9 +68,13 @@ async fn the_fix_at_three_and_the_pipeline_at_nine() {
     let effects = ok(&cp.korpis(&s, &["get", "effects", "--workload", "games/beta"]).await);
     assert!(effects.contains("set.drift_discarded"), "{effects}");
 
-    let volumes =
+    let bare =
         cp.korpis(&s, &["apply", "-f", &dir, "--set", "servers", "--delete-volumes", "data"]).await;
-    assert_eq!(volumes.status.code(), Some(1), "volume deletion is not Phase 0's");
+    assert_eq!(bare.status.code(), Some(1), "a volume is named with its member");
+    let kept = ["apply", "-f", &dir, "--set", "servers", "--delete-volumes", "beta/data"];
+    let kept = cp.korpis(&s, &kept).await;
+    assert_eq!(kept.status.code(), Some(1), "beta is declared, so none of its volumes go");
+    assert!(String::from_utf8_lossy(&kept.stderr).contains("not a member this apply deletes"));
     ok(&cp.korpis(&s, &["set", "mode", "games/servers", "strict"]).await);
     assert!(ok(&cp.korpis(&s, &["set", "list", "games"]).await).contains("strict"));
 }

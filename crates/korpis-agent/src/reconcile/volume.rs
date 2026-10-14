@@ -53,19 +53,26 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// Deletes the volume the helper knows as `helper_id`, made for `workload` as `name`, and
-    /// reports it.
+    /// reports it. A console stream's is read through first, so the index hears of every
+    /// segment before it hears they are gone.
     pub(super) async fn delete_volume(
-        &self,
+        &mut self,
         workload: &str,
-        name: &str,
+        (name, why): (&str, Why),
         helper_id: &str,
     ) -> Result<(), Failure> {
+        if why == Why::Stream {
+            self.finish_stream(workload).await.map_err(|e| {
+                Failure(format!("the stream's last changes could not be journaled: {e}"))
+            })?;
+        }
         self.host.delete_volume(helper_id).await?;
         self.report_volume(agent::VolumeEvent {
             workload: workload.to_owned(),
             name: name.to_owned(),
             helper_id: helper_id.to_owned(),
             event: agent::VolumeEventKind::VOLUME_EVENT_KIND_DELETED.into(),
+            stream: why == Why::Stream,
             ..Default::default()
         })
         .await

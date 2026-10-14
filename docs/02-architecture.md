@@ -668,7 +668,8 @@ the gaps above:
   > destroyed, which is what `detach_volume` records.
 - **`retire` is how deletion differs from forgetting.** A workload whose assignment carries
   `retire` is stopped and its runtime objects destroyed; its volumes are not touched, because
-  deleting a volume is its own irreversible plan step (§3.6 of `01-model.md`). Once the agent
+  deleting a volume is its own irreversible plan step (§3.6 of `01-model.md`), which follows
+  `retire` in the same plan only for a volume the deletion named (§7 of `06-storage.md`). Once the agent
   reports the retirement complete and the effect is ingested, the assignment leaves the set, the
   placement is removed, and the workload's identity is retired (§3.3 of `01-model.md`). A
   runtime object with no assignment and no retirement is still an orphan (§4.4) and is still never

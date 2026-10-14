@@ -63,7 +63,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let object = ObjectRef::new(Kind::Workload, w.id);
                 let (wp, proposing) =
                     self.authorize_declaration(caller, "workload.delete", object).await?;
-                let plan = self.retire_plan(caller, &w, &proposing, wp.grant).await?;
+                let plan = self.retire_plan(caller, &w, (&proposing, &[]), wp.grant).await?;
                 Some((w, plan, wp.grant))
             }
             None => None,

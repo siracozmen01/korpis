@@ -583,6 +583,20 @@ A size is shown only where the class enforces it in the write path (Rule K-3, §
 on a class without quota the API carries no size and the CLI prints none, because a size nothing
 enforces is a number the disk will not honour.
 
+**Deletion, as built.** A volume is deleted only by name. Deleting a workload may name some of its
+volumes (`--delete-volumes`, §5 of `13-surface-cli.md`); the control plane resolves each name to a
+volume its node reported as attached to that workload, refuses a name that is not one rather than
+skipping it, refuses a volume on a node other than the workload's, and requires `volume.delete` on
+each one beside `workload.delete`. The retire plan then detaches and retains the rest and, after
+the runtime that mounted them is removed, deletes each named volume by its own `delete_volume`
+step, irreversible by the vocabulary's floor (§3.3 of `01-model.md`), so the plan always waits for a
+person. The step carries the helper's identifier as the node reported it, never one derived again
+from the name. The node deletes, then journals the deletion, and the volume is marked deleted.
+
+A volume already retained, whose workload is gone, is not yet deletable: no assignment reaches its
+node any more, so nothing carries a step there. That is the next part of this section's build
+(§4 of `20-roadmap.md`), and until it lands such a volume is listed, as an orphan is, and kept.
+
 What this does not do yet. Every volume is on the node that reported it, so its `node` is never
 empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and
 that class settles what `node` names for it. The `mode` and `snapshots` of §3.6 are not reported:

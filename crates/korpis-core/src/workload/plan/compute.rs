@@ -7,6 +7,7 @@ use super::step::{Classifier, Step, StepAction, StepExecutor};
 use crate::object::{Kind, ObjectRef};
 use crate::value::{Value, ValueMap};
 use crate::workload::spec::{IntentBody, VolumeSpec};
+use crate::workload::volume::{Volume, VolumeKind};
 use crate::workload::{Power, PowerState};
 use uuid::Uuid;
 
@@ -171,13 +172,15 @@ pub fn power_steps(
 
 /// The steps of a retire plan for `workload` (§4.8 of docs/02-architecture.md), from its
 /// approved body and power. A workload stops, its volumes are detached and retained, and its
-/// runtime is removed; deleting a volume is never part of it. A workload nothing was ever
-/// approved for has reached no node, and the control plane retires it alone.
+/// runtime is removed; then each volume in `deleting`, which the deletion named explicitly, is
+/// deleted by its own irreversible step (§7 of docs/06-storage.md), after the runtime that
+/// mounted it is gone. A workload nothing was ever approved for has reached no node, holds no
+/// volume, and the control plane retires it alone.
 #[must_use]
 pub fn retire_steps(
     workload: Uuid,
-    target: Option<&IntentBody>,
-    power: PowerState,
+    (target, power): (Option<&IntentBody>, PowerState),
+    deleting: &[Volume],
     classifier: Classifier<'_>,
 ) -> Vec<Step> {
     let mut b =
@@ -192,14 +195,36 @@ pub fn retire_steps(
     if power == PowerState::Running {
         b.push(StepAction::Stop, ValueMap::new(), &[]);
     }
-    for v in &body.volumes {
+    let deleted = |name: &str| deleting.iter().any(|v| v.name == name);
+    let kept: Vec<&str> =
+        body.volumes.iter().map(|v| v.name.as_str()).filter(|n| !deleted(n)).collect();
+    for name in &kept {
         let detail = ValueMap::from([
-            ("volume".to_owned(), text(&v.name)),
+            ("volume".to_owned(), text(name)),
             ("retained".to_owned(), Value::Bool(true)),
         ]);
         b.push(StepAction::DetachVolume, detail, &[]);
     }
-    let retained = Value::List(body.volumes.iter().map(|v| text(&v.name)).collect());
-    b.push(StepAction::Retire, ValueMap::from([("volumes_retained".to_owned(), retained)]), &[]);
+    let retained = Value::List(kept.iter().map(|n| text(n)).collect());
+    let gone = Value::List(deleting.iter().map(|v| text(&v.name)).collect());
+    let detail = ValueMap::from([
+        ("volumes_retained".to_owned(), retained),
+        ("volumes_deleted".to_owned(), gone),
+    ]);
+    b.push(StepAction::Retire, detail, &[]);
+    for v in deleting {
+        b.push(StepAction::DeleteVolume, deletion(v), &[]);
+    }
     b.steps
+}
+
+/// What a node needs to delete `v`: the helper's identifier for it, as the node reported it,
+/// never one derived again from its name.
+fn deletion(v: &Volume) -> ValueMap {
+    ValueMap::from([
+        ("volume".to_owned(), text(&v.name)),
+        ("volume_id".to_owned(), text(&v.id.to_string())),
+        ("helper_id".to_owned(), text(&v.helper_id)),
+        ("stream".to_owned(), Value::Bool(v.kind == VolumeKind::Stream)),
+    ])
 }
