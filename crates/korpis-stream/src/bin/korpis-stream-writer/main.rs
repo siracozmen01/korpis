@@ -6,6 +6,11 @@
 //! workload never waits on its own output (§5), and writes them into the stream's directory,
 //! redacted (§7), limited, and cut into segments, each seal and prune recorded for the agent to
 //! journal. Being the shim's child, it outlives a restart of the agent or the driver.
+//!
+//! When the task is deleted the shim closes the workload's pipes and sends the writer SIGTERM,
+//! killing it a few seconds later if it is still there. The writer takes SIGTERM as the end: it
+//! drains what is still in the pipes for at most [`LAST_DRAIN`], seals, and exits, so the last
+//! segment is sealed and recorded rather than left open for a writer that never comes.
 
 mod args;
 mod fds;
@@ -16,11 +21,16 @@ use korpis_stream::redact::Redactor;
 use sink::Sink;
 use std::io::Read as _;
 use std::process::ExitCode;
-use std::sync::mpsc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// How often the writer ticks: seals by age, flushes waiting lines, makes writes durable.
 const TICK: Duration = Duration::from_millis(100);
+
+/// How long the writer drains after SIGTERM before it seals, well inside the twelve seconds
+/// containerd's shim waits before it kills its logging binary.
+const LAST_DRAIN: Duration = Duration::from_secs(3);
 
 enum Message {
     Bytes(usize, Vec<u8>),
@@ -77,27 +87,33 @@ fn main() -> ExitCode {
     if let Err(e) = std::fs::create_dir_all(&args.dir) {
         return fail(&format!("{}: {e}", args.dir.display()));
     }
+    let terminated = Arc::new(AtomicBool::new(false));
+    if let Err(e) = signal_hook::flag::register(signal_hook::consts::SIGTERM, terminated.clone()) {
+        return fail(&format!("SIGTERM: {e}"));
+    }
     let mut sink = Sink::new(StreamDir::new(&args.dir), args.limits, redactor, now());
     let (tx, rx) = mpsc::channel();
-    let readers = [(passed.stdout, 0), (passed.stderr, 1)].map(|(file, source)| {
+    for (file, source) in [(passed.stdout, 0), (passed.stderr, 1)] {
         let tx = tx.clone();
-        std::thread::spawn(move || drain(file, source, &tx))
-    });
+        // A reader still blocked when the writer is done ends with the process.
+        std::thread::spawn(move || drain(file, source, &tx));
+    }
     drop(tx);
     // Ready: the shim starts the task once this is closed.
     drop(passed.ready);
-    run(&mut sink, &rx);
-    for r in readers {
-        let _ = r.join();
-    }
+    run(&mut sink, &rx, &terminated);
     ExitCode::SUCCESS
 }
 
-/// Writes what arrives until both sources end.
-fn run(sink: &mut Sink, rx: &mpsc::Receiver<Message>) {
+/// Writes what arrives until both sources end, or for [`LAST_DRAIN`] after `terminated` is set.
+fn run(sink: &mut Sink, rx: &mpsc::Receiver<Message>, terminated: &AtomicBool) {
     let mut open = 2;
     let mut ticked = now();
-    while open > 0 {
+    let mut deadline: Option<Instant> = None;
+    while open > 0 && deadline.is_none_or(|d| Instant::now() < d) {
+        if deadline.is_none() && terminated.load(Ordering::Relaxed) {
+            deadline = Some(Instant::now() + LAST_DRAIN);
+        }
         match rx.recv_timeout(TICK) {
             Ok(Message::Bytes(source, bytes)) => sink.push(source, &bytes, now()),
             Ok(Message::Ended) => open -= 1,

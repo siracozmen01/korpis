@@ -8,6 +8,7 @@ mod events;
 mod import;
 mod inspect;
 mod lifecycle;
+pub mod stream;
 mod unpack;
 
 pub use inspect::Usage;
@@ -42,6 +43,9 @@ pub struct Containerd {
     cgroup_parent: String,
     /// What cgroup statistics were last read, to measure CPU as a rate.
     samples: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<String, inspect::Sample>>>,
+    /// The stream writer and the driver's state, once configured; a container with a stream is
+    /// refused without them.
+    streams: Option<stream::Streams>,
 }
 
 impl std::fmt::Debug for Containerd {
@@ -66,9 +70,17 @@ impl Containerd {
             content: content.to_owned(),
             cgroup_parent: format!("/{NAMESPACE}"),
             samples: std::sync::Arc::default(),
+            streams: None,
         };
         this.namespace().await?;
         Ok(this)
+    }
+
+    /// Writes consoles with `streams`.
+    #[must_use]
+    pub fn with_streams(mut self, streams: stream::Streams) -> Self {
+        self.streams = Some(streams);
+        self
     }
 
     async fn namespace(&self) -> DriverResult<()> {

@@ -9,9 +9,11 @@
 use super::{Reconciler, Tracked};
 use crate::host::Host;
 use crate::runtime::{Prepared, Runtime, RuntimeError};
+use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::helper::v1 as helper;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// How long a workload is given to stop before it is killed.
@@ -86,10 +88,35 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
+    /// Ensures the console stream's volume, sized to what its limits let it hold, and watches
+    /// its changes from then on; nothing if the driver captures no stream.
+    async fn stream(
+        &mut self,
+        a: &agent::Assignment,
+        spec: &mut driver::PreparedSpec,
+    ) -> Result<(), Failure> {
+        let Some(capture) = spec.stream.as_option_mut() else { return Ok(()) };
+        let body = a.target.as_option().and_then(|t| t.body.as_option());
+        let streams = body.and_then(|b| b.streams.as_option());
+        let limits = korpis_wire::stream::spec_from_pb("streams", streams)
+            .map_err(|e| Failure(format!("the stream's limits: {e}")))?;
+        let request = helper::EnsureVolumeRequest {
+            volume: StreamKind::Console.volume(&a.workload),
+            workload: a.workload.clone(),
+            size_bytes: limits.disk_bound(),
+            ..Default::default()
+        };
+        capture.dir = self.host.ensure_volume(&request).await?.host_path;
+        self.streams
+            .watch(&a.workload, Path::new(&capture.dir))
+            .map_err(|e| Failure(format!("the stream could not be watched: {e}")))
+    }
+
     /// Builds the runtime object for the approved target, labelled.
     async fn build(&mut self, a: &agent::Assignment, t: &mut Tracked) -> Result<String, Failure> {
         let mut spec = self.prepare(a, t).await?;
         self.mount(a, &mut spec).await?;
+        self.stream(a, &mut spec).await?;
         if let Some(identity) = &self.wiring.identity {
             let dir = identity.ensure(&a.workload).map_err(|e| {
                 Failure(format!("the workload's identity socket could not be served: {e}"))
@@ -168,7 +195,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
-    /// Stops and destroys the runtime object; volumes are not touched.
+    /// Stops and destroys the runtime object; volumes, and the stream's, are not touched.
     pub(super) async fn destroy(&mut self, t: &mut Tracked) -> Result<(), Failure> {
         let Some(id) = t.runtime.clone() else { return Ok(()) };
         self.stop(t).await?;

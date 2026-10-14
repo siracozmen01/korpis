@@ -13,6 +13,8 @@ mod act;
 mod observe;
 pub mod progress;
 mod step;
+pub mod streams;
+mod tail;
 mod workload;
 
 use crate::held::HeldSet;
@@ -30,6 +32,7 @@ use progress::Progress;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
+use streams::Streams;
 use tokio::sync::{broadcast, mpsc, watch};
 
 /// What the reconciler knows of one workload's runtime object, and of what it did to it.
@@ -91,6 +94,7 @@ pub struct Reconciler<R, H> {
     host: H,
     wiring: Wiring,
     progress: Progress,
+    streams: Streams,
     tracked: BTreeMap<String, Tracked>,
     orphans: BTreeSet<String>,
 }
@@ -128,10 +132,12 @@ fn effect(workload: Option<&str>, action: &str, ok: bool) -> pb::Effect {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
-    /// A reconciler driving `runtime` and `host`, keeping its progress in `progress`.
+    /// A reconciler driving `runtime` and `host`, keeping its progress in `progress` and how far
+    /// it has journaled each stream in `streams`.
     #[must_use]
-    pub fn new(runtime: R, host: H, wiring: Wiring, progress: Progress) -> Self {
-        Self { runtime, host, wiring, progress, tracked: BTreeMap::new(), orphans: BTreeSet::new() }
+    pub fn new(runtime: R, host: H, wiring: Wiring, progress: Progress, streams: Streams) -> Self {
+        let (tracked, orphans) = (BTreeMap::new(), BTreeSet::new());
+        Self { runtime, host, wiring, progress, streams, tracked, orphans }
     }
 
     /// Records `e` in the journal; whether it is on disk.
@@ -262,5 +268,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.forget(&workload);
             }
         }
+        self.tail(&held).await;
     }
 }

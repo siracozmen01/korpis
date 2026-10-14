@@ -989,6 +989,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 25 | An organization without its own trust policy had no policy at all | §4 | `09-recipes.md` §7.1 |
 | 26 | A restored cursor older than a node's journal waits forever | §6 | `02-architecture.md` §4.10, `03-state.md` §8 |
 | 27 | A relay removed after the backup returns with it | §6 | `18-operations.md` §6 |
+| 28 | The last segment of a retired workload's console was refused | §18 | `14-streams.md` §4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1244,6 +1245,7 @@ Written 2026-10-13, from the implementation, when `DeleteWorkload` was built.
 | 5 | The node's assignment carries `retire`; the agent stops the workload and removes the runtime, touching no volume | `02-architecture.md` §4.8 |
 | 6 | The completion effect of the last step is ingested, checked against the node's own steps of that plan: the plan is applied, the assignment leaves the set, the placement is removed, `deleted_at` is set, and the name and quota are released ‡ | `02-architecture.md` §4.8, §4.10; `05-scheduling.md` §5.1 |
 | 7 | Volume `world` remains, detached, listed and never collected | `06-storage.md` §7 |
+| 8 | Its console stream remains too: the shim closed the task's pipes at step 5, the writer sealed the last segment, and the agent journaled it, believed from the node that held the lease though the assignment has left the set § | `14-streams.md` §4; `01-model.md` §3.6 |
 
 **FINDING 24: A deleted workload's identity has no moment it is deleted. `CONFIRMED`**
 
@@ -1266,4 +1268,21 @@ A completion is now believed only for a step that is the node's own in that work
 record that is not is kept as a rejection; and a retire plan approved while the create plan was
 still applying waited in `queued` with nothing to move it on, so a queued plan now becomes the
 node's next plan once the one ahead of it is applied (§4.8 of `02-architecture.md`).
+
+§ Added 2026-10-14, from the implementation, when console capture was built.
+
+**FINDING 28: The last segment of a retired workload's console was refused. `CONFIRMED`**
+
+The control plane believed a segment record only from a node the workload was placed on or
+assigned to. A console's last segment is sealed when its container goes, which is step 5, and it
+reaches the journal after step 6 has taken the assignment out of the set, so it was refused as a
+stranger's, and a retired workload's final output, the one thing §3.6 of `01-model.md` promises a
+stream keeps, was missing from the index. A prune is worse: it happens days after the workload
+left, on the node's own retention. The end-to-end test found it; no document had asked what
+evaluates the check, and with what information, after the assignment is gone.
+
+**Resolution.** A segment record is believed from any node that has held the workload's lease,
+released or not: leases are never deleted, so the control plane holds that history, and a node
+writes a stream only while it runs the workload, which takes a lease. Retiring keeps the stream as
+it keeps volumes, and deleting it is the volume deletion step. → patched into `14-streams.md` §4
 

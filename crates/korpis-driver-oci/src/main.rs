@@ -4,11 +4,12 @@
 
 use clap::Parser;
 use korpis_driver_oci::containerd::Containerd;
+use korpis_driver_oci::containerd::stream::Streams;
 use korpis_driver_oci::serve::{bind, serve};
 use korpis_driver_oci::service::Driver;
 use korpis_driver_oci::validate::Policy;
 use std::collections::BTreeSet;
-use std::os::unix::fs::MetadataExt as _;
+use std::os::unix::fs::{DirBuilderExt as _, MetadataExt as _};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -34,6 +35,29 @@ struct Cli {
     /// A user allowed to connect, by uid; repeatable. Without one, only the driver's own user.
     #[arg(long = "allow-uid")]
     allow_uids: Vec<u32>,
+    /// The stream writer containerd starts beside each task (§4 of docs/14-streams.md); by
+    /// default the `korpis-stream-writer` installed beside this binary.
+    #[arg(long, env = "KORPIS_STREAM_WRITER")]
+    stream_writer: Option<PathBuf>,
+    /// The driver's own state: the files it hands each task's stream writer.
+    #[arg(long, default_value = "/var/lib/korpis-driver-oci")]
+    state_dir: PathBuf,
+}
+
+/// The stream writer: the one named, or the one beside this binary; it must be there, since a
+/// task whose logging binary is missing never starts, and one with none loses its console.
+fn stream_writer(named: Option<PathBuf>) -> Result<PathBuf, String> {
+    let path = match named {
+        Some(p) => p,
+        None => std::env::current_exe()
+            .map_err(|e| format!("own path: {e}"))?
+            .with_file_name("korpis-stream-writer"),
+    };
+    let executable = std::fs::metadata(&path).is_ok_and(|m| m.is_file() && m.mode() & 0o111 != 0);
+    if !executable {
+        return Err(format!("no stream writer at {}: pass --stream-writer", path.display()));
+    }
+    Ok(path)
 }
 
 /// Waits for an interrupt or a termination request.
@@ -59,9 +83,16 @@ fn allowed(named: Vec<u32>) -> std::io::Result<BTreeSet<u32>> {
 
 async fn run(cli: Cli) -> Result<(), String> {
     let allowed = allowed(cli.allow_uids).map_err(|e| format!("own uid: {e}"))?;
+    let streams = Streams { writer: stream_writer(cli.stream_writer)?, state: cli.state_dir };
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(&streams.state)
+        .map_err(|e| format!("{}: {e}", streams.state.display()))?;
     let containerd = Containerd::connect(&cli.containerd, &cli.content)
         .await
-        .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?;
+        .map_err(|e| format!("containerd at {}: {e}", cli.containerd.display()))?
+        .with_streams(streams);
     let listener = bind(&cli.socket).map_err(|e| format!("{}: {e}", cli.socket.display()))?;
     let (driver, watcher) = Driver::new(
         containerd,

@@ -3,7 +3,8 @@
 //! The agent's side of the driver process: its `Runtime` adapter over the socket, against the
 //! machine's containerd when there is one and the test runs as root. A thin recipe is prepared,
 //! built, and started as the reconciler would; a crash reaches the agent as a change before any
-//! poll; the object is read back as adoption would; and it is destroyed.
+//! poll; the object is read back as adoption would; and it is destroyed, its console stream
+//! written by the stream writer and sealed.
 
 #![allow(
     clippy::unwrap_used,
@@ -17,14 +18,20 @@ use korpis_agent::content::ContentStore;
 use korpis_agent::runtime::process::DriverRuntime;
 use korpis_agent::runtime::{Prepared, Runtime, RuntimeError};
 use korpis_core::workload::assignment::IdRange;
+use korpis_core::workload::stream::StreamKind;
 use korpis_driver_oci::containerd::Containerd;
+use korpis_driver_oci::containerd::stream::Streams;
 use korpis_driver_oci::serve::{bind, serve};
 use korpis_driver_oci::service::Driver;
 use korpis_driver_oci::validate::Policy;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
+use korpis_stream::changes::{self, Change};
+use korpis_stream::dir::StreamDir;
+use korpis_stream::read::read;
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::Duration;
 
 const CONTAINERD: &str = "/run/containerd/containerd.sock";
@@ -38,7 +45,7 @@ metadata: {{name: sleeper, version: "1.0.0", description: sleeps, license: MIT}}
 runtime:
   targets:
     - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
-  entry: {{command: [/bin/sh, -c, "echo $GREETING > /data/said; exec sleep 300"]}}
+  entry: {{command: [/bin/sh, -c, "echo $GREETING > /data/said; echo said $GREETING; exec sleep 300"]}}
 config:
   fields:
     - {{key: greeting, type: string, default: hi, deliver: env, deliver_as: GREETING}}
@@ -53,6 +60,7 @@ fn intent(nonce: &str) -> pb::Intent {
         ..Default::default()
     };
     let body = pb::IntentBody {
+        console: pb::ConsoleMode::CONSOLE_MODE_LOGS.into(),
         runtime: pb::RuntimeSpec {
             tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
             ..Default::default()
@@ -76,8 +84,9 @@ async fn started(dir: &Path) -> DriverRuntime {
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let socket = dir.join("driver.sock");
     let listener = bind(&socket).unwrap();
+    let streams = Streams { writer: writer(), state: dir.join("driver") };
     let (d, _watcher) = Driver::new(
-        containerd,
+        containerd.with_streams(streams),
         Policy { volume_root: dir.join("volumes"), identity_root: dir.join("identity") },
     );
     let own = std::os::unix::fs::MetadataExt::uid(&std::fs::metadata("/proc/self").unwrap());
@@ -94,6 +103,9 @@ async fn built(rt: &DriverRuntime, dir: &Path, nonce: &str) -> driver::PreparedS
     };
     let mut spec = *spec;
     spec.mounts[0].source = dir.join("volumes/data").to_string_lossy().into_owned();
+    let console = dir.join("volumes").join(StreamKind::Console.volume(&workload));
+    spec.stream.as_option_mut().expect("a console of logs is captured").dir =
+        console.to_string_lossy().into_owned();
     spec.labels = driver::RuntimeLabels {
         workload,
         intent: spec.intent.clone(),
@@ -145,4 +157,40 @@ async fn the_agent_runs_a_thin_recipe_through_the_driver_process() {
 
     rt.destroy(&id).await.unwrap();
     assert!(matches!(rt.inspect(&id).await, Err(RuntimeError::NotFound(_))));
+    let console = dir.path().join(format!("volumes/wl_rt{nonce}.stream_console"));
+    let sealed = tokio::time::timeout(Duration::from_secs(15), sealed_in(&console));
+    let sealed = sealed.await.expect("the writer sealed the console when the task went");
+    let records = read(&StreamDir::new(&console), 0, 10).unwrap().records;
+    let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
+    assert_eq!(said, ["said hello"], "what the workload printed, in its stream");
+    assert_eq!(sealed.end_offset, 1);
+}
+
+/// The last change recorded in the stream in `dir`, once it is a seal.
+async fn sealed_in(dir: &Path) -> korpis_stream::segment::Sealed {
+    loop {
+        if let Some((Change::Sealed(s), _)) = changes::read_from(dir, 0).unwrap().pop() {
+            return s;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// The stream writer, built where this test was if it is not already.
+fn writer() -> PathBuf {
+    let exe = std::env::current_exe().unwrap();
+    let profile_dir = exe.parent().and_then(Path::parent).unwrap();
+    let target = profile_dir.parent().unwrap();
+    let profile = match profile_dir.file_name().unwrap().to_str().unwrap() {
+        "debug" => "dev",
+        other => other,
+    };
+    let built = Command::new(env!("CARGO"))
+        .args(["build", "-q", "-p", "korpis-stream", "--bin", "korpis-stream-writer"])
+        .args(["--profile", profile, "--target-dir"])
+        .arg(target)
+        .status()
+        .unwrap();
+    assert!(built.success(), "korpis-stream-writer did not build");
+    profile_dir.join("korpis-stream-writer")
 }

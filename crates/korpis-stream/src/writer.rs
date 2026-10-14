@@ -73,8 +73,8 @@ struct Dropped {
 pub struct Changes {
     /// Segments sealed.
     pub sealed: Vec<Sealed>,
-    /// Sealed segments pruned to the retention, by first offset.
-    pub pruned: Vec<u64>,
+    /// Sealed segments pruned to the retention.
+    pub pruned: Vec<Sealed>,
 }
 
 /// A stream's writer.

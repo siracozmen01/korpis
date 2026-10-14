@@ -54,6 +54,18 @@ impl AssignmentRead for PgStore {
         .map_err(from_sqlx)?;
         epoch.map(|e| count("lease epoch", e)).transpose()
     }
+
+    async fn ever_leased(&self, workload: Uuid, node: Uuid) -> StoreResult<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM lease WHERE workload_id = $1 AND node_id = $2)
+               AS "held!""#,
+            workload,
+            node
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
 }
 
 impl AssignmentWrite for PgTx {

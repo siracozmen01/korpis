@@ -4,12 +4,16 @@
 //! placed on the node, and converged, running in a hardened container with its configured value
 //! and its volume; the agent restarts and adopts it without the workload starting again; every
 //! step it took is an effect naming its grant; and its retirement removes the container and
-//! keeps the volume.
+//! keeps the volume. What it prints is its console stream, written beside it on the node, and the
+//! segment sealed when its container goes is in the control plane's index (§4 of
+//! docs/14-streams.md).
 
 use crate::node::{Node, live};
 use crate::support::{ControlPlane, push_sleeper};
 use korpis_agent::runtime::{Runtime as _, RuntimeError};
 use korpis_proto::korpis::v1 as pb;
+use korpis_stream::dir::StreamDir;
+use korpis_stream::read::read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -45,16 +49,18 @@ async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
     panic!("{sql} never reached {n}");
 }
 
-/// The workload's one volume on the node.
-fn volume(node: &Node) -> PathBuf {
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&node.volumes)
+/// The workload's one declared volume on the node, and its console stream's.
+fn volumes(node: &Node) -> (PathBuf, PathBuf) {
+    let dirs: Vec<PathBuf> = std::fs::read_dir(&node.volumes)
         .unwrap()
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect();
-    assert_eq!(dirs.len(), 1, "{dirs:?}");
-    dirs.remove(0)
+    let (console, declared): (Vec<_>, Vec<_>) =
+        dirs.into_iter().partition(|p| p.to_string_lossy().ends_with(".stream_console"));
+    assert_eq!((declared.len(), console.len()), (1, 1), "{declared:?} {console:?}");
+    (declared[0].clone(), console[0].clone())
 }
 
 /// The lines of `file`, once it has at least one.
@@ -85,7 +91,7 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let s = status(&cp, &w, 180, converged).await;
     let observed = s.observation.as_option().unwrap().clone();
     assert_eq!(observed.state.as_known(), Some(pb::ObservedState::OBSERVED_STATE_RUNNING));
-    let vol = volume(&node);
+    let (vol, console) = volumes(&node);
     assert_eq!(lines(&vol.join("greeting")).await, ["hello"], "the configured value");
     assert_eq!(lines(&vol.join("starts")).await.len(), 1);
     let identity = lines(&vol.join("identity")).await;
@@ -119,5 +125,14 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let gone = runtime.inspect(&observed.runtime_id).await;
     assert!(matches!(gone, Err(RuntimeError::NotFound(_))), "{gone:?}");
     assert!(vol.join("starts").exists(), "a volume outlives its workload");
+
+    // Its console: written on the node while it ran, sealed when its container went, indexed.
+    let sql = "SELECT count(*) FROM stream_segment s JOIN stream ON stream.id = s.stream_id \
+               WHERE stream.kind = 'console' AND s.end_offset = 1 AND s.digest LIKE 'sha256:%' \
+               AND s.node_id IS NOT NULL";
+    counted(&cp, sql, 1).await;
+    let records = read(&StreamDir::new(&console), 0, 10).unwrap().records;
+    let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
+    assert_eq!(said, ["said hello"], "what it printed, and nothing else");
     agent.stop().await;
 }

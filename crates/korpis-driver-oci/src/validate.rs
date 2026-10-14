@@ -12,6 +12,7 @@
 //! filesystem when the container is created.
 
 use korpis_core::workload::assignment::{FIRST_WORKLOAD_ID, IDS_PER_WORKLOAD};
+use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use std::path::{Component, Path, PathBuf};
@@ -127,6 +128,26 @@ fn identity(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violatio
     Ok(())
 }
 
+/// The stream directory, if any, is the workload's own stream volume under the helper's root.
+fn stream(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
+    let Some(s) = spec.stream.as_option() else { return Ok(()) };
+    let path = Path::new(&s.dir);
+    let own =
+        path.file_name().is_some_and(|n| n == StreamKind::Console.volume(&spec.workload).as_str());
+    let under_root = path.strip_prefix(&policy.volume_root).is_ok();
+    if !clean_absolute(&s.dir) || !own || !under_root {
+        return refuse("stream.dir", "only the workload's own stream volume is written to");
+    }
+    if s.secrets.len() > MAX_ITEMS {
+        return refuse("stream.secrets", "too many");
+    }
+    for x in &s.secrets {
+        text("stream.secrets", &x.name)?;
+        text("stream.secrets", &x.value)?;
+    }
+    Ok(())
+}
+
 fn process(spec: &driver::PreparedSpec) -> Result<(), Violation> {
     if spec.command.len() + spec.args.len() > MAX_ITEMS || spec.env.len() > MAX_ITEMS {
         return refuse("command", "too many arguments or variables");
@@ -182,6 +203,7 @@ pub fn validate(spec: driver::PreparedSpec, policy: &Policy) -> Result<Valid, Vi
     ids(&spec)?;
     mounts(&spec, policy)?;
     identity(&spec, policy)?;
+    stream(&spec, policy)?;
     process(&spec)?;
     resources(&spec)?;
     Ok(Valid(spec))
@@ -264,6 +286,33 @@ mod tests {
         let port = |s: &mut driver::PreparedSpec| s.ports.push(driver::PortMapping::default());
         assert_eq!(refused(port), "ports");
         assert_eq!(refused(|s| s.labels = driver::RuntimeLabels::default().into()), "labels");
+    }
+
+    #[test]
+    fn a_stream_is_written_only_to_the_workloads_own_stream_volume() {
+        let mut own = honest();
+        own.stream = driver::StreamCapture {
+            dir: "/var/lib/korpis/volumes/wl_1.stream_console".into(),
+            ..Default::default()
+        }
+        .into();
+        assert!(validate(own.clone(), &policy()).is_ok());
+        let other = |s: &mut driver::PreparedSpec| {
+            s.stream = driver::StreamCapture {
+                dir: "/var/lib/korpis/volumes/wl_2.stream_console".into(),
+                ..Default::default()
+            }
+            .into();
+        };
+        assert_eq!(refused(other), "stream.dir", "another workload's stream");
+        let world = |s: &mut driver::PreparedSpec| {
+            s.stream = driver::StreamCapture {
+                dir: "/var/lib/korpis/volumes/wl_1.world".into(),
+                ..Default::default()
+            }
+            .into();
+        };
+        assert_eq!(refused(world), "stream.dir", "a volume of its own that is not its stream");
     }
 
     #[test]

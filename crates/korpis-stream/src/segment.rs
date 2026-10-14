@@ -282,16 +282,25 @@ fn parse(payload: &[u8]) -> Option<Record> {
     Some(Record { offset, time_nanos, source: Source::from_tag(source, path)?, kind, body })
 }
 
-/// The footer of the sealed segment at `path`: its end offset and the times of its first and last
-/// records, read from the file's end without reading the records; none if it is not sealed.
-pub fn footer(path: &Path) -> io::Result<Option<(u64, (i64, i64))>> {
+/// What the sealed segment at `path` is, read from its footer and its size without reading its
+/// records; none if it is not sealed.
+pub fn sealed_info(path: &Path) -> io::Result<Option<Sealed>> {
     let mut file = File::open(path)?;
-    if file.metadata()?.len() < HEADER + FOOTER {
+    let len = file.metadata()?.len();
+    if len < HEADER + FOOTER {
         return Ok(None);
     }
+    let mut first = [0u8; 16];
+    file.read_exact(&mut first)?;
+    let first_offset = u64::from_le_bytes(
+        first
+            .get(8..16)
+            .and_then(|b| b.try_into().ok())
+            .ok_or_else(|| io::Error::other("header"))?,
+    );
     let back = i64::try_from(FOOTER).map_err(io::Error::other)?;
     file.seek(SeekFrom::End(-back))?;
-    let mut f = [0u8; 28];
+    let mut f = [0u8; 60];
     file.read_exact(&mut f)?;
     let word = |at: usize| -> io::Result<[u8; 8]> {
         f.get(at..at + 8).and_then(|b| b.try_into().ok()).ok_or_else(|| io::Error::other("footer"))
@@ -299,8 +308,13 @@ pub fn footer(path: &Path) -> io::Result<Option<(u64, (i64, i64))>> {
     if f.get(..4) != Some(END.as_slice()) {
         return Ok(None);
     }
-    let end = u64::from_le_bytes(word(4)?);
-    Ok(Some((end, (i64::from_le_bytes(word(12)?), i64::from_le_bytes(word(20)?)))))
+    Ok(Some(Sealed {
+        first_offset,
+        end_offset: u64::from_le_bytes(word(4)?),
+        bytes: len,
+        digest: format!("sha256:{}", hex(f.get(28..60).unwrap_or_default())),
+        times: (i64::from_le_bytes(word(12)?), i64::from_le_bytes(word(20)?)),
+    }))
 }
 
 /// Reads the segment at `path` through.
@@ -344,51 +358,4 @@ pub fn records_from(path: &Path, offset: u64, limit: usize) -> io::Result<(Vec<R
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn text(offset: u64, body: &str) -> Record {
-        Record {
-            offset,
-            time_nanos: 1_760_000_000_000_000_000,
-            source: Source::Stdout,
-            kind: Kind::Text,
-            body: body.as_bytes().to_vec(),
-        }
-    }
-
-    #[test]
-    fn records_survive_a_seal_and_a_torn_write_is_cut_back() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("seg");
-        let mut w = SegmentWriter::create(&path, 10).unwrap();
-        w.append(&text(10, "one")).unwrap();
-        w.append(&Record { source: Source::File("/data/log".into()), ..text(11, "two") }).unwrap();
-        assert!(w.append(&text(13, "skip")).is_err(), "offsets are consecutive");
-        drop(w);
-        let mut torn = OpenOptions::new().append(true).open(&path).unwrap();
-        torn.write_all(&frame(&text(12, "three"))[..9]).unwrap();
-        let mut w = SegmentWriter::recover(&path).unwrap();
-        assert_eq!(w.end_offset(), 12, "the torn frame is not a record");
-        w.append(&text(12, "three")).unwrap();
-        let sealed = w.seal().unwrap();
-        assert_eq!((sealed.first_offset, sealed.end_offset), (10, 13));
-        assert_eq!(sealed.bytes, std::fs::metadata(&path).unwrap().len());
-        let (records, closed) = records_from(&path, 11, 10).unwrap();
-        assert!(closed);
-        let bodies: Vec<_> = records.iter().map(|r| r.body.clone()).collect();
-        assert_eq!(bodies, [b"two".to_vec(), b"three".to_vec()]);
-        assert_eq!(records[0].source, Source::File("/data/log".into()));
-        let digest = Sha256::digest(
-            &std::fs::read(&path).unwrap()[..usize::try_from(sealed.bytes - FOOTER).unwrap()],
-        );
-        assert_eq!(
-            sealed.digest,
-            format!("sha256:{}", hex(&digest)),
-            "the digest addresses the content"
-        );
-        assert!(SegmentWriter::recover(&path).is_err(), "a sealed segment is not reopened");
-        let t = 1_760_000_000_000_000_000;
-        assert_eq!(footer(&path).unwrap(), Some((13, (t, t))), "read from the end alone");
-    }
-}
+mod tests;

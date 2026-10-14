@@ -6,7 +6,7 @@
 //! sealed segments are pruned to the stream's retention, oldest first; the one being written
 //! never is.
 
-use crate::segment::{self, Scan};
+use crate::segment::{self, Scan, Sealed};
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -92,37 +92,39 @@ impl StreamDir {
     }
 
     /// Removes sealed segments whose last record is older than `cutoff` (nanoseconds since the
-    /// Unix epoch); the first offsets removed.
-    pub fn prune_before(&self, cutoff: i64) -> io::Result<Vec<u64>> {
+    /// Unix epoch); what they were.
+    pub fn prune_before(&self, cutoff: i64) -> io::Result<Vec<Sealed>> {
         let mut removed = Vec::new();
         for s in self.segments()?.into_iter().filter(|s| s.sealed) {
-            let Some((_, (_, last))) = segment::footer(&s.path)? else { continue };
-            if last >= cutoff {
+            let Some(info) = segment::sealed_info(&s.path)? else { continue };
+            if info.times.1 >= cutoff {
                 break;
             }
             std::fs::remove_file(&s.path)?;
-            removed.push(s.first_offset);
+            removed.push(info);
         }
         Ok(removed)
     }
 
     /// Removes sealed segments, oldest first, while the sealed ones hold more than `max_bytes`;
-    /// the first offsets removed.
-    pub fn prune_to(&self, max_bytes: u64) -> io::Result<Vec<u64>> {
-        let sealed: Vec<_> = self.segments()?.into_iter().filter(|s| s.sealed).collect();
-        let sizes = sealed
-            .iter()
-            .map(|s| std::fs::metadata(&s.path).map(|m| m.len()))
+    /// what they were.
+    pub fn prune_to(&self, max_bytes: u64) -> io::Result<Vec<Sealed>> {
+        let sealed = self
+            .segments()?
+            .into_iter()
+            .filter(|s| s.sealed)
+            .map(|s| Ok(segment::sealed_info(&s.path)?.map(|i| (s.path, i))))
+            .filter_map(Result::transpose)
             .collect::<io::Result<Vec<_>>>()?;
-        let mut total: u64 = sizes.iter().sum();
+        let mut total: u64 = sealed.iter().map(|(_, i)| i.bytes).sum();
         let mut removed = Vec::new();
-        for (s, size) in sealed.iter().zip(sizes) {
+        for (path, info) in sealed {
             if total <= max_bytes {
                 break;
             }
-            std::fs::remove_file(&s.path)?;
-            total -= size;
-            removed.push(s.first_offset);
+            std::fs::remove_file(&path)?;
+            total -= info.bytes;
+            removed.push(info);
         }
         Ok(removed)
     }

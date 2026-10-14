@@ -14,6 +14,7 @@ use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::reconcile::progress::Progress;
+use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
 use crate::revoked::token_ring;
 use crate::runtime::{Runtime, RuntimeError};
@@ -164,6 +165,8 @@ impl Agent {
             .map_err(io("the journal"))?;
         let progress =
             Progress::open(&state.root().join("progress")).map_err(io("the progress"))?;
+        let streams =
+            Streams::open(&state.root().join("streams")).map_err(io("the streams watched"))?;
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
@@ -193,7 +196,7 @@ impl Agent {
                 control_plane,
             )),
         };
-        let reconciler = Reconciler::new(runtime, host, wiring, progress);
+        let reconciler = Reconciler::new(runtime, host, wiring, progress, streams);
         let tasks = vec![
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),

@@ -25,7 +25,7 @@ ORAS=$REPO/.tools/bin/oras
 
 log "building"
 cargo build --quiet -p korpis-server -p korpis-agent -p korpis-driver-oci -p korpis-helper \
-    -p korpis-cli
+    -p korpis-cli -p korpis-stream
 BIN=$REPO/target/debug
 
 WORK=$(mktemp -d /tmp/korpis-e2e.XXXXXX)
@@ -133,7 +133,7 @@ start helper "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$N
     --state "$NODE/helper"
 start driver "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
     --content "$NODE/agent/content" --volume-root "$NODE/volumes" \
-    --identity-root "$NODE/agent/identity"
+    --identity-root "$NODE/agent/identity" --state-dir "$NODE/driver"
 until_ok 10 test -S "$NODE/helper.sock"
 until_ok 10 test -S "$NODE/driver.sock"
 agent() {

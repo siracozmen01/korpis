@@ -11,6 +11,7 @@ use korpis_core::content::this_machine;
 use korpis_core::recipe::runtime::{RuntimeTarget, TargetSource};
 use korpis_core::value::{Value, ValueMap};
 use korpis_core::workload::spec::IsolationTier;
+use korpis_core::workload::spec::streams::Retention;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::value::Kind as V;
@@ -93,6 +94,36 @@ fn resources(body: &pb::IntentBody) -> pb::ResourceSpec {
     r
 }
 
+/// The console stream's capture: its limits as the intent declares them, each left zero the
+/// default, and the secret values it redacts; its directory is the agent's to fill. None unless
+/// the console mode is one with a stream.
+fn stream(body: &pb::IntentBody, secrets: Vec<(String, String)>) -> Option<driver::StreamCapture> {
+    use pb::ConsoleMode as M;
+    let mode = body.console.as_known();
+    if !matches!(
+        mode,
+        Some(M::CONSOLE_MODE_LOGS | M::CONSOLE_MODE_INTERACTIVE | M::CONSOLE_MODE_SERIAL)
+    ) {
+        return None;
+    }
+    let limits = korpis_wire::stream::spec_from_pb("streams", body.streams.as_option()).ok()?;
+    let (retention_bytes, retention_seconds) = match limits.retention {
+        Retention::Bytes(b) => (b, 0),
+        Retention::Duration(d) => (0, d.as_secs().max(1)),
+    };
+    Some(driver::StreamCapture {
+        rate_bytes_per_sec: limits.rate,
+        burst_bytes: limits.burst,
+        retention_bytes,
+        retention_seconds,
+        secrets: secrets
+            .into_iter()
+            .map(|(name, value)| driver::StreamSecret { name, value, ..Default::default() })
+            .collect(),
+        ..Default::default()
+    })
+}
+
 /// Prepares `intent` for `workload` from the recipe document `manifest`.
 pub fn prepare(
     workload: &str,
@@ -114,6 +145,7 @@ pub fn prepare(
         // running without it would start the software without a value it was promised.
         return Err(refuse(format!("config.{key} is a managed file, not rendered on this node")));
     }
+    let stream = stream(body, delivered.secrets);
     Ok(driver::PreparedSpec {
         workload: workload.to_owned(),
         intent: intent.id.clone(),
@@ -125,6 +157,7 @@ pub fn prepare(
         resources: resources(body).into(),
         mounts: mounts(body),
         tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
+        stream: stream.into(),
         ..Default::default()
     })
 }

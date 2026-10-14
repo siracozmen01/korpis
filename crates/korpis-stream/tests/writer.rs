@@ -66,9 +66,43 @@ fn the_writer_drains_both_streams_redacts_and_seals_when_the_workload_ends() {
             "prompt> ",
         ]
     );
-    let (logged, _) = changes::read_from(&dir, 0).unwrap();
+    let logged = changes::read_from(&dir, 0).unwrap();
     assert!(
-        matches!(logged.as_slice(), [Change::Sealed(s)] if s.end_offset == 4),
+        matches!(logged.as_slice(), [(Change::Sealed(s), _)] if s.end_offset == 4),
         "the last segment is sealed and recorded: {logged:?}"
+    );
+}
+
+#[test]
+fn sigterm_seals_what_was_written_though_the_pipes_stay_open() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (out, err, ready) =
+        (tmp.path().join("out"), tmp.path().join("err"), tmp.path().join("ready"));
+    for p in [&out, &err, &ready] {
+        fifo(p);
+    }
+    let dir = tmp.path().join("stream");
+    let mut writer = Command::new("sh")
+        .arg("-c")
+        .arg(r#"exec "$0" --dir "$1" 3<"$2" 4<"$3" 5>"$4""#)
+        .arg(env!("CARGO_BIN_EXE_korpis-stream-writer"))
+        .args([&dir, &out, &err, &ready])
+        .spawn()
+        .unwrap();
+    let mut stdout = std::fs::OpenOptions::new().write(true).open(&out).unwrap();
+    let _stderr = std::fs::OpenOptions::new().write(true).open(&err).unwrap();
+    std::fs::File::open(&ready).unwrap().read_to_end(&mut Vec::new()).unwrap();
+    stdout.write_all(b"the last words\n").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let started = std::time::Instant::now();
+    let pid = writer.id().to_string();
+    assert!(Command::new("kill").args(["-TERM", &pid]).status().unwrap().success());
+    assert!(writer.wait().unwrap().success(), "SIGTERM is an end, not a death");
+    assert!(started.elapsed() < std::time::Duration::from_secs(10), "inside the shim's patience");
+    let logged = changes::read_from(&dir, 0).unwrap();
+    assert!(
+        matches!(logged.as_slice(), [(Change::Sealed(s), _)] if s.end_offset == 1),
+        "the one record is sealed and recorded: {logged:?}"
     );
 }

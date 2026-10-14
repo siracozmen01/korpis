@@ -89,6 +89,30 @@ message PreparedSpec {
   // mounted read-only at /run/korpis inside the workload (§9.5 of docs/08-identity.md). Empty
   // when the node gives the workload no identity.
   string identity_dir = 15;
+  // Where the workload's console stream is written, and how; absent when its console mode is
+  // none (§4 of docs/14-streams.md).
+  StreamCapture stream = 16;
+}
+
+// The console stream of a workload: its limits and the secret values it redacts, from Prepare;
+// its directory, from the agent before Create. The driver hands all of it to the stream writer
+// the task's stdio names.
+message StreamCapture {
+  // A host path prepared by the privileged helper, under quota; the driver never chooses one.
+  string dir = 1;
+  uint64 rate_bytes_per_sec = 2;
+  uint64 burst_bytes = 3;
+  // One of the two is set.
+  uint64 retention_bytes = 4;
+  uint64 retention_seconds = 5;
+  repeated StreamSecret secrets = 6;
+}
+
+message StreamSecret {
+  // The configuration field.
+  string name = 1;
+  // Its value, as the software reads it.
+  string value = 2;
 }
 
 message Mount {

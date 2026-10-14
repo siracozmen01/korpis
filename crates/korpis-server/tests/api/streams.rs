@@ -2,9 +2,10 @@
 
 //! A stream's segment index (§4 of docs/14-streams.md): kept from what the node journals, so the
 //! control plane knows where every run of records is and how much is held only on the node, and
-//! believed only for a workload assigned to that node.
+//! believed only from a node that once held the workload's lease: a segment is sealed as the
+//! container goes and pruned long after, when the node no longer runs it.
 
-use crate::agent::{TestAgent, welcome};
+use crate::agent::{Stream, TestAgent, next, welcome};
 use crate::journal::{ack, assignment, send, until};
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;
@@ -12,6 +13,8 @@ use korpis_app::ports::StreamRead as _;
 use korpis_core::id::{Id, IdKind};
 use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
@@ -44,6 +47,29 @@ fn segment_record(
     }
 }
 
+async fn up(s: &mut Stream, message: Up) {
+    let m = agent::AgentMessage { message: Some(message), ..Default::default() };
+    s.send(m).await.unwrap();
+}
+
+/// Takes `workload`'s lease and gives it back, as a node that ran it and was then retired.
+async fn held_and_released(s: &mut Stream, workload: &str) {
+    let request = agent::LeaseRequest {
+        workload: workload.to_owned(),
+        nonce: vec![7; 8],
+        ..Default::default()
+    };
+    up(s, Up::LeaseRequest(Box::new(request))).await;
+    let epoch = loop {
+        if let Some(Down::LeaseGrant(g)) = next(s).await.message {
+            break g.epoch;
+        }
+    };
+    let released =
+        agent::LeaseReleased { workload: workload.to_owned(), epoch, ..Default::default() };
+    up(s, Up::LeaseReleased(Box::new(released))).await;
+}
+
 #[tokio::test]
 async fn the_index_follows_what_the_node_seals_and_prunes() {
     use agent::SegmentEvent as E;
@@ -61,6 +87,7 @@ async fn the_index_follows_what_the_node_seals_and_prunes() {
         .into_owned();
     let workload = declared.workload.as_option().unwrap().id.clone();
     until(&mut s, assignment(|a| a.plan.is_set())).await;
+    held_and_released(&mut s, &workload).await;
 
     send(
         &mut s,

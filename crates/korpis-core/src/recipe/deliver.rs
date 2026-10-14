@@ -23,6 +23,9 @@ pub struct Delivered {
     pub args: Vec<String>,
     /// The keys of `managed_file` fields that have a value: files the runtime does not render.
     pub managed: Vec<String>,
+    /// Each secret field with a value, and that value as the software reads it: what the
+    /// workload's stream redacts (§7 of docs/14-streams.md), however the field is delivered.
+    pub secrets: Vec<(String, String)>,
 }
 
 /// A value the runtime cannot write as text.
@@ -86,6 +89,11 @@ impl ConfigSchema {
             let Some(v) = values.get(&f.key).filter(|v| **v != Value::Null) else { continue };
             let render =
                 || text(f.ty, v).map_err(|message| DeliveryError { key: f.key.clone(), message });
+            if f.secret
+                && let Ok(t) = text(f.ty, v)
+            {
+                out.secrets.push((f.key.clone(), t));
+            }
             match f.deliver {
                 ConfigDelivery::Template => {}
                 ConfigDelivery::ManagedFile => out.managed.push(f.key.clone()),

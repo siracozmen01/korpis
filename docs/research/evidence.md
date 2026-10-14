@@ -465,6 +465,11 @@ Primary:
 - [Agones: overview](https://agones.dev/site/docs/overview/), [fleet
   spec](https://agones.dev/site/docs/reference/fleet/), [allocation
   spec](https://agones.dev/site/docs/reference/gameserverallocation/)
+- **[V]** containerd's shim ends a `binary://` logging process by closing the task's pipes, then
+  sending SIGTERM, then killing it if it has not exited within twelve seconds
+  (`binaryIOProcTermTimeout`), checked 2026-10-14 against
+  [cmd/containerd-shim-runc-v2/process/io.go](https://github.com/containerd/containerd/blob/main/cmd/containerd-shim-runc-v2/process/io.go).
+  What the stream writer's last drain is sized against (§4 of `../14-streams.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

@@ -91,9 +91,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ]))
             }
             Body::Segment { workload, kind, event, segment } => {
-                if !self.store.nodes_of(*workload).await?.contains(&node) {
+                // A segment is sealed as its container goes and pruned long after, so the test
+                // is that the node once ran the workload, not that it still does.
+                if !self.store.ever_leased(*workload, node).await? {
                     return Ok(rejected(
-                        "the workload is not assigned to this node",
+                        "the node never held the workload's lease",
                         event.action(),
                     ));
                 }

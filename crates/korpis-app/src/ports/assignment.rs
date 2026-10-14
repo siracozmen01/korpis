@@ -66,6 +66,14 @@ pub trait AssignmentRead {
         workload: Uuid,
         node: Uuid,
     ) -> impl Future<Output = StoreResult<Option<u64>>> + Send;
+
+    /// Whether `node` has ever held a lease for `workload`, released or not: what a node must have
+    /// had to run it, and so to have written anything of it that outlives its stay.
+    fn ever_leased(
+        &self,
+        workload: Uuid,
+        node: Uuid,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 }
 
 /// Writing assignments.

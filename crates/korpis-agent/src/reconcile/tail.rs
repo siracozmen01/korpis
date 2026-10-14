@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Journaling what became of each stream's segments (§4 of docs/14-streams.md). The writer
+//! records every seal and prune in its stream's changes log; on every pass the reconciler reads
+//! each log from where it left off and journals each change, from which the control plane keeps
+//! its segment index. A stream whose workload left the set is read one last time and then no
+//! longer watched; what it wrote stays on the node, as a volume does (§4 of docs/14-streams.md).
+
+use super::Reconciler;
+use crate::held::HeldSet;
+use crate::host::Host;
+use crate::runtime::Runtime;
+use korpis_core::workload::stream::Segment;
+use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
+use korpis_proto::korpis::v1 as pb;
+use korpis_stream::changes::{self, Change};
+use korpis_stream::segment::Sealed;
+use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// A node-clock time in nanoseconds since the Unix epoch; the epoch itself if it is before it.
+fn at(nanos: i64) -> SystemTime {
+    UNIX_EPOCH + Duration::from_nanos(u64::try_from(nanos).unwrap_or(0))
+}
+
+/// The journal record of `change` to `workload`'s console stream.
+fn record(workload: &str, change: &Change) -> Body {
+    let (event, s): (_, &Sealed) = match change {
+        Change::Sealed(s) => (agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
+        Change::Pruned(s) => (agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
+    };
+    let segment = Segment {
+        first_offset: s.first_offset,
+        end_offset: s.end_offset,
+        first_at: at(s.times.0),
+        last_at: at(s.times.1),
+        bytes: s.bytes,
+        digest: s.digest.clone(),
+        node: None,
+        offloaded: false,
+    };
+    Body::StreamSegment(Box::new(agent::StreamSegmentEvent {
+        workload: workload.to_owned(),
+        kind: pb::StreamKind::STREAM_KIND_CONSOLE.into(),
+        event: event.into(),
+        segment: korpis_wire::stream::segment_to_pb(&segment).into(),
+        ..Default::default()
+    }))
+}
+
+impl<R: Runtime, H: Host> Reconciler<R, H> {
+    /// Journals what every watched stream's writer recorded since the last pass, and stops
+    /// watching a stream whose workload `held` no longer claims once it is read through.
+    pub(super) async fn tail(&mut self, held: &HeldSet) {
+        for (workload, watched) in self.streams.watched() {
+            let read = self.journal_changes(&workload, &watched.dir, watched.next).await;
+            let kept = match read {
+                Ok(next) => self.streams.read_to(&workload, next),
+                Err(e) => {
+                    tracing::warn!(%workload, error = %e, "a stream's changes were not journaled");
+                    continue;
+                }
+            };
+            let gone = !held.assignments.contains_key(&workload);
+            if let Err(e) =
+                kept.and_then(|()| if gone { self.streams.unwatch(&workload) } else { Ok(()) })
+            {
+                tracing::error!(%workload, error = %e, "the streams watched could not be kept");
+            }
+        }
+    }
+
+    /// Journals the changes in the log in `dir` from byte `from`; the byte past the last one
+    /// journaled. A record the journal refuses ends the pass, and the log is read again from
+    /// `from` the next time: a change journaled twice is the same segment to the index.
+    async fn journal_changes(&self, workload: &str, dir: &Path, from: u64) -> std::io::Result<u64> {
+        let mut done = from;
+        for (change, next) in changes::read_from(dir, from)? {
+            self.wiring.journal.append(record(workload, &change)).await?;
+            done = next;
+        }
+        Ok(done)
+    }
+}

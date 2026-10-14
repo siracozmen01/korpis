@@ -17,6 +17,7 @@ use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
 use korpis_core::node::advertised::PortRange;
 use korpis_driver_oci::containerd::Containerd;
+use korpis_driver_oci::containerd::stream::Streams;
 use korpis_driver_oci::validate::Policy;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -58,11 +59,33 @@ fn helper(socket: &Path, volumes: &Path, state: &Path) {
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
 }
 
+/// The stream writer, built where this test was if it is not already.
+fn writer() -> PathBuf {
+    let exe = std::env::current_exe().unwrap();
+    let profile_dir = exe.parent().and_then(Path::parent).unwrap();
+    let target = profile_dir.parent().unwrap();
+    let profile = match profile_dir.file_name().unwrap().to_str().unwrap() {
+        "debug" => "dev",
+        other => other,
+    };
+    let built = Command::new(env!("CARGO"))
+        .args(["build", "-q", "-p", "korpis-stream", "--bin", "korpis-stream-writer"])
+        .args(["--profile", profile, "--target-dir"])
+        .arg(target)
+        .status()
+        .unwrap();
+    assert!(built.success(), "korpis-stream-writer did not build");
+    profile_dir.join("korpis-stream-writer")
+}
+
 /// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
-/// from the agent's default root, `identity` in its state directory.
+/// from the agent's default root, `identity` in its state directory, and writes consoles with
+/// the stream writer, keeping its own state in `driver` beside the agent's.
 async fn driver(socket: &Path, state: &StateDir, volumes: &Path) {
     let content = state.root().join("content");
-    let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
+    let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
+    let containerd =
+        Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap().with_streams(streams);
     let listener = korpis_driver_oci::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
     let policy = Policy { volume_root: volumes.to_owned(), identity_root };

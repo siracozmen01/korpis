@@ -122,6 +122,48 @@ not bookkeeping pedantry: a workload that logs at 50 MB/s is a workload that fil
 "log retention" setting that is not backed by an enforced quota is exactly the unenforced limit P4
 forbids. The stream's own limits are declared per workload and enforced in the write path.
 
+**As built** (Phase 1, the `oci` driver), the node segment files are written by
+`korpis-stream-writer`, which the driver names as the task's logging binary in containerd's
+`binary://` form. containerd's shim starts it with every task, hands it the workload's stdout and
+stderr, and starts the task only once the writer says it is ready, so no output precedes it. Being
+the shim's child, the writer outlives a restart of the agent or the driver exactly as the workload
+does (§4.4 of `02-architecture.md`). The stream's limits are labels on the container, so a task
+started after a driver restart is told the same; the secret values it redacts (§7) are not labels,
+which anyone who can read containerd's records would see, but a file in the driver's own state
+directory, readable by the driver's user alone, whose path the writer is given. When the task is
+deleted the shim closes the pipes and sends the writer SIGTERM, killing it twelve seconds later (§5
+of `research/evidence.md`); the writer drains for at most three seconds, seals, and exits, so a
+workload's last output is a sealed segment rather than a file left open for a writer that never
+comes.
+
+The stream's directory is a volume of its own, `<workload>.stream_console`, that the agent asks
+the privileged helper for before Create, sized to the most the stream can hold (§5), so the quota
+on it is the kernel's (K-3). The `_` in its name is a character no declared volume's name may
+hold, so it never meets one, and the driver refuses a stream directory that is not the workload's
+own stream volume under the helper's root. The writer records each seal and prune as a line of a
+`changes` log in that directory, durable before it goes on. The agent reads the log on every pass
+of its reconciler from the byte it last journaled, journals each change as a segment record, and
+keeps the new position only once the journal has the record; a change journaled twice is the same
+segment to the index. The control plane believes a segment record from any node that has held the
+workload's lease, released or not, because a segment is sealed as the container goes and pruned
+long after: the node that wrote a stream is the one that ran the workload.
+
+**Retiring a workload keeps its stream, as it keeps its volumes** (§3.6 of `01-model.md`: streams
+outlive the workload, and deleting a volume is a separate, irreversible plan step). The agent reads
+the changes log once more after the workload leaves its set and then stops watching it; the
+segments stay where they are and in the index. A crashed and retired workload's last output is
+there to be read, which is the invariant's point. Deleting a retired workload's stream is the same
+step that deletes its volumes, built with volume deletion in Phase 1 (§4 of `20-roadmap.md`).
+
+What it costs. The writer is the only reader of the workload's pipes, so if it dies the
+workload's next write to its console fails with `EPIPE`, or kills it with `SIGPIPE` if it does not
+ignore that signal. The writer is built never to exit on a write error, and it records what it
+cannot write as a gap (§5) rather than stopping; a writer killed by the kernel's out-of-memory
+killer still takes its workload's console with it. A retired workload's stream holds its disk
+until it is deleted, and it no longer counts against a quota once the workload stops counting,
+the same gap retained volumes have. And a driver other than `oci` writes no stream until it
+captures one the same way.
+
 ---
 
 ## 5. The workload is never blocked
@@ -148,9 +190,10 @@ stream's retention, 64 MiB by default, or by age where the workload declares a d
 The limits are the intent's `streams` (§3.3 of `01-model.md`), and the most a stream can hold
 counts against the workload's disk quota as a volume it creates would (K-3): its retention, the
 segment still being written, and for a retention by age all its rate can write in that time.
-That is 72 MiB for the defaults; a workload whose console mode is `none` holds nothing. Records reach the page cache as they are written and the
-disk at least once a second and at every seal: the writer's crash loses nothing, and the machine's
-loses at most the last second, which the next start finds as a torn frame and cuts away.
+That is 72 MiB for the defaults; a workload whose console mode is `none` holds nothing. Records
+reach the page cache as they are written and the disk at least once a second and at every seal:
+the writer's crash loses nothing, and the machine's loses at most the last second, which the next
+start finds as a torn frame and cuts away.
 
 ---
 

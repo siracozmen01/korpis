@@ -254,6 +254,16 @@ architecture, and a configuration that needs a managed file. It maps no ports: t
 network holds only loopback until the networking of Phase 1, the driver declares
 `network_modes: none`, and an endpoint stays without an address rather than claiming one.
 
+**The `oci` driver declares the console modes `none` and `logs`** (Phase 1). For `logs`, and for
+any console mode with a stream, `Prepare` returns the stream's limits and the secret values it
+redacts as the spec's stream capture, and the agent fills in its directory, a volume the helper
+creates before `Create` (§4 of `14-streams.md`). The driver writes the task's stdout and stderr
+through containerd's logging binary, `korpis-stream-writer`, which the shim starts beside the task
+and which outlives the driver as the task does. It refuses a stream directory that is not the
+workload's own stream volume, and refuses to create a container with a stream when it was started
+without a writer, since starting it would lose its console silently. `interactive` waits for input
+through the driver (§6 of `14-streams.md`).
+
 **`Wait` is a stream of events.** The protocol carries it as `Events`: for every task of the
 driver's objects that starts, exits, pauses, resumes, is deleted, or runs out of memory, the status
 it leaves the object in, read back with `Inspect` rather than built from the event. An event can

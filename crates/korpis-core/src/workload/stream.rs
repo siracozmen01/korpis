@@ -39,6 +39,14 @@ impl StreamKind {
     pub fn parse(s: &str) -> Option<Self> {
         [Self::Console, Self::Log, Self::Event, Self::Metric].into_iter().find(|k| k.as_str() == s)
     }
+
+    /// The volume `workload`'s stream of this kind is written to on the node that runs it. It is
+    /// named for the workload, so no spec can point a writer at another workload's stream, and
+    /// its `_` is a character no declared volume's name may hold, so it never meets one.
+    #[must_use]
+    pub fn volume(self, workload: &str) -> String {
+        format!("{workload}.stream_{}", self.as_str())
+    }
 }
 
 /// A contiguous run of a stream's records.

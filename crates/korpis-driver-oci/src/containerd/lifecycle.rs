@@ -107,6 +107,16 @@ impl Containerd {
         tasks::TasksClient::new(self.conn.clone(), self.config.clone())
     }
 
+    /// Where a task of container `id` writes its stdout and stderr: the stream writer, if the
+    /// container has a stream, and nowhere otherwise.
+    async fn stdio(&self, id: &str) -> DriverResult<String> {
+        let Some(streams) = &self.streams else { return Ok(String::new()) };
+        let request = containers::GetContainerRequest { id: id.to_owned(), ..Default::default() };
+        let container = self.containers().get(request).await?.into_owned().container;
+        let labels = container.as_option().map(|c| c.labels.clone()).unwrap_or_default();
+        Ok(streams.stdio(id, &labels.into_iter().collect()).unwrap_or_default())
+    }
+
     /// Whether the container `id` exists.
     pub(crate) async fn container_exists(&self, id: &str) -> DriverResult<bool> {
         let request = containers::GetContainerRequest { id: id.to_owned(), ..Default::default() };
@@ -125,6 +135,12 @@ impl Containerd {
             return Ok(id);
         }
         volumes_resolve(valid, policy)?;
+        if valid.spec().stream.is_set() {
+            let streams = self.streams.as_ref().ok_or_else(|| {
+                DriverError::Rejected("this driver has no stream writer configured".into())
+            })?;
+            streams.write_secrets(valid, &id)?;
+        }
         let lease = self.lease().await?;
         let made = self.assemble(&lease, valid, &id).await;
         self.release(&lease).await;
@@ -157,9 +173,11 @@ impl Containerd {
         let spec = runtime_spec(valid, &image.config, &self.cgroup(id))
             .map_err(|e| DriverError::Rejected(e.to_string()))?;
         let json = serde_json::to_vec(&spec).map_err(|e| DriverError::Failed(e.to_string()))?;
+        let mut labels = labels(valid);
+        labels.extend(super::stream::labels(valid));
         let container = containers::Container {
             id: id.to_owned(),
-            labels: labels(valid),
+            labels,
             image: s.rootfs.clone(),
             runtime: containers::container::Runtime { name: RUNTIME.into(), ..Default::default() }
                 .into(),
@@ -220,8 +238,14 @@ impl Containerd {
         };
         let client = snapshots::SnapshotsClient::new(self.conn.clone(), self.config.clone());
         let rootfs = client.mounts(mounts).await?.into_owned().mounts;
-        let create =
-            tasks::CreateTaskRequest { container_id: id.to_owned(), rootfs, ..Default::default() };
+        let stdio = self.stdio(id).await?;
+        let create = tasks::CreateTaskRequest {
+            container_id: id.to_owned(),
+            rootfs,
+            stdout: stdio.clone(),
+            stderr: stdio,
+            ..Default::default()
+        };
         self.tasks().create(create).await?;
         let start = tasks::StartRequest { container_id: id.to_owned(), ..Default::default() };
         self.tasks().start(start).await?;
@@ -290,6 +314,9 @@ impl Containerd {
         }
         self.remove_snapshot(id).await?;
         self.forget_sample(id);
+        if let Some(streams) = &self.streams {
+            streams.forget(id)?;
+        }
         Ok(())
     }
 
