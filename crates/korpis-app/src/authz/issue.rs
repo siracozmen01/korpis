@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Issuing a grant: attenuating one the caller holds (§3.2 of docs/08-identity.md), to a named
-//! holder or to an API token created to hold it (§3.7).
+//! holder, to an API token created to hold it (§3.7), or to whoever holds the share link it is
+//! answered as (§6.1).
 
 use super::Snapshot;
 use crate::App;
@@ -14,6 +15,7 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::credential::{ApiToken, Secret};
 use korpis_core::authz::evaluate::{IssueError, issue};
+use korpis_core::authz::link;
 use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Resource, Scope};
 use korpis_core::principal::Principal;
 use std::collections::BTreeSet;
@@ -31,6 +33,9 @@ pub enum Holder {
     Principal(Principal),
     /// An API token created in the same transaction, which exists only to hold the grant.
     NewToken,
+    /// Whoever holds the share link the grant is answered as: a link-form grant, which must
+    /// expire and limit its uses, on one object, and can never delegate (§6.1).
+    Link,
 }
 
 /// A grant to issue.
@@ -49,8 +54,6 @@ pub struct IssueGrant {
     pub conditions: Conditions,
     /// What the holder may pass on.
     pub delegation: Delegation,
-    /// A share link rather than a named holder (§6.1 of docs/08-identity.md).
-    pub link_form: bool,
     /// What it is for, for people; required for a new token, which it names.
     pub label: String,
 }
@@ -62,6 +65,8 @@ pub struct Issued {
     pub record: GrantRecord,
     /// The new token's secret, answered once and stored only as its digest.
     pub secret: Option<Secret>,
+    /// The share link, answered once and stored nowhere.
+    pub link: Option<String>,
 }
 
 fn issue_error(e: &IssueError) -> AppError {
@@ -73,10 +78,6 @@ fn issue_error(e: &IssueError) -> AppError {
 
 /// Checks what the request asks for before anything is read.
 fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
-    if cmd.link_form {
-        // Links are redeemed online with a use count; that path arrives with them.
-        return Err(AppError::NotYet { what: "share links", phase: 1 });
-    }
     if cmd.actions.is_empty() {
         return Err(AppError::invalid("actions", "at least one action"));
     }
@@ -84,14 +85,35 @@ fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
         return Err(AppError::invalid("label", "at most 200 characters, none of them control"));
     }
     match &cmd.holder {
+        Holder::Principal(Principal::Link(_)) => {
+            Err(AppError::invalid("subject", "a link's holder is made by issuing a link"))
+        }
         Holder::Principal(p) => {
             p.validate().map_err(|e| AppError::invalid("subject", e.to_string()))
         }
+        Holder::Link => link_conditions(cmd),
         Holder::NewToken if cmd.label.trim().is_empty() => {
             Err(AppError::invalid("label", "a new token is named by its label"))
         }
         Holder::NewToken => Ok(()),
     }
+}
+
+/// What a link must say of itself (§6.1 of docs/08-identity.md): short expiry and a use cap
+/// are defaults, not options, so a link without either is refused rather than given one here,
+/// where the issuer would not see it; and it is for one object, not a selector, because the
+/// person it is sent to is shown exactly what it reaches.
+fn link_conditions(cmd: &IssueGrant) -> Result<(), AppError> {
+    if cmd.conditions.expires_at.is_none() {
+        return Err(AppError::invalid("conditions.expires_at", "a link expires"));
+    }
+    if cmd.conditions.max_uses.is_none_or(|m| m == 0) {
+        return Err(AppError::invalid("conditions.max_uses", "a link has a use cap"));
+    }
+    if !matches!(cmd.scope, Scope::Object(_)) {
+        return Err(AppError::invalid("scope", "a link is for one object"));
+    }
+    Ok(())
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -107,8 +129,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         validate(&cmd)?;
         let now = self.clock.now();
+        let id = Uuid::now_v7();
         let (holder, token) = match cmd.holder {
             Holder::Principal(p) => (p, None),
+            Holder::Link => (Principal::Link(id), None),
             Holder::NewToken => {
                 let token = ApiToken {
                     id: Uuid::now_v7(),
@@ -121,14 +145,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let mut record = GrantRecord {
             grant: Grant {
-                id: Uuid::now_v7(),
+                id,
                 subject: holder.subject(),
                 actions: cmd.actions,
                 scope: cmd.scope,
                 conditions: cmd.conditions,
                 parent: cmd.parent,
                 delegation: cmd.delegation,
-                link_form: false,
+                link_form: matches!(holder, Principal::Link(_)),
                 uses: 0,
                 revoked: false,
                 suspended: false,
@@ -185,7 +209,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ]));
         tx.append_effect(&effect).await?;
         let secret = token.map(|(_, s)| s);
-        finish(tx, caller, idem, OPERATION, Issued { record, secret }).await
+        let link = match (&record.holder, record.grant.conditions.expires_at) {
+            (Principal::Link(grant), Some(expires_at)) => Some(
+                link::mint(&self.token_key, *grant, expires_at)
+                    .map_err(|e| AppError::Internal(e.to_string()))?,
+            ),
+            _ => None,
+        };
+        finish(tx, caller, idem, OPERATION, Issued { record, secret, link }).await
     }
 
     /// The parent `child` is attenuated from, checked: the one it names, or else the one grant

@@ -367,15 +367,16 @@ token that holds one attenuated grant can do nothing its issuer could not have d
 A grant also carries a **label**, free text of at most 200 characters, shown wherever the grant is
 listed and recorded in the effect that issued it. No authorization decision reads it.
 
-**Why not a link-form grant (§6.1).** A link is a capability token, verified offline, so its
-revocation latency is its lifetime (§6). That is the right trade for a 24-hour link redeemed a few
-times; it is the wrong one for a pipeline credential that lives 90 days, where "revoking it is
-revoking one row" (§7 of `13-surface-cli.md`) would be false for 90 days. An API token is
+**Why not a link-form grant (§6.1).** A link is spent by use: every call it authorizes takes one of
+a use cap it cannot go without, and it can never delegate. A pipeline makes hundreds of calls and
+may need to pass narrower authority on, so a link is the wrong shape for it. An API token is
 authenticated online on every request, so revoking its grant takes effect at the next request,
-which is what a leaked CI secret needs. While the control plane is reachable, the revocation list
-(§6.3) shortens a link's revocation to seconds, but only by listing its grant for as long as any
-token of it can live, which is the horizon a 90-day credential would impose on every verifier; so
-the argument stands.
+which is what a leaked CI secret needs.
+
+> Corrected 2026-10-14 (Finding 45 of `23-walkthroughs.md`). The reason given here was that a
+> link is a capability token verified offline, so its revocation latency is its lifetime. A link
+> is accepted by the gateway alone, online (§6.1), so revoking one takes effect at its next call
+> as a token's does; the difference that remains is the one above.
 
 **The parent may be left unnamed.** When the issuer names no parent, the control plane, which holds
 every grant the issuer holds, checks the attenuation against each of them; if exactly one is valid
@@ -793,6 +794,53 @@ Online redemption (§6.2) is the mechanism that actually bounds a leaked link, a
 number the issuer chose rather than by a network property nobody controls. `source_cidr` remains
 available for the case it was designed for, a link issued to a known fixed network.
 
+**A link is accepted by the gateway alone.**
+
+> Corrected 2026-10-14, when links were built (Finding 45 of `23-walkthroughs.md`). §3.7 said a
+> link is a capability token verified offline, so that its revocation latency is its lifetime.
+> Asked what would verify it offline, the answer was nothing that could use it. Every use of a
+> link begins at the gateway: an action is an API call, and a session needs the route that only
+> the gateway seals (§3.1 of `02-architecture.md`). And a relay or agent that accepted a link
+> would accept a revoked one: the revocation list keeps a grant for one session-token lifetime
+> (§6.3), so a 24-hour link, accepted offline, outlives its own revocation by a day.
+
+So a link is a Biscuit signed by the token key, like every token, that states only the grant it is
+the bearer form of and its expiry. It states no right and no scope, and the offline check that
+relays and agents run allows only a right a token states on a scope it states, so they refuse a
+link for every action. The gateway accepts it as a credential, online: the signature against the
+current token key, the expiry, and then the grant as it stands, through the same evaluation as
+any grant, so expiry, revocation, and the use it spends are checked where they are true.
+Revoking a link takes effect at its next call; a session it opened ends within about two seconds,
+because its tokens' chains name the link's grant and the revocation list does.
+
+**As built, 2026-10-14.** `korpis grant share --actions workload.restart --scope workload:W` issues
+a link-form grant and prints it once as `https://<control plane>/g/#korpislk_…` (§7 of
+`13-surface-cli.md`); the holder of the grant is the link itself, a subject `link:<grant>` that
+no one can be named as. The issuer must give it an expiry and a use cap, which the command
+defaults to 24 hours and three uses and the server refuses to go without, because "defaults,
+not options" means a link never exists without them; and it is for one object, never a selector,
+because its recipient is shown exactly what it reaches. A replay of the issuing mutation answers
+without the link, as it does for a token's secret. Its holder can read the link's own grant, which
+is how a client shows what it does, including who issued it, whom the recipient knows already;
+not the chain above it, which is the issuer's own authority up to the organization's root.
+
+A use is spent wherever a grant is used. The gateway spends one when it authorizes a call; minting
+a session token spends one for the token, whatever it carries; and minting its successor while it
+lives spends none, because the request names the token it renews, and the gateway checks it is
+the same holder's, through the same chain, on the same object, with no action it did not carry.
+That is how a three-use link opens three consoles of any length. Building it found that nothing
+else spent a use either way (Finding 46 of `23-walkthroughs.md`): minting refused a use-limited
+grant outright, so a link could not open a console at all, while list filtering, event delivery,
+and plan approval accepted one without spending it, so a link could be used without limit
+through them. Now a check that spends nothing permits nothing to a use-limited grant, and
+approval spends a use.
+
+What it costs: a link is unusable while the control plane is unreachable, which every link with a
+use cap already was (§6.2), and which every link now is. Rotating the token key ends every link
+with every token, so a control-plane restore (§6) ends links issued before the backup as well as
+after. A holder can append a block that shortens a link before passing it on, and nothing else:
+the gateway believes only the block the control plane signed for what the link names.
+
 ---
 
 ### 6.2 `max_uses` is redeemed online, and says so
@@ -818,7 +866,8 @@ So the rule is stated rather than assumed:
 | **`max_uses`** | **gateway, online, redeemed atomically** | **no** |
 
 A token carrying `max_uses` is redeemed at the gateway, which decrements the counter in the same
-transaction that authorizes the call. It is therefore **not** usable while the control plane is
+transaction that authorizes the call. Every share link carries one (§6.1), and is accepted by the
+gateway alone. It is therefore **not** usable while the control plane is
 unreachable, and a token without `max_uses` is. That is the trade and it is the right way round:
 the feature that needs a counter is the one that gives up offline operation, rather than every
 token giving up a guarantee to support one condition.
@@ -888,7 +937,8 @@ horizon, and the horizon is the longest lifetime of any token this control plane
 the session token of §6) plus the clock skew an agent session allows (§4.2 of
 `02-architecture.md`), because a verifier whose clock runs behind still honours a token the
 control plane already considers expired. A longer-lived kind of token, break-glass among them,
-raises that bound in the same change that introduces it, or it outlives its own revocation.
+raises that bound in the same change that introduces it, or it outlives its own revocation. A
+share link does not raise it, because no verifier that reads the list accepts a link (§6.1).
 
 Every replica computes the list from the same rows every two seconds, and publishes it to the
 sessions it holds when the identifiers changed; a session sends the current list when it opens and

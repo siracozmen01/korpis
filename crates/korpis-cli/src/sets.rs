@@ -89,6 +89,7 @@ fn who(s: Option<&pb::Subject>) -> String {
     use korpis_proto::korpis::v1::__buffa::oneof::subject::Kind as S;
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
+        Some(S::Link(grant)) => format!("link {grant}"),
         Some(S::External(e)) => format!("{} identity", e.provider),
         Some(S::System(_)) => "the control plane".into(),
         None => "someone".into(),

@@ -131,7 +131,7 @@ Share "mc-survival"
   expires           in 24 hours
   uses              3   (a use is opening it; needs the control plane to be reachable)
   requires sign-in  no
-  →  https://panel.example/w/mc-survival#g_7f3a…
+  →  https://panel.example/g/#korpislk_7f3a…
 ```
 
 The resulting link opens a screen containing exactly that workload and exactly those actions. There

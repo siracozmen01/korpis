@@ -31,6 +31,7 @@ mod identity;
 mod journal;
 mod leases;
 mod lifecycle;
+mod links;
 mod nodes;
 mod observe;
 mod offload_expiry;

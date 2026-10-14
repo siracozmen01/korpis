@@ -69,6 +69,9 @@ pub enum Principal {
     User(Uuid),
     /// An API token.
     Token(Uuid),
+    /// Whoever holds a share link: the bearer of the link-form grant it names, which is the
+    /// grant's own identifier (§6.1 of docs/08-identity.md).
+    Link(Uuid),
     /// A workload acting with its own identity.
     Workload(Uuid),
     /// An installed extension, by its installation (§3.2 of docs/16-extensions.md).
@@ -131,6 +134,7 @@ impl Principal {
             }
             Self::User(_)
             | Self::Token(_)
+            | Self::Link(_)
             | Self::Workload(_)
             | Self::Extension(_)
             | Self::System(_) => Ok(()),
@@ -143,6 +147,7 @@ impl Principal {
         match self {
             Self::User(id) => format!("user:{id}"),
             Self::Token(id) => format!("token:{id}"),
+            Self::Link(grant) => format!("link:{grant}"),
             Self::Workload(id) => format!("workload:{id}"),
             Self::Extension(id) => format!("extension:{id}"),
             Self::System(actor) => format!("system:{}", actor.name()),
@@ -167,6 +172,7 @@ impl Principal {
         let principal = match kind {
             "user" => Self::User(uuid()?),
             "token" => Self::Token(uuid()?),
+            "link" => Self::Link(uuid()?),
             "workload" => Self::Workload(uuid()?),
             "extension" => Self::Extension(uuid()?),
             "system" => Self::System(
@@ -212,6 +218,7 @@ mod tests {
         let all = [
             Principal::User(Uuid::now_v7()),
             Principal::Token(Uuid::now_v7()),
+            Principal::Link(Uuid::now_v7()),
             Principal::Workload(Uuid::now_v7()),
             Principal::Extension(Uuid::now_v7()),
             Principal::System(SystemActor::Bootstrap),

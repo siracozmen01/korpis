@@ -32,17 +32,22 @@ pub struct GrantWithChain {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// One grant with its chain, if the caller holds it or may read grants over its scope.
+    /// One grant with its chain, if the caller holds it or may read grants over its scope. A
+    /// share link's holder reads what the link grants and not the chain above it: the link was
+    /// sent to someone with no account, and who issued it, holding what, is not theirs to read
+    /// (§6.1 of docs/08-identity.md).
     pub async fn get_grant(&self, caller: &Caller, id: Uuid) -> Result<GrantWithChain, AppError> {
         let mut records = self.store.grant_chain(id).await?;
         if records.is_empty() {
             return Err(AppError::NotFound { kind: "grant" });
         }
         let grant = records.remove(0);
-        if grant.grant.subject != caller.subject
-            && !self.permitted(caller, "grant.read", grant.grant.scope.anchor()).await?
-        {
+        let holds = grant.grant.subject == caller.subject;
+        if !holds && !self.permitted(caller, "grant.read", grant.grant.scope.anchor()).await? {
             return Err(AppError::NotFound { kind: "grant" });
+        }
+        if holds && matches!(caller.principal, Principal::Link(_)) {
+            records.clear();
         }
         Ok(GrantWithChain { grant, chain: records })
     }

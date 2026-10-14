@@ -14,6 +14,7 @@ use std::fmt::Write as _;
 fn subject(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
+        Some(S::Link(grant)) => format!("link {grant}"),
         Some(S::External(_)) => "external".into(),
         Some(S::System(_)) => "system".into(),
         None => "-".into(),

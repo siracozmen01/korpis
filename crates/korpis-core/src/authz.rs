@@ -19,7 +19,11 @@ pub mod evaluate;
 #[cfg(feature = "authz")]
 pub mod grant;
 #[cfg(feature = "authz")]
+pub mod link;
+#[cfg(feature = "authz")]
 pub mod record;
+#[cfg(feature = "authz")]
+pub mod renewal;
 /// Scopes are plain data shared with plans and placement; they live at the crate root.
 pub use crate::scope;
 #[cfg(feature = "authz")]

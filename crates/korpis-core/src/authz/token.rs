@@ -59,6 +59,11 @@ impl SigningKey {
         self.keypair.public().to_bytes()
     }
 
+    /// The key pair, for minting another kind of token (§6.1 of docs/08-identity.md).
+    pub(super) const fn keypair(&self) -> &KeyPair {
+        &self.keypair
+    }
+
     /// The Ed25519 seed, for signing what is not a token (the revocation list, §6.3).
     pub(super) fn seed(&self) -> [u8; 32] {
         let private = self.keypair.private().to_bytes();
@@ -84,6 +89,13 @@ impl KeyRing {
     /// Forgets a key, so that every token it signed stops verifying.
     pub fn retire(&mut self, key_id: u32) {
         self.keys.remove(&key_id);
+    }
+
+    /// Parses `token` and checks its signature against the key its id names.
+    pub(super) fn parse(&self, token: &str) -> Result<Biscuit, TokenError> {
+        Ok(Biscuit::from_base64(token, |id: Option<u32>| {
+            id.and_then(|id| self.keys.get(&id).copied()).ok_or(error::Format::UnknownPublicKey)
+        })?)
     }
 
     /// The public key trusted under `key_id`, raw.
@@ -219,9 +231,7 @@ pub fn verify<S: BuildHasher>(
     revoked: &HashSet<Uuid, S>,
     (now, client): (SystemTime, Client),
 ) -> Result<Verified, TokenError> {
-    let biscuit = Biscuit::from_base64(token, |id: Option<u32>| {
-        id.and_then(|id| keys.keys.get(&id).copied()).ok_or(error::Format::UnknownPublicKey)
-    })?;
+    let biscuit = keys.parse(token)?;
 
     let mut code = String::from("operation({op});\ntime({now});\n");
     let mut params: HashMap<String, Term> = HashMap::new();
@@ -284,7 +294,7 @@ pub fn verify<S: BuildHasher>(
 
 /// The chain a token states, leaf first: each link once as a member and once with its place,
 /// because a Datalog query answers a set and the chain is an order.
-fn chain_of(authorizer: &mut biscuit_auth::Authorizer) -> Result<Vec<Uuid>, TokenError> {
+pub(super) fn chain_of(authorizer: &mut biscuit_auth::Authorizer) -> Result<Vec<Uuid>, TokenError> {
     let mut links: Vec<(i64, String)> = authorizer.query("chain($i, $g) <- link($i, $g)")?;
     links.sort_unstable_by_key(|(i, _)| *i);
     let chain: Vec<Uuid> =
@@ -316,9 +326,7 @@ pub fn restrict_expiry(
     keys: &KeyRing,
     expires_at: SystemTime,
 ) -> Result<String, TokenError> {
-    let biscuit = Biscuit::from_base64(token, |id: Option<u32>| {
-        id.and_then(|id| keys.keys.get(&id).copied()).ok_or(error::Format::UnknownPublicKey)
-    })?;
+    let biscuit = keys.parse(token)?;
     let mut params: HashMap<String, Term> = HashMap::new();
     params.insert("exp".into(), date(&expires_at));
     let block = biscuit_auth::BlockBuilder::new().code_with_params(

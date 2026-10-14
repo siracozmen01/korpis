@@ -1122,6 +1122,10 @@ message MintTokenRequest {
   Scope scope = 3;
   // Bounded by the grant's own expiry and the server's maximum token lifetime.
   uint32 ttl_seconds = 4;
+  // The live session token this one renews: the same holder's, on the same object, through the
+  // same chain, carrying no action it did not. A renewal spends no use of a use-limited grant,
+  // because the session it keeps alive spent one when it opened (§6.1 of docs/08-identity.md).
+  string renews = 5;
 }
 
 message MintTokenResponse {

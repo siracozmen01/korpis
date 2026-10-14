@@ -51,6 +51,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             source_ip: None,
             mfa: true,
             now: at,
+            renewal: false,
         };
         let decision = authz::evaluate(&request, &chains, &snapshot);
         Ok(matches!(decision, Decision::Permit(p) if !p.redeem))

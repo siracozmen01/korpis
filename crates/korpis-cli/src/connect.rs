@@ -19,8 +19,19 @@ pub struct Endpoint {
     pub server: String,
     /// The installation CA, in PEM.
     pub ca: PathBuf,
-    /// The capability token.
+    /// The capability token, an API token's secret, or a share link: the link's URL as it was
+    /// sent, or the credential in its fragment (§6.1 of docs/08-identity.md).
     pub token: String,
+}
+
+/// The credential `text` presents: a share link's fragment when it is a link's URL, which is
+/// how a link is pasted; itself otherwise.
+#[must_use]
+pub fn credential(text: &str) -> &str {
+    match text.split_once('#') {
+        Some((_, fragment)) if fragment.starts_with("korpislk_") => fragment,
+        _ => text,
+    }
 }
 
 /// An open way to the control plane.
@@ -28,6 +39,7 @@ pub struct Endpoint {
 pub struct Connection {
     http: HttpClient,
     config: ClientConfig,
+    server: String,
 }
 
 impl std::fmt::Debug for Connection {
@@ -61,16 +73,24 @@ impl Connection {
         let uri: http::Uri = e.server.parse().map_err(|err| local("the server", err))?;
         let mut config = ClientConfig::new(uri);
         if !e.token.is_empty() {
-            config = config.with_default_header("authorization", format!("Bearer {}", e.token));
+            let presented = credential(&e.token);
+            config = config.with_default_header("authorization", format!("Bearer {presented}"));
         }
-        Ok(Self { http: HttpClient::with_tls(Arc::new(tls)), config })
+        let server = e.server.trim_end_matches('/').to_owned();
+        Ok(Self { http: HttpClient::with_tls(Arc::new(tls)), config, server })
     }
 
     /// The same trust, at `url` and anonymous: a relay, where a session is authorized by its
     /// capability token alone and the operator's token is not sent.
     pub fn at(&self, url: &str) -> Result<Self, CliError> {
         let uri: http::Uri = url.parse().map_err(|err| local("the relay", err))?;
-        Ok(Self { http: self.http.clone(), config: ClientConfig::new(uri) })
+        Ok(Self { http: self.http.clone(), config: ClientConfig::new(uri), server: url.to_owned() })
+    }
+
+    /// The control plane's URL, without a trailing slash.
+    #[must_use]
+    pub fn server(&self) -> &str {
+        &self.server
     }
 
     /// The transport, for a generated client.

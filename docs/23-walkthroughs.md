@@ -1059,6 +1059,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 42 | A prefix is a pattern in the store's policy | §23 | `06-storage.md` §5.3, §5.6 |
 | 43 | An offload target that nothing names | §24 | `14-streams.md` §4, `06-storage.md` §5.3 |
 | 44 | Tenant custody claimed the operator cannot read | §25 | `06-storage.md` §5.5, `17-security.md` §8, `16-extensions.md` §5 |
+| 45 | A link verified offline would outlive its revocation | §26 | `08-identity.md` §3.7, §6.1, §6.3; `13-surface-cli.md` §7 |
+| 46 | A use limit that most paths did not count | §26 | `08-identity.md` §6.1, §6.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1729,3 +1731,50 @@ unwrap the tenant's service performs and logs, and revoking one key ends them al
 
 † Step 6 is where the trace found Finding 44: revoking ends every opening, and so is the
 guarantee, which is why the claim of step 1 had to be restated in its terms.
+
+## 26. A moderator shares a restart
+
+Written 2026-10-14, from the implementation, when share links were built. A moderator holding
+`workload.restart` and `workload.console.read` on a project sends a player, who has no account, a
+link to restart one server and watch its console, three times, for a day. The player uses it, the
+server crashes again, and the moderator revokes the link while the player is still watching.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis grant share --actions workload.restart,workload.console.read --scope workload:W --uses 3`: a link-form grant attenuated from the moderator's, held by `link:<grant>`, answered once as a URL | `08-identity.md` §3.2, §6.1; `13-surface-cli.md` §7 |
+| 2 | The player's client presents the fragment; the gateway verifies the link's signature and expiry and reads its grant, unrevoked | `08-identity.md` §6.1 |
+| 3 | The player restarts W: the gateway authorizes the call through the link's chain and spends one use by compare-and-swap before it proceeds | `08-identity.md` §6.2 |
+| 4 | The player opens the console: minting the session token spends a second use; the relay and the node verify the token offline, and refuse the link itself † | `08-identity.md` §6, §6.1; `02-architecture.md` §3.1 |
+| 5 | Every 90 seconds the client mints the token's successor naming the token it renews: the same holder, chain, object, and actions, so no use is spent | `08-identity.md` §6.1 |
+| 6 | The moderator revokes the link: its next call is refused as unauthenticated, and the node ends the console within about two seconds, because the session token's chain names the link's grant and the revocation list does | `08-identity.md` §3.5, §6.3 |
+
+**FINDING 45: A link verified offline would outlive its revocation. `CONFIRMED`**
+
+§3.7 of `08-identity.md` set a link apart from an API token because a link is verified offline,
+so its revocation latency is its lifetime, and §7 of `13-surface-cli.md` said the same. Asked what verifies it offline,
+with what information, the answer was a relay or an agent holding a revocation list that keeps a
+grant for one session token's lifetime (§6.3): a 24-hour link they accepted would be honoured for a
+day after it was revoked. And no use of a link could start there anyway: an action is an API call,
+and a session needs the route only the gateway seals (step 4).
+
+**Resolution.** A link is a token that states only its grant and expiry, with no right and no
+scope, so the offline check refuses it for every action, and the gateway alone accepts it, online,
+where its grant is evaluated as it stands. → patched into `08-identity.md` §3.7, §6.1, §6.2, §6.3
+and `13-surface-cli.md` §7
+
+**FINDING 46: A use limit that most paths did not count. `CONFIRMED`**
+
+§6.2 of `08-identity.md` says a use-limited grant is never used more often than it allows, and
+the gateway spent a use when it authorized a call. Every other path that evaluates authority
+spent nothing and decided in two opposite ways. Minting refused any use-limited grant, so step 4
+was impossible and the flagship example of §6.1, a console opened through a three-use link, could
+not happen. List filtering, event delivery, and plan approval accepted one without spending a use,
+so a link with `event.read` could watch a workload's events without limit.
+
+**Resolution.** Minting spends one use per token and none for a renewal, which names the live token
+it continues (step 5); a check that spends nothing permits nothing to a use-limited grant; and
+approval spends a use. → patched into `08-identity.md` §6.1
+
+† Step 4 is where the trace found Finding 45, and step 5 Finding 46.

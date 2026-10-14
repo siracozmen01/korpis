@@ -96,6 +96,9 @@ message Subject {
     string extension = 5;
     // The control plane acting on its own decisions: reconciliation, scheduling.
     SystemActor system = 6;
+    // Whoever holds a share link: the bearer of the link-form grant named, which is the grant's
+    // own identifier (§6.1 of docs/08-identity.md).
+    string link = 7;
   }
 }
 

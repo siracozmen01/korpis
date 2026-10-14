@@ -10,22 +10,29 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, GrantWrite, RecipeSource, Store, Tx};
 use korpis_core::authz::credential::{Secret, SecretKind};
+use korpis_core::authz::link;
+use korpis_core::authz::token::KeyRing;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::principal::Principal;
 use korpis_core::workload::plan::Proposing;
 use std::net::IpAddr;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Authenticates a secret presented from `source_ip`: an API token's, or a running
-    /// workload's credential (§9.5 of docs/08-identity.md).
+    /// Authenticates a secret presented from `source_ip`: an API token's, a running workload's
+    /// credential (§9.5 of docs/08-identity.md), or a share link (§6.1).
     pub async fn authenticate(
         &self,
         presented: &str,
         source_ip: Option<IpAddr>,
     ) -> Result<Caller, AppError> {
-        let (kind, secret) = Secret::presented_any(presented).ok_or(AppError::Unauthenticated)?;
         let now = self.clock.now();
+        if presented.starts_with(link::LINK_PREFIX) {
+            let grant = self.linked(presented, now).await?;
+            return Ok(Caller::new(Principal::Link(grant), source_ip, false));
+        }
+        let (kind, secret) = Secret::presented_any(presented).ok_or(AppError::Unauthenticated)?;
         let principal = match kind {
             SecretKind::ApiToken => {
                 let token = self.store.authenticate(&secret.digest(), now).await?;
@@ -39,6 +46,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Caller::new(principal, source_ip, false))
     }
 
+    /// The link-form grant a share link is the bearer form of, while it is one that works: signed
+    /// by this control plane's current token key, not expired, and naming a grant that exists
+    /// unrevoked. What it permits, and the use each call spends, is evaluated like any grant.
+    async fn linked(&self, presented: &str, now: SystemTime) -> Result<Uuid, AppError> {
+        let mut keys = KeyRing::default();
+        keys.insert(self.token_key.key_id, &self.token_key.public_bytes())
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let found = link::verify(presented, &keys, now).map_err(|_| AppError::Unauthenticated)?;
+        let chain = self.store.grant_chain(found.grant).await?;
+        let works = chain.first().is_some_and(|leaf| {
+            leaf.grant.link_form
+                && leaf.holder == Principal::Link(found.grant)
+                && !leaf.grant.revoked
+        });
+        if works { Ok(found.grant) } else { Err(AppError::Unauthenticated) }
+    }
+
     /// Evaluates `action` on `object` for `caller` without recording anything; through only the
     /// grant `via` when it is given.
     pub(crate) async fn decide(
@@ -48,10 +72,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         object: ObjectRef,
         via: Option<Uuid>,
     ) -> Result<Decision, AppError> {
+        self.decide_as(caller, (action, object), via, false).await
+    }
+
+    /// [`Self::decide`], for a renewal when `renewal` is set: a session token renewed whose use
+    /// was spent when the first was minted (§6.1 of docs/08-identity.md).
+    pub(crate) async fn decide_as(
+        &self,
+        caller: &Caller,
+        (action, object): (&Action, ObjectRef),
+        via: Option<Uuid>,
+        renewal: bool,
+    ) -> Result<Decision, AppError> {
         let mut snapshot = Snapshot::default();
         snapshot.load(&self.store, object).await?;
         let chains = self.held_chains(caller, via, &mut snapshot).await?;
-        self.evaluate(caller, action, object, &chains, &snapshot)
+        self.evaluate(caller, (action, object), &chains, &snapshot, renewal)
             .ok_or(AppError::NotFound { kind: object.kind.as_str() })
     }
 
@@ -81,10 +117,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     fn evaluate(
         &self,
         caller: &Caller,
-        action: &Action,
-        object: ObjectRef,
+        (action, object): (&Action, ObjectRef),
         chains: &[Vec<Grant>],
         snapshot: &Snapshot,
+        renewal: bool,
     ) -> Option<Decision> {
         let resource = authz::Hierarchy::resource(snapshot, object)?;
         let request = Request {
@@ -94,6 +130,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             source_ip: caller.source_ip,
             mfa: caller.mfa,
             now: self.clock.now(),
+            renewal,
         };
         Some(authz::evaluate(&request, chains, snapshot))
     }
@@ -113,13 +150,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut out = Vec::with_capacity(objects.len());
         for o in objects {
             snapshot.load(&self.store, *o).await?;
-            let decision = self.evaluate(caller, &action, *o, &chains, &snapshot);
-            out.push(matches!(decision, Some(Decision::Permit(_))));
+            let decision = self.evaluate(caller, (&action, *o), &chains, &snapshot, false);
+            out.push(matches!(decision, Some(Decision::Permit(p)) if !p.redeem));
         }
         Ok(out)
     }
 
-    /// Whether `caller` may do `action` on `object` now, without recording anything.
+    /// Whether `caller` may do `action` on `object` now, without recording anything. Nothing is
+    /// spent here, so a use-limited grant permits nothing through it: a grant is used only where
+    /// its use is counted (§6.2 of docs/08-identity.md).
     pub(crate) async fn permitted(
         &self,
         caller: &Caller,
@@ -128,7 +167,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<bool, AppError> {
         let action = core_action(action)?;
         match self.decide(caller, &action, object, None).await {
-            Ok(d) => Ok(matches!(d, Decision::Permit(_))),
+            Ok(d) => Ok(matches!(d, Decision::Permit(p) if !p.redeem)),
             Err(AppError::NotFound { .. }) => Ok(false),
             Err(e) => Err(e),
         }
@@ -156,7 +195,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// the call proceeds (§6.2 of docs/08-identity.md). A use is spent when the call is
     /// authorized, whether or not the call then succeeds, so a grant is never used more often
     /// than it allows; a grant whose last use a concurrent call took refuses this one.
-    async fn redeem(
+    pub(crate) async fn redeem(
         &self,
         caller: &Caller,
         action: &Action,

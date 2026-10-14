@@ -19,6 +19,7 @@ pub mod provider;
 pub mod repository;
 pub mod session;
 pub mod sets;
+pub mod share;
 pub mod stream;
 pub mod upgrade;
 pub mod volume;
@@ -280,6 +281,9 @@ pub enum GrantAction {
         /// The grant.
         grant: String,
     },
+    /// Makes a share link: a grant whoever holds the link holds, on one object, expiring and
+    /// limited in uses, which can never make another (§6.1 of docs/08-identity.md).
+    Share(Box<share::Share>),
 }
 
 /// `korpis grant issue`.

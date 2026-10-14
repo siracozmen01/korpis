@@ -20,7 +20,7 @@ fn local(message: String) -> CliError {
 }
 
 /// The scope `text` names, its names resolved through what the caller can read.
-async fn object_scope(c: &Connection, text: &str) -> Result<pb::Scope, CliError> {
+pub(super) async fn object_scope(c: &Connection, text: &str) -> Result<pb::Scope, CliError> {
     let (kind, named) = text.split_once(':').ok_or_else(|| {
         local(format!("{text:?}: a scope is kind:name, e.g. project:community-servers"))
     })?;
@@ -90,6 +90,7 @@ fn subject(text: &str) -> Result<pb::Subject, CliError> {
 fn who(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
+        Some(S::Link(grant)) => format!("link {grant}"),
         Some(S::External(e)) => match &e.selector {
             Some(external_identity::Selector::User(u)) => format!("ext:{}:user:{u}", e.provider),
             Some(external_identity::Selector::Set(s)) => {
@@ -208,6 +209,7 @@ pub async fn grant(c: &Connection, action: &GrantAction) -> Result<Answer, CliEr
     let client = pb::GrantServiceClient::new(c.http(), c.config());
     match action {
         GrantAction::Issue(i) => issue(c, i).await,
+        GrantAction::Share(s) => super::share::share(c, s).await,
         GrantAction::Revoke { grant } => {
             let request = pb::RevokeGrantRequest {
                 mutation: mutation(None).into(),

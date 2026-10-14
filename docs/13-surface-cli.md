@@ -335,10 +335,20 @@ delegation, and revoking it is revoking one row.
 
 The command issues the grant to a token created to hold it alone, attenuated from the one grant
 the issuer holds that it is valid from, and prints the token's secret once (§3.7 of
-`08-identity.md`). It is not a link-form grant: a link is verified offline and stays good until it
-expires, while this token is checked online on every request, so the revocation takes effect at
-the pipeline's next call. `--to` issues to an existing subject instead; `grant list`, `grant show`
+`08-identity.md`). It is checked online on every request, so the revocation takes effect at the
+pipeline's next call. `--to` issues to an existing subject instead; `grant list`, `grant show`
 (the grant and its chain), and `grant revoke` complete the set.
+
+> Corrected 2026-10-14 (Finding 45 of `23-walkthroughs.md`). This said the token is not a
+> link-form grant because a link is verified offline and stays good until it expires. A link is
+> accepted by the gateway alone and revoked at its next call (§6.1 of `08-identity.md`); it is
+> not this token because every call spends one of a use cap it cannot go without.
+
+`korpis grant share --actions workload.restart --scope workload:mc-survival` makes a share link
+(§6.1 of `08-identity.md`) and prints it once, as a URL whose fragment is the link, with what it
+permits, on what, how many times, for how long, and that using it needs the control plane.
+`--expires` defaults to `24h` and `--uses` to `3`; neither can be removed. Whoever receives it
+uses it as the credential: `KORPIS_TOKEN` takes the link or the whole URL, as it was pasted.
 
 Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are. `korpis
 extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension needs,

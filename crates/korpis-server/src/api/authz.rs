@@ -15,11 +15,17 @@ use korpis_proto::korpis::v1::__buffa::oneof::list_grants_request::Filter;
 use std::time::{Duration, SystemTime};
 
 fn holder(req: &pb::IssueGrantRequest) -> Result<Holder, ConnectError> {
-    match (req.subject.as_option(), req.to_new_token) {
-        (Some(s), false) => Ok(Holder::Principal(principal::from_pb("subject", s).refuse()?)),
-        (None, true) => Ok(Holder::NewToken),
-        (Some(_), true) => Err(error::invalid("subject", "absent when to_new_token is set")),
-        (None, false) => Err(error::invalid("subject", "required")),
+    match (req.subject.as_option(), req.to_new_token, req.link_form) {
+        (Some(s), false, false) => {
+            Ok(Holder::Principal(principal::from_pb("subject", s).refuse()?))
+        }
+        (None, true, false) => Ok(Holder::NewToken),
+        (None, false, true) => Ok(Holder::Link),
+        (None, true, true) => Err(error::invalid("link_form", "a link is not held by a token")),
+        (Some(_), ..) => {
+            Err(error::invalid("subject", "absent when to_new_token or link_form is set"))
+        }
+        (None, false, false) => Err(error::invalid("subject", "required")),
     }
 }
 
@@ -35,18 +41,19 @@ fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError
         scope: scope::from_pb("scope", scope_pb).refuse()?,
         conditions: conditions_from_pb(req.conditions.as_option()).refuse()?,
         delegation: delegation_from_pb(req.delegation.as_option()).refuse()?,
-        link_form: req.link_form,
         label: req.label.clone(),
     })
 }
 
-/// The answer to an issue; the record kept for a replay leaves the token's secret out, because a
-/// secret recorded is a secret stored (§6 of docs/10-api.md).
+/// The answer to an issue; the record kept for a replay leaves the token's secret and the link
+/// out, because a secret recorded is a secret stored (§6 of docs/10-api.md).
 fn issued(i: &Issued, now: SystemTime, secret: bool) -> pb::IssueGrantResponse {
     let token = i.secret.as_ref().filter(|_| secret).map(|s| s.expose().to_owned());
+    let link = i.link.clone().filter(|_| secret);
     pb::IssueGrantResponse {
         grant: grant_to_pb(&i.record, now).into(),
         token: token.unwrap_or_default(),
+        link_token: link.unwrap_or_default(),
         ..Default::default()
     }
 }
@@ -152,6 +159,7 @@ impl pb::GrantService for Api {
             actions: req.actions.clone(),
             object: scope::object_from_pb("scope", scope_pb).refuse()?,
             ttl: (req.ttl_seconds > 0).then(|| Duration::from_secs(u64::from(req.ttl_seconds))),
+            renews: (!req.renews.is_empty()).then(|| req.renews.clone()),
         };
         let minted = self.app.mint_token(&caller, cmd).await.map_err(error::from_app)?;
         Response::ok(pb::MintTokenResponse {

@@ -51,12 +51,25 @@ pub async fn mint(
     workload: &str,
     action: &'static str,
 ) -> Result<Minted, CliError> {
+    minted(c, workload, action, None).await
+}
+
+/// [`mint`], renewing `renews` when it is given: a renewal spends no use of a use-limited grant,
+/// a share link's included, because the session spent one when it opened (§6.1 of
+/// docs/08-identity.md).
+async fn minted(
+    c: &Connection,
+    workload: &str,
+    action: &'static str,
+    renews: Option<&str>,
+) -> Result<Minted, CliError> {
     let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, workload)
         .map_err(|e| CliError::Local(e.to_string()))?;
     let on = korpis_core::authz::ObjectRef::new(korpis_core::authz::Kind::Workload, id.uuid());
     let request = pb::MintTokenRequest {
         actions: vec![action.to_owned()],
         scope: korpis_wire::scope::to_pb(&korpis_core::scope::Scope::Object(on)).into(),
+        renews: renews.unwrap_or_default().to_owned(),
         ..Default::default()
     };
     let minted = pb::GrantServiceClient::new(c.http(), c.config()).mint_token(request).await?;
@@ -130,7 +143,7 @@ pub async fn renew(
     session: &mut Session,
     minted: &mut Minted,
 ) -> Result<(), CliError> {
-    *minted = mint(c, workload, minted.action).await?;
+    *minted = self::minted(c, workload, minted.action, Some(&minted.token)).await?;
     session.send(frame(Frame::Renew(minted.token.clone()))).await?;
     Ok(())
 }

@@ -51,7 +51,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Approval::Auto | Approval::Confirmation => {
                 let action = core_action(plan_action(plan))?;
                 if let Decision::Permit(p) = self.decide(caller, &action, workload, None).await? {
-                    return Ok(p);
+                    return self.redeem(caller, &action, workload, p).await;
                 }
                 self.authorize(caller, "plan.approve", workload).await
             }

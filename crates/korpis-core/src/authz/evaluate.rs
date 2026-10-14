@@ -29,6 +29,9 @@ pub struct Request<'a> {
     pub mfa: bool,
     /// When; conditions are evaluated at this instant.
     pub now: SystemTime,
+    /// Whether this renews a session token whose use was spent when the first was minted
+    /// (§6.1 of docs/08-identity.md): the use cap is then neither consulted nor spent again.
+    pub renewal: bool,
 }
 
 /// The outcome of evaluation.
@@ -189,13 +192,13 @@ fn permits(
             return Err(ChainError::MfaRequired);
         }
     }
-    if leaf.remaining_uses() == Some(0) {
+    if leaf.remaining_uses() == Some(0) && !request.renewal {
         return Err(ChainError::Exhausted);
     }
     let permit = Permit {
         grant: leaf.id,
         chain: chain.iter().map(|g| g.id).collect(),
-        redeem: leaf.conditions.max_uses.is_some(),
+        redeem: leaf.conditions.max_uses.is_some() && !request.renewal,
         source_cidr: leaf.conditions.source_cidr.clone(),
     };
     // A propose-only grant proposes changes; reading under it is not a change (§3.6).
@@ -306,6 +309,7 @@ pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decis
         source_ip: approval.source_ip,
         mfa: approval.mfa,
         now: approval.now,
+        renewal: false,
     };
     match evaluate(&request, &eligible, hierarchy) {
         Decision::Propose { .. } => deny(Vec::new()),

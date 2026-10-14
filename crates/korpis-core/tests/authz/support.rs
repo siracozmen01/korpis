@@ -123,5 +123,5 @@ pub fn request<'a>(
     resource: &'a Resource,
     now: SystemTime,
 ) -> Request<'a> {
-    Request { subject, action, resource, source_ip: None, mfa: false, now }
+    Request { subject, action, resource, source_ip: None, mfa: false, now, renewal: false }
 }
