@@ -751,8 +751,16 @@ built. A backup step runs for as long as a volume takes to read, and the loop th
 serves every workload on the node, so such a step does not hold it: each pass asks the helper
 where the step's job is, starts it only when the helper knows none by the step's name, moves on
 while it runs, and records the step's completion once the job has ended and its result is in the
-journal. A job is named after what it does (`bkp-<backup>`), so an agent that restarts finds the
-one already running rather than starting a second.
+journal. A job is named once for its plan (`bkp-<backup>`, `rst-<job>`), so an agent that
+restarts finds the one already running rather than starting a second.
+
+A step does not forget its job. Done again after a crash, it must find the job it began; and a
+replacing restore's staging place outlives the step that made it, until a later step of the same
+plan commits it (§5.4 of `06-storage.md`). Corrected 2026-10-14, when restores were built: the
+backup step forgot its job once it had journaled the result, so an agent that crashed between
+the two would start the backup again. The agent now forgets a job once no plan in its set names
+it, never one still running and nothing before a set has been held, which also releases a
+snapshot or a staging place left by a plan cancelled midway.
 
 ### 4.10 What the node records: the journal
 

@@ -534,6 +534,11 @@ service BackupService {
   rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Proposes restoring a backup into a volume: into a new directory of it, which loses nothing
+  // and applies at once, or replacing it, which loses what it holds and waits for approval.
+  // Into the backup's own workload under backup.restore there; into another workload's volume
+  // under backup.read on the backup's workload and workload.file.write on the other.
+  rpc RestoreBackup(RestoreBackupRequest) returns (RestoreBackupResponse);
 }
 
 message CreateBackupRequest {
@@ -545,6 +550,25 @@ message CreateBackupRequest {
 message CreateBackupResponse {
   Plan plan = 1;
   Backup backup = 2;
+}
+
+message RestoreBackupRequest {
+  Mutation mutation = 1;
+  string backup = 2;
+  // The volume restored into; the backup's own when empty.
+  string volume = 3;
+  // The path in the backup restored, relative; all of it when empty.
+  string path = 4;
+  oneof target {
+    // A new directory at the volume's root, which must not exist.
+    string into = 5;
+    // The whole volume, replaced by the whole backup.
+    bool replace = 6;
+  }
+}
+
+message RestoreBackupResponse {
+  Plan plan = 1;
 }
 
 message GetBackupRequest {

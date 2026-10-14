@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What the helper's tests that need a real filesystem share: a btrfs filesystem made in a file
-//! and mounted from a loop device.
+//! What the helper's tests that need a real filesystem share: a btrfs filesystem, or an ext4 one
+//! with project quota, made in a file and mounted from a loop device.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// A btrfs filesystem, mounted until dropped.
+/// A filesystem, mounted until dropped.
 pub struct Mounted(pub PathBuf);
 
 impl Drop for Mounted {
@@ -33,4 +33,20 @@ pub fn mounted(dir: &Path, quota: bool) -> Option<Mounted> {
         assert!(btrfs(&["quota", "rescan", "-w"]).unwrap().success());
     }
     Some(m)
+}
+
+/// An ext4 filesystem in `dir` with project quota on; `None` where one cannot be made.
+pub fn ext4(dir: &Path) -> Option<Mounted> {
+    let image = dir.join("fs.img");
+    std::fs::File::create(&image).unwrap().set_len(64 << 20).unwrap();
+    let made = Command::new("mkfs.ext4")
+        .args(["-q", "-O", "quota,project", "-E", "quotatype=prjquota"])
+        .arg(&image)
+        .status()
+        .ok()?;
+    let at = dir.join("mnt");
+    std::fs::create_dir(&at).unwrap();
+    let on =
+        Command::new("mount").args(["-o", "loop,prjquota"]).arg(&image).arg(&at).status().ok()?;
+    (made.success() && on.success()).then(|| Mounted(at))
 }

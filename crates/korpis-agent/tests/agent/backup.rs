@@ -4,7 +4,9 @@
 //! in-memory runtime and helper: the backup target is an extension installed on the same node,
 //! serving through the SDK with the credential its identity socket gives it; the agent asks for
 //! the job's key and access when the step begins, starts the job by the backup's name, reports
-//! how it ended, and forgets it; and the backup is whole once the control plane believes that.
+//! how it ended; the backup is whole once the control plane believes that; a backup restores
+//! into a directory at once and over the volume once approved; and every job is forgotten once
+//! its plan has left the set.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation};
@@ -19,6 +21,7 @@ use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, IdentitySocket};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::object_access::Protocol;
+use korpis_proto::korpis::v1::__buffa::oneof::restore_backup_request::Target;
 use korpis_recipe::artifact::Artifact;
 use korpis_recipe::registry::Registry;
 use std::path::{Path, PathBuf};
@@ -183,6 +186,42 @@ async fn backed_up(cp: &ControlPlane, project: &str) -> (String, String) {
     (id, made.plan.into_option().unwrap().id)
 }
 
+/// Waits for `plan` to be applied.
+async fn applied(cp: &ControlPlane, plan: &str) {
+    let mut status = cp.plan(plan).await.status.as_known();
+    for _ in 0..150 {
+        if status == Some(pb::PlanStatus::PLAN_STATUS_APPLIED) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        status = cp.plan(plan).await.status.as_known();
+    }
+    assert_eq!(status, Some(pb::PlanStatus::PLAN_STATUS_APPLIED), "{plan}");
+}
+
+/// Waits for the helper to keep no job: each forgotten once its plan left the set.
+async fn no_jobs(host: &InMemoryHost) {
+    for _ in 0..200 {
+        if korpis_agent::host::Host::list_jobs(host).await.unwrap().is_empty() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("jobs kept after their plans: {:?}", korpis_agent::host::Host::list_jobs(host).await);
+}
+
+/// Restores backup `id` as `target` asks; the plan.
+async fn restored(cp: &ControlPlane, key: &str, id: &str, target: Target) -> pb::Plan {
+    let r = pb::RestoreBackupRequest {
+        mutation: mutation(key).into(),
+        backup: id.into(),
+        target: Some(target),
+        ..Default::default()
+    };
+    let made = cp.client(pb::BackupServiceClient::new).restore_backup(r).await.unwrap();
+    made.into_owned().plan.into_option().unwrap()
+}
+
 /// The backup, once it is no longer pending.
 async fn settled(cp: &ControlPlane, id: &str) -> pb::Backup {
     let mut taken = backup(cp, id).await;
@@ -214,24 +253,34 @@ async fn the_agent_takes_a_backup_with_the_access_it_is_granted_and_reports_it()
     );
     assert!(!taken.consistent, "a class that cannot snapshot is read live, and says so");
     assert_eq!(taken.files, 1);
-    let mut status = cp.plan(&plan).await.status.as_known();
-    for _ in 0..100 {
-        if status == Some(pb::PlanStatus::PLAN_STATUS_APPLIED) {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        status = cp.plan(&plan).await.status.as_known();
-    }
-    assert_eq!(status, Some(pb::PlanStatus::PLAN_STATUS_APPLIED));
-    let job = format!(
-        "bkp-{}",
-        korpis_core::id::Id::parse(korpis_core::id::IdKind::Backup, &id).unwrap().uuid()
-    );
-    let forgotten = korpis_agent::host::Host::job_status(&host, &job).await.unwrap();
-    assert_eq!(
-        forgotten.state.as_known(),
-        Some(korpis_proto::korpis::helper::v1::JobState::JOB_STATE_UNKNOWN),
-        "forgotten once reported"
-    );
+    applied(&cp, &plan).await;
+    no_jobs(&host).await;
+    drop(agent);
+}
+
+#[tokio::test]
+async fn the_agent_restores_into_a_directory_and_over_the_volume_once_approved() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
+    serve_target(&cp, &project, &root).await;
+    cp.declare(&project, "mc").await;
+    let (id, plan) = backed_up(&cp, &project).await;
+    settled(&cp, &id).await;
+    applied(&cp, &plan).await;
+
+    let into = restored(&cp, "into", &id, Target::Into("restored".into())).await;
+    applied(&cp, &into.id).await;
+    let replace = restored(&cp, "replace", &id, Target::Replace(true)).await;
+    let approve = pb::ApprovePlanRequest {
+        mutation: mutation("approve").into(),
+        plan: replace.id.clone(),
+        ..Default::default()
+    };
+    cp.client(pb::PlanServiceClient::new).approve_plan(approve).await.unwrap();
+    applied(&cp, &replace.id).await;
+    no_jobs(&host).await;
     drop(agent);
 }

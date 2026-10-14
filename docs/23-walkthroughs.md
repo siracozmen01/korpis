@@ -30,7 +30,8 @@ built, and its finding is numbered on from the first fourteen. Finding 25 came f
 §4 when recipe trust was built, and Finding 26 from extending §6 when the agent's journal was
 built; each is numbered on from the one before. §19 is a sixteenth trace, written when snapshots
 were built, and Findings 28 to 31 came from the implementation of streams and volumes. §20 is a
-seventeenth, written when backups were built, and it found Findings 32 and 33.
+seventeenth, written when backups were built, and it found Findings 32 and 33; §21, the
+eighteenth, written when restores were, found 34 and 35.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1024,6 +1025,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 31 | A rollback under a running workload replaces what it has open | §19 | `06-storage.md` §4, §7 |
 | 32 | Two repositories at one place would prune each other | §20 | `06-storage.md` §5.3, §5.5 |
 | 33 | A nightly backup had nothing to run it | §20 | `20-roadmap.md` Phase 1 |
+| 34 | Replacing a volume needs room for two copies of it | §21 | `06-storage.md` §5.4 |
+| 35 | A prune could remove the backup a restore is reading | §21 | `06-storage.md` §5.5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1440,3 +1443,50 @@ backup is the run, under its own grants, so a nightly backup is authority someon
 than a feature of the backup subsystem. → patched into `20-roadmap.md` Phase 1
 
 ‡ Step 1 is where the trace found Finding 32. † Step 2 is where it found Finding 33.
+
+## 21. Last night's world, over tonight's
+
+Written 2026-10-14, from the implementation, when restores were built. The morning after §20's
+backup, a griefer has burnt `mc-survival`'s spawn. The moderator first pulls last night's
+`world/` beside the live one to compare, then replaces the whole volume with last night's backup.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis backup list mc-survival` shows last night's backup, whole, under `workload.read` | `06-storage.md` §5.1; `10-api.md` §5 |
+| 2 | `korpis backup restore bkp_… --path world --into last-night`: a plan of one `restore_volume` step, under `backup.restore` on the workload, loses nothing and applies at once | `06-storage.md` §5.4; `01-model.md` §3.3 |
+| 3 | The node holding the volume asks for the step's key and access; the control plane answers it with the backup's own workload key and read access to that workload's prefix, because the backup is whole and the node holds the target volume † | `06-storage.md` §5.4, §5.5 |
+| 4 | The helper makes `last-night` at the volume's root, owned as the root is, and the job restores `world/` into it and verifies what it wrote; the workload never stopped | `06-storage.md` §5.4; `04-runtimes.md` §4.5 |
+| 5 | `korpis backup restore bkp_… --replace` proposes `restore_volume`, `stop`, `replace_volume`, `start`; the replacing step is irreversible, so the plan waits for the moderator's approval | `06-storage.md` §5.4; `10-api.md` §5 |
+| 6 | Approved, the job restores into a staging place beside the volume while players are still on; nothing counts it against the volume's quota ‡ | `06-storage.md` §5.4 |
+| 7 | The server stops; the helper exchanges the staging place with the volume in one rename, removes the old data, and keeps the volume's limit; the server starts on last night's world | `06-storage.md` §5.4; `02-architecture.md` §4.9 |
+| 8 | The plan leaves the set, and the agent forgets the jobs it no longer names | `02-architecture.md` §4.9 |
+
+**FINDING 34: Replacing a volume needs room for two copies of it. `CONFIRMED`**
+
+§5.4 of `06-storage.md` offered a full restore without saying where it is written. Asked what
+holds the restored data until the exchange, the answer is the node's filesystem, beside the live
+volume, in full: a 40 GB world needs 40 GB free that no quota, placement, or plan reserved. The
+staging place carries the volume's limit, so the restore cannot outgrow it, but the filesystem
+can be full first.
+
+**Resolution.** Stated rather than reserved: the job fails with the filesystem's error, the
+volume is untouched because nothing is exchanged before the job verified, and the staging place
+is discarded with the plan. A restore into a directory needs the same room inside the volume's
+own limit. Reserving the room would mean placement accounting for restores it cannot foresee,
+and the failure it would prevent loses nothing. → patched into `06-storage.md` §5.4
+
+**FINDING 35: A prune could remove the backup a restore is reading. `CONFIRMED`**
+
+§5.5 of `06-storage.md` keeps a prune off a prefix while a backup writes to it, by one lock per
+prefix. A restore is a reader: it holds read access to the same prefix for up to twelve hours and
+takes no lock, and nothing kept a prune scheduled in that window from deleting the backup's
+record or sweeping the chunks it was about to fetch. The restore would fail halfway, and in
+step 7 the moderator would have stopped the server for nothing.
+
+**Resolution.** A backup that an open plan restores is not pruned, and nothing it references is
+swept, until that plan ends. What evaluates it is the control plane, which holds both the open
+plans and the prune. → patched into `06-storage.md` §5.5; the prune task carries it
+
+‡ Step 6 is where the trace found Finding 34. † Step 3 is where it found Finding 35.

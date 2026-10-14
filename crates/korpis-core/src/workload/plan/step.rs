@@ -32,6 +32,11 @@ pub enum StepAction {
     DeleteSnapshot,
     /// Back a volume up into a repository.
     BackupVolume,
+    /// Restore a backup into a volume: into a new directory of it, or into a staging place
+    /// beside it that a later step makes the volume.
+    RestoreVolume,
+    /// Make a volume what its staged restore holds; what it held is lost.
+    ReplaceVolume,
     /// Create the runtime instance.
     Create,
     /// Start it.
@@ -66,6 +71,8 @@ impl StepAction {
             Self::RollbackVolume => "rollback_volume",
             Self::DeleteSnapshot => "delete_snapshot",
             Self::BackupVolume => "backup_volume",
+            Self::RestoreVolume => "restore_volume",
+            Self::ReplaceVolume => "replace_volume",
             Self::Create => "create",
             Self::Start => "start",
             Self::Stop => "stop",
@@ -78,7 +85,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 18] = [
+    const ALL: [Self; 20] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -88,6 +95,8 @@ impl StepAction {
         Self::RollbackVolume,
         Self::DeleteSnapshot,
         Self::BackupVolume,
+        Self::RestoreVolume,
+        Self::ReplaceVolume,
         Self::Create,
         Self::Start,
         Self::Stop,
@@ -110,7 +119,10 @@ impl StepAction {
     #[must_use]
     pub const fn floor(self) -> (bool, bool) {
         match self {
-            Self::DeleteVolume | Self::ReleaseAddress | Self::RollbackVolume => (true, false),
+            Self::DeleteVolume
+            | Self::ReleaseAddress
+            | Self::RollbackVolume
+            | Self::ReplaceVolume => (true, false),
             Self::DeleteSnapshot => (false, false),
             Self::Migrate | Self::Retire => (true, true),
             _ => (false, true),

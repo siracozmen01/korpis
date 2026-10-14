@@ -112,6 +112,13 @@ pub fn assign(dir: &File, id: u32) -> io::Result<()> {
     fsxattr(dir, FS_IOC_FSSETXATTR, &mut x)
 }
 
+/// The project `dir` is in.
+pub fn project_of(dir: &File) -> io::Result<u32> {
+    let mut x = FsXattr::default();
+    fsxattr(dir, FS_IOC_FSGETXATTR, &mut x)?;
+    Ok(x.projid)
+}
+
 /// Limits project `id` on the filesystem holding `root` to `bytes` and `inodes`; zero lifts
 /// a limit. Bytes are rounded up to the next whole quota block.
 pub fn limit(root: &File, id: u32, bytes: u64, inodes: u64) -> io::Result<()> {

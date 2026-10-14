@@ -3,9 +3,10 @@
 //! A backup step (§5 of docs/06-storage.md), which outlasts many passes of the loop: each pass
 //! asks the helper where the step's job is. A job it does not know is started, with the key and
 //! access the control plane grants this node for this step; a running one is waited for, without
-//! holding up any other workload; a finished one is reported in the journal and forgotten, which
-//! releases the snapshot the helper took for it. The job is named after the backup, so a pass
-//! after a restart of the agent finds the one already running.
+//! holding up any other workload; a finished one is reported in the journal. The job is named
+//! after the backup, so a pass after a restart of the agent finds the one already running, and it
+//! is forgotten, releasing the snapshot the helper took for it, once its plan has left the set
+//! (`jobs`).
 
 use super::act::Failure;
 use super::step::{After, detail, flag};
@@ -36,21 +37,21 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         s: &pb::Step,
     ) -> Result<Option<After>, Failure> {
         let backup = detail(s, "backup").ok_or_else(|| failed("a backup step names its backup"))?;
-        let job = format!("bkp-{backup}");
+        let job = super::jobs::job_of(s).unwrap_or_default();
         let status = self.host.job_status(&job).await?;
         match status.state.as_known() {
             Some(helper::JobState::JOB_STATE_UNKNOWN) => self.start_backup(plan, s, &job).await,
             Some(helper::JobState::JOB_STATE_RUNNING) => Ok(None),
             Some(helper::JobState::JOB_STATE_FINISHED) => {
                 let result = status.result.into_option().unwrap_or_default();
-                self.backup_ended(&a.workload, backup, &job, result).await.map(Some)
+                self.backup_ended(&a.workload, backup, result).await.map(Some)
             }
             _ => {
                 let lost = korpis_proto::korpis::backup::v1::JobResult {
                     error: "the job ended without a result".into(),
                     ..Default::default()
                 };
-                self.backup_ended(&a.workload, backup, &job, lost).await.map(Some)
+                self.backup_ended(&a.workload, backup, lost).await.map(Some)
             }
         }
     }
@@ -90,12 +91,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(None)
     }
 
-    /// Reports how the job ended, then forgets it; what the step leaves, or why it failed.
+    /// Reports how the job ended; what the step leaves, or why it failed.
     async fn backup_ended(
         &self,
         workload: &str,
         backup: &str,
-        job: &str,
         result: korpis_proto::korpis::backup::v1::JobResult,
     ) -> Result<After, Failure> {
         let (ok, error) = (result.ok, result.error.clone());
@@ -116,7 +116,6 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .append(Body::Backup(Box::new(e)))
             .await
             .map_err(|e| failed(format!("backup {backup} could not be reported: {e}")))?;
-        self.host.forget_job(job).await?;
         if !ok {
             return Err(failed(format!("the backup failed: {error}")));
         }

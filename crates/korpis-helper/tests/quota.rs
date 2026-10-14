@@ -13,35 +13,14 @@
     reason = "a failing test should fail loudly"
 )]
 
+#[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
+mod fixture;
+
 use korpis_helper::storage::{Backend, Class};
 use korpis_proto::korpis::helper::v1 as helper;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-/// An ext4 filesystem with project quota, mounted until dropped.
-struct Mounted(PathBuf);
-
-impl Drop for Mounted {
-    fn drop(&mut self) {
-        let _ = Command::new("umount").arg(&self.0).status();
-    }
-}
-
-fn mounted(dir: &Path) -> Option<Mounted> {
-    let image = dir.join("fs.img");
-    std::fs::File::create(&image).unwrap().set_len(64 << 20).unwrap();
-    let made = Command::new("mkfs.ext4")
-        .args(["-q", "-O", "quota,project", "-E", "quotatype=prjquota"])
-        .arg(&image)
-        .status()
-        .ok()?;
-    let at = dir.join("mnt");
-    std::fs::create_dir(&at).unwrap();
-    let on =
-        Command::new("mount").args(["-o", "loop,prjquota"]).arg(&image).arg(&at).status().ok()?;
-    (made.success() && on.success()).then(|| Mounted(at))
-}
 
 /// Runs `script` as nobody, without the capability that would let it pass the quota.
 fn as_nobody(cwd: &Path, script: &str) -> std::process::Output {
@@ -57,7 +36,7 @@ fn as_nobody(cwd: &Path, script: &str) -> std::process::Output {
 fn a_volume_refuses_the_byte_and_the_file_past_its_limits() {
     let root = std::fs::metadata("/proc/self").unwrap().uid() == 0;
     let dir = tempfile::tempdir().unwrap();
-    let Some(m) = root.then(|| mounted(dir.path())).flatten() else { return };
+    let Some(m) = root.then(|| fixture::ext4(dir.path())).flatten() else { return };
     let mut class = Class::open("fast", &m.0.join("volumes")).unwrap();
     assert_eq!(class.backend(), Backend::Ext4Project, "detected, not configured");
     assert!(class.describe().capabilities.as_option().unwrap().quota_enforced);

@@ -19,7 +19,7 @@ use korpis_core::backup::{Backup, BackupStats, BackupStatus};
 use korpis_core::node::driver::StorageFeature;
 use korpis_core::workload::plan::VolumeOp;
 use korpis_core::workload::plan::compute::{
-    BackupStep, backup_steps, delete_volume_steps, snapshot_steps,
+    BackupStep, RestoreStep, backup_steps, delete_volume_steps, restore_steps, snapshot_steps,
 };
 use korpis_core::workload::plan::impact::ResourceDelta;
 use korpis_core::workload::volume::{Volume, VolumeKind};
@@ -69,18 +69,41 @@ fn pending(
     }
 }
 
+/// What the effect of proposing `ask` as `plan` records.
+fn proposed(ask: &Ask<'_>, plan: &Plan) -> serde_json::Map<String, serde_json::Value> {
+    let mut after = details([
+        ("volume", ask.volume.id.to_string().into()),
+        ("approval", propose::approval_name(plan).into()),
+    ]);
+    if let Some(b) = ask.backup {
+        after.insert("backup".into(), b.backup.to_string().into());
+        after.insert("repository".into(), b.repository.to_string().into());
+    }
+    if let Some(r) = ask.restore {
+        after.insert("backup".into(), r.backup.to_string().into());
+        after.insert("replace".into(), r.into.is_none().into());
+    }
+    if let Some((id, name)) = ask.snapshot {
+        after.insert("snapshot".into(), id.to_string().into());
+        after.insert("name".into(), name.into());
+    }
+    after
+}
+
 /// A plan asked of a volume.
 pub(crate) struct Ask<'a> {
     pub volume: Volume,
     pub op: VolumeOp,
     /// The action it is proposed under, and the object that action is authorized on: the
-    /// volume, or for a backup the volume's workload.
+    /// volume, or for a backup or a restore the volume's workload.
     pub action: &'static str,
     pub object: ObjectRef,
     /// The snapshot it concerns, by identifier and name.
     pub snapshot: Option<(Uuid, &'a str)>,
     /// The backup it takes.
     pub backup: Option<BackupStep>,
+    /// The restore it makes.
+    pub restore: Option<RestoreStep<'a>>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -103,6 +126,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             object,
             snapshot: None,
             backup: None,
+            restore: None,
         };
         self.propose_on_volume(caller, idem, ask).await
     }
@@ -132,7 +156,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let snapshot = Some((Uuid::now_v7(), name.as_str()));
         let object = ObjectRef::new(Kind::Volume, volume.id);
         let (op, action) = (VolumeOp::Snapshot, "volume.snapshot.create");
-        let ask = Ask { volume, op, action, object, snapshot, backup: None };
+        let ask = Ask { volume, op, action, object, snapshot, backup: None, restore: None };
         self.propose_on_volume(caller, idem, ask).await
     }
 
@@ -151,13 +175,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let action = match op {
             VolumeOp::Rollback => "volume.snapshot.rollback",
             VolumeOp::DeleteSnapshot => "volume.snapshot.delete",
-            VolumeOp::Delete | VolumeOp::Snapshot | VolumeOp::Backup => {
+            VolumeOp::Delete | VolumeOp::Snapshot | VolumeOp::Backup | VolumeOp::Restore => {
                 return Err(AppError::Internal("not an operation on a snapshot".into()));
             }
         };
         let object = ObjectRef::new(Kind::Volume, volume.id);
         let snapshot = Some((s.id, s.name.as_str()));
-        let ask = Ask { volume, op, action, object, snapshot, backup: None };
+        let ask = Ask { volume, op, action, object, snapshot, backup: None, restore: None };
         self.propose_on_volume(caller, idem, ask).await
     }
 
@@ -209,10 +233,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         classifier: korpis_core::workload::plan::step::Classifier<'_>,
     ) -> Result<Vec<korpis_core::workload::plan::Step>, AppError> {
         let v = &ask.volume;
-        Ok(match (ask.backup, ask.snapshot) {
-            (Some(b), _) => backup_steps(w.id, v, b, classifier),
-            (None, None) => delete_volume_steps(w.id, v, classifier),
-            (None, Some(snapshot)) => {
+        Ok(match (ask.backup, ask.restore, ask.snapshot) {
+            (Some(b), _, _) => backup_steps(w.id, v, b, classifier),
+            (None, Some(r), _) => restore_steps(w.id, v, r, self.runs(w, v).await?, classifier),
+            (None, None, None) => delete_volume_steps(w.id, v, classifier),
+            (None, None, Some(snapshot)) => {
                 let running = self.runs(w, v).await?;
                 snapshot_steps(w.id, (v, ask.op), snapshot, running, classifier)
             }
@@ -263,21 +288,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if approve_if_auto(&mut tx, &mut plan, caller, self.clock.now()).await? {
             tx.update_plan(&plan, korpis_core::workload::plan::PlanStatus::Proposed).await?;
         }
-        let mut after = details([
-            ("volume", v.id.to_string().into()),
-            ("approval", propose::approval_name(&plan).into()),
-        ]);
-        if let Some(b) = ask.backup {
-            after.insert("backup".into(), b.backup.to_string().into());
-            after.insert("repository".into(), b.repository.to_string().into());
-        }
-        if let Some((id, name)) = ask.snapshot {
-            after.insert("snapshot".into(), id.to_string().into());
-            after.insert("name".into(), name.into());
-        }
         let mut e = Effect::new(caller.principal.clone(), ask.action, Outcome::Succeeded)
             .under(permit.grant)
-            .after(after);
+            .after(proposed(&ask, &plan));
         e.workload = Some(w.id);
         e.plan = Some(plan.id);
         tx.append_effect(&e).await?;

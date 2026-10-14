@@ -629,12 +629,12 @@ Step
 - **A retire plan moves no pointer, and approving it freezes the workload.** Deleting a workload
   proposes one: stop, detach and retain every volume, remove the runtime (§4.8 of
   `02-architecture.md`), and then delete, each by its own irreversible step, only the volumes the
-  deletion named (§7 of `06-storage.md`). Removing a runtime is disruptive by the vocabulary's floor, so it always
-  waits for a human. Once it is approved, every other proposal is superseded and nothing else may
-  be declared or approved until it finishes or is cancelled. `deleted_at` is set when the
-  retirement is complete, which releases the name and the quota: when the node reports the runtime
-  removed, or at approval for a workload nothing was ever approved for, which no node holds and
-  whose plan the control plane executes alone.
+  deletion named (§7 of `06-storage.md`). Removing a runtime is disruptive by the vocabulary's
+  floor, so it always waits for a human. Once it is approved, every other proposal is superseded
+  and nothing else may be declared or approved until it finishes or is cancelled. `deleted_at` is
+  set when the retirement is complete, which releases the name and the quota: when the node reports
+  the runtime removed, or at approval for a workload nothing was ever approved for, which no node
+  holds and whose plan the control plane executes alone.
 - A plan containing a step marked `reversible: false`, deleting a volume, releasing an IP, always
   requires explicit approval. A plan whose steps are all non-disruptive is auto-approved by default
   policy, and **`disruptive` is declared, never inferred** (below).
@@ -1076,7 +1076,8 @@ Backup
 - A backup is succeeded only once its record is in the repository (§5.7 of `06-storage.md`), so
   a succeeded backup is whole.
 - A backup is authorized on its workload: `backup.read`, `backup.browse`, and `backup.restore`
-  there reach that workload's backups and no other's.
+  there reach that workload's backups and no other's. Restoring one into another workload's
+  volume also takes `workload.file.write` on that workload (§5.4 of `06-storage.md`).
 
 #### Endpoint
 

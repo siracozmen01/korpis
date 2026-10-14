@@ -87,12 +87,12 @@ Three tiers, read as one merged view:
 | offload target | sealed segments, and beyond the window | seconds | survives the node, long-term evidence |
 
 > Corrected 2026-10-14, when the console was built. The first tier was a ring buffer of the
-> agent's, sub-millisecond. It is the segment still being written, in the page cache, which the reader reads like
-> any other, woken by inotify on the stream's directory the moment the writer appends. A ring
-> buffer would have to be filled by the writer, the one process that must never stop draining
-> the workload, and served to readers by it or copied out of it: a second consumer, and the
-> blocking risk §5 exists to rule out. Reading the page cache gives the same memory-speed reads
-> and the same fan-out with nothing added to the writer. What it costs: a record reaches a
+> agent's, sub-millisecond. It is the segment still being written, in the page cache, which the
+> reader reads like any other, woken by inotify on the stream's directory the moment the writer
+> appends. A ring buffer would have to be filled by the writer, the one process that must never
+> stop draining the workload, and served to readers by it or copied out of it: a second consumer,
+> and the blocking risk §5 exists to rule out. Reading the page cache gives the same memory-speed
+> reads and the same fan-out with nothing added to the writer. What it costs: a record reaches a
 > follower after an inotify event and a read of the file rather than from memory already in the
 > reader's hands, and a node out of inotify watches falls back to looking every second.
 
@@ -344,10 +344,10 @@ has to say where it could not look.
 What it costs, and what it does not do. A follower reads again when inotify says the stream's
 directory changed, and at least every second whatever it hears, and each read lists the directory;
 a push from the writer would save that, and would put a second consumer on the one process that
-must never stop draining the workload (§4). The node reads only what it holds: until offload is built (Phase 1,
-with backup), a segment pruned from the node is gone, and the reader is told so. And a workload
-the node no longer holds, a retired one included, is refused on the data path, so a retired
-workload's kept stream (§4) cannot yet be read at all (§9, question 6).
+must never stop draining the workload (§4). The node reads only what it holds: until offload is
+built (Phase 1, with backup), a segment pruned from the node is gone, and the reader is told so.
+And a workload the node no longer holds, a retired one included, is refused on the data path, so a
+retired workload's kept stream (§4) cannot yet be read at all (§9, question 6).
 
 ---
 

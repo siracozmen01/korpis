@@ -14,6 +14,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+#[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 mod fixture;
 
 use fixture::mounted;

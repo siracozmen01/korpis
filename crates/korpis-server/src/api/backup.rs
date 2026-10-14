@@ -7,6 +7,7 @@ use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use korpis_app::backup::restore::RestoreAsk;
 use korpis_app::idempotency::Idempotent;
 use korpis_core::id::IdKind;
 use korpis_core::value::Value;
@@ -51,6 +52,39 @@ impl pb::BackupService for Api {
             .await
             .map_err(error::from_app)?;
         respond(reply, proposed)
+    }
+
+    async fn restore_backup(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RestoreBackupRequest>,
+    ) -> ServiceResult<pb::RestoreBackupResponse> {
+        use pb::__buffa::oneof::restore_backup_request::Target;
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let backup = wire::id(IdKind::Backup, "backup", &req.backup).refuse()?;
+        let volume = match req.volume.as_str() {
+            "" => None,
+            v => Some(wire::id(IdKind::Volume, "volume", v).refuse()?),
+        };
+        let into = match &req.target {
+            Some(Target::Into(into)) => Some(into.as_str()),
+            Some(Target::Replace(true)) => None,
+            _ => {
+                let why = "into a new directory, or replacing the volume";
+                return Err(error::invalid("target", why));
+            }
+        };
+        let ask = RestoreAsk { backup, volume, path: &req.path, into };
+        let restored = |p: &Plan| pb::RestoreBackupResponse {
+            plan: plan_to_pb(p).into(),
+            ..Default::default()
+        };
+        let encoder = |p: &Plan| encode(&restored(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.restore_backup(&caller, &idem, ask).await.map_err(error::from_app)?;
+        respond(reply, restored)
     }
 
     async fn get_backup(

@@ -87,4 +87,12 @@ impl Host for NodeHost {
     fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
         self.helper.forget_job(job)
     }
+
+    fn commit_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
+        self.helper.commit_job(job)
+    }
+
+    fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send {
+        self.helper.list_jobs()
+    }
 }

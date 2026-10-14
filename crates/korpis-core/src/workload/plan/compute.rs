@@ -254,8 +254,9 @@ pub fn snapshot_steps(
         VolumeOp::Rollback => b.push(StepAction::RollbackVolume, detail, &[]),
         VolumeOp::DeleteSnapshot => b.push(StepAction::DeleteSnapshot, detail, &[]),
         VolumeOp::Delete => b.push(StepAction::DeleteVolume, deletion(v), &[]),
-        // A backup's step is `backup_steps`'s, with what only it carries.
-        VolumeOp::Backup => {}
+        // A backup's or a restore's steps are `backup_steps`'s or `restore_steps`'s, with what
+        // only they carry.
+        VolumeOp::Backup | VolumeOp::Restore => {}
     }
     b.steps
 }
@@ -293,6 +294,54 @@ pub fn backup_steps(
     detail.insert("consistent".into(), Value::Bool(b.consistent));
     steps.push(StepAction::BackupVolume, detail, &[]);
     steps.steps
+}
+
+/// A restore a plan makes into a volume (§5.4 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RestoreStep<'a> {
+    /// The job that does it, named once so every step of the plan names the same one.
+    pub job: Uuid,
+    /// The backup restored.
+    pub backup: Uuid,
+    /// The path in it restored; empty for all of it.
+    pub path: &'a str,
+    /// The new directory of the volume restored into, or `None` to replace the volume.
+    pub into: Option<&'a str>,
+}
+
+/// The steps of a plan restoring into `v`: into a new directory of it, one step that loses
+/// nothing; or replacing it, the backup restored into a staging place while the workload runs,
+/// then the workload stopped when it runs (`running`), the volume replaced, and the workload
+/// started again, so it is down only for the exchange.
+#[must_use]
+pub fn restore_steps(
+    workload: Uuid,
+    v: &Volume,
+    r: RestoreStep<'_>,
+    running: bool,
+    classifier: Classifier<'_>,
+) -> Vec<Step> {
+    let mut b =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    let mut detail = deletion(v);
+    detail.insert("job".into(), text(&r.job.to_string()));
+    detail.insert("backup".into(), text(&r.backup.to_string()));
+    detail.insert("path".into(), text(r.path));
+    detail.insert("into".into(), text(r.into.unwrap_or_default()));
+    detail.insert("replace".into(), Value::Bool(r.into.is_none()));
+    if r.into.is_some() {
+        b.push(StepAction::RestoreVolume, detail, &[]);
+        return b.steps;
+    }
+    b.push(StepAction::RestoreVolume, detail.clone(), &[]);
+    if running {
+        b.push(StepAction::Stop, ValueMap::new(), &[]);
+    }
+    b.push(StepAction::ReplaceVolume, detail, &[]);
+    if running {
+        b.push(StepAction::Start, ValueMap::new(), &[]);
+    }
+    b.steps
 }
 
 /// What a node needs to delete `v`: the helper's identifier for it, as the node reported it,

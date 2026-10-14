@@ -47,6 +47,7 @@ mod relay;
 mod relays;
 mod renewal;
 mod repositories;
+mod restores;
 mod retire;
 mod revocation;
 mod sdk;

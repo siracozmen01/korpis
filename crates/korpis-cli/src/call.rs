@@ -130,6 +130,7 @@ table! {
     "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
     "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);
+    "korpis.v1.BackupService/RestoreBackup" => BackupServiceClient::restore_backup(RestoreBackupRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

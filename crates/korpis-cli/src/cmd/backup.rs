@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! `korpis backup …` (§5 of docs/06-storage.md): taking a backup of a volume into a repository,
-//! and reading a workload's backups.
+//! reading a workload's backups, and restoring one.
 
 use super::{Answer, json, mutation};
 use crate::connect::Connection;
@@ -34,6 +34,25 @@ pub enum BackupAction {
     Get {
         /// The backup, `bkp_…`.
         backup: String,
+    },
+    /// Restores a backup: into a new directory of a volume, which applies at once, or over the
+    /// whole volume, which loses what it holds and waits for approval.
+    #[command(group(clap::ArgGroup::new("target").required(true).args(["into", "replace"])))]
+    Restore {
+        /// The backup, `bkp_…`.
+        backup: String,
+        /// A new directory at the volume's root to restore into.
+        #[arg(long)]
+        into: Option<String>,
+        /// Replace the whole volume with the whole backup.
+        #[arg(long)]
+        replace: bool,
+        /// The volume restored into, `vol_…`; the backup's own when not given.
+        #[arg(long)]
+        volume: Option<String>,
+        /// One path in the backup, with `--into`; all of it when not given.
+        #[arg(long, requires = "into")]
+        path: Option<String>,
     },
 }
 
@@ -84,6 +103,24 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
             };
             let list = client.list_backups(r).await?.into_owned().backups;
             Answer { human: rows(&list), json: json(&list) }
+        }
+        BackupAction::Restore { backup, into, replace, volume, path } => {
+            use pb::__buffa::oneof::restore_backup_request::Target;
+            let target = match into {
+                Some(dir) => Target::Into(dir.clone()),
+                None => Target::Replace(*replace),
+            };
+            let r = pb::RestoreBackupRequest {
+                mutation: mutation(None).into(),
+                backup: backup.clone(),
+                volume: volume.clone().unwrap_or_default(),
+                path: path.clone().unwrap_or_default(),
+                target: Some(target),
+                ..Default::default()
+            };
+            let made = client.restore_backup(r).await?.into_owned();
+            let plan = made.plan.into_option().unwrap_or_default();
+            Answer { human: show::plan(&plan, &plan.workload), json: json(&plan) }
         }
         BackupAction::Get { backup } => {
             let r = pb::GetBackupRequest { id: backup.clone(), ..Default::default() };

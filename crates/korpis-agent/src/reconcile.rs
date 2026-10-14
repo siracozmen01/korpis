@@ -11,8 +11,10 @@
 
 mod act;
 mod backup;
+mod jobs;
 mod observe;
 pub mod progress;
+mod restore;
 mod step;
 pub mod streams;
 mod tail;
@@ -103,6 +105,8 @@ pub struct Reconciler<R, H> {
     streams: Streams,
     tracked: BTreeMap<String, Tracked>,
     orphans: BTreeSet<String>,
+    /// When the helper's jobs were last looked at for ones nothing names.
+    reaped: Option<Instant>,
 }
 
 /// A string value.
@@ -143,7 +147,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     #[must_use]
     pub fn new(runtime: R, host: H, wiring: Wiring, progress: Progress, streams: Streams) -> Self {
         let (tracked, orphans) = (BTreeMap::new(), BTreeSet::new());
-        Self { runtime, host, wiring, progress, streams, tracked, orphans }
+        Self { runtime, host, wiring, progress, streams, tracked, orphans, reaped: None }
     }
 
     /// Records `e` in the journal; whether it is on disk.
@@ -275,6 +279,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.tail(&held).await;
+        self.reap(&held).await;
         self.publish_runtimes();
     }
 

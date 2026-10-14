@@ -19,7 +19,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
 use korpis_proto::korpis::backup::v1 as backup;
 use korpis_proto::korpis::v1 as pb;
 
-async fn repository(h: &Harness) -> String {
+pub(crate) async fn repository(h: &Harness) -> String {
     let r = pb::CreateRepositoryRequest {
         mutation: mutation("repo").into(),
         organization: h.root_org(),
@@ -33,7 +33,7 @@ async fn repository(h: &Harness) -> String {
     made.repository.into_option().unwrap().id
 }
 
-fn create(key: &str, volume: &str, repository: &str) -> pb::CreateBackupRequest {
+pub(crate) fn create(key: &str, volume: &str, repository: &str) -> pb::CreateBackupRequest {
     pb::CreateBackupRequest {
         mutation: mutation(key).into(),
         volume: volume.to_owned(),
@@ -43,7 +43,7 @@ fn create(key: &str, volume: &str, repository: &str) -> pb::CreateBackupRequest 
 }
 
 /// Asks for step `step` of `plan`'s job access; the outcome.
-async fn access(s: &mut Stream, request: &str, plan: &str, step: u32) -> Outcome {
+pub(crate) async fn access(s: &mut Stream, request: &str, plan: &str, step: u32) -> Outcome {
     let up = agent::JobAccessRequest {
         request: request.into(),
         plan: plan.into(),
@@ -63,7 +63,7 @@ async fn access(s: &mut Stream, request: &str, plan: &str, step: u32) -> Outcome
     until(s, pick).await
 }
 
-fn ended(seq: u64, workload: &str, backup: &str, ok: bool) -> agent::JournalRecord {
+pub(crate) fn ended(seq: u64, workload: &str, backup: &str, ok: bool) -> agent::JournalRecord {
     let stats = backup::BackupStats { files: 3, bytes: 1 << 20, ..Default::default() };
     let record = backup::Backup {
         id: backup.into(),
@@ -91,11 +91,11 @@ fn ended(seq: u64, workload: &str, backup: &str, ok: bool) -> agent::JournalReco
     }
 }
 
-fn bare(id: &str) -> String {
+pub(crate) fn bare(id: &str) -> String {
     korpis_core::id::Id::parse(korpis_core::id::IdKind::Backup, id).unwrap().uuid().to_string()
 }
 
-async fn get(h: &Harness, id: &str) -> pb::Backup {
+pub(crate) async fn get(h: &Harness, id: &str) -> pb::Backup {
     let r = pb::GetBackupRequest { id: id.into(), ..Default::default() };
     h.backups(h.root()).get_backup(r).await.unwrap().into_owned().backup.into_option().unwrap()
 }

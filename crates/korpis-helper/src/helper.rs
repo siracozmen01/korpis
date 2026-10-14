@@ -8,6 +8,7 @@
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
 use crate::job::{JobConfig, Jobs, Placed, make_into};
+use crate::kept::Kept;
 use crate::storage::Class;
 use buffa::Message as _;
 use korpis_core::workload::assignment::IdRange;
@@ -62,9 +63,10 @@ impl Helper {
         match &r.work {
             Some(R::Backup(b)) => {
                 crate::error::identifier("job", &r.job)?;
-                let (directory, release) = self
+                let (directory, taken) = self
                     .holding(&b.volume)?
                     .backup_source((&b.volume, &b.snapshot), (&r.job, b.take_snapshot))?;
+                let kept = taken.map(|(volume, name)| Kept::Snapshot { volume, name });
                 let work = pb::BackupWork {
                     backup: b.backup.clone(),
                     parent: b.parent.clone(),
@@ -72,7 +74,16 @@ impl Helper {
                     content: b.content.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Backup(Box::new(work)), release })
+                Ok(Placed { directory, work: W::Backup(Box::new(work)), kept })
+            }
+            Some(R::Restore(w)) if w.replace => {
+                if !(w.path.is_empty() && w.into.is_empty()) {
+                    return Err(HelperError::Refused("a replacing restore is whole".into()));
+                }
+                let (directory, identity, limits) = self.holding(&w.volume)?.stage(&w.volume)?;
+                let kept = Kept::Staging { volume: w.volume.clone(), identity, limits };
+                let work = pb::RestoreWork { backup: w.backup.clone(), ..Default::default() };
+                Ok(Placed { directory, work: W::Restore(Box::new(work)), kept: Some(kept) })
             }
             Some(R::Restore(w)) => {
                 let volume = self.holding(&w.volume)?.path_of(&w.volume);
@@ -83,7 +94,7 @@ impl Helper {
                     path: w.path.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Restore(Box::new(work)), release: None })
+                Ok(Placed { directory, work: W::Restore(Box::new(work)), kept: None })
             }
             None => Err(HelperError::Refused("a job names its work".into())),
         }
@@ -94,8 +105,12 @@ impl Helper {
         self.jobs()?;
         Ok(match verb {
             Verb::StartJob(r) => {
-                let placed = self.place(&r)?;
-                let started = self.jobs()?.start(&r, placed)?;
+                // A job already started is not placed again: placing a replacing restore
+                // empties its staging place.
+                let started = !self.jobs()?.known(&r.job)? && {
+                    let placed = self.place(&r)?;
+                    self.jobs()?.start(&r, placed)?
+                };
                 Answer::StartJob(Box::new(helper::StartJobResponse {
                     started,
                     ..Default::default()
@@ -115,13 +130,26 @@ impl Helper {
                 if state.as_known() == Some(helper::JobState::JOB_STATE_RUNNING) {
                     return Err(HelperError::Refused(format!("job {} is running", r.job)));
                 }
-                if let Some((volume, snapshot)) = self.jobs()?.release_of(&r.job)?
-                    && let Ok(class) = self.holding(&volume)
-                {
-                    class.delete_snapshot(&volume, &snapshot)?;
-                }
+                self.release(&r.job, false)?;
                 self.jobs()?.forget(&r.job)?;
                 Answer::ForgetJob(Box::default())
+            }
+            Verb::CommitJob(r) => {
+                let status = self.jobs()?.status(&r.job)?;
+                let result = status.result.as_option();
+                let whole = result
+                    .is_some_and(|r| r.ok && r.restored.as_option().is_some_and(|x| x.verified));
+                if status.state.as_known() != Some(helper::JobState::JOB_STATE_FINISHED) || !whole {
+                    return Err(HelperError::Refused(format!("job {} is no whole restore", r.job)));
+                }
+                if !self.release(&r.job, true)? {
+                    return Err(HelperError::Refused(format!("job {} replaces nothing", r.job)));
+                }
+                Answer::CommitJob(Box::default())
+            }
+            Verb::ListJobs(_) => {
+                let jobs = self.jobs()?.list()?;
+                Answer::ListJobs(Box::new(helper::ListJobsResponse { jobs, ..Default::default() }))
             }
             _ => return Err(HelperError::Refused("not a job verb".into())),
         })
@@ -135,6 +163,24 @@ impl Helper {
             self.classes.iter_mut().find(|c| c.name() == name)
         };
         found.ok_or_else(|| HelperError::NotFound(format!("storage class {name:?}")))
+    }
+
+    /// Releases what `job` keeps: its snapshot deleted, or its staging place committed when
+    /// `commit` and discarded otherwise; whether it kept a staging place. A volume gone took
+    /// both with it.
+    fn release(&mut self, job: &str, commit: bool) -> HelperResult<bool> {
+        let Some(kept) = self.jobs()?.kept_of(job)? else { return Ok(false) };
+        let Ok(class) = self.holding(kept.volume()) else { return Ok(false) };
+        if let Some(s) = kept.staging() {
+            class.settle(&s, commit)?;
+            return Ok(true);
+        }
+        if let Kept::Snapshot { volume, name } = &kept
+            && !commit
+        {
+            class.delete_snapshot(volume, name)?;
+        }
+        Ok(false)
     }
 
     /// The class that holds `volume`, if any does.
@@ -195,7 +241,9 @@ impl Helper {
             v @ (Verb::StartJob(_)
             | Verb::JobStatus(_)
             | Verb::CancelJob(_)
-            | Verb::ForgetJob(_)) => self.job(v)?,
+            | Verb::ForgetJob(_)
+            | Verb::CommitJob(_)
+            | Verb::ListJobs(_)) => self.job(v)?,
             Verb::DescribeStorage(_) => {
                 let classes = self.classes.iter().map(Class::describe).collect();
                 Answer::DescribeStorage(Box::new(helper::DescribeStorageResponse {

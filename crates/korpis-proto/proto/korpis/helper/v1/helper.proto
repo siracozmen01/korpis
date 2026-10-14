@@ -63,6 +63,8 @@ message HelperRequest {
     JobStatusRequest job_status = 10;
     CancelJobRequest cancel_job = 11;
     ForgetJobRequest forget_job = 12;
+    CommitJobRequest commit_job = 13;
+    ListJobsRequest list_jobs = 14;
   }
 }
 
@@ -81,6 +83,8 @@ message HelperResponse {
     JobStatusResponse job_status = 10;
     CancelJobResponse cancel_job = 11;
     ForgetJobResponse forget_job = 12;
+    CommitJobResponse commit_job = 13;
+    ListJobsResponse list_jobs = 14;
     HelperError error = 15;
   }
 }
@@ -227,6 +231,10 @@ message RestoreVolume {
   // For one path: a directory created at the volume's root to restore it into, which must not
   // exist; empty for the whole volume.
   string into = 4;
+  // Restore the whole backup into a staging place beside the volume, which CommitJob makes the
+  // volume and ForgetJob otherwise discards; `path` and `into` are then empty. The volume is not
+  // touched until the commit, so the workload may run while the job does.
+  bool replace = 5;
 }
 
 message StartJobResponse {
@@ -263,9 +271,31 @@ message CancelJobResponse {
   bool cancelled = 1;
 }
 
-// Removes what the helper keeps of a job that ended: its result and its cgroup.
+// Removes what the helper keeps of a job that ended: its result and its cgroup, the snapshot it
+// took, and the staging place of a replacing restore never committed. Refused while it runs.
 message ForgetJobRequest {
   string job = 1;
 }
 
 message ForgetJobResponse {}
+
+// Makes a replacing restore that finished whole and verified the volume: the staging place and
+// the volume are exchanged in one rename, the old data removed, and the volume's limit kept.
+// Doing it again after it was done changes nothing.
+message CommitJobRequest {
+  string job = 1;
+}
+
+message CommitJobResponse {}
+
+// The jobs the helper keeps, for whoever forgets the ones nothing names any more.
+message ListJobsRequest {}
+
+message ListJobsResponse {
+  repeated JobSummary jobs = 1;
+}
+
+message JobSummary {
+  string job = 1;
+  JobState state = 2;
+}

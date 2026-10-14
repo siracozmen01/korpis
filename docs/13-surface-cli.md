@@ -220,6 +220,9 @@ the last backup of each of seven days, four weeks, and six months above a one-da
 `korpis backup create vol_… --repository rep_…` backs a volume up, a plan that applies at once;
 `korpis backup list <workload>` shows its backups newest first, read from a snapshot or live, and
 `korpis backup get bkp_…` one, with why it failed and what it did not read (§5.1 there).
+`korpis backup restore bkp_… --into <dir> [--path <p>]` restores it into a new directory of the
+volume at once; `--replace` replaces the whole volume, a plan that waits for approval and stops
+the workload only for the exchange; `--volume vol_…` restores into another volume (§5.4 there).
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

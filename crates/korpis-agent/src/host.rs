@@ -79,8 +79,15 @@ pub trait Host: Send + Sync + 'static {
         job: &str,
     ) -> impl Future<Output = Result<helper::JobStatusResponse, HostError>> + Send;
 
-    /// Removes what is kept of a job that ended.
+    /// Removes what is kept of a job that ended, discarding a restore it staged and never
+    /// committed.
     fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send;
+
+    /// Makes the volume what a replacing restore that finished whole staged; idempotent.
+    fn commit_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send;
+
+    /// The jobs kept, and where each is.
+    fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send;
 }
 
 #[derive(Debug, Default)]
@@ -232,6 +239,28 @@ impl Host for InMemoryHost {
     fn forget_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
         ready(self.with(|k| {
             k.jobs.remove(job);
+        }))
+    }
+
+    fn commit_job(&self, job: &str) -> impl Future<Output = Result<(), HostError>> + Send {
+        let committed = self.with(|k| {
+            let restored = k.jobs.get(job).and_then(|s| s.result.as_option());
+            match restored.and_then(|r| r.restored.as_option()) {
+                Some(r) if r.verified => Ok(()),
+                _ => Err(HostError(format!("job {job} is no whole restore"))),
+            }
+        });
+        ready(committed.and_then(|r| r))
+    }
+
+    fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send {
+        ready(self.with(|k| {
+            let summary = |(job, s): (&String, &helper::JobStatusResponse)| helper::JobSummary {
+                job: job.clone(),
+                state: s.state,
+                ..Default::default()
+            };
+            k.jobs.iter().map(summary).collect()
         }))
     }
 }

@@ -185,6 +185,23 @@ impl HelperClient {
         }
     }
 
+    /// Commits a replacing restore.
+    pub async fn commit_job(&self, job: &str) -> Result<(), HostError> {
+        let r = helper::CommitJobRequest { job: job.to_owned(), ..Default::default() };
+        match self.call(Verb::CommitJob(Box::new(r))).await? {
+            Answer::CommitJob(_) => Ok(()),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// The jobs the helper keeps.
+    pub async fn list_jobs(&self) -> Result<Vec<helper::JobSummary>, HostError> {
+        match self.call(Verb::ListJobs(Box::default())).await? {
+            Answer::ListJobs(a) => Ok(a.jobs),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// The storage classes the node offers.
     pub async fn describe_storage(
         &self,

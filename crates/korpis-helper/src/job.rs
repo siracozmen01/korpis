@@ -10,6 +10,7 @@
 //! process is still the job binary.
 
 use crate::error::{HelperError, HelperResult, identifier};
+use crate::kept::Kept;
 use buffa::Message as _;
 use korpis_proto::korpis::backup::v1 as pb;
 use korpis_proto::korpis::helper::v1 as helper;
@@ -55,8 +56,8 @@ pub struct Placed {
     pub directory: PathBuf,
     /// The work, as the job's spec carries it.
     pub work: pb::__buffa::oneof::job_spec::Work,
-    /// A snapshot taken for the job, by volume and name, which forgetting it releases.
-    pub release: Option<(String, String)>,
+    /// What it leaves on a volume until it is forgotten.
+    pub kept: Option<Kept>,
 }
 
 impl crate::storage::Class {
@@ -133,8 +134,8 @@ impl Jobs {
                 .unwrap_or_default(),
             ..Default::default()
         };
-        if let Some((volume, snapshot)) = &placed.release {
-            std::fs::write(dir.join("snapshot"), format!("{volume}\n{snapshot}"))?;
+        if let Some(kept) = &placed.kept {
+            std::fs::write(dir.join("kept"), kept.to_line())?;
         }
         let log = std::fs::File::create(dir.join("log"))?;
         let mut child = Command::new(&self.config.binary)
@@ -243,14 +244,37 @@ impl Jobs {
         Ok(true)
     }
 
-    /// The snapshot taken for `job`, by volume and name, if one was.
-    pub fn release_of(&self, job: &str) -> HelperResult<Option<(String, String)>> {
+    /// What `job` keeps on a volume, if anything.
+    pub fn kept_of(&self, job: &str) -> HelperResult<Option<Kept>> {
         identifier("job", job)?;
-        match std::fs::read_to_string(self.dir(job).join("snapshot")) {
-            Ok(s) => Ok(s.split_once('\n').map(|(v, n)| (v.to_owned(), n.to_owned()))),
+        match std::fs::read_to_string(self.dir(job).join("kept")) {
+            Ok(line) => Kept::from_line(line.trim_end()).map(Some),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Whether `job` was started and not forgotten.
+    pub fn known(&self, job: &str) -> HelperResult<bool> {
+        identifier("job", job)?;
+        Ok(self.running.contains_key(job) || self.dir(job).exists())
+    }
+
+    /// Every job started and not forgotten, and where each is.
+    pub fn list(&mut self) -> HelperResult<Vec<helper::JobSummary>> {
+        let entries = match std::fs::read_dir(self.config.state.join("jobs")) {
+            Ok(e) => e,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(e.into()),
+        };
+        let mut jobs = Vec::new();
+        for entry in entries {
+            let Some(job) = entry?.file_name().to_str().map(str::to_owned) else { continue };
+            let state = self.status(&job)?.state;
+            jobs.push(helper::JobSummary { job, state, ..Default::default() });
+        }
+        jobs.sort_by(|a, b| a.job.cmp(&b.job));
+        Ok(jobs)
     }
 
     /// Removes what is kept of `job`, which must have ended.

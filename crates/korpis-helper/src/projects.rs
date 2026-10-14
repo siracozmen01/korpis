@@ -55,6 +55,16 @@ impl Projects {
         Ok(id)
     }
 
+    /// Records `id` as the project of `volume`, as a restore that took over its directory
+    /// leaves it.
+    pub fn set(&mut self, volume: &str, id: u32) -> std::io::Result<()> {
+        if self.of(volume) != Some(id) {
+            self.by_volume.insert(volume.to_owned(), id);
+            self.save()?;
+        }
+        Ok(())
+    }
+
     /// Forgets the project of `volume`.
     pub fn forget(&mut self, volume: &str) -> std::io::Result<()> {
         if self.by_volume.remove(volume).is_some() {

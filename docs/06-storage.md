@@ -456,6 +456,32 @@ data destroys the current state, which is occasionally what someone wants and fr
 disaster on top of the first. The safe operation is the prominent one; the destructive one is
 marked irreversible and requires approval.
 
+**As built, 2026-10-14.** `korpis backup restore bkp_… --into <dir>` restores a backup, or one
+`--path` in it, into a new directory at the root of a volume, the backup's own unless `--volume`
+names another: one `restore_volume` step that loses nothing and applies at once, and refuses a
+directory that exists. `korpis backup restore bkp_… --replace` makes the whole volume what the
+whole backup held, as a plan that waits for a person: `restore_volume` restores into a staging
+place beside the volume while the workload keeps running, then `stop`, `replace_volume`, and
+`start`, so the workload is down only while the helper exchanges the two in one rename. The
+staging place is a subvolume of its own on btrfs and a quota project of its own where the class
+keeps projects, carrying the volume's limit, so the restore is never counted against the live
+volume; the exchange keeps the limit, and done again after a crash it changes nothing, because
+the staging place's identity, recorded when it was made, says whether it happened. Only a
+backup whose record is in the repository restores. The node holding the target volume is given
+the backup's own workload key and read access to that workload's prefix, under the same rules as
+a backup's job (§5.5). Putting a workload's backup back into it is `backup.restore` there;
+putting it into another workload's volume hands its contents to that workload's holders, so it
+takes `backup.read` on the first and `workload.file.write` on the second (§5 of `10-api.md`).
+What this does not do yet: browse a manifest or read one file through the control plane, restore
+into a new workload, or restore recipe content by reference; each is a task of Phase 1, not
+dropped.
+
+**Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
+holds the live volume and the staging place in full, and nothing reserves that room: a restore
+that runs out of it fails, and the volume is left as it was. A restore into a directory needs the
+same room inside the volume's own limit, and fails the same way (Finding 34 of
+`23-walkthroughs.md`).
+
 **Browsing a manifest is a separate action from reading a file.**
 
 > Finding 13 of `23-walkthroughs.md`.
@@ -572,7 +598,10 @@ chose inside it out of its reach. Pruning itself is two-phase and runs with the 
 credential, which only the control plane or a relay holds: chunks no manifest references are marked,
 and deleted only after a grace period longer than the longest backup job, so even a lock lost to a
 crash cannot race a writer into a hole. Recipe content, shared across prefixes, is never pruned
-while any manifest in the repository refers to its digest.
+while any manifest in the repository refers to its digest. A backup that an open plan restores is
+not pruned, and nothing it references is swept, until that plan ends: a restore reads with its
+own credential for hours, and the prefix lock is a writer's, which a reader does not take
+(Finding 35 of `23-walkthroughs.md`).
 
 ### 5.6 The backup target interface
 

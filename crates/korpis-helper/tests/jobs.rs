@@ -16,9 +16,13 @@
     reason = "a failing test should fail loudly, and a skipped one should say so"
 )]
 
+#[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 mod fixture;
+#[path = "fixture/jobs.rs"]
+mod jobs;
 
-use buffa::Message as _;
+use jobs::{ask, finished, forget, job_binary, start, status};
+
 use korpis_backup::testing::Minio;
 use korpis_helper::helper::Helper;
 use korpis_helper::ids::Ledger;
@@ -28,93 +32,9 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
-use korpis_proto::korpis::v1 as api;
 use std::os::unix::fs::MetadataExt as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-
-/// The job binary, built where this test was.
-fn job_binary() -> PathBuf {
-    let exe = std::env::current_exe().unwrap();
-    let profile_dir = exe.parent().and_then(Path::parent).unwrap();
-    let profile = match profile_dir.file_name().unwrap().to_str().unwrap() {
-        "debug" => "dev",
-        other => other,
-    };
-    let built = std::process::Command::new(env!("CARGO"))
-        .args([
-            "build",
-            "-q",
-            "-p",
-            "korpis-backup",
-            "--bin",
-            "korpis-backup-job",
-            "--profile",
-            profile,
-            "--target-dir",
-        ])
-        .arg(profile_dir.parent().unwrap())
-        .status()
-        .unwrap();
-    assert!(built.success());
-    profile_dir.join("korpis-backup-job")
-}
-
-fn ask(h: &mut Helper, verb: Verb) -> Answer {
-    let request = helper::HelperRequest { verb: Some(verb), ..Default::default() };
-    helper::HelperResponse::decode_from_slice(&h.handle(&request.encode_to_vec()))
-        .unwrap()
-        .result
-        .unwrap()
-}
-
-fn store(endpoint: &str) -> api::S3Access {
-    api::S3Access {
-        endpoint: endpoint.into(),
-        region: "us-east-1".into(),
-        bucket: "backups".into(),
-        key_prefix: "repo/wl_1/".into(),
-        access_key_id: korpis_backup::testing::USER.into(),
-        secret_access_key: korpis_backup::testing::SECRET.into(),
-        path_style: true,
-        ..Default::default()
-    }
-}
-
-fn start(job: &str, work: Work, endpoint: &str) -> Verb {
-    Verb::StartJob(Box::new(helper::StartJobRequest {
-        job: job.into(),
-        work: Some(work),
-        data_key: vec![1; 32],
-        store: store(endpoint).into(),
-        concurrency: 4,
-        ..Default::default()
-    }))
-}
-
-fn status(h: &mut Helper, job: &str) -> helper::JobStatusResponse {
-    match ask(
-        h,
-        Verb::JobStatus(Box::new(helper::JobStatusRequest {
-            job: job.into(),
-            ..Default::default()
-        })),
-    ) {
-        Answer::JobStatus(s) => *s,
-        other => panic!("{other:?}"),
-    }
-}
-
-async fn finished(h: &mut Helper, job: &str) -> korpis_proto::korpis::backup::v1::JobResult {
-    for _ in 0..600 {
-        let s = status(h, job);
-        if s.state.as_known() == Some(helper::JobState::JOB_STATE_FINISHED) {
-            return s.result.into_option().unwrap();
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("job {job} did not finish");
-}
 
 /// A helper running jobs, with volumes `wl_1.data` (holding a world) and `wl_2.data` (owned by
 /// 1234), and the cgroup its jobs' cgroups are made in.
@@ -264,16 +184,6 @@ async fn a_job_stuck_on_its_store_is_cancelled_and_lost() {
         })),
     );
     assert!(matches!(refused, Answer::Error(_)));
-}
-
-fn forget(h: &mut Helper, job: &str) -> Answer {
-    ask(
-        h,
-        Verb::ForgetJob(Box::new(helper::ForgetJobRequest {
-            job: job.into(),
-            ..Default::default()
-        })),
-    )
 }
 
 #[tokio::test]

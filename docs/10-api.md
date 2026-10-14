@@ -211,7 +211,10 @@ ext.<extension>.<action>              extensions define their own, namespaced
   and stored, whether it came from a snapshot) is `workload.read`, added 2026-10-14 when backups
   were built: that a backup exists and what it costs is the workload's state, which §7 of
   `08-identity.md` gives the parent organization, while its file tree and its contents are
-  `backup.browse` and `backup.read`, the private actions of §3.3 there.
+  `backup.browse` and `backup.read`, the private actions of §3.3 there. Restoring a workload's
+  backup into that workload is `backup.restore` there; into another workload's volume it is
+  `backup.read` on the backup's workload and `workload.file.write` on the other, since the
+  contents then reach that workload's holders (§5.4 of `06-storage.md`).
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold
