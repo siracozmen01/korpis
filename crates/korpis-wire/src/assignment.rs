@@ -44,6 +44,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         uid_base: a.ids.base,
         uid_count: a.ids.count,
         residual: a.residual,
+        volume_ids: a.volume_ids.clone().into_iter().collect(),
         ..Default::default()
     }
 }

@@ -6,7 +6,8 @@
 //! an effect of whoever typed it; a caller who may only watch is attached read-only.
 
 use crate::node::{Node, live};
-use crate::support::{ControlPlane, korpis, push_answerer};
+use crate::recipes::push_answerer;
+use crate::support::{ControlPlane, korpis};
 use korpis_proto::korpis::v1 as pb;
 use std::process::Stdio;
 use std::time::Duration;

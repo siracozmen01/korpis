@@ -8,6 +8,7 @@ use super::plan::step::{Step, StepExecutor};
 use super::plan::{Plan, PlanTarget};
 use super::spec::Continuity;
 use super::{Intent, PowerRecord};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// One workload's desired state on one node.
@@ -44,6 +45,9 @@ pub struct Assignment {
     /// left on the node, and the node executes that plan and nothing else (§7 of
     /// docs/06-storage.md).
     pub residual: bool,
+    /// The helper's identifier of each existing volume the target attaches, by the name the
+    /// workload mounts it under (§7 of docs/06-storage.md).
+    pub volume_ids: BTreeMap<String, String>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

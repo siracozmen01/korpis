@@ -58,6 +58,7 @@ mod tenancy;
 mod tokens;
 mod trust;
 mod upgrade;
+mod volume_attach;
 mod volume_delete;
 mod volumes;
 mod watch;

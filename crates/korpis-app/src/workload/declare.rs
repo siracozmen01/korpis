@@ -228,6 +228,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
         let (body, recipe, changes) =
             self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
+        let owner = (base.workload.id, base.workload.project);
+        self.check_existing(caller, owner, &body).await?;
         let passage = match &cmd.set {
             Some(through) => Some(self.passage(caller, &base, through, &body).await?),
             None => None,
@@ -265,6 +267,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         if approved {
             tx.append_effect(&approval_effect(caller, base, &declared.plan)).await?;
+            self.claim_existing(tx, &declared.workload, &declared.intent.body).await?;
             self.place_target(tx, &declared.workload, Some(&declared.intent)).await?;
         }
         Ok(())

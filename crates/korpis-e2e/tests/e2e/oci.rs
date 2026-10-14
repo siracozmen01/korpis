@@ -9,7 +9,8 @@
 //! docs/14-streams.md).
 
 use crate::node::{Node, live};
-use crate::support::{ControlPlane, push_sleeper};
+use crate::recipes::push_sleeper;
+use crate::support::ControlPlane;
 use korpis_agent::runtime::{Runtime as _, RuntimeError};
 use korpis_cli::cmd::Get;
 use korpis_cli::cmd::get::get;
@@ -179,8 +180,28 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
     assert_eq!(said, ["said hello\n"], "what it printed, as it printed it");
 
+    adopted(&cp, (&node, &project), &vol).await;
     retained_volume_deleted(&cp, &project, &vol).await;
     agent.stop().await;
+}
+
+/// The retained volume attached to a new workload, which finds what the first one wrote, in the
+/// same directory on the same node; retired in turn, it keeps the volume again.
+async fn adopted(cp: &ControlPlane, (node, project): (&Node, &str), vol: &Path) {
+    let data = cp.volume_named(project, "data").await;
+    let spec = pb::VolumeSpec { name: "data".into(), existing: Some(data), ..Default::default() };
+    let repo = push_sleeper().await;
+    let w = cp.declare_with(project, "adopter", &repo, vec![spec]).await;
+    node.guard(&w);
+    status(cp, &w, 180, converged).await;
+    assert_eq!(lines(&vol.join("starts")).await.len(), 2, "its start is added to the first's");
+    let dirs = std::fs::read_dir(&node.volumes).unwrap().filter_map(Result::ok).count();
+    assert_eq!(dirs, 3, "no volume was made for it: the first's two, and its own console's");
+    cp.retire(&w).await;
+    let sql = "SELECT count(*) FROM effect WHERE action = 'workload.retire'";
+    counted(cp, sql, 2).await;
+    let sql = "SELECT count(*) FROM volume WHERE name = 'data' AND attached_to IS NULL";
+    counted(cp, sql, 1).await;
 }
 
 /// The retained volume, its workload gone, deleted by a plan its node executes through a

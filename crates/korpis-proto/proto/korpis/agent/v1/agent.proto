@@ -289,6 +289,10 @@ message Assignment {
   // last the workload had, for the record; the node executes the plan's steps and nothing else:
   // it builds, starts, observes, and leases nothing for it.
   bool residual = 17;
+  // The privileged helper's identifier of each existing volume the target attaches, by the name
+  // the workload mounts it under, as its node reported it (§7 of docs/06-storage.md). A volume
+  // the workload creates is named for the workload and the volume, and is not listed.
+  map<string, string> volume_ids = 18;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

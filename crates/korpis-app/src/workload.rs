@@ -4,6 +4,7 @@
 //! docs/01-model.md, §3 and §7 of docs/03-state.md).
 
 mod admit;
+mod attach;
 mod cancel;
 mod classify;
 mod conditions;

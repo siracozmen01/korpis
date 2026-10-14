@@ -611,6 +611,24 @@ assignment leaves the set once the plan is applied.
 > workload, which approval had to learn to accept for this one kind, and an assignment the agent
 > must treat as carrying nothing to run.
 
+**Attaching, as built.** A declaration attaches a volume by naming it in a volume's `existing`,
+by identifier. The control plane checks, when the intent is declared, that it is a live volume of
+the workload's project, that the declarer holds `volume.read` on it (attaching shows the workload,
+and so its declarer, everything on it), that it is not a console stream's, and that no other
+workload holds it. It then claims the volume for the workload in the transaction that approves
+the target, by compare-and-swap, so two declarations naming one volume cannot both be approved;
+the second is refused. Placement keeps the workload on the node holding it (§2.1 of
+`05-scheduling.md`), and the assignment tells the node the helper's identifier for it, as its node
+reported it, so the agent mounts the very directory the first workload wrote. An attached volume
+is asked for no size and keeps the limits it has.
+
+What this costs. A volume a live workload's new target no longer names stays attached to that
+workload until it is retired: the node mounts it no more after the runtime object is next
+rebuilt, but nothing yet tells the control plane when that happened, and releasing the claim
+before then would let a second workload mount a directory the first still writes. The volume is
+safe and listed, held by a workload that no longer uses it; open question 8 is where that is
+settled.
+
 What this does not do yet. Every volume is on the node that reported it, so its `node` is never
 empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and
 that class settles what `node` names for it. The `mode` and `snapshots` of §3.6 are not reported:
@@ -687,3 +705,9 @@ serves the rest. Korpis ships no object store and does not become one.
    data path and needs it reachable from the relay. The second keeps every credential where it is
    and costs throughput through one extension; it is the likelier answer, decided with the relay
    tier (§3.1 of `02-architecture.md`) and the backup flow it serves. → here
+8. **Releasing a volume a live workload stopped naming.** Added 2026-10-14, when attaching was
+   built (§7). The claim is kept until retirement because the control plane does not know when
+   the runtime object that mounted the volume was rebuilt without it. The agent knows: it builds
+   every object, from a target, with the mounts it lists. Reporting the volumes each build mounts,
+   and releasing a claim once a build of a target without it is reported, would end the cost
+   without a window in which two workloads write one directory. → here

@@ -28,6 +28,14 @@ pub trait VolumeRead {
 
 /// Writing volumes.
 pub trait VolumeWrite {
+    /// Attaches the live volume `volume` to `workload`, if nothing else holds it; whether it is
+    /// now `workload`'s.
+    fn claim_volume(
+        &mut self,
+        volume: Uuid,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Records what `node` reports of a volume, at `now`: a volume ensured is created on first
     /// report, in the project of the workload it is for, and attached to that workload; one
     /// deleted is marked so, never removed, and a console stream's deletion leaves no segment

@@ -178,6 +178,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         // answer keeps running (§4.5 of docs/02-architecture.md).
         let on_lease_expiry = target.body.continuity.resolved(false);
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
+        let volume_ids = self.existing_ids(&target.body).await?;
         Ok(Some((
             Assignment {
                 workload,
@@ -194,6 +195,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 lease_epoch,
                 ids: IdRange { base: 0, count: 0 },
                 residual: false,
+                volume_ids,
             },
             plan,
         )))
@@ -242,6 +244,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 lease_epoch: 0,
                 ids: IdRange { base: 0, count: 0 },
                 residual: true,
+                volume_ids: BTreeMap::new(),
             },
             Some(plan),
         )))

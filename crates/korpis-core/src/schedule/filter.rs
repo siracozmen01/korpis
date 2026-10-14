@@ -138,6 +138,12 @@ fn capacity(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
         .collect()
 }
 
+/// An existing volume on another node: what it holds is on that node's disk alone.
+fn volumes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
+    let (volume, node) = req.volumes.iter().find(|(_, node)| *node != c.node.id)?;
+    Some((Check::Volume, format!("volume {volume} is on node {node}")))
+}
+
 fn storage_classes(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     req.body
         .volumes
@@ -197,6 +203,7 @@ pub(super) fn rejections(
     out.extend([reachability(req, c), selector(req, c), taints(req, c)].into_iter().flatten());
     out.extend(capacity(req, c));
     out.extend(storage_classes(req, c));
+    out.extend(volumes(req, c));
     out.extend(affinity(req, c, fleet, peers, policy));
     out
 }

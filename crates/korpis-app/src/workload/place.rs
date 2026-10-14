@@ -131,6 +131,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .iter()
             .map(|n| Candidate { node: n, allocated: allocations.get(&n.id).unwrap_or(&empty) })
             .collect();
+        let volumes = self.existing_nodes(&target.body).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -139,6 +140,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             body: &target.body,
             current: current.as_ref().map(|p| Current { node: p.node, reserved: &p.reserved }),
             edge_tier: EDGE_TIER,
+            volumes: &volumes,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {

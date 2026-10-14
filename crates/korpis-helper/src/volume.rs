@@ -49,8 +49,11 @@ impl Class {
             std::os::unix::fs::chown(&path, Some(0), Some(0))?;
             std::fs::set_permissions(&path, std::fs::Permissions::from_mode(VOLUME_MODE))?;
         }
-        if self.backend().enforces() {
-            // Set every time, so a volume resized by a new intent gets its new limits.
+        // An existing volume attached to another workload is asked for no size, and keeps the
+        // limits it has; any other ask sets them, so a volume resized by a new intent gets its
+        // new limits.
+        let asked = created || r.size_bytes > 0 || r.inodes > 0;
+        if self.backend().enforces() && asked {
             let project = self.projects.ensure(&r.volume)?;
             quota::assign(&std::fs::File::open(&path)?, project)?;
             quota::limit(&self.handle, project, r.size_bytes, r.inodes)?;

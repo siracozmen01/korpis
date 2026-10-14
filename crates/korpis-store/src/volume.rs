@@ -100,6 +100,20 @@ impl VolumeRead for PgStore {
 }
 
 impl VolumeWrite for PgTx {
+    async fn claim_volume(&mut self, volume: Uuid, workload: Uuid) -> StoreResult<bool> {
+        let claimed = sqlx::query!(
+            "UPDATE volume SET attached_to = $2, detached_at = NULL
+              WHERE id = $1 AND deleted_at IS NULL
+                AND (attached_to IS NULL OR attached_to = $2)",
+            volume,
+            workload
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(claimed.rows_affected() == 1)
+    }
+
     async fn record_volume(
         &mut self,
         node: Uuid,
@@ -146,7 +160,8 @@ async fn stream_gone(tx: &mut PgTx, node: Uuid, workload: Uuid) -> StoreResult<(
 }
 
 /// A volume ensured: created on its first report, and on a later one attached to the workload
-/// that ensured it, which may be one adopting it, with what the node now says of it.
+/// that ensured it, which may be one adopting it, with what the node now says of it. An adopting
+/// workload asks for no size, so a zero keeps the size it has.
 async fn ensured(
     tx: &mut PgTx,
     node: Uuid,
@@ -164,7 +179,8 @@ async fn ensured(
             SET attached_to = EXCLUDED.attached_to,
                 detached_at = NULL,
                 storage_class = EXCLUDED.storage_class,
-                size_bytes = EXCLUDED.size_bytes,
+                size_bytes = CASE WHEN EXCLUDED.size_bytes > 0 THEN EXCLUDED.size_bytes
+                                  ELSE volume.size_bytes END,
                 quota_enforced = EXCLUDED.quota_enforced",
         Uuid::now_v7(),
         v.workload,

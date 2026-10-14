@@ -28,7 +28,12 @@ fn empty_set(d: &Down) -> Option<()> {
 
 /// Retires `workload`, keeping its volumes, as its node completes the plan; the next journal
 /// sequence.
-async fn retired(h: &Harness, s: &mut crate::agent::Stream, workload: &str, from: u64) -> u64 {
+pub(crate) async fn retired(
+    h: &Harness,
+    s: &mut crate::agent::Stream,
+    workload: &str,
+    from: u64,
+) -> u64 {
     let deleted = h.workloads(h.root()).delete_workload(delete(workload, &[])).await.unwrap();
     let plan = deleted.into_owned().plan.into_option().unwrap().id;
     h.plans(h.root()).approve_plan(approve("retire", &plan)).await.unwrap();

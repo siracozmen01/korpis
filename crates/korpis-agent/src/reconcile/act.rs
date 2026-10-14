@@ -41,10 +41,11 @@ pub(super) fn running(s: &driver::RuntimeStatus) -> bool {
     s.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING)
 }
 
-/// The volume identifier the helper knows a workload's named volume by: an existing volume's
-/// own, or one derived from the workload and the name for a volume created with it.
-pub(super) fn volume_id(workload: &str, name: &str, existing: Option<&str>) -> String {
-    existing.map_or_else(|| format!("{workload}.{name}"), str::to_owned)
+/// The volume identifier the helper knows the volume `a`'s workload mounts as `name` by: an
+/// existing volume's, as the control plane resolved it from what its node reported, or one
+/// derived from the workload and the name for a volume created with it.
+pub(super) fn volume_id(a: &agent::Assignment, name: &str) -> String {
+    a.volume_ids.get(name).cloned().unwrap_or_else(|| format!("{}.{name}", a.workload))
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
@@ -78,7 +79,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         for m in spec.mounts.iter_mut().filter(|m| !m.volume.is_empty()) {
             let v = volumes.and_then(|vs| vs.iter().find(|v| v.name == m.volume));
             let request = helper::EnsureVolumeRequest {
-                volume: volume_id(&a.workload, &m.volume, v.and_then(|v| v.existing.as_deref())),
+                volume: volume_id(a, &m.volume),
                 workload: a.workload.clone(),
                 storage_class: v.map(|v| v.storage_class.clone()).unwrap_or_default(),
                 size_bytes: v.map_or(0, |v| v.size_bytes),

@@ -122,7 +122,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             "create_volume" | "attach_volume" => {
                 let name = detail(s, "volume").unwrap_or_default();
                 let request = helper::EnsureVolumeRequest {
-                    volume: volume_id(&a.workload, name, detail(s, "existing")),
+                    volume: volume_id(a, name),
                     workload: a.workload.clone(),
                     storage_class: detail(s, "storage_class").unwrap_or_default().to_owned(),
                     size_bytes: number(s, "size_bytes"),

@@ -55,6 +55,9 @@ pub struct Request<'a> {
     /// Whether an edge tier serves it, which decides what a declared `stable` endpoint
     /// resolves to and so what it needs of a node (§3 of docs/07-networking.md).
     pub edge_tier: bool,
+    /// Each existing volume the intent attaches, with the node holding it: a node-local volume
+    /// is reachable from its node alone (§7 of docs/06-storage.md).
+    pub volumes: &'a [(Uuid, Uuid)],
 }
 
 /// A workload's existing placement.
@@ -113,13 +116,15 @@ pub enum Check {
     Capacity,
     /// Every named storage class is offered.
     StorageClass,
+    /// Every existing volume attached is on the node.
+    Volume,
     /// Every required affinity and anti-affinity rule.
     Affinity,
 }
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -131,6 +136,7 @@ impl Check {
         Self::Taint,
         Self::Capacity,
         Self::StorageClass,
+        Self::Volume,
         Self::Affinity,
     ];
 
@@ -155,6 +161,7 @@ impl Check {
             Self::Taint => "taint",
             Self::Capacity => "capacity",
             Self::StorageClass => "storage_class",
+            Self::Volume => "volume",
             Self::Affinity => "affinity",
         }
     }

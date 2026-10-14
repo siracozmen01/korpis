@@ -1322,7 +1322,9 @@ node's deletion record, which marks the volume deleted rather than removing it (
 `06-storage.md`). Kept, as here, `world` is deleted later by `korpis volume delete`: a plan of
 kind `delete_volume` for `mc-testing`, retired, approved by a person, and carried to `fra-3` by a
 residual assignment that leases nothing and leaves the set once the plan is applied (§4.8 of
-`02-architecture.md`).
+`02-architecture.md`). Or a new workload attaches it with `existing`: declared against it, it is
+claimed when that workload's target is approved, placed on `fra-3` because its disk is there, and
+mounted from the same directory (§7 of `06-storage.md`).
 
 **FINDING 30: A retained volume was listed by nothing. `CONFIRMED`**
 
