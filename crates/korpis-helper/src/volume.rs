@@ -113,6 +113,8 @@ impl Class {
         identifier("volume", volume)?;
         let path = self.path_of(volume);
         let existed = existing_dir(&path)?;
+        // Its snapshots hold its data too, and go with it.
+        self.drop_snapshots(volume)?;
         if existed {
             let subvolume = std::fs::symlink_metadata(&path)?.ino() == btrfs::SUBVOLUME_INODE;
             if self.backend() == Backend::Btrfs && subvolume {

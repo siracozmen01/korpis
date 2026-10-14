@@ -79,6 +79,28 @@ impl Helper {
                     .ensure(&r.workload, IdRange { base: r.uid_base, count: r.uid_count })?;
                 Answer::EnsureIdRange(Box::default())
             }
+            Verb::SnapshotVolume(r) => {
+                let created = self.holding(&r.volume)?.snapshot(&r.volume, &r.snapshot)?;
+                Answer::SnapshotVolume(Box::new(helper::SnapshotVolumeResponse {
+                    created,
+                    ..Default::default()
+                }))
+            }
+            Verb::RollbackVolume(r) => {
+                self.holding(&r.volume)?.rollback(&r.volume, &r.snapshot)?;
+                Answer::RollbackVolume(Box::default())
+            }
+            Verb::DeleteSnapshot(r) => {
+                let deleted = match self.holding(&r.volume) {
+                    Ok(c) => c.delete_snapshot(&r.volume, &r.snapshot)?,
+                    Err(HelperError::NotFound(_)) => false,
+                    Err(e) => return Err(e),
+                };
+                Answer::DeleteSnapshot(Box::new(helper::DeleteSnapshotResponse {
+                    deleted,
+                    ..Default::default()
+                }))
+            }
             Verb::DescribeStorage(_) => {
                 let classes = self.classes.iter().map(Class::describe).collect();
                 Answer::DescribeStorage(Box::new(helper::DescribeStorageResponse {

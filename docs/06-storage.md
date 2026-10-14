@@ -259,6 +259,17 @@ A snapshot is a cheap local rollback point and the mechanism that makes backup n
 is not protection against losing the node. Korpis names them differently and never presents a
 snapshot as a backup.
 
+**On the node, as built (btrfs).** The helper takes a snapshot as a read-only snapshot subvolume
+under the class root's `.snapshots/<volume>/`, a directory no volume identifier can name, so a
+snapshot is never mounted into a workload by accident. Rolling a volume back makes it what the
+snapshot holds without a moment in which the volume is missing: a writable copy of the snapshot
+is made beside the volume, the two are exchanged in one `renameat2(RENAME_EXCHANGE)`, and the
+copy, now the old data, is deleted; interrupted anywhere, doing it again ends in the same place.
+The volume's byte limit belongs to its subvolume's qgroup, so it is set again on the new one.
+Deleting a volume deletes its snapshots, which hold its data too. A class that cannot snapshot
+refuses with its backend named. A rollback runs with the workload stopped, which the plan that
+carries it arranges (§7).
+
 ---
 
 ## 5. Backup

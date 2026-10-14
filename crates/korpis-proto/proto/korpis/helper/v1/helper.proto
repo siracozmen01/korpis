@@ -31,6 +31,14 @@ service HelperService {
   rpc EnsureIdRange(EnsureIdRangeRequest) returns (EnsureIdRangeResponse);
   // The storage classes this node offers, with what each enforces (§2 of docs/06-storage.md).
   rpc DescribeStorage(DescribeStorageRequest) returns (DescribeStorageResponse);
+  // Take a read-only snapshot of a volume, in a class that can (§4 of docs/06-storage.md).
+  // Idempotent by volume and snapshot.
+  rpc SnapshotVolume(SnapshotVolumeRequest) returns (SnapshotVolumeResponse);
+  // Make a volume what one of its snapshots holds, keeping its limits. Reached only from an
+  // approved, irreversible plan step, with the workload stopped.
+  rpc RollbackVolume(RollbackVolumeRequest) returns (RollbackVolumeResponse);
+  // Remove one snapshot of a volume. Reached only from an approved, irreversible plan step.
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (DeleteSnapshotResponse);
 }
 
 // One request, as the transport carries it.
@@ -41,6 +49,9 @@ message HelperRequest {
     VolumeUsageRequest volume_usage = 3;
     EnsureIdRangeRequest ensure_id_range = 4;
     DescribeStorageRequest describe_storage = 5;
+    SnapshotVolumeRequest snapshot_volume = 6;
+    RollbackVolumeRequest rollback_volume = 7;
+    DeleteSnapshotRequest delete_snapshot = 8;
   }
 }
 
@@ -52,6 +63,9 @@ message HelperResponse {
     VolumeUsageResponse volume_usage = 3;
     EnsureIdRangeResponse ensure_id_range = 4;
     DescribeStorageResponse describe_storage = 5;
+    SnapshotVolumeResponse snapshot_volume = 6;
+    RollbackVolumeResponse rollback_volume = 7;
+    DeleteSnapshotResponse delete_snapshot = 8;
     HelperError error = 15;
   }
 }
@@ -94,6 +108,32 @@ message EnsureVolumeResponse {
   bool quota_enforced = 3;
   // The class it is in: the one asked for, or the helper's default when none was.
   string storage_class = 4;
+}
+
+message SnapshotVolumeRequest {
+  string volume = 1;
+  // The snapshot's identifier, unique within the volume.
+  string snapshot = 2;
+}
+
+message SnapshotVolumeResponse {
+  bool created = 1;
+}
+
+message RollbackVolumeRequest {
+  string volume = 1;
+  string snapshot = 2;
+}
+
+message RollbackVolumeResponse {}
+
+message DeleteSnapshotRequest {
+  string volume = 1;
+  string snapshot = 2;
+}
+
+message DeleteSnapshotResponse {
+  bool deleted = 1;
 }
 
 message DeleteVolumeRequest {

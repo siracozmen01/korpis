@@ -36,6 +36,7 @@ const WRITE: u64 = 1;
 const READ: u64 = 2;
 const IOC_TREE_SEARCH: libc::c_ulong = ioc(READ | WRITE, 17, 4096);
 const IOC_INO_LOOKUP: libc::c_ulong = ioc(READ | WRITE, 18, 4096);
+const IOC_SNAP_CREATE_V2: libc::c_ulong = ioc(WRITE, 23, 4096);
 const IOC_SUBVOL_CREATE_V2: libc::c_ulong = ioc(WRITE, 24, 4096);
 const IOC_QGROUP_LIMIT: libc::c_ulong = ioc(READ, 43, 48);
 const IOC_SNAP_DESTROY_V2: libc::c_ulong = ioc(WRITE, 63, 4096);
@@ -115,6 +116,27 @@ pub fn create_subvolume(parent: &File, name: &str) -> io::Result<()> {
     ioctl(parent, IOC_SUBVOL_CREATE_V2, &mut named(name)?)
 }
 
+/// A snapshot of the subvolume `source`, made as `name` in the directory `parent`: read-only, or
+/// writable to become a volume again.
+pub fn snapshot(source: &File, parent: &File, name: &str, read_only: bool) -> io::Result<()> {
+    /// `BTRFS_SUBVOL_RDONLY`.
+    const RDONLY: u64 = 1 << 1;
+    let mut args = named(name)?;
+    let fd = u64::try_from(source.as_raw_fd()).map_err(|_| io::Error::other("descriptor"))?;
+    put(&mut args, 0, fd);
+    put(&mut args, 16, if read_only { RDONLY } else { 0 });
+    ioctl(parent, IOC_SNAP_CREATE_V2, &mut args)
+}
+
+/// The byte limit on what subvolume `id` references, zero for none, whatever the accounting's
+/// state: a limit is configuration, kept even while usage is not believed.
+pub fn limit_of(root: &File, id: u64) -> io::Result<u64> {
+    Ok(quota_items(root, QGROUP_LIMIT, Some(id))?
+        .first()
+        .filter(|(_, i)| le(i, 0) & LIMIT_MAX_RFER != 0)
+        .map_or(0, |(_, i)| le(i, 8)))
+}
+
 /// Deletes subvolume `name` in the directory `parent`, and everything in it.
 pub fn destroy_subvolume(parent: &File, name: &str) -> io::Result<()> {
     ioctl(parent, IOC_SNAP_DESTROY_V2, &mut named(name)?)
@@ -188,11 +210,7 @@ pub fn usage(root: &File, id: u64) -> io::Result<Option<(u64, u64)>> {
         return Ok(None);
     }
     let referenced = quota_items(root, QGROUP_INFO, Some(id))?.first().map_or(0, |(_, i)| le(i, 8));
-    let limit = quota_items(root, QGROUP_LIMIT, Some(id))?
-        .first()
-        .filter(|(_, i)| le(i, 0) & LIMIT_MAX_RFER != 0)
-        .map_or(0, |(_, i)| le(i, 8));
-    Ok(Some((referenced, limit)))
+    Ok(Some((referenced, limit_of(root, id)?)))
 }
 
 #[cfg(test)]
@@ -202,6 +220,7 @@ mod tests {
     #[test]
     fn the_request_numbers_are_the_kernels() {
         assert_eq!(IOC_SUBVOL_CREATE_V2, 0x5000_9418);
+        assert_eq!(IOC_SNAP_CREATE_V2, 0x5000_9417);
         assert_eq!(IOC_SNAP_DESTROY_V2, 0x5000_943F);
         assert_eq!(IOC_QGROUP_LIMIT, 0x8030_942B);
         assert_eq!(IOC_TREE_SEARCH, 0xD000_9411);

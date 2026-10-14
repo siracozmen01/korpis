@@ -19,5 +19,6 @@ pub mod ids;
 pub mod projects;
 pub mod quota;
 pub mod serve;
+pub mod snapshot;
 pub mod storage;
 pub mod volume;

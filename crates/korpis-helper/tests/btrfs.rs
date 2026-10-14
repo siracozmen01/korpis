@@ -111,3 +111,50 @@ fn without_qgroups_a_btrfs_class_enforces_nothing() {
     assert_eq!(class.backend(), Backend::Directory, "it says what it cannot do");
     assert!(!class.describe().capabilities.into_option().unwrap().quota_enforced);
 }
+
+#[test]
+fn a_rollback_restores_what_the_snapshot_held_and_keeps_the_limit() {
+    let Some(dir) = scratch() else { return };
+    let Some(m) = mounted(dir.path(), true) else { return };
+    let mut class = Class::open("snap", &m.0.join("volumes")).unwrap();
+    let r = helper::EnsureVolumeRequest {
+        volume: "wl_s.data".into(),
+        size_bytes: 8 << 20,
+        ..Default::default()
+    };
+    let vol = PathBuf::from(class.ensure(&r).unwrap().host_path);
+    std::fs::write(vol.join("world"), "day one").unwrap();
+    assert!(class.snapshot("wl_s.data", "snp_1").unwrap());
+    assert!(!class.snapshot("wl_s.data", "snp_1").unwrap(), "taken once");
+    std::fs::write(vol.join("world"), "griefed").unwrap();
+    std::fs::write(vol.join("since"), "x").unwrap();
+
+    class.rollback("wl_s.data", "snp_1").unwrap();
+    assert_eq!(std::fs::read_to_string(vol.join("world")).unwrap(), "day one");
+    assert!(!vol.join("since").exists(), "what was written since is gone");
+    assert!(std::fs::OpenOptions::new().write(true).open(vol.join("world")).is_ok(), "writable");
+    assert!(Command::new("sync").status().unwrap().success());
+    assert_eq!(class.usage("wl_s.data").unwrap().limit_bytes, 8 << 20, "its limit kept");
+    class.rollback("wl_s.data", "snp_1").unwrap();
+    assert_eq!(std::fs::read_to_string(vol.join("world")).unwrap(), "day one", "again, same");
+
+    assert!(class.snapshot("wl_s.data", "snp_2").unwrap());
+    assert!(class.delete_snapshot("wl_s.data", "snp_1").unwrap());
+    assert!(!class.delete_snapshot("wl_s.data", "snp_1").unwrap(), "already gone");
+    assert!(class.delete("wl_s.data").unwrap());
+    let snapshots = m.0.join("volumes/.snapshots/wl_s.data");
+    assert!(!snapshots.exists(), "a volume's snapshots go with it");
+}
+
+#[test]
+fn a_class_that_cannot_snapshot_says_so() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut class = Class::open("plain", &dir.path().join("volumes")).unwrap();
+    if class.backend() != Backend::Directory {
+        return;
+    }
+    let r = helper::EnsureVolumeRequest { volume: "wl_d.data".into(), ..Default::default() };
+    class.ensure(&r).unwrap();
+    let refused = class.snapshot("wl_d.data", "snp_1").unwrap_err();
+    assert!(refused.to_string().contains("cannot snapshot"), "{refused}");
+}
