@@ -179,7 +179,7 @@ async fn a_fetch_is_kept_only_when_it_hashes_to_what_was_declared_and_fetched_on
 async fn a_recipe_s_files_are_fetched_with_their_paths_and_kept_by_digest() {
     let repo = crate::support::push_paper().await;
     let registry = registry();
-    let tags = korpis_recipe::registry::Registry::new(vec![registry.clone()]);
+    let tags = korpis_recipe::registry::Registry::new(vec![registry.clone()]).unwrap();
     let digest = tags.resolve(&repo, "1.21.4").await.unwrap();
     let dir = tempfile::tempdir().unwrap();
     let store = ContentStore::open(&dir.path().join("content"), vec![registry]).unwrap();
@@ -221,4 +221,27 @@ async fn a_fetch_never_reaches_the_node_s_own_or_private_networks_unless_the_ope
     assert!(allowed.fetch_url(&hop, &digest).await.is_err(), "a redirect is checked too");
     assert_eq!(count.load(Ordering::SeqCst), 1, "and is not followed");
     allowed.fetch_url(&url, &digest).await.unwrap();
+}
+
+#[tokio::test]
+async fn an_image_from_a_registry_on_the_node_s_own_network_is_pulled_only_when_allowed() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let at = listener.local_addr().unwrap();
+    let connections = std::sync::Arc::new(AtomicUsize::new(0));
+    let counted = std::sync::Arc::clone(&connections);
+    tokio::spawn(async move {
+        while let Ok((s, _)) = listener.accept().await {
+            counted.fetch_add(1, Ordering::SeqCst);
+            drop(s);
+        }
+    });
+    let image = format!("{at}/internal/thing@{}", sha(b"x", false));
+    let dir = tempfile::tempdir().unwrap();
+    let store = ContentStore::open(&dir.path().join("content"), Vec::new()).unwrap();
+    assert!(store.fetch(&image).await.is_err());
+    assert_eq!(connections.load(Ordering::SeqCst), 0, "nothing reached it");
+    let allowed = store.reaching(loopback_v4()).unwrap();
+    assert!(allowed.fetch(&image).await.is_err(), "it is no registry");
+    assert!(connections.load(Ordering::SeqCst) > 0, "but it was reached");
 }

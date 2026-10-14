@@ -27,6 +27,9 @@ rules=(
     # The backup format is read by a job on the node and by the control plane: the repository
     # messages and an object store, and nothing else of ours.
     "korpis-backup||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent connectrpc sqlx"
+    # Where requests made on a tenant's behalf may go: a policy, a resolver, and a proxy, used by
+    # the control plane and the node alike, so nothing of either.
+    "korpis-egress||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-recipe connectrpc sqlx"
     # The install worker runs beside one workload's volumes: the domain's install vocabulary and
     # templates, and no RPC stack, runtime, network client, or store.
     "korpis-install||korpis-app korpis-wire korpis-store korpis-server korpis-agent connectrpc tokio sqlx hyper reqwest"

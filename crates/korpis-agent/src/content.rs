@@ -83,10 +83,10 @@ impl AsyncWrite for Capped {
     }
 }
 
-pub mod reach;
 mod url;
 
-pub use reach::Reach;
+use korpis_egress::Proxy;
+pub use korpis_egress::Reach;
 
 /// The content store.
 pub struct ContentStore {
@@ -96,6 +96,10 @@ pub struct ContentStore {
     /// For an install's `fetch` (§4 of docs/09-recipes.md), and where it may go.
     http: reqwest::Client,
     reach: Reach,
+    /// What the registry client connects through, so a registry a recipe names is reached only
+    /// where `reach` permits; and the registries the operator named, which it may reach anyway.
+    _proxy: Proxy,
+    plain_http: Vec<String>,
 }
 
 impl std::fmt::Debug for ContentStore {
@@ -114,34 +118,55 @@ fn hex_digest(hash: Sha256) -> String {
     })
 }
 
+/// A registry client reaching what `reach` permits through a proxy of its own, speaking HTTPS to
+/// every registry but those in `plain_http`, which the operator named.
+fn registry_client(reach: &Reach, plain_http: &[String]) -> std::io::Result<(Client, Proxy)> {
+    let proxy = Proxy::start(reach.clone(), plain_http.to_vec())?;
+    let protocol = if plain_http.is_empty() {
+        ClientProtocol::Https
+    } else {
+        ClientProtocol::HttpsExcept(plain_http.to_vec())
+    };
+    let config = ClientConfig {
+        protocol,
+        https_proxy: Some(proxy.url().to_owned()),
+        http_proxy: Some(proxy.url().to_owned()),
+        ..ClientConfig::default()
+    };
+    // `Client::new` would build a client without the proxy if this failed; this one refuses.
+    let client = Client::try_from(config).map_err(std::io::Error::other)?;
+    Ok((client, proxy))
+}
+
 impl ContentStore {
     /// The store under `root`, fetching over HTTPS from every registry but those named in
-    /// `plain_http`, which are development registries on loopback.
+    /// `plain_http`, which are development registries on loopback, and reaching only the public
+    /// internet and those.
+    ///
+    /// # Errors
+    /// Its directories cannot be made, or its clients built.
     pub fn open(root: &Path, plain_http: Vec<String>) -> std::io::Result<Self> {
+        Self::open_reaching(root, plain_http, Reach::default())
+    }
+
+    /// The store, reaching `reach` as well, for an install's `fetch` and for registries alike:
+    /// the public internet, and the networks the operator allows.
+    ///
+    /// # Errors
+    /// Its clients cannot be built.
+    pub fn reaching(self, reach: Reach) -> std::io::Result<Self> {
+        Self::open_reaching(&self.root, self.plain_http, reach)
+    }
+
+    fn open_reaching(root: &Path, plain_http: Vec<String>, reach: Reach) -> std::io::Result<Self> {
         std::fs::create_dir_all(root.join("blobs/sha256"))?;
         std::fs::create_dir_all(root.join("blobs/sha512"))?;
         std::fs::create_dir_all(root.join("ingest"))?;
         let _ = rustls::crypto::ring::default_provider().install_default();
-        let protocol = if plain_http.is_empty() {
-            ClientProtocol::Https
-        } else {
-            ClientProtocol::HttpsExcept(plain_http)
-        };
-        let client = Client::new(ClientConfig { protocol, ..ClientConfig::default() });
-        let reach = Reach::default();
+        let (client, proxy) = registry_client(&reach, &plain_http)?;
         let http = url::client(&reach).map_err(std::io::Error::other)?;
-        Ok(Self { root: root.to_owned(), client, auth: RegistryAuth::Anonymous, http, reach })
-    }
-
-    /// The store, with an install's `fetch` reaching `reach`: the public internet, and the
-    /// networks the operator allows.
-    ///
-    /// # Errors
-    /// The client cannot be built.
-    pub fn reaching(mut self, reach: Reach) -> std::io::Result<Self> {
-        self.http = url::client(&reach).map_err(std::io::Error::other)?;
-        self.reach = reach;
-        Ok(self)
+        let auth = RegistryAuth::Anonymous;
+        Ok(Self { root: root.to_owned(), client, auth, http, reach, _proxy: proxy, plain_http })
     }
 
     /// Where the blob `digest` is, or would be.

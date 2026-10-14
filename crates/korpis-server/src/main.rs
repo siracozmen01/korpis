@@ -62,6 +62,11 @@ struct ServeArgs {
     /// loopback. Repeatable.
     #[arg(long = "plain-http-registry")]
     plain_http_registries: Vec<String>,
+    /// A network a registry a recipe names may be on besides the public internet, as a CIDR, for
+    /// a private mirror; repeatable. Loopback, private, and link-local addresses are otherwise
+    /// refused (§3 of docs/17-security.md).
+    #[arg(long = "fetch-allow")]
+    fetch_allow: Vec<ipnet::IpNet>,
     /// The installation's placement policy: a `korpis.v1.PlacementPolicy` in JSON. Without
     /// it, `balanced` with every weight 1 (§2.2 of docs/05-scheduling.md).
     #[arg(long, env = "KORPIS_PLACEMENT_POLICY")]
@@ -221,6 +226,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         listen: args.listen,
         max_connections: args.max_connections,
         plain_http_registries: args.plain_http_registries,
+        fetch_allow: args.fetch_allow,
         placement_policy: policy,
         placement_retry: Duration::from_secs(args.placement_retry_secs.max(1)),
         watch_resync: Duration::from_secs(args.watch_resync_secs.max(1)),

@@ -1851,7 +1851,8 @@ asked the algebra question of step 3: what decides where this connects, and with
 The decision is made by the resolver the connection uses, over every address a name resolves to,
 so a name that passes cannot connect elsewhere; an address written in the URL is checked before
 anything is sent, and every redirect the same way. Pulling from a registry a recipe names is the
-same class and is not yet bounded; `17-security.md` §3 says so until it is. → patched into
+same class, and was bounded the same day, through a proxy the registry client is given because it
+takes no resolver (`17-security.md` §3). → patched into
 `09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3 and §9
 
 † Step 3 is where Finding 48 was.

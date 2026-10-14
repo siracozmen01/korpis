@@ -295,7 +295,7 @@ async fn declared(
     set: &SetArgs,
 ) -> Result<(), CliError> {
     let c = cli.required()?;
-    let registry = Registry::new(cli.plain_http.clone());
+    let registry = Registry::client_side(cli.plain_http.clone());
     let out = files::run(&c, &registry, files::Run { paths, ids, propose, set }).await?;
     if cli.json {
         let plans: Vec<&pb::Plan> = out.plans.iter().map(|(_, p)| p).collect();

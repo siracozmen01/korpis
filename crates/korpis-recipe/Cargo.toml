@@ -13,11 +13,12 @@ default = ["source"]
 # The registry client and the recipe source port it implements: the control plane's and the
 # CLI's. Off, the crate is the document format and the artifact layout alone, which is what a
 # runtime driver links to read the recipe manifest it is handed.
-source = ["dep:korpis-app", "korpis-core/trust", "dep:oci-client", "dep:p256", "dep:rustls"]
+source = ["dep:korpis-app", "dep:korpis-egress", "korpis-core/trust", "dep:oci-client", "dep:p256", "dep:rustls"]
 
 [dependencies]
 korpis-app = { workspace = true, optional = true }
 korpis-core = { workspace = true }
+korpis-egress = { workspace = true, optional = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"], optional = true }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"], optional = true }
 serde = { version = "1", features = ["derive"] }

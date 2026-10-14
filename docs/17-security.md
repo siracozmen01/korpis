@@ -63,12 +63,21 @@ network. Korpis makes such requests wherever a recipe names a source, so each is
 address, not by URL: a recipe's `fetch` reaches only the public internet and the networks the
 operator names, checked at resolution and at every redirect (§4 of `09-recipes.md`).
 
-> **Not yet held, 2026-10-15.** Pulling a recipe, or an image, from a registry a recipe or a
-> declaration names is not yet bounded the same way: the control plane, resolving a recipe, and
-> the node's content store, fetching one, connect to whatever address the registry's name
-> resolves to. A registry reference is narrower than a URL (the requests are the registry
-> protocol's), but it is the same class, and it is the next change made to the content store and
-> the recipe resolver. This note is removed when it is.
+Pulling a recipe or an image from a registry a recipe or a declaration names is bounded the same
+way, by the control plane resolving a recipe and by the node fetching one. The registry client
+takes no resolver of its own, so it is given a proxy instead: one on loopback, inside the same
+process, that asks a credential made when it starts and applies the same policy to every
+connection it makes, tunnelled HTTPS and forwarded plain HTTP alike. A token endpoint or a
+redirect to a content delivery network that a registry names passes through it too, so a registry
+cannot point the client anywhere the recipe could not. The registries the operator names as
+development registries over plain HTTP are reached wherever they are; each process takes the same
+`--fetch-allow` for a private mirror's network (§3 of `18-operations.md`). What it costs: every
+registry connection passes through one more hop inside the process, and a registry on a private
+network has to be named by the operator. The CLI's registry client is not bounded, because its
+requests are its user's, made from its user's machine.
+
+> Bounded 2026-10-15. A note here said registry pulls were not yet bounded; the change that
+> bounded them is the one that removed it.
 
 Two rules follow, and they are P3 and K-2:
 

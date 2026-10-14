@@ -36,6 +36,7 @@ config:
         files: Vec::new(),
     };
     korpis_recipe::registry::Registry::new(vec![registry()])
+        .unwrap()
         .push(&repo, "1.0.0", &artifact)
         .await
         .unwrap();
@@ -77,6 +78,7 @@ impl ControlPlane {
             database_url: db.owner_url.clone(),
             listen: "127.0.0.1:0".parse().unwrap(),
             max_connections: 4,
+            fetch_allow: Vec::new(),
             plain_http_registries: vec![registry()],
             placement_policy: korpis_core::schedule::PlacementPolicy::default(),
             placement_retry: Duration::from_millis(200),

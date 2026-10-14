@@ -107,7 +107,7 @@ async fn push(name: &str, document: String) -> String {
         std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
     let repo = format!("{registry}/test/{name}-{}", uuid::Uuid::now_v7().simple());
     let artifact = Artifact { document: document.into_bytes(), files: Vec::new() };
-    Registry::new(vec![registry]).push(&repo, VERSION, &artifact).await.unwrap();
+    Registry::new(vec![registry]).unwrap().push(&repo, VERSION, &artifact).await.unwrap();
     repo
 }
 

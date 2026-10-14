@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Which addresses an install's `fetch` may reach (§4 of docs/09-recipes.md). The URL is the
-//! recipe's, and a recipe is anyone's, so without this a recipe could make the node send requests
-//! to its own loopback, to the cloud's metadata service, or into the operator's private network,
-//! and read what is there from whether the fetch succeeds. Only addresses on the public internet
-//! are reached, unless the operator names a network a private mirror is on. Every address a name
-//! resolves to is checked by the resolver the connection then uses, so a name cannot pass the
-//! check and connect elsewhere, and every redirect is checked the same way.
+//! Which addresses a request made on a tenant's behalf may reach: the public internet, and the
+//! networks the operator names. The policy, and the resolver a `reqwest` client uses to apply it:
+//! every address a name resolves to is checked by the resolver the connection then uses, so a name
+//! cannot pass the check and connect elsewhere.
 
 use ipnet::IpNet;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
-/// The networks a fetch may reach beyond the public internet: the operator's, by name.
+/// The networks a request may reach beyond the public internet: the operator's, by name.
 #[derive(Debug, Clone, Default)]
 pub struct Reach {
     allowed: Arc<Vec<IpNet>>,
@@ -26,7 +23,7 @@ impl Reach {
         Self { allowed: Arc::new(allowed) }
     }
 
-    /// Whether a fetch may connect to `ip`.
+    /// Whether a request may connect to `ip`.
     #[must_use]
     pub fn permits(&self, ip: IpAddr) -> bool {
         public(ip) || self.allowed.iter().any(|n| n.contains(&ip))
@@ -34,7 +31,10 @@ impl Reach {
 
     /// Whether a URL may be fetched, for what its host says before any name is resolved: an
     /// address written in the URL is checked here, a name where it is resolved.
-    pub(super) fn url(&self, url: &reqwest::Url) -> Result<(), String> {
+    ///
+    /// # Errors
+    /// The URL names an address that may not be reached, or no host.
+    pub fn url(&self, url: &reqwest::Url) -> Result<(), String> {
         match url.host() {
             Some(::url::Host::Ipv4(ip)) => self.address(IpAddr::V4(ip)),
             Some(::url::Host::Ipv6(ip)) => self.address(IpAddr::V6(ip)),
@@ -43,7 +43,11 @@ impl Reach {
         }
     }
 
-    fn address(&self, ip: IpAddr) -> Result<(), String> {
+    /// Whether `ip` may be reached, as an error saying why not.
+    ///
+    /// # Errors
+    /// It may not.
+    pub fn address(&self, ip: IpAddr) -> Result<(), String> {
         if self.permits(ip) {
             Ok(())
         } else {
@@ -52,26 +56,52 @@ impl Reach {
     }
 }
 
+impl Reach {
+    /// The addresses `host` resolves to that may be reached, with `port`; an error when there are
+    /// none, naming the host and not what it resolved to.
+    ///
+    /// # Errors
+    /// It does not resolve, or resolves to no address that may be reached.
+    pub async fn addresses(&self, host: &str, port: u16) -> std::io::Result<Vec<SocketAddr>> {
+        let found = tokio::net::lookup_host((host, port)).await?;
+        let kept: Vec<SocketAddr> = found.filter(|a| self.permits(a.ip())).collect();
+        if kept.is_empty() {
+            return Err(std::io::Error::other(format!(
+                "{host} resolves to no address on the public internet nor on a network the \
+                 operator allows"
+            )));
+        }
+        Ok(kept)
+    }
+}
+
 impl Resolve for Reach {
     fn resolve(&self, name: Name) -> Resolving {
         let reach = self.clone();
         Box::pin(async move {
-            let host = name.as_str().to_owned();
-            let found: Vec<SocketAddr> =
-                tokio::net::lookup_host((host.as_str(), 0)).await?.collect();
-            let kept: Vec<SocketAddr> =
-                found.iter().copied().filter(|a| reach.permits(a.ip())).collect();
-            if kept.is_empty() {
-                let refused = format!(
-                    "{host} resolves to no address on the public internet nor on a network \
-                     the operator allows"
-                );
-                return Err(refused.into());
-            }
+            let kept = reach.addresses(name.as_str(), 0).await?;
             let addrs: Addrs = Box::new(kept.into_iter());
             Ok(addrs)
         })
     }
+}
+
+/// A redirect policy for a client reaching only what `reach` permits: at most ten redirects, each
+/// to `http` or `https` at an address that may be reached. A name is checked when it is resolved.
+#[must_use]
+pub fn redirects(reach: &Reach) -> reqwest::redirect::Policy {
+    let reach = reach.clone();
+    reqwest::redirect::Policy::custom(move |attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("more than ten redirects")
+        } else if !matches!(attempt.url().scheme(), "http" | "https") {
+            attempt.error("a redirect to neither http nor https")
+        } else if let Err(e) = reach.url(attempt.url()) {
+            attempt.error(e)
+        } else {
+            attempt.follow()
+        }
+    })
 }
 
 /// Whether `ip` is a unicast address on the public internet.

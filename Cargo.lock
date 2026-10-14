@@ -2155,6 +2155,7 @@ dependencies = [
  "korpis-app",
  "korpis-backup",
  "korpis-core",
+ "korpis-egress",
  "korpis-extension",
  "korpis-proto",
  "korpis-recipe",
@@ -2175,7 +2176,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
- "url",
  "uuid",
 ]
 
@@ -2349,6 +2349,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-egress"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "getrandom 0.4.3",
+ "ipnet",
+ "reqwest",
+ "rustls",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "korpis-extension"
 version = "0.0.0"
 dependencies = [
@@ -2436,6 +2450,7 @@ version = "0.0.0"
 dependencies = [
  "korpis-app",
  "korpis-core",
+ "korpis-egress",
  "korpis-store",
  "oci-client",
  "p256",
@@ -2470,6 +2485,7 @@ dependencies = [
  "korpis-app",
  "korpis-backup",
  "korpis-core",
+ "korpis-egress",
  "korpis-extension",
  "korpis-proto",
  "korpis-recipe",

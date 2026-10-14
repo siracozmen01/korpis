@@ -29,6 +29,7 @@ korpis-app = { workspace = true }
 # docs/06-storage.md).
 korpis-backup = { path = "../korpis-backup" }
 korpis-core = { workspace = true, features = ["authz", "identity"] }
+korpis-egress = { workspace = true }
 # Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
 korpis-extension = { workspace = true }
 korpis-proto = { workspace = true, features = ["client", "services"] }

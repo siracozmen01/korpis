@@ -8,8 +8,8 @@
 //! What the hash does not protect is the request itself, so where it may go is bounded by
 //! [`Reach`]: the public internet, and the networks the operator names.
 
-use super::reach::Reach;
 use super::{ContentStore, FetchError};
+use korpis_egress::{Reach, redirects};
 use sha2::{Digest as _, Sha256, Sha512};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,24 +25,12 @@ pub const MAX_FETCH: u64 = 256 << 30;
 /// byte and between bytes, names resolved only to addresses `reach` permits, and at most ten
 /// redirects, each to a URL `reach` permits.
 pub(super) fn client(reach: &Reach) -> Result<reqwest::Client, String> {
-    let hops = reach.clone();
-    let redirect = reqwest::redirect::Policy::custom(move |attempt| {
-        if attempt.previous().len() >= 10 {
-            attempt.error("more than ten redirects")
-        } else if !matches!(attempt.url().scheme(), "http" | "https") {
-            attempt.error("a redirect to neither http nor https")
-        } else if let Err(e) = hops.url(attempt.url()) {
-            attempt.error(e)
-        } else {
-            attempt.follow()
-        }
-    });
     reqwest::Client::builder()
         .no_proxy()
         .connect_timeout(Duration::from_secs(30))
         .read_timeout(Duration::from_secs(120))
         .dns_resolver(Arc::new(reach.clone()))
-        .redirect(redirect)
+        .redirect(redirects(reach))
         .build()
         .map_err(|e| e.to_string())
 }

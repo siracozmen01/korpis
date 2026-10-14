@@ -30,7 +30,7 @@ pub async fn push_document(document: &str) -> String {
 
 /// Pushes `document` to `repo` as `tag`, signed; returns its digest.
 pub async fn push_version(repo: &str, tag: &str, document: &str) -> String {
-    let registry = Registry::new(vec![registry_address()]);
+    let registry = Registry::new(vec![registry_address()]).unwrap();
     let artifact = Artifact { document: document.as_bytes().to_vec(), files: Vec::new() };
     let digest = registry.push(repo, tag, &artifact).await.unwrap();
     registry.sign(repo, &digest, &test_key()).await.unwrap();

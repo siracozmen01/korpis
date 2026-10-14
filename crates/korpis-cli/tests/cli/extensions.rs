@@ -18,6 +18,7 @@ async fn push_dns() -> String {
     let artifact =
         korpis_recipe::artifact::Artifact { document: DNS.as_bytes().to_vec(), files: Vec::new() };
     korpis_recipe::registry::Registry::new(vec![registry()])
+        .unwrap()
         .push(&repo, "1.0.0", &artifact)
         .await
         .unwrap();

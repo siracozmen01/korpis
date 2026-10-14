@@ -31,6 +31,7 @@ use korpis_app::App;
 use korpis_app::node::SessionTerms;
 use korpis_app::ports::SystemClock;
 use korpis_core::schedule::PlacementPolicy;
+use korpis_egress::Reach;
 use korpis_recipe::registry::Registry;
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -52,6 +53,9 @@ pub struct ServeConfig {
     /// Registries spoken to over plain HTTP, as `host:port`: development registries on
     /// loopback only. Every other registry is HTTPS.
     pub plain_http_registries: Vec<String>,
+    /// Networks a registry a recipe names may be on besides the public internet, for a private
+    /// mirror (§3 of docs/17-security.md).
+    pub fetch_allow: Vec<ipnet::IpNet>,
     /// The installation's placement policy (§2.2 of docs/05-scheduling.md).
     pub placement_policy: PlacementPolicy,
     /// How often workloads no node could take are tried again.
@@ -138,7 +142,10 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.ensure_partitions(3).await?;
     tokio::spawn(prune_events(store.clone(), config.event_retention));
     let keys = keys::Keys::load_or_create(&config.data)?;
-    let recipes = RegistrySource::new(Registry::new(config.plain_http_registries.clone()));
+    let reach = Reach::with(config.fetch_allow.clone());
+    let registry = Registry::reaching(config.plain_http_registries.clone(), reach)
+        .map_err(|e| ServeError::Serve(format!("the registry client: {e}")))?;
+    let recipes = RegistrySource::new(registry);
     let terms = SessionTerms {
         heartbeat_interval: config.heartbeat_interval,
         lease_term: config.lease_term,

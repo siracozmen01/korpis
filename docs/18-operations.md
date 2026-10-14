@@ -195,13 +195,14 @@ exactly as it is and writes what the journal still counts in memory; the next st
 `--driver-socket` (`/run/korpis/driver-oci.sock`), and the helper on `--helper-socket`
 (`/run/korpis/helper.sock`); `--driver memory` runs nothing, for trying the agent alone. The
 node's content store is under its state directory, in `content`, and a development registry
-spoken to over plain HTTP is named with `--plain-http`. A recipe's `fetch` reaches only the public
-internet (§4 of `09-recipes.md`); a mirror on a private network is named with `--fetch-allow`, a
-CIDR, repeatable. What the node offers for inbound traffic
-is `--advertise-address`, repeatable, for an address clients reach it at that it cannot see
-itself (a router forwarding to it, or a LAN address), and `--ports`, the range its endpoints'
-ports are allocated from (30000-32767 by default); both are measured before anything relies on
-them (§9 of `07-networking.md`).
+spoken to over plain HTTP is named with `--plain-http`. A recipe's `fetch`, and a pull from a
+registry a recipe names, reach only the public internet (§4 of `09-recipes.md`, §3 of
+`17-security.md`); a mirror on a private network is named with `--fetch-allow`, a CIDR,
+repeatable, which the control plane takes too for the registries it resolves recipes from. What
+the node offers for inbound traffic is `--advertise-address`, repeatable, for an address clients
+reach it at that it cannot see itself (a router forwarding to it, or a LAN address), and
+`--ports`, the range its endpoints' ports are allocated from (30000-32767 by default); both are
+measured before anything relies on them (§9 of `07-networking.md`).
 
 The container tier is a separate process, `korpis-driver-oci`, run as its own user with access to
 containerd's socket and to nothing else the agent holds (§6.1 of `02-architecture.md`). It serves
@@ -544,9 +545,11 @@ Recipes and extensions are OCI artifacts in ordinary registries (§2 of `09-reci
 air-gapped install mirrors a registry (a solved problem with existing tools) rather than needing a
 bespoke offline bundle format. Digest pinning means a mirrored artifact is verifiably the same
 artifact. A recipe's `fetch` is mirrored the same way, by any HTTP server holding the files: the
-hash, not the URL, is what is checked, so the mirror's address goes in place of the original, and
-the node's agent is told with `--fetch-allow` that the mirror's network may be reached, because a
-fetch reaches no private address otherwise (§4 of `09-recipes.md`). Nothing in the control
+hash, not the URL, is what is checked, so the mirror's address goes in place of the original. A
+mirror on a private network is named to the control plane and to every node's agent with
+`--fetch-allow`, because neither reaches a private address on a recipe's behalf otherwise (§4 of
+`09-recipes.md`, §3 of `17-security.md`); a mirror the operator already names as a development
+registry over plain HTTP needs nothing more. Nothing in the control
 plane requires outbound internet access, and telemetry is off by default (§6 of
 `15-observability.md`).
 

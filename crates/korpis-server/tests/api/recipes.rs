@@ -33,7 +33,7 @@ pub async fn push_unsigned_paper() -> (String, String) {
             file("templates/server.properties", b"motd={{motd}}\n"),
         ],
     };
-    let registry = Registry::new(vec![registry_address()]);
+    let registry = Registry::new(vec![registry_address()]).unwrap();
     let digest = registry.push(&repo, "1.21.4", &artifact).await.unwrap();
     (repo, digest)
 }
@@ -41,7 +41,7 @@ pub async fn push_unsigned_paper() -> (String, String) {
 /// Pushes the example signed by `key`; returns the repository and the digest.
 pub async fn push_paper_signed_by(key: &p256::ecdsa::SigningKey) -> (String, String) {
     let (repo, digest) = push_unsigned_paper().await;
-    Registry::new(vec![registry_address()]).sign(&repo, &digest, key).await.unwrap();
+    Registry::new(vec![registry_address()]).unwrap().sign(&repo, &digest, key).await.unwrap();
     (repo, digest)
 }
 

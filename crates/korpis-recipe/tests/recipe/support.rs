@@ -15,7 +15,7 @@ pub fn address() -> String {
 }
 
 pub fn registry() -> Registry {
-    Registry::new(vec![address()])
+    Registry::new(vec![address()]).unwrap()
 }
 
 /// A repository no other test uses.

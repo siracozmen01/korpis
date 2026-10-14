@@ -1,0 +1,27 @@
+[package]
+name = "korpis-egress"
+description = "Where Korpis's own outbound requests on a tenant's behalf may go: the public internet and the networks the operator names, enforced at resolution, at every redirect, and by a proxy for clients that take no resolver"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+getrandom = "0.4"
+ipnet = "2"
+reqwest = { version = "0.13", default-features = false }
+tokio = { workspace = true }
+tracing = "0.1"
+url = "2"
+
+[dev-dependencies]
+reqwest = { version = "0.13", default-features = false }
+# A client is built in the tests, and in a workspace build reqwest has no provider of its own.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+tokio = { workspace = true }
