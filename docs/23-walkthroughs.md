@@ -858,6 +858,17 @@ with a measured forwarding path fails visibly, and its dependents become `unsati
 edge named. Recorded anyway, because it is the case that shows why the measurement has to be
 through the forwarding path and not from the process.
 
+Running relays as their own process put Finding 21's question to the relay tier on 2026-10-14:
+what knows that a relay has failed, and with what information? Not one component, and it is
+better that way. The replica feeding a relay records each look at the feed, so `ListRelays`
+shows a relay whose feed went quiet as not connected within ninety seconds; a node's data
+connection to it drops and is dialled again with backoff; a client whose session ended opens the
+next through another relay `ServerInfo` lists. Nothing fails over because no relay is primary,
+and nothing is concentrated the way an edge concentrates addresses: every node attaches to every
+relay, so a failed relay costs the sessions it carried and nothing else (§5 of
+`18-operations.md`). What the measurement does not see is a relay whose feed is healthy and whose
+listener is not; the balancer's health check in front of the relays is the measurement for that.
+
 ---
 
 ## 14. A provider answers, slowly

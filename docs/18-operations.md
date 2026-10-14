@@ -240,20 +240,20 @@ URL's host, issued by the installation's authority, which agents and the CLI alr
 trust has to be distributed for it. The certificate lives ninety days, shortened per relay by up to
 nine so relays that joined together do not expire together (§7). The relay renews it itself at
 about two thirds of its life, shifted by up to a day by its identifier: it makes a fresh TLS key,
-asks with `RelayControlService.Renew` signed by its identity key over that key, writes the new
-key, chain, and expiry as a generation of their own, points its directory at it, and serves it
-from the next handshake without a restart. A renewal that stops half way leaves the generation
-before in service. The authority's issuing is an effect of its own (`relay.certificate_renew`,
-by `system:authority`). `ListRelays` shows each relay with its certificate's expiry and whether it is connected, and
-`RemoveRelay` removes one: it is named to no node and told nothing more, and the certificate it
-holds stays valid until it expires, since the installation does not revoke certificates. A joined
-relay runs with `korpis-server relay run`, listening by default on every IPv4 address at its URL's
-port (`--listen` overrides it), and stops on its own once the control plane refuses its feed.
-Behind a load balancer, both `relay run` and `serve` take `--proxy-protocol-from` with the
-balancer's addresses, which must then write a PROXY header on every connection (§3.1 of
-`02-architecture.md`). Where
-relays carry the sessions, `korpis-server serve --relay-role false` takes the role off the
-control plane, so nodes attach to the relays alone.
+asks with `RelayControlService.Renew` signed by its identity key over that key, writes the new key,
+chain, and expiry as a generation of their own, points its directory at it, and serves it from the
+next handshake without a restart. A renewal that stops half way leaves the generation before in
+service. The authority's issuing is an effect of its own (`relay.certificate_renew`, by
+`system:authority`). `ListRelays` shows each relay with its certificate's expiry and whether it is
+connected, and `RemoveRelay` removes one: it is named to no node and told nothing more, and the
+certificate it holds stays valid until it expires, since the installation does not revoke
+certificates. A joined relay runs with `korpis-server relay run`, listening by default on every
+IPv4 address at its URL's port (`--listen` overrides it), and stops on its own once the control
+plane refuses its feed. Behind a load balancer, both `relay run` and `serve` take
+`--proxy-protocol-from` with the balancer's addresses, which must then write a PROXY header on
+every connection (§3.1 of `02-architecture.md`). Where relays carry the sessions, `korpis-server
+serve --relay-role false` takes the role off the control plane, so nodes attach to the relays
+alone.
 
 ---
 
@@ -358,6 +358,21 @@ machine there is no edge tier and no `stable` mode; endpoints are `node_bound`, 
 behaves identically because nothing can move. The single-machine constraint of §1 is not violated
 by an option that only exists at scale, and the option is not pretended into existence where it
 cannot hold.
+
+**Relays.** A relay holds no state of its own: it verifies by what its feed sends, and the
+sessions it carries live only as long as their streams (§3.1 of `02-architecture.md`). So
+availability is a matter of running several, and every node keeps a data connection to each, so
+any relay a client reaches can carry a session with any connected node. Losing a relay ends the
+sessions it was carrying; a client opens the next through another relay `ServerInfo` lists, and
+the streams it reads resume from their last offset (§2 of `14-streams.md`). Nothing has to fail
+over, because no relay is primary. What a relay depends on is its feed: with the control plane
+unreachable it keeps verifying by the last of each it received, which is the outage behaviour
+§4.6 of `02-architecture.md` states, and it renews its certificate only when the control plane
+is back, which the third of the certificate's life left at renewal makes a wide margin. Several
+relays behind one balancer are reached by one address; the balancer's health check of a relay is
+a TCP connection, or with PROXY enabled a header of the `LOCAL` command, which the relay treats
+as the balancer's own connection. On one machine the control plane's own relay role is the only
+relay, and its availability is the control plane's.
 
 **The control plane can be entirely absent and workloads keep running.** §4.6 of
 `02-architecture.md` guarantees it, and it is the reason disaster recovery here is a recovery
