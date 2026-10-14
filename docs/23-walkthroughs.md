@@ -28,7 +28,8 @@ seventy-nine findings changed the mechanics several of these traces cross.
 §18 is a fifteenth trace, written from the implementation in October 2026 when deletion was
 built, and its finding is numbered on from the first fourteen. Finding 25 came from re-running
 §4 when recipe trust was built, and Finding 26 from extending §6 when the agent's journal was
-built; each is numbered on from the one before.
+built; each is numbered on from the one before. §19 is a sixteenth trace, written when snapshots
+were built, and Findings 28 to 31 came from the implementation of streams and volumes.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1019,6 +1020,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 28 | The last segment of a retired workload's console was refused | §18 | `14-streams.md` §4 |
 | 29 | A client who may not read the node could not reach the workload | §11 | `02-architecture.md` §3.1, `08-identity.md` §6 |
 | 30 | A retained volume was listed by nothing | §18 | `06-storage.md` §7, `01-model.md` §3.6 |
+| 31 | A rollback under a running workload replaces what it has open | §19 | `06-storage.md` §4, §7 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1344,3 +1346,39 @@ workload left). Retiring the workload detaches its volumes in the transaction th
 lists them, a size shown only where the class enforces it. → patched into `06-storage.md` §7 and
 `01-model.md` §3.6
 
+---
+
+## 19. A griefed world is rolled back
+
+Written 2026-10-14, from the implementation, when snapshots were built. A moderator of
+`mc-survival`, whose volume `world` is on `fra-3` in a btrfs class, takes a snapshot before a
+plugin update; a griefer then burns half the map, and the moderator rolls back.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis volume snapshot vol_… before-update`: the control plane reads the class of `world` on `fra-3` from what the node's `Hello` declared; it declares `snapshot`, so a plan of kind `snapshot_volume` is proposed under `volume.snapshot.create` on the volume | `06-storage.md` §2, §4; `10-api.md` §5 |
+| 2 | Its one step changes nothing the workload sees, so it applies at once, and it is a plan of `mc-survival`, which holds the volume | `01-model.md` §3.3; `06-storage.md` §7 |
+| 3 | `mc-survival` runs on `fra-3`, so its own assignment carries the step; the helper takes a read-only snapshot under the class's `.snapshots/`, and the node journals it after the helper answers | `02-architecture.md` §4.8, §4.10; `06-storage.md` §4 |
+| 4 | The control plane keeps the snapshot from that report, believed from a node that held the workload's lease, and lists it on the volume | `01-model.md` §3.6; `06-storage.md` §4 |
+| 5 | `korpis volume rollback snp_…` proposes, under `volume.snapshot.rollback`, an irreversible plan: stop, roll back, start ‡ | `10-api.md` §5; `06-storage.md` §4 |
+| 6 | It waits for a person; once approved it is carried like any plan, its steps executed in order under the lease | `01-model.md` §3.3; `02-architecture.md` §4.8 |
+| 7 | The helper makes a writable copy of the snapshot, exchanges it with the volume in one rename, deletes the old data, and sets the volume's byte limit on the new subvolume; started again, the workload runs on the map as it was | `06-storage.md` §3, §4 |
+| 8 | Deleting the snapshot later is its own irreversible plan under `volume.snapshot.delete`; deleting the volume would have taken its snapshots with it | `06-storage.md` §4, §7 |
+
+**FINDING 31: A rollback under a running workload replaces what it has open. `CONFIRMED`**
+
+§4 of `06-storage.md` called a snapshot "a cheap local rollback point" and said nothing of what
+the workload is doing while it is rolled back to. Asked what evaluates the rollback, and where,
+the answer was the helper, swapping the volume's directory on the node, under a container that
+has that directory mounted and files in it open. The running server keeps writing to the old
+data through what it holds, and the new data is what it finds when it next opens a file: two
+worlds, neither the snapshot.
+
+**Resolution.** A rollback of a volume a running workload holds is a plan of three steps, stop,
+roll back, start, so the swap happens with nothing holding the volume, and starting builds the
+workload's mounts again from the volume's path, which is now the snapshot's copy. A volume no
+workload runs on is rolled back alone. → patched into `06-storage.md` §4 and §7
+
+‡ Step 5 is where the trace found Finding 31.

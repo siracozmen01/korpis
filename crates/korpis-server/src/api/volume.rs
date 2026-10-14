@@ -10,15 +10,105 @@ use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::idempotency::Idempotent;
 use korpis_app::volume::ListVolumes;
 use korpis_core::id::IdKind;
+use korpis_core::value::Value;
 use korpis_core::workload::Plan;
+use korpis_core::workload::plan::VolumeOp;
 use korpis_proto::korpis::v1 as pb;
-use korpis_wire::volume::volume_to_pb;
+use korpis_wire::volume::{snapshot_to_pb, volume_to_pb};
+use korpis_wire::wire_id;
 
 fn proposed(p: &Plan) -> pb::DeleteVolumeResponse {
     pb::DeleteVolumeResponse { plan: plan_to_pb(p).into(), ..Default::default() }
 }
 
+/// The snapshot a plan taking one takes, by the identifier it gave it.
+fn taken(p: &Plan) -> String {
+    let id = p.steps.iter().find_map(|s| match s.detail.get("snapshot_id") {
+        Some(Value::String(id)) => uuid::Uuid::parse_str(id).ok(),
+        _ => None,
+    });
+    id.map(|id| wire_id(IdKind::Snapshot, id)).unwrap_or_default()
+}
+
+fn snapshotting(p: &Plan) -> pb::CreateSnapshotResponse {
+    pb::CreateSnapshotResponse {
+        plan: plan_to_pb(p).into(),
+        snapshot: taken(p),
+        ..Default::default()
+    }
+}
+
+fn rolling_back(p: &Plan) -> pb::RollbackVolumeResponse {
+    pb::RollbackVolumeResponse { plan: plan_to_pb(p).into(), ..Default::default() }
+}
+
+fn deleting_snapshot(p: &Plan) -> pb::DeleteSnapshotResponse {
+    pb::DeleteSnapshotResponse { plan: plan_to_pb(p).into(), ..Default::default() }
+}
+
 impl pb::VolumeService for Api {
+    async fn create_snapshot(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::CreateSnapshotRequest>,
+    ) -> ServiceResult<pb::CreateSnapshotResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Volume, "volume", &req.volume).refuse()?;
+        let encoder = |p: &Plan| encode(&snapshotting(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let asked = (id, req.name.as_str());
+        let reply =
+            self.app.create_snapshot(&caller, &idem, asked).await.map_err(error::from_app)?;
+        respond(reply, snapshotting)
+    }
+
+    async fn list_snapshots(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListSnapshotsRequest>,
+    ) -> ServiceResult<pb::ListSnapshotsResponse> {
+        let caller = self.caller(&ctx).await?;
+        let id = wire::id(IdKind::Volume, "volume", request.volume).refuse()?;
+        let listed = self.app.list_snapshots(&caller, id, request.include_deleted).await;
+        let listed = listed.map_err(error::from_app)?;
+        Response::ok(pb::ListSnapshotsResponse {
+            snapshots: listed.iter().map(snapshot_to_pb).collect(),
+            ..Default::default()
+        })
+    }
+
+    async fn rollback_volume(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RollbackVolumeRequest>,
+    ) -> ServiceResult<pb::RollbackVolumeResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Snapshot, "snapshot", &req.snapshot).refuse()?;
+        let encoder = |p: &Plan| encode(&rolling_back(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.on_snapshot(&caller, &idem, (id, VolumeOp::Rollback)).await;
+        respond(reply.map_err(error::from_app)?, rolling_back)
+    }
+
+    async fn delete_snapshot(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::DeleteSnapshotRequest>,
+    ) -> ServiceResult<pb::DeleteSnapshotResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Snapshot, "id", &req.id).refuse()?;
+        let encoder = |p: &Plan| encode(&deleting_snapshot(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.on_snapshot(&caller, &idem, (id, VolumeOp::DeleteSnapshot)).await;
+        respond(reply.map_err(error::from_app)?, deleting_snapshot)
+    }
+
     async fn delete_volume(
         &self,
         ctx: RequestContext,

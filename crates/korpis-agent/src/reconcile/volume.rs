@@ -6,13 +6,15 @@
 //! there; one ensured whose record did not reach the journal fails the step or the build that
 //! asked for it, and the retry, ensuring it again, reports it.
 
-use super::Reconciler;
-use super::act::Failure;
-use crate::host::Host;
+use super::act::{Failure, volume_id};
+use super::step::{After, detail, flag, number};
+use super::{Reconciler, text};
+use crate::host::{Host, SnapshotOp};
 use crate::runtime::Runtime;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::helper::v1 as helper;
+use korpis_proto::korpis::v1 as pb;
 
 /// Why a volume exists, as its report says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,6 +78,91 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             ..Default::default()
         })
         .await
+    }
+
+    /// Executes one of a plan's volume steps; what it leaves behind.
+    pub(super) async fn volume_step(
+        &mut self,
+        a: &agent::Assignment,
+        s: &pb::Step,
+    ) -> Result<After, Failure> {
+        let mut after = After::new();
+        let name = detail(s, "volume").unwrap_or_default();
+        // The helper's identifier as the node reported it, which the control plane put in the
+        // step; never one derived again from the name.
+        let reported = || {
+            detail(s, "helper_id")
+                .ok_or_else(|| Failure("the step names no helper identifier".into()))
+        };
+        match s.action.as_str() {
+            "create_volume" | "attach_volume" => {
+                let request = helper::EnsureVolumeRequest {
+                    volume: volume_id(a, name),
+                    workload: a.workload.clone(),
+                    storage_class: detail(s, "storage_class").unwrap_or_default().to_owned(),
+                    size_bytes: number(s, "size_bytes"),
+                    ..Default::default()
+                };
+                let made = self.ensure_volume(name, Why::Declared, &request).await?;
+                after.insert("volume".into(), text(&request.volume));
+                after.insert("created".into(), text(if made.created { "true" } else { "false" }));
+            }
+            // A node-local volume is mounted by the runtime object, so it is detached when the
+            // object is next rebuilt or destroyed; its data is retained.
+            "detach_volume" => {
+                after.insert("applies_at".into(), text("the next rebuild of the runtime object"));
+            }
+            "delete_volume" => {
+                let why = if flag(s, "stream") { Why::Stream } else { Why::Declared };
+                self.delete_volume(&a.workload, (name, why), reported()?).await?;
+                after.insert("volume".into(), text(reported()?));
+            }
+            action => {
+                let op = match action {
+                    "snapshot_volume" => SnapshotOp::Take,
+                    "rollback_volume" => SnapshotOp::Rollback,
+                    "delete_snapshot" => SnapshotOp::Delete,
+                    other => return Err(Failure(format!("not a volume step: {other:?}"))),
+                };
+                let snapshot = detail(s, "snapshot_id")
+                    .ok_or_else(|| Failure("the step names no snapshot".into()))?;
+                let named = (detail(s, "snapshot").unwrap_or_default(), snapshot);
+                self.on_snapshot(&a.workload, op, reported()?, named).await?;
+                after.insert("snapshot".into(), text(snapshot));
+            }
+        }
+        Ok(after)
+    }
+
+    /// Does `op` to snapshot `snapshot` (its name, then its identifier) of the volume the helper
+    /// knows as `volume`, made for `workload`, and reports it.
+    async fn on_snapshot(
+        &self,
+        workload: &str,
+        op: SnapshotOp,
+        volume: &str,
+        (name, snapshot): (&str, &str),
+    ) -> Result<(), Failure> {
+        self.host.snapshot(op, volume, snapshot).await?;
+        let event = match op {
+            SnapshotOp::Take => agent::SnapshotEventKind::SNAPSHOT_EVENT_KIND_TAKEN,
+            SnapshotOp::Rollback => agent::SnapshotEventKind::SNAPSHOT_EVENT_KIND_ROLLED_BACK,
+            SnapshotOp::Delete => agent::SnapshotEventKind::SNAPSHOT_EVENT_KIND_DELETED,
+        };
+        let e = agent::SnapshotEvent {
+            workload: workload.to_owned(),
+            volume: volume.to_owned(),
+            snapshot: snapshot.to_owned(),
+            name: name.to_owned(),
+            event: event.into(),
+            ..Default::default()
+        };
+        self.wiring
+            .journal
+            .append(Body::Snapshot(Box::new(e)))
+            .await
+            .map(|_| ())
+            .map_err(|e| Failure(format!("snapshot {snapshot} could not be reported: {e}")))
     }
 
     async fn report_volume(&self, e: agent::VolumeEvent) -> Result<(), Failure> {

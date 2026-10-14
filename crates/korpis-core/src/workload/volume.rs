@@ -66,6 +66,8 @@ pub struct Volume {
     pub detached_at: Option<SystemTime>,
     /// When it was deleted, data and all.
     pub deleted_at: Option<SystemTime>,
+    /// Its live snapshots, oldest first.
+    pub snapshots: Vec<Uuid>,
 }
 
 impl Volume {
@@ -107,6 +109,60 @@ pub struct ReportedVolume {
     pub kind: VolumeKind,
 }
 
+/// A snapshot of a volume (§4 of docs/06-storage.md): a point the volume can be rolled back to,
+/// on the volume's node and filesystem, and so no protection against losing either.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Snapshot {
+    /// Immutable; the helper knows it by its wire form.
+    pub id: Uuid,
+    /// The volume it is of.
+    pub volume: Uuid,
+    /// Its name, unique among the volume's live snapshots.
+    pub name: String,
+    /// When its node took it.
+    pub created: SystemTime,
+    /// When it was deleted.
+    pub deleted_at: Option<SystemTime>,
+}
+
+/// What happened to a snapshot on its node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SnapshotEvent {
+    /// It was taken, or found already taken.
+    Taken,
+    /// Its volume was rolled back to it.
+    RolledBack,
+    /// It was deleted.
+    Deleted,
+}
+
+impl SnapshotEvent {
+    /// The action its effect records.
+    #[must_use]
+    pub const fn action(self) -> &'static str {
+        match self {
+            Self::Taken => "volume.snapshot.taken",
+            Self::RolledBack => "volume.snapshot.rolled_back",
+            Self::Deleted => "volume.snapshot.deleted",
+        }
+    }
+}
+
+/// What a node reports of a snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportedSnapshot {
+    /// The workload whose plan it was.
+    pub workload: Uuid,
+    /// The helper's identifier of the volume.
+    pub volume: String,
+    /// The snapshot.
+    pub snapshot: Uuid,
+    /// Its name, for the record.
+    pub name: String,
+    /// What happened.
+    pub event: SnapshotEvent,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +184,7 @@ mod tests {
             created: SystemTime::UNIX_EPOCH,
             detached_at: None,
             deleted_at: None,
+            snapshots: Vec::new(),
         };
         assert_eq!(v.shown_size(), None);
         v.quota_enforced = true;

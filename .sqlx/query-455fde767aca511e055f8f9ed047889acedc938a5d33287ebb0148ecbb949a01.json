@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE snapshot SET deleted_at = $3\n                      WHERE id = $1 AND volume_id = $2 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "455fde767aca511e055f8f9ed047889acedc938a5d33287ebb0148ecbb949a01"
+}

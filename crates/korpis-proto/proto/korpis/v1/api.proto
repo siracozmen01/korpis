@@ -486,6 +486,56 @@ service VolumeService {
   // Proposes deleting a retained volume no workload holds: a plan of one irreversible step,
   // which always waits for a person (§7 of docs/06-storage.md).
   rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
+  // Proposes taking a snapshot of a volume, in a class that can, under volume.snapshot.create.
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+  // A volume's snapshots; deleted ones only when asked for.
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Proposes making a volume what a snapshot holds, under volume.snapshot.rollback: what was
+  // written since is lost, so the plan always waits for a person.
+  rpc RollbackVolume(RollbackVolumeRequest) returns (RollbackVolumeResponse);
+  // Proposes deleting a snapshot, under volume.snapshot.delete; it always waits for a person.
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (DeleteSnapshotResponse);
+}
+
+message CreateSnapshotRequest {
+  Mutation mutation = 1;
+  string volume = 2;
+  string name = 3;
+}
+
+message CreateSnapshotResponse {
+  Plan plan = 1;
+  // The snapshot the plan takes, by the identifier it will have.
+  string snapshot = 2;
+}
+
+message ListSnapshotsRequest {
+  string volume = 1;
+  bool include_deleted = 2;
+}
+
+message ListSnapshotsResponse {
+  repeated Snapshot snapshots = 1;
+}
+
+message RollbackVolumeRequest {
+  Mutation mutation = 1;
+  string snapshot = 2;
+}
+
+message RollbackVolumeResponse {
+  Plan plan = 1;
+}
+
+message DeleteSnapshotRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteSnapshotResponse {
+  Plan plan = 1;
 }
 
 message DeleteVolumeRequest {

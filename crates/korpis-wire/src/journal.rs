@@ -113,6 +113,9 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
         B::Volume(v) => {
             Body::Volume(crate::volume::reported_from_pb(&format!("{field}.volume"), v)?)
         }
+        B::Snapshot(s) => {
+            Body::Snapshot(crate::volume::snapshot_from_pb(&format!("{field}.snapshot"), s)?)
+        }
     })
 }
 

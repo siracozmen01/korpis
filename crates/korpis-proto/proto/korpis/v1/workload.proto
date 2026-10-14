@@ -269,8 +269,9 @@ message Plan {
   Scope approval_scope = 20;
   // Workload.power_target when computed, by version; 0 when none was approved.
   uint64 from_power = 21;
-  // Required iff kind is delete_volume: the volume it deletes. The plan's workload is the one
-  // that created the volume.
+  // Required iff the plan operates on a volume (delete_volume, snapshot_volume, rollback_volume,
+  // delete_snapshot): that volume. The plan's workload is the one holding it, or the one that
+  // created it when none does.
   optional string to_volume = 22;
 }
 
@@ -291,6 +292,12 @@ enum PlanKind {
   PLAN_KIND_MIGRATE = 4;
   // Deleting one retained volume no workload holds (§7 of docs/06-storage.md).
   PLAN_KIND_DELETE_VOLUME = 5;
+  // Taking a snapshot of a volume (§4 of docs/06-storage.md).
+  PLAN_KIND_SNAPSHOT_VOLUME = 6;
+  // Making a volume what one of its snapshots holds.
+  PLAN_KIND_ROLLBACK_VOLUME = 7;
+  // Deleting one snapshot of a volume.
+  PLAN_KIND_DELETE_SNAPSHOT = 8;
 }
 
 enum PlanStatus {

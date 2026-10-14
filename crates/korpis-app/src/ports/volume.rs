@@ -5,7 +5,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::workload::volume::{ReportedVolume, Volume};
+use korpis_core::workload::volume::{ReportedSnapshot, ReportedVolume, Snapshot, Volume};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -24,6 +24,32 @@ pub trait VolumeRead {
         deleted: bool,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Volume>>> + Send;
+}
+
+/// Reading snapshots.
+pub trait SnapshotRead {
+    /// A snapshot, deleted or not.
+    fn snapshot(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Snapshot>>> + Send;
+
+    /// A volume's snapshots, oldest first; deleted ones only when `deleted`.
+    fn snapshots(
+        &self,
+        volume: Uuid,
+        deleted: bool,
+    ) -> impl Future<Output = StoreResult<Vec<Snapshot>>> + Send;
+}
+
+/// Writing snapshots.
+pub trait SnapshotWrite {
+    /// Records what `node` reports of a snapshot, at `now`: taken is kept on its first report,
+    /// in the volume the node's helper knows by that identifier; deleted is marked so; a
+    /// rollback changes no snapshot. False if the node holds no such live volume.
+    fn record_snapshot(
+        &mut self,
+        node: Uuid,
+        reported: &ReportedSnapshot,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 }
 
 /// Writing volumes.

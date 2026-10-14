@@ -27,6 +27,7 @@ struct VolumeRow {
     created_at: chrono::DateTime<chrono::Utc>,
     detached_at: Option<chrono::DateTime<chrono::Utc>>,
     deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+    snapshots: Vec<Uuid>,
 }
 
 impl VolumeRow {
@@ -50,6 +51,7 @@ impl VolumeRow {
             created: to_time(self.created_at),
             detached_at: self.detached_at.map(to_time),
             deleted_at: self.deleted_at.map(to_time),
+            snapshots: self.snapshots,
         })
     }
 }
@@ -58,9 +60,14 @@ impl VolumeRead for PgStore {
     async fn volume(&self, id: Uuid) -> StoreResult<Option<Volume>> {
         let row = sqlx::query_as!(
             VolumeRow,
-            "SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
-                    storage_class, size_bytes, quota_enforced, created_at, detached_at, deleted_at
-               FROM volume WHERE id = $1",
+            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
+                      storage_class, size_bytes, quota_enforced, created_at, detached_at,
+                      deleted_at,
+                      ARRAY(SELECT s.id FROM snapshot s
+                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL
+                             ORDER BY s.id) AS "snapshots!"
+                 FROM volume
+                WHERE id = $1"#,
             id
         )
         .fetch_optional(&self.pool)
@@ -78,14 +85,18 @@ impl VolumeRead for PgStore {
     ) -> StoreResult<Vec<Volume>> {
         let rows = sqlx::query_as!(
             VolumeRow,
-            "SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
-                    storage_class, size_bytes, quota_enforced, created_at, detached_at, deleted_at
-               FROM volume
-              WHERE project_id = $1
-                AND ($2::uuid IS NULL OR created_by = $2 OR attached_to = $2)
-                AND ($3 OR deleted_at IS NULL)
-                AND ($4::uuid IS NULL OR id > $4)
-              ORDER BY id LIMIT $5",
+            r#"SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,
+                      storage_class, size_bytes, quota_enforced, created_at, detached_at,
+                      deleted_at,
+                      ARRAY(SELECT s.id FROM snapshot s
+                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL
+                             ORDER BY s.id) AS "snapshots!"
+                 FROM volume
+                WHERE project_id = $1
+                  AND ($2::uuid IS NULL OR created_by = $2 OR attached_to = $2)
+                  AND ($3 OR deleted_at IS NULL)
+                  AND ($4::uuid IS NULL OR id > $4)
+                ORDER BY id LIMIT $5"#,
             project,
             workload,
             deleted,
@@ -126,6 +137,20 @@ impl VolumeWrite for PgTx {
                 if v.kind == VolumeKind::Stream {
                     stream_gone(self, node, v.workload).await?;
                 }
+                // Its snapshots were deleted with it.
+                sqlx::query!(
+                    "UPDATE snapshot SET deleted_at = $3
+                      WHERE deleted_at IS NULL
+                        AND volume_id IN (SELECT id FROM volume
+                                           WHERE node_id = $1 AND helper_id = $2
+                                             AND deleted_at IS NULL)",
+                    node,
+                    v.helper_id,
+                    from_time(now)
+                )
+                .execute(&mut *self.tx)
+                .await
+                .map_err(from_sqlx)?;
                 sqlx::query!(
                     "UPDATE volume SET deleted_at = $3, attached_to = NULL,
                                        detached_at = coalesce(detached_at, $3)

@@ -270,6 +270,19 @@ Deleting a volume deletes its snapshots, which hold its data too. A class that c
 refuses with its backend named. A rollback runs with the workload stopped, which the plan that
 carries it arranges (§7).
 
+**In the control plane, as built.** A snapshot is an object of its own (§3.6 of `01-model.md`),
+kept from what the node reports it did, never from what was asked. Each operation is a plan on the
+volume (§7): `korpis volume snapshot` proposes one of a single `snapshot_volume` step under
+`volume.snapshot.create`, refused before any plan exists where the volume's class does not declare
+`snapshot`, with the class and its backend named; it changes nothing a workload sees and applies
+at once. `korpis volume rollback` proposes, under `volume.snapshot.rollback`, a plan that stops
+the holding workload, rolls the volume back, and starts it again when the workload runs, because a
+rollback replaces the directory the running workload has open; what was written since is lost, so
+the step is irreversible and the plan waits for a person. `korpis volume delete-snapshot` is the
+same, under `volume.snapshot.delete`. A snapshot's name is unique among its volume's live
+snapshots. What this does not do yet: snapshot on a schedule, keep a retention, or take one by
+itself before an update; each is a plan someone, or something holding the authority, proposes.
+
 ---
 
 ## 5. Backup
@@ -621,6 +634,12 @@ the runtime that mounted them is removed, deletes each named volume by its own `
 step, irreversible by the vocabulary's floor (§3.3 of `01-model.md`), so the plan always waits for a
 person. The step carries the helper's identifier as the node reported it, never one derived again
 from the name. The node deletes, then journals the deletion, and the volume is marked deleted.
+
+**Plans on a volume.** Deleting a retained volume, and taking, rolling back to, and deleting a
+snapshot (§4), are each a plan on the volume rather than a change to a workload, of the workload
+holding the volume or of the one that created it when none holds it. One such plan at a time
+operates on a volume; a second is refused while one is open, and an approval finds a plan
+superseded if the volume went or changed hands meanwhile.
 
 A retained volume no workload holds is deleted by its own plan: `VolumeService.DeleteVolume`
 (`korpis volume delete`, §5 of `13-surface-cli.md`) proposes a plan of kind `delete_volume`

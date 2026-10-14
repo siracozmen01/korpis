@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,\n                    storage_class, size_bytes, quota_enforced, created_at, detached_at, deleted_at\n               FROM volume\n              WHERE project_id = $1\n                AND ($2::uuid IS NULL OR created_by = $2 OR attached_to = $2)\n                AND ($3 OR deleted_at IS NULL)\n                AND ($4::uuid IS NULL OR id > $4)\n              ORDER BY id LIMIT $5",
+  "query": "SELECT id, project_id, created_by, attached_to, name, kind, node_id, helper_id,\n                      storage_class, size_bytes, quota_enforced, created_at, detached_at,\n                      deleted_at,\n                      ARRAY(SELECT s.id FROM snapshot s\n                             WHERE s.volume_id = volume.id AND s.deleted_at IS NULL\n                             ORDER BY s.id) AS \"snapshots!\"\n                 FROM volume\n                WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -156,15 +156,17 @@
             "name": "deleted_at"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "snapshots!",
+        "type_info": "UuidArray",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Bool",
-        "Uuid",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -181,8 +183,9 @@
       false,
       false,
       true,
-      true
+      true,
+      null
     ]
   },
-  "hash": "d6da864d467a0d67ed92faea914bfb9ed98a6f35133f9a85b54f25af19c2ab90"
+  "hash": "d366ff8498e6fd07d85fdbb3bae75b4e3414edc687e0f10d91c5a654675515b5"
 }

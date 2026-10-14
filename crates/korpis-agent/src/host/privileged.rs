@@ -88,6 +88,45 @@ impl HelperClient {
         }
     }
 
+    /// Takes, rolls back to, or removes a snapshot of a volume.
+    pub async fn snapshot(
+        &self,
+        op: super::SnapshotOp,
+        volume: &str,
+        snapshot: &str,
+    ) -> Result<(), HostError> {
+        let (volume, snapshot) = (volume.to_owned(), snapshot.to_owned());
+        let verb = match op {
+            super::SnapshotOp::Take => {
+                Verb::SnapshotVolume(Box::new(helper::SnapshotVolumeRequest {
+                    volume,
+                    snapshot,
+                    ..Default::default()
+                }))
+            }
+            super::SnapshotOp::Rollback => {
+                Verb::RollbackVolume(Box::new(helper::RollbackVolumeRequest {
+                    volume,
+                    snapshot,
+                    ..Default::default()
+                }))
+            }
+            super::SnapshotOp::Delete => {
+                Verb::DeleteSnapshot(Box::new(helper::DeleteSnapshotRequest {
+                    volume,
+                    snapshot,
+                    ..Default::default()
+                }))
+            }
+        };
+        match self.call(verb).await? {
+            Answer::SnapshotVolume(_) | Answer::RollbackVolume(_) | Answer::DeleteSnapshot(_) => {
+                Ok(())
+            }
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the filesystem accounts for a volume.
     pub async fn volume_usage(
         &self,

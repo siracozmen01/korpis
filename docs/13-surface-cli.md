@@ -208,7 +208,10 @@ stream's volume, §4 of `14-streams.md`). Each named volume becomes its own irre
 the runtime is removed, under `volume.delete` on the volume, and the plan view marks those steps
 `IRREVERSIBLE` (§7 of `06-storage.md`). A volume kept by an earlier deletion, whose workload is
 gone, is deleted with `korpis volume delete vol_…`, which proposes a plan of that one step and
-leaves it waiting for a person, like every deletion of data.
+leaves it waiting for a person, like every deletion of data. `korpis volume snapshot vol_… <name>`
+takes a snapshot where the volume's class can, `korpis volume snapshots vol_…` lists them, and
+`korpis volume rollback snp_…` and `korpis volume delete-snapshot snp_…` propose the two that
+lose data, each waiting for a person (§4 of `06-storage.md`).
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

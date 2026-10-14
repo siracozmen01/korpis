@@ -116,6 +116,16 @@ impl TestAgent {
 
     /// A Hello signed at `at` with `nonce`.
     pub fn hello_at(&self, at: SystemTime, nonce: &[u8]) -> agent::AgentMessage {
+        self.hello_with(at, nonce, Vec::new())
+    }
+
+    /// A hello at `at` declaring the storage classes `storage`.
+    pub fn hello_with(
+        &self,
+        at: SystemTime,
+        nonce: &[u8],
+        storage: Vec<pb::StorageClassInfo>,
+    ) -> agent::AgentMessage {
         let since = at.duration_since(UNIX_EPOCH).unwrap();
         let (seconds, nanos) = (i64::try_from(since.as_secs()).unwrap(), since.subsec_nanos());
         let signature = sign(&self.key, &hello_message(&self.node, seconds, nanos, nonce));
@@ -127,6 +137,7 @@ impl TestAgent {
             drivers: node.drivers,
             capacity: node.capacity,
             allocatable: node.allocatable,
+            storage_classes: storage,
             auth: agent::NodeAuth {
                 timestamp: Timestamp {
                     seconds,

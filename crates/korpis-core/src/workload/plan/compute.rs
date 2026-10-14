@@ -3,6 +3,7 @@
 //! Computing a plan's steps: the difference between what the workload was approved to be and
 //! what is now declared, as actions a node and the control plane can execute.
 
+use super::VolumeOp;
 use super::step::{Classifier, Step, StepAction, StepExecutor};
 use crate::object::{Kind, ObjectRef};
 use crate::value::{Value, ValueMap};
@@ -224,6 +225,36 @@ pub fn delete_volume_steps(workload: Uuid, v: &Volume, classifier: Classifier<'_
     let mut b =
         Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
     b.push(StepAction::DeleteVolume, deletion(v), &[]);
+    b.steps
+}
+
+/// The steps of a plan on volume `v` for the snapshot `snapshot` (its identifier and name): take
+/// it; roll the volume back to it, stopping and starting the holding workload around it when it
+/// runs (`running`), because a rollback replaces what the workload has open; or delete it.
+#[must_use]
+pub fn snapshot_steps(
+    workload: Uuid,
+    (v, op): (&Volume, VolumeOp),
+    (snapshot, name): (Uuid, &str),
+    running: bool,
+    classifier: Classifier<'_>,
+) -> Vec<Step> {
+    let mut b =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    let mut detail = deletion(v);
+    detail.insert("snapshot_id".into(), text(&snapshot.to_string()));
+    detail.insert("snapshot".into(), text(name));
+    match op {
+        VolumeOp::Snapshot => b.push(StepAction::SnapshotVolume, detail, &[]),
+        VolumeOp::Rollback if running => {
+            b.push(StepAction::Stop, ValueMap::new(), &[]);
+            b.push(StepAction::RollbackVolume, detail, &[]);
+            b.push(StepAction::Start, ValueMap::new(), &[]);
+        }
+        VolumeOp::Rollback => b.push(StepAction::RollbackVolume, detail, &[]),
+        VolumeOp::DeleteSnapshot => b.push(StepAction::DeleteSnapshot, detail, &[]),
+        VolumeOp::Delete => b.push(StepAction::DeleteVolume, deletion(v), &[]),
+    }
     b.steps
 }
 

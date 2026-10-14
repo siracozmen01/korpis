@@ -8,7 +8,7 @@
 use crate::audit::Outcome;
 use crate::principal::Principal;
 use crate::workload::stream::{Segment, SegmentEvent, StreamKind};
-use crate::workload::volume::ReportedVolume;
+use crate::workload::volume::{ReportedSnapshot, ReportedVolume};
 use serde_json::{Map, Value};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -76,6 +76,9 @@ pub enum Body {
     },
     /// A volume was ensured or deleted on the node (§7 of docs/06-storage.md).
     Volume(ReportedVolume),
+    /// A snapshot was taken, rolled back to, or deleted on the node (§4 of
+    /// docs/06-storage.md).
+    Snapshot(ReportedSnapshot),
     /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
     /// docs/14-streams.md).
     Segment {

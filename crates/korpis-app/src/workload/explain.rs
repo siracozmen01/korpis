@@ -81,10 +81,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         w: &Workload,
         target: Option<&Intent>,
     ) -> Result<Found, AppError> {
+        // Read before the placement, so a bind committed between the two reads is seen as the
+        // placement; an attempt that failed for the intent now placed is then past, and dropped.
         let unplaced = self.store.unplaced(w.id).await?;
         let Some(p) = self.store.placement(w.id).await? else {
             return Ok(Found { placement: None, unplaced });
         };
+        let unplaced = unplaced.filter(|u| u.intent != p.intent);
         let region =
             self.store.node(p.node).await?.and_then(|n| n.labels.as_map().get("region").cloned());
         let tier = if let Some(t) = target.filter(|t| t.id == p.intent) {

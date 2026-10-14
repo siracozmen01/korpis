@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::page::{Page, Paged};
 use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::workload::volume::Volume;
+use korpis_core::workload::volume::{Snapshot, Volume};
 use uuid::Uuid;
 
 /// Which volumes a listing names.
@@ -28,6 +28,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub async fn get_volume(&self, caller: &Caller, id: Uuid) -> Result<Volume, AppError> {
         self.authorize(caller, "volume.read", ObjectRef::new(Kind::Volume, id)).await?;
         self.store.volume(id).await?.ok_or(AppError::NotFound { kind: "volume" })
+    }
+
+    /// A volume's snapshots, oldest first, read under `volume.read` on it.
+    pub async fn list_snapshots(
+        &self,
+        caller: &Caller,
+        volume: Uuid,
+        include_deleted: bool,
+    ) -> Result<Vec<Snapshot>, AppError> {
+        self.authorize(caller, "volume.read", ObjectRef::new(Kind::Volume, volume)).await?;
+        Ok(self.store.snapshots(volume, include_deleted).await?)
     }
 
     /// The volumes of a project, read under `volume.read` on it.

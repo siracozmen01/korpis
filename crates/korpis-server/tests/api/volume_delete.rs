@@ -65,7 +65,7 @@ async fn a_retained_volume_is_deleted_through_a_residual_assignment() {
     assert_eq!(plan.to_volume.as_deref(), Some(id.as_str()));
     assert_eq!(plan.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_PROPOSED), "never auto");
     let e = volumes.delete_volume(delete_volume("again", &id)).await.unwrap_err();
-    assert_eq!(reason(&e), "volume.deleting", "one plan at a time");
+    assert_eq!(reason(&e), "volume.busy", "one plan on a volume at a time");
 
     h.plans(h.root()).approve_plan(approve("a", &plan.id)).await.unwrap();
     let residual = until(&mut s, assignment(|a| a.residual)).await;

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO snapshot (id, volume_id, name, created_at)\n                     VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a47b1ff1d07951ff5bb320b928e1a4c566d86c32cc8cb4bd0bc33e6e183a53bd"
+}

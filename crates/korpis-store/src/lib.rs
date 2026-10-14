@@ -33,6 +33,7 @@ mod recipe;
 mod relay;
 mod session;
 mod set;
+mod snapshot;
 mod stored;
 mod stream;
 mod subscription;

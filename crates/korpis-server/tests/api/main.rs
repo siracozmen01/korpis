@@ -50,6 +50,7 @@ mod revocation;
 mod sdk;
 mod session;
 mod sets;
+mod snapshots;
 mod standalone;
 mod step;
 mod streams;

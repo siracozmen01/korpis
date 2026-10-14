@@ -17,9 +17,9 @@ use crate::ports::{
     AssignmentWrite, Clock, RecipeSource, SealError, Sealed, Store, StoredAssignment, Tx,
     WorkloadWrite,
 };
+use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
-use korpis_core::workload::{Plan, PlanTarget};
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -220,7 +220,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or_else(|| missing("power target"))?;
         let mut here = Vec::new();
         for p in self.store.open_plans(workload).await? {
-            if let PlanTarget::DeleteVolume(v) = p.target
+            if let Some(v) = p.target.volume()
                 && self.store.volume(v).await?.is_some_and(|v| v.node == node)
             {
                 here.push(p);

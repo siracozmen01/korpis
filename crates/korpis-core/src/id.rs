@@ -55,6 +55,8 @@ pub enum IdKind {
     ProviderCall,
     /// A relay of the data path (`rly_`).
     Relay,
+    /// A snapshot of a volume (`snp_`).
+    Snapshot,
 }
 
 impl IdKind {
@@ -83,6 +85,7 @@ impl IdKind {
             Self::Registration => "prv",
             Self::ProviderCall => "pcl",
             Self::Relay => "rly",
+            Self::Snapshot => "snp",
         }
     }
 }

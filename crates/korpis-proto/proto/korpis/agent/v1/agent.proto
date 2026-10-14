@@ -417,6 +417,7 @@ message JournalRecord {
     JournalGap gap = 7;
     StreamSegmentEvent stream_segment = 9;
     VolumeEvent volume = 10;
+    SnapshotEvent snapshot = 11;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;
@@ -462,6 +463,24 @@ message VolumeEvent {
   VolumeEventKind event = 7;
   // A console stream's volume rather than one the workload declared.
   bool stream = 8;
+}
+
+// A snapshot taken, rolled back to, or deleted on this node, after the helper did it (§4 of
+// docs/06-storage.md).
+message SnapshotEvent {
+  string workload = 1;
+  // The helper's identifier of the volume.
+  string volume = 2;
+  string snapshot = 3;
+  string name = 4;
+  SnapshotEventKind event = 5;
+}
+
+enum SnapshotEventKind {
+  SNAPSHOT_EVENT_KIND_UNSPECIFIED = 0;
+  SNAPSHOT_EVENT_KIND_TAKEN = 1;
+  SNAPSHOT_EVENT_KIND_ROLLED_BACK = 2;
+  SNAPSHOT_EVENT_KIND_DELETED = 3;
 }
 
 enum VolumeEventKind {

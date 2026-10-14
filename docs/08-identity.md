@@ -581,7 +581,8 @@ Two consequences are built in:
 
 **Default: grants to set subjects and link-form grants cannot include irreversible actions.** The
 irreversible actions are the ones the action vocabulary marks so (§5 of `10-api.md`): deleting a
-volume, deleting a workload, releasing an address, and pruning backups. They are excluded unless an
+volume, rolling a volume back to a snapshot, deleting a snapshot, deleting a workload, releasing an
+address, and pruning backups. They are excluded unless an
 operator deliberately overrides the default for that binding, having read what it means. The rule
 is enforced at attenuation, by the gateway; a chat client may hide what a user cannot do, as a
 courtesy, and never decides it (finding S35).

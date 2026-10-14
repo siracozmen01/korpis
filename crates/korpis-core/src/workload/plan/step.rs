@@ -24,6 +24,12 @@ pub enum StepAction {
     DetachVolume,
     /// Delete a volume and its data.
     DeleteVolume,
+    /// Take a snapshot of a volume.
+    SnapshotVolume,
+    /// Make a volume what one of its snapshots holds; what was written since is lost.
+    RollbackVolume,
+    /// Delete one snapshot of a volume.
+    DeleteSnapshot,
     /// Create the runtime instance.
     Create,
     /// Start it.
@@ -54,6 +60,9 @@ impl StepAction {
             Self::AttachVolume => "attach_volume",
             Self::DetachVolume => "detach_volume",
             Self::DeleteVolume => "delete_volume",
+            Self::SnapshotVolume => "snapshot_volume",
+            Self::RollbackVolume => "rollback_volume",
+            Self::DeleteSnapshot => "delete_snapshot",
             Self::Create => "create",
             Self::Start => "start",
             Self::Stop => "stop",
@@ -66,12 +75,15 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 14] = [
+    const ALL: [Self; 17] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
         Self::DetachVolume,
         Self::DeleteVolume,
+        Self::SnapshotVolume,
+        Self::RollbackVolume,
+        Self::DeleteSnapshot,
         Self::Create,
         Self::Start,
         Self::Stop,
@@ -94,7 +106,8 @@ impl StepAction {
     #[must_use]
     pub const fn floor(self) -> (bool, bool) {
         match self {
-            Self::DeleteVolume | Self::ReleaseAddress => (true, false),
+            Self::DeleteVolume | Self::ReleaseAddress | Self::RollbackVolume => (true, false),
+            Self::DeleteSnapshot => (false, false),
             Self::Migrate | Self::Retire => (true, true),
             _ => (false, true),
         }

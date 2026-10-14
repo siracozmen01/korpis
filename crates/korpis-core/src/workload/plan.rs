@@ -35,9 +35,46 @@ pub enum PlanTarget {
     Retire,
     /// Another node, with the intent unchanged.
     Migrate,
-    /// Deleting this retained volume, which no workload holds; the plan's workload is the one
-    /// that created it (§7 of docs/06-storage.md).
-    DeleteVolume(Uuid),
+    /// An operation on this volume, apart from any change to the workload: deleting a retained
+    /// volume, or taking, rolling back to, or deleting one of its snapshots. The plan's workload
+    /// is the one holding the volume, or the one that created it when none holds it (§7 of
+    /// docs/06-storage.md).
+    Volume(Uuid, VolumeOp),
+}
+
+/// What a volume plan does to its volume.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VolumeOp {
+    /// Deletes it, data and snapshots.
+    Delete,
+    /// Takes a snapshot of it.
+    Snapshot,
+    /// Makes it what one of its snapshots holds.
+    Rollback,
+    /// Deletes one of its snapshots.
+    DeleteSnapshot,
+}
+
+impl VolumeOp {
+    /// Every operation.
+    pub const ALL: [Self; 4] = [Self::Delete, Self::Snapshot, Self::Rollback, Self::DeleteSnapshot];
+
+    /// The stored kind of a plan doing it.
+    #[must_use]
+    pub const fn kind(self) -> &'static str {
+        match self {
+            Self::Delete => "delete_volume",
+            Self::Snapshot => "snapshot_volume",
+            Self::Rollback => "rollback_volume",
+            Self::DeleteSnapshot => "delete_snapshot",
+        }
+    }
+
+    /// The operation a stored kind names.
+    #[must_use]
+    pub fn parse(kind: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|o| o.kind() == kind)
+    }
 }
 
 impl PlanTarget {
@@ -49,7 +86,16 @@ impl PlanTarget {
             Self::Power(_) => "power",
             Self::Retire => "retire",
             Self::Migrate => "migrate",
-            Self::DeleteVolume(_) => "delete_volume",
+            Self::Volume(_, op) => op.kind(),
+        }
+    }
+
+    /// The volume a volume plan operates on.
+    #[must_use]
+    pub const fn volume(self) -> Option<Uuid> {
+        match self {
+            Self::Volume(v, _) => Some(v),
+            _ => None,
         }
     }
 }

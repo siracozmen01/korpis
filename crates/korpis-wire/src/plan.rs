@@ -6,6 +6,7 @@
 use crate::value::map_to_pb;
 use crate::{duration, principal, scope, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::plan::VolumeOp;
 use korpis_core::workload::plan::{
     Approval, Estimate, Impact, Layer, PlanStatus, ResourceDelta, Step, StepExecutor,
 };
@@ -109,6 +110,15 @@ fn approval(a: &Approval) -> (pb::PlanApproval, Option<pb::Scope>) {
     }
 }
 
+fn volume_kind(op: VolumeOp) -> pb::PlanKind {
+    match op {
+        VolumeOp::Delete => pb::PlanKind::PLAN_KIND_DELETE_VOLUME,
+        VolumeOp::Snapshot => pb::PlanKind::PLAN_KIND_SNAPSHOT_VOLUME,
+        VolumeOp::Rollback => pb::PlanKind::PLAN_KIND_ROLLBACK_VOLUME,
+        VolumeOp::DeleteSnapshot => pb::PlanKind::PLAN_KIND_DELETE_SNAPSHOT,
+    }
+}
+
 /// The wire form of a plan.
 #[must_use]
 pub fn plan_to_pb(p: &Plan) -> pb::Plan {
@@ -117,12 +127,9 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         PlanTarget::Power(v) => (pb::PlanKind::PLAN_KIND_POWER, None, Some(v)),
         PlanTarget::Retire => (pb::PlanKind::PLAN_KIND_RETIRE, None, None),
         PlanTarget::Migrate => (pb::PlanKind::PLAN_KIND_MIGRATE, None, None),
-        PlanTarget::DeleteVolume(_) => (pb::PlanKind::PLAN_KIND_DELETE_VOLUME, None, None),
+        PlanTarget::Volume(_, op) => (volume_kind(op), None, None),
     };
-    let to_volume = match p.target {
-        PlanTarget::DeleteVolume(v) => Some(wire_id(IdKind::Volume, v)),
-        _ => None,
-    };
+    let to_volume = p.target.volume().map(|v| wire_id(IdKind::Volume, v));
     let (approval, approval_scope) = approval(&p.approval);
     pb::Plan {
         id: wire_id(IdKind::Plan, p.id),

@@ -20,6 +20,18 @@ use std::sync::{Arc, Mutex};
 #[error("{0}")]
 pub struct HostError(pub String);
 
+/// What is asked of a volume's snapshot (§4 of docs/06-storage.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SnapshotOp {
+    /// Take it, read-only; idempotent.
+    Take,
+    /// Make the volume what it holds; reached only from an approved, irreversible step, with
+    /// the workload stopped.
+    Rollback,
+    /// Remove it; reached only from an approved, irreversible step.
+    Delete,
+}
+
 /// The node's helper and content store.
 pub trait Host: Send + Sync + 'static {
     /// Creates a volume, or finds the one already created; idempotent by volume.
@@ -30,6 +42,14 @@ pub trait Host: Send + Sync + 'static {
 
     /// Removes a volume and its data: reached only from an approved, irreversible step.
     fn delete_volume(&self, volume: &str) -> impl Future<Output = Result<(), HostError>> + Send;
+
+    /// Does `op` to snapshot `snapshot` of volume `volume`.
+    fn snapshot(
+        &self,
+        op: SnapshotOp,
+        volume: &str,
+        snapshot: &str,
+    ) -> impl Future<Output = Result<(), HostError>> + Send;
 
     /// Fetches the content `reference` names onto the node, verified against its digest;
     /// idempotent, and shared by every workload that references it.
@@ -53,6 +73,7 @@ struct Kept {
     volumes: BTreeMap<String, String>,
     content: BTreeSet<String>,
     ids: BTreeMap<String, (u32, u32)>,
+    snapshots: BTreeSet<(String, String)>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -85,6 +106,12 @@ impl InMemoryHost {
         self.with(|k| k.content.clone()).unwrap_or_default()
     }
 
+    /// The snapshots, by volume and snapshot.
+    #[must_use]
+    pub fn snapshots(&self) -> BTreeSet<(String, String)> {
+        self.with(|k| k.snapshots.clone()).unwrap_or_default()
+    }
+
     /// The id ranges recorded, by workload: base and count.
     #[must_use]
     pub fn ids(&self) -> BTreeMap<String, (u32, u32)> {
@@ -114,6 +141,30 @@ impl Host for InMemoryHost {
         ready(self.with(|k| {
             k.volumes.remove(volume);
         }))
+    }
+
+    fn snapshot(
+        &self,
+        op: SnapshotOp,
+        volume: &str,
+        snapshot: &str,
+    ) -> impl Future<Output = Result<(), HostError>> + Send {
+        let key = (volume.to_owned(), snapshot.to_owned());
+        ready(
+            self.with(|k| match op {
+                SnapshotOp::Take if k.volumes.contains_key(volume) => {
+                    k.snapshots.insert(key);
+                    Ok(())
+                }
+                SnapshotOp::Rollback if k.snapshots.contains(&key) => Ok(()),
+                SnapshotOp::Delete => {
+                    k.snapshots.remove(&key);
+                    Ok(())
+                }
+                _ => Err(HostError(format!("no volume {volume} with snapshot {snapshot}"))),
+            })
+            .and_then(|r| r),
+        )
     }
 
     fn fetch(&self, reference: &str) -> impl Future<Output = Result<(), HostError>> + Send {

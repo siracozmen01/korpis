@@ -6,7 +6,7 @@ use crate::stored::{ImpactDoc, ScopeDoc, StepDoc, count, from_json, principal, t
 use crate::tenancy::{labels, name};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{IntentCodec, StoreError, StoreResult};
-use korpis_core::workload::plan::{Approval, Override, PlanStatus, StepAction};
+use korpis_core::workload::plan::{Approval, Override, PlanStatus, StepAction, VolumeOp};
 use korpis_core::workload::{Intent, Plan, PlanTarget, Power, PowerRecord, PowerState, Workload};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -185,7 +185,10 @@ fn target(
         ("power", None, Some(v), None) => PlanTarget::Power(count("to_power", v)?),
         ("retire", None, None, None) => PlanTarget::Retire,
         ("migrate", None, None, None) => PlanTarget::Migrate,
-        ("delete_volume", None, None, Some(v)) => PlanTarget::DeleteVolume(v),
+        (other, None, None, Some(v)) => match VolumeOp::parse(other) {
+            Some(op) => PlanTarget::Volume(v, op),
+            None => return Err(corrupt("plan kind", kind)),
+        },
         _ => return Err(corrupt("plan kind", kind)),
     })
 }

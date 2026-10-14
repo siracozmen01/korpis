@@ -6,33 +6,31 @@
 //! step, before it is kept as done, and a failure is journalled and stops the plan here: the
 //! control plane fails it, and the next assignment no longer carries it.
 
-use super::act::{Failure, volume_id};
+use super::act::Failure;
 use super::progress::Step;
-use super::volume::Why;
 use super::{Reconciler, Tracked, effect, text};
 use crate::host::Host;
 use crate::runtime::Runtime;
 use korpis_proto::korpis::agent::v1 as agent;
-use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::value::Kind;
 use std::collections::BTreeMap;
 
 /// What a step leaves behind, for its effect.
-type After = BTreeMap<String, pb::Value>;
+pub(super) type After = BTreeMap<String, pb::Value>;
 
-fn detail<'a>(s: &'a pb::Step, key: &str) -> Option<&'a str> {
+pub(super) fn detail<'a>(s: &'a pb::Step, key: &str) -> Option<&'a str> {
     match s.detail.get(key)?.kind.as_ref()? {
         Kind::StringValue(v) => Some(v.as_str()),
         _ => None,
     }
 }
 
-fn flag(s: &pb::Step, key: &str) -> bool {
+pub(super) fn flag(s: &pb::Step, key: &str) -> bool {
     matches!(s.detail.get(key).and_then(|v| v.kind.as_ref()), Some(Kind::BoolValue(true)))
 }
 
-fn number(s: &pb::Step, key: &str) -> u64 {
+pub(super) fn number(s: &pb::Step, key: &str) -> u64 {
     match s.detail.get(key).and_then(|v| v.kind.as_ref()) {
         Some(Kind::IntValue(n)) => u64::try_from(*n).unwrap_or(0),
         _ => 0,
@@ -119,33 +117,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.host.fetch(&spec.rootfs).await?;
                 after.insert("rootfs".into(), text(&spec.rootfs));
             }
-            "create_volume" | "attach_volume" => {
-                let name = detail(s, "volume").unwrap_or_default();
-                let request = helper::EnsureVolumeRequest {
-                    volume: volume_id(a, name),
-                    workload: a.workload.clone(),
-                    storage_class: detail(s, "storage_class").unwrap_or_default().to_owned(),
-                    size_bytes: number(s, "size_bytes"),
-                    ..Default::default()
-                };
-                let made = self.ensure_volume(name, Why::Declared, &request).await?;
-                after.insert("volume".into(), text(&request.volume));
-                after.insert("created".into(), text(if made.created { "true" } else { "false" }));
-            }
-            // A node-local volume is mounted by the runtime object, so it is detached when the
-            // object is next rebuilt or destroyed; its data is retained.
-            "detach_volume" => {
-                after.insert("applies_at".into(), text("the next rebuild of the runtime object"));
-            }
-            // The helper's identifier as the node reported it, which the control plane put in
-            // the step; never one derived again from the name.
-            "delete_volume" => {
-                let name = detail(s, "volume").unwrap_or_default();
-                let id = detail(s, "helper_id")
-                    .ok_or_else(|| Failure("the step names no helper identifier".into()))?;
-                let why = if flag(s, "stream") { Why::Stream } else { Why::Declared };
-                self.delete_volume(&a.workload, (name, why), id).await?;
-                after.insert("volume".into(), text(id));
+            "create_volume" | "attach_volume" | "detach_volume" | "delete_volume"
+            | "snapshot_volume" | "rollback_volume" | "delete_snapshot" => {
+                after.extend(self.volume_step(a, s).await?);
             }
             "create" => {
                 let id = self.current(a, t).await?;

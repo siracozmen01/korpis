@@ -173,7 +173,8 @@ workload.classify                                    override how its plan steps
 extension.read · extension.install · extension.uninstall
 event.read                                           receive events about what it reaches
 plan.read · plan.approve · plan.cancel
-volume.read · volume.snapshot.create · volume.delete
+volume.read · volume.snapshot.create · volume.snapshot.rollback · volume.snapshot.delete
+volume.delete
 endpoint.read · endpoint.write · endpoint.release
 backup.create · backup.browse · backup.read · backup.restore · backup.prune
 stream.share
@@ -191,10 +192,15 @@ ext.<extension>.<action>              extensions define their own, namespaced
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.
 - **Some actions are marked irreversible in the schema**: `workload.delete`, `volume.delete`,
-  `endpoint.release` (giving up an address), and `backup.prune`. The mark is what §5.2 of
+  `volume.snapshot.rollback` (what was written since the snapshot is lost),
+  `volume.snapshot.delete`, `endpoint.release` (giving up an address), and `backup.prune`. The mark is what §5.2 of
   `08-identity.md` excludes from set-subject and link-form grants by default, and what the chat
   client and the panel route to an explicit confirmation. There is one list, here, and every other
   document refers to it (finding S35).
+- **`volume.snapshot.rollback` and `volume.snapshot.delete` are new actions implied by nothing.**
+  Added 2026-10-14, when snapshots were built (§4 of `06-storage.md`). Neither power existed
+  before, so by the rule above no grant that already exists gains it; both lose data, so both are
+  irreversible. Taking a snapshot loses nothing and stays `volume.snapshot.create`.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

@@ -37,6 +37,8 @@ pub struct Node {
     helper: PathBuf,
     /// The workloads whose containers are removed when the test ends, however it ends.
     guarded: Mutex<Vec<String>>,
+    /// A filesystem mounted for the volumes, unmounted when the node is dropped.
+    mounted: Option<PathBuf>,
 }
 
 /// Whether this machine can run the test: containerd is there and the test is root.
@@ -98,12 +100,42 @@ impl Node {
     /// A node named `name`, joined to `cp`, its helper and driver serving.
     pub async fn join(cp: &ControlPlane, name: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
+        let volumes = dir.path().join("volumes");
+        Self::join_with(cp, name, dir, (volumes, None)).await
+    }
+
+    /// As [`Self::join`], with its volumes on a btrfs made for it, qgroups on, so its class can
+    /// snapshot; `None` where this machine cannot make one.
+    pub async fn join_on_btrfs(cp: &ControlPlane, name: &str) -> Option<Self> {
+        let dir = tempfile::tempdir().unwrap();
+        let image = dir.path().join("btrfs.img");
+        std::fs::File::create(&image).unwrap().set_len(512 << 20).unwrap();
+        let at = dir.path().join("fs");
+        std::fs::create_dir(&at).unwrap();
+        let ok = |c: &mut Command| c.status().is_ok_and(|s| s.success());
+        let made = ok(Command::new("mkfs.btrfs").arg("-q").arg(&image))
+            && ok(Command::new("mount").args(["-o", "loop"]).arg(&image).arg(&at));
+        if !made {
+            return None;
+        }
+        let quota = ok(Command::new("btrfs").args(["quota", "enable"]).arg(&at))
+            && ok(Command::new("btrfs").args(["quota", "rescan", "-w"]).arg(&at));
+        assert!(quota, "qgroups on the test's own filesystem");
+        let volumes = at.join("volumes");
+        Some(Self::join_with(cp, name, dir, (volumes, Some(at))).await)
+    }
+
+    async fn join_with(
+        cp: &ControlPlane,
+        name: &str,
+        dir: tempfile::TempDir,
+        (volumes, mounted): (PathBuf, Option<PathBuf>),
+    ) -> Self {
         let state = StateDir::new(dir.path().join("agent"));
         let (token, ca) = cp.token(name).await;
         let request =
             Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: name.into() };
         join(&state, &request).await.unwrap();
-        let volumes = dir.path().join("volumes");
         let (driver_socket, helper_socket) =
             (dir.path().join("driver.sock"), dir.path().join("helper.sock"));
         helper(&helper_socket, &volumes, &dir.path().join("helper"));
@@ -115,6 +147,7 @@ impl Node {
             driver: driver_socket,
             helper: helper_socket,
             guarded: Mutex::new(Vec::new()),
+            mounted,
         }
     }
 
@@ -161,6 +194,9 @@ impl Drop for Node {
                 let _ = ctr(&["containers", "rm", id]);
                 let _ = ctr(&["snapshots", "rm", id]);
             }
+        }
+        if let Some(at) = &self.mounted {
+            let _ = Command::new("umount").arg("-l").arg(at).status();
         }
     }
 }

@@ -30,7 +30,7 @@ fn moved_last(plan: &Plan, w: &Workload) -> bool {
     match plan.target {
         PlanTarget::Intent(i) => w.target == Some(i),
         PlanTarget::Power(v) => w.power_target_version == v,
-        PlanTarget::Retire | PlanTarget::Migrate | PlanTarget::DeleteVolume(_) => false,
+        PlanTarget::Retire | PlanTarget::Migrate | PlanTarget::Volume(..) => false,
     }
 }
 
@@ -92,7 +92,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         plan: &Plan,
         w: &Workload,
     ) -> Result<(), AppError> {
-        if matches!(plan.target, PlanTarget::Retire | PlanTarget::DeleteVolume(_)) {
+        if matches!(plan.target, PlanTarget::Retire | PlanTarget::Volume(..)) {
             return Ok(());
         }
         let restored = moved_last(plan, w)

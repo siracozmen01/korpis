@@ -91,7 +91,7 @@ enum Command {
     /// Enrolls, cordons, or uncordons a node.
     #[command(subcommand)]
     Node(NodeAction),
-    /// Deletes a retained volume no workload holds.
+    /// Deletes a retained volume; takes, lists, rolls back to, and deletes snapshots.
     #[command(subcommand)]
     Volume(VolumeAction),
     /// Issues, revokes, lists, and shows grants.

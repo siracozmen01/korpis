@@ -643,9 +643,10 @@ the gaps above:
   declaration, so a stop waiting for confirmation has not reached the node (§3.3 of
   `01-model.md`, corrected 2026-10-13).
 - **A residual assignment carries a plan for what a workload left behind.** A retained volume
-  outlives its workload (§3.6 of `01-model.md`), so deleting one is a plan for a workload that may
-  no longer run anywhere. Its node is sent an assignment for that workload marked `residual`,
-  carrying the plan deleting the volume and, for the record, the last target and power the
+  outlives its workload (§3.6 of `01-model.md`), so deleting one, or taking, rolling back to, or
+  deleting one of its snapshots, is a plan for a workload that may no longer run anywhere. Its
+  node is sent an assignment for that workload marked `residual`, carrying the plan on the volume
+  and, for the record, the last target and power the
   workload had. The agent executes the plan's steps and nothing else: it builds, starts,
   observes, and leases nothing for it. No lease fences those steps, because what they touch is
   on that node alone, which is why a plan touching anything reachable from a second node can

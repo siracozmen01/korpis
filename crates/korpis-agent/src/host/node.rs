@@ -5,7 +5,7 @@
 //! docs/04-runtimes.md), which the agent fills and drivers only read.
 
 use super::privileged::HelperClient;
-use super::{Host, HostError};
+use super::{Host, HostError, SnapshotOp};
 use crate::content::ContentStore;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
@@ -59,5 +59,14 @@ impl Host for NodeHost {
 
     fn storage(&self) -> impl Future<Output = Result<Vec<pb::StorageClassInfo>, HostError>> + Send {
         self.helper.describe_storage()
+    }
+
+    fn snapshot(
+        &self,
+        op: SnapshotOp,
+        volume: &str,
+        snapshot: &str,
+    ) -> impl Future<Output = Result<(), HostError>> + Send {
+        self.helper.snapshot(op, volume, snapshot)
     }
 }

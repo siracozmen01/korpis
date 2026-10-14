@@ -16,4 +16,5 @@ mod console;
 mod node;
 mod oci;
 mod recipes;
+mod snapshots;
 mod support;

@@ -33,6 +33,8 @@ pub const CORE: &[&str] = &[
     "plan.cancel",
     "volume.read",
     "volume.snapshot.create",
+    "volume.snapshot.rollback",
+    "volume.snapshot.delete",
     "volume.delete",
     "endpoint.read",
     "endpoint.write",
@@ -64,8 +66,14 @@ pub const CORE: &[&str] = &[
 
 /// Irreversible actions: excluded from set-subject and link-form grants by default, and routed
 /// to explicit confirmation by every surface. One list, here (finding S35).
-pub const IRREVERSIBLE: &[&str] =
-    &["workload.delete", "volume.delete", "endpoint.release", "backup.prune"];
+pub const IRREVERSIBLE: &[&str] = &[
+    "workload.delete",
+    "volume.delete",
+    "volume.snapshot.rollback",
+    "volume.snapshot.delete",
+    "endpoint.release",
+    "backup.prune",
+];
 
 /// Tenant-private actions: they do not cross an organization boundary implicitly (§3.3 of
 /// docs/08-identity.md).

@@ -35,6 +35,17 @@ message Volume {
   string created_by = 15;
 }
 
+// A point a volume can be rolled back to, on its node and filesystem (§4 of docs/06-storage.md):
+// no protection against losing either, which is what a backup is for.
+message Snapshot {
+  string id = 1;
+  string volume = 2;
+  // Unique among the volume's live snapshots.
+  string name = 3;
+  google.protobuf.Timestamp created = 4;
+  google.protobuf.Timestamp deleted_at = 5;
+}
+
 enum VolumeKind {
   VOLUME_KIND_UNSPECIFIED = 0;
   // One the workload declared.

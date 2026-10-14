@@ -21,7 +21,7 @@ mod read;
 mod retire;
 mod sets;
 mod stream;
-mod volume_delete;
+mod volume_plan;
 mod watch;
 
 pub use classify::{Classified, SetClassification};
