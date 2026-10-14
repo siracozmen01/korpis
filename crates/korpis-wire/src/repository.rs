@@ -78,6 +78,7 @@ pub fn repository_to_pb(r: &Repository) -> pb::Repository {
         key_custody: custody_to_pb(r.custody).into(),
         retention: retention_to_pb(&r.retention).into(),
         created: timestamp(r.created).into(),
+        streams: r.streams,
         ..Default::default()
     }
 }

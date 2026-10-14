@@ -15,6 +15,7 @@ use crate::host::Host;
 use crate::identity::{ControlPlane, IdentitySockets};
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
+use crate::offload::Offloader;
 use crate::reconcile::progress::Progress;
 use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
@@ -24,6 +25,7 @@ use crate::session::{Event, Facts, Session};
 use crate::state::{StateDir, StateError};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -152,6 +154,20 @@ pub struct Agent {
     events: broadcast::Sender<Event>,
 }
 
+/// The data path's handlers, with the console's own: reading the streams the node holds, and
+/// writing to the runtime object each workload runs as.
+fn consoles<R: Runtime + Clone>(
+    handlers: Handlers,
+    streams: &Streams,
+    (runtime, runtimes): (&R, &tokio::sync::watch::Sender<BTreeMap<String, String>>),
+    journal: &JournalHandle,
+) -> Handlers {
+    let write = ConsoleWrite::new(runtime.clone(), runtimes.subscribe(), journal.clone());
+    handlers
+        .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located())))
+        .with(console_write::ACTION, Arc::new(write))
+}
+
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
@@ -180,17 +196,7 @@ impl Agent {
             keys: token_ring(&data.keys.token_keys),
             revoked: link.revoked.clone(),
             held: link.held.clone(),
-            handlers: options
-                .handlers
-                .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located())))
-                .with(
-                    console_write::ACTION,
-                    Arc::new(ConsoleWrite::new(
-                        runtime.clone(),
-                        runtimes.subscribe(),
-                        journal.clone(),
-                    )),
-                ),
+            handlers: consoles(options.handlers, &streams, (&runtime, &runtimes), &journal),
         };
         let data = DataLink::new(data, judged, link.relays.clone());
         let leases = Leases::new(journal.clone());
@@ -212,6 +218,13 @@ impl Agent {
                 control_plane,
             )),
         };
+        let offloader = Offloader::new(
+            &state.root().join("offloaded"),
+            streams.located(),
+            (journal.clone(), link.jobs.clone()),
+            options.period,
+        )
+        .map_err(io("the streams offloaded"))?;
         let reconciler = Reconciler::new(runtime, host, wiring, progress, streams);
         let tasks = vec![
             tokio::spawn(session.run()),
@@ -219,6 +232,7 @@ impl Agent {
             journal.maintain_every(options.maintain_every),
             tokio::spawn(reconciler.run()),
             tokio::spawn(data.run()),
+            tokio::spawn(offloader.run()),
         ];
         Ok(Self { tasks, journal, events: link.events })
     }

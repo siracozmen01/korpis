@@ -374,6 +374,7 @@ Repository
   encryption                key-encryption key reference and custody (§5.5); never beside the data
   retention                 RetentionPolicy
   dedup_scope               workload, plus recipe content by reference (§5.2)
+  streams                   bool: its workloads' console streams are offloaded here
 ```
 
 ```
@@ -401,11 +402,15 @@ relative prefix of letters, digits, `.`, `_`, and `-` between its slashes; each 
 are beneath `<prefix>workloads/<workload>/`, which only that workload's jobs write. A retention
 policy that keeps nothing is refused, since a prune under it would remove everything above the
 floor. `dedup_scope` is not a field: it is the workload, plus recipe content by reference, and
-nothing widens it yet.
+nothing widens it yet. `streams` says whether the console streams of the workloads it serves are
+offloaded to it, kept beneath `<prefix>streams/<workload>/`, beside the workload's backups and
+never beneath them, so a prune of the backups never reaches them; §4 of `14-streams.md` says which
+repository a workload's stream goes to.
 
 **Two repositories of an organization never share a place** (Finding 32 of
 `23-walkthroughs.md`). A second repository naming the same provider at the same prefix, or at one
-that begins with the other's followed by `workloads/`, is refused (`repository.prefix_overlaps`):
+that begins with the other's followed by `workloads/` or `streams/`, is refused
+(`repository.prefix_overlaps`):
 the same workload backed up into both would write one prefix under two keys, and each prune would
 take the other's objects for garbage. Within an organization a provider name resolves to one
 installation, which is what makes the comparison meaningful. Across organizations no check is

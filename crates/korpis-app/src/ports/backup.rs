@@ -42,6 +42,23 @@ pub trait BackupRead {
     /// A backup, pruned or not.
     fn backup(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Backup>>> + Send;
 
+    /// Where the console streams of a workload of `project` in `organization` are offloaded: the
+    /// project's repository that takes streams, or else the organization's (§4 of
+    /// docs/14-streams.md).
+    fn offload_repository(
+        &self,
+        organization: Uuid,
+        project: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Repository>>> + Send;
+
+    /// Whether a live repository already takes the streams of `organization` as a whole, or of
+    /// `project` in it.
+    fn streams_taken(
+        &self,
+        organization: Uuid,
+        project: Option<Uuid>,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Whether a backup of `workload` into `repository` is pending under a plan still open:
     /// one writer per workload prefix (§5.5 of docs/06-storage.md).
     fn backup_open(

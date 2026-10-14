@@ -94,6 +94,9 @@ pub struct Repository {
     pub custody: KeyCustody,
     /// How long its backups are kept.
     pub retention: Retention,
+    /// Whether the console streams of the workloads it serves are offloaded to it (§4 of
+    /// docs/14-streams.md).
+    pub streams: bool,
     /// When it was made.
     pub created: SystemTime,
     /// When it was deleted.
@@ -105,6 +108,13 @@ impl Repository {
     #[must_use]
     pub fn workload_prefix(&self, workload: Uuid) -> String {
         format!("{}workloads/{workload}/", self.prefix)
+    }
+
+    /// Where `workload`'s offloaded stream segments are: beside its backups, never beneath them,
+    /// so a prune of the backups never reaches them.
+    #[must_use]
+    pub fn stream_prefix(&self, workload: Uuid) -> String {
+        format!("{}streams/{workload}/", self.prefix)
     }
 }
 

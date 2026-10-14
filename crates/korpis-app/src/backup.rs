@@ -4,6 +4,7 @@
 //! under whose key, and the backups of each workload's volumes.
 
 pub mod job;
+pub mod offload;
 pub mod prune;
 pub mod read;
 pub mod repository;

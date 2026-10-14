@@ -1,0 +1,235 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, created_at, deleted_at\n               FROM repository\n              WHERE organization_id = $1 AND deleted_at IS NULL\n                AND ($2::uuid IS NULL OR project_id IS NULL OR project_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "provider_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "provider_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "prefix",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "prefix"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "key_custody",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "key_custody"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "keep_last",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_last"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "keep_hourly",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_hourly"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "keep_daily",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_daily"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "keep_weekly",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_weekly"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "keep_monthly",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_monthly"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "keep_yearly",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_yearly"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "keep_failed_s",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "keep_failed_s"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "min_retention_s",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "min_retention_s"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "streams",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "streams"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "deleted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "deleted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7cc7aff014dbe3e6bfde9bf15e2d7af2357a6843b1c9faf479fc98fc0d9e69e8"
+}

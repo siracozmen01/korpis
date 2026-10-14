@@ -24,6 +24,7 @@ pub struct Keys {
     pub(crate) chunk: Zeroizing<[u8; KEY_LEN]>,
     pub(crate) tree: Zeroizing<[u8; KEY_LEN]>,
     pub(crate) backup: Zeroizing<[u8; KEY_LEN]>,
+    pub(crate) segment: Zeroizing<[u8; KEY_LEN]>,
 }
 
 impl std::fmt::Debug for Keys {
@@ -53,6 +54,7 @@ impl Keys {
             chunk: derive(&hk, b"chunk"),
             tree: derive(&hk, b"tree"),
             backup: derive(&hk, b"backup"),
+            segment: derive(&hk, b"segment"),
         }
     }
 

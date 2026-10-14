@@ -1057,6 +1057,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 40 | A node would have run past the control plane's step | §22 | `02-architecture.md` §4.9 |
 | 41 | The access contract asked for what no store issues, and refused what a backup does | §23 | `06-storage.md` §5.5, §5.6 |
 | 42 | A prefix is a pattern in the store's policy | §23 | `06-storage.md` §5.3, §5.6 |
+| 43 | An offload target that nothing names | §24 | `14-streams.md` §4, `06-storage.md` §5.3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1647,3 +1648,38 @@ repository is made and again by the provider before it writes a policy, since a 
 take the control plane's checking on trust. → patched into `06-storage.md` §5.3 and §5.6
 
 ‡ Step 3 is where the trace found Finding 42. † Steps 5 and 7 are where it found Finding 41.
+
+## 24. A crash log outlives its node
+
+Written 2026-10-14, from the implementation, when stream offload was built. `mc-survival` runs on
+`fra-3`, its organization keeps backups in `nightly` (§20), and at 04:00 the server crashes with a
+stack trace; an hour later `fra-3`'s disk fails.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `nightly` was the organization's first repository, so it took the organization's streams when it was made † | `06-storage.md` §5.3; `14-streams.md` §4 |
+| 2 | The crash ends the container; the stream writer drains, seals the last segment, and records the seal in the stream's changes log | `14-streams.md` §4, §5 |
+| 3 | The agent's reconciler journals the seal, and the index has the segment, held on `fra-3` | `14-streams.md` §4; `02-architecture.md` §4.10 |
+| 4 | The agent's offloader, following the same log from its own place, asks for the workload's key and write access to its stream prefix in `nightly`; the control plane gives them to `fra-3` because it held the workload's lease | `14-streams.md` §4; `06-storage.md` §5.5, §5.6 |
+| 5 | It seals the segment again under the workload's segment key, writes it beneath `nightly`'s `streams/<workload>/`, beside the backups, and journals it as offloaded | `14-streams.md` §4; `06-storage.md` §5.7 |
+| 6 | The index marks the segment offloaded; the stream reports nothing held only on `fra-3` | `14-streams.md` §4; `01-model.md` §3.6 |
+| 7 | `fra-3` is lost. The crash log's segment is in `nightly`; reading it back without its node is the next work (question 6 of `14-streams.md`) | `14-streams.md` §4, §9 |
+
+**FINDING 43: An offload target that nothing names. `CONFIRMED`**
+
+§4 of `14-streams.md` and §3.6 of `01-model.md` turn offload on "wherever an offload target
+exists", and that phrase was the whole specification of where a stream goes. Asked what evaluates
+whether one exists, and which it is, the answer was nothing: no document said whether an offload
+target is a repository, which of an organization's several, or who chooses. A node could not have
+been told where to send a segment, and the invariant that makes a stream outlive its node rested on
+a word.
+
+**Resolution.** An offload target is a repository that takes streams: the project's, or else the
+organization's, at most one of each, the first made taking them unless told not to. Segments live
+beside a workload's backups, not beneath them, so a prune of the backups cannot reach them. What
+evaluates it is the control plane, which holds the repositories and answers the node's request for
+access. → patched into `14-streams.md` §4 and `06-storage.md` §5.3
+
+† Step 1 is where the trace found Finding 43.

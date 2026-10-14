@@ -43,6 +43,7 @@ impl pb::RepositoryService for Api {
             prefix: req.prefix.clone(),
             custody: custody_from_pb("key_custody", req.key_custody).refuse()?,
             retention: retention_from_pb("retention", retention).refuse()?,
+            streams: req.streams,
         };
         let encoder = |r: &Repository| encode(&created(r));
         let idem = Idempotent { key, encode: &encoder };

@@ -27,6 +27,7 @@ pub(super) struct RepositoryRow {
     pub(super) keep_yearly: i32,
     pub(super) keep_failed_s: i64,
     pub(super) min_retention_s: i64,
+    pub(super) streams: bool,
     pub(super) created_at: Time,
     pub(super) deleted_at: Option<Time>,
 }
@@ -64,6 +65,7 @@ impl RepositoryRow {
             prefix: self.prefix,
             custody,
             retention,
+            streams: self.streams,
             created: to_time(self.created_at),
             deleted_at: self.deleted_at.map(to_time),
         })

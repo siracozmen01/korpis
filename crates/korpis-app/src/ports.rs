@@ -64,7 +64,7 @@ pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
-pub use prune::{AccessRecord, Prefix, PruneRead, PruneWrite};
+pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use relay::{
@@ -111,6 +111,8 @@ pub enum Unique {
     /// prune could reach into: the same prefix, or one that is the other's followed by
     /// `workloads/` and more.
     RepositoryPrefix,
+    /// A live repository already takes the streams of the same organization or project.
+    RepositoryStreams,
     /// Any other.
     Other,
 }

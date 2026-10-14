@@ -10,4 +10,5 @@ SELECT (s.step -> 'detail' -> 'backup' ->> 'string')::uuid AS "id!"
 UNION
 SELECT backup_id AS "id!"
   FROM backup_access
- WHERE repository_id = $1 AND workload_id = $2 AND mode = 'read' AND expires_at > $3
+ WHERE repository_id = $1 AND workload_id = $2 AND mode = 'read' AND area = 'backups'
+   AND expires_at > $3

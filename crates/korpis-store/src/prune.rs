@@ -6,7 +6,9 @@
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
-use korpis_app::ports::{AccessRecord, Prefix, PruneRead, PruneWrite, StoreError, StoreResult};
+use korpis_app::ports::{
+    AccessRecord, Area, Prefix, PruneRead, PruneWrite, StoreError, StoreResult,
+};
 use korpis_core::backup::BackupStatus;
 use korpis_core::backup::retention::Candidate;
 use korpis_core::extension::AccessMode;
@@ -68,7 +70,7 @@ impl PruneRead for PgStore {
         let until = sqlx::query_scalar!(
             "SELECT max(expires_at) FROM backup_access
               WHERE repository_id = $1 AND workload_id = $2 AND mode = 'write'
-                AND expires_at > $3",
+                AND area = 'backups' AND expires_at > $3",
             repository,
             workload,
             from_time(now)
@@ -122,17 +124,22 @@ impl PruneWrite for PgTx {
             AccessMode::Read => "read",
             AccessMode::Write => "write",
         };
+        let area = match a.area {
+            Area::Backups => "backups",
+            Area::Streams => "streams",
+        };
         sqlx::query!(
             "INSERT INTO backup_access
-                 (id, repository_id, workload_id, backup_id, mode, granted_at, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                 (id, repository_id, workload_id, backup_id, mode, granted_at, expires_at, area)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
             Uuid::now_v7(),
             a.prefix.0,
             a.prefix.1,
             a.backup,
             mode,
             from_time(a.granted_at),
-            from_time(a.expires_at)
+            from_time(a.expires_at),
+            area
         )
         .execute(&mut *self.tx)
         .await

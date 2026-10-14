@@ -46,6 +46,13 @@ pub enum RepositoryAction {
         /// A floor beneath which nothing prunes, in days.
         #[arg(long, default_value_t = 1)]
         min_retention_days: u32,
+        /// Take the streams of the workloads it serves (§4 of docs/14-streams.md); by default it
+        /// does unless another repository already takes them here.
+        #[arg(long, conflicts_with = "no_streams")]
+        streams: bool,
+        /// Do not take them.
+        #[arg(long)]
+        no_streams: bool,
     },
     /// The repositories of an organization, or those serving a project.
     List {
@@ -65,7 +72,7 @@ pub enum RepositoryAction {
 
 fn rows(list: &[pb::Repository]) -> String {
     let mut all = vec![
-        ["ID", "NAME", "PROVIDER", "PREFIX", "PROJECT", "CUSTODY", "MADE"]
+        ["ID", "NAME", "PROVIDER", "PREFIX", "PROJECT", "CUSTODY", "STREAMS", "MADE"]
             .map(str::to_owned)
             .to_vec(),
     ];
@@ -79,6 +86,7 @@ fn rows(list: &[pb::Repository]) -> String {
             r.prefix.clone(),
             project,
             custody,
+            if r.streams { "yes".into() } else { "no".into() },
             time(r.created.as_option()),
         ]
     }));
@@ -124,7 +132,16 @@ fn retention(action: &RepositoryAction) -> pb::RetentionPolicy {
 pub async fn repository(c: &Connection, action: &RepositoryAction) -> Result<Answer, CliError> {
     let client = pb::RepositoryServiceClient::new(c.http(), c.config());
     Ok(match action {
-        RepositoryAction::Create { name, provider, prefix, organization, project: p, .. } => {
+        RepositoryAction::Create {
+            name,
+            provider,
+            prefix,
+            organization,
+            project: p,
+            streams,
+            no_streams,
+            ..
+        } => {
             let r = pb::CreateRepositoryRequest {
                 mutation: mutation(None).into(),
                 organization: resolve::organization(c, organization.as_deref()).await?,
@@ -133,6 +150,7 @@ pub async fn repository(c: &Connection, action: &RepositoryAction) -> Result<Ans
                 provider: provider.clone(),
                 prefix: prefix.clone(),
                 retention: retention(action).into(),
+                streams: (*streams || *no_streams).then_some(*streams),
                 ..Default::default()
             };
             let made = client

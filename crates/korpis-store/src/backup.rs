@@ -20,7 +20,7 @@ impl BackupRead for PgStore {
             RepositoryRow,
             "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
                     keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
-                    keep_failed_s, min_retention_s, created_at, deleted_at
+                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
                FROM repository WHERE id = $1",
             id
         )
@@ -40,7 +40,7 @@ impl BackupRead for PgStore {
             RepositoryRow,
             "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
                     keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
-                    keep_failed_s, min_retention_s, created_at, deleted_at
+                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
                FROM repository
               WHERE organization_id = $1 AND deleted_at IS NULL
                 AND ($2::uuid IS NULL OR project_id IS NULL OR project_id = $2)
@@ -55,6 +55,44 @@ impl BackupRead for PgStore {
         .await
         .map_err(from_sqlx)?;
         rows.into_iter().map(RepositoryRow::into_domain).collect()
+    }
+
+    async fn offload_repository(
+        &self,
+        organization: Uuid,
+        project: Uuid,
+    ) -> StoreResult<Option<Repository>> {
+        let row = sqlx::query_as!(
+            RepositoryRow,
+            "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
+                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
+                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
+               FROM repository
+              WHERE organization_id = $1 AND streams AND deleted_at IS NULL
+                AND (project_id = $2 OR project_id IS NULL)
+              ORDER BY project_id NULLS LAST LIMIT 1",
+            organization,
+            project
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(RepositoryRow::into_domain).transpose()
+    }
+
+    async fn streams_taken(&self, organization: Uuid, project: Option<Uuid>) -> StoreResult<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                   SELECT 1 FROM repository
+                    WHERE organization_id = $1 AND project_id IS NOT DISTINCT FROM $2
+                      AND streams AND deleted_at IS NULL
+               ) AS "taken!""#,
+            organization,
+            project
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)
     }
 
     async fn backup_open(&self, repository: Uuid, workload: Uuid) -> StoreResult<bool> {
@@ -134,9 +172,10 @@ impl BackupWrite for PgTx {
             "INSERT INTO repository (id, organization_id, project_id, name, provider_name, prefix,
                                      key_custody, kek_sealed, kek_sealed_by, keep_last,
                                      keep_hourly, keep_daily, keep_weekly, keep_monthly,
-                                     keep_yearly, keep_failed_s, min_retention_s, created_at)
+                                     keep_yearly, keep_failed_s, min_retention_s, streams,
+                                     created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                     $18)",
+                     $18, $19)",
             r.id,
             r.organization,
             r.project,
@@ -154,6 +193,7 @@ impl BackupWrite for PgTx {
             n(t.keep_yearly),
             s(t.keep_failed),
             s(t.min_retention),
+            r.streams,
             from_time(r.created)
         )
         .execute(&mut *self.tx)

@@ -39,6 +39,27 @@ pub struct CreateRepository {
     pub custody: KeyCustody,
     /// How long its backups are kept.
     pub retention: Retention,
+    /// Whether it takes the streams of the workloads it serves; when not said, it does unless
+    /// another repository already takes them for the same organization or project.
+    pub streams: Option<bool>,
+}
+
+/// That `cmd` asks for a repository that can be made.
+fn checked(cmd: &CreateRepository) -> Result<(), AppError> {
+    if !is_prefix(&cmd.prefix) {
+        return Err(AppError::invalid(
+            "prefix",
+            "a relative key prefix ending in /, of letters, digits, '.', '_', and '-'",
+        ));
+    }
+    if !cmd.retention.keeps_something() {
+        return Err(AppError::invalid("retention", "a policy that keeps at least one backup"));
+    }
+    if cmd.custody == KeyCustody::Tenant {
+        let why = "tenant custody needs a key management provider, which is not built yet";
+        return Err(AppError::conflict("repository.custody_unavailable", why));
+    }
+    Ok(())
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -71,19 +92,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let permit =
             self.authorize(caller, "repository.write", self.repository_scope(&cmd).await?).await?;
-        if !is_prefix(&cmd.prefix) {
-            return Err(AppError::invalid(
-                "prefix",
-                "a relative key prefix ending in /, of letters, digits, '.', '_', and '-'",
-            ));
-        }
-        if !cmd.retention.keeps_something() {
-            return Err(AppError::invalid("retention", "a policy that keeps at least one backup"));
-        }
-        if cmd.custody == KeyCustody::Tenant {
-            let why = "tenant custody needs a key management provider, which is not built yet";
-            return Err(AppError::conflict("repository.custody_unavailable", why));
-        }
+        checked(&cmd)?;
+        let streams = match cmd.streams {
+            Some(s) => s,
+            None => !self.store.streams_taken(cmd.organization, cmd.project).await?,
+        };
         let created = Repository {
             id: Uuid::now_v7(),
             organization: cmd.organization,
@@ -93,6 +106,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             prefix: cmd.prefix,
             custody: cmd.custody,
             retention: cmd.retention,
+            streams,
             created: self.clock.now(),
             deleted_at: None,
         };
@@ -107,6 +121,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             StoreError::Duplicate(Unique::RepositoryName) => {
                 AppError::conflict("repository.name_taken", "the name is taken here")
             }
+            StoreError::Duplicate(Unique::RepositoryStreams) => AppError::conflict(
+                "repository.streams_taken",
+                "another repository takes the streams of this organization or project",
+            ),
             other => other.into(),
         })?;
         let effect = Effect::new(caller.principal.clone(), "repository.create", Outcome::Succeeded)
@@ -117,6 +135,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("name", created.name.as_str().into()),
                 ("provider", created.provider.as_str().into()),
                 ("custody", created.custody.as_str().into()),
+                ("streams", created.streams.into()),
             ]));
         tx.append_effect(&effect).await?;
         finish(tx, caller, idem, OPERATION, created).await

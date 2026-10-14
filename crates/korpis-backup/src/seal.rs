@@ -29,6 +29,9 @@ pub enum Kind {
     Tree,
     /// One backup's record.
     Backup,
+    /// One sealed segment of a workload's console stream, offloaded beneath its stream prefix
+    /// (§4 of docs/14-streams.md).
+    Segment,
 }
 
 impl Kind {
@@ -39,6 +42,7 @@ impl Kind {
             Self::Chunk => "chunks/",
             Self::Tree => "trees/",
             Self::Backup => "backups/",
+            Self::Segment => "segments/",
         }
     }
 
@@ -47,7 +51,7 @@ impl Kind {
         match self {
             // The chunker's largest chunk.
             Self::Chunk => 16 << 20,
-            Self::Tree | Self::Backup => 256 << 20,
+            Self::Tree | Self::Backup | Self::Segment => 256 << 20,
         }
     }
 
@@ -56,6 +60,7 @@ impl Kind {
             Self::Chunk => &keys.chunk,
             Self::Tree => &keys.tree,
             Self::Backup => &keys.backup,
+            Self::Segment => &keys.segment,
         }
     }
 

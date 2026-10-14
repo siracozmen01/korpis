@@ -497,6 +497,9 @@ message CreateRepositoryRequest {
   string prefix = 6;
   KeyCustody key_custody = 7;
   RetentionPolicy retention = 8;
+  // Whether it takes the streams of the workloads it serves; when unset, it does unless another
+  // repository already takes them for the same organization or project.
+  optional bool streams = 9;
 }
 
 message CreateRepositoryResponse {

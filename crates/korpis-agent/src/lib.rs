@@ -18,6 +18,7 @@ pub mod jobs;
 pub mod join;
 pub mod journal;
 pub mod lease;
+pub mod offload;
 pub mod probe;
 pub mod reconcile;
 pub mod revoked;

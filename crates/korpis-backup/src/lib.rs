@@ -20,6 +20,7 @@ pub mod keys;
 pub mod live;
 mod meta;
 pub mod name;
+pub mod offload;
 pub mod repo;
 pub mod restore;
 pub mod s3;

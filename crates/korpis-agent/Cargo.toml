@@ -27,6 +27,8 @@ hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "ht
 korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }
+# Offloading console streams: the repository format and its S3 client (§4 of docs/14-streams.md).
+korpis-backup = { path = "../korpis-backup" }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
@@ -48,4 +50,5 @@ korpis-extension = { workspace = true }
 korpis-store = { workspace = true, features = ["testing"] }
 sqlx = { workspace = true }
 korpis-app = { workspace = true }
+korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 tempfile = "3"

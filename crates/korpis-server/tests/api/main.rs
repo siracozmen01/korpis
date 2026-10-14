@@ -33,6 +33,7 @@ mod leases;
 mod lifecycle;
 mod nodes;
 mod observe;
+mod offloads;
 mod operator;
 mod pin;
 mod placement;

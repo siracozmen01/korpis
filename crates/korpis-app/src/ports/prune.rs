@@ -15,11 +15,22 @@ use uuid::Uuid;
 /// A workload's place in a repository.
 pub type Prefix = (Uuid, Uuid);
 
+/// What of a workload's place in a repository access reaches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Area {
+    /// Its backups, beneath `workloads/<workload>/`.
+    Backups,
+    /// Its offloaded streams, beneath `streams/<workload>/` (§4 of docs/14-streams.md).
+    Streams,
+}
+
 /// Access to a workload's prefix, as recorded before it was asked for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccessRecord {
     /// The repository and the workload.
     pub prefix: Prefix,
+    /// What of its place it reaches.
+    pub area: Area,
     /// The backup read, for read access.
     pub backup: Option<Uuid>,
     /// Reading or writing.
@@ -47,7 +58,7 @@ pub trait PruneRead {
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<BTreeSet<Uuid>>> + Send;
 
-    /// When the last write access to the prefix ends, if any ends after `now`.
+    /// When the last write access to the workload's backups ends, if any ends after `now`.
     fn writable_until(
         &self,
         prefix: Prefix,

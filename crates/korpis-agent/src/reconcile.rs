@@ -17,7 +17,7 @@ pub mod progress;
 mod restore;
 mod step;
 pub mod streams;
-mod tail;
+pub(crate) mod tail;
 mod volume;
 mod workload;
 

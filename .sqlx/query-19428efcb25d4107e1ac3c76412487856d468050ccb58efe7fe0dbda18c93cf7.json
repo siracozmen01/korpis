@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The backups of workload $2 in repository $1 being read at $3: one an open plan restores (a\n-- restore_volume step names it), or one read under access that has not ended.\nSELECT (s.step -> 'detail' -> 'backup' ->> 'string')::uuid AS \"id!\"\n  FROM plan p\n CROSS JOIN LATERAL jsonb_array_elements(p.steps) AS s(step)\n  JOIN backup b ON b.id = (s.step -> 'detail' -> 'backup' ->> 'string')::uuid\n WHERE p.status IN ('proposed', 'approved', 'queued', 'applying')\n   AND s.step ->> 'action' = 'restore_volume'\n   AND b.repository_id = $1 AND b.workload_id = $2\nUNION\nSELECT backup_id AS \"id!\"\n  FROM backup_access\n WHERE repository_id = $1 AND workload_id = $2 AND mode = 'read' AND area = 'backups'\n   AND expires_at > $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "19428efcb25d4107e1ac3c76412487856d468050ccb58efe7fe0dbda18c93cf7"
+}

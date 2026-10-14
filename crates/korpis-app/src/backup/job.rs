@@ -52,6 +52,8 @@ pub enum JobRefusal {
     Gone,
     /// The backup target did not grant access, for the provider's reason.
     Store(String),
+    /// No repository takes the workload's streams.
+    NoTarget,
 }
 
 impl JobRefusal {
@@ -64,6 +66,7 @@ impl JobRefusal {
             Self::Ended => "job.ended".into(),
             Self::Gone => "job.backup_gone".into(),
             Self::Store(reason) => reason.clone(),
+            Self::NoTarget => "offload.none".into(),
         }
     }
 }
@@ -109,7 +112,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             kind: ProviderType::BackupTarget,
             name: t.repo.provider.clone(),
         };
-        self.record_access((t.repo.id, t.workload), t.backup, t.mode, JOB_ACCESS).await?;
+        let prefix = ((t.repo.id, t.workload), crate::ports::Area::Backups);
+        self.record_access(prefix, t.backup, t.mode, JOB_ACCESS).await?;
         let prefix = t.repo.workload_prefix(t.workload);
         let called = self.grant_backup_access(&target, &prefix, t.mode, JOB_ACCESS).await?;
         match called.outcome {
@@ -173,7 +177,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// as lasting a little longer than asked, since the target's clock decides when it ends.
     pub(super) async fn record_access(
         &self,
-        prefix: crate::ports::Prefix,
+        (prefix, area): (crate::ports::Prefix, crate::ports::Area),
         backup: Option<Uuid>,
         mode: AccessMode,
         ttl: Duration,
@@ -181,6 +185,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let now = self.clock.now();
         let access = crate::ports::AccessRecord {
             prefix,
+            area,
             backup,
             mode,
             granted_at: now,

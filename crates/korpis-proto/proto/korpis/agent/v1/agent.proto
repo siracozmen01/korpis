@@ -118,6 +118,10 @@ message JobAccessRequest {
   string request = 1;
   string plan = 2;
   uint32 step = 3;
+  // Set instead of the plan and step: the workload whose console stream the node offloads (§4 of
+  // docs/14-streams.md). Answered to a node that held its lease, with write access to its stream
+  // prefix in the repository that takes its streams, or refused `offload.none` where none does.
+  string offload = 4;
 }
 
 message JobAccess {

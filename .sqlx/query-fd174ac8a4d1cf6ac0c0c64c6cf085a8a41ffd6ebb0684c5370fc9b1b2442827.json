@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Whether a live repository other than $4, of organization $1 and provider $2, has a place one\n-- prune of which would reach into a place of a repository at prefix $3: the same prefix, or one\n-- that starts with the other's followed by `workloads/` or `streams/`, where a repository keeps\n-- its workloads' backups and offloaded streams (Finding 32 of docs/23-walkthroughs.md). Within\n-- an organization a provider name resolves to one installation; across organizations a workload\n-- is only ever backed up into its own organization's repositories, under its own identifier, so\n-- no prefix chosen in one can reach another's backups.\nSELECT EXISTS (\n    SELECT 1 FROM repository r\n     WHERE r.deleted_at IS NULL\n       AND r.id <> $4\n       AND r.organization_id = $1\n       AND r.provider_name = $2\n       AND (r.prefix = $3\n            OR starts_with($3, r.prefix || 'workloads/')\n            OR starts_with(r.prefix, $3 || 'workloads/')\n            OR starts_with($3, r.prefix || 'streams/')\n            OR starts_with(r.prefix, $3 || 'streams/'))\n) AS \"overlaps!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "overlaps!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fd174ac8a4d1cf6ac0c0c64c6cf085a8a41ffd6ebb0684c5370fc9b1b2442827"
+}

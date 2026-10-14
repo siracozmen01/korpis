@@ -2037,6 +2037,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "korpis-app",
+ "korpis-backup",
  "korpis-core",
  "korpis-extension",
  "korpis-proto",

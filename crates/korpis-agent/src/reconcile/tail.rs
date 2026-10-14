@@ -26,10 +26,14 @@ fn at(nanos: i64) -> SystemTime {
 
 /// The journal record of `change` to `workload`'s console stream.
 fn record(workload: &str, change: &Change) -> Body {
-    let (event, s): (_, &Sealed) = match change {
-        Change::Sealed(s) => (agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
-        Change::Pruned(s) => (agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
-    };
+    match change {
+        Change::Sealed(s) => segment_record(workload, agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
+        Change::Pruned(s) => segment_record(workload, agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
+    }
+}
+
+/// The journal record of `event` to segment `s` of `workload`'s console stream.
+pub(crate) fn segment_record(workload: &str, event: agent::SegmentEvent, s: &Sealed) -> Body {
     let segment = Segment {
         first_offset: s.first_offset,
         end_offset: s.end_offset,
@@ -38,7 +42,7 @@ fn record(workload: &str, change: &Change) -> Body {
         bytes: s.bytes,
         digest: s.digest.clone(),
         node: None,
-        offloaded: false,
+        offloaded: event == agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED,
     };
     Body::StreamSegment(Box::new(agent::StreamSegmentEvent {
         workload: workload.to_owned(),

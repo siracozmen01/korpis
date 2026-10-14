@@ -218,6 +218,8 @@ Backups are kept in repositories. `korpis repository create nightly --provider s
 korpis/` makes one for the organization, or for one project with `--project`, keeping by default
 the last backup of each of seven days, four weeks, and six months above a one-day floor;
 `korpis repository list` and `korpis repository get rep_…` read them (§5.3 of `06-storage.md`).
+The first repository of an organization or project also takes its workloads' console streams
+(§4 of `14-streams.md`) unless made with `--no-streams`; `--streams` asks for it explicitly.
 `korpis backup create vol_… --repository rep_…` backs a volume up, a plan that applies at once;
 `korpis backup list <workload>` shows its backups newest first, read from a snapshot or live, and
 `korpis backup get bkp_…` one, with why it failed and what it did not read (§5.1 there).

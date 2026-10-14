@@ -112,6 +112,12 @@ impl<S: ObjectStore> Repo<S> {
         Ok(backup)
     }
 
+    /// The bytes of offloaded stream segment `id`, as its node sealed them; what they are is the
+    /// stream format's to check.
+    pub async fn segment(&self, id: &str) -> Result<Vec<u8>> {
+        self.get(Kind::Segment, id).await
+    }
+
     /// Writes backup `b`'s record, which makes it whole.
     pub async fn put_backup(&self, b: &pb::Backup) -> Result<u64> {
         self.put(Kind::Backup, &b.id, b.encode_to_vec()).await

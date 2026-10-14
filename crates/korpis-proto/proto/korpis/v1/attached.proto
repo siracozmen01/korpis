@@ -151,6 +151,10 @@ message Repository {
   KeyCustody key_custody = 7;
   RetentionPolicy retention = 8;
   google.protobuf.Timestamp created = 9;
+  // Whether the console streams of the workloads it serves are offloaded to it (§4 of
+  // docs/14-streams.md): at most one repository per organization as a whole and one per
+  // project, the project's taken first.
+  bool streams = 10;
 }
 
 // Who holds a repository's key-encryption key (§5.5 of docs/06-storage.md).

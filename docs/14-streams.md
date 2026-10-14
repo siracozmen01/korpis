@@ -112,6 +112,28 @@ written. Where no target is configured (a single machine with no object storage)
 says how much of each stream exists only on its node, because §3.6 of `01-model.md` promises
 durability per failure and this is the failure it does not cover.
 
+**Offload, as built, 2026-10-14** (Finding 43 of `23-walkthroughs.md`). "Wherever an offload
+target exists" named nothing that says whether one does. An offload target is now a repository
+that takes streams (§5.3 of `06-storage.md`): a workload's stream goes to its project's, or else
+to its organization's whole, and there is at most one of each. The first repository made for an
+organization or project takes its streams unless told not to, and a second may not, so offload is
+on by default once anywhere to keep it exists, and which repository holds a stream is never a
+choice made per workload. The node's agent follows each stream's changes log from a place of its
+own, kept on disk, and sends every segment sealed there that it still holds: it asks the control
+plane for the workload's data key and an hour's write access to the workload's stream prefix, given
+to a node that held the workload's lease (as a segment record is believed), seals the segment
+again under a key derived from the data key for segments, writes it named by its first offset and
+digest, and journals it as offloaded, which marks it so in the index. It is a task of its own, so
+the reconciler never waits on a store. A segment sealed while no repository took the stream is
+sent once one does, if the node still holds it; one pruned first was held only on the node.
+
+What it costs: an hour of write access to a stream prefix in the control plane's access record
+for each stream that seals, and each segment written twice, once on the node and once to the
+target. What it does not do yet: read an offloaded segment back when its node is gone, and delete
+offloaded segments when the stream's retention passes; both are the next work (question 6). Nor
+does the control plane check that a segment journaled as offloaded is in the target: it believes
+the node, which could already lose the stream by not sending it.
+
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
 the control plane knows every segment's offsets, digest, and where it is held: the `segments` of

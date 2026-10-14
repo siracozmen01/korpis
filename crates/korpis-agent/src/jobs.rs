@@ -59,7 +59,25 @@ impl JobAccesses {
     /// # Errors
     /// The refusal, or that it may be had later, after which asking again asks anew.
     pub fn poll(&self, plan: &str, step: u32) -> Option<Result<agent::JobGrant, NoAccess>> {
-        let key = (plan.to_owned(), step);
+        let up = agent::JobAccessRequest { plan: plan.to_owned(), step, ..Default::default() };
+        self.ask((plan.to_owned(), step), up)
+    }
+
+    /// As [`poll`](Self::poll), for offloading `workload`'s console stream (§4 of
+    /// docs/14-streams.md).
+    ///
+    /// # Errors
+    /// As [`poll`](Self::poll).
+    pub fn poll_offload(&self, workload: &str) -> Option<Result<agent::JobGrant, NoAccess>> {
+        let up = agent::JobAccessRequest { offload: workload.to_owned(), ..Default::default() };
+        self.ask((format!("offload/{workload}"), u32::MAX), up)
+    }
+
+    fn ask(
+        &self,
+        key: (String, u32),
+        mut up: agent::JobAccessRequest,
+    ) -> Option<Result<agent::JobGrant, NoAccess>> {
         let mut asked = self.lock();
         match asked.remove(&key) {
             Some(Asked::Answered(outcome)) => return Some(judged(outcome)),
@@ -70,12 +88,7 @@ impl JobAccesses {
             _ => {}
         }
         let id = uuid::Uuid::now_v7().to_string();
-        let up = agent::JobAccessRequest {
-            request: id.clone(),
-            plan: plan.to_owned(),
-            step,
-            ..Default::default()
-        };
+        up.request.clone_from(&id);
         let message = agent::AgentMessage {
             message: Some(Up::JobAccessRequest(Box::new(up))),
             ..Default::default()

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                   SELECT 1 FROM repository\n                    WHERE organization_id = $1 AND project_id IS NOT DISTINCT FROM $2\n                      AND streams AND deleted_at IS NULL\n               ) AS \"taken!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "taken!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "661ef92a956f85416c1da0dd9a42df8f1d0234e280d7a483662e6fc1eaa105b6"
+}

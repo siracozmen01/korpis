@@ -47,7 +47,9 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
                 ..Default::default()
             }))
         }
-        Err(r @ JobRefusal::Store(_)) => Outcome::Refused(refused(&r.reason(), true)),
+        Err(r @ (JobRefusal::Store(_) | JobRefusal::NoTarget)) => {
+            Outcome::Refused(refused(&r.reason(), true))
+        }
         Err(r) => Outcome::Refused(refused(&r.reason(), false)),
     }
 }
@@ -61,15 +63,24 @@ pub(super) fn answer(
 ) {
     let app = Arc::clone(app);
     tokio::spawn(async move {
-        let outcome = match id(IdKind::Plan, "plan", &r.plan) {
+        let asked = if r.offload.is_empty() {
+            match id(IdKind::Plan, "plan", &r.plan) {
+                Err(e) => Err(e),
+                Ok(plan) => Ok(app.grant_job_access(node, plan, r.step).await),
+            }
+        } else {
+            match id(IdKind::Workload, "offload", &r.offload) {
+                Err(e) => Err(e),
+                Ok(workload) => Ok(app.grant_offload_access(node, workload).await),
+            }
+        };
+        let outcome = match asked {
             Err(e) => Outcome::Refused(refused(&e.message, false)),
-            Ok(plan) => match app.grant_job_access(node, plan, r.step).await {
-                Ok(granted) => outcome(granted),
-                Err(e) => {
-                    tracing::warn!(error = %e, %node, "a job's access could not be granted");
-                    Outcome::Refused(refused("job.unavailable", true))
-                }
-            },
+            Ok(Ok(granted)) => outcome(granted),
+            Ok(Err(e)) => {
+                tracing::warn!(error = %e, %node, "a job's access could not be granted");
+                Outcome::Refused(refused("job.unavailable", true))
+            }
         };
         let answer =
             agent::JobAccess { request: r.request, outcome: Some(outcome), ..Default::default() };
