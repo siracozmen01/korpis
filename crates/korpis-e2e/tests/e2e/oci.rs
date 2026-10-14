@@ -14,6 +14,7 @@ use korpis_agent::runtime::{Runtime as _, RuntimeError};
 use korpis_cli::cmd::Get;
 use korpis_cli::cmd::get::get;
 use korpis_cli::cmd::logs::{Logs, logs};
+use korpis_cli::cmd::volume::{VolumeAction, volume};
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::read;
@@ -177,5 +178,31 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let records = read(&StreamDir::new(&console), 0, 10).unwrap().records;
     let said: Vec<_> = records.iter().map(|r| String::from_utf8_lossy(&r.body)).collect();
     assert_eq!(said, ["said hello\n"], "what it printed, as it printed it");
+
+    retained_volume_deleted(&cp, &project, &vol).await;
     agent.stop().await;
+}
+
+/// The retained volume, its workload gone, deleted by a plan its node executes through a
+/// residual assignment, which leaves the set once it is done.
+async fn retained_volume_deleted(cp: &ControlPlane, project: &str, vol: &Path) {
+    let data = cp.volume_named(project, "data").await;
+    let proposer = cp.token_for(&["volume.read", "volume.delete"]).await;
+    let asked = VolumeAction::Delete { volume: data };
+    let answer = volume(&cp.cli(Some(&proposer)), &asked).await.unwrap();
+    assert!(answer.human.contains("IRREVERSIBLE"), "{}", answer.human);
+    let plan = answer.human.split_whitespace().find(|t| t.starts_with("pln_")).unwrap();
+    cp.approve(plan).await;
+    let sql = "SELECT count(*) FROM volume WHERE name = 'data' AND deleted_at IS NOT NULL";
+    counted(cp, sql, 1).await;
+    assert!(!vol.exists(), "its data is gone from the node");
+    let sql = "SELECT count(*) FROM plan WHERE kind = 'delete_volume' AND status = 'applied'";
+    counted(cp, sql, 1).await;
+    for _ in 0..50 {
+        if cp.scalar::<i64>("SELECT count(*) FROM assignment WHERE active").await == 0 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("the residual assignment never left the set");
 }

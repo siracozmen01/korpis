@@ -642,6 +642,15 @@ the gaps above:
   agent performs each cycle once and records that it did (§4.1). Like `target`, it is the approved
   declaration, so a stop waiting for confirmation has not reached the node (§3.3 of
   `01-model.md`, corrected 2026-10-13).
+- **A residual assignment carries a plan for what a workload left behind.** A retained volume
+  outlives its workload (§3.6 of `01-model.md`), so deleting one is a plan for a workload that may
+  no longer run anywhere. Its node is sent an assignment for that workload marked `residual`,
+  carrying the plan deleting the volume and, for the record, the last target and power the
+  workload had. The agent executes the plan's steps and nothing else: it builds, starts,
+  observes, and leases nothing for it. No lease fences those steps, because what they touch is
+  on that node alone, which is why a plan touching anything reachable from a second node can
+  never be carried this way. The assignment leaves the set when the plan is done (§7 of
+  `06-storage.md`). Added 2026-10-14, when deleting retained volumes was built.
 - **`plan` carries ordered work without becoming a command.** It states which steps of which plan
   this node is to have executed, up to `through`. The agent executes the next unexecuted step,
   reports its completion as an effect keyed `(plan_id, step_index)`, and moves on. **Cancelling a

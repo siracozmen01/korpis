@@ -43,6 +43,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         lease_epoch: a.lease_epoch,
         uid_base: a.ids.base,
         uid_count: a.ids.count,
+        residual: a.residual,
         ..Default::default()
     }
 }

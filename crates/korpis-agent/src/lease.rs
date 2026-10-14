@@ -142,9 +142,14 @@ pub struct Keeper {
     outbound: mpsc::Sender<agent::AgentMessage>,
 }
 
-/// Each workload held, with what it declared for an unrenewed lease.
+/// Each workload held, with what it declared for an unrenewed lease. A residual assignment
+/// runs nothing, so it is fenced by nothing and asks for no lease.
 fn wanted(held: &HeldSet) -> BTreeMap<String, OnExpiry> {
-    held.assignments.iter().map(|(w, a)| (w.clone(), on_expiry(a.on_lease_expiry))).collect()
+    held.assignments
+        .iter()
+        .filter(|(_, a)| !a.residual)
+        .map(|(w, a)| (w.clone(), on_expiry(a.on_lease_expiry)))
+        .collect()
 }
 
 impl Keeper {

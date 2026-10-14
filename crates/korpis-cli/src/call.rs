@@ -119,6 +119,7 @@ table! {
     "korpis.v1.StreamService/GetStream" => StreamServiceClient::get_stream(GetStreamRequest);
     "korpis.v1.VolumeService/GetVolume" => VolumeServiceClient::get_volume(GetVolumeRequest);
     "korpis.v1.VolumeService/ListVolumes" => VolumeServiceClient::list_volumes(ListVolumesRequest);
+    "korpis.v1.VolumeService/DeleteVolume" => VolumeServiceClient::delete_volume(DeleteVolumeRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

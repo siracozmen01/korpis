@@ -102,7 +102,8 @@ impl Judged {
         let verified = self
             .check(&open.token, &open.action, &open.workload)
             .map_err(|e| refuse("refused", e))?;
-        if !self.held.borrow().assignments.contains_key(&open.workload) {
+        let runs = self.held.borrow().assignments.get(&open.workload).is_some_and(|a| !a.residual);
+        if !runs {
             return Err(refuse("not_here", "this node does not hold that workload".into()));
         }
         let handler = self.handlers.get(&open.action).ok_or_else(|| {

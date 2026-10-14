@@ -56,8 +56,13 @@ pub trait AssignmentRead {
     /// The workloads placed on `node`.
     fn placed_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
-    /// The nodes a change to `workload` concerns: those it is placed on, and those holding an
-    /// active assignment for it.
+    /// The workloads not placed on `node` with an approved, queued, or applying plan deleting a
+    /// retained volume there: those whose residual assignment it is sent (§7 of
+    /// docs/06-storage.md).
+    fn residual_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// The nodes a change to `workload` concerns: those it is placed on, those holding an active
+    /// assignment for it, and those holding a volume an approved plan of it deletes.
     fn nodes_of(&self, workload: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
     /// The epoch of the lease `node` holds for `workload`, if it holds one.

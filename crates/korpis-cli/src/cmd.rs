@@ -16,6 +16,7 @@ pub mod provider;
 pub mod session;
 pub mod sets;
 pub mod upgrade;
+pub mod volume;
 
 use crate::complete;
 use clap::Subcommand;

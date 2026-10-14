@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan, locked until the transaction ends.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE id = $1\n   FOR UPDATE\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan, locked until the transaction ends.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume\n  FROM plan\n WHERE id = $1\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -244,6 +244,17 @@
             "name": "approval_reason"
           }
         }
+      },
+      {
+        "ordinal": 22,
+        "name": "to_volume",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_volume"
+          }
+        }
       }
     ],
     "parameters": {
@@ -273,8 +284,9 @@
       true,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "095cc1f5c61d25090b1a115bdb591f2aa88591fc005e0252028502d2b9dab6a3"
+  "hash": "f3f30410505c50cd16ff90b4bf9aee80a7c152b15601c7a369ce3be6e680a9b8"
 }

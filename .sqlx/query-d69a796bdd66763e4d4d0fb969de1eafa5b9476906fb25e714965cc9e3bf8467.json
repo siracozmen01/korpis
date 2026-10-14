@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans still in play: proposed, approved, queued, or applying.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,\n       computed_at, computed_by, steps, impact, status, completed, apply_after, expires_at,\n       approved_by, approved_at, proposed_under, approval, approval_scope, approval_reason\n  FROM plan\n WHERE workload_id = $1 AND status IN ('proposed', 'approved', 'queued', 'applying')\n ORDER BY id\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans, oldest first, after a keyset cursor.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume\n  FROM plan\n WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)\n ORDER BY id LIMIT $3\n",
   "describe": {
     "columns": [
       {
@@ -244,11 +244,24 @@
             "name": "approval_reason"
           }
         }
+      },
+      {
+        "ordinal": 22,
+        "name": "to_volume",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_volume"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -273,8 +286,9 @@
       true,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "ef60bf03368b60beb345ae60920435a7f369e440ec9bb2f5719ebf4ac8704b41"
+  "hash": "d69a796bdd66763e4d4d0fb969de1eafa5b9476906fb25e714965cc9e3bf8467"
 }

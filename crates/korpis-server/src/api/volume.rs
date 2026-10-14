@@ -3,15 +3,37 @@
 //! `VolumeService`: volumes as nodes reported them, through the project they belong to (§7 of
 //! docs/06-storage.md). A size is shown only where the write path enforces it (Rule K-3).
 
+use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};
-use super::{Api, error, next_page, page};
+use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use korpis_app::idempotency::Idempotent;
 use korpis_app::volume::ListVolumes;
 use korpis_core::id::IdKind;
+use korpis_core::workload::Plan;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::volume::volume_to_pb;
 
+fn proposed(p: &Plan) -> pb::DeleteVolumeResponse {
+    pb::DeleteVolumeResponse { plan: plan_to_pb(p).into(), ..Default::default() }
+}
+
 impl pb::VolumeService for Api {
+    async fn delete_volume(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::DeleteVolumeRequest>,
+    ) -> ServiceResult<pb::DeleteVolumeResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Volume, "id", &req.id).refuse()?;
+        let encoder = |p: &Plan| encode(&proposed(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self.app.delete_volume(&caller, &idem, id).await.map_err(error::from_app)?;
+        respond(reply, proposed)
+    }
+
     async fn get_volume(
         &self,
         ctx: RequestContext,

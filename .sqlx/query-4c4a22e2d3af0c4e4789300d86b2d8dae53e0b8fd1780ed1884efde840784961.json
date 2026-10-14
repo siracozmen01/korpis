@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT node_id AS \"node!\" FROM placement WHERE workload_id = $1\n               UNION\n               SELECT node_id FROM assignment WHERE workload_id = $1 AND active\n               UNION\n               SELECT v.node_id FROM plan p JOIN volume v ON v.id = p.to_volume\n                WHERE p.workload_id = $1 AND p.status IN ('approved', 'queued', 'applying')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4c4a22e2d3af0c4e4789300d86b2d8dae53e0b8fd1780ed1884efde840784961"
+}

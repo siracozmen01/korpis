@@ -35,6 +35,9 @@ pub enum PlanTarget {
     Retire,
     /// Another node, with the intent unchanged.
     Migrate,
+    /// Deleting this retained volume, which no workload holds; the plan's workload is the one
+    /// that created it (§7 of docs/06-storage.md).
+    DeleteVolume(Uuid),
 }
 
 impl PlanTarget {
@@ -46,6 +49,7 @@ impl PlanTarget {
             Self::Power(_) => "power",
             Self::Retire => "retire",
             Self::Migrate => "migrate",
+            Self::DeleteVolume(_) => "delete_volume",
         }
     }
 }

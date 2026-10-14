@@ -8,6 +8,7 @@ use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
+use korpis_cli::cmd::volume::{self, VolumeAction};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
@@ -90,6 +91,9 @@ enum Command {
     /// Enrolls, cordons, or uncordons a node.
     #[command(subcommand)]
     Node(NodeAction),
+    /// Deletes a retained volume no workload holds.
+    #[command(subcommand)]
+    Volume(VolumeAction),
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
@@ -210,6 +214,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             .await
         }
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
+        Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
             answer(cli, act::node(&cli.required()?, &server, a).await)

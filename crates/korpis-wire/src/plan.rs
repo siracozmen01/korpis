@@ -117,6 +117,11 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         PlanTarget::Power(v) => (pb::PlanKind::PLAN_KIND_POWER, None, Some(v)),
         PlanTarget::Retire => (pb::PlanKind::PLAN_KIND_RETIRE, None, None),
         PlanTarget::Migrate => (pb::PlanKind::PLAN_KIND_MIGRATE, None, None),
+        PlanTarget::DeleteVolume(_) => (pb::PlanKind::PLAN_KIND_DELETE_VOLUME, None, None),
+    };
+    let to_volume = match p.target {
+        PlanTarget::DeleteVolume(v) => Some(wire_id(IdKind::Volume, v)),
+        _ => None,
     };
     let (approval, approval_scope) = approval(&p.approval);
     pb::Plan {
@@ -141,6 +146,7 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         proposed_under: wire_id(IdKind::Grant, p.proposed_under),
         approval: approval.into(),
         approval_scope: approval_scope.into(),
+        to_volume,
         ..Default::default()
     }
 }

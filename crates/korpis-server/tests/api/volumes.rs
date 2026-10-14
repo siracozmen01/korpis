@@ -17,11 +17,16 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_server::api::wire::principal;
 use std::time::SystemTime;
 
-fn volume_record(seq: u64, e: agent::VolumeEvent) -> agent::JournalRecord {
+pub(crate) fn volume_record(seq: u64, e: agent::VolumeEvent) -> agent::JournalRecord {
     agent::JournalRecord { seq, body: Some(B::Volume(Box::new(e))), count: 1, ..Default::default() }
 }
 
-fn ensured(workload: &str, name: &str, quota_enforced: bool, stream: bool) -> agent::VolumeEvent {
+pub(crate) fn ensured(
+    workload: &str,
+    name: &str,
+    quota_enforced: bool,
+    stream: bool,
+) -> agent::VolumeEvent {
     agent::VolumeEvent {
         workload: workload.to_owned(),
         name: name.to_owned(),
@@ -35,7 +40,7 @@ fn ensured(workload: &str, name: &str, quota_enforced: bool, stream: bool) -> ag
     }
 }
 
-fn list(project: &str, deleted: bool) -> pb::ListVolumesRequest {
+pub(crate) fn list(project: &str, deleted: bool) -> pb::ListVolumesRequest {
     pb::ListVolumesRequest {
         project: project.to_owned(),
         include_deleted: deleted,
@@ -45,7 +50,13 @@ fn list(project: &str, deleted: bool) -> pb::ListVolumesRequest {
 
 /// A node holding a workload it once held the lease of: the harness, the node's stream, the
 /// project, and the workload.
-async fn placed() -> (Harness, Stream, String, String) {
+pub(crate) async fn placed() -> (Harness, Stream, String, String) {
+    let (h, s, project, workload, _) = placing().await;
+    (h, s, project, workload)
+}
+
+/// As [`placed`], with the assignment that carried the workload's first plan.
+pub(crate) async fn placing() -> (Harness, Stream, String, String, agent::Assignment) {
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
     let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[1; 16])).await;
@@ -59,9 +70,9 @@ async fn placed() -> (Harness, Stream, String, String) {
         .unwrap()
         .into_owned();
     let workload = declared.workload.as_option().unwrap().id.clone();
-    until(&mut s, assignment(|a| a.plan.is_set())).await;
+    let created = until(&mut s, assignment(|a| a.plan.is_set())).await;
     held_and_released(&mut s, &workload).await;
-    (h, s, project, workload)
+    (h, s, project, workload, created)
 }
 
 #[tokio::test]
@@ -112,7 +123,7 @@ async fn the_node_reports_volumes_and_a_client_reads_them_under_their_project() 
     assert!(gone.deleted_at.is_set() && gone.attached_to.is_none(), "but kept, and marked");
 }
 
-fn delete(workload: &str, volumes: &[&str]) -> pb::DeleteWorkloadRequest {
+pub(crate) fn delete(workload: &str, volumes: &[&str]) -> pb::DeleteWorkloadRequest {
     pb::DeleteWorkloadRequest {
         mutation: mutation(&format!("delete-{}", volumes.join("-"))).into(),
         workload: workload.to_owned(),
@@ -122,7 +133,7 @@ fn delete(workload: &str, volumes: &[&str]) -> pb::DeleteWorkloadRequest {
 }
 
 /// A token holding `actions` on the root organization; its client configuration.
-async fn holding(h: &Harness, actions: &[&str]) -> connectrpc::client::ClientConfig {
+pub(crate) async fn holding(h: &Harness, actions: &[&str]) -> connectrpc::client::ClientConfig {
     let (token, secret) = h.bare_token().await;
     h.grants(h.root())
         .issue_grant(pb::IssueGrantRequest {

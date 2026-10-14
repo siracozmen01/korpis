@@ -483,6 +483,18 @@ service VolumeService {
   rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Proposes deleting a retained volume no workload holds: a plan of one irreversible step,
+  // which always waits for a person (§7 of docs/06-storage.md).
+  rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
+}
+
+message DeleteVolumeRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteVolumeResponse {
+  Plan plan = 1;
 }
 
 message GetVolumeRequest {

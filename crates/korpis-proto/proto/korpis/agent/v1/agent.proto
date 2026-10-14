@@ -284,6 +284,11 @@ message Assignment {
   // here (§4.5 of docs/04-runtimes.md).
   uint32 uid_base = 15;
   uint32 uid_count = 16;
+  // A retired workload's residual assignment, which carries only a plan for what it left on this
+  // node, a retained volume to delete (§7 of docs/06-storage.md). Its target and power are the
+  // last the workload had, for the record; the node executes the plan's steps and nothing else:
+  // it builds, starts, observes, and leases nothing for it.
+  bool residual = 17;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

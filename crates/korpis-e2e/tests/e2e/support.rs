@@ -222,6 +222,18 @@ impl ControlPlane {
         self.approve(&plan).await;
     }
 
+    /// The identifier of `project`'s live volume called `name`.
+    pub async fn volume_named(&self, project: &str, name: &str) -> String {
+        let request = pb::ListVolumesRequest { project: project.to_owned(), ..Default::default() };
+        let listed = pb::VolumeServiceClient::new(self.http(), self.config())
+            .list_volumes(request)
+            .await
+            .unwrap()
+            .into_owned()
+            .volumes;
+        listed.into_iter().find(|v| v.name == name).unwrap().id
+    }
+
     /// Approves `plan` as the operator.
     pub async fn approve(&self, plan: &str) {
         pb::PlanServiceClient::new(self.http(), self.config())

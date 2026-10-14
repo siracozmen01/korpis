@@ -218,6 +218,15 @@ pub fn retire_steps(
     b.steps
 }
 
+/// The one step of a plan deleting the retained volume `v`, executed by its node.
+#[must_use]
+pub fn delete_volume_steps(workload: Uuid, v: &Volume, classifier: Classifier<'_>) -> Vec<Step> {
+    let mut b =
+        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    b.push(StepAction::DeleteVolume, deletion(v), &[]);
+    b.steps
+}
+
 /// What a node needs to delete `v`: the helper's identifier for it, as the node reported it,
 /// never one derived again from its name.
 fn deletion(v: &Volume) -> ValueMap {

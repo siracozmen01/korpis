@@ -1319,7 +1319,10 @@ it keeps volumes, and deleting it is the volume deletion step. → patched into 
 named `world`, step 2 would retain nothing and add, after `retire`, an irreversible
 `delete_volume` step carrying the helper's identifier the node reported; step 7 would then be the
 node's deletion record, which marks the volume deleted rather than removing it (§7 of
-`06-storage.md`).
+`06-storage.md`). Kept, as here, `world` is deleted later by `korpis volume delete`: a plan of
+kind `delete_volume` for `mc-testing`, retired, approved by a person, and carried to `fra-3` by a
+residual assignment that leases nothing and leaves the set once the plan is applied (§4.8 of
+`02-architecture.md`).
 
 **FINDING 30: A retained volume was listed by nothing. `CONFIRMED`**
 

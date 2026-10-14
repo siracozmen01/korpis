@@ -6,6 +6,10 @@
 //! assignment whose content has not changed keeps its generation and signature; one that has is
 //! sealed again one generation higher; one that left the set is kept, inactive, so its
 //! generation never goes back.
+//!
+//! A workload that no longer runs on the node may still have a plan there: deleting a volume it
+//! left behind (§7 of docs/06-storage.md). It is sent a residual assignment, which carries that
+//! plan and nothing the node acts on besides; it leaves the set once the plan is done.
 
 use crate::App;
 use crate::error::AppError;
@@ -13,9 +17,9 @@ use crate::ports::{
     AssignmentWrite, Clock, RecipeSource, SealError, Sealed, Store, StoredAssignment, Tx,
     WorkloadWrite,
 };
-use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::{Plan, PlanTarget};
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -49,6 +53,17 @@ fn active_plan(open: Vec<Plan>, now: SystemTime) -> Option<Plan> {
     ready.into_iter().next()
 }
 
+/// The id range `workload` keeps on `node`, allocated on its first assignment there.
+async fn ids<T: Tx>(tx: &mut T, node: Uuid, workload: Uuid) -> Result<IdRange, AppError> {
+    let slot = tx.id_slot(node, workload, IdRange::slots()).await?;
+    slot.and_then(IdRange::of_slot).ok_or_else(|| {
+        AppError::conflict(
+            "node.ids_exhausted",
+            "every user-namespace id range on the node is held",
+        )
+    })
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Computes `node`'s set, seals what changed, and returns the set to send.
     pub async fn sync_assignments(&self, node: Uuid) -> Result<AssignmentSet, AppError> {
@@ -56,25 +71,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .assignment_sealer
             .as_ref()
             .ok_or_else(|| AppError::Internal("no assignment sealer is configured".into()))?;
-        let mut desired = Vec::new();
-        for workload in self.store.placed_on(node).await? {
-            if let Some(d) = self.desired(node, workload).await? {
-                desired.push(d);
-            }
-        }
+        let desired = self.all_desired(node).await?;
         let mut tx = self.store.begin().await?;
         tx.lock_assignments(node).await?;
         let stored: BTreeMap<Uuid, StoredAssignment> =
             tx.stored_assignments(node).await?.into_iter().map(|s| (s.workload, s)).collect();
         let mut out = Vec::with_capacity(desired.len());
         for (mut assignment, plan) in desired {
-            let slot = tx.id_slot(node, assignment.workload, IdRange::slots()).await?;
-            assignment.ids = slot.and_then(IdRange::of_slot).ok_or_else(|| {
-                AppError::conflict(
-                    "node.ids_exhausted",
-                    "every user-namespace id range on the node is held",
-                )
-            })?;
+            if !assignment.residual {
+                assignment.ids = ids(&mut tx, node, assignment.workload).await?;
+            }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let kept = stored.get(&assignment.workload);
             let current = match kept {
@@ -106,6 +112,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.commit().await?;
         let entries: Vec<(Uuid, u64)> = out.iter().map(|a| (a.workload, a.generation)).collect();
         Ok(AssignmentSet { digest: set_digest(&entries), assignments: out })
+    }
+
+    /// What `node` is to be told: an assignment for each workload placed on it, and a residual
+    /// one for each that left a plan there.
+    async fn all_desired(&self, node: Uuid) -> Result<Vec<(Assignment, Option<Plan>)>, AppError> {
+        let mut desired = Vec::new();
+        for workload in self.store.placed_on(node).await? {
+            desired.extend(self.desired(node, workload).await?);
+        }
+        for workload in self.store.residual_on(node).await? {
+            desired.extend(self.residual(node, workload).await?);
+        }
+        Ok(desired)
     }
 
     /// The nodes whose sets a change to `workload` may alter.
@@ -174,8 +193,57 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 node,
                 lease_epoch,
                 ids: IdRange { base: 0, count: 0 },
+                residual: false,
             },
             plan,
+        )))
+    }
+
+    /// The residual assignment of `workload` on `node`: the plan deleting a volume it left there,
+    /// with the last target and power it had for the record. No ids, no lease, no recipe it
+    /// needs; `None` once nothing is left to do there.
+    async fn residual(
+        &self,
+        node: Uuid,
+        workload: Uuid,
+    ) -> Result<Option<(Assignment, Option<Plan>)>, AppError> {
+        let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
+        let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
+        let id = w.target.ok_or_else(|| missing("target"))?;
+        let target = self.store.intent(id).await?.ok_or_else(|| missing("target"))?;
+        let power = self
+            .store
+            .power_at(workload, w.power_target_version)
+            .await?
+            .ok_or_else(|| missing("power target"))?;
+        let mut here = Vec::new();
+        for p in self.store.open_plans(workload).await? {
+            if let PlanTarget::DeleteVolume(v) = p.target
+                && self.store.volume(v).await?.is_some_and(|v| v.node == node)
+            {
+                here.push(p);
+            }
+        }
+        let Some(plan) = active_plan(here, self.clock.now()) else { return Ok(None) };
+        let on_lease_expiry = target.body.continuity.resolved(false);
+        Ok(Some((
+            Assignment {
+                workload,
+                project: w.project,
+                organization: w.organization,
+                generation: 0,
+                target,
+                power,
+                on_lease_expiry,
+                plan: NodePlan::of(&plan),
+                retire: None,
+                recipe_manifest: Vec::new(),
+                node,
+                lease_epoch: 0,
+                ids: IdRange { base: 0, count: 0 },
+                residual: true,
+            },
+            Some(plan),
         )))
     }
 }

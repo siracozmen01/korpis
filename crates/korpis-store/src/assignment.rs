@@ -29,11 +29,31 @@ impl AssignmentRead for PgStore {
         .map_err(from_sqlx)
     }
 
+    async fn residual_on(&self, node: Uuid) -> StoreResult<Vec<Uuid>> {
+        let rows = sqlx::query_scalar!(
+            r#"SELECT DISTINCT p.workload_id AS "workload!"
+                 FROM plan p JOIN volume v ON v.id = p.to_volume
+                WHERE v.node_id = $1
+                  AND p.status IN ('approved', 'queued', 'applying')
+                  AND NOT EXISTS (SELECT 1 FROM placement pl
+                                   WHERE pl.workload_id = p.workload_id AND pl.node_id = $1)
+                ORDER BY 1"#,
+            node
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows)
+    }
+
     async fn nodes_of(&self, workload: Uuid) -> StoreResult<Vec<Uuid>> {
         let rows = sqlx::query_scalar!(
             r#"SELECT node_id AS "node!" FROM placement WHERE workload_id = $1
                UNION
-               SELECT node_id FROM assignment WHERE workload_id = $1 AND active"#,
+               SELECT node_id FROM assignment WHERE workload_id = $1 AND active
+               UNION
+               SELECT v.node_id FROM plan p JOIN volume v ON v.id = p.to_volume
+                WHERE p.workload_id = $1 AND p.status IN ('approved', 'queued', 'applying')"#,
             workload
         )
         .fetch_all(&self.pool)

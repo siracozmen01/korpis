@@ -206,7 +206,9 @@ never inferred from a name that happens to match; outside a set, `korpis workloa
 --delete-volumes world,stream_console` names the workload's own (`stream_console` is its console
 stream's volume, §4 of `14-streams.md`). Each named volume becomes its own irreversible step after
 the runtime is removed, under `volume.delete` on the volume, and the plan view marks those steps
-`IRREVERSIBLE` (§7 of `06-storage.md`).
+`IRREVERSIBLE` (§7 of `06-storage.md`). A volume kept by an earlier deletion, whose workload is
+gone, is deleted with `korpis volume delete vol_…`, which proposes a plan of that one step and
+leaves it waiting for a person, like every deletion of data.
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

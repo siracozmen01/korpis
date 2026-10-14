@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT p.workload_id AS \"workload!\"\n                 FROM plan p JOIN volume v ON v.id = p.to_volume\n                WHERE v.node_id = $1\n                  AND p.status IN ('approved', 'queued', 'applying')\n                  AND NOT EXISTS (SELECT 1 FROM placement pl\n                                   WHERE pl.workload_id = p.workload_id AND pl.node_id = $1)\n                ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "workload_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b300956be6830e0f590aeefea0c14ea67e4550ad6407bd8197d5834be0dcaedb"
+}

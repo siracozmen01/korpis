@@ -6,6 +6,7 @@
 //! superseded, and a plan nobody approved in time has expired.
 
 use super::retire::retiring;
+use super::volume_delete::undeletable;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -51,6 +52,9 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
         PlanTarget::Migrate => {
             return Err(AppError::NotYet { what: "migration plans", phase: 3 });
         }
+        // Deleting a retained volume asks nothing of the workload, retired or not; whether the
+        // volume can still be deleted is read where the plan is approved.
+        PlanTarget::DeleteVolume(_) => true,
     })
 }
 
@@ -106,6 +110,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
+    /// What `plan` has become if it can no longer be approved for `w` at `now`: expired, or
+    /// superseded because the workload moved, was retired, or the volume it deletes went or was
+    /// taken up again. A plan deleting a retained volume may belong to a retired workload.
+    async fn stale(
+        &self,
+        plan: &Plan,
+        w: &Workload,
+        now: SystemTime,
+    ) -> Result<Option<PlanStatus>, AppError> {
+        if !plan.approvable(now) {
+            return Ok(Some(PlanStatus::Expired));
+        }
+        let for_volume = matches!(plan.target, PlanTarget::DeleteVolume(_));
+        if (w.deleted_at.is_some() && !for_volume) || !current(plan, w)? {
+            return Ok(Some(PlanStatus::Superseded));
+        }
+        if let PlanTarget::DeleteVolume(v) = plan.target {
+            let volume = self.store.volume(v).await?;
+            if volume.as_ref().is_none_or(|v| undeletable(v).is_some()) {
+                return Ok(Some(PlanStatus::Superseded));
+            }
+        }
+        Ok(None)
+    }
+
     /// Approves a plan, or confirms it (§3.3 of docs/01-model.md).
     pub async fn approve_plan(
         &self,
@@ -121,11 +150,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         let (mut plan, w) = self.lock_proposed(&mut tx, cmd.plan).await?;
-        if !plan.approvable(now) {
-            return Err(self.retire_stale(tx, plan, PlanStatus::Expired).await);
-        }
-        if w.deleted_at.is_some() || !current(&plan, &w)? {
-            return Err(self.retire_stale(tx, plan, PlanStatus::Superseded).await);
+        if let Some(stale) = self.stale(&plan, &w, now).await? {
+            return Err(self.retire_stale(tx, plan, stale).await);
         }
         if tx.retiring(w.id).await? {
             return Err(retiring());
@@ -145,7 +171,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 PlanTarget::Power(v) => {
                     tx.move_power_target(w.id, v, w.power_target_version).await?
                 }
-                PlanTarget::Retire => true,
+                PlanTarget::Retire | PlanTarget::DeleteVolume(_) => true,
                 PlanTarget::Migrate => false,
             };
         if !moved {
@@ -166,7 +192,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.place_target(&mut tx, &w, Some(&target)).await?;
             }
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
-            PlanTarget::Power(_) | PlanTarget::Migrate => {}
+            PlanTarget::Power(_) | PlanTarget::Migrate | PlanTarget::DeleteVolume(_) => {}
         }
         finish(tx, caller, idem, APPROVE, plan).await
     }

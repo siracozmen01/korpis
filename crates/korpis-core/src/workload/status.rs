@@ -87,6 +87,8 @@ fn for_head(plan: &Plan, w: &Workload) -> bool {
         PlanTarget::Intent(i) => i == w.intent,
         PlanTarget::Power(v) => v == w.power_version,
         PlanTarget::Retire | PlanTarget::Migrate => true,
+        // Deleting a volume the workload no longer holds asks nothing of the workload itself.
+        PlanTarget::DeleteVolume(_) => false,
     }
 }
 

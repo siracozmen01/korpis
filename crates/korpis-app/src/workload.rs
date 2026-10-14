@@ -20,6 +20,7 @@ mod read;
 mod retire;
 mod sets;
 mod stream;
+mod volume_delete;
 mod watch;
 
 pub use classify::{Classified, SetClassification};

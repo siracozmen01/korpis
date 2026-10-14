@@ -173,14 +173,19 @@ pub(crate) struct PlanRow {
     pub(crate) approval: String,
     pub(crate) approval_scope: Option<Value>,
     pub(crate) approval_reason: String,
+    pub(crate) to_volume: Option<Uuid>,
 }
 
-fn target(kind: &str, to_intent: Option<Uuid>, to_power: Option<i64>) -> StoreResult<PlanTarget> {
-    Ok(match (kind, to_intent, to_power) {
-        ("intent", Some(i), None) => PlanTarget::Intent(i),
-        ("power", None, Some(v)) => PlanTarget::Power(count("to_power", v)?),
-        ("retire", None, None) => PlanTarget::Retire,
-        ("migrate", None, None) => PlanTarget::Migrate,
+fn target(
+    kind: &str,
+    (to_intent, to_power, to_volume): (Option<Uuid>, Option<i64>, Option<Uuid>),
+) -> StoreResult<PlanTarget> {
+    Ok(match (kind, to_intent, to_power, to_volume) {
+        ("intent", Some(i), None, None) => PlanTarget::Intent(i),
+        ("power", None, Some(v), None) => PlanTarget::Power(count("to_power", v)?),
+        ("retire", None, None, None) => PlanTarget::Retire,
+        ("migrate", None, None, None) => PlanTarget::Migrate,
+        ("delete_volume", None, None, Some(v)) => PlanTarget::DeleteVolume(v),
         _ => return Err(corrupt("plan kind", kind)),
     })
 }
@@ -203,7 +208,7 @@ impl PlanRow {
         Ok(Plan {
             id: self.id,
             workload: self.workload_id,
-            target: target(&self.kind, self.to_intent, self.to_power)?,
+            target: target(&self.kind, (self.to_intent, self.to_power, self.to_volume))?,
             operation: self.operation_id,
             from_intent: self.from_intent,
             from_power: count("from_power", self.from_power)?,

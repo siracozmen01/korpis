@@ -32,6 +32,9 @@ pub(super) fn wants_running(a: &agent::Assignment) -> bool {
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Reconciles one assignment and reports what it then observes.
     pub(super) async fn reconcile(&mut self, a: &agent::Assignment) {
+        if a.residual {
+            return self.residual(a).await;
+        }
         let mut t = self.tracked.remove(&a.workload).unwrap_or_default();
         self.refresh(&mut t).await;
         let standing = self.wiring.leases.standing(&a.workload);
@@ -53,6 +56,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         self.observe(a, &mut t).await;
         self.tracked.insert(a.workload.clone(), t);
+    }
+
+    /// A residual assignment: the steps of its plan, which delete what a retired workload left
+    /// here, and nothing else. No lease fences them, because no other node holds what they
+    /// touch, and nothing is built, started, or observed (§7 of docs/06-storage.md).
+    async fn residual(&mut self, a: &agent::Assignment) {
+        let Some(plan) = a.plan.as_option() else { return };
+        let mut t = Tracked::default();
+        self.steps(a, plan, &mut t).await;
     }
 
     /// Reads what the runtime object is doing.

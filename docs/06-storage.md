@@ -593,9 +593,23 @@ step, irreversible by the vocabulary's floor (§3.3 of `01-model.md`), so the pl
 person. The step carries the helper's identifier as the node reported it, never one derived again
 from the name. The node deletes, then journals the deletion, and the volume is marked deleted.
 
-A volume already retained, whose workload is gone, is not yet deletable: no assignment reaches its
-node any more, so nothing carries a step there. That is the next part of this section's build
-(§4 of `20-roadmap.md`), and until it lands such a volume is listed, as an orphan is, and kept.
+A retained volume no workload holds is deleted by its own plan: `VolumeService.DeleteVolume`
+(`korpis volume delete`, §5 of `13-surface-cli.md`) proposes a plan of kind `delete_volume`
+whose one step is the same irreversible `delete_volume`, under `volume.delete` on the volume. A
+volume a workload holds is refused (it is deleted with that workload), so is one already deleted,
+and so is a second plan while one is open. The plan belongs to the workload that created the
+volume, whose identifier is kept forever, so its approval, grant, and effects read as any other
+plan's do. Its node executes it: through the workload's own assignment if the workload still runs
+there, and otherwise through a residual assignment, which carries only that plan and takes no
+lease, because nothing on a second node can reach a node-local volume (§4.8 of
+`02-architecture.md`). The deletion it reports marks the volume deleted, and the residual
+assignment leaves the set once the plan is applied.
+
+> Corrected 2026-10-14, when that deletion was built. This paragraph said a retained volume whose
+> workload is gone was not yet deletable, because no assignment reached its node any more. The
+> residual assignment is what reaches it. What it costs: a plan that may belong to a retired
+> workload, which approval had to learn to accept for this one kind, and an assignment the agent
+> must treat as carrying nothing to run.
 
 What this does not do yet. Every volume is on the node that reported it, so its `node` is never
 empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and

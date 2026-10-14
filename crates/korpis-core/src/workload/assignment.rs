@@ -40,6 +40,10 @@ pub struct Assignment {
     pub lease_epoch: u64,
     /// The host ids the workload's user namespace maps onto (§4.5 of docs/04-runtimes.md).
     pub ids: IdRange,
+    /// A retired workload's residual assignment: it carries only a plan for what the workload
+    /// left on the node, and the node executes that plan and nothing else (§7 of
+    /// docs/06-storage.md).
+    pub residual: bool,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.
