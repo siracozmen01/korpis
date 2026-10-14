@@ -185,7 +185,8 @@ The principle from §3: reduce reachability first.
   pull one thing.
 - **Nodes hold no standing object-storage credentials and no repository keys.** For each backup or
   offload job a node receives the data key of the one workload concerned and a short-lived
-  credential that can write new objects under that workload's prefix and nothing else; a target
+  credential that can write, read, and list objects under that workload's prefix, delete none, and
+  reach nothing else; a target
   that cannot issue such a credential is written through a relay instead (§5.5 of
   `06-storage.md`). The first version said nodes held no object-storage credentials while the
   backup flow streamed encrypted chunks from the node straight to the repository, which required

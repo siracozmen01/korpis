@@ -30,7 +30,8 @@ fn prefix(p: &str) -> Result<(), AppError> {
     if is_prefix(p) {
         Ok(())
     } else {
-        Err(AppError::invalid("prefix", "a relative key prefix ending in /, without . or .."))
+        let why = "a relative key prefix ending in /, of letters, digits, '.', '_', and '-'";
+        Err(AppError::invalid("prefix", why))
     }
 }
 

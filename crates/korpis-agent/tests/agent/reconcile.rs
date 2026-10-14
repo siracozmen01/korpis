@@ -142,7 +142,16 @@ async fn revived(cp: &ControlPlane, w: &str, runtime: &InMemory, id: &str) {
     }
     assert!(up(), "restarted");
     status(cp, w, converged).await;
-    assert!(effects(cp, "SELECT count(*) FROM effect WHERE action = 'node.restart'").await >= 1);
+    // The restart is journalled and reaches the control plane after the observation that says
+    // the workload runs again, so it is waited for.
+    let restarts = "SELECT count(*) FROM effect WHERE action = 'node.restart'";
+    for _ in 0..100 {
+        if effects(cp, restarts).await >= 1 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the restart was never recorded");
 }
 
 #[tokio::test]

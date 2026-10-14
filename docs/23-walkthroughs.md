@@ -1055,6 +1055,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 38 | Retention over a workload kept one volume's history | §22 | `06-storage.md` §5.3 |
 | 39 | A writer the prefix lock does not see | §22 | `06-storage.md` §5.5 |
 | 40 | A node would have run past the control plane's step | §22 | `02-architecture.md` §4.9 |
+| 41 | The access contract asked for what no store issues, and refused what a backup does | §23 | `06-storage.md` §5.5, §5.6 |
+| 42 | A prefix is a pattern in the store's policy | §23 | `06-storage.md` §5.3, §5.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1593,3 +1595,55 @@ is no node's yet. → patched into `02-architecture.md` §4.9
 
 † Step 1 is where the trace found Finding 38. ‡ Step 4 is where it found Finding 40. § Step 5 is
 where it found Finding 37. ¶ Step 8 is where it found Finding 39.
+
+## 23. The organization's own bucket
+
+Written 2026-10-14, from the implementation, when the first real backup target was built. The
+operator keeps backups in an S3 bucket of their own, and installs the first-party S3 target as the
+organization's provider `s3` rather than handing Korpis the bucket's keys.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The extension `korpis-target-s3` is installed for the organization, providing `backup_target` named `s3`; its workload's configuration holds the bucket, its place in it, and its own credential, which reaches nowhere else | `16-extensions.md` §2; `06-storage.md` §5.6; `22-first-party.md` §2 |
+| 2 | It registers over the provider stream with the identity its node serves it | `16-extensions.md` §3.3; `08-identity.md` §9.5 |
+| 3 | `korpis repository create nightly --provider s3 --prefix korpis/`: the prefix is checked as plain characters before anything is made ‡ | `06-storage.md` §5.3; `13-surface-cli.md` §5 |
+| 4 | The first backup's job asks for access; the control plane records it and asks `s3` for twelve hours of `write` beneath `korpis/workloads/<workload>/` | `06-storage.md` §5.5, §5.6 |
+| 5 | The provider calls the bucket's token service with a session policy allowing put, get, and list beneath that prefix alone, for twelve hours, and answers the temporary credential † | `06-storage.md` §5.6 |
+| 6 | The second night's job reads the first backup's record and trees with its credential, to take unchanged files from it | `06-storage.md` §5.7 |
+| 7 | Browsing a backup asks for fifteen minutes of `read`; the token service issues nothing shorter † | `06-storage.md` §5.4, §5.6 |
+| 8 | A prune lists and deletes through the provider, which uses its own credential, never a job's | `06-storage.md` §5.5, §5.6 |
+
+**FINDING 41: The access contract asked for what no store issues, and refused what a backup does.
+`CONFIRMED`**
+
+§5.6 of `06-storage.md` let the control plane ask for access lasting from 60 seconds, and said
+`write` puts and lists. Asked what evaluates either, the answer was the store's token service and
+the session policy it enforces. A token service issues nothing shorter than fifteen minutes, so a
+provider asked for 60 seconds must grant more than asked, which the sweep of §5.5 cannot allow,
+since it waits for every access it recorded to end. And a policy of put and list refuses the get
+with which a backup reads its parent's record and trees, so a provider that implemented the
+contract exactly would have failed every backup after a workload's first. The in-memory targets the
+tests used enforced nothing, which is why nothing showed it. §5.5 also said the job's credential
+cannot overwrite, which §5.6's own paragraph already denied.
+
+**Resolution.** Access lasts fifteen minutes to twelve hours and never longer than asked, a floor
+every caller already met; `write` puts, gets, and lists, never deletes; §5.5 says what the
+credential does and leaves overwrites to §5.6. The first real target is tested against a store that
+enforces its policy, so the contract is checked where it is kept. → patched into `06-storage.md`
+§5.5 and §5.6, `02-architecture.md` §7, `14-streams.md` §9, `17-security.md` §7
+
+**FINDING 42: A prefix is a pattern in the store's policy. `CONFIRMED`**
+
+A repository's prefix was any relative path without empty, `.`, or `..` components. Asked what
+evaluates the scope it sets, the answer is the store's policy engine, which reads `*` and `?` as
+wildcards and `${…}` as variables in the resource the prefix is written into. A repository at
+`a*/` would have scoped each job to every prefix beginning with `a`, another repository's of the
+same organization included.
+
+**Resolution.** A prefix is letters, digits, `.`, `_`, and `-` between its slashes, checked when a
+repository is made and again by the provider before it writes a policy, since a provider does not
+take the control plane's checking on trust. → patched into `06-storage.md` §5.3 and §5.6
+
+‡ Step 3 is where the trace found Finding 42. † Steps 5 and 7 are where it found Finding 41.

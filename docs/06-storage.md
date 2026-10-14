@@ -393,14 +393,15 @@ reference, and recipe content is public by definition, so there is nothing to co
 repository scope remains the organization, for billing and retention reasons rather than for
 secrecy.
 
-**As built, 2026-10-14.** A repository belongs to an organization and serves it whole or one of
-its projects; making one takes `repository.write` there and reading one `repository.read` (§5 of
-`10-api.md`). It names the organization's backup target provider by name, as every call does, so
-a provider need not be serving when the repository is made, and its place in that target by a
-relative prefix; each workload's objects are beneath `<prefix>workloads/<workload>/`, which only
-that workload's jobs write. A retention policy that keeps nothing is refused, since a prune under
-it would remove everything above the floor. `dedup_scope` is not a field: it is the workload,
-plus recipe content by reference, and nothing widens it yet.
+**As built, 2026-10-14.** A repository belongs to an organization and serves it whole or one of its
+projects; making one takes `repository.write` there and reading one `repository.read` (§5 of
+`10-api.md`). It names the organization's backup target provider by name, as every call does, so a
+provider need not be serving when the repository is made, and its place in that target by a
+relative prefix of letters, digits, `.`, `_`, and `-` between its slashes; each workload's objects
+are beneath `<prefix>workloads/<workload>/`, which only that workload's jobs write. A retention
+policy that keeps nothing is refused, since a prune under it would remove everything above the
+floor. `dedup_scope` is not a field: it is the workload, plus recipe content by reference, and
+nothing widens it yet.
 
 **Two repositories of an organization never share a place** (Finding 32 of
 `23-walkthroughs.md`). A second repository naming the same provider at the same prefix, or at one
@@ -561,11 +562,15 @@ repository key-encryption key (KEK)    held by the control plane, or by an exter
 
 - **For each backup or offload job, the node receives the one workload's DEK**, unwrapped by the
   control plane for that job, and nothing else. It never sees the KEK.
-- **For the same job, it receives a short-lived credential that can write new objects under that
-  workload's prefix and nothing else**: an STS session policy on S3-compatible stores, a downscoped
-  token on GCS, a user-delegation SAS on Azure, a prefix-restricted application key on B2. It can
-  list that prefix, so it can deduplicate against the workload's own history, and it cannot delete
-  or overwrite anything.
+- **For the same job, it receives a short-lived credential that can write, read, and list objects
+  under that workload's prefix and nothing else**: an STS session policy on S3-compatible stores, a
+  downscoped token on GCS, a user-delegation SAS on Azure, a prefix-restricted application key on
+  B2. It lists that prefix to deduplicate against the workload's own history, reads the last
+  backup's record and trees to take unchanged files from it, and cannot delete anything; what it
+  does not stop of an overwrite is §5.6's. Corrected 2026-10-14 (Finding 41 of
+  `23-walkthroughs.md`): this said the credential writes new objects and lists, and cannot
+  overwrite, which a backup that reads its parent could not work under, and which §5.6 already
+  said it does not ensure.
 - **Where a target cannot issue such a credential** (SFTP, most self-hosted stores), the node
   streams its encrypted chunks to a relay (§3.1 of `02-architecture.md`), which holds the target's
   credential and writes them. The relay never holds a DEK, so it moves ciphertext it cannot read.
@@ -666,7 +671,7 @@ no object byte passes through any of them:
 
 | Call | Asked by | Answers |
 |---|---|---|
-| `GrantAccess{prefix, mode, ttl}` | the control plane, per job, for the job's node | access to that prefix alone for 60 seconds to 12 hours: `write` puts and lists, never deletes; `read` gets and lists |
+| `GrantAccess{prefix, mode, ttl}` | the control plane, per job, for the job's node | access to that prefix alone for 15 minutes to 12 hours and never longer than asked: `write` puts, gets, and lists, never deletes; `read` gets and lists |
 | `ListObjects{prefix, after, limit}` | the control plane, pruning | up to a thousand keys beneath the prefix, in key order |
 | `DeleteObjects{keys}` | the control plane, pruning | how many of up to a thousand keys it deleted, with its own credential |
 
@@ -696,7 +701,31 @@ that exists; chunks are content-addressed, so an overwrite writes the same bytes
 key names its backup, which no other job writes. Where the store supports conditional writes, a
 provider should refuse overwrites outright.
 
-### 5.7 The repository format
+**Corrected 2026-10-14** (Finding 41 of `23-walkthroughs.md`), when the first real target was built.
+The table said access lasts 60 seconds to 12 hours and that `write` puts and lists. A store's token
+service issues nothing shorter than fifteen minutes, so a provider asked for less would have had to
+grant more than asked, and a prune's sweep relies on no access outliving what the control plane
+recorded (§5.5); and a backup reads its parent's record and trees, which a credential that only puts
+and lists refuses, so every backup after a workload's first would have failed. The floor is now
+fifteen minutes, which every caller already asked for at least, and `write` reads too. A prefix is
+also written into the store's policy, where `*`, `?`, and `${…}` are patterns and variables, so a
+repository's prefix is now letters, digits, `.`, `_`, and `-` between its slashes (Finding 42).
+
+**The S3 target, as built, 2026-10-14.** `korpis-target-s3` is the first-party provider for
+S3-compatible stores, built on the extension SDK alone, as a third party's would be (§1 of
+`22-first-party.md`). Its configuration, read from its workload's environment, is the store's
+address, bucket, its own place in the bucket, and its own credential. For each job it calls the
+store's token service (`AssumeRole`, signed with its own credential) with a session policy allowing
+the mode's actions beneath one prefix and listing only there, for exactly the time asked, and hands
+back the temporary credential; it lists and deletes for a prune with its own. It refuses a prefix
+that is not plain and a time it cannot honour. Tested against MinIO: a job's credential writes,
+reads, and lists its own prefix, reaches no other, deletes nothing, and a restore's reads only; and
+a whole backup, restore, and prune run through the control plane on such credentials. What it
+needs: its own credential must be allowed to assume the role and to do what the session policy
+allows, since the store grants what both allow; on AWS that is a role named by
+`KORPIS_S3_ROLE_ARN`, while MinIO assumes the caller's own identity. What it does not do: serve a
+store without a token service, such as Backblaze B2's or Google Cloud Storage's S3 interfaces, which
+answer no `AssumeRole`; those need their own mechanism (§5.5) or the relay of question 7.
 
 > Added 2026-10-14, when the backup engine was built (`korpis-backup`, format
 > `korpis.backup.v1`).

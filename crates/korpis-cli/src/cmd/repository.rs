@@ -21,7 +21,8 @@ pub enum RepositoryAction {
         /// The organization's backup target provider, by name.
         #[arg(long)]
         provider: String,
-        /// Its place in the target, a relative prefix ending in '/'.
+        /// Its place in the target: a relative prefix ending in '/', of letters, digits, '.', '_',
+        /// and '-' between its slashes.
         #[arg(long)]
         prefix: String,
         /// The organization, by name or identifier; the top one you can read by default.

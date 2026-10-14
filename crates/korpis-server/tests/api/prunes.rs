@@ -18,74 +18,34 @@ use korpis_backup::s3::S3Store;
 use korpis_backup::store::ObjectStore as _;
 use korpis_backup::testing::{Minio, SECRET, USER};
 use korpis_backup::{Content, NoContent, Options, Repo, Restore, backup, restore, verify};
-use korpis_extension::backup::{BackupTarget, Failure};
 use korpis_proto::korpis::agent::v1::__buffa::oneof::job_access::Outcome;
 use korpis_proto::korpis::v1 as pb;
-use korpis_proto::korpis::v1::__buffa::oneof::object_access::Protocol;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// A backup target over a MinIO bucket that lists and deletes for real.
-struct Real(Arc<Minio>);
-
-impl BackupTarget for Real {
-    fn grant_access(
-        &self,
-        prefix: String,
-        _: pb::AccessMode,
-        _: Duration,
-    ) -> impl Future<Output = Result<pb::ObjectAccess, Failure>> + Send {
-        let s3 = pb::S3Access {
-            endpoint: self.0.endpoint.clone(),
-            region: "us-east-1".into(),
-            bucket: "backups".into(),
-            key_prefix: prefix,
-            access_key_id: USER.into(),
-            secret_access_key: SECRET.into(),
-            path_style: true,
-            ..Default::default()
-        };
-        std::future::ready(Ok(pb::ObjectAccess {
-            protocol: Some(Protocol::S3(Box::new(s3))),
-            ..Default::default()
-        }))
-    }
-
-    fn list(
-        &self,
-        prefix: String,
-        after: String,
-        limit: u32,
-    ) -> impl Future<Output = Result<pb::ObjectList, Failure>> + Send {
-        let store = S3Store::new(self.0.access("backups", ""));
-        async move {
-            let failed =
-                |e: String| Failure { reason: "store.failed".into(), message: e, retryable: true };
-            let names = store.map_err(|e| failed(e.to_string()))?.list(&prefix).await;
-            let mut keys: Vec<String> = names
-                .map_err(|e| failed(e.to_string()))?
-                .into_iter()
-                .filter(|k| *k > after)
-                .collect();
-            let more = keys.len() > usize::try_from(limit).unwrap_or(0);
-            keys.truncate(usize::try_from(limit).unwrap_or(0));
-            let objects =
-                keys.into_iter().map(|key| pb::StoredObject { key, size: 1, ..Default::default() });
-            Ok(pb::ObjectList { objects: objects.collect(), more, ..Default::default() })
-        }
-    }
-
-    fn delete(&self, keys: Vec<String>) -> impl Future<Output = Result<u32, Failure>> + Send {
-        let minio = Arc::clone(&self.0);
-        async move {
-            minio.delete("backups", &keys).await.map_err(|message| Failure {
-                reason: "store.failed".into(),
-                message,
-                retryable: true,
-            })
-        }
-    }
+/// The first-party S3 target over a MinIO bucket: every job's access a temporary credential
+/// scoped to its workload's prefix, and the prune's listing and deletion its own.
+fn real(minio: &Minio) -> korpis_target_s3::S3Target {
+    let endpoint: url::Url = minio.endpoint.parse().unwrap();
+    let sts = korpis_target_s3::sts::Sts {
+        endpoint: endpoint.clone(),
+        region: "us-east-1".into(),
+        access_key_id: USER.into(),
+        secret: SECRET.into(),
+        role_arn: None,
+        http: reqwest::Client::new(),
+    };
+    let place = korpis_target_s3::Place {
+        endpoint,
+        region: "us-east-1".into(),
+        bucket: "backups".into(),
+        root: String::new(),
+        path_style: true,
+        access_key_id: USER.into(),
+        secret: SECRET.into(),
+    };
+    korpis_target_s3::S3Target::new(place, sts).unwrap()
 }
 
 fn repo_of(g: &korpis_proto::korpis::agent::v1::JobGrant) -> Repo<S3Store> {
@@ -253,9 +213,8 @@ async fn a_prune_forgets_and_marks_and_after_its_grace_sweeps_leaving_what_is_ke
     let scratch = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
     let Some(minio) = Minio::start(scratch.path()).await.unwrap() else { return };
     minio.bucket("backups").await.unwrap();
-    let minio = Arc::new(minio);
     let (h, s, workload, volume, next) = running(vec![snapshotting()]).await;
-    serving_with(&h, Real(Arc::clone(&minio))).await;
+    serving_with(&h, real(&minio)).await;
     let repo = repository(&h).await;
     let mut w = World { h, s, workload, volume, repo, next };
     let (b1, b2, store) = two_backups(&mut w, &scratch.path().join("volume")).await;

@@ -60,6 +60,10 @@ korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 korpis-extension = { workspace = true }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
+# The first-party S3 target, against MinIO, behind the control plane end to end.
+korpis-target-s3 = { path = "../korpis-target-s3" }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+url = "2"
 
 [lints]
 workspace = true

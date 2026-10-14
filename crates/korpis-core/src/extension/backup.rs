@@ -6,8 +6,10 @@
 
 use std::time::{Duration, SystemTime};
 
-/// The shortest access a job is granted.
-pub const MIN_ACCESS: Duration = Duration::from_secs(60);
+/// The shortest access a job is granted: the shortest a store's token service issues, so that no
+/// target grants longer than asked, which a prune's sweep relies on (§5.5 of
+/// docs/06-storage.md).
+pub const MIN_ACCESS: Duration = Duration::from_secs(15 * 60);
 
 /// The longest access a job is granted: a job longer than this asks again.
 pub const MAX_ACCESS: Duration = Duration::from_secs(12 * 3600);
@@ -18,7 +20,8 @@ pub const MAX_KEYS: usize = 1000;
 /// What access is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessMode {
-    /// Put new objects and list them under the prefix; never delete.
+    /// Put, get, and list under the prefix; never delete. A backup reads its parent's record
+    /// and trees to take unchanged files from it (Finding 41 of docs/23-walkthroughs.md).
     Write,
     /// Get and list under the prefix.
     Read,
@@ -86,16 +89,17 @@ pub struct StoredObject {
     pub modified: SystemTime,
 }
 
-/// Whether `prefix` is a repository prefix: relative, `/`-terminated, no empty, `.`, or `..`
-/// components, at most 1024 bytes.
+/// Whether `prefix` is a repository prefix: relative, `/`-terminated, at most 1024 bytes, each
+/// component letters, digits, `.`, `_`, and `-`, and none `.` or `..`. A target scopes access by
+/// writing the prefix into a policy, where `*`, `?`, and `${…}` are patterns and variables, so a
+/// prefix holds nothing a policy could read as more than itself (Finding 42 of
+/// docs/23-walkthroughs.md).
 #[must_use]
 pub fn is_prefix(prefix: &str) -> bool {
+    let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-');
     prefix.len() <= 1024
         && prefix.strip_suffix('/').is_some_and(|body| {
-            !body.is_empty()
-                && !body.starts_with('/')
-                && !body.chars().any(char::is_control)
-                && body.split('/').all(|c| !c.is_empty() && c != "." && c != "..")
+            body.split('/').all(|c| !c.is_empty() && c != "." && c != ".." && c.chars().all(plain))
         })
 }
 
@@ -113,7 +117,20 @@ mod tests {
     #[test]
     fn a_prefix_is_a_relative_directory_and_a_key_must_lie_beneath_it() {
         assert!(is_prefix("workloads/wl_1/"));
-        for bad in ["workloads/wl_1", "/abs/", "a/../b/", "a//b/", "/", ""] {
+        assert!(is_prefix("korpis.backups/nightly-1/workloads/0192_a/"));
+        for bad in [
+            "workloads/wl_1",
+            "/abs/",
+            "a/../b/",
+            "a//b/",
+            "/",
+            "",
+            "a*/",
+            "a?/",
+            "${aws:username}/",
+            "a b/",
+            "ä/",
+        ] {
             assert!(!is_prefix(bad), "{bad:?}");
         }
         assert!(is_beneath("workloads/wl_1/chunks/ab", "workloads/wl_1/"));

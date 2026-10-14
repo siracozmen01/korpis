@@ -27,6 +27,9 @@ rules=(
     # The backup format is read by a job on the node and by the control plane: the repository
     # messages and an object store, and nothing else of ours.
     "korpis-backup||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent connectrpc sqlx"
+    # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):
+    # the SDK and the wire contract, and nothing else of ours.
+    "korpis-target-s3||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

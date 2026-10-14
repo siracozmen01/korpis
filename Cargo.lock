@@ -1890,10 +1890,12 @@ dependencies = [
  "defmt",
  "jiff-core",
  "jiff-static",
+ "jiff-tzdb-platform",
  "log",
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
+ "windows-link",
 ]
 
 [[package]]
@@ -1916,6 +1918,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "jiff-tzdb"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa8377070c6bae868759445e5a77f66d84f0b72f3a054bfb00e6d038b8282da7"
+
+[[package]]
+name = "jiff-tzdb-platform"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "875a5a69ac2bab1a891711cf5eccbec1ce0341ea805560dcd90b7a2e925132e8"
+dependencies = [
+ "jiff-tzdb",
 ]
 
 [[package]]
@@ -2294,10 +2311,12 @@ dependencies = [
  "korpis-proto",
  "korpis-recipe",
  "korpis-store",
+ "korpis-target-s3",
  "korpis-tls",
  "korpis-wire",
  "p256",
  "rcgen",
+ "reqwest",
  "rustls",
  "serde_json",
  "sha2 0.10.9",
@@ -2310,6 +2329,7 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
  "zeroize",
 ]
@@ -2345,6 +2365,30 @@ dependencies = [
  "signal-hook",
  "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "korpis-target-s3"
+version = "0.0.0"
+dependencies = [
+ "buffa-types",
+ "hmac 0.12.1",
+ "instant-xml",
+ "jiff",
+ "korpis-backup",
+ "korpis-extension",
+ "korpis-proto",
+ "reqwest",
+ "rustls",
+ "rusty-s3",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
 ]
 
 [[package]]

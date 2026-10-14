@@ -359,10 +359,11 @@ retired workload's kept stream (§4) cannot yet be read at all (§9, question 6)
    registry pulls with short-lived scoped tokens.
 
 It is resolved exactly as backup is (§5.5 of `06-storage.md`): the node receives, per offload job,
-a short-lived credential that can write new objects under that workload's stream prefix and nothing
-else, and segments are encrypted with the workload's data key before they leave the node. A target
-that cannot issue such a credential is written through a relay, which holds the credential instead.
-The node never holds a credential that reaches another workload's data.
+a short-lived credential that can write, read, and list objects under that workload's stream
+prefix, delete none, and reach nothing else, and segments are encrypted with the workload's data
+key before they leave the node. A target that cannot issue such a credential is written through a
+relay, which holds the credential instead. The node never holds a credential that reaches another
+workload's data.
 2. **Multi-line and interleaving.** A Java stack trace is one event across forty records, and
    stdout and stderr interleave non-deterministically. Whether Korpis attempts reassembly, and
    risks being wrong, or presents raw records and lets consumers decide, is unsettled. Leaning

@@ -1181,10 +1181,10 @@ yields a token that can pull one already-known artifact for a few minutes.
 
 The same rule governs backup and stream offload. A node never holds a repository's credentials or
 its key-encryption key. For each backup job it receives the data key of the one workload being
-backed up and a short-lived credential that can write new objects under that workload's prefix and
-nothing else; where a target cannot issue such a credential, the upload is brokered through a relay
-instead (§5.5 of `06-storage.md`). A compromised node therefore reaches the backups of the
-workloads placed on it, which it could already read live, and no others.
+backed up and a short-lived credential that can write, read, and list objects under that workload's
+prefix, delete none, and reach nothing else; where a target cannot issue such a credential, the
+upload is brokered through a relay instead (§5.5 of `06-storage.md`). A compromised node therefore
+reaches the backups of the workloads placed on it, which it could already read live, and no others.
 
 ### Protocol versioning (Rule K-7)
 

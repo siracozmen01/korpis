@@ -85,6 +85,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
 | `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits, read by the agent; and `korpis-stream-writer`, the binary a containerd shim starts beside each workload to write its stream (`14-streams.md`) |
 | `korpis-backup` | driven adapter, shared | AGPL-3.0 | backups: content-defined chunks and directory trees sealed under a workload's data key, written to and read from an object store (§5 of `06-storage.md`); and `korpis-backup-job`, the binary the helper starts for each backup or restore, which confines itself before it reads anything (§5.5 there) |
+| `korpis-target-s3` | first-party extension | AGPL-3.0 | the backup target provider for S3-compatible stores: each job's access a temporary credential from the store's token service, scoped to one prefix (§5.6 of `06-storage.md`) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 | `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
 
@@ -120,6 +121,7 @@ cannot disagree about what a valid recipe is.
 | `korpis-tls` | nothing | every other crate of ours, `connectrpc`, `tokio`, `sqlx` |
 | `korpis-stream` | nothing | every other crate of ours, `connectrpc`, `tokio`, `hyper`, `sqlx` |
 | `korpis-backup` | `korpis-proto` (its messages, not its services) | every other crate of ours, `connectrpc`, `sqlx` |
+| `korpis-target-s3` | `korpis-extension`, `korpis-proto` | every other crate of ours, `sqlx` |
 | `korpis-server` | all of the above | |
 
 `scripts/check-layers.sh` reads the dependency graph with `cargo tree` and fails the build if any

@@ -263,13 +263,15 @@ message GrantAccess {
   // A key prefix in the repository, ending in "/", e.g. "workloads/wl_.../".
   string prefix = 1;
   AccessMode mode = 2;
-  // How long the access lasts, 60 to 43200 seconds.
+  // How long the access lasts, 900 to 43200 seconds: never longer than asked, since a prune's
+  // sweep waits for every access it recorded to end.
   uint32 ttl_seconds = 3;
 }
 
 enum AccessMode {
   ACCESS_MODE_UNSPECIFIED = 0;
-  // Put new objects and list them, under the prefix only; never delete.
+  // Put, get, and list, under the prefix only; never delete. A backup reads its parent's record
+  // and trees.
   ACCESS_MODE_WRITE = 1;
   // Get and list, under the prefix only.
   ACCESS_MODE_READ = 2;

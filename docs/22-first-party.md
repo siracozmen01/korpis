@@ -39,6 +39,12 @@ The generality sells itself later, to people who arrived for something else.
 | DNS providers, backup targets, OIDC/SAML | extension | provider interfaces |
 | Discord client, and the chat-adapter interface | extension | actions + events + streams |
 
+**As built, 2026-10-14.** The first of the set is the backup target for S3-compatible stores,
+`korpis-target-s3` (§5.6 of `06-storage.md`). It depends on the extension SDK and the wire
+contract alone, and `scripts/check-layers.sh` fails the build if it ever links anything else of
+ours, which is what keeps "built through the same mechanism a third party would use" true of it
+rather than merely intended.
+
 Four of these are worth explaining, because they are the ones our architecture makes possible and
 the incumbents structurally cannot match.
 

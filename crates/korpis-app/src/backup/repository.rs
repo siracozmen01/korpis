@@ -74,7 +74,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !is_prefix(&cmd.prefix) {
             return Err(AppError::invalid(
                 "prefix",
-                "a relative key prefix ending in /, without . or ..",
+                "a relative key prefix ending in /, of letters, digits, '.', '_', and '-'",
             ));
         }
         if !cmd.retention.keeps_something() {
