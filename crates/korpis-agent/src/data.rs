@@ -11,6 +11,7 @@ mod carry;
 pub mod console;
 pub mod console_write;
 pub mod handler;
+pub mod wake;
 
 use crate::held::HeldSet;
 use crate::state::Identity;

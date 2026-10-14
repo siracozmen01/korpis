@@ -5,13 +5,14 @@
 //! stream from its own segment files, the one being written included, and sends what it finds as
 //! `ConsoleChunk`s, in offset order, each saying where to read from next. Offsets asked for that
 //! the node no longer holds are said to be missing rather than skipped in silence. Following, it
-//! looks again every quarter second for what was written since, until the client is done or the
-//! session ends.
+//! reads again as soon as the stream's directory changes ([`super::wake`]), and at least every
+//! second whatever it hears, until the client is done or the session ends.
 //!
 //! A search is a scan of the files the node holds, with the pattern bounded as `korpis-stream`
 //! bounds it. Gap records are sent whatever the pattern, so a search says where it could not look.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
+use super::wake::Wake;
 use crate::reconcile::streams::Located;
 use buffa::Message as _;
 use buffa_types::google::protobuf::Timestamp;
@@ -26,8 +27,8 @@ use std::time::Duration;
 /// The action.
 pub const ACTION: &str = "workload.console.read";
 
-/// How often a following reader looks for what was written since.
-const POLL: Duration = Duration::from_millis(250);
+/// The longest a follower waits without looking, in case a change was not heard.
+const FALLBACK: Duration = Duration::from_secs(1);
 /// Records read from disk at a time.
 const READ: usize = 256;
 /// A chunk is sent once its bodies reach this many bytes.
@@ -180,6 +181,14 @@ impl Reader {
     }
 }
 
+/// Resolves when the watched directory changed; never, without a watch.
+async fn changed(wake: Option<&Wake>) -> std::io::Result<()> {
+    match wake {
+        Some(w) => w.changed().await,
+        None => std::future::pending().await,
+    }
+}
+
 async fn put(io: &Io, chunk: pb::ConsoleChunk) -> bool {
     io.outgoing.send(chunk.encode_to_vec()).await.is_ok()
 }
@@ -201,6 +210,8 @@ async fn serve(dir: Option<PathBuf>, opened: Opened, mut io: Io) -> Result<(), E
         _ => asked.from_offset,
     };
     let left = (asked.limit > 0).then_some(asked.limit);
+    // A follower that cannot watch, out of inotify watches say, still follows by looking.
+    let mut wake = if asked.follow { Wake::watch(&dir).ok() } else { None };
     let mut reader = Reader { dir, matcher, next, left, caught_up: false };
     loop {
         let batch = reader.batch().await?;
@@ -215,7 +226,11 @@ async fn serve(dir: Option<PathBuf>, opened: Opened, mut io: Io) -> Result<(), E
             return Ok(());
         }
         tokio::select! {
-            () = tokio::time::sleep(POLL) => {}
+            () = tokio::time::sleep(FALLBACK) => {}
+            heard = changed(wake.as_ref()) => if heard.is_err() {
+                // A watch that fails is given up, and the follower looks every second instead.
+                wake = None;
+            },
             got = io.incoming.recv() => if got.is_none() { return Ok(()) },
         }
     }

@@ -30,6 +30,8 @@ korpis-stream = { workspace = true }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
+# inotify on a stream's directory, which wakes a console's followers (data/wake.rs).
+rustix = { version = "1", features = ["fs"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 sha2 = "0.10"
 thiserror = { workspace = true }

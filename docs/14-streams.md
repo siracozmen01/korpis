@@ -82,9 +82,19 @@ Three tiers, read as one merged view:
 
 | Tier | Holds | Latency | Purpose |
 |---|---|---|---|
-| node ring buffer | seconds to minutes | sub-millisecond | live attach, fan-out to readers |
+| segment being written, in the page cache | seconds to minutes | an inotify event and a memory read | live attach, fan-out to readers |
 | node segment files | the retention window | milliseconds | scrollback, replay, search |
 | offload target | sealed segments, and beyond the window | seconds | survives the node, long-term evidence |
+
+> Corrected 2026-10-14, when the console was built. The first tier was a ring buffer of the
+> agent's, sub-millisecond. It is the segment still being written, in the page cache, which the reader reads like
+> any other, woken by inotify on the stream's directory the moment the writer appends. A ring
+> buffer would have to be filled by the writer, the one process that must never stop draining
+> the workload, and served to readers by it or copied out of it: a second consumer, and the
+> blocking risk §5 exists to rule out. Reading the page cache gives the same memory-speed reads
+> and the same fan-out with nothing added to the writer. What it costs: a record reaches a
+> follower after an inotify event and a read of the file rather than from memory already in the
+> reader's hands, and a node out of inotify watches falls back to looking every second.
 
 The agent owns all three. The control plane is not in the data path: a hundred consoles attached to
 a hundred workloads on ten nodes is ten agents fanning out locally, joined to their readers by
@@ -326,10 +336,10 @@ backtracking, whose time is linear in the stream whatever the pattern (§5 of
 `research/evidence.md`). Gap and control records are sent whatever the pattern, because a search
 has to say where it could not look.
 
-What it costs, and what it does not do. A follower looks again every quarter second, so a record
-reaches it up to 250 ms after it is written, and each look lists the stream's directory; a push
-from the writer would be faster, and would put a second consumer on the one process that must never
-stop draining the workload. The node reads only what it holds: until offload is built (Phase 1,
+What it costs, and what it does not do. A follower reads again when inotify says the stream's
+directory changed, and at least every second whatever it hears, and each read lists the directory;
+a push from the writer would save that, and would put a second consumer on the one process that
+must never stop draining the workload (§4). The node reads only what it holds: until offload is built (Phase 1,
 with backup), a segment pruned from the node is gone, and the reader is told so. And a workload
 the node no longer holds, a retired one included, is refused on the data path, so a retired
 workload's kept stream (§4) cannot yet be read at all (§9, question 6).
