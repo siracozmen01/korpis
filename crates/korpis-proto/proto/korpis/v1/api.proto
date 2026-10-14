@@ -469,6 +469,39 @@ message GetStreamResponse {
   repeated OffsetRange lost = 2;
 }
 
+// Volumes as the control plane knows them (§7 of docs/06-storage.md): kept from what nodes
+// report, outliving the workloads they were made for. Reading one takes volume.read.
+service VolumeService {
+  rpc GetVolume(GetVolumeRequest) returns (GetVolumeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // A project's volumes, or one workload's; deleted ones only when asked for.
+  rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetVolumeRequest {
+  string id = 1;
+}
+
+message GetVolumeResponse {
+  Volume volume = 1;
+}
+
+message ListVolumesRequest {
+  string project = 1;
+  // Only those created for, or attached to, this workload.
+  optional string workload = 2;
+  bool include_deleted = 3;
+  PageRequest page = 4;
+}
+
+message ListVolumesResponse {
+  repeated Volume volumes = 1;
+  PageResponse page = 2;
+}
+
 service DeclaredSetService {
   rpc ListDeclaredSets(ListDeclaredSetsRequest) returns (ListDeclaredSetsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;

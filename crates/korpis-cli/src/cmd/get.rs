@@ -61,6 +61,73 @@ async fn effects(
     Ok(Answer { json: json(&list), human })
 }
 
+/// The nodes of an organization.
+async fn nodes(c: &Connection, organization: Option<&str>) -> Result<Answer, CliError> {
+    let org = resolve::organization(c, organization).await?;
+    let request = pb::ListNodesRequest { organization: org, ..Default::default() };
+    let client = pb::NodeServiceClient::new(c.http(), c.config());
+    let list = client.list_nodes(request).await?.into_owned().nodes;
+    let human = rows(&["ID", "NAME", "STATUS", "AGENT", "LAST SEEN"], &list, |n| {
+        let status = short(n.status, "NODE_STATUS_");
+        vec![
+            n.id.clone(),
+            n.name.clone(),
+            status,
+            n.agent_version.clone(),
+            time(n.last_seen.as_option()),
+        ]
+    });
+    Ok(Answer { json: json(&list), human })
+}
+
+/// Every volume of `project`, or of one workload in it, page by page.
+async fn volumes(
+    c: &Connection,
+    project: &str,
+    workload: Option<&String>,
+    deleted: bool,
+) -> Result<Answer, CliError> {
+    let project = resolve::project(c, project).await?;
+    let workload = match workload {
+        Some(w) => Some(resolve::workload(c, w).await?),
+        None => None,
+    };
+    let client = pb::VolumeServiceClient::new(c.http(), c.config());
+    let (mut list, mut token) = (Vec::new(), String::new());
+    loop {
+        let request = pb::ListVolumesRequest {
+            project: project.clone(),
+            workload: workload.clone(),
+            include_deleted: deleted,
+            page: pb::PageRequest { page_token: token, ..Default::default() }.into(),
+            ..Default::default()
+        };
+        let listed = client.list_volumes(request).await?.into_owned();
+        list.extend(listed.volumes);
+        token = listed.page.into_option().map(|p| p.next_page_token).unwrap_or_default();
+        if token.is_empty() {
+            break;
+        }
+    }
+    let header = ["ID", "NAME", "KIND", "CLASS", "SIZE", "NODE", "ATTACHED TO", "DELETED"];
+    // A size nothing enforces is not shown (Rule K-3).
+    let human = rows(&header, &list, |v| {
+        let size = if v.quota_enforced { v.size_bytes.to_string() } else { "-".into() };
+        let deleted = v.deleted_at.as_option().map_or("-".into(), |t| time(Some(t)));
+        vec![
+            v.id.clone(),
+            v.name.clone(),
+            short(v.kind, "VOLUME_KIND_"),
+            v.storage_class.clone(),
+            size,
+            v.node.clone().unwrap_or_else(|| "-".into()),
+            v.attached_to.clone().unwrap_or_else(|| "-".into()),
+            deleted,
+        ]
+    });
+    Ok(Answer { json: json(&list), human })
+}
+
 /// Answers `korpis get`.
 pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
     match what {
@@ -82,23 +149,10 @@ pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
             let header = ["ID", "NAME", "CONVERGENCE", "OBSERVED", "NODE"];
             Ok(Answer { json: json(&list), human: rows(&header, &list, workload_row) })
         }
-        Get::Nodes { organization } => {
-            let org = resolve::organization(c, organization.as_deref()).await?;
-            let request = pb::ListNodesRequest { organization: org, ..Default::default() };
-            let client = pb::NodeServiceClient::new(c.http(), c.config());
-            let list = client.list_nodes(request).await?.into_owned().nodes;
-            let human = rows(&["ID", "NAME", "STATUS", "AGENT", "LAST SEEN"], &list, |n| {
-                let status = short(n.status, "NODE_STATUS_");
-                vec![
-                    n.id.clone(),
-                    n.name.clone(),
-                    status,
-                    n.agent_version.clone(),
-                    time(n.last_seen.as_option()),
-                ]
-            });
-            Ok(Answer { json: json(&list), human })
+        Get::Volumes { project, workload, deleted } => {
+            volumes(c, project, workload.as_ref(), *deleted).await
         }
+        Get::Nodes { organization } => nodes(c, organization.as_deref()).await,
         Get::Plans { workload } => {
             let workload = resolve::workload(c, workload).await?;
             let request = pb::ListPlansRequest { workload, ..Default::default() };

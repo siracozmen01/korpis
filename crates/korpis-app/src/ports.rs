@@ -33,6 +33,7 @@ mod stream;
 mod subscription;
 mod tenancy;
 mod trust;
+mod volume;
 mod workload;
 
 pub use assignment::{
@@ -70,6 +71,7 @@ pub use stream::{StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
+pub use volume::{VolumeRead, VolumeWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
 
 use std::future::Future;
@@ -145,6 +147,7 @@ pub trait Store:
     + ProviderCallRead
     + RelayRead
     + StreamRead
+    + VolumeRead
     + Send
     + Sync
     + 'static
@@ -200,6 +203,7 @@ pub trait Tx:
     + BreakerWrite
     + RelayWrite
     + StreamWrite
+    + VolumeWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

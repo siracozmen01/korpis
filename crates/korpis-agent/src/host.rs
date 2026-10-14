@@ -101,7 +101,12 @@ impl Host for InMemoryHost {
         ready(self.with(|k| {
             let created = !k.volumes.contains_key(&volume);
             let path = k.volumes.entry(volume.clone()).or_insert(format!("/memory/{volume}"));
-            helper::EnsureVolumeResponse { host_path: path.clone(), created, ..Default::default() }
+            helper::EnsureVolumeResponse {
+                host_path: path.clone(),
+                created,
+                storage_class: request.storage_class.clone(),
+                ..Default::default()
+            }
         }))
     }
 

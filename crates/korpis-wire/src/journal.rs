@@ -110,6 +110,9 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
         },
         B::Gap(g) => gap(&format!("{field}.gap"), seq, g)?,
         B::StreamSegment(e) => segment(&format!("{field}.stream_segment"), e)?,
+        B::Volume(v) => {
+            Body::Volume(crate::volume::reported_from_pb(&format!("{field}.volume"), v)?)
+        }
     })
 }
 

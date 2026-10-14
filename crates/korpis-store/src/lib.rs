@@ -40,6 +40,7 @@ mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;
 mod trust;
+mod volume;
 mod workload;
 
 pub use feed::{Subscription, Wakeups};

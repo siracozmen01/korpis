@@ -20,3 +20,4 @@ mod plans;
 mod revocation;
 mod support;
 mod trust;
+mod volumes;

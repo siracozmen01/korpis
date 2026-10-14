@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE volume SET attached_to = NULL, detached_at = $2 WHERE attached_to = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a33a3b47a56e05251cce49191983ca28c641713baae4a06e9247bef3e735b347"
+}

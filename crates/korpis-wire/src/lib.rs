@@ -54,6 +54,7 @@ pub mod step;
 pub mod stream;
 pub mod tenancy;
 pub mod value;
+pub mod volume;
 pub mod workload;
 
 use buffa_types::google::protobuf::{Duration as PbDuration, Timestamp};

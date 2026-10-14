@@ -982,6 +982,13 @@ Volume
   deleted_at    Timestamp?       soft, as for a workload (§5)
 ```
 
+As built, the object also records why it exists and what its node says of it: `kind` (`declared`,
+or `stream` for a console stream's volume, §4 of `14-streams.md`), `created_by` (the workload it
+was made for, which `attached_to` may no longer name once another adopts it), `quota_enforced`
+(whether `size` is enforced in the write path; where it is not, `size` is shown nowhere, Rule K-3),
+and `detached_at`. The control plane keeps it from the volume events nodes journal, so it never
+claims a volume no node made (§7 of `06-storage.md`).
+
 **Invariants**
 - A volume outlives the workload attached to it. Deleting a workload does not delete its volumes;
   that is a separate, explicitly irreversible plan step.

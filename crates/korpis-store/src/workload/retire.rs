@@ -45,6 +45,14 @@ impl RetirementWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
+        sqlx::query!(
+            "UPDATE volume SET attached_to = NULL, detached_at = $2 WHERE attached_to = $1",
+            workload,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
         Ok(done.rows_affected() == 1)
     }
 }

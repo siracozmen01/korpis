@@ -8,6 +8,7 @@
 use crate::audit::Outcome;
 use crate::principal::Principal;
 use crate::workload::stream::{Segment, SegmentEvent, StreamKind};
+use crate::workload::volume::ReportedVolume;
 use serde_json::{Map, Value};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -73,6 +74,8 @@ pub enum Body {
         /// Why.
         cause: String,
     },
+    /// A volume was ensured or deleted on the node (§7 of docs/06-storage.md).
+    Volume(ReportedVolume),
     /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
     /// docs/14-streams.md).
     Segment {

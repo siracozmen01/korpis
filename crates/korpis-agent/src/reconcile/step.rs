@@ -8,6 +8,7 @@
 
 use super::act::{Failure, volume_id};
 use super::progress::Step;
+use super::volume::Why;
 use super::{Reconciler, Tracked, effect, text};
 use crate::host::Host;
 use crate::runtime::Runtime;
@@ -123,7 +124,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     size_bytes: number(s, "size_bytes"),
                     ..Default::default()
                 };
-                let made = self.host.ensure_volume(&request).await?;
+                let made = self.ensure_volume(name, Why::Declared, &request).await?;
                 after.insert("volume".into(), text(&request.volume));
                 after.insert("created".into(), text(if made.created { "true" } else { "false" }));
             }
@@ -134,9 +135,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
             "delete_volume" => {
                 let name = detail(s, "volume").unwrap_or_default();
-                self.host
-                    .delete_volume(&volume_id(&a.workload, name, detail(s, "existing")))
-                    .await?;
+                let id = volume_id(&a.workload, name, detail(s, "existing"));
+                self.delete_volume(&a.workload, name, &id).await?;
             }
             "create" => {
                 let id = self.current(a, t).await?;

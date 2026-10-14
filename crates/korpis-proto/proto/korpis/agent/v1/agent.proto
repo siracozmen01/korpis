@@ -407,6 +407,7 @@ message JournalRecord {
     LeaseReleased lease_released = 6;
     JournalGap gap = 7;
     StreamSegmentEvent stream_segment = 9;
+    VolumeEvent volume = 10;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;
@@ -434,6 +435,30 @@ message StreamSegmentEvent {
   // The segment as it stands after the event; the node field is ignored, since the record's
   // node is the one that holds it.
   korpis.v1.StreamSegment segment = 4;
+}
+
+// A volume of a workload was ensured or deleted on this node (§7 of docs/06-storage.md): what
+// the control plane's volume objects are kept from. Journaled after every ensure, created or
+// found, so a crash between creating a volume and journaling it is repaired by the next ensure.
+message VolumeEvent {
+  string workload = 1;
+  // The name the workload knows it by, or `stream_console` for its console stream's.
+  string name = 2;
+  // The helper's identifier for it on this node.
+  string helper_id = 3;
+  string storage_class = 4;
+  uint64 size_bytes = 5;
+  // Whether its size is enforced in the write path (§3 of docs/06-storage.md).
+  bool quota_enforced = 6;
+  VolumeEventKind event = 7;
+  // A console stream's volume rather than one the workload declared.
+  bool stream = 8;
+}
+
+enum VolumeEventKind {
+  VOLUME_EVENT_KIND_UNSPECIFIED = 0;
+  VOLUME_EVENT_KIND_ENSURED = 1;
+  VOLUME_EVENT_KIND_DELETED = 2;
 }
 
 enum SegmentEvent {

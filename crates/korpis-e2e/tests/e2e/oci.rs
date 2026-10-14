@@ -11,6 +11,8 @@
 use crate::node::{Node, live};
 use crate::support::{ControlPlane, push_sleeper};
 use korpis_agent::runtime::{Runtime as _, RuntimeError};
+use korpis_cli::cmd::Get;
+use korpis_cli::cmd::get::get;
 use korpis_cli::cmd::logs::{Logs, logs};
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
@@ -92,6 +94,22 @@ async fn lines(file: &Path) -> Vec<String> {
     panic!("{} stayed empty", file.display());
 }
 
+/// `korpis get volumes` lists the workload's volume and its console stream's, both detached
+/// once it retired, as the node reported them.
+async fn shown_detached(cp: &ControlPlane, tenant: &str, project: &str) {
+    let asked = Get::Volumes { project: project.to_owned(), workload: None, deleted: false };
+    let shown = get(&cp.cli(Some(tenant)), &asked).await.unwrap().human;
+    let mut rows: Vec<Vec<&str>> =
+        shown.lines().skip(1).map(|l| l.split_whitespace().collect()).collect();
+    rows.sort_by_key(|r| r.get(1).copied());
+    let picked: Vec<_> = rows.iter().map(|r| (r[1], r[2], r[6])).collect();
+    assert_eq!(
+        picked,
+        [("data", "declared", "-"), ("stream_console", "stream", "-")],
+        "both listed, attached to nothing: {shown}"
+    );
+}
+
 #[tokio::test]
 async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     if !live() {
@@ -118,7 +136,7 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     assert!(pid > 0);
 
     // Its console, read with `korpis logs` by a token that may read it and not its node.
-    let tenant = cp.token_for(&["workload.read", "workload.console.read"]).await;
+    let tenant = cp.token_for(&["workload.read", "workload.console.read", "volume.read"]).await;
     let asked = Logs { workload: w.clone(), follow: true, limit: Some(1), ..logs_args() };
     let mut printed = Vec::new();
     logs(&cp.cli(Some(&tenant)), &asked, &mut |line, _| printed.push(line)).await.unwrap();
@@ -149,6 +167,7 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let gone = runtime.inspect(&observed.runtime_id).await;
     assert!(matches!(gone, Err(RuntimeError::NotFound(_))), "{gone:?}");
     assert!(vol.join("starts").exists(), "a volume outlives its workload");
+    shown_detached(&cp, &tenant, &project).await;
 
     // Its console: written on the node while it ran, sealed when its container went, indexed.
     let sql = "SELECT count(*) FROM stream_segment s JOIN stream ON stream.id = s.stream_id \

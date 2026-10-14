@@ -12,6 +12,7 @@ pub mod set;
 pub mod spec;
 pub mod status;
 pub mod stream;
+pub mod volume;
 
 pub use plan::{Plan, PlanStatus, PlanTarget};
 pub use spec::{IntentBody, SpecError};

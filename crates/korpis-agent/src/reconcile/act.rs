@@ -6,6 +6,7 @@
 //! Every object is labelled at creation with what adoption matches it by (§4.4 of
 //! docs/02-architecture.md).
 
+use super::volume::Why;
 use super::{Reconciler, Tracked};
 use crate::host::Host;
 use crate::runtime::{Prepared, Runtime, RuntimeError};
@@ -83,7 +84,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 size_bytes: v.map_or(0, |v| v.size_bytes),
                 ..Default::default()
             };
-            m.source = self.host.ensure_volume(&request).await?.host_path;
+            m.source = self.ensure_volume(&m.volume, Why::Declared, &request).await?.host_path;
         }
         Ok(())
     }
@@ -106,7 +107,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             size_bytes: limits.disk_bound(),
             ..Default::default()
         };
-        capture.dir = self.host.ensure_volume(&request).await?.host_path;
+        let name = format!("stream_{}", StreamKind::Console.as_str());
+        capture.dir = self.ensure_volume(&name, Why::Stream, &request).await?.host_path;
         self.streams
             .watch(&a.workload, Path::new(&capture.dir))
             .map_err(|e| Failure(format!("the stream could not be watched: {e}")))

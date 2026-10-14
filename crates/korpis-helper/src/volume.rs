@@ -65,6 +65,7 @@ impl Class {
             host_path: path.to_string_lossy().into_owned(),
             created,
             quota_enforced: self.backend().enforces(),
+            storage_class: self.name().to_owned(),
             ..Default::default()
         })
     }

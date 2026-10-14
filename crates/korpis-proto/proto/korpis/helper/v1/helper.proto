@@ -92,6 +92,8 @@ message EnsureVolumeResponse {
   // Whether the size and inode limits asked for are enforced in the write path. False on a
   // class that cannot (§2 of docs/06-storage.md), where they are kept nowhere and shown nowhere.
   bool quota_enforced = 3;
+  // The class it is in: the one asked for, or the helper's default when none was.
+  string storage_class = 4;
 }
 
 message DeleteVolumeRequest {

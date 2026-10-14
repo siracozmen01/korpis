@@ -58,5 +58,6 @@ mod tenancy;
 mod tokens;
 mod trust;
 mod upgrade;
+mod volumes;
 mod watch;
 mod workload;

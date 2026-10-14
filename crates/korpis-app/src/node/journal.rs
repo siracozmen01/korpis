@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{
     Clock, EffectWrite, JournalWrite, LeaseWrite, PlacementWrite, RecipeSource, RetirementWrite,
-    Store, StreamWrite as _, Tx, WorkloadWrite,
+    Store, StreamWrite as _, Tx, VolumeWrite as _, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
 use korpis_core::authz::{Action, Kind, ObjectRef};
@@ -21,6 +21,8 @@ use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::retires;
 use korpis_core::workload::plan::{PlanStatus, StepExecutor};
+use korpis_core::workload::stream::{Segment, SegmentEvent, StreamKind};
+use korpis_core::workload::volume::{ReportedVolume, VolumeEvent};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -100,32 +102,69 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ]))
             }
             Body::Segment { workload, kind, event, segment } => {
-                // A segment is sealed as its container goes and pruned long after, so the test
-                // is that the node once ran the workload, not that it still does.
-                if !self.store.ever_leased(*workload, node).await? {
-                    return Ok(rejected(
-                        "the node never held the workload's lease",
-                        event.action(),
-                    ));
-                }
-                tx.record_segment((*workload, *kind), *event, segment, node).await?;
-                let mut e = system(event.action(), Outcome::Succeeded).after(details([
-                    ("stream", kind.as_str().into()),
-                    ("first_offset", segment.first_offset.into()),
-                    ("end_offset", segment.end_offset.into()),
-                    ("bytes", segment.bytes.into()),
-                    ("digest", segment.digest.clone().into()),
-                ]));
-                e.workload = Some(*workload);
-                e.grant = self.store.governing_grant(*workload).await?;
-                e
+                self.segment(tx, node, (*workload, *kind), *event, segment).await?
             }
+            Body::Volume(v) => self.volume(tx, node, v).await?,
             Body::Malformed { reason } => rejected(reason, "malformed"),
             // Metering is stored with the metering of Phase 2 (§4 of docs/20-roadmap.md); until
             // then its arrival is recorded, so the loss is visible rather than silent.
             Body::Metering => system("journal.unsupported", Outcome::Skipped)
                 .after(details([("kind", "metering".into())])),
         })
+    }
+
+    /// A segment of a stream sealed, offloaded, or pruned on the node (§4 of docs/14-streams.md).
+    async fn segment(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        (workload, kind): (Uuid, StreamKind),
+        event: SegmentEvent,
+        segment: &Segment,
+    ) -> Result<Effect, AppError> {
+        // A segment is sealed as its container goes and pruned long after, so the test is that
+        // the node once ran the workload, not that it still does.
+        if !self.store.ever_leased(workload, node).await? {
+            return Ok(rejected("the node never held the workload's lease", event.action()));
+        }
+        tx.record_segment((workload, kind), event, segment, node).await?;
+        let mut e = system(event.action(), Outcome::Succeeded).after(details([
+            ("stream", kind.as_str().into()),
+            ("first_offset", segment.first_offset.into()),
+            ("end_offset", segment.end_offset.into()),
+            ("bytes", segment.bytes.into()),
+            ("digest", segment.digest.clone().into()),
+        ]));
+        e.workload = Some(workload);
+        e.grant = self.store.governing_grant(workload).await?;
+        Ok(e)
+    }
+
+    /// A volume the node ensured or deleted (§7 of docs/06-storage.md). Deletion comes long
+    /// after the workload went, so here too the test is that the node once ran it.
+    async fn volume(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        v: &ReportedVolume,
+    ) -> Result<Effect, AppError> {
+        let action = match v.event {
+            VolumeEvent::Ensured => "volume.ensured",
+            VolumeEvent::Deleted => "volume.deleted",
+        };
+        if !self.store.ever_leased(v.workload, node).await? {
+            return Ok(rejected("the node never held the workload's lease", action));
+        }
+        tx.record_volume(node, v, self.clock.now()).await?;
+        let mut e = system(action, Outcome::Succeeded).after(details([
+            ("name", v.name.clone().into()),
+            ("kind", v.kind.as_str().into()),
+            ("storage_class", v.storage_class.clone().into()),
+            ("quota_enforced", v.quota_enforced.into()),
+        ]));
+        e.workload = Some(v.workload);
+        e.grant = self.store.governing_grant(v.workload).await?;
+        Ok(e)
     }
 
     /// Console input the node carried, recorded as the act of the subject it names, if that

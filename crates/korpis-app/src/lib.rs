@@ -26,6 +26,7 @@ pub mod recipe;
 pub mod relay;
 pub mod step;
 pub mod tenancy;
+pub mod volume;
 pub mod workload;
 
 pub use caller::Caller;

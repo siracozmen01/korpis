@@ -558,6 +558,37 @@ provisioned ──▶ attached ⇄ detached ──▶ orphaned ──▶ deleted
 > names that property, and the rule is now the same here, in §4.5 of `02-architecture.md`, and in
 > §8 of `03-state.md`.
 
+**As built (Phase 1).** The control plane keeps the volume object from what nodes report, never
+from what it asked for. The agent asks the privileged helper to ensure a volume (a declared one
+when a plan creates or attaches it and when the runtime object is built, the console stream's when
+the stream is captured, §4 of `14-streams.md`) and journals a volume event after each answer:
+the workload, the name it knows the volume by, the helper's identifier for it on the node, the
+class, the size asked for, and whether the class enforces that size. Deleting one is journalled
+the same way. The record follows the helper's answer, so a volume the journal names was there; one
+ensured whose record never reached the journal fails the step or the build that asked for it, and
+the retry ensures it again and reports it. The control plane believes a report only from a node
+that once held the workload's lease, the same test as for stream segments (Finding 28 of
+`23-walkthroughs.md`), because a volume is deleted long after its workload left the node.
+
+From those reports the object is kept: created on its first report in the project of the workload
+it was made for, attached to the workload that last ensured it (which is how an adopting workload,
+named by `existing`, takes it over), detached in the transaction that retires its workload, and
+marked deleted when its node reports the deletion, never removed. A helper identifier names one
+live volume on its node; ensured again after a deletion it is a new volume. `VolumeService` lists
+a project's volumes, or one workload's, under `volume.read` on the project (deleted ones only when
+asked for), and `korpis get volumes` renders them. That listing is where an orphan is seen: a
+volume attached to nothing, whose workload is gone, is listed, and nothing collects it.
+
+A size is shown only where the class enforces it in the write path (Rule K-3, §3 of this document):
+on a class without quota the API carries no size and the CLI prints none, because a size nothing
+enforces is a number the disk will not honour.
+
+What this does not do yet. Every volume is on the node that reported it, so its `node` is never
+empty; a network-backed class (open question 3) is where §3.6 of `01-model.md` says it is, and
+that class settles what `node` names for it. The `mode` and `snapshots` of §3.6 are not reported:
+every volume is mounted read-write, and snapshots arrive with their own step (§4 of
+`20-roadmap.md`).
+
 ---
 
 ## 8. Interaction with migration

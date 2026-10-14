@@ -15,6 +15,7 @@ pub mod progress;
 mod step;
 pub mod streams;
 mod tail;
+mod volume;
 mod workload;
 
 use crate::held::HeldSet;

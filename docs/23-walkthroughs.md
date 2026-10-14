@@ -1018,6 +1018,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 27 | A relay removed after the backup returns with it | §6 | `18-operations.md` §6 |
 | 28 | The last segment of a retired workload's console was refused | §18 | `14-streams.md` §4 |
 | 29 | A client who may not read the node could not reach the workload | §11 | `02-architecture.md` §3.1, `08-identity.md` §6 |
+| 30 | A retained volume was listed by nothing | §18 | `06-storage.md` §7, `01-model.md` §3.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1272,7 +1273,7 @@ Written 2026-10-13, from the implementation, when `DeleteWorkload` was built.
 | 4 | Approved: every other proposal is superseded, and a moderator's stop is refused, the workload is being retired | `01-model.md` §3.3 |
 | 5 | The node's assignment carries `retire`; the agent stops the workload and removes the runtime, touching no volume | `02-architecture.md` §4.8 |
 | 6 | The completion effect of the last step is ingested, checked against the node's own steps of that plan: the plan is applied, the assignment leaves the set, the placement is removed, `deleted_at` is set, and the name and quota are released ‡ | `02-architecture.md` §4.8, §4.10; `05-scheduling.md` §5.1 |
-| 7 | Volume `world` remains, detached, listed and never collected | `06-storage.md` §7 |
+| 7 | Volume `world` remains, detached in step 6's transaction, listed and never collected ¶ | `06-storage.md` §7; `01-model.md` §3.6 |
 | 8 | Its console stream remains too: the shim closed the task's pipes at step 5, the writer sealed the last segment, and the agent journaled it, believed from the node that held the lease though the assignment has left the set § | `14-streams.md` §4; `01-model.md` §3.6 |
 
 **FINDING 24: A deleted workload's identity has no moment it is deleted. `CONFIRMED`**
@@ -1313,4 +1314,24 @@ evaluates the check, and with what information, after the assignment is gone.
 released or not: leases are never deleted, so the control plane holds that history, and a node
 writes a stream only while it runs the workload, which takes a lease. Retiring keeps the stream as
 it keeps volumes, and deleting it is the volume deletion step. → patched into `14-streams.md` §4
+
+¶ Added 2026-10-14, from the implementation, when volume objects were built.
+
+**FINDING 30: A retained volume was listed by nothing. `CONFIRMED`**
+
+Step 7 says the volume is "listed and never collected", and §7 of `06-storage.md` makes the listing
+the whole defence against losing an orphan: nothing collects it because someone can see it. Asked
+what evaluates "listed", and with what information, the answer was nothing. The control plane held
+no volume object, only the intent that declared one, and an intent says what was asked for, not
+what a node made, where, or whether the size it carries is enforced; the volume's only record was
+a directory on the node. A volume made for a workload that was then retired was invisible to every
+client, which is the orphan §7 exists to show.
+
+**Resolution.** The node journals every volume it ensures or deletes, after the helper's answer,
+and the control plane keeps the object from those records, believed from a node that once held
+the workload's lease (the test of Finding 28, for the same reason: deletion comes long after the
+workload left). Retiring the workload detaches its volumes in the transaction that sets
+`deleted_at`, so step 7 holds the moment step 6 does, and `VolumeService` with `korpis get volumes`
+lists them, a size shown only where the class enforces it. → patched into `06-storage.md` §7 and
+`01-model.md` §3.6
 

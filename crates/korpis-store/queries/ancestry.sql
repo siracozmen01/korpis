@@ -1,5 +1,6 @@
 -- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its
--- root organization, with labels. A node's parent is the organization it was enrolled into. One
+-- root organization, with labels. A node's parent is the organization it was enrolled into, and a
+-- volume's the project it belongs to. One
 -- statement walks from the object to its organization and then up the organization tree, so the
 -- answer is consistent with a single snapshot.
 WITH RECURSIVE
@@ -16,6 +17,9 @@ start AS (
     UNION ALL
     SELECT 'node', n.id, n.labels, 0, NULL, n.organization_id
       FROM node n WHERE $1 = 'node' AND n.id = $2
+    UNION ALL
+    SELECT 'volume', v.id, '{}'::jsonb, 0, v.project_id, NULL
+      FROM volume v WHERE $1 = 'volume' AND v.id = $2
 ),
 project_step AS (
     SELECT 'project'::text AS kind, p.id, p.labels, 1 AS depth,

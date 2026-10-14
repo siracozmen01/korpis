@@ -49,6 +49,19 @@ pub enum Get {
         /// The project, by name or identifier.
         project: String,
     },
+    /// The volumes of a project, including those whose workload is gone.
+    Volumes {
+        #[arg(add = ArgValueCompleter::new(complete::projects))]
+        /// The project, by name or identifier.
+        project: String,
+        /// Only those created for or attached to this workload.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
+        #[arg(long)]
+        workload: Option<String>,
+        /// Deleted ones too.
+        #[arg(long)]
+        deleted: bool,
+    },
     /// The nodes of an organization.
     Nodes {
         /// The organization, by name or identifier; the top one you can read by default.

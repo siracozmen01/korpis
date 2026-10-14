@@ -25,6 +25,22 @@ message Volume {
   repeated string snapshots = 9;
   google.protobuf.Timestamp created = 10;
   google.protobuf.Timestamp deleted_at = 11;
+  // Whether its size is enforced in the write path; size_bytes is zero, and shown nowhere, when
+  // it is not (Rule K-3, §2 of docs/06-storage.md).
+  bool quota_enforced = 12;
+  VolumeKind kind = 13;
+  // When the workload it was attached to let go of it; the volume and its data remain.
+  google.protobuf.Timestamp detached_at = 14;
+  // The workload it was created for.
+  string created_by = 15;
+}
+
+enum VolumeKind {
+  VOLUME_KIND_UNSPECIFIED = 0;
+  // One the workload declared.
+  VOLUME_KIND_DECLARED = 1;
+  // Its console stream's (§4 of docs/14-streams.md).
+  VOLUME_KIND_STREAM = 2;
 }
 
 // A way the network reaches a workload. The replacement for the allocation.
