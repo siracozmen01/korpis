@@ -472,9 +472,15 @@ the backup's own workload key and read access to that workload's prefix, under t
 a backup's job (§5.5). Putting a workload's backup back into it is `backup.restore` there;
 putting it into another workload's volume hands its contents to that workload's holders, so it
 takes `backup.read` on the first and `workload.file.write` on the second (§5 of `10-api.md`).
-What this does not do yet: browse a manifest or read one file through the control plane, restore
-into a new workload, or restore recipe content by reference; each is a task of Phase 1, not
-dropped.
+`korpis backup ls bkp_… [dir]` browses a whole backup one directory at a time under
+`backup.browse`, names, kinds, sizes, and times and no byte of any file; `korpis backup cat bkp_…
+<file>` reads one file under `backup.read`, streamed with its holes as zeros and checked against
+the digest the backup recorded, so a stream that ends without an error is the file. The control
+plane reads these itself, with read access to the workload's prefix and the workload's key,
+fifteen minutes of it for a listing and a job's twelve hours for a file (Finding 36 of
+`23-walkthroughs.md`), and records each as a sensitive read before it reads anything (§4 of
+`15-observability.md`). What this does not do yet: restore into a new workload, or restore or read
+recipe content kept by reference; each is a task of Phase 1, not dropped.
 
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore

@@ -11,6 +11,7 @@
 
 mod apply;
 pub mod backup;
+pub mod browse;
 pub mod confine;
 pub mod error;
 mod file;

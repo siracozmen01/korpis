@@ -3,7 +3,8 @@
 //! A volume backed up, restored, and verified, through a store in memory: every kind of entry
 //! comes back as it was, sparse files stay sparse, links stay links, a second backup stores only
 //! what changed and reads only what might have, one path restores alone, and a repository that
-//! was tampered with or names an entry outside the restore is refused.
+//! was tampered with or names an entry outside the restore is refused; and a backup is browsed
+//! and read without being restored.
 
 #![allow(
     clippy::unwrap_used,
@@ -13,6 +14,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod browse;
 mod tree;
 
 use buffa::Message as _;

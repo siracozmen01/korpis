@@ -23,7 +23,8 @@ use uuid::Uuid;
 /// than a target grants (§5.6 of docs/06-storage.md).
 const JOB_ACCESS: Duration = Duration::from_secs(12 * 3600);
 
-/// One job's key and access.
+/// A key and access to a workload's backups: a job's, or the control plane's own when it reads
+/// one.
 #[derive(Debug)]
 pub struct JobGrant {
     /// The workload's data key, opened for this job.
@@ -156,7 +157,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// `workload`'s data key in `repo`; made at its first backup there when `make`, and
     /// otherwise required to exist.
-    async fn data_key(
+    pub(super) async fn data_key(
         &self,
         repo: &Repository,
         workload: Uuid,

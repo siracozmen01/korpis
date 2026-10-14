@@ -539,6 +539,13 @@ service BackupService {
   // Into the backup's own workload under backup.restore there; into another workload's volume
   // under backup.read on the backup's workload and workload.file.write on the other.
   rpc RestoreBackup(RestoreBackupRequest) returns (RestoreBackupResponse);
+  // One directory of a whole backup: every name, kind, and size in it, under backup.browse on
+  // its workload, which shows no byte of any file. Recorded as a sensitive read.
+  rpc BrowseBackup(BrowseBackupRequest) returns (BrowseBackupResponse);
+  // One file of a whole backup, its bytes in order with its holes as zeros, under backup.read on
+  // its workload, which shows no other name. Recorded as a sensitive read. The stream ends in an
+  // error, never quietly, when what was read is not what the backup recorded.
+  rpc ReadBackupFile(ReadBackupFileRequest) returns (stream ReadBackupFileResponse);
 }
 
 message CreateBackupRequest {
@@ -569,6 +576,52 @@ message RestoreBackupRequest {
 
 message RestoreBackupResponse {
   Plan plan = 1;
+}
+
+message BrowseBackupRequest {
+  string backup = 1;
+  // A directory in it, relative; the volume's root when empty.
+  string path = 2;
+}
+
+message BrowseBackupResponse {
+  repeated BackupEntry entries = 1;
+}
+
+// One name in a backed-up directory.
+message BackupEntry {
+  // The name, as the filesystem had it: any bytes but '/' and NUL.
+  bytes name = 1;
+  BackupEntryKind kind = 2;
+  // A file's length, holes included.
+  uint64 size = 3;
+  // The permission bits, and the set-id and sticky bits.
+  uint32 mode = 4;
+  google.protobuf.Timestamp modified = 5;
+  // A symbolic link's target.
+  bytes link_target = 6;
+}
+
+enum BackupEntryKind {
+  BACKUP_ENTRY_KIND_UNSPECIFIED = 0;
+  BACKUP_ENTRY_KIND_FILE = 1;
+  BACKUP_ENTRY_KIND_DIRECTORY = 2;
+  BACKUP_ENTRY_KIND_SYMLINK = 3;
+  // A pipe, a device node, or a socket.
+  BACKUP_ENTRY_KIND_SPECIAL = 4;
+}
+
+message ReadBackupFileRequest {
+  string backup = 1;
+  // A file in it, relative.
+  string path = 2;
+}
+
+message ReadBackupFileResponse {
+  // The next bytes of the file.
+  bytes data = 1;
+  // The file's length, on the first message.
+  uint64 size = 2;
 }
 
 message GetBackupRequest {

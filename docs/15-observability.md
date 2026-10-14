@@ -194,7 +194,9 @@ cannot be turned into an unbounded write path.
 
 **Sensitive reads are recorded.** Reading a secret config field, downloading a backup, attaching to
 another tenant's console under operator authority (§7 of `08-identity.md`), these are events. An
-audit log that only contains writes cannot answer "did anyone look at this".
+audit log that only contains writes cannot answer "did anyone look at this". Browsing a backup and
+reading a file from one are recorded as `backup.browse` and `backup.read`, with the path, before
+anything is read (§5.4 of `06-storage.md`).
 
 **Tamper-evidence, not just append-only.** `REVOKE UPDATE, DELETE` stops the application; it does
 not stop someone with database access. Each day's effects are hash-chained and the day's root is

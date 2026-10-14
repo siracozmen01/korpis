@@ -25,6 +25,9 @@ hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["server-auto", "tokio"] }
 ipnet = "2"
 korpis-app = { workspace = true }
+# The control plane reads a backup's trees and files when one is browsed or read (§5.4 of
+# docs/06-storage.md).
+korpis-backup = { path = "../korpis-backup" }
 korpis-core = { workspace = true, features = ["authz", "identity"] }
 korpis-proto = { workspace = true, features = ["client", "services"] }
 korpis-recipe = { workspace = true }
@@ -56,6 +59,7 @@ base64 = "0.22"
 korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 korpis-extension = { workspace = true }
+korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 
 [lints]
 workspace = true

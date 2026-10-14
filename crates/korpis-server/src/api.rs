@@ -15,6 +15,7 @@ mod audit;
 mod authz;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod backup;
+mod backup_read;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod data;
 pub mod error;

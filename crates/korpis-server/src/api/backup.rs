@@ -6,7 +6,7 @@
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
-use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::backup::restore::RestoreAsk;
 use korpis_app::idempotency::Idempotent;
 use korpis_core::id::IdKind;
@@ -85,6 +85,22 @@ impl pb::BackupService for Api {
         let idem = Idempotent { key, encode: &encoder };
         let reply = self.app.restore_backup(&caller, &idem, ask).await.map_err(error::from_app)?;
         respond(reply, restored)
+    }
+
+    async fn browse_backup(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::BrowseBackupRequest>,
+    ) -> ServiceResult<pb::BrowseBackupResponse> {
+        self.browse(ctx, request).await
+    }
+
+    async fn read_backup_file(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ReadBackupFileRequest>,
+    ) -> ServiceResult<ServiceStream<pb::ReadBackupFileResponse>> {
+        self.read_file(ctx, request).await
     }
 
     async fn get_backup(

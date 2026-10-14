@@ -31,7 +31,8 @@ built, and its finding is numbered on from the first fourteen. Finding 25 came f
 built; each is numbered on from the one before. §19 is a sixteenth trace, written when snapshots
 were built, and Findings 28 to 31 came from the implementation of streams and volumes. §20 is a
 seventeenth, written when backups were built, and it found Findings 32 and 33; §21, the
-eighteenth, written when restores were, found 34 and 35.
+eighteenth, written when restores were, found 34 and 35; re-running §9 when browsing was built
+found 36.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -611,6 +612,27 @@ organization requires the authority of the owner of every organization it will s
 §4.1 of `16-extensions.md` applies to providers, and the scope is visible to every tenant inside it
 rather than being a fact about their data they cannot see.
 
+### Steps 1 to 5, run again against the implementation
+
+Re-run 2026-10-14, when browsing and reading a backup were built. Step 1 is `korpis backup ls`
+under `backup.browse`, which lists one directory at a time and shows no byte; step 3 is `korpis
+backup cat` under `backup.read`, which fetches that file's chunks and no others; step 4's key is
+the workload's own, opened by the control plane from the repository's key in its vault; step 5
+is an effect of each action, with the path, recorded before anything is read. Step 6 restores into
+a new directory of the volume; into a new workload is still to be built (§5.4 of
+`06-storage.md`). Asked what bounds step 3, the answer was the read access the control plane is
+granted, and it was too short.
+
+**FINDING 36: A long read outlasted the access it was given. `CONFIRMED`**
+
+The control plane read a file with fifteen minutes of read access, sized for one listing. A large
+file over a slow link takes as long to read as to restore, and a temporary credential that
+expires mid-stream ends the stream in an error the reader cannot resume from.
+
+**Resolution.** A listing gets fifteen minutes and a file a job's twelve hours, the most a
+backup target grants (§5.6 of `06-storage.md`); the credential lives only in the control plane's
+memory for the read. → patched into `06-storage.md` §5.4
+
 ### The same trace, run against Korpis' own backup
 
 `18-operations.md` §6 separates tenant data from Korpis itself and lists what must be backed up.
@@ -1027,6 +1049,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 33 | A nightly backup had nothing to run it | §20 | `20-roadmap.md` Phase 1 |
 | 34 | Replacing a volume needs room for two copies of it | §21 | `06-storage.md` §5.4 |
 | 35 | A prune could remove the backup a restore is reading | §21 | `06-storage.md` §5.5 |
+| 36 | A long read outlasted the access it was given | §9 | `06-storage.md` §5.4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

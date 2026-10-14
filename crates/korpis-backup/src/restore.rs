@@ -81,13 +81,14 @@ pub(crate) async fn find<S: ObjectStore>(
     path: &str,
 ) -> Result<pb::Entry> {
     let mut tree = repo.tree(root).await?;
-    let mut parts = path.split('/').filter(|p| !p.is_empty()).peekable();
-    while let Some(part) = parts.next() {
+    // Collected before the first await, so no iterator is held across one.
+    let parts: Vec<String> = path.split('/').filter(|p| !p.is_empty()).map(str::to_owned).collect();
+    for (i, part) in parts.iter().enumerate() {
         check_name(part.as_bytes())
             .map_err(|_| Error::Refused(format!("{path:?} is not a path in a volume")))?;
         let entry = tree.entries.iter().find(|e| e.name == part.as_bytes()).cloned();
         let entry = entry.ok_or_else(|| Error::Refused(format!("{path} is not in the backup")))?;
-        if parts.peek().is_none() {
+        if i + 1 == parts.len() {
             return Ok(entry);
         }
         if entry.subtree.is_empty() {

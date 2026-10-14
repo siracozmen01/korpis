@@ -83,6 +83,14 @@ impl BackupTarget for Bucket {
 
 /// A backup target named `local` serving the root organization from `bucket`.
 pub async fn serving(h: &Harness, bucket: Bucket) -> CallTarget {
+    serving_with(h, bucket).await
+}
+
+/// A backup target named `local` serving the root organization as `target` answers.
+pub async fn serving_with<T: BackupTarget + Send + Sync + 'static>(
+    h: &Harness,
+    target: T,
+) -> CallTarget {
     let document = DNS
         .replace("    - {type: dns, name: cloudflare}", "    - {type: backup_target, name: local}")
         .replace(
@@ -102,7 +110,7 @@ pub async fn serving(h: &Harness, bucket: Bucket) -> CallTarget {
         version: "1.0.0".into(),
         concurrency: 4,
     };
-    let provider = Arc::new(Provider::new(connection, registration, Backup(bucket)));
+    let provider = Arc::new(Provider::new(connection, registration, Backup(target)));
     let mut registered = provider.registered();
     let serving = Arc::clone(&provider);
     tokio::spawn(async move { serving.run().await });

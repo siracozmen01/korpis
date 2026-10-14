@@ -223,6 +223,8 @@ the last backup of each of seven days, four weeks, and six months above a one-da
 `korpis backup restore bkp_… --into <dir> [--path <p>]` restores it into a new directory of the
 volume at once; `--replace` replaces the whole volume, a plan that waits for approval and stops
 the workload only for the exchange; `--volume vol_…` restores into another volume (§5.4 there).
+`korpis backup ls bkp_… [dir]` lists one directory of a backup without a byte of any file, and
+`korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action.
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

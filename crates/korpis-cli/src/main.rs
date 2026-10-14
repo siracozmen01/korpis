@@ -183,6 +183,22 @@ fn print(v: &Value) {
     println!("{}", serde_json::to_string_pretty(v).unwrap_or_default());
 }
 
+/// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output.
+async fn cat(
+    c: &korpis_cli::connect::Connection,
+    file: (&str, &str),
+    output: Option<&std::path::Path>,
+) -> Result<(), CliError> {
+    let local = |e: std::io::Error| CliError::Local(e.to_string());
+    match output {
+        Some(path) => {
+            let mut f = std::fs::File::create_new(path).map_err(local)?;
+            backup::cat(c, file, &mut f).await.map(|_| ())
+        }
+        None => backup::cat(c, file, &mut std::io::stdout().lock()).await.map(|_| ()),
+    }
+}
+
 /// `korpis version`: this binary's, and the server's when there is one to ask.
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 async fn version(cli: &Cli) -> Result<(), CliError> {
@@ -228,6 +244,9 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
+        Command::Backup(BackupAction::Cat { backup, path, output }) => {
+            cat(&cli.required()?, (backup, path), output.as_deref()).await
+        }
         Command::Backup(a) => answer(cli, backup::backup(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

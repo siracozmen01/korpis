@@ -35,6 +35,24 @@ pub enum BackupAction {
         /// The backup, `bkp_…`.
         backup: String,
     },
+    /// Lists one directory of a backup: names, kinds, and sizes, and no byte of any file.
+    Ls {
+        /// The backup, `bkp_…`.
+        backup: String,
+        /// A directory in it; the volume's root when not given.
+        #[arg(default_value = "")]
+        path: String,
+    },
+    /// Writes one file of a backup to standard output, or to `--output`.
+    Cat {
+        /// The backup, `bkp_…`.
+        backup: String,
+        /// The file in it.
+        path: String,
+        /// Where to write it instead of standard output; it must not exist.
+        #[arg(long, short)]
+        output: Option<std::path::PathBuf>,
+    },
     /// Restores a backup: into a new directory of a volume, which applies at once, or over the
     /// whole volume, which loses what it holds and waits for approval.
     #[command(group(clap::ArgGroup::new("target").required(true).args(["into", "replace"])))]
@@ -76,6 +94,70 @@ fn rows(list: &[pb::Backup]) -> String {
     table(&all)
 }
 
+fn listing(entries: &[pb::BackupEntry]) -> String {
+    let mut all = vec![["KIND", "SIZE", "MODIFIED", "NAME"].map(str::to_owned).to_vec()];
+    all.extend(entries.iter().map(|e| {
+        let mut name = String::from_utf8_lossy(&e.name).into_owned();
+        if !e.link_target.is_empty() {
+            name = format!("{name} -> {}", String::from_utf8_lossy(&e.link_target));
+        }
+        vec![
+            short(e.kind, "BACKUP_ENTRY_KIND_").to_lowercase(),
+            show::bytes(e.size),
+            time(e.modified.as_option()),
+            name,
+        ]
+    }));
+    table(&all)
+}
+
+/// Writes file `path` of `backup` to `out`, as the control plane streams it; its length. A
+/// stream that ends in an error leaves what was written and returns the error.
+///
+/// # Errors
+/// The call failed, the stream ended in an error, or `out` could not be written.
+pub async fn cat(
+    c: &Connection,
+    (backup, path): (&str, &str),
+    out: &mut dyn std::io::Write,
+) -> Result<u64, CliError> {
+    let client = pb::BackupServiceClient::new(c.http(), c.config());
+    let r = pb::ReadBackupFileRequest {
+        backup: backup.to_owned(),
+        path: path.to_owned(),
+        ..Default::default()
+    };
+    let mut stream = client.read_backup_file(r).await?;
+    let mut written = 0u64;
+    while let Some(piece) = stream.message().await? {
+        let piece = piece.to_owned_message();
+        out.write_all(&piece.data).map_err(|e| CliError::Local(e.to_string()))?;
+        written += u64::try_from(piece.data.len()).unwrap_or(u64::MAX);
+    }
+    out.flush().map_err(|e| CliError::Local(e.to_string()))?;
+    Ok(written)
+}
+
+/// The request `korpis backup restore` makes.
+fn restore_request(action: &BackupAction) -> pb::RestoreBackupRequest {
+    use pb::__buffa::oneof::restore_backup_request::Target;
+    let BackupAction::Restore { backup, into, replace, volume, path } = action else {
+        return pb::RestoreBackupRequest::default();
+    };
+    let target = match into {
+        Some(dir) => Target::Into(dir.clone()),
+        None => Target::Replace(*replace),
+    };
+    pb::RestoreBackupRequest {
+        mutation: mutation(None).into(),
+        backup: backup.clone(),
+        volume: volume.clone().unwrap_or_default(),
+        path: path.clone().unwrap_or_default(),
+        target: Some(target),
+        ..Default::default()
+    }
+}
+
 /// Answers `korpis backup …`.
 pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, CliError> {
     let client = pb::BackupServiceClient::new(c.http(), c.config());
@@ -104,23 +186,22 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
             let list = client.list_backups(r).await?.into_owned().backups;
             Answer { human: rows(&list), json: json(&list) }
         }
-        BackupAction::Restore { backup, into, replace, volume, path } => {
-            use pb::__buffa::oneof::restore_backup_request::Target;
-            let target = match into {
-                Some(dir) => Target::Into(dir.clone()),
-                None => Target::Replace(*replace),
-            };
-            let r = pb::RestoreBackupRequest {
-                mutation: mutation(None).into(),
-                backup: backup.clone(),
-                volume: volume.clone().unwrap_or_default(),
-                path: path.clone().unwrap_or_default(),
-                target: Some(target),
-                ..Default::default()
-            };
-            let made = client.restore_backup(r).await?.into_owned();
+        BackupAction::Restore { .. } => {
+            let made = client.restore_backup(restore_request(action)).await?.into_owned();
             let plan = made.plan.into_option().unwrap_or_default();
             Answer { human: show::plan(&plan, &plan.workload), json: json(&plan) }
+        }
+        BackupAction::Ls { backup, path } => {
+            let r = pb::BrowseBackupRequest {
+                backup: backup.clone(),
+                path: path.clone(),
+                ..Default::default()
+            };
+            let entries = client.browse_backup(r).await?.into_owned().entries;
+            Answer { human: listing(&entries), json: json(&entries) }
+        }
+        BackupAction::Cat { .. } => {
+            return Err(CliError::Local("a file's bytes are written, not answered".into()));
         }
         BackupAction::Get { backup } => {
             let r = pb::GetBackupRequest { id: backup.clone(), ..Default::default() };
