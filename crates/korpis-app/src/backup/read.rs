@@ -75,7 +75,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.append_effect(&e).await?;
         tx.commit().await?;
         let prefix = ((repo.id, b.workload), crate::ports::Area::Backups);
-        self.record_access(prefix, Some(b.id), AccessMode::Read, what.lasting()).await?;
-        self.control_plane_access(&repo, b.workload, what.lasting()).await
+        self.record_access(prefix, (Some(b.id), None), AccessMode::Read, what.lasting()).await?;
+        self.control_plane_access((&repo, crate::ports::Area::Backups), b.workload, what.lasting())
+            .await
     }
 }

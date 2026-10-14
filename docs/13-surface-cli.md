@@ -394,8 +394,11 @@ offsets the node no longer holds print as such. Following, the command renews it
 session thirty seconds before it expires, and a lost session is opened again, with a backoff of up
 to thirty seconds, from the offset it was told to read from next, so a reconnection neither repeats
 nor skips a record. `--json` prints each record as the API's own object. What it does not do yet:
-read a retired workload's stream (question 6 of `14-streams.md`), or anything already pruned from
-the node, which waits for offload.
+read from the node a retired workload's stream (question 6 of `14-streams.md`), or anything
+already pruned from it. `korpis logs mc-survival --offloaded [--from N] [--limit N]` reads those
+from the repository holding the workload's offloaded segments, through the control plane, which
+records the read (§4 of `14-streams.md`); it prints offsets in no offloaded segment as missing, and
+says where offloaded records end. It neither follows nor searches.
 
 **`console` as built** (Phase 1): `korpis console mc-survival [--scrollback N] [--read-only]
 [--relay URL]` opens two sessions at a relay: one reading the stream from its last hundred records

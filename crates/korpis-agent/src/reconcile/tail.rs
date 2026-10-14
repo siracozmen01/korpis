@@ -26,14 +26,21 @@ fn at(nanos: i64) -> SystemTime {
 
 /// The journal record of `change` to `workload`'s console stream.
 fn record(workload: &str, change: &Change) -> Body {
-    match change {
-        Change::Sealed(s) => segment_record(workload, agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
-        Change::Pruned(s) => segment_record(workload, agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
-    }
+    let (event, s) = match change {
+        Change::Sealed(s) => (agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
+        Change::Pruned(s) => (agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
+    };
+    segment_record(workload, event, s, "")
 }
 
-/// The journal record of `event` to segment `s` of `workload`'s console stream.
-pub(crate) fn segment_record(workload: &str, event: agent::SegmentEvent, s: &Sealed) -> Body {
+/// The journal record of `event` to segment `s` of `workload`'s console stream; `repository`
+/// is where an offloaded one went, `rep_…`, and empty for any other event.
+pub(crate) fn segment_record(
+    workload: &str,
+    event: agent::SegmentEvent,
+    s: &Sealed,
+    repository: &str,
+) -> Body {
     let segment = Segment {
         first_offset: s.first_offset,
         end_offset: s.end_offset,
@@ -42,13 +49,18 @@ pub(crate) fn segment_record(workload: &str, event: agent::SegmentEvent, s: &Sea
         bytes: s.bytes,
         digest: s.digest.clone(),
         node: None,
-        offloaded: event == agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED,
+        repository: None,
     };
+    let mut segment = korpis_wire::stream::segment_to_pb(&segment);
+    if event == agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED {
+        segment.offloaded = true;
+        repository.clone_into(&mut segment.repository);
+    }
     Body::StreamSegment(Box::new(agent::StreamSegmentEvent {
         workload: workload.to_owned(),
         kind: pb::StreamKind::STREAM_KIND_CONSOLE.into(),
         event: event.into(),
-        segment: korpis_wire::stream::segment_to_pb(&segment).into(),
+        segment: segment.into(),
         ..Default::default()
     }))
 }

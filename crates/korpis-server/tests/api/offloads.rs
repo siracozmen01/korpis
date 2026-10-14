@@ -112,3 +112,130 @@ async fn a_node_that_ran_the_workload_is_given_its_stream_prefix_and_no_other_no
     let Outcome::Refused(e) = offload(&mut s2, "o4", &workload).await else { panic!() };
     assert_eq!((e.reason.as_str(), e.retryable), ("job.not_assigned", false));
 }
+
+/// A sealed segment of `lines` from offset `first`, as a node seals it: its bytes and what the
+/// index is told of it.
+fn sealed(dir: &std::path::Path, first: u64, lines: &[&str]) -> (Vec<u8>, pb::StreamSegment) {
+    use korpis_stream::record::{Kind, Record, Source};
+    let path = dir.join(format!("{first}.kseg"));
+    let mut w = korpis_stream::segment::SegmentWriter::create(&path, first).unwrap();
+    for (i, line) in lines.iter().enumerate() {
+        let offset = first + u64::try_from(i).unwrap();
+        let body = line.as_bytes().to_vec();
+        let r = Record { offset, time_nanos: 1, source: Source::Stdout, kind: Kind::Text, body };
+        w.append(&r).unwrap();
+    }
+    let s = w.seal().unwrap();
+    let segment = pb::StreamSegment {
+        first_offset: s.first_offset,
+        end_offset: s.end_offset,
+        bytes: s.bytes,
+        digest: s.digest,
+        ..Default::default()
+    };
+    (std::fs::read(&path).unwrap(), segment)
+}
+
+/// The journal record of `event` to `segment` of `workload`'s console.
+fn journaled(
+    seq: u64,
+    workload: &str,
+    event: agent::SegmentEvent,
+    segment: &pb::StreamSegment,
+) -> agent::JournalRecord {
+    use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
+    let e = agent::StreamSegmentEvent {
+        workload: workload.to_owned(),
+        kind: pb::StreamKind::STREAM_KIND_CONSOLE.into(),
+        event: event.into(),
+        segment: segment.clone().into(),
+        ..Default::default()
+    };
+    agent::JournalRecord {
+        seq,
+        body: Some(B::StreamSegment(Box::new(e))),
+        count: 1,
+        ..Default::default()
+    }
+}
+
+/// Reads `workload`'s offloaded console from `from`, at most `limit` records: the chunks.
+async fn read(
+    h: &Harness,
+    workload: &str,
+    (from, limit): (u64, u64),
+) -> Result<Vec<pb::ConsoleChunk>, connectrpc::ConnectError> {
+    let r = pb::ReadOffloadedRequest {
+        workload: workload.into(),
+        from_offset: from,
+        limit,
+        ..Default::default()
+    };
+    let mut stream = h.streams(h.root()).read_offloaded(r).await?;
+    let mut all = Vec::new();
+    while let Some(chunk) = stream.message().await? {
+        all.push(chunk.to_owned_message());
+    }
+    Ok(all)
+}
+
+fn bodies(chunks: &[pb::ConsoleChunk]) -> Vec<String> {
+    let records = chunks.iter().flat_map(|c| c.records.iter());
+    records.map(|r| String::from_utf8_lossy(&r.body).into_owned()).collect()
+}
+
+#[tokio::test]
+async fn an_offloaded_stream_is_read_back_through_the_control_plane_only_as_it_was_sealed() {
+    use agent::SegmentEvent as E;
+    let scratch = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let Some(minio) = korpis_backup::testing::Minio::start(scratch.path()).await.unwrap() else {
+        return;
+    };
+    minio.bucket("backups").await.unwrap();
+    let (h, mut s, workload, _, seq) = running(Vec::new()).await;
+    crate::backup_target::serving_with(&h, crate::prunes::real(&minio)).await;
+    create(&h, made("nightly", "korpis/", None, None)).await.unwrap();
+    let Outcome::Grant(g) = offload(&mut s, "o1", &workload).await else { panic!() };
+    let repo = crate::prunes::repo_of(&g);
+    let (first, mut one) = sealed(scratch.path(), 0, &["Starting server", "Done"]);
+    let (second, mut two) = sealed(scratch.path(), 4, &["Player Alex joined", "Saved"]);
+    for (bytes, segment) in [(first, &one), (second.clone(), &two)] {
+        let at = (segment.first_offset, segment.digest.as_str());
+        korpis_backup::offload::put_segment(&repo, at, bytes).await.unwrap();
+    }
+    // The node names a repository it was given for the first; for the second, none it was.
+    one.offloaded = true;
+    one.repository.clone_from(&g.repository);
+    two.offloaded = true;
+    two.repository = h.root_org().replace("org_", "rep_");
+    let records = vec![
+        journaled(seq, &workload, E::SEGMENT_EVENT_SEALED, &one),
+        journaled(seq + 1, &workload, E::SEGMENT_EVENT_OFFLOADED, &one),
+        journaled(seq + 2, &workload, E::SEGMENT_EVENT_SEALED, &two),
+        journaled(seq + 3, &workload, E::SEGMENT_EVENT_OFFLOADED, &two),
+    ];
+    crate::journal::send(&mut s, records).await;
+    crate::journal::until(&mut s, |d| crate::journal::ack(d).filter(|a| *a >= seq + 3)).await;
+
+    let chunks = read(&h, &workload, (0, 0)).await.unwrap();
+    assert_eq!(bodies(&chunks), ["Starting server", "Done"], "the second is not believed");
+    assert_eq!(chunks.last().map(|c| (c.next_offset, c.caught_up)), Some((2, true)));
+    let from_one = read(&h, &workload, (1, 1)).await.unwrap();
+    assert_eq!(bodies(&from_one), ["Done"]);
+
+    // Replaced by the node with another segment, sealed under the same key: refused, not read.
+    let at = korpis_backup::offload::segment_id(0, &one.digest).unwrap();
+    repo.put(korpis_backup::seal::Kind::Segment, &at, second).await.unwrap();
+    let e = read(&h, &workload, (0, 0)).await.unwrap_err();
+    assert_eq!(reason(&e), "stream.segment_altered");
+    // Or moved there in the store from another name: it does not open.
+    let theirs =
+        format!("segments/{}", korpis_backup::offload::segment_id(4, &two.digest).unwrap());
+    let store = repo.store();
+    let moved = korpis_backup::store::ObjectStore::get(&**store, &theirs).await.unwrap().unwrap();
+    korpis_backup::store::ObjectStore::put(&**store, &format!("segments/{at}"), moved)
+        .await
+        .unwrap();
+    let e = read(&h, &workload, (0, 0)).await.unwrap_err();
+    assert_eq!(reason(&e), "stream.segment_altered");
+}

@@ -31,7 +31,8 @@ impl StreamRead for PgStore {
             return Ok(None);
         };
         let rows = sqlx::query!(
-            "SELECT first_offset, end_offset, first_at, last_at, bytes, digest, node_id, offloaded
+            "SELECT first_offset, end_offset, first_at, last_at, bytes, digest, node_id,
+                    repository_id
                FROM stream_segment WHERE stream_id = $1 ORDER BY first_offset",
             id
         )
@@ -49,7 +50,7 @@ impl StreamRead for PgStore {
                     bytes: unsigned(r.bytes)?,
                     digest: r.digest,
                     node: r.node_id,
-                    offloaded: r.offloaded,
+                    repository: r.repository_id,
                 })
             })
             .collect::<StoreResult<_>>()?;
@@ -82,12 +83,13 @@ impl StreamWrite for PgTx {
         };
         sqlx::query!(
             "INSERT INTO stream_segment (stream_id, first_offset, end_offset, first_at, last_at,
-                                         bytes, digest, node_id, offloaded)
+                                         bytes, digest, node_id, repository_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              ON CONFLICT (stream_id, first_offset) DO UPDATE
                 SET node_id = CASE WHEN stream_segment.node_id IS DISTINCT FROM $10 THEN
                                        stream_segment.node_id ELSE EXCLUDED.node_id END,
-                    offloaded = stream_segment.offloaded OR EXCLUDED.offloaded",
+                    repository_id = COALESCE(stream_segment.repository_id,
+                                             EXCLUDED.repository_id)",
             stream,
             offset(s.first_offset)?,
             offset(s.end_offset)?,
@@ -96,7 +98,7 @@ impl StreamWrite for PgTx {
             offset(s.bytes)?,
             s.digest,
             held,
-            s.offloaded || event == SegmentEvent::Offloaded,
+            s.repository,
             node
         )
         .execute(&mut *self.tx)

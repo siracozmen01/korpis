@@ -31,6 +31,7 @@ const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
 /// `korpis logs`.
 #[derive(Debug, Clone, Args)]
+#[expect(clippy::struct_excessive_bools, reason = "each is a command-line flag")]
 pub struct Logs {
     /// The workload: an identifier, `project/name`, or a name.
     pub workload: String,
@@ -61,6 +62,11 @@ pub struct Logs {
     /// Open the session at this relay rather than the first the control plane names.
     #[arg(long)]
     pub relay: Option<String>,
+    /// Read what was offloaded to the repository that takes the workload's stream, through the
+    /// control plane, rather than what the node holds: for a workload whose node is gone, or
+    /// that was retired (§4 of docs/14-streams.md).
+    #[arg(long, conflicts_with_all = ["follow", "tail", "since", "grep", "relay"])]
+    pub offloaded: bool,
 }
 
 /// What is printed: a line for a person, and the API's JSON.
@@ -99,7 +105,7 @@ enum Ended {
 }
 
 /// One record or missing range as a line for a person.
-fn line(r: &pb::StreamRecord, timestamps: bool) -> String {
+pub(super) fn line(r: &pb::StreamRecord, timestamps: bool) -> String {
     let body = match (r.kind.as_known(), r.gap.as_option()) {
         (Some(pb::StreamRecordKind::STREAM_RECORD_KIND_GAP), Some(g)) => format!(
             "\u{2500}\u{2500} {} records ({} bytes) dropped over {:.1}s: {} \u{2500}\u{2500}",
@@ -175,6 +181,9 @@ fn ended(end: &pb::SessionEnd) -> Result<Ended, CliError> {
 /// Prints the workload's console as `a` asks, handing each line to `out`.
 pub async fn logs(c: &Connection, a: &Logs, out: Out<'_>) -> Result<(), CliError> {
     let workload = resolve::workload(c, &a.workload).await?;
+    if a.offloaded {
+        return super::logs_offloaded::logs(c, (&workload, a), out).await;
+    }
     let at = relay(c, a.relay.as_deref()).await?;
     let mut next: Option<u64> = None;
     let mut backoff = Duration::from_secs(1);

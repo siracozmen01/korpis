@@ -14,6 +14,7 @@ pub mod extension;
 pub mod get;
 pub mod grant;
 pub mod logs;
+pub mod logs_offloaded;
 pub mod provider;
 pub mod repository;
 pub mod session;

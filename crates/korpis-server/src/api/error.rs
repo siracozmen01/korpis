@@ -72,6 +72,19 @@ pub fn internal(cause: &dyn std::fmt::Display) -> ConnectError {
     })
 }
 
+/// Data read from a store that is not what the control plane recorded: altered or replaced
+/// there. Logged, since it is the store's doing, and never worth trying again.
+pub fn altered(reason: &str, message: &str) -> ConnectError {
+    tracing::error!(reason, message, "data read from a store is not what was recorded");
+    build(&Wire {
+        code: pb::ErrorCode::ERROR_CODE_INTERNAL,
+        reason,
+        field: "",
+        message,
+        retryable: false,
+    })
+}
+
 /// A data-path session refused, by the relay or by the node (§3.1 of
 /// docs/02-architecture.md). Only an unavailable node is worth trying again.
 #[must_use]

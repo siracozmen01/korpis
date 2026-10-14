@@ -19,8 +19,9 @@ use buffa_types::google::protobuf::Timestamp;
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::{Batch, end_offset, offset_since, read};
-use korpis_stream::record::{Gap, Kind, Record};
+use korpis_stream::record::Record;
 use korpis_stream::search::Matcher;
+use korpis_wire::record::record_to_pb;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -61,37 +62,6 @@ fn ended(code: &str, message: impl Into<String>) -> Ended {
 
 fn nanos(t: &Timestamp) -> i64 {
     t.seconds.saturating_mul(1_000_000_000).saturating_add(i64::from(t.nanos))
-}
-
-/// The wire form of `r`.
-fn record(r: Record) -> pb::StreamRecord {
-    let kind = match r.kind {
-        Kind::Text => pb::StreamRecordKind::STREAM_RECORD_KIND_TEXT,
-        Kind::Structured => pb::StreamRecordKind::STREAM_RECORD_KIND_STRUCTURED,
-        Kind::Gap => pb::StreamRecordKind::STREAM_RECORD_KIND_GAP,
-        Kind::Control => pb::StreamRecordKind::STREAM_RECORD_KIND_CONTROL,
-    };
-    let gap = (r.kind == Kind::Gap).then(|| Gap::parse(&r.body)).flatten().map(|g| pb::StreamGap {
-        records: g.records,
-        bytes: g.bytes,
-        millis: g.millis,
-        reason: g.reason,
-        ..Default::default()
-    });
-    pb::StreamRecord {
-        offset: r.offset,
-        time: Timestamp {
-            seconds: r.time_nanos.div_euclid(1_000_000_000),
-            nanos: i32::try_from(r.time_nanos.rem_euclid(1_000_000_000)).unwrap_or(0),
-            ..Default::default()
-        }
-        .into(),
-        source: r.source.name(),
-        kind: kind.into(),
-        body: r.body,
-        gap: gap.into(),
-        ..Default::default()
-    }
 }
 
 /// Runs `f` on the blocking pool: segment files are read with ordinary file calls.
@@ -154,7 +124,7 @@ impl Reader {
                 bytes = 0;
             }
             bytes += r.body.len();
-            current.push(record(r));
+            current.push(record_to_pb(r));
         }
         chunks.push(current);
         let last = chunks.len() - 1;

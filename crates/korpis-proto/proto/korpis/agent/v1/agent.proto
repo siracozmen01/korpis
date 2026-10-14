@@ -139,6 +139,9 @@ message JobGrant {
   bytes data_key = 1;
   korpis.v1.S3Access store = 2;
   google.protobuf.Timestamp expires_at = 3;
+  // The repository it reaches, `rep_…`: named back when an offloaded segment is journaled, so the
+  // index knows where it went.
+  string repository = 4;
 }
 
 // A backup job ended on the node: what its result says.

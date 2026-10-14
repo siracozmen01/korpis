@@ -81,6 +81,26 @@ impl PruneRead for PgStore {
         Ok(until.map(to_time))
     }
 
+    async fn streams_granted(
+        &self,
+        (repository, workload): Prefix,
+        node: Uuid,
+    ) -> StoreResult<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                   SELECT 1 FROM backup_access
+                    WHERE repository_id = $1 AND workload_id = $2 AND node_id = $3
+                      AND area = 'streams' AND mode = 'write'
+               ) AS "granted!""#,
+            repository,
+            workload,
+            node
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
+
     async fn marked(
         &self,
         (repository, workload): Prefix,
@@ -130,8 +150,9 @@ impl PruneWrite for PgTx {
         };
         sqlx::query!(
             "INSERT INTO backup_access
-                 (id, repository_id, workload_id, backup_id, mode, granted_at, expires_at, area)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                 (id, repository_id, workload_id, backup_id, mode, granted_at, expires_at, area,
+                  node_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             Uuid::now_v7(),
             a.prefix.0,
             a.prefix.1,
@@ -139,7 +160,8 @@ impl PruneWrite for PgTx {
             mode,
             from_time(a.granted_at),
             from_time(a.expires_at),
-            area
+            area,
+            a.node
         )
         .execute(&mut *self.tx)
         .await

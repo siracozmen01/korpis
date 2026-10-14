@@ -456,6 +456,22 @@ service StreamService {
   rpc GetStream(GetStreamRequest) returns (GetStreamResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // The offloaded segments of a stream from an offset, read from the repositories holding them
+  // rather than from a node (§4 of docs/14-streams.md): how a stream is read once its node is
+  // gone, or its workload retired. Takes workload.console.read, and is recorded as a read. Each
+  // segment's digest is checked before a record of it is sent; offsets no offloaded segment holds
+  // are sent as missing.
+  rpc ReadOffloaded(ReadOffloadedRequest) returns (stream ConsoleChunk);
+}
+
+message ReadOffloadedRequest {
+  string workload = 1;
+  // The console when unspecified.
+  StreamKind kind = 2;
+  // The first offset wanted.
+  uint64 from_offset = 3;
+  // Stop once this many records are sent; zero is no limit.
+  uint64 limit = 4;
 }
 
 message GetStreamRequest {

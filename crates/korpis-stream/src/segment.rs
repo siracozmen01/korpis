@@ -20,14 +20,14 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-const MAGIC: &[u8; 4] = b"KSEG";
-const END: &[u8; 4] = b"KEND";
-const VERSION: u8 = 1;
+pub(crate) const MAGIC: &[u8; 4] = b"KSEG";
+pub(crate) const END: &[u8; 4] = b"KEND";
+pub(crate) const VERSION: u8 = 1;
 /// The header's length.
 pub const HEADER: u64 = 16;
 /// The footer's length.
-const FOOTER: u64 = 60;
-const CRC: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISCSI);
+pub(crate) const FOOTER: u64 = 60;
+pub(crate) const CRC: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISCSI);
 
 /// What a sealed segment is, as the index records it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -271,7 +271,7 @@ fn read_all(r: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
     Ok(filled)
 }
 
-fn parse(payload: &[u8]) -> Option<Record> {
+pub(crate) fn parse(payload: &[u8]) -> Option<Record> {
     let offset = u64::from_le_bytes(payload.get(0..8)?.try_into().ok()?);
     let time_nanos = i64::from_le_bytes(payload.get(8..16)?.try_into().ok()?);
     let source = *payload.get(16)?;

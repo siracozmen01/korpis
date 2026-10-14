@@ -66,8 +66,16 @@ pub struct Segment {
     pub digest: String,
     /// The node holding it, while one does.
     pub node: Option<Uuid>,
-    /// Held by the offload target.
-    pub offloaded: bool,
+    /// The repository holding it once offloaded (§4 of docs/14-streams.md).
+    pub repository: Option<Uuid>,
+}
+
+impl Segment {
+    /// Whether it is held by the repository that takes its stream.
+    #[must_use]
+    pub const fn offloaded(&self) -> bool {
+        self.repository.is_some()
+    }
 }
 
 /// What happened to a segment on its node.
@@ -111,7 +119,7 @@ impl Stream {
     /// docs/14-streams.md).
     #[must_use]
     pub fn node_only_bytes(&self) -> u64 {
-        let only = self.segments.iter().filter(|s| s.node.is_some() && !s.offloaded);
+        let only = self.segments.iter().filter(|s| s.node.is_some() && !s.offloaded());
         only.fold(0u64, |a, s| a.saturating_add(s.bytes))
     }
 
@@ -122,7 +130,7 @@ impl Stream {
     pub fn lost(&self) -> Vec<(u64, u64)> {
         let mut lost = Vec::new();
         let mut next = 0;
-        for s in self.segments.iter().filter(|s| s.node.is_some() || s.offloaded) {
+        for s in self.segments.iter().filter(|s| s.node.is_some() || s.offloaded()) {
             if s.first_offset > next {
                 lost.push((next, s.first_offset));
             }
@@ -149,7 +157,7 @@ mod tests {
             bytes: 100,
             digest: String::new(),
             node: node.then(Uuid::now_v7),
-            offloaded,
+            repository: offloaded.then(Uuid::now_v7),
         }
     }
 

@@ -56,6 +56,7 @@ fn logs_args() -> Logs {
         limit: None,
         timestamps: false,
         relay: None,
+        offloaded: false,
     }
 }
 

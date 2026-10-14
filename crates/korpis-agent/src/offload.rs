@@ -39,9 +39,10 @@ const AFTER_REFUSAL: Duration = Duration::from_secs(300);
 /// How long after the target was not reachable it asks again.
 const AFTER_FAILURE: Duration = Duration::from_secs(60);
 
-/// What one grant lets the offloader write, until when.
+/// What one grant lets the offloader write, where, and until when.
 struct Granted {
     repo: Repo<S3Store>,
+    repository: String,
     until: SystemTime,
 }
 
@@ -173,22 +174,23 @@ impl Offloader {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(true),
             Err(e) => return Err(failed(e)),
         };
-        let Some(repo) = self.repo_for(workload) else { return Ok(false) };
+        let Some((repo, repository)) = self.repo_for(workload) else { return Ok(false) };
         if let Err(e) = put_segment(&repo, (s.first_offset, &s.digest), bytes).await {
             self.granted.remove(workload);
             return Err(failed(e));
         }
         let offloaded = agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED;
-        self.journal.append(segment_record(workload, offloaded, s)).await.map_err(failed)?;
+        let record = segment_record(workload, offloaded, s, &repository);
+        self.journal.append(record).await.map_err(failed)?;
         Ok(true)
     }
 
-    /// The repository `workload`'s stream is offloaded to, while a grant for it lasts; `None`
-    /// while one is asked for, or after a refusal until it is time to ask again.
-    fn repo_for(&mut self, workload: &str) -> Option<Repo<S3Store>> {
+    /// The repository `workload`'s stream is offloaded to, and its identifier, while a grant for
+    /// it lasts; `None` while one is asked for, or after a refusal until it is time to ask again.
+    fn repo_for(&mut self, workload: &str) -> Option<(Repo<S3Store>, String)> {
         let now = SystemTime::now();
         if let Some(g) = self.granted.get(workload).filter(|g| g.until > now + MARGIN) {
-            return Some(g.repo.clone());
+            return Some((g.repo.clone(), g.repository.clone()));
         }
         if self.resting.get(workload).is_some_and(|until| *until > Instant::now()) {
             return None;
@@ -196,8 +198,11 @@ impl Offloader {
         let rest = match self.jobs.poll_offload(workload)? {
             Ok(grant) => match repo_of(&grant) {
                 Ok((repo, until)) => {
-                    self.granted.insert(workload.to_owned(), Granted { repo: repo.clone(), until });
-                    return Some(repo);
+                    let repository = grant.repository.clone();
+                    let kept =
+                        Granted { repo: repo.clone(), repository: repository.clone(), until };
+                    self.granted.insert(workload.to_owned(), kept);
+                    return Some((repo, repository));
                 }
                 Err(e) => {
                     tracing::warn!(%workload, error = %e, "an offload grant could not be used");

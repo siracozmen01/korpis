@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT first_offset, end_offset, first_at, last_at, bytes, digest, node_id, offloaded\n               FROM stream_segment WHERE stream_id = $1 ORDER BY first_offset",
+  "query": "SELECT first_offset, end_offset, first_at, last_at, bytes, digest, node_id,\n                    repository_id\n               FROM stream_segment WHERE stream_id = $1 ORDER BY first_offset",
   "describe": {
     "columns": [
       {
@@ -82,12 +82,12 @@
       },
       {
         "ordinal": 7,
-        "name": "offloaded",
-        "type_info": "Bool",
+        "name": "repository_id",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "stream_segment",
-            "name": "offloaded"
+            "name": "repository_id"
           }
         }
       }
@@ -105,8 +105,8 @@
       false,
       false,
       true,
-      false
+      true
     ]
   },
-  "hash": "2c74e440344fb5df5c5d62c511d101ed798ff997f152fa4137a9942634e01170"
+  "hash": "d92193317642432e309f24a0a4ddf587530cbba6dc702908af3ff9e798cde87b"
 }

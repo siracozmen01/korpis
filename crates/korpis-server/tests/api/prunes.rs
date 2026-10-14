@@ -26,7 +26,7 @@ use std::time::Duration;
 
 /// The first-party S3 target over a MinIO bucket: every job's access a temporary credential
 /// scoped to its workload's prefix, and the prune's listing and deletion its own.
-fn real(minio: &Minio) -> korpis_target_s3::S3Target {
+pub(crate) fn real(minio: &Minio) -> korpis_target_s3::S3Target {
     let endpoint: url::Url = minio.endpoint.parse().unwrap();
     let sts = korpis_target_s3::sts::Sts {
         endpoint: endpoint.clone(),
@@ -48,7 +48,7 @@ fn real(minio: &Minio) -> korpis_target_s3::S3Target {
     korpis_target_s3::S3Target::new(place, sts).unwrap()
 }
 
-fn repo_of(g: &korpis_proto::korpis::agent::v1::JobGrant) -> Repo<S3Store> {
+pub(crate) fn repo_of(g: &korpis_proto::korpis::agent::v1::JobGrant) -> Repo<S3Store> {
     let s = g.store.as_option().unwrap();
     let config = korpis_backup::s3::S3Config {
         endpoint: s.endpoint.clone(),

@@ -1136,7 +1136,7 @@ Segment
   bytes         bytes
   digest        sha256?          its address once sealed
   node          NodeID?          the node holding it, while one does
-  offloaded     bool             held by the offload target
+  repository    RepositoryID?    the repository holding it once offloaded (§4 of 14-streams.md)
 ```
 
 > Corrected 2026-10-14, when stream reading was built. The model gave a stream an `indexed bool`
@@ -1144,6 +1144,10 @@ Segment
 > searched by scanning the node's segment files, within its retention, because search is a
 > property of those files and not a search product. A field with nothing to mean was a promise
 > nothing kept, so it is gone, and its wire field number is reserved.
+
+> Corrected 2026-10-14, when reading offloaded segments was built. A segment's `offloaded bool`
+> said that a copy existed and not where, so nothing could fetch it once its node was gone, which is
+> the one case offload is for. It names the repository now; the wire keeps `offloaded` beside it.
 
 The agent seals and offloads segments and journals each (§4.10 of `02-architecture.md`); the
 control plane keeps the index from those effects. That is what lets an offloaded segment be found
@@ -1158,7 +1162,8 @@ after its node is gone, which is the one failure §4 of `14-streams.md` says off
 - **Durability is stated per failure, not in general.** A stream survives the workload crashing, the
   agent restarting, and the workload migrating (§4 of `14-streams.md`). It survives the **node**
   being lost only for segments already offloaded, so offload is on by default wherever an offload
-  target exists, and the interface shows how much of a stream is held only on its node.
+  target exists (a repository that takes streams, §4 of `14-streams.md`), and the interface shows
+  how much of a stream is held only on its node.
 
 > Second external review, finding S12. Recorded in §17 of `23-walkthroughs.md`. The first version
 > said streams were durable and outlived the workload without qualification, while §4 of

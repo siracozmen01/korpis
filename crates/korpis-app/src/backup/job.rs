@@ -33,6 +33,8 @@ pub(super) const CLOCK_SKEW: Duration = Duration::from_secs(5 * 60);
 /// one.
 #[derive(Debug)]
 pub struct JobGrant {
+    /// The repository it reaches.
+    pub repository: Uuid,
     /// The workload's data key, opened for this job.
     pub data_key: DataKey,
     /// Access to the workload's prefix, until it expires.
@@ -113,11 +115,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             name: t.repo.provider.clone(),
         };
         let prefix = ((t.repo.id, t.workload), crate::ports::Area::Backups);
-        self.record_access(prefix, t.backup, t.mode, JOB_ACCESS).await?;
+        self.record_access(prefix, (t.backup, Some(node)), t.mode, JOB_ACCESS).await?;
         let prefix = t.repo.workload_prefix(t.workload);
         let called = self.grant_backup_access(&target, &prefix, t.mode, JOB_ACCESS).await?;
         match called.outcome {
-            CallOutcome::Access(access) => Ok(Ok(JobGrant { data_key, access })),
+            CallOutcome::Access(access) => {
+                Ok(Ok(JobGrant { repository: t.repo.id, data_key, access }))
+            }
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),
         }
@@ -178,7 +182,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub(super) async fn record_access(
         &self,
         (prefix, area): (crate::ports::Prefix, crate::ports::Area),
-        backup: Option<Uuid>,
+        (backup, node): (Option<Uuid>, Option<Uuid>),
         mode: AccessMode,
         ttl: Duration,
     ) -> Result<(), AppError> {
@@ -188,6 +192,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             area,
             backup,
             mode,
+            node,
             granted_at: now,
             expires_at: now + ttl + CLOCK_SKEW,
         };

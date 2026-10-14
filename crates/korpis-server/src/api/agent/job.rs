@@ -44,6 +44,7 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
                 data_key: g.data_key.0.to_vec(),
                 store: store.into(),
                 expires_at: timestamp(g.access.expires_at).into(),
+                repository: korpis_wire::wire_id(IdKind::Repository, g.repository),
                 ..Default::default()
             }))
         }

@@ -35,6 +35,7 @@ use tokio::sync::{mpsc, watch};
 
 const T0: i64 = 1_760_000_000_000_000_000;
 const KEY: [u8; 32] = [7; 32];
+const REPOSITORY: &str = "rep_0192a5b4000070008000000000000002";
 
 /// Two sealed segments of `lines` each, recorded in the changes log as the writer records them.
 fn written(dir: &Path, lines: [&[&str]; 2]) -> Vec<Sealed> {
@@ -87,6 +88,7 @@ fn grant(minio: &Minio, prefix: &str) -> Outcome {
     Outcome::Grant(Box::new(agent::JobGrant {
         data_key: KEY.to_vec(),
         store: store.into(),
+        repository: REPOSITORY.into(),
         expires_at: buffa_types::google::protobuf::Timestamp {
             seconds: i64::try_from(seconds).unwrap(),
             ..Default::default()
@@ -104,7 +106,7 @@ fn none() -> Outcome {
     }))
 }
 
-/// The segments journaled as offloaded, by first offset.
+/// The segments journaled as offloaded, by first offset, each naming the repository it went to.
 async fn offloaded(journal: &JournalHandle) -> Vec<u64> {
     let records = journal.read_after(0, 1 << 20).await.unwrap();
     records
@@ -113,7 +115,9 @@ async fn offloaded(journal: &JournalHandle) -> Vec<u64> {
             Some(Body::StreamSegment(e))
                 if e.event.as_known() == Some(agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED) =>
             {
-                e.segment.as_option().map(|s| s.first_offset)
+                let s = e.segment.as_option()?;
+                assert!(s.offloaded && s.repository == REPOSITORY, "{s:?}");
+                Some(s.first_offset)
             }
             _ => None,
         })

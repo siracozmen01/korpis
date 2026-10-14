@@ -92,7 +92,8 @@ pub fn segment_to_pb(s: &Segment) -> pb::StreamSegment {
         bytes: s.bytes,
         digest: s.digest.clone(),
         node: s.node.map(|n| wire_id(IdKind::Node, n)).unwrap_or_default(),
-        offloaded: s.offloaded,
+        offloaded: s.offloaded(),
+        repository: s.repository.map(|r| wire_id(IdKind::Repository, r)).unwrap_or_default(),
         ..Default::default()
     }
 }
@@ -116,7 +117,10 @@ pub fn segment_from_pb(field: &str, s: &pb::StreamSegment) -> Result<Segment> {
         bytes: s.bytes,
         digest: s.digest.clone(),
         node: None,
-        offloaded: s.offloaded,
+        repository: match s.repository.as_str() {
+            "" => None,
+            r => Some(crate::id(IdKind::Repository, &format!("{field}.repository"), r)?),
+        },
     })
 }
 

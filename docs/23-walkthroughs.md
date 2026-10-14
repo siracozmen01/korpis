@@ -1665,7 +1665,8 @@ stack trace; an hour later `fra-3`'s disk fails.
 | 4 | The agent's offloader, following the same log from its own place, asks for the workload's key and write access to its stream prefix in `nightly`; the control plane gives them to `fra-3` because it held the workload's lease | `14-streams.md` §4; `06-storage.md` §5.5, §5.6 |
 | 5 | It seals the segment again under the workload's segment key, writes it beneath `nightly`'s `streams/<workload>/`, beside the backups, and journals it as offloaded | `14-streams.md` §4; `06-storage.md` §5.7 |
 | 6 | The index marks the segment offloaded; the stream reports nothing held only on `fra-3` | `14-streams.md` §4; `01-model.md` §3.6 |
-| 7 | `fra-3` is lost. The crash log's segment is in `nightly`; reading it back without its node is the next work (question 6 of `14-streams.md`) | `14-streams.md` §4, §9 |
+| 7 | `fra-3` is lost. The crash log's segment is in `nightly`, and the index names `nightly` as holding it, believed because `fra-3` was given access there ‡ | `14-streams.md` §4; `06-storage.md` §5.6 |
+| 8 | The owner runs `korpis logs mc-survival --offloaded`; the control plane records the read, takes read access to the stream prefix, checks the segment's digest against the index, and sends the stack trace | `14-streams.md` §4, §9; `13-surface-cli.md` §8; `15-observability.md` §4 |
 
 **FINDING 43: An offload target that nothing names. `CONFIRMED`**
 
@@ -1683,3 +1684,8 @@ evaluates it is the control plane, which holds the repositories and answers the 
 access. → patched into `14-streams.md` §4 and `06-storage.md` §5.3
 
 † Step 1 is where the trace found Finding 43.
+
+‡ Step 7, written when reading back was built: the index first recorded only that a segment was
+offloaded, which says nothing a reader could fetch it from. It now records the repository, and
+asked what evaluates the node's word for it, the answer is the access record, which keeps the node
+each grant went to.

@@ -4,8 +4,8 @@
 //! is held only on its node, and what is lost (§4 of docs/14-streams.md).
 
 use super::wire::{self, Refuse};
-use super::{Api, error};
-use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use super::{Api, error, stream_offloaded};
+use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_core::id::IdKind;
 use korpis_core::workload::spec::streams::Retention;
 use korpis_core::workload::stream::StreamKind;
@@ -20,10 +20,7 @@ impl pb::StreamService for Api {
     ) -> ServiceResult<pb::GetStreamResponse> {
         let caller = self.caller(&ctx).await?;
         let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
-        let kind = match request.kind.as_known() {
-            None | Some(pb::StreamKind::STREAM_KIND_UNSPECIFIED) => StreamKind::Console,
-            Some(_) => korpis_wire::stream::kind_from_pb("kind", request.kind).refuse()?,
-        };
+        let kind = kind("kind", request.kind)?;
         let view = self.app.get_stream(&caller, workload, kind).await.map_err(error::from_app)?;
         let mut stream = korpis_wire::stream::stream_to_pb(&view.stream);
         stream.retention = Some(match view.limits.retention {
@@ -40,5 +37,31 @@ impl pb::StreamService for Api {
             lost: lost.collect(),
             ..Default::default()
         })
+    }
+
+    async fn read_offloaded(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ReadOffloadedRequest>,
+    ) -> ServiceResult<ServiceStream<pb::ConsoleChunk>> {
+        let caller = self.caller(&ctx).await?;
+        let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
+        let kind = kind("kind", request.kind)?;
+        let from = request.from_offset;
+        let read = self.app.read_offloaded(&caller, (workload, kind), from).await;
+        let read = read.map_err(error::from_app)?;
+        let repos = stream_offloaded::opened(&read)?;
+        Response::stream_ok(stream_offloaded::chunks(read, repos, (from, request.limit)))
+    }
+}
+
+/// The stream kind asked for in `field`: the console when unspecified.
+fn kind(
+    field: &str,
+    k: buffa::EnumValue<pb::StreamKind>,
+) -> Result<StreamKind, connectrpc::ConnectError> {
+    match k.as_known() {
+        None | Some(pb::StreamKind::STREAM_KIND_UNSPECIFIED) => Ok(StreamKind::Console),
+        Some(_) => korpis_wire::stream::kind_from_pb(field, k).refuse(),
     }
 }

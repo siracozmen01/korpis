@@ -35,6 +35,8 @@ pub struct AccessRecord {
     pub backup: Option<Uuid>,
     /// Reading or writing.
     pub mode: AccessMode,
+    /// The node given it; `None` for the control plane's own.
+    pub node: Option<Uuid>,
     /// When it was asked for.
     pub granted_at: SystemTime,
     /// When it ends.
@@ -64,6 +66,14 @@ pub trait PruneRead {
         prefix: Prefix,
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
+
+    /// Whether `node` was ever given write access to the workload's streams in the repository:
+    /// what makes its word that it offloaded a segment there believable.
+    fn streams_granted(
+        &self,
+        prefix: Prefix,
+        node: Uuid,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// The names marked in the prefix by plan `plan` at or before `before`.
     fn marked(

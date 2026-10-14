@@ -15,6 +15,7 @@
 pub mod changes;
 pub mod dir;
 pub mod lines;
+pub mod offloaded;
 pub mod read;
 pub mod record;
 pub mod redact;

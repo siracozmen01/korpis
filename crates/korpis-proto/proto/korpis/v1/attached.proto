@@ -126,6 +126,10 @@ message StreamSegment {
   string node = 7;
   // Held by the offload target.
   bool offloaded = 8;
+  // The repository holding it once offloaded, `rep_…`: as the grant the node offloaded it with
+  // named it, and believed only if the control plane gave that node access to the workload's
+  // streams there.
+  string repository = 9;
 }
 
 enum StreamKind {

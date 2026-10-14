@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::extension::CallTarget;
 use crate::ports::{
-    Clock, Job, JobWrite as _, NewJob, Prefix, PruneWrite as _, RecipeSource, Store, Tx as _,
+    Area, Clock, Job, JobWrite as _, NewJob, Prefix, PruneWrite as _, RecipeSource, Store, Tx as _,
 };
 use korpis_core::audit::{Outcome, details};
 use korpis_core::backup::Repository;
@@ -108,7 +108,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let place = repo.workload_prefix(workload);
         let objects = self.list_all_objects(&target, &place).await?;
         let grant = if self.has_key(prefix).await? {
-            Some(self.control_plane_access(repo, workload, PRUNE_ACCESS).await?)
+            Some(self.control_plane_access((repo, Area::Backups), workload, PRUNE_ACCESS).await?)
         } else {
             None
         };
@@ -162,11 +162,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Read access to `workload`'s prefix in `repo` for the control plane itself, for `ttl`,
-    /// with the workload's key.
+    /// Read access to `workload`'s backups or streams in `repo` for the control plane itself, for
+    /// `ttl`, with the workload's key.
     pub(super) async fn control_plane_access(
         &self,
-        repo: &Repository,
+        (repo, area): (&Repository, Area),
         workload: Uuid,
         ttl: Duration,
     ) -> Result<JobGrant, AppError> {
@@ -176,11 +176,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             kind: ProviderType::BackupTarget,
             name: repo.provider.clone(),
         };
-        let place = repo.workload_prefix(workload);
+        let place = match area {
+            Area::Backups => repo.workload_prefix(workload),
+            Area::Streams => repo.stream_prefix(workload),
+        };
         let answer = self.grant_backup_access(&target, &place, AccessMode::Read, ttl).await?;
         match answer.outcome {
             korpis_core::extension::CallOutcome::Access(access) => {
-                Ok(JobGrant { data_key, access })
+                Ok(JobGrant { repository: repo.id, data_key, access })
             }
             korpis_core::extension::CallOutcome::Failed(f) => {
                 Err(AppError::Unavailable { what: "the backup target", detail: f.reason })

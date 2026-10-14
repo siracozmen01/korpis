@@ -34,6 +34,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.store.ever_leased(workload, node).await? {
             return Ok(rejected("the node never held the workload's lease", event.action()));
         }
+        // Where an offloaded segment went is believed only from a node that was given write
+        // access to the workload's streams there; any other event says nothing of it.
+        let mut segment = segment.clone();
+        if event != SegmentEvent::Offloaded {
+            segment.repository = None;
+        } else if !self.offloaded_to(workload, node, segment.repository).await? {
+            let why = "the node was given no access to the workload's streams there";
+            return Ok(rejected(why, event.action()));
+        }
+        let segment = &segment;
         tx.record_segment((workload, kind), event, segment, node).await?;
         let mut e = system(event.action(), Outcome::Succeeded).after(details([
             ("stream", kind.as_str().into()),
@@ -45,6 +55,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.workload = Some(workload);
         e.grant = self.store.governing_grant(workload).await?;
         Ok(e)
+    }
+
+    /// Whether `node` may say it offloaded a segment of `workload`'s stream to `repository`.
+    async fn offloaded_to(
+        &self,
+        workload: Uuid,
+        node: Uuid,
+        repository: Option<Uuid>,
+    ) -> Result<bool, AppError> {
+        let Some(repository) = repository else { return Ok(false) };
+        Ok(self.store.streams_granted((repository, workload), node).await?)
     }
 
     /// A volume the node ensured or deleted (§7 of docs/06-storage.md). Deletion comes long

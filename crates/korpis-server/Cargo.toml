@@ -32,6 +32,8 @@ korpis-core = { workspace = true, features = ["authz", "identity"] }
 korpis-proto = { workspace = true, features = ["client", "services"] }
 korpis-recipe = { workspace = true }
 korpis-store = { workspace = true }
+# Offloaded segments, checked and read as the control plane serves them (§4 of docs/14-streams.md).
+korpis-stream = { workspace = true }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }

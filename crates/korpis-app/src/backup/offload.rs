@@ -6,22 +6,100 @@
 //! beneath them. Asked by a node that held the workload's lease, retired or not, since a stream's
 //! last segment seals as its container goes. Where no repository takes the workload's streams,
 //! nothing is given, and the stream says how much of it is only on its node.
+//!
+//! And what the control plane reads offloaded segments back with, for a caller who may read the
+//! console, once their node is gone or the workload retired: the workload's key and minutes of
+//! read access to its stream prefix in each repository holding them, the read recorded first.
 
 use super::job::{JobGrant, JobRefusal};
 use crate::App;
+use crate::caller::Caller;
 use crate::error::AppError;
 use crate::extension::CallTarget;
-use crate::ports::{Area, Clock, RecipeSource, Store};
+use crate::ports::{Area, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
+use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::extension::{AccessMode, CallOutcome, ProviderType};
+use korpis_core::workload::stream::{Segment, StreamKind};
+use std::collections::BTreeMap;
 use std::time::Duration;
 use uuid::Uuid;
 
 /// How long a node may offload with one grant before it asks again.
 const OFFLOAD_ACCESS: Duration = Duration::from_secs(3600);
 
+/// How long the control plane reads offloaded segments with one grant: the shortest a target
+/// grants, and minutes of segments at most.
+const READ_ACCESS: Duration = Duration::from_secs(15 * 60);
+
+/// The offloaded segments of a stream from an offset, and what reads them.
+#[derive(Debug)]
+pub struct Offloaded {
+    /// The segments holding offsets from the one asked for, in offset order, each with the
+    /// repository holding it.
+    pub segments: Vec<(Segment, Uuid)>,
+    /// The key and read access for each repository holding one.
+    pub grants: BTreeMap<Uuid, JobGrant>,
+}
+
 type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// The offloaded segments of `workload`'s stream of `kind` holding offsets from `from`, and
+    /// what reads them, for `caller`, who must hold `workload.console.read`. The read is recorded
+    /// before any access is asked for. A segment whose repository is deleted is not read.
+    pub async fn read_offloaded(
+        &self,
+        caller: &Caller,
+        (workload, kind): (Uuid, StreamKind),
+        from: u64,
+    ) -> Result<Offloaded, AppError> {
+        let on = ObjectRef::new(Kind::Workload, workload);
+        let permit = self.authorize(caller, "workload.console.read", on).await?;
+        let stream = self.store.stream(workload, kind).await?;
+        let stream = stream.ok_or(AppError::NotFound { kind: "stream" })?;
+        let wanted: Vec<_> = stream.segments.into_iter().filter(|s| s.end_offset > from).collect();
+        let mut held = BTreeMap::new();
+        for id in wanted.iter().filter_map(|s| s.repository) {
+            if let std::collections::btree_map::Entry::Vacant(v) = held.entry(id) {
+                let repo = self.store.repository(id).await?.filter(|r| r.deleted_at.is_none());
+                v.insert(repo);
+            }
+        }
+        let segments: Vec<_> = wanted
+            .into_iter()
+            .filter_map(|s| {
+                s.repository
+                    .filter(|id| held.get(id).is_some_and(Option::is_some))
+                    .map(|id| (s, id))
+            })
+            .collect();
+        let mut grants = BTreeMap::new();
+        if segments.is_empty() {
+            return Ok(Offloaded { segments, grants });
+        }
+        let mut e =
+            Effect::new(caller.principal.clone(), "workload.console.read", Outcome::Succeeded)
+                .under(permit.grant)
+                .after(details([
+                    ("stream", kind.as_str().into()),
+                    ("from_offset", from.into()),
+                    ("offloaded", true.into()),
+                ]));
+        e.workload = Some(workload);
+        let mut tx = self.store.begin().await?;
+        tx.append_effect(&e).await?;
+        tx.commit().await?;
+        for repo in held.into_values().flatten() {
+            let prefix = ((repo.id, workload), Area::Streams);
+            self.record_access(prefix, (None, None), AccessMode::Read, READ_ACCESS).await?;
+            let grant =
+                self.control_plane_access((&repo, Area::Streams), workload, READ_ACCESS).await?;
+            grants.insert(repo.id, grant);
+        }
+        Ok(Offloaded { segments, grants })
+    }
+
     /// The key and access `node` offloads `workload`'s console stream with.
     pub async fn grant_offload_access(&self, node: Uuid, workload: Uuid) -> Judged<JobGrant> {
         let Some(w) = self.store.workload(workload).await? else {
@@ -35,7 +113,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let data_key = self.data_key(&repo, w.id, true).await?;
         let prefix = ((repo.id, w.id), Area::Streams);
-        self.record_access(prefix, None, AccessMode::Write, OFFLOAD_ACCESS).await?;
+        self.record_access(prefix, (None, Some(node)), AccessMode::Write, OFFLOAD_ACCESS).await?;
         let target = CallTarget {
             organization: repo.organization,
             kind: ProviderType::BackupTarget,
@@ -45,7 +123,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let called =
             self.grant_backup_access(&target, &place, AccessMode::Write, OFFLOAD_ACCESS).await?;
         match called.outcome {
-            CallOutcome::Access(access) => Ok(Ok(JobGrant { data_key, access })),
+            CallOutcome::Access(access) => {
+                Ok(Ok(JobGrant { repository: repo.id, data_key, access }))
+            }
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),
         }

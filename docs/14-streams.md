@@ -129,10 +129,28 @@ sent once one does, if the node still holds it; one pruned first was held only o
 
 What it costs: an hour of write access to a stream prefix in the control plane's access record
 for each stream that seals, and each segment written twice, once on the node and once to the
-target. What it does not do yet: read an offloaded segment back when its node is gone, and delete
-offloaded segments when the stream's retention passes; both are the next work (question 6). Nor
-does the control plane check that a segment journaled as offloaded is in the target: it believes
-the node, which could already lose the stream by not sending it.
+target. What it does not do yet: delete offloaded segments when the stream's retention passes,
+which is the next work.
+
+**Reading an offloaded stream, as built, 2026-10-14.** The index records which repository holds
+each offloaded segment, as the grant the node offloaded it with named it, and believes that only
+from a node the control plane gave write access to the workload's streams there, which the access
+record now keeps with the node it was given to. `StreamService.ReadOffloaded`, under
+`workload.console.read`, reads them back without the node: the control plane records the read as a
+sensitive one (§4 of `15-observability.md`), takes the workload's key and fifteen minutes of read
+access to its stream prefix in each repository holding a segment, fetches each segment, and sends
+its records in offset order only once the segment's own digest and the index's agree, so a segment
+the node or the store replaced is refused (`stream.segment_altered`) rather than shown. Offsets
+between offloaded segments are sent as missing; those after the last are not offloaded yet, and the
+last chunk says where that is. This is how a retired workload's stream is read (question 6), and
+`korpis logs --offloaded` is its command (§8 of `13-surface-cli.md`).
+
+What it costs: the control plane handles the records of a tenant's console, which a read through a
+node never puts in its hands; that is why the read is recorded, and why it reads only with the
+operator's custody of the key (§5.5 of `06-storage.md`). What it does not do: search, or follow;
+those stay on the node, where the records are written. Nor does the control plane check that a
+segment journaled as offloaded is in the target until someone reads it: a node given access could
+say it sent a segment it did not, and the read then reports it altered rather than missing.
 
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
@@ -410,3 +428,6 @@ workload's data.
    serves a stream it still holds for a workload it no longer runs, judged by a token the gateway
    mints for a retired workload, or the stream is read from the offload target. Settled with
    offload, which has to answer the same question for a node that is gone. → here
+   Resolved in §4 here: the stream is read from the repository that holds its offloaded segments,
+   through the control plane, which needs no node and no token for a workload that no longer runs.
+   What the node held and never offloaded, because no repository took the stream, is not read.
