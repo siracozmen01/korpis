@@ -21,11 +21,12 @@ fn a_new_workload_pulls_creates_and_starts_without_disruption() {
     let (driver, recipe) = (DriverClass::default(), game_server());
     let steps = intent_steps(
         Uuid::now_v7(),
+        (None, &body()),
         None,
-        &body(),
         PowerState::Running,
         classifier(&driver, &recipe),
-    );
+    )
+    .unwrap();
     assert_eq!(actions(&steps), [A::PullRecipe, A::CreateVolume, A::Create, A::Start]);
     assert!(steps.iter().all(|s| !s.disruptive && s.reversible));
     assert_eq!(steps.iter().map(|s| s.index).collect::<Vec<_>>(), [0, 1, 2, 3]);
@@ -42,26 +43,30 @@ fn a_changed_intent_is_the_difference_and_only_the_difference() {
     let (driver, recipe) = (DriverClass::default(), game_server());
     let c = classifier(&driver, &recipe);
     let id = Uuid::now_v7();
-    assert!(intent_steps(id, Some(&body()), &body(), PowerState::Running, c).is_empty());
+    assert!(
+        intent_steps(id, (Some(&body()), &body()), None, PowerState::Running, c)
+            .unwrap()
+            .is_empty()
+    );
 
     let mut motd = body();
     motd.config.insert("motd".into(), Value::String("Season 5".into()));
-    let steps = intent_steps(id, Some(&body()), &motd, PowerState::Running, c);
+    let steps = intent_steps(id, (Some(&body()), &motd), None, PowerState::Running, c).unwrap();
     assert_eq!(actions(&steps), [StepAction::Reconfigure, StepAction::Restart]);
     assert!(!steps[0].disruptive, "motd is not a disruptive field");
     assert_eq!((steps[1].disruptive, steps[1].classified_by), (true, Layer::Recipe));
-    let stopped = intent_steps(id, Some(&body()), &motd, PowerState::Stopped, c);
+    let stopped = intent_steps(id, (Some(&body()), &motd), None, PowerState::Stopped, c).unwrap();
     assert_eq!(actions(&stopped), [StepAction::Reconfigure], "nothing to restart");
 
     let mut hard = body();
     hard.config.insert("difficulty".into(), Value::String("hard".into()));
-    let steps = intent_steps(id, Some(&body()), &hard, PowerState::Stopped, c);
+    let steps = intent_steps(id, (Some(&body()), &hard), None, PowerState::Stopped, c).unwrap();
     assert_eq!((steps[0].disruptive, steps[0].classified_by), (true, Layer::Recipe));
 
     let mut smaller = body();
     smaller.volumes.clear();
     smaller.endpoints.clear();
-    let steps = intent_steps(id, Some(&body()), &smaller, PowerState::Running, c);
+    let steps = intent_steps(id, (Some(&body()), &smaller), None, PowerState::Running, c).unwrap();
     assert_eq!(
         actions(&steps),
         [A::DetachVolume, A::Reconfigure, A::ReconfigureNetwork, A::Restart]

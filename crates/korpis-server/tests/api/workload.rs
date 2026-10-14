@@ -44,7 +44,12 @@ async fn a_new_workload_is_completed_by_its_recipe_and_approved_when_nothing_nee
     assert_eq!(plan.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_APPROVED));
     assert_eq!(w.target.as_deref(), Some(intent.id.as_str()));
     let actions: Vec<_> = plan.steps.iter().map(|s| s.action.as_str()).collect();
-    assert_eq!(actions, ["pull_recipe", "create_volume", "create", "start"]);
+    assert_eq!(actions, ["pull_recipe", "create_volume", "install", "create", "start"]);
+    // Every verb, then the template, into the volume the plan creates: it writes over nothing,
+    // so it can be undone (§4 of docs/09-recipes.md).
+    let install = &plan.steps[2];
+    assert_eq!(installed(install), ("create".to_owned(), 4));
+    assert!(install.reversible);
     for action in ["workload.create", "plan.approve"] {
         let rows = h.effects(action).await;
         assert_eq!(rows.len(), 1, "{action}");
@@ -72,6 +77,13 @@ async fn a_disruptive_change_waits_and_the_head_moves_without_the_target() {
     assert_eq!(plan.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_PROPOSED));
     let reconfigure = plan.steps.iter().find(|s| s.action == "reconfigure").unwrap();
     assert!(reconfigure.disruptive, "difficulty is a disruptive field of the recipe");
+    // The template that uses difficulty is rendered again, with the instance stopped around it,
+    // over what is there: that cannot be undone.
+    let actions: Vec<_> = plan.steps.iter().map(|s| s.action.as_str()).collect();
+    assert_eq!(actions, ["stop", "install", "reconfigure", "start"]);
+    let install = &plan.steps[1];
+    assert_eq!(installed(install), ("config".to_owned(), 1));
+    assert!(!install.reversible);
     assert_eq!(reconfigure.classified_by.as_known(), Some(pb::StepLayer::STEP_LAYER_RECIPE));
     let moved = second.workload.as_option().unwrap();
     assert_eq!(moved.intent, second.intent.as_option().unwrap().id);
@@ -169,4 +181,18 @@ async fn a_driver_that_declares_starting_disruptive_on_its_tier_makes_a_human_co
         (false, Some(pb::StepLayer::STEP_LAYER_VOCABULARY)),
         "what a driver declares for another tier does not reach this one"
     );
+}
+
+/// Why an install step runs, and how many actions it carries.
+fn installed(s: &pb::Step) -> (String, usize) {
+    use korpis_proto::korpis::v1::__buffa::oneof::value::Kind;
+    let reason = match s.detail.get("reason").and_then(|v| v.kind.as_ref()) {
+        Some(Kind::StringValue(r)) => r.clone(),
+        other => panic!("no reason: {other:?}"),
+    };
+    let actions = match s.detail.get("actions").and_then(|v| v.kind.as_ref()) {
+        Some(Kind::ListValue(l)) => l.values.len(),
+        other => panic!("no actions: {other:?}"),
+    };
+    (reason, actions)
 }

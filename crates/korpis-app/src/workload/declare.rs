@@ -238,7 +238,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let intent = self.intent_of(caller, &base, body, passage.as_ref());
         let driver =
             self.driver_class(base.workload.organization, intent.body.runtime.tier).await?;
-        let plan = self.intent_plan(caller, &base, &intent, (&driver, &recipe), cmd.propose);
+        let plan = self.intent_plan(caller, &base, &intent, (&driver, &recipe), cmd.propose)?;
         let declared = declared(&base, intent, plan, passage.as_ref());
         let held = base.held();
         let holds = base.holding(&declared.intent);
@@ -304,16 +304,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         to: &Intent,
         (driver, recipe): (&DriverClass, &Recipe),
         propose: bool,
-    ) -> Plan {
+    ) -> Result<Plan, AppError> {
         let classifier = propose::classifier(driver, &recipe.disruption, &base.workload);
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
         let steps = intent_steps(
             to.workload,
-            from.map(|(_, b)| b),
-            &to.body,
+            (from.map(|(_, b)| b), &to.body),
+            Some(recipe),
             base.power.power.desired,
             classifier,
-        );
+        )
+        .map_err(|e| AppError::invalid("config", e.to_string()))?;
         let proposal = Proposal {
             workload: to.workload,
             target: PlanTarget::Intent(to.id),
@@ -329,6 +330,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             plan.approval = Approval::Confirmation;
             plan.approval_reason = "its proposer asked to confirm it".into();
         }
-        plan
+        Ok(plan)
     }
 }

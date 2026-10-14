@@ -6,11 +6,17 @@
 use super::VolumeOp;
 use super::step::{Classifier, Step, StepAction, StepExecutor};
 use crate::object::{Kind, ObjectRef};
+use crate::recipe::RecipeError;
+use crate::recipe::document::Recipe;
 use crate::value::{Value, ValueMap};
 use crate::workload::spec::{IntentBody, VolumeSpec};
 use crate::workload::volume::{Volume, VolumeKind};
 use crate::workload::{Power, PowerState};
 use uuid::Uuid;
+
+mod data;
+
+pub use data::{BackupStep, RestoreStep, backup_steps, restore_steps};
 
 struct Builder<'a> {
     classifier: Classifier<'a>,
@@ -103,10 +109,24 @@ fn needs_restart(a: &IntentBody, b: &IntentBody) -> bool {
         || a.console != b.console
 }
 
-fn first_intent(b: &mut Builder<'_>, to: &IntentBody, power: PowerState) {
+fn first_intent(
+    b: &mut Builder<'_>,
+    to: &IntentBody,
+    power: PowerState,
+    install: Option<ValueMap>,
+) {
     b.pull(to);
     for v in &to.volumes {
         b.add_volume(v);
+    }
+    // Into the volumes just made, before anything runs on them. Written only into volumes this
+    // plan creates, it writes over nothing, and undoing the plan removes what it wrote: then, and
+    // only then, an install can be undone (§4 of docs/09-recipes.md).
+    if let Some(detail) = install {
+        b.push(StepAction::Install, detail, &[]);
+        if let Some(step) = b.steps.last_mut() {
+            step.reversible = to.volumes.iter().all(|v| v.existing.is_none());
+        }
     }
     b.push(StepAction::Create, ValueMap::new(), &[]);
     if power == PowerState::Running {
@@ -114,7 +134,12 @@ fn first_intent(b: &mut Builder<'_>, to: &IntentBody, power: PowerState) {
     }
 }
 
-fn changed_intent(b: &mut Builder<'_>, from: &IntentBody, to: &IntentBody, power: PowerState) {
+fn changed_intent(
+    b: &mut Builder<'_>,
+    (from, to): (&IntentBody, &IntentBody),
+    power: PowerState,
+    install: Option<ValueMap>,
+) {
     if from.recipe.digest != to.recipe.digest {
         b.pull(to);
     }
@@ -127,6 +152,16 @@ fn changed_intent(b: &mut Builder<'_>, from: &IntentBody, to: &IntentBody, power
     }
     let touched = changed_keys(&from.config, &to.config);
     let restart = needs_restart(from, to);
+    // An install writes what the running instance has open: it runs stopped, and the instance
+    // is started again after it rather than restarted.
+    let installing = install.is_some();
+    let running = power == PowerState::Running;
+    if installing && running {
+        b.push(StepAction::Stop, ValueMap::new(), &[]);
+    }
+    if let Some(detail) = install {
+        b.push(StepAction::Install, detail, &touched);
+    }
     if restart
         || from.health != to.health
         || from.placement != to.placement
@@ -142,29 +177,37 @@ fn changed_intent(b: &mut Builder<'_>, from: &IntentBody, to: &IntentBody, power
     if from.endpoints != to.endpoints {
         b.push(StepAction::ReconfigureNetwork, ValueMap::new(), &[]);
     }
-    if restart && power == PowerState::Running {
+    if installing && running {
+        b.push(StepAction::Start, ValueMap::new(), &[]);
+    } else if restart && running {
         b.push(StepAction::Restart, ValueMap::new(), &[]);
     }
 }
 
 /// The steps of an intent plan for `workload`: from the approved body (`None` for a new
-/// workload) to the declared one, given whether the workload is to be running. Identical bodies
-/// give no steps.
-#[must_use]
+/// workload) to the declared one, whose recipe is `recipe` when it is known, given whether the
+/// workload is to be running. Identical bodies give no steps.
+///
+/// # Errors
+/// The install a step carries cannot be built: a template's context is missing a value.
 pub fn intent_steps(
     workload: Uuid,
-    from: Option<&IntentBody>,
-    to: &IntentBody,
+    (from, to): (Option<&IntentBody>, &IntentBody),
+    recipe: Option<&Recipe>,
     power: PowerState,
     classifier: Classifier<'_>,
-) -> Vec<Step> {
+) -> Result<Vec<Step>, RecipeError> {
     let mut b =
         Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
+    let install = match recipe {
+        Some(r) => super::install::install_detail(from, to, r)?,
+        None => None,
+    };
     match from {
-        None => first_intent(&mut b, to, power),
-        Some(from) => changed_intent(&mut b, from, to, power),
+        None => first_intent(&mut b, to, power, install),
+        Some(from) => changed_intent(&mut b, (from, to), power, install),
     }
-    b.steps
+    Ok(b.steps)
 }
 
 /// The steps of a power plan for `workload`: a start, a stop, a restart, or nothing.
@@ -275,89 +318,6 @@ pub fn snapshot_steps(
         // A backup's or a restore's steps are `backup_steps`'s or `restore_steps`'s, with what
         // only they carry.
         VolumeOp::Backup | VolumeOp::Restore => {}
-    }
-    b.steps
-}
-
-/// A backup a plan takes: its identifier, its repository, the parent whose unchanged files it
-/// need not read, and whether the node reads it from a snapshot it takes for the job.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BackupStep {
-    /// The backup.
-    pub backup: Uuid,
-    /// The repository it is kept in.
-    pub repository: Uuid,
-    /// The volume's last whole backup in that repository.
-    pub parent: Option<Uuid>,
-    /// Whether the class can snapshot, so the job reads a single point in time.
-    pub consistent: bool,
-}
-
-/// The one step of a plan backing up `v`: the node snapshots it for the job where `consistent`,
-/// reads it, and releases the snapshot, all inside the step (§5.1 of docs/06-storage.md), so
-/// taking a backup changes nothing a workload sees and loses nothing.
-#[must_use]
-pub fn backup_steps(
-    workload: Uuid,
-    v: &Volume,
-    b: BackupStep,
-    classifier: Classifier<'_>,
-) -> Vec<Step> {
-    let mut steps =
-        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
-    let mut detail = deletion(v);
-    detail.insert("backup".into(), text(&b.backup.to_string()));
-    detail.insert("repository".into(), text(&b.repository.to_string()));
-    detail.insert("parent".into(), text(&b.parent.map(|p| p.to_string()).unwrap_or_default()));
-    detail.insert("consistent".into(), Value::Bool(b.consistent));
-    steps.push(StepAction::BackupVolume, detail, &[]);
-    steps.steps
-}
-
-/// A restore a plan makes into a volume (§5.4 of docs/06-storage.md).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RestoreStep<'a> {
-    /// The job that does it, named once so every step of the plan names the same one.
-    pub job: Uuid,
-    /// The backup restored.
-    pub backup: Uuid,
-    /// The path in it restored; empty for all of it.
-    pub path: &'a str,
-    /// The new directory of the volume restored into, or `None` to replace the volume.
-    pub into: Option<&'a str>,
-}
-
-/// The steps of a plan restoring into `v`: into a new directory of it, one step that loses
-/// nothing; or replacing it, the backup restored into a staging place while the workload runs,
-/// then the workload stopped when it runs (`running`), the volume replaced, and the workload
-/// started again, so it is down only for the exchange.
-#[must_use]
-pub fn restore_steps(
-    workload: Uuid,
-    v: &Volume,
-    r: RestoreStep<'_>,
-    running: bool,
-    classifier: Classifier<'_>,
-) -> Vec<Step> {
-    let mut b =
-        Builder { classifier, target: ObjectRef::new(Kind::Workload, workload), steps: Vec::new() };
-    let mut detail = deletion(v);
-    detail.insert("job".into(), text(&r.job.to_string()));
-    detail.insert("backup".into(), text(&r.backup.to_string()));
-    detail.insert("path".into(), text(r.path));
-    detail.insert("into".into(), text(r.into.unwrap_or_default()));
-    detail.insert("replace".into(), Value::Bool(r.into.is_none()));
-    if r.into.is_some() {
-        b.push(StepAction::RestoreVolume, detail, &[]);
-        return b.steps;
-    }
-    b.push(StepAction::RestoreVolume, detail.clone(), &[]);
-    if running {
-        b.push(StepAction::Stop, ValueMap::new(), &[]);
-    }
-    b.push(StepAction::ReplaceVolume, detail, &[]);
-    if running {
-        b.push(StepAction::Start, ValueMap::new(), &[]);
     }
     b.steps
 }

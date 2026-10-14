@@ -2,7 +2,9 @@
 
 //! What the reconciler has done that a restart must not do again, kept in a small text file
 //! replaced atomically: for each workload, the last plan step it executed and how it turned out,
-//! and the power cycle it last performed (§4.8 of docs/02-architecture.md: each cycle once).
+//! the power cycle it last performed (§4.8 of docs/02-architecture.md: each cycle once), and how
+//! far its install has come, which is kept per install rather than per plan, so a new plan that
+//! runs the same install resumes it at the action that failed (§4 of docs/09-recipes.md).
 //! A step's completion is journalled before it is kept here, so a crash between the two runs the
 //! step again, which is a no-op that reports success, rather than losing the completion.
 
@@ -20,6 +22,17 @@ pub struct Step {
     pub failed: bool,
 }
 
+/// How far an install has come.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Install {
+    /// Which install: a digest of the workload and the actions it runs.
+    pub digest: String,
+    /// How many of its actions have run.
+    pub done: u32,
+    /// How many times in a row its worker was lost before it ended.
+    pub lost: u32,
+}
+
 /// Per workload.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Done {
@@ -27,6 +40,8 @@ pub struct Done {
     pub step: Option<Step>,
     /// The last power cycle performed.
     pub cycle: Option<u64>,
+    /// The last install begun.
+    pub install: Option<Install>,
 }
 
 /// The reconciler's progress.
@@ -58,6 +73,12 @@ fn parse(text: &str) -> std::io::Result<BTreeMap<String, Done>> {
             ["cycle", w, n] => {
                 let n = n.parse().map_err(|_| invalid(line))?;
                 done.entry((*w).to_owned()).or_default().cycle = Some(n);
+            }
+            ["install", w, digest, d, l] => {
+                let (done_, lost) =
+                    (d.parse().map_err(|_| invalid(line))?, l.parse().map_err(|_| invalid(line))?);
+                let install = Install { digest: (*digest).to_owned(), done: done_, lost };
+                done.entry((*w).to_owned()).or_default().install = Some(install);
             }
             _ => return Err(invalid(line)),
         }
@@ -95,6 +116,9 @@ impl Progress {
             if let Some(c) = d.cycle {
                 lines.push(format!("cycle {w} {c}"));
             }
+            if let Some(i) = &d.install {
+                lines.push(format!("install {w} {} {} {}", i.digest, i.done, i.lost));
+            }
         }
         crate::durable::replace(&self.path, (lines.join("\n") + "\n").as_bytes())
     }
@@ -112,6 +136,16 @@ impl Progress {
             return Ok(());
         }
         done.cycle = Some(cycle);
+        self.save()
+    }
+
+    /// Keeps how far `workload`'s install has come.
+    pub fn installed(&mut self, workload: &str, install: Install) -> std::io::Result<()> {
+        let done = self.done.entry(workload.to_owned()).or_default();
+        if done.install.as_ref() == Some(&install) {
+            return Ok(());
+        }
+        done.install = Some(install);
         self.save()
     }
 
@@ -136,8 +170,11 @@ mod tests {
         let step = Step { plan: "pl_1".into(), index: 2, failed: false };
         p.stepped("wl_1", step.clone()).unwrap();
         p.cycled("wl_1", 3).unwrap();
+        let install = Install { digest: "ab12".into(), done: 4, lost: 1 };
+        p.installed("wl_1", install.clone()).unwrap();
         let again = Progress::open(&path).unwrap();
-        assert_eq!(again.of("wl_1"), Done { step: Some(step), cycle: Some(3) });
+        let all = Done { step: Some(step), cycle: Some(3), install: Some(install) };
+        assert_eq!(again.of("wl_1"), all);
         std::fs::write(&path, "step wl_1 pl_1 x ok\n").unwrap();
         assert!(Progress::open(&path).is_err());
     }

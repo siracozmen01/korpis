@@ -9,6 +9,7 @@
 //! job still running is never touched, and nothing is forgotten before a set has been held.
 
 use super::Reconciler;
+use super::install::install_job;
 use super::step::detail;
 use crate::held::HeldSet;
 use crate::host::Host;
@@ -32,8 +33,14 @@ pub(super) fn job_of(s: &pb::Step) -> Option<String> {
 
 /// Every job a step of a plan in `held` names.
 fn named(held: &HeldSet) -> BTreeSet<String> {
-    let steps = held.assignments.values().filter_map(|a| a.plan.as_option());
-    steps.flat_map(|p| p.steps.iter().filter_map(job_of)).collect()
+    let mut named = BTreeSet::new();
+    for a in held.assignments.values() {
+        let Some(plan) = a.plan.as_option() else { continue };
+        for s in &plan.steps {
+            named.extend(job_of(s).or_else(|| install_job(&a.workload, s)));
+        }
+    }
+    named
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {

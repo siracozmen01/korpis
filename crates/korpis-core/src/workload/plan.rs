@@ -7,6 +7,7 @@
 pub mod approval;
 pub mod compute;
 pub mod impact;
+pub mod install;
 pub mod prune;
 pub mod status;
 pub mod step;

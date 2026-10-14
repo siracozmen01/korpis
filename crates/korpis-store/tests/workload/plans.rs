@@ -19,7 +19,8 @@ use uuid::Uuid;
 fn plan(f: &Fixture, to: &Intent, approval: Approval) -> Plan {
     let (driver, recipe) = (DriverClass::default(), Disruption::default());
     let classifier = Classifier { driver: &driver, recipe: &recipe, overrides: &[] };
-    let steps = intent_steps(to.workload, None, &to.body, PowerState::Running, classifier);
+    let steps =
+        intent_steps(to.workload, (None, &to.body), None, PowerState::Running, classifier).unwrap();
     let impact = assess(&steps, delta(None, Some(&to.body)));
     let now = now();
     Plan {

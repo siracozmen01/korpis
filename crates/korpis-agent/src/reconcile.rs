@@ -11,6 +11,7 @@
 
 mod act;
 mod backup;
+mod install;
 mod jobs;
 mod observe;
 pub mod progress;

@@ -330,6 +330,24 @@ action it runs, in order: each verb with its arguments, and each template with i
 plan shows exactly what will be written and the node that runs it needs nothing else of the
 recipe; it cannot be undone, because what it writes over is not kept.
 
+> Corrected 2026-10-15, when plans began to carry the step. An install that writes only into
+> volumes its own plan creates writes over nothing, and undoing the plan removes the volumes and
+> what was written in them, so that one step is reversible, and creating a workload is not made to
+> wait for a confirmation it would not otherwise need. Every other install, a recipe change, a
+> template rendered again, or a creation that attaches an existing volume, writes over what is
+> there and stays irreversible, so its plan is confirmed (§3.3 of `01-model.md`).
+
+**How a node runs the step, as built 2026-10-15.** The node first fetches what the actions read
+into its content store: each `fetch` by its declared hash (§6 of `06-storage.md`), and the recipe
+itself with its files when a `copy`, a `template`, or an `extract` of one of them reads it. It then
+has the helper start the worker (below) over the volumes the workload mounts read-write, at the
+paths it mounts them, and waits while it runs, as it waits for a backup. How far an install has
+come is kept by the node per install, not per plan: a digest of the workload and its actions names
+the install and its job. A worker that fails has its progress kept and its job forgotten, and the
+step fails; a later plan carrying the same install starts at the action that failed. A worker
+that is lost, killed or taken down with its node, is started again by the same step at the action
+it did not finish, and three losses in a row fail the step rather than looping.
+
 **Everything an install writes lands in a volume.** Every path a verb or a template writes must be
 one of the workload's volumes or beneath one, and a declaration whose volumes leave one outside is
 refused, naming the step. The worker that writes sees the workload's volumes and nothing else

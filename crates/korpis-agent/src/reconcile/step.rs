@@ -121,6 +121,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             "backup_volume" => return self.backup_step(a, plan, s).await,
             "restore_volume" => return self.restore_step(a, plan, s).await,
             "replace_volume" => return self.replace_step(s).await.map(Some),
+            "install" => return self.install_step(a, s, t).await,
             "pull_recipe" => {
                 let spec = self.prepare(a, t).await?;
                 self.host.fetch(&spec.rootfs).await?;

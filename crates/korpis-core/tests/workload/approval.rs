@@ -22,8 +22,14 @@ fn routine_plans_apply_at_once_and_disruptive_ones_wait_for_their_proposer() {
     let driver = DriverClass::default();
     let id = Uuid::now_v7();
     let on = Power::initial(PowerState::Running);
-    let start =
-        intent_steps(id, None, &body(), PowerState::Running, classifier(&driver, &game_server()));
+    let start = intent_steps(
+        id,
+        (None, &body()),
+        None,
+        PowerState::Running,
+        classifier(&driver, &game_server()),
+    )
+    .unwrap();
     assert_eq!(needs(&start, &Proposing::Permitted), Approval::Auto, "pressing Start is one click");
 
     let quiet = Disruption::default();

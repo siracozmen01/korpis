@@ -125,7 +125,9 @@ impl StepAction {
     }
 
     /// The vocabulary's floor: (disruptive, reversible). Nothing relaxes the disruptive floor,
-    /// and reversibility is a property of the action alone.
+    /// and reversibility is a property of the action alone, with one exception: an install
+    /// that writes only into volumes its own plan creates writes over nothing, and the plan
+    /// marks it reversible (§4 of docs/09-recipes.md).
     #[must_use]
     pub const fn floor(self) -> (bool, bool) {
         match self {

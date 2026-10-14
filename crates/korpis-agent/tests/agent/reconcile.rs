@@ -164,7 +164,14 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
     let w = cp.declare(&project, "mc").await;
     let id = converges(&cp, &w, &runtime, &orphan).await;
-    assert_eq!(host.content().len(), 1, "the recipe's content was fetched once");
+    // The image the recipe runs; for its install, the recipe with its files (a template reads
+    // one) and the jar its `fetch` names, by the hash it declares (§4 of docs/09-recipes.md).
+    let content = host.content();
+    assert_eq!(content.len(), 3, "each fetched once: {content:?}");
+    assert!(content.iter().any(|c| c == &format!("sha256:{}", "1".repeat(64))), "{content:?}");
+    let installed =
+        "SELECT count(*) FROM effect WHERE action = 'step.install' AND outcome = 'succeeded'";
+    assert_eq!(effects(&cp, installed).await, 1, "installed once, before it was created");
     let ids = host.ids();
     let (base, count) = ids.get(&w).copied().expect("its id range was recorded before create");
     assert!(base >= 1 << 30 && count == 1 << 16, "a workload slot: {base} {count}");
