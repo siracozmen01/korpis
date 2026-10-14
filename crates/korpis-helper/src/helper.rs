@@ -7,7 +7,7 @@
 
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
-use crate::job::{JobConfig, Jobs, Placed, make_into};
+use crate::job::{DataJob, JobConfig, Jobs, Placed, make_into};
 use crate::kept::Kept;
 use crate::storage::Class;
 use buffa::Message as _;
@@ -74,7 +74,7 @@ impl Helper {
                     content: b.content.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Backup(Box::new(work)), kept })
+                Ok(Placed::Data(DataJob { directory, work: W::Backup(Box::new(work)), kept }))
             }
             Some(R::Restore(w)) if w.replace => {
                 if !(w.path.is_empty() && w.into.is_empty()) {
@@ -83,7 +83,11 @@ impl Helper {
                 let (directory, identity, limits) = self.holding(&w.volume)?.stage(&w.volume)?;
                 let kept = Kept::Staging { volume: w.volume.clone(), identity, limits };
                 let work = pb::RestoreWork { backup: w.backup.clone(), ..Default::default() };
-                Ok(Placed { directory, work: W::Restore(Box::new(work)), kept: Some(kept) })
+                Ok(Placed::Data(DataJob {
+                    directory,
+                    work: W::Restore(Box::new(work)),
+                    kept: Some(kept),
+                }))
             }
             Some(R::Restore(w)) => {
                 let volume = self.holding(&w.volume)?.path_of(&w.volume);
@@ -94,7 +98,19 @@ impl Helper {
                     path: w.path.clone(),
                     ..Default::default()
                 };
-                Ok(Placed { directory, work: W::Restore(Box::new(work)), kept: None })
+                Ok(Placed::Data(DataJob {
+                    directory,
+                    work: W::Restore(Box::new(work)),
+                    kept: None,
+                }))
+            }
+            Some(R::Install(w)) => {
+                crate::error::identifier("job", &r.job)?;
+                crate::job::install::check_ids(&self.ledger, &w.workload, w.id_base)?;
+                let spec = crate::job::install::place(w, |volume| {
+                    Ok(self.holding(volume)?.path_of(volume))
+                })?;
+                Ok(Placed::Install(Box::new(spec)))
             }
             None => Err(HelperError::Refused("a job names its work".into())),
         }

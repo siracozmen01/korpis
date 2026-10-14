@@ -15,6 +15,7 @@
 
 #[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 mod fixture;
+#[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 #[path = "fixture/jobs.rs"]
 mod jobs;
 
@@ -44,8 +45,13 @@ fn helper_over(root: &Path, state: &Path) -> Helper {
     class.ensure(&r).unwrap();
     std::fs::create_dir(class.path_of(VOLUME).join("world")).unwrap();
     std::fs::write(class.path_of(VOLUME).join("world/level.dat"), b"the world").unwrap();
-    let config =
-        JobConfig { binary: job_binary(), state: state.into(), cgroups: None, content: None };
+    let config = JobConfig {
+        binary: job_binary(),
+        install_binary: None,
+        state: state.into(),
+        cgroups: None,
+        content: None,
+    };
     Helper::new(vec![class], Ledger::open(state).unwrap()).with_jobs(config)
 }
 

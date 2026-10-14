@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// An install job (§4 of docs/09-recipes.md): what the helper hands the confined install worker
+// on its standard input, and what the worker reports. The worker runs a recipe's install actions
+// in order beneath the workload's volumes, as the workload's own ids in a user namespace, in a
+// mount namespace holding nothing but those volumes and the node's content, read-only; it
+// reaches no network.
+
+syntax = "proto3";
+
+package korpis.install.v1;
+
+import "korpis/v1/common.proto";
+
+message InstallSpec {
+  // The job's identifier, as the supervisor named it.
+  string id = 1;
+  // The actions, in order, each as the plan step's detail carries it: a map of the verb and its
+  // arguments, and a template's context.
+  repeated korpis.v1.Value actions = 2;
+  // The first action to run, counting from zero: where an interrupted install resumes.
+  uint32 from = 3;
+  // The workload's volumes, each at the path the workload sees it at.
+  repeated InstallVolume volumes = 4;
+  // The recipe's files, by their path in the artifact, and each one's digest.
+  map<string, string> files = 5;
+  // Filled in by the helper.
+  //
+  // The content store's blobs directory, holding sha256/ and sha512/.
+  string content = 6;
+  // The cgroup the worker joins.
+  string cgroup = 7;
+  // The directory the worker writes its progress and its result in, and nothing else of the
+  // helper's.
+  string out = 8;
+  // An empty directory the worker mounts its root on, in its own mount namespace.
+  string root = 9;
+  // The first of the 65536 host ids the workload's ids are, which the worker runs as.
+  uint32 id_base = 10;
+}
+
+message InstallVolume {
+  // The absolute path the workload sees it at.
+  string path = 1;
+  // The volume, by its identifier.
+  string volume = 2;
+  // Filled in by the helper: the directory it is.
+  string directory = 3;
+}
+
+message InstallResult {
+  // Whether every action ran; why not when one did not.
+  bool ok = 1;
+  string error = 2;
+  // How many actions have run, counting from the start of the install, not from `from`: the
+  // index of the one that failed, when one did, and where a resume starts.
+  uint32 done = 3;
+  // What confined the worker while it ran.
+  Confinement confinement = 4;
+}
+
+message Confinement {
+  // In a cgroup of its own.
+  bool cgroup = 1;
+  // In its own pid, mount, network, and IPC namespaces, its root holding only the volumes and
+  // the content.
+  bool namespaces = 2;
+  // Landlock: writing only beneath the volumes and its output, reading only those and the
+  // content, and connecting nowhere.
+  bool landlock = 3;
+  // The capabilities it kept.
+  repeated string capabilities = 4;
+  // Nothing it executes gains a privilege.
+  bool no_new_privs = 5;
+  // As its workload's own ids, in a user namespace of its own: root there, and no one outside.
+  bool own_ids = 6;
+}

@@ -18,6 +18,7 @@
 
 #[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 mod fixture;
+#[allow(dead_code, reason = "each test binary uses part of the shared fixture")]
 #[path = "fixture/jobs.rs"]
 mod jobs;
 
@@ -56,6 +57,7 @@ fn setup(tmp: &Path) -> (Helper, PathBuf) {
     let cgroups = PathBuf::from(format!("/sys/fs/cgroup/korpis-test-{}", std::process::id()));
     let config = JobConfig {
         binary: job_binary(),
+        install_binary: None,
         state: tmp.join("state"),
         cgroups: Some(cgroups.clone()),
         content: None,
@@ -151,6 +153,7 @@ async fn a_job_stuck_on_its_store_is_cancelled_and_lost() {
     let endpoint = format!("http://{}", silent.local_addr().unwrap());
     let config = JobConfig {
         binary: job_binary(),
+        install_binary: None,
         state: tmp.path().join("state"),
         cgroups: None,
         content: None,
@@ -206,6 +209,7 @@ async fn a_job_on_btrfs_reads_a_snapshot_taken_for_it_and_released_when_forgotte
     std::fs::write(class.path_of("wl_1.data").join("level.dat"), b"the world").unwrap();
     let config = JobConfig {
         binary: job_binary(),
+        install_binary: None,
         state: tmp.path().join("state"),
         cgroups: None,
         content: None,

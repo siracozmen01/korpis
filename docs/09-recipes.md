@@ -261,6 +261,38 @@ in a mount namespace that holds that workload's volumes and nothing else (§6 of
 `openat2(RESOLVE_BENEATH)`. Rule K-1 applies to installation exactly as it applies to the file
 manager, the installer has historically been the *more* dangerous of the two.
 
+**The worker as built, 2026-10-15** (`korpis-install-job`). The helper starts it for an install,
+as it starts a backup job (§5.5 of `06-storage.md`), and it runs as two processes. The first is
+root for as long as it takes to build the second's world: it joins the job's cgroup and makes a pid
+namespace, and the worker is that namespace's first process, so it can name, signal, or trace no
+process outside it, and it dies with the first. The worker drops its supplementary groups and
+makes its own user, mount, network, and IPC namespaces. The first maps the worker's ids, 0 to
+65535, to the id range the workload itself runs as, which the helper checks against its ledger
+(§4.5 of `04-runtimes.md`). It mounts each volume as an idmapped copy through the worker's user
+namespace, and builds the worker's root, a read-only tmpfs holding only those volumes at the paths
+the workload sees them at and the node's content, read-only, at `/.korpis/content`, with nothing of
+the host in it, not even `/proc`. The worker then becomes its user namespace's root, which is the
+workload's root and no one else on the host: what it writes lands on disk as the workload's ids,
+and its capabilities (four: setting owners and modes on what it writes) hold only over the
+workload's files. It applies Landlock to the volumes, its output directory, and reading the
+content, takes no new privileges, and has no network to connect to. Its progress is written after
+every action, and its result once it ends, in a directory of its own, so a worker lost part way
+is resumed by a new job at the action it did not finish, and what confined it is in the result
+as the kernel reported it.
+
+Why the workload's own ids rather than root with few capabilities: the worker reads what a recipe
+supplies, archives above all, and §6 of `02-architecture.md` says nothing that accepts tenant
+input holds privilege. Root with four capabilities in the host's user namespace would be privilege,
+however narrowed, and would share an identity with every root process on the node. As the
+workload's ids it holds nothing the workload did not already have. What it costs: an install needs
+the workload's id range, so a workload is installed on a node that holds its range, which is every
+node it is placed on; and it needs idmapped mounts (ext4, XFS, btrfs, and ZFS from OpenZFS 2.2,
+§4.5 of `04-runtimes.md`), so on a storage class without them an install fails and says why,
+rather than running as anything else. What it does not do: it applies no seccomp filter, so the
+kernel's whole system call surface is reachable from a compromised decoder, as it is from the
+workload; and the first process is root for the moments it takes to build the root, and decodes
+the spec, which carries the recipe's actions, though it acts on none of them.
+
 **A `fetch` is performed by the node's content store, not by the worker.** The content store
 downloads the URL once per node, verifies the declared hash, and keeps it by digest (§6 of
 `06-storage.md`); the worker then copies it into the volume. So a second workload installing the

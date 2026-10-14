@@ -16,6 +16,8 @@ syntax = "proto3";
 package korpis.helper.v1;
 
 import "korpis/backup/v1/backup.proto";
+import "korpis/install/v1/install.proto";
+import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/provider.proto";
 
@@ -192,17 +194,19 @@ message DescribeStorageResponse {
   repeated korpis.v1.StorageClassInfo classes = 1;
 }
 
-// Starts a backup or restore job (§5.5 of docs/06-storage.md) as a process of its own, in a
-// cgroup of its own, holding only the capabilities its work needs and confined by Landlock to the
-// one directory it works in. The helper names that directory from the identifiers below; the job
-// receives the data key and the store's access on its standard input. Idempotent by job: a job
-// already started is not started again.
+// Starts a backup or restore job (§5.5 of docs/06-storage.md), or an install job (§4 of
+// docs/09-recipes.md), as a process of its own, in a cgroup of its own, holding only the
+// capabilities its work needs and confined by Landlock to what it works in. The helper names
+// every directory from the identifiers below; a backup or restore job receives the data key and
+// the store's access on its standard input. Idempotent by job: a job already started is not
+// started again.
 message StartJobRequest {
   // The job's identifier: letters, digits, '-', '_', '.', at most 128.
   string job = 1;
   oneof work {
     BackupVolume backup = 2;
     RestoreVolume restore = 3;
+    InstallWork install = 7;
   }
   bytes data_key = 4;
   korpis.v1.S3Access store = 5;
@@ -237,6 +241,22 @@ message RestoreVolume {
   bool replace = 5;
 }
 
+// A recipe's install actions, run beneath a workload's volumes by a worker that sees nothing else
+// (§4 of docs/09-recipes.md).
+message InstallWork {
+  // As korpis.install.v1.InstallSpec carries them.
+  repeated korpis.v1.Value actions = 1;
+  uint32 from = 2;
+  // Each volume by the absolute path the workload sees it at: no '.' or '..' component, none
+  // beneath /.korpis, and no two the same.
+  repeated korpis.install.v1.InstallVolume volumes = 3;
+  map<string, string> files = 4;
+  // The workload installed into, and the base of the id range it holds, which the worker runs
+  // as: the helper refuses a range its ledger does not record for that workload.
+  string workload = 5;
+  uint32 id_base = 6;
+}
+
 message StartJobResponse {
   bool started = 1;
 }
@@ -247,8 +267,13 @@ message JobStatusRequest {
 
 message JobStatusResponse {
   JobState state = 1;
-  // Once it finished.
+  // Once a backup or restore job finished.
   korpis.backup.v1.JobResult result = 2;
+  // Once an install job finished.
+  korpis.install.v1.InstallResult install = 3;
+  // For an install job however it stands: how many of its actions have run, counting from the
+  // start of the install, as it last recorded. A job lost part way resumes here.
+  uint32 progress = 4;
 }
 
 enum JobState {

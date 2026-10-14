@@ -650,7 +650,8 @@ A restore is verified (§5.4) before its result says it succeeded. A job outlive
 exits: the helper does not exit idle while one runs, and a restarted helper finds a running job
 by the process its pid file names, if that process is still the job binary, and reports one that
 ended without a result as lost. What each confinement held is in the result, as the kernel
-reported it, so a host that cannot apply one shows it as absent (§6 of `17-security.md`).
+reported it, so a host that cannot apply one shows it as absent (§6 of `17-security.md`). An
+install is a job of the same kind, run by `korpis-install-job` (§4 of `09-recipes.md`).
 
 **The vault, as built.** With `operator` custody the control plane's vault holds the key
 hierarchy: a backup key in the data directory (`keys/backup-1.key`, made at first start) seals

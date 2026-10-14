@@ -327,6 +327,21 @@ fn finished_at_once(request: &helper::StartJobRequest) -> helper::JobStatusRespo
         Some(Work::Restore(_)) => {
             result.restored = backup::Restored { verified: true, ..Default::default() }.into();
         }
+        Some(Work::Install(w)) => {
+            // Every action runs, and nothing is written: the in-memory host has no files.
+            let done = u32::try_from(w.actions.len()).unwrap_or(u32::MAX);
+            let install = korpis_proto::korpis::install::v1::InstallResult {
+                ok: true,
+                done,
+                ..Default::default()
+            };
+            return helper::JobStatusResponse {
+                state: helper::JobState::JOB_STATE_FINISHED.into(),
+                install: install.into(),
+                progress: done,
+                ..Default::default()
+            };
+        }
         None => result.ok = false,
     }
     helper::JobStatusResponse {

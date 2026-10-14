@@ -11,15 +11,29 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+name = "korpis-install-job"
+path = "src/bin/korpis-install-job/main.rs"
+
 [dependencies]
 # Archives an `extract` unpacks: gzip, zstd, and xz around tar, and zip.
+buffa = { version = "=0.9.2" }
 flate2 = "1"
 getrandom = "0.4"
+korpis-confine = { workspace = true }
 korpis-core = { workspace = true }
+# The job's spec and result, and the plan's values its actions arrive as: messages only.
+korpis-proto = { workspace = true }
+korpis-wire = { workspace = true }
+landlock = "0.4"
+# mount_setattr, which rustix does not bind, for the worker's idmapped mounts.
+libc = "0.2"
 lzma-rs = "0.3"
-rustix = { version = "1", features = ["fs", "process"] }
+rustix = { version = "1", features = ["fs", "mount", "process", "thread"] }
 tar = "0.4"
 thiserror = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
 zstd = "0.13"
 

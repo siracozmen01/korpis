@@ -228,7 +228,11 @@ absent, `--socket PATH` binds the socket itself and serves until stopped. The cl
 read from the filesystem under `--volume-root`: ext4 made with `-O quota,project` or XFS, mounted
 with `prjquota`, makes `local` a project class with byte and inode limits in the write path (§3 of
 `06-storage.md`); any other filesystem makes it a `directory` class, which enforces no size and
-says so (§2 of `06-storage.md`).
+says so (§2 of `06-storage.md`). The jobs it starts are binaries beside it unless named:
+`--job-binary` for backups and restores and `--install-binary` for installs (`none` runs no
+installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korpis`), and
+`--content` names the agent's content store's `blobs` directory, which restores and installs read
+(`/var/lib/korpis-agent/content/blobs`).
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

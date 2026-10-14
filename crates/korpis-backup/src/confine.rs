@@ -10,13 +10,13 @@
 //! Each is per thread, and every thread the job starts afterwards inherits them. What the kernel
 //! cannot apply is reported as absent, never assumed.
 
+use korpis_confine::Capability;
 use korpis_proto::korpis::backup::v1 as pb;
 use landlock::{
     ABI, Access as _, AccessFs, AccessNet, LandlockStatus, NetPort, PathBeneath, Ruleset,
     RulesetAttr as _, RulesetCreatedAttr as _, RulesetStatus, path_beneath_rules,
 };
 use rustix::fs::{Mode, OFlags};
-use rustix::thread::{CapabilitySet, CapabilitySets};
 use std::path::{Path, PathBuf};
 
 /// Files a connection reads: certificate roots, the resolver's configuration, and the libraries
@@ -50,18 +50,13 @@ pub enum Work {
 }
 
 impl Work {
-    fn capabilities(self) -> (CapabilitySet, &'static [&'static str]) {
+    fn capabilities(self) -> &'static [Capability] {
+        use korpis_confine::{
+            CHOWN, DAC_OVERRIDE, DAC_READ_SEARCH, FOWNER, FSETID, MKNOD, SETFCAP,
+        };
         match self {
-            Self::Backup => (CapabilitySet::DAC_READ_SEARCH, &["dac_read_search"]),
-            Self::Restore => (
-                CapabilitySet::CHOWN
-                    | CapabilitySet::FOWNER
-                    | CapabilitySet::DAC_OVERRIDE
-                    | CapabilitySet::FSETID
-                    | CapabilitySet::MKNOD
-                    | CapabilitySet::SETFCAP,
-                &["chown", "fowner", "dac_override", "fsetid", "mknod", "setfcap"],
-            ),
+            Self::Backup => &[DAC_READ_SEARCH],
+            Self::Restore => &[CHOWN, FOWNER, DAC_OVERRIDE, FSETID, MKNOD, SETFCAP],
         }
     }
 }
@@ -82,10 +77,7 @@ pub struct Bounds {
     pub port: u16,
 }
 
-/// Why a confinement could not be applied that the kernel offers.
-#[derive(Debug, thiserror::Error)]
-#[error("confinement: {0}")]
-pub struct ConfineError(String);
+pub use korpis_confine::ConfineError;
 
 fn err(e: impl std::fmt::Display) -> ConfineError {
     ConfineError(e.to_string())
@@ -95,12 +87,11 @@ fn err(e: impl std::fmt::Display) -> ConfineError {
 pub fn confine(b: &Bounds) -> Result<pb::Confinement, ConfineError> {
     let mut held = pb::Confinement::default();
     if let Some(cgroup) = &b.cgroup {
-        std::fs::write(cgroup.join("cgroup.procs"), "0\n")
-            .map_err(|e| err(format!("joining {}: {e}", cgroup.display())))?;
+        korpis_confine::join_cgroup(cgroup)?;
         held.cgroup = true;
     }
     (held.landlock_filesystem, held.landlock_network) = landlock(b)?;
-    held.capabilities = drop_capabilities(b.work)?;
+    held.capabilities = korpis_confine::keep_capabilities(b.work.capabilities())?;
     Ok(held)
 }
 
@@ -145,24 +136,4 @@ fn landlock(b: &Bounds) -> Result<(bool, bool), ConfineError> {
     // filesystem's.
     let net = matches!(status.landlock, LandlockStatus::Available { effective_abi, .. } if effective_abi >= ABI::V4);
     Ok((enforced, enforced && net))
-}
-
-/// Keeps `work`'s capabilities and drops every other from every set; the names kept.
-fn drop_capabilities(work: Work) -> Result<Vec<String>, ConfineError> {
-    let (keep, names) = work.capabilities();
-    for bit in 0..64u32 {
-        let cap = CapabilitySet::from_bits_retain(1u64 << bit);
-        if keep.contains(cap) {
-            continue;
-        }
-        match rustix::thread::remove_capability_from_bounding_set(cap) {
-            // A number the kernel has no capability for.
-            Ok(()) | Err(rustix::io::Errno::INVAL) => {}
-            Err(e) => return Err(err(format!("the bounding set: {e}"))),
-        }
-    }
-    let sets =
-        CapabilitySets { effective: keep, permitted: keep, inheritable: CapabilitySet::empty() };
-    rustix::thread::set_capabilities(None, sets).map_err(|e| err(format!("capabilities: {e}")))?;
-    Ok(names.iter().map(|n| (*n).to_owned()).collect())
 }

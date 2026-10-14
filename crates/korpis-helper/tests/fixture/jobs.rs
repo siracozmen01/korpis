@@ -15,6 +15,16 @@ use std::time::Duration;
 
 /// The job binary, built where this test was.
 pub fn job_binary() -> PathBuf {
+    built("korpis-backup", "korpis-backup-job")
+}
+
+/// The install job binary, built where this test was.
+pub fn install_binary() -> PathBuf {
+    built("korpis-install", "korpis-install-job")
+}
+
+/// The binary `bin` of `package`, built where this test was.
+fn built(package: &str, bin: &str) -> PathBuf {
     let exe = std::env::current_exe().unwrap();
     let profile_dir = exe.parent().and_then(Path::parent).unwrap();
     let profile = match profile_dir.file_name().unwrap().to_str().unwrap() {
@@ -22,22 +32,12 @@ pub fn job_binary() -> PathBuf {
         other => other,
     };
     let built = std::process::Command::new(env!("CARGO"))
-        .args([
-            "build",
-            "-q",
-            "-p",
-            "korpis-backup",
-            "--bin",
-            "korpis-backup-job",
-            "--profile",
-            profile,
-            "--target-dir",
-        ])
+        .args(["build", "-q", "-p", package, "--bin", bin, "--profile", profile, "--target-dir"])
         .arg(profile_dir.parent().unwrap())
         .status()
         .unwrap();
     assert!(built.success());
-    profile_dir.join("korpis-backup-job")
+    profile_dir.join(bin)
 }
 
 pub fn ask(h: &mut Helper, verb: Verb) -> Answer {

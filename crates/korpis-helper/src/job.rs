@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Backup and restore jobs (§5.5 of docs/06-storage.md): each a `korpis-backup-job` process the
-//! helper starts and then only watches. The helper names every path the job uses from identifiers
+//! Backup and restore jobs (§5.5 of docs/06-storage.md), and install jobs (§4 of
+//! docs/09-recipes.md, in [`install`]): each a process the helper starts and then only watches. The helper names every path the job uses from identifiers
 //! it checks; the job receives its spec, the data key and the store's access with it, on its
 //! standard input, and the helper never writes the spec anywhere. Each job has a directory in the
 //! helper's state for its result and its log, and a cgroup of its own beside the workloads', with
@@ -20,6 +20,11 @@ use std::os::unix::fs::DirBuilderExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
+pub mod install;
+mod into;
+
+pub use into::make_into;
+
 /// A job's cgroup limits: a tenth of a workload's default weight, so it yields under contention
 /// and runs freely otherwise, and ceilings on its memory and processes.
 const LIMITS: &[(&str, &str)] = &[
@@ -34,11 +39,14 @@ const LIMITS: &[(&str, &str)] = &[
 pub struct JobConfig {
     /// The `korpis-backup-job` binary.
     pub binary: PathBuf,
+    /// The `korpis-install-job` binary; none to run no install jobs.
+    pub install_binary: Option<PathBuf>,
     /// Where each job's directory is made.
     pub state: PathBuf,
     /// The cgroup jobs' cgroups are made in; none to run them in the helper's.
     pub cgroups: Option<PathBuf>,
-    /// The content store's blobs, which a restore reads recipe content from.
+    /// The content store's `blobs` directory, holding `sha256` and `sha512`: a restore reads
+    /// recipe content from it, and an install reads what it writes.
     pub content: Option<PathBuf>,
 }
 
@@ -51,7 +59,16 @@ pub struct Jobs {
 
 /// What a job works in, as the helper resolved it.
 #[derive(Debug)]
-pub struct Placed {
+pub enum Placed {
+    /// A backup or a restore.
+    Data(DataJob),
+    /// An install.
+    Install(Box<korpis_proto::korpis::install::v1::InstallSpec>),
+}
+
+/// A backup or restore job, placed.
+#[derive(Debug)]
+pub struct DataJob {
     /// The directory read or written.
     pub directory: PathBuf,
     /// The work, as the job's spec carries it.
@@ -115,30 +132,24 @@ impl Jobs {
         if self.running.contains_key(&r.job) || dir.exists() {
             return Ok(false);
         }
+        let binary =
+            match &placed {
+                Placed::Data(_) => self.config.binary.clone(),
+                Placed::Install(_) => self.config.install_binary.clone().ok_or_else(|| {
+                    HelperError::Refused("this helper runs no install jobs".into())
+                })?,
+            };
         std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&dir)?;
         let cgroup = self.cgroup(&r.job);
-        let spec = pb::JobSpec {
-            id: r.job.clone(),
-            work: Some(placed.work),
-            data_key: r.data_key.clone(),
-            store: r.store.clone(),
-            concurrency: r.concurrency,
-            directory: placed.directory.to_string_lossy().into_owned(),
-            cgroup: cgroup.map(|c| c.to_string_lossy().into_owned()).unwrap_or_default(),
-            result: dir.join("result").to_string_lossy().into_owned(),
-            content: self
-                .config
-                .content
-                .as_ref()
-                .map(|c| c.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-            ..Default::default()
+        let spec = match placed {
+            Placed::Data(d) => self.data_spec(r, d, &dir, cgroup.as_deref())?,
+            Placed::Install(spec) => {
+                let bounds = (cgroup.as_deref(), self.config.content.as_deref());
+                install::finish(*spec, &r.job, &dir, bounds)?
+            }
         };
-        if let Some(kept) = &placed.kept {
-            std::fs::write(dir.join("kept"), kept.to_line())?;
-        }
         let log = std::fs::File::create(dir.join("log"))?;
-        let mut child = Command::new(&self.config.binary)
+        let mut child = Command::new(&binary)
             .env_clear()
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
@@ -146,11 +157,44 @@ impl Jobs {
             .spawn()?;
         std::fs::write(dir.join("pid"), child.id().to_string())?;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(&spec.encode_to_vec())?;
+            stdin.write_all(&spec)?;
         }
         tracing::info!(job = %r.job, "job started");
         self.running.insert(r.job.clone(), child);
         Ok(true)
+    }
+
+    /// The spec of a backup or restore job, whose directory is `dir`.
+    fn data_spec(
+        &self,
+        r: &helper::StartJobRequest,
+        placed: DataJob,
+        dir: &Path,
+        cgroup: Option<&Path>,
+    ) -> HelperResult<Vec<u8>> {
+        let string = |p: &Path| p.to_string_lossy().into_owned();
+        let spec = pb::JobSpec {
+            id: r.job.clone(),
+            work: Some(placed.work),
+            data_key: r.data_key.clone(),
+            store: r.store.clone(),
+            concurrency: r.concurrency,
+            directory: string(&placed.directory),
+            cgroup: cgroup.map(string).unwrap_or_default(),
+            result: string(&dir.join("result")),
+            // Recipe content is kept by sha256.
+            content: self
+                .config
+                .content
+                .as_deref()
+                .map(|c| string(&c.join("sha256")))
+                .unwrap_or_default(),
+            ..Default::default()
+        };
+        if let Some(kept) = &placed.kept {
+            std::fs::write(dir.join("kept"), kept.to_line())?;
+        }
+        Ok(spec.encode_to_vec())
     }
 
     /// The cgroup made for `job`, or none where none can be made, which the job then reports.
@@ -181,12 +225,17 @@ impl Jobs {
         Some(dir)
     }
 
-    /// The pid of `job` if a process of the job binary has it.
+    /// The pid of `job` if a process of its job binary has it.
     fn alive(&self, job: &str) -> Option<i32> {
-        let pid: i32 =
-            std::fs::read_to_string(self.dir(job).join("pid")).ok()?.trim().parse().ok()?;
+        let dir = self.dir(job);
+        let pid: i32 = std::fs::read_to_string(dir.join("pid")).ok()?.trim().parse().ok()?;
         let exe = std::fs::read_link(format!("/proc/{pid}/exe")).ok()?;
-        let ours = std::fs::canonicalize(&self.config.binary).ok()?;
+        let binary = if install::is_install(&dir) {
+            self.config.install_binary.as_ref()?
+        } else {
+            &self.config.binary
+        };
+        let ours = std::fs::canonicalize(binary).ok()?;
         (exe == ours).then_some(pid)
     }
 
@@ -197,13 +246,16 @@ impl Jobs {
             state: s.into(),
             ..Default::default()
         };
+        let dir = self.dir(job);
+        if install::is_install(&dir) {
+            return self.install_status(job, &dir);
+        }
         if let Some(child) = self.running.get_mut(job) {
             if child.try_wait()?.is_none() {
                 return Ok(state(helper::JobState::JOB_STATE_RUNNING));
             }
             self.running.remove(job);
         }
-        let dir = self.dir(job);
         match std::fs::read(dir.join("result")) {
             Ok(bytes) => {
                 let result = pb::JobResult::decode_from_slice(&bytes)
@@ -223,6 +275,29 @@ impl Jobs {
         } else {
             helper::JobState::JOB_STATE_LOST
         }))
+    }
+
+    /// Where the install job `job`, whose directory is `dir`, is, and how far it has come.
+    fn install_status(&mut self, job: &str, dir: &Path) -> HelperResult<helper::JobStatusResponse> {
+        let running = match self.running.get_mut(job) {
+            Some(child) => child.try_wait()?.is_none(),
+            None => self.alive(job).is_some(),
+        };
+        if !running {
+            self.running.remove(job);
+        }
+        let (result, progress) = install::recorded(dir)?;
+        let state = match (running, &result) {
+            (true, _) => helper::JobState::JOB_STATE_RUNNING,
+            (false, Some(_)) => helper::JobState::JOB_STATE_FINISHED,
+            (false, None) => helper::JobState::JOB_STATE_LOST,
+        };
+        Ok(helper::JobStatusResponse {
+            state: state.into(),
+            install: result.into(),
+            progress,
+            ..Default::default()
+        })
     }
 
     /// Ends `job` if it runs; whether it did.
@@ -293,32 +368,4 @@ impl Jobs {
         }
         Ok(())
     }
-}
-
-/// Makes `into` at the root of the volume at `volume`, owned and permitted as the root is, so the
-/// workload reaches what is restored there; it must not exist.
-pub fn make_into(volume: &Path, into: &str) -> HelperResult<PathBuf> {
-    use rustix::fs::{Mode, OFlags};
-    identifier("restore directory", into)?;
-    let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-    let root = rustix::fs::open(volume, flags, Mode::empty()).map_err(std::io::Error::from)?;
-    let st = rustix::fs::fstat(&root).map_err(std::io::Error::from)?;
-    match rustix::fs::mkdirat(&root, into, Mode::from_raw_mode(0o700)) {
-        Ok(()) => {}
-        Err(rustix::io::Errno::EXIST) => {
-            return Err(HelperError::Refused(format!("{into} already exists in the volume")));
-        }
-        Err(e) => return Err(std::io::Error::from(e).into()),
-    }
-    // Through a descriptor of what was made: a running workload may put a link in its place.
-    let made =
-        rustix::fs::openat(&root, into, flags, Mode::empty()).map_err(std::io::Error::from)?;
-    let (uid, gid) = (
-        rustix::fs::Uid::from_raw_unchecked(st.st_uid),
-        rustix::fs::Gid::from_raw_unchecked(st.st_gid),
-    );
-    rustix::fs::fchown(&made, Some(uid), Some(gid)).map_err(std::io::Error::from)?;
-    rustix::fs::fchmod(&made, Mode::from_raw_mode(st.st_mode & 0o7777))
-        .map_err(std::io::Error::from)?;
-    Ok(volume.join(into))
 }

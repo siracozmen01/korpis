@@ -1028,6 +1028,11 @@ spawn` verb creates a fresh mount namespace, mounts into it the volumes of exact
 inside it. There is no host path for the worker to reach, because the host filesystem is not in its
 namespace.
 
+> As built, 2026-10-15, for installs: the helper's verb is `StartJob` with install work, and the
+> worker is `korpis-install-job`, running as the workload's own ids in a user namespace with its
+> volumes idmapped into it (§4 of `09-recipes.md`). The worker that serves the tenant's file API
+> is not yet built.
+
 > Second external review, finding S79. Recorded in §17 of `23-walkthroughs.md`. The first version
 > ran one worker per **tenant**, inside "that tenant's mount namespace". A tenant has no single
 > mount namespace; each of its workloads has one, and a stopped container has none at all, which is

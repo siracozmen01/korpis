@@ -27,6 +27,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [dev-dependencies]
 korpis-agent = { path = "../korpis-agent" }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
-tempfile = "3"
+korpis-core = { workspace = true }
+korpis-wire = { workspace = true }
 rustix = { version = "1", features = ["process"] }
+sha2 = "0.10"
+tempfile = "3"
 tokio = { workspace = true }

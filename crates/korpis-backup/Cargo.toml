@@ -37,6 +37,7 @@ getrandom = "0.4"
 hkdf = "0.12"
 # A job confines itself to its directory and its store's port before it reads anything.
 landlock = "0.4"
+korpis-confine = { workspace = true }
 # The repository format's messages only: no RPC stack.
 korpis-proto = { workspace = true }
 # The node's one object store client: every store a repository can name speaks S3 or is fronted

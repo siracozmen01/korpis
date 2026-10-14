@@ -2204,6 +2204,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf 0.12.4",
  "korpis-backup",
+ "korpis-confine",
  "korpis-proto",
  "landlock",
  "reqwest",
@@ -2249,6 +2250,13 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "korpis-confine"
+version = "0.0.0"
+dependencies = [
+ "rustix",
 ]
 
 [[package]]
@@ -2386,8 +2394,10 @@ dependencies = [
  "korpis-backup",
  "korpis-core",
  "korpis-proto",
+ "korpis-wire",
  "libc",
  "rustix",
+ "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
@@ -2399,15 +2409,23 @@ dependencies = [
 name = "korpis-install"
 version = "0.0.0"
 dependencies = [
+ "buffa",
  "flate2",
  "getrandom 0.4.3",
+ "korpis-confine",
  "korpis-core",
+ "korpis-proto",
+ "korpis-wire",
+ "landlock",
+ "libc",
  "lzma-rs",
  "rustix",
  "sha2 0.10.9",
  "tar",
  "tempfile",
  "thiserror 2.0.21",
+ "tracing",
+ "tracing-subscriber",
  "zip",
  "zstd",
 ]

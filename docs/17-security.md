@@ -158,6 +158,8 @@ privileged helper   root, tiny, no tenant input. performs an enumerated set of o
 filesystem workers  one per workload, in a namespace holding only its volumes, Landlocked to them.
 backup jobs         one per backup or restore, started by the helper, holding one workload's data
                     key and only the capabilities their work needs, Landlocked to one directory.
+install jobs        one per install, started by the helper, running as the workload's own ids in a
+                    user namespace whose root holds only that workload's volumes (09 §4).
 runtime drivers     separate processes, each holding only its own driver's privileges.
 ```
 

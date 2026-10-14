@@ -60,9 +60,10 @@ fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
         binary: built("korpis-backup", "korpis-backup-job"),
+        install_binary: None,
         state: state.to_owned(),
         cgroups: None,
-        content: Some(content.join("blobs/sha256")),
+        content: Some(content.join("blobs")),
     };
     let mut h = korpis_helper::helper::Helper::new(vec![class], ledger).with_jobs(jobs);
     let listener = korpis_helper::serve::bound(socket).unwrap();

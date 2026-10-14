@@ -1,0 +1,15 @@
+[package]
+name = "korpis-confine"
+description = "What every Korpis job does first: join its cgroup, give up every capability its work does not need, and take no new privileges"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rustix = { version = "1", features = ["process", "thread"] }

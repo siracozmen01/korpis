@@ -16,7 +16,18 @@ use std::time::Duration;
 
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
                      [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
-                     [--job-binary PATH] [--job-cgroups PATH|none] [--content PATH]";
+                     [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
+                     [--content PATH]";
+
+/// Where the install job binary is, if install jobs are run.
+enum InstallBinary {
+    /// Beside this binary, which is where a release puts it.
+    Beside,
+    /// Where `--install-binary` says.
+    At(PathBuf),
+    /// Nowhere: `--install-binary none` runs no install jobs.
+    None,
+}
 
 /// What the helper was told.
 struct Args {
@@ -27,8 +38,10 @@ struct Args {
     state: PathBuf,
     allow: Vec<u32>,
     idle: Option<Duration>,
-    /// The job binary; beside this one when not given.
+    /// The backup job binary; beside this one when not given.
     job_binary: Option<PathBuf>,
+    /// The install job binary.
+    install_binary: InstallBinary,
     job_cgroups: Option<PathBuf>,
     content: PathBuf,
 }
@@ -42,8 +55,9 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         allow: Vec::new(),
         idle: None,
         job_binary: None,
+        install_binary: InstallBinary::Beside,
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
-        content: PathBuf::from("/var/lib/korpis-agent/content/blobs/sha256"),
+        content: PathBuf::from("/var/lib/korpis-agent/content/blobs"),
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
@@ -56,6 +70,11 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--state" => a.state = PathBuf::from(value()?),
             "--allow-uid" => a.allow.push(value()?.parse().map_err(|e| format!("{e}"))?),
             "--job-binary" => a.job_binary = Some(PathBuf::from(value()?)),
+            "--install-binary" => {
+                let v = value()?;
+                a.install_binary =
+                    if v == "none" { InstallBinary::None } else { InstallBinary::At(v.into()) };
+            }
             "--job-cgroups" => {
                 let v = value()?;
                 a.job_cgroups = (v != "none").then(|| PathBuf::from(v));
@@ -87,14 +106,21 @@ fn run(a: Args) -> Result<(), String> {
         None => inherited(),
     }
     .map_err(|e| format!("socket: {e}"))?;
+    let beside = |name: &str| -> Result<PathBuf, String> {
+        Ok(std::env::current_exe().map_err(|e| e.to_string())?.with_file_name(name))
+    };
     let binary = match a.job_binary {
         Some(b) => b,
-        None => {
-            std::env::current_exe().map_err(|e| e.to_string())?.with_file_name("korpis-backup-job")
-        }
+        None => beside("korpis-backup-job")?,
+    };
+    let install_binary = match a.install_binary {
+        InstallBinary::Beside => Some(beside("korpis-install-job")?),
+        InstallBinary::At(b) => Some(b),
+        InstallBinary::None => None,
     };
     let jobs = JobConfig {
         binary,
+        install_binary,
         state: a.state.clone(),
         cgroups: a.job_cgroups,
         content: Some(a.content),
