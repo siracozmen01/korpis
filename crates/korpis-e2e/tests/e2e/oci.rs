@@ -11,6 +11,7 @@
 use crate::node::{Node, live};
 use crate::support::{ControlPlane, push_sleeper};
 use korpis_agent::runtime::{Runtime as _, RuntimeError};
+use korpis_cli::cmd::logs::{Logs, logs};
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::read;
@@ -36,6 +37,21 @@ async fn status(
 
 fn converged(s: &pb::WorkloadStatus) -> bool {
     s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED)
+}
+
+/// `korpis logs` with nothing but the workload set.
+fn logs_args() -> Logs {
+    Logs {
+        workload: String::new(),
+        follow: false,
+        from: None,
+        since: None,
+        grep: None,
+        regex: false,
+        limit: None,
+        timestamps: false,
+        relay: None,
+    }
 }
 
 /// Waits until `sql` counts at least `n`.
@@ -99,6 +115,13 @@ async fn a_thin_recipe_runs_survives_an_agent_restart_untouched_and_retires() {
     let runtime = node.runtime();
     let pid = runtime.inspect(&observed.runtime_id).await.unwrap().pid;
     assert!(pid > 0);
+
+    // Its console, read with `korpis logs` by a token that may read it and not its node.
+    let tenant = cp.token_for(&["workload.read", "workload.console.read"]).await;
+    let asked = Logs { workload: w.clone(), follow: true, limit: Some(1), ..logs_args() };
+    let mut printed = Vec::new();
+    logs(&cp.cli(Some(&tenant)), &asked, &mut |line, _| printed.push(line)).await.unwrap();
+    assert_eq!(printed, ["said hello"], "what it printed, read through a relay by its route");
 
     // The agent restarts; the workload does not.
     agent.stop().await;

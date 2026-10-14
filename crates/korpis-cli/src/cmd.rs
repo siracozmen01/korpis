@@ -10,6 +10,7 @@ pub mod event;
 pub mod extension;
 pub mod get;
 pub mod grant;
+pub mod logs;
 pub mod provider;
 pub mod sets;
 pub mod upgrade;

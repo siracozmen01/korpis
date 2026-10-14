@@ -8,6 +8,7 @@ use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
+use korpis_cli::cmd::logs;
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
@@ -101,6 +102,9 @@ enum Command {
     /// Subscribes to the event log, and follows a subscription.
     #[command(subcommand)]
     Event(EventAction),
+    /// A workload's console, read without attaching: from the oldest record its node holds,
+    /// an offset, or a time ago; searched; followed as it is written.
+    Logs(logs::Logs),
     /// Prints the script that registers completion with a shell, e.g.
     /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
     /// offers only what the token in the environment can read.
@@ -193,6 +197,14 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             .await
         }
         Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
+        Command::Logs(a) => {
+            let c = cli.required()?;
+            let json = cli.json;
+            logs::logs(&c, a, &mut |text, value| {
+                if json { print(&value) } else { println!("{text}") }
+            })
+            .await
+        }
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

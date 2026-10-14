@@ -82,6 +82,12 @@ impl Harness {
     /// A control plane whose agents send heartbeats every `heartbeat`. The default is long, so
     /// that the nodes tests put in place without an agent are not swept as silent.
     pub async fn with_heartbeat(heartbeat: std::time::Duration) -> Self {
+        // What the control plane logs at error, an internal error's cause among it, is printed
+        // with the output of the test that failed, so a failure that needs load to happen
+        // explains itself.
+        let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("error"));
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));

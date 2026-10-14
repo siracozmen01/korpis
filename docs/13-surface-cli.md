@@ -347,6 +347,19 @@ korpis event follow sub_… --ack      print a subscription's events as they com
 korpis version                       client and server versions, and the source revision of each
 ```
 
+**`logs` as built** (Phase 1): `korpis logs mc-survival [--follow] [--from N | --since 1h]
+[--grep P [--regex]] [--limit N] [--timestamps] [--relay URL]` mints a token for
+`workload.console.read` on the one workload, with the route the gateway seals with it, and opens a
+session at the control plane's relay role, or the first relay it names, or the one named (§3.1 of
+`02-architecture.md`). Records arrive in offset order from the node's own files, searched there
+when `--grep` is given; dropped records print as the gap line §3 of `14-streams.md` shows, and
+offsets the node no longer holds print as such. Following, the command renews its token on the
+session thirty seconds before it expires, and a lost session is opened again, with a backoff of up
+to thirty seconds, from the offset it was told to read from next, so a reconnection neither repeats
+nor skips a record. `--json` prints each record as the API's own object. What it does not do yet:
+read a retired workload's stream (question 6 of `14-streams.md`), or anything already pruned from
+the node, which waits for offload.
+
 `version` names the exact source revision each binary was built from and where its source is
 published, for the client and for the control plane it is talking to. That is how an unmodified
 distribution meets the AGPL's obligation for conveyed copies without anyone doing anything (§2 of

@@ -66,6 +66,13 @@ impl Connection {
         Ok(Self { http: HttpClient::with_tls(Arc::new(tls)), config })
     }
 
+    /// The same trust, at `url` and anonymous: a relay, where a session is authorized by its
+    /// capability token alone and the operator's token is not sent.
+    pub fn at(&self, url: &str) -> Result<Self, CliError> {
+        let uri: http::Uri = url.parse().map_err(|err| local("the relay", err))?;
+        Ok(Self { http: self.http.clone(), config: ClientConfig::new(uri) })
+    }
+
     /// The transport, for a generated client.
     #[must_use]
     pub fn http(&self) -> HttpClient {

@@ -100,6 +100,38 @@ impl ControlPlane {
             .with_default_header("authorization", format!("Bearer {}", self.secret))
     }
 
+    /// The CLI's connection, as whoever `secret` authenticates; the root token's when none.
+    pub fn cli(&self, secret: Option<&str>) -> korpis_cli::connect::Connection {
+        let endpoint = korpis_cli::connect::Endpoint {
+            server: self.url.clone(),
+            ca: self.data.tls().join("ca.pem"),
+            token: secret.unwrap_or(&self.secret).to_owned(),
+        };
+        korpis_cli::connect::Connection::open(&endpoint).unwrap()
+    }
+
+    /// A new API token holding `actions` on the root organization and nothing else, so no
+    /// authority over its nodes; its secret.
+    pub async fn token_for(&self, actions: &[&str]) -> String {
+        use korpis_core::authz::{Kind, ObjectRef};
+        use korpis_core::id::{Id, IdKind};
+        let org = Id::parse(IdKind::Organization, &self.root_org).unwrap().uuid();
+        let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Organization, org));
+        pb::GrantServiceClient::new(self.http(), self.config())
+            .issue_grant(pb::IssueGrantRequest {
+                mutation: mutation(&actions.join(",")).into(),
+                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
+                scope: korpis_wire::scope::to_pb(&scope).into(),
+                label: "console only".into(),
+                to_new_token: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .into_owned()
+            .token
+    }
+
     pub fn nodes(&self) -> pb::NodeServiceClient<HttpClient> {
         pb::NodeServiceClient::new(self.http(), self.config())
     }

@@ -17,6 +17,7 @@ workspace = true
 buffa = { version = "=0.9.2" }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }
 korpis-agent = { path = "../korpis-agent" }
+korpis-cli = { path = "../korpis-cli" }
 korpis-core = { workspace = true }
 korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-helper = { path = "../korpis-helper" }
@@ -25,6 +26,7 @@ korpis-recipe = { workspace = true }
 korpis-server = { workspace = true }
 korpis-store = { workspace = true, features = ["testing"] }
 korpis-stream = { workspace = true }
+korpis-wire = { workspace = true }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 sqlx = { workspace = true }
 tempfile = "3"
