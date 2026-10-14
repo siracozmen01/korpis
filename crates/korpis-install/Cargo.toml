@@ -1,0 +1,28 @@
+[package]
+name = "korpis-install"
+description = "Korpis's install worker: a recipe's install verbs run beneath a workload's volumes, every path resolved by the kernel beneath its volume"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Archives an `extract` unpacks: gzip, zstd, and xz around tar, and zip.
+flate2 = "1"
+getrandom = "0.4"
+korpis-core = { workspace = true }
+lzma-rs = "0.3"
+rustix = { version = "1", features = ["fs", "process"] }
+tar = "0.4"
+thiserror = { workspace = true }
+zip = { version = "9", default-features = false, features = ["deflate"] }
+zstd = "0.13"
+
+[dev-dependencies]
+sha2 = "0.10"
+tempfile = "3"

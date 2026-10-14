@@ -276,9 +276,10 @@ recipe changes to another digest: the instance is stopped, the new recipe's verb
 run over what the volumes hold, and it is started again. And when values that templates of the
 `templates` section use change: those templates, and only those, are rendered again before the
 instance is reconfigured. A workload created from a backup is not installed, because its volumes
-hold the installed tree the backup was taken of. The step's detail carries why it runs, which
-verbs and templates it runs, and each template's context, so the plan shows exactly what will be
-written; it cannot be undone, because what it writes over is not kept.
+hold the installed tree the backup was taken of. The step's detail carries why it runs and every
+action it runs, in order: each verb with its arguments, and each template with its context, so the
+plan shows exactly what will be written and the node that runs it needs nothing else of the
+recipe; it cannot be undone, because what it writes over is not kept.
 
 **Everything an install writes lands in a volume.** Every path a verb or a template writes must be
 one of the workload's volumes or beneath one, and a declaration whose volumes leave one outside is
@@ -331,8 +332,25 @@ The verb list being closed is what makes the fix cheap. Each verb declares what 
 > covered half the closed set it relied on.
 
 Install progress is recorded durably per install, not per plan, so a resume continues at the verb
-that failed. This is the property the escape hatch below depends on: a step provider is third-party
-code on the install path, and it will be the thing that fails.
+that failed. This is the property the escape hatch below depends on: a step provider is
+third-party code on the install path, and it will be the thing that fails.
+
+**The verbs as built, 2026-10-14** (`crates/korpis-install`). Each path is resolved beneath the
+volume it lies in by `openat2` with `RESOLVE_BENEATH`, no magic links, and no crossing into another
+mount, so a link the tenant planted makes a verb fail and never makes it write elsewhere. A file
+(`fetch`, `copy`, `write`, `template`) is written beside its target, synced, and renamed over it,
+with the directories above it made; content and templates are written with mode `0644`. `extract`
+recognises tar, bare or in gzip, zstd, or xz, and zip by their first bytes; it refuses an absolute
+or `..` entry, a device or FIFO, a link out of what it unpacks, and a hard link to anything not
+unpacked with it, and for any of these unpacks nothing. It unpacks into a fresh tree beside its
+target and swaps the two, so the target becomes what the archive holds, and it never takes a
+volume's root as its target, because swapping that would delete everything the workload wrote
+there. Unpacked files belong to the workload's root whatever owner the archive records; a `chown`
+says otherwise. `chmod` refuses a link; `chown` changes a link's own owner, never what it points to.
+`symlink` points within the link's own volume. `delete` of something absent does nothing, a link
+out of the volume on the way to it is a failure rather than an absence, and a volume's root is
+never deleted. What it costs: a recipe cannot unpack straight into a volume's root, and has to
+name a directory beneath it.
 
 ### The escape hatch that does not reopen the hole
 

@@ -5,7 +5,8 @@
 //! no secret in reach, and which templates a change of values renders again.
 
 use crate::support::PAPER;
-use korpis_core::recipe::installing::{InstallReason, context, value_var};
+use korpis_core::recipe::install::InstallStep;
+use korpis_core::recipe::installing::{InstallReason, actions_of, context};
 use korpis_core::recipe::template::{TemplateFormat, Var};
 use korpis_core::value::{Value, ValueMap};
 use korpis_core::workload::spec::VolumeSpec;
@@ -30,9 +31,7 @@ fn a_template_verb_says_its_format_and_installs_only_into_volumes() {
     let verb = r"    - template: {from: templates/server.properties, to: /data/start.env, format: env, vars: [motd]}";
     let doc = PAPER.replacen(step, &format!("{step}\n{verb}"), 1);
     let r = parse(doc.as_bytes()).unwrap();
-    let korpis_core::recipe::install::InstallStep::Template { format, .. } = &r.install[3] else {
-        panic!("{:?}", r.install[3])
-    };
+    let InstallStep::Template { format, .. } = &r.install[3] else { panic!("{:?}", r.install[3]) };
     assert_eq!(*format, TemplateFormat::Env);
     let without = doc.replacen(", format: env", "", 1);
     assert!(parse(without.as_bytes()).is_err(), "a template verb names its format");
@@ -58,10 +57,14 @@ fn a_context_holds_declared_values_as_they_are_written_and_never_a_secret() {
     assert!(context(&r.config, &values, &["rcon_password".to_owned()]).is_err(), "a secret");
 
     let detail = r.install_detail(&values, InstallReason::Create, (true, &[0])).unwrap();
-    let Some(Value::Map(contexts)) = detail.get("contexts") else { panic!("{detail:?}") };
-    let Some(Value::Map(server)) = contexts.get("templates.0") else { panic!("{contexts:?}") };
-    let kept: Vec<Option<Var>> = vars.iter().map(|v| server.get(v).and_then(value_var)).collect();
-    assert_eq!(kept, vars.iter().map(|k| c.get(k).cloned()).collect::<Vec<_>>());
+    let actions = actions_of(&detail).unwrap();
+    assert_eq!(actions.len(), r.install.len() + 1, "every verb, then the template");
+    for (kept, step) in actions.iter().zip(&r.install) {
+        assert_eq!(&kept.step, step, "read back as declared");
+    }
+    let rendered = actions.last().unwrap();
+    assert!(matches!(rendered.step, InstallStep::Template { .. }));
+    assert_eq!(rendered.context.as_ref(), Some(&c), "with its context");
     assert!(!format!("{detail:?}").contains("hunter2"), "no secret in a plan's detail");
 }
 

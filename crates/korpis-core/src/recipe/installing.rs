@@ -6,6 +6,8 @@
 //! volumes, because the worker that writes it sees nothing else (§6 of docs/02-architecture.md).
 
 use super::RecipeError;
+
+pub mod detail;
 use super::config::{ConfigSchema, ConfigType};
 use super::deliver::text;
 use super::document::Recipe;
@@ -148,8 +150,44 @@ impl Recipe {
         self.templates.iter().enumerate().filter(|(_, t)| uses(&t.vars)).map(|(i, _)| i).collect()
     }
 
-    /// The detail of an install step: why it runs, whether the verbs do, which templates render,
-    /// and the context of each template it renders, from the intent's resolved `values`.
+    /// What an install runs, in order: every verb when `verbs`, then each of `templates` from
+    /// the `templates` section, each template with its context from the intent's resolved
+    /// `values`.
+    ///
+    /// # Errors
+    /// A template's context cannot be built.
+    pub fn install_actions(
+        &self,
+        values: &ValueMap,
+        (verbs, templates): (bool, &[usize]),
+    ) -> Result<Vec<InstallAction>, RecipeError> {
+        let mut out = Vec::new();
+        let ran = if verbs { self.install.as_slice() } else { &[] };
+        for step in ran {
+            let vars = match step {
+                InstallStep::Template { vars, .. } => Some(vars),
+                _ => None,
+            };
+            let context = vars.map(|v| context(&self.config, values, v)).transpose()?;
+            out.push(InstallAction { step: step.clone(), context });
+        }
+        for t in templates.iter().filter_map(|i| self.templates.get(*i)) {
+            let step = InstallStep::Template {
+                from: t.from.clone(),
+                to: t.path.clone(),
+                format: t.format,
+                vars: t.vars.clone(),
+            };
+            out.push(InstallAction {
+                step,
+                context: Some(context(&self.config, values, &t.vars)?),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The detail of an install step: why it runs, and the actions it runs (see
+    /// [`Recipe::install_actions`]).
     ///
     /// # Errors
     /// A template's context cannot be built.
@@ -157,36 +195,33 @@ impl Recipe {
         &self,
         values: &ValueMap,
         reason: InstallReason,
-        (verbs, templates): (bool, &[usize]),
+        which: (bool, &[usize]),
     ) -> Result<ValueMap, RecipeError> {
-        let mut contexts = ValueMap::new();
-        let mut keep = |key: String, vars: &[String]| -> Result<(), RecipeError> {
-            let c = context(&self.config, values, vars)?;
-            contexts.insert(
-                key,
-                Value::Map(c.iter().map(|(k, v)| (k.clone(), var_value(v))).collect()),
-            );
-            Ok(())
-        };
-        let verb_templates = self.install.iter().enumerate().filter_map(|(i, s)| match s {
-            InstallStep::Template { vars, .. } if verbs => Some((i, vars)),
-            _ => None,
-        });
-        for (i, vars) in verb_templates {
-            keep(format!("install.{i}"), vars)?;
-        }
-        for &i in templates {
-            if let Some(t) = self.templates.get(i) {
-                keep(format!("templates.{i}"), &t.vars)?;
-            }
-        }
-        let index = |i: usize| Value::Int(i64::try_from(i).unwrap_or(i64::MAX));
+        let actions = self.install_actions(values, which)?;
         Ok(ValueMap::from([
             ("reason".to_owned(), Value::String(reason.as_str().to_owned())),
-            ("verbs".to_owned(), Value::Bool(verbs)),
-            ("templates".to_owned(), Value::List(templates.iter().copied().map(index).collect())),
-            ("contexts".to_owned(), Value::Map(contexts)),
+            ("actions".to_owned(), Value::List(actions.iter().map(detail::encode).collect())),
         ]))
+    }
+}
+
+/// One thing an install does: a verb, and for a template, the context it renders from.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InstallAction {
+    /// The verb and its arguments.
+    pub step: InstallStep,
+    /// A template's context; `None` for every other verb.
+    pub context: Option<Context>,
+}
+
+/// The actions an install step's `detail` keeps.
+///
+/// # Errors
+/// The detail holds no list of actions, or one of them is malformed.
+pub fn actions_of(detail: &ValueMap) -> Result<Vec<InstallAction>, String> {
+    match detail.get("actions") {
+        Some(Value::List(list)) => list.iter().map(detail::decode).collect(),
+        _ => Err("an install step's detail lists its actions".into()),
     }
 }
 
