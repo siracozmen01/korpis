@@ -4,7 +4,7 @@
 //! image fetched by digest through its index, this machine's manifest chosen, every blob kept by
 //! digest and checked; content named by a tag alone is refused.
 
-use korpis_agent::content::{ContentStore, FetchError};
+use korpis_agent::content::{ContentStore, FetchError, Reach};
 use korpis_core::content::{OCI_INDEX, OCI_MANIFEST, digest_of, this_machine};
 use oci_client::client::{ClientConfig, ClientProtocol};
 use oci_client::secrets::RegistryAuth;
@@ -100,8 +100,16 @@ async fn serving(body: &'static [u8]) -> (String, std::sync::Arc<std::sync::atom
             counting.fetch_add(1, Ordering::SeqCst);
             let mut request = [0u8; 2048];
             let n = s.read(&mut request).await.unwrap_or(0);
-            let found = String::from_utf8_lossy(&request[..n]).starts_with("GET /file ");
-            let head = if found {
+            let asked = String::from_utf8_lossy(&request[..n]).into_owned();
+            let found = asked.starts_with("GET /file ");
+            let head = if asked.starts_with("GET /hop ") {
+                // A redirect to the same server by an address the test does not allow.
+                format!(
+                    "HTTP/1.1 302 Found\r\nlocation: http://[::1]:{}/file\r\n\
+                     content-length: 0\r\nconnection: close\r\n\r\n",
+                    at.port()
+                )
+            } else if found {
                 format!(
                     "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
                     body.len()
@@ -140,7 +148,10 @@ async fn a_fetch_is_kept_only_when_it_hashes_to_what_was_declared_and_fetched_on
     const BODY: &[u8] = b"a server jar, as it were";
     let (url, count) = serving(BODY).await;
     let dir = tempfile::tempdir().unwrap();
-    let store = ContentStore::open(&dir.path().join("content"), Vec::new()).unwrap();
+    let store = ContentStore::open(&dir.path().join("content"), Vec::new())
+        .unwrap()
+        .reaching(loopback_v4())
+        .unwrap();
 
     let wrong = sha(b"something else", false);
     let e = store.fetch_url(&url, &wrong).await.unwrap_err();
@@ -177,4 +188,37 @@ async fn a_recipe_s_files_are_fetched_with_their_paths_and_kept_by_digest() {
     assert_eq!(paths, ["layers/rootfs.tar.zst", "templates/server.properties"]);
     let template = &files["templates/server.properties"];
     assert_eq!(std::fs::read(store.path_of(template).unwrap()).unwrap(), b"motd={{motd}}\n");
+}
+
+/// What the tests' servers are on, which a node's fetch reaches only when the operator says so.
+fn loopback_v4() -> Reach {
+    Reach::with(vec!["127.0.0.1/32".parse().unwrap()])
+}
+
+#[tokio::test]
+async fn a_fetch_never_reaches_the_node_s_own_or_private_networks_unless_the_operator_allows() {
+    use std::sync::atomic::Ordering;
+    const BODY: &[u8] = b"anything";
+    let (url, count) = serving(BODY).await;
+    let digest = sha(BODY, false);
+    let dir = tempfile::tempdir().unwrap();
+    let store = ContentStore::open(&dir.path().join("content"), Vec::new()).unwrap();
+    let e = store.fetch_url(&url, &digest).await.unwrap_err();
+    assert!(matches!(e, FetchError::Refused(_)), "an address in the URL: {e:?}");
+    let named = url.replace("127.0.0.1", "localhost");
+    assert!(store.fetch_url(&named, &digest).await.is_err(), "a name resolving to loopback");
+    for refused in ["http://169.254.169.254/latest/meta-data", "http://[::ffff:10.0.0.1]/x"] {
+        let e = store.fetch_url(refused, &digest).await.unwrap_err();
+        assert!(matches!(e, FetchError::Refused(_)), "{refused}: {e:?}");
+    }
+    assert_eq!(count.load(Ordering::SeqCst), 0, "no request was sent to any of them");
+
+    let allowed = ContentStore::open(&dir.path().join("allowed"), Vec::new())
+        .unwrap()
+        .reaching(loopback_v4())
+        .unwrap();
+    let hop = url.replace("/file", "/hop");
+    assert!(allowed.fetch_url(&hop, &digest).await.is_err(), "a redirect is checked too");
+    assert_eq!(count.load(Ordering::SeqCst), 1, "and is not followed");
+    allowed.fetch_url(&url, &digest).await.unwrap();
 }

@@ -5,10 +5,14 @@
 //! file fetches nothing (Rule K-15), and the worker that writes tenant paths never touches the
 //! network. The hash, not the transport, is what is trusted, so `http` is allowed: what arrives is
 //! kept only once it hashes to what the recipe declared, and anything else is deleted unkept.
+//! What the hash does not protect is the request itself, so where it may go is bounded by
+//! [`Reach`]: the public internet, and the networks the operator names.
 
+use super::reach::Reach;
 use super::{ContentStore, FetchError};
 use sha2::{Digest as _, Sha256, Sha512};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt as _;
 
@@ -18,13 +22,27 @@ use tokio::io::AsyncWriteExt as _;
 pub const MAX_FETCH: u64 = 256 << 30;
 
 /// The client fetches are made with: no proxy from the environment, a bounded wait for the first
-/// byte and between bytes, and at most ten redirects.
-pub(super) fn client() -> Result<reqwest::Client, String> {
+/// byte and between bytes, names resolved only to addresses `reach` permits, and at most ten
+/// redirects, each to a URL `reach` permits.
+pub(super) fn client(reach: &Reach) -> Result<reqwest::Client, String> {
+    let hops = reach.clone();
+    let redirect = reqwest::redirect::Policy::custom(move |attempt| {
+        if attempt.previous().len() >= 10 {
+            attempt.error("more than ten redirects")
+        } else if !matches!(attempt.url().scheme(), "http" | "https") {
+            attempt.error("a redirect to neither http nor https")
+        } else if let Err(e) = hops.url(attempt.url()) {
+            attempt.error(e)
+        } else {
+            attempt.follow()
+        }
+    });
     reqwest::Client::builder()
         .no_proxy()
         .connect_timeout(Duration::from_secs(30))
         .read_timeout(Duration::from_secs(120))
-        .redirect(reqwest::redirect::Policy::limited(10))
+        .dns_resolver(Arc::new(reach.clone()))
+        .redirect(redirect)
         .build()
         .map_err(|e| e.to_string())
 }
@@ -91,9 +109,11 @@ impl ContentStore {
         if tokio::fs::try_exists(&path).await? {
             return Ok(path);
         }
-        if !(url.starts_with("https://") || url.starts_with("http://")) {
-            return Err(FetchError::Reference(format!("{url:?} is not an http or https URL")));
-        }
+        let parsed = reqwest::Url::parse(url)
+            .ok()
+            .filter(|u| matches!(u.scheme(), "http" | "https"))
+            .ok_or_else(|| FetchError::Reference(format!("{url:?} is not an http or https URL")))?;
+        self.reach.url(&parsed).map_err(|e| FetchError::Refused(format!("{url}: {e}")))?;
         let (mut hashing, alg, hex) = Hashing::of(digest).ok_or_else(|| not_a_digest(digest))?;
         let mut nonce = [0u8; 8];
         getrandom::fill(&mut nonce).map_err(|e| std::io::Error::other(e.to_string()))?;

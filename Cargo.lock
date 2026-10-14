@@ -2151,6 +2151,7 @@ dependencies = [
  "http",
  "hyper",
  "hyper-util",
+ "ipnet",
  "korpis-app",
  "korpis-backup",
  "korpis-core",
@@ -2174,6 +2175,7 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
 ]
 

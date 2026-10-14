@@ -57,6 +57,19 @@ controlled egg template variables were rendered in a context where they could re
 token and registry credentials. The failure was not the templating engine. It was that the
 credentials were reachable from the render context at all.
 
+The third class, SSRF (three advisories), is a request the tenant chooses made from where the
+tenant cannot stand: a remote file pull and a backup restore URL that reached the node's own
+network. Korpis makes such requests wherever a recipe names a source, so each is bounded by
+address, not by URL: a recipe's `fetch` reaches only the public internet and the networks the
+operator names, checked at resolution and at every redirect (§4 of `09-recipes.md`).
+
+> **Not yet held, 2026-10-15.** Pulling a recipe, or an image, from a registry a recipe or a
+> declaration names is not yet bounded the same way: the control plane, resolving a recipe, and
+> the node's content store, fetching one, connect to whatever address the registry's name
+> resolves to. A registry reference is narrower than a URL (the requests are the registry
+> protocol's), but it is the same class, and it is the next change made to the content store and
+> the recipe resolver. This note is removed when it is.
+
 Two rules follow, and they are P3 and K-2:
 
 > **Confine with the kernel, not with strings.** Validation is defence in depth; it is never the

@@ -32,7 +32,10 @@ built; each is numbered on from the one before. §19 is a sixteenth trace, writt
 were built, and Findings 28 to 31 came from the implementation of streams and volumes. §20 is a
 seventeenth, written when backups were built, and it found Findings 32 and 33; §21, the
 eighteenth, written when restores were, found 34 and 35; re-running §9 when browsing was built
-found 36.
+found 36. §22 to §27, written as retention, the organization's own bucket, offloaded streams,
+tenant keys, share links, and stream ranges were built, found 37 to 47. §28 records Finding 48,
+which no trace found: an automated security review of the code flagged it, and the evidence file
+had named its class all along.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1062,6 +1065,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 45 | A link verified offline would outlive its revocation | §26 | `08-identity.md` §3.7, §6.1, §6.3; `13-surface-cli.md` §7 |
 | 46 | A use limit that most paths did not count | §26 | `08-identity.md` §6.1, §6.2 |
 | 47 | A stream range as a scope the node cannot check | §27 | `14-streams.md` §8, `08-identity.md` §3.2, §6 |
+| 48 | A recipe's fetch reached wherever its URL pointed | §28 | `09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3, §9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1813,3 +1817,42 @@ other action, and the node refuses any other action under a ranged token. → pa
 `14-streams.md` §8 and `08-identity.md` §3.2 and §6
 
 † Step 2 is where the trace found Finding 47.
+
+---
+
+## 28. A recipe asks the node for its cloud credentials
+
+Written 2026-10-15, after the fact. A tenant publishes a recipe whose install fetches
+`http://169.254.169.254/latest/meta-data/iam/security-credentials/` under some hash, and declares
+a workload from it on a node in a cloud. The tenant cannot reach that address; the node can.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The recipe loads: the `fetch` carries a hash, which is all the parser asks of it | `09-recipes.md` §4 |
+| 2 | The plan's install step reaches the node, which asks its content store for the URL under the hash, because the worker never touches the network | `09-recipes.md` §4, `06-storage.md` §6 |
+| 3 | The content store connects to the address in the URL † | `09-recipes.md` §4 |
+| 4 | What arrives does not hash to what was declared, so nothing is kept; the failure says why | `09-recipes.md` §4 |
+| 5 | The tenant reads the failed step: "does not match its digest" from a server that answered, "connection refused" or a timeout from one that did not | `09-recipes.md` §4 |
+
+**FINDING 48: A recipe's fetch reached wherever its URL pointed. `CONFIRMED`**
+
+The fetch built on 2026-10-14 checked the scheme and nothing else. The hash stopped anything but the
+declared bytes being kept, and nothing stopped the request: the node sent a GET wherever the
+recipe's author chose, and step 5 told the author what answered there. That is a port scan of the
+operator's network and a probe of the metadata service, run by anyone who may declare a workload,
+and it is Pterodactyl's SSRF class (§1.1 of `research/evidence.md`, CVE-2024-34068 a remote file
+pull), which the evidence file had listed since the documents were first written. The documents
+never said where a fetch may go, so the code did not ask. No trace crossed it because none had
+asked the algebra question of step 3: what decides where this connects, and with what information?
+
+**Resolution.** A fetch connects only to the public internet and to networks the operator names.
+The decision is made by the resolver the connection uses, over every address a name resolves to,
+so a name that passes cannot connect elsewhere; an address written in the URL is checked before
+anything is sent, and every redirect the same way. Pulling from a registry a recipe names is the
+same class and is not yet bounded; `17-security.md` §3 says so until it is. → patched into
+`09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3 and §9
+
+† Step 3 is where Finding 48 was.
+

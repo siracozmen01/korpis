@@ -256,7 +256,10 @@ and the OCI registry client that resolves recipes (§2 of `09-recipes.md`). A pr
 connection would make "which primitives does this process use" a question with several answers.
 The registry client verifies certificates against the host's trust store, so a private registry
 behind a private authority is trusted by adding that authority to the host; plain HTTP is used only
-for the registries named with `--plain-http-registry`, which exists for development.
+for the registries named with `--plain-http`, which exists for development.
+
+> Corrected 2026-10-15. This said `--plain-http-registry`; the agent's flag has always been
+> `--plain-http`, as §3 of `18-operations.md` says.
 
 What it costs: `connectrpc` depends on `rustls` with its default features, which build and link
 `aws-lc-rs` as well, so every binary carries a second provider it never selects and every build

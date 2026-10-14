@@ -267,6 +267,23 @@ downloads the URL once per node, verifies the declared hash, and keeps it by dig
 same file fetches nothing (K-15, which the first version applied to images and not to install
 steps), and the worker that handles tenant paths never needs network access at all.
 
+**A `fetch` reaches the public internet, and the networks the operator names, and nothing else.**
+Decided 2026-10-15. The URL is the recipe's, and anyone may write a recipe, so the node's request
+is a request the recipe's author chose: to the node's own loopback, to the cloud metadata service
+at `169.254.169.254`, or to a service on the operator's private network. The hash protects what is
+kept, not the request, and whether a fetch fails, and how, tells its author what answered. This is
+Pterodactyl's SSRF class, three of its advisories, one of them in exactly this place: a remote
+file pull (CVE-2024-34068, §1.1 of `research/evidence.md`). So the node connects only to an
+address on the public internet unless the operator allows its network (`--fetch-allow`, §3 of
+`18-operations.md`): every address a name resolves to is checked by the resolver the connection
+then uses, so a name cannot pass the check and connect elsewhere; an address written in the URL
+is checked before anything is sent; and every redirect is checked the same way. Loopback, private
+(RFC 1918 and IPv6 unique-local), link-local, carrier-grade NAT, multicast, documentation, and
+reserved ranges are refused, as is an IPv6 address carrying one of those IPv4 addresses. What it
+costs: a mirror on a private network has to be named by the operator, and a recipe cannot fetch
+from a server on the operator's own network without that. What it does not do: it does not stop a
+fetch reaching any public address, which the recipe's author could reach anyway.
+
 **A `fetch` without a hash is not a warning. It is a parse error.** The recipe does not load.
 
 **When an install runs.** Decided 2026-10-14, when the install was planned. An install is one plan

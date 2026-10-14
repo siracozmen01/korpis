@@ -3,8 +3,9 @@
 //! `korpis-agent`: join a control plane once, then run.
 
 use clap::{Parser, Subcommand};
+use ipnet::IpNet;
 use korpis_agent::advertise::Advertise;
-use korpis_agent::content::ContentStore;
+use korpis_agent::content::{ContentStore, Reach};
 use korpis_agent::host::node::NodeHost;
 use korpis_agent::host::privileged::HelperClient;
 use korpis_agent::host::{Host, InMemoryHost};
@@ -62,6 +63,11 @@ enum Command {
         /// registry only: content is verified by digest either way.
         #[arg(long = "plain-http")]
         plain_http: Vec<String>,
+        /// A network an install's `fetch` may reach besides the public internet, as a CIDR, for
+        /// a private mirror; repeatable. Loopback, private, and link-local addresses are
+        /// otherwise refused (§4 of docs/09-recipes.md).
+        #[arg(long = "fetch-allow")]
+        fetch_allow: Vec<IpNet>,
         /// Millicores kept back from placement for the machine's own system.
         #[arg(long, default_value_t = Reserve::default().cpu_millis)]
         reserve_cpu_millis: u64,
@@ -102,6 +108,7 @@ struct Node {
     driver_socket: PathBuf,
     helper_socket: PathBuf,
     plain_http: Vec<String>,
+    fetch_allow: Vec<IpNet>,
     reserve: Reserve,
     advertise_address: Vec<IpAddr>,
     ports: PortRange,
@@ -151,7 +158,10 @@ async fn run(state: &StateDir, node: Node) -> ExitCode {
         "memory" => serve(state, InMemory::new(), InMemoryHost::new(), &node).await,
         "oci" => {
             let plain_http = node.plain_http.clone();
-            let content = match ContentStore::open(&state.root().join("content"), plain_http) {
+            let reach = Reach::with(node.fetch_allow.clone());
+            let opened = ContentStore::open(&state.root().join("content"), plain_http)
+                .and_then(|c| c.reaching(reach));
+            let content = match opened {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!(error = %e, "the content store could not be opened");
@@ -196,6 +206,7 @@ async fn main() -> ExitCode {
             driver_socket,
             helper_socket,
             plain_http,
+            fetch_allow,
             reserve_cpu_millis,
             reserve_memory_bytes,
             advertise_address,
@@ -208,6 +219,7 @@ async fn main() -> ExitCode {
                 driver_socket,
                 helper_socket,
                 plain_http,
+                fetch_allow,
                 reserve,
                 advertise_address,
                 ports,

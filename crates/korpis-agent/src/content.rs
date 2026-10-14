@@ -39,6 +39,9 @@ pub enum FetchError {
     /// The bytes are not the bytes the digest names.
     #[error("{0} does not match its digest")]
     Mismatch(String),
+    /// The URL is at an address a fetch may not reach (§4 of docs/09-recipes.md).
+    #[error("refused: {0}")]
+    Refused(String),
     /// The store could not be written.
     #[error(transparent)]
     Io(#[from] std::io::Error),
@@ -80,15 +83,19 @@ impl AsyncWrite for Capped {
     }
 }
 
+pub mod reach;
 mod url;
+
+pub use reach::Reach;
 
 /// The content store.
 pub struct ContentStore {
     root: PathBuf,
     client: Client,
     auth: RegistryAuth,
-    /// For an install's `fetch` (§4 of docs/09-recipes.md).
+    /// For an install's `fetch` (§4 of docs/09-recipes.md), and where it may go.
     http: reqwest::Client,
+    reach: Reach,
 }
 
 impl std::fmt::Debug for ContentStore {
@@ -121,8 +128,20 @@ impl ContentStore {
             ClientProtocol::HttpsExcept(plain_http)
         };
         let client = Client::new(ClientConfig { protocol, ..ClientConfig::default() });
-        let http = url::client().map_err(std::io::Error::other)?;
-        Ok(Self { root: root.to_owned(), client, auth: RegistryAuth::Anonymous, http })
+        let reach = Reach::default();
+        let http = url::client(&reach).map_err(std::io::Error::other)?;
+        Ok(Self { root: root.to_owned(), client, auth: RegistryAuth::Anonymous, http, reach })
+    }
+
+    /// The store, with an install's `fetch` reaching `reach`: the public internet, and the
+    /// networks the operator allows.
+    ///
+    /// # Errors
+    /// The client cannot be built.
+    pub fn reaching(mut self, reach: Reach) -> std::io::Result<Self> {
+        self.http = url::client(&reach).map_err(std::io::Error::other)?;
+        self.reach = reach;
+        Ok(self)
     }
 
     /// Where the blob `digest` is, or would be.

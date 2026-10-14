@@ -24,6 +24,7 @@ getrandom = "0.4"
 http = "1"
 hyper = { version = "1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
+ipnet = "2"
 korpis-core = { workspace = true, features = ["authz", "content", "identity"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }
@@ -45,6 +46,7 @@ tokio = { workspace = true }
 tower-service = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
 uuid = { workspace = true }
 
 [dev-dependencies]
