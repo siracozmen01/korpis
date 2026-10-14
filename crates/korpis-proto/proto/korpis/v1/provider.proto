@@ -78,6 +78,9 @@ message ProviderCall {
     GrantAccess grant_access = 22;
     ListObjects list_objects = 23;
     DeleteObjects delete_objects = 24;
+    // key_management: a new data key, and one stored key opened, each sealed to its recipient.
+    GenerateKey generate_key = 25;
+    UnwrapKey unwrap_key = 26;
   }
 }
 
@@ -92,6 +95,7 @@ message CallResult {
     ObjectAccess object_access = 22;
     ObjectList object_list = 23;
     ObjectsDeleted objects_deleted = 24;
+    KeyMaterial key_material = 25;
   }
 }
 
@@ -329,4 +333,35 @@ message DeleteObjects {
 
 message ObjectsDeleted {
   uint32 deleted = 1;
+}
+
+// A new data key for one workload in one repository (§5.5 of docs/06-storage.md): made by the
+// provider, wrapped by the tenant's key for the control plane to store, and sealed to the
+// recipient, never sent in the clear. The provider must refuse a context its policy does not
+// name, so a credential taken from it unwraps nothing else.
+message GenerateKey {
+  // The tenant's key, as the repository names it: opaque to Korpis.
+  string key = 1;
+  // `<repository>/<workload>`, bound into the wrapping and the sealing.
+  bytes context = 2;
+  // An X25519 public key, 32 bytes, made for this call alone.
+  bytes recipient = 3;
+}
+
+// A stored data key opened by the tenant's key and sealed to the recipient.
+message UnwrapKey {
+  string key = 1;
+  bytes context = 2;
+  bytes recipient = 3;
+  // As GenerateKey answered it.
+  bytes wrapped = 4;
+}
+
+// A data key, wrapped for storage (GenerateKey only) and sealed to the call's recipient: HPKE,
+// RFC 9180, base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, ChaCha20-Poly1305, info
+// `korpis.key.v1`, the call's context as associated data; the encapsulated key, then the
+// ciphertext.
+message KeyMaterial {
+  bytes wrapped = 1;
+  bytes sealed = 2;
 }

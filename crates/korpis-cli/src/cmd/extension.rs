@@ -59,7 +59,7 @@ pub enum ExtensionAction {
     /// Calls a provider's liveness check, as an organization sees it, and reports the answer.
     Ping {
         /// Its type: `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
-        /// `edge_router`, or `chat_adapter`.
+        /// `edge_router`, `chat_adapter`, or `key_management`.
         kind: String,
         /// Its name, as its installation provides it.
         name: String,

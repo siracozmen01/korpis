@@ -96,7 +96,8 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             | CallOutcome::StepResult(_)
             | CallOutcome::Access(_)
             | CallOutcome::Objects { .. }
-            | CallOutcome::Deleted { .. } => None.into(),
+            | CallOutcome::Deleted { .. }
+            | CallOutcome::KeyMaterial { .. } => None.into(),
         },
         ..Default::default()
     }

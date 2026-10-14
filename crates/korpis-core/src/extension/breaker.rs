@@ -55,7 +55,9 @@ impl ProviderType {
     pub const fn failure_policy(self) -> FailurePolicy {
         match self {
             Self::Dns | Self::BackupTarget | Self::EdgeRouter => FailurePolicy::Unsatisfiable,
-            Self::Identity => FailurePolicy::FailClosed,
+            // A key it cannot open is a backup no one reads and one no one writes: there is no
+            // other key to fall back to, and there must not be.
+            Self::Identity | Self::KeyManagement => FailurePolicy::FailClosed,
             Self::Step => FailurePolicy::StepFails,
             Self::Health => FailurePolicy::Unknown,
             Self::Console | Self::ChatAdapter => FailurePolicy::Unavailable,

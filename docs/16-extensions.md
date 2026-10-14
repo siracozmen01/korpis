@@ -95,12 +95,12 @@ into, so the installation narrows them. A document that subscribes must need `ev
 delivery reaches only what that grant reaches, and a subscription without it would install cleanly
 and deliver nothing, forever. `provides` entries are `{type, name}`, with a step's `arguments`
 (§5), the type one of `dns`, `backup_target`, `step`, `health`, `console`, `identity`,
-`edge_router`, `chat_adapter`, the name a lowercase word, and for `step` `<publisher>/<step>`, the
-step part one or more lowercase words joined by dots (`valve/steam.app`; corrected 2026-10-13, when
-the first step provider was built: the rule had left the step part undefined, the validation read
-it as one word, and every example in §4 of `09-recipes.md` and §4 of `22-first-party.md` failed
-it). The extension's name, its document's `metadata.name`, is a lowercase word, because it names
-its actions (`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of
+`edge_router`, `chat_adapter`, `key_management`, the name a lowercase word, and for `step`
+`<publisher>/<step>`, the step part one or more lowercase words joined by dots
+(`valve/steam.app`; corrected 2026-10-13, when the first step provider was built: the rule had left
+the step part undefined, the validation read it as one word, and every example in §4 of
+`09-recipes.md` and §4 of `22-first-party.md` failed it). The extension's name, its document's
+`metadata.name`, is a lowercase word, because it names its actions (`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of
 kind `Extension` without one, does not load. Everything else in the document is read as any
 recipe's, by the same parser, so a driver preparing the extension's workload reads it unchanged.
 
@@ -429,7 +429,7 @@ to infer the cause from a graph.
 | Type | Its dependents, when it fails |
 |---|---|
 | `dns`, `backup_target`, `edge_router` | observed `unsatisfiable`, the provider named in the reason; reconciliation retries |
-| `identity` | fail closed: what it would have asserted is refused |
+| `identity`, `key_management` | fail closed: what it would have asserted, or the key it would have opened, is refused; nothing else stands in |
 | `step` | the install step fails with its reason, and the plan stops at that step |
 | `health` | the health it judges is `unknown`, never `unhealthy` |
 | `console`, `chat_adapter` | the request that needed it fails as unavailable and may be retried |
@@ -467,6 +467,16 @@ is drawn from so few. The judgement is made only when a call finishes, so a prov
 stays as last judged, open or closed, until somebody does; an open breaker over a provider nobody
 calls costs nothing. Thresholds are fixed constants, not configuration, until a deployment shows
 a reason for another value.
+
+**A key management provider never answers with a key in the clear**, as built 2026-10-14. It
+holds a repository's key-encryption key for its tenant (§5.5 of `06-storage.md`): it makes a
+workload's data key and wraps it, and opens a wrapped one, for one context,
+`<repository>/<workload>`. Every call names a recipient's one-time X25519 public key, and the
+answer is the data key sealed to it with HPKE (RFC 9180, base mode, DHKEM(X25519, HKDF-SHA256),
+HKDF-SHA256, ChaCha20-Poly1305), the context bound in. Answers travel the stored queue of §3.3 like
+any other, so the rule is what keeps a data key out of the database, its write-ahead log, and its
+backups: what is stored opens only for the recipient, whose secret never leaves the process that
+made it. The SDK seals; an implementation returns the key and never handles a recipient.
 
 The tenant boundary already holds here and is worth naming: a provider installed by one tenant is
 bounded by the grants it was installed with (§4.1), so a slow tenant-installed provider degrades
@@ -549,9 +559,10 @@ that silently orphans an operator's DNS provider is an outage the operator did n
 interface of the contract the control plane actually speaks, never one it merely tolerates:
 `events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
 `identity.credential` (the credential socket, §9.5 of `08-identity.md`), `provider.serve` (a
-provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of three
+provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of four
 provider types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
-`07-networking.md`), and `provider.step` (§4 of `09-recipes.md`). The `provider.<type>` of health,
+`07-networking.md`), `provider.key_management` (§5.5 of `06-storage.md`), and `provider.step` (§4
+of `09-recipes.md`). The `provider.<type>` of health,
 console, identity, edge router, and chat adapter providers is added when that type's own calls join
 the contract; until then an extension requiring one is refused, because installing it would leave
 it waiting for calls nothing makes, the failure six weeks later this section forbids. A capability

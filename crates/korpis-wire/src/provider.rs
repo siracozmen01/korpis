@@ -74,6 +74,12 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
             Some(r) => r,
             None => Request::Ping(Box::default()),
         },
+        CallRequest::GenerateKey { .. } | CallRequest::UnwrapKey { .. } => {
+            match crate::keys::request_to_pb(&c.request) {
+                Some(r) => r,
+                None => Request::Ping(Box::default()),
+            }
+        }
         CallRequest::RunStep { step, arguments, workload, platform } => {
             Request::RunStep(Box::new(run_step_to_pb(step, arguments, *workload, platform)))
         }
@@ -104,6 +110,9 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
             o @ (Outcome::ObjectAccess(_) | Outcome::ObjectList(_) | Outcome::ObjectsDeleted(_)),
         ) => crate::backup::outcome_from_pb(o)
             .unwrap_or(CallOutcome::Failed(CallFailure::malformed())),
+        Some(o @ Outcome::KeyMaterial(_)) => {
+            crate::keys::outcome_from_pb(o).unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
+        }
         Some(Outcome::RecordsApplied(a)) => CallOutcome::RecordsApplied {
             created: a.created,
             updated: a.updated,

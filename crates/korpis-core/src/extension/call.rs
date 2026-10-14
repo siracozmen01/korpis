@@ -49,6 +49,28 @@ pub enum CallRequest {
         /// The keys.
         keys: Vec<String>,
     },
+    /// `key_management`: a new data key, wrapped by the tenant's `key` and sealed to
+    /// `recipient`, for `context` (§5.5 of docs/06-storage.md).
+    GenerateKey {
+        /// The tenant's key, as the repository names it.
+        key: String,
+        /// `<repository>/<workload>`.
+        context: Vec<u8>,
+        /// A one-time X25519 public key.
+        recipient: Vec<u8>,
+    },
+    /// `key_management`: the stored `wrapped` key opened by the tenant's `key` and sealed to
+    /// `recipient`, for `context`.
+    UnwrapKey {
+        /// The tenant's key.
+        key: String,
+        /// `<repository>/<workload>`.
+        context: Vec<u8>,
+        /// A one-time X25519 public key.
+        recipient: Vec<u8>,
+        /// As [`CallRequest::GenerateKey`] was answered.
+        wrapped: Vec<u8>,
+    },
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -61,6 +83,14 @@ pub enum CallRequest {
         platform: super::Platform,
     },
 }
+
+/// A data key sealed to a recipient: the encapsulated X25519 key, then the 32-byte key and its
+/// tag (§5.5 of docs/06-storage.md).
+pub const SEALED_LEN: usize = 32 + 32 + 16;
+
+/// The most a wrapped data key may hold: a key management service's ciphertext and its own
+/// framing, never a payload.
+pub const MAX_WRAPPED: usize = 4096;
 
 /// How a call ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +116,14 @@ pub enum CallOutcome {
     },
     /// The answer to [`CallRequest::RunStep`].
     StepResult(super::StepResult),
+    /// The answer to [`CallRequest::GenerateKey`] and [`CallRequest::UnwrapKey`]: the key
+    /// wrapped for storage (generating only) and sealed to the recipient.
+    KeyMaterial {
+        /// Wrapped by the tenant's key; empty when unwrapping.
+        wrapped: Vec<u8>,
+        /// Sealed to the call's recipient.
+        sealed: Vec<u8>,
+    },
     /// The answer to [`CallRequest::ApplyRecords`]: what it changed.
     RecordsApplied {
         /// Records created.
@@ -119,6 +157,12 @@ impl CallRequest {
             }
             (Self::DeleteObjects { keys }, CallOutcome::Deleted { count }) => {
                 usize::try_from(*count).is_ok_and(|n| n <= keys.len())
+            }
+            (Self::GenerateKey { .. }, CallOutcome::KeyMaterial { wrapped, sealed }) => {
+                !wrapped.is_empty() && wrapped.len() <= MAX_WRAPPED && sealed.len() == SEALED_LEN
+            }
+            (Self::UnwrapKey { .. }, CallOutcome::KeyMaterial { wrapped, sealed }) => {
+                wrapped.is_empty() && sealed.len() == SEALED_LEN
             }
             _ => false,
         }

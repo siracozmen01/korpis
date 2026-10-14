@@ -39,6 +39,7 @@ pub mod dns;
 pub mod event;
 pub mod extension;
 pub mod journal;
+pub mod keys;
 pub mod node;
 pub mod observation;
 pub mod placement;

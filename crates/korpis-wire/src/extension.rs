@@ -28,6 +28,7 @@ enum_map!(provider_type_to_pb, provider_type_from_pb, ProviderType, pb::Provider
     ProviderType::Identity => pb::ProviderType::PROVIDER_TYPE_IDENTITY,
     ProviderType::EdgeRouter => pb::ProviderType::PROVIDER_TYPE_EDGE_ROUTER,
     ProviderType::ChatAdapter => pb::ProviderType::PROVIDER_TYPE_CHAT_ADAPTER,
+    ProviderType::KeyManagement => pb::ProviderType::PROVIDER_TYPE_KEY_MANAGEMENT,
 });
 
 /// The wire form of a need.

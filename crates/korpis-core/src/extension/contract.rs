@@ -21,6 +21,9 @@ pub const CAPABILITIES: &[&str] = &[
     "provider.backup_target",
     // DNS providers' calls: applying an owner's records, §3.5 of docs/07-networking.md.
     "provider.dns",
+    // Key management providers' calls: a data key made, and one opened, each sealed to its
+    // recipient, §5.5 of docs/06-storage.md.
+    "provider.key_management",
     // A provider's stream: registering, being pinged, and being cancelled, §3.3.
     "provider.serve",
     // Recipe step providers' calls: resolving a step into artifacts, §4 of docs/09-recipes.md.

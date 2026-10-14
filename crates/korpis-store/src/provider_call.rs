@@ -4,6 +4,7 @@
 
 mod backup;
 mod json;
+mod keys;
 mod value;
 
 use crate::errors::from_sqlx;

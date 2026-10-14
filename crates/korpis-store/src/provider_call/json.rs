@@ -100,6 +100,10 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
             // Always some for these three.
             super::backup::request_to(r).unwrap_or(Value::Null)
         }
+        CallRequest::GenerateKey { .. } | CallRequest::UnwrapKey { .. } => {
+            // Always some for these two.
+            super::keys::request_to(r).unwrap_or(Value::Null)
+        }
         CallRequest::ApplyRecords { owner, records } => json!({
             "apply_records": {
                 "owner": owner,
@@ -116,6 +120,9 @@ pub(crate) fn request_from(v: &Value) -> StoreResult<CallRequest> {
         return Ok(CallRequest::Ping { nonce });
     }
     if let Some(r) = super::backup::request_from(v) {
+        return Ok(r);
+    }
+    if let Some(r) = super::keys::request_from(v) {
         return Ok(r);
     }
     if let Some(r) = v.get("run_step") {
@@ -140,6 +147,7 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
             // Always some for these three.
             super::backup::outcome_to(o).unwrap_or(Value::Null)
         }
+        CallOutcome::KeyMaterial { .. } => super::keys::outcome_to(o).unwrap_or(Value::Null),
         CallOutcome::RecordsApplied { created, updated, deleted } => json!({
             "records_applied": { "created": created, "updated": updated, "deleted": deleted }
         }),
@@ -156,6 +164,9 @@ pub(crate) fn outcome_from(v: &Value) -> StoreResult<CallOutcome> {
         return Ok(CallOutcome::Pong { nonce });
     }
     if let Some(o) = super::backup::outcome_from(v) {
+        return Ok(o);
+    }
+    if let Some(o) = super::keys::outcome_from(v) {
         return Ok(o);
     }
     if let Some(r) = v.get("step_result") {

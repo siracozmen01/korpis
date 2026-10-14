@@ -88,6 +88,7 @@ fn every_type_declares_how_its_failure_is_treated() {
             P::FailClosed,
             P::Unsatisfiable,
             P::Unavailable,
+            P::FailClosed,
         ]
     );
 }

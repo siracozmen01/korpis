@@ -129,11 +129,13 @@ pub enum ProviderType {
     EdgeRouter,
     /// A chat platform adapter.
     ChatAdapter,
+    /// A key management service holding a repository's key-encryption key for its tenant.
+    KeyManagement,
 }
 
 impl ProviderType {
     /// Every type, in declaration order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Dns,
         Self::BackupTarget,
         Self::Step,
@@ -142,6 +144,7 @@ impl ProviderType {
         Self::Identity,
         Self::EdgeRouter,
         Self::ChatAdapter,
+        Self::KeyManagement,
     ];
 
     /// The name a document writes.
@@ -156,6 +159,7 @@ impl ProviderType {
             Self::Identity => "identity",
             Self::EdgeRouter => "edge_router",
             Self::ChatAdapter => "chat_adapter",
+            Self::KeyManagement => "key_management",
         }
     }
 
