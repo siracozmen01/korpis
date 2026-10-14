@@ -21,6 +21,7 @@ syntax = "proto3";
 package korpis.backup.v1;
 
 import "google/protobuf/timestamp.proto";
+import "korpis/v1/provider.proto";
 
 // One directory's entries, sorted by name.
 message Tree {
@@ -129,4 +130,88 @@ message BackupStats {
   // Entries read but not backed up, and why: a file that vanished during the read, a name the
   // job could not open.
   repeated string skipped = 7;
+}
+
+// One job a node runs (§5.5 of docs/06-storage.md), as the job receives it on its standard input
+// and nowhere else. The supervisor asks the helper for it by identifiers; the helper fills in every
+// path, so nothing the supervisor or a tenant chose names a place on the node.
+message JobSpec {
+  // The job's identifier, as the supervisor named it.
+  string id = 1;
+  oneof work {
+    BackupWork backup = 2;
+    RestoreWork restore = 3;
+  }
+  // The workload's data key, 32 bytes, for the length of the job.
+  bytes data_key = 4;
+  // The store, with access granted to the workload's prefix alone.
+  korpis.v1.S3Access store = 5;
+  // How many objects are moved at once.
+  uint32 concurrency = 6;
+  // Filled in by the helper.
+  //
+  // The directory a backup reads, or a restore writes into.
+  string directory = 7;
+  // The cgroup the job joins before it does anything; empty where there is none to join.
+  string cgroup = 8;
+  // The file the job writes its result to.
+  string result = 9;
+  // Where recipe content is kept, by sha256, for a restore.
+  string content = 10;
+}
+
+message BackupWork {
+  // The backup's identifier.
+  string backup = 1;
+  // The workload's last backup, whose unchanged files are not read again; empty for none.
+  string parent = 2;
+  // Whether the directory is a snapshot.
+  bool consistent = 3;
+  // Recipe content a file may be recorded by reference to.
+  repeated RecipeContent content = 4;
+}
+
+message RecipeContent {
+  uint64 size = 1;
+  bytes sha256 = 2;
+}
+
+message RestoreWork {
+  string backup = 1;
+  // One path in the backup; empty for the whole volume.
+  string path = 2;
+}
+
+// What a job did, as it writes it when it ends.
+message JobResult {
+  // Whether it did what it was asked; why not when it did not.
+  bool ok = 1;
+  string error = 2;
+  // A backup job's record, as written to the store.
+  Backup backup = 3;
+  // A restore job's account, verified before it is reported.
+  Restored restored = 4;
+  // What confined it while it ran.
+  Confinement confinement = 5;
+}
+
+message Restored {
+  uint64 files = 1;
+  uint64 directories = 2;
+  uint64 bytes = 3;
+  repeated string skipped = 4;
+  // What was restored was compared with the backup and found the same.
+  bool verified = 5;
+}
+
+// What held a job in, each as the kernel reported it, so a confinement a host cannot apply is
+// shown as absent rather than assumed.
+message Confinement {
+  // In a cgroup of its own, with a low weight and a ceiling.
+  bool cgroup = 1;
+  // Landlock: the filesystem beyond its directory, and connections to any port but the store's.
+  bool landlock_filesystem = 2;
+  bool landlock_network = 3;
+  // The capabilities it kept.
+  repeated string capabilities = 4;
 }

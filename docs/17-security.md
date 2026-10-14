@@ -134,6 +134,8 @@ The agent is where tenant data meets root, so it is decomposed until no single p
 supervisor          unprivileged. talks to the control plane, holds no root, touches no tenant path.
 privileged helper   root, tiny, no tenant input. performs an enumerated set of operations.
 filesystem workers  one per workload, in a namespace holding only its volumes, Landlocked to them.
+backup jobs         one per backup or restore, started by the helper, holding one workload's data
+                    key and only the capabilities their work needs, Landlocked to one directory.
 runtime drivers     separate processes, each holding only its own driver's privileges.
 ```
 
@@ -160,6 +162,14 @@ the OCI driver does not, and a merged runtime would grant both to both.
   is a vulnerability in the tier, and the tier's row in §5 is only as strong as they are.
 - **The helper is root.** It is tiny and takes no tenant input, which makes bugs in it unlikely, not
   impossible; a bug in it is root on the node.
+- **A backup job reads tenant data with privilege.** It must read every file of a volume whoever
+  owns it, or restore every owner, so it keeps `CAP_DAC_READ_SEARCH` to back up, and
+  `CAP_CHOWN`, `CAP_FOWNER`, `CAP_DAC_OVERRIDE`, `CAP_FSETID`, `CAP_MKNOD`, and `CAP_SETFCAP` to
+  restore (§5.5 of `06-storage.md`). Landlock confines it to the one directory and to connections
+  to the store's port, and its walk never follows a link, so a bug in it reaches that directory and
+  that store; but it is uid 0 in the host's namespaces, and a kernel without Landlock (before 5.13,
+  or before 6.7 for the port rule) leaves it confined by its own code alone, which its result says.
+  Name resolution is not confined, since it travels over UDP, which Landlock does not govern.
 
 None of this changes the design. It changes what the design is allowed to claim, which is the
 point of this section.

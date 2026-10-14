@@ -11,8 +11,10 @@
 
 mod apply;
 pub mod backup;
+pub mod confine;
 pub mod error;
 mod file;
+pub mod job;
 pub mod keys;
 mod meta;
 pub mod name;
@@ -22,6 +24,8 @@ pub mod s3;
 pub mod seal;
 mod sink;
 pub mod store;
+#[cfg(feature = "testing")]
+pub mod testing;
 pub mod verify;
 mod walk;
 

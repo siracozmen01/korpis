@@ -106,6 +106,10 @@ pub fn serve(
         if let Some(idle) = idle
             && !arrives(listener, idle)?
         {
+            // A job it started is a child: it waits for it rather than leave it behind.
+            if helper.busy() {
+                continue;
+            }
             tracing::info!("idle; exiting until the next connection");
             return Ok(());
         }

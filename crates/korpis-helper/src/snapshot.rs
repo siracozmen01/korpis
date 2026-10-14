@@ -40,7 +40,7 @@ impl Class {
     }
 
     /// The directory holding `volume`'s snapshots.
-    fn snapshot_dir(&self, volume: &str) -> PathBuf {
+    pub(crate) fn snapshot_dir(&self, volume: &str) -> PathBuf {
         self.root().join(SNAPSHOTS).join(volume)
     }
 

@@ -30,7 +30,7 @@ pub async fn verify<S: ObjectStore + 'static>(
     let record = repo.backup(backup).await?;
     let keys = std::sync::Arc::clone(repo.keys());
     let (root, trees) = tokio::task::spawn_blocking(move || {
-        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
         let fd = rustix::fs::open(&restored, flags, Mode::empty()).map_err(sys("."))?;
         let content = Content::default();
         let mut w = Walker::new(&keys, Dry::default(), &content, &fd)?;

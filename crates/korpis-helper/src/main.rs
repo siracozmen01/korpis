@@ -5,6 +5,7 @@
 
 use korpis_helper::helper::Helper;
 use korpis_helper::ids::Ledger;
+use korpis_helper::job::JobConfig;
 use korpis_helper::serve::{bound, inherited, serve};
 use korpis_helper::storage::Class;
 use std::collections::BTreeSet;
@@ -14,7 +15,8 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
-                     [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS]";
+                     [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
+                     [--job-binary PATH] [--job-cgroups PATH|none] [--content PATH]";
 
 /// What the helper was told.
 struct Args {
@@ -25,6 +27,10 @@ struct Args {
     state: PathBuf,
     allow: Vec<u32>,
     idle: Option<Duration>,
+    /// The job binary; beside this one when not given.
+    job_binary: Option<PathBuf>,
+    job_cgroups: Option<PathBuf>,
+    content: PathBuf,
 }
 
 fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
@@ -35,6 +41,9 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         state: PathBuf::from("/var/lib/korpis/helper"),
         allow: Vec::new(),
         idle: None,
+        job_binary: None,
+        job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
+        content: PathBuf::from("/var/lib/korpis-agent/content/blobs/sha256"),
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
@@ -46,6 +55,12 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--class" => a.class = value()?,
             "--state" => a.state = PathBuf::from(value()?),
             "--allow-uid" => a.allow.push(value()?.parse().map_err(|e| format!("{e}"))?),
+            "--job-binary" => a.job_binary = Some(PathBuf::from(value()?)),
+            "--job-cgroups" => {
+                let v = value()?;
+                a.job_cgroups = (v != "none").then(|| PathBuf::from(v));
+            }
+            "--content" => a.content = PathBuf::from(value()?),
             "--idle" => {
                 a.idle = Some(Duration::from_secs(value()?.parse().map_err(|e| format!("{e}"))?));
             }
@@ -72,7 +87,19 @@ fn run(a: Args) -> Result<(), String> {
         None => inherited(),
     }
     .map_err(|e| format!("socket: {e}"))?;
-    let mut helper = Helper::new(vec![class], ledger);
+    let binary = match a.job_binary {
+        Some(b) => b,
+        None => {
+            std::env::current_exe().map_err(|e| e.to_string())?.with_file_name("korpis-backup-job")
+        }
+    };
+    let jobs = JobConfig {
+        binary,
+        state: a.state.clone(),
+        cgroups: a.job_cgroups,
+        content: Some(a.content),
+    };
+    let mut helper = Helper::new(vec![class], ledger).with_jobs(jobs);
     tracing::info!(?allowed, "serving");
     serve(&listener, &allowed, &mut helper, a.idle).map_err(|e| e.to_string())
 }

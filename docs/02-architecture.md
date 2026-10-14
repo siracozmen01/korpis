@@ -974,8 +974,8 @@ structure below is designed so that class of bug has nowhere to live.
 │  netns create,   │   │  In a mount namespace holding that     │
 │  volume create,  │   │  workload's volumes and nothing else.  │
 │  snapshot,       │   │  Unprivileged. Landlock-confined.      │
-│  worker spawn    │   │  openat2(RESOLVE_BENEATH) for every    │
-│                  │   │  path operation.                       │
+│  worker spawn,   │   │  openat2(RESOLVE_BENEATH) for every    │
+│  job start       │   │  path operation.                       │
 │  No paths from   │   │  Serves the file manager and SFTP.     │
 │  tenants. No     │   │  Cannot name a path outside the        │
 │  arbitrary exec. │   │  workload's volumes, not by policy, by │

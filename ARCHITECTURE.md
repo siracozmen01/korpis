@@ -84,7 +84,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream |
 | `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
 | `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits, read by the agent; and `korpis-stream-writer`, the binary a containerd shim starts beside each workload to write its stream (`14-streams.md`) |
-| `korpis-backup` | driven adapter, shared | AGPL-3.0 | backups: content-defined chunks and directory trees sealed under a workload's data key, written to and read from an object store (§5 of `06-storage.md`), by the job a node runs and by the control plane browsing a backup |
+| `korpis-backup` | driven adapter, shared | AGPL-3.0 | backups: content-defined chunks and directory trees sealed under a workload's data key, written to and read from an object store (§5 of `06-storage.md`); and `korpis-backup-job`, the binary the helper starts for each backup or restore, which confines itself before it reads anything (§5.5 there) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 | `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
 

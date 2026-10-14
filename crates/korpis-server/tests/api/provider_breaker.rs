@@ -5,7 +5,7 @@
 //! calls at once while open, probes after its backoff, and each change is an event.
 
 use crate::provider_calls::{call, next, ping, pong, reason, registered};
-use crate::providers::installed;
+use crate::providers::{Serve, installed};
 use crate::support::Harness;
 use korpis_core::extension::FIRST_BACKOFF;
 use korpis_proto::korpis::v1 as pb;
@@ -70,6 +70,18 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     assert!(shown.median_deadline_permille >= 800, "{shown:?}");
 }
 
+/// The next call down `stream` within half a second of the last message, past cancellations.
+async fn next_call(stream: &mut Serve) -> Option<Box<pb::ProviderCall>> {
+    loop {
+        match next(stream, Duration::from_millis(500)).await {
+            Some(Down::Call(c)) => return Some(c),
+            Some(Down::Cancel(_)) => {}
+            None => return None,
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+}
+
 #[tokio::test]
 async fn a_failing_provider_trips_then_a_probe_that_succeeds_closes_it() {
     let h = Harness::new().await;
@@ -84,19 +96,27 @@ async fn a_failing_provider_trips_then_a_probe_that_succeeds_closes_it() {
     assert_eq!(events.len(), 1, "{events:?}");
     assert_eq!(events[0].2, "failure");
 
-    // Its backoff passes; the next call is the probe, and it is answered at once.
-    tokio::time::sleep(FIRST_BACKOFF + Duration::from_millis(200)).await;
-    let probing = ping(&h, "cloudflare", Duration::from_secs(5));
-    // Ten calls went down before the trip, each followed by its cancellation; the eleventh call
-    // is the probe.
+    // Ten calls went down before the trip, each followed by its cancellation.
     let mut seen = 0;
-    let probe = loop {
+    while seen < 10 {
         match next(&mut stream, Duration::from_secs(5)).await {
-            Some(Down::Call(c)) if seen == 10 => break c,
             Some(Down::Call(_)) => seen += 1,
             Some(Down::Cancel(_)) => {}
             other => panic!("unexpected {other:?}"),
         }
+    }
+    // Once its backoff passes, the next call is the probe, and it is answered at once. The trip
+    // is recorded as the last deadline is, so the backoff is waited out by asking until a call
+    // is let through rather than by a sleep that a loaded machine can outrun.
+    tokio::time::sleep(FIRST_BACKOFF).await;
+    let (probe, probing) = loop {
+        let probing = ping(&h, "cloudflare", Duration::from_secs(5));
+        // A late cancellation of one of the ten may still come first.
+        let call = next_call(&mut stream).await;
+        if let Some(c) = call {
+            break (c, probing);
+        }
+        assert_eq!(reason(&probing.await.unwrap()), "provider.circuit_open", "refused, not lost");
     };
     pong(&mut stream, &probe).await;
     assert_eq!(reason(&probing.await.unwrap()), "");

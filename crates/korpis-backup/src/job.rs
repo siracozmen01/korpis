@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! One job, as the node runs it (§5.5 of docs/06-storage.md): the spec read from standard input,
+//! the job confined, the work done against the store the spec grants, and the result written
+//! where the helper reads it, whether the work succeeded or not. A restore is verified before it
+//! is reported.
+
+use crate::confine::{Bounds, Work, confine};
+use crate::error::Error;
+use crate::keys::{KEY_LEN, Keys};
+use crate::s3::{S3Config, S3Store};
+use crate::{Content, Options, Repo, Restore, backup, restore, verify};
+use buffa::Message as _;
+use korpis_proto::korpis::backup::v1 as pb;
+use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+use std::io::Read as _;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+/// The largest spec a job reads.
+const SPEC_LIMIT: u64 = 16 << 20;
+
+/// Why a job could not begin.
+#[derive(Debug, thiserror::Error)]
+pub enum JobError {
+    /// The spec did not arrive, or is not one.
+    #[error("the job's spec: {0}")]
+    Spec(String),
+    /// The job could not be confined as the kernel offers.
+    #[error(transparent)]
+    Confine(#[from] crate::confine::ConfineError),
+}
+
+/// Reads the spec from `input`.
+pub fn read_spec(input: impl std::io::Read) -> Result<pb::JobSpec, JobError> {
+    let mut bytes = Vec::new();
+    input.take(SPEC_LIMIT).read_to_end(&mut bytes).map_err(|e| JobError::Spec(e.to_string()))?;
+    pb::JobSpec::decode_from_slice(&bytes).map_err(|e| JobError::Spec(e.to_string()))
+}
+
+/// The bounds `spec` sets.
+pub fn bounds(spec: &pb::JobSpec) -> Result<Bounds, JobError> {
+    let work = match &spec.work {
+        Some(W::Backup(_)) => Work::Backup,
+        Some(W::Restore(_)) => Work::Restore,
+        None => return Err(JobError::Spec("no work".into())),
+    };
+    let store = spec.store.as_option().ok_or_else(|| JobError::Spec("no store".into()))?;
+    let url =
+        url::Url::parse(&store.endpoint).map_err(|e| JobError::Spec(format!("the store: {e}")))?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| JobError::Spec("the store has no port".into()))?;
+    let result = PathBuf::from(&spec.result);
+    let state =
+        result.parent().map(Path::to_path_buf).ok_or_else(|| JobError::Spec("no result".into()))?;
+    let optional = |s: &str| (!s.is_empty()).then(|| PathBuf::from(s));
+    Ok(Bounds {
+        work,
+        directory: PathBuf::from(&spec.directory),
+        state,
+        content: optional(&spec.content),
+        cgroup: optional(&spec.cgroup),
+        port,
+    })
+}
+
+/// Confines this process to `spec`'s bounds; it must still be one thread.
+pub fn confine_to(spec: &pb::JobSpec) -> Result<pb::Confinement, JobError> {
+    Ok(confine(&bounds(spec)?)?)
+}
+
+/// Recipe content kept by the content store, by sha256.
+struct ContentDir(PathBuf);
+
+impl crate::ContentSource for ContentDir {
+    fn open(&self, sha256: &str) -> std::io::Result<Option<std::fs::File>> {
+        if sha256.len() != 64 || !sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Ok(None);
+        }
+        match std::fs::File::open(self.0.join(sha256)) {
+            Ok(f) => Ok(Some(f)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+fn repo(spec: &pb::JobSpec) -> Result<Repo<S3Store>, Error> {
+    let s = spec.store.as_option().ok_or_else(|| Error::Refused("no store".into()))?;
+    let config = S3Config {
+        endpoint: s.endpoint.clone(),
+        region: s.region.clone(),
+        bucket: s.bucket.clone(),
+        key_prefix: s.key_prefix.clone(),
+        access_key_id: s.access_key_id.clone(),
+        secret_access_key: s.secret_access_key.clone(),
+        session_token: s.session_token.clone(),
+        path_style: s.path_style,
+    };
+    let key: [u8; KEY_LEN] = spec
+        .data_key
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::Refused("a data key is 32 bytes".into()))?;
+    Ok(Repo::new(Arc::new(S3Store::new(config)?), Arc::new(Keys::derive(&key))))
+}
+
+/// Does `spec`'s work; what it did.
+pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
+    let r = repo(spec)?;
+    let concurrency = usize::try_from(spec.concurrency).unwrap_or(1).clamp(1, 64);
+    let directory = PathBuf::from(&spec.directory);
+    let mut result = pb::JobResult { ok: true, ..Default::default() };
+    match &spec.work {
+        Some(W::Backup(b)) => {
+            let content =
+                Content::new(b.content.iter().filter_map(|c| {
+                    Some((c.size, <[u8; 32]>::try_from(c.sha256.as_slice()).ok()?))
+                }));
+            let parent = (!b.parent.is_empty()).then(|| b.parent.clone());
+            let options = Options {
+                source: directory,
+                consistent: b.consistent,
+                parent,
+                content,
+                concurrency,
+            };
+            result.backup = backup(&r, &b.backup, options).await?.into();
+        }
+        Some(W::Restore(w)) => {
+            let content: Arc<dyn crate::ContentSource> =
+                Arc::new(ContentDir(PathBuf::from(&spec.content)));
+            let what = Restore {
+                backup: w.backup.clone(),
+                path: w.path.clone(),
+                target: directory.clone(),
+                content,
+                concurrency,
+            };
+            let done = restore(&r, what).await?;
+            verify(&r, &w.backup, &w.path, directory).await?;
+            result.restored = pb::Restored {
+                files: done.files,
+                directories: done.directories,
+                bytes: done.bytes,
+                skipped: done.skipped,
+                verified: true,
+                ..Default::default()
+            }
+            .into();
+        }
+        None => return Err(Error::Refused("no work".into())),
+    }
+    Ok(result)
+}
+
+/// Writes `result` to `path`, whole or not at all.
+pub fn write_result(path: &Path, result: &pb::JobResult) -> std::io::Result<()> {
+    let staging = path.with_extension("partial");
+    std::fs::write(&staging, result.encode_to_vec())?;
+    std::fs::File::open(&staging)?.sync_all()?;
+    std::fs::rename(&staging, path)
+}

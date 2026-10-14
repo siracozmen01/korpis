@@ -19,12 +19,14 @@ buffa = { version = "=0.9.2" }
 korpis-core.workspace = true
 korpis-proto = { workspace = true }
 libc = "0.2"
-rustix = { version = "1", features = ["event", "fs", "net", "std"] }
+rustix = { version = "1", features = ["event", "fs", "net", "process", "std"] }
 thiserror = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 korpis-agent = { path = "../korpis-agent" }
+korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 tempfile = "3"
+rustix = { version = "1", features = ["process"] }
 tokio = { workspace = true }

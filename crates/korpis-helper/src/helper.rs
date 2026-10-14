@@ -7,6 +7,7 @@
 
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
+use crate::job::{JobConfig, Jobs, Placed, make_into};
 use crate::storage::Class;
 use buffa::Message as _;
 use korpis_core::workload::assignment::IdRange;
@@ -19,6 +20,7 @@ use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 pub struct Helper {
     classes: Vec<Class>,
     ledger: Ledger,
+    jobs: Option<Jobs>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -33,7 +35,83 @@ impl Helper {
     /// A helper offering `classes`, the first the default, and keeping `ledger`.
     #[must_use]
     pub fn new(classes: Vec<Class>, ledger: Ledger) -> Self {
-        Self { classes, ledger }
+        Self { classes, ledger, jobs: None }
+    }
+
+    /// The same helper, running backup and restore jobs as `config` says.
+    #[must_use]
+    pub fn with_jobs(mut self, config: JobConfig) -> Self {
+        self.jobs = Some(Jobs::new(config));
+        self
+    }
+
+    /// Whether a job this helper started still runs, so it must not exit while idle.
+    pub fn busy(&mut self) -> bool {
+        self.jobs.as_mut().is_some_and(Jobs::busy)
+    }
+
+    fn jobs(&mut self) -> HelperResult<&mut Jobs> {
+        self.jobs.as_mut().ok_or_else(|| HelperError::Refused("this helper runs no jobs".into()))
+    }
+
+    /// What job `r` works in, from the identifiers it names.
+    fn place(&mut self, r: &helper::StartJobRequest) -> HelperResult<Placed> {
+        use korpis_proto::korpis::backup::v1 as pb;
+        use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+        use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work as R;
+        match &r.work {
+            Some(R::Backup(b)) => {
+                let directory = self.holding(&b.volume)?.backup_source(&b.volume, &b.snapshot)?;
+                let work = pb::BackupWork {
+                    backup: b.backup.clone(),
+                    parent: b.parent.clone(),
+                    consistent: !b.snapshot.is_empty(),
+                    content: b.content.clone(),
+                    ..Default::default()
+                };
+                Ok(Placed { directory, work: W::Backup(Box::new(work)) })
+            }
+            Some(R::Restore(w)) => {
+                let volume = self.holding(&w.volume)?.path_of(&w.volume);
+                let directory =
+                    if w.into.is_empty() { volume } else { make_into(&volume, &w.into)? };
+                let work = pb::RestoreWork {
+                    backup: w.backup.clone(),
+                    path: w.path.clone(),
+                    ..Default::default()
+                };
+                Ok(Placed { directory, work: W::Restore(Box::new(work)) })
+            }
+            None => Err(HelperError::Refused("a job names its work".into())),
+        }
+    }
+
+    /// The answer to a job verb.
+    fn job(&mut self, verb: Verb) -> HelperResult<Answer> {
+        self.jobs()?;
+        Ok(match verb {
+            Verb::StartJob(r) => {
+                let placed = self.place(&r)?;
+                let started = self.jobs()?.start(&r, placed)?;
+                Answer::StartJob(Box::new(helper::StartJobResponse {
+                    started,
+                    ..Default::default()
+                }))
+            }
+            Verb::JobStatus(r) => Answer::JobStatus(Box::new(self.jobs()?.status(&r.job)?)),
+            Verb::CancelJob(r) => {
+                let cancelled = self.jobs()?.cancel(&r.job)?;
+                Answer::CancelJob(Box::new(helper::CancelJobResponse {
+                    cancelled,
+                    ..Default::default()
+                }))
+            }
+            Verb::ForgetJob(r) => {
+                self.jobs()?.forget(&r.job)?;
+                Answer::ForgetJob(Box::default())
+            }
+            _ => return Err(HelperError::Refused("not a job verb".into())),
+        })
     }
 
     /// The class `name` names; the default when it names none.
@@ -101,6 +179,10 @@ impl Helper {
                     ..Default::default()
                 }))
             }
+            v @ (Verb::StartJob(_)
+            | Verb::JobStatus(_)
+            | Verb::CancelJob(_)
+            | Verb::ForgetJob(_)) => self.job(v)?,
             Verb::DescribeStorage(_) => {
                 let classes = self.classes.iter().map(Class::describe).collect();
                 Answer::DescribeStorage(Box::new(helper::DescribeStorageResponse {

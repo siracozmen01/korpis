@@ -15,7 +15,9 @@ syntax = "proto3";
 
 package korpis.helper.v1;
 
+import "korpis/backup/v1/backup.proto";
 import "korpis/v1/placement.proto";
+import "korpis/v1/provider.proto";
 
 service HelperService {
   // Create a workload volume in a storage class, with byte and inode quota enforced by the
@@ -39,6 +41,11 @@ service HelperService {
   rpc RollbackVolume(RollbackVolumeRequest) returns (RollbackVolumeResponse);
   // Remove one snapshot of a volume. Reached only from an approved, irreversible plan step.
   rpc DeleteSnapshot(DeleteSnapshotRequest) returns (DeleteSnapshotResponse);
+  // Start, watch, end, and forget a backup or restore job, below.
+  rpc StartJob(StartJobRequest) returns (StartJobResponse);
+  rpc JobStatus(JobStatusRequest) returns (JobStatusResponse);
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+  rpc ForgetJob(ForgetJobRequest) returns (ForgetJobResponse);
 }
 
 // One request, as the transport carries it.
@@ -52,6 +59,10 @@ message HelperRequest {
     SnapshotVolumeRequest snapshot_volume = 6;
     RollbackVolumeRequest rollback_volume = 7;
     DeleteSnapshotRequest delete_snapshot = 8;
+    StartJobRequest start_job = 9;
+    JobStatusRequest job_status = 10;
+    CancelJobRequest cancel_job = 11;
+    ForgetJobRequest forget_job = 12;
   }
 }
 
@@ -66,6 +77,10 @@ message HelperResponse {
     SnapshotVolumeResponse snapshot_volume = 6;
     RollbackVolumeResponse rollback_volume = 7;
     DeleteSnapshotResponse delete_snapshot = 8;
+    StartJobResponse start_job = 9;
+    JobStatusResponse job_status = 10;
+    CancelJobResponse cancel_job = 11;
+    ForgetJobResponse forget_job = 12;
     HelperError error = 15;
   }
 }
@@ -172,3 +187,82 @@ message DescribeStorageRequest {}
 message DescribeStorageResponse {
   repeated korpis.v1.StorageClassInfo classes = 1;
 }
+
+// Starts a backup or restore job (§5.5 of docs/06-storage.md) as a process of its own, in a
+// cgroup of its own, holding only the capabilities its work needs and confined by Landlock to the
+// one directory it works in. The helper names that directory from the identifiers below; the job
+// receives the data key and the store's access on its standard input. Idempotent by job: a job
+// already started is not started again.
+message StartJobRequest {
+  // The job's identifier: letters, digits, '-', '_', '.', at most 128.
+  string job = 1;
+  oneof work {
+    BackupVolume backup = 2;
+    RestoreVolume restore = 3;
+  }
+  bytes data_key = 4;
+  korpis.v1.S3Access store = 5;
+  uint32 concurrency = 6;
+}
+
+message BackupVolume {
+  string volume = 1;
+  // The snapshot to read, taken for the job; empty to read the live volume, which is then
+  // recorded as possibly inconsistent.
+  string snapshot = 2;
+  string backup = 3;
+  string parent = 4;
+  repeated korpis.backup.v1.RecipeContent content = 5;
+}
+
+message RestoreVolume {
+  // The volume restored into. For a whole volume it must be empty.
+  string volume = 1;
+  string backup = 2;
+  // One path in the backup; empty for the whole volume.
+  string path = 3;
+  // For one path: a directory created at the volume's root to restore it into, which must not
+  // exist; empty for the whole volume.
+  string into = 4;
+}
+
+message StartJobResponse {
+  bool started = 1;
+}
+
+message JobStatusRequest {
+  string job = 1;
+}
+
+message JobStatusResponse {
+  JobState state = 1;
+  // Once it finished.
+  korpis.backup.v1.JobResult result = 2;
+}
+
+enum JobState {
+  JOB_STATE_UNSPECIFIED = 0;
+  JOB_STATE_RUNNING = 1;
+  JOB_STATE_FINISHED = 2;
+  // It ended without writing a result: killed, or the node went down under it.
+  JOB_STATE_LOST = 3;
+  // No job of that identifier is known.
+  JOB_STATE_UNKNOWN = 4;
+}
+
+// Ends a running job. What it wrote stays: a backup's objects are reused by the next, and a
+// restore's directory is the caller's to remove.
+message CancelJobRequest {
+  string job = 1;
+}
+
+message CancelJobResponse {
+  bool cancelled = 1;
+}
+
+// Removes what the helper keeps of a job that ended: its result and its cgroup.
+message ForgetJobRequest {
+  string job = 1;
+}
+
+message ForgetJobResponse {}

@@ -71,7 +71,7 @@ pub async fn backup<S: ObjectStore + 'static>(
     };
     let keys = std::sync::Arc::clone(repo.keys());
     let walk = tokio::task::spawn_blocking(move || {
-        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
         let root = rustix::fs::open(&options.source, flags, Mode::empty()).map_err(sys("."))?;
         let mut w = Walker::new(&keys, sink, &options.content, &root)?;
         let (entry, tree) = w.root(&root, parent.as_deref())?;

@@ -106,7 +106,7 @@ pub async fn restore<S: ObjectStore + 'static>(repo: &Repo<S>, what: Restore) ->
     let repo = repo.clone();
     let handle = tokio::runtime::Handle::current();
     tokio::task::spawn_blocking(move || {
-        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
         let root = rustix::fs::open(&what.target, flags, Mode::empty()).map_err(sys("."))?;
         let mut r = Restorer {
             repo,

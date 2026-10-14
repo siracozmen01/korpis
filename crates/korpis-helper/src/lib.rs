@@ -16,6 +16,7 @@ pub mod error;
 pub mod frame;
 pub mod helper;
 pub mod ids;
+pub mod job;
 pub mod projects;
 pub mod quota;
 pub mod serve;

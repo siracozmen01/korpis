@@ -11,6 +11,14 @@ publish.workspace = true
 [lints]
 workspace = true
 
+[features]
+# A MinIO fixture for tests, in this crate's and other crates' tests.
+testing = []
+
+[[bin]]
+name = "korpis-backup-job"
+path = "src/bin/job.rs"
+
 [dependencies]
 # Chunk and tree identifiers: a keyed hash, so equal content in two workloads has unrelated
 # identifiers (§5.3 of docs/06-storage.md).
@@ -27,13 +35,15 @@ bytes = "1"
 fastcdc = "5"
 getrandom = "0.4"
 hkdf = "0.12"
+# A job confines itself to its directory and its store's port before it reads anything.
+landlock = "0.4"
 # The repository format's messages only: no RPC stack.
 korpis-proto = { workspace = true }
 # The node's one object store client: every store a repository can name speaks S3 or is fronted
 # by something that does (§5.6 of docs/06-storage.md). Requests are signed without I/O, and sent
 # with the HTTP client the agent already links.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2"] }
-rustix = { version = "1", features = ["fs"] }
+rustix = { version = "1", features = ["fs", "thread"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rusty-s3 = "0.10"
 sha2 = "0.10"
@@ -41,6 +51,7 @@ url = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Derived keys are wiped when dropped.
 zeroize = "1"
 # Objects are compressed before they are sealed: game worlds compress well, and ciphertext does
@@ -48,6 +59,6 @@ zeroize = "1"
 zstd = "0.13"
 
 [dev-dependencies]
-reqwest = { version = "0.13", default-features = false }
+korpis-backup = { path = ".", features = ["testing"] }
 rustix = { version = "1", features = ["fs", "process"] }
 tempfile = "3"

@@ -494,6 +494,22 @@ backups, and that is exactly the question open question 1 asked:
 backups, and it costs the customer their own key management and the host the ability to restore
 without them. Both are stated where the choice is made.
 
+**The job, as built.** A backup or restore is a `korpis-backup-job` process the helper starts
+(`StartJob`) and then only watches (`JobStatus`, `CancelJob`, `ForgetJob`). The supervisor names
+the volume, the snapshot, the backup, and for a restore of one path a directory to make at the
+volume's root, all as identifiers; the helper turns them into paths, makes a cgroup for the job
+beside the workloads' with a tenth of their CPU and I/O weight and ceilings on memory and
+processes, and writes the job's spec, the data key and the store's access with it, to the job's
+standard input and nowhere else. The job's first act, while it is one thread, is to confine
+itself: it joins that cgroup, binds Landlock to its directory (read-only for a backup), its
+result's directory, the certificate and resolver files a connection reads, and connections to the
+store's port, and drops every capability but its work's from every set, the bounding set included.
+A restore is verified (§5.4) before its result says it succeeded. A job outlives a helper that
+exits: the helper does not exit idle while one runs, and a restarted helper finds a running job
+by the process its pid file names, if that process is still the job binary, and reports one that
+ended without a result as lost. What each confinement held is in the result, as the kernel
+reported it, so a host that cannot apply one shows it as absent (§6 of `17-security.md`).
+
 **One writer per workload prefix, and pruning only in the control plane.** Pruning while a backup
 is running can delete a chunk that the running backup has just decided not to upload because it
 already existed, which is how deduplicating backup systems lose data. The rule that prevents it is
