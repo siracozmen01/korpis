@@ -9,6 +9,7 @@ pub mod accept;
 pub mod api;
 pub mod authority;
 pub mod bodies;
+mod control_jobs;
 pub mod data;
 pub mod install;
 pub mod keys;
@@ -17,6 +18,7 @@ mod provider_calls;
 pub mod providers;
 mod reachability;
 pub mod relay;
+mod repos;
 pub mod revocations;
 pub mod sealer;
 pub mod sessions;
@@ -186,6 +188,8 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(alert_relay_certificates(Arc::clone(api)));
     tokio::spawn(reachability::keep(Arc::clone(api)));
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
+    tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
+    tokio::spawn(control_jobs::work(Arc::clone(api)));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

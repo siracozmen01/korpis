@@ -84,6 +84,49 @@ pub enum BackupAction {
         #[arg(long, requires = "into")]
         path: Option<String>,
     },
+    /// Proposes pruning a workload's backups in a repository by its retention policy: the plan
+    /// names each backup it forgets and why every other one is kept, and waits for approval.
+    Prune {
+        /// The workload, by name or identifier.
+        workload: String,
+        /// The repository, `rep_…`.
+        #[arg(long)]
+        repository: String,
+    },
+}
+
+/// A backup's identifier as it is shown, from the one a step's detail holds.
+fn backup_id(raw: &str) -> String {
+    uuid::Uuid::parse_str(raw).map_or_else(
+        |_| raw.to_owned(),
+        |u| korpis_wire::wire_id(korpis_core::id::IdKind::Backup, u),
+    )
+}
+
+/// What a prune plan forgets and keeps, from its step's detail.
+fn pruned(plan: &pb::Plan) -> String {
+    use pb::__buffa::oneof::value::Kind;
+    let Some(step) = plan.steps.first() else { return String::new() };
+    let text = |v: &pb::Value| match &v.kind {
+        Some(Kind::StringValue(s)) => s.clone(),
+        _ => String::new(),
+    };
+    let list = |v: Option<&pb::Value>| match v.and_then(|v| v.kind.as_ref()) {
+        Some(Kind::ListValue(l)) => l.values.iter().map(text).collect::<Vec<_>>(),
+        _ => Vec::new(),
+    };
+    let mut lines: Vec<String> = list(step.detail.get("forget"))
+        .iter()
+        .map(|b| format!("forget {}", backup_id(b)))
+        .collect();
+    if let Some(Kind::MapValue(kept)) = step.detail.get("kept").and_then(|v| v.kind.as_ref()) {
+        lines.extend(
+            kept.fields.iter().map(|(b, why)| {
+                format!("keep   {} ({})", backup_id(b), list(Some(why)).join(", "))
+            }),
+        );
+    }
+    lines.join("\n")
 }
 
 fn rows(list: &[pb::Backup]) -> String {
@@ -170,6 +213,21 @@ fn restore_request(action: &BackupAction) -> pb::RestoreBackupRequest {
     }
 }
 
+/// Answers `korpis backup prune`: the plan, and what it forgets and keeps.
+async fn prune(c: &Connection, workload: &str, repository: &str) -> Result<Answer, CliError> {
+    let client = pb::BackupServiceClient::new(c.http(), c.config());
+    let r = pb::PruneBackupsRequest {
+        mutation: mutation(None).into(),
+        workload: resolve::workload(c, workload).await?,
+        repository: repository.to_owned(),
+        ..Default::default()
+    };
+    let made = client.prune_backups(r).await?.into_owned();
+    let plan = made.plan.into_option().unwrap_or_default();
+    let human = format!("{}\n{}", show::plan(&plan, &plan.workload), pruned(&plan));
+    Ok(Answer { human, json: json(&plan) })
+}
+
 /// Answers `korpis backup …`.
 pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, CliError> {
     let client = pb::BackupServiceClient::new(c.http(), c.config());
@@ -203,6 +261,7 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
             let plan = made.plan.into_option().unwrap_or_default();
             Answer { human: show::plan(&plan, &plan.workload), json: json(&plan) }
         }
+        BackupAction::Prune { workload, repository } => prune(c, workload, repository).await?,
         BackupAction::Ls { backup, path } => {
             let r = pb::BrowseBackupRequest {
                 backup: backup.clone(),

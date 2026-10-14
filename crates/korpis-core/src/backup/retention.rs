@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Which backups a prune forgets (§5.3 of docs/06-storage.md), and why each other one is kept.
-//! A whole backup is kept if it is one of the newest `keep_last`, or the newest of its hour, day,
-//! ISO week, month, or year among the newest that many of each that have a backup, in UTC.
+//! Each volume's backups are judged on their own, since a backup is of one volume: a whole backup
+//! is kept if it is one of its volume's newest `keep_last`, or the newest of its hour, day, ISO
+//! week, month, or year among the newest that many of each that have a backup, in UTC. So any
+//! policy that keeps something keeps each volume's newest whole backup, which its next backup
+//! takes unchanged files from.
 //! Whatever the policy says, a backup younger than `min_retention` is kept, as is one still
 //! pending, and one an open plan restores (Finding 35 of docs/23-walkthroughs.md); a failed one
 //! is kept for `keep_failed`, so its reason can still be read. Everything else is forgotten.
@@ -18,6 +21,8 @@ use uuid::Uuid;
 pub struct Candidate {
     /// The backup.
     pub id: Uuid,
+    /// The volume it is of.
+    pub volume: Uuid,
     /// When it was taken.
     pub created: SystemTime,
     /// Whether it is whole.
@@ -92,6 +97,25 @@ fn periods<K: Ord>(whole: &[Candidate], count: u32, bucket: impl Fn(SystemTime) 
     kept
 }
 
+/// The whole backups of volume `volume` each rule of `policy` keeps.
+fn by_rule(policy: &Retention, backups: &[Candidate], volume: Uuid) -> Vec<(Kept, Vec<Uuid>)> {
+    let mut whole: Vec<Candidate> = backups
+        .iter()
+        .filter(|c| c.volume == volume && c.status == BackupStatus::Succeeded)
+        .copied()
+        .collect();
+    whole.sort_by(|a, b| b.created.cmp(&a.created).then(b.id.cmp(&a.id)));
+    let last = whole.iter().take(usize::try_from(policy.keep_last).unwrap_or(usize::MAX));
+    vec![
+        (Kept::Last, last.map(|c| c.id).collect()),
+        (Kept::Hourly, periods(&whole, policy.keep_hourly, calendar::hour)),
+        (Kept::Daily, periods(&whole, policy.keep_daily, calendar::day)),
+        (Kept::Weekly, periods(&whole, policy.keep_weekly, calendar::week)),
+        (Kept::Monthly, periods(&whole, policy.keep_monthly, calendar::month)),
+        (Kept::Yearly, periods(&whole, policy.keep_yearly, calendar::year)),
+    ]
+}
+
 /// Judges `backups` under `policy` at `now`, with those in `restoring` read by an open plan; in
 /// the order they were given.
 #[must_use]
@@ -101,16 +125,9 @@ pub fn judge(
     restoring: &BTreeSet<Uuid>,
     now: SystemTime,
 ) -> Vec<Judged> {
-    let mut whole: Vec<Candidate> =
-        backups.iter().filter(|c| c.status == BackupStatus::Succeeded).copied().collect();
-    whole.sort_by(|a, b| b.created.cmp(&a.created).then(b.id.cmp(&a.id)));
-    let last = whole.iter().take(usize::try_from(policy.keep_last).unwrap_or(usize::MAX));
-    let mut by_rule: Vec<(Kept, Vec<Uuid>)> = vec![(Kept::Last, last.map(|c| c.id).collect())];
-    by_rule.push((Kept::Hourly, periods(&whole, policy.keep_hourly, calendar::hour)));
-    by_rule.push((Kept::Daily, periods(&whole, policy.keep_daily, calendar::day)));
-    by_rule.push((Kept::Weekly, periods(&whole, policy.keep_weekly, calendar::week)));
-    by_rule.push((Kept::Monthly, periods(&whole, policy.keep_monthly, calendar::month)));
-    by_rule.push((Kept::Yearly, periods(&whole, policy.keep_yearly, calendar::year)));
+    let volumes: BTreeSet<Uuid> = backups.iter().map(|c| c.volume).collect();
+    let by_rule: Vec<(Kept, Vec<Uuid>)> =
+        volumes.into_iter().flat_map(|v| by_rule(policy, backups, v)).collect();
     let age = |c: &Candidate| now.duration_since(c.created).unwrap_or_default();
     backups
         .iter()
@@ -153,7 +170,21 @@ mod tests {
     }
 
     fn whole(n: u128, hours: i64) -> Candidate {
-        Candidate { id: Uuid::from_u128(n), created: at(hours), status: BackupStatus::Succeeded }
+        Candidate {
+            id: Uuid::from_u128(n),
+            volume: Uuid::from_u128(100),
+            created: at(hours),
+            status: BackupStatus::Succeeded,
+        }
+    }
+
+    #[test]
+    fn each_volume_keeps_its_own_newest() {
+        let mut other = whole(3, -2);
+        other.volume = Uuid::from_u128(200);
+        let backups = [whole(1, 0), whole(2, -1), other];
+        let last = Retention { keep_last: 1, ..Retention::default() };
+        assert_eq!(kept(&last, &backups, at(0)), [1, 3], "one of each volume");
     }
 
     fn kept(policy: &Retention, backups: &[Candidate], now: SystemTime) -> Vec<u128> {

@@ -7,6 +7,7 @@
 pub mod approval;
 pub mod compute;
 pub mod impact;
+pub mod prune;
 pub mod status;
 pub mod step;
 
@@ -40,6 +41,9 @@ pub enum PlanTarget {
     /// is the one holding the volume, or the one that created it when none holds it (§7 of
     /// docs/06-storage.md).
     Volume(Uuid, VolumeOp),
+    /// Pruning the workload's backups in this repository (§5.3 of docs/06-storage.md): the
+    /// plan's workload is the one whose backups they are, retired or not.
+    Prune(Uuid),
 }
 
 /// What a volume plan does to its volume.
@@ -100,6 +104,16 @@ impl PlanTarget {
             Self::Retire => "retire",
             Self::Migrate => "migrate",
             Self::Volume(_, op) => op.kind(),
+            Self::Prune(_) => "prune_backups",
+        }
+    }
+
+    /// The repository a prune plan prunes in.
+    #[must_use]
+    pub const fn repository(self) -> Option<Uuid> {
+        match self {
+            Self::Prune(r) => Some(r),
+            _ => None,
         }
     }
 

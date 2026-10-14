@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A new plan. Its decision columns (approval, schedule, progress) are written by the update that\n-- follows, so that there is one statement that writes them.\nINSERT INTO plan (id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,\n                  computed_at, computed_by, steps, impact, status, expires_at, proposed_under,\n                  approval, approval_scope, approval_reason, to_volume, to_repository)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,\n        $20)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Uuid",
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Text",
+        "Timestamptz",
+        "Uuid",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6faccc01ab5234fa3995720236cbd45983643436c71ed61a28962fa8b56deb70"
+}

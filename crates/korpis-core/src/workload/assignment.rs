@@ -104,12 +104,22 @@ pub struct NodePlan {
 }
 
 impl NodePlan {
-    /// The node's part of `plan`, if it has one: its node steps, up to the last of them.
+    /// The node's part of `plan`, if it has one now: its node steps, through the last of them
+    /// before the first control-plane step not yet completed, which the node waits for (§4.9 of
+    /// docs/02-architecture.md). A plan whose next step is the control plane's, with no node step
+    /// before it left, is no node's yet.
     #[must_use]
     pub fn of(plan: &Plan) -> Option<Self> {
+        let pending = |s: &&Step| plan.completed.is_none_or(|c| s.index > c);
+        let waits_at = plan
+            .steps
+            .iter()
+            .filter(pending)
+            .find(|s| s.executor == StepExecutor::ControlPlane)
+            .map(|s| s.index);
         let steps: Vec<Step> =
             plan.steps.iter().filter(|s| s.executor == StepExecutor::Node).cloned().collect();
-        let through = steps.last()?.index;
+        let through = steps.iter().rfind(|s| waits_at.is_none_or(|w| s.index < w))?.index;
         Some(Self { plan: plan.id, steps, through })
     }
 }
@@ -178,6 +188,66 @@ mod tests {
         assert_eq!(IdRange { base: 0, count: 65536 }.slot(), None, "a host's own ids");
         assert_eq!(IdRange { base: (1 << 30) + 1, count: 65536 }.slot(), None, "unaligned");
         assert_eq!(IdRange { base: 1 << 30, count: 1 << 17 }.slot(), None, "two slots wide");
+    }
+
+    fn plan_of(executors: &[StepExecutor], completed: Option<u32>) -> Plan {
+        use crate::object::{Kind, ObjectRef};
+        use crate::principal::Principal;
+        use crate::workload::plan::impact::{Estimate, Impact, ResourceDelta};
+        use crate::workload::plan::step::{Layer, StepAction};
+        use crate::workload::plan::{Approval, PlanStatus};
+        let step = |(i, e): (usize, &StepExecutor)| Step {
+            index: u32::try_from(i).unwrap(),
+            action: StepAction::Start,
+            executor: *e,
+            target: ObjectRef::new(Kind::Workload, Uuid::nil()),
+            reversible: true,
+            disruptive: false,
+            classified_by: Layer::Vocabulary,
+            reason: String::new(),
+            detail: crate::value::ValueMap::new(),
+            timeout: None,
+        };
+        let now = std::time::SystemTime::UNIX_EPOCH;
+        Plan {
+            id: Uuid::from_u128(7),
+            workload: Uuid::nil(),
+            target: PlanTarget::Retire,
+            operation: None,
+            from_intent: None,
+            from_power: 0,
+            computed_at: now,
+            computed_by: Principal::User(Uuid::nil()),
+            proposed_under: Uuid::nil(),
+            steps: executors.iter().enumerate().map(step).collect(),
+            impact: Impact {
+                disruptive: false,
+                downtime: Estimate::Unknown,
+                data_at_risk: Estimate::Unknown,
+                cost_delta: ResourceDelta::default(),
+            },
+            approval: Approval::Auto,
+            approval_reason: String::new(),
+            status: PlanStatus::Applying,
+            completed,
+            apply_after: None,
+            expires_at: now,
+            approved_by: None,
+            approved_at: None,
+        }
+    }
+
+    #[test]
+    fn a_node_runs_up_to_a_control_plane_step_and_on_once_it_is_done() {
+        use StepExecutor::{ControlPlane as C, Node as N};
+        let through = |p: &Plan| NodePlan::of(p).map(|n| n.through);
+        assert_eq!(through(&plan_of(&[N, N, C, N], None)), Some(1), "waits at step 2");
+        assert_eq!(through(&plan_of(&[N, N, C, N], Some(1))), Some(1), "still waits");
+        assert_eq!(through(&plan_of(&[N, N, C, N], Some(2))), Some(3), "and goes on");
+        assert_eq!(through(&plan_of(&[C, N], None)), None, "nothing is the node's yet");
+        assert_eq!(through(&plan_of(&[C], None)), None, "a plan the control plane runs alone");
+        assert_eq!(through(&plan_of(&[N, N], None)), Some(1));
+        assert_eq!(NodePlan::of(&plan_of(&[N, C, N], None)).unwrap().steps.len(), 2);
     }
 
     #[cfg(feature = "identity")]

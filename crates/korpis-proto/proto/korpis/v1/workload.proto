@@ -273,6 +273,8 @@ message Plan {
   // delete_snapshot): that volume. The plan's workload is the one holding it, or the one that
   // created it when none does.
   optional string to_volume = 22;
+  // Required iff kind is prune_backups: the repository whose backups of the workload it prunes.
+  optional string to_repository = 23;
 }
 
 // Auto applies at once; confirmation waits for the proposer or any approver to confirm;
@@ -301,6 +303,9 @@ enum PlanKind {
   // Backs a volume up into a repository (§5 of docs/06-storage.md).
   PLAN_KIND_BACKUP_VOLUME = 9;
   PLAN_KIND_RESTORE_VOLUME = 10;
+  // Forgets the backups of the workload in one repository that its retention policy no longer
+  // keeps, and deletes what only they held (§5.3 of docs/06-storage.md).
+  PLAN_KIND_PRUNE_BACKUPS = 11;
 }
 
 enum PlanStatus {

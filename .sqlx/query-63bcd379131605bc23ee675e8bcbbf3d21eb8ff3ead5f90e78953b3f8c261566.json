@@ -1,0 +1,302 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Plans that may have a control-plane step due: approved or applying, with a control-plane step\n-- not yet completed. Whether that step is the next one, and whether it is due, the caller decides.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,\n       computed_at, computed_by, steps, impact, status, completed, apply_after, expires_at,\n       approved_by, approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,\n       to_repository\n  FROM plan p\n WHERE p.status IN ('approved', 'applying')\n   AND EXISTS (\n        SELECT 1 FROM jsonb_array_elements(p.steps) AS s(step)\n         WHERE s.step ->> 'executor' = 'control_plane'\n           AND (s.step ->> 'index')::bigint > COALESCE(p.completed, -1))\n ORDER BY p.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operation_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "from_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "from_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "from_power"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "to_intent",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_intent"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "to_power",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_power"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "computed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "computed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "steps",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "steps"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "impact",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "impact"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "completed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "completed"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "apply_after",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "apply_after"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "approved_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_by"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "approved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approved_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "proposed_under",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "proposed_under"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "approval",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "approval_scope",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "approval_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "approval_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "to_volume",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_volume"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "to_repository",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_repository"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "63bcd379131605bc23ee675e8bcbbf3d21eb8ff3ead5f90e78953b3f8c261566"
+}

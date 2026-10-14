@@ -17,6 +17,7 @@ pub mod error;
 mod file;
 pub mod job;
 pub mod keys;
+pub mod live;
 mod meta;
 pub mod name;
 pub mod repo;

@@ -10,7 +10,8 @@ use crate::error::AppError;
 use crate::extension::{CallTarget, Called};
 use crate::ports::{Clock, ProviderCallWrite, RecipeSource, Store, Tx};
 use korpis_core::extension::{
-    AccessMode, CallRequest, MAX_ACCESS, MAX_KEYS, MIN_ACCESS, ProviderType, is_beneath, is_prefix,
+    AccessMode, CallOutcome, CallRequest, MAX_ACCESS, MAX_KEYS, MIN_ACCESS, ProviderType,
+    StoredObject, is_beneath, is_prefix,
 };
 use std::time::Duration;
 
@@ -31,6 +32,16 @@ fn prefix(p: &str) -> Result<(), AppError> {
     } else {
         Err(AppError::invalid("prefix", "a relative key prefix ending in /, without . or .."))
     }
+}
+
+/// `o`, named beneath `on`: a listing that strays outside it is the target's malfunction.
+fn beneath(mut o: StoredObject, on: &str) -> Result<StoredObject, AppError> {
+    let Some(name) = o.key.strip_prefix(on).map(str::to_owned) else {
+        let detail = format!("a listing named {} outside {on}", o.key);
+        return Err(AppError::Unavailable { what: "the backup target", detail });
+    };
+    o.key = name;
+    Ok(o)
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -72,6 +83,42 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let request =
             CallRequest::ListObjects { prefix: on.to_owned(), after: after.to_owned(), limit };
         self.call_provider(target, request, CALL_TIMEOUT).await
+    }
+
+    /// Every object beneath `prefix`, named beneath it, a page at a time. Internal.
+    pub async fn list_all_objects(
+        &self,
+        target: &CallTarget,
+        on: &str,
+    ) -> Result<Vec<StoredObject>, AppError> {
+        let limit = u32::try_from(MAX_KEYS).unwrap_or(u32::MAX);
+        let mut all: Vec<StoredObject> = Vec::new();
+        let mut after = String::new();
+        loop {
+            let page = self.list_backup_objects(target, on, &after, limit).await?;
+            let (objects, more) = match page.outcome {
+                CallOutcome::Objects { objects, more } => (objects, more),
+                CallOutcome::Failed(f) => {
+                    return Err(AppError::Unavailable {
+                        what: "the backup target",
+                        detail: f.reason,
+                    });
+                }
+                _ => {
+                    return Err(AppError::Unavailable {
+                        what: "the backup target",
+                        detail: "malformed".into(),
+                    });
+                }
+            };
+            let Some(last) = objects.last().map(|o| o.key.clone()) else { break };
+            all.extend(objects.into_iter().map(|o| beneath(o, on)).collect::<Result<Vec<_>, _>>()?);
+            if !more || last <= after {
+                break;
+            }
+            after = last;
+        }
+        Ok(all)
     }
 
     /// Deletes `keys`, each beneath `prefix`, with the target's own credential: the second phase

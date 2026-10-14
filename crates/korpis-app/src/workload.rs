@@ -17,6 +17,7 @@ mod pin;
 mod place;
 mod power;
 mod propose;
+mod prune_plan;
 mod read;
 mod retire;
 mod seed;

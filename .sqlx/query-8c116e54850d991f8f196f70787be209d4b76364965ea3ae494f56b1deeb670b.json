@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans, oldest first, after a keyset cursor.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume\n  FROM plan\n WHERE workload_id = $1 AND ($2::uuid IS NULL OR id > $2)\n ORDER BY id LIMIT $3\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan (§3.3 of docs/01-model.md).\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,\n       to_repository\n  FROM plan\n WHERE id = $1\n",
   "describe": {
     "columns": [
       {
@@ -255,13 +255,22 @@
             "name": "to_volume"
           }
         }
+      },
+      {
+        "ordinal": 23,
+        "name": "to_repository",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_repository"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -287,8 +296,9 @@
       false,
       true,
       false,
+      true,
       true
     ]
   },
-  "hash": "d69a796bdd66763e4d4d0fb969de1eafa5b9476906fb25e714965cc9e3bf8467"
+  "hash": "8c116e54850d991f8f196f70787be209d4b76364965ea3ae494f56b1deeb670b"
 }

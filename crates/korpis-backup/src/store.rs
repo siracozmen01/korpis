@@ -59,6 +59,12 @@ impl MemoryStore {
         self.objects()?.insert(name.to_owned(), bytes);
         Ok(())
     }
+
+    /// Removes `name`, as a prune's sweep would with the target's own credential.
+    pub fn remove(&self, name: &str) -> Result<(), StoreError> {
+        self.objects()?.remove(name);
+        Ok(())
+    }
 }
 
 impl ObjectStore for MemoryStore {

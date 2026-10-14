@@ -400,7 +400,11 @@ that died is taken by another, and the first holder can no longer end it. A job 
 transaction that decides it is due and ended in the transaction that records what it did, so
 neither half can happen without the other; a retry puts it back for a later time, and one past
 its last attempt fails instead. Queueing announces on `korpis_job`, and workers also look every
-five seconds, because a retry's time comes by the clock rather than by an announcement.
+five seconds, because a retry's time comes by the clock rather than by an announcement. Its first
+two kinds are a control-plane plan step (§4.9 of `02-architecture.md`) and a prune's sweep (§5.5
+of `06-storage.md`). A job that cannot begin for a reason with a known end, such as a sweep waiting
+for a writer's access to run out, is deferred to then without spending an attempt, since nothing
+was tried.
 
 ---
 

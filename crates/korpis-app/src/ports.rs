@@ -25,6 +25,7 @@ mod observation;
 mod placement;
 mod provider;
 mod provider_call;
+mod prune;
 mod quota;
 mod recipe;
 mod relay;
@@ -55,7 +56,7 @@ pub use condition::{ConditionRead, ConditionWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
-pub use job::{Job, JobEnd, JobRead, JobWrite};
+pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
 pub use journal::{JournalRead, JournalWrite};
 pub use lease::LeaseWrite;
 pub use node::{NodeRead, NodeWrite};
@@ -63,6 +64,7 @@ pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
+pub use prune::{AccessRecord, Prefix, PruneRead, PruneWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use relay::{
@@ -161,6 +163,7 @@ pub trait Store:
     + SnapshotRead
     + BackupRead
     + JobRead
+    + PruneRead
     + Send
     + Sync
     + 'static
@@ -223,6 +226,7 @@ pub trait Tx:
     + SnapshotWrite
     + BackupWrite
     + JobWrite
+    + PruneWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

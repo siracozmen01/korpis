@@ -228,7 +228,10 @@ the workload only for the exchange; `--volume vol_…` restores into another vol
 `korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action.
 `korpis backup clone bkp_… --name <new>` declares a workload like the one the backup is of, its
 backed-up volume created holding the backup and every other volume created empty, which is how a
-restore is tested.
+restore is tested. `korpis backup prune <workload> --repository rep_…` proposes forgetting what the
+repository's retention policy no longer keeps, listing each backup it forgets and why every other
+one stays; it waits for approval, and what only the forgotten backups held is deleted after a
+grace period (§5.5 there).
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

@@ -6,15 +6,22 @@
 //! spent.
 
 use crate::support::{fixture, now};
-use korpis_app::ports::{JobEnd, JobRead, JobWrite, Store, Tx};
+use korpis_app::ports::{JobEnd, JobRead, JobWrite, NewJob, Store, Tx};
 use std::time::Duration;
 
 const LEASE: Duration = Duration::from_secs(60);
 
 async fn queued(store: &korpis_store::PgStore, key: &str, max: u32) -> bool {
     let mut tx = store.begin().await.unwrap();
-    let payload = serde_json::json!({ "key": key });
-    let q = tx.enqueue_job((key, "test"), &payload, (now(), max)).await.unwrap();
+    let job = NewJob {
+        key,
+        kind: "test",
+        payload: serde_json::json!({ "key": key }),
+        now: now(),
+        due: now(),
+        max_attempts: max,
+    };
+    let q = tx.enqueue_job(&job).await.unwrap();
     tx.commit().await.unwrap();
     q
 }
@@ -83,4 +90,18 @@ async fn a_retry_waits_for_its_time_and_fails_once_its_attempts_are_spent() {
         .await
         .unwrap();
     assert_eq!(status, "failed");
+}
+
+#[tokio::test]
+async fn a_deferred_job_waits_without_spending_an_attempt() {
+    let f = fixture().await;
+    queued(&f.store, "sweep:1", 1).await;
+    let at = now() + Duration::from_secs(60);
+    for _ in 0..3 {
+        let job = f.store.claim_job("a", &["test"], (at, LEASE)).await.unwrap().unwrap();
+        assert_eq!(job.attempt, 1, "never counted");
+        assert!(ended(&f.store, (job.id, "a"), JobEnd::Defer { at }).await);
+    }
+    let job = f.store.claim_job("a", &["test"], (at, LEASE)).await.unwrap().unwrap();
+    assert!(ended(&f.store, (job.id, "a"), JobEnd::Done).await);
 }

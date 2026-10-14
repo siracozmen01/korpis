@@ -5,6 +5,7 @@
 //! transaction that records what it did, and claimed alone, under a lease.
 
 use super::StoreResult;
+use korpis_core::workload::Plan;
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -24,6 +25,23 @@ pub struct Job {
     pub max_attempts: u32,
 }
 
+/// A job to queue.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NewJob<'a> {
+    /// What makes it the same work as another: queueing a key twice queues it once.
+    pub key: &'a str,
+    /// What it is.
+    pub kind: &'a str,
+    /// What it works on.
+    pub payload: serde_json::Value,
+    /// When it is queued.
+    pub now: SystemTime,
+    /// When it is due.
+    pub due: SystemTime,
+    /// How many attempts it is given.
+    pub max_attempts: u32,
+}
+
 /// How an attempt ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JobEnd {
@@ -39,18 +57,19 @@ pub enum JobEnd {
     },
     /// It is not to be tried again.
     Failed(String),
+    /// It could not begin, for a reason that ends at `at`: put back for then, the attempt not
+    /// counted, since nothing was tried.
+    Defer {
+        /// When.
+        at: SystemTime,
+    },
 }
 
 /// Queueing and ending jobs, in a transaction.
 pub trait JobWrite {
-    /// Queues job `kind` on `payload` under `key`, due at `now`; whether it was queued, which a
-    /// job of the same key already queued, running, or ended prevents.
-    fn enqueue_job(
-        &mut self,
-        key_and_kind: (&str, &str),
-        payload: &serde_json::Value,
-        now_and_attempts: (SystemTime, u32),
-    ) -> impl Future<Output = StoreResult<bool>> + Send;
+    /// Queues `job`; whether it was queued, which a job of the same key already queued,
+    /// running, or ended prevents.
+    fn enqueue_job(&mut self, job: &NewJob<'_>) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Ends the attempt of job `id` that `worker` claimed, as `end` says; whether it still held
     /// the job, which a lease that ran out and another claim take away.
@@ -62,8 +81,12 @@ pub trait JobWrite {
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 }
 
-/// Claiming jobs.
+/// Claiming jobs, and finding the plan steps that become them.
 pub trait JobRead {
+    /// Plans that may have a control-plane step due: approved or applying, with one not yet
+    /// completed (§4.9 of docs/02-architecture.md).
+    fn control_plane_plans(&self) -> impl Future<Output = StoreResult<Vec<Plan>>> + Send;
+
     /// Claims, for `worker` and `lease`, one job of `kinds` that is due: queued and past its time,
     /// or running under a lease that ran out.
     fn claim_job(

@@ -30,6 +30,7 @@ mod observation;
 mod placement;
 mod provider;
 mod provider_call;
+mod prune;
 mod quota;
 mod recipe;
 mod relay;

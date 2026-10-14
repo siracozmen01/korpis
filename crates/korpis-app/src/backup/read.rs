@@ -11,11 +11,10 @@ use super::job::JobGrant;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::extension::CallTarget;
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::backup::BackupStatus;
-use korpis_core::extension::{AccessMode, CallOutcome, ProviderType};
+use korpis_core::extension::AccessMode;
 use korpis_core::object::{Kind, ObjectRef};
 use std::time::Duration;
 use uuid::Uuid;
@@ -75,23 +74,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         tx.append_effect(&e).await?;
         tx.commit().await?;
-        let data_key = self.data_key(&repo, b.workload, false).await?;
-        let target = CallTarget {
-            organization: repo.organization,
-            kind: ProviderType::BackupTarget,
-            name: repo.provider.clone(),
-        };
-        let prefix = repo.workload_prefix(b.workload);
-        let answer =
-            self.grant_backup_access(&target, &prefix, AccessMode::Read, what.lasting()).await?;
-        match answer.outcome {
-            CallOutcome::Access(access) => Ok(JobGrant { data_key, access }),
-            CallOutcome::Failed(f) => {
-                Err(AppError::Unavailable { what: "the backup target", detail: f.reason })
-            }
-            _ => {
-                Err(AppError::Unavailable { what: "the backup target", detail: "malformed".into() })
-            }
-        }
+        self.record_access((repo.id, b.workload), Some(b.id), AccessMode::Read, what.lasting())
+            .await?;
+        self.control_plane_access(&repo, b.workload, what.lasting()).await
     }
 }

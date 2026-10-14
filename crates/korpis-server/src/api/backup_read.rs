@@ -12,31 +12,17 @@ use connectrpc::{
 };
 use korpis_app::backup::job::JobGrant;
 use korpis_app::backup::read::ReadFor;
-use korpis_backup::keys::Keys;
-use korpis_backup::s3::{S3Config, S3Store};
+use korpis_backup::s3::S3Store;
 use korpis_backup::{Repo, browse};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::backup::v1 as format;
 use korpis_proto::korpis::v1 as pb;
-use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// The repository a grant reaches.
 fn repo_of(g: &JobGrant) -> Result<Repo<S3Store>, ConnectError> {
-    let s = &g.access.s3;
-    let config = S3Config {
-        endpoint: s.endpoint.clone(),
-        region: s.region.clone(),
-        bucket: s.bucket.clone(),
-        key_prefix: s.key_prefix.clone(),
-        access_key_id: s.access_key_id.clone(),
-        secret_access_key: s.secret_access_key.clone(),
-        session_token: s.session_token.clone(),
-        path_style: s.path_style,
-    };
-    let store = S3Store::new(config).map_err(|e| unavailable(&e))?;
-    Ok(Repo::new(Arc::new(store), Arc::new(Keys::derive(&g.data_key.0))))
+    crate::repos::repo_of(g).map_err(|e| unavailable(&e))
 }
 
 fn unavailable(e: &dyn std::fmt::Display) -> ConnectError {

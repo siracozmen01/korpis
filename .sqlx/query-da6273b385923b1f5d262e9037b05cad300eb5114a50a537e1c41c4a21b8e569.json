@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- A workload's plans still in play: proposed, approved, queued, or applying.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,\n       computed_at, computed_by, steps, impact, status, completed, apply_after, expires_at,\n       approved_by, approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume\n  FROM plan\n WHERE workload_id = $1 AND status IN ('proposed', 'approved', 'queued', 'applying')\n ORDER BY id\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One plan, locked until the transaction ends.\nSELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power, computed_at,\n       computed_by, steps, impact, status, completed, apply_after, expires_at, approved_by,\n       approved_at, proposed_under, approval, approval_scope, approval_reason, to_volume,\n       to_repository\n  FROM plan\n WHERE id = $1\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -255,6 +255,17 @@
             "name": "to_volume"
           }
         }
+      },
+      {
+        "ordinal": 23,
+        "name": "to_repository",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "plan",
+            "name": "to_repository"
+          }
+        }
       }
     ],
     "parameters": {
@@ -285,8 +296,9 @@
       false,
       true,
       false,
+      true,
       true
     ]
   },
-  "hash": "82a960b6f6574480ed18418fefd11c8106884c09c96b97188a07fa34e70c5f68"
+  "hash": "da6273b385923b1f5d262e9037b05cad300eb5114a50a537e1c41c4a21b8e569"
 }

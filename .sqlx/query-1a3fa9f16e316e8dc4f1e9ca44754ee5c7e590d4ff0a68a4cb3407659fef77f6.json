@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name FROM prune_mark\n              WHERE repository_id = $1 AND workload_id = $2 AND plan_id = $3 AND marked_at <= $4\n              ORDER BY name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prune_mark",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1a3fa9f16e316e8dc4f1e9ca44754ee5c7e590d4ff0a68a4cb3407659fef77f6"
+}

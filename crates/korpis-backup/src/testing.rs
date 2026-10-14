@@ -97,6 +97,28 @@ impl Minio {
         if status.is_success() { Ok(()) } else { Err(format!("creating {name}: {status}")) }
     }
 
+    /// Deletes `keys` from `bucket` as the root user, as a backup target's own credential would
+    /// for a prune; how many it was asked to delete.
+    pub async fn delete(&self, bucket: &str, keys: &[String]) -> Result<u32, String> {
+        let endpoint = url::Url::parse(&self.endpoint).map_err(failed)?;
+        let bucket = rusty_s3::Bucket::new(
+            endpoint,
+            rusty_s3::UrlStyle::Path,
+            bucket.to_owned(),
+            "us-east-1",
+        )
+        .map_err(failed)?;
+        let creds = rusty_s3::Credentials::new(USER, SECRET);
+        for key in keys {
+            let url = bucket.delete_object(Some(&creds), key).sign(Duration::from_secs(60));
+            let status = reqwest::Client::new().delete(url).send().await.map_err(failed)?.status();
+            if !status.is_success() {
+                return Err(format!("deleting {key}: {status}"));
+            }
+        }
+        u32::try_from(keys.len()).map_err(failed)
+    }
+
     /// Access to `prefix` in `bucket` as the root user.
     #[must_use]
     pub fn access(&self, bucket: &str, prefix: &str) -> crate::s3::S3Config {

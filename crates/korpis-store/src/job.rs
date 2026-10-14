@@ -7,8 +7,10 @@
 
 use crate::errors::from_sqlx;
 use crate::stored::from_time;
+use crate::workload::rows::PlanRow;
 use crate::{PgStore, PgTx};
-use korpis_app::ports::{Job, JobEnd, JobRead, JobWrite, StoreResult};
+use korpis_app::ports::{Job, JobEnd, JobRead, JobWrite, NewJob, StoreResult};
+use korpis_core::workload::Plan;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -17,23 +19,19 @@ fn count(v: i32) -> u32 {
 }
 
 impl JobWrite for PgTx {
-    async fn enqueue_job(
-        &mut self,
-        (key, kind): (&str, &str),
-        payload: &serde_json::Value,
-        (now, max_attempts): (SystemTime, u32),
-    ) -> StoreResult<bool> {
-        let max = i32::try_from(max_attempts).unwrap_or(i32::MAX);
+    async fn enqueue_job(&mut self, job: &NewJob<'_>) -> StoreResult<bool> {
+        let max = i32::try_from(job.max_attempts).unwrap_or(i32::MAX);
         let queued = sqlx::query!(
             "INSERT INTO job (id, key, kind, payload, run_after, max_attempts, status, created)
-             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $5)
+             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
              ON CONFLICT (key) DO NOTHING",
             Uuid::now_v7(),
-            key,
-            kind,
-            payload,
-            from_time(now),
-            max
+            job.key,
+            job.kind,
+            job.payload,
+            from_time(job.due),
+            max,
+            from_time(job.now)
         )
         .execute(&mut *self.tx)
         .await
@@ -51,6 +49,7 @@ impl JobWrite for PgTx {
             JobEnd::Done => ("succeeded", None, None),
             JobEnd::Retry { at, error } => ("pending", Some(from_time(*at)), Some(error.as_str())),
             JobEnd::Failed(error) => ("failed", None, Some(error.as_str())),
+            JobEnd::Defer { at } => ("deferred", Some(from_time(*at)), None),
         };
         let ended = sqlx::query_file!(
             "queries/job_end.sql",
@@ -69,6 +68,14 @@ impl JobWrite for PgTx {
 }
 
 impl JobRead for PgStore {
+    async fn control_plane_plans(&self) -> StoreResult<Vec<Plan>> {
+        let rows = sqlx::query_file_as!(PlanRow, "queries/plans_awaiting_control_plane.sql")
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter().map(PlanRow::into_domain).collect()
+    }
+
     async fn claim_job(
         &self,
         worker: &str,

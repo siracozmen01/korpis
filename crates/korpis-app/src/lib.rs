@@ -14,6 +14,7 @@ pub mod authz;
 pub mod backup;
 pub mod backup_target;
 pub mod caller;
+pub mod control;
 pub mod dns;
 pub mod error;
 pub mod event;

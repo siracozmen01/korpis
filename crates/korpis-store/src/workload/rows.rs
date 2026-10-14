@@ -174,12 +174,25 @@ pub(crate) struct PlanRow {
     pub(crate) approval_scope: Option<Value>,
     pub(crate) approval_reason: String,
     pub(crate) to_volume: Option<Uuid>,
+    pub(crate) to_repository: Option<Uuid>,
 }
+
+/// What a plan's target columns hold: the intent, the power version, the volume, and the
+/// repository it moves to or operates on.
+type TargetColumns = (Option<Uuid>, Option<i64>, Option<Uuid>, Option<Uuid>);
 
 fn target(
     kind: &str,
-    (to_intent, to_power, to_volume): (Option<Uuid>, Option<i64>, Option<Uuid>),
+    (to_intent, to_power, to_volume, to_repository): TargetColumns,
 ) -> StoreResult<PlanTarget> {
+    if let ("prune_backups", None, None, None, Some(r)) =
+        (kind, to_intent, to_power, to_volume, to_repository)
+    {
+        return Ok(PlanTarget::Prune(r));
+    }
+    if to_repository.is_some() {
+        return Err(corrupt("plan kind", kind));
+    }
     Ok(match (kind, to_intent, to_power, to_volume) {
         ("intent", Some(i), None, None) => PlanTarget::Intent(i),
         ("power", None, Some(v), None) => PlanTarget::Power(count("to_power", v)?),
@@ -211,7 +224,10 @@ impl PlanRow {
         Ok(Plan {
             id: self.id,
             workload: self.workload_id,
-            target: target(&self.kind, (self.to_intent, self.to_power, self.to_volume))?,
+            target: target(
+                &self.kind,
+                (self.to_intent, self.to_power, self.to_volume, self.to_repository),
+            )?,
             operation: self.operation_id,
             from_intent: self.from_intent,
             from_power: count("from_power", self.from_power)?,

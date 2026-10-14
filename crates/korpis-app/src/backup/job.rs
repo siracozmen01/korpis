@@ -9,7 +9,9 @@
 use crate::App;
 use crate::error::AppError;
 use crate::extension::CallTarget;
-use crate::ports::{BackupWrite as _, Clock, DataKey, RecipeSource, Store, Tx as _};
+use crate::ports::{
+    BackupWrite as _, Clock, DataKey, PruneWrite as _, RecipeSource, Store, Tx as _,
+};
 use korpis_core::backup::{BackupStatus, Repository};
 use korpis_core::extension::{AccessMode, CallOutcome, ObjectAccess, ProviderType};
 use korpis_core::value::Value;
@@ -22,6 +24,10 @@ use uuid::Uuid;
 /// How long a job's access lasts: long enough for a large volume over a slow link, and no longer
 /// than a target grants (§5.6 of docs/06-storage.md).
 const JOB_ACCESS: Duration = Duration::from_secs(12 * 3600);
+
+/// How much later than its own clock says the control plane takes access to end: the target's
+/// clock decides, and the two may disagree by this much.
+pub(super) const CLOCK_SKEW: Duration = Duration::from_secs(5 * 60);
 
 /// A key and access to a workload's backups: a job's, or the control plane's own when it reads
 /// one.
@@ -62,11 +68,12 @@ impl JobRefusal {
     }
 }
 
-/// Where a job reads or writes: a workload's prefix in a repository.
+/// Where a job reads or writes: a workload's prefix in a repository, and the backup it reads.
 struct JobTarget {
     repo: Repository,
     workload: Uuid,
     mode: AccessMode,
+    backup: Option<Uuid>,
 }
 
 fn uuid_in(s: &Step, key: &str) -> Option<Uuid> {
@@ -102,6 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             kind: ProviderType::BackupTarget,
             name: t.repo.provider.clone(),
         };
+        self.record_access((t.repo.id, t.workload), t.backup, t.mode, JOB_ACCESS).await?;
         let prefix = t.repo.workload_prefix(t.workload);
         let called = self.grant_backup_access(&target, &prefix, t.mode, JOB_ACCESS).await?;
         match called.outcome {
@@ -136,7 +144,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Err(JobRefusal::Ended));
         }
         let repo = self.repository_of(b.repository).await?;
-        Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Write }))
+        Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Write, backup: None }))
     }
 
     /// A restore step's target: a whole backup, restored into a volume `node` holds, or into
@@ -157,7 +165,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Err(JobRefusal::Gone));
         };
         let repo = self.repository_of(b.repository).await?;
-        Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Read }))
+        Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Read, backup: Some(b.id) }))
+    }
+
+    /// Records access to `prefix` for `ttl` from now, before it is asked for, so a sweep knows
+    /// of every writer and a prune of every reader (§5.5 of docs/06-storage.md). It is recorded
+    /// as lasting a little longer than asked, since the target's clock decides when it ends.
+    pub(super) async fn record_access(
+        &self,
+        prefix: crate::ports::Prefix,
+        backup: Option<Uuid>,
+        mode: AccessMode,
+        ttl: Duration,
+    ) -> Result<(), AppError> {
+        let now = self.clock.now();
+        let access = crate::ports::AccessRecord {
+            prefix,
+            backup,
+            mode,
+            granted_at: now,
+            expires_at: now + ttl + CLOCK_SKEW,
+        };
+        let mut tx = self.store.begin().await?;
+        tx.record_access(&access).await?;
+        tx.commit().await?;
+        Ok(())
     }
 
     /// `workload`'s data key in `repo`; made at its first backup there when `make`, and

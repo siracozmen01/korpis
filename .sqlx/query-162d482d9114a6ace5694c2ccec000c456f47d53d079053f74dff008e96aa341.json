@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM prune_mark\n              WHERE repository_id = $1 AND workload_id = $2 AND name = ANY($3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "162d482d9114a6ace5694c2ccec000c456f47d53d079053f74dff008e96aa341"
+}

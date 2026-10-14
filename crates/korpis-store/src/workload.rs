@@ -3,7 +3,7 @@
 //! Workloads, intents, power declarations, and plans (§3 and §7 of docs/03-state.md).
 
 mod retire;
-mod rows;
+pub(crate) mod rows;
 mod write;
 
 use crate::PgStore;

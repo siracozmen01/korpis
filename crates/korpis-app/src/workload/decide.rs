@@ -52,8 +52,9 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
             return Err(AppError::NotYet { what: "migration plans", phase: 3 });
         }
         // Deleting a retained volume asks nothing of the workload, retired or not; whether the
-        // volume can still be deleted is read where the plan is approved.
-        PlanTarget::Volume(..) => true,
+        // volume can still be deleted is read where the plan is approved. Neither does pruning
+        // its backups, which outlive it.
+        PlanTarget::Volume(..) | PlanTarget::Prune(_) => true,
     })
 }
 
@@ -121,7 +122,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !plan.approvable(now) {
             return Ok(Some(PlanStatus::Expired));
         }
-        let for_volume = matches!(plan.target, PlanTarget::Volume(..));
+        let for_volume = matches!(plan.target, PlanTarget::Volume(..) | PlanTarget::Prune(_));
         if (w.deleted_at.is_some() && !for_volume) || !current(plan, w)? {
             return Ok(Some(PlanStatus::Superseded));
         }
@@ -169,7 +170,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 PlanTarget::Power(v) => {
                     tx.move_power_target(w.id, v, w.power_target_version).await?
                 }
-                PlanTarget::Retire | PlanTarget::Volume(..) => true,
+                PlanTarget::Retire | PlanTarget::Volume(..) | PlanTarget::Prune(_) => true,
                 PlanTarget::Migrate => false,
             };
         if !moved {
@@ -191,7 +192,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.place_target(&mut tx, &w, Some(&target)).await?;
             }
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
-            PlanTarget::Power(_) | PlanTarget::Migrate | PlanTarget::Volume(..) => {}
+            PlanTarget::Power(_)
+            | PlanTarget::Migrate
+            | PlanTarget::Volume(..)
+            | PlanTarget::Prune(_) => {}
         }
         finish(tx, caller, idem, APPROVE, plan).await
     }

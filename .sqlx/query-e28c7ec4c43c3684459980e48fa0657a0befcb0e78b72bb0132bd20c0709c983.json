@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload_key SET sweeping_job = NULL\n              WHERE repository_id = $1 AND workload_id = $2 AND sweeping_job = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e28c7ec4c43c3684459980e48fa0657a0befcb0e78b72bb0132bd20c0709c983"
+}

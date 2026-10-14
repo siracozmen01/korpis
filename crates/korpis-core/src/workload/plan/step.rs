@@ -37,6 +37,9 @@ pub enum StepAction {
     RestoreVolume,
     /// Make a volume what its staged restore holds; what it held is lost.
     ReplaceVolume,
+    /// Forget the backups a retention policy no longer keeps, and mark what only they held for
+    /// deletion (§5.3 of docs/06-storage.md).
+    PruneBackups,
     /// Create the runtime instance.
     Create,
     /// Start it.
@@ -73,6 +76,7 @@ impl StepAction {
             Self::BackupVolume => "backup_volume",
             Self::RestoreVolume => "restore_volume",
             Self::ReplaceVolume => "replace_volume",
+            Self::PruneBackups => "prune_backups",
             Self::Create => "create",
             Self::Start => "start",
             Self::Stop => "stop",
@@ -85,7 +89,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 20] = [
+    const ALL: [Self; 21] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -97,6 +101,7 @@ impl StepAction {
         Self::BackupVolume,
         Self::RestoreVolume,
         Self::ReplaceVolume,
+        Self::PruneBackups,
         Self::Create,
         Self::Start,
         Self::Stop,
@@ -123,7 +128,7 @@ impl StepAction {
             | Self::ReleaseAddress
             | Self::RollbackVolume
             | Self::ReplaceVolume => (true, false),
-            Self::DeleteSnapshot => (false, false),
+            Self::DeleteSnapshot | Self::PruneBackups => (false, false),
             Self::Migrate | Self::Retire => (true, true),
             _ => (false, true),
         }

@@ -30,7 +30,10 @@ fn moved_last(plan: &Plan, w: &Workload) -> bool {
     match plan.target {
         PlanTarget::Intent(i) => w.target == Some(i),
         PlanTarget::Power(v) => w.power_target_version == v,
-        PlanTarget::Retire | PlanTarget::Migrate | PlanTarget::Volume(..) => false,
+        PlanTarget::Retire
+        | PlanTarget::Migrate
+        | PlanTarget::Volume(..)
+        | PlanTarget::Prune(_) => false,
     }
 }
 
@@ -85,14 +88,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Undoes what approving `plan` moved, before any of its steps ran. Only the plan that moved
     /// the targets last can put them back; a later one has moved them since, and restoring would
-    /// undo it. A retire plan moved nothing, and neither did one deleting a volume.
+    /// undo it. A retire plan moved nothing, and neither did one on a volume or one pruning.
     async fn withdraw_approved(
         &self,
         tx: &mut S::Tx,
         plan: &Plan,
         w: &Workload,
     ) -> Result<(), AppError> {
-        if matches!(plan.target, PlanTarget::Retire | PlanTarget::Volume(..)) {
+        if matches!(plan.target, PlanTarget::Retire | PlanTarget::Volume(..) | PlanTarget::Prune(_))
+        {
             return Ok(());
         }
         let restored = moved_last(plan, w)

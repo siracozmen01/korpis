@@ -12,7 +12,9 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::ports::{BackupWrite as _, Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
+use crate::ports::{
+    BackupWrite as _, Clock, EffectWrite, PruneWrite as _, RecipeSource, Store, WorkloadWrite,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::backup::{Backup, BackupStats, BackupStatus};
@@ -283,6 +285,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         tx.insert_plan(&plan).await?;
         if let Some(b) = ask.backup {
+            if tx.swept((b.repository, w.id)).await? {
+                let why = "a prune is deleting what the workload's backups no longer reference";
+                return Err(AppError::conflict("backup.busy", why));
+            }
             tx.insert_backup(&pending(b, (w.id, v.id, plan.id), self.clock.now())).await?;
         }
         if approve_if_auto(&mut tx, &mut plan, caller, self.clock.now()).await? {

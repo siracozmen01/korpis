@@ -442,14 +442,17 @@ still the tenant's question, whatever the cryptography makes safe.
 against a misconfigured retention rule quietly destroying the history that a ransomware incident
 would need.
 
-**What a policy keeps, as built, 2026-10-14.** A whole backup is kept if it is one of the newest
-`keep_last`, or the newest of its hour, day, ISO week (Monday to Sunday, belonging to the year of
-its Thursday), month, or year, among the newest that many of each that have a backup, all in
-UTC: periods without a backup are not counted, so a server that was off for a week still keeps
-seven daily backups. Whatever the policy says, a backup younger than `min_retention` is kept, as
-is one not yet finished, and one an open plan restores (§5.5); a failed backup's record is kept
-for `keep_failed`, so why it failed can still be read. Every decision names the rules that keep
-the backup, so a prune's plan shows why each one survives.
+**What a policy keeps, as built, 2026-10-14.** Each volume's backups are judged on their own, since
+a backup is of one volume (Finding 38 of `23-walkthroughs.md`). A whole backup is kept if it is one
+of its volume's newest `keep_last`, or the newest of its hour, day, ISO week (Monday to Sunday,
+belonging to the year of its Thursday), month, or year, among the newest that many of each that
+have a backup, all in UTC: periods without a backup are not counted, so a server that was off for a
+week still keeps seven daily backups. So any policy that keeps something keeps each volume's newest
+whole backup, which is the parent its next backup takes unchanged files from. Whatever the policy
+says, a backup younger than `min_retention` is kept, as is one not yet finished, one an open plan
+restores, and one a reader was given access to that has not ended (§5.5); a failed backup's record
+is kept for `keep_failed`, so why it failed can still be read. Every decision names the rules that
+keep the backup, so a prune's plan shows why each one survives.
 
 ### 5.4 Restore
 
@@ -624,6 +627,30 @@ while any manifest in the repository refers to its digest. A backup that an open
 not pruned, and nothing it references is swept, until that plan ends: a restore reads with its
 own credential for hours, and the prefix lock is a writer's, which a reader does not take
 (Finding 35 of `23-walkthroughs.md`).
+
+**Pruning, as built, 2026-10-14.** `korpis backup prune <workload> --repository rep_…` proposes a
+plan of one `prune_backups` step under `backup.prune`. It is irreversible, so it is never approved
+by default, and its detail names each backup it forgets and why every other one is kept (§5.3);
+nothing is proposed while every backup is kept or being read. The step is the control plane's
+(§4.9 of `02-architecture.md`). It forgets the backups the plan names, except one being read by
+then, and marks every object beneath the workload's prefix that the backups whose records remain
+do not reference. What references what, the control plane reads itself, with read access and the
+workload's key, from each remaining record's root tree down (Finding 37 of `23-walkthroughs.md`).
+A node is never asked: a host that could name what to delete could delete its own history, which
+is what a backup exists to outlive. The sweep is queued for thirteen hours later, an hour longer
+than any access a job is given, and begins only when no backup into the prefix is open and no
+write access to it is still live (Finding 39 there): every access a job or a reader is given is
+recorded before it is asked for, with when it ends, so a job whose plan ended while it ran is
+seen. Then it holds the prefix, so a backup proposed meanwhile is refused (`backup.busy`), reads
+the references again, deletes what was marked, is still there, and is still unreferenced, and
+unmarks the rest. Waiting for a writer spends none of the sweep's attempts.
+
+What it costs: a prune reads every tree of every kept backup twice, once to mark and once to
+sweep. Trees are small and shared between backups, but a volume of millions of files is millions
+of small reads, through the control plane. What it does not do: prune on a schedule, which waits
+for the `scheduled` lifecycle (Finding 33), or anything beneath the repository's own prefix
+outside the workload's, which is where recipe content will be kept (§5.2), and which no backup
+refers to yet.
 
 ### 5.6 The backup target interface
 

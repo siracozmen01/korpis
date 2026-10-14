@@ -44,14 +44,18 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     let x = installed(&h, 31, "dns").await;
     let (mut stream, _) = registered(&h, &x.secret, "1.0.0", 10).await;
     let asked = tokio::time::Instant::now();
-    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(10))).collect();
+    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(20))).collect();
     let mut calls = Vec::new();
     for _ in 0..10 {
         calls.push(call(&mut stream).await);
     }
-    // Every call succeeds, at over four fifths of its deadline and a second and a half before it,
-    // counted from when it was asked: delivery under load does not eat the margin.
-    tokio::time::sleep_until(asked + Duration::from_millis(8500)).await;
+    // Every call succeeds at over four fifths of its deadline, counted from when the last of them
+    // came down the stream, which is after each was made: however late a loaded machine made
+    // them, each has taken that long. Each still answers before its deadline unless delivering
+    // the calls and the answers took more than three seconds between them.
+    let arrived = tokio::time::Instant::now();
+    assert!(arrived - asked < Duration::from_secs(3), "the calls came down in time");
+    tokio::time::sleep_until(arrived + Duration::from_millis(16_600)).await;
     for c in &calls {
         pong(&mut stream, c).await;
     }

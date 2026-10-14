@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO job (id, key, kind, payload, run_after, max_attempts, status, created)\n             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)\n             ON CONFLICT (key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d02f2a911fd0087cd32b6aca451405eb691c0f6a65886ceaee52154d8ec8006e"
+}

@@ -546,6 +546,21 @@ service BackupService {
   // its workload, which shows no other name. Recorded as a sensitive read. The stream ends in an
   // error, never quietly, when what was read is not what the backup recorded.
   rpc ReadBackupFile(ReadBackupFileRequest) returns (stream ReadBackupFileResponse);
+  // Proposes pruning a workload's backups in a repository under backup.prune on the workload:
+  // a plan of one step, always awaiting approval, whose detail names each backup it forgets and
+  // why every other one is kept. Applying it forgets them and marks what only they held; that is
+  // deleted after a grace period longer than any job's access (§5.5 of docs/06-storage.md).
+  rpc PruneBackups(PruneBackupsRequest) returns (PruneBackupsResponse);
+}
+
+message PruneBackupsRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+  string repository = 3;
+}
+
+message PruneBackupsResponse {
+  Plan plan = 1;
 }
 
 message CreateBackupRequest {

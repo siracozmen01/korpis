@@ -87,6 +87,30 @@ impl pb::BackupService for Api {
         respond(reply, restored)
     }
 
+    async fn prune_backups(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::PruneBackupsRequest>,
+    ) -> ServiceResult<pb::PruneBackupsResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
+        let repository = wire::id(IdKind::Repository, "repository", &req.repository).refuse()?;
+        let pruned = |p: &Plan| pb::PruneBackupsResponse {
+            plan: plan_to_pb(p).into(),
+            ..Default::default()
+        };
+        let encoder = |p: &Plan| encode(&pruned(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self
+            .app
+            .propose_prune(&caller, &idem, (workload, repository))
+            .await
+            .map_err(error::from_app)?;
+        respond(reply, pruned)
+    }
+
     async fn browse_backup(
         &self,
         ctx: RequestContext,

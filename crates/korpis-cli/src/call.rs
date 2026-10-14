@@ -132,6 +132,7 @@ table! {
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);
     "korpis.v1.BackupService/RestoreBackup" => BackupServiceClient::restore_backup(RestoreBackupRequest);
     "korpis.v1.BackupService/BrowseBackup" => BackupServiceClient::browse_backup(BrowseBackupRequest);
+    "korpis.v1.BackupService/PruneBackups" => BackupServiceClient::prune_backups(PruneBackupsRequest);
     "korpis.v1.BackupService/ReadBackupFile" => BackupServiceClient::read_backup_file(ReadBackupFileRequest) stream ReadBackupFileResponse;
 }
 

@@ -191,7 +191,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Moves a plan by a step's outcome: its progress, `applied` after its last step, `failed`
     /// on a failure. A retire plan applied retires the workload.
-    async fn progress(
+    pub(crate) async fn progress(
         &self,
         tx: &mut S::Tx,
         mut plan: Plan,

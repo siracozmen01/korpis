@@ -69,12 +69,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.authorize(caller, "workload.write", object).await?;
         let node = self.store.node(cmd.node).await?.ok_or(AppError::NotFound { kind: "node" })?;
         let mut tx = self.store.begin().await?;
-        tx.lock_placement().await?;
+        // The workload first, then the placement lock, as every placement takes them: in the
+        // other order this deadlocked with the retry of an unplaced workload.
         let w = tx
             .lock_workload(cmd.workload)
             .await?
             .filter(|w| w.deleted_at.is_none())
             .ok_or(AppError::NotFound { kind: "workload" })?;
+        tx.lock_placement().await?;
         let target = self.approved_target(&w).await?;
         match tx.placement_in(w.id).await? {
             Some(p) if p.node == node.id => return Ok(Reply::Fresh(p)),

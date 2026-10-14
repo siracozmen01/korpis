@@ -15,6 +15,7 @@
 )]
 
 mod browse;
+mod live;
 mod tree;
 
 use buffa::Message as _;

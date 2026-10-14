@@ -174,7 +174,10 @@ impl WorkloadWrite for PgTx {
         let (to_intent, to_power) = match p.target {
             PlanTarget::Intent(i) => (Some(i), None),
             PlanTarget::Power(v) => (None, Some(to_count("to_power", v)?)),
-            PlanTarget::Retire | PlanTarget::Migrate | PlanTarget::Volume(..) => (None, None),
+            PlanTarget::Retire
+            | PlanTarget::Migrate
+            | PlanTarget::Volume(..)
+            | PlanTarget::Prune(_) => (None, None),
         };
         let to_volume = p.target.volume();
         let steps: Vec<StepDoc> = p.steps.iter().map(StepDoc::from_domain).collect();
@@ -199,7 +202,8 @@ impl WorkloadWrite for PgTx {
             approval,
             scope.as_ref().map(|s| to_json("approval_scope", s)).transpose()?,
             p.approval_reason,
-            to_volume
+            to_volume,
+            p.target.repository()
         )
         .execute(&mut *self.tx)
         .await

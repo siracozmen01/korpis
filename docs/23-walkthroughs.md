@@ -1051,6 +1051,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 34 | Replacing a volume needs room for two copies of it | §21 | `06-storage.md` §5.4 |
 | 35 | A prune could remove the backup a restore is reading | §21 | `06-storage.md` §5.5 |
 | 36 | A long read outlasted the access it was given | §9 | `06-storage.md` §5.4 |
+| 37 | Marking needed to read what the control plane had no call to read | §22 | `06-storage.md` §5.5 |
+| 38 | Retention over a workload kept one volume's history | §22 | `06-storage.md` §5.3 |
+| 39 | A writer the prefix lock does not see | §22 | `06-storage.md` §5.5 |
+| 40 | A node would have run past the control plane's step | §22 | `02-architecture.md` §4.9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1514,3 +1518,78 @@ swept, until that plan ends. What evaluates it is the control plane, which holds
 plans and the prune. → patched into `06-storage.md` §5.5; the prune task carries it
 
 ‡ Step 6 is where the trace found Finding 34. † Step 3 is where it found Finding 35.
+
+## 22. A month of nightly backups is pruned
+
+Written 2026-10-14, from the implementation, when pruning was built. A month after §20,
+`mc-survival` has two volumes, `world` and `config`, and thirty nightly backups of each in
+`nightly`, whose policy keeps seven daily, four weekly, and six monthly backups above a one-day
+floor. The operator prunes it.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis backup prune mc-survival --repository rep_…` under `backup.prune`: the control plane judges each volume's backups on their own and finds twenty of each beyond the policy † | `06-storage.md` §5.3; `10-api.md` §5 |
+| 2 | One of them is being browsed by a moderator, whose read access has not ended; it is kept, and the plan's one step names the thirty-eight it forgets and why each other one stays | `06-storage.md` §5.3, §5.5 |
+| 3 | The step is irreversible, so the plan waits; the operator approves it | `01-model.md` §3.3; `10-api.md` §5 |
+| 4 | Its next step is the control plane's: a replica queues it as a job keyed by the plan and the step, and a worker claims it ‡ | `02-architecture.md` §4.9; `03-state.md` §6 |
+| 5 | The worker forgets the backups named, lists the workload's prefix through `s3`, grants itself read access, and reads every remaining record's trees with the workload's key, marking what none of them reference § | `06-storage.md` §5.5, §5.6 |
+| 6 | In the transaction that ends the job, the backups are forgotten, the objects marked, the sweep queued for thirteen hours later, and the step completed, which applies the plan | `03-state.md` §6; `06-storage.md` §5.5 |
+| 7 | At 03:00 the night's backup runs as usual; its parent is each volume's newest backup, which every policy keeps | `06-storage.md` §5.3, §5.7 |
+| 8 | Thirteen hours on, the sweep finds a write access still live: last night's job was cut off when its node lost its lease, and the job may still be writing. It waits for that access to end without spending an attempt ¶ | `06-storage.md` §5.5; `02-architecture.md` §4.5 |
+| 9 | Then it holds the prefix, reads the references again, deletes what is still marked and unreferenced through `s3`'s own credential, unmarks the rest, and lets the prefix go | `06-storage.md` §5.5, §5.6 |
+
+**FINDING 37: Marking needed to read what the control plane had no call to read. `CONFIRMED`**
+
+§5.5 of `06-storage.md` had the control plane mark "chunks no manifest references", and §5.6
+gave it, for pruning, a listing and a deletion through which "no object byte passes". Asked what
+evaluates the mark and with what information, the answer needed every tree of every kept backup,
+which is sealed under the workload's key and reachable only with read access, and the control
+plane had neither for pruning. Asking the node instead would let a compromised host name its own
+backups as garbage, which is the one thing a backup has to survive.
+
+**Resolution.** The control plane grants itself read access to the workload's prefix and opens
+the workload's key, as it already did to browse a backup, and reads the trees itself; the node
+plays no part in a prune. → patched into `06-storage.md` §5.5
+
+**FINDING 38: Retention over a workload kept one volume's history. `CONFIRMED`**
+
+§5.3 of `06-storage.md` gave a repository one policy, and the first implementation judged a
+workload's backups together. A workload's backup is of one volume, so `keep_last: 1` on
+`mc-survival` would have kept the newest backup of `world` or of `config`, whichever was taken
+last, and forgotten the other volume's entire history. Worse, the next backup of the forgotten
+volume names its newest backup as its parent and takes unchanged files' chunks from it unread.
+
+**Resolution.** Each volume's backups are judged on their own. Any policy that keeps something
+then keeps each volume's newest whole backup, so a parent is never forgotten under a child that
+is about to rely on it. → patched into `06-storage.md` §5.3
+
+**FINDING 39: A writer the prefix lock does not see. `CONFIRMED`**
+
+§5.5 of `06-storage.md` rests "one writer per prefix" on the control plane never running a
+backup and a prune of a prefix together, and its grace period on "a lock lost to a crash". Asked
+what the control plane knows of a writer, the answer was its open plans. A plan can end while its
+job still runs: a node whose lease lapsed keeps its process, and the job keeps twelve hours of
+write access to the prefix. Such a job can still write a record naming chunks the sweep is about
+to delete.
+
+**Resolution.** Every access granted to a prefix is recorded before it is asked for, with when it
+ends, and a sweep waits until no write access is live, beside the grace period, which stays as
+the second guard. What evaluates it is the control plane, which is the only party that grants
+access. → patched into `06-storage.md` §5.5
+
+**FINDING 40: A node would have run past the control plane's step. `CONFIRMED`**
+
+§4.9 of `02-architecture.md` says no node step is placed in an assignment until the steps before
+it have completed, whatever executed them. The assignment's node plan carried every node step,
+through the last, so a plan with a control-plane step between two node steps would have had the
+node execute both before the control plane did its part. No plan had such a step until pruning,
+which is why nothing showed it.
+
+**Resolution.** A node's plan stops before the first control-plane step not yet complete, and
+moves on once it is; a plan whose next step is the control plane's, with no node step before it,
+is no node's yet. → patched into `02-architecture.md` §4.9
+
+† Step 1 is where the trace found Finding 38. ‡ Step 4 is where it found Finding 40. § Step 5 is
+where it found Finding 37. ¶ Step 8 is where it found Finding 39.

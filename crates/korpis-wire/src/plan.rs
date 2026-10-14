@@ -130,8 +130,10 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         PlanTarget::Retire => (pb::PlanKind::PLAN_KIND_RETIRE, None, None),
         PlanTarget::Migrate => (pb::PlanKind::PLAN_KIND_MIGRATE, None, None),
         PlanTarget::Volume(_, op) => (volume_kind(op), None, None),
+        PlanTarget::Prune(_) => (pb::PlanKind::PLAN_KIND_PRUNE_BACKUPS, None, None),
     };
     let to_volume = p.target.volume().map(|v| wire_id(IdKind::Volume, v));
+    let to_repository = p.target.repository().map(|r| wire_id(IdKind::Repository, r));
     let (approval, approval_scope) = approval(&p.approval);
     pb::Plan {
         id: wire_id(IdKind::Plan, p.id),
@@ -156,6 +158,7 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         approval: approval.into(),
         approval_scope: approval_scope.into(),
         to_volume,
+        to_repository,
         ..Default::default()
     }
 }

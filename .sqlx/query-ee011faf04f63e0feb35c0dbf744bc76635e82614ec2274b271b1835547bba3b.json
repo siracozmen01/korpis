@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sweeping_job FROM workload_key\n              WHERE repository_id = $1 AND workload_id = $2 FOR SHARE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sweeping_job",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload_key",
+            "name": "sweeping_job"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "ee011faf04f63e0feb35c0dbf744bc76635e82614ec2274b271b1835547bba3b"
+}

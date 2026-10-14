@@ -60,9 +60,17 @@ fn reported(
 
 /// A node declaring `storage`, running a workload with a reported volume `data`: the harness,
 /// the node's stream, the workload, the volume, and the next journal sequence.
-pub(crate) async fn running(
+/// Boxed, since what it holds is large for a future that every test awaits.
+pub(crate) fn running(
     storage: Vec<pb::StorageClassInfo>,
-) -> (Harness, Stream, String, String, u64) {
+) -> std::pin::Pin<Box<impl Future<Output = Running>>> {
+    Box::pin(start(storage))
+}
+
+/// The harness, the node's stream, the workload, the volume, and the next journal sequence.
+pub(crate) type Running = (Harness, Stream, String, String, u64);
+
+async fn start(storage: Vec<pb::StorageClassInfo>) -> Running {
     let h = Harness::new().await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
     let (mut s, first) =

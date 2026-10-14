@@ -746,6 +746,17 @@ assignment until steps before it have completed, whatever executed them, and it 
 plan `applied` until every step's completion effect has been ingested. That is how a plan with steps
 on two nodes and one extension is still one ordered, resumable sequence.
 
+**Control-plane steps, as built, 2026-10-14**, when prunes made `prune_backups` the first of
+them. A step whose turn has come (its plan approved or applying, its schedule passed, every step
+before it complete) is queued as a job keyed by its plan and index, by whichever replica notices
+first, on every change to a plan and on the change feed's periodic resync; any replica's worker
+claims it, does it, and records its completion as a node's is recorded, in the transaction that
+ends the job. An attempt that fails is tried again, half a minute later and doubling to half an
+hour, and the eighth failure fails the step and so the plan. Corrected the same day (Finding 40
+of `23-walkthroughs.md`): an assignment carried a plan's node steps through the last of them,
+whatever came between, so a node would have run past a step the control plane had not done. Its
+`through` now stops before the first control-plane step not yet complete, and moves on once it is.
+
 **A node step may outlast a pass of the agent's loop.** Added 2026-10-14, when backups were built.
 A backup step runs for as long as a volume takes to read, and the loop that executes steps serves
 every workload on the node, so such a step does not hold it: each pass asks the helper where the
