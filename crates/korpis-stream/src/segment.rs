@@ -282,6 +282,27 @@ fn parse(payload: &[u8]) -> Option<Record> {
     Some(Record { offset, time_nanos, source: Source::from_tag(source, path)?, kind, body })
 }
 
+/// The footer of the sealed segment at `path`: its end offset and the times of its first and last
+/// records, read from the file's end without reading the records; none if it is not sealed.
+pub fn footer(path: &Path) -> io::Result<Option<(u64, (i64, i64))>> {
+    let mut file = File::open(path)?;
+    if file.metadata()?.len() < HEADER + FOOTER {
+        return Ok(None);
+    }
+    let back = i64::try_from(FOOTER).map_err(io::Error::other)?;
+    file.seek(SeekFrom::End(-back))?;
+    let mut f = [0u8; 28];
+    file.read_exact(&mut f)?;
+    let word = |at: usize| -> io::Result<[u8; 8]> {
+        f.get(at..at + 8).and_then(|b| b.try_into().ok()).ok_or_else(|| io::Error::other("footer"))
+    };
+    if f.get(..4) != Some(END.as_slice()) {
+        return Ok(None);
+    }
+    let end = u64::from_le_bytes(word(4)?);
+    Ok(Some((end, (i64::from_le_bytes(word(12)?), i64::from_le_bytes(word(20)?)))))
+}
+
 /// Reads the segment at `path` through.
 pub fn scan(path: &Path) -> io::Result<Scan> {
     let mut r = BufReader::new(File::open(path)?);
@@ -367,5 +388,7 @@ mod tests {
             "the digest addresses the content"
         );
         assert!(SegmentWriter::recover(&path).is_err(), "a sealed segment is not reopened");
+        let t = 1_760_000_000_000_000_000;
+        assert_eq!(footer(&path).unwrap(), Some((13, (t, t))), "read from the end alone");
     }
 }

@@ -34,6 +34,21 @@ enum IsolationTier {
 }
 
 // Driver, tier, and driver-specific configuration validated against the driver's own schema.
+// The limits of a workload's console stream (§5 of docs/14-streams.md), enforced where it is
+// written. Zero is the default; the stream's retention counts against the workload's disk quota.
+message StreamSpec {
+  // Bytes a second admitted on average; what exceeds it is dropped and recorded as a gap.
+  uint64 rate_bytes_per_sec = 1;
+  // Bytes admitted at once after a quiet period; at least one largest record (64 KiB).
+  uint64 burst_bytes = 2;
+  oneof retention {
+    // Sealed segments older than this are pruned.
+    google.protobuf.Duration retention_duration = 3;
+    // Sealed segments beyond this many bytes are pruned, oldest first.
+    uint64 retention_bytes = 4;
+  }
+}
+
 message RuntimeSpec {
   // e.g. "oci", "firecracker".
   string driver = 1;

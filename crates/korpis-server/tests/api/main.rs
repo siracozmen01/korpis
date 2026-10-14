@@ -51,6 +51,7 @@ mod session;
 mod sets;
 mod standalone;
 mod step;
+mod streams;
 mod support;
 mod tenancy;
 mod tokens;

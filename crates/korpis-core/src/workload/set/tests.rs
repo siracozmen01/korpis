@@ -34,6 +34,7 @@ fn body() -> IntentBody {
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
+        streams: crate::workload::spec::StreamSpec::default(),
     }
 }
 

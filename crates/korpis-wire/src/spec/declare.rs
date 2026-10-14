@@ -126,6 +126,7 @@ pub fn declaration_from_pb(
             &f("dependencies"),
             &b.dependencies,
         )?,
+        streams: crate::stream::spec_from_pb(&f("streams"), b.streams.as_option())?,
     };
     Ok((RecipeRequest { name: r.name.clone(), version }, declaration))
 }

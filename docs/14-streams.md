@@ -144,7 +144,11 @@ admitted by a token bucket in bytes. A record that finds the bucket empty is dro
 the next record admitted, or a second after the last drop if none is, writes one gap record with
 the records and bytes lost, the time they were lost over, and the reason. Segments are sealed at
 8 MiB or five minutes, whichever comes first, and the sealed ones are pruned oldest first to the
-stream's retention, 512 MiB by default. Records reach the page cache as they are written and the
+stream's retention, 64 MiB by default, or by age where the workload declares a duration instead.
+The limits are the intent's `streams` (§3.3 of `01-model.md`), and the most a stream can hold
+counts against the workload's disk quota as a volume it creates would (K-3): its retention, the
+segment still being written, and for a retention by age all its rate can write in that time.
+That is 72 MiB for the defaults; a workload whose console mode is `none` holds nothing. Records reach the page cache as they are written and the
 disk at least once a second and at every seal: the writer's crash loses nothing, and the machine's
 loses at most the last second, which the next start finds as a torn frame and cuts away.
 

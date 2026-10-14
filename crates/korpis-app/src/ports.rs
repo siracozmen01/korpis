@@ -29,6 +29,7 @@ mod relay;
 mod retire;
 mod session;
 mod set;
+mod stream;
 mod subscription;
 mod tenancy;
 mod trust;
@@ -65,6 +66,7 @@ pub use relay::{
 pub use retire::RetirementWrite;
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
+pub use stream::{StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
@@ -142,6 +144,7 @@ pub trait Store:
     + ProviderRead
     + ProviderCallRead
     + RelayRead
+    + StreamRead
     + Send
     + Sync
     + 'static
@@ -196,6 +199,7 @@ pub trait Tx:
     + ProviderCallWrite
     + BreakerWrite
     + RelayWrite
+    + StreamWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

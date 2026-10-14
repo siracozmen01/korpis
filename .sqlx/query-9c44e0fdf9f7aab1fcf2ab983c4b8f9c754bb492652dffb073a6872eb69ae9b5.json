@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO stream (id, workload_id, kind, created_at) VALUES ($1, $2, $3, now())\n             ON CONFLICT (workload_id, kind) DO UPDATE SET kind = EXCLUDED.kind\n             RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "stream",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9c44e0fdf9f7aab1fcf2ab983c4b8f9c754bb492652dffb073a6872eb69ae9b5"
+}

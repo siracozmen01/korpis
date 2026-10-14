@@ -12,6 +12,7 @@ package korpis.agent.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/tenancy.proto";
@@ -405,6 +406,7 @@ message JournalRecord {
     BreakGlass break_glass = 5;
     LeaseReleased lease_released = 6;
     JournalGap gap = 7;
+    StreamSegmentEvent stream_segment = 9;
   }
   // Coalesced identical records: how many this one stands for.
   uint64 count = 8;
@@ -421,6 +423,27 @@ message MeteringSample {
   double memory_byte_hours = 6;
   double disk_byte_hours = 7;
   uint64 egress_bytes = 8;
+}
+
+// A segment of a workload's stream was sealed, offloaded, or pruned on this node (§4 of
+// docs/14-streams.md): what the control plane's segment index is kept from.
+message StreamSegmentEvent {
+  string workload = 1;
+  korpis.v1.StreamKind kind = 2;
+  SegmentEvent event = 3;
+  // The segment as it stands after the event; the node field is ignored, since the record's
+  // node is the one that holds it.
+  korpis.v1.StreamSegment segment = 4;
+}
+
+enum SegmentEvent {
+  SEGMENT_EVENT_UNSPECIFIED = 0;
+  // Sealed on the node: its digest is final.
+  SEGMENT_EVENT_SEALED = 1;
+  // Held by the offload target as well.
+  SEGMENT_EVENT_OFFLOADED = 2;
+  // Removed from the node to its retention; if it was not offloaded, its records are gone.
+  SEGMENT_EVENT_PRUNED = 3;
 }
 
 message BreakGlass {

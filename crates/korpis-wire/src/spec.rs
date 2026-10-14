@@ -83,6 +83,7 @@ pub fn body_to_pb(b: &IntentBody) -> pb::IntentBody {
         }
         .into(),
         dependencies: b.dependencies.iter().map(dependencies::dependency_to_pb).collect(),
+        streams: crate::stream::spec_to_pb(&b.streams).into(),
         ..Default::default()
     }
 }
@@ -125,5 +126,6 @@ pub fn body_from_pb(field: &str, b: &pb::IntentBody) -> Result<IntentBody> {
         placement: health::placement_from_pb(&f("placement"), b.placement.as_option())?,
         continuity: continuity_from_pb(&f("continuity"), b.continuity.as_option())?,
         dependencies: dependencies::dependencies_from_pb(&f("dependencies"), &b.dependencies)?,
+        streams: crate::stream::spec_from_pb(&f("streams"), b.streams.as_option())?,
     })
 }

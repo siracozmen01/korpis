@@ -15,7 +15,7 @@ pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_drive
 
 use super::spec::{
     ConsoleMode, Continuity, Dependency, HealthSpec, IntentBody, Lifecycle, PlacementSpec,
-    ResourceSpec, SpecError,
+    ResourceSpec, SpecError, StreamSpec,
 };
 use crate::recipe::{Recipe, RecipeRef};
 use crate::value::ValueMap;
@@ -47,6 +47,8 @@ pub struct Declaration {
     pub continuity: Continuity,
     /// What it reaches by name.
     pub dependencies: Vec<Dependency>,
+    /// The limits of its console stream.
+    pub streams: StreamSpec,
 }
 
 impl Declaration {
@@ -71,6 +73,7 @@ impl Declaration {
             placement: self.placement,
             continuity: self.continuity,
             dependencies: self.dependencies,
+            streams: self.streams,
         };
         body.validate()?;
         Ok(body)

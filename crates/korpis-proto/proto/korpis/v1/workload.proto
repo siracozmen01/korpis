@@ -126,6 +126,8 @@ message IntentBody {
   ContinuitySpec continuity = 12;
   // What it reaches by name, injected at start (§5 of docs/07-networking.md).
   repeated Dependency dependencies = 13;
+  // The limits of its console stream (§5 of docs/14-streams.md).
+  StreamSpec streams = 14;
 }
 
 // Power is declared separately from configuration (finding R7, §3.3 of docs/01-model.md).

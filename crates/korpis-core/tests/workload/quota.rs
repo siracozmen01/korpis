@@ -24,7 +24,18 @@ fn a_workload_holds_its_reservations_its_volumes_and_itself() {
     let held = Held::of(&body());
     assert_eq!(held.reservations[&D::Memory], 4 * GIB);
     assert_eq!(held.limits[&D::Memory], Some(6 * GIB));
-    assert_eq!(held.reservations[&D::Disk], 40 * GIB, "the volume it creates is disk it holds");
+    let stream = body().streams.disk_bound();
+    assert_eq!(stream, 72 * 1024 * 1024);
+    assert_eq!(
+        held.reservations[&D::Disk],
+        40 * GIB + stream,
+        "the volume it creates, and what its console stream can keep, are disk it holds"
+    );
+    let quiet = korpis_core::workload::IntentBody {
+        console: korpis_core::workload::spec::ConsoleMode::None,
+        ..body()
+    };
+    assert_eq!(Held::of(&quiet).reservations[&D::Disk], 40 * GIB, "no console, no stream");
     assert_eq!(held.reservations[&D::Workloads], 1);
     assert_eq!(held.reservations[&D::Endpoints], 1);
     assert_eq!(held.limits[&D::DiskReadBytes], None, "no I/O ceiling declared is unbounded");

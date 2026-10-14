@@ -34,6 +34,7 @@ mod relay;
 mod session;
 mod set;
 mod stored;
+mod stream;
 mod subscription;
 mod tenancy;
 #[cfg(feature = "testing")]

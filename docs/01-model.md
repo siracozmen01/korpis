@@ -414,7 +414,16 @@ Intent
                                (§4.5 of 02-architecture.md); derived when unset
   dependencies  []Dependency   name, target (workload, endpoint, or selector), inject, required
                                (§5 of 07-networking.md); refused until Phase 1 resolves them
+  streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
+                               duration); each left unset is the default (§5 of 14-streams.md)
 ```
+
+> Corrected 2026-10-14, when streams were built. §5 of `14-streams.md` made a stream's rate "a
+> declared field with a sane default", and the intent had no field to declare it in, so the one
+> limit that keeps a workload's logging from filling its node could not be set. Rule E of
+> `20-roadmap.md` meant to freeze the schema in Phase 0; this field was missed there, and adding
+> it is recorded rather than passed over. An intent stored before it reads as one with the
+> defaults.
 
 **Invariants**
 - An `Intent` is **never mutated**. Changing anything creates a new `Intent` with `version + 1` and

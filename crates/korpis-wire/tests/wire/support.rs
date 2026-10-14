@@ -193,5 +193,12 @@ pub fn body() -> IntentBody {
         placement: placement(),
         continuity: Continuity::KeepRunning,
         dependencies: dependencies(),
+        streams: korpis_core::workload::spec::StreamSpec {
+            rate: 1024 * 1024,
+            burst: 8 * 1024 * 1024,
+            retention: korpis_core::workload::spec::streams::Retention::Duration(
+                std::time::Duration::from_secs(86_400),
+            ),
+        },
     }
 }

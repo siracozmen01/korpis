@@ -6,6 +6,7 @@
 //! record it expects.
 
 use crate::audit::Outcome;
+use crate::workload::stream::{Segment, SegmentEvent, StreamKind};
 use serde_json::{Map, Value};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -65,6 +66,18 @@ pub enum Body {
         last: u64,
         /// Why.
         cause: String,
+    },
+    /// A segment of a workload's stream was sealed, offloaded, or pruned on the node (§4 of
+    /// docs/14-streams.md).
+    Segment {
+        /// The workload.
+        workload: Uuid,
+        /// Which of its streams.
+        kind: StreamKind,
+        /// What happened.
+        event: SegmentEvent,
+        /// The segment as it stands after it; its node is the journal's.
+        segment: Segment,
     },
     /// A record that could not be read as one: kept as a rejection, so one bad record never
     /// blocks a journal.

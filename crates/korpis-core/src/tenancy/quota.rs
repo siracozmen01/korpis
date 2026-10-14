@@ -10,9 +10,9 @@
 //! it may use (§5.1, "Quota holds the enforced value, not the declared one").
 
 use crate::labels::LabelSelector;
-use crate::workload::spec::IntentBody;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::resources::ReservedLimit;
+use crate::workload::spec::{ConsoleMode, IntentBody};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -140,6 +140,12 @@ impl Held {
         let r = &body.resources;
         let created: Vec<_> = body.volumes.iter().filter(|v| v.existing.is_none()).collect();
         let volume_bytes = created.iter().fold(0u64, |a, v| a.saturating_add(v.size_bytes));
+        // A console stream holds disk like a volume it creates (§4 of docs/14-streams.md).
+        let stream_bytes = match body.console {
+            ConsoleMode::None => 0,
+            _ => body.streams.disk_bound(),
+        };
+        let created_bytes = volume_bytes.saturating_add(stream_bytes);
         let dedicated = body.endpoints.iter().filter(|e| e.exposure == Exposure::DedicatedIp);
         let counts = [
             (D::Workloads, 1),
@@ -155,13 +161,13 @@ impl Held {
         let mut reservations = BTreeMap::from([
             (D::Cpu, r.cpu.reservation_millis),
             (D::Memory, r.memory.reservation),
-            (D::Disk, r.disk.reservation.saturating_add(volume_bytes)),
+            (D::Disk, r.disk.reservation.saturating_add(created_bytes)),
             (D::Bandwidth, r.bandwidth.egress.reservation),
         ]);
         let mut limits = BTreeMap::from([
             (D::Cpu, Some(cpu.effective())),
             (D::Memory, Some(r.memory.effective())),
-            (D::Disk, Some(r.disk.effective().saturating_add(volume_bytes))),
+            (D::Disk, Some(r.disk.effective().saturating_add(created_bytes))),
             (D::DiskReadBytes, ceiling(r.io.read_bytes_per_sec)),
             (D::DiskWriteBytes, ceiling(r.io.write_bytes_per_sec)),
             (D::DiskReadOps, ceiling(r.io.read_ops_per_sec)),

@@ -51,6 +51,7 @@ pub mod revocation;
 pub mod scope;
 pub mod spec;
 pub mod step;
+pub mod stream;
 pub mod tenancy;
 pub mod value;
 pub mod workload;

@@ -96,7 +96,8 @@ fn body(memory: u64) -> IntentBody {
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
-        console: ConsoleMode::Logs,
+        // No stream, so these cases reserve only what they set: a stream reserves node disk.
+        console: ConsoleMode::None,
         runtime: RuntimeSpec {
             driver: "oci".into(),
             tier: IsolationTier::Container,
@@ -110,6 +111,7 @@ fn body(memory: u64) -> IntentBody {
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
+        streams: crate::workload::spec::StreamSpec::default(),
     }
 }
 

@@ -73,6 +73,17 @@ fn gap(field: &str, seq: u64, g: &agent::JournalGap) -> Result<Body> {
     Ok(Body::Gap { first: g.first_seq, last: g.last_seq, cause: g.cause.clone() })
 }
 
+fn segment(field: &str, e: &agent::StreamSegmentEvent) -> Result<Body> {
+    let s =
+        e.segment.as_option().ok_or_else(|| invalid(&format!("{field}.segment"), "required"))?;
+    Ok(Body::Segment {
+        workload: id(IdKind::Workload, &format!("{field}.workload"), &e.workload)?,
+        kind: crate::stream::kind_from_pb(&format!("{field}.kind"), e.kind)?,
+        event: crate::stream::event_from_pb(&format!("{field}.event"), e.event)?,
+        segment: crate::stream::segment_from_pb(&format!("{field}.segment"), s)?,
+    })
+}
+
 fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
     Ok(match b.ok_or_else(|| invalid(field, "required"))? {
         B::Effect(e) => Body::Effect(effect(&format!("{field}.effect"), e)?),
@@ -91,6 +102,7 @@ fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
             epoch: l.epoch,
         },
         B::Gap(g) => gap(&format!("{field}.gap"), seq, g)?,
+        B::StreamSegment(e) => segment(&format!("{field}.stream_segment"), e)?,
     })
 }
 

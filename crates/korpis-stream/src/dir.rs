@@ -91,6 +91,21 @@ impl StreamDir {
         Ok(writing)
     }
 
+    /// Removes sealed segments whose last record is older than `cutoff` (nanoseconds since the
+    /// Unix epoch); the first offsets removed.
+    pub fn prune_before(&self, cutoff: i64) -> io::Result<Vec<u64>> {
+        let mut removed = Vec::new();
+        for s in self.segments()?.into_iter().filter(|s| s.sealed) {
+            let Some((_, (_, last))) = segment::footer(&s.path)? else { continue };
+            if last >= cutoff {
+                break;
+            }
+            std::fs::remove_file(&s.path)?;
+            removed.push(s.first_offset);
+        }
+        Ok(removed)
+    }
+
     /// Removes sealed segments, oldest first, while the sealed ones hold more than `max_bytes`;
     /// the first offsets removed.
     pub fn prune_to(&self, max_bytes: u64) -> io::Result<Vec<u64>> {

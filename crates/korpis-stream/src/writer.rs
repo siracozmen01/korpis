@@ -32,8 +32,17 @@ pub struct Limits {
     pub segment_bytes: u64,
     /// Or once its first record is this old.
     pub segment_age: Duration,
+    /// How much of the stream is kept.
+    pub retention: Retention,
+}
+
+/// How much of a stream is kept, as its workload declares.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Retention {
     /// Sealed segments beyond this many bytes are pruned, oldest first.
-    pub retention_bytes: u64,
+    Bytes(u64),
+    /// Sealed segments whose last record is older than this are pruned.
+    Age(Duration),
 }
 
 impl Default for Limits {
@@ -44,7 +53,7 @@ impl Default for Limits {
             max_record: 64 * 1024,
             segment_bytes: 8 * 1024 * 1024,
             segment_age: Duration::from_secs(300),
-            retention_bytes: 512 * 1024 * 1024,
+            retention: Retention::Bytes(64 * 1024 * 1024),
         }
     }
 }
@@ -161,6 +170,7 @@ impl StreamWriter {
         if due {
             self.seal()?;
         }
+        self.prune(Some(now))?;
         if let Some(active) = &self.active {
             active.sync()?;
         }
@@ -178,7 +188,19 @@ impl StreamWriter {
         let sealed = active.seal()?;
         self.dir.mark_sealed(first)?;
         self.changes.sealed.push(sealed);
-        let pruned = self.dir.prune_to(self.limits.retention_bytes)?;
+        self.prune(None)
+    }
+
+    /// Prunes sealed segments to the retention, as of `now` for a retention by age.
+    fn prune(&mut self, now: Option<i64>) -> io::Result<()> {
+        let pruned = match (self.limits.retention, now) {
+            (Retention::Bytes(max), _) => self.dir.prune_to(max)?,
+            (Retention::Age(age), Some(now)) => {
+                let age = i64::try_from(age.as_nanos()).unwrap_or(i64::MAX);
+                self.dir.prune_before(now.saturating_sub(age))?
+            }
+            (Retention::Age(_), None) => Vec::new(),
+        };
         self.changes.pruned.extend(pruned);
         Ok(())
     }

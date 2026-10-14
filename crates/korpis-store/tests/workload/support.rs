@@ -103,6 +103,7 @@ pub fn body(motd: &str) -> IntentBody {
         placement: PlacementSpec::default(),
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
+        streams: korpis_core::workload::spec::StreamSpec::default(),
     }
 }
 

@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{
     Clock, EffectWrite, JournalWrite, LeaseWrite, PlacementWrite, RecipeSource, RetirementWrite,
-    Store, Tx, WorkloadWrite,
+    Store, StreamWrite as _, Tx, WorkloadWrite,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome, details};
 use korpis_core::node::journal::{Body, NodeEffect, Record, admit, valid_action};
@@ -89,6 +89,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     ("last", (*last).into()),
                     ("cause", cause.clone().into()),
                 ]))
+            }
+            Body::Segment { workload, kind, event, segment } => {
+                if !self.store.nodes_of(*workload).await?.contains(&node) {
+                    return Ok(rejected(
+                        "the workload is not assigned to this node",
+                        event.action(),
+                    ));
+                }
+                tx.record_segment((*workload, *kind), *event, segment, node).await?;
+                let mut e = system(event.action(), Outcome::Succeeded).after(details([
+                    ("stream", kind.as_str().into()),
+                    ("first_offset", segment.first_offset.into()),
+                    ("end_offset", segment.end_offset.into()),
+                    ("bytes", segment.bytes.into()),
+                    ("digest", segment.digest.clone().into()),
+                ]));
+                e.workload = Some(*workload);
+                e.grant = self.store.governing_grant(*workload).await?;
+                e
             }
             Body::Malformed { reason } => rejected(reason, "malformed"),
             // Metering is stored with the metering of Phase 2 (§4 of docs/20-roadmap.md); until

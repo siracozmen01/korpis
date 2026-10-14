@@ -11,6 +11,7 @@ pub mod endpoints;
 pub mod health;
 pub mod placement;
 pub mod resources;
+pub mod streams;
 pub mod volumes;
 
 pub use dependencies::Dependency;
@@ -18,6 +19,7 @@ pub use endpoints::EndpointSpec;
 pub use health::HealthSpec;
 pub use placement::PlacementSpec;
 pub use resources::ResourceSpec;
+pub use streams::StreamSpec;
 pub use volumes::VolumeSpec;
 
 use crate::recipe::RecipeRef;
@@ -141,6 +143,8 @@ pub struct IntentBody {
     pub continuity: Continuity,
     /// What it reaches by name.
     pub dependencies: Vec<Dependency>,
+    /// The limits of its console stream.
+    pub streams: StreamSpec,
 }
 
 impl IntentBody {
@@ -164,6 +168,7 @@ impl IntentBody {
         endpoints::validate(&self.endpoints)?;
         self.health.validate(&self.endpoints)?;
         dependencies::validate(&self.dependencies)?;
+        self.streams.validate()?;
         self.placement.validate()
     }
 }

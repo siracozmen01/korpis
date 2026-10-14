@@ -509,7 +509,9 @@ as a limit.
   approved at any moment and the target is what the kernel grants now, so holding either alone
   would let a workload awaiting approval, or one being shrunk, hold less than it may use. A limit
   left unset is the reservation (§5.2); an I/O ceiling left unset is unbounded, which no bounded
-  entry admits. Disk includes every volume the workload creates.
+  entry admits. Disk includes every volume the workload creates and the most its console stream
+  can keep (§5 of `14-streams.md`), and placement reserves the same on the node, since a stream's
+  segments are written there.
 - **Only growth is refused.** A declaration that holds no more than the workload already did, in a
   dimension, passes even where the entry is exceeded, so lowering a bound never strands a workload
   that then cannot be edited, not even to shrink it.

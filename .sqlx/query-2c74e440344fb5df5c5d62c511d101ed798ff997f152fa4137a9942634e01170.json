@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT first_offset, end_offset, first_at, last_at, bytes, digest, node_id, offloaded\n               FROM stream_segment WHERE stream_id = $1 ORDER BY first_offset",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first_offset",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "first_offset"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "end_offset",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "end_offset"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "first_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "first_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "last_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "digest"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "offloaded",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "stream_segment",
+            "name": "offloaded"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "2c74e440344fb5df5c5d62c511d101ed798ff997f152fa4137a9942634e01170"
+}

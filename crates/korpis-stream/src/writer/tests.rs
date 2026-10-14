@@ -59,7 +59,8 @@ fn secrets_never_reach_the_file_and_overlong_records_are_cut() {
 #[test]
 fn segments_seal_by_size_and_age_are_pruned_and_offsets_continue_after_a_restart() {
     let dir = tempfile::tempdir().unwrap();
-    let limits = Limits { segment_bytes: 200, retention_bytes: 400, ..Limits::default() };
+    let limits =
+        Limits { segment_bytes: 200, retention: Retention::Bytes(400), ..Limits::default() };
     let mut w = writer(dir.path(), limits);
     for i in 0..30 {
         w.write(Source::Stdout, Kind::Text, format!("line {i:02} of thirty").as_bytes(), T0)
@@ -81,4 +82,25 @@ fn segments_seal_by_size_and_age_are_pruned_and_offsets_continue_after_a_restart
     let batch = read(&StreamDir::new(dir.path()), 30, 10).unwrap();
     assert_eq!(batch.records.len(), 1);
     assert_eq!(batch.next, 31);
+}
+
+#[test]
+fn a_retention_by_age_prunes_what_is_older_than_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let limits = Limits {
+        segment_bytes: 100,
+        retention: Retention::Age(Duration::from_secs(60)),
+        ..Limits::default()
+    };
+    let mut w = writer(dir.path(), limits);
+    for i in 0..10 {
+        w.write(Source::Stdout, Kind::Text, format!("old line {i} of ten").as_bytes(), T0).unwrap();
+    }
+    w.write(Source::Stdout, Kind::Text, b"recent enough to stay", T0 + 100 * SECOND).unwrap();
+    w.seal().unwrap();
+    w.tick(T0 + 120 * SECOND).unwrap();
+    let pruned = w.changes().pruned;
+    assert!(!pruned.is_empty(), "the old segments go");
+    let batch = read(&StreamDir::new(dir.path()), 0, 100).unwrap();
+    assert!(batch.records.iter().all(|r| r.time_nanos > T0), "only the recent remain");
 }
