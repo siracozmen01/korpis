@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The backup repository format (§5 of docs/06-storage.md): what a backup job writes beneath a
+// workload's prefix, sealed under keys derived from the workload's data key. A third party with
+// the key can read a repository with this schema and nothing else.
+//
+// Beneath the prefix there are three kinds of object, each sealed (compressed, then encrypted
+// with the key for its kind, its kind and name bound into the encryption):
+//
+//   chunks/<id>     a run of a file's bytes, cut at content-defined boundaries; <id> is a keyed
+//                   hash of the bytes, so equal bytes in the same workload are stored once and
+//                   equal bytes in two workloads have unrelated identifiers
+//   trees/<id>      one directory: a Tree, encoded; <id> is a keyed hash of the encoding, so an
+//                   unchanged directory is stored once across every backup that contains it
+//   backups/<id>    one backup: a Backup, written last, so a backup whose record exists is whole
+//
+// Restoring one file fetches the record, the trees on the path to it, and its chunks.
+
+syntax = "proto3";
+
+package korpis.backup.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// One directory's entries, sorted by name.
+message Tree {
+  repeated Entry entries = 1;
+}
+
+// One name in a directory, with what restoring it needs.
+message Entry {
+  // The name, as the filesystem has it: any bytes but '/' and NUL.
+  bytes name = 1;
+  EntryKind kind = 2;
+  // The permission bits and the set-id and sticky bits.
+  uint32 mode = 3;
+  // The ids as they are on disk.
+  uint32 uid = 4;
+  uint32 gid = 5;
+  int64 mtime_seconds = 6;
+  uint32 mtime_nanos = 7;
+  // A file's length, holes included.
+  uint64 size = 8;
+  // A file's data, in order: the chunks of the bytes in its extents.
+  repeated string chunks = 9;
+  // Where a sparse file's data is; empty when the whole length is data.
+  repeated Extent extents = 10;
+  // A directory's tree.
+  string subtree = 11;
+  // A symbolic link's target, as the filesystem has it.
+  bytes link_target = 12;
+  repeated Xattr xattrs = 13;
+  // A file with more than one link: its link group, numbered from 1 within the backup in the
+  // order the walk meets them, and how many names it has, so a restore links the names again
+  // rather than copying the data. Every name of a group carries the data, so any one of them can
+  // be restored alone.
+  uint64 link_group = 14;
+  uint32 links = 15;
+  // A file byte-identical to recipe content, by that content's sha256: stored once per
+  // repository by reference, never in the workload's chunks (§5.2 of docs/06-storage.md).
+  string content = 16;
+  // A device node's device number.
+  uint64 rdev = 17;
+  // When the inode last changed, and its number on the filesystem it was read from: with the
+  // size and the mtime, how the next backup knows a file is unchanged without reading it. Not
+  // restored.
+  int64 ctime_seconds = 18;
+  uint32 ctime_nanos = 19;
+  uint64 ino = 20;
+  // A file's content, holes read as zeros, under a keyed hash: what a restore is verified
+  // against without fetching anything again.
+  bytes digest = 21;
+}
+
+enum EntryKind {
+  ENTRY_KIND_UNSPECIFIED = 0;
+  ENTRY_KIND_FILE = 1;
+  ENTRY_KIND_DIRECTORY = 2;
+  ENTRY_KIND_SYMLINK = 3;
+  ENTRY_KIND_FIFO = 4;
+  ENTRY_KIND_CHAR_DEVICE = 5;
+  ENTRY_KIND_BLOCK_DEVICE = 6;
+  // A socket is recorded and not restored: nothing listens on it after a restore.
+  ENTRY_KIND_SOCKET = 7;
+}
+
+// A run of a sparse file's data.
+message Extent {
+  uint64 offset = 1;
+  uint64 length = 2;
+}
+
+// An extended attribute; POSIX ACLs are these too.
+message Xattr {
+  bytes name = 1;
+  bytes value = 2;
+}
+
+// One backup of one volume.
+message Backup {
+  // The backup's identifier, as the control plane named it.
+  string id = 1;
+  // The root directory's tree.
+  string root = 2;
+  google.protobuf.Timestamp started = 3;
+  google.protobuf.Timestamp finished = 4;
+  // Read from a snapshot, so a single point in time; false when read from the live volume of a
+  // class that cannot snapshot, which may be internally inconsistent (§5.1 of
+  // docs/06-storage.md).
+  bool consistent = 5;
+  BackupStats stats = 6;
+  // The volume's root directory itself: its mode, owner, attributes, and times.
+  Entry root_entry = 7;
+}
+
+message BackupStats {
+  uint64 files = 1;
+  uint64 directories = 2;
+  // The bytes of every file's data.
+  uint64 bytes = 3;
+  // Of those, the chunks and bytes this backup stored; the rest were already there, or unchanged
+  // since the parent backup and not read at all.
+  uint64 chunks_new = 4;
+  uint64 bytes_new = 5;
+  // What was stored, sealed.
+  uint64 stored_bytes = 6;
+  // Files not read because the parent backup had them unchanged.
+  uint64 files_unchanged = 8;
+  // Entries read but not backed up, and why: a file that vanished during the read, a name the
+  // job could not open.
+  repeated string skipped = 7;
+}

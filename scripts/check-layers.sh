@@ -24,6 +24,9 @@ rules=(
     # The stream format runs beside every workload, spawned by its shim: nothing of ours, no RPC
     # stack, no runtime, so it is small and its one job is visible.
     "korpis-stream||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx hyper"
+    # The backup format is read by a job on the node and by the control plane: the repository
+    # messages and an object store, and nothing else of ours.
+    "korpis-backup||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent connectrpc sqlx"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

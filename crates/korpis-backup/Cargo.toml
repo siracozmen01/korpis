@@ -1,0 +1,44 @@
+[package]
+name = "korpis-backup"
+description = "Korpis backups: content-defined chunks and directory trees, sealed under a workload's data key, written to and read from an object store"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Chunk and tree identifiers: a keyed hash, so equal content in two workloads has unrelated
+# identifiers (§5.3 of docs/06-storage.md).
+blake3 = "1"
+buffa = { version = "=0.9.2" }
+buffa-types = { version = "=0.9.2" }
+# Every object is encrypted before it leaves the node, under a key derived from the workload's
+# data key (§5.5 of docs/06-storage.md).
+chacha20poly1305 = "0.10"
+# Uploads and fetches run several at once.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# Content-defined chunk boundaries, so an insertion moves one chunk rather than every one after it.
+fastcdc = "5"
+getrandom = "0.4"
+hkdf = "0.12"
+# The repository format's messages only: no RPC stack.
+korpis-proto = { workspace = true }
+rustix = { version = "1", features = ["fs"] }
+sha2 = "0.10"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = "0.1"
+# Derived keys are wiped when dropped.
+zeroize = "1"
+# Objects are compressed before they are sealed: game worlds compress well, and ciphertext does
+# not compress at all.
+zstd = "0.13"
+
+[dev-dependencies]
+rustix = { version = "1", features = ["fs", "process"] }
+tempfile = "3"

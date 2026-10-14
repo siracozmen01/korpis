@@ -549,6 +549,65 @@ that exists; chunks are content-addressed, so an overwrite writes the same bytes
 key names its backup, which no other job writes. Where the store supports conditional writes, a
 provider should refuse overwrites outright.
 
+### 5.7 The repository format
+
+> Added 2026-10-14, when the backup engine was built (`korpis-backup`, format
+> `korpis.backup.v1`).
+
+**Beneath a workload's prefix there are three kinds of object, and every one is sealed.** A chunk
+(`chunks/<id>`) is a run of a file's bytes; a tree (`trees/<id>`) is one directory, its entries
+sorted by name; a backup (`backups/<id>`) is one backup's record, naming its root tree. Each is
+compressed with zstd and then encrypted with XChaCha20-Poly1305 under a fresh random nonce, its
+own name bound in as associated data, so an object copied to another name, or offered as another
+kind, fails to open rather than being read as what it is not. Every key is derived from the
+workload's data key (§5.5) with HKDF-SHA256: one for chunk identifiers and one for tree
+identifiers (keyed BLAKE3 hashes, which is what makes the dedup scope of §5.3 structural), one for
+a content digest, and one encryption key per kind of object.
+
+**One tree per directory, content-addressed, is the manifest.** A directory nothing in changed
+encodes to the same tree, so it is stored once across every backup that contains it, and a
+single-path restore (§5.4) fetches the record, the trees on the path, and that path's chunks. A
+file's data is read only where the filesystem says it has data (`SEEK_DATA` and `SEEK_HOLE`), and
+each run is cut by FastCDC at content-defined boundaries of 512 KiB to 8 MiB, averaging 1 MiB: an
+insertion moves the chunks around it and no others, and a sparse file is stored as its data and
+restored sparse. A file byte-identical to recipe content is recorded by that content's sha256 and
+stores nothing (§5.2). The record is written last, so a backup whose record exists is whole and a
+failed one leaves only objects the next backup reuses.
+
+**The next backup reads only what may have changed.** A file whose size, modification time,
+change time, and inode number match the parent backup's entry takes that entry's chunks without
+being read. The change time cannot be set by the file's owner, so a workload cannot make a changed
+file look unchanged; what it costs is that a file changed by something that also restores the
+change time, which needs the host's clock, is not read again.
+
+**The walk cannot be steered out of the volume.** Every directory is opened relative to its parent
+with `O_NOFOLLOW` and every inode is examined through the descriptor that was opened, so a
+workload that swaps a directory for a link while its live volume is read (a class that cannot
+snapshot, §5.1) gets the link recorded, never followed; the walk never leaves the volume's
+filesystem; and what changed or vanished under it is listed in the record as skipped, which is
+what makes a live backup's inconsistency visible rather than silent.
+
+**A restore creates only what it was told, and only where it was told.** Every name is checked
+before anything is created from a tree (not empty, not `.` or `..`, no `/` or NUL, each once),
+every file is created exclusively relative to a directory the restore created, a whole volume is
+restored only into an empty directory, and one path only beside what is there, never over it.
+Ownership, then mode, then extended attributes (POSIX ACLs among them), then times are applied in
+that order, because each undoes part of the one before it otherwise. Hard links are links again,
+and each name of a link group carries the data, so one can be restored alone.
+
+**Verification fetches nothing but trees.** What was restored is walked as a backup would walk it,
+sending nothing, and compared entry by entry: kind, mode, owner, modification time, size, content
+by its keyed digest (holes read as zeros), link target, device number, extended attributes, and
+which names are links of one file. Data is compared by digest because a restoring filesystem may
+lay out a sparse file's runs differently from the one it was read from.
+
+**What it does not do.** A socket is recorded and not restored, since nothing listens on it
+afterwards. A symbolic link's extended attributes are not recorded: Linux refuses `user.`
+attributes on links, and the security labels it allows belong to the host that set them. Anything
+holding the data key can write objects that open; that is the node running the workload's job
+(§5.5), which could already read the live data. Nothing in the engine deletes: pruning is the
+control plane's (§5.5).
+
 ---
 
 ## 6. The content store

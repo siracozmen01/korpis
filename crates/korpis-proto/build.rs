@@ -25,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/agent/v1/identity.proto",
         "korpis/driver/v1/driver.proto",
         "korpis/helper/v1/helper.proto",
+        "korpis/backup/v1/backup.proto",
     ];
     println!("cargo:rerun-if-changed=descriptor.binpb");
     // Every map is a BTreeMap, so a message encodes to the same bytes every time: an
