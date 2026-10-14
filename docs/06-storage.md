@@ -598,11 +598,43 @@ backups, and that is exactly the question open question 1 asked:
 | `key_custody` | KEK held by | The operator can read tenant backups | Restore needs |
 |---|---|---|---|
 | `operator` (default) | the control plane, or the operator's KMS | **yes**, through an explicit grant naming the tenant, visible to the tenant (§3.3 of `08-identity.md`) | nothing extra |
-| `tenant` | a KMS the tenant controls, which the control plane asks to unwrap per job | **no** | the tenant's KMS to be reachable |
+| `tenant` | a KMS the tenant controls, which makes each data key and opens it each time it is used | **not without the tenant's KMS**: every opening is an unwrap it performs, may refuse, and logs; revoking the key ends every opening, the operator's included | the tenant's KMS to be reachable |
 
-`tenant` custody is the only configuration in which a host genuinely cannot read a customer's
-backups, and it costs the customer their own key management and the host the ability to restore
+> Corrected 2026-10-14, when tenant custody was built (Finding 44 of `23-walkthroughs.md`). The
+> table said the operator **cannot** read a tenant's backups under `tenant` custody, and the text
+> below it called this the one configuration in which a host genuinely cannot. Neither holds, and
+> §8 of `17-security.md` says why in general: the operator runs the nodes. A backup job runs on
+> the operator's node with the data key in its memory, as the live volume is on its disk; the
+> key management provider is an extension the operator's nodes run, holding a credential for the
+> tenant's KMS that the operator could take. What the custody does give is a key that is opened
+> only by the tenant's own service, each time, so every opening is in the tenant's KMS log and the
+> tenant can end them all, the operator's included, by revoking one key, which makes every backup
+> under it unreadable (crypto-shredding). That is a real and checkable property; the old one was
+> not.
+
+`tenant` custody costs the customer their own key management and the host the ability to restore
 without them. Both are stated where the choice is made.
+
+**Tenant custody, as built, 2026-10-14.** A repository made with `--kms-provider` and `--kms-key`
+names the organization's `key_management` provider (§5 of `16-extensions.md`) and the tenant's
+key in its service, and has no key-encryption key here. A workload's data key is made by the
+tenant's service at its first backup, which keeps it wrapped by the tenant's key; the control
+plane stores that wrapping and nothing else. Each job asks for its key naming a one-time X25519
+public key it made, and the tenant's service answers with the key sealed to it (HPKE, RFC 9180),
+bound to `<repository>/<workload>`, so the key is in the clear only in the job's node and the
+tenant's service; never in the control plane, its database, or its call queue, which carry only
+what the job alone opens. When the control plane reads a backup itself (browsing, reading one
+file, pruning, reading offloaded segments), it makes such a recipient in memory for that one read,
+and the tenant's service sees that unwrap like any other. A service that refuses, or cannot be
+reached, fails closed: the job is refused and asked again later, and nothing stands in for the key.
+
+What it costs: every backup, restore, browse, read, and prune of such a repository is a call to
+the tenant's service, which must be reachable when the work is done, and a revoked key loses every
+backup under it, which is the point. What it does not do: keep the operator from reading a backup
+while its job runs, which the operator's node holds in the clear; or keep the operator from using
+the provider extension's credential to the tenant's service, which runs on the operator's nodes. A
+tenant's service should bind each unwrap to the context it is asked for, so a taken credential
+opens one workload's keys at a time, and each one in its log.
 
 **The job, as built.** A backup or restore is a `korpis-backup-job` process the helper starts
 (`StartJob`) and then only watches (`JobStatus`, `CancelJob`, `ForgetJob`). The supervisor names
@@ -1024,7 +1056,10 @@ serves the rest. Korpis ships no object store and does not become one.
    every object, from a target, with the mounts it lists. Reporting the volumes each build mounts,
    and releasing a claim once a build of a target without it is reported, would end the cost
    without a window in which two workloads write one directory. → here
-9. **Tenant key custody.** Added 2026-10-14, when repositories were built (§5.3). `tenant` custody
+9. **Tenant key custody. Resolved in §5.5**, 2026-10-14: a `key_management` provider type whose
+   calls make and open one data key for one context, sealed to a one-time recipient, never in the
+   clear; the claim the question was asked under is corrected there. Added 2026-10-14, when
+   repositories were built (§5.3). `tenant` custody
    asks a key management service the tenant controls to unwrap a workload's data key per job,
    and no provider type yet reaches such a service, so a repository asking for it is refused with
    `repository.custody_unavailable` rather than made with `operator` custody in its place. It

@@ -5,6 +5,7 @@
 
 pub mod expire;
 pub mod job;
+pub mod keys;
 pub mod offload;
 pub mod prune;
 pub mod read;

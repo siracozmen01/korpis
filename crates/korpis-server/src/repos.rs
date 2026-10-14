@@ -26,5 +26,6 @@ pub(crate) fn repo_of(g: &JobGrant) -> Result<Repo<S3Store>, StoreError> {
         path_style: s.path_style,
     };
     let store = S3Store::new(config)?;
-    Ok(Repo::new(Arc::new(store), Arc::new(Keys::derive(&g.data_key.0))))
+    let key = g.clear_key().map_err(|e| StoreError::Refused(e.to_string()))?;
+    Ok(Repo::new(Arc::new(store), Arc::new(Keys::derive(&key.0))))
 }

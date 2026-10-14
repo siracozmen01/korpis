@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, created_at, deleted_at\n               FROM repository\n              WHERE organization_id = $1 AND streams AND deleted_at IS NULL\n                AND (project_id = $2 OR project_id IS NULL)\n              ORDER BY project_id NULLS LAST LIMIT 1",
+  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,\n                    deleted_at\n               FROM repository WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -181,6 +181,28 @@
       },
       {
         "ordinal": 16,
+        "name": "kms_provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_provider"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "kms_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_key"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -191,7 +213,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 19,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -204,7 +226,6 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid",
         "Uuid"
       ]
     },
@@ -225,9 +246,11 @@
       false,
       false,
       false,
+      true,
+      true,
       false,
       true
     ]
   },
-  "hash": "2dd84f0642d3e6f7c2754995a68ff466a1ade2ed6391f28c9444e49ff58ba487"
+  "hash": "0838fff35e367a2ef5d62d7800f3900e3c324c6cf58acba27b529fdf7e8b172c"
 }

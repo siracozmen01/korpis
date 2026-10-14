@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, created_at, deleted_at\n               FROM repository\n              WHERE organization_id = $1 AND deleted_at IS NULL\n                AND ($2::uuid IS NULL OR project_id IS NULL OR project_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
+  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,\n                    deleted_at\n               FROM repository\n              WHERE organization_id = $1 AND streams AND deleted_at IS NULL\n                AND (project_id = $2 OR project_id IS NULL)\n              ORDER BY project_id NULLS LAST LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -181,6 +181,28 @@
       },
       {
         "ordinal": 16,
+        "name": "kms_provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_provider"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "kms_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_key"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -191,7 +213,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 19,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -205,9 +227,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -227,9 +247,11 @@
       false,
       false,
       false,
+      true,
+      true,
       false,
       true
     ]
   },
-  "hash": "7cc7aff014dbe3e6bfde9bf15e2d7af2357a6843b1c9faf479fc98fc0d9e69e8"
+  "hash": "6cbb000608437d4a4b043b16146962aecf182c242680bd04921119b04e2e50d1"
 }

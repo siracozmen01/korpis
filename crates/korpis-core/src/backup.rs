@@ -15,8 +15,35 @@ pub enum KeyCustody {
     /// By the control plane: the operator can read tenants' backups, through a grant naming
     /// the tenant that the tenant sees.
     Operator,
-    /// By a key management service the tenant controls, asked per job: the operator cannot.
+    /// By a key management service the tenant controls, asked to make or open a data key each
+    /// time one is used, sealed to whoever uses it: every opening is an unwrap the tenant's
+    /// service performs and logs, and revoking its key ends every opening.
     Tenant,
+}
+
+/// The tenant's key that holds a repository's data keys under `tenant` custody (§5.5 of
+/// docs/06-storage.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TenantKey {
+    /// The organization's key management provider, by name.
+    pub provider: String,
+    /// The key, as its service names it: opaque to Korpis.
+    pub key: String,
+}
+
+/// The most a tenant key's name may hold.
+pub const MAX_TENANT_KEY: usize = 1024;
+
+/// What a workload's data key in a repository is bound to, wherever it is wrapped or sealed:
+/// `<repository>/<workload>`, as the API writes them, so a node computes it from what it is told.
+#[must_use]
+pub fn key_context(repository: Uuid, workload: Uuid) -> String {
+    use crate::id::{Id, IdKind};
+    format!(
+        "{}/{}",
+        Id::from_uuid(IdKind::Repository, repository),
+        Id::from_uuid(IdKind::Workload, workload)
+    )
 }
 
 impl KeyCustody {
@@ -92,6 +119,8 @@ pub struct Repository {
     pub prefix: String,
     /// Who holds its key-encryption key.
     pub custody: KeyCustody,
+    /// The tenant's key, under `tenant` custody; none under `operator`.
+    pub kms: Option<TenantKey>,
     /// How long its backups are kept.
     pub retention: Retention,
     /// Whether the console streams of the workloads it serves are offloaded to it (§4 of

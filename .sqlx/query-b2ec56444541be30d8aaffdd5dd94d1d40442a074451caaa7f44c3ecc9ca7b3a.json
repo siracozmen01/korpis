@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, created_at, deleted_at\n               FROM repository WHERE id = $1",
+  "query": "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,\n                    keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,\n                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,\n                    deleted_at\n               FROM repository\n              WHERE organization_id = $1 AND deleted_at IS NULL\n                AND ($2::uuid IS NULL OR project_id IS NULL OR project_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -181,6 +181,28 @@
       },
       {
         "ordinal": 16,
+        "name": "kms_provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_provider"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "kms_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository",
+            "name": "kms_key"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -191,7 +213,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 19,
         "name": "deleted_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -204,7 +226,10 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -224,9 +249,11 @@
       false,
       false,
       false,
+      true,
+      true,
       false,
       true
     ]
   },
-  "hash": "c33a73477e7a94e3bf37a258e59139fd049a28676cf070abe157e9c1cf6c34bc"
+  "hash": "b2ec56444541be30d8aaffdd5dd94d1d40442a074451caaa7f44c3ecc9ca7b3a"
 }

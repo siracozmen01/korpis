@@ -229,6 +229,12 @@ behaviour:
   never told.
 - **A host reads a tenant's private data only through a grant that names the tenant**, which the
   tenant sees issued and sees used (§3.3 of `08-identity.md`).
+- **Tenant key custody limits backups, not the operator.** Under `tenant` custody (§5.5 of
+  `06-storage.md`) a data key is opened only by the tenant's own key management service, each
+  time, and the tenant can end every opening by revoking one key. It does not stop the operator
+  reading a backup while its job runs on the operator's node, nor using the credential the
+  key management extension holds, since that extension runs on the operator's nodes too; every
+  such use is an unwrap in the tenant's own log, which is what the custody buys.
 
 > **Resolving open question 5 of `15-observability.md`**, which accesses are exempt from tenant
 > visibility: **none are.** An operator debugging a node-wide failure touches many tenants and

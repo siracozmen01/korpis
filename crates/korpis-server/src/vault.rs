@@ -11,7 +11,7 @@ use crate::data::DataDir;
 use crate::keys::{KeyError, load_or_create};
 use chacha20poly1305::aead::{Aead as _, KeyInit as _, Payload};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
-use korpis_app::ports::{DataKey, KeyVault, SealedKey, VaultError};
+use korpis_app::ports::{DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -117,6 +117,26 @@ impl KeyVault for Vault {
     ) -> Result<DataKey, VaultError> {
         let kek = self.kek(kek, repository)?;
         Ok(DataKey(open(&kek, &dek_context(repository, workload), &dek.sealed)?))
+    }
+
+    fn recipient(&self) -> Result<Box<dyn KeyRecipient>, VaultError> {
+        let made = korpis_extension::keyseal::Recipient::new()
+            .map_err(|e| VaultError::Failed(e.to_string()))?;
+        Ok(Box::new(Once(made)))
+    }
+}
+
+/// A recipient made for one opening.
+struct Once(korpis_extension::keyseal::Recipient);
+
+impl KeyRecipient for Once {
+    fn public(&self) -> Vec<u8> {
+        self.0.public().to_vec()
+    }
+
+    fn open(&self, sealed: &[u8], context: &[u8]) -> Result<DataKey, VaultError> {
+        let key = self.0.open(sealed, context).map_err(|e| VaultError::Forged(e.to_string()))?;
+        Ok(DataKey(Zeroizing::new(key)))
     }
 }
 

@@ -218,6 +218,9 @@ Backups are kept in repositories. `korpis repository create nightly --provider s
 korpis/` makes one for the organization, or for one project with `--project`, keeping by default
 the last backup of each of seven days, four weeks, and six months above a one-day floor;
 `korpis repository list` and `korpis repository get rep_…` read them (§5.3 of `06-storage.md`).
+`--kms-provider <name> --kms-key <key>` makes it under tenant custody (§5.5 of `06-storage.md`):
+its data keys are made and opened by the tenant's own key management service, through that
+provider, and never pass through the control plane in the clear.
 The first repository of an organization or project also takes its workloads' console streams
 (§4 of `14-streams.md`) unless made with `--no-streams`; `--streams` asks for it explicitly.
 `korpis backup create vol_… --repository rep_…` backs a volume up, a plan that applies at once;

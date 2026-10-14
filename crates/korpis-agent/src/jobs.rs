@@ -4,10 +4,15 @@
 //! up the session when the step begins, naming the plan and the step, and handed to the helper,
 //! which hands it to the job. The agent keeps none of it once the job has it.
 //!
+//! Each question names a one-time recipient whose secret stays in this process: under tenant
+//! custody the data key comes sealed to it, and is opened here, as the answer arrives, for the
+//! context `<repository>/<workload>` (§5.5), so no one else, the control plane included, holds it.
+//!
 //! Asking never holds the reconciler's loop, which serves every workload on the node while the
 //! control plane waits on a backup target: a step asks and moves on, and a later pass finds the
 //! answer. A question unanswered for a minute is taken as lost, and asked again.
 
+use korpis_extension::keyseal::Recipient;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::job_access::Outcome;
@@ -33,8 +38,8 @@ pub enum NoAccess {
 /// Where a step's question stands.
 #[derive(Debug)]
 enum Asked {
-    /// Sent, as request `id`, at `at`.
-    Waiting { id: String, at: Instant },
+    /// Sent, as request `id`, at `at`, naming `recipient`.
+    Waiting { id: String, at: Instant, recipient: Recipient },
     /// Answered.
     Answered(Outcome),
 }
@@ -81,14 +86,18 @@ impl JobAccesses {
         let mut asked = self.lock();
         match asked.remove(&key) {
             Some(Asked::Answered(outcome)) => return Some(judged(outcome)),
-            Some(Asked::Waiting { id, at }) if at.elapsed() < ANSWER_WITHIN => {
-                asked.insert(key, Asked::Waiting { id, at });
+            Some(Asked::Waiting { id, at, recipient }) if at.elapsed() < ANSWER_WITHIN => {
+                asked.insert(key, Asked::Waiting { id, at, recipient });
                 return None;
             }
             _ => {}
         }
+        let Ok(recipient) = Recipient::new() else {
+            return Some(Err(NoAccess::Later("no randomness for a recipient".into())));
+        };
         let id = uuid::Uuid::now_v7().to_string();
         up.request.clone_from(&id);
+        up.recipient = recipient.public().to_vec();
         let message = agent::AgentMessage {
             message: Some(Up::JobAccessRequest(Box::new(up))),
             ..Default::default()
@@ -96,7 +105,7 @@ impl JobAccesses {
         if self.outbound.try_send(message).is_err() {
             return Some(Err(NoAccess::Later("the session is not taking messages".into())));
         }
-        asked.insert(key, Asked::Waiting { id, at: Instant::now() });
+        asked.insert(key, Asked::Waiting { id, at: Instant::now(), recipient });
         None
     }
 
@@ -109,13 +118,37 @@ impl JobAccesses {
             Asked::Waiting { id, .. } if *id == answer.request => Some(k.clone()),
             _ => None,
         });
-        if let Some(key) = key {
-            asked.insert(key, Asked::Answered(outcome));
+        let Some(key) = key else { return };
+        if let Some(Asked::Waiting { recipient, .. }) = asked.remove(&key) {
+            asked.insert(key, Asked::Answered(opened(outcome, &recipient)));
         }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<(String, u32), Asked>> {
         self.asked.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
+/// `outcome` with a sealed key opened by `recipient`; one that does not open is refused, to be
+/// asked for again.
+fn opened(outcome: Outcome, recipient: &Recipient) -> Outcome {
+    let Outcome::Grant(mut g) = outcome else { return outcome };
+    if g.sealed_data_key.is_empty() {
+        return Outcome::Grant(g);
+    }
+    let context = format!("{}/{}", g.repository, g.workload);
+    match recipient.open(&g.sealed_data_key, context.as_bytes()) {
+        Ok(key) => {
+            g.data_key = key.to_vec();
+            g.sealed_data_key.clear();
+            Outcome::Grant(g)
+        }
+        Err(e) => Outcome::Refused(Box::new(korpis_proto::korpis::v1::Error {
+            reason: "keys.unopened".into(),
+            message: e.to_string(),
+            retryable: true,
+            ..Default::default()
+        })),
     }
 }
 
@@ -181,6 +214,32 @@ mod tests {
         );
         assert_eq!(jobs.poll("pln_1", 2), Some(Err(NoAccess::Refused("job.not_assigned".into()))));
         assert!(jobs.lock().is_empty());
+    }
+
+    #[test]
+    fn a_sealed_key_is_opened_as_it_arrives_and_only_for_its_context() {
+        let (tx, mut rx) = mpsc::channel(8);
+        let jobs = JobAccesses::new(tx);
+        jobs.poll("pln_1", 0);
+        jobs.poll("pln_1", 1);
+        let (one, two) = (sent(&mut rx), sent(&mut rx));
+        assert_eq!(one.recipient.len(), 32, "every question names a recipient");
+        assert_ne!(one.recipient, two.recipient, "a new one each time");
+        let sealed =
+            |r: &[u8], context: &[u8]| korpis_extension::keyseal::seal(r, &[4; 32], context);
+        let grant = |sealed_data_key| agent::JobGrant {
+            sealed_data_key,
+            repository: "rep_1".into(),
+            workload: "wl_1".into(),
+            ..Default::default()
+        };
+        let good = grant(sealed(&one.recipient, b"rep_1/wl_1").unwrap());
+        answered(&jobs, &one, Outcome::Grant(Box::new(good)));
+        let opened = jobs.poll("pln_1", 0).unwrap().unwrap();
+        assert_eq!((opened.data_key, opened.sealed_data_key), (vec![4; 32], Vec::new()));
+        let elsewhere = grant(sealed(&two.recipient, b"rep_1/wl_2").unwrap());
+        answered(&jobs, &two, Outcome::Grant(Box::new(elsewhere)));
+        assert_eq!(jobs.poll("pln_1", 1), Some(Err(NoAccess::Later("keys.unopened".into()))));
     }
 
     #[test]

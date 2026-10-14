@@ -4,7 +4,9 @@
 
 use crate::stored::to_time;
 use korpis_app::ports::{StoreError, StoreResult};
-use korpis_core::backup::{Backup, BackupStats, BackupStatus, KeyCustody, Repository, Retention};
+use korpis_core::backup::{
+    Backup, BackupStats, BackupStatus, KeyCustody, Repository, Retention, TenantKey,
+};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -28,6 +30,8 @@ pub(super) struct RepositoryRow {
     pub(super) keep_failed_s: i64,
     pub(super) min_retention_s: i64,
     pub(super) streams: bool,
+    pub(super) kms_provider: Option<String>,
+    pub(super) kms_key: Option<String>,
     pub(super) created_at: Time,
     pub(super) deleted_at: Option<Time>,
 }
@@ -64,6 +68,10 @@ impl RepositoryRow {
             provider: self.provider_name,
             prefix: self.prefix,
             custody,
+            kms: self
+                .kms_provider
+                .zip(self.kms_key)
+                .map(|(provider, key)| TenantKey { provider, key }),
             retention,
             streams: self.streams,
             created: to_time(self.created_at),

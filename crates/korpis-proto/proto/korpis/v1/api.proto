@@ -516,6 +516,8 @@ message CreateRepositoryRequest {
   // Whether it takes the streams of the workloads it serves; when unset, it does unless another
   // repository already takes them for the same organization or project.
   optional bool streams = 9;
+  // Required under KEY_CUSTODY_TENANT, refused under KEY_CUSTODY_OPERATOR.
+  TenantKey kms = 10;
 }
 
 message CreateRepositoryResponse {

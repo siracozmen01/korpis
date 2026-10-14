@@ -7,7 +7,9 @@
 
 use crate::api::ServerApp;
 use crate::api::wire::{id, timestamp};
+use korpis_app::AppError;
 use korpis_app::backup::job::{JobGrant, JobRefusal};
+use korpis_app::backup::keys::JobKey;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
@@ -40,11 +42,17 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
                 Some(Protocol::S3(s)) => Some(*s),
                 _ => None,
             };
+            let (data_key, sealed_data_key) = match &g.data_key {
+                JobKey::Clear(k) => (k.0.to_vec(), Vec::new()),
+                JobKey::Sealed(s) => (Vec::new(), s.clone()),
+            };
             Outcome::Grant(Box::new(agent::JobGrant {
-                data_key: g.data_key.0.to_vec(),
+                data_key,
+                sealed_data_key,
                 store: store.into(),
                 expires_at: timestamp(g.access.expires_at).into(),
                 repository: korpis_wire::wire_id(IdKind::Repository, g.repository),
+                workload: korpis_wire::wire_id(IdKind::Workload, g.workload),
                 ..Default::default()
             }))
         }
@@ -52,6 +60,24 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
             Outcome::Refused(refused(&r.reason(), true))
         }
         Err(r) => Outcome::Refused(refused(&r.reason(), false)),
+    }
+}
+
+/// What a node is told when granting its job's access failed: a request it must change is
+/// refused for good, and anything else may be asked again.
+fn failed(e: &AppError, node: Uuid) -> Outcome {
+    match e {
+        AppError::Invalid { field, .. } => {
+            Outcome::Refused(refused(&format!("job.invalid.{field}"), false))
+        }
+        AppError::Unavailable { what, detail } => {
+            tracing::info!(what, detail, %node, "a job's access waits on a provider");
+            Outcome::Refused(refused("job.unavailable", true))
+        }
+        other => {
+            tracing::warn!(error = %other, %node, "a job's access could not be granted");
+            Outcome::Refused(refused("job.unavailable", true))
+        }
     }
 }
 
@@ -67,21 +93,18 @@ pub(super) fn answer(
         let asked = if r.offload.is_empty() {
             match id(IdKind::Plan, "plan", &r.plan) {
                 Err(e) => Err(e),
-                Ok(plan) => Ok(app.grant_job_access(node, plan, r.step).await),
+                Ok(plan) => Ok(app.grant_job_access(node, (plan, r.step), &r.recipient).await),
             }
         } else {
             match id(IdKind::Workload, "offload", &r.offload) {
                 Err(e) => Err(e),
-                Ok(workload) => Ok(app.grant_offload_access(node, workload).await),
+                Ok(workload) => Ok(app.grant_offload_access(node, workload, &r.recipient).await),
             }
         };
         let outcome = match asked {
             Err(e) => Outcome::Refused(refused(&e.message, false)),
             Ok(Ok(granted)) => outcome(granted),
-            Ok(Err(e)) => {
-                tracing::warn!(error = %e, %node, "a job's access could not be granted");
-                Outcome::Refused(refused("job.unavailable", true))
-            }
+            Ok(Err(e)) => failed(&e, node),
         };
         let answer =
             agent::JobAccess { request: r.request, outcome: Some(outcome), ..Default::default() };

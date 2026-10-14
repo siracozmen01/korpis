@@ -35,8 +35,10 @@ pub(super) const CLOCK_SKEW: Duration = Duration::from_secs(5 * 60);
 pub struct JobGrant {
     /// The repository it reaches.
     pub repository: Uuid,
+    /// The workload whose key and prefix it is.
+    pub workload: Uuid,
     /// The workload's data key, opened for this job.
-    pub data_key: DataKey,
+    pub data_key: super::keys::JobKey,
     /// Access to the workload's prefix, until it expires.
     pub access: ObjectAccess,
 }
@@ -92,7 +94,14 @@ type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The key and access step `step` of plan `plan` needs, for `node`.
-    pub async fn grant_job_access(&self, node: Uuid, plan: Uuid, step: u32) -> Judged<JobGrant> {
+    /// `recipient` is the one-time public key the job made, which a key under `tenant` custody
+    /// is sealed to.
+    pub async fn grant_job_access(
+        &self,
+        node: Uuid,
+        (plan, step): (Uuid, u32),
+        recipient: &[u8],
+    ) -> Judged<JobGrant> {
         let Some(p) = self.store.plan(plan).await?.filter(|p| !p.status.is_terminal()) else {
             return Ok(Err(JobRefusal::NotAssigned));
         };
@@ -108,7 +117,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Ok(t) => t,
             Err(refused) => return Ok(Err(refused)),
         };
-        let data_key = self.data_key(&t.repo, t.workload, t.mode == AccessMode::Write).await?;
+        let make = t.mode == AccessMode::Write;
+        let data_key = self.job_key((&t.repo, t.workload), make, recipient).await?;
         let target = CallTarget {
             organization: t.repo.organization,
             kind: ProviderType::BackupTarget,
@@ -120,7 +130,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let called = self.grant_backup_access(&target, &prefix, t.mode, JOB_ACCESS).await?;
         match called.outcome {
             CallOutcome::Access(access) => {
-                Ok(Ok(JobGrant { repository: t.repo.id, data_key, access }))
+                Ok(Ok(JobGrant { repository: t.repo.id, workload: t.workload, data_key, access }))
             }
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),

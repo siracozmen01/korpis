@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Repositories (§5.3 of docs/06-storage.md): made under `repository.write` on the project or
-//! organization they serve, each with a key-encryption key the vault generates and keeps sealed.
+//! organization they serve, each with a key-encryption key the vault generates and keeps sealed,
+//! or, under `tenant` custody, naming the tenant's key in its own key management service, which
+//! makes and opens its data keys and of which nothing is kept here (§5.5).
 //! A repository names its backup target provider by name, as calls do; one need not be serving
 //! when the repository is made, and a backup through it waits for one as any call does.
 
@@ -14,7 +16,7 @@ use crate::ports::{
     BackupWrite as _, Clock, EffectWrite as _, RecipeSource, Store, StoreError, Unique,
 };
 use korpis_core::audit::{Effect, Outcome, details};
-use korpis_core::backup::{KeyCustody, Repository, Retention};
+use korpis_core::backup::{KeyCustody, MAX_TENANT_KEY, Repository, Retention, TenantKey};
 use korpis_core::extension::is_prefix;
 use korpis_core::object::{Kind, ObjectRef};
 use korpis_core::tenancy::Name;
@@ -37,6 +39,8 @@ pub struct CreateRepository {
     pub prefix: String,
     /// Who holds its key.
     pub custody: KeyCustody,
+    /// The tenant's key, under `tenant` custody alone.
+    pub kms: Option<TenantKey>,
     /// How long its backups are kept.
     pub retention: Retention,
     /// Whether it takes the streams of the workloads it serves; when not said, it does unless
@@ -55,11 +59,22 @@ fn checked(cmd: &CreateRepository) -> Result<(), AppError> {
     if !cmd.retention.keeps_something() {
         return Err(AppError::invalid("retention", "a policy that keeps at least one backup"));
     }
-    if cmd.custody == KeyCustody::Tenant {
-        let why = "tenant custody needs a key management provider, which is not built yet";
-        return Err(AppError::conflict("repository.custody_unavailable", why));
+    match (cmd.custody, &cmd.kms) {
+        (KeyCustody::Operator, None) => Ok(()),
+        (KeyCustody::Operator, Some(_)) => {
+            Err(AppError::invalid("kms", "only under tenant custody: the operator's key is here"))
+        }
+        (KeyCustody::Tenant, None) => Err(AppError::invalid(
+            "kms",
+            "tenant custody names the key management provider and the tenant's key",
+        )),
+        (KeyCustody::Tenant, Some(k)) => {
+            if k.key.is_empty() || k.key.len() > MAX_TENANT_KEY {
+                return Err(AppError::invalid("kms.key", format!("1 to {MAX_TENANT_KEY} bytes")));
+            }
+            Ok(())
+        }
     }
-    Ok(())
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -105,15 +120,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             provider: cmd.provider.as_str().to_owned(),
             prefix: cmd.prefix,
             custody: cmd.custody,
+            kms: cmd.kms,
             retention: cmd.retention,
             streams,
             created: self.clock.now(),
             deleted_at: None,
         };
-        let kek =
-            self.vault()?.new_kek(created.id).map_err(|e| AppError::Internal(e.to_string()))?;
+        let kek = match created.custody {
+            KeyCustody::Operator => Some(
+                self.vault()?.new_kek(created.id).map_err(|e| AppError::Internal(e.to_string()))?,
+            ),
+            KeyCustody::Tenant => None,
+        };
         let mut tx = self.store.begin().await?;
-        tx.insert_repository(&created, &kek).await.map_err(|e| match e {
+        tx.insert_repository(&created, kek.as_ref()).await.map_err(|e| match e {
             StoreError::Duplicate(Unique::RepositoryPrefix) => AppError::conflict(
                 "repository.prefix_overlaps",
                 "a repository of this provider holds that prefix, or one its prune would reach",
@@ -135,6 +155,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("name", created.name.as_str().into()),
                 ("provider", created.provider.as_str().into()),
                 ("custody", created.custody.as_str().into()),
+                ("kms", created.kms.as_ref().map_or(String::new(), |k| k.provider.clone()).into()),
                 ("streams", created.streams.into()),
             ]));
         tx.append_effect(&effect).await?;

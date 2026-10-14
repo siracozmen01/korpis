@@ -170,7 +170,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         workload: Uuid,
         ttl: Duration,
     ) -> Result<JobGrant, AppError> {
-        let data_key = self.data_key(repo, workload, false).await?;
+        let data_key = super::keys::JobKey::Clear(self.own_key(repo, workload).await?);
         let target = CallTarget {
             organization: repo.organization,
             kind: ProviderType::BackupTarget,
@@ -183,7 +183,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let answer = self.grant_backup_access(&target, &place, AccessMode::Read, ttl).await?;
         match answer.outcome {
             korpis_core::extension::CallOutcome::Access(access) => {
-                Ok(JobGrant { repository: repo.id, data_key, access })
+                Ok(JobGrant { repository: repo.id, workload, data_key, access })
             }
             korpis_core::extension::CallOutcome::Failed(f) => {
                 Err(AppError::Unavailable { what: "the backup target", detail: f.reason })

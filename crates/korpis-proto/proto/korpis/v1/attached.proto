@@ -164,6 +164,17 @@ message Repository {
   // docs/14-streams.md): at most one repository per organization as a whole and one per
   // project, the project's taken first.
   bool streams = 10;
+  // Under tenant custody, the tenant's key that makes and opens its data keys.
+  TenantKey kms = 11;
+}
+
+// A tenant's key in its own key management service, reached through the organization's
+// key_management provider (§5.5 of docs/06-storage.md).
+message TenantKey {
+  // The provider, by name.
+  string provider = 1;
+  // The key, as its service names it: opaque to Korpis, at most 1024 bytes.
+  string key = 2;
 }
 
 // Who holds a repository's key-encryption key (§5.5 of docs/06-storage.md).
@@ -172,7 +183,10 @@ enum KeyCustody {
   // The control plane: the operator can read tenants' backups, through a grant naming the
   // tenant, which the tenant sees.
   KEY_CUSTODY_OPERATOR = 1;
-  // A key management service the tenant controls, asked per job: the operator cannot.
+  // A key management service the tenant controls, through the organization's key_management
+  // provider: every opening of a data key is an unwrap it performs and logs, and revoking its key
+  // ends them all. It does not keep the operator from a backup while its job runs on the
+  // operator's node.
   KEY_CUSTODY_TENANT = 2;
 }
 

@@ -60,9 +60,11 @@ fn logs_args() -> Logs {
     }
 }
 
-/// Waits until `sql` counts at least `n`.
+/// Waits until `sql` counts at least `n`, for up to two minutes: a retirement stops a real
+/// container, which its shim may take twelve seconds to kill, slower still beside every other
+/// test.
 async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
-    for _ in 0..150 {
+    for _ in 0..600 {
         if cp.scalar::<i64>(sql).await >= n {
             return;
         }

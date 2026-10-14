@@ -79,6 +79,15 @@ pub fn repository_to_pb(r: &Repository) -> pb::Repository {
         retention: retention_to_pb(&r.retention).into(),
         created: timestamp(r.created).into(),
         streams: r.streams,
+        kms: r
+            .kms
+            .as_ref()
+            .map(|k| pb::TenantKey {
+                provider: k.provider.clone(),
+                key: k.key.clone(),
+                ..Default::default()
+            })
+            .into(),
         ..Default::default()
     }
 }

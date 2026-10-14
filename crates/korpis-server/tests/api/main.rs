@@ -63,6 +63,7 @@ mod step;
 mod streams;
 mod support;
 mod tenancy;
+mod tenant_keys;
 mod tokens;
 mod trust;
 mod upgrade;

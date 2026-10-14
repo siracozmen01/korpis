@@ -100,9 +100,10 @@ and deliver nothing, forever. `provides` entries are `{type, name}`, with a step
 (`valve/steam.app`; corrected 2026-10-13, when the first step provider was built: the rule had left
 the step part undefined, the validation read it as one word, and every example in §4 of
 `09-recipes.md` and §4 of `22-first-party.md` failed it). The extension's name, its document's
-`metadata.name`, is a lowercase word, because it names its actions (`ext.<name>.<action>`). A document of kind `Recipe` with an `extension` block, or of
-kind `Extension` without one, does not load. Everything else in the document is read as any
-recipe's, by the same parser, so a driver preparing the extension's workload reads it unchanged.
+`metadata.name`, is a lowercase word, because it names its actions (`ext.<name>.<action>`). A
+document of kind `Recipe` with an `extension` block, or of kind `Extension` without one, does not
+load. Everything else in the document is read as any recipe's, by the same parser, so a driver
+preparing the extension's workload reads it unchanged.
 
 One format means one signing path and one trust policy: an extension is admitted by the trust
 policy that admits recipes (§7 of `09-recipes.md`), and nothing about extensions needs a second

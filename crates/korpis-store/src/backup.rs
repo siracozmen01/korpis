@@ -20,7 +20,8 @@ impl BackupRead for PgStore {
             RepositoryRow,
             "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
                     keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
-                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
+                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,
+                    deleted_at
                FROM repository WHERE id = $1",
             id
         )
@@ -40,7 +41,8 @@ impl BackupRead for PgStore {
             RepositoryRow,
             "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
                     keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
-                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
+                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,
+                    deleted_at
                FROM repository
               WHERE organization_id = $1 AND deleted_at IS NULL
                 AND ($2::uuid IS NULL OR project_id IS NULL OR project_id = $2)
@@ -66,7 +68,8 @@ impl BackupRead for PgStore {
             RepositoryRow,
             "SELECT id, organization_id, project_id, name, provider_name, prefix, key_custody,
                     keep_last, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_yearly,
-                    keep_failed_s, min_retention_s, streams, created_at, deleted_at
+                    keep_failed_s, min_retention_s, streams, kms_provider, kms_key, created_at,
+                    deleted_at
                FROM repository
               WHERE organization_id = $1 AND streams AND deleted_at IS NULL
                 AND (project_id = $2 OR project_id IS NULL)
@@ -160,7 +163,11 @@ impl BackupRead for PgStore {
 }
 
 impl BackupWrite for PgTx {
-    async fn insert_repository(&mut self, r: &Repository, kek: &SealedKey) -> StoreResult<()> {
+    async fn insert_repository(
+        &mut self,
+        r: &Repository,
+        kek: Option<&SealedKey>,
+    ) -> StoreResult<()> {
         sqlx::query!("SELECT pg_advisory_xact_lock(hashtext('repository:' || $1))", r.provider)
             .fetch_one(&mut *self.tx)
             .await
@@ -173,9 +180,9 @@ impl BackupWrite for PgTx {
                                      key_custody, kek_sealed, kek_sealed_by, keep_last,
                                      keep_hourly, keep_daily, keep_weekly, keep_monthly,
                                      keep_yearly, keep_failed_s, min_retention_s, streams,
-                                     created_at)
+                                     created_at, kms_provider, kms_key)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                     $18, $19)",
+                     $18, $19, $20, $21)",
             r.id,
             r.organization,
             r.project,
@@ -183,8 +190,8 @@ impl BackupWrite for PgTx {
             r.provider,
             r.prefix,
             r.custody.as_str(),
-            kek.sealed,
-            kek.sealed_by,
+            kek.map(|k| k.sealed.clone()),
+            kek.map(|k| k.sealed_by.clone()),
             n(t.keep_last),
             n(t.keep_hourly),
             n(t.keep_daily),
@@ -194,7 +201,9 @@ impl BackupWrite for PgTx {
             s(t.keep_failed),
             s(t.min_retention),
             r.streams,
-            from_time(r.created)
+            from_time(r.created),
+            r.kms.as_ref().map(|k| k.provider.clone()),
+            r.kms.as_ref().map(|k| k.key.clone())
         )
         .execute(&mut *self.tx)
         .await
@@ -224,7 +233,7 @@ impl BackupWrite for PgTx {
         .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(row.map(|r| SealedKey { sealed_by: r.kek_sealed_by, sealed: r.kek_sealed }))
+        Ok(row.and_then(|r| Some(SealedKey { sealed_by: r.kek_sealed_by?, sealed: r.kek_sealed? })))
     }
 
     async fn workload_key(

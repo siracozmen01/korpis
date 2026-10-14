@@ -1058,6 +1058,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 41 | The access contract asked for what no store issues, and refused what a backup does | §23 | `06-storage.md` §5.5, §5.6 |
 | 42 | A prefix is a pattern in the store's policy | §23 | `06-storage.md` §5.3, §5.6 |
 | 43 | An offload target that nothing names | §24 | `14-streams.md` §4, `06-storage.md` §5.3 |
+| 44 | Tenant custody claimed the operator cannot read | §25 | `06-storage.md` §5.5, `17-security.md` §8, `16-extensions.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1690,3 +1691,41 @@ access. → patched into `14-streams.md` §4 and `06-storage.md` §5.3
 offloaded, which says nothing a reader could fetch it from. It now records the repository, and
 asked what evaluates the node's word for it, the answer is the access record, which keeps the node
 each grant went to.
+
+## 25. A tenant keeps its own key
+
+Written 2026-10-14, from the implementation, when tenant key custody was built. A customer of a
+hosting provider makes its backups' repository under `tenant` custody, naming its own key in a
+key management service through the organization's `key_management` provider; a night later the
+backup job runs, and a month later the customer leaves and revokes the key.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis repository create nightly --kms-provider vault --kms-key k1`: the repository names the provider and the key, and no key-encryption key is made here | `06-storage.md` §5.3, §5.5; `13-surface-cli.md` §5 |
+| 2 | The backup step begins; the node's job asks for its access naming a one-time X25519 public key | `06-storage.md` §5.5; `02-architecture.md` §4.9 |
+| 3 | The control plane asks the tenant's service, through the provider, to make the workload's data key for `<repository>/<workload>`; the answer, stored in the call queue, is the key wrapped by the tenant's key and the key sealed to the job | `16-extensions.md` §3.3, §5; `06-storage.md` §5.5 |
+| 4 | The control plane keeps the wrapping and hands the sealed key to the node; the job opens it and backs the volume up | `06-storage.md` §5.5, §5.7 |
+| 5 | The customer browses the backup; the control plane makes its own one-time recipient and the service opens the key to it, an unwrap in the customer's log | `06-storage.md` §5.4, §5.5; `15-observability.md` §4 |
+| 6 | The customer revokes the key; the next backup's job is refused and asks again, and a browse fails as unavailable: nothing opens a key, the operator's reads included † | `06-storage.md` §5.5; `16-extensions.md` §5; `17-security.md` §8 |
+
+**FINDING 44: Tenant custody claimed the operator cannot read. `CONFIRMED`**
+
+The table of §5.5 of `06-storage.md` said that under `tenant` custody the operator cannot read a
+tenant's backups, and called it the one configuration in which a host genuinely cannot. Asked
+what evaluates that, the answer was nothing that could: step 4 runs the job on the operator's node
+with the key in its memory, and the provider of step 3 is an extension the operator's nodes run,
+holding a credential to the tenant's service. §8 of `17-security.md` already said tenants are not
+protected from the operator. Building it found a second gap: provider answers travel the stored
+call queue, so an unwrapped key returned the way other answers are would have been written to the
+database and its backups.
+
+**Resolution.** Keys are sealed to a one-time recipient and never answered in the clear, so the
+call queue holds nothing a reader of the database can open; the control plane never holds a job's
+key at all. The claim is corrected in place to what the custody does give: every opening is an
+unwrap the tenant's service performs and logs, and revoking one key ends them all. → patched into
+`06-storage.md` §5.5, `17-security.md` §8, and `16-extensions.md` §5
+
+† Step 6 is where the trace found Finding 44: revoking ends every opening, and so is the
+guarantee, which is why the claim of step 1 had to be restated in its terms.

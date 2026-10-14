@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO repository (id, organization_id, project_id, name, provider_name, prefix,\n                                     key_custody, kek_sealed, kek_sealed_by, keep_last,\n                                     keep_hourly, keep_daily, keep_weekly, keep_monthly,\n                                     keep_yearly, keep_failed_s, min_retention_s, streams,\n                                     created_at, kms_provider, kms_key)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,\n                     $18, $19, $20, $21)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bytea",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int8",
+        "Int8",
+        "Bool",
+        "Timestamptz",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c78d47cfdc020a92e30898fb9ee90b52128e34a2f48226d3fe476bd55f88d4ba"
+}

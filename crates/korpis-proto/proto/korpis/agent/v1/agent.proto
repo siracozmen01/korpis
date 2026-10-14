@@ -122,6 +122,9 @@ message JobAccessRequest {
   // docs/14-streams.md). Answered to a node that held its lease, with write access to its stream
   // prefix in the repository that takes its streams, or refused `offload.none` where none does.
   string offload = 4;
+  // A one-time X25519 public key the job made: under tenant custody the data key is sealed to it
+  // (§5.5 of docs/06-storage.md) and the answer's sealed_data_key set instead of data_key.
+  bytes recipient = 5;
 }
 
 message JobAccess {
@@ -142,6 +145,11 @@ message JobGrant {
   // The repository it reaches, `rep_…`: named back when an offloaded segment is journaled, so the
   // index knows where it went.
   string repository = 4;
+  // Under tenant custody, the data key sealed to the request's recipient, for the context
+  // `<repository>/<workload>`; data_key is then empty.
+  bytes sealed_data_key = 5;
+  // The workload whose key it is, `wl_…`: the context's second half.
+  string workload = 6;
 }
 
 // A backup job ended on the node: what its result says.

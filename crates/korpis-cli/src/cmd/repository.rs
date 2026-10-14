@@ -14,7 +14,8 @@ use korpis_proto::korpis::v1 as pb;
 /// `korpis repository …`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum RepositoryAction {
-    /// Makes a repository; its key is held by the control plane.
+    /// Makes a repository; its key is held by the control plane, or with `--kms-provider` and
+    /// `--kms-key`, by the tenant's own key management service.
     Create {
         /// Its name, unique in the organization.
         name: String,
@@ -53,6 +54,14 @@ pub enum RepositoryAction {
         /// Do not take them.
         #[arg(long)]
         no_streams: bool,
+        /// Tenant custody: the organization's key management provider, by name, which makes
+        /// and opens every data key and never hands one over in the clear (§5.5 of
+        /// docs/06-storage.md).
+        #[arg(long, requires = "kms_key")]
+        kms_provider: Option<String>,
+        /// Tenant custody: the tenant's key in that service, as it names it.
+        #[arg(long, requires = "kms_provider")]
+        kms_key: Option<String>,
     },
     /// The repositories of an organization, or those serving a project.
     List {
@@ -128,31 +137,58 @@ fn retention(action: &RepositoryAction) -> pb::RetentionPolicy {
     }
 }
 
+/// The request a `create` makes.
+async fn create_request(
+    c: &Connection,
+    action: &RepositoryAction,
+) -> Result<pb::CreateRepositoryRequest, CliError> {
+    let RepositoryAction::Create {
+        name,
+        provider,
+        prefix,
+        organization,
+        project: p,
+        streams,
+        no_streams,
+        kms_provider,
+        kms_key,
+        ..
+    } = action
+    else {
+        return Err(CliError::Local("not a create".into()));
+    };
+    let (key_custody, kms) = match (kms_provider, kms_key) {
+        (Some(provider), Some(key)) => (
+            pb::KeyCustody::KEY_CUSTODY_TENANT,
+            Some(pb::TenantKey {
+                provider: provider.clone(),
+                key: key.clone(),
+                ..Default::default()
+            }),
+        ),
+        _ => (pb::KeyCustody::KEY_CUSTODY_OPERATOR, None),
+    };
+    Ok(pb::CreateRepositoryRequest {
+        mutation: mutation(None).into(),
+        organization: resolve::organization(c, organization.as_deref()).await?,
+        project: project(c, p.as_deref()).await?,
+        name: name.clone(),
+        provider: provider.clone(),
+        prefix: prefix.clone(),
+        retention: retention(action).into(),
+        streams: (*streams || *no_streams).then_some(*streams),
+        key_custody: key_custody.into(),
+        kms: kms.into(),
+        ..Default::default()
+    })
+}
+
 /// Answers `korpis repository …`.
 pub async fn repository(c: &Connection, action: &RepositoryAction) -> Result<Answer, CliError> {
     let client = pb::RepositoryServiceClient::new(c.http(), c.config());
     Ok(match action {
-        RepositoryAction::Create {
-            name,
-            provider,
-            prefix,
-            organization,
-            project: p,
-            streams,
-            no_streams,
-            ..
-        } => {
-            let r = pb::CreateRepositoryRequest {
-                mutation: mutation(None).into(),
-                organization: resolve::organization(c, organization.as_deref()).await?,
-                project: project(c, p.as_deref()).await?,
-                name: name.clone(),
-                provider: provider.clone(),
-                prefix: prefix.clone(),
-                retention: retention(action).into(),
-                streams: (*streams || *no_streams).then_some(*streams),
-                ..Default::default()
-            };
+        RepositoryAction::Create { .. } => {
+            let r = create_request(c, action).await?;
             let made = client
                 .create_repository(r)
                 .await?

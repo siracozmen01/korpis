@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Repositories (§5.3 of docs/06-storage.md): made under `repository.write` with a policy that
-//! keeps something, at a prefix in a backup target, with the key held by the control plane;
-//! tenant custody refused until it is built, and said so; a name once per organization; read
+//! keeps something, at a prefix in a backup target, with the key held by the control plane, or
+//! under tenant custody only when it names the tenant's key (`tenant_keys.rs` makes one); a name
+//! once per organization; read
 //! under `repository.read`, and listed for a project with the organization's own.
 
 use crate::recipes::project;
@@ -83,10 +84,8 @@ async fn what_a_repository_cannot_be_is_refused_with_its_reason() {
         key_custody: pb::KeyCustody::KEY_CUSTODY_TENANT.into(),
         ..create(&h, "t", "theirs")
     };
-    assert_eq!(
-        reason(&repos.create_repository(tenant).await.unwrap_err()),
-        "repository.custody_unavailable"
-    );
+    let e = repos.create_repository(tenant).await.unwrap_err();
+    assert_eq!(reason(&e), "request.invalid", "tenant custody names the tenant's key");
     let nothing = pb::CreateRepositoryRequest {
         retention: pb::RetentionPolicy::default().into(),
         ..create(&h, "n", "none")

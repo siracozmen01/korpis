@@ -7,7 +7,7 @@ use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::backup::repository::CreateRepository;
 use korpis_app::idempotency::Idempotent;
-use korpis_core::backup::Repository;
+use korpis_core::backup::{Repository, TenantKey};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::repository::{custody_from_pb, repository_to_pb, retention_from_pb};
@@ -44,6 +44,13 @@ impl pb::RepositoryService for Api {
             custody: custody_from_pb("key_custody", req.key_custody).refuse()?,
             retention: retention_from_pb("retention", retention).refuse()?,
             streams: req.streams,
+            kms: match req.kms.as_option() {
+                None => None,
+                Some(k) => Some(TenantKey {
+                    provider: name("kms.provider", &k.provider).refuse()?.as_str().to_owned(),
+                    key: k.key.clone(),
+                }),
+            },
         };
         let encoder = |r: &Repository| encode(&created(r));
         let idem = Idempotent { key, encode: &encoder };

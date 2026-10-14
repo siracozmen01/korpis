@@ -29,6 +29,8 @@ korpis-app = { workspace = true }
 # docs/06-storage.md).
 korpis-backup = { path = "../korpis-backup" }
 korpis-core = { workspace = true, features = ["authz", "identity"] }
+# Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
+korpis-extension = { workspace = true }
 korpis-proto = { workspace = true, features = ["client", "services"] }
 korpis-recipe = { workspace = true }
 korpis-store = { workspace = true }
@@ -60,7 +62,6 @@ tempfile = "3"
 base64 = "0.22"
 korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
-korpis-extension = { workspace = true }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 # The first-party S3 target, against MinIO, behind the control plane end to end.
 korpis-target-s3 = { path = "../korpis-target-s3" }

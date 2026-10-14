@@ -65,7 +65,7 @@ impl BackupTarget for Bucket {
 }
 
 /// The volume the job backs up.
-fn volume(at: &std::path::Path) {
+pub(crate) fn volume(at: &std::path::Path) {
     std::fs::create_dir_all(at.join("world/region")).unwrap();
     std::fs::write(at.join("server.properties"), b"motd=hello\n").unwrap();
     std::fs::write(
@@ -93,7 +93,7 @@ fn repo_of(g: &korpis_proto::korpis::agent::v1::JobGrant) -> Repo<S3Store> {
 }
 
 /// The bytes of `path` in `backup`, read through the API as `config` may.
-async fn read(
+pub(crate) async fn read(
     h: &Harness,
     config: connectrpc::client::ClientConfig,
     backup: &str,

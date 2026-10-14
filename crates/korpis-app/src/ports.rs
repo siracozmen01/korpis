@@ -48,7 +48,7 @@ pub use audit::{
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
-pub use backup::{BackupRead, BackupWrite, DataKey, KeyVault, SealedKey, VaultError};
+pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};

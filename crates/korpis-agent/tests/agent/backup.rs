@@ -301,7 +301,8 @@ async fn a_new_workload_is_created_holding_a_backup_before_it_first_runs() {
     let seeded =
         pb::VolumeSpec { name: "data".into(), from_backup: Some(id), ..Default::default() };
     let copy = cp.declare_with(&project, "mc-copy", vec![seeded]).await;
-    for _ in 0..200 {
+    // A minute: the restore runs a real job, slower while every other test runs beside it.
+    for _ in 0..600 {
         let s = cp.status(&copy).await;
         if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
             break;

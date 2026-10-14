@@ -14,6 +14,7 @@ use connectrpc::client::{BidiStream, ClientTransport, HttpClient};
 use connectrpc::{ConnectError, ErrorCode};
 use korpis_proto::korpis::agent::v1 as wire_agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as AgentUp;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as AgentDown;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::workload_credential::Outcome;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::provider_control::Message as Down;
@@ -45,7 +46,7 @@ pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String
     let approved = needs(h, &repo, &project).await;
     let req = pb::InstallExtensionRequest {
         approved_needs: approved,
-        ..install(h, "install", &repo, &project)
+        ..install(h, &format!("install-{n}"), &repo, &project)
     };
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
@@ -55,6 +56,14 @@ pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String
         ..Default::default()
     };
     send(&mut session, AgentUp::LeaseRequest(Box::new(lease))).await;
+    // The credential is asked once the lease is held, as an agent asks for it.
+    for _ in 0..30 {
+        let down = crate::agent::next(&mut session).await;
+        if matches!(down.message, Some(AgentDown::LeaseGrant(g)) if g.workload == extension.workload)
+        {
+            break;
+        }
+    }
     let Outcome::Credential(issued) = ask(&mut session, &extension.workload, "c").await else {
         panic!("an installed extension's workload obtains its credential");
     };

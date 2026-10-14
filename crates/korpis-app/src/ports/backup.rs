@@ -93,10 +93,11 @@ pub trait BackupWrite {
     fn insert_repository(
         &mut self,
         r: &Repository,
-        kek: &SealedKey,
+        kek: Option<&SealedKey>,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// A repository's sealed key-encryption key.
+    /// A repository's sealed key-encryption key; none under `tenant` custody, whose key is the
+    /// tenant's own.
     fn repository_key(
         &mut self,
         repository: Uuid,
@@ -173,4 +174,17 @@ pub trait KeyVault: Send + Sync + std::fmt::Debug {
         repository: Uuid,
         workload: Uuid,
     ) -> Result<DataKey, VaultError>;
+
+    /// A one-time recipient for a key a tenant's key management service seals to the control
+    /// plane, for its own read (§5.5 of docs/06-storage.md): its secret lives in it alone.
+    fn recipient(&self) -> Result<Box<dyn KeyRecipient>, VaultError>;
+}
+
+/// A one-time recipient of a sealed data key.
+pub trait KeyRecipient: Send + Sync {
+    /// Its public key, which the key is sealed to.
+    fn public(&self) -> Vec<u8>;
+
+    /// The data key `sealed` holds, sealed to it for `context`.
+    fn open(&self, sealed: &[u8], context: &[u8]) -> Result<DataKey, VaultError>;
 }

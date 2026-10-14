@@ -1041,6 +1041,7 @@ Repository
   provider      string           the organization's backup target provider, by name
   prefix        string           its place in the target, ending in '/'
   key_custody   operator | tenant
+  kms           TenantKey?       under tenant custody: the key_management provider and the key
   retention     RetentionPolicy
   created       Timestamp
 ```

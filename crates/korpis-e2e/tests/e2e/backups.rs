@@ -109,6 +109,8 @@ async fn nightly(operator: &korpis_cli::connect::Connection) -> String {
         min_retention_days: 0,
         streams: false,
         no_streams: false,
+        kms_provider: None,
+        kms_key: None,
     };
     repository(operator, &made).await.unwrap().json["id"].as_str().unwrap().to_owned()
 }

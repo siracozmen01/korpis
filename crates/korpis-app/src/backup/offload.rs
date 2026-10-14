@@ -101,7 +101,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The key and access `node` offloads `workload`'s console stream with.
-    pub async fn grant_offload_access(&self, node: Uuid, workload: Uuid) -> Judged<JobGrant> {
+    /// `recipient` is the one-time public key the node made, as for a job.
+    pub async fn grant_offload_access(
+        &self,
+        node: Uuid,
+        workload: Uuid,
+        recipient: &[u8],
+    ) -> Judged<JobGrant> {
         let Some(w) = self.store.workload(workload).await? else {
             return Ok(Err(JobRefusal::NotAssigned));
         };
@@ -111,7 +117,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(repo) = self.store.offload_repository(w.organization, w.project).await? else {
             return Ok(Err(JobRefusal::NoTarget));
         };
-        let data_key = self.data_key(&repo, w.id, true).await?;
+        let data_key = self.job_key((&repo, w.id), true, recipient).await?;
         let prefix = ((repo.id, w.id), Area::Streams);
         self.record_access(prefix, (None, Some(node)), AccessMode::Write, OFFLOAD_ACCESS).await?;
         let target = CallTarget {
@@ -124,7 +130,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.grant_backup_access(&target, &place, AccessMode::Write, OFFLOAD_ACCESS).await?;
         match called.outcome {
             CallOutcome::Access(access) => {
-                Ok(Ok(JobGrant { repository: repo.id, data_key, access }))
+                Ok(Ok(JobGrant { repository: repo.id, workload: w.id, data_key, access }))
             }
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),
