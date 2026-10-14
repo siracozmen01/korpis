@@ -4,6 +4,7 @@
 
 use korpis_core::quantity::{Quantity, parse_duration};
 use korpis_core::recipe::RecipeError;
+use korpis_core::recipe::template::TemplateFormat;
 use korpis_core::value::Value;
 use korpis_core::workload::spec::endpoints::{Exposure, Protocol};
 use korpis_core::workload::spec::{ConsoleMode, IsolationTier, Lifecycle};
@@ -15,6 +16,21 @@ pub fn named<T: Copy>(field: &str, name: &str, table: &[(&str, T)]) -> Result<T,
         let names: Vec<&str> = table.iter().map(|(n, _)| *n).collect();
         RecipeError::new(field, format!("{name:?} is not one of {names:?}"))
     })
+}
+
+/// A template's format (§6 of docs/09-recipes.md), by its name in a document.
+pub fn template_format(field: &str, name: &str) -> Result<TemplateFormat, RecipeError> {
+    use TemplateFormat as F;
+    let formats = [
+        ("properties", F::Properties),
+        ("yaml", F::Yaml),
+        ("json", F::Json),
+        ("toml", F::Toml),
+        ("ini", F::Ini),
+        ("env", F::Env),
+        ("xml", F::Xml),
+    ];
+    named(field, name, &formats)
 }
 
 pub fn tier(field: &str, s: &str) -> Result<IsolationTier, RecipeError> {

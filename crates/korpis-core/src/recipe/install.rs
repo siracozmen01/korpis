@@ -3,6 +3,7 @@
 //! The install DSL (§4 of docs/09-recipes.md). The verb list is closed and none of them runs
 //! code; a step that needs more is a provider step, answered by an extension in its own sandbox.
 
+use super::template::TemplateFormat;
 use super::{RecipeError, artifact_path, workload_path};
 use crate::value::ValueMap;
 
@@ -90,6 +91,8 @@ pub enum InstallStep {
         from: String,
         /// The output.
         to: String,
+        /// How values are encoded in it.
+        format: TemplateFormat,
         /// The allow-listed variables.
         vars: Vec<String>,
     },

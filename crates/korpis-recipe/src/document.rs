@@ -20,7 +20,7 @@ use korpis_core::recipe::runtime::{
     Entry, Preset, PresetEndpoint, PresetResources, PresetVolume, RecipeRuntime, RuntimeTarget,
     TargetSource,
 };
-use korpis_core::recipe::template::{TemplateFormat, TemplateSpec};
+use korpis_core::recipe::template::TemplateSpec;
 use korpis_core::recipe::{Disruption, DisruptionDecl, Metadata, Recipe, RecipeError};
 use korpis_core::workload::spec::endpoints::Exposure;
 use korpis_core::workload::spec::{ConsoleMode, Lifecycle};
@@ -220,17 +220,7 @@ fn preset(p: Option<&dto::Preset>) -> Result<Preset, RecipeError> {
 }
 
 fn template(i: usize, t: &dto::Template) -> Result<TemplateSpec, RecipeError> {
-    use TemplateFormat as F;
-    let formats = [
-        ("properties", F::Properties),
-        ("yaml", F::Yaml),
-        ("json", F::Json),
-        ("toml", F::Toml),
-        ("ini", F::Ini),
-        ("env", F::Env),
-        ("xml", F::Xml),
-    ];
-    let format = named(&format!("templates[{i}].format"), &t.format, &formats)?;
+    let format = scalars::template_format(&format!("templates[{i}].format"), &t.format)?;
     Ok(TemplateSpec { from: t.from.clone(), path: t.path.clone(), format, vars: t.vars.clone() })
 }
 

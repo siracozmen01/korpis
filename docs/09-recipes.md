@@ -243,7 +243,7 @@ driver, because the default is the Linux one.
 | `extract` | `from`, `to`, `strip`, `include` | path traversal and absolute-path entries rejected |
 | `mkdir` | `path`, `mode` | |
 | `write` | `path`, `content`, `mode` | literal content from the recipe |
-| `template` | `from`, `to`, `vars` | §6 |
+| `template` | `from`, `to`, `format`, `vars` | §6 |
 | `chmod` | `path`, `mode` | |
 | `chown` | `path`, `uid`, `gid` | workload-relative ids, 0 to 65535 (§4.5 of `04-runtimes.md`) |
 | `symlink` | `target`, `link` | both must resolve inside the volume |
@@ -268,6 +268,28 @@ same file fetches nothing (K-15, which the first version applied to images and n
 steps), and the worker that handles tenant paths never needs network access at all.
 
 **A `fetch` without a hash is not a warning. It is a parse error.** The recipe does not load.
+
+**When an install runs.** Decided 2026-10-14, when the install was planned. An install is one plan
+step, `install`, and it runs in three cases. When a workload is created, after its volumes exist
+and before its instance does: every verb, then every template of the `templates` section. When its
+recipe changes to another digest: the instance is stopped, the new recipe's verbs and templates
+run over what the volumes hold, and it is started again. And when values that templates of the
+`templates` section use change: those templates, and only those, are rendered again before the
+instance is reconfigured. A workload created from a backup is not installed, because its volumes
+hold the installed tree the backup was taken of. The step's detail carries why it runs, which
+verbs and templates it runs, and each template's context, so the plan shows exactly what will be
+written; it cannot be undone, because what it writes over is not kept.
+
+**Everything an install writes lands in a volume.** Every path a verb or a template writes must be
+one of the workload's volumes or beneath one, and a declaration whose volumes leave one outside is
+refused, naming the step. The worker that writes sees the workload's volumes and nothing else
+(§6 of `02-architecture.md`), and a file written anywhere else would vanish with the instance; a
+recipe that relied on it would install a workload that starts once. A provider step's paths are
+known when it is resolved, and are checked then.
+
+What it costs: an upgrade that should keep a file the tenant edited has to say so by not writing
+it, because a verb overwrites what it targets (below); and a declaration that moves a volume can be
+refused for a recipe it did not change.
 
 ### Every verb states its own idempotence
 
@@ -556,6 +578,31 @@ same context. So:
   even a total escape reaches only that workload's own data.
 
 There is no ambient scope for a template to reach into, because there is no ambient scope.
+
+**As built, 2026-10-14** (`crates/korpis-core/src/recipe/template.rs`). The language is
+`{{name}}`, a section `{{#name}}…{{/name}}` rendered when the value is present and not false or
+empty, its inverse `{{^name}}…{{/name}}`, and a comment `{{! … }}`; names are field keys, sections
+nest at most sixteen deep, and a template is at most 1 MiB. A name outside the step's `vars` is
+not in the context, so rendering it fails. The context is built by the control plane from the
+intent's resolved values and travels in the plan step's detail: text as text, numbers in the
+canonical form of §5 (a quantity in its base unit, a duration in seconds), booleans as booleans,
+and a field with no value as unset. Each value is written as a whole token of its format:
+
+| Format | Text is written as | Refused |
+|---|---|---|
+| `json` | a JSON string, quotes included | nothing |
+| `yaml` | a double-quoted scalar, every line break escaped | nothing |
+| `toml` | a basic string | nothing |
+| `env` | a double-quoted value, `\`, `"`, `$`, and a backquote escaped, as shells and dotenv read it | a line break |
+| `properties` | escaped, anything outside printable ASCII as `\uXXXX`, so ISO-8859-1 and UTF-8 readers agree | nothing |
+| `ini` | as it is | a line break, NUL |
+| `xml` | character data with the five entities | a character XML 1.0 has none for |
+
+Numbers and booleans stand bare; an unset value is `null` in JSON and YAML, an empty string in
+TOML and env files, and nothing in the others. The template verb of §4 declares its format as the
+`templates` section does. What it costs: a template cannot contain a literal `{{`, because the
+language has no escape for its own delimiters; and a value is quoted for the author, so a
+template writes `"motd": {{motd}}`, never `"motd": "{{motd}}"`.
 
 ---
 

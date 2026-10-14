@@ -25,7 +25,12 @@ impl<'a> Args<'a> {
     }
 
     pub fn err(&self, key: &str, message: impl Into<String>) -> RecipeError {
-        RecipeError::new(&format!("{}.{key}", self.at), message)
+        RecipeError::new(&self.at(key), message)
+    }
+
+    /// Where `key` is, for an error about it.
+    pub fn at(&self, key: &str) -> String {
+        format!("{}.{key}", self.at)
     }
 
     /// Refuses any key outside `allowed`.

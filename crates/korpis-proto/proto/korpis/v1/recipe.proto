@@ -244,6 +244,8 @@ message TemplateStep {
   string from = 1;
   string to = 2;
   repeated string vars = 3;
+  // How values are encoded in it, as for a TemplateSpec (§6 of docs/09-recipes.md).
+  TemplateFormat format = 4;
 }
 
 message ChmodStep {

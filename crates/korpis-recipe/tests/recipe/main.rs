@@ -14,6 +14,7 @@
 mod artifact;
 mod document;
 mod extension;
+mod installing;
 mod registry;
 mod resolve;
 mod support;

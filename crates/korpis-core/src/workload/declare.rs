@@ -53,7 +53,9 @@ pub struct Declaration {
 
 impl Declaration {
     /// The intent body this declaration means, given its recipe. The body is validated: a
-    /// declaration the recipe cannot complete, or whose completion is inconsistent, is refused.
+    /// declaration the recipe cannot complete, or whose completion is inconsistent, is refused,
+    /// as is one whose volumes leave somewhere its recipe installs into outside every volume
+    /// (§4 of docs/09-recipes.md).
     pub fn complete(self, recipe_ref: RecipeRef, recipe: &Recipe) -> Result<IntentBody, SpecError> {
         let preset = &recipe.preset;
         let body = IntentBody {
@@ -76,6 +78,9 @@ impl Declaration {
             streams: self.streams,
         };
         body.validate()?;
+        recipe
+            .check_targets(&body.volumes)
+            .map_err(|e| SpecError::new("volumes", format!("{}: {}", e.field, e.message)))?;
         Ok(body)
     }
 }

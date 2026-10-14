@@ -3,7 +3,7 @@
 //! The `install` block (§4 of docs/09-recipes.md). Each step is a map with one key, the verb.
 
 use super::args::Args;
-use super::scalars::value;
+use super::scalars::{self, value};
 use korpis_core::recipe::RecipeError;
 use korpis_core::recipe::install::{Hash, InstallStep};
 use korpis_core::value::ValueMap;
@@ -55,10 +55,11 @@ fn moving(verb: &str, a: &Args<'_>) -> Result<InstallStep, RecipeError> {
             }
         }
         "template" => {
-            a.only(&["from", "to", "vars"])?;
+            a.only(&["from", "to", "format", "vars"])?;
             InstallStep::Template {
                 from: a.str("from")?,
                 to: a.str("to")?,
+                format: scalars::template_format(&a.at("format"), &a.str("format")?)?,
                 vars: a.strings("vars")?,
             }
         }

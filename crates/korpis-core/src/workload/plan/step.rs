@@ -40,6 +40,9 @@ pub enum StepAction {
     /// Forget the backups a retention policy no longer keeps, and mark what only they held for
     /// deletion (§5.3 of docs/06-storage.md).
     PruneBackups,
+    /// Run the recipe's install verbs and render its templates into the volumes (§4 and §6 of
+    /// docs/09-recipes.md); what it writes over is not kept, so it cannot be undone.
+    Install,
     /// Create the runtime instance.
     Create,
     /// Start it.
@@ -77,6 +80,7 @@ impl StepAction {
             Self::RestoreVolume => "restore_volume",
             Self::ReplaceVolume => "replace_volume",
             Self::PruneBackups => "prune_backups",
+            Self::Install => "install",
             Self::Create => "create",
             Self::Start => "start",
             Self::Stop => "stop",
@@ -89,7 +93,7 @@ impl StepAction {
         }
     }
 
-    const ALL: [Self; 21] = [
+    const ALL: [Self; 22] = [
         Self::PullRecipe,
         Self::CreateVolume,
         Self::AttachVolume,
@@ -102,6 +106,7 @@ impl StepAction {
         Self::RestoreVolume,
         Self::ReplaceVolume,
         Self::PruneBackups,
+        Self::Install,
         Self::Create,
         Self::Start,
         Self::Stop,
@@ -128,7 +133,7 @@ impl StepAction {
             | Self::ReleaseAddress
             | Self::RollbackVolume
             | Self::ReplaceVolume => (true, false),
-            Self::DeleteSnapshot | Self::PruneBackups => (false, false),
+            Self::DeleteSnapshot | Self::PruneBackups | Self::Install => (false, false),
             Self::Migrate | Self::Retire => (true, true),
             _ => (false, true),
         }

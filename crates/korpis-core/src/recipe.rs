@@ -10,6 +10,7 @@ pub mod derive;
 pub mod disruption;
 pub mod document;
 pub mod install;
+pub mod installing;
 pub mod reference;
 pub mod resolve;
 pub mod runtime;
