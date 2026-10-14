@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod console;
 mod content;
 mod data;
 mod identity;

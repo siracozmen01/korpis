@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Reading a workload's console stream over the data path (§2 and §8 of docs/14-streams.md): a
+// session of the action `workload.console.read`, opened at a relay (relay.proto) and served by
+// the node that holds the workload. The session's params are a ConsoleRead; every data frame the
+// node sends is one ConsoleChunk. Records are identified by offset, so a reader that reconnects
+// asks for the offset it was told to read from next and misses nothing and repeats nothing.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What a reader asks for.
+message ConsoleRead {
+  // The first offset wanted. Offsets before the oldest one the node holds are reported missing.
+  uint64 from_offset = 1;
+  // Start instead at the first record written at or after this node-clock time; from_offset is
+  // then ignored. Times are informational (§2 of docs/14-streams.md), so this is a starting
+  // point, never an identity.
+  google.protobuf.Timestamp since = 2;
+  // Keep the session open once the held records are sent, and send records as they are written.
+  bool follow = 3;
+  // End the session once this many records are sent; zero is no limit.
+  uint64 limit = 4;
+  // Send only the text and structured records whose body matches, searching the node's
+  // retention window (§8 of docs/14-streams.md). Gap records are always sent, so a search says
+  // where it could not look. Empty matches everything.
+  string pattern = 5;
+  // Whether pattern is a regular expression, matched in time linear in the input, rather than a
+  // substring.
+  bool regex = 6;
+}
+
+// A run of records, in offset order, and where to read from next.
+message ConsoleChunk {
+  repeated StreamRecord records = 1;
+  // Offsets asked for that the node does not hold: pruned to the retention, or never written
+  // there. Sent at the start, and again if a reader falls behind what the retention keeps.
+  OffsetRange missing = 2;
+  // The offset to ask for after a reconnection.
+  uint64 next_offset = 3;
+  // Every record held when the session opened has been sent; what follows was written since.
+  // Set once, on the chunk that catches up.
+  bool caught_up = 4;
+}
+
+// Offsets from `first` up to, not including, `end`.
+message OffsetRange {
+  uint64 first = 1;
+  uint64 end = 2;
+}
+
+// One record of a stream (§2 of docs/14-streams.md).
+message StreamRecord {
+  // Its position in the stream: monotonic, from zero.
+  uint64 offset = 1;
+  // The node clock when it was written.
+  google.protobuf.Timestamp time = 2;
+  // stdout, stderr, file:<path>, korpis, or input.
+  string source = 3;
+  StreamRecordKind kind = 4;
+  // Its bytes, redacted before they were written (§7 of docs/14-streams.md).
+  bytes body = 5;
+  // For a gap record, what was lost; its body holds the same as JSON.
+  StreamGap gap = 6;
+}
+
+enum StreamRecordKind {
+  STREAM_RECORD_KIND_UNSPECIFIED = 0;
+  // Bytes as written.
+  STREAM_RECORD_KIND_TEXT = 1;
+  // One JSON value the workload wrote whole.
+  STREAM_RECORD_KIND_STRUCTURED = 2;
+  // Records lost (§3 of docs/14-streams.md).
+  STREAM_RECORD_KIND_GAP = 3;
+  // A terminal event: resize, signal, end of input.
+  STREAM_RECORD_KIND_CONTROL = 4;
+}
+
+// What a gap record says was lost (§3 of docs/14-streams.md).
+message StreamGap {
+  // Records lost whole.
+  uint64 records = 1;
+  // Bytes lost, the cut part of an overlong record included.
+  uint64 bytes = 2;
+  // From the first loss to the last, in milliseconds.
+  uint64 millis = 3;
+  // Why, for a person: "write rate exceeded the stream's limit", for example.
+  string reason = 4;
+}

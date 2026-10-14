@@ -470,6 +470,11 @@ Primary:
   (`binaryIOProcTermTimeout`), checked 2026-10-14 against
   [cmd/containerd-shim-runc-v2/process/io.go](https://github.com/containerd/containerd/blob/main/cmd/containerd-shim-runc-v2/process/io.go).
   What the stream writer's last drain is sized against (§4 of `../14-streams.md`).
+- **[V]** Rust's `regex` crate runs every search in time linear in the pattern and the input,
+  with no backtracking, and bounds the memory a compiled pattern may take, checked 2026-10-14
+  against the crate's documentation ([regex: untrusted
+  input](https://docs.rs/regex/latest/regex/#untrusted-input)). What makes a reader's search
+  pattern safe for the node to run (§8 of `../14-streams.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

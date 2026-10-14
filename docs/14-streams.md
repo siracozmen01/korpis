@@ -271,6 +271,30 @@ object storage and stop there. Substring and regular-expression search **within 
 retention window** is provided because it is a property of the segment files rather than a search
 product, and because sending an operator to a separate system to find one line is absurd.
 
+**As built** (Phase 1), reading is a data-path session of the action `workload.console.read`,
+opened at a relay with a capability token and served by the node from the segment files it holds,
+the one still being written included (§3.1 of `02-architecture.md`; the messages are in
+`console.proto`). A reader asks for an offset, or a node-clock time, which the node turns into the
+first offset written at or after it, skipping sealed segments by their footers alone; it may ask to
+follow, for a number of records, and for a search. The node answers in chunks, each ending with the
+offset to ask for after a reconnection, and says once when it has caught up with what was held
+when the session opened. Offsets asked for that it no longer holds are reported as missing, at the
+start and again if a slow reader falls behind the retention, never skipped in silence. A search is
+a substring or a regular expression, run on the node so a one-line answer does not cross the
+network as a whole retention window. The pattern comes from whoever holds the action and the node
+runs it, so it is bounded: at most 1 KiB, a compiled form of at most 1 MiB, and an engine with no
+backtracking, whose time is linear in the stream whatever the pattern (§5 of
+`research/evidence.md`). Gap and control records are sent whatever the pattern, because a search
+has to say where it could not look.
+
+What it costs, and what it does not do. A follower looks again every quarter second, so a record
+reaches it up to 250 ms after it is written, and each look lists the stream's directory; a push
+from the writer would be faster, and would put a second consumer on the one process that must never
+stop draining the workload. The node reads only what it holds: until offload is built (Phase 1,
+with backup), a segment pruned from the node is gone, and the reader is told so. And a workload
+the node no longer holds, a retired one included, is refused on the data path, so a retired
+workload's kept stream (§4) cannot yet be read at all (§9, question 6).
+
 ---
 
 ## 9. Open questions
@@ -303,3 +327,9 @@ The node never holds a credential that reaches another workload's data.
    line are kept as its record, the rest is dropped as it arrives, never buffered, and a gap record
    counts the bytes dropped. 64 KiB holds any line a person reads and every stack frame a program
    prints, and bounds what one line can cost the writer.
+6. **Reading a retired workload's stream.** Retiring keeps the stream (§4), and the data path
+   refuses a session for a workload the node no longer holds, so what is kept cannot be read: the
+   final output §3.6 of `01-model.md` promises is there, and no session reaches it. Either the node
+   serves a stream it still holds for a workload it no longer runs, judged by a token the gateway
+   mints for a retired workload, or the stream is read from the offload target. Settled with
+   offload, which has to answer the same question for a node that is gone. → here

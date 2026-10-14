@@ -17,6 +17,9 @@ workspace = true
 aho-corasick = "1"
 # CRC-32C over each record frame, so a torn write is found rather than read.
 crc = "3"
+# Search within the retention window (§8 of docs/14-streams.md): a regex engine with no
+# backtracking, so a reader's pattern runs in time linear in the stream.
+regex = { version = "1", default-features = false, features = ["std", "perf", "unicode"] }
 serde_json = "1"
 sha2 = "0.10"
 # The shim ends its logging binary with SIGTERM when the task is deleted; the writer seals what it

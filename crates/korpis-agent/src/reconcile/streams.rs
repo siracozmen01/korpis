@@ -9,6 +9,10 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use tokio::sync::watch;
+
+/// Where each watched workload's stream is, as the data path reads it.
+pub type Located = watch::Receiver<BTreeMap<String, PathBuf>>;
 
 /// One stream watched.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,6 +28,7 @@ pub struct Watched {
 pub struct Streams {
     path: PathBuf,
     watched: BTreeMap<String, Watched>,
+    located: watch::Sender<BTreeMap<String, PathBuf>>,
 }
 
 fn invalid(line: &str) -> std::io::Error {
@@ -52,7 +57,21 @@ impl Streams {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => BTreeMap::new(),
             Err(e) => return Err(e),
         };
-        Ok(Self { path: path.to_owned(), watched })
+        let (located, _) = watch::channel(BTreeMap::new());
+        let streams = Self { path: path.to_owned(), watched, located };
+        streams.publish();
+        Ok(streams)
+    }
+
+    /// Where each watched stream is, kept current as streams are watched and no longer are.
+    #[must_use]
+    pub fn located(&self) -> Located {
+        self.located.subscribe()
+    }
+
+    fn publish(&self) {
+        let dirs = self.watched.iter().map(|(w, s)| (w.clone(), s.dir.clone())).collect();
+        self.located.send_replace(dirs);
     }
 
     /// Every stream watched.
@@ -67,6 +86,7 @@ impl Streams {
             return Ok(());
         }
         self.watched.insert(workload.to_owned(), Watched { dir: dir.to_owned(), next: 0 });
+        self.publish();
         self.save()
     }
 
@@ -84,6 +104,7 @@ impl Streams {
         if self.watched.remove(workload).is_none() {
             return Ok(());
         }
+        self.publish();
         self.save()
     }
 

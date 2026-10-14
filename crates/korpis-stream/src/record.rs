@@ -127,8 +127,8 @@ pub struct Gap {
     pub bytes: u64,
     /// From the first loss to the last, in milliseconds.
     pub millis: u64,
-    /// Why.
-    pub reason: &'static str,
+    /// Why, for a person.
+    pub reason: String,
 }
 
 impl Gap {
@@ -143,5 +143,18 @@ impl Gap {
         })
         .to_string()
         .into_bytes()
+    }
+
+    /// What a gap record's body says; none if it is not a gap's.
+    #[must_use]
+    pub fn parse(body: &[u8]) -> Option<Self> {
+        let v: serde_json::Value = serde_json::from_slice(body).ok()?;
+        let n = |k: &str| v.get(k).and_then(serde_json::Value::as_u64);
+        Some(Self {
+            records: n("records")?,
+            bytes: n("bytes")?,
+            millis: n("millis")?,
+            reason: v.get("reason")?.as_str()?.to_owned(),
+        })
     }
 }

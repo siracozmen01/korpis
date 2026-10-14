@@ -43,14 +43,14 @@ impl Handler for Echo {
     }
 }
 
-type Client = connectrpc::client::BidiStream<
+pub type Client = connectrpc::client::BidiStream<
     <connectrpc::client::HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
     pb::RelayRequest,
     pb::__buffa::view::RelayResponseView<'static>,
 >;
 
 /// A session opened with `request` at `relay`, retried while the node is not yet attached.
-async fn opened(
+pub async fn opened(
     relay: &pb::RelayServiceClient<connectrpc::client::HttpClient>,
     request: &pb::RelayRequest,
 ) -> Client {
@@ -71,7 +71,7 @@ async fn opened(
     }
 }
 
-fn open(token: &str, action: &str, workload: &str, node: &str) -> pb::RelayRequest {
+pub fn open(token: &str, action: &str, workload: &str, node: &str) -> pb::RelayRequest {
     let open = pb::RelayOpen {
         token: token.into(),
         action: action.into(),
@@ -87,15 +87,20 @@ fn data(bytes: &[u8]) -> pb::RelayRequest {
     pb::RelayRequest { message: Some(Request::Frame(Box::new(frame))), ..Default::default() }
 }
 
-/// A node holding one workload, serving `Echo` for the console through its data connection.
-struct Node {
-    id: String,
-    workload: String,
+/// A node holding one workload, serving sessions through its data connection.
+pub struct Node {
+    pub id: String,
+    pub workload: String,
     _tasks: Vec<tokio::task::JoinHandle<()>>,
     _dir: tempfile::TempDir,
 }
 
 async fn node(cp: &ControlPlane, name: &str) -> Node {
+    node_with(cp, name, Handlers::default().with(CONSOLE, Arc::new(Echo))).await
+}
+
+/// A node holding one workload, serving `handlers` through its data connection.
+pub async fn node_with(cp: &ControlPlane, name: &str, handlers: Handlers) -> Node {
     let project = cp.project().await;
     let (token, ca) = cp.token(name).await;
     let dir = tempfile::tempdir().unwrap();
@@ -116,14 +121,14 @@ async fn node(cp: &ControlPlane, name: &str) -> Node {
         keys: token_ring(&identity.keys.token_keys),
         revoked: link.revoked.clone(),
         held: link.held.clone(),
-        handlers: Handlers::default().with(CONSOLE, Arc::new(Echo)),
+        handlers,
     };
     let data = tokio::spawn(DataLink::new(identity.clone(), judged, link.relays.clone()).run());
     Node { id: identity.node, workload, _tasks: vec![running, data], _dir: dir }
 }
 
 /// The next frame the client is sent.
-async fn frame(client: &mut Client) -> Frame {
+pub async fn frame(client: &mut Client) -> Frame {
     let next = tokio::time::timeout(Duration::from_secs(10), client.message::<pb::RelayResponse>());
     match next.await.unwrap().unwrap().map(|m| m.to_owned_message()).and_then(|m| m.message) {
         Some(Reply::Frame(f)) => f.frame.unwrap(),
@@ -136,7 +141,7 @@ fn renew(token: &str) -> pb::RelayRequest {
     pb::RelayRequest { message: Some(Request::Frame(Box::new(frame))), ..Default::default() }
 }
 
-fn end_code(f: Frame) -> String {
+pub fn end_code(f: Frame) -> String {
     let Frame::End(end) = f else { panic!("the end, got {f:?}") };
     end.code
 }

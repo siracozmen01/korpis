@@ -18,6 +18,7 @@ pub mod lines;
 pub mod read;
 pub mod record;
 pub mod redact;
+pub mod search;
 pub mod segment;
 pub mod writer;
 

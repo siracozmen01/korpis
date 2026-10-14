@@ -7,6 +7,7 @@
 //! journal still holds in memory before the process exits.
 
 use crate::advertise::Advertise;
+use crate::data::console::{self, ConsoleRead};
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
@@ -74,7 +75,8 @@ pub struct Options {
     /// state directory when unset. The driver must be given the same root.
     pub identity_root: Option<std::path::PathBuf>,
     /// What serves each action of the sessions clients open through a relay (§3.1 of
-    /// docs/02-architecture.md); an action with none is refused.
+    /// docs/02-architecture.md), beside `workload.console.read`, which the agent always serves;
+    /// an action with none is refused.
     pub handlers: Handlers,
 }
 
@@ -176,7 +178,9 @@ impl Agent {
             keys: token_ring(&data.keys.token_keys),
             revoked: link.revoked.clone(),
             held: link.held.clone(),
-            handlers: options.handlers,
+            handlers: options
+                .handlers
+                .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located()))),
         };
         let data = DataLink::new(data, judged, link.relays.clone());
         let leases = Leases::new(journal.clone());

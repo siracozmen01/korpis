@@ -250,7 +250,7 @@ impl StreamWriter {
     fn flush_gap(&mut self) -> io::Result<()> {
         let Some(d) = self.dropped.take() else { return Ok(()) };
         let millis = u64::try_from((d.last - d.first) / 1_000_000).unwrap_or(0);
-        let gap = Gap { records: d.records, bytes: d.bytes, millis, reason: d.reason };
+        let gap = Gap { records: d.records, bytes: d.bytes, millis, reason: d.reason.to_owned() };
         self.append(Source::Korpis, Kind::Gap, gap.body(), d.last)
     }
 

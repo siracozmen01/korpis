@@ -104,3 +104,26 @@ fn a_retention_by_age_prunes_what_is_older_than_it() {
     let batch = read(&StreamDir::new(dir.path()), 0, 100).unwrap();
     assert!(batch.records.iter().all(|r| r.time_nanos > T0), "only the recent remain");
 }
+
+#[test]
+fn a_time_is_found_as_the_first_record_written_at_or_after_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let limits = Limits { segment_bytes: 1, ..Limits::default() };
+    let mut w = writer(dir.path(), limits);
+    for (i, line) in ["one", "two", "three"].iter().enumerate() {
+        w.write(
+            Source::Stdout,
+            Kind::Text,
+            line.as_bytes(),
+            T0 + SECOND * i64::try_from(i).unwrap(),
+        )
+        .unwrap();
+    }
+    w.tick(T0 + 3 * SECOND).unwrap();
+    let d = StreamDir::new(dir.path());
+    assert!(d.segments().unwrap().iter().filter(|s| s.sealed).count() >= 2, "sealed ones skipped");
+    assert_eq!(crate::read::offset_since(&d, T0 + SECOND).unwrap(), 1);
+    assert_eq!(crate::read::offset_since(&d, T0 + SECOND / 2).unwrap(), 1, "at or after");
+    assert_eq!(crate::read::offset_since(&d, 0).unwrap(), 0);
+    assert_eq!(crate::read::offset_since(&d, T0 + 9 * SECOND).unwrap(), 3, "past the end");
+}

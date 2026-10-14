@@ -8,6 +8,7 @@
 //! the node runs. A node never sees the client's address, and never evaluates it.
 
 mod carry;
+pub mod console;
 pub mod handler;
 
 use crate::held::HeldSet;

@@ -42,3 +42,25 @@ pub fn read(dir: &StreamDir, from: u64, limit: usize) -> io::Result<Batch> {
     let next = records.last().map_or(start, |r| r.offset + 1);
     Ok(Batch { missing, records, next })
 }
+
+/// The offset of the first record, in offset order, written at or after `since` (nanoseconds
+/// since the Unix epoch, node clock), in the stream in `dir`; one past its last record if none
+/// was. A sealed segment whose last record is older is skipped by its footer alone.
+pub fn offset_since(dir: &StreamDir, since: i64) -> io::Result<u64> {
+    let mut end = 0;
+    for s in dir.segments()? {
+        if s.sealed
+            && let Some(info) = segment::sealed_info(&s.path)?
+            && info.times.1 < since
+        {
+            end = info.end_offset;
+            continue;
+        }
+        let (records, _) = segment::records_from(&s.path, s.first_offset, usize::MAX)?;
+        if let Some(r) = records.iter().find(|r| r.time_nanos >= since) {
+            return Ok(r.offset);
+        }
+        end = records.last().map_or(end.max(s.first_offset), |r| r.offset + 1);
+    }
+    Ok(end)
+}
