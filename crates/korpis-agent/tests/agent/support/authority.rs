@@ -27,13 +27,24 @@ impl ControlPlane {
         actions: &[&str],
         ttl: u32,
     ) -> String {
+        self.minted(secret, workload, actions, ttl).await.token
+    }
+
+    /// The whole answer to minting, the sealed route with the token.
+    pub async fn minted(
+        &self,
+        secret: &str,
+        workload: &str,
+        actions: &[&str],
+        ttl: u32,
+    ) -> pb::MintTokenResponse {
         use korpis_core::authz::{Kind, ObjectRef};
         use korpis_core::id::{Id, IdKind};
         let w = Id::parse(IdKind::Workload, workload).unwrap().uuid();
         let scope = korpis_core::scope::Scope::Object(ObjectRef::new(Kind::Workload, w));
         let config = ClientConfig::new(self.url.parse().unwrap())
             .with_default_header("authorization", format!("Bearer {secret}"));
-        let minted = pb::GrantServiceClient::new(self.http(), config)
+        pb::GrantServiceClient::new(self.http(), config)
             .mint_token(pb::MintTokenRequest {
                 actions: actions.iter().map(|a| (*a).to_owned()).collect(),
                 scope: korpis_wire::scope::to_pb(&scope).into(),
@@ -42,8 +53,7 @@ impl ControlPlane {
             })
             .await
             .unwrap()
-            .into_owned();
-        minted.token
+            .into_owned()
     }
 
     /// Issues `actions` on the root organization to a new API token; the grant and the token's

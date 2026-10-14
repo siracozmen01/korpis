@@ -17,6 +17,7 @@ use crate::relay::{Verifier, token_ring};
 use connectrpc::ConnectError;
 use korpis_app::AppError;
 use korpis_app::node::{NodeProof, check_data_hello};
+use korpis_core::authz::route::{RouteKey, RouteRing};
 use korpis_core::authz::token::KeyRing;
 use korpis_core::id::{Id, IdKind};
 use korpis_proto::korpis::relay::v1 as relay;
@@ -41,6 +42,7 @@ pub struct Terms {
 struct Held {
     terms: Option<Terms>,
     keys: KeyRing,
+    routes: RouteRing,
     revoked: HashSet<Uuid>,
     nodes: HashMap<Uuid, Vec<u8>>,
 }
@@ -59,6 +61,15 @@ fn node_keys(nodes: &relay::NodeKeys) -> Result<HashMap<Uuid, Vec<u8>>, String> 
         Ok((id.uuid(), k.public_key.clone()))
     };
     nodes.nodes.iter().map(parse).collect()
+}
+
+fn route_ring(keys: &[relay::RouteKey]) -> Result<RouteRing, String> {
+    let keys = keys.iter().map(|k| {
+        let bytes: [u8; 32] =
+            k.key.as_slice().try_into().map_err(|_| "route_keys: not 32 bytes".to_owned())?;
+        Ok(RouteKey::from_bytes(k.key_id, bytes))
+    });
+    Ok(RouteRing::new(keys.collect::<Result<Vec<_>, String>>()?))
 }
 
 fn terms(t: &relay::FeedTerms) -> Result<Terms, String> {
@@ -92,6 +103,7 @@ impl Fed {
         match message {
             Update::Terms(t) => held.terms = Some(terms(&t)?),
             Update::TokenKeys(k) => {
+                held.routes = route_ring(&k.route_keys)?;
                 held.keys =
                     token_ring(k.keys.iter().map(|k| (k.key_id.as_str(), &k.public_key[..])));
             }
@@ -150,6 +162,10 @@ fn unauthenticated() -> ConnectError {
 impl Verifier for Fed {
     fn keys(&self) -> KeyRing {
         self.held.read().unwrap_or_else(PoisonError::into_inner).keys.clone()
+    }
+
+    fn routes(&self) -> RouteRing {
+        self.held.read().unwrap_or_else(PoisonError::into_inner).routes.clone()
     }
 
     fn revoked(&self) -> HashSet<Uuid> {

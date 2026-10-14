@@ -7,8 +7,9 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
+use korpis_core::authz::route::RouteKey;
 use korpis_core::authz::token::{self, Claims, SESSION_TOKEN_LIFETIME};
-use korpis_core::authz::{Action, Decision, ObjectRef};
+use korpis_core::authz::{Action, Decision, Kind, ObjectRef};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -32,6 +33,9 @@ pub struct Minted {
     pub token: String,
     /// When it stops working.
     pub expires_at: SystemTime,
+    /// For a token on a workload that is placed, the node a relay carries its sessions to,
+    /// sealed so the holder cannot read it (§3.1 of docs/02-architecture.md).
+    pub route: Option<String>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -68,8 +72,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let token =
             token::mint(&self.token_key, &claims).map_err(|e| AppError::Internal(e.to_string()))?;
+        let route = self.route(cmd.object).await?;
         // Minting acts on nothing: it records no effect. Using the token is recorded where it is
         // used, under the chain it names.
-        Ok(Minted { token, expires_at })
+        Ok(Minted { token, expires_at, route })
+    }
+
+    /// The sealed route to the node `object` is placed on, if it is a placed workload. Sealed
+    /// whoever asks: a route is what any session needs and tells its holder nothing, so who may
+    /// read the node never decides who may reach the workload.
+    async fn route(&self, object: ObjectRef) -> Result<Option<String>, AppError> {
+        if object.kind != Kind::Workload {
+            return Ok(None);
+        }
+        let Some(placed) = self.store.placement(object.id).await? else { return Ok(None) };
+        RouteKey::of(&self.token_key)
+            .seal(object.id, placed.node)
+            .map(Some)
+            .map_err(|e| AppError::Internal(e.to_string()))
     }
 }

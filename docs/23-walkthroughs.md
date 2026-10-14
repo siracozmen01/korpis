@@ -722,7 +722,7 @@ member removed from the files is deleted only by the `apply --plan` that names i
 |---|---|---|
 | 1 | A grant names *the `@moderator` role in guild 456* as its subject | `08-identity.md` §5 |
 | 2 | A moderator uses it, and issues an attenuated child grant to a helper: restart one server, 7 days, as the parent's `delegation` policy allows † | `08-identity.md` §3.2 |
-| 3 | They also open a console through a relay; a 120-second capability token is issued, renewed, and checked by relay and agent † | `08-identity.md` §6; `02-architecture.md` §3.1 |
+| 3 | They also open a console through a relay; a 120-second capability token is issued with a sealed route to the node, renewed, and checked by relay and agent † ‖ | `08-identity.md` §6; `02-architecture.md` §3.1 |
 | 4 | They also create a share link, valid 24 hours, token in the fragment | `08-identity.md` §6.1 |
 | 5 | The guild owner removes them from `@moderator` | Discord, outside Korpis |
 | 6 | §5 says losing the role removes the authority with no deprovisioning step | `08-identity.md` §5 |
@@ -773,6 +773,24 @@ lifetime, the bound §4.6 of `02-architecture.md` already states for the agent, 
 refuses the session's next renewal by its own list regardless. The same build found that a node's
 proof to a relay could be replayed to another relay, since relays share no nonce memory; the
 proof now names the relay it was made for.
+
+‖ Added 2026-10-14, when `korpis logs`, the first command to open a session, was built.
+
+**FINDING 29: A client who may not read the node could not reach the workload. `CONFIRMED`**
+
+The relay routes a session by the node the client names, and §3.1 of `02-architecture.md` had the
+client name "the node the API reports it placed on". The API reports a placement's node only to a
+caller who may read the node, and the moderator of step 3 holds a console grant on one server and
+nothing on the host's machines. So the moderator was told nothing to name, the relay, which holds
+no database, had nothing to look up, and the console of step 3 could not be opened at all. Every
+test had opened sessions as the root organization, which may read every node, and the trace's
+step read as possible because nobody asked with what information the client fills in the node.
+
+**Resolution.** The gateway, which knows the placement when it mints the token, returns with it a
+route: the node, sealed under a key derived from the token key and a fresh nonce, bound to the
+workload. The relay opens it with that key, carried in its feed beside the token keys, and the
+moderator learns nothing about the host's machines, not even which of their own servers share one.
+→ patched into `02-architecture.md` §3.1, `08-identity.md` §6, and `17-security.md` §8
 
 ---
 
@@ -990,6 +1008,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 26 | A restored cursor older than a node's journal waits forever | §6 | `02-architecture.md` §4.10, `03-state.md` §8 |
 | 27 | A relay removed after the backup returns with it | §6 | `18-operations.md` §6 |
 | 28 | The last segment of a retired workload's console was refused | §18 | `14-streams.md` §4 |
+| 29 | A client who may not read the node could not reach the workload | §11 | `02-architecture.md` §3.1, `08-identity.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

@@ -157,6 +157,7 @@ impl pb::GrantService for Api {
         Response::ok(pb::MintTokenResponse {
             token: minted.token,
             expires_at: wire::timestamp(minted.expires_at).into(),
+            route: minted.route.unwrap_or_default(),
             ..Default::default()
         })
     }

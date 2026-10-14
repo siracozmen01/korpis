@@ -12,6 +12,7 @@ use crate::error::AppError;
 use crate::node::NodeProof;
 use crate::node::session::{ProofMessage, fresh};
 use crate::ports::{Clock, RecipeSource, RelayWrite as _, Store, Tx as _, VerifyKey};
+use korpis_core::authz::route::RouteKey;
 use korpis_core::node::identity::{relay_feed_message, verify};
 use korpis_core::relay::Relay;
 use std::time::UNIX_EPOCH;
@@ -24,6 +25,9 @@ pub struct RelayFeed {
     pub token_keys: Vec<VerifyKey>,
     /// The identity key of every node not decommissioned.
     pub node_keys: Vec<(Uuid, Vec<u8>)>,
+    /// The route key of the token key in use, which every replica holds alike: what a relay
+    /// opens the routes this control plane seals with (§3.1 of docs/02-architecture.md).
+    pub route_keys: Vec<RouteKey>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -69,7 +73,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(RelayFeed {
             token_keys: self.store.verify_keys("token").await?,
             node_keys: self.store.node_keys().await?,
+            route_keys: self.route_keys(),
         })
+    }
+
+    /// The route keys a relay in this process opens routes with.
+    #[must_use]
+    pub fn route_keys(&self) -> Vec<RouteKey> {
+        vec![RouteKey::of(&self.token_key)]
     }
 
     /// Records that `relay`'s feed is being served now.

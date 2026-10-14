@@ -15,7 +15,7 @@ workspace = true
 default = []
 # The authorization path: grant algebra, evaluation, and capability tokens. Off by default so
 # that the privileged helper, which needs none of it, links none of it.
-authz = ["dep:base64", "dep:biscuit-auth", "dep:ed25519-dalek", "dep:getrandom", "dep:sha2"]
+authz = ["dep:base64", "dep:biscuit-auth", "dep:chacha20poly1305", "dep:ed25519-dalek", "dep:getrandom", "dep:hkdf", "dep:sha2"]
 # Recipe trust: verifying cosign signatures against an organization's policy (§7 of
 # docs/09-recipes.md). The control plane's; nodes run only what it already decided.
 trust = ["dep:base64", "dep:p256", "dep:sha2"]
@@ -29,8 +29,11 @@ content = ["dep:serde", "dep:sha2"]
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
 base64 = { version = "0.22", optional = true }
+# Routes (authz::route): the node a session is carried to, sealed so the client cannot read it.
+chacha20poly1305 = { version = "0.10", optional = true }
 ed25519-dalek = { version = "2.2", optional = true }
 getrandom = { version = "0.4", optional = true }
+hkdf = { version = "0.12", optional = true }
 ipnet = "2"
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pem", "pkcs8", "std"], optional = true }
 regex = "1"

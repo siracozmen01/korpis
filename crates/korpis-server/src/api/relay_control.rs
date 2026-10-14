@@ -56,8 +56,14 @@ async fn keys(
 ) -> Result<bool, String> {
     let mut any = false;
     let feed = app.relay_feed().await.map_err(|e| e.to_string())?;
+    let route_keys = feed.route_keys.iter().map(|k| relay::RouteKey {
+        key_id: k.key_id,
+        key: k.bytes().to_vec(),
+        ..Default::default()
+    });
     let tokens = relay::TokenKeys {
         keys: feed.token_keys.iter().map(key_to_pb).collect(),
+        route_keys: route_keys.collect(),
         ..Default::default()
     };
     if sent.0.as_ref() != Some(&tokens) {

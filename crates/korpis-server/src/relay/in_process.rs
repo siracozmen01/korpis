@@ -9,6 +9,7 @@ use crate::api::{ServerApp, error};
 use crate::revocations::Revocations;
 use connectrpc::ConnectError;
 use korpis_app::node::NodeProof;
+use korpis_core::authz::route::RouteRing;
 use korpis_core::authz::token::KeyRing;
 use std::collections::HashSet;
 use std::sync::{Arc, PoisonError, RwLock};
@@ -38,6 +39,10 @@ impl InProcess {
 impl Verifier for InProcess {
     fn keys(&self) -> KeyRing {
         self.keys.read().unwrap_or_else(PoisonError::into_inner).clone()
+    }
+
+    fn routes(&self) -> RouteRing {
+        RouteRing::new(self.app.route_keys())
     }
 
     fn revoked(&self) -> HashSet<Uuid> {

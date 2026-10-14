@@ -148,7 +148,6 @@ impl<V: Verifier> pb::RelayService for RelayRole<V> {
             return Err(error::invalid("open", "the first message of a session opens it"));
         };
         let workload = id(IdKind::Workload, "open.workload", &open.workload).refuse()?;
-        let node = id(IdKind::Node, "open.node", &open.node).refuse()?;
         let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
         let mut judge = Judge {
             keys: self.verifier.keys(),
@@ -160,6 +159,16 @@ impl<V: Verifier> pb::RelayService for RelayRole<V> {
         };
         let verified = judge.judge(&open.token).map_err(|e| refused("refused", &e))?;
         judge.subject = Some(verified.subject);
+        // The gateway sealed the node it is placed on into the route; a client that may read
+        // the node can name it instead.
+        let node = if open.route.is_empty() {
+            id(IdKind::Node, "open.node", &open.node).refuse()?
+        } else {
+            self.verifier
+                .routes()
+                .open(workload, &open.route)
+                .map_err(|e| error::invalid("open.route", e.to_string()))?
+        };
         let asked = agent::OpenSession {
             token: open.token,
             action: open.action,

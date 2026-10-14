@@ -663,8 +663,10 @@ is what makes interactive work possible without a round trip per keystroke:
 ```
 client attaches to console
   → gateway evaluates the grant chain (online, authoritative)
-  → issues a capability token: {workload.console.write on workload W, expires in 120s}
-  → the client presents it to a relay, which verifies it offline and routes the session
+  → issues a capability token: {workload.console.write on workload W, expires in 120s},
+    and the route: the node W is placed on, sealed so the client cannot read it
+  → the client presents both to a relay, which verifies the token offline and opens the
+    route to learn the node
   → the agent verifies it again, offline, before attaching
   → keystrokes flow client → relay → agent, never through the control plane
   → renewal every 120s requires the gateway

@@ -81,6 +81,15 @@ message Heartbeat {
 // Every key that ever signed a capability token.
 message TokenKeys {
   repeated korpis.agent.v1.SigningKey keys = 1;
+  // The route key of each token key, by the same epoch: what the relay opens a session's route
+  // with to learn its node (§3.1 of docs/02-architecture.md).
+  repeated RouteKey route_keys = 2;
+}
+
+message RouteKey {
+  uint32 key_id = 1;
+  // 32 bytes.
+  bytes key = 2;
 }
 
 // The identity key of every node not decommissioned, which a node's DataHello is verified with.

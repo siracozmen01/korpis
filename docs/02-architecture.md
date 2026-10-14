@@ -149,7 +149,11 @@ of its own form (`korpis.agent.v1.DataHello|…`), so a relay that sees one cann
 control-stream Hello, and whose nonce joins the Hello's memory, so neither is replayed as itself.
 The message ends with the URL the node dialled, so a hello made for one relay is good at no other
 (below). A client opens a session with `RelayService.Open`, naming the token, the action, the
-workload, and the node the API reports it placed on. The relay verifies the token offline, against
+workload, and the route `MintToken` returned with the token: the node the workload is placed on,
+sealed by the gateway with a key derived from the token key, under a fresh nonce, so the client
+cannot read it and two routes to one node do not compare equal. The relay opens the route with the
+same key, which its feed carries beside the token keys, to learn which node to ask; a client that
+may read the node can name it instead. The relay verifies the token offline, against
 the token keys, the revocation list (§6.3 of `08-identity.md`), and the client's address, and only
 a token scoped to the workload itself verifies, because a relay holds no ancestry (§6 of
 `08-identity.md`). It then asks the node to open the session under a random 128-bit identifier,
@@ -169,35 +173,47 @@ handler's reason delivered to the client before either stream closes, and the no
 when its token expires unrenewed, when a revocation list names its chain, or when the relay refuses
 a renewal the client sent on the session (§6 of `08-identity.md`).
 
+> Corrected 2026-10-14, when the first command to open a session was built (Finding 29 of
+> `23-walkthroughs.md`). The client named "the node the API reports it placed on", and the API
+> reports a placement's node only to a caller who may read the node, which a tenant of a host,
+> or a moderator holding a console grant, may not. The relay routes by the node and holds no
+> database to look it up, so such a client could open no session at all. The route is the
+> answer that keeps every property: the gateway already knows the placement when it mints, the
+> relay stays stateless, and the client still learns nothing about the host's machines, not even
+> which of its own workloads share one. What it costs: a relay holds one more key, which reveals
+> nothing a relay does not already see by carrying the session; a route outlives a migration by
+> at most one token lifetime, and the node it names then refuses as `not_here`, so the client
+> mints again; and the key is the token key's, so a restore that rotates one retires both.
+
 **As built, as its own process.** A relay is enrolled, joining with its keys and receiving a
 certificate under the installation's authority (§3 of `18-operations.md`), and then runs with
 `korpis-server relay run`, serving the same two services from no database. It is fed what it
 verifies by: `RelayControlService.Feed`, opened with a request its identity key signs over a fresh
 nonce the control plane accepts once, sends the control plane's auth skew window first, then the
-token keys, the signed revocation list, and the keys of every node not decommissioned, each when
-it changes, and a heartbeat on a look that sent nothing; it ends when the relay is removed. The
-relay believes a list only once its signature verifies against the token keys it was fed. It
-takes a feed silent for three heartbeat intervals for lost and opens another, and a feed the
-control plane refuses to authenticate for a removal, and stops. It admits a node's `DataHello`
-only for its own URL, by the key the feed sent, within the skew window, and with a nonce it has
-not seen inside twice that window. Nonce memory is the relay's own, which is why the URL is
-signed: a relay holding a node's hello cannot replay it to another relay, and the control plane
-refuses a hello for any enrolled relay's URL, removed ones included. Every replica names to the
-nodes it holds sessions with, in a `Relays` message sent when the session opens and within about
-two seconds of a change, every relay not removed, and whether the control plane serves the role
-too, which it does unless `--relay-role false` turns it off. What it does not do: with its feed
-lost, a relay verifies by the last of each it received, which bounds a revocation it missed by one
-token lifetime, the same bound §4.6 states for the agent; before the first terms arrive it admits
-no node at all. A client finds where to open a session in `ServerInfo`, which lists the relays
-as the replica last named them to nodes and says whether the control plane serves the role too;
-any relay listed reaches every connected node, since each node attaches to all of them. A relay
-renews its own certificate (§3 of `18-operations.md`), and `ListRelays` says whether each is
+token keys with their route keys, the signed revocation list, and the keys of every node not
+decommissioned, each when it changes, and a heartbeat on a look that sent nothing; it ends when the
+relay is removed. The relay believes a list only once its signature verifies against the token keys
+it was fed. It takes a feed silent for three heartbeat intervals for lost and opens another, and a
+feed the control plane refuses to authenticate for a removal, and stops. It admits a node's
+`DataHello` only for its own URL, by the key the feed sent, within the skew window, and with a
+nonce it has not seen inside twice that window. Nonce memory is the relay's own, which is why the
+URL is signed: a relay holding a node's hello cannot replay it to another relay, and the control
+plane refuses a hello for any enrolled relay's URL, removed ones included. Every replica names to
+the nodes it holds sessions with, in a `Relays` message sent when the session opens and within
+about two seconds of a change, every relay not removed, and whether the control plane serves the
+role too, which it does unless `--relay-role false` turns it off. What it does not do: with its
+feed lost, a relay verifies by the last of each it received, which bounds a revocation it missed by
+one token lifetime, the same bound §4.6 states for the agent; before the first terms arrive it
+admits no node at all. A client finds where to open a session in `ServerInfo`, which lists the
+relays as the replica last named them to nodes and says whether the control plane serves the role
+too; any relay listed reaches every connected node, since each node attaches to all of them. A
+relay renews its own certificate (§3 of `18-operations.md`), and `ListRelays` says whether each is
 connected: the replica feeding a relay records it at most every thirty seconds, and a relay whose
 feed was served within ninety is connected. Behind a load balancer, `--proxy-protocol-from` names
-the balancer's addresses: a connection from one of them must open with a PROXY header (version 1
-or 2) within ten seconds, and the client it names is the address `source_cidr` is judged by; a
-connection from one of them without a header is closed, and a connection from anywhere else is
-its own client, whatever it sends. The control plane takes the same flag, for the gateway's
+the balancer's addresses: a connection from one of them must open with a PROXY header (version 1 or
+2) within ten seconds, and the client it names is the address `source_cidr` is judged by; a
+connection from one of them without a header is closed, and a connection from anywhere else is its
+own client, whatever it sends. The control plane takes the same flag, for the gateway's
 `source_cidr` on API calls and for its own relay role. What the header cannot do: it is believed
 because the balancer is, so a balancer that forwards a header its own client wrote hands that
 client any address it likes; configure the balancer to write the header itself.

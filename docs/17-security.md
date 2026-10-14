@@ -212,7 +212,10 @@ behaviour:
 - **Relays see the sessions they carry.** TLS terminates at the relay (§3.1 of
   `02-architecture.md`), so console output, keystrokes, and files in transit are plaintext there.
   Relays are operator infrastructure, and this is one more thing the operator can see, stated here
-  rather than left to be inferred from a diagram.
+  rather than left to be inferred from a diagram. A relay also holds the route key that tells it
+  which node each session goes to (§3.1 of `02-architecture.md`); a stolen route key lets whoever
+  also holds a client's routes learn which node its workloads run on, which a tenant is otherwise
+  never told.
 - **A host reads a tenant's private data only through a grant that names the tenant**, which the
   tenant sees issued and sees used (§3.3 of `08-identity.md`).
 

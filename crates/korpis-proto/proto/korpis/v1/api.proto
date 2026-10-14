@@ -822,4 +822,8 @@ message MintTokenRequest {
 message MintTokenResponse {
   string token = 1;
   google.protobuf.Timestamp expires_at = 2;
+  // For a token on a workload that is placed: the node a relay carries its sessions to, sealed
+  // so the holder cannot read it. Passed to RelayService.Open as it is (§3.1 of
+  // docs/02-architecture.md).
+  string route = 3;
 }

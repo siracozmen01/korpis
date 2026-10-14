@@ -25,6 +25,8 @@ pub use crate::scope;
 #[cfg(feature = "authz")]
 pub mod revocation;
 #[cfg(feature = "authz")]
+pub mod route;
+#[cfg(feature = "authz")]
 pub mod token;
 
 pub use action::Action;

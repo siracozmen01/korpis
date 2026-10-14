@@ -40,11 +40,15 @@ message RelayOpen {
   // The action the session performs, one the token carries; it chooses what the node runs.
   string action = 2;
   string workload = 3;
-  // The node the workload is placed on, as the API reports it. A wrong node refuses the
-  // session; it cannot misdirect one, because the node verifies that it holds the workload.
+  // The node the workload is placed on, for a client that may read it; ignored when `route` is
+  // set. A wrong node refuses the session; it cannot misdirect one, because the node verifies
+  // that it holds the workload.
   string node = 4;
   // What the action needs to start, in the action's own message; empty if nothing.
   bytes params = 5;
+  // The route MintToken returned with the token: the node, sealed, so a client that may open a
+  // session with the workload but not read its node still reaches it.
+  string route = 6;
 }
 
 message RelayOpened {

@@ -169,6 +169,33 @@ async fn a_client_reaches_a_workload_on_its_node_through_the_relay() {
 }
 
 #[tokio::test]
+async fn a_tenant_who_may_not_read_the_node_reaches_the_workload_by_its_sealed_route() {
+    let cp = ControlPlane::start().await;
+    let n = node(&cp, "fra-10").await;
+    let (_, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
+    let minted = cp.minted(&secret, &n.workload, &[CONSOLE], 0).await;
+    assert!(minted.route.starts_with("r1."), "a placed workload's token comes with its route");
+    assert!(!minted.route.contains(&n.id[3..]), "and the route does not say the node");
+    let mut request = open(&minted.token, CONSOLE, &n.workload, "");
+    if let Some(Request::Open(o)) = request.message.as_mut() {
+        o.route = minted.route.clone();
+    }
+    let mut client = opened(&cp.relay(), &request).await;
+    client.send(data(b"ping")).await.unwrap();
+    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()), "carried to the node");
+
+    let other = cp.declare(&cp.project().await, "other").await;
+    let elsewhere = cp.minted(&secret, &other, &[CONSOLE], 0).await;
+    if let Some(Request::Open(o)) = request.message.as_mut() {
+        o.route = elsewhere.route;
+    }
+    let mut wrong = cp.relay().open().await.unwrap();
+    wrong.send(request).await.unwrap();
+    let e = wrong.message::<pb::RelayResponse>().await.unwrap_err();
+    assert_eq!(e.code, connectrpc::ErrorCode::InvalidArgument, "another workload's route: {e:?}");
+}
+
+#[tokio::test]
 async fn a_session_lives_as_long_as_its_token_and_its_renewals() {
     let cp = ControlPlane::start().await;
     let n = node(&cp, "fra-6").await;
@@ -207,11 +234,14 @@ async fn a_relay_of_its_own_carries_sessions_and_ends_revoked_ones() {
     let relay = cp.standalone_relay("edge-1").await;
     let n = node(&cp, "fra-8").await;
     let (grant, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;
-    let token = cp.mint_as(&secret, &n.workload, &[CONSOLE], 0).await;
-    let request = open(&token, CONSOLE, &n.workload, &n.id);
+    let minted = cp.minted(&secret, &n.workload, &[CONSOLE], 0).await;
+    let mut request = open(&minted.token, CONSOLE, &n.workload, "");
+    if let Some(Request::Open(o)) = request.message.as_mut() {
+        o.route = minted.route;
+    }
     let mut client = opened(&cp.relay_at(&relay.url), &request).await;
     client.send(data(b"ping")).await.unwrap();
-    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()), "through the relay");
+    assert_eq!(frame(&mut client).await, Frame::Data(b"ping".to_vec()), "routed by its feed");
 
     let mut direct = cp.relay().open().await.unwrap();
     direct.send(request).await.unwrap();

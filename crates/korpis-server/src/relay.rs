@@ -16,6 +16,7 @@ pub mod in_process;
 
 use connectrpc::ConnectError;
 use korpis_app::node::NodeProof;
+use korpis_core::authz::route::RouteRing;
 use korpis_core::authz::token::KeyRing;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -30,6 +31,9 @@ use uuid::Uuid;
 pub trait Verifier: Send + Sync + 'static {
     /// The token keys trusted now.
     fn keys(&self) -> KeyRing;
+
+    /// The keys the routes clients present are opened with.
+    fn routes(&self) -> RouteRing;
 
     /// The grants the revocation list held names.
     fn revoked(&self) -> HashSet<Uuid>;
