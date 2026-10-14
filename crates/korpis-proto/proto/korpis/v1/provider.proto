@@ -294,6 +294,10 @@ message S3Access {
   string access_key_id = 5;
   string secret_access_key = 6;
   string session_token = 7;
+  // Address the bucket in the path (`endpoint/bucket/key`) rather than in the host name
+  // (`bucket.endpoint/key`): what most self-hosted stores need, and what AWS no longer
+  // recommends.
+  bool path_style = 8;
 }
 
 message ListObjects {

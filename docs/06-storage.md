@@ -524,17 +524,18 @@ no object byte passes through any of them:
 | `ListObjects{prefix, after, limit}` | the control plane, pruning | up to a thousand keys beneath the prefix, in key order |
 | `DeleteObjects{keys}` | the control plane, pruning | how many of up to a thousand keys it deleted, with its own credential |
 
-Access is S3-shaped (endpoint, region, bucket, the granted prefix's place in the bucket, and a
-temporary key, secret, and session token), because the S3 API is what every store in §5.3 either
-speaks or fronts, and the node then needs one client, not one per store. A store that can scope a
-temporary credential to a prefix (§5.5 names the mechanism for each) is a provider that issues one.
-A store that cannot answers `backup.unscoped`, and how a job then reaches it is open (question 7
-below): §5.5 sends such a job through a relay holding the store's credential, and with the store
-behind a provider that credential is the provider's alone. The control plane checks every request
-before a provider sees it (a relative prefix ending in `/`, a deletion only beneath the prefix it
-prunes) and every answer before anything acts on it: access whose place in the bucket is not the
-prefix asked for, or a listing that strays outside it, is recorded as `provider.malformed`, counted
-by the breaker, and never reaches a node.
+Access is S3-shaped (endpoint, region, bucket, the granted prefix's place in the bucket, a
+temporary key, secret, and session token, and whether the bucket is addressed in the path or the
+host name, which only the provider knows of its store), because the S3 API is what every store in
+§5.3 either speaks or fronts, and the node then needs one client, not one per store. A store that
+can scope a temporary credential to a prefix (§5.5 names the mechanism for each) is a provider that
+issues one. A store that cannot answers `backup.unscoped`, and how a job then reaches it is open
+(question 7 below): §5.5 sends such a job through a relay holding the store's credential, and with
+the store behind a provider that credential is the provider's alone. The control plane checks every
+request before a provider sees it (a relative prefix ending in `/`, a deletion only beneath the
+prefix it prunes) and every answer before anything acts on it: access whose place in the bucket is
+not the prefix asked for, or a listing that strays outside it, is recorded as `provider.malformed`,
+counted by the breaker, and never reaches a node.
 
 **The secret is in the database for as long as it takes to be read.** A call's answer travels
 back through the call queue (§3.3 of `16-extensions.md`), which is a Postgres row, so the
@@ -600,6 +601,15 @@ sending nothing, and compared entry by entry: kind, mode, owner, modification ti
 by its keyed digest (holes read as zeros), link target, device number, extended attributes, and
 which names are links of one file. Data is compared by digest because a restoring filesystem may
 lay out a sparse file's runs differently from the one it was read from.
+
+**The node's client.** A job reaches the store with that one S3 client: each request presigned for
+five minutes with the job's temporary credential, sent over HTTPS verified against the node's
+system roots (plain HTTP only to a store on the node itself), and sent again, a little later each
+time, only when it failed for a reason that passes (the network, a 5xx, a 429); a refusal is final.
+It writes and reads only names beneath the granted prefix, and believes a listing only as far as it
+stays there. A store whose certificate chains to a private authority needs that authority in the
+node's system roots; the access carries no certificate of its own. It is tested against MinIO run
+as a host process (`scripts/test-tools.sh`).
 
 **What it does not do.** A socket is recorded and not restored, since nothing listens on it
 afterwards. A symbolic link's extended attributes are not recorded: Linux refuses `user.`

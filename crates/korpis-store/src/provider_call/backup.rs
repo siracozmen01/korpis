@@ -74,6 +74,7 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Option<Value> {
                 "endpoint": s.endpoint, "region": s.region, "bucket": s.bucket,
                 "key_prefix": s.key_prefix, "access_key_id": s.access_key_id,
                 "secret_access_key": s.secret_access_key, "session_token": s.session_token,
+                "path_style": s.path_style,
             } } })
         }
         CallOutcome::Objects { objects, more } => {
@@ -102,6 +103,7 @@ pub(crate) fn outcome_from(v: &Value) -> Option<CallOutcome> {
             access_key_id: text(s, "access_key_id")?,
             secret_access_key: secret("secret_access_key"),
             session_token: secret("session_token"),
+            path_style: s.get("path_style").and_then(Value::as_bool).unwrap_or(false),
         };
         return Some(CallOutcome::Access(ObjectAccess { expires_at: at(a, "expires_at")?, s3 }));
     }

@@ -85,6 +85,9 @@ scripts/dev-registry.sh up
 scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli, oras), into
                           .tools/; needed to change a .proto (then scripts/gen-proto.sh) or a
                           query, and to run the end-to-end script
+scripts/test-tools.sh     the servers some tests run against (MinIO, built from its pinned release
+                          with a pinned Go), into .tools/; a test whose server is missing says
+                          so and does not run
 scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development
                           database and regenerates .sqlx/, which builds use offline
 scripts/check.sh          every check a commit must pass: the text rules, file length, the

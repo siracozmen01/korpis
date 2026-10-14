@@ -41,6 +41,8 @@ pub struct S3Access {
     pub secret_access_key: String,
     /// The session token, for temporary credentials.
     pub session_token: String,
+    /// Whether the bucket is addressed in the path rather than the host name.
+    pub path_style: bool,
 }
 
 impl std::fmt::Debug for S3Access {
@@ -132,6 +134,7 @@ mod tests {
                 access_key_id: "AK".into(),
                 secret_access_key: "secret".into(),
                 session_token: "token".into(),
+                path_style: false,
             },
         };
         let r = a.redacted();

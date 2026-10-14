@@ -45,6 +45,7 @@ impl BackupTarget for Bucket {
             access_key_id: "AKIA".into(),
             secret_access_key: "very-secret".into(),
             session_token: "token".into(),
+            path_style: true,
             ..Default::default()
         };
         std::future::ready(Ok(pb::ObjectAccess {
@@ -138,6 +139,7 @@ async fn access_is_scoped_and_its_secret_does_not_stay_in_the_database() {
         (access.s3.key_prefix.as_str(), access.s3.secret_access_key.as_str()),
         ("repo/workloads/wl_1/", "very-secret")
     );
+    assert!(access.s3.path_style, "the provider says how its store is addressed");
     let kept = stored(&h, &granted).await;
     assert!(kept["access"]["s3"].get("secret_access_key").is_none(), "redacted once read: {kept}");
     assert!(kept["access"]["s3"].get("session_token").is_none());

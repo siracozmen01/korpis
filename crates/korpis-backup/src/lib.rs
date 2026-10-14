@@ -18,6 +18,7 @@ mod meta;
 pub mod name;
 pub mod repo;
 pub mod restore;
+pub mod s3;
 pub mod seal;
 mod sink;
 pub mod store;
