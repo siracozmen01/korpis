@@ -119,7 +119,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let mut after = After::new();
         match s.action.as_str() {
             "backup_volume" => return self.backup_step(a, plan, s).await,
-            "restore_volume" => return self.restore_step(plan, s).await,
+            "restore_volume" => return self.restore_step(a, plan, s).await,
             "replace_volume" => return self.replace_step(s).await.map(Some),
             "pull_recipe" => {
                 let spec = self.prepare(a, t).await?;

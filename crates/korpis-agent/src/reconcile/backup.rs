@@ -63,10 +63,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         s: &pb::Step,
         job: &str,
     ) -> Result<Option<After>, Failure> {
-        let grant = match self.wiring.jobs.request(plan, s.index).await {
-            Ok(g) => g,
-            Err(NoAccess::Refused(why)) => return Err(failed(format!("no access: {why}"))),
-            Err(NoAccess::Later(why)) => {
+        let grant = match self.wiring.jobs.poll(plan, s.index) {
+            None => return Ok(None),
+            Some(Ok(g)) => g,
+            Some(Err(NoAccess::Refused(why))) => return Err(failed(format!("no access: {why}"))),
+            Some(Err(NoAccess::Later(why))) => {
                 tracing::info!(%job, %why, "the backup waits for access");
                 return Ok(None);
             }

@@ -89,7 +89,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let judged = match s.action {
             StepAction::BackupVolume => self.backup_job(node, &p, s).await?,
-            StepAction::RestoreVolume => self.restore_job(node, s).await?,
+            StepAction::RestoreVolume => self.restore_job(node, &p, s).await?,
             _ => Err(JobRefusal::NotAJob),
         };
         let t = match judged {
@@ -139,10 +139,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Ok(JobTarget { repo, workload: b.workload, mode: AccessMode::Write }))
     }
 
-    /// A restore step's target: a whole backup, restored into a volume `node` holds.
-    async fn restore_job(&self, node: Uuid, s: &Step) -> Judged<JobTarget> {
+    /// A restore step's target: a whole backup, restored into a volume `node` holds, or into
+    /// one the plan creates on `node`, where its workload is placed.
+    async fn restore_job(&self, node: Uuid, p: &Plan, s: &Step) -> Judged<JobTarget> {
         let Some(id) = uuid_in(s, "backup") else { return Ok(Err(JobRefusal::NotAJob)) };
-        if !self.holds(node, uuid_in(s, "volume_id")).await? {
+        let assigned = match uuid_in(s, "volume_id") {
+            Some(volume) => self.holds(node, Some(volume)).await?,
+            None => self.store.placement(p.workload).await?.is_some_and(|at| at.node == node),
+        };
+        if !assigned {
             return Ok(Err(JobRefusal::NotAssigned));
         }
         let whole = |b: &korpis_core::backup::Backup| {

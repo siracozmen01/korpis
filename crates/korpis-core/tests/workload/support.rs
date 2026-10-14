@@ -44,6 +44,7 @@ pub fn body() -> IntentBody {
             storage_class: "replicated".into(),
             mode: VolumeMode::ReadWrite,
             existing: None,
+            from_backup: None,
         }],
         endpoints: vec![EndpointSpec {
             name: "game".into(),

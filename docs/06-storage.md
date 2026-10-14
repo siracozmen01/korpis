@@ -479,8 +479,15 @@ the digest the backup recorded, so a stream that ends without an error is the fi
 plane reads these itself, with read access to the workload's prefix and the workload's key,
 fifteen minutes of it for a listing and a job's twelve hours for a file (Finding 36 of
 `23-walkthroughs.md`), and records each as a sensitive read before it reads anything (§4 of
-`15-observability.md`). What this does not do yet: restore into a new workload, or restore or read
-recipe content kept by reference; each is a task of Phase 1, not dropped.
+`15-observability.md`). A declared volume may name `from_backup`, a whole backup it is created
+holding: its plan restores the backup into it after `create_volume` and before anything runs on
+it, and declaring it takes `backup.read` on the backup's workload, checked only for the volumes a
+declaration creates, so a volume made long ago from a backup since pruned is never declared
+again. `korpis backup clone` composes that from reads and one declaration: a workload like the
+backup's, beside it, which is the clone of the table above. What this does not do yet: keep,
+restore, or read recipe content by reference (§5.2). Nothing puts a recipe file in a volume until
+the install DSL does (§4 of `09-recipes.md`), so until then no backup has any to record; it is
+built with the install DSL, in Phase 1, not dropped.
 
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore

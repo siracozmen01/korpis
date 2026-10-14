@@ -230,6 +230,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
+        self.check_seeds(caller, base.target.as_ref().map(|t| &t.body), &body).await?;
         let passage = match &cmd.set {
             Some(through) => Some(self.passage(caller, &base, through, &body).await?),
             None => None,

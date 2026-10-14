@@ -58,7 +58,25 @@ impl Builder<'_> {
             detail.insert("size_bytes".into(), int(v.size_bytes));
             detail.insert("storage_class".into(), text(&v.storage_class));
             self.push(StepAction::CreateVolume, detail, &[]);
+            if let Some(backup) = v.from_backup {
+                self.seed(&v.name, backup);
+            }
         }
+    }
+
+    /// Restores `backup` into the volume `name` just created, before anything runs on it; its
+    /// node knows it by the name, as it made it.
+    fn seed(&mut self, name: &str, backup: Uuid) {
+        let detail = ValueMap::from([
+            ("volume".to_owned(), text(name)),
+            ("job".to_owned(), text(&Uuid::now_v7().to_string())),
+            ("backup".to_owned(), text(&backup.to_string())),
+            ("path".to_owned(), text("")),
+            ("into".to_owned(), text("")),
+            ("replace".to_owned(), Value::Bool(false)),
+            ("seed".to_owned(), Value::Bool(true)),
+        ]);
+        self.push(StepAction::RestoreVolume, detail, &[]);
     }
 }
 

@@ -66,9 +66,10 @@ impl Minio {
             .spawn()
             .map_err(failed)?;
         let m = Self { child, data, endpoint: format!("http://127.0.0.1:{port}") };
-        let live = format!("{}/minio/health/live", m.endpoint);
+        // Ready, not merely live: a live server still answers 503 until it is initialized.
+        let ready = format!("{}/minio/health/ready", m.endpoint);
         for _ in 0..200 {
-            if reqwest::get(&live).await.is_ok_and(|r| r.status().is_success()) {
+            if reqwest::get(&ready).await.is_ok_and(|r| r.status().is_success()) {
                 return Ok(Some(m));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -83,13 +84,17 @@ impl Minio {
             rusty_s3::Bucket::new(endpoint, rusty_s3::UrlStyle::Path, name.to_owned(), "us-east-1")
                 .map_err(failed)?;
         let creds = rusty_s3::Credentials::new(USER, SECRET);
-        let url = bucket.create_bucket(&creds).sign(Duration::from_secs(60));
-        let r = reqwest::Client::new().put(url).send().await.map_err(failed)?;
-        if r.status().is_success() {
-            Ok(())
-        } else {
-            Err(format!("creating {name}: {}", r.status()))
+        let mut status = reqwest::StatusCode::SERVICE_UNAVAILABLE;
+        // A server that says it is ready may still refuse briefly while its drives settle.
+        for _ in 0..50 {
+            let url = bucket.create_bucket(&creds).sign(Duration::from_secs(60));
+            status = reqwest::Client::new().put(url).send().await.map_err(failed)?.status();
+            if status != reqwest::StatusCode::SERVICE_UNAVAILABLE {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
+        if status.is_success() { Ok(()) } else { Err(format!("creating {name}: {status}")) }
     }
 
     /// Access to `prefix` in `bucket` as the root user.

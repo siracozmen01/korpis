@@ -214,7 +214,9 @@ ext.<extension>.<action>              extensions define their own, namespaced
   `backup.browse` and `backup.read`, the private actions of §3.3 there. Restoring a workload's
   backup into that workload is `backup.restore` there; into another workload's volume it is
   `backup.read` on the backup's workload and `workload.file.write` on the other, since the
-  contents then reach that workload's holders (§5.4 of `06-storage.md`).
+  contents then reach that workload's holders (§5.4 of `06-storage.md`). Declaring a volume
+  created from a backup (`from_backup`) takes `backup.read` on the backup's workload, for the
+  same reason.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

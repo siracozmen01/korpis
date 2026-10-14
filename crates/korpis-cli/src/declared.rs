@@ -41,6 +41,7 @@ pub struct Volume {
     class: Option<String>,
     mode: Option<String>,
     existing: Option<String>,
+    from_backup: Option<String>,
 }
 
 /// An endpoint.
@@ -142,6 +143,7 @@ fn volume(v: &Volume) -> Result<Value, String> {
         "storageClass": v.class.clone().unwrap_or_default(),
         "mode": named("VOLUME_MODE", v.mode.as_ref()),
         "existing": v.existing,
+        "fromBackup": v.from_backup,
     }))
 }
 

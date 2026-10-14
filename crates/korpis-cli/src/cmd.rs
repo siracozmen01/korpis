@@ -7,6 +7,7 @@
 pub mod act;
 pub mod backup;
 pub mod classify;
+pub mod clone;
 pub mod console;
 pub mod event;
 pub mod extension;

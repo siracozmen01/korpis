@@ -5,12 +5,13 @@
 //! runs and exchanged while it is stopped, waiting for a person because what the volume holds is
 //! lost; the node holding the volume given the backup's own key and access to its workload's
 //! prefix; only a whole backup restored; and `backup.restore` required to put a workload's backup
-//! back into it.
+//! back into it; and a new workload created holding a backup, by one who may read it.
 
 use crate::agent::Stream;
 use crate::backup_target::{Bucket, serving};
 use crate::backups::{access, bare, create, ended, get, repository};
-use crate::journal::{ack, assignment, complete, send, until};
+use crate::journal::{ack, complete, send, until};
+use crate::recipes::{body, push_paper};
 use crate::snapshots::{running, snapshotting};
 use crate::support::{Harness, mutation, reason};
 use crate::volumes::holding;
@@ -20,12 +21,19 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::job_access::Outcome;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::restore_backup_request::Target;
 
-/// The node plan of the next assignment carrying a step `action`.
+/// The node plan of the next set's assignment, any of them, carrying a step `action`.
 async fn told(s: &mut Stream, action: &'static str) -> agent::NodePlan {
-    let pick = assignment(move |a| {
-        a.plan.as_option().is_some_and(|p| p.steps.iter().any(|s| s.action == action))
-    });
-    until(s, pick).await.plan.into_option().unwrap()
+    use buffa::Message as _;
+    use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
+    let pick = move |d: &Down| {
+        let Down::AssignmentSet(set) = d else { return None };
+        set.assignments.iter().find_map(|signed| {
+            let a = agent::Assignment::decode_from_slice(&signed.assignment).ok()?;
+            let plan = a.plan.into_option()?;
+            plan.steps.iter().any(|s| s.action == action).then_some(plan)
+        })
+    };
+    until(s, pick).await
 }
 
 /// A whole backup of the running workload's volume, and the key its job was given; the next
@@ -169,4 +177,97 @@ async fn pending_plan(h: &Harness, workload: &str) -> String {
             && p.status.as_known() != Some(pb::PlanStatus::PLAN_STATUS_APPLIED)
     };
     plans.iter().find(open).unwrap().id.clone()
+}
+
+/// Cordons every node but the one holding `volume`, so what is declared next is placed there.
+async fn only_on_the_volumes_node(h: &Harness, volume: &str) {
+    let get = pb::GetVolumeRequest { id: volume.into(), ..Default::default() };
+    let v = h
+        .volumes(h.root())
+        .get_volume(get)
+        .await
+        .unwrap()
+        .into_owned()
+        .volume
+        .into_option()
+        .unwrap();
+    let nodes = h
+        .nodes(h.root())
+        .list_nodes(pb::ListNodesRequest { organization: h.root_org(), ..Default::default() })
+        .await
+        .unwrap()
+        .into_owned()
+        .nodes;
+    for n in nodes.iter().filter(|n| Some(&n.id) != v.node.as_ref()) {
+        let r = pb::CordonNodeRequest {
+            mutation: mutation(&format!("cordon-{}", n.id)).into(),
+            node: n.id.clone(),
+            ..Default::default()
+        };
+        h.nodes(h.root()).cordon_node(r).await.unwrap();
+    }
+}
+
+/// A declaration of workload `name` in `project` whose volume `data` is created from `backup`.
+fn seeded(
+    key: &str,
+    project: &str,
+    name: &str,
+    repo: &str,
+    backup: &str,
+) -> pb::DeclareIntentRequest {
+    let mut b = body(repo, &[]);
+    b.volumes = vec![pb::VolumeSpec {
+        name: "data".into(),
+        from_backup: Some(backup.into()),
+        ..Default::default()
+    }];
+    crate::recipes::create(key, project, name, b)
+}
+
+#[tokio::test]
+async fn a_new_workload_is_created_holding_a_backup_by_one_who_may_read_it() {
+    let (h, mut stream, workload, volume, next) = running(vec![snapshotting()]).await;
+    let (id, key, _) = whole(&h, &mut stream, (&workload, &volume), next).await;
+    let get = pb::GetWorkloadRequest { id: workload.clone(), ..Default::default() };
+    let status = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned().status;
+    let project = status.into_option().unwrap().workload.into_option().unwrap().project;
+    let repo = push_paper().await;
+
+    let declarer =
+        holding(&h, &["workload.write", "workload.read", "project.read", "org.read"]).await;
+    let e = h
+        .workloads(declarer)
+        .declare_intent(seeded("d", &project, "denied", &repo, &id))
+        .await
+        .unwrap_err();
+    assert_eq!(e.code, ErrorCode::PermissionDenied, "creating from a backup reads it: {e:?}");
+
+    only_on_the_volumes_node(&h, &volume).await;
+    let made = h
+        .workloads(h.root())
+        .declare_intent(seeded("c", &project, "mc-copy", &repo, &id))
+        .await
+        .unwrap()
+        .into_owned();
+    let plan = made.plan.into_option().unwrap();
+    let actions: Vec<&str> = plan.steps.iter().map(|s| s.action.as_str()).collect();
+    let at = |a: &str| actions.iter().position(|x| *x == a).unwrap();
+    assert!(
+        at("create_volume") < at("restore_volume") && at("restore_volume") < at("create"),
+        "{actions:?}"
+    );
+    let copy = made.workload.into_option().unwrap().id;
+    let node_plan = told(&mut stream, "restore_volume").await;
+    let seed = node_plan.steps.iter().find(|s| s.action == "restore_volume").unwrap().index;
+    let Outcome::Grant(g) = access(&mut stream, "seed", &node_plan.plan, seed).await else {
+        panic!("refused")
+    };
+    assert_eq!(g.data_key, key, "the source's key reads the source's backup");
+    let workload_uuid =
+        korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, &workload).unwrap().uuid();
+    assert!(
+        g.store.into_option().unwrap().key_prefix.ends_with(&format!("workloads/{workload_uuid}/")),
+        "its prefix, not {copy}'s"
+    );
 }

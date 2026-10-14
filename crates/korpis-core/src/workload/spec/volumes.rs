@@ -33,6 +33,9 @@ pub struct VolumeSpec {
     pub mode: VolumeMode,
     /// Attach this existing volume instead of creating one.
     pub existing: Option<Uuid>,
+    /// Create it holding what this backup held, restored before the workload first runs on it
+    /// (§5.4 of docs/06-storage.md); only for a volume created, never one attached.
+    pub from_backup: Option<Uuid>,
 }
 
 fn check_path(field: &str, path: &str) -> Result<(), SpecError> {
@@ -57,6 +60,9 @@ pub fn validate(volumes: &[VolumeSpec]) -> Result<(), SpecError> {
         }
         if v.existing.is_none() && v.size_bytes == 0 {
             return Err(SpecError::new(&at("size_bytes"), "a new volume needs a size"));
+        }
+        if v.existing.is_some() && v.from_backup.is_some() {
+            return Err(SpecError::new(&at("from_backup"), "a volume attached is not restored"));
         }
     }
     Ok(())

@@ -57,6 +57,11 @@ fn volume(field: &str, v: &pb::VolumeSpec) -> Result<DeclaredVolume> {
             .as_deref()
             .map(|e| id(IdKind::Volume, &format!("{field}.existing"), e))
             .transpose()?,
+        from_backup: v
+            .from_backup
+            .as_deref()
+            .map(|b| id(IdKind::Backup, &format!("{field}.from_backup"), b))
+            .transpose()?,
     })
 }
 

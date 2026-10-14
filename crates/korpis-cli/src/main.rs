@@ -7,6 +7,7 @@ use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::backup::{self, BackupAction};
+use korpis_cli::cmd::clone;
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
 use korpis_cli::cmd::repository::{self, RepositoryAction};
@@ -244,6 +245,10 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
+        Command::Backup(BackupAction::Clone { backup, name, project }) => {
+            let c = cli.required()?;
+            answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
+        }
         Command::Backup(BackupAction::Cat { backup, path, output }) => {
             cat(&cli.required()?, (backup, path), output.as_deref()).await
         }

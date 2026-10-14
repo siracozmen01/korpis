@@ -617,11 +617,12 @@ rather than being a fact about their data they cannot see.
 Re-run 2026-10-14, when browsing and reading a backup were built. Step 1 is `korpis backup ls`
 under `backup.browse`, which lists one directory at a time and shows no byte; step 3 is `korpis
 backup cat` under `backup.read`, which fetches that file's chunks and no others; step 4's key is
-the workload's own, opened by the control plane from the repository's key in its vault; step 5
-is an effect of each action, with the path, recorded before anything is read. Step 6 restores into
-a new directory of the volume; into a new workload is still to be built (§5.4 of
-`06-storage.md`). Asked what bounds step 3, the answer was the read access the control plane is
-granted, and it was too short.
+the workload's own, opened by the control plane from the repository's key in its vault; step 5 is
+an effect of each action, with the path, recorded before anything is read. Step 6 restores into a
+new directory of the volume, or into a new workload whose volume is created from the backup
+(`korpis backup clone`), its restore ordered before the workload first runs and its reading
+authorized when it is declared (§5.4 of `06-storage.md`). Asked what bounds step 3, the answer was
+the read access the control plane is granted, and it was too short.
 
 **FINDING 36: A long read outlasted the access it was given. `CONFIRMED`**
 

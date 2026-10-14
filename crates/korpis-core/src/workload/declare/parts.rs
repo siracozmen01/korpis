@@ -68,6 +68,8 @@ pub struct DeclaredVolume {
     pub mode: VolumeMode,
     /// An existing volume to attach instead of creating one.
     pub existing: Option<Uuid>,
+    /// A backup to create it from.
+    pub from_backup: Option<Uuid>,
 }
 
 /// An endpoint as declared: the preset's endpoint of the same name supplies what is left out.
@@ -131,6 +133,7 @@ pub(super) fn volumes(
             storage_class: String::new(),
             mode: VolumeMode::ReadWrite,
             existing: None,
+            from_backup: None,
         })
         .collect();
     for (i, d) in declared.into_iter().enumerate() {
@@ -144,6 +147,7 @@ pub(super) fn volumes(
             storage_class: d.storage_class,
             mode: d.mode,
             existing: d.existing,
+            from_backup: d.from_backup,
         };
         match base.and_then(|b| out.get_mut(b)) {
             Some(slot) => *slot = v,

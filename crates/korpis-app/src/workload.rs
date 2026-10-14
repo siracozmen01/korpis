@@ -19,6 +19,7 @@ mod power;
 mod propose;
 mod read;
 mod retire;
+mod seed;
 mod sets;
 mod stream;
 pub(crate) mod volume_plan;

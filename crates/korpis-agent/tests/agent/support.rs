@@ -170,6 +170,16 @@ impl ControlPlane {
 
     /// Declares workload `name` from the example recipe in `project`; its wire id.
     pub async fn declare(&self, project: &str, name: &str) -> String {
+        self.declare_with(project, name, Vec::new()).await
+    }
+
+    /// Declares workload `name` as [`Self::declare`] does, with `volumes` declared.
+    pub async fn declare_with(
+        &self,
+        project: &str,
+        name: &str,
+        volumes: Vec<pb::VolumeSpec>,
+    ) -> String {
         // The recipe's game endpoint is `stable`, which without an edge tier needs a node
         // reachable on its own address (§3 of docs/07-networking.md). The test nodes advertise
         // the loopback address, which the control plane's prober reaches; wait until it has.
@@ -191,6 +201,7 @@ impl ControlPlane {
                         ..Default::default()
                     }
                     .into(),
+                    volumes,
                     ..Default::default()
                 }
                 .into(),

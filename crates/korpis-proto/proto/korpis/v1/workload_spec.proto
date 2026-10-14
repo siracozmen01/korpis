@@ -115,6 +115,9 @@ message VolumeSpec {
   VolumeMode mode = 5;
   // Attach an existing volume instead of creating one.
   optional string existing = 6;
+  // Create it holding what this backup held, restored before the workload first runs on it;
+  // never with `existing`. Reading the backup takes backup.read on its workload.
+  optional string from_backup = 7;
 }
 
 enum VolumeMode {

@@ -110,7 +110,8 @@ the recipe's preset, on the control plane, at declaration (§3.1 of `09-recipes.
 shows the completed body.
 
 The keys are the ones above and a few more: `power` (`running` or `stopped`) and `labels` for a
-new workload; `pids` among the resources; `path`, `mode`, and `existing` on a volume; `protocol`
+new workload; `pids` among the resources; `path`, `mode`, `existing`, and `from_backup` on a
+volume; `protocol`
 and `domains` on an endpoint. Quantities are written as `4Gi` or `500m`, and enum values as the
 API names them, lower-case and without their prefix (`node_port`, `overlay_only`). The recipe is
 a repository with `@sha256:…` or `:tag`; the project is a name, looked up among the projects the
@@ -225,6 +226,9 @@ volume at once; `--replace` replaces the whole volume, a plan that waits for app
 the workload only for the exchange; `--volume vol_…` restores into another volume (§5.4 there).
 `korpis backup ls bkp_… [dir]` lists one directory of a backup without a byte of any file, and
 `korpis backup cat bkp_… <file> [-o out]` writes one file, each under its own action.
+`korpis backup clone bkp_… --name <new>` declares a workload like the one the backup is of, its
+backed-up volume created holding the backup and every other volume created empty, which is how a
+restore is tested.
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The

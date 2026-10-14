@@ -284,3 +284,35 @@ async fn the_agent_restores_into_a_directory_and_over_the_volume_once_approved()
     no_jobs(&host).await;
     drop(agent);
 }
+
+#[tokio::test]
+async fn a_new_workload_is_created_holding_a_backup_before_it_first_runs() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
+    serve_target(&cp, &project, &root).await;
+    cp.declare(&project, "mc").await;
+    let (id, plan) = backed_up(&cp, &project).await;
+    settled(&cp, &id).await;
+    applied(&cp, &plan).await;
+
+    let seeded =
+        pb::VolumeSpec { name: "data".into(), from_backup: Some(id), ..Default::default() };
+    let copy = cp.declare_with(&project, "mc-copy", vec![seeded]).await;
+    for _ in 0..200 {
+        let s = cp.status(&copy).await;
+        if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(
+        cp.status(&copy).await.convergence.as_known(),
+        Some(pb::Convergence::CONVERGENCE_CONVERGED),
+        "restored, then started"
+    );
+    no_jobs(&host).await;
+    drop(agent);
+}

@@ -35,6 +35,18 @@ pub enum BackupAction {
         /// The backup, `bkp_…`.
         backup: String,
     },
+    /// Declares a new workload like the one a backup is of, its backed-up volume created holding
+    /// what the backup held: how a restore is tested.
+    Clone {
+        /// The backup, `bkp_…`.
+        backup: String,
+        /// The new workload's name.
+        #[arg(long)]
+        name: String,
+        /// Its project, `prj_…`; the source's when not given.
+        #[arg(long)]
+        project: Option<String>,
+    },
     /// Lists one directory of a backup: names, kinds, and sizes, and no byte of any file.
     Ls {
         /// The backup, `bkp_…`.
@@ -200,8 +212,8 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
             let entries = client.browse_backup(r).await?.into_owned().entries;
             Answer { human: listing(&entries), json: json(&entries) }
         }
-        BackupAction::Cat { .. } => {
-            return Err(CliError::Local("a file's bytes are written, not answered".into()));
+        BackupAction::Clone { .. } | BackupAction::Cat { .. } => {
+            return Err(CliError::Local("answered by its own command".into()));
         }
         BackupAction::Get { backup } => {
             let r = pb::GetBackupRequest { id: backup.clone(), ..Default::default() };

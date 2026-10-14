@@ -126,6 +126,7 @@ pub fn volume_to_pb(v: &VolumeSpec) -> pb::VolumeSpec {
         }
         .into(),
         existing: v.existing.map(|e| wire_id(IdKind::Volume, e)),
+        from_backup: v.from_backup.map(|b| wire_id(IdKind::Backup, b)),
         ..Default::default()
     }
 }
@@ -142,6 +143,11 @@ pub fn volume_from_pb(field: &str, v: &pb::VolumeSpec) -> Result<VolumeSpec> {
             .existing
             .as_deref()
             .map(|e| id(IdKind::Volume, &format!("{field}.existing"), e))
+            .transpose()?,
+        from_backup: v
+            .from_backup
+            .as_deref()
+            .map(|b| id(IdKind::Backup, &format!("{field}.from_backup"), b))
             .transpose()?,
     })
 }

@@ -8,13 +8,14 @@
 //! stopped: the helper makes the volume what the job staged, which it does once however often it
 //! is asked.
 
-use super::act::Failure;
+use super::act::{Failure, volume_id};
 use super::jobs::job_of;
 use super::step::{After, detail, flag};
 use super::{Reconciler, text};
 use crate::host::Host;
 use crate::jobs::NoAccess;
 use crate::runtime::Runtime;
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::backup::v1 as backup;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
@@ -52,13 +53,16 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// has not.
     pub(super) async fn restore_step(
         &mut self,
+        a: &agent::Assignment,
         plan: &str,
         s: &pb::Step,
     ) -> Result<Option<After>, Failure> {
         let job = job(s)?;
         let status = self.host.job_status(&job).await?;
         match status.state.as_known() {
-            Some(helper::JobState::JOB_STATE_UNKNOWN) => self.start_restore(plan, s, &job).await,
+            Some(helper::JobState::JOB_STATE_UNKNOWN) => {
+                self.start_restore((a, plan), s, &job).await
+            }
             Some(helper::JobState::JOB_STATE_RUNNING) => Ok(None),
             Some(helper::JobState::JOB_STATE_FINISHED) => {
                 ended(&status.result.into_option().unwrap_or_default()).map(Some)
@@ -70,20 +74,27 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Starts the job, if the control plane grants what it needs; `None`, since it now runs.
     async fn start_restore(
         &self,
-        plan: &str,
+        (a, plan): (&agent::Assignment, &str),
         s: &pb::Step,
         job: &str,
     ) -> Result<Option<After>, Failure> {
-        let grant = match self.wiring.jobs.request(plan, s.index).await {
-            Ok(g) => g,
-            Err(NoAccess::Refused(why)) => return Err(failed(format!("no access: {why}"))),
-            Err(NoAccess::Later(why)) => {
+        let grant = match self.wiring.jobs.poll(plan, s.index) {
+            None => return Ok(None),
+            Some(Ok(g)) => g,
+            Some(Err(NoAccess::Refused(why))) => return Err(failed(format!("no access: {why}"))),
+            Some(Err(NoAccess::Later(why))) => {
                 tracing::info!(%job, %why, "the restore waits for access");
                 return Ok(None);
             }
         };
+        // A volume the plan just created is known by its name, as the node made it; any other,
+        // by the helper's identifier its node reported.
+        let volume = match detail(s, "helper_id") {
+            Some(id) => id.to_owned(),
+            None => volume_id(a, detail(s, "volume").unwrap_or_default()),
+        };
         let work = helper::RestoreVolume {
-            volume: detail(s, "helper_id").unwrap_or_default().to_owned(),
+            volume,
             backup: detail(s, "backup").unwrap_or_default().to_owned(),
             path: detail(s, "path").unwrap_or_default().to_owned(),
             into: detail(s, "into").unwrap_or_default().to_owned(),

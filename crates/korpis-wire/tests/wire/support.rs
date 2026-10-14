@@ -177,6 +177,7 @@ pub fn body() -> IntentBody {
                 storage_class: "replicated".into(),
                 mode: VolumeMode::ReadWrite,
                 existing: None,
+                from_backup: Some(Uuid::now_v7()),
             },
             VolumeSpec {
                 name: "maps".into(),
@@ -185,6 +186,7 @@ pub fn body() -> IntentBody {
                 storage_class: "local".into(),
                 mode: VolumeMode::ReadOnly,
                 existing: Some(Uuid::now_v7()),
+                from_backup: None,
             },
         ],
         endpoints: vec![endpoint("game", Protocol::Tcp, 25565), web()],
