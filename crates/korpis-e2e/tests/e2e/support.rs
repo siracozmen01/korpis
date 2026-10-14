@@ -81,7 +81,7 @@ impl ControlPlane {
         }
     }
 
-    fn http(&self) -> HttpClient {
+    pub(crate) fn http(&self) -> HttpClient {
         let ca = CertificateDer::from_pem_file(self.data.tls().join("ca.pem")).expect("CA");
         let mut roots = rustls::RootCertStore::empty();
         roots.add(ca).expect("CA accepted");
@@ -94,7 +94,7 @@ impl ControlPlane {
         HttpClient::with_tls(Arc::new(tls))
     }
 
-    fn config(&self) -> ClientConfig {
+    pub(crate) fn config(&self) -> ClientConfig {
         ClientConfig::new(self.url.parse().unwrap())
             .with_default_header("authorization", format!("Bearer {}", self.secret))
     }

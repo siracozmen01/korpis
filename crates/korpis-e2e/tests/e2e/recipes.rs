@@ -68,6 +68,39 @@ preset:
     )
 }
 
+/// An extension providing a backup target named `s3` (§3 of docs/16-extensions.md) whose
+/// container only sleeps: the test serves the provider itself, with the credential the node hands
+/// the extension's workload through its identity socket, as the container would.
+fn target() -> String {
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Extension
+metadata: {{name: s3-target, version: "{VERSION}", description: backups, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+  entry:
+    command: [/bin/sh, -c, "exec sleep 3600"]
+preset:
+  lifecycle: persistent
+  console: none
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu: {{min: 50m, recommended: 100m}}
+extension:
+  api_version: korpis.extension.v1
+  requires: [provider.serve, provider.backup_target]
+  provides:
+    - {{type: backup_target, name: s3}}
+"#
+    )
+}
+
+/// Pushes the backup target extension to a repository no other test uses; the repository.
+pub async fn push_target() -> String {
+    push("s3-target", target()).await
+}
+
 /// Pushes `document` to a repository no other test uses, named for `name`; the repository.
 async fn push(name: &str, document: String) -> String {
     let registry =

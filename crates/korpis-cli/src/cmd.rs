@@ -19,6 +19,7 @@ pub mod provider;
 pub mod repository;
 pub mod session;
 pub mod sets;
+pub mod stream;
 pub mod upgrade;
 pub mod volume;
 

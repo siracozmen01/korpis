@@ -16,7 +16,7 @@ use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
 };
-use korpis_cli::cmd::{console, logs};
+use korpis_cli::cmd::{console, logs, stream};
 use korpis_cli::complete;
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
@@ -118,6 +118,12 @@ enum Command {
     /// A workload's console, read without attaching: from the oldest record its node holds,
     /// an offset, or a time ago; searched; followed as it is written.
     Logs(logs::Logs),
+    /// A workload's console stream as the control plane indexes it: how long it is kept, on the
+    /// node and offloaded, the operator's floor, what is held only on the node, what is lost.
+    Stream {
+        /// The workload: an identifier, `project/name`, or a name.
+        workload: String,
+    },
     /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
     /// type, your keys; `Ctrl-]` detaches.
     Console(console::Console),
@@ -184,6 +190,12 @@ fn print(v: &Value) {
     println!("{}", serde_json::to_string_pretty(v).unwrap_or_default());
 }
 
+/// What prints each line of a command that answers line by line: the API's object, or the line.
+#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
+fn printer(json: bool) -> impl FnMut(String, Value) {
+    move |text, value| if json { print(&value) } else { println!("{text}") }
+}
+
 /// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output.
 async fn cat(
     c: &korpis_cli::connect::Connection,
@@ -225,22 +237,13 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Set(a) => answer(cli, sets::set(&cli.required()?, a).await),
         Command::Extension(a) => answer(cli, extension::extension(&cli.required()?, a).await),
         Command::Event(EventAction::Follow { subscription, ack }) => {
-            let c = cli.required()?;
-            let json = cli.json;
-            event::follow(&c, subscription, *ack, &mut |text, value| {
-                if json { print(&value) } else { println!("{text}") }
-            })
-            .await
+            event::follow(&cli.required()?, subscription, *ack, &mut printer(cli.json)).await
         }
         Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
         Command::Console(a) => console::console(&cli.required()?, a).await,
-        Command::Logs(a) => {
-            let c = cli.required()?;
-            let json = cli.json;
-            logs::logs(&c, a, &mut |text, value| {
-                if json { print(&value) } else { println!("{text}") }
-            })
-            .await
+        Command::Logs(a) => logs::logs(&cli.required()?, a, &mut printer(cli.json)).await,
+        Command::Stream { workload } => {
+            answer(cli, stream::stream(&cli.required()?, workload).await)
         }
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),

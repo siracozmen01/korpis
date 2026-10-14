@@ -14,7 +14,7 @@ use std::path::Path;
 use std::time::Duration;
 
 /// Waits until `sql` counts `n`.
-async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
+pub(crate) async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
     for _ in 0..300 {
         if cp.scalar::<i64>(sql).await == n {
             return;
@@ -25,7 +25,7 @@ async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
 }
 
 /// The lines of `file`, once it has `n` of them.
-async fn lines(file: &Path, n: usize) -> Vec<String> {
+pub(crate) async fn lines(file: &Path, n: usize) -> Vec<String> {
     for _ in 0..300 {
         let read = std::fs::read_to_string(file).unwrap_or_default();
         let lines: Vec<String> = read.lines().map(str::to_owned).collect();
@@ -38,7 +38,7 @@ async fn lines(file: &Path, n: usize) -> Vec<String> {
 }
 
 /// The plan identifier a CLI answer names.
-fn plan_in(human: &str) -> String {
+pub(crate) fn plan_in(human: &str) -> String {
     human.split_whitespace().find(|t| t.starts_with("pln_")).unwrap().to_owned()
 }
 

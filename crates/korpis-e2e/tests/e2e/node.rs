@@ -52,17 +52,30 @@ fn registries() -> Vec<String> {
     vec![std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())]
 }
 
-/// The helper, serving on `socket` from its own thread for the rest of the process.
-fn helper(socket: &Path, volumes: &Path, state: &Path) {
+/// The helper, serving on `socket` from its own thread for the rest of the process, running
+/// backup and restore jobs with the job binary as a node's helper does, which read recipe content
+/// from `content`, the agent's content store.
+fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
     let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
-    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger);
+    let jobs = korpis_helper::job::JobConfig {
+        binary: built("korpis-backup", "korpis-backup-job"),
+        state: state.to_owned(),
+        cgroups: None,
+        content: Some(content.join("blobs/sha256")),
+    };
+    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger).with_jobs(jobs);
     let listener = korpis_helper::serve::bound(socket).unwrap();
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
 }
 
 /// The stream writer, built where this test was if it is not already.
 fn writer() -> PathBuf {
+    built("korpis-stream", "korpis-stream-writer")
+}
+
+/// Binary `bin` of `package`, built where this test was if it is not already.
+fn built(package: &str, bin: &str) -> PathBuf {
     let exe = std::env::current_exe().unwrap();
     let profile_dir = exe.parent().and_then(Path::parent).unwrap();
     let target = profile_dir.parent().unwrap();
@@ -71,13 +84,13 @@ fn writer() -> PathBuf {
         other => other,
     };
     let built = Command::new(env!("CARGO"))
-        .args(["build", "-q", "-p", "korpis-stream", "--bin", "korpis-stream-writer"])
+        .args(["build", "-q", "-p", package, "--bin", bin])
         .args(["--profile", profile, "--target-dir"])
         .arg(target)
         .status()
         .unwrap();
-    assert!(built.success(), "korpis-stream-writer did not build");
-    profile_dir.join("korpis-stream-writer")
+    assert!(built.success(), "{bin} did not build");
+    profile_dir.join(bin)
 }
 
 /// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
@@ -138,7 +151,8 @@ impl Node {
         join(&state, &request).await.unwrap();
         let (driver_socket, helper_socket) =
             (dir.path().join("driver.sock"), dir.path().join("helper.sock"));
-        helper(&helper_socket, &volumes, &dir.path().join("helper"));
+        let content = state.root().join("content");
+        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content));
         driver(&driver_socket, &state, &volumes).await;
         Self {
             _dir: dir,

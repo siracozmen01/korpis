@@ -333,6 +333,15 @@ workload's prefix (§5.5, §5.6). A backup's record is read under `workload.read
 `10-api.md`). Nothing here takes a backup on a schedule: a nightly backup is a `scheduled`
 workload whose run proposes one under its own grants (Finding 33 of `23-walkthroughs.md`).
 
+**Verified end to end, 2026-10-14**, on a real node: its volumes on a btrfs, its runtime
+containerd, its jobs run by the helper, and its repository in a real S3-compatible store (MinIO, a
+host process) reached through the first-party S3 target, whose extension the node runs and whose
+provider holds the credential the node hands that extension through its identity socket. A running
+workload is backed up twice, a prune approved forgets the older backup, and the newer one is
+listed, read one file at a time, and cloned into a workload that runs on what it held
+(`crates/korpis-e2e/tests/e2e/backups.rs`). Not verified there: ZFS, which needs a host with the
+module loaded (§2), and a target other than S3.
+
 ### 5.2 What the design gives, and which issue each one closes
 
 | Property | Mechanism | Closes |

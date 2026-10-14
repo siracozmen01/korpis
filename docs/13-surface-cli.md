@@ -398,7 +398,10 @@ read from the node a retired workload's stream (question 6 of `14-streams.md`), 
 already pruned from it. `korpis logs mc-survival --offloaded [--from N] [--limit N]` reads those
 from the repository holding the workload's offloaded segments, through the control plane, which
 records the read (§4 of `14-streams.md`); it prints offsets in no offloaded segment as missing, and
-says where offloaded records end. It neither follows nor searches.
+says where offloaded records end. It neither follows nor searches. `korpis stream mc-survival`
+shows the stream as the control plane indexes it: how much its node keeps, how long its offloaded
+segments are kept and the operator's floor beneath that (§8 of `17-security.md`), how much is held
+only on the node, and which offsets are lost.
 
 **`console` as built** (Phase 1): `korpis console mc-survival [--scrollback N] [--read-only]
 [--relay URL]` opens two sessions at a relay: one reading the stream from its last hundred records
