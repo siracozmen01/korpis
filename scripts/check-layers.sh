@@ -21,6 +21,9 @@ rules=(
     "korpis-extension||korpis-core korpis-app korpis-wire korpis-store korpis-recipe korpis-server korpis-agent sqlx"
     # Trust bootstrap is TLS alone: nothing of ours, no RPC stack, no runtime.
     "korpis-tls||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx"
+    # The stream format runs beside every workload, spawned by its shim: nothing of ours, no RPC
+    # stack, no runtime, so it is small and its one job is visible.
+    "korpis-stream||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx hyper"
 )
 for rule in "${rules[@]}"; do
     IFS='|' read -r crate features forbidden <<<"$rule"

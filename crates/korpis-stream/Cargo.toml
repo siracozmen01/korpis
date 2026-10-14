@@ -1,0 +1,25 @@
+[package]
+name = "korpis-stream"
+description = "Korpis streams on disk: records, segment files, redaction, and the limits that keep a workload unblocked"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Literal redaction patterns, matched in one pass however many there are (§7 of
+# docs/14-streams.md).
+aho-corasick = "1"
+# CRC-32C over each record frame, so a torn write is found rather than read.
+crc = "3"
+serde_json = "1"
+sha2 = "0.10"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

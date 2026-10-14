@@ -139,6 +139,15 @@ The rate is a declared field with a sane default. A workload that legitimately p
 output declares a higher limit and pays for it out of its own quota, which is the honest way to
 make that trade rather than discovering it at 03:00.
 
+**As built** (`crates/korpis-stream`), the default is 256 KiB a second with a burst of 4 MiB,
+admitted by a token bucket in bytes. A record that finds the bucket empty is dropped and counted;
+the next record admitted, or a second after the last drop if none is, writes one gap record with
+the records and bytes lost, the time they were lost over, and the reason. Segments are sealed at
+8 MiB or five minutes, whichever comes first, and the sealed ones are pruned oldest first to the
+stream's retention, 512 MiB by default. Records reach the page cache as they are written and the
+disk at least once a second and at every seal: the writer's crash loses nothing, and the machine's
+loses at most the last second, which the next start finds as a torn frame and cuts away.
+
 ---
 
 ## 6. Input is an Effect
@@ -176,6 +185,11 @@ secret never reaches a segment file, an offload target, a backup, or an export.
 ```
 [14:30:02] RCON enabled, password ████████ (redacted: rcon_password)
 ```
+
+Redaction runs before the size limit of §9's question 5, never after: cutting a record first could
+keep half of a secret, while cutting a redacted record can only shorten its mark. A value shorter
+than four bytes is not matched at all, because matching it would redact every occurrence of those
+letters in everything the workload prints; the field is reported as not covered instead.
 
 Stated honestly, per P4: **this is best-effort and is labelled as such in the interface.** A
 workload that base64-encodes its own secret before printing it defeats pattern matching, and no
@@ -238,4 +252,7 @@ The node never holds a credential that reaches another workload's data.
    OpenTelemetry-shaped problem rather than a stream-shaped one. → `15-observability.md`
 5. **Very large single records.** A workload printing a 200 MB line is hostile input, and the limit
    must be enforced in the write path with a gap marker rather than discovered by an out-of-memory
-   kill. The number is not chosen. → here
+   kill. **Resolved here, 2026-10-14:** a record holds at most 64 KiB. The first 64 KiB of a longer
+   line are kept as its record, the rest is dropped as it arrives, never buffered, and a gap record
+   counts the bytes dropped. 64 KiB holds any line a person reads and every stack frame a program
+   prints, and bounds what one line can cost the writer.

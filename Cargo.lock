@@ -2147,6 +2147,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-stream"
+version = "0.0.0"
+dependencies = [
+ "aho-corasick",
+ "crc",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "korpis-tls"
 version = "0.0.0"
 dependencies = [
