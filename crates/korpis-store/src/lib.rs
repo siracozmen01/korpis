@@ -22,6 +22,7 @@ mod events;
 mod extension;
 mod feed;
 mod idempotency;
+mod job;
 mod journal;
 mod lease;
 mod node;
@@ -157,6 +158,10 @@ impl Store for PgStore {
 
     fn provider_calls(&self) -> feed::Wakeups {
         self.provider_call_wakeups()
+    }
+
+    fn jobs(&self) -> feed::Wakeups {
+        self.job_wakeups()
     }
 
     async fn begin(&self) -> StoreResult<PgTx> {

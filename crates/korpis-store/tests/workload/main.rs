@@ -14,6 +14,7 @@
 mod chain;
 mod events;
 mod ids;
+mod jobs;
 mod nodes;
 mod placement;
 mod plans;

@@ -391,6 +391,17 @@ does not create an intent (finding S4).
 No Redis. No NATS. No broker. They are added if and when a measurement demands it, not because the
 architecture diagram looks more serious with them.
 
+**As built, 2026-10-14**, when prunes made it the first work the control plane does itself. The
+table above was made in Phase 0 and is now used as drawn, its statuses `pending`, `running`,
+`succeeded`, `failed`, and `cancelled`. A claim is one statement: the oldest due job of the kinds
+a worker takes, locked with `SKIP LOCKED`, marked running under the worker's name until its lease
+runs out, its attempt counted; a job whose lease ran out is due again, so the work of a replica
+that died is taken by another, and the first holder can no longer end it. A job is queued in the
+transaction that decides it is due and ended in the transaction that records what it did, so
+neither half can happen without the other; a retry puts it back for a later time, and one past
+its last attempt fails instead. Queueing announces on `korpis_job`, and workers also look every
+five seconds, because a retry's time comes by the clock rather than by an announcement.
+
 ---
 
 ## 7. One plan at a time, and how the other one is stopped

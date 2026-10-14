@@ -17,6 +17,7 @@ mod condition;
 mod enrollment;
 mod extension;
 mod idempotency;
+mod job;
 mod journal;
 mod lease;
 mod node;
@@ -54,6 +55,7 @@ pub use condition::{ConditionRead, ConditionWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
+pub use job::{Job, JobEnd, JobRead, JobWrite};
 pub use journal::{JournalRead, JournalWrite};
 pub use lease::LeaseWrite;
 pub use node::{NodeRead, NodeWrite};
@@ -158,6 +160,7 @@ pub trait Store:
     + VolumeRead
     + SnapshotRead
     + BackupRead
+    + JobRead
     + Send
     + Sync
     + 'static
@@ -182,6 +185,9 @@ pub trait Store:
 
     /// Wakes, from now on, whenever a provider call is queued or finished.
     fn provider_calls(&self) -> Self::Wakeups;
+
+    /// Wakes, from now on, whenever a job is queued or put back for a later attempt.
+    fn jobs(&self) -> Self::Wakeups;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.
@@ -216,6 +222,7 @@ pub trait Tx:
     + VolumeWrite
     + SnapshotWrite
     + BackupWrite
+    + JobWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Claims the oldest due job of kinds $1 at $2 for worker $3 until $4: one pending and past its\n-- time, or one running under a lease that ran out. Its attempt is counted as it is claimed.\nUPDATE job\n   SET status = 'running', locked_by = $3, locked_until = $4, attempts = attempts + 1\n WHERE id = (\n        SELECT id FROM job\n         WHERE kind = ANY($1)\n           AND ((status = 'pending' AND run_after <= $2)\n                OR (status = 'running' AND locked_until <= $2))\n         ORDER BY run_after\n         LIMIT 1\n           FOR UPDATE SKIP LOCKED)\nRETURNING id, kind, payload, attempts, max_attempts\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "job",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "payload",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "job",
+            "name": "payload"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "max_attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job",
+            "name": "max_attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Timestamptz",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1e58b7dbaaa6e78c0b7d1f76aa3b14201dc517d55eac8065181c63cf212020fc"
+}

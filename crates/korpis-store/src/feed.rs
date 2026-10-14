@@ -28,6 +28,13 @@ const EVENT_POSITIONED: &str = "korpis_event_positioned";
 /// The channel a provider call announces on when it is queued and when it finishes.
 const PROVIDER_CALL: &str = "korpis_provider_call";
 
+/// The channel a job announces on when it is queued or put back for a later attempt.
+const JOB: &str = "korpis_job";
+
+/// How often a worker looks for due jobs without a wake-up: a retry's time comes by the clock,
+/// not by an announcement, and a missed announcement costs at most this.
+const JOB_TICK: Duration = Duration::from_secs(5);
+
 /// How often a provider call's waiter re-reads without a wake-up: calls are short-lived, so a
 /// missed announcement costs at most this.
 const CALL_TICK: Duration = Duration::from_secs(1);
@@ -49,6 +56,8 @@ pub(crate) struct Feed {
     positioned: tokio::sync::watch::Sender<u64>,
     /// Bumped whenever a provider call is queued or finished.
     calls: tokio::sync::watch::Sender<u64>,
+    /// Bumped whenever a job is queued or put back.
+    jobs: tokio::sync::watch::Sender<u64>,
 }
 
 impl Feed {
@@ -56,8 +65,9 @@ impl Feed {
         let (sender, _) = broadcast::channel(BACKLOG);
         let (positioned, _) = tokio::sync::watch::channel(0);
         let (calls, _) = tokio::sync::watch::channel(0);
+        let (jobs, _) = tokio::sync::watch::channel(0);
         let events_written = tokio::sync::Notify::new();
-        Arc::new(Self { sender, resync, events_written, positioned, calls })
+        Arc::new(Self { sender, resync, events_written, positioned, calls, jobs })
     }
 }
 
@@ -126,6 +136,13 @@ impl PgStore {
         Wakeups { receiver: self.feed.calls.subscribe(), tick }
     }
 
+    /// Wake-ups for one job worker, from now on.
+    pub(crate) fn job_wakeups(&self) -> Wakeups {
+        let mut tick = tokio::time::interval_at(Instant::now() + JOB_TICK, JOB_TICK);
+        tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        Wakeups { receiver: self.feed.jobs.subscribe(), tick }
+    }
+
     /// Starts the one listener that feeds every subscription, for as long as the process runs.
     /// Without it, subscribers still hear the periodic resync, so a watch is late, never wrong.
     pub fn listen(&self) {
@@ -142,6 +159,7 @@ impl PgStore {
                 feed.events_written.notify_one();
                 feed.positioned.send_modify(|p| *p += 1);
                 feed.calls.send_modify(|c| *c += 1);
+                feed.jobs.send_modify(|j| *j += 1);
                 tokio::time::sleep(RECONNECT).await;
             }
         });
@@ -151,7 +169,7 @@ impl PgStore {
 /// Relays announcements until the connection fails.
 async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
     let mut listener = PgListener::connect_with(pool).await?;
-    listener.listen_all([CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED, PROVIDER_CALL]).await?;
+    listener.listen_all([CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED, PROVIDER_CALL, JOB]).await?;
     loop {
         let notification = listener.recv().await?;
         match notification.channel() {
@@ -161,6 +179,10 @@ async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
             }
             PROVIDER_CALL => {
                 feed.calls.send_modify(|c| *c += 1);
+                continue;
+            }
+            JOB => {
+                feed.jobs.send_modify(|j| *j += 1);
                 continue;
             }
             EVENT_POSITIONED => {
