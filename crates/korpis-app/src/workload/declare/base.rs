@@ -87,6 +87,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             deleted_at: None,
             set: None,
             classification: Vec::new(),
+            unreproducible: None,
         };
         let power = PowerRecord {
             workload: id,

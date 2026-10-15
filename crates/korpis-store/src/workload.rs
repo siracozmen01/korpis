@@ -20,7 +20,8 @@ impl WorkloadRead for PgStore {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at, set_id, classification
+                    created, deleted_at, set_id, classification, unreproducible_at,
+                    unreproducible_reason
                FROM workload WHERE id = $1",
             id
         )
@@ -35,7 +36,8 @@ impl WorkloadRead for PgStore {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at, set_id, classification
+                    created, deleted_at, set_id, classification, unreproducible_at,
+                    unreproducible_reason
                FROM workload
               WHERE deleted_at IS NULL
                 AND ($1::uuid IS NULL OR project_id = $1)

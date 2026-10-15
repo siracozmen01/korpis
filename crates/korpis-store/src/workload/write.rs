@@ -9,6 +9,7 @@ use crate::stored::{ImpactDoc, StepDoc, from_time, to_count, to_json};
 use korpis_app::ports::{StoreError, StoreResult, WorkloadWrite};
 use korpis_core::workload::plan::{Override, PlanStatus};
 use korpis_core::workload::{Intent, Plan, PlanTarget, PowerRecord, Workload};
+use std::time::SystemTime;
 use uuid::Uuid;
 
 fn encoded(tx: &PgTx, intent: &Intent) -> StoreResult<String> {
@@ -62,7 +63,8 @@ impl WorkloadWrite for PgTx {
             WorkloadRow,
             "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,
                     target_id, target_version, power_version, power_target_version, version,
-                    created, deleted_at, set_id, classification
+                    created, deleted_at, set_id, classification, unreproducible_at,
+                    unreproducible_reason
                FROM workload WHERE id = $1 FOR UPDATE",
             id
         )
@@ -254,6 +256,25 @@ impl WorkloadWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(done.rows_affected())
+    }
+
+    async fn mark_unreproducible(
+        &mut self,
+        workload: Uuid,
+        at: SystemTime,
+        reason: &str,
+    ) -> StoreResult<bool> {
+        let marked = sqlx::query!(
+            "UPDATE workload SET unreproducible_at = $2, unreproducible_reason = $3
+              WHERE id = $1 AND unreproducible_at IS NULL",
+            workload,
+            from_time(at),
+            reason
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(marked.rows_affected() == 1)
     }
 
     async fn set_classification(

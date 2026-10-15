@@ -61,6 +61,19 @@ pub struct Workload {
     /// The operator's overrides of how its plan steps are classified: the last layer of the
     /// chain (§3.3 of docs/01-model.md), at most one per action.
     pub classification: Vec<plan::Override>,
+    /// Why what it runs can no longer be reproduced from its recipe alone, and since when: an
+    /// install's step resolved to whatever a channel held (§4 of docs/09-recipes.md). `None`
+    /// while it can be; once set, never cleared.
+    pub unreproducible: Option<Unreproducible>,
+}
+
+/// The first thing that made a workload unreproducible.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unreproducible {
+    /// When.
+    pub at: SystemTime,
+    /// What, for a person: the step and what it resolved to.
+    pub reason: String,
 }
 
 /// What someone declared should be true. Immutable: a change is a new intent with the next

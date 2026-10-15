@@ -65,6 +65,15 @@ pub fn workload_to_pb(w: &Workload, power: &PowerRecord) -> pb::Workload {
             })
             .collect(),
         version: w.version,
+        unreproducible: w
+            .unreproducible
+            .as_ref()
+            .map(|u| pb::Unreproducible {
+                at: timestamp(u.at).into(),
+                reason: u.reason.clone(),
+                ..Default::default()
+            })
+            .into(),
         ..Default::default()
     }
 }

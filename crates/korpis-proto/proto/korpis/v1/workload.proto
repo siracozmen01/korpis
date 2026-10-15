@@ -44,6 +44,15 @@ message Workload {
   // The version of its metadata, the classification among it: what a change to them compares
   // against. Declarations and power have versions of their own (intent, power).
   uint64 version = 15;
+  // Why what it runs can no longer be reproduced from its recipe alone, and since when: an
+  // install's step resolved to whatever a channel held (§4 of docs/09-recipes.md). Absent while
+  // it can be; once set, never cleared.
+  Unreproducible unreproducible = 16;
+}
+
+message Unreproducible {
+  google.protobuf.Timestamp at = 1;
+  string reason = 2;
 }
 
 // One action's classification for one workload, as an operator set it. It may relax what the

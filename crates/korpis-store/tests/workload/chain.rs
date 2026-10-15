@@ -98,3 +98,20 @@ async fn power_is_its_own_sequence() {
     assert_eq!((read.power_version, read.intent), (2, first.id), "the intent chain is untouched");
     assert_eq!(f.store.power(w.id).await.unwrap().unwrap().power.desired, PowerState::Stopped);
 }
+
+#[tokio::test]
+async fn a_workload_once_unreproducible_stays_so_for_its_first_reason() {
+    let f = fixture().await;
+    let (w, _) = create(&f, "mc").await;
+    assert_eq!(f.store.workload(w.id).await.unwrap().unwrap().unreproducible, None);
+    let at = crate::support::now();
+    let mut tx = f.store.begin().await.unwrap();
+    assert!(tx.mark_unreproducible(w.id, at, "valve/steam.app resolved to 8471").await.unwrap());
+    assert!(!tx.mark_unreproducible(w.id, at, "a later one").await.unwrap(), "the first stands");
+    tx.commit().await.unwrap();
+    let u = f.store.workload(w.id).await.unwrap().unwrap().unreproducible.unwrap();
+    assert_eq!(u.reason, "valve/steam.app resolved to 8471");
+    assert_eq!(u.at.duration_since(std::time::UNIX_EPOCH).unwrap().as_micros(), {
+        at.duration_since(std::time::UNIX_EPOCH).unwrap().as_micros()
+    });
+}

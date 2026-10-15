@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload SET unreproducible_at = $2, unreproducible_reason = $3\n              WHERE id = $1 AND unreproducible_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36d6c7d851a427f30abf594b08011daebe16f456490590af2ba925209e029386"
+}

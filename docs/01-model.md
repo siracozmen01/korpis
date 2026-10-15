@@ -357,6 +357,9 @@ Workload
                                one per action
   version       int            its metadata's version, the classification among it: what a
                                change to them compares against
+  unreproducible {at, reason}? set the first time what it runs stopped following from its
+                               recipe and lockfile alone (§4 and §9 of `09-recipes.md`);
+                               never cleared
   created       Timestamp
   deleted_at    Timestamp?     soft; the id is retained forever
 ```
@@ -369,6 +372,13 @@ Workload
   intent moves `intent`. Approving the plan for it moves `target`, and only then does the change
   enter the workload's assignment (§4.8 of `02-architecture.md`). While they differ, the workload is
   awaiting approval or scheduled, and nothing on any node has changed.
+- **`unreproducible` is set once and never cleared.** A workload whose install took a step
+  provider's unpinned answer (§4 of `09-recipes.md`), or that was declared from an `unverified`
+  import (§9 of the same), runs bytes that its recipe and lockfile do not determine, and no later
+  install undoes that: the files are in its volumes. The control plane sets it when it resolves
+  such a step, with what the step resolved to, or when it accepts such a declaration, and the
+  first reason stands. It is a label, not a gate: it says which workloads the promise of §2 of
+  `09-recipes.md`, that one digest runs the same bytes, does not cover.
 
 > Second external review, finding S3. Recorded in §17 of `23-walkthroughs.md`. The first version had
 > one pointer, `intent`, which the compare-and-swap of §3.2 of `03-state.md` moved at declaration,

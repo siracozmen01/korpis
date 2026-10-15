@@ -33,6 +33,8 @@ pub(crate) struct WorkloadRow {
     pub(crate) deleted_at: Option<DateTime<Utc>>,
     pub(crate) set_id: Option<Uuid>,
     pub(crate) classification: Value,
+    pub(crate) unreproducible_at: Option<DateTime<Utc>>,
+    pub(crate) unreproducible_reason: Option<String>,
 }
 
 impl WorkloadRow {
@@ -54,6 +56,9 @@ impl WorkloadRow {
             deleted_at: self.deleted_at.map(to_time),
             set: self.set_id,
             classification: classification(self.classification)?,
+            unreproducible: self.unreproducible_at.zip(self.unreproducible_reason).map(
+                |(at, reason)| korpis_core::workload::Unreproducible { at: to_time(at), reason },
+            ),
         })
     }
 }

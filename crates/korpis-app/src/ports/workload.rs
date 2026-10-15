@@ -8,6 +8,7 @@ use crate::page::Page;
 use korpis_core::workload::plan::{Override, PlanStatus};
 use korpis_core::workload::{Intent, IntentBody, Plan, PowerRecord, Workload};
 use std::future::Future;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// Why an intent body does not encode or decode.
@@ -146,6 +147,16 @@ pub trait WorkloadWrite {
     /// many there were: a newer declaration supersedes every unapproved plan for an older one
     /// (§3.3 of docs/01-model.md), and a power change leaves a pending intent plan alone.
     fn supersede_proposed(&mut self, keep: &Plan) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Marks the workload as no longer reproducible from its recipe alone, at `at` for `reason`,
+    /// unless it already is: the first reason stands, and nothing clears it. True if this call
+    /// set it.
+    fn mark_unreproducible(
+        &mut self,
+        workload: Uuid,
+        at: SystemTime,
+        reason: &str,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Replaces the operator's classification overrides, if the workload's version is still
     /// `expected`, and moves the version on.

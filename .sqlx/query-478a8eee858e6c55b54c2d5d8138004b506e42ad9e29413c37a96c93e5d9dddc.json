@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id, classification\n               FROM workload WHERE id = $1 FOR UPDATE",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id, classification, unreproducible_at,\n                    unreproducible_reason\n               FROM workload WHERE id = $1 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -178,6 +178,28 @@
             "name": "classification"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "unreproducible_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "unreproducible_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "unreproducible_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "unreproducible_reason"
+          }
+        }
       }
     ],
     "parameters": {
@@ -201,8 +223,10 @@
       false,
       true,
       true,
-      false
+      false,
+      true,
+      true
     ]
   },
-  "hash": "712a02202d592b8bdf57b2cfeb6927807dc0d157ffc9f579d70742cee34f39dc"
+  "hash": "478a8eee858e6c55b54c2d5d8138004b506e42ad9e29413c37a96c93e5d9dddc"
 }
