@@ -178,6 +178,8 @@ volume.delete
 endpoint.read · endpoint.write · endpoint.release
 backup.create · backup.browse · backup.read · backup.restore · backup.prune
 repository.read · repository.write                   where an organization's backups are kept
+domain.read · domain.write · domain.attest           names an org holds (07-networking.md §3.2)
+certificate.read · certificate.write                 TLS certificates an organization uploads
 stream.share
 grant.read · grant.revoke
 org.read · org.create · org.write · org.suspend · org.quota.write
@@ -217,6 +219,17 @@ ext.<extension>.<action>              extensions define their own, namespaced
   contents then reach that workload's holders (§5.4 of `06-storage.md`). Declaring a volume
   created from a backup (`from_backup`) takes `backup.read` on the backup's workload, for the
   same reason.
+- **`domain.read`, `domain.write`, `domain.attest`, `certificate.read`, and `certificate.write` are
+  new actions implied by nothing.** Added 2026-10-15, when the HTTP ingress was designed (§3.2 of
+  `07-networking.md`). Which names an organization holds decides whose traffic its endpoints may
+  take, which no existing action covered. `domain.write` on an organization creates, verifies, and
+  deletes its domains, and on an organization holding a verified domain it also delegates one
+  beneath it to a descendant, held beside `domain.write` on the descendant. `domain.attest` is
+  vouching for a name without DNS, an operator's power: it is held on the installation's root
+  organization, and an attested domain is created for any organization in its subtree.
+  `certificate.write` uploads and deletes an organization's provided certificates and
+  `certificate.read` lists them, never their keys, which no action reads back. Routing a held name
+  from an endpoint is `workload.write`, as declaring any endpoint is.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

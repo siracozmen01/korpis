@@ -1031,6 +1031,13 @@ structure below is designed so that class of bug has nowhere to live.
 └──────────────────┘   └────────────────────────────────────────┘
 ```
 
+**The ingress proxy is a fourth kind of process.** Added 2026-10-15, with the HTTP ingress (§3.2 of
+`07-networking.md`). `korpis-ingress` is the one process that parses requests from the internet, so
+it is held to the filesystem workers' rule from the other side: it accepts untrusted input and
+holds no privilege, no filesystem, and nothing of the agent's. The supervisor runs it, hands it the
+sockets the helper opened on ports 80 and 443 and its routes and certificates over a pipe, and
+restarts it if it exits.
+
 Three properties follow from this structure:
 
 **No component both holds privilege and accepts tenant input.** The supervisor accepts
@@ -1136,11 +1143,11 @@ surface, which is containerd's, and §6 of `17-security.md` carries that negativ
 
 > Second external review, finding S55.
 
-The supervisor, the helper, the filesystem workers, and each driver are separate executables
-connected by local sockets. Those sockets carry a protocol, and the first version of this document
-versioned the protocol between the agent and the control plane while saying nothing about the one
-inside the agent, so an upgrade that replaced the supervisor but not the root helper had no defined
-behaviour.
+The supervisor, the helper, the filesystem workers, the ingress proxy, and each driver are separate
+executables connected by local sockets. Those sockets carry a protocol, and the first version of
+this document versioned the protocol between the agent and the control plane while saying nothing
+about the one inside the agent, so an upgrade that replaced the supervisor but not the root helper
+had no defined behaviour.
 
 - **The internal protocols are protobuf schemas in the same published tree as the agent protocol**
   (§11 of `10-api.md`), governed by the same compatibility rules (§4 of `10-api.md`). A driver
@@ -1210,9 +1217,10 @@ yields a token that can pull one already-known artifact for a few minutes.
 The same rule governs backup and stream offload. A node never holds a repository's credentials or
 its key-encryption key. For each backup job it receives the data key of the one workload being
 backed up and a short-lived credential that can write, read, and list objects under that workload's
-prefix, delete none, and reach nothing else; where a target cannot issue such a credential, the
-upload is brokered through a relay instead (§5.5 of `06-storage.md`). A compromised node therefore
-reaches the backups of the workloads placed on it, which it could already read live, and no others.
+prefix, delete none, and reach nothing else; where a store cannot issue such a credential, its
+provider serves it and issues one of its own (§5.5 of `06-storage.md`; corrected 2026-10-15, when
+this said the upload was brokered through a relay). A compromised node therefore reaches the
+backups of the workloads placed on it, which it could already read live, and no others.
 
 ### Protocol versioning (Rule K-7)
 

@@ -1087,6 +1087,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 52 | A node ran a target no plan had made | §32 | `02-architecture.md` §4.8, `01-model.md` §3.3 |
 | 53 | The reachability probe could listen on a port forwarded to a workload | §33 | `07-networking.md` §9 |
 | 54 | A container could not start in a network namespace the host owned | §33 | `07-networking.md` §4.1 |
+| 55 | Outbound rules were declared where no node could evaluate them | §33 | `07-networking.md` §2, §6, `01-model.md` §3.3, §3.6 |
+| 56 | A workload's resolver depended on every other firewall on its host | §33 | `07-networking.md` §5.1, §6 |
+| 57 | An extension could not reach the control plane on one machine | §33 | `07-networking.md` §6, `08-identity.md` §9.5, `02-architecture.md` §6, `16-extensions.md` §3.3 |
+| 58 | A correction left standing in three documents | §36 | `17-security.md` §7, `02-architecture.md` §7, `06-storage.md` §5.5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2226,3 +2230,52 @@ which a node's client would accept because the request never leaves the machine.
 the control plane reads a repository too, for a prune and for browsing, and it is no node, so no
 address on a node's own link is one it reaches. The store is reached at its published address
 instead, by every reader, over TLS that trusts the provider's certificate alone.
+
+## 36. A shop reached by its own name, over HTTPS, on one machine
+
+Written 2026-10-15, to design the HTTP ingress of Phase 1 before building it (§3.2 of
+`07-networking.md`). A tenant on a shared installation runs a web shop and wants it at
+`shop.example.com`, over HTTPS, with a certificate it never handles; another tenant on the same
+installation would like that name too.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The tenant creates the domain `example.com` in its organization; the control plane issues a token | `07-networking.md` §3.2; `01-model.md` §3.6; `10-api.md` §5 |
+| 2 | The tenant publishes the token at `_korpis-verify.example.com` and asks for verification; the control plane resolves it and finds no other organization's verified domain covering it or beneath it | `07-networking.md` §3.2 |
+| 3 | The other tenant creates `shop.example.com` and asks for verification; it is refused, the name lying beneath a verified domain of another organization | `07-networking.md` §3.2 |
+| 4 | The tenant declares `web` with an endpoint `http`, exposure `ingress`, names `shop.example.com`, TLS left to its default, `acme`; the declaration finds the name covered and routed by no other endpoint | `07-networking.md` §3.2; `10-api.md` §5 |
+| 5 | `web` is placed on a node that advertises it can serve the ingress | `07-networking.md` §3.2; `05-scheduling.md` §2.1 |
+| 6 | The node's assignment carries the route; the agent hands it to its proxy, which answers on port 80 with a redirect | `07-networking.md` §3.2; `02-architecture.md` §6 |
+| 7 | The control plane orders the certificate: through the organization's DNS provider if one serves the zone, otherwise by handing the HTTP challenge's token to the node, whose proxy answers it | `07-networking.md` §3.2, §3.5 |
+| 8 | The certificate is issued; its key is sealed; the node asks for it over its session and is answered because `web` is placed on it; the proxy loads it | `07-networking.md` §3.2; `18-operations.md` §6 |
+| 9 | A customer opens `https://shop.example.com`: the proxy picks the certificate by SNI, routes by `Host`, sets `Forwarded`, and `web` answers | `07-networking.md` §3.2, §3.4 |
+| 10 | The node is later removed as compromised; the certificate whose key it held is revoked and `web` is issued another on its next node | `17-security.md` §9 |
+
+Each step was asked what evaluates it, where, and with what. Steps 2 and 3 are the control plane's,
+from its records of every verified domain and a DNS answer it obtains itself; nothing the tenant
+says is believed. Step 4 needs every route in the installation, which only the control plane holds.
+Step 7 needs to know whether a DNS provider of the organization serves the zone, which the control
+plane learns by asking it: a provider answers `dns.zone_not_found` for a name outside its zones
+(§3.5), and the control plane then uses the HTTP challenge. Step 8 is answered by the control plane
+from the placement it holds; the node cannot ask for a key of an endpoint placed elsewhere. Step 9
+is the proxy's alone, from the SNI and the `Host` the client sent and the routes it was given.
+
+Step 10 found that removing a compromised node revoked its key and fenced its leases but left the
+TLS keys it had been given working until their certificates expired, which the design now closes in
+§9 of `17-security.md`. Writing the trace also turned up Finding 58.
+
+**FINDING 58: A correction left standing in three documents. `CONFIRMED`**
+
+Found 2026-10-15 while writing step 8, reading §7 of `17-security.md` for what a node holds. The
+backup target for a disk (trace §35) corrected §5.5 of `06-storage.md`: a store that cannot scope
+access is served by its provider, not written through a relay holding the store's credential. The
+correction reached the owning document and missed three restatements: §7 of `17-security.md`, the
+paragraph on backup and offload in §7 of `02-architecture.md`, and a sentence of §5.5 itself, which
+said the repository's own credential was held by the control plane or a relay. It is the defect
+this repository's own rule names (a correction reaches every document that restates it), made by
+the commit that wrote the rule's newest example.
+
+**Resolution.** Each is corrected in place, saying what it said before. → patched into
+`17-security.md` §7, `02-architecture.md` §7, and `06-storage.md` §5.5.

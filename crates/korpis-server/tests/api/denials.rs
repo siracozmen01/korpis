@@ -2,7 +2,8 @@
 
 //! Refusals are recorded and coalesced (§10 of docs/10-api.md, §4 of
 //! docs/15-observability.md): the first of a run at once, its repeats as one effect with a count
-//! and the window's bounds once the window closes. The harness's window is one second.
+//! and the window's bounds once the window closes. The window is five seconds here, so the run's
+//! refusals fall inside it however loaded the machine is.
 
 use crate::lifecycle::power;
 use crate::recipes::{body, create, project, push_paper};
@@ -28,7 +29,7 @@ async fn denials(h: &Harness, workload: &str) -> Vec<pb::Effect> {
 
 #[tokio::test]
 async fn a_retry_loop_is_one_effect_for_its_first_refusal_and_one_for_its_repeats() {
-    let h = Harness::new().await;
+    let h = Harness::with(Duration::from_secs(30), Duration::from_secs(5)).await;
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
     let declared = h
@@ -54,7 +55,7 @@ async fn a_retry_loop_is_one_effect_for_its_first_refusal_and_one_for_its_repeat
     assert!(missing.is_some(), "it names the action that was missing");
 
     let mut log = first;
-    for _ in 0..40 {
+    for _ in 0..150 {
         if log.len() == 2 {
             break;
         }

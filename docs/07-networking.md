@@ -295,6 +295,104 @@ table-stakes for the `service` shape and is why Pterodactyl cannot host a web ap
 name-routed by anything generic. That is why `stable` exists as a distinct mode: the address is the
 identity, and the edge forwards it.
 
+**The ingress on one machine, as designed.** Added 2026-10-15, for Phase 1, where the node is its
+own edge (§4 of `20-roadmap.md`): the names an endpoint routes, who may route them, what terminates
+them, and where certificates come from. An edge tier of Phase 3 takes the same routes and
+certificates from the same control plane; nothing here is particular to one machine except that the
+proxy runs on the workload's own node.
+
+**A name is routed only by the organization that holds it.** A shared ingress that let any tenant
+route any name would let one take another's traffic, and since ACME's HTTP challenge is answered by
+whoever the name's traffic reaches, obtain a certificate for it as well. So a name is held: a
+`Domain` (§3.6 of `01-model.md`) belongs to one organization and covers itself and every name
+beneath it, and an endpoint names only names a verified domain of its own organization covers. A
+domain is verified in one of three ways. By DNS: the control plane resolves the TXT record
+`_korpis-verify.<name>` through public DNS and finds the token it issued, which shows the holder
+controls the zone. By delegation: an organization holding a verified domain creates one beneath it
+for a descendant organization, which is how a reseller gives a customer `customer.reseller.example`
+without the customer proving anything about a zone they do not run. By attestation: an operator of
+the installation vouches for it, for names on a private network that public DNS does not answer and
+for an installation's own names. A verified domain of one organization may not cover or lie beneath
+another's, except one delegated beneath its parent; a pending one blocks no one. **What evaluates
+this, where, and with what information:** the control plane, at verification, from its own records
+of every verified domain and from the DNS answer it obtains itself; and again at every declaration,
+from the same records. What it does not do: check again later. A zone that changes hands keeps its
+domain verified here until its holder deletes it; what limits the damage is that every certificate
+issuance proves control of the name anew (below), so the new owner of the zone, pointing its
+records elsewhere, takes the traffic and no certificate can be issued for the old holder's
+endpoint. Whether to re-verify periodically is question 10 of §11.
+
+**A name routes to one endpoint, on the node its workload runs on.** An endpoint whose exposure is
+`ingress` lists its names, each a plain lowercase DNS name with no wildcard (question 11 of §11),
+its protocol is `http` or `https`, or `tcp` for a TLS service routed by SNI without termination
+(`tls.source: passthrough`), and its container port is where its workload listens. Two endpoints
+may not route one name in the whole installation, which the control plane keeps by holding the
+names it routes in one place it checks at declaration. The control plane places the workload on a
+node that can serve the ingress, which a node measures at start and advertises (it holds ports 80
+and 443 of its addresses), and the node's assignment carries the endpoint's names, its TLS source,
+and its certificate's identifier. The endpoint's address is the node's advertised addresses on port
+443, and on 80 for the redirect and ACME's HTTP challenge; publishing the names in DNS is the
+holder's, or the DNS provider's of its zone, which publishes `A` and `AAAA` records for the node's
+addresses as it publishes any endpoint's (§3.5). A workload that moves to another node takes its
+routes with it, and its names then need their records pointed at the new node, which a DNS provider
+does and a holder publishing by hand must; that is what `ingress` survives on one machine, and an
+edge tier makes it survive without the records changing.
+
+**The proxy is a process of its own on the node.** It is the node's most exposed surface: it parses
+requests from anyone on the internet. So it is not the agent: `korpis-ingress` is a separate
+program the agent runs and supervises, confined like a backup job (§5.5 of `06-storage.md`): no
+filesystem but what it needs to start, no capability, its only network the sockets it is given and
+connections to the node's workload addresses. The helper opens ports 80 and 443 on the node's
+addresses, which needs a privilege neither the agent nor the proxy has, and passes the sockets to
+the agent, which hands them to the proxy, as the resolver's are handed (§5.1). The agent gives the
+proxy its routes and certificates whole, again whenever they change, over a pipe; the proxy keeps
+nothing on disk. It accepts HTTP/1.1 and HTTP/2 from clients over TLS 1.2 and 1.3, chooses the
+certificate by SNI, redirects plain HTTP to HTTPS except for ACME's challenge path, routes by the
+`Host` header among the names the connection's certificate serves, and forwards to the workload's
+address over HTTP/1.1, with WebSocket upgrades carried through. It removes any `Forwarded` and
+`X-Forwarded-*` header a client sent and sets its own, so the workload learns the client's address
+from a header only the proxy writes; the endpoint's `client_address` is `translated`, since the
+workload's peer is the proxy (§3.4). A `passthrough` endpoint is routed by the SNI of the client's
+first message and spliced to the workload unread, which then terminates TLS itself and sees the
+proxy as its peer. It bounds what it accepts: header size and count, the time a client may take to
+send them, the time a connection may stay idle, and connections in all; a request beyond a bound is
+refused with the status that says which. What it costs: one more process per node, and a hop
+through it for every request; and a request's body is streamed, not buffered, so a slow workload
+holds the client's connection open as long as the workload does.
+
+**Certificates belong to the control plane.** An endpoint's TLS is `acme` unless it says otherwise:
+the control plane obtains one certificate for the endpoint's names from the ACME directory the
+operator configures (Let's Encrypt by default), with the installation's ACME account, and renews it
+when two thirds of its life have passed. It answers ACME's challenge by DNS where a DNS provider of
+the holder's organization serves the name's zone, publishing the `_acme-challenge` TXT record
+through it (§3.5), and otherwise over HTTP: the control plane gives the token to the node the
+endpoint's workload is placed on, whose proxy answers it on port 80, which works once the name's
+records point at that node. A `provided` certificate is one its organization uploads, chain and
+key, and the endpoint names it by its identifier in `TlsSpec.secret`; the control plane checks that
+its key matches, that it covers the endpoint's names, and that it has not expired, and says when it
+nears expiry, but it cannot renew it. Every private key is stored sealed by the control plane's TLS
+key, in its data directory beside its backup key (§6 of `18-operations.md`), and a node obtains an
+endpoint's certificate and key by asking for it over its session, which is answered only to the
+node the endpoint's workload is placed on. The node keeps what it serves in its state directory,
+readable by the agent alone, so a restart while the control plane is unreachable still serves (§4.6
+of `02-architecture.md`). **What evaluates this, where, and with what information:** issuance and
+renewal, the control plane, which holds the endpoint, its placement, its holder's DNS providers,
+and the account; the challenge's answer, the proxy, from the token it was given; which certificate
+a connection gets, the proxy, from the SNI the client sent. What it costs: a node holds the private
+keys of the endpoints placed on it, which a compromised node could take, as it could already read
+the workloads' own memory, and which removing a node as compromised therefore revokes and replaces
+(§9 of `17-security.md`); and an issuance that fails, because the name does not point at the node
+yet or the directory refuses, leaves the endpoint served on 80 alone, its observation saying why,
+and is retried with the directory's back-off.
+
+What the ingress does not do in Phase 1, stated plainly: HTTP/3, which needs the UDP path an edge
+tier brings; HTTP/2 or gRPC to the workload, since a backend's protocol beyond HTTP/1.1 is not yet
+something an endpoint declares (question 12 of §11); WebSocket over HTTP/2; ACME's TLS-ALPN
+challenge, which the HTTP and DNS challenges make unnecessary where port 80 or a DNS provider is
+there; client certificates; and the PROXY protocol for a `passthrough` workload that wants its
+client's address. HTTP/3 arrives with edges in Phase 3, and the rest of these in Phase 2, except
+the backend's protocol, which is a question (§4 of `20-roadmap.md`).
+
 ### 3.3 Protocol-aware routers are extensions
 
 Some protocols carry a hostname in their handshake. Minecraft Java sends the server address it was
@@ -1051,3 +1149,14 @@ promise, and it is now the one the document makes.
    have no authority over. Whether that needs an action of its own on the target, granted by its
    owner, and how the target's owner sees and revokes it, is undecided; until then a dependency's
    target is in the dependent's project. → `08-identity.md`
+10. **Re-verifying a domain.** A verified domain stays verified until its holder deletes it (§3.2),
+    so a zone that changes hands leaves its old holder able to route the name here, though not to
+    obtain a certificate for it. Checking the TXT record again on a schedule, and what happens to
+    an endpoint whose domain fails the check, are undecided. → here
+11. **Wildcard names.** An endpoint routing every name beneath a domain needs a wildcard
+    certificate, which ACME issues only through the DNS challenge, and a route table where a
+    wildcard and an exact name of different endpoints can both match one request. Until both are
+    decided an endpoint names exact names. → here
+12. **What the workload speaks.** The proxy forwards over HTTP/1.1, so a workload that serves only
+    HTTP/2, which gRPC needs, cannot be routed. Whether an endpoint declares its backend protocol,
+    and how that fits the frozen `EndpointProtocol`, is undecided. → here

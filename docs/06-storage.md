@@ -694,13 +694,14 @@ takes the same lock. With prefixes that never coincide (§5.3), one open backup 
 repository is one writer per prefix. A prune lists and deletes beneath one workload's prefix at a
 time, never beneath the repository's whole prefix, which is what keeps a place another repository
 chose inside it out of its reach. Pruning itself is two-phase and runs with the repository's own
-credential, which only the control plane or a relay holds: chunks no manifest references are marked,
-and deleted only after a grace period longer than the longest backup job, so even a lock lost to a
-crash cannot race a writer into a hole. Recipe content, shared across prefixes, is never pruned
-while any manifest in the repository refers to its digest. A backup that an open plan restores is
-not pruned, and nothing it references is swept, until that plan ends: a restore reads with its
-own credential for hours, and the prefix lock is a writer's, which a reader does not take
-(Finding 35 of `23-walkthroughs.md`).
+credential, which only its backup target's provider holds, the control plane pruning through the
+provider's calls (§5.6; corrected 2026-10-15, when this said the control plane or a relay held it):
+chunks no manifest references are marked, and deleted only after a grace period longer than the
+longest backup job, so even a lock lost to a crash cannot race a writer into a hole. Recipe
+content, shared across prefixes, is never pruned while any manifest in the repository refers to its
+digest. A backup that an open plan restores is not pruned, and nothing it references is swept,
+until that plan ends: a restore reads with its own credential for hours, and the prefix lock is a
+writer's, which a reader does not take (Finding 35 of `23-walkthroughs.md`).
 
 **Pruning, as built, 2026-10-14.** `korpis backup prune <workload> --repository rep_…` proposes a
 plan of one `prune_backups` step under `backup.prune`. It is irreversible, so it is never approved

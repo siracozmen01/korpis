@@ -161,6 +161,8 @@ backup jobs         one per backup or restore, started by the helper, holding on
 install jobs        one per install, started by the helper, running as the workload's own ids in a
                     user namespace whose root holds only that workload's volumes (09 §4).
 runtime drivers     separate processes, each holding only its own driver's privileges.
+ingress proxy       one per node, unprivileged and confined, the only process parsing requests
+                    from the internet; holds its routes and certificates in memory (07 §3.2).
 ```
 
 The argument is a privilege union. A single process performing all four roles holds the union of
@@ -195,6 +197,11 @@ the OCI driver does not, and a merged runtime would grant both to both.
   or before 6.7 for the port rule) leaves it confined by its own code alone, which its result says.
   Name resolution is not confined, since it travels over UDP, which Landlock does not govern.
 
+- **The ingress proxy holds the private keys of the endpoints it serves.** It must, to terminate
+  their TLS (§3.2 of `07-networking.md`). It is the process most exposed to the internet, which is
+  why it is a process of its own, holding nothing else: a bug in it reaches those keys and the
+  traffic through it, and not the agent's session, the helper, or any workload's data.
+
 None of this changes the design. It changes what the design is allowed to claim, which is the
 point of this section.
 
@@ -210,12 +217,12 @@ The principle from §3: reduce reachability first.
 - **Nodes hold no standing object-storage credentials and no repository keys.** For each backup or
   offload job a node receives the data key of the one workload concerned and a short-lived
   credential that can write, read, and list objects under that workload's prefix, delete none, and
-  reach nothing else; a target
-  that cannot issue such a credential is written through a relay instead (§5.5 of
-  `06-storage.md`). The first version said nodes held no object-storage credentials while the
-  backup flow streamed encrypted chunks from the node straight to the repository, which required
-  both a key and a credential on the node (finding S37). Now the node holds both, for one workload
-  at a time, for the length of one job.
+  reach nothing else; a store that cannot issue such a credential is served by its provider, which
+  issues one of its own (§5.5 of `06-storage.md`; corrected 2026-10-15, when it said such a target
+  was written through a relay holding the store's credential). The first version said nodes held no
+  object-storage credentials while the backup flow streamed encrypted chunks from the node straight
+  to the repository, which required both a key and a credential on the node (finding S37). Now the
+  node holds both, for one workload at a time, for the length of one job.
 - **Tenant secrets never enter a template context.** §6 of `09-recipes.md` renders from a flat,
   pre-resolved, enumerated variable map in a logic-less language, inside the workload's own
   filesystem worker, and secret fields are delivered only through channels the tenant cannot read
@@ -227,6 +234,10 @@ The principle from §3: reduce reachability first.
   matching cannot catch a workload that encodes its own secret first.
 - **Capability tokens are short-lived**, travel in the URL fragment when shared (§6.1 of
   `08-identity.md`), and never reach an extension's frame (§5 of `16-extensions.md`).
+- **Nodes hold the TLS keys of the ingress endpoints placed on them, and no others.** A node
+  obtains an endpoint's certificate and key only while the endpoint's workload is placed on it, and
+  keeps them in its state directory for a restart without the control plane; the control plane
+  keeps every key sealed by its TLS key (§3.2 of `07-networking.md`).
 - **The agent's own key** is per-node, rotatable, and its compromise is bounded by §9.
 
 ---
@@ -296,6 +307,13 @@ epochs monotonic and fencing mandatory, so a compromised agent that keeps runnin
 ownership of anything, and cannot write an observation the control plane will accept. Workloads are
 rescheduled elsewhere from their intents, which are unaffected. The node is not trusted to clean
 itself up; it is fenced and rebuilt.
+
+It also held the private keys of the ingress endpoints placed on it, which outlive the fence: a key
+keeps working for as long as its certificate is valid. So removing a node as compromised revokes,
+through the ACME directory, every `acme` certificate whose key it was given, and issues each
+endpoint a new one with a new key; a `provided` certificate cannot be revoked by Korpis, and its
+endpoint's status says its key was exposed, for its organization to replace. Added 2026-10-15, with
+the ingress design (§3.2 of `07-networking.md`).
 
 ### 9.1 Egress is enforced by the party being contained
 

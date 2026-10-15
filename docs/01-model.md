@@ -1146,8 +1146,9 @@ Endpoint
   address       Address?         assigned; shape depends on exposure
   client_address  preserved | translated | proxy_protocol   how the workload sees the client
                                  (§3.4 of 07-networking.md)
-  domains       []Domain         for ingress exposure
-  tls           TLSSpec?         certificate source and policy
+  domains       []string         for ingress exposure: names its organization's verified
+                                 domains cover (§3.2 of 07-networking.md)
+  tls           TLSSpec?         acme (the default), provided (a Certificate), or passthrough
   policy        NetworkPolicy    who may connect to it, and how many at once; a workload's
                                  outbound rules are its own (IntentBody.egress), corrected
                                  2026-10-15 (§6 of 07-networking.md)
@@ -1167,6 +1168,54 @@ the entire schema, so it cannot be replaced by anyone who inherited it.
 `Endpoint` carries the exposure mechanism, the domain, the TLS policy, the network policy, and the
 accounting flag as first-class fields. A game server's UDP port and a web app's HTTPS ingress are
 the same object with different values (P7). Detail in `07-networking.md`.
+
+#### Domain
+
+> A DNS name an organization has shown it controls, which its endpoints may then route.
+
+> Added 2026-10-15, when the HTTP ingress was designed (§3.2 of `07-networking.md`). An endpoint
+> named domains since the first version, and nothing said whose a name is: on a shared ingress, a
+> tenant who could route any name could take another's traffic, and obtain a certificate for it.
+
+```
+Domain
+  id            DomainID         dom_…
+  organization  OrganizationID   the holder
+  name          string           a lowercase DNS name; covers itself and every name beneath it
+  verification  dns_txt | delegated | operator
+  token         string           what a TXT record at `_korpis-verify.<name>` must hold
+  parent        DomainID?        for `delegated`: the ancestor's domain it lies beneath
+  verified_at   Timestamp?       null while pending
+  created_at    Timestamp
+```
+
+**Invariants.** A verified domain of one organization neither covers nor lies beneath a verified
+domain of another, except one delegated beneath its parent, whose holder is an ancestor of its own
+holder. A pending domain blocks no one, so a name cannot be squatted by asking for it. An endpoint
+names only names a verified domain of its own organization covers.
+
+#### Certificate
+
+> A certificate and its key, for the names of an endpoint the ingress terminates.
+
+```
+Certificate
+  id            CertificateID    crt_…
+  organization  OrganizationID
+  names         []string         the names it is for
+  source        acme | provided
+  chain         PEM              leaf first
+  key           sealed           the private key, sealed by the control plane's TLS key
+  not_before, not_after  Timestamp
+  state         pending | issued | failed
+  reason        string?          why it failed, for `failed`
+  renew_after   Timestamp?       for `acme`: when its renewal begins
+```
+
+**Invariants.** Its key is stored only sealed (§3.2 of `07-networking.md`). An `acme` certificate
+is the control plane's to issue and renew, for one endpoint's names; a `provided` one is uploaded
+by its organization and named by the endpoints that use it (`TlsSpec.secret` holds its
+identifier, §3.2 of `07-networking.md`).
 
 #### Stream
 

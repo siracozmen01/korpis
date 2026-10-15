@@ -175,19 +175,21 @@ signals (§2.1 and §2.2 of `05-scheduling.md`). Networking: `node_port` and `no
 each node's reachability measured by the relay's probe (§9 of `07-networking.md`), and the default
 egress policy of §6 there, with a workload's own policy applied by its node. The HTTP ingress on
 one machine (§3.2 there): the node serves as its own edge for `ingress` endpoints, routing by name
-to their workloads, with certificates the control plane obtains by ACME and renews. Every other
-field of an endpoint declaration is refused at declaration until the phase that builds it, rather
-than accepted and shown while nothing enforces it (Rule K-3): dedicated addresses in Phase 3,
-shaping and accounting in Phase 2. Added 2026-10-15, when the egress default was built and the
-declaration was found to accept what no node enforced; §3.2 of `07-networking.md` calls the ingress
-table-stakes for the `service` shape, and without it the web app of this phase's own scenario could
-not be reached by name. Rate limits, with the web client's login and link redemption that are the
-first endpoints to need them: the two buckets and the unauthenticated limits of §10 of `10-api.md`,
-and the recording of unauthenticated failures beside the denials Phase 0 already coalesces.
-Workloads of lifecycle `task` and `scheduled`, with their runs and `RunPolicy` (§4 of
-`05-scheduling.md`), after backups, so that a nightly backup is a scheduled run rather than a
-command someone has to type; added 2026-10-14 by Finding 33 of `23-walkthroughs.md`, since no phase
-had named them.
+to their workloads, with certificates the control plane obtains by ACME and renews, the domains an
+organization holds and verifies, and the provided certificates it uploads; designed 2026-10-15
+(§3.2 there), with what it leaves to later phases (HTTP/3 and the rest of that section's last
+paragraph). Every other field of an endpoint declaration is refused at declaration until the phase
+that builds it, rather than accepted and shown while nothing enforces it (Rule K-3): dedicated
+addresses in Phase 3, shaping and accounting in Phase 2. Added 2026-10-15, when the egress default
+was built and the declaration was found to accept what no node enforced; §3.2 of `07-networking.md`
+calls the ingress table-stakes for the `service` shape, and without it the web app of this phase's
+own scenario could not be reached by name. Rate limits, with the web client's login and link
+redemption that are the first endpoints to need them: the two buckets and the unauthenticated
+limits of §10 of `10-api.md`, and the recording of unauthenticated failures beside the denials
+Phase 0 already coalesces. Workloads of lifecycle `task` and `scheduled`, with their runs and
+`RunPolicy` (§4 of `05-scheduling.md`), after backups, so that a nightly backup is a scheduled run
+rather than a command someone has to type; added 2026-10-14 by Finding 33 of `23-walkthroughs.md`,
+since no phase had named them.
 
 **Done when:** the single-machine constraint of §1 of `18-operations.md` is real, install, run
 workloads, back them up, restore them, and read an honest console, with every displayed limit
@@ -222,13 +224,16 @@ machine the answer is a local resolver and the semantics are the same.
 ### Phase 2: Multi-tenant, and the two bets that live there
 
 Organizations and recursive delegation, and suspending one (§2.1 of `08-identity.md`).
-`GrantTemplate`. `IdentityBinding` and role-to-template
-mapping. Quota sets. Metering, with the exactness guarantees of §2 of `15-observability.md`.
-Tenant-visible audit. External identity through OIDC, as a provider on the Phase 1 contract core.
-Bandwidth shaping, a workload's reservation and limits (§5.2 of `05-scheduling.md`) and an
-endpoint's own, and per-endpoint traffic accounting in kernel counters, which metering reads (§7 of
-`07-networking.md`); until then a declaration that asks for either is refused, or, for a workload's
-bandwidth, left unplaced on every node whose driver does not enforce it (Rule K-3).
+`GrantTemplate`. `IdentityBinding` and role-to-template mapping. Quota sets. Metering, with the
+exactness guarantees of §2 of `15-observability.md`. Tenant-visible audit. External identity
+through OIDC, as a provider on the Phase 1 contract core. Bandwidth shaping, a workload's
+reservation and limits (§5.2 of `05-scheduling.md`) and an endpoint's own, and per-endpoint traffic
+accounting in kernel counters, which metering reads (§7 of `07-networking.md`); until then a
+declaration that asks for either is refused, or, for a workload's bandwidth, left unplaced on every
+node whose driver does not enforce it (Rule K-3). The ingress's remaining protocol features, which
+Phase 1 leaves out (§3.2 of `07-networking.md`): WebSocket over HTTP/2, client certificates, and
+the PROXY protocol for a `passthrough` workload; a reseller's names delegated to its customers are
+Phase 1's, since domains are.
 
 **The chat client is not here.** It is a first-party extension and ships in Phase 4 (§10 of
 `12-surface-discord.md`). What Phase 2 owes it is the machinery (external identity mapped to
@@ -245,13 +250,14 @@ The `firecracker` driver. Rule D's validation of the driver interface. Migration
 resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
 `stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
 `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
-Dedicated addresses (§3 there), routed to whichever node a workload runs on. Network rules naming
-workloads by label (§6 there), which only reaching workloads on other nodes makes necessary.
-Devices, including GPU. `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads
-for the difference to be measured. Drain and evacuate, as `Operation`s with their policy (§3 of
-`05-scheduling.md`), since draining a node is migrating its workloads off it. With edges, the
-count of a node's ports learns them: until then every `stable` endpoint reserves a port of its
-node, which one an edge serves does not use (§3 of `07-networking.md`).
+Dedicated addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at the ingress,
+on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6 there), which
+only reaching workloads on other nodes makes necessary. Devices, including GPU. `AssignmentDelta`
+(§9 of `10-api.md`), once nodes hold enough workloads for the difference to be measured. Drain and
+evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since draining a node is
+migrating its workloads off it. With edges, the count of a node's ports learns them: until then
+every `stable` endpoint reserves a port of its node, which one an edge serves does not use (§3 of
+`07-networking.md`).
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

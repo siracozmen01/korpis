@@ -33,28 +33,34 @@ async fn a_node_lost_while_holding_a_workload_scores_lower_for_a_day() {
     let repo = push_paper().await;
     let project = project(&h, &h.root_org(), "games").await;
     let nodes = [h.node(None, "fra-1", &[]).await, h.node(None, "fra-2", &[]).await];
-    // Either may take it: the sweep can mark one silent before the placement on a loaded
-    // machine, and which one holds the workload is not what this test is about.
+    // Both are kept heard until the workload is placed, then fall silent together, so the sweep
+    // cannot mark one before the placement binds to it, which a loaded machine would otherwise
+    // allow, and which would lose nothing.
+    let store = h.db.store().await.unwrap();
+    let heard = "UPDATE node SET connectivity = 'connected', last_seen = now() + interval '1 hour'";
+    sqlx::query(heard).execute(store.pool()).await.unwrap();
     let first = placed(&h, &project, &repo, "mc").await;
     let holding = first.node.clone();
     let empty = nodes.iter().find(|n| **n != holding).expect("the other node").clone();
     let holder = if holding == nodes[0] { "fra-1" } else { "fra-2" };
+    let silent = "UPDATE node SET last_seen = now() - interval '1 hour'";
+    sqlx::query(silent).execute(store.pool()).await.unwrap();
 
-    for _ in 0..50 {
-        if scalar(&h, "SELECT count(*) FROM node WHERE connectivity = 'unreachable'").await == 2 {
+    let losses = "SELECT count(*) FROM node_loss l JOIN node n ON n.id = l.node_id
+                   WHERE n.name = $1 AND l.workloads = 1";
+    let mut held: i64 = 0;
+    for _ in 0..150 {
+        held = sqlx::query_scalar(losses).bind(holder).fetch_one(store.pool()).await.unwrap();
+        let unreachable = "SELECT count(*) FROM node WHERE connectivity = 'unreachable'";
+        if held == 1 && scalar(&h, unreachable).await == 2 {
             break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    let losses = "SELECT count(*) FROM node_loss l JOIN node n ON n.id = l.node_id
-                   WHERE n.name = $1 AND l.workloads = 1";
-    let store = h.db.store().await.unwrap();
-    let held: i64 = sqlx::query_scalar(losses).bind(holder).fetch_one(store.pool()).await.unwrap();
     assert_eq!(held, 1, "one loss, for the node that held the workload");
     assert_eq!(scalar(&h, "SELECT count(*) FROM node_loss").await, 1, "none for the empty node");
 
     // Both heard again: the one that lost its workload scores lower.
-    let heard = "UPDATE node SET connectivity = 'connected', last_seen = now() + interval '1 hour'";
     sqlx::query(heard).execute(store.pool()).await.unwrap();
     let second = placed(&h, &project, &repo, "mc2").await;
     let why = second.explanation.as_option().unwrap();

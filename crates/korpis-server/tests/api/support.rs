@@ -82,6 +82,11 @@ impl Harness {
     /// A control plane whose agents send heartbeats every `heartbeat`. The default is long, so
     /// that the nodes tests put in place without an agent are not swept as silent.
     pub async fn with_heartbeat(heartbeat: std::time::Duration) -> Self {
+        Self::with(heartbeat, std::time::Duration::from_secs(1)).await
+    }
+
+    /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
+    pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
         // What the control plane logs at error, an internal error's cause among it, is printed
         // with the output of the test that failed, so a failure that needs load to happen
         // explains itself.
@@ -114,7 +119,7 @@ impl Harness {
             watch_resync: std::time::Duration::from_secs(1),
             heartbeat_interval: heartbeat,
             lease_term: std::time::Duration::from_secs(2),
-            denial_window: std::time::Duration::from_secs(1),
+            denial_window,
             event_retention: std::time::Duration::from_secs(30 * 86_400),
             stream_retention_floor: std::time::Duration::ZERO,
             relay_role: true,
