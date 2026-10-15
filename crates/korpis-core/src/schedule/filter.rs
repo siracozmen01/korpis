@@ -86,22 +86,24 @@ fn enforcement(req: &Request<'_>, d: &DriverInfo) -> Option<Refusal> {
 
 /// The exposures that need the node itself to be reachable (§9 of docs/07-networking.md),
 /// judged on what each declared exposure resolves to (§3 there): `stable` without an edge tier
-/// is `node_bound`. `stable` with one and `ingress` reach the node through a tunnel it dials,
-/// and `overlay_only` needs the overlay only for a consumer on another node, which is a
-/// cross-node dependency.
+/// is `node_bound`. `ingress` without one is served by the node's own proxy, on ports 80 and 443
+/// it holds (§3.2 there). `stable` and `ingress` with an edge tier reach the node through a
+/// tunnel it dials, and `overlay_only` needs the overlay only for a consumer on another node,
+/// which is a cross-node dependency.
 fn reachability(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {
     let public = c.node.reachability == Reachability::Public;
-    req.body
-        .endpoints
-        .iter()
-        .find(|e| {
-            let resolved = e.exposure.resolved(req.edge_tier);
-            matches!(resolved, Exposure::NodePort | Exposure::NodeBound) && !public
-        })
-        .map(|e| {
+    let serves_ingress = c.node.advertised.as_ref().is_some_and(|a| a.ingress);
+    req.body.endpoints.iter().find_map(|e| match e.exposure.resolved(req.edge_tier) {
+        Exposure::NodePort | Exposure::NodeBound if !public => {
             let without = if e.exposure == Exposure::Stable { " without an edge tier" } else { "" };
-            (Check::Reachability, format!("{:?} needs a public address{without}", e.name))
-        })
+            Some((Check::Reachability, format!("{:?} needs a public address{without}", e.name)))
+        }
+        Exposure::Ingress if !req.edge_tier && !serves_ingress => Some((
+            Check::Reachability,
+            format!("{:?} needs a node serving the ingress, holding ports 80 and 443", e.name),
+        )),
+        _ => None,
+    })
 }
 
 fn selector(req: &Request<'_>, c: &Candidate<'_>) -> Option<Refusal> {

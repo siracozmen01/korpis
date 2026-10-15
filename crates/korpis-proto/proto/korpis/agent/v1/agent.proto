@@ -329,6 +329,9 @@ message Advertised {
   // The inclusive range node_port and node_bound endpoints are allocated from.
   uint32 first_port = 2;
   uint32 last_port = 3;
+  // Whether the node holds ports 80 and 443 of these addresses for its ingress proxy, as it
+  // found at start (§3.2 of docs/07-networking.md).
+  bool ingress = 4;
 }
 
 // ---------------------------------------------------------------------------------------------

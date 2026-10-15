@@ -11,7 +11,7 @@
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push_sleeper, push_target};
-use crate::snapshots::{counted, lines, plan_in};
+use crate::snapshots::{OPEN_VOLUME_PLANS, counted, lines, plan_in};
 use crate::support::{ControlPlane, mutation};
 use korpis_backup::testing::{Minio, SECRET, USER};
 use korpis_cli::cmd::backup::{BackupAction, backup};
@@ -151,6 +151,8 @@ async fn a_running_world_is_backed_up_read_cloned_and_pruned() {
     let first = BackupAction::Create { volume: data.clone(), repository: repo.clone() };
     backup(&operator, &first).await.unwrap();
     counted(&cp, "SELECT count(*) FROM backup WHERE status = 'succeeded'", 1).await;
+    // The backup is recorded before its plan closes, and a volume takes one plan at a time.
+    counted(&cp, OPEN_VOLUME_PLANS, 0).await;
 
     // A second backup, and a prune keeping the last one forgets the first, which no one reads.
     std::fs::write(vol.join("saves/level.dat"), "the second world").unwrap();

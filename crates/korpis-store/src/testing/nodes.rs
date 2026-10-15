@@ -109,6 +109,7 @@ pub fn ready_node(
         advertised: Some(Advertised {
             addresses: vec![std::net::Ipv4Addr::new(203, 0, 113, 10).into()],
             ports,
+            ingress: false,
         }),
         probed_at: Some(SystemTime::now()),
         admin: NodeAdmin::Active,
@@ -133,7 +134,8 @@ pub async fn enroll(store: &PgStore, node: &Node) -> StoreResult<()> {
     if let Some(a) = &node.advertised {
         let addresses: Vec<String> = a.addresses.iter().map(ToString::to_string).collect();
         sqlx::query(
-            "UPDATE node SET addresses = $2, first_port = $3, last_port = $4, probed_at = $5
+            "UPDATE node SET addresses = $2, first_port = $3, last_port = $4, probed_at = $5,
+                             ingress = $6
               WHERE id = $1",
         )
         .bind(node.id)
@@ -141,6 +143,7 @@ pub async fn enroll(store: &PgStore, node: &Node) -> StoreResult<()> {
         .bind(i32::from(a.ports.first()))
         .bind(i32::from(a.ports.last()))
         .bind(node.probed_at.map(crate::stored::from_time))
+        .bind(a.ingress)
         .execute(store.pool())
         .await
         .map_err(crate::errors::from_sqlx)?;

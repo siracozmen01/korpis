@@ -100,3 +100,51 @@ async fn a_routed_name_keeps_its_holder_through_deletion_and_delegation() {
     assert_eq!(reason(&e), "domain.routed", "shop.example.com would have no holder");
     domains.delete_domain(delete("x2", &www.id)).await.expect("example.com still holds www");
 }
+
+#[tokio::test]
+async fn an_ingress_endpoint_lands_where_the_ingress_is_served_and_its_node_is_told_the_route() {
+    use crate::agent::{TestAgent, welcome};
+    use crate::journal::{assignment, until};
+    use std::time::{Duration, SystemTime};
+
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-1", 1).await;
+    let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[1; 16])).await;
+    welcome(&first.unwrap());
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "shops").await;
+    attest(&h, "d1", &h.root_org(), "example.com").await;
+    let w = declare(&h, &project, "shop", web(&repo, &["shop.example.com"])).await;
+
+    let status = || async {
+        let get = pb::GetWorkloadRequest { id: w.id.clone(), ..Default::default() };
+        let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
+        got.status.into_option().unwrap()
+    };
+    let unplaced = status().await;
+    let why = unplaced.unplaced.as_option().unwrap().explanation.as_option().unwrap();
+    assert!(why.filtered.iter().any(|f| f.detail.contains("80 and 443")), "{why:?}");
+
+    let store = h.db.store().await.unwrap();
+    sqlx::query("UPDATE node SET ingress = true").execute(store.pool()).await.unwrap();
+    let mut endpoints = Vec::new();
+    for _ in 0..100 {
+        endpoints = status().await.endpoints;
+        if !endpoints.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let web = endpoints.iter().find(|e| e.name == "web").expect("placed");
+    let address = web.address.as_option().unwrap();
+    assert_eq!((address.ips.as_slice(), address.port), (&["203.0.113.10".to_owned()][..], 443));
+    assert_eq!(web.domains, ["shop.example.com"]);
+    let tls = web.tls.as_option().unwrap().source.as_known();
+    assert_eq!(tls, Some(pb::TlsSource::TLS_SOURCE_ACME), "the default, made explicit");
+    let translated = Some(pb::ClientAddress::CLIENT_ADDRESS_TRANSLATED);
+    assert_eq!(web.client_address.as_known(), translated, "the proxy is the peer");
+
+    let told = until(&mut s, assignment(|a| a.endpoints.iter().any(|e| e.name == "web"))).await;
+    let route = told.endpoints.iter().find(|e| e.name == "web").unwrap();
+    assert_eq!(route.domains, ["shop.example.com"], "the node's proxy is given the route");
+}

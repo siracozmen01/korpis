@@ -103,6 +103,9 @@ pub struct Advertised {
     pub addresses: Vec<IpAddr>,
     /// Where its endpoints' ports come from.
     pub ports: PortRange,
+    /// Whether it holds ports 80 and 443 of its addresses for the ingress proxy, as it found at
+    /// start (§3.2 of docs/07-networking.md).
+    pub ingress: bool,
 }
 
 /// Whether `ip` is routable on the internet: not private, shared, loopback, link-local,

@@ -55,6 +55,7 @@ impl SessionWrite for PgTx {
             f.advertised.as_ref().map(|a| a.addresses.iter().map(ToString::to_string).collect());
         let first = f.advertised.as_ref().map(|a| i32::from(a.ports.first()));
         let last = f.advertised.as_ref().map(|a| i32::from(a.ports.last()));
+        let ingress = f.advertised.as_ref().map(|a| a.ingress);
         let done = sqlx::query_file!(
             "queries/node_facts.sql",
             node,
@@ -67,7 +68,8 @@ impl SessionWrite for PgTx {
             from_time(at),
             addresses.as_deref(),
             first,
-            last
+            last,
+            ingress
         )
         .execute(&mut *self.tx)
         .await

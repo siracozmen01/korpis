@@ -104,8 +104,11 @@ mod tests {
 
     #[test]
     fn the_probe_listens_only_on_a_port_no_endpoint_holds() {
-        let advertised =
-            Advertised { addresses: Vec::new(), ports: PortRange::new(30000, 30003).unwrap() };
+        let advertised = Advertised {
+            addresses: Vec::new(),
+            ports: PortRange::new(30000, 30003).unwrap(),
+            ingress: false,
+        };
         let mut due = ProbeDue { advertised, key: Vec::new(), held: vec![30000, 30002] };
         let picked: Vec<_> = (0..4).map(|n| due.free_port(n)).collect();
         assert_eq!(picked, [Some(30001), Some(30003), Some(30001), Some(30003)]);

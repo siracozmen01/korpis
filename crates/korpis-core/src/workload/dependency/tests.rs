@@ -68,6 +68,8 @@ fn each_target_form_resolves_within_the_project_alone() {
         exposure: Exposure::OverlayOnly,
         node: Uuid::from_u128(8),
         port: None,
+        domains: Vec::new(),
+        tls: None,
     };
     let target = DependencyTarget::Endpoint(placed.id);
     assert_eq!(resolve(&dependency(target.clone()), &project, Some(&placed)).targets.len(), 1);

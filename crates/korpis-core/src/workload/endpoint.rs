@@ -4,7 +4,7 @@
 //! endpoint a placed workload's target declares became on its node, with the exposure it
 //! resolved to and, for one the node itself exposes, the port of the node it holds.
 
-use super::spec::endpoints::{EndpointSpec, Exposure, Protocol};
+use super::spec::endpoints::{EndpointSpec, Exposure, Protocol, TlsSpec};
 use uuid::Uuid;
 
 /// The transport a protocol rides on, which is what a node forwards.
@@ -135,6 +135,11 @@ pub struct Endpoint {
     pub node: Uuid,
     /// The port of the node it holds, for an exposure that holds one.
     pub port: Option<u16>,
+    /// For `ingress`: the names it routes (§3.2 of docs/07-networking.md).
+    pub domains: Vec<String>,
+    /// For `ingress`: where its certificate comes from, `acme` when the declaration left it to
+    /// the default; or that TLS is passed through to the workload.
+    pub tls: Option<TlsSpec>,
 }
 
 #[cfg(test)]

@@ -40,13 +40,14 @@ pub(crate) struct NodeRow {
     pub(crate) first_port: Option<i32>,
     pub(crate) last_port: Option<i32>,
     pub(crate) probed_at: Option<DateTime<Utc>>,
+    pub(crate) ingress: bool,
 }
 
 /// What a node advertises, from its columns; none until it has reported a range.
 fn advertised(
     addresses: &[String],
-    first: Option<i32>,
-    last: Option<i32>,
+    (first, last): (Option<i32>, Option<i32>),
+    ingress: bool,
 ) -> StoreResult<Option<Advertised>> {
     let (Some(first), Some(last)) = (first, last) else { return Ok(None) };
     let port = |p: i32| u16::try_from(p).map_err(|_| corrupt("port", &p.to_string()));
@@ -56,7 +57,7 @@ fn advertised(
         .iter()
         .map(|a| a.parse::<IpAddr>().map_err(|_| corrupt("address", a)))
         .collect::<StoreResult<Vec<_>>>()?;
-    Ok(Some(Advertised { addresses, ports }))
+    Ok(Some(Advertised { addresses, ports, ingress }))
 }
 
 fn corrupt(what: &str, s: &str) -> StoreError {
@@ -112,7 +113,8 @@ impl NodeRow {
             .into_iter()
             .find(|r| reachability_str(*r) == self.reachability)
             .ok_or_else(|| corrupt("reachability", &self.reachability))?;
-        let advertised = advertised(&self.addresses, self.first_port, self.last_port)?;
+        let advertised =
+            advertised(&self.addresses, (self.first_port, self.last_port), self.ingress)?;
         let mut capacity = bounds("node capacity", self.capacity)?;
         let mut allocatable = bounds("node allocatable", self.allocatable)?;
         // A node's ports are what its range holds, as it advertises it (§3 of

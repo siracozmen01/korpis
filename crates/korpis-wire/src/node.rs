@@ -226,6 +226,7 @@ pub fn node_to_pb(n: &Node, allocated: &Bounds) -> pb::Node {
         first_port: n.advertised.as_ref().map_or(0, |a| u32::from(a.ports.first())),
         last_port: n.advertised.as_ref().map_or(0, |a| u32::from(a.ports.last())),
         probed_at: n.probed_at.map(timestamp).into(),
+        ingress: n.advertised.as_ref().is_some_and(|a| a.ingress),
         ..Default::default()
     }
 }
@@ -249,5 +250,5 @@ pub fn advertised_from_pb(field: &str, a: &agent::Advertised) -> Result<Option<A
                 .map_err(|_| crate::invalid(field, format!("{s:?} is not an IP address")))
         })
         .collect::<Result<Vec<_>>>()?;
-    Ok(Some(Advertised { addresses, ports }))
+    Ok(Some(Advertised { addresses, ports, ingress: a.ingress }))
 }

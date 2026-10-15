@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One node ($1).\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE id = $1\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One node ($1), locked until the transaction ends.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at, ingress\n  FROM node WHERE id = $1 FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -222,6 +222,17 @@
             "name": "probed_at"
           }
         }
+      },
+      {
+        "ordinal": 20,
+        "name": "ingress",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "ingress"
+          }
+        }
       }
     ],
     "parameters": {
@@ -249,8 +260,9 @@
       false,
       true,
       true,
-      true
+      true,
+      false
     ]
   },
-  "hash": "ff7469886abce619e5a1085cf7dc3e72004094bf0836df0f77a322f33d722b37"
+  "hash": "69d2dc2d092ffa2a873fee944397fc272952af3cd7044171e91c64537611cf12"
 }

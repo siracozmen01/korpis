@@ -64,6 +64,7 @@ async fn a_change_of_what_a_node_advertises_makes_its_reachability_unmeasured() 
         advertised: (!address.is_empty()).then(|| Advertised {
             addresses: vec![address.parse().unwrap()],
             ports: PortRange::DEFAULT,
+            ingress: false,
         }),
     };
     let report = |facts: NodeFacts| {

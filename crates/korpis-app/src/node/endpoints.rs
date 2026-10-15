@@ -12,6 +12,7 @@ use crate::workload::EDGE_TIER;
 use korpis_core::node::advertised::PortRange;
 use korpis_core::workload::IntentBody;
 use korpis_core::workload::endpoint::Endpoint;
+use korpis_core::workload::spec::endpoints::{Exposure, TlsSpec};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -40,6 +41,7 @@ pub(super) async fn placed<T: Tx>(
                 None => None,
             };
         }
+        let ingress = exposure == Exposure::Ingress;
         let endpoint = Endpoint {
             id: before.map_or_else(Uuid::now_v7, |e| e.id),
             workload,
@@ -49,6 +51,8 @@ pub(super) async fn placed<T: Tx>(
             exposure,
             node,
             port,
+            domains: if ingress { declared.domains.clone() } else { Vec::new() },
+            tls: ingress.then(|| declared.tls.clone().unwrap_or(TlsSpec::Acme)),
         };
         if before != Some(&endpoint) {
             tx.put_endpoint(&endpoint, at).await?;

@@ -8,7 +8,7 @@ use crate::{PgStore, PgTx};
 use korpis_app::ports::{EndpointRead, EndpointWrite, StoreError, StoreResult};
 use korpis_core::node::advertised::PortRange;
 use korpis_core::workload::endpoint::Endpoint;
-use korpis_core::workload::spec::endpoints::{Exposure, Protocol};
+use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -42,6 +42,26 @@ pub(crate) fn parsed<T: Copy>(table: &[(T, &'static str)], what: &str, s: &str) 
         .ok_or_else(|| StoreError::Corrupt(format!("endpoint {what} {s:?}")))
 }
 
+/// The stored form of where an endpoint's certificate comes from, and its certificate.
+fn tls_columns(t: Option<&TlsSpec>) -> (Option<&'static str>, &str) {
+    match t {
+        None => (None, ""),
+        Some(TlsSpec::Acme) => (Some("acme"), ""),
+        Some(TlsSpec::Provided { secret }) => (Some("provided"), secret),
+        Some(TlsSpec::Passthrough) => (Some("passthrough"), ""),
+    }
+}
+
+fn tls(source: Option<&str>, secret: String) -> StoreResult<Option<TlsSpec>> {
+    Ok(match source {
+        None => None,
+        Some("acme") => Some(TlsSpec::Acme),
+        Some("provided") => Some(TlsSpec::Provided { secret }),
+        Some("passthrough") => Some(TlsSpec::Passthrough),
+        Some(other) => return Err(StoreError::Corrupt(format!("endpoint tls {other:?}"))),
+    })
+}
+
 fn port(what: &str, n: i32) -> StoreResult<u16> {
     u16::try_from(n).map_err(|_| StoreError::Corrupt(format!("endpoint {what} {n}")))
 }
@@ -55,6 +75,9 @@ struct EndpointRow {
     exposure: String,
     node_id: Uuid,
     port: Option<i32>,
+    domains: Vec<String>,
+    tls: Option<String>,
+    tls_secret: String,
 }
 
 impl EndpointRow {
@@ -68,6 +91,8 @@ impl EndpointRow {
             exposure: parsed(&EXPOSURES, "exposure", &self.exposure)?,
             node: self.node_id,
             port: self.port.map(|p| port("port", p)).transpose()?,
+            domains: self.domains,
+            tls: tls(self.tls.as_deref(), self.tls_secret)?,
         })
     }
 }
@@ -80,7 +105,8 @@ impl EndpointRead for PgStore {
     async fn endpoints(&self, workload: Uuid) -> StoreResult<Vec<Endpoint>> {
         let rows = sqlx::query_as!(
             EndpointRow,
-            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port
+            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
+                    domains, tls, tls_secret
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -93,7 +119,8 @@ impl EndpointRead for PgStore {
     async fn endpoint(&self, id: Uuid) -> StoreResult<Option<Endpoint>> {
         let rows = sqlx::query_as!(
             EndpointRow,
-            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port
+            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
+                    domains, tls, tls_secret
                FROM endpoint WHERE id = $1",
             id
         )
@@ -155,7 +182,8 @@ impl EndpointWrite for PgTx {
     async fn held_endpoints(&mut self, workload: Uuid) -> StoreResult<Vec<Endpoint>> {
         let rows = sqlx::query_as!(
             EndpointRow,
-            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port
+            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
+                    domains, tls, tls_secret
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -183,14 +211,16 @@ impl EndpointWrite for PgTx {
     }
 
     async fn put_endpoint(&mut self, e: &Endpoint, at: SystemTime) -> StoreResult<()> {
+        let (tls, tls_secret) = tls_columns(e.tls.as_ref());
         sqlx::query!(
             "INSERT INTO endpoint (id, workload_id, name, protocol, container_port, exposure,
-                                   node_id, port, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                   node_id, port, created_at, domains, tls, tls_secret)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              ON CONFLICT (workload_id, name) DO UPDATE
                 SET protocol = EXCLUDED.protocol, container_port = EXCLUDED.container_port,
                     exposure = EXCLUDED.exposure, node_id = EXCLUDED.node_id,
-                    port = EXCLUDED.port",
+                    port = EXCLUDED.port, domains = EXCLUDED.domains, tls = EXCLUDED.tls,
+                    tls_secret = EXCLUDED.tls_secret",
             e.id,
             e.workload,
             e.name,
@@ -199,7 +229,10 @@ impl EndpointWrite for PgTx {
             named(&EXPOSURES, e.exposure),
             e.node,
             e.port.map(i32::from),
-            from_time(at)
+            from_time(at),
+            &e.domains,
+            tls,
+            tls_secret
         )
         .execute(&mut *self.tx)
         .await

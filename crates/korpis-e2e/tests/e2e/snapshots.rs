@@ -14,6 +14,10 @@ use std::path::Path;
 use std::time::Duration;
 
 /// Waits until `sql` counts `n`.
+/// Plans operating on a volume that are still open, which a new one on the volume waits for.
+pub(crate) const OPEN_VOLUME_PLANS: &str = "SELECT count(*) FROM plan WHERE to_volume IS NOT NULL
+      AND status IN ('proposed', 'approved', 'queued', 'applying')";
+
 pub(crate) async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
     for _ in 0..300 {
         if cp.scalar::<i64>(sql).await == n {

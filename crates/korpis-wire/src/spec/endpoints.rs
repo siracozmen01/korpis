@@ -35,7 +35,7 @@ enum_map!(action_to_pb, action_from_pb, NetworkAction, pb::NetworkAction, "allow
     NetworkAction::Deny => pb::NetworkAction::NETWORK_ACTION_DENY,
 });
 
-fn tls_to_pb(t: &TlsSpec) -> pb::TlsSpec {
+pub(crate) fn tls_to_pb(t: &TlsSpec) -> pb::TlsSpec {
     let (source, secret) = match t {
         TlsSpec::Acme => (pb::TlsSource::TLS_SOURCE_ACME, String::new()),
         TlsSpec::Provided { secret } => (pb::TlsSource::TLS_SOURCE_PROVIDED, secret.clone()),

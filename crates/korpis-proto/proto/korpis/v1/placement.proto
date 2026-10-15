@@ -47,6 +47,9 @@ message Node {
   uint32 last_port = 20;
   // When its reachability was last measured; absent if never since its addresses last changed.
   google.protobuf.Timestamp probed_at = 21;
+  // Whether it serves the ingress, holding ports 80 and 443 of its addresses (§3.2 of
+  // docs/07-networking.md); a workload with an ingress endpoint is placed only where it does.
+  bool ingress = 22;
 }
 
 message Taint {

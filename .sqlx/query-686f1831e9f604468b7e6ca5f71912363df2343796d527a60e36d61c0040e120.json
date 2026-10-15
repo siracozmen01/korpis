@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port\n               FROM endpoint WHERE id = $1",
+  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret\n               FROM endpoint WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -90,6 +90,39 @@
             "name": "port"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "domains",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "domains"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "tls",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "tls"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "tls_secret",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "tls_secret"
+          }
+        }
       }
     ],
     "parameters": {
@@ -105,8 +138,11 @@
       false,
       false,
       false,
-      true
+      true,
+      false,
+      true,
+      false
     ]
   },
-  "hash": "a312665239f7780ba23fd069144563390a7e4b2c215a24990b7031050b02f040"
+  "hash": "686f1831e9f604468b7e6ca5f71912363df2343796d527a60e36d61c0040e120"
 }

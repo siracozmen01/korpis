@@ -12,7 +12,7 @@ use crate::backups::{nightly, wire};
 use crate::image::{FS_TARGET, push_image};
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push, push_sleeper, test_registry};
-use crate::snapshots::{counted, lines, plan_in};
+use crate::snapshots::{OPEN_VOLUME_PLANS, counted, lines, plan_in};
 use crate::support::{ControlPlane, mutation};
 use korpis_cli::cmd::backup::{BackupAction, backup};
 use korpis_core::id::IdKind;
@@ -115,6 +115,8 @@ async fn a_running_world_is_backed_up_to_a_disk_read_cloned_and_pruned() {
     let first = BackupAction::Create { volume: data.clone(), repository: repo.clone() };
     backup(&operator, &first).await.unwrap();
     counted(&cp, "SELECT count(*) FROM backup WHERE status = 'succeeded'", 1).await;
+    // The backup is recorded before its plan closes, and a volume takes one plan at a time.
+    counted(&cp, OPEN_VOLUME_PLANS, 0).await;
     let disk = node.volumes.join(format!("{target}.objects")).join("objects/korpis");
     assert!(disk.exists(), "the backup is on the target's own volume");
 
