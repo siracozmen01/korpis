@@ -26,7 +26,9 @@ use std::path::{Path, PathBuf};
 struct Bench {
     _dir: tempfile::TempDir,
     volume: PathBuf,
+    /// The content store: the recipe's files in `blobs`, what fetches downloaded in `fetched`.
     blobs: PathBuf,
+    fetched: PathBuf,
     outside: PathBuf,
     files: BTreeMap<String, String>,
 }
@@ -34,28 +36,41 @@ struct Bench {
 impl Bench {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
-        let (volume, blobs, outside) =
-            (dir.path().join("vol"), dir.path().join("blobs"), dir.path().join("outside"));
-        for d in [&volume, &blobs.join("sha256"), &blobs.join("sha512"), &outside] {
+        let at = |p: &str| dir.path().join(p);
+        let (volume, blobs, fetched, outside) =
+            (at("vol"), at("blobs"), at("fetched"), at("outside"));
+        for d in [
+            &volume,
+            &blobs.join("sha256"),
+            &fetched.join("sha256"),
+            &fetched.join("sha512"),
+            &outside,
+        ] {
             std::fs::create_dir_all(d).unwrap();
         }
-        Self { _dir: dir, volume, blobs, outside, files: BTreeMap::new() }
+        Self { _dir: dir, volume, blobs, fetched, outside, files: BTreeMap::new() }
     }
 
-    /// Keeps `bytes` in the content store; its digest.
-    fn keep(&self, bytes: &[u8]) -> String {
+    /// Keeps `bytes` in `dir` of the content store; their digest.
+    fn put(dir: &Path, bytes: &[u8]) -> String {
         let hex = sha2::Sha256::digest(bytes).iter().fold(String::new(), |mut s, b| {
             let _ = std::fmt::Write::write_fmt(&mut s, format_args!("{b:02x}"));
             s
         });
-        std::fs::write(self.blobs.join("sha256").join(&hex), bytes).unwrap();
+        std::fs::write(dir.join("sha256").join(&hex), bytes).unwrap();
         format!("sha256:{hex}")
     }
 
-    /// Makes `bytes` the recipe's file at `path`.
-    fn file(&mut self, path: &str, bytes: &[u8]) {
-        let digest = self.keep(bytes);
-        self.files.insert(path.to_owned(), digest);
+    /// Keeps `bytes` as a fetch downloaded them; their digest.
+    fn keep(&self, bytes: &[u8]) -> String {
+        Self::put(&self.fetched, bytes)
+    }
+
+    /// Makes `bytes` the recipe's file at `path`; their digest.
+    fn file(&mut self, path: &str, bytes: &[u8]) -> String {
+        let digest = Self::put(&self.blobs, bytes);
+        self.files.insert(path.to_owned(), digest.clone());
+        digest
     }
 
     fn volumes(&self) -> Volumes {
@@ -64,8 +79,12 @@ impl Bench {
 
     fn content(&self) -> Content {
         let flags = rustix::fs::OFlags::PATH | rustix::fs::OFlags::DIRECTORY;
-        let blobs = rustix::fs::open(&self.blobs, flags, rustix::fs::Mode::empty()).unwrap();
-        Content { blobs, files: self.files.clone() }
+        let open = |d: &Path| rustix::fs::open(d, flags, rustix::fs::Mode::empty()).unwrap();
+        Content {
+            blobs: open(&self.blobs),
+            fetched: open(&self.fetched),
+            files: self.files.clone(),
+        }
     }
 
     fn run(
@@ -364,4 +383,18 @@ fn an_owner_is_set_as_the_workload_sees_it_when_the_worker_may() {
         (std::os::unix::fs::MetadataExt::uid(&st), std::os::unix::fs::MetadataExt::gid(&st)),
         (1000, 1001)
     );
+}
+
+#[test]
+fn a_fetch_reaches_only_what_fetches_downloaded_never_a_recipe_s_file() {
+    let mut b = Bench::new();
+    // Another tenant's recipe file, from a private registry, on the same node.
+    let private = b.file("secret.cfg", b"another tenant's private file");
+    b.files.clear();
+    let hash = Hash::parse(&private).unwrap();
+    let url = "https://example.org/anything".to_owned();
+    let fetch = act(InstallStep::Fetch { url, hash, to: "/data/leak".into() });
+    let e = b.run(&[fetch], 0).unwrap_err();
+    assert!(e.reason.contains("not in the content store"), "{e:?}");
+    assert!(!b.at("/data/leak").exists());
 }

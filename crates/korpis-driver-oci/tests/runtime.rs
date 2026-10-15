@@ -35,20 +35,33 @@ use std::process::Command;
 use std::time::Duration;
 
 const CONTAINERD: &str = "/run/containerd/containerd.sock";
-const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+/// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
+fn test_registry() -> String {
+    std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
+}
+
+/// busybox, by digest, as `scripts/dev-registry.sh` mirrors it into the test registry: the tests
+/// pull nothing from a public registry, whose limits on anonymous pulls make them fail at random.
+fn busybox() -> String {
+    format!(
+        "{}/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        test_registry()
+    )
+}
 
 const SAYS_HELLO: &str = "echo $GREETING > /data/said; echo said $GREETING; exec sleep 300";
 /// Answers each line of its input, which is what a game server's console does.
 const ANSWERS: &str = "while read line; do echo got $line; done";
 
 fn recipe(entry: &str) -> Vec<u8> {
+    let busybox = busybox();
     format!(
         r#"apiVersion: korpis.dev/v1
 kind: Recipe
 metadata: {{name: sleeper, version: "1.0.0", description: sleeps, license: MIT}}
 runtime:
   targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
   entry: {{command: [/bin/sh, -c, "{entry}"]}}
 config:
   fields:
@@ -84,7 +97,7 @@ fn intent(nonce: &str, console: pb::ConsoleMode) -> pb::Intent {
 /// A driver serving in `dir` to this process's user; the agent's runtime over its socket.
 async fn started(dir: &Path) -> DriverRuntime {
     let content = dir.join("content");
-    ContentStore::open(&content, Vec::new()).unwrap().fetch(BUSYBOX).await.unwrap();
+    ContentStore::open(&content, vec![test_registry()]).unwrap().fetch(&busybox()).await.unwrap();
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let socket = dir.join("driver.sock");
     let listener = bind(&socket).unwrap();

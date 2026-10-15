@@ -7,6 +7,11 @@
 //! kept only once it hashes to what the recipe declared, and anything else is deleted unkept.
 //! What the hash does not protect is the request itself, so where it may go is bounded by
 //! [`Reach`]: the public internet, and the networks the operator names.
+//!
+//! What a fetch keeps is kept apart from the rest of the store, in `fetched/`: a digest a recipe
+//! names reaches only what some fetch downloaded from a public address, never a recipe's file or
+//! an image layer pulled from a registry, which may be private. Otherwise knowing the digest of
+//! another tenant's private file would be enough to have it installed into one's own volume.
 
 use super::{ContentStore, FetchError};
 use korpis_egress::{Reach, redirects};
@@ -78,13 +83,14 @@ fn not_a_digest(digest: &str) -> FetchError {
 }
 
 impl ContentStore {
-    /// Where the content `digest` (`sha256:` or `sha512:` and lowercase hex) is, or would be.
+    /// Where the content a fetch keeps under `digest` (`sha256:` or `sha512:` and lowercase hex)
+    /// is, or would be.
     ///
     /// # Errors
     /// The digest is not one.
     pub fn file_of(&self, digest: &str) -> Result<PathBuf, FetchError> {
         let (_, alg, hex) = Hashing::of(digest).ok_or_else(|| not_a_digest(digest))?;
-        Ok(self.root.join("blobs").join(alg).join(hex))
+        Ok(self.root.join("fetched").join(alg).join(hex))
     }
 
     /// The content `url` serves that hashes to `digest`, fetched unless it is held; where it is.
@@ -117,7 +123,7 @@ impl ContentStore {
         }
         tokio::fs::File::open(&ingest).await?.sync_all().await?;
         tokio::fs::rename(&ingest, &path).await?;
-        crate::durable::sync_dir(&self.root.join("blobs").join(alg))?;
+        crate::durable::sync_dir(&self.root.join("fetched").join(alg))?;
         Ok(path)
     }
 

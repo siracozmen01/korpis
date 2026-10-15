@@ -37,7 +37,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// A helper running install jobs over volumes `wl_1.data` and `wl_1.plugins`, with a content
-/// store holding `motd.txt`'s bytes; the content's blobs directory.
+/// store; its `blobs` directory, where the recipe's files are kept.
 fn setup(tmp: &Path) -> (Helper, PathBuf) {
     let mut class = Class::open("local", &tmp.join("volumes")).unwrap();
     for v in ["wl_1.data", "wl_1.plugins"] {
@@ -49,15 +49,17 @@ fn setup(tmp: &Path) -> (Helper, PathBuf) {
         };
         class.ensure(&r).unwrap();
     }
-    let blobs = tmp.join("content/blobs");
-    std::fs::create_dir_all(blobs.join("sha256")).unwrap();
-    std::fs::create_dir_all(blobs.join("sha512")).unwrap();
+    let content = tmp.join("content");
+    let blobs = content.join("blobs");
+    for d in ["blobs/sha256", "fetched/sha256", "fetched/sha512"] {
+        std::fs::create_dir_all(content.join(d)).unwrap();
+    }
     let config = JobConfig {
         binary: job_binary(),
         install_binary: Some(install_binary()),
         state: tmp.join("state"),
         cgroups: None,
-        content: Some(blobs.clone()),
+        content: Some(content),
     };
     let mut ledger = Ledger::open(&tmp.join("state")).unwrap();
     ledger.ensure("wl_1", range()).unwrap();

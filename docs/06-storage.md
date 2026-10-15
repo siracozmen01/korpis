@@ -878,9 +878,23 @@ than 256 GiB is stopped. What it costs: a hostile URL can still make a node down
 bound before the hash refuses it, and a URL that disappears before a node fetches it fails the
 install on that node, which is what a fat recipe (§2 of `09-recipes.md`) is for.
 
+> Corrected 2026-10-15, Finding 49 of `23-walkthroughs.md`. What a `fetch` downloaded was kept
+> beside everything else, and a fetch whose digest the store already held downloaded nothing. The
+> store also holds recipes' files and image layers, pulled from whatever registry a recipe names,
+> which may be a tenant's private one; so a recipe naming the digest of another tenant's private
+> file, under any URL, would have had it copied into its own volume. Knowing a hash was access.
+> What a fetch downloads is now kept apart, in `fetched/`, and a `fetch` reads nothing else: a
+> digest a recipe names reaches only bytes some fetch downloaded from a public address. A
+> recipe's own files are reached only through that recipe, by the paths its artifact gives.
+> What it does not stop: bytes one install fetched from a public URL serve another install that
+> names their hash without knowing the URL. That is the deduplication K-15 asks for, and the bytes
+> were on the public internet; a recipe that must keep a file private ships it in a private
+> recipe, where only its own installs reach it.
+
 The content store and the backup repository both use content addressing and are deliberately
-**separate systems**. Different trust models (one holds operator-supplied public artifacts, the
-other tenant-private encrypted data) different lifetimes, and different failure consequences.
+**separate systems**. Different trust models (one holds artifacts by digest, some of them from a
+tenant's private registry, the other tenant-private encrypted data) different lifetimes, and
+different failure consequences.
 Merging them would put tenant data and public images under one garbage collector.
 
 ---

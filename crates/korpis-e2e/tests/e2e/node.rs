@@ -63,7 +63,7 @@ fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
         install_binary: None,
         state: state.to_owned(),
         cgroups: None,
-        content: Some(content.join("blobs")),
+        content: Some(content.to_owned()),
     };
     let mut h = korpis_helper::helper::Helper::new(vec![class], ledger).with_jobs(jobs);
     let listener = korpis_helper::serve::bound(socket).unwrap();

@@ -22,36 +22,43 @@ use std::os::fd::OwnedFd;
 /// The mode content, text, and templates are written with.
 const FILE_MODE: u32 = 0o644;
 
-/// What an install reads: the node's content store, read-only, and the recipe's files in it.
+/// What an install reads: the node's content store, read-only.
 #[derive(Debug)]
 pub struct Content {
-    /// The store's `blobs` directory: `sha256/<hex>` and `sha512/<hex>`.
+    /// The store's `blobs` directory, where the recipe's files are: `sha256/<hex>`.
     pub blobs: OwnedFd,
+    /// The store's `fetched` directory, where what a `fetch` downloaded is: `sha256/<hex>` and
+    /// `sha512/<hex>`, and nothing pulled from a registry.
+    pub fetched: OwnedFd,
     /// Each file of the recipe, by its path in the artifact, and its digest.
     pub files: BTreeMap<String, String>,
 }
 
 impl Content {
-    /// The content `digest` names.
-    fn digest(&self, digest: &str) -> Result<File, String> {
-        let (alg, hex) =
-            digest.split_once(':').ok_or_else(|| format!("{digest:?} is no digest"))?;
-        if !matches!(alg, "sha256" | "sha512") || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(format!("{digest:?} is no digest"));
-        }
-        let flags = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-        let fd =
-            openat2(&self.blobs, format!("{alg}/{hex}").as_str(), flags, Mode::empty(), RESOLVE)
-                .map_err(|e| format!("{digest} is not in the content store: {e}"))?;
-        Ok(File::from(fd))
+    /// What a `fetch` of `digest` downloaded. Only there: a digest a recipe names never reaches a
+    /// recipe's file or an image layer, which may be another tenant's and private.
+    fn fetched(&self, digest: &str) -> Result<File, String> {
+        open_digest(&self.fetched, digest)
     }
 
     /// The recipe's file at `path` in the artifact.
     fn artifact(&self, path: &str) -> Result<File, String> {
         let path = path.strip_prefix("./").unwrap_or(path);
         let digest = self.files.get(path).ok_or_else(|| format!("the recipe holds no {path}"))?;
-        self.digest(digest)
+        open_digest(&self.blobs, digest)
     }
+}
+
+/// The content `digest` names in the directory `dir`.
+fn open_digest(dir: &OwnedFd, digest: &str) -> Result<File, String> {
+    let (alg, hex) = digest.split_once(':').ok_or_else(|| format!("{digest:?} is no digest"))?;
+    if !matches!(alg, "sha256" | "sha512") || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("{digest:?} is no digest"));
+    }
+    let flags = OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let fd = openat2(dir, format!("{alg}/{hex}").as_str(), flags, Mode::empty(), RESOLVE)
+        .map_err(|e| format!("{digest} is not in the content store: {e}"))?;
+    Ok(File::from(fd))
 }
 
 /// An action that failed: which, and why.
@@ -115,7 +122,7 @@ fn act(a: &InstallAction, volumes: &Volumes, content: &Content) -> Result<(), St
     let io = at;
     match &a.step {
         InstallStep::Fetch { hash, to, .. } => {
-            write(volumes, to, &mut content.digest(&hash.to_digest())?)
+            write(volumes, to, &mut content.fetched(&hash.to_digest())?)
         }
         InstallStep::Copy { from, to } => write(volumes, to, &mut content.artifact(from)?),
         InstallStep::Write { path, content: text, mode } => {

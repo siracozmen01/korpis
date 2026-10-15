@@ -231,8 +231,8 @@ with `prjquota`, makes `local` a project class with byte and inode limits in the
 says so (§2 of `06-storage.md`). The jobs it starts are binaries beside it unless named:
 `--job-binary` for backups and restores and `--install-binary` for installs (`none` runs no
 installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korpis`), and
-`--content` names the agent's content store's `blobs` directory, which restores and installs read
-(`/var/lib/korpis-agent/content/blobs`).
+`--content` names the agent's content store, which restores and installs read
+(`/var/lib/korpis-agent/content`).
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it

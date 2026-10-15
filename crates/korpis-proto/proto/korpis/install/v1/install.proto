@@ -26,7 +26,8 @@ message InstallSpec {
   map<string, string> files = 5;
   // Filled in by the helper.
   //
-  // The content store's blobs directory, holding sha256/ and sha512/.
+  // The content store's directory: the recipe's files in blobs/sha256/, and what a fetch
+  // downloaded in fetched/sha256/ and fetched/sha512/, which a fetch alone reads.
   string content = 6;
   // The cgroup the worker joins.
   string cgroup = 7;

@@ -103,7 +103,7 @@ kind: Recipe
 metadata: {name: sleeper, version: "1.0.0", description: sleeps, license: MIT}
 runtime:
   targets:
-    - {tier: container, arch: [amd64, arm64], image: "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"}
+    - {tier: container, arch: [amd64, arm64], image: "@REGISTRY@/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e"}
   entry:
     command: [/bin/sh, -c, "echo $GREETING > /data/greeting; date +%s%N >> /data/starts; exec sleep 3600"]
 preset:
@@ -118,6 +118,8 @@ config:
   fields:
     - {key: greeting, type: string, default: hello, deliver: env, deliver_as: GREETING}
 EOF
+# busybox as scripts/dev-registry.sh mirrors it: the run pulls nothing from a public registry.
+sed -i "s|@REGISTRY@|$REGISTRY|" "$WORK/recipe/recipe.yaml"
 (cd "$WORK/recipe" && "$ORAS" push --plain-http --disable-path-validation \
     --artifact-type application/vnd.korpis.recipe.v1 "$RECIPE:1.0.0" \
     recipe.yaml:application/vnd.korpis.recipe.document.v1+yaml >/dev/null)

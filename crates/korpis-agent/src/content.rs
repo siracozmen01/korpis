@@ -131,6 +131,9 @@ fn registry_client(reach: &Reach, plain_http: &[String]) -> std::io::Result<(Cli
         protocol,
         https_proxy: Some(proxy.url().to_owned()),
         http_proxy: Some(proxy.url().to_owned()),
+        // A registry that stalls fails the pull rather than holding the reconciler forever.
+        connect_timeout: Some(std::time::Duration::from_secs(30)),
+        read_timeout: Some(std::time::Duration::from_secs(120)),
         ..ClientConfig::default()
     };
     // `Client::new` would build a client without the proxy if this failed; this one refuses.
@@ -160,7 +163,8 @@ impl ContentStore {
 
     fn open_reaching(root: &Path, plain_http: Vec<String>, reach: Reach) -> std::io::Result<Self> {
         std::fs::create_dir_all(root.join("blobs/sha256"))?;
-        std::fs::create_dir_all(root.join("blobs/sha512"))?;
+        std::fs::create_dir_all(root.join("fetched/sha256"))?;
+        std::fs::create_dir_all(root.join("fetched/sha512"))?;
         std::fs::create_dir_all(root.join("ingest"))?;
         let _ = rustls::crypto::ring::default_provider().install_default();
         let (client, proxy) = registry_client(&reach, &plain_http)?;

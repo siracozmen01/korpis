@@ -5,8 +5,61 @@
 
 use super::{Head, Rules, WAIT};
 use std::net::{IpAddr, SocketAddr};
-use tokio::io::{AsyncWriteExt as _, copy, copy_bidirectional};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::net::TcpStream;
+
+/// How long a connection may carry nothing either way before the proxy closes it. The clients
+/// that use the proxy time out a stalled read sooner; this ends what they leave behind.
+const IDLE: Duration = Duration::from_secs(600);
+
+/// When either direction of a connection last moved, in milliseconds since it began.
+struct Activity {
+    began: Instant,
+    last: AtomicU64,
+}
+
+impl Activity {
+    fn new() -> Arc<Self> {
+        Arc::new(Self { began: Instant::now(), last: AtomicU64::new(0) })
+    }
+
+    fn touch(&self) {
+        let now = u64::try_from(self.began.elapsed().as_millis()).unwrap_or(u64::MAX);
+        self.last.store(now, Ordering::Relaxed);
+    }
+
+    fn idle(&self) -> Duration {
+        let last = Duration::from_millis(self.last.load(Ordering::Relaxed));
+        self.began.elapsed().saturating_sub(last)
+    }
+}
+
+/// Copies `from` into `to` until `from` ends, or the connection has been idle both ways for
+/// [`IDLE`]; then shuts `to` down.
+async fn pump(
+    mut from: impl AsyncRead + Unpin,
+    mut to: impl AsyncWrite + Unpin,
+    activity: Arc<Activity>,
+) -> std::io::Result<()> {
+    let mut buf = vec![0u8; 64 << 10];
+    loop {
+        let wait = IDLE.saturating_sub(activity.idle()).max(Duration::from_secs(1));
+        let n = match tokio::time::timeout(wait, from.read(&mut buf)).await {
+            Ok(read) => read?,
+            Err(_) if activity.idle() >= IDLE => break,
+            Err(_) => continue,
+        };
+        if n == 0 {
+            break;
+        }
+        to.write_all(buf.get(..n).unwrap_or_default()).await?;
+        activity.touch();
+    }
+    to.shutdown().await
+}
 
 /// Answers `status` and closes.
 pub(super) async fn refuse(client: &mut TcpStream, status: &str) -> std::io::Result<()> {
@@ -76,7 +129,14 @@ pub(super) async fn tunnel(
     };
     client.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n").await?;
     server.write_all(&head.rest).await?;
-    copy_bidirectional(&mut client, &mut server).await.map(|_| ())
+    let ((client_reads, client_writes), (server_reads, server_writes)) =
+        (client.into_split(), server.into_split());
+    let activity = Activity::new();
+    let up = tokio::spawn(pump(client_reads, server_writes, Arc::clone(&activity)));
+    let down = pump(server_reads, client_writes, activity).await;
+    // The server's side ended: the client has its answer, and nothing more goes up.
+    up.abort();
+    down
 }
 
 /// A plain HTTP request in absolute form: forwarded to its server in origin form, with the proxy's
@@ -117,11 +177,11 @@ pub(super) async fn request(
     out.push_str("connection: close\r\n\r\n");
     server.write_all(out.as_bytes()).await?;
     server.write_all(&head.rest).await?;
-    let ((mut client_reads, mut client_writes), (mut server_reads, mut server_writes)) =
+    let ((client_reads, client_writes), (server_reads, server_writes)) =
         (client.into_split(), server.into_split());
-    let body = tokio::spawn(async move { copy(&mut client_reads, &mut server_writes).await });
-    let answered = copy(&mut server_reads, &mut client_writes).await;
+    let activity = Activity::new();
+    let body = tokio::spawn(pump(client_reads, server_writes, Arc::clone(&activity)));
+    let answered = pump(server_reads, client_writes, activity).await;
     body.abort();
-    client_writes.shutdown().await?;
-    answered.map(|_| ())
+    answered
 }

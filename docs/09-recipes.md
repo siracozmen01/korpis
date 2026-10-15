@@ -316,6 +316,10 @@ costs: a mirror on a private network has to be named by the operator, and a reci
 from a server on the operator's own network without that. What it does not do: it does not stop a
 fetch reaching any public address, which the recipe's author could reach anyway.
 
+A `fetch` reads only what a fetch downloaded. The node keeps those bytes apart from the rest of
+its content store, so a digest a recipe names never reaches another recipe's file or an image
+layer, which may come from a tenant's private registry (§6 of `06-storage.md`, Finding 49).
+
 **A `fetch` without a hash is not a warning. It is a parse error.** The recipe does not load.
 
 **When an install runs.** Decided 2026-10-14, when the install was planned. An install is one plan

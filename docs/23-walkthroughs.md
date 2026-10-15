@@ -35,7 +35,8 @@ eighteenth, written when restores were, found 34 and 35; re-running §9 when bro
 found 36. §22 to §27, written as retention, the organization's own bucket, offloaded streams,
 tenant keys, share links, and stream ranges were built, found 37 to 47. §28 records Finding 48,
 which no trace found: an automated security review of the code flagged it, and the evidence file
-had named its class all along.
+had named its class all along. §29, written when the install worker was given its content, found
+49.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1066,6 +1067,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 46 | A use limit that most paths did not count | §26 | `08-identity.md` §6.1, §6.2 |
 | 47 | A stream range as a scope the node cannot check | §27 | `14-streams.md` §8, `08-identity.md` §3.2, §6 |
 | 48 | A recipe's fetch reached wherever its URL pointed | §28 | `09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3, §9 |
+| 49 | Knowing a digest was enough to have another tenant's file installed | §29 | `06-storage.md` §6, `09-recipes.md` §4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1856,4 +1858,41 @@ takes no resolver (`17-security.md` §3). → patched into
 `09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3 and §9
 
 † Step 3 is where Finding 48 was.
+
+---
+
+## 29. A recipe names another tenant's file
+
+Written 2026-10-15, when the install worker was given its content and the store's layout was
+read again. Two tenants share a node. One installs from a private registry a recipe whose files
+include a licence key file. The other learns that file's digest the way digests leak, from a build
+log, a support ticket, or a screenshot of the manifest, and publishes a recipe with a `fetch` of
+that digest from a URL that serves nothing.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The first tenant's install fetches its recipe's artifact by digest into the node's content store, its files with it | `06-storage.md` §6, `09-recipes.md` §2 |
+| 2 | The second tenant's plan reaches the same node; its install asks the content store for the URL under the declared digest | `09-recipes.md` §4 |
+| 3 | The store finds the digest held, and downloads nothing † | `06-storage.md` §6 |
+| 4 | The worker copies what the digest names into the second tenant's volume † | `09-recipes.md` §4 |
+
+**FINDING 49: Knowing a digest was enough to have another tenant's file installed. `CONFIRMED`**
+
+§6 of `06-storage.md` described the content store as holding "operator-supplied public
+artifacts", and on that premise one lookup by digest served every purpose: an image layer, a
+recipe's file, and a `fetch`. The premise had stopped being true when tenants could install
+recipes from their own registries: a private recipe's files sit in the same store, by digest. A
+`fetch` names its digest freely, so at step 3 a held digest answered it whatever URL was given,
+and at step 4 the worker copied a private file into a stranger's volume. Asked what decides at
+step 3 whether this install may have these bytes, and with what information: only that the store
+held them, which says nothing about who may.
+
+**Resolution.** What a fetch downloads is kept apart, and a `fetch` reads nothing else, so a digest
+a recipe names reaches only bytes some fetch downloaded from a public address. A recipe's files
+are reached only through that recipe. What stays shared, and is said so, is a public download
+another install named by the same hash. → patched into `06-storage.md` §6 and `09-recipes.md` §4
+
+† Steps 3 and 4 are where the trace found Finding 49.
 

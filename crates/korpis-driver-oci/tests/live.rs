@@ -22,14 +22,26 @@ use std::path::Path;
 use std::time::Duration;
 
 const SOCKET: &str = "/run/containerd/containerd.sock";
-const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+/// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
+fn test_registry() -> String {
+    std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
+}
+
+/// busybox, by digest, as `scripts/dev-registry.sh` mirrors it into the test registry: the tests
+/// pull nothing from a public registry, whose limits on anonymous pulls make them fail at random.
+fn busybox() -> String {
+    format!(
+        "{}/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        test_registry()
+    )
+}
 
 fn spec(volumes: &Path, nonce: &str) -> driver::PreparedSpec {
     let ids = IdRange::of_slot(4000).unwrap();
     driver::PreparedSpec {
         workload: format!("wl_live{nonce}"),
         intent: format!("in_live{nonce}"),
-        rootfs: BUSYBOX.into(),
+        rootfs: busybox(),
         command: vec!["/bin/sh".into(), "-c".into(), "id -u > /data/up; exec sleep 300".into()],
         tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
         labels: driver::RuntimeLabels {
@@ -76,7 +88,7 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let dir = tempfile::tempdir().unwrap();
     let content = dir.path().join("content");
-    ContentStore::open(&content, Vec::new()).unwrap().fetch(BUSYBOX).await.unwrap();
+    ContentStore::open(&content, vec![test_registry()]).unwrap().fetch(&busybox()).await.unwrap();
     let volumes = dir.path().join("volumes");
     std::fs::create_dir_all(volumes.join("data")).unwrap();
     let nonce = uuid::Uuid::now_v7().simple().to_string();

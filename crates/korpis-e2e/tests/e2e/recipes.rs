@@ -6,8 +6,19 @@
 use korpis_recipe::artifact::Artifact;
 use korpis_recipe::registry::Registry;
 
-/// The image the thin recipe runs, by digest.
-pub const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+/// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
+fn test_registry() -> String {
+    std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
+}
+
+/// busybox, by digest, as `scripts/dev-registry.sh` mirrors it into the test registry: the tests
+/// pull nothing from a public registry, whose limits on anonymous pulls make them fail at random.
+pub fn busybox() -> String {
+    format!(
+        "{}/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        test_registry()
+    )
+}
 /// The thin recipe's version.
 pub const VERSION: &str = "1.0.0";
 
@@ -15,13 +26,14 @@ pub const VERSION: &str = "1.0.0";
 /// start in its volume, a configured greeting it writes there and prints to its console, and
 /// what it finds of its identity socket (§9.5 of docs/08-identity.md).
 fn sleeper() -> String {
+    let busybox = busybox();
     format!(
         r#"apiVersion: korpis.dev/v1
 kind: Recipe
 metadata: {{name: sleeper, version: "{VERSION}", description: sleeps, license: MIT}}
 runtime:
   targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
   entry:
     command:
       - /bin/sh
@@ -49,13 +61,14 @@ config:
 /// A recipe with an interactive console that answers every line typed into it, as a game
 /// server's console does (§6 of docs/14-streams.md).
 fn answerer() -> String {
+    let busybox = busybox();
     format!(
         r#"apiVersion: korpis.dev/v1
 kind: Recipe
 metadata: {{name: answerer, version: "{VERSION}", description: answers, license: MIT}}
 runtime:
   targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
   entry:
     command: [/bin/sh, -c, "echo ready; while read line; do echo got $line; done"]
 preset:
@@ -72,13 +85,14 @@ preset:
 /// container only sleeps: the test serves the provider itself, with the credential the node hands
 /// the extension's workload through its identity socket, as the container would.
 fn target() -> String {
+    let busybox = busybox();
     format!(
         r#"apiVersion: korpis.dev/v1
 kind: Extension
 metadata: {{name: s3-target, version: "{VERSION}", description: backups, license: MIT}}
 runtime:
   targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{BUSYBOX}"}}
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
   entry:
     command: [/bin/sh, -c, "exec sleep 3600"]
 preset:

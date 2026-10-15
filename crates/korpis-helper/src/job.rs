@@ -45,8 +45,8 @@ pub struct JobConfig {
     pub state: PathBuf,
     /// The cgroup jobs' cgroups are made in; none to run them in the helper's.
     pub cgroups: Option<PathBuf>,
-    /// The content store's `blobs` directory, holding `sha256` and `sha512`: a restore reads
-    /// recipe content from it, and an install reads what it writes.
+    /// The content store's directory: a restore reads recipe content from its `blobs/sha256`,
+    /// and an install reads the recipe's files and what its fetches downloaded from it.
     pub content: Option<PathBuf>,
 }
 
@@ -187,7 +187,7 @@ impl Jobs {
                 .config
                 .content
                 .as_deref()
-                .map(|c| string(&c.join("sha256")))
+                .map(|c| string(&c.join("blobs/sha256")))
                 .unwrap_or_default(),
             ..Default::default()
         };

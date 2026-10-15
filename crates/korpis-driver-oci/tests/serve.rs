@@ -26,7 +26,19 @@ use std::path::Path;
 use std::time::Duration;
 
 const CONTAINERD: &str = "/run/containerd/containerd.sock";
-const BUSYBOX: &str = "docker.io/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+/// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
+fn test_registry() -> String {
+    std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
+}
+
+/// busybox, by digest, as `scripts/dev-registry.sh` mirrors it into the test registry: the tests
+/// pull nothing from a public registry, whose limits on anonymous pulls make them fail at random.
+fn busybox() -> String {
+    format!(
+        "{}/library/busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e",
+        test_registry()
+    )
+}
 
 type Client = driver::DriverServiceClient<SharedHttp2Connection>;
 
@@ -42,7 +54,7 @@ fn client(socket: &Path) -> Client {
 /// A driver serving on a socket in `dir` to `allowed`; its client.
 async fn started(dir: &Path, allowed: BTreeSet<u32>) -> Client {
     let content = dir.join("content");
-    ContentStore::open(&content, Vec::new()).unwrap().fetch(BUSYBOX).await.unwrap();
+    ContentStore::open(&content, vec![test_registry()]).unwrap().fetch(&busybox()).await.unwrap();
     let containerd = Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap();
     let socket = dir.join("driver.sock");
     let listener = bind(&socket).unwrap();
@@ -59,7 +71,7 @@ fn spec(dir: &Path, nonce: &str) -> driver::PreparedSpec {
     driver::PreparedSpec {
         workload: format!("wl_serve{nonce}"),
         intent: format!("in_serve{nonce}"),
-        rootfs: BUSYBOX.into(),
+        rootfs: busybox(),
         command: vec!["/bin/sh".into(), "-c".into(), "exec sleep 300".into()],
         tier: pb::IsolationTier::ISOLATION_TIER_CONTAINER.into(),
         labels: driver::RuntimeLabels {

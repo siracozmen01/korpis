@@ -57,11 +57,13 @@ pub fn install(spec: &pb::InstallSpec, out: &OwnedFd) -> (u32, Result<(), String
         Err(e) => return failed(format!("the volumes: {e}")),
     };
     let flags = OFlags::PATH | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-    let blobs = match rustix::fs::open(CONTENT, flags, Mode::empty()) {
-        Ok(b) => b,
-        Err(e) => return failed(format!("the content: {e}")),
+    let open =
+        |dir: &str| rustix::fs::open(format!("{CONTENT}/{dir}").as_str(), flags, Mode::empty());
+    let (blobs, fetched) = match (open("blobs"), open("fetched")) {
+        (Ok(b), Ok(f)) => (b, f),
+        (Err(e), _) | (_, Err(e)) => return failed(format!("the content: {e}")),
     };
-    let content = Content { blobs, files: spec.files.clone() };
+    let content = Content { blobs, fetched, files: spec.files.clone() };
     let mut done = |i: usize| {
         let next = i.saturating_add(1);
         record(out, "progress", next.to_string().as_bytes())

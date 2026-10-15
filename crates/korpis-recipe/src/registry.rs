@@ -110,7 +110,13 @@ fn config(plain_http: Vec<String>) -> ClientConfig {
     } else {
         ClientProtocol::HttpsExcept(plain_http)
     };
-    ClientConfig { protocol, ..ClientConfig::default() }
+    ClientConfig {
+        protocol,
+        // A registry that stalls fails the call rather than holding its caller forever.
+        connect_timeout: Some(std::time::Duration::from_secs(30)),
+        read_timeout: Some(std::time::Duration::from_secs(120)),
+        ..ClientConfig::default()
+    }
 }
 
 fn reference(s: &str) -> Result<Reference, RegistryError> {

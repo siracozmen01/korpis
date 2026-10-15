@@ -81,7 +81,9 @@ scripts/dev-pg.sh up      a PostgreSQL for development and tests, in its own con
                           127.0.0.1:55432, isolated from anything else on the machine
 scripts/dev-registry.sh up
                           an OCI registry for recipes, in its own container on
-                          127.0.0.1:55000, plain HTTP on loopback only
+                          127.0.0.1:55000, plain HTTP on loopback only; the images the
+                          tests run are mirrored into it by digest the first time, so no
+                          test pulls from a public registry
 scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli, oras), into
                           .tools/; needed to change a .proto (then scripts/gen-proto.sh) or a
                           query, and to run the end-to-end script

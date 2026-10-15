@@ -57,7 +57,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         job_binary: None,
         install_binary: InstallBinary::Beside,
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
-        content: PathBuf::from("/var/lib/korpis-agent/content/blobs"),
+        content: PathBuf::from("/var/lib/korpis-agent/content"),
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
