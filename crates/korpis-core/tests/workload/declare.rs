@@ -64,6 +64,7 @@ fn paper() -> Recipe {
         config: ConfigSchema::default(),
         install: Vec::new(),
         templates: Vec::new(),
+        managed_files: Vec::new(),
         probes: HealthSpec {
             readiness: Some(Probe {
                 kind: ProbeKind::Tcp { endpoint: "game".into() },

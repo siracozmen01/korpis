@@ -45,6 +45,8 @@ pub struct Recipe {
     pub install: Vec<InstallStep>,
     /// The configuration files it renders.
     pub templates: Vec<TemplateSpec>,
+    /// The files the node renders outside its volumes (§5.2 of docs/09-recipes.md).
+    pub managed_files: Vec<super::managed::ManagedFile>,
     /// Readiness and liveness (Rule K-16).
     pub probes: HealthSpec,
     /// Log lines that mean something.
@@ -76,6 +78,7 @@ impl Recipe {
             workload_path(&format!("{at}.path"), &t.path)?;
             self.check_vars(&at, &t.vars)?;
         }
+        super::managed::check(&self.managed_files, &self.config)?;
         let endpoints: Vec<EndpointSpec> =
             self.preset.endpoints.iter().map(super::preset_endpoint).collect();
         self.probes
@@ -124,6 +127,7 @@ impl Recipe {
             })
             .collect();
         paths.extend(self.templates.iter().map(|t| t.from.as_str()));
+        paths.extend(self.managed_files.iter().map(|m| m.from.as_str()));
         for s in &self.install {
             match s {
                 InstallStep::Copy { from, .. } | InstallStep::Template { from, .. } => {

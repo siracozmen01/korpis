@@ -16,6 +16,7 @@ mod steps;
 use crate::artifact::Kind;
 use korpis_core::extension::ExtensionManifest;
 use korpis_core::recipe::behaviour::{Hook, Level, LifecycleHooks, LogEventRule};
+use korpis_core::recipe::managed::ManagedFile;
 use korpis_core::recipe::runtime::{
     Entry, Preset, PresetEndpoint, PresetResources, PresetVolume, RecipeRuntime, RuntimeTarget,
     TargetSource,
@@ -102,6 +103,12 @@ fn recipe(doc: dto::Document) -> Result<Recipe, RecipeError> {
             .iter()
             .enumerate()
             .map(|(i, t)| template(i, t))
+            .collect::<Result<_, _>>()?,
+        managed_files: doc
+            .managed_files
+            .iter()
+            .enumerate()
+            .map(|(i, m)| managed(i, m))
             .collect::<Result<_, _>>()?,
         probes: probes::probes(doc.probes.as_ref())?,
         logs: logs(doc.logs.as_ref())?,
@@ -222,6 +229,11 @@ fn preset(p: Option<&dto::Preset>) -> Result<Preset, RecipeError> {
 fn template(i: usize, t: &dto::Template) -> Result<TemplateSpec, RecipeError> {
     let format = scalars::template_format(&format!("templates[{i}].format"), &t.format)?;
     Ok(TemplateSpec { from: t.from.clone(), path: t.path.clone(), format, vars: t.vars.clone() })
+}
+
+fn managed(i: usize, m: &dto::ManagedFile) -> Result<ManagedFile, RecipeError> {
+    let format = scalars::template_format(&format!("managed_files[{i}].format"), &m.format)?;
+    Ok(ManagedFile { name: m.name.clone(), from: m.from.clone(), format, vars: m.vars.clone() })
 }
 
 fn logs(l: Option<&dto::Logs>) -> Result<Vec<LogEventRule>, RecipeError> {

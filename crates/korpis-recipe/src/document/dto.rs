@@ -24,6 +24,8 @@ pub struct Document {
     #[serde(default)]
     pub templates: Vec<Template>,
     #[serde(default)]
+    pub managed_files: Vec<ManagedFile>,
+    #[serde(default)]
     pub probes: Option<Probes>,
     #[serde(default)]
     pub logs: Option<Logs>,
@@ -186,6 +188,16 @@ pub struct Install {
 pub struct Template {
     pub from: String,
     pub path: String,
+    pub format: String,
+    #[serde(default)]
+    pub vars: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedFile {
+    pub name: String,
+    pub from: String,
     pub format: String,
     #[serde(default)]
     pub vars: Vec<String>,

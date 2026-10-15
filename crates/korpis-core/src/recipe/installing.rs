@@ -48,11 +48,21 @@ pub fn context(
     values: &ValueMap,
     vars: &[String],
 ) -> Result<Context, RecipeError> {
+    context_of(schema, values, vars, |f| !f.secret)
+}
+
+/// The context of `vars` from `values`, each a field `reachable` admits.
+pub(crate) fn context_of(
+    schema: &ConfigSchema,
+    values: &ValueMap,
+    vars: &[String],
+    reachable: impl Fn(&super::config::ConfigField) -> bool,
+) -> Result<Context, RecipeError> {
     let mut out = Context::new();
     for name in vars {
         let field = schema
             .field(name)
-            .filter(|f| !f.secret)
+            .filter(|f| reachable(f))
             .ok_or_else(|| RecipeError::new(name, "not a template variable"))?;
         let var = match values.get(name) {
             None | Some(Value::Null) => Var::Unset,

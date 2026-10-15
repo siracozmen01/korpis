@@ -605,6 +605,35 @@ arrives with the templating of Phase 1 (§4 of `20-roadmap.md`). Until then a no
 `Prepare` an intent in which such a field has a value, and says which field: starting the software
 without a value its recipe promised it would be a quieter failure than not starting it.
 
+**Where a managed file is, and what renders into it** (decided 2026-10-15, from the
+implementation). The table above said "a file rendered into a read-only mount outside the
+tenant's volumes" and nothing said which file, at which path, from what. A recipe declares its
+managed files beside its templates:
+
+```yaml
+managed_files:
+  - {name: limits.properties, from: managed/limits.properties, format: properties,
+     vars: [max_view, rcon_token]}
+```
+
+Each is rendered by the node from a template in the recipe, with the engine and the encoding of
+§6, and appears to the workload at `/run/korpis/config/<name>`, in the read-only directory the node
+already gives every workload for its identity socket (§6 of `02-architecture.md`). A name is a
+plain file name, unique in the recipe. A managed file's `vars` may name only `managed_file`
+fields, and a `managed_file` field must be named by at least one managed file: a value with
+nowhere to go is a setting the software never sees, which the loader refuses rather than accepts.
+A template in a volume never names a `managed_file` field, as before. Unlike a template in a
+volume, a managed file may render a secret: it is the node's file, read-only to the workload, and
+in no volume a tenant reads through Korpis.
+
+Why a fixed directory rather than a path the recipe chooses: the directory is already mounted
+read-only into every workload, so a managed file needs no mount of its own, no path the driver
+must check against the volumes, and no rule for a recipe naming `/etc/passwd`. What it costs:
+software that reads a setting only from a fixed path elsewhere cannot use a managed file unless
+it accepts the path as an argument, which the recipe's `entry` can give it, or its image links
+that path to the managed one. Software that reads a setting only from its own data directory
+remains outside this channel, as the paragraph after the table says.
+
 > Note, 2026-10-13, from the implementation (`crates/korpis-core/src/recipe/deliver.rs`). The
 > schema said `deliver_as` was "the argument template" and never said what a template was, and the
 > example above could not be loaded: `rcon_password` named no variable, and `jvm_flags`, an

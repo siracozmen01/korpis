@@ -83,7 +83,8 @@ fn what_this_driver_cannot_run_is_refused_with_the_reason() {
     assert_eq!(reason(&other, &recipe("")), Some(R::UNSATISFIABLE_REASON_MISSING_DRIVER));
     let garbage = reason(&intent(CONTAINER), b"not a recipe");
     assert_eq!(garbage, Some(R::UNSATISFIABLE_REASON_PREPARE_REJECTED));
-    let managed = "    - {key: motd, type: string, default: x, deliver: managed_file}\n";
+    let managed = "    - {key: motd, type: string, default: x, deliver: managed_file}\n\
+                   managed_files:\n  - {name: motd.txt, from: motd.txt, format: ini, vars: [motd]}\n";
     let mut with_motd = intent(CONTAINER);
     let motd = pb::Value { kind: Some(V::StringValue("x".into())), ..Default::default() };
     with_motd.body.get_or_insert_default().config.insert("motd".into(), motd);
