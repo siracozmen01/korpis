@@ -94,6 +94,8 @@ pub struct Wiring {
     pub runtimes: watch::Sender<BTreeMap<String, String>>,
     /// Where backup and restore jobs ask for their key and access.
     pub jobs: Arc<crate::jobs::JobAccesses>,
+    /// Where installs ask what their provider steps resolved to.
+    pub steps: Arc<crate::steps::StepAnswers>,
 }
 
 /// The reconciler.

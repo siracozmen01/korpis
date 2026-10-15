@@ -111,6 +111,21 @@ fn nothing_a_recipe_names_lies_beneath_the_node_s_own_directory() {
         let doc = PAPER.replacen(step, &format!("{step}\n{verb}"), 1);
         assert!(parse(doc.as_bytes()).is_err(), "{verb}");
     }
+    // Only the node builds an extract of what fetches downloaded, and only by digest.
+    let built = |from: String| InstallStep::Extract {
+        from,
+        to: "/data/server".into(),
+        strip: 0,
+        include: vec![],
+    };
+    let fetched =
+        built(format!("{}sha256/{}", korpis_core::recipe::install::FETCHED, "b".repeat(64)));
+    assert!(fetched.validate("a").is_err(), "no recipe names it");
+    assert!(fetched.validate_kept("a").is_ok(), "a plan or a node may");
+    let blob = built("/.korpis/content/blobs/sha256/ab".into());
+    assert!(blob.validate_kept("a").is_err(), "and nothing else beneath /.korpis");
+    let loose = built(format!("{}sha256/../../x", korpis_core::recipe::install::FETCHED));
+    assert!(loose.validate_kept("a").is_err());
     assert!(korpis_core::workload::spec::volumes::reserved("/.korpis/content"));
     assert!(!korpis_core::workload::spec::volumes::reserved("/.korpisx"));
 }

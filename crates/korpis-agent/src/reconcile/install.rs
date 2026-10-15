@@ -12,6 +12,8 @@
 //! failure, starts a job of the same name at the action that did not finish. A worker lost three
 //! times in a row fails the step rather than looping.
 
+mod resolve;
+
 use super::act::{Failure, volume_id};
 use super::progress::Install;
 use super::step::After;
@@ -91,6 +93,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     pub(super) async fn install_step(
         &mut self,
         a: &agent::Assignment,
+        plan: &str,
         s: &pb::Step,
         t: &mut Tracked,
     ) -> Result<Option<After>, Failure> {
@@ -102,8 +105,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let status = self.host.job_status(&job).await?;
         match status.state.as_known() {
             Some(helper::JobState::JOB_STATE_UNKNOWN) => {
+                let decoded = decoded(actions)?;
+                let Some(answers) = self.answers((plan, s), &at.digest, &decoded)? else {
+                    return Ok(None);
+                };
+                let expanded = resolve::expand(actions, &decoded, &answers)?;
                 self.keep_install(&a.workload, at.clone())?;
-                self.start_install(a, s, t, (&job, at.done)).await?;
+                self.start_install(a, t, (&job, at.done), expanded, &decoded).await?;
                 Ok(None)
             }
             Some(helper::JobState::JOB_STATE_RUNNING) => Ok(None),
@@ -113,6 +121,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 at.lost = 0;
                 self.keep_install(&a.workload, at.clone())?;
                 if result.ok {
+                    self.progress
+                        .drop_answers(&at.digest)
+                        .map_err(|e| failed(format!("answers: {e}")))?;
                     let mut after = After::new();
                     after.insert("actions".into(), text(&at.done.to_string()));
                     return Ok(Some(after));
@@ -140,21 +151,20 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         self.progress.installed(workload, at).map_err(|e| failed(format!("install progress: {e}")))
     }
 
-    /// Fetches what the actions read, then starts the job at action `from`.
+    /// Fetches what the actions read, then starts the job at action `from` of `expanded`, the
+    /// step's actions, `decoded`, with its provider steps resolved.
     async fn start_install(
         &mut self,
         a: &agent::Assignment,
-        s: &pb::Step,
         t: &mut Tracked,
         (job, from): (&str, u32),
+        expanded: resolve::Expanded,
+        decoded: &[InstallAction],
     ) -> Result<(), Failure> {
-        let wire = actions(s)?.to_vec();
-        let decoded = decoded(&wire)?;
-        for action in &decoded {
-            if let InstallStep::Fetch { url, hash, .. } = &action.step {
-                self.host.fetch_url(url, &hash.to_digest()).await?;
-            }
+        for (url, digest) in &expanded.fetches {
+            self.host.fetch_url(url, digest).await?;
         }
+        let wire = expanded.actions;
         let files = if decoded.iter().any(reads_files) {
             let body = a.target.as_option().and_then(|i| i.body.as_option());
             let recipe = body.and_then(|b| b.recipe.as_option());

@@ -162,6 +162,25 @@ fn provider_name(at: &str, p: &str) -> Result<(), RecipeError> {
 }
 
 impl InstallStep {
+    /// As [`validate`](Self::validate), for an action a plan keeps or a node builds, which may
+    /// also be an `extract` the node made of a step provider's archive: one reading what fetches
+    /// downloaded, by digest beneath [`FETCHED`], which no recipe names.
+    pub fn validate_kept(&self, at: &str) -> Result<(), RecipeError> {
+        let Self::Extract { from, to, strip, include } = self else { return self.validate(at) };
+        let Some(digest) = from.strip_prefix(FETCHED) else { return self.validate(at) };
+        if Hash::parse(&digest.replacen('/', ":", 1)).is_none() {
+            let why = "what fetches downloaded, by <alg>/<hex>";
+            return Err(RecipeError::new(&format!("{at}.from"), why));
+        }
+        let rest = Self::Extract {
+            from: "fetched".into(),
+            to: to.clone(),
+            strip: *strip,
+            include: include.clone(),
+        };
+        rest.validate(at)
+    }
+
     /// Checks the step's own arguments. Template variables are checked against the schema by
     /// the recipe, which holds both.
     pub fn validate(&self, at: &str) -> Result<(), RecipeError> {

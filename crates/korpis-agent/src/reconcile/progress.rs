@@ -6,8 +6,11 @@
 //! far its install has come, which is kept per install rather than per plan, so a new plan that
 //! runs the same install resumes it at the action that failed (§4 of docs/09-recipes.md).
 //! A step's completion is journalled before it is kept here, so a crash between the two runs the
-//! step again, which is a no-op that reports success, rather than losing the completion.
+//! step again, which is a no-op that reports success, rather than losing the completion. Beside
+//! it, one file per install with provider steps keeps what they resolved to.
 
+use buffa::Message as _;
+use korpis_proto::korpis::v1 as pb;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -139,28 +142,99 @@ impl Progress {
         self.save()
     }
 
-    /// Keeps how far `workload`'s install has come.
+    /// Keeps how far `workload`'s install has come; what another install of it kept goes.
     pub fn installed(&mut self, workload: &str, install: Install) -> std::io::Result<()> {
         let done = self.done.entry(workload.to_owned()).or_default();
         if done.install.as_ref() == Some(&install) {
             return Ok(());
         }
-        done.install = Some(install);
-        self.save()
+        let digest = install.digest.clone();
+        let replaced = done.install.replace(install).filter(|i| i.digest != digest);
+        self.save()?;
+        replaced.map_or(Ok(()), |old| self.drop_answers(&old.digest))
     }
 
     /// Forgets `workload`: it is retired, or no longer on this node.
     pub fn forget(&mut self, workload: &str) -> std::io::Result<()> {
-        if self.done.remove(workload).is_some() {
-            return self.save();
+        if let Some(done) = self.done.remove(workload) {
+            self.save()?;
+            return done.install.map_or(Ok(()), |i| self.drop_answers(&i.digest));
         }
         Ok(())
+    }
+
+    /// Where the answers to install `digest`'s provider steps are kept, beside the progress: a
+    /// worker resumed at an action runs the same actions it started with (§4 of
+    /// docs/09-recipes.md), whatever a channel holds by then.
+    fn answers_path(&self, digest: &str) -> PathBuf {
+        self.path.with_file_name(format!("install-{digest}.steps"))
+    }
+
+    /// The answers kept for install `digest`, in the order of its provider actions.
+    pub fn answers(&self, digest: &str) -> std::io::Result<Option<Vec<pb::StepResult>>> {
+        let bytes = match std::fs::read(self.answers_path(digest)) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let mut rest = bytes.as_slice();
+        let mut answers = Vec::new();
+        while let Some((len, tail)) = rest.split_first_chunk::<4>() {
+            let len = usize::try_from(u32::from_le_bytes(*len)).unwrap_or(usize::MAX);
+            let (one, tail) = tail.split_at_checked(len).ok_or_else(|| invalid("a cut answer"))?;
+            answers.push(pb::StepResult::decode_from_slice(one).map_err(|_| invalid("an answer"))?);
+            rest = tail;
+        }
+        if !rest.is_empty() {
+            return Err(invalid("a cut answer"));
+        }
+        Ok(Some(answers))
+    }
+
+    /// Keeps `answers` for install `digest`.
+    pub fn keep_answers(&self, digest: &str, answers: &[pb::StepResult]) -> std::io::Result<()> {
+        let mut bytes = Vec::new();
+        for a in answers {
+            let one = a.encode_to_vec();
+            let len = u32::try_from(one.len()).map_err(|_| invalid("an answer too large"))?;
+            bytes.extend_from_slice(&len.to_le_bytes());
+            bytes.extend_from_slice(&one);
+        }
+        crate::durable::replace(&self.answers_path(digest), &bytes)
+    }
+
+    /// Drops the answers kept for install `digest`: it ended, or another replaced it.
+    pub fn drop_answers(&self, digest: &str) -> std::io::Result<()> {
+        match std::fs::remove_file(self.answers_path(digest)) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn answers_are_kept_per_install_and_go_when_another_replaces_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut p = Progress::open(&dir.path().join("progress")).unwrap();
+        assert_eq!(p.answers("ab12").unwrap(), None);
+        let one =
+            pb::StepResult { resolved: "manifest 1".into(), pinned: true, ..Default::default() };
+        let two = pb::StepResult { resolved: "public at 2".into(), ..Default::default() };
+        p.keep_answers("ab12", &[one.clone(), two.clone()]).unwrap();
+        assert_eq!(p.answers("ab12").unwrap(), Some(vec![one, two]));
+        p.installed("wl_1", Install { digest: "ab12".into(), done: 1, lost: 0 }).unwrap();
+        p.installed("wl_1", Install { digest: "ab12".into(), done: 2, lost: 0 }).unwrap();
+        assert!(p.answers("ab12").unwrap().is_some(), "the same install keeps them");
+        p.installed("wl_1", Install { digest: "cd34".into(), done: 0, lost: 0 }).unwrap();
+        assert_eq!(p.answers("ab12").unwrap(), None, "another install of it replaces them");
+        p.keep_answers("cd34", &[]).unwrap();
+        p.forget("wl_1").unwrap();
+        assert_eq!(p.answers("cd34").unwrap(), None, "and a forgotten workload's go with it");
+    }
 
     #[test]
     fn progress_survives_a_restart_and_a_stranger_line_is_refused() {

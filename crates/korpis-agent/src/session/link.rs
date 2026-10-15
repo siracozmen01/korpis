@@ -81,4 +81,7 @@ pub struct Link {
     /// Backup and restore jobs' access requests, sent up this session and answered down it
     /// (§5.5 of docs/06-storage.md).
     pub jobs: Arc<JobAccesses>,
+    /// Installs' provider-step questions, sent up this session and answered down it (§4 of
+    /// docs/09-recipes.md).
+    pub steps: Arc<crate::steps::StepAnswers>,
 }

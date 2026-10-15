@@ -51,6 +51,7 @@ pub struct Session {
     events: broadcast::Sender<Event>,
     credentials: Arc<Credentials>,
     jobs: Arc<JobAccesses>,
+    steps: Arc<crate::steps::StepAnswers>,
 }
 
 impl std::fmt::Debug for Session {
@@ -121,6 +122,7 @@ impl Session {
         let (events, _) = broadcast::channel(64);
         let credentials = Credentials::new(outbound_tx.clone());
         let jobs = JobAccesses::new(outbound_tx.clone());
+        let steps = crate::steps::StepAnswers::new(outbound_tx.clone());
         let link = Link {
             held: held_rx,
             revoked: revoked_rx,
@@ -130,6 +132,7 @@ impl Session {
             events: events.clone(),
             credentials: credentials.clone(),
             jobs: jobs.clone(),
+            steps: steps.clone(),
         };
         let session = Self {
             identity,
@@ -144,6 +147,7 @@ impl Session {
             events,
             credentials,
             jobs,
+            steps,
         };
         (session, link)
     }
@@ -311,6 +315,10 @@ impl Session {
             }
             Some(Down::JobAccess(answer)) => {
                 self.jobs.answer(*answer);
+                Vec::new()
+            }
+            Some(Down::StepResolution(answer)) => {
+                self.steps.answer(*answer);
                 Vec::new()
             }
             Some(other) => {

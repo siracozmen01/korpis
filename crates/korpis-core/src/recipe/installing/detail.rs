@@ -175,7 +175,8 @@ fn step(verb: &str, k: &Kept<'_>) -> Result<InstallStep, String> {
     })
 }
 
-/// The action a detail value keeps, checked as the recipe's steps are.
+/// The action a detail value keeps, checked as the recipe's steps are, but for the `extract` a
+/// node makes of a step provider's archive ([`InstallStep::validate_kept`]).
 ///
 /// # Errors
 /// It is not one, or its step does not validate.
@@ -183,7 +184,7 @@ pub fn decode(v: &Value) -> Result<InstallAction, String> {
     let Value::Map(m) = v else { return Err("an action is a map".into()) };
     let k = Kept(m);
     let step = step(&k.text("verb")?, &k)?;
-    step.validate("action").map_err(|e| e.to_string())?;
+    step.validate_kept("action").map_err(|e| e.to_string())?;
     let context = match m.get("context") {
         None => None,
         Some(Value::Map(c)) => Some(

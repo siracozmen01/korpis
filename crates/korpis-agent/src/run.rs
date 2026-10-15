@@ -212,6 +212,7 @@ impl Agent {
             period: options.period,
             runtimes,
             jobs: link.jobs.clone(),
+            steps: link.steps.clone(),
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),

@@ -439,6 +439,16 @@ Calling out is the direction that carries risk, so the contract is strict:
   landing between the two is answered by the upgraded installation, once; the next resolution
   refuses.
 
+  On the node, an install with provider steps asks for each and starts its worker only once all
+  are answered; a refusal fails the install step with the reason. The answers are written beside
+  the reconciler's progress before the worker starts, so a worker lost and resumed at an action,
+  or an install retried after a failure, runs the same actions, whatever a channel holds by then;
+  they are dropped when the install succeeds or another install of the workload replaces it. Each
+  file artifact becomes a `fetch` to its path beneath `to` and a `chmod` to its mode, and each
+  archive is fetched into the node's content store and unpacked there by an `extract` that reads
+  only what fetches downloaded (§6 of `06-storage.md`). The node checks the answer again before
+  using it: the control plane checked it, and the node does not take that on trust.
+
 > Finding 23 of `23-walkthroughs.md`.
 
 The last point exists because the first three all describe a provider that is broken, and the
