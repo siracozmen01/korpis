@@ -1,4 +1,4 @@
-<!-- Translation of README.md at abbb392. Update this hash when you re-sync. -->
+<!-- Translation of README.md at ddf8913. Update this hash when you re-sync. -->
 
 **Türkçe** · [English](./README.md)
 
