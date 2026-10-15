@@ -22,6 +22,7 @@ pub mod live;
 mod meta;
 pub mod name;
 pub mod offload;
+mod pinned;
 pub mod repo;
 pub mod restore;
 pub mod s3;

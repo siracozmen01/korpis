@@ -17,7 +17,7 @@ mod validate;
 
 pub use backup::{
     AccessMode, MAX_ACCESS, MAX_KEYS, MIN_ACCESS, ObjectAccess, S3Access, StoredObject, is_beneath,
-    is_prefix,
+    is_located, is_prefix,
 };
 pub use breaker::{
     Admission, Breaker, FIRST_BACKOFF, FailurePolicy, MAX_BACKOFF, Measured, Sample, Trip,

@@ -9,7 +9,6 @@
 
 pub mod config;
 pub mod policy;
-pub mod sigv4;
 pub mod sts;
 pub mod target;
 

@@ -6,7 +6,7 @@
 //! control plane listens on loopback, which no workload's namespace reaches, so everything it
 //! does crosses the relay its node serves it (§9.5 of docs/08-identity.md).
 
-use crate::image::push_extension_image;
+use crate::image::{TEST_EXTENSION, push_image};
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, push};
 use crate::support::{ControlPlane, mutation};
@@ -43,7 +43,7 @@ extension:
   provides:
     - {{type: dns, name: test}}
 "#,
-        entry = crate::image::ENTRY,
+        entry = TEST_EXTENSION.entry(),
     )
 }
 
@@ -114,7 +114,7 @@ async fn an_extension_in_a_container_serves_and_consumes_through_its_node() {
     let node = Node::join(&cp, "ext-1").await;
     let agent = node.agent().await;
     let registry = crate::recipes::test_registry();
-    let image = push_extension_image(&registry).await;
+    let image = push_image(&registry, TEST_EXTENSION).await;
     let repo = push("test-extension", document(&image)).await;
     let workload = install(&cp, &repo, &project).await;
     node.guard(&workload);

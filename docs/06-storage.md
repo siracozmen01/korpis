@@ -602,9 +602,14 @@ repository key-encryption key (KEK)    held by the control plane, or by an exter
   `23-walkthroughs.md`): this said the credential writes new objects and lists, and cannot
   overwrite, which a backup that reads its parent could not work under, and which §5.6 already
   said it does not ensure.
-- **Where a target cannot issue such a credential** (SFTP, most self-hosted stores), the node
-  streams its encrypted chunks to a relay (§3.1 of `02-architecture.md`), which holds the target's
-  credential and writes them. The relay never holds a DEK, so it moves ciphertext it cannot read.
+- **Where a store cannot issue such a credential** (SFTP, a local disk, most self-hosted stores),
+  its provider serves the store itself: it holds the store's credential, issues the job a
+  credential of its own scoped the same way, and answers the job's requests, so the node writes to
+  the provider and the provider to the store (§5.6). The provider never holds a DEK, so it moves
+  ciphertext it cannot read. Corrected 2026-10-15 (question 7 of §9): this sent such a job through
+  a relay of §3.1 of `02-architecture.md` holding the store's credential, which put a standing
+  credential on a relay when backup targets became providers, since the credential is the
+  provider's.
 - **A compromised node therefore reaches the backups of the workloads placed on it**, whose live
   data it could already read, for the length of its jobs, and nothing in any other prefix. That is
   the blast radius §9 of `17-security.md` states, now true of backups as well.
@@ -744,13 +749,12 @@ temporary key, secret, and session token, and whether the bucket is addressed in
 host name, which only the provider knows of its store), because the S3 API is what every store in
 §5.3 either speaks or fronts, and the node then needs one client, not one per store. A store that
 can scope a temporary credential to a prefix (§5.5 names the mechanism for each) is a provider that
-issues one. A store that cannot answers `backup.unscoped`, and how a job then reaches it is open
-(question 7 below): §5.5 sends such a job through a relay holding the store's credential, and with
-the store behind a provider that credential is the provider's alone. The control plane checks every
-request before a provider sees it (a relative prefix ending in `/`, a deletion only beneath the
-prefix it prunes) and every answer before anything acts on it: access whose place in the bucket is
-not the prefix asked for, or a listing that strays outside it, is recorded as `provider.malformed`,
-counted by the breaker, and never reaches a node.
+issues one. A store that cannot is served by its provider itself, below, and a provider that can
+neither scope a store's access nor serve it answers `backup.unscoped`. The control plane checks
+every request before a provider sees it (a relative prefix ending in `/`, a deletion only beneath
+the prefix it prunes) and every answer before anything acts on it: access whose place in the bucket
+is not the prefix asked for, or a listing that strays outside it, is recorded as
+`provider.malformed`, counted by the breaker, and never reaches a node.
 
 **The secret is in the database for as long as it takes to be read.** A call's answer travels
 back through the call queue (§3.3 of `16-extensions.md`), which is a Postgres row, so the
@@ -775,6 +779,44 @@ fifteen minutes, which every caller already asked for at least, and `write` read
 also written into the store's policy, where `*`, `?`, and `${…}` are patterns and variables, so a
 repository's prefix is now letters, digits, `.`, `_`, and `-` between its slashes (Finding 42).
 
+**A target can serve its own store.** Added 2026-10-15, with question 7 of §9. A provider in front
+of a store that cannot scope access (a disk, SFTP, a self-hosted store without a token service)
+answers `GrantAccess` with a credential it minted for the job, scoped to the prefix and the mode
+and lasting as asked, and serves the S3 subset a job uses (getting, putting, and listing objects,
+never deleting) on an endpoint of its own workload, over TLS. It does not know the address it is
+reached at, so its answer names the endpoint, `served_by`, in place of an address, and the control
+plane, which checks every answer before anything acts on it, puts in the address. **What evaluates
+this, where, and with what information:** the control plane, at the grant, from the installation's
+workload's endpoints as placed: the endpoint's node, the port that node holds for it, and the
+node's advertised address, which is what every client of a published endpoint reaches (§3 of
+`07-networking.md`). A job on any node and the control plane's own reads (a prune's marking, a
+backup browsed, an offloaded stream read) reach the store there alike; an endpoint whose exposure
+holds no port is refused as `backup.unreachable`. Its certificate is its own, made when it starts,
+and the answer carries it: the client trusts that certificate and no other, whatever name or
+address it is reached by, which is sound because the answer reaches it only through the provider's
+authenticated stream and the control plane. What it costs: every byte of a job passes through one
+extension, so the target's throughput is the provider's; and the store is published on a port of
+its node, open to the network like any published endpoint, guarded by the signed requests alone, as
+an object store on the internet is.
+
+**The filesystem target.** `korpis-target-fs` is the first such provider: a disk of the operator's,
+the provider's own volume, as a backup target, for an installation of one machine that has no
+object store and for anyone who wants a copy on a disk they hold. Its job credentials live in its
+memory alone, so one that restarts has issued none, and a job that held one fails with the reason,
+the next being granted access anew, which is also why no access it issued can outlive what the
+control plane recorded (§5.5). It lists and deletes for a prune on its own volume. What it does not
+do: keep a copy anywhere but that volume, which fails with its disk; a repository on it is a backup
+against a workload's mistakes, not against the machine's loss, and the operator who wants the
+second keeps a repository on a target elsewhere too. Built 2026-10-15, as `korpis-target-fs`, on
+the SDK alone, which signs and verifies requests for it. Its configuration is its workload's
+environment, with a default for each variable: where its objects are (its volume, `/data`), where
+it listens (port 9000), the endpoint it is served on (`store`), and the name it provides as (`fs`).
+Its certificate is an ECDSA P-256 key's, made when it starts. Tested with the node's own client
+against it: a job's credential reaches its own prefix as its mode allows and nothing else, and a
+store presenting any other certificate, or a request signed with any other secret, is refused; and
+on a real node, the provider in a container there, a running workload is backed up twice, pruned,
+read by the control plane, and restored into a clone.
+
 **The S3 target, as built, 2026-10-14.** `korpis-target-s3` is the first-party provider for
 S3-compatible stores, built on the extension SDK alone, as a third party's would be (§1 of
 `22-first-party.md`). Its configuration, read from its workload's environment, is the store's
@@ -788,8 +830,9 @@ a whole backup, restore, and prune run through the control plane on such credent
 needs: its own credential must be allowed to assume the role and to do what the session policy
 allows, since the store grants what both allow; on AWS that is a role named by
 `KORPIS_S3_ROLE_ARN`, while MinIO assumes the caller's own identity. What it does not do: serve a
-store without a token service, such as Backblaze B2's or Google Cloud Storage's S3 interfaces, which
-answer no `AssumeRole`; those need their own mechanism (§5.5) or the relay of question 7.
+store without a token service, such as Backblaze B2's or Google Cloud Storage's S3 interfaces,
+which answer no `AssumeRole`; those need their own mechanism (§5.5) or a provider that serves the
+store itself, as the filesystem target does.
 
 > Added 2026-10-14, when the backup engine was built (`korpis-backup`, format
 > `korpis.backup.v1`).
@@ -843,12 +886,14 @@ lay out a sparse file's runs differently from the one it was read from.
 
 **The node's client.** A job reaches the store with that one S3 client: each request presigned for
 five minutes with the job's temporary credential, sent over HTTPS verified against the node's
-system roots (plain HTTP only to a store on the node itself), and sent again, a little later each
-time, only when it failed for a reason that passes (the network, a 5xx, a 429); a refusal is final.
-It writes and reads only names beneath the granted prefix, and believes a listing only as far as it
-stays there. A store whose certificate chains to a private authority needs that authority in the
-node's system roots; the access carries no certificate of its own. It is tested against MinIO run
-as a host process (`scripts/test-tools.sh`).
+system roots (plain HTTP only to a store on the node itself), or, for a store a provider serves
+itself, against the one certificate the access carries (since 2026-10-15), and sent again, a little
+later each time, only when it failed for a reason that passes (the network, a 5xx, a 429); a
+refusal is final. It writes and reads only names beneath the granted prefix, and believes a listing
+only as far as it stays there. A store whose certificate chains to a private authority needs that
+authority in the node's system roots; the access carries no certificate of its own unless its
+provider serves the store. It is tested against MinIO run as a host process
+(`scripts/test-tools.sh`).
 
 **What it does not do.** A socket is recorded and not restored, since nothing listens on it
 afterwards. A symbolic link's extended attributes are not recorded: Linux refuses `user.`
@@ -1094,6 +1139,9 @@ serves the rest. Korpis ships no object store and does not become one.
    data path and needs it reachable from the relay. The second keeps every credential where it is
    and costs throughput through one extension; it is the likelier answer, decided with the relay
    tier (§3.1 of `02-architecture.md`) and the backup flow it serves. → here
+   Resolved in §5.6, 2026-10-15: the second. The provider serves the store's S3 subset itself, with
+   credentials it mints per job, and the job's node reaches it at the endpoint the control plane
+   resolves; the relay is not involved, and §5.5's bullet is corrected in place.
 8. **Releasing a volume a live workload stopped naming.** Added 2026-10-14, when attaching was
    built (§7). The claim is kept until retirement because the control plane does not know when
    the runtime object that mounted the volume was rebuilt without it. The agent knows: it builds

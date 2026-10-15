@@ -24,6 +24,7 @@ pub(crate) fn repo_of(g: &JobGrant) -> Result<Repo<S3Store>, StoreError> {
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
+        certificate: s.certificate.clone(),
     };
     let store = S3Store::new(config)?;
     let key = g.clear_key().map_err(|e| StoreError::Refused(e.to_string()))?;

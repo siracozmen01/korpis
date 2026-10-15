@@ -63,6 +63,7 @@ mod resume;
 mod retire;
 mod revocation;
 mod sdk;
+mod served_target;
 mod session;
 mod sets;
 mod shortlist;

@@ -73,6 +73,8 @@ pub fn outcome_from_pb(o: &Outcome) -> Option<CallOutcome> {
                     secret_access_key: s.secret_access_key.clone(),
                     session_token: s.session_token.clone(),
                     path_style: s.path_style,
+                    served_by: s.served_by.clone(),
+                    certificate: s.certificate.clone(),
                 },
             })
         }
@@ -108,6 +110,8 @@ pub fn access_to_pb(a: &ObjectAccess) -> pb::ObjectAccess {
             secret_access_key: s.secret_access_key.clone(),
             session_token: s.session_token.clone(),
             path_style: s.path_style,
+            served_by: s.served_by.clone(),
+            certificate: s.certificate.clone(),
             ..Default::default()
         }))),
         ..Default::default()

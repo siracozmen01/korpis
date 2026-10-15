@@ -1,9 +1,15 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 
-//! AWS Signature Version 4, for a request whose headers carry the signature: what a token
-//! service takes, which the S3 client's presigned addresses do not cover. Only what that needs:
-//! the canonical request over the method, the path, the query, the signed headers in order, and
-//! the payload's hash; the string to sign over its scope; and the derived key.
+//! AWS Signature Version 4, for a provider that speaks to an S3-compatible store or serves as one
+//! (§5.6 of docs/06-storage.md). Signing covers a request whose headers carry the signature, what
+//! a token service takes. Verifying covers a request presigned in its query, what a node's job
+//! sends a store a provider serves itself: its canonical request rebuilt from the path and query
+//! as they arrived and the headers it signed, its age and lifetime checked, and its signature
+//! compared in constant time.
+
+mod presigned;
+
+pub use presigned::{Presigned, Refusal, Verified, verify_presigned};
 
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
@@ -49,7 +55,7 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 /// HMAC-SHA256 of `data` under `key`. HMAC takes a key of any length, so the empty answer for a
-/// refused key never happens; were it to, the signature would be refused by the service.
+/// refused key never happens; were it to, the signature would be refused.
 fn hmac(key: &[u8], data: &str) -> Vec<u8> {
     Hmac::<Sha256>::new_from_slice(key).map_or_else(
         |_| Vec::new(),
@@ -60,23 +66,43 @@ fn hmac(key: &[u8], data: &str) -> Vec<u8> {
     )
 }
 
+/// The canonical headers and the signed-header list of `headers`.
+fn header_lines(headers: &[(&str, &str)]) -> (String, String) {
+    let lines = headers.iter().fold(String::new(), |mut s, (n, v)| {
+        let _ = writeln!(s, "{n}:{}", v.trim());
+        s
+    });
+    let names: Vec<&str> = headers.iter().map(|(n, _)| *n).collect();
+    (lines, names.join(";"))
+}
+
 impl Signer<'_> {
     /// The canonical request of `r`.
     #[must_use]
     pub fn canonical(r: &Request<'_>) -> String {
-        let headers = r.headers.iter().fold(String::new(), |mut s, (n, v)| {
-            let _ = writeln!(s, "{n}:{}", v.trim());
-            s
-        });
-        let names: Vec<&str> = r.headers.iter().map(|(n, _)| *n).collect();
-        format!(
-            "{}\n{}\n{}\n{headers}\n{}\n{}",
-            r.method,
-            r.path,
-            r.query,
-            names.join(";"),
-            sha256(r.body)
-        )
+        let (headers, names) = header_lines(r.headers);
+        format!("{}\n{}\n{}\n{headers}\n{names}\n{}", r.method, r.path, r.query, sha256(r.body))
+    }
+
+    /// The scope of a signature made on `day` (`YYYYMMDD`).
+    fn scope(&self, day: &str) -> String {
+        format!("{day}/{}/{}/aws4_request", self.region, self.service)
+    }
+
+    /// The signature, in hex, of the canonical request `canonical` at `amz_date`
+    /// (`YYYYMMDDTHHMMSSZ`).
+    #[must_use]
+    pub fn signature(&self, canonical: &str, amz_date: &str) -> String {
+        let day = amz_date.get(..8).unwrap_or_default();
+        let to_sign = format!(
+            "AWS4-HMAC-SHA256\n{amz_date}\n{}\n{}",
+            self.scope(day),
+            sha256(canonical.as_bytes())
+        );
+        let key = [day, self.region, self.service, "aws4_request"]
+            .iter()
+            .fold(format!("AWS4{}", self.secret).into_bytes(), |k, part| hmac(&k, part));
+        hex(&hmac(&key, &to_sign))
     }
 
     /// The `Authorization` header for `r` at `amz_date` (`YYYYMMDDTHHMMSSZ`), which `r` signs as
@@ -84,20 +110,12 @@ impl Signer<'_> {
     #[must_use]
     pub fn authorization(&self, r: &Request<'_>, amz_date: &str) -> String {
         let day = amz_date.get(..8).unwrap_or_default();
-        let scope = format!("{day}/{}/{}/aws4_request", self.region, self.service);
-        let to_sign = format!(
-            "AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}",
-            sha256(Self::canonical(r).as_bytes())
-        );
-        let key = [day, self.region, self.service, "aws4_request"]
-            .iter()
-            .fold(format!("AWS4{}", self.secret).into_bytes(), |k, part| hmac(&k, part));
-        let names: Vec<&str> = r.headers.iter().map(|(n, _)| *n).collect();
+        let (_, names) = header_lines(r.headers);
         format!(
-            "AWS4-HMAC-SHA256 Credential={}/{scope}, SignedHeaders={}, Signature={}",
+            "AWS4-HMAC-SHA256 Credential={}/{}, SignedHeaders={names}, Signature={}",
             self.access_key_id,
-            names.join(";"),
-            hex(&hmac(&key, &to_sign))
+            self.scope(day),
+            self.signature(&Self::canonical(r), amz_date)
         )
     }
 }

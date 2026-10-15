@@ -80,6 +80,7 @@ fn repo_of(g: &agent::JobGrant) -> Result<(Repo<S3Store>, SystemTime), String> {
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
+        certificate: s.certificate.clone(),
     };
     let store = S3Store::new(config).map_err(failed)?;
     let until = g.expires_at.as_option().map_or(UNIX_EPOCH, |t| {

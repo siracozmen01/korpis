@@ -81,7 +81,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-helper` | its own hexagon | AGPL-3.0 | the privileged helper, synchronous, minimal |
 | `korpis-driver-oci` | driven adapter | AGPL-3.0 | the `oci` runtime driver over containerd |
 | `korpis-containerd` | third-party wire contract | Apache-2.0 | containerd's API, vendored and generated (§6 of `21-stack.md`) |
-| `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream |
+| `korpis-extension` | client SDK | Apache-2.0 | what an extension is written with: identity, events, provider stream, and the request signing a backup target that speaks to or serves an S3-compatible store needs |
 | `korpis-tls` | driving adapter, shared | AGPL-3.0 | trust bootstrap: the installation CA pinned by fingerprint, then trusted alone, for the agent and a relay |
 | `korpis-stream` | driven adapter, shared | AGPL-3.0 | streams on disk: records, segment files, redaction, rate limits, read by the agent; and `korpis-stream-writer`, the binary a containerd shim starts beside each workload to write its stream (`14-streams.md`) |
 | `korpis-backup` | driven adapter, shared | AGPL-3.0 | backups: content-defined chunks and directory trees sealed under a workload's data key, written to and read from an object store (§5 of `06-storage.md`); and `korpis-backup-job`, the binary the helper starts for each backup or restore, which confines itself before it reads anything (§5.5 there) |
@@ -89,6 +89,7 @@ live in the adapters, are tested there, and are the only code that knows both si
 | `korpis-confine` | driven adapter, node | AGPL-3.0 | what every job the helper starts does first: join its cgroup, keep only its work's capabilities, take no new privileges (§6 of `02-architecture.md`) |
 | `korpis-egress` | driven adapter, shared | AGPL-3.0 | where requests made on a tenant's behalf may go: the public internet and the networks the operator names, applied by a resolver for clients that take one and by a loopback proxy for the registry client, which does not (§3 of `17-security.md`) |
 | `korpis-target-s3` | first-party extension | AGPL-3.0 | the backup target provider for S3-compatible stores: each job's access a temporary credential from the store's token service, scoped to one prefix (§5.6 of `06-storage.md`) |
+| `korpis-target-fs` | first-party extension | AGPL-3.0 | the backup target provider for a disk: its own volume served as an S3 subset over TLS, with access it mints per job, scoped to one prefix (§5.6 of `06-storage.md`) |
 | `korpis-kms-openbao` | first-party extension | AGPL-3.0 | the key management provider for tenant custody: a tenant's data keys made and opened by its own OpenBao or Vault Transit engine, bound to their context (§5.5 of `06-storage.md`) |
 | `korpis-cli` | driving adapter | AGPL-3.0 | the `korpis` command |
 | `korpis-e2e` | tests only | AGPL-3.0 | a real node end to end: control plane, agent, driver, helper |
@@ -129,6 +130,7 @@ cannot disagree about what a valid recipe is.
 | `korpis-confine` | nothing of ours | every crate of ours, `connectrpc`, `tokio`, `sqlx` |
 | `korpis-egress` | nothing of ours | every other crate of ours, `connectrpc`, `sqlx` |
 | `korpis-target-s3` | `korpis-extension`, `korpis-proto` | every other crate of ours, `sqlx` |
+| `korpis-target-fs` | `korpis-extension`, `korpis-proto` | every other crate of ours, `sqlx` |
 | `korpis-kms-openbao` | `korpis-extension`, `korpis-proto` | every other crate of ours, `sqlx` |
 | `korpis-server` | all of the above | |
 

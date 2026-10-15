@@ -4,8 +4,11 @@
 //! target's own credential and never hands it out: for each job it issues access scoped to one
 //! workload's prefix (write: put, get, and list, never delete; read: get and list), never for
 //! longer than asked, and it lists and deletes for the control plane's prune. No object bytes
-//! pass through it. A target that cannot scope access fails `backup.unscoped`. Requires the
-//! `provider.backup_target` capability.
+//! pass through these calls. A store that cannot scope access may be served by its provider
+//! itself: the provider mints the access, verifies the requests made with it
+//! ([`crate::sigv4::verify_presigned`]), and answers with the endpoint it serves on
+//! (`served_by`) and its certificate in place of an address. A target that can do neither fails
+//! `backup.unscoped`. Requires the `provider.backup_target` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};

@@ -16,6 +16,7 @@ mod backups;
 mod console;
 mod dependencies;
 mod extension;
+mod fs_target;
 mod image;
 mod install;
 mod network;

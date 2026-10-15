@@ -59,6 +59,7 @@ fn store(access: &pb::ObjectAccess, key_prefix: &str) -> S3Store {
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
+        certificate: s.certificate.clone(),
     })
     .unwrap()
 }

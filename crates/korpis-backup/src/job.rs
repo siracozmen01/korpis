@@ -102,6 +102,7 @@ fn s3(s: &korpis_proto::korpis::v1::S3Access) -> S3Config {
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
+        certificate: s.certificate.clone(),
     }
 }
 

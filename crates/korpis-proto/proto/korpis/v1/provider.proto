@@ -282,9 +282,9 @@ enum AccessMode {
   ACCESS_MODE_READ = 2;
 }
 
-// Access the node uses directly. A target that cannot scope access to a prefix fails
-// backup.unscoped, and the node's data goes through a relay instead (§5.5 of
-// docs/06-storage.md).
+// Access the node uses directly. A store that cannot scope access to a prefix is served by its
+// provider itself, which mints the access (§5.6 of docs/06-storage.md); a provider that can do
+// neither fails backup.unscoped.
 message ObjectAccess {
   google.protobuf.Timestamp expires_at = 1;
   oneof protocol {
@@ -305,6 +305,13 @@ message S3Access {
   // (`bucket.endpoint/key`): what most self-hosted stores need, and what AWS no longer
   // recommends.
   bool path_style = 8;
+  // A store its provider serves itself (§5.6 of docs/06-storage.md): the name of the endpoint of
+  // the provider's own workload it serves on, in place of `endpoint`. The control plane puts the
+  // endpoint's published address in `endpoint`, and clears this, before anything uses the access.
+  string served_by = 9;
+  // The one certificate, DER, such a store presents: the client trusts it and no other, whatever
+  // name or address it reaches the store by. Empty for a store verified against system roots.
+  bytes certificate = 10;
 }
 
 message ListObjects {

@@ -2191,3 +2191,38 @@ evaluated each time `web`'s assignment is computed.
 
 No finding: the design was written against these steps, and the one place it had been silent, which
 half of resolution the node holds, was answered before it was built.
+
+## 35. A world backed up to a disk of its own, on one machine
+
+Written 2026-10-15, with the backup target for a disk (§5.6 of `06-storage.md`), which settled
+question 7 of §9 there. An operator with one machine and no object store keeps a game world's
+backups on a volume of a first-party extension, and restores from them.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The operator installs the disk target: an extension with a volume, an endpoint `store` exposed on a node port, and the backup target `fs` it provides | `16-extensions.md` §3; `06-storage.md` §5.6 |
+| 2 | Its endpoint is placed with a port of its node, and the node advertises its address | `07-networking.md` §3; `05-scheduling.md` §2.1 |
+| 3 | The operator makes a repository on the provider `fs`, keeping one backup | `06-storage.md` §5.3 |
+| 4 | A backup's job asks for access; the control plane asks the provider, which mints a credential for the workload's prefix in write mode and answers with the name `store` and its certificate in place of an address | `06-storage.md` §5.5, §5.6 |
+| 5 | The control plane judges the answer and puts in the endpoint's published address: the node's advertised address and the port it holds | `06-storage.md` §5.6; `07-networking.md` §3 |
+| 6 | The job connects there trusting that certificate alone, its requests presigned; the provider checks each signature, session token, prefix, and mode | `06-storage.md` §5.6 |
+| 7 | A prune reads the backups' records with read access the same way, from the control plane, and deletes through the provider's own calls | `06-storage.md` §5.3, §5.6 |
+| 8 | A clone restores the kept backup on the node with read access, the same way | `06-storage.md` §5.4, §5.6 |
+| 9 | The provider restarts during a job: its credentials and its certificate are new, so the job's requests are refused, its step fails, and the backup reads as failed with the reason; the next backup is granted access anew | `06-storage.md` §5.1, §5.6 |
+
+Each step was asked what evaluates it, where, and with what. Step 4 is the provider's: only it
+holds the store, so only it can scope access to it, and it cannot know the address it is reached
+at. Step 5 is the control plane's, which holds the provider's workload's endpoints as placed and
+every node's advertised address. Step 6 is the provider's again, from the credentials it minted,
+which it alone holds. Step 9 asks the same of a restart: no credential the provider issued survives
+it, so none outlives the access the control plane recorded, which is what a prune's sweep relies on
+(§5.5 of `06-storage.md`).
+
+No finding, but the trace changed the design before it was built. Its first draft answered step 5
+for jobs on the provider's own node alone, over plain HTTP to the provider's workload address,
+which a node's client would accept because the request never leaves the machine. Step 7 broke it:
+the control plane reads a repository too, for a prune and for browsing, and it is no node, so no
+address on a node's own link is one it reaches. The store is reached at its published address
+instead, by every reader, over TLS that trusts the provider's certificate alone.

@@ -18,6 +18,7 @@ pub mod identity;
 pub mod keys;
 pub mod keyseal;
 pub mod provider;
+pub mod sigv4;
 pub mod step;
 pub mod transport;
 

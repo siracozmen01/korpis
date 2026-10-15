@@ -1,54 +1,81 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The test extension (`korpis-extension`'s example), built static and pushed to the test
-//! registry as an OCI image of one file, so a real node runs it in a container.
+//! Programs of the workspace, built static and pushed to the test registry as OCI images of one
+//! file each, so a real node runs them in containers: the test extension (`korpis-extension`'s
+//! example) and the first-party extensions.
 
 use sha2::{Digest as _, Sha256};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
+use std::sync::{Mutex, PoisonError};
 
-/// Where the extension is in its image.
-pub const ENTRY: &str = "/extension";
+/// A program of the workspace.
+#[derive(Debug, Clone, Copy)]
+pub struct Program {
+    /// Its package.
+    pub package: &'static str,
+    /// Whether it is an example rather than a binary.
+    pub example: bool,
+    /// Its name, which is also its path in its image, at the root.
+    pub name: &'static str,
+}
+
+/// The test extension.
+pub const TEST_EXTENSION: Program =
+    Program { package: "korpis-extension", example: true, name: "test-extension" };
+/// The backup target for a disk.
+pub const FS_TARGET: Program =
+    Program { package: "korpis-target-fs", example: false, name: "korpis-target-fs" };
+
+impl Program {
+    /// Where it is in its image.
+    pub fn entry(self) -> String {
+        format!("/{}", self.name)
+    }
+}
 
 fn digest(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
-/// Builds the test extension once, linked static so the image needs nothing beside it, into a
-/// target directory of its own, since its flags are not the workspace's.
-fn build() -> PathBuf {
-    static BUILT: OnceLock<PathBuf> = OnceLock::new();
-    BUILT
-        .get_or_init(|| {
-            let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let triple = format!("{}-unknown-linux-gnu", std::env::consts::ARCH);
-            let target = root.join("target/static");
-            let flags =
-                ["-C", "target-feature=+crt-static", "-C", "debuginfo=0", "-C", "strip=symbols"];
-            let built = Command::new(env!("CARGO"))
-                .current_dir(&root)
-                .args(["build", "-q", "--locked", "-p", "korpis-extension", "--example"])
-                .args(["test-extension", "--target", &triple, "--target-dir"])
-                .arg(&target)
-                .env_remove("RUSTFLAGS")
-                .env("CARGO_ENCODED_RUSTFLAGS", flags.join("\x1f"))
-                .status()
-                .unwrap();
-            assert!(built.success(), "the test extension did not build");
-            target.join(triple).join("debug/examples/test-extension")
-        })
-        .clone()
+/// Builds `p` once per run, linked static so its image needs nothing beside it, into a target
+/// directory of its own, since its flags are not the workspace's.
+fn build(p: Program) -> PathBuf {
+    static BUILT: Mutex<Option<HashMap<&'static str, PathBuf>>> = Mutex::new(None);
+    let mut built = BUILT.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some(path) = built.as_ref().and_then(|b| b.get(p.name)) {
+        return path.clone();
+    }
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let triple = format!("{}-unknown-linux-gnu", std::env::consts::ARCH);
+    let target = root.join("target/static");
+    let flags = ["-C", "target-feature=+crt-static", "-C", "debuginfo=0", "-C", "strip=symbols"];
+    let kind = if p.example { "--example" } else { "--bin" };
+    let status = Command::new(env!("CARGO"))
+        .current_dir(&root)
+        .args(["build", "-q", "--locked", "-p", p.package, kind, p.name, "--target", &triple])
+        .arg("--target-dir")
+        .arg(&target)
+        .env_remove("RUSTFLAGS")
+        .env("CARGO_ENCODED_RUSTFLAGS", flags.join("\x1f"))
+        .status()
+        .unwrap();
+    assert!(status.success(), "{} did not build", p.name);
+    let dir = target.join(triple).join("debug");
+    let path = if p.example { dir.join("examples").join(p.name) } else { dir.join(p.name) };
+    built.get_or_insert_default().insert(p.name, path.clone());
+    path
 }
 
-/// A tar of `binary` alone, at [`ENTRY`].
-fn layer(binary: &[u8]) -> Vec<u8> {
+/// A tar of `binary` alone, at `entry`.
+fn layer(binary: &[u8], entry: &str) -> Vec<u8> {
     let mut tar = tar::Builder::new(Vec::new());
     let mut header = tar::Header::new_gnu();
     header.set_size(u64::try_from(binary.len()).unwrap());
     header.set_mode(0o755);
     header.set_cksum();
-    tar.append_data(&mut header, ENTRY.trim_start_matches('/'), binary).unwrap();
+    tar.append_data(&mut header, entry.trim_start_matches('/'), binary).unwrap();
     tar.into_inner().unwrap()
 }
 
@@ -66,18 +93,18 @@ async fn upload(http: &reqwest::Client, (registry, repo): (&str, &str), blob: &[
     assert!(done.status().is_success(), "{}", done.status());
 }
 
-/// Pushes the test extension's image to a repository of its own; its reference by digest.
-pub async fn push_extension_image(registry: &str) -> String {
-    let binary = tokio::task::spawn_blocking(build).await.unwrap();
-    let layer = layer(&std::fs::read(binary).unwrap());
+/// Pushes `p`'s image to a repository of its own; its reference by digest.
+pub async fn push_image(registry: &str, p: Program) -> String {
+    let binary = tokio::task::spawn_blocking(move || build(p)).await.unwrap();
+    let layer = layer(&std::fs::read(binary).unwrap(), &p.entry());
     let arch = if std::env::consts::ARCH == "aarch64" { "arm64" } else { "amd64" };
     let config = serde_json::json!({
         "architecture": arch, "os": "linux",
-        "config": {"Entrypoint": [ENTRY]},
+        "config": {"Entrypoint": [p.entry()]},
         "rootfs": {"type": "layers", "diff_ids": [digest(&layer)]},
     });
     let config = serde_json::to_vec(&config).unwrap();
-    let repo = format!("test/extension-image-{}", uuid::Uuid::now_v7().simple());
+    let repo = format!("test/{}-{}", p.name, uuid::Uuid::now_v7().simple());
     let http = reqwest::Client::new();
     upload(&http, (registry, &repo), &config).await;
     upload(&http, (registry, &repo), &layer).await;

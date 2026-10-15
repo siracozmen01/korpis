@@ -15,8 +15,6 @@ workspace = true
 # SDK and the wire contract, and nothing else of ours. scripts/check-layers.sh holds it to that.
 [dependencies]
 buffa-types = { version = "=0.9.2" }
-# Signing the token service's request (SigV4), which the S3 client below does not cover.
-hmac = "0.12"
 instant-xml = "0.7"
 jiff = "0.2"
 korpis-extension = { path = "../korpis-extension" }
@@ -25,7 +23,6 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls-no-p
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rusty-s3 = "0.10"
 serde_json = "1"
-sha2 = "0.10"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = "0.1"

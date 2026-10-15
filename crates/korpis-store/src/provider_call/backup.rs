@@ -65,6 +65,19 @@ pub(crate) fn request_from(v: &Value) -> Option<CallRequest> {
     Some(CallRequest::DeleteObjects { keys })
 }
 
+fn hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    })
+}
+
+fn unhex(s: &str) -> Option<Vec<u8>> {
+    let digits = s.as_bytes().chunks(2);
+    digits.map(|d| u8::from_str_radix(std::str::from_utf8(d).ok()?, 16).ok()).collect()
+}
+
 /// A backup target outcome to store, if `o` is one.
 pub(crate) fn outcome_to(o: &CallOutcome) -> Option<Value> {
     Some(match o {
@@ -74,7 +87,8 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Option<Value> {
                 "endpoint": s.endpoint, "region": s.region, "bucket": s.bucket,
                 "key_prefix": s.key_prefix, "access_key_id": s.access_key_id,
                 "secret_access_key": s.secret_access_key, "session_token": s.session_token,
-                "path_style": s.path_style,
+                "path_style": s.path_style, "served_by": s.served_by,
+                "certificate": hex(&s.certificate),
             } } })
         }
         CallOutcome::Objects { objects, more } => {
@@ -104,6 +118,8 @@ pub(crate) fn outcome_from(v: &Value) -> Option<CallOutcome> {
             secret_access_key: secret("secret_access_key"),
             session_token: secret("session_token"),
             path_style: s.get("path_style").and_then(Value::as_bool).unwrap_or(false),
+            served_by: text(s, "served_by").unwrap_or_default(),
+            certificate: text(s, "certificate").and_then(|h| unhex(&h)).unwrap_or_default(),
         };
         return Some(CallOutcome::Access(ObjectAccess { expires_at: at(a, "expires_at")?, s3 }));
     }

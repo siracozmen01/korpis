@@ -5,8 +5,8 @@
 //! as long as asked. AWS needs the role to assume; MinIO assumes the caller's own identity and
 //! ignores it.
 
-use crate::sigv4::{Request, Signer};
 use instant_xml::FromXml;
+use korpis_extension::sigv4::{Request, Signer};
 use std::time::{Duration, SystemTime};
 
 const STS_NS: &str = "https://sts.amazonaws.com/doc/2011-06-15/";

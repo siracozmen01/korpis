@@ -10,9 +10,10 @@ use crate::error::AppError;
 use crate::extension::{CallTarget, Called};
 use crate::ports::{Clock, ProviderCallWrite, RecipeSource, Store, Tx};
 use korpis_core::extension::{
-    AccessMode, CallOutcome, CallRequest, MAX_ACCESS, MAX_KEYS, MIN_ACCESS, ProviderType,
-    StoredObject, is_beneath, is_prefix,
+    AccessMode, CallFailure, CallOutcome, CallRequest, MAX_ACCESS, MAX_KEYS, MIN_ACCESS,
+    ProviderType, StoredObject, is_beneath, is_prefix,
 };
+use std::net::SocketAddr;
 use std::time::Duration;
 
 /// How long a call's own deadline is, for backup target calls: they are control-path calls.
@@ -65,7 +66,44 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         tx.redact_call(called.id).await?;
         tx.commit().await?;
+        self.located(target, called).await
+    }
+
+    /// `called` with the published address of the endpoint a store's provider serves it on put
+    /// in its access, where the provider serves the store itself (§5.6 of docs/06-storage.md):
+    /// every reader, a job on any node or the control plane, reaches it there. Without one it
+    /// fails `backup.unreachable`.
+    async fn located(&self, target: &CallTarget, mut called: Called) -> Result<Called, AppError> {
+        let CallOutcome::Access(a) = &mut called.outcome else { return Ok(called) };
+        if a.s3.served_by.is_empty() {
+            return Ok(called);
+        }
+        if let Some(at) = self.published(target, &a.s3.served_by).await? {
+            a.s3.endpoint = format!("https://{at}");
+            a.s3.served_by.clear();
+        } else {
+            let why = "the endpoint the target serves on holds no port of its node";
+            called.outcome = CallOutcome::Failed(CallFailure::of("backup.unreachable", why, true));
+        }
         Ok(called)
+    }
+
+    /// Where the provider of `target` publishes its endpoint `name`: its node's advertised
+    /// address and the port the node holds for it.
+    async fn published(
+        &self,
+        target: &CallTarget,
+        name: &str,
+    ) -> Result<Option<SocketAddr>, AppError> {
+        let serving = self.store.registrations(target.organization, target.kind, &target.name);
+        let Some(r) = serving.await?.into_iter().next() else { return Ok(None) };
+        let Some(x) = self.store.extension(r.extension).await? else { return Ok(None) };
+        let endpoints = self.store.endpoints(x.workload).await?;
+        let Some(e) = endpoints.into_iter().find(|e| e.name == name) else { return Ok(None) };
+        let Some(port) = e.port else { return Ok(None) };
+        let node = self.store.node(e.node).await?;
+        let address = node.and_then(|n| n.advertised).and_then(|a| a.addresses.first().copied());
+        Ok(address.map(|ip| SocketAddr::new(ip, port)))
     }
 
     /// The keys under `prefix` after `after`, at most `limit`, for pruning. Internal.

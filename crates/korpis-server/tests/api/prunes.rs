@@ -59,6 +59,7 @@ pub(crate) fn repo_of(g: &korpis_proto::korpis::agent::v1::JobGrant) -> Repo<S3S
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
+        certificate: s.certificate.clone(),
     };
     let key: [u8; 32] = g.data_key.as_slice().try_into().unwrap();
     Repo::new(Arc::new(S3Store::new(config).unwrap()), Arc::new(Keys::derive(&key)))

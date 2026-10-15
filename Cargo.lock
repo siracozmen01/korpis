@@ -2382,16 +2382,20 @@ version = "0.0.0"
 dependencies = [
  "connectrpc",
  "getrandom 0.4.3",
+ "hmac 0.12.1",
  "hpke",
  "http",
  "hyper-util",
  "korpis-proto",
  "rustls",
+ "rusty-s3",
+ "sha2 0.10.9",
  "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
  "tower",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -2579,11 +2583,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-target-fs"
+version = "0.0.0"
+dependencies = [
+ "buffa-types",
+ "bytes",
+ "getrandom 0.4.3",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "korpis-backup",
+ "korpis-extension",
+ "korpis-proto",
+ "rcgen",
+ "rustls",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "korpis-target-s3"
 version = "0.0.0"
 dependencies = [
  "buffa-types",
- "hmac 0.12.1",
  "instant-xml",
  "jiff",
  "korpis-backup",
@@ -2593,7 +2619,6 @@ dependencies = [
  "rustls",
  "rusty-s3",
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",

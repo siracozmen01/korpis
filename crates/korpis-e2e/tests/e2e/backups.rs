@@ -94,11 +94,11 @@ async fn serve(socket: PathBuf, minio: &Minio) {
     registered.wait_for(Option::is_some).await.unwrap();
 }
 
-/// A repository through the S3 target keeping one backup of each volume; its identifier.
-async fn nightly(operator: &korpis_cli::connect::Connection) -> String {
+/// A repository through the target `provider` keeping one backup of each volume; its identifier.
+pub async fn nightly(operator: &korpis_cli::connect::Connection, provider: &str) -> String {
     let made = RepositoryAction::Create {
         name: "nightly".into(),
-        provider: "s3".into(),
+        provider: provider.into(),
         prefix: "korpis/".into(),
         organization: None,
         project: None,
@@ -116,7 +116,7 @@ async fn nightly(operator: &korpis_cli::connect::Connection) -> String {
 }
 
 /// A uuid column's value as the API names it.
-fn wire(kind: IdKind, id: uuid::Uuid) -> String {
+pub fn wire(kind: IdKind, id: uuid::Uuid) -> String {
     korpis_wire::wire_id(kind, id)
 }
 
@@ -139,7 +139,7 @@ async fn a_running_world_is_backed_up_read_cloned_and_pruned() {
     serve(socket, &minio).await;
 
     let operator = cp.cli(None);
-    let repo = nightly(&operator).await;
+    let repo = nightly(&operator, "s3").await;
 
     let w = cp.declare(&project, "world", &push_sleeper().await).await;
     node.guard(&w);

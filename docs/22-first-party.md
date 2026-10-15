@@ -41,15 +41,19 @@ The generality sells itself later, to people who arrived for something else.
 | Discord client, and the chat-adapter interface | extension | actions + events + streams |
 
 **As built, 2026-10-14.** The first of the set is the backup target for S3-compatible stores,
-`korpis-target-s3` (§5.6 of `06-storage.md`). It depends on the extension SDK and the wire
-contract alone, and `scripts/check-layers.sh` fails the build if it ever links anything else of
-ours, which is what keeps "built through the same mechanism a third party would use" true of it
-rather than merely intended. The second is `korpis-kms-openbao`, the key management provider for
-tenant custody (§5.5 of `06-storage.md`): a tenant's data keys made by its own OpenBao or Vault
-Transit engine (`datakey/plaintext`) and opened by it (`decrypt`), each with its
-`<repository>/<workload>` context, refusing a key that is not `derived`, since such a key ignores
-the context and a credential taken from the provider would open every workload's keys. It is held
-to the same rule, and tested against a real OpenBao run as a host process.
+`korpis-target-s3` (§5.6 of `06-storage.md`). It depends on the extension SDK and the wire contract
+alone, and `scripts/check-layers.sh` fails the build if it ever links anything else of ours, which
+is what keeps "built through the same mechanism a third party would use" true of it rather than
+merely intended. The second is `korpis-kms-openbao`, the key management provider for tenant custody
+(§5.5 of `06-storage.md`): a tenant's data keys made by its own OpenBao or Vault Transit engine
+(`datakey/plaintext`) and opened by it (`decrypt`), each with its `<repository>/<workload>`
+context, refusing a key that is not `derived`, since such a key ignores the context and a
+credential taken from the provider would open every workload's keys. It is held to the same rule,
+and tested against a real OpenBao run as a host process. The third, added 2026-10-15, is the backup
+target for a disk, `korpis-target-fs` (§5.6 of `06-storage.md`): its own volume served as the S3
+subset a job uses, over TLS with a certificate every reader pins, and with access it mints per job,
+scoped as the S3 target's is; it is held to the same rule, and is the first of the set run in a
+container on a real node in its tests.
 
 Four of these are worth explaining, because they are the ones our architecture makes possible and
 the incumbents structurally cannot match.

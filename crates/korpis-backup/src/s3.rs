@@ -35,6 +35,9 @@ pub struct S3Config {
     pub session_token: String,
     /// Whether the bucket is addressed in the path rather than the host name.
     pub path_style: bool,
+    /// The one certificate, DER, a store its provider serves presents; empty to verify the
+    /// store against the system roots (§5.6 of docs/06-storage.md).
+    pub certificate: Vec<u8>,
 }
 
 impl std::fmt::Debug for S3Config {
@@ -82,11 +85,17 @@ impl S3Store {
             )
         };
         let _ = rustls::crypto::ring::default_provider().install_default();
-        let http = reqwest::Client::builder()
+        let mut http = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(300))
-            .build()
-            .map_err(|e| StoreError::Failed(e.to_string()))?;
+            .timeout(Duration::from_secs(300));
+        if !config.certificate.is_empty() {
+            if bucket.base_url().scheme() != "https" {
+                return Err(refused("a store with its own certificate is reached over HTTPS"));
+            }
+            let tls = crate::pinned::trusting(config.certificate).map_err(refused)?;
+            http = http.tls_backend_preconfigured(tls);
+        }
+        let http = http.build().map_err(|e| StoreError::Failed(e.to_string()))?;
         Ok(Self { bucket, credentials, prefix: config.key_prefix, http })
     }
 

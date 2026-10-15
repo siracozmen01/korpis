@@ -109,6 +109,7 @@ impl Minio {
             secret_access_key: SECRET.into(),
             session_token: String::new(),
             path_style: true,
+            certificate: Vec::new(),
         }
     }
 }

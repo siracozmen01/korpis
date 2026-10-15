@@ -46,6 +46,12 @@ pub struct S3Access {
     pub session_token: String,
     /// Whether the bucket is addressed in the path rather than the host name.
     pub path_style: bool,
+    /// For a store its provider serves itself, the provider's endpoint it serves on, in place of
+    /// an address, until the control plane puts the endpoint's address in `endpoint` (§5.6 of
+    /// docs/06-storage.md).
+    pub served_by: String,
+    /// The one certificate, DER, such a store presents; empty for system roots.
+    pub certificate: Vec<u8>,
 }
 
 impl std::fmt::Debug for S3Access {
@@ -103,6 +109,26 @@ pub fn is_prefix(prefix: &str) -> bool {
         })
 }
 
+/// The largest certificate an access carries.
+pub const MAX_CERTIFICATE: usize = 16 << 10;
+
+/// Whether `a` says where its store is in exactly one way: an address, or, for a store its
+/// provider serves itself, the name of the provider's endpoint, which an endpoint name is
+/// (lower-case letters, digits, and `-`, at most 63); and carries a certificate only it may.
+#[must_use]
+pub fn is_located(a: &S3Access) -> bool {
+    let name = |n: &str| {
+        (1..=63).contains(&n.len())
+            && n.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    };
+    let located = if a.served_by.is_empty() {
+        !a.endpoint.is_empty()
+    } else {
+        a.endpoint.is_empty() && name(&a.served_by)
+    };
+    located && a.certificate.len() <= MAX_CERTIFICATE
+}
+
 /// Whether `key` lies beneath `prefix`, with something after it.
 #[must_use]
 pub fn is_beneath(key: &str, prefix: &str) -> bool {
@@ -152,6 +178,8 @@ mod tests {
                 secret_access_key: "secret".into(),
                 session_token: "token".into(),
                 path_style: false,
+                served_by: String::new(),
+                certificate: Vec::new(),
             },
         };
         let r = a.redacted();

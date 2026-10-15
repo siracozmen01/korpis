@@ -149,7 +149,7 @@ impl CallRequest {
             | (Self::ApplyRecords { .. }, CallOutcome::RecordsApplied { .. }) => true,
             (Self::RunStep { .. }, CallOutcome::StepResult(r)) => r.problem().is_none(),
             (Self::GrantAccess { prefix, .. }, CallOutcome::Access(a)) => {
-                a.s3.key_prefix.ends_with(prefix.as_str())
+                a.s3.key_prefix.ends_with(prefix.as_str()) && super::is_located(&a.s3)
             }
             (Self::ListObjects { prefix, limit, .. }, CallOutcome::Objects { objects, .. }) => {
                 objects.len() <= usize::try_from(*limit).unwrap_or(usize::MAX)
