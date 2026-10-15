@@ -169,8 +169,8 @@ Then: the relay tier (§3.1 of `02-architecture.md`), which every console and fi
 through. The web client. Durable streams and console. Volumes with kernel-enforced byte and inode
 quota, snapshots, deletion, and content-defined-chunking backup with per-workload keys. The
 shareable link of §6.1 of `08-identity.md`, the first test of Bet 1. The install DSL with its
-built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon and drain; the
-shortlist `FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality
+built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon; the shortlist
+`FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality
 and churn signals (§2.1 and §2.2 of `05-scheduling.md`). Networking: `node_port` and `node_bound`
 exposure, each node's reachability measured by the relay's probe (§9 of `07-networking.md`), and
 the default egress policy of §6 there. Rate limits, with the web client's login and link redemption
@@ -233,7 +233,17 @@ resumable and reversible (K-4). Replicated storage classes. Edges in failover gr
 `stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
 `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
 Devices, including GPU. `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads
-for the difference to be measured.
+for the difference to be measured. Drain and evacuate, as `Operation`s with their policy (§3 of
+`05-scheduling.md`), since draining a node is migrating its workloads off it.
+
+> Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
+> "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
+> node, which this phase builds: a drain in Phase 1 could move nothing, so it would have been a
+> cordon under another name, shown as `draining` while nothing drained. Phase 1 builds cordon,
+> which keeps new placements off a node; the code refuses to set `draining` by hand, because a
+> drain is an operation, not an operator's flag. On one machine, the installation Phase 1 is
+> for, there is no other node to drain to. What it costs: until this phase, emptying a node for
+> maintenance is cordoning it and stopping or deleting what runs there by hand.
 
 **Done when:** a running workload with a 40 GB volume moves between nodes, keeps its public
 address, and its meter neither resets nor double-counts across the cutover.

@@ -236,7 +236,8 @@ installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korp
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
-will land.
+will land. Drain arrives with migration, in Phase 3 (§4 of `20-roadmap.md`); until then,
+emptying a node is cordoning it and stopping or deleting what runs there.
 
 **Enrolling a relay** that runs as its own process (§3.1 of `02-architecture.md`) is the same
 procedure with three differences. The token is created over the root organization only
