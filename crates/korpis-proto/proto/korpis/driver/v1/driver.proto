@@ -97,6 +97,11 @@ message PreparedSpec {
   // Where the workload's console stream is written, and how; absent when its console mode is
   // none (§4 of docs/14-streams.md).
   StreamCapture stream = 16;
+  // The directory holding the namespaces the agent had the helper make for the workload, which
+  // the runtime joins rather than making its own (§4.1 of docs/07-networking.md): `net`, its
+  // network, and `user`, the user namespace that owns it, mapped to the uid range above. Empty
+  // for a workload with no network beyond loopback, as on a node that offers none.
+  string namespaces = 17;
 }
 
 // The console stream of a workload: its limits and the secret values it redacts, from Prepare;

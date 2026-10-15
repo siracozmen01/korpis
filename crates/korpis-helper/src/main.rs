@@ -6,6 +6,7 @@
 use korpis_helper::helper::Helper;
 use korpis_helper::ids::Ledger;
 use korpis_helper::job::JobConfig;
+use korpis_helper::network::Network;
 use korpis_helper::serve::{bound, inherited, serve};
 use korpis_helper::storage::Class;
 use std::collections::BTreeSet;
@@ -17,7 +18,7 @@ use std::time::Duration;
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
                      [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
-                     [--content PATH]";
+                     [--content PATH] [--netns-root PATH|none]";
 
 /// Where the install job binary is, if install jobs are run.
 enum InstallBinary {
@@ -44,6 +45,8 @@ struct Args {
     install_binary: InstallBinary,
     job_cgroups: Option<PathBuf>,
     content: PathBuf,
+    /// Where workloads' network namespaces are bound; none gives workloads no network.
+    netns_root: Option<PathBuf>,
 }
 
 fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
@@ -58,6 +61,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         install_binary: InstallBinary::Beside,
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
         content: PathBuf::from("/var/lib/korpis-agent/content"),
+        netns_root: Some(PathBuf::from("/run/korpis/netns")),
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
@@ -80,6 +84,10 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
                 a.job_cgroups = (v != "none").then(|| PathBuf::from(v));
             }
             "--content" => a.content = PathBuf::from(value()?),
+            "--netns-root" => {
+                let v = value()?;
+                a.netns_root = (v != "none").then(|| PathBuf::from(v));
+            }
             "--idle" => {
                 a.idle = Some(Duration::from_secs(value()?.parse().map_err(|e| format!("{e}"))?));
             }
@@ -126,6 +134,9 @@ fn run(a: Args) -> Result<(), String> {
         content: Some(a.content),
     };
     let mut helper = Helper::new(vec![class], ledger).with_jobs(jobs);
+    if let Some(root) = a.netns_root {
+        helper = helper.with_network(Network::new(root));
+    }
     tracing::info!(?allowed, "serving");
     serve(&listener, &allowed, &mut helper, a.idle).map_err(|e| e.to_string())
 }

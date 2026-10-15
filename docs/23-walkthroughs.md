@@ -38,7 +38,8 @@ which no trace found: an automated security review of the code flagged it, and t
 had named its class all along. §29, written when the install worker was given its content, found
 49, and §30, written when step providers were wired to installs, found 50. §31, written for the
 end-to-end install test, found 51, §32, written when a refusal after the bind was tested on real
-agents, found 52, and §33, written to design a workload's network on one machine, found 53.
+agents, found 52, and §33, written to design a workload's network on one machine, found 53, and
+54 when it was built.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1086,6 +1087,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 51 | A failed plan's unfinished steps were never planned again | §31 | `01-model.md` §3.3, `05-scheduling.md` §3.1 |
 | 52 | A node ran a target no plan had made | §32 | `02-architecture.md` §4.8, `01-model.md` §3.3 |
 | 53 | The reachability probe could listen on a port forwarded to a workload | §33 | `07-networking.md` §9 |
+| 54 | A container could not start in a network namespace the host owned | §33 | `07-networking.md` §4.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2053,7 +2055,7 @@ joins.
 | 2 | The node is chosen; it must be reachable on its own address, which its probe measured | `05-scheduling.md` §2.1, `07-networking.md` §9 |
 | 3 | The node's assignment is computed and the endpoint is allocated a port from the node's range | `07-networking.md` §3, `02-architecture.md` §4.8 |
 | 4 | The agent allocates the workload's addresses; the helper makes its namespace, its link, its routes, its own firewall, and its chain on the host | `07-networking.md` §4.1, §6 |
-| 5 | The driver creates the container in that namespace | `04-runtimes.md` §7, `07-networking.md` §4.1 |
+| 5 | The driver creates the container in that namespace † | `04-runtimes.md` §7, `07-networking.md` §4.1 |
 | 6 | The server resolves its mod repository's name through the node's resolver and downloads from it | `07-networking.md` §5.1, §6 |
 | 7 | Ten minutes on, the control plane measures the node again, on a random port of its range † | `07-networking.md` §9 |
 | 8 | The player connects to the node's address and the allocated port; the server sees the player's own address | `07-networking.md` §3, §3.4 |
@@ -2079,5 +2081,19 @@ port it allocated on the node.
 and the node refuses to listen on a port it forwards. → patched into `07-networking.md` §9; built
 with the allocation of endpoint ports.
 
-† Step 7 is where the trace found Finding 53.
+**FINDING 54: A container could not start in a network namespace the host owned. `CONFIRMED`**
+
+Found 2026-10-15 at step 5, when it was built and run on a real node. §4.1 of
+`07-networking.md` had the helper make the workload's network namespace and the container join
+it, and runc refused to start the container: the container makes its own user namespace, its
+root is root only there, and the kernel lets a process mount sysfs only in a network namespace
+its user namespace owns, which a namespace the host made is not. The design asserted a step the
+kernel does not allow, which no trace could have caught, and the test on a real container did.
+
+**Resolution.** The helper makes the network namespace together with a user namespace mapped to
+the workload's uid range, which owns it, mapping only the range its ledger records for the
+workload, and the container joins both. → patched into `07-networking.md` §4.1, with what the
+change costs, and `04-runtimes.md` §2.
+
+† Step 7 is where the trace found Finding 53; step 5, when built, Finding 54.
 

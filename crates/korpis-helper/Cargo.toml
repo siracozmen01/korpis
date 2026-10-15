@@ -19,7 +19,13 @@ buffa = { version = "=0.9.2" }
 korpis-core.workspace = true
 korpis-proto = { workspace = true }
 libc = "0.2"
-rustix = { version = "1", features = ["event", "fs", "net", "process", "std"] }
+# Links, addresses, and routes are made over netlink (§4.1 of docs/07-networking.md).
+netlink-packet-core = "0.9"
+netlink-packet-route = "0.33"
+netlink-sys = "0.8"
+rustix = { version = "1", features = ["event", "fs", "mount", "net", "process", "std", "thread"] }
+# nftables rules are written as its JSON input.
+serde_json = "1"
 thiserror = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

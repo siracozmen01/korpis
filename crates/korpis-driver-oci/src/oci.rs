@@ -121,6 +121,26 @@ struct Root {
 struct Namespace {
     #[serde(rename = "type")]
     kind: &'static str,
+    /// An existing namespace to join instead of making one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+}
+
+/// The namespaces a container runs in: each its own, except where the agent had a network made
+/// for it (§4.1 of docs/07-networking.md), whose network namespace and the user namespace that
+/// owns it, in the directory `made`, it joins by path. Its capabilities leave out
+/// `CAP_NET_ADMIN`, so it cannot change the network it joins.
+fn namespaces(made: &str) -> Vec<Namespace> {
+    let kinds = ["pid", "ipc", "uts", "mount", "network", "user", "cgroup"];
+    let joined = |file: &str| (!made.is_empty()).then(|| format!("{made}/{file}"));
+    kinds
+        .into_iter()
+        .map(|kind| match kind {
+            "network" => Namespace { kind, path: joined("net") },
+            "user" => Namespace { kind, path: joined("user") },
+            _ => Namespace { kind, path: None },
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -315,7 +335,6 @@ pub fn runtime_spec(
     let caps: Vec<&'static str> = CAPABILITIES.to_vec();
     let cwd =
         [s.working_dir.as_str(), image.working_dir.as_str()].into_iter().find(|w| !w.is_empty());
-    let kinds = ["pid", "ipc", "uts", "mount", "network", "user", "cgroup"];
     Ok(RuntimeSpec {
         oci_version: OCI_VERSION,
         process: Process {
@@ -337,9 +356,11 @@ pub fn runtime_spec(
         hostname: s.workload.clone(),
         mounts,
         linux: Linux {
+            // Given also when the user namespace is joined, which already maps the range: runc
+            // then refuses a namespace whose mapping is not this one.
             uid_mappings: map.clone(),
             gid_mappings: map,
-            namespaces: kinds.into_iter().map(|kind| Namespace { kind }).collect(),
+            namespaces: namespaces(&s.namespaces),
             resources: resources(valid),
             cgroups_path: cgroups_path.to_owned(),
             masked_paths: MASKED.to_vec(),

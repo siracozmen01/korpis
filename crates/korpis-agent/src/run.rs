@@ -16,6 +16,7 @@ use crate::identity::{ControlPlane, IdentitySockets};
 use crate::inventory::Inventory;
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
+use crate::network::{Addresses, Networking, Pools};
 use crate::offload::Offloader;
 use crate::reconcile::progress::Progress;
 use crate::reconcile::streams::Streams;
@@ -82,6 +83,9 @@ pub struct Options {
     /// docs/02-architecture.md), beside `workload.console.read`, which the agent always serves;
     /// an action with none is refused.
     pub handlers: Handlers,
+    /// The pools the node's workloads get addresses from, when it gives them networks (§4.1 of
+    /// docs/07-networking.md); none gives them loopback alone.
+    pub network: Option<Pools>,
 }
 
 impl Default for Options {
@@ -92,6 +96,7 @@ impl Default for Options {
             journal: Bounds::default(),
             identity_root: None,
             handlers: Handlers::default(),
+            network: None,
         }
     }
 }
@@ -175,11 +180,13 @@ struct Kept {
     progress: Progress,
     streams: Streams,
     inventory: Inventory,
+    network: Option<Networking>,
 }
 
 impl Kept {
-    /// Opens each under `state`, the journal within `bounds`.
-    fn open(state: &StateDir, bounds: Bounds) -> Result<Self, RunError> {
+    /// Opens each under `state`, the journal within `bounds`, and the workloads' addresses
+    /// where the node gives them networks from `pools`.
+    fn open(state: &StateDir, bounds: Bounds, pools: Option<Pools>) -> Result<Self, RunError> {
         let io = |what| move |source| RunError::Io { what, source };
         let root = state.root();
         Ok(Self {
@@ -189,6 +196,14 @@ impl Kept {
             streams: Streams::open(&root.join("streams")).map_err(io("the streams watched"))?,
             inventory: Inventory::open(&root.join("inventory"))
                 .map_err(io("the content inventory"))?,
+            network: match pools {
+                Some(pools) => Some(Networking {
+                    pools,
+                    addresses: Addresses::open(&root.join("addresses"))
+                        .map_err(io("the workloads' addresses"))?,
+                }),
+                None => None,
+            },
         })
     }
 }
@@ -205,7 +220,9 @@ impl Agent {
     ) -> Result<Self, RunError> {
         let identity = state.load()?;
         let io = |what| move |source| RunError::Io { what, source };
-        let Kept { journal, progress, streams, inventory } = Kept::open(state, options.journal)?;
+
+        let Kept { journal, progress, streams, inventory, network } =
+            Kept::open(state, options.journal, options.network)?;
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
@@ -236,6 +253,7 @@ impl Agent {
             jobs: link.jobs.clone(),
             steps: link.steps.clone(),
             inventory,
+            network,
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),

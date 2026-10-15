@@ -15,6 +15,7 @@ mod content;
 mod install;
 mod jobs;
 mod managed;
+mod network;
 mod observe;
 pub mod progress;
 mod restore;
@@ -101,6 +102,9 @@ pub struct Wiring {
     /// The recipes whose content the node holds, reported for content locality (§2.2 of
     /// docs/05-scheduling.md).
     pub inventory: crate::inventory::Inventory,
+    /// The workloads' networks (§4.1 of docs/07-networking.md); none where the node gives its
+    /// workloads loopback alone.
+    pub network: Option<crate::network::Networking>,
 }
 
 /// The reconciler.
@@ -291,6 +295,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.forget(&workload);
             }
         }
+        self.release_networks(&held).await;
         self.tail(&held).await;
         self.reap(&held).await;
         self.publish_runtimes();

@@ -68,6 +68,10 @@ async fn a_griefed_world_is_rolled_back_to_its_snapshot() {
     let taken = volume(&operator, &asked).await.unwrap().human;
     let snapshot = taken.split_whitespace().nth(1).unwrap().to_owned();
     counted(&cp, "SELECT count(*) FROM snapshot WHERE deleted_at IS NULL", 1).await;
+    // The snapshot is recorded as the node reports it, and its plan is applied after; a rollback
+    // asked before then finds the volume busy with it.
+    let applied = "SELECT count(*) FROM plan WHERE kind = 'snapshot_volume' AND status = 'applied'";
+    counted(&cp, applied, 1).await;
     let kept = node.volumes.join(format!(".snapshots/{w}.data"));
     assert_eq!(std::fs::read_dir(&kept).unwrap().count(), 1, "on the node, out of the volume");
 

@@ -39,6 +39,18 @@ pub struct Node {
     guarded: Mutex<Vec<String>>,
     /// A filesystem mounted for the volumes, unmounted when the node is dropped.
     mounted: Option<PathBuf>,
+    /// Where the helper binds the workloads' network namespaces; every one is released when
+    /// the node is dropped.
+    pub netns: PathBuf,
+    /// The node's own IPv4 pool, so two nodes in one test never hand out one address.
+    pub pool: ipnet::Ipv4Net,
+}
+
+/// A pool no other node of this test process uses: `10.N.0.0/16`, N from 200 upward.
+fn next_pool() -> ipnet::Ipv4Net {
+    static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 50;
+    ipnet::Ipv4Net::new(std::net::Ipv4Addr::new(10, 200 + n, 0, 0), 16).unwrap()
 }
 
 /// Whether this machine can run the test: containerd is there and the test is root.
@@ -55,7 +67,7 @@ fn registries() -> Vec<String> {
 /// The helper, serving on `socket` from its own thread for the rest of the process, running
 /// backup and restore jobs with the job binary as a node's helper does, which read recipe content
 /// from `content`, the agent's content store.
-fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
+fn helper(socket: &Path, volumes: &Path, (state, content, netns): (&Path, &Path, &Path)) {
     let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
@@ -65,7 +77,10 @@ fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
         cgroups: None,
         content: Some(content.to_owned()),
     };
-    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger).with_jobs(jobs);
+    let network = korpis_helper::network::Network::new(netns.to_owned());
+    let mut h = korpis_helper::helper::Helper::new(vec![class], ledger)
+        .with_jobs(jobs)
+        .with_network(network);
     let listener = korpis_helper::serve::bound(socket).unwrap();
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
 }
@@ -97,14 +112,15 @@ fn built(package: &str, bin: &str) -> PathBuf {
 /// The oci driver, serving on `socket` for the rest of the test; it mounts identity sockets
 /// from the agent's default root, `identity` in its state directory, and writes consoles with
 /// the stream writer, keeping its own state in `driver` beside the agent's.
-async fn driver(socket: &Path, state: &StateDir, volumes: &Path) {
+async fn driver(socket: &Path, state: &StateDir, (volumes, netns): (&Path, &Path)) {
     let content = state.root().join("content");
     let streams = Streams { writer: writer(), state: state.root().with_file_name("driver") };
     let containerd =
         Containerd::connect(Path::new(CONTAINERD), &content).await.unwrap().with_streams(streams);
     let listener = korpis_driver_oci::serve::bind(socket).unwrap();
     let identity_root = state.root().join("identity");
-    let policy = Policy { volume_root: volumes.to_owned(), identity_root };
+    let policy =
+        Policy { volume_root: volumes.to_owned(), identity_root, netns_root: netns.to_owned() };
     let (d, _watcher) = korpis_driver_oci::service::Driver::new(containerd, policy);
     let allowed = BTreeSet::from([0]);
     tokio::spawn(korpis_driver_oci::serve::serve(listener, allowed, d, std::future::pending()));
@@ -153,8 +169,9 @@ impl Node {
         let (driver_socket, helper_socket) =
             (dir.path().join("driver.sock"), dir.path().join("helper.sock"));
         let content = state.root().join("content");
-        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content));
-        driver(&driver_socket, &state, &volumes).await;
+        let netns = dir.path().join("netns");
+        helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns));
+        driver(&driver_socket, &state, (&volumes, &netns)).await;
         Self {
             _dir: dir,
             state,
@@ -163,6 +180,8 @@ impl Node {
             helper: helper_socket,
             guarded: Mutex::new(Vec::new()),
             mounted,
+            netns,
+            pool: next_pool(),
         }
     }
 
@@ -180,12 +199,15 @@ impl Node {
             .unwrap();
         let host = NodeHost::new(HelperClient::new(&self.helper), content);
         let runtime = self.runtime();
-        let server = self.state.load().unwrap().server;
+        let identity = self.state.load().unwrap();
+        let (server, id) = (identity.server, identity.node);
         // As `--advertise-address 127.0.0.1` would: the test's control plane is on this machine.
         let loopback = vec![std::net::Ipv4Addr::LOCALHOST.into()];
         let advertise = Advertise::new(loopback, PortRange::DEFAULT, &server);
         let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
-        let options = Options { period: Duration::from_millis(500), ..Options::default() };
+        // As `--workload-ipv4` with the node's own pool would.
+        let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
+        let options = Options { period: Duration::from_millis(500), network, ..Options::default() };
         let agent = Agent::start(&self.state, runtime, host, facts, options).unwrap();
         let mut events = agent.events();
         let welcomed =
@@ -213,6 +235,10 @@ impl Drop for Node {
                 let _ = ctr(&["containers", "rm", id]);
                 let _ = ctr(&["snapshots", "rm", id]);
             }
+        }
+        let networks = korpis_helper::network::Network::new(self.netns.clone());
+        for entry in std::fs::read_dir(&self.netns).into_iter().flatten().flatten() {
+            let _ = networks.release(&entry.file_name().to_string_lossy());
         }
         if let Some(at) = &self.mounted {
             let _ = Command::new("umount").arg("-l").arg(at).status();

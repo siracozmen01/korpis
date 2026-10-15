@@ -60,7 +60,11 @@ async fn started(dir: &Path, allowed: BTreeSet<u32>) -> Client {
     let listener = bind(&socket).unwrap();
     let (d, _watcher) = Driver::new(
         containerd,
-        Policy { volume_root: dir.join("volumes"), identity_root: dir.join("identity") },
+        Policy {
+            volume_root: dir.join("volumes"),
+            identity_root: dir.join("identity"),
+            netns_root: dir.join("netns"),
+        },
     );
     tokio::spawn(serve(listener, allowed, d, std::future::pending()));
     client(&socket)

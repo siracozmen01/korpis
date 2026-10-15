@@ -8,7 +8,13 @@ use korpis_proto::korpis::v1 as pb;
 use serde_json::Value;
 
 fn spec(command: &[&str]) -> Valid {
+    joined(command, "")
+}
+
+/// As [`spec`], joining the namespaces in `namespaces`.
+fn joined(command: &[&str], namespaces: &str) -> Valid {
     let s = driver::PreparedSpec {
+        namespaces: namespaces.into(),
         workload: "wl_1".into(),
         intent: "in_1".into(),
         rootfs: format!("r.example/mc@sha256:{}", "a".repeat(64)),
@@ -45,7 +51,11 @@ fn spec(command: &[&str]) -> Valid {
         identity_dir: "/i/wl_1".into(),
         ..Default::default()
     };
-    validate(s, &Policy { volume_root: "/v".into(), identity_root: "/i".into() }).unwrap()
+    validate(
+        s,
+        &Policy { volume_root: "/v".into(), identity_root: "/i".into(), netns_root: "/n".into() },
+    )
+    .unwrap()
 }
 
 fn image() -> ImageConfig {
@@ -110,4 +120,21 @@ fn the_command_and_environment_merge_the_recipe_over_the_image() {
     assert_eq!(own.process.args, vec!["/bin/sh", "-c"]);
     let nothing = ImageConfig::default();
     assert!(runtime_spec(&spec(&[]), &nothing, "/k").is_err(), "nothing to run");
+}
+
+#[test]
+fn a_workload_given_a_network_joins_its_namespaces_and_still_states_its_mapping() {
+    let j: Value =
+        serde_json::to_value(runtime_spec(&joined(&[], "/n/wl_1"), &image(), "/korpis/x").unwrap())
+            .unwrap();
+    let namespaces = j["linux"]["namespaces"].as_array().unwrap();
+    let path = |kind: &str| namespaces.iter().find(|n| n["type"] == kind).unwrap()["path"].clone();
+    assert_eq!(path("network"), "/n/wl_1/net");
+    assert_eq!(path("user"), "/n/wl_1/user");
+    assert!(path("pid").is_null(), "every other namespace is its own");
+    assert_eq!(j["linux"]["uidMappings"][0]["hostId"], u64::from(FIRST_WORKLOAD_ID));
+    let own: Value =
+        serde_json::to_value(runtime_spec(&spec(&[]), &image(), "/korpis/x").unwrap()).unwrap();
+    let made = own["linux"]["namespaces"].as_array().unwrap();
+    assert!(made.iter().all(|n| n.get("path").is_none()), "nothing joined without a network");
 }

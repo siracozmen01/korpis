@@ -3,7 +3,7 @@
 //! `korpis-agent`: join a control plane once, then run.
 
 use clap::{Parser, Subcommand};
-use ipnet::IpNet;
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use korpis_agent::advertise::Advertise;
 use korpis_agent::content::{ContentStore, Reach};
 use korpis_agent::host::node::NodeHost;
@@ -83,6 +83,14 @@ enum Command {
         /// The ports endpoints on this node are allocated from, as `FIRST-LAST`.
         #[arg(long, default_value = "30000-32767")]
         ports: PortRange,
+        /// The IPv4 pool workloads get addresses from, private to this node; change it when it
+        /// collides with a network the node reaches (§4.1 of docs/07-networking.md).
+        #[arg(long, default_value = korpis_agent::network::DEFAULT_IPV4)]
+        workload_ipv4: Ipv4Net,
+        /// An IPv6 prefix routed to this node, which gives workloads routable addresses; unset,
+        /// they get unique local ones, translated on the way out.
+        #[arg(long)]
+        workload_ipv6: Option<Ipv6Net>,
     },
 }
 
@@ -112,6 +120,8 @@ struct Node {
     reserve: Reserve,
     advertise_address: Vec<IpAddr>,
     ports: PortRange,
+    workload_ipv4: Ipv4Net,
+    workload_ipv6: Option<Ipv6Net>,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
@@ -122,8 +132,8 @@ async fn serve<R: Runtime + Clone, H: Host>(
     host: H,
     node: &Node,
 ) -> ExitCode {
-    let server = match state.load() {
-        Ok(identity) => identity.server,
+    let (server, id) = match state.load() {
+        Ok(identity) => (identity.server, identity.node),
         Err(e) => {
             tracing::error!(error = %e, "the node's state could not be read");
             return ExitCode::FAILURE;
@@ -137,7 +147,9 @@ async fn serve<R: Runtime + Clone, H: Host>(
             return ExitCode::FAILURE;
         }
     };
-    match Agent::start(state, runtime, host, facts, Options::default()) {
+    let pools = (node.workload_ipv4, node.workload_ipv6);
+    let network = korpis_agent::network::offered(&runtime, &host, &id, pools).await;
+    match Agent::start(state, runtime, host, facts, Options { network, ..Options::default() }) {
         Ok(agent) => {
             tracing::info!("agent running");
             shutdown().await;
@@ -211,6 +223,8 @@ async fn main() -> ExitCode {
             reserve_memory_bytes,
             advertise_address,
             ports,
+            workload_ipv4,
+            workload_ipv6,
         } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
@@ -223,6 +237,8 @@ async fn main() -> ExitCode {
                 reserve,
                 advertise_address,
                 ports,
+                workload_ipv4,
+                workload_ipv6,
             };
             run(&state, node).await
         }

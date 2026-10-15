@@ -32,6 +32,9 @@ struct Cli {
     /// the only host paths ever mounted.
     #[arg(long, default_value = "/var/lib/korpis-agent/identity")]
     identity_root: PathBuf,
+    /// The directory the helper binds workloads' network namespaces under.
+    #[arg(long, default_value = "/run/korpis/netns")]
+    netns_root: PathBuf,
     /// A user allowed to connect, by uid; repeatable. Without one, only the driver's own user.
     #[arg(long = "allow-uid")]
     allow_uids: Vec<u32>,
@@ -96,7 +99,11 @@ async fn run(cli: Cli) -> Result<(), String> {
     let listener = bind(&cli.socket).map_err(|e| format!("{}: {e}", cli.socket.display()))?;
     let (driver, watcher) = Driver::new(
         containerd,
-        Policy { volume_root: cli.volume_root, identity_root: cli.identity_root },
+        Policy {
+            volume_root: cli.volume_root,
+            identity_root: cli.identity_root,
+            netns_root: cli.netns_root,
+        },
     );
     tracing::info!(socket = %cli.socket.display(), ?allowed, "serving");
     serve(listener, allowed, driver, shutdown()).await;

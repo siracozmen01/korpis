@@ -9,6 +9,7 @@ use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
 use crate::job::{DataJob, JobConfig, Jobs, Placed, make_into};
 use crate::kept::Kept;
+use crate::network::Network;
 use crate::storage::Class;
 use buffa::Message as _;
 use korpis_core::workload::assignment::IdRange;
@@ -22,6 +23,7 @@ pub struct Helper {
     classes: Vec<Class>,
     ledger: Ledger,
     jobs: Option<Jobs>,
+    network: Option<Network>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -36,7 +38,52 @@ impl Helper {
     /// A helper offering `classes`, the first the default, and keeping `ledger`.
     #[must_use]
     pub fn new(classes: Vec<Class>, ledger: Ledger) -> Self {
-        Self { classes, ledger, jobs: None }
+        Self { classes, ledger, jobs: None, network: None }
+    }
+
+    /// The same helper, giving workloads networks as `network` keeps them.
+    #[must_use]
+    pub fn with_network(mut self, network: Network) -> Self {
+        self.network = Some(network);
+        self
+    }
+
+    fn network(&self) -> HelperResult<&Network> {
+        self.network
+            .as_ref()
+            .ok_or_else(|| HelperError::Refused("this helper makes no networks".into()))
+    }
+
+    /// The answer to a network verb.
+    fn networking(&self, verb: Verb) -> HelperResult<Answer> {
+        Ok(match verb {
+            Verb::EnsureNetwork(r) => {
+                // The namespaces map the workload's own range, recorded by EnsureIdRange, and
+                // no other: a range at the host's own ids would make them the workload's.
+                let range = IdRange { base: r.uid_base, count: r.uid_count };
+                if range.slot().is_none() || self.ledger.holder(r.uid_base) != Some(&r.workload) {
+                    return Err(HelperError::Refused(
+                        "not the workload's recorded id range".into(),
+                    ));
+                }
+                Answer::EnsureNetwork(Box::new(self.network()?.ensure(&r)?))
+            }
+            Verb::ReleaseNetwork(r) => {
+                let released = self.network()?.release(&r.workload)?;
+                Answer::ReleaseNetwork(Box::new(helper::ReleaseNetworkResponse {
+                    released,
+                    ..Default::default()
+                }))
+            }
+            Verb::DescribeNetwork(_) => Answer::DescribeNetwork(Box::new(match &self.network {
+                Some(n) => n.describe(),
+                None => helper::DescribeNetworkResponse {
+                    why_not: "the helper was started with no network root".into(),
+                    ..Default::default()
+                },
+            })),
+            _ => return Err(HelperError::Refused("not a network verb".into())),
+        })
     }
 
     /// The same helper, running backup and restore jobs as `config` says.
@@ -208,6 +255,11 @@ impl Helper {
             .ok_or_else(|| HelperError::NotFound(format!("volume {volume}")))
     }
 
+    fn storage(&self) -> helper::DescribeStorageResponse {
+        let classes = self.classes.iter().map(Class::describe).collect();
+        helper::DescribeStorageResponse { classes, ..Default::default() }
+    }
+
     fn dispatch(&mut self, verb: Verb) -> HelperResult<Answer> {
         Ok(match verb {
             Verb::EnsureVolume(r) => {
@@ -260,13 +312,10 @@ impl Helper {
             | Verb::ForgetJob(_)
             | Verb::CommitJob(_)
             | Verb::ListJobs(_)) => self.job(v)?,
-            Verb::DescribeStorage(_) => {
-                let classes = self.classes.iter().map(Class::describe).collect();
-                Answer::DescribeStorage(Box::new(helper::DescribeStorageResponse {
-                    classes,
-                    ..Default::default()
-                }))
+            v @ (Verb::EnsureNetwork(_) | Verb::ReleaseNetwork(_) | Verb::DescribeNetwork(_)) => {
+                self.networking(v)?
             }
+            Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
         })
     }
 

@@ -79,6 +79,15 @@ async fn until_state(c: &Containerd, id: &str, state: driver::RuntimeState) {
     panic!("{id} never reached {state:?}");
 }
 
+/// What the driver may mount and join, all under `volumes`.
+fn policy(volumes: &Path) -> Policy {
+    Policy {
+        volume_root: volumes.to_owned(),
+        identity_root: volumes.join("identity"),
+        netns_root: volumes.join("netns"),
+    }
+}
+
 #[tokio::test]
 async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     // Only where containerd runs and this process may reach it, which takes root.
@@ -93,22 +102,16 @@ async fn a_hardened_container_runs_stops_starts_and_is_destroyed() {
     std::fs::create_dir_all(volumes.join("data")).unwrap();
     let nonce = uuid::Uuid::now_v7().simple().to_string();
     let c = Containerd::connect(Path::new(SOCKET), &content).await.unwrap();
-    let valid = validate(
-        spec(&volumes, &nonce),
-        &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") },
-    )
-    .unwrap();
-    let id = c
-        .create(
-            &valid,
-            &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") },
-        )
-        .await
-        .unwrap();
+    let valid = validate(spec(&volumes, &nonce), &policy(&volumes)).unwrap();
+    let id = c.create(&valid, &policy(&volumes)).await.unwrap();
     assert_eq!(
         c.create(
             &valid,
-            &Policy { volume_root: volumes.clone(), identity_root: volumes.join("identity") }
+            &Policy {
+                volume_root: volumes.clone(),
+                identity_root: volumes.join("identity"),
+                netns_root: volumes.join("netns")
+            }
         )
         .await
         .unwrap(),

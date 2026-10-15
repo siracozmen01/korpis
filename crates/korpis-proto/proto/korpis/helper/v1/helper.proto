@@ -48,6 +48,15 @@ service HelperService {
   rpc JobStatus(JobStatusRequest) returns (JobStatusResponse);
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
   rpc ForgetJob(ForgetJobRequest) returns (ForgetJobResponse);
+  // Make a workload's network what the request says (§4.1 of docs/07-networking.md): its own
+  // network namespace, the routed link between it and the host, its addresses and routes, and
+  // the rules that belong to it, inside the namespace and on the host. Idempotent by workload;
+  // what changed is changed, and a network the node lost to a reboot is made again.
+  rpc EnsureNetwork(EnsureNetworkRequest) returns (EnsureNetworkResponse);
+  // Remove a workload's network: its rules, its link, and its namespace. Idempotent.
+  rpc ReleaseNetwork(ReleaseNetworkRequest) returns (ReleaseNetworkResponse);
+  // Whether this node can give workloads a network, and what in the host stands in its way.
+  rpc DescribeNetwork(DescribeNetworkRequest) returns (DescribeNetworkResponse);
 }
 
 // One request, as the transport carries it.
@@ -67,6 +76,9 @@ message HelperRequest {
     ForgetJobRequest forget_job = 12;
     CommitJobRequest commit_job = 13;
     ListJobsRequest list_jobs = 14;
+    EnsureNetworkRequest ensure_network = 15;
+    ReleaseNetworkRequest release_network = 16;
+    DescribeNetworkRequest describe_network = 17;
   }
 }
 
@@ -88,6 +100,9 @@ message HelperResponse {
     CommitJobResponse commit_job = 13;
     ListJobsResponse list_jobs = 14;
     HelperError error = 15;
+    EnsureNetworkResponse ensure_network = 16;
+    ReleaseNetworkResponse release_network = 17;
+    DescribeNetworkResponse describe_network = 18;
   }
 }
 
@@ -129,6 +144,65 @@ message EnsureVolumeResponse {
   bool quota_enforced = 3;
   // The class it is in: the one asked for, or the helper's default when none was.
   string storage_class = 4;
+}
+
+// A workload's network (§4.1 of docs/07-networking.md): a network namespace owned by a user
+// namespace mapped to the workload's uid range, since a container's root may mount its own
+// sysfs only in a network it owns, and it holds no capability to change it. The supervisor
+// allocates the addresses from the node's pools and the helper applies them; it derives every
+// name it makes, the namespaces' directory and the host side of the link, from the workload
+// identifier it validates.
+message EnsureNetworkRequest {
+  string workload = 1;
+  // The workload's IPv4 address, in the pool below.
+  string ipv4 = 2;
+  // The node's IPv4 pool, as a prefix, which the address must be a host address of.
+  string ipv4_pool = 3;
+  // The workload's IPv6 address, in the pool below; empty for none.
+  string ipv6 = 4;
+  // The node's IPv6 pool, as a prefix. What leaves the node from a unique local address is
+  // translated and what leaves from any other is not, since only a prefix routed to the node
+  // gives a workload a global address.
+  string ipv6_pool = 5;
+  // The uid range the workload holds on this node (§4.5 of docs/04-runtimes.md), which the user
+  // namespace that owns its network maps.
+  uint32 uid_base = 7;
+  uint32 uid_count = 8;
+}
+
+message EnsureNetworkResponse {
+  // The directory of the workload's namespaces, `net` and `user`, which the driver joins.
+  string namespaces = 1;
+  // The host side of the workload's link.
+  string host_link = 2;
+  // Whether IPv6 was configured: false when the request named none, or the node does not
+  // forward IPv6, which the helper logs with the command that enables it and does not run.
+  bool ipv6 = 3;
+}
+
+message ReleaseNetworkRequest {
+  string workload = 1;
+}
+
+message ReleaseNetworkResponse {
+  // Whether anything was there to remove.
+  bool released = 1;
+}
+
+message DescribeNetworkRequest {}
+
+message DescribeNetworkResponse {
+  // Whether EnsureNetwork can work: nftables answers and IPv4 forwarding is on.
+  bool offered = 1;
+  // Why not, when it is not, with what the operator can do about it.
+  string why_not = 2;
+  // Whether IPv6 forwarding is on, which a workload's IPv6 address needs.
+  bool ipv6 = 3;
+  // The base chains of another firewall on the forward hook that drop what they do not accept,
+  // as `family table chain`: each drops the traffic of every workload that leaves the node or
+  // reaches it from outside until its operator opens it for Korpis's links, which the helper
+  // does not do (§4.1 of docs/07-networking.md).
+  repeated string closed_forward = 4;
 }
 
 message SnapshotVolumeRequest {

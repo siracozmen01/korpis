@@ -120,4 +120,21 @@ pub trait Host: Send + Sync + 'static {
 
     /// The jobs kept, and where each is.
     fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send;
+
+    /// Makes a workload's network what `request` says (§4.1 of docs/07-networking.md).
+    fn ensure_network(
+        &self,
+        request: &helper::EnsureNetworkRequest,
+    ) -> impl Future<Output = Result<helper::EnsureNetworkResponse, HostError>> + Send;
+
+    /// Removes a workload's network; whether there was one.
+    fn release_network(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send;
+
+    /// Whether the node can give workloads networks, and what stands in the way.
+    fn describe_network(
+        &self,
+    ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send;
 }

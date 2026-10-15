@@ -127,6 +127,35 @@ impl HelperClient {
         }
     }
 
+    /// Makes a workload's network what `r` says (§4.1 of docs/07-networking.md).
+    pub async fn ensure_network(
+        &self,
+        r: &helper::EnsureNetworkRequest,
+    ) -> Result<helper::EnsureNetworkResponse, HostError> {
+        match self.call(Verb::EnsureNetwork(Box::new(r.clone()))).await? {
+            Answer::EnsureNetwork(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// Removes a workload's network; whether there was one.
+    pub async fn release_network(&self, workload: &str) -> Result<bool, HostError> {
+        let r =
+            helper::ReleaseNetworkRequest { workload: workload.to_owned(), ..Default::default() };
+        match self.call(Verb::ReleaseNetwork(Box::new(r))).await? {
+            Answer::ReleaseNetwork(a) => Ok(a.released),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// Whether the node can give workloads networks, and what stands in the way.
+    pub async fn describe_network(&self) -> Result<helper::DescribeNetworkResponse, HostError> {
+        match self.call(Verb::DescribeNetwork(Box::default())).await? {
+            Answer::DescribeNetwork(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the filesystem accounts for a volume.
     pub async fn volume_usage(
         &self,

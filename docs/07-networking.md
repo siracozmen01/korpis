@@ -360,9 +360,9 @@ data-plane state the agent owns (§2 of `02-architecture.md`). From the assignme
 computes what the workload's network must be: its addresses, its declared endpoints, its allocated
 ports, and its policy. The helper, which is root, makes it so with two operations, `EnsureNetwork`
 and `ReleaseNetwork`, idempotent and keyed by workload, as it does for volumes (§3 of
-`06-storage.md`). The driver joins the namespace by its path, `/run/korpis/netns/<workload>`, and
-declares `network_modes: veth` (§4.1 and §7 of `04-runtimes.md`); it builds no networking of its
-own.
+`06-storage.md`). The driver joins the namespaces in `/run/korpis/netns/<workload>`, its network
+namespace and the user namespace that owns it (below), and declares `network_modes: veth` (§4.1
+and §7 of `04-runtimes.md`); it builds no networking of its own.
 
 **One namespace per workload, routed, with no bridge.** The namespace has one interface, `eth0`,
 whose peer on the host is a point-to-point link named for the workload. The host routes each
@@ -380,8 +380,12 @@ to the node, `10.47.0.0/16` unless the operator names another with `korpis-agent
 the operator knows that network. IPv6 comes from a prefix the operator routes to the node
 (`--workload-ipv6`), which makes every workload's IPv6 address routable, as §4 says it should be;
 a node given none uses a unique local prefix derived from its identity, with translation on the
-way out, and its workloads are reachable over IPv6 only through the node's own addresses. Both
-leave the node by masquerade except a routed IPv6 prefix, which needs none. The agent allocates
+way out, and its workloads are reachable over IPv6 only through the node's own addresses. What
+leaves the node from a workload's link by any other interface is translated to the node's
+address: all of IPv4, and IPv6 from a unique local address; a routed prefix's addresses are
+global and need none. The rule matches the links by their names rather than the pools by their
+prefixes, so it is the same for every workload and every pool, and a changed pool leaves nothing
+behind in it. The agent allocates
 the lowest free address of each pool when a workload first runs on the node, keeps it on disk
 across restarts, releases it when the workload is retired from the node, and reports it in the
 workload's observations, because an address is a fact about a node and the control plane learns
@@ -397,16 +401,42 @@ is what §4's "closed except where declared" requires.
 
 **The host's rules live in one table, a chain per workload.** The helper keeps the host's rules in
 one nftables table, `inet korpis`, with a chain per workload reached from a verdict map keyed by
-its interface, and replaces a workload's chains and map entries in one transaction, so a change
-is never half applied. It writes them with the `nft` command's JSON input, the interface
-nftables documents as stable, rather than through a C binding, which keeps the helper free of
-unsafe code; links, addresses, and routes it makes over netlink. A node therefore needs nftables
-1.0 or later (§2 of `18-operations.md`).
+its interface, and replaces a workload's chains and map entries in one transaction, so a change is
+never half applied. It writes them with the `nft` command's JSON input, the interface nftables
+documents as stable, rather than through a C binding, which keeps nftables' C library out of the
+helper; links, addresses, and routes it makes over netlink. A node therefore needs nftables 1.0 or
+later (§2 of `18-operations.md`).
 
 What it costs. A pool that collides with the operator's network is the operator's to change, and
 changing it renumbers workloads at their next start on the node. A node without a routed IPv6
 prefix offers IPv6 the way it offers IPv4, translated. Per-packet accounting and shaping (§7) are
 not part of this; they are added to the same chains later.
+
+**The namespace is owned by the workload's own user namespace.** Corrected 2026-10-15, from the
+implementation: the first text had the helper make a network namespace owned by the host, and a
+container joining it could not start, because the kernel lets a process mount sysfs only in a
+network namespace its user namespace owns, and a container's root is root only in its own user
+namespace. So the helper makes the two together, a user namespace mapped to the workload's uid
+range (§4.5 of `04-runtimes.md`) and the network namespace it owns, and the container joins both;
+the helper maps only the range its ledger records for that workload, so no request makes it map the
+host's own ids. Owning the namespace does not let the workload change it: its capabilities leave
+out `NET_ADMIN`, and its seccomp profile refuses to make a namespace of its own in which it could
+hold it (§2 of `04-runtimes.md`). What it costs: a kernel flaw that lets a process raise its
+capabilities in its own user namespace would let it rewrite its own addresses and firewall, where a
+host-owned namespace would have held, and the host's rules (§6) are what stop a rewritten address
+from reaching anything. A user namespace can only be made by a process with one thread, so the
+helper makes the pair in a short-lived child that waits while the helper writes its id maps and
+binds it, and the helper itself still never starts a second thread (§4 of `21-stack.md`).
+
+**What another firewall on the node does to this.** A node whose operator runs another firewall
+with a forward chain that drops what it does not accept, which Docker and ufw both install,
+drops every workload's traffic to and from beyond the node, because nftables lets every base
+chain on a hook drop a packet whatever another accepted. The helper does not edit another
+firewall: it reports such chains, and the agent logs them at start with the rule that opens each
+for Korpis's links, which are all named `kw` and twelve more characters. Until the operator opens
+them, workloads reach the node and the node reaches them, and nothing else does. Likewise a node
+whose IPv6 forwarding is off gives its workloads IPv4 alone, and says so; the helper does not
+turn it on, because doing so stops the node taking router advertisements on its own interfaces.
 
 ---
 

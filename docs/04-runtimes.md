@@ -60,6 +60,13 @@ mount that is not idmapped: it is bound read-only, `nosuid`, `nodev`, and `noexe
 `/run/korpis`, keeps the supervisor's ownership, and is reached through the socket's mode, so the
 workload can connect and cannot replace or remove the socket (§6 of `02-architecture.md`).
 
+> Added 2026-10-15, from the implementation: on a node that gives workloads a network (§4.1 of
+> `07-networking.md`), the user and network namespaces are not made by the runtime but joined:
+> the helper makes the pair, the user namespace mapped onto the same id range, and the driver
+> joins both by path while still giving runc the mapping, which runc checks against the
+> namespace it joins. The network namespace has to be owned by the container's user namespace,
+> because the kernel lets the container mount its sysfs only in a network namespace it owns.
+
 **The tier is what an operator reasons about.** "This tenant runs code I did not write" →
 `microvm`. "This is my own service" → `container`. "This is a trusted helper and I need bare
 performance" → `process`. "The customer bought a VPS" → `vm`. That sentence is the entire

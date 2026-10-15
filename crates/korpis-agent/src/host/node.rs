@@ -146,4 +146,24 @@ impl Host for NodeHost {
     fn list_jobs(&self) -> impl Future<Output = Result<Vec<helper::JobSummary>, HostError>> + Send {
         self.helper.list_jobs()
     }
+
+    fn ensure_network(
+        &self,
+        request: &helper::EnsureNetworkRequest,
+    ) -> impl Future<Output = Result<helper::EnsureNetworkResponse, HostError>> + Send {
+        self.helper.ensure_network(request)
+    }
+
+    fn release_network(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send {
+        self.helper.release_network(workload)
+    }
+
+    fn describe_network(
+        &self,
+    ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {
+        self.helper.describe_network()
+    }
 }

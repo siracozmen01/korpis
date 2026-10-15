@@ -52,6 +52,9 @@ pub struct Policy {
     /// The directory the agent makes the workloads' identity sockets under, one directory each
     /// (§9.5 of docs/08-identity.md). These two roots are the only host paths ever mounted.
     pub identity_root: PathBuf,
+    /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
+    /// docs/07-networking.md): the only namespaces a container joins rather than makes.
+    pub netns_root: PathBuf,
 }
 
 /// A spec that passed every check.
@@ -124,6 +127,19 @@ fn identity(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violatio
         spec.workload.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_');
     if !plain || !clean_absolute(&spec.identity_dir) || Path::new(&spec.identity_dir) != own {
         return refuse("identity_dir", "only the workload's own identity directory is mounted");
+    }
+    Ok(())
+}
+
+/// The namespaces joined, if any, are the workload's own under the helper's root, so no spec
+/// joins another workload's network or user namespace.
+fn network(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
+    if spec.namespaces.is_empty() {
+        return Ok(());
+    }
+    let own = policy.netns_root.join(&spec.workload);
+    if !clean_absolute(&spec.namespaces) || Path::new(&spec.namespaces) != own {
+        return refuse("namespaces", "only the workload's own namespaces are joined");
     }
     Ok(())
 }
@@ -203,6 +219,7 @@ pub fn validate(spec: driver::PreparedSpec, policy: &Policy) -> Result<Valid, Vi
     ids(&spec)?;
     mounts(&spec, policy)?;
     identity(&spec, policy)?;
+    network(&spec, policy)?;
     stream(&spec, policy)?;
     process(&spec)?;
     resources(&spec)?;
@@ -217,7 +234,27 @@ mod tests {
         Policy {
             volume_root: PathBuf::from("/var/lib/korpis/volumes"),
             identity_root: PathBuf::from("/var/lib/korpis-agent/identity"),
+            netns_root: PathBuf::from("/run/korpis/netns"),
         }
+    }
+
+    #[test]
+    fn only_the_workloads_own_network_is_joined() {
+        let mut own = honest();
+        own.namespaces = "/run/korpis/netns/wl_1".into();
+        assert!(validate(own, &policy()).is_ok());
+        let other = |s: &mut driver::PreparedSpec| {
+            s.namespaces = "/run/korpis/netns/wl_2".into();
+        };
+        assert_eq!(refused(other), "namespaces", "another workload's network");
+        let host = |s: &mut driver::PreparedSpec| {
+            s.namespaces = "/proc/1/ns/net".into();
+        };
+        assert_eq!(refused(host), "namespaces", "the host's network");
+        let up = |s: &mut driver::PreparedSpec| {
+            s.namespaces = "/run/korpis/netns/../netns/wl_1".into();
+        };
+        assert_eq!(refused(up), "namespaces", "a path that climbs");
     }
 
     fn honest() -> driver::PreparedSpec {

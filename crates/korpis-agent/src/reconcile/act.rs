@@ -143,6 +143,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         spec.uid_count = a.uid_count;
         if a.uid_count > 0 {
             self.host.ensure_ids(&a.workload, a.uid_base, a.uid_count).await?;
+            self.network(a, &mut spec).await?;
         }
         let id = self.runtime.create(&spec).await?;
         t.runtime = Some(id.clone());

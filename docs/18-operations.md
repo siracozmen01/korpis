@@ -132,7 +132,7 @@ microVMs on ZFS. Preflight reports against what the node is *configured to offer
 | an edge failover group, or a routed address pool | the `stable` exposure mode (§3.1 of `07-networking.md`) | absent → `node_bound` is offered instead, and says what it does not survive |
 | ZFS or btrfs | replicated and snapshot-capable storage classes | ext4/XFS with project quota still gives enforced byte and inode limits |
 | IPv6 | the default addressing mode (§4 of `07-networking.md`) | absent → IPv4 only, and the scarcity is the operator's problem |
-| nftables 1.0+ with its JSON input, and IP forwarding | every workload's network (§4.1 of `07-networking.md`) | absent → the node's workloads have loopback alone, and no endpoint is offered on it |
+| nftables 1.0+ with its JSON input, and IP forwarding | every workload's network (§4.1 of `07-networking.md`) | absent → the node's workloads have loopback alone, and no endpoint is offered on it; another firewall whose forward chain drops by default (Docker's, ufw's) must accept the `kw*` links, which the agent logs and does not do |
 
 **A node that lacks something offers less; it does not fail to start, and it never silently offers
 what it cannot enforce.** Missing KVM removes two isolation tiers from what the scheduler will

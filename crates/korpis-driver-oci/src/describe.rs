@@ -67,7 +67,10 @@ pub fn info(healthy: bool) -> pb::DriverInfo {
         signals: SIGNALS.iter().map(|s| (*s).to_owned()).collect(),
         gpu: vec![pb::GpuMode::GPU_MODE_NONE.into()],
         rootfs_sources: vec![pb::RootfsSource::ROOTFS_SOURCE_OCI_IMAGE.into()],
-        network_modes: vec![pb::NetworkMode::NETWORK_MODE_NONE.into()],
+        network_modes: vec![
+            pb::NetworkMode::NETWORK_MODE_VETH.into(),
+            pb::NetworkMode::NETWORK_MODE_NONE.into(),
+        ],
         enforcement: enforcement().into_iter().collect(),
         volume_semantics: pb::VolumeSemantics::VOLUME_SEMANTICS_FILESYSTEM.into(),
         file_access: pb::FileAccess::FILE_ACCESS_HOST_WORKER.into(),

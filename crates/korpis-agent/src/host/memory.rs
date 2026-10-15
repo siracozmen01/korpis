@@ -22,6 +22,8 @@ struct Kept {
     jobs: BTreeMap<String, helper::JobStatusResponse>,
     /// What each job was started with.
     started: BTreeMap<String, helper::StartJobRequest>,
+    /// The networks asked for, by workload; none is made, so none has a namespace.
+    networks: BTreeMap<String, helper::EnsureNetworkRequest>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -251,6 +253,32 @@ impl Host for InMemoryHost {
                 ..Default::default()
             };
             k.jobs.iter().map(summary).collect()
+        }))
+    }
+
+    fn ensure_network(
+        &self,
+        request: &helper::EnsureNetworkRequest,
+    ) -> impl Future<Output = Result<helper::EnsureNetworkResponse, HostError>> + Send {
+        ready(self.with(|k| {
+            k.networks.insert(request.workload.clone(), request.clone());
+            helper::EnsureNetworkResponse::default()
+        }))
+    }
+
+    fn release_network(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<bool, HostError>> + Send {
+        ready(self.with(|k| k.networks.remove(workload).is_some()))
+    }
+
+    fn describe_network(
+        &self,
+    ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {
+        ready(Ok(helper::DescribeNetworkResponse {
+            why_not: "the in-memory host makes no networks".into(),
+            ..Default::default()
         }))
     }
 }
