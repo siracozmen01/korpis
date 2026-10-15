@@ -145,6 +145,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             self.host.ensure_ids(&a.workload, a.uid_base, a.uid_count).await?;
             self.network(a, &mut spec).await?;
         }
+        self.inject(a, &mut spec);
+        if let Some(dir) = &dir {
+            self.write_dependencies(a, dir).map_err(|e| {
+                Failure(format!("the workload's dependencies could not be written: {e}"))
+            })?;
+        }
         let id = self.runtime.create(&spec).await?;
         t.runtime = Some(id.clone());
         t.labels = spec.labels.as_option().cloned();

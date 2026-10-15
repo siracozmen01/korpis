@@ -73,6 +73,20 @@ pub struct Request<'a> {
     /// Each node with recent loss events, with what they weigh now ([`churn::loss_weight`]); a
     /// node absent lost nothing it remembers.
     pub churn: &'a BTreeMap<Uuid, f64>,
+    /// What its dependencies reach, resolved (§5 of docs/07-networking.md).
+    pub dependencies: &'a [Needed],
+}
+
+/// A dependency as placement reads it: its name, whether it is required, and the workloads it
+/// resolved to, whose nodes the peers say.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Needed {
+    /// Its name.
+    pub name: String,
+    /// Whether the dependent may not start without it.
+    pub required: bool,
+    /// The workloads it reaches.
+    pub targets: Vec<Uuid>,
 }
 
 /// A workload's existing placement.
@@ -135,6 +149,8 @@ pub enum Check {
     Volume,
     /// Every required affinity and anti-affinity rule.
     Affinity,
+    /// Every dependency's targets are reachable from the node (§5 of docs/07-networking.md).
+    Dependency,
     /// The node's driver accepted the intent when the shortlist asked it, or after it was bound
     /// there (§2.1 of docs/05-scheduling.md).
     Prepare,
@@ -142,7 +158,7 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -156,6 +172,7 @@ impl Check {
         Self::StorageClass,
         Self::Volume,
         Self::Affinity,
+        Self::Dependency,
         Self::Prepare,
     ];
 
@@ -182,6 +199,7 @@ impl Check {
             Self::StorageClass => "storage_class",
             Self::Volume => "volume",
             Self::Affinity => "affinity",
+            Self::Dependency => "dependency",
             Self::Prepare => "prepare",
         }
     }

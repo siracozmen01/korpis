@@ -26,6 +26,12 @@ fn timestamp(t: SystemTime) -> Timestamp {
     }
 }
 
+/// What a workload not yet created waits for, if it waits.
+fn waiting(t: &Tracked) -> String {
+    let waiting = t.waiting.as_ref().filter(|_| t.runtime.is_none());
+    waiting.map(|d| format!("waiting for its dependency {d}")).unwrap_or_default()
+}
+
 /// The state the node sees.
 fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
     if t.rejected.is_some() {
@@ -110,7 +116,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             plan_progress: plan.into(),
             state: state.into(),
             reason: rejected.map(|r| r.reason).unwrap_or_default(),
-            reason_detail: rejected.map(|r| r.detail.clone()).unwrap_or_default(),
+            reason_detail: rejected.map_or_else(|| waiting(t), |r| r.detail.clone()),
             exit_code: t.status.as_ref().filter(|s| !running(s)).and_then(|s| s.exit_code),
             runtime_id: t.runtime.clone().unwrap_or_default(),
             ..Default::default()

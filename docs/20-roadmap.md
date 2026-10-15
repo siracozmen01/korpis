@@ -214,9 +214,10 @@ machine the answer is a local resolver and the semantics are the same.
 > warns against. `IntentBody.dependencies` and the node's measured `overlay` are now in the Phase 0
 > schema. What Phase 1 owes is resolving a dependency and injecting its address; until then a
 > declaration naming one is refused as not yet available, rather than stored as a promise nothing
-> keeps. The overlay itself, which a dependency across nodes needs, is built in Phase 3 with the
-> other machinery of workloads that span nodes; until then every node measures `unavailable`, and
-> a workload and what it depends on are placed together.
+> keeps. Built 2026-10-15, for one node (§5 of `07-networking.md`). The overlay itself, which a
+> dependency across nodes needs, is built in Phase 3 with the other machinery of workloads that
+> span nodes; until then every node measures `unavailable`, and a workload and what it depends on
+> are placed together.
 
 ### Phase 2: Multi-tenant, and the two bets that live there
 
@@ -244,7 +245,8 @@ The `firecracker` driver. Rule D's validation of the driver interface. Migration
 resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
 `stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
 `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
-Dedicated addresses (§3 there), routed to whichever node a workload runs on.
+Dedicated addresses (§3 there), routed to whichever node a workload runs on. Network rules naming
+workloads by label (§6 there), which only reaching workloads on other nodes makes necessary.
 Devices, including GPU. `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads
 for the difference to be measured. Drain and evacuate, as `Operation`s with their policy (§3 of
 `05-scheduling.md`), since draining a node is migrating its workloads off it. With edges, the

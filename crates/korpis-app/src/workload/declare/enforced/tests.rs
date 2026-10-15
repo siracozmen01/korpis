@@ -74,7 +74,7 @@ fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
     ported.ports = vec![PortRange { first: 1, last: 2 }];
     assert_eq!(refused(|e| e.policy.ingress = vec![ported]), "e.policy.ingress[0]");
     let named = rule(NetworkAction::Deny, Peer::Workloads(LabelSelector::default()));
-    assert_eq!(refused(|e| e.policy.ingress = vec![named]), "rules naming workloads in phase 1");
+    assert_eq!(refused(|e| e.policy.ingress = vec![named]), "rules naming workloads in phase 3");
     let domain = rule(NetworkAction::Deny, Peer::Domain("example.org".into()));
     assert_eq!(why(peer("r", &domain)), "r.peer");
 }

@@ -56,6 +56,9 @@ pub struct Assignment {
     /// Whether the workload runs an installed extension, whose node opens the control plane's
     /// API to it past the egress default (§6 of docs/07-networking.md).
     pub reaches_api: bool,
+    /// Its dependencies, resolved to the endpoints they reach now (§5 of
+    /// docs/07-networking.md).
+    pub dependencies: Vec<super::dependency::ResolvedDependency>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

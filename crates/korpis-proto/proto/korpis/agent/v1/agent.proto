@@ -198,6 +198,23 @@ message CredentialRequest {
   string workload = 2;
 }
 
+// A dependency as its node is told it: what the control plane resolved it to.
+message ResolvedDependency {
+  string name = 1;
+  korpis.v1.DependencyInjection inject = 2;
+  bool required = 3;
+  // In the order of the targets' workload names.
+  repeated DependencyEndpoint targets = 4;
+}
+
+// One endpoint a dependency reaches.
+message DependencyEndpoint {
+  string workload = 1;
+  string endpoint = 2;
+  uint32 container_port = 3;
+  korpis.v1.EndpointProtocol protocol = 4;
+}
+
 // The answer to a CredentialRequest: a credential, or why there is none.
 message WorkloadCredential {
   string request = 1;
@@ -393,6 +410,9 @@ message Assignment {
   // the node reaches the API, and nothing else of the control plane's (§6 of
   // docs/07-networking.md). Decided by the control plane, which knows the installations.
   bool reaches_api = 20;
+  // Its dependencies, each resolved to the endpoints it reaches now; where each endpoint's
+  // workload is, the node knows (§5 of docs/07-networking.md).
+  repeated ResolvedDependency dependencies = 21;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

@@ -23,6 +23,7 @@ mod churn;
 mod classify;
 mod console;
 mod denials;
+mod dependencies;
 mod dns;
 mod effects;
 mod egress;

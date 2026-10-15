@@ -199,10 +199,20 @@ message OpenResolverResponse {
   uint32 attached = 1;
 }
 
-// An address and a TCP port.
+// An address and a port, over a transport, opened past the egress default.
 message Destination {
   string address = 1;
   uint32 port = 2;
+  Transport transport = 3;
+  // Why it is opened: the control plane's API for an installed extension's workload, or a
+  // dependency's target (§5 and §6 of docs/07-networking.md).
+  DestinationReason reason = 4;
+}
+
+enum DestinationReason {
+  DESTINATION_REASON_UNSPECIFIED = 0;
+  DESTINATION_REASON_CONTROL_PLANE = 1;
+  DESTINATION_REASON_DEPENDENCY = 2;
 }
 
 // What a forwarded or accepted port is carried over.

@@ -12,6 +12,7 @@
 mod act;
 mod backup;
 mod content;
+mod deps;
 mod install;
 mod jobs;
 mod managed;
@@ -72,6 +73,8 @@ struct Tracked {
     /// The observation last sent, and when its state last changed.
     sent: Option<pb::Observation>,
     since: Option<SystemTime>,
+    /// The required dependency it waits for before it is created, by name.
+    waiting: Option<String>,
 }
 
 /// Where the reconciler reads and writes.
@@ -298,6 +301,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         self.release_networks(&held).await;
         self.serve_resolvers(&held).await;
+        self.refresh_dependencies(&held).await;
         self.tail(&held).await;
         self.reap(&held).await;
         self.publish_runtimes();

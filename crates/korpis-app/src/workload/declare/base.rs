@@ -49,12 +49,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
         super::enforced::refuse_unenforced(&body)?;
         body.recipe.providers = self.pin_providers(&recipe, organization).await?;
-        if !body.dependencies.is_empty() {
-            // The schema is frozen here (rule E); resolving a dependency and injecting its
-            // address arrive with service discovery (§4 of docs/20-roadmap.md). Accepting one now
-            // would store a promise nothing keeps.
-            return Err(AppError::NotYet { what: "dependencies", phase: 1 });
-        }
+        self.check_dependencies((base.workload.project, base.workload.id), &body).await?;
         let previous = base.head.as_ref().map(|h| &h.body.config);
         let changes = self.configure(caller, &mut body, &recipe, previous, organization).await?;
         Ok((body, recipe, changes))

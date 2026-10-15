@@ -181,6 +181,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let volume_ids = self.existing_ids(&target.body).await?;
         let installation = self.store.extension_of_workload(workload).await?;
         let reaches_api = installation.is_some_and(|i| i.uninstalled_at.is_none());
+        let dependencies = self.resolve_dependencies((w.project, w.id), &target.body).await?;
         Ok(Some((
             Assignment {
                 workload,
@@ -200,6 +201,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 volume_ids,
                 endpoints: Vec::new(),
                 reaches_api,
+                dependencies,
             },
             plan,
         )))
@@ -251,6 +253,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 volume_ids: BTreeMap::new(),
                 endpoints: Vec::new(),
                 reaches_api: false,
+                dependencies: Vec::new(),
             },
             Some(plan),
         )))

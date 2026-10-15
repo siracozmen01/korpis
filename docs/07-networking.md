@@ -530,7 +530,8 @@ workloads that watch for changes, and by DNS where the class supports it.
 
 The field is in the Phase 0 schema (`IntentBody.dependencies`), so it never has to be added to a
 frozen one; resolving and injecting arrive in Phase 1, and until then a declaration that names a
-dependency is refused as not yet available (§4 of `20-roadmap.md`).
+dependency was refused as not yet available (§4 of `20-roadmap.md`); they were built 2026-10-15, as
+below.
 
 **As built.** Decided 2026-10-15, for Phase 1, which runs on one node. Each part of a dependency is
 evaluated where the information it needs is held.
@@ -572,7 +573,10 @@ variables, and a file with no addresses.
 *Reaching it.* The egress default denies other workloads (§6), so the agent opens each target's
 address and port, over its protocol, in the dependent's own chain on the host, as it opens the
 control plane's API for an extension's workload. The target's own table accepts its declared port
-already, and its endpoint's own rules still hold (§6).
+already, and its endpoint's own rules still hold (§6). The connection is forwarded by the host from
+one workload's link to the other's, so a firewall of the operator's that drops forwarded traffic
+drops it too until it accepts Korpis's links (§4.1); each such rule counts what it lets through,
+under the comment `dependency`.
 
 *Start order.* The agent creates the dependent's container only once every required dependency's
 targets on its node run and, where they have a readiness probe, are ready; until then the dependent
@@ -583,7 +587,12 @@ What it costs: a dependent and its targets share a node until the overlay exists
 that fills its node keeps its web application off every other; a change of address reaches the
 environment only at the next start; and a selector is evaluated when the assignment is computed,
 not continuously, so a workload that starts to match joins at the next computation, which any
-change on the node or the dependent's target triggers.
+change on the node or the dependent's target triggers. What it does not do yet: placement keeps a
+dependent beside its targets, and not a target beside its dependents, so a target placed after a
+dependent that does not require it is placed by its own needs alone, and on a fleet of several
+nodes the two can land apart and the dependency go unreached until the dependent is placed again.
+On one node, which Phase 1 is for, they cannot; the overlay of Phase 3 ends the question, since
+then nothing needs them together.
 
 > Corrected 2026-10-15, when it was designed. The file was `/korpis/deps/<name>.json`: a directory
 > of its own at the root, which needs a mount of its own. The workload's Korpis directory,
@@ -762,14 +771,17 @@ that the port's connections pass through: its limits first, a connection limit a
 rate for the endpoint as a whole, then its rules in order, an allow letting the connection in and a
 deny dropping and counting it, and then anything no rule matched, let in. They see the client's own
 address, which the node's forwarding preserves (§3.4). Every rule names an address range, because a
-packet filter judges addresses: a rule naming workloads by label is refused until the control plane
-resolves labels to addresses for dependencies (§5), and one naming a domain is refused until
-question 8 of §11 is answered. A rule that arrives at a node anyway fails the workload's network
-rather than being left out, because a deny left out is a weaker policy than the one declared.
-Half-open connections have no limit of their own to declare (above), and a declaration that sets
-one is refused. What it costs: an endpoint's limits are for the endpoint as a whole and not for
-each client, so they protect the workload from a flood and not one player from another, which is
-the workload's own to judge.
+packet filter judges addresses: a rule naming workloads by label is refused until Phase 3, since on
+one node another workload is denied by the default and opened by a dependency (§5), so such a rule
+would decide nothing those do not, and it is needed where workloads on other nodes are reached,
+which the overlay brings (corrected 2026-10-15, when dependencies were built: it had been promised
+with them, and they resolve endpoints, not a policy's peers), and one naming a domain is refused
+until question 8 of §11 is answered. A rule that arrives at a node anyway fails the workload's
+network rather than being left out, because a deny left out is a weaker policy than the one
+declared. Half-open connections have no limit of their own to declare (above), and a declaration
+that sets one is refused. What it costs: an endpoint's limits are for the endpoint as a whole and
+not for each client, so they protect the workload from a flood and not one player from another,
+which is the workload's own to judge.
 
 ---
 

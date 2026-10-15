@@ -211,8 +211,13 @@ fn each_row_of_the_egress_default_drops_what_it_names_and_counts_it() {
     let mut ra = request(&a, Ipv4Addr::new(10, 244, third, 2));
     ra.ipv4_pool = "10.244.0.0/16".into();
     // The control plane's API, opened for this workload as for an installed extension's.
-    ra.opened =
-        vec![helper::Destination { address: node.to_string(), port: 7443, ..Default::default() }];
+    ra.opened = vec![helper::Destination {
+        address: node.to_string(),
+        port: 7443,
+        transport: helper::Transport::TRANSPORT_TCP.into(),
+        reason: helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE.into(),
+        ..Default::default()
+    }];
     let mut rb = request(&b, ip_b);
     rb.ipv4_pool = "10.244.0.0/16".into();
     rb.uid_base = FIRST_WORKLOAD_ID + (1 << 16);

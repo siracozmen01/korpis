@@ -133,25 +133,6 @@ async fn configuration_the_recipe_does_not_allow_is_refused_with_its_field() {
 }
 
 #[tokio::test]
-async fn a_dependency_is_refused_until_something_resolves_it() {
-    let h = Harness::new().await;
-    let repo = push_paper().await;
-    let project = project(&h, &h.root_org(), "games").await;
-    let mut b = body(&repo, &[]);
-    b.dependencies.push(pb::Dependency {
-        name: "db".into(),
-        target: Some(korpis_proto::korpis::v1::__buffa::oneof::dependency::Target::Workload(
-            "wl_00000000000000000000000000000001".into(),
-        )),
-        ..Default::default()
-    });
-    let e = h.workloads(h.root()).declare_intent(create("d", &project, "web", b)).await;
-    let e = e.unwrap_err();
-    assert_eq!(e.code, connectrpc::ErrorCode::Unimplemented, "{e:?}");
-    assert!(e.message.as_deref().unwrap_or_default().contains("Phase 1"), "{e:?}");
-}
-
-#[tokio::test]
 async fn a_driver_that_declares_starting_disruptive_on_its_tier_makes_a_human_confirm_it() {
     let h = Harness::new().await;
     let org = h.installed.organization.id;

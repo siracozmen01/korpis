@@ -15,9 +15,8 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
 use std::time::Duration;
 
-/// Whether the latest assignment of the workload with wire id `workload` says it reaches the
-/// API, once it has one.
-async fn reaches_api(h: &Harness, workload: &str) -> bool {
+/// The latest assignment of the workload with wire id `workload`, once it has one.
+pub async fn assigned(h: &Harness, workload: &str) -> agent::Assignment {
     let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, workload).unwrap();
     let store = h.db.store().await.unwrap();
     for _ in 0..100 {
@@ -29,11 +28,15 @@ async fn reaches_api(h: &Harness, workload: &str) -> bool {
         .await
         .unwrap();
         if let Some(b) = body {
-            return agent::Assignment::decode_from_slice(&b).unwrap().reaches_api;
+            return agent::Assignment::decode_from_slice(&b).unwrap();
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     panic!("{workload} was never assigned");
+}
+
+async fn reaches_api(h: &Harness, workload: &str) -> bool {
+    assigned(h, workload).await.reaches_api
 }
 
 #[tokio::test]

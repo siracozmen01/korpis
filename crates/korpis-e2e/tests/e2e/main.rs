@@ -14,6 +14,7 @@
 
 mod backups;
 mod console;
+mod dependencies;
 mod install;
 mod network;
 mod node;

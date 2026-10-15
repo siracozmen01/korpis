@@ -119,7 +119,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return self.stop(t).await;
         }
         if t.runtime.is_none() {
-            self.start(a, t).await?;
+            // A required dependency not yet running here holds its dependent back (§5 of
+            // docs/07-networking.md); it is created once the dependency runs.
+            t.waiting = self.waiting_for(a);
+            if t.waiting.is_none() {
+                self.start(a, t).await?;
+            }
             return Ok(());
         }
         if !t.status.as_ref().is_some_and(running) {

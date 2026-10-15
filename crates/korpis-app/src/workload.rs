@@ -11,6 +11,7 @@ mod conditions;
 mod configure;
 mod decide;
 mod declare;
+mod dependency;
 mod explain;
 mod learned;
 mod observed;

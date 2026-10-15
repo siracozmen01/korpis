@@ -17,6 +17,9 @@ pub trait EndpointRead {
 
     /// The ports of `node` its endpoints hold.
     fn node_ports_held(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<u16>>> + Send;
+
+    /// One endpoint, by its identifier.
+    fn endpoint(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<Endpoint>>> + Send;
 }
 
 /// Writing endpoints, in the transaction that computes a node's assignments.

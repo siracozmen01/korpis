@@ -91,9 +91,11 @@ fn peer(at: &str, r: &NetworkRule) -> Result<(), AppError> {
              under it, so a rule naming a domain is not yet one a node can hold (question 8 of \
              §11 of docs/07-networking.md)",
         )),
-        // The node knows addresses, not labels: the control plane resolves a selector to the
-        // workloads it names, which it does with dependencies (§5 of docs/07-networking.md).
-        Peer::Workloads(_) => Err(AppError::NotYet { what: "rules naming workloads", phase: 1 }),
+        // On one node another workload is denied by the default and opened by a dependency, so
+        // a rule naming workloads by label decides nothing those do not; it is needed where
+        // workloads on other nodes are reached, which the overlay brings (§6 of
+        // docs/07-networking.md).
+        Peer::Workloads(_) => Err(AppError::NotYet { what: "rules naming workloads", phase: 3 }),
     }
 }
 

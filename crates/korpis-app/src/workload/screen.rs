@@ -103,6 +103,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     async fn shortlist(&self, w: &Workload, target: &Intent) -> Result<Vec<Uuid>, AppError> {
         let owners = self.owners(w.organization).await?;
         let volumes = self.existing_nodes(&target.body).await?;
+        let needed = self.needed(w, &target.body).await?;
         let mut tx = self.store.begin().await?;
         let nodes = tx.serving_nodes(&owners).await?;
         let ids: Vec<Uuid> = nodes.iter().map(|n| n.id).collect();
@@ -128,6 +129,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             refused: &refused,
             content: &learned.content,
             churn: &learned.churn,
+            dependencies: &needed,
         };
         let (_, ranking) = ranked(&req, &candidates, &peers, &self.policy);
         Ok(ranking.into_iter().take(SHORTLIST).collect())

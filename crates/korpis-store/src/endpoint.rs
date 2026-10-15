@@ -90,6 +90,19 @@ impl EndpointRead for PgStore {
         domain(rows)
     }
 
+    async fn endpoint(&self, id: Uuid) -> StoreResult<Option<Endpoint>> {
+        let rows = sqlx::query_as!(
+            EndpointRow,
+            "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port
+               FROM endpoint WHERE id = $1",
+            id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(domain(rows)?.into_iter().next())
+    }
+
     async fn node_ports_held(&self, node: Uuid) -> StoreResult<Vec<u16>> {
         let held = sqlx::query_scalar!(
             r#"SELECT port AS "port!" FROM endpoint WHERE node_id = $1 AND port IS NOT NULL

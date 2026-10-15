@@ -10,6 +10,7 @@ use crate::node::{NodeAdmin, NodeStatus, Reachability};
 use crate::workload::spec::ConsoleMode;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::placement::AffinityRule;
+use uuid::Uuid;
 
 type Refusal = (Check, String);
 
@@ -188,6 +189,33 @@ fn affinity(
     rules.filter(|r| r.required).filter_map(|r| affinity_rule(req, c, fleet, peers, r)).collect()
 }
 
+/// Until the overlay exists no node reaches another's workloads (§9 of docs/07-networking.md), so
+/// a dependency's placed targets must all be on the candidate; a required one with none placed
+/// leaves the workload nowhere to start.
+fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Refusal> {
+    let mut out = Vec::new();
+    for d in req.dependencies {
+        let mut nodes: Vec<Uuid> =
+            peers.iter().filter(|p| d.targets.contains(&p.workload)).map(|p| p.node).collect();
+        nodes.sort_unstable();
+        nodes.dedup();
+        let name = &d.name;
+        let why = match nodes.as_slice() {
+            [] if d.required => Some(format!("its required dependency {name} is not placed")),
+            [] => None,
+            [only] if *only == c.node.id => None,
+            [_] => {
+                Some(format!("its dependency {name} is on another node, and no overlay joins them"))
+            }
+            _ => Some(format!(
+                "its dependency {name} is on several nodes, and no overlay joins them"
+            )),
+        };
+        out.extend(why.map(|w| (Check::Dependency, w)));
+    }
+    out
+}
+
 /// Every check the candidate fails; empty if it can run the workload.
 pub(super) fn rejections(
     req: &Request<'_>,
@@ -206,6 +234,7 @@ pub(super) fn rejections(
     out.extend(storage_classes(req, c));
     out.extend(volumes(req, c));
     out.extend(affinity(req, c, fleet, peers, policy));
+    out.extend(dependencies(req, c, peers));
     if let Some(why) = req.refused.get(&c.node.id) {
         out.push((Check::Prepare, format!("its driver refused it: {why}")));
     }

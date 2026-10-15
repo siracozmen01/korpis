@@ -424,8 +424,8 @@ Intent
   placement     PlacementSpec  constraints, affinities, preferred region
   continuity    ContinuitySpec on_lease_expiry: derived | keep_running | stop
                                (§4.5 of 02-architecture.md); derived when unset
-  dependencies  []Dependency   name, target (workload, endpoint, or selector), inject, required
-                               (§5 of 07-networking.md); refused until Phase 1 resolves them
+  dependencies  []Dependency   name, target (workload, endpoint, or selector) in the same
+                               project, inject, required (§5 of 07-networking.md)
   streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
                                duration), and how long its offloaded segments are kept; each
                                left unset is the default (§4 and §5 of 14-streams.md)

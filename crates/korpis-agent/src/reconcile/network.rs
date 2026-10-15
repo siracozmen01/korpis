@@ -68,6 +68,8 @@ async fn opened(api: Option<&(String, u16)>) -> Result<Vec<helper::Destination>,
         .map(|a| helper::Destination {
             address: a.ip().to_string(),
             port: u32::from(a.port()),
+            transport: helper::Transport::TRANSPORT_TCP.into(),
+            reason: helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE.into(),
             ..Default::default()
         })
         .collect())
@@ -81,7 +83,20 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         a: &agent::Assignment,
         spec: &mut driver::PreparedSpec,
     ) -> Result<(), Failure> {
-        let Some(net) = self.wiring.network.as_mut() else { return Ok(()) };
+        let Some(made) = self.ensure_network(a).await? else { return Ok(()) };
+        spec.namespaces = made.namespaces;
+        self.serve_resolver(&a.workload).await;
+        Ok(())
+    }
+
+    /// Asks the helper to make `a`'s workload's network what `a` says now, allocating its
+    /// addresses if it has none; `None` where the node gives no networks.
+    pub(super) async fn ensure_network(
+        &mut self,
+        a: &agent::Assignment,
+    ) -> Result<Option<helper::EnsureNetworkResponse>, Failure> {
+        let dependencies = self.dependency_destinations(a);
+        let Some(net) = self.wiring.network.as_mut() else { return Ok(None) };
         let assigned = net
             .addresses
             .assign(&a.workload, net.pools)
@@ -94,10 +109,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if a.reaches_api {
             request.opened = opened(net.api.as_ref()).await?;
         }
+        request.opened.extend(dependencies.iter().cloned());
         let made = self.host.ensure_network(&request).await?;
-        spec.namespaces = made.namespaces;
-        self.serve_resolver(&a.workload).await;
-        Ok(())
+        if let Some(n) = self.wiring.network.as_mut() {
+            n.dependencies_opened.insert(a.workload.clone(), dependencies);
+        }
+        Ok(Some(made))
     }
 
     /// Serves `workload`'s resolver on the sockets the helper opens in its namespace, unless it
@@ -163,6 +180,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             if let Err(e) = self.host.release_network(&workload).await {
                 tracing::warn!(%workload, error = %e, "a network could not be released yet");
                 continue;
+            }
+            if let Some(n) = self.wiring.network.as_mut() {
+                n.dependencies_opened.remove(&workload);
             }
             let freed = self.wiring.network.as_mut().map(|n| n.addresses.release(&workload));
             if let Some(Err(e)) = freed {

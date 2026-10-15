@@ -33,8 +33,12 @@ const PRIVATE_V6: [(&str, u8); 2] = [("fc00::", 7), ("::1", 128)];
 pub(crate) struct Opened {
     /// Its address.
     pub(crate) addr: IpAddr,
-    /// Its TCP port.
+    /// Its port.
     pub(crate) port: u16,
+    /// Over what.
+    pub(crate) transport: super::forward::Transport,
+    /// Why, as the rule's comment says it: `control plane` or `dependency`.
+    pub(crate) why: &'static str,
 }
 
 fn rule(chain: &str, comment: Option<&str>, expr: Vec<Value>) -> Value {
@@ -223,12 +227,12 @@ pub(crate) fn hold(link: &str, own: &Own<'_>, listed: bool) -> Vec<Value> {
         let family = if o.addr.is_ipv4() { "ip" } else { "ip6" };
         let expr = vec![
             is(daddr(family), json!(o.addr.to_string())),
-            is(meta("l4proto"), json!("tcp")),
+            is(meta("l4proto"), json!(o.transport.name())),
             is(json!({"payload": {"protocol": "th", "field": "dport"}}), json!(o.port)),
             json!({"counter": null}),
             json!({"accept": null}),
         ];
-        commands.push(rule(&c, Some("control plane"), expr));
+        commands.push(rule(&c, Some(o.why), expr));
     }
     let l = own.limits;
     let max = if l.max_connections < TRACKED { l.max_connections } else { 0 };

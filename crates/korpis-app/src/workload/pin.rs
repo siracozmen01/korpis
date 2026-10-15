@@ -136,6 +136,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let empty = Bounds::default();
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
         let volumes = self.existing_nodes(&target.body).await?;
+        let needed = self.needed(w, &target.body).await?;
         let drivers_refused = tx.refusals(w.id, target.id).await?;
         let learned = self.learned(tx, &[node.id], target).await?;
         let req = Request {
@@ -150,6 +151,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             refused: &drivers_refused,
             content: &learned.content,
             churn: &learned.churn,
+            dependencies: &needed,
         };
         let standing = operator_refusals(&req, &c, &peers, &self.policy);
         if !standing.is_empty() {

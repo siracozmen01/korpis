@@ -147,15 +147,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .iter()
             .map(|n| Candidate { node: n, allocated: allocations.get(&n.id).unwrap_or(&empty) })
             .collect();
-        let volumes = self.existing_nodes(&target.body).await?;
-        let now = self.clock.now();
-        let (found, unanswered) = screened.for_target(target.id);
-        for (node, why) in found {
-            tx.refuse((w.id, target.id), *node, why, now).await?;
-        }
-        let mut refused = tx.refusals(w.id, target.id).await?;
+        let (volumes, needed) =
+            (self.existing_nodes(&target.body).await?, self.needed(w, &target.body).await?);
+        let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
-        refused.extend(unanswered.iter().map(|(n, why)| (*n, why.clone())));
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -168,6 +163,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             refused: &refused,
             content: &learned.content,
             churn: &learned.churn,
+            dependencies: &needed,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {
@@ -177,6 +173,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             None => self.record_unplaced(tx, w, target, explanation).await,
         }
+    }
+
+    /// Every driver's refusal of `target`: those the shortlist just found, recorded, with those
+    /// recorded before, and the nodes that did not answer it.
+    async fn refusals_screened(
+        &self,
+        tx: &mut S::Tx,
+        (w, target): (&Workload, &Intent),
+        screened: &Screened,
+    ) -> Result<std::collections::BTreeMap<Uuid, String>, AppError> {
+        let now = self.clock.now();
+        let (found, unanswered) = screened.for_target(target.id);
+        for (node, why) in found {
+            tx.refuse((w.id, target.id), *node, why, now).await?;
+        }
+        let mut refused = tx.refusals(w.id, target.id).await?;
+        refused.extend(unanswered.iter().map(|(n, why)| (*n, why.clone())));
+        Ok(refused)
     }
 
     async fn bind_chosen(

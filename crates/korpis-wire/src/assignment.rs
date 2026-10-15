@@ -11,7 +11,29 @@ use crate::wire_id;
 use crate::workload::{intent_to_pb, power_to_pb};
 use korpis_core::id::IdKind;
 use korpis_core::workload::assignment::Assignment;
+use korpis_core::workload::dependency::ResolvedDependency;
 use korpis_proto::korpis::agent::v1 as agent;
+
+/// The wire form of a dependency as its node is told it.
+fn resolved_to_pb(d: &ResolvedDependency) -> agent::ResolvedDependency {
+    agent::ResolvedDependency {
+        name: d.name.clone(),
+        inject: crate::spec::dependencies::injection_to_pb(d.inject).into(),
+        required: d.required,
+        targets: d
+            .targets
+            .iter()
+            .map(|t| agent::DependencyEndpoint {
+                workload: wire_id(IdKind::Workload, t.workload),
+                endpoint: t.endpoint.clone(),
+                container_port: u32::from(t.container_port),
+                protocol: crate::spec::endpoints::protocol_to_pb(t.protocol).into(),
+                ..Default::default()
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
 
 /// The wire form of an assignment.
 #[must_use]
@@ -48,6 +70,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         volume_ids: a.volume_ids.clone().into_iter().collect(),
         endpoints: a.endpoints.iter().map(|e| endpoint_to_pb(e, &[])).collect(),
         reaches_api: a.reaches_api,
+        dependencies: a.dependencies.iter().map(resolved_to_pb).collect(),
         ..Default::default()
     }
 }

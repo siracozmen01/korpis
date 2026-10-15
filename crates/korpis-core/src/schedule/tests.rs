@@ -170,6 +170,7 @@ impl Case {
             refused: &NONE_REFUSED,
             content: &self.content,
             churn: &self.churn,
+            dependencies: &[],
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -293,6 +294,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
         churn: &NONE_LOST,
+        dependencies: &[],
     };
     let e = place(
         &req,
@@ -329,6 +331,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
         churn: &NONE_LOST,
+        dependencies: &[],
     }
 }
 
@@ -379,19 +382,5 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
     assert!(DriverClass::of(&drivers, IsolationTier::Process).disruptive.is_empty());
 }
 
-#[test]
-fn an_existing_volume_keeps_the_workload_on_the_node_holding_it() {
-    let (one, two) = (node(1, &[]), node(2, &[]));
-    let labels = BTreeMap::new();
-    let b = body(GIB);
-    let held = [(Uuid::from_u128(77), two.id)];
-    let request = Request { volumes: &held, ..req(&labels, &b) };
-    let empty = Bounds::new();
-    let nodes =
-        [Candidate { node: &one, allocated: &empty }, Candidate { node: &two, allocated: &empty }];
-    let e = place(&request, &nodes, &[], &PlacementPolicy::default());
-    assert_eq!(e.chosen, Some(two.id));
-    assert!(e.filtered.iter().any(|r| r.node == one.id && r.check == Check::Volume));
-}
-
+mod colocation;
 mod signals;

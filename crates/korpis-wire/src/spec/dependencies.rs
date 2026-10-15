@@ -10,7 +10,7 @@ use korpis_core::workload::spec::dependencies::{DependencyTarget, Injection};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::dependency::Target;
 
-fn injection_to_pb(i: Injection) -> pb::DependencyInjection {
+pub(crate) fn injection_to_pb(i: Injection) -> pb::DependencyInjection {
     match i {
         Injection::Env => pb::DependencyInjection::DEPENDENCY_INJECTION_ENV,
         Injection::File => pb::DependencyInjection::DEPENDENCY_INJECTION_FILE,

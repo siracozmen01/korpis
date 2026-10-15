@@ -171,7 +171,15 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         .iter()
         .map(|d| {
             let addr = d.address.parse().map_err(|_| refuse("an opened address is not one"))?;
-            Ok(egress::Opened { addr, port: port("an opened port", d.port, 1)? })
+            let why = match d.reason.as_known() {
+                Some(helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE) => {
+                    "control plane"
+                }
+                Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY) => "dependency",
+                _ => return Err(refuse("an opened destination says why it is opened")),
+            };
+            let (port, transport) = (port("an opened port", d.port, 1)?, transport(d.transport)?);
+            Ok(egress::Opened { addr, port, transport, why })
         })
         .collect::<HelperResult<Vec<_>>>()?;
     let ids = (r.uid_base, r.uid_count);

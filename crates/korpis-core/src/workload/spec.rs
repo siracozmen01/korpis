@@ -177,3 +177,35 @@ impl IntentBody {
         self.placement.validate()
     }
 }
+
+/// A body for the crate's own tests: a container under the OCI driver, with nothing declared.
+#[cfg(test)]
+pub(crate) fn fixture() -> IntentBody {
+    IntentBody {
+        recipe: RecipeRef {
+            name: "r".into(),
+            version: "1".into(),
+            digest: String::new(),
+            trust: None,
+            providers: Vec::new(),
+        },
+        lifecycle: Lifecycle::Persistent,
+        schedule: None,
+        console: ConsoleMode::None,
+        runtime: RuntimeSpec {
+            driver: "oci".into(),
+            tier: IsolationTier::Container,
+            config: ValueMap::new(),
+        },
+        resources: ResourceSpec::default(),
+        volumes: Vec::new(),
+        endpoints: Vec::new(),
+        health: HealthSpec::default(),
+        config: ValueMap::new(),
+        placement: PlacementSpec::default(),
+        continuity: Continuity::Derived,
+        dependencies: Vec::new(),
+        streams: StreamSpec::default(),
+        egress: EgressPolicy::default(),
+    }
+}

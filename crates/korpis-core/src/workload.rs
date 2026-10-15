@@ -5,6 +5,7 @@
 
 pub mod assignment;
 pub mod declare;
+pub mod dependency;
 pub mod endpoint;
 pub mod lease;
 pub mod network;
