@@ -2079,7 +2079,7 @@ port it allocated on the node.
 
 **Resolution.** The probe picks among the ports of the range that no endpoint on the node holds,
 and the node refuses to listen on a port it forwards. → patched into `07-networking.md` §9; built
-with the allocation of endpoint ports.
+2026-10-15 with the allocation of endpoint ports, both halves tested.
 
 **FINDING 54: A container could not start in a network namespace the host owned. `CONFIRMED`**
 

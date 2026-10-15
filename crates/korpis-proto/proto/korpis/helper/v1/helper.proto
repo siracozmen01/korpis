@@ -168,6 +168,32 @@ message EnsureNetworkRequest {
   // namespace that owns its network maps.
   uint32 uid_base = 7;
   uint32 uid_count = 8;
+  // The ports inside the workload its declared endpoints listen on, which its own firewall
+  // accepts new connections to; every other port is closed to new connections from anywhere.
+  repeated Port inbound = 9;
+  // The ports of the node forwarded to it (§3 of docs/07-networking.md): each on every address
+  // of the node but loopback, to the workload's address and a port inside it.
+  repeated Forward forwards = 10;
+}
+
+// What a forwarded or accepted port is carried over.
+enum Transport {
+  TRANSPORT_UNSPECIFIED = 0;
+  TRANSPORT_TCP = 1;
+  TRANSPORT_UDP = 2;
+}
+
+message Port {
+  Transport transport = 1;
+  uint32 port = 2;
+}
+
+message Forward {
+  Transport transport = 1;
+  // The node's port, which the control plane allocated, unique on the node.
+  uint32 node_port = 2;
+  // The port inside the workload.
+  uint32 container_port = 3;
 }
 
 message EnsureNetworkResponse {

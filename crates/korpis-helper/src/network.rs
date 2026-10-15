@@ -7,11 +7,13 @@
 //! derives every name from the workload's identifier, and makes the rest so, whatever part of it
 //! a crash or a reboot left behind.
 
+mod forward;
 mod netns;
 mod nft;
 mod rtnl;
 
 use crate::error::{HelperError, HelperResult, identifier};
+use forward::{Forward, Transport};
 use korpis_proto::korpis::helper::v1 as helper;
 use rtnl::Rtnl;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -93,6 +95,54 @@ struct Asked {
     ipv4: Ipv4Addr,
     ipv6: Option<Ipv6Addr>,
     ids: (u32, u32),
+    inbound: Vec<(Transport, u16)>,
+    forwards: Vec<Forward>,
+}
+
+fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
+    match t.as_known() {
+        Some(helper::Transport::TRANSPORT_TCP) => Ok(Transport::Tcp),
+        Some(helper::Transport::TRANSPORT_UDP) => Ok(Transport::Udp),
+        _ => Err(HelperError::Refused("a port's transport is tcp or udp".into())),
+    }
+}
+
+fn port(what: &str, p: u32, lowest: u16) -> HelperResult<u16> {
+    u16::try_from(p)
+        .ok()
+        .filter(|p| *p >= lowest)
+        .ok_or_else(|| HelperError::Refused(format!("{what} {p} is not a port it may use")))
+}
+
+/// The ports a workload accepts connections on, and those of the node forwarded to it.
+type Ports = (Vec<(Transport, u16)>, Vec<Forward>);
+
+/// The ports a request accepts and forwards, checked: a node's port is never below 1024, which
+/// the node's own services hold, and none is forwarded twice.
+fn ports(r: &helper::EnsureNetworkRequest) -> HelperResult<Ports> {
+    let inbound = r
+        .inbound
+        .iter()
+        .map(|p| Ok((transport(p.transport)?, port("an inbound port", p.port, 1)?)))
+        .collect::<HelperResult<Vec<_>>>()?;
+    let forwards = r
+        .forwards
+        .iter()
+        .map(|f| {
+            Ok(Forward {
+                transport: transport(f.transport)?,
+                node_port: port("a node's port", f.node_port, 1024)?,
+                container_port: port("a port inside", f.container_port, 1)?,
+            })
+        })
+        .collect::<HelperResult<Vec<_>>>()?;
+    let mut node_ports: Vec<u16> = forwards.iter().map(|f| f.node_port).collect();
+    node_ports.sort_unstable();
+    node_ports.dedup();
+    if node_ports.len() != forwards.len() {
+        return Err(HelperError::Refused("a node's port is forwarded twice".into()));
+    }
+    Ok((inbound, forwards))
 }
 
 fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
@@ -116,11 +166,17 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
     if r.uid_count == 0 || r.uid_base.checked_add(r.uid_count).is_none() {
         return Err(refuse("the workload holds no uid range for its namespaces to map"));
     }
-    Ok(Asked { workload: r.workload.clone(), ipv4, ipv6, ids: (r.uid_base, r.uid_count) })
+    let (inbound, forwards) = ports(r)?;
+    let ids = (r.uid_base, r.uid_count);
+    Ok(Asked { workload: r.workload.clone(), ipv4, ipv6, ids, inbound, forwards })
 }
 
-/// Configures the workload's side, on a thread inside its namespace.
-fn inside(ipv4: Ipv4Addr, ipv6: Option<Ipv6Addr>) -> std::io::Result<()> {
+/// Configures the workload's side, from inside its namespace.
+fn inside(
+    ipv4: Ipv4Addr,
+    ipv6: Option<Ipv6Addr>,
+    inbound: &[(Transport, u16)],
+) -> std::io::Result<()> {
     let mut nl = Rtnl::open()?;
     let missing = || std::io::Error::other("the namespace lacks its link");
     let lo = nl.link_index("lo")?.ok_or_else(missing)?;
@@ -133,7 +189,37 @@ fn inside(ipv4: Ipv4Addr, ipv6: Option<Ipv6Addr>) -> std::io::Result<()> {
         nl.add_address(eth, IpAddr::V6(v6), 128)?;
         nl.add_route((IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0), eth, Some(IpAddr::V6(GATEWAY_V6)))?;
     }
-    nft::apply(&nft::namespace())
+    let inbound: Vec<(&str, u16)> = inbound.iter().map(|(t, p)| (t.name(), *p)).collect();
+    nft::apply(&nft::namespace(&inbound))
+}
+
+/// Makes the host side of the workload's link, `link`, to its namespace in `dir`, with the
+/// gateway's addresses and the routes to the workload's; a link left from a namespace `fresh`
+/// replaced is made again.
+fn linked(
+    dir: &std::path::Path,
+    link: &str,
+    fresh: bool,
+    (ipv4, ipv6): (Ipv4Addr, Option<Ipv6Addr>),
+) -> HelperResult<()> {
+    let mut nl = Rtnl::open()?;
+    if fresh && let Some(stale) = nl.link_index(link)? {
+        nl.delete_link(stale)?;
+    }
+    if nl.link_index(link)?.is_none() {
+        let ns = std::fs::File::open(netns::net(dir))?;
+        nl.add_veth(link, INNER, ns.as_raw_fd())?;
+    }
+    let index =
+        nl.link_index(link)?.ok_or_else(|| HelperError::Failed("the link vanished".into()))?;
+    nl.add_address(index, IpAddr::V4(GATEWAY_V4), 32)?;
+    nl.set_up(index)?;
+    nl.add_route((IpAddr::V4(ipv4), 32), index, None)?;
+    if let Some(v6) = ipv6 {
+        nl.add_address(index, IpAddr::V6(GATEWAY_V6), 64)?;
+        nl.add_route((IpAddr::V6(v6), 128), index, None)?;
+    }
+    Ok(())
 }
 
 impl Network {
@@ -189,25 +275,12 @@ impl Network {
         let dir = self.path(&a.workload);
         let fresh = netns::ensure(&dir, a.ids)?;
         let link = host_link(&a.workload);
-        let mut nl = Rtnl::open()?;
-        if fresh && let Some(stale) = nl.link_index(&link)? {
-            nl.delete_link(stale)?;
-        }
-        if nl.link_index(&link)?.is_none() {
-            let ns = std::fs::File::open(netns::net(&dir))?;
-            nl.add_veth(&link, INNER, ns.as_raw_fd())?;
-        }
-        let index =
-            nl.link_index(&link)?.ok_or_else(|| HelperError::Failed("the link vanished".into()))?;
-        nl.add_address(index, IpAddr::V4(GATEWAY_V4), 32)?;
-        nl.set_up(index)?;
-        nl.add_route((IpAddr::V4(a.ipv4), 32), index, None)?;
-        if let Some(v6) = ipv6 {
-            nl.add_address(index, IpAddr::V6(GATEWAY_V6), 64)?;
-            nl.add_route((IpAddr::V6(v6), 128), index, None)?;
-        }
-        nft::apply(&nft::host())?;
-        netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6))?;
+        linked(&dir, &link, fresh, (a.ipv4, ipv6))?;
+        let listed = forward::listed()?;
+        let mut host = nft::host();
+        host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
+        nft::apply(&serde_json::json!({"nftables": host}))?;
+        netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
         Ok(helper::EnsureNetworkResponse {
             namespaces: dir.to_string_lossy().into_owned(),
             host_link: link,
@@ -219,6 +292,10 @@ impl Network {
     /// Removes `workload`'s network; whether there was one.
     pub fn release(&self, workload: &str) -> HelperResult<bool> {
         identifier("workload", workload)?;
+        let unforwarded = forward::release(&host_link(workload), &forward::listed()?);
+        if !unforwarded.is_empty() {
+            nft::apply(&serde_json::json!({"nftables": unforwarded}))?;
+        }
         let mut nl = Rtnl::open()?;
         let link = match nl.link_index(&host_link(workload))? {
             Some(index) => nl.delete_link(index)?,

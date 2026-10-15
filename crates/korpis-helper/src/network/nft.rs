@@ -13,7 +13,7 @@ use std::process::{Command, Stdio};
 /// The table Korpis keeps, on the host and in each workload's namespace.
 pub(crate) const TABLE: &str = "korpis";
 
-fn chain(name: &str, kind: &str, hook: &str, prio: i32, policy: &str) -> Value {
+pub(crate) fn chain(name: &str, kind: &str, hook: &str, prio: i32, policy: &str) -> Value {
     json!({"add": {"chain": {
         "family": "inet", "table": TABLE, "name": name,
         "type": kind, "hook": hook, "prio": prio, "policy": policy
@@ -50,16 +50,18 @@ fn masquerade(family: &str, ula_only: bool) -> Value {
     rule("postrouting", expr)
 }
 
-/// The host's table and its translation, which hold for every workload on the node and name
-/// none of them, so they are the same whatever pools the node's agents use.
-pub(crate) fn host() -> Value {
-    json!({"nftables": [
-        {"add": {"table": {"family": "inet", "name": TABLE}}},
+/// The host's table, its translation, and its forwarding, which hold for every workload on the
+/// node and name none of them, so they are the same whatever pools the node's agents use.
+pub(crate) fn host() -> Vec<Value> {
+    let mut commands = vec![
+        json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
         chain("postrouting", "nat", "postrouting", 100, "accept"),
         flush("postrouting"),
         masquerade("ipv4", false),
         masquerade("ipv6", true),
-    ]})
+    ];
+    commands.extend(super::forward::base());
+    commands
 }
 
 fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
@@ -67,10 +69,11 @@ fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
     rule("input", vec![matched, json!({"accept": null})])
 }
 
-/// A workload's own table: new connections in are dropped, except over loopback and the
-/// messages a network needs; replies to its own connections are let back.
-pub(crate) fn namespace() -> Value {
-    let commands = vec![
+/// A workload's own table: new connections in are dropped, except over loopback, the messages a
+/// network needs, and to the ports `inbound` its endpoints listen on; replies to its own
+/// connections are let back.
+pub(crate) fn namespace(inbound: &[(&str, u16)]) -> Value {
+    let mut commands = vec![
         json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
         chain("input", "filter", "input", 0, "drop"),
         flush("input"),
@@ -79,6 +82,13 @@ pub(crate) fn namespace() -> Value {
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("icmp")),
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("ipv6-icmp")),
     ];
+    for (transport, port) in inbound {
+        let proto = json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
+            "right": transport}});
+        let dport = json!({"match": {"op": "==",
+            "left": {"payload": {"protocol": "th", "field": "dport"}}, "right": port}});
+        commands.push(rule("input", vec![proto, dport, json!({"accept": null})]));
+    }
     json!({"nftables": commands})
 }
 

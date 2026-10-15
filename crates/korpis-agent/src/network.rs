@@ -120,6 +120,12 @@ impl Addresses {
         durable::replace(&self.path, text.as_bytes())
     }
 
+    /// What `workload` holds, if it holds addresses.
+    #[must_use]
+    pub fn of(&self, workload: &str) -> Option<Assigned> {
+        self.held.get(workload).copied()
+    }
+
     /// The workloads holding addresses.
     pub fn workloads(&self) -> impl Iterator<Item = &String> {
         self.held.keys()

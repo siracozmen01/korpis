@@ -50,6 +50,31 @@ fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
 }
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
+    /// Each endpoint of `a` that is reachable at all, at the address the node gave the workload
+    /// and the port it listens on, ready while the workload runs (§4.1 of
+    /// docs/07-networking.md); none where the node gives its workloads no network.
+    fn endpoints(
+        &self,
+        a: &agent::Assignment,
+        state: pb::ObservedState,
+    ) -> Vec<pb::EndpointStatus> {
+        let Some(held) = self.wiring.network.as_ref().and_then(|n| n.addresses.of(&a.workload))
+        else {
+            return Vec::new();
+        };
+        let running = state == pb::ObservedState::OBSERVED_STATE_RUNNING;
+        a.endpoints
+            .iter()
+            .filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE))
+            .map(|e| pb::EndpointStatus {
+                name: e.name.clone(),
+                address: format!("{}:{}", held.ipv4, e.container_port),
+                ready: running,
+                ..Default::default()
+            })
+            .collect()
+    }
+
     /// What the node observes of `a` now.
     fn observation(&self, a: &agent::Assignment, t: &mut Tracked) -> pb::Observation {
         let state = state(a, t);
@@ -69,7 +94,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             ..Default::default()
         });
         let rejected = t.rejected.as_ref();
+        let endpoints = self.endpoints(a, state);
         pb::Observation {
+            endpoints,
             workload: a.workload.clone(),
             node: self.wiring.node.clone(),
             assignment_seen: t.generation,

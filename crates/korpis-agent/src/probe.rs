@@ -92,15 +92,20 @@ fn listening(probe: String, error: String) -> agent::AgentMessage {
 }
 
 /// Starts answering `probe` as `node` with `key`; what to tell the control plane, which is
-/// whether the node is listening.
+/// whether the node is listening. A port in `forwarded` is refused: the node forwards it to a
+/// workload, so the prober's nonces would reach the workload and not the node (Finding 53 of
+/// docs/23-walkthroughs.md).
 pub async fn begin(
-    node: &str,
-    key: &SigningKey,
+    (node, key): (&str, &SigningKey),
     probe: agent::ReachabilityProbe,
+    forwarded: &[u16],
 ) -> agent::AgentMessage {
     let Ok(port) = u16::try_from(probe.port) else {
         return listening(probe.probe, format!("port {} is out of range", probe.port));
     };
+    if forwarded.contains(&port) {
+        return listening(probe.probe, format!("port {port} is forwarded to a workload"));
+    }
     let (tcp, udp) = match bind(port).await {
         Ok(sockets) => sockets,
         Err(e) => return listening(probe.probe, format!("port {port}: {e}")),
@@ -114,4 +119,19 @@ pub async fn begin(
         tokio::spawn(serve_udp(socket, Arc::clone(&answerer), until));
     }
     listening(probe.probe, String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_port_forwarded_to_a_workload_is_not_listened_on() {
+        let key = SigningKey::from_bytes(&[7; 32]);
+        let probe =
+            agent::ReachabilityProbe { probe: "p".into(), port: 30005, ..Default::default() };
+        let said = begin(("nd_1", &key), probe, &[30005]).await;
+        let Some(Up::ProbeListening(l)) = said.message else { panic!("{said:?}") };
+        assert!(l.error.contains("forwarded"), "{}", l.error);
+    }
 }

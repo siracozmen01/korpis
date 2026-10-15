@@ -45,6 +45,20 @@ pub struct HeldSet {
     pub raw: agent::AssignmentSet,
 }
 
+impl HeldSet {
+    /// The ports of the node its endpoints hold, which it forwards to its workloads (§3 of
+    /// docs/07-networking.md).
+    #[must_use]
+    pub fn forwarded(&self) -> Vec<u16> {
+        self.assignments
+            .values()
+            .flat_map(|a| a.endpoints.iter())
+            .filter_map(|e| e.address.as_option())
+            .filter_map(|a| u16::try_from(a.port).ok())
+            .collect()
+    }
+}
+
 fn verifier(keys: &[agent::SigningKey], id: &str) -> Result<VerifyingKey, Refused> {
     let key = keys.iter().find(|k| k.key_id == id).ok_or_else(|| Refused::UnknownKey(id.into()))?;
     let bytes: [u8; 32] =

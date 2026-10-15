@@ -314,7 +314,9 @@ impl Session {
                 Vec::new()
             }
             Some(Down::ReachabilityProbe(p)) => {
-                vec![crate::probe::begin(&self.identity.node, &self.identity.key, *p).await]
+                let forwarded = self.held.borrow().forwarded();
+                let me = (self.identity.node.as_str(), &self.identity.key);
+                vec![crate::probe::begin(me, *p, &forwarded).await]
             }
             Some(Down::WorkloadCredential(answer)) => {
                 self.credentials.answer(*answer);

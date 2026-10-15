@@ -85,3 +85,55 @@ async fn a_workload_joins_its_own_routed_network_and_retiring_it_releases_it() {
     assert!(!bound.exists(), "its namespace is released");
     agent.stop().await;
 }
+
+/// What the server at `at` answers a request for its index, within two seconds.
+async fn served(at: std::net::SocketAddr) -> Option<String> {
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+    let ask = async {
+        let mut s = tokio::net::TcpStream::connect(at).await.ok()?;
+        s.write_all(b"GET / HTTP/1.0\r\n\r\n").await.ok()?;
+        let mut got = String::new();
+        s.read_to_string(&mut got).await.ok()?;
+        Some(got)
+    };
+    tokio::time::timeout(Duration::from_secs(2), ask).await.ok().flatten()
+}
+
+#[tokio::test]
+async fn a_client_reaches_the_declared_port_through_the_node_and_no_other() {
+    if !live() {
+        return;
+    }
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let node = Node::join(&cp, "net-2").await;
+    let agent = node.agent().await;
+    let w = cp.declare(&project, "server", &crate::recipes::push_server().await).await;
+    node.guard(&w);
+    converged(&cp, &w).await;
+
+    let status = cp.status(&w).await;
+    let http = status.endpoints.iter().find(|e| e.name == "http").expect("its endpoint");
+    let address = http.address.as_option().expect("an address on the node");
+    let host = crate::node::host_address();
+    assert_eq!(address.ips, [host.to_string()], "the node's own address");
+    let port = u16::try_from(address.port).unwrap();
+    assert!((30000..=32767).contains(&port), "{port}");
+    let reached = served((host, port).into()).await;
+    assert!(reached.is_some_and(|r| r.contains("served")), "the node's port reaches it");
+
+    let ip = address_of(&node, &w).expect("its address on the node");
+    let workload: std::net::Ipv4Addr = ip.parse().unwrap();
+    assert!(served((workload, 8080).into()).await.is_some(), "its declared port is open");
+    assert!(served((workload, 8081).into()).await.is_none(), "a port it does not declare is not");
+
+    cp.retire(&w).await;
+    for _ in 0..900 {
+        if address_of(&node, &w).is_none() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert!(served((host, port).into()).await.is_none(), "the port is closed with it");
+    agent.stop().await;
+}

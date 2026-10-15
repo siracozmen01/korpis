@@ -130,6 +130,41 @@ pub async fn push_sleeper() -> String {
     push("sleeper", sleeper()).await
 }
 
+/// A server: busybox's httpd answering `served` on 8080, which an endpoint declares and the
+/// node exposes on a port of its own, and on 8081, which nothing declares.
+fn server() -> String {
+    let busybox = busybox();
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: server, version: "{VERSION}", description: serves, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
+  entry:
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p /tmp/www && echo served > /tmp/www/index.html &&
+        httpd -p 8081 -h /tmp/www && exec httpd -f -p 8080 -h /tmp/www
+preset:
+  lifecycle: persistent
+  console: logs
+  endpoints:
+    - {{name: http, protocol: tcp, port: 8080, exposure_default: node_port}}
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu:    {{min: 50m, recommended: 100m}}
+"#
+    )
+}
+
+/// Pushes the server recipe to a repository no other test uses; returns the repository.
+pub async fn push_server() -> String {
+    push("server", server()).await
+}
+
 /// Pushes the interactive recipe to a repository no other test uses; returns the repository.
 pub async fn push_answerer() -> String {
     push("answerer", answerer()).await

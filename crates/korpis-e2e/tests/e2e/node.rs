@@ -46,6 +46,16 @@ pub struct Node {
     pub pool: ipnet::Ipv4Net,
 }
 
+/// An address of this machine other than loopback: the one its traffic towards the internet
+/// leaves from, or loopback where it has none.
+pub fn host_address() -> std::net::Ipv4Addr {
+    let route = Command::new("ip").args(["-4", "-o", "route", "get", "1.1.1.1"]).output();
+    let text = route.map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    let mut words = text.split_whitespace();
+    let src = words.find(|w| *w == "src").and_then(|_| words.next());
+    src.and_then(|a| a.parse().ok()).unwrap_or(std::net::Ipv4Addr::LOCALHOST)
+}
+
 /// A pool no other node of this test process uses: `10.N.0.0/16`, N from 200 upward.
 fn next_pool() -> ipnet::Ipv4Net {
     static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
@@ -201,9 +211,10 @@ impl Node {
         let runtime = self.runtime();
         let identity = self.state.load().unwrap();
         let (server, id) = (identity.server, identity.node);
-        // As `--advertise-address 127.0.0.1` would: the test's control plane is on this machine.
-        let loopback = vec![std::net::Ipv4Addr::LOCALHOST.into()];
-        let advertise = Advertise::new(loopback, PortRange::DEFAULT, &server);
+        // As `--advertise-address` with this machine's own address would: the test's control
+        // plane is on this machine, and the node forwards its endpoints' ports on every address
+        // but loopback (§3 of docs/07-networking.md).
+        let advertise = Advertise::new(vec![host_address().into()], PortRange::DEFAULT, &server);
         let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;

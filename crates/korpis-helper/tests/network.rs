@@ -110,3 +110,67 @@ fn an_address_outside_its_pool_is_refused_before_anything_is_made() {
     assert!(!tmp.path().join("netns").join(&workload).exists());
     assert!(!link_exists(&host_link(&workload)));
 }
+
+/// An address of this machine that is not loopback: the one its traffic towards the internet
+/// leaves from.
+fn host_address() -> Option<Ipv4Addr> {
+    let out = Command::new("ip").args(["-4", "-o", "route", "get", "1.1.1.1"]).output().ok()?;
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let mut words = text.split_whitespace();
+    words.find(|w| *w == "src")?;
+    words.next()?.parse().ok()
+}
+
+/// Listens over TCP on `port` inside the namespace at `path` for ten seconds.
+fn listen(path: &Path, port: u16) -> std::process::Child {
+    let script = format!(
+        "import socket,time;s=socket.socket();s.bind(('0.0.0.0',{port}));s.listen();time.sleep(10)"
+    );
+    Command::new("nsenter")
+        .arg(format!("--net={}", path.display()))
+        .args(["python3", "-c", &script])
+        .spawn()
+        .unwrap()
+}
+
+#[test]
+fn a_node_port_reaches_the_declared_port_and_nothing_else() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    let Some(node) = host_address().filter(|_| able(&network)) else { return };
+    let workload = format!("net-fwd-{}", std::process::id());
+    let ip = Ipv4Addr::new(10, 245, u8::try_from(std::process::id() % 250).unwrap(), 2);
+    let node_port = u16::try_from(31000 + std::process::id() % 1000).unwrap();
+    let tcp = helper::Transport::TRANSPORT_TCP;
+    let mut r = request(&workload, ip);
+    r.ipv4_pool = "10.245.0.0/16".into();
+    r.inbound = vec![helper::Port { transport: tcp.into(), port: 7001, ..Default::default() }];
+    r.forwards = vec![helper::Forward {
+        transport: tcp.into(),
+        node_port: u32::from(node_port),
+        container_port: 7001,
+        ..Default::default()
+    }];
+    let made = network.ensure(&r).unwrap();
+    let path = Path::new(&made.namespaces).join("net");
+    let (mut declared, mut other) = (listen(&path, 7001), listen(&path, 7002));
+    std::thread::sleep(Duration::from_millis(500));
+    let at = |addr: Ipv4Addr, port: u16| {
+        TcpStream::connect_timeout(&SocketAddr::from((addr, port)), Duration::from_secs(1)).is_ok()
+    };
+    let forwarded = at(node, node_port);
+    let direct = at(ip, 7001);
+    let undeclared = at(ip, 7002);
+    for child in [&mut declared, &mut other] {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    assert!(forwarded, "the node's port reaches the declared port");
+    assert!(direct, "the declared port is open");
+    assert!(!undeclared, "a port no endpoint declares is closed");
+
+    assert!(network.release(&workload).unwrap());
+    let listed = Command::new("nft").args(["list", "map", "inet", "korpis", "forwarded"]).output();
+    let listed = String::from_utf8_lossy(&listed.unwrap().stdout).into_owned();
+    assert!(!listed.contains(&node_port.to_string()), "released: {listed}");
+}

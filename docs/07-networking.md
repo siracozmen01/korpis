@@ -135,6 +135,22 @@ edges (§4 of `20-roadmap.md`). A range narrowed below what its endpoints hold l
 asking for a new port without one, and its status says so; placement keeps this from happening
 otherwise.
 
+**How the node forwards, as built.** Added 2026-10-15. The host's table has one map, from a port of
+the node to the chain of the workload holding it, consulted for every new connection to an address
+of the node, whether it arrives from outside or is made on the node itself; each workload's chain
+translates its ports to its own address and the port inside it. A map keyed by the port alone is
+enough because the control plane allocates a port once per node whatever its transport, and a
+workload's ports are changed in one transaction with its chain, so a port is never forwarded to a
+chain that is being rewritten. The workload's own table accepts new connections to the ports its
+endpoints declare and nothing else, so a port it listens on without declaring is closed to
+everyone, the node included. The node reports each endpoint in the workload's observation at the
+address it gave the workload, so the control plane holds what the node made as well as what it
+asked for. What it does not do, stated plainly: the loopback addresses are not forwarded, because a
+packet from 127.0.0.1 cannot leave the host for a workload's link, so a client on the node itself
+reaches an endpoint at one of the node's other addresses and not at `localhost`. And a node whose
+other firewall drops forwarded traffic (§4.1) forwards nothing from outside until its operator
+opens it, although connections made on the node itself still arrive.
+
 ### 3.1 `stable`: the edge
 
 An **edge** owns stable public addresses and forwards to wherever a workload currently is. For
