@@ -126,16 +126,28 @@ impl SessionWrite for PgTx {
         Ok(())
     }
 
-    async fn mark_silent_nodes(&mut self, before: SystemTime) -> StoreResult<u64> {
-        let done = sqlx::query!(
-            "UPDATE node SET connectivity = 'unreachable'
-              WHERE connectivity = 'connected' AND last_seen < $1",
-            from_time(before)
+    async fn mark_silent_nodes(&mut self, before: SystemTime, at: SystemTime) -> StoreResult<u64> {
+        // A data-modifying CTE runs whether or not the query reads it.
+        let marked = sqlx::query_scalar!(
+            r#"WITH silenced AS (
+                   UPDATE node SET connectivity = 'unreachable'
+                    WHERE connectivity = 'connected' AND last_seen < $1
+                   RETURNING id),
+               lost AS (
+                   INSERT INTO node_loss (node_id, at, workloads)
+                   SELECT s.id, $2, count(*)
+                     FROM silenced s JOIN placement p ON p.node_id = s.id
+                    GROUP BY s.id
+                   ON CONFLICT DO NOTHING
+                   RETURNING node_id)
+               SELECT count(*) AS "marked!" FROM silenced"#,
+            from_time(before),
+            from_time(at)
         )
-        .execute(&mut *self.tx)
+        .fetch_one(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(done.rows_affected())
+        Ok(u64::try_from(marked).unwrap_or(0))
     }
 
     async fn forget_connections(&mut self) -> StoreResult<u64> {

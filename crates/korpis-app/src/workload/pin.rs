@@ -137,7 +137,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
         let volumes = self.existing_nodes(&target.body).await?;
         let drivers_refused = tx.refusals(w.id, target.id).await?;
-        let content = tx.content_held(&[node.id], &target.body.recipe.digest).await?;
+        let learned = self.learned(tx, &[node.id], target).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -148,7 +148,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             edge_tier: EDGE_TIER,
             volumes: &volumes,
             refused: &drivers_refused,
-            content: &content,
+            content: &learned.content,
+            churn: &learned.churn,
         };
         let standing = operator_refusals(&req, &c, &peers, &self.policy);
         if !standing.is_empty() {

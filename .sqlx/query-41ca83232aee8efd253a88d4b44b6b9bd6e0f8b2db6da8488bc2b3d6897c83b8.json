@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH silenced AS (\n                   UPDATE node SET connectivity = 'unreachable'\n                    WHERE connectivity = 'connected' AND last_seen < $1\n                   RETURNING id),\n               lost AS (\n                   INSERT INTO node_loss (node_id, at, workloads)\n                   SELECT s.id, $2, count(*)\n                     FROM silenced s JOIN placement p ON p.node_id = s.id\n                    GROUP BY s.id\n                   ON CONFLICT DO NOTHING\n                   RETURNING node_id)\n               SELECT count(*) AS \"marked!\" FROM silenced",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "marked!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "41ca83232aee8efd253a88d4b44b6b9bd6e0f8b2db6da8488bc2b3d6897c83b8"
+}

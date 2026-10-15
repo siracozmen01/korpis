@@ -21,6 +21,9 @@ static NONE_REFUSED: BTreeMap<Uuid, String> = BTreeMap::new();
 /// No node reported its content.
 static NONE_HELD: BTreeMap<Uuid, bool> = BTreeMap::new();
 
+/// No node lost anything.
+static NONE_LOST: BTreeMap<Uuid, f64> = BTreeMap::new();
+
 const GIB: u64 = 1 << 30;
 const ORG: Uuid = Uuid::from_u128(7);
 const PROJECT: Uuid = Uuid::from_u128(8);
@@ -130,6 +133,7 @@ struct Case {
     peers: Vec<Peer>,
     policy: PlacementPolicy,
     content: BTreeMap<Uuid, bool>,
+    churn: BTreeMap<Uuid, f64>,
 }
 
 impl Case {
@@ -142,6 +146,7 @@ impl Case {
             peers: Vec::new(),
             policy: PlacementPolicy::default(),
             content: BTreeMap::new(),
+            churn: BTreeMap::new(),
         }
     }
 
@@ -163,6 +168,7 @@ impl Case {
             volumes: &[],
             refused: &NONE_REFUSED,
             content: &self.content,
+            churn: &self.churn,
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -203,21 +209,6 @@ fn a_limit_the_driver_cannot_hold_rejects_the_node() {
     let e = case.run();
     assert_eq!(checks(&e, 1), [Check::Enforcement]);
     assert!(e.filtered[0].detail.contains("pids"), "{}", e.filtered[0].detail);
-}
-
-#[test]
-fn the_strategy_decides_between_a_full_node_and_an_empty_one() {
-    let mut case = Case::new(vec![node(1, &[]), node(2, &[])]);
-    case.allocated.insert(Uuid::from_u128(1), Bounds::from([(Dimension::Memory, 4 * GIB)]));
-    case.policy.strategy = Strategy::Packed;
-    assert_eq!(case.run().chosen, Some(Uuid::from_u128(1)));
-    case.policy.strategy = Strategy::Distributed;
-    assert_eq!(case.run().chosen, Some(Uuid::from_u128(2)));
-    case.policy.strategy = Strategy::Balanced;
-    let e = case.run();
-    assert_eq!((e.chosen, e.runner_up), (Some(Uuid::from_u128(2)), Some(Uuid::from_u128(1))));
-    assert!(e.scored.iter().any(|s| s.signal == Signal::Utilization));
-    assert!(!e.scored.iter().any(|s| s.signal == Signal::ContentLocality), "not guessed");
 }
 
 #[test]
@@ -296,6 +287,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         volumes: &[],
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
+        churn: &NONE_LOST,
     };
     let e = place(
         &req,
@@ -331,6 +323,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         volumes: &[],
         refused: &NONE_REFUSED,
         content: &NONE_HELD,
+        churn: &NONE_LOST,
     }
 }
 

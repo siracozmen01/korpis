@@ -80,10 +80,12 @@ pub trait SessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Marks unreachable every connected node last heard before `before`; how many.
+    /// Marks unreachable every connected node last heard before `before`, recording a loss at
+    /// `at` for each that held a placement (§2.2 of docs/05-scheduling.md); how many it marked.
     fn mark_silent_nodes(
         &mut self,
         before: SystemTime,
+        at: SystemTime,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Marks unknown every node the store says is connected: a control plane that has just

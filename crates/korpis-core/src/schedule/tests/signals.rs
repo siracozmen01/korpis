@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The signals scored from what the control plane learns of nodes over time (§2.2 of
-//! docs/05-scheduling.md): content locality decides between nodes whose utilization is close,
-//! and never overrides the strategy.
+//! Scoring signals (§2.2 of docs/05-scheduling.md): the strategy decides between a full node and
+//! an empty one, and content locality decides between nodes whose utilization is close and never
+//! overrides it.
 
 use super::{Case, GIB, node};
 use crate::schedule::{Signal, Strategy};
@@ -30,4 +30,19 @@ fn content_locality_decides_a_near_tie_and_never_overrides_the_strategy() {
     case.content.remove(&one);
     let e = case.run();
     assert!(!e.scored.iter().any(|s| s.node == one && s.signal == Signal::ContentLocality));
+}
+
+#[test]
+fn the_strategy_decides_between_a_full_node_and_an_empty_one() {
+    let mut case = Case::new(vec![node(1, &[]), node(2, &[])]);
+    case.allocated.insert(Uuid::from_u128(1), Bounds::from([(Dimension::Memory, 4 * GIB)]));
+    case.policy.strategy = Strategy::Packed;
+    assert_eq!(case.run().chosen, Some(Uuid::from_u128(1)));
+    case.policy.strategy = Strategy::Distributed;
+    assert_eq!(case.run().chosen, Some(Uuid::from_u128(2)));
+    case.policy.strategy = Strategy::Balanced;
+    let e = case.run();
+    assert_eq!((e.chosen, e.runner_up), (Some(Uuid::from_u128(2)), Some(Uuid::from_u128(1))));
+    assert!(e.scored.iter().any(|s| s.signal == Signal::Utilization));
+    assert!(!e.scored.iter().any(|s| s.signal == Signal::ContentLocality), "not guessed");
 }

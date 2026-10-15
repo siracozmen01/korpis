@@ -237,9 +237,9 @@ locality and 1 for every other signal, unless the policy says otherwise); the hi
 a tie goes to the lower node identifier so that the same inputs always choose the same node. **A
 signal is scored only where its information exists.** Content locality needs the node's content
 inventory, which agents report as `ContentStatus` (§4.2 of `02-architecture.md`), and recent churn
-needs the node's history of lost workloads, which the control plane keeps itself: the crashes its
-agents observed and the placements it took away because the node failed. Until that information
-exists, the explanation omits the signal rather than scoring a guess.
+needs the node's history of losses, which the control plane keeps itself (below; corrected
+2026-10-15: this said the crashes its agents observed count, and they do not). Until that
+information exists, the explanation omits the signal rather than scoring a guess.
 
 > Corrected 2026-10-13, from the implementation. This said agents report both. No agent message
 > carries a history of lost workloads, and none needs to: every loss is already an observation
@@ -263,6 +263,23 @@ remove the recipe from the inventory too, or the node is preferred for content i
 And a node can report content it does not hold. The control plane takes the node's word, as it
 takes its word for its capacity, and the cost is a slower start of what is placed there, not a
 breach: a report moves only a score, and a node is trusted with what it runs in any case.
+
+**Churn, as built.** Churn counts the node's loss events, not its workloads' crashes. A loss is
+recorded when the silent-node sweep marks a node unreachable while it holds at least one placement,
+one event however many it held, so a power cut counts once however full the node was, and not at
+all on a node that held nothing. A workload's crash is left out: it says more about the recipe than
+the machine, the agent's restart backoff already answers it, and counting it would steer every
+placement away from a good node running one bad recipe. A loss weighs 1 when it happens and halves
+every day, and is forgotten after a week; the signal is 1 / (1 + the sum), so 1 for a node that
+lost nothing and a half for one fresh loss, and it is scored for every node, since the control
+plane records every loss itself (question 10 of §10). Neither an agent restart that reconnects
+within the sweep's staleness nor a control plane restart is a loss: the first is never marked
+unreachable, and the second marks nodes `unknown`, not unreachable. What it costs. A partition that
+silences a healthy node counts the same as a dead one, since the control plane cannot tell them
+apart; a node lost once is passed over for about a day even when the cause was fixed in a minute,
+unless the operator lowers the signal's weight; and when evacuation arrives (Phase 3), a placement
+taken away because a node failed follows the same silence, so it adds nothing the sweep has not
+already counted.
 
 ### 2.3 Bind: and record why
 
@@ -924,4 +941,7 @@ estimates what a rebalance would achieve. It does not act.
     lost every workload in a power cut are both churn, and they say different things about the
     node. Whether churn counts workloads lost or loss events, whether a crash counts as much as a
     failed node, and how long a loss is remembered decide whether the signal steers placements
-    away from bad hardware or merely away from bad recipes. → here, before Phase 1's scheduling
+    away from bad hardware or merely away from bad recipes. → here, before Phase 1's scheduling.
+    **Resolved in §2.2, 2026-10-15:** loss events, each time the sweep marks a node unreachable
+    while it holds workloads, one event however many; crashes do not count; remembered with a
+    half-life of a day and forgotten after a week.

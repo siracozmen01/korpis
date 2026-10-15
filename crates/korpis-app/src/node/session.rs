@@ -188,10 +188,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Marks unreachable every connected node not heard for three heartbeats; how many.
     pub async fn sweep_silent_nodes(&self) -> Result<u64, AppError> {
-        let before =
-            self.clock.now().checked_sub(self.session_terms.staleness()).unwrap_or(UNIX_EPOCH);
+        let now = self.clock.now();
+        let before = now.checked_sub(self.session_terms.staleness()).unwrap_or(UNIX_EPOCH);
         let mut tx = self.store.begin().await?;
-        let n = tx.mark_silent_nodes(before).await?;
+        let n = tx.mark_silent_nodes(before, now).await?;
         tx.commit().await?;
         Ok(n)
     }

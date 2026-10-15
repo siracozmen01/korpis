@@ -2,7 +2,8 @@
 
 //! Scoring (§2.2 of docs/05-scheduling.md): of the nodes that can run this, which is best. A
 //! signal is scored only where its information exists: content locality only for a node that
-//! reported its content, rather than a guess for one that did not.
+//! reported its content, rather than a guess for one that did not. Churn is scored for every
+//! node, since the control plane records every loss itself and a node with none lost nothing.
 
 use super::topology::{Fleet, counts, domain, matching};
 use super::{
@@ -154,6 +155,8 @@ pub(super) fn rank(
         if let Some(held) = req.content.get(&id) {
             values.push((Signal::ContentLocality, if *held { 1.0 } else { 0.0 }));
         }
+        let lost = req.churn.get(&id).copied().unwrap_or(0.0);
+        values.push((Signal::Churn, super::churn::churn_score(lost)));
         let mut total = 0.0;
         for (signal, value) in values {
             let weight = policy.weight(signal);

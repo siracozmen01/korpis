@@ -5,6 +5,7 @@
 //! allocated on them, and the workload's placed peers, all read in one transaction under the
 //! placement lock, so the answer is consistent with what the bind will write.
 
+pub mod churn;
 mod filter;
 pub mod policy;
 mod score;
@@ -64,6 +65,9 @@ pub struct Request<'a> {
     /// Each node that reported its content, with whether it holds this intent's recipe (§2.2
     /// of docs/05-scheduling.md); content locality is scored for those alone.
     pub content: &'a BTreeMap<Uuid, bool>,
+    /// Each node with recent loss events, with what they weigh now ([`churn::loss_weight`]); a
+    /// node absent lost nothing it remembers.
+    pub churn: &'a BTreeMap<Uuid, f64>,
 }
 
 /// A workload's existing placement.

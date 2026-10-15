@@ -102,6 +102,14 @@ pub trait PlacementWrite {
         digest: &str,
     ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, bool>>> + Send;
 
+    /// Of `nodes`, each that had loss events since `since`, with when they were (§2.2 of
+    /// docs/05-scheduling.md).
+    fn losses(
+        &mut self,
+        nodes: &[Uuid],
+        since: SystemTime,
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, Vec<SystemTime>>>> + Send;
+
     /// The nodes whose driver refused `workload`'s target `intent`, each with its reason.
     fn refusals(
         &mut self,

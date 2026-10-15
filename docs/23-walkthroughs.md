@@ -146,7 +146,8 @@ evaluated changed what it reads: not the `unsatisfiable` observation, which says
 the node already holds something of the workload, but the journalled failure of the step, which the
 agent, the one component that knows, marks `step.refused` when nothing was made (§2.1 and §7
 there). Content locality, which this step's scoring had always named and never had the information
-for, was built the same day from `ContentStatus`, which the agents now send.
+for, was built the same day from `ContentStatus`, which the agents now send. So was churn, from the
+losses the silent-node sweep now records.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

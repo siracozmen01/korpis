@@ -19,6 +19,7 @@ mod backup_read;
 mod backup_target;
 mod backups;
 mod cancel;
+mod churn;
 mod classify;
 mod console;
 mod denials;

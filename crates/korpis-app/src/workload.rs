@@ -12,6 +12,7 @@ mod configure;
 mod decide;
 mod declare;
 mod explain;
+mod learned;
 mod observed;
 mod pin;
 mod place;

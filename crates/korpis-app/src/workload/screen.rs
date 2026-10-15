@@ -109,7 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let allocations = tx.allocations(&ids).await?;
         let peers = tx.peers(w.organization, w.id).await?;
         let refused = tx.refusals(w.id, target.id).await?;
-        let content = tx.content_held(&ids, &target.body.recipe.digest).await?;
+        let learned = self.learned(&mut tx, &ids, target).await?;
         drop(tx);
         let empty = Bounds::default();
         let candidates: Vec<Candidate<'_>> = nodes
@@ -126,7 +126,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             edge_tier: super::place::EDGE_TIER,
             volumes: &volumes,
             refused: &refused,
-            content: &content,
+            content: &learned.content,
+            churn: &learned.churn,
         };
         let (_, ranking) = ranked(&req, &candidates, &peers, &self.policy);
         Ok(ranking.into_iter().take(SHORTLIST).collect())

@@ -227,6 +227,26 @@ impl PlacementWrite for PgTx {
         Ok(rows.into_iter().map(|r| (r.node, r.held)).collect())
     }
 
+    async fn losses(
+        &mut self,
+        nodes: &[Uuid],
+        since: SystemTime,
+    ) -> StoreResult<BTreeMap<Uuid, Vec<SystemTime>>> {
+        let rows = sqlx::query!(
+            "SELECT node_id, at FROM node_loss WHERE node_id = ANY($1) AND at > $2",
+            nodes,
+            from_time(since)
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let mut out: BTreeMap<Uuid, Vec<SystemTime>> = BTreeMap::new();
+        for r in rows {
+            out.entry(r.node_id).or_default().push(to_time(r.at));
+        }
+        Ok(out)
+    }
+
     async fn refusals(
         &mut self,
         workload: Uuid,
