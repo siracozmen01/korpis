@@ -248,7 +248,8 @@ message StepResult {
 }
 
 message StepArtifact {
-  // Relative to the volume root; never absolute, never through `..`.
+  // Relative to the `to` of the recipe step that asked (§4 of docs/09-recipes.md); never absolute,
+  // never through `..`.
   string path = 1;
   // http or https; fetched once per node by the content store.
   string url = 2;

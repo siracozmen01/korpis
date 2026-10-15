@@ -24,7 +24,8 @@ pub struct Platform {
 /// One artifact a step produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StepArtifact {
-    /// Where it goes, relative to the workload's volume root.
+    /// Where it goes, relative to the `to` of the recipe step that asked (§4 of
+    /// docs/09-recipes.md).
     pub path: String,
     /// Where the content store fetches it from.
     pub url: String,
@@ -52,7 +53,8 @@ pub struct StepResult {
     pub resolved: String,
 }
 
-/// Whether `path` stays beneath the volume root: relative, no `..`, no empty or `.` components.
+/// Whether `path` stays beneath where it is written: relative, no `..`, no empty or `.`
+/// components.
 fn beneath(path: &str) -> bool {
     !path.is_empty()
         && path.len() <= MAX_PATH

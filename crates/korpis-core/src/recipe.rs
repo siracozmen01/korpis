@@ -54,11 +54,14 @@ fn clean(p: &str) -> bool {
 
 /// A path inside the workload: absolute and normalized.
 pub(crate) fn workload_path(field: &str, p: &str) -> Result<(), RecipeError> {
-    if p.starts_with('/') && p.len() > 1 && clean(p) {
-        Ok(())
-    } else {
-        Err(RecipeError::new(field, "an absolute path without . or .."))
+    use crate::workload::spec::volumes::{RESERVED, reserved};
+    if !(p.starts_with('/') && p.len() > 1 && clean(p)) {
+        return Err(RecipeError::new(field, "an absolute path without . or .."));
     }
+    if reserved(p) {
+        return Err(RecipeError::new(field, format!("{RESERVED} is the node's")));
+    }
+    Ok(())
 }
 
 /// A path inside the recipe artifact: relative and normalized, optionally written with a leading

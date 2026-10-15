@@ -79,9 +79,10 @@ fn fields(step: &InstallStep) -> (&'static str, Vec<(&'static str, Value)>) {
             ("symlink", vec![("target", s(target)), ("link", s(link))])
         }
         InstallStep::Delete { path } => ("delete", vec![("path", s(path))]),
-        InstallStep::Provider { provider, args } => {
-            ("provider", vec![("provider", s(provider)), ("args", Value::Map(args.clone()))])
-        }
+        InstallStep::Provider { provider, to, args } => (
+            "provider",
+            vec![("provider", s(provider)), ("to", s(to)), ("args", Value::Map(args.clone()))],
+        ),
     }
 }
 
@@ -164,6 +165,7 @@ fn step(verb: &str, k: &Kept<'_>) -> Result<InstallStep, String> {
         "delete" => InstallStep::Delete { path: k.text("path")? },
         "provider" => InstallStep::Provider {
             provider: k.text("provider")?,
+            to: k.text("to")?,
             args: match k.0.get("args") {
                 Some(Value::Map(m)) => m.clone(),
                 _ => return Err("args is not a map".into()),

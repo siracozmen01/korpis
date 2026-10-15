@@ -60,6 +60,11 @@ fn step_schema(at: &str, arguments: &[super::ActionArgument]) -> Result<(), Reci
     if let Some(j) = arguments.iter().position(|a| !dotted(&a.name) || !names.insert(&a.name)) {
         return Err(RecipeError::new(&format!("{at}[{j}].name"), "named once"));
     }
+    // `to` is the recipe's: where the step installs, which the provider is never asked.
+    if let Some(j) = arguments.iter().position(|a| a.name == "to") {
+        let why = "`to` is reserved: it is where a recipe's step installs, not the provider's";
+        return Err(RecipeError::new(&format!("{at}[{j}].name"), why));
+    }
     let scalar = |a: &super::ActionArgument| {
         matches!(a.kind, ArgumentType::String | ArgumentType::Int | ArgumentType::Bool)
     };

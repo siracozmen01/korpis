@@ -38,11 +38,27 @@ pub struct VolumeSpec {
     pub from_backup: Option<Uuid>,
 }
 
+/// Where the node keeps what it gives a workload's install worker (§4 of docs/09-recipes.md): no
+/// volume is mounted, and no recipe names a path, at or beneath it.
+pub const RESERVED: &str = "/.korpis";
+
+/// Whether `path` is at or beneath [`RESERVED`].
+#[must_use]
+pub fn reserved(path: &str) -> bool {
+    path.strip_prefix(RESERVED).is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+}
+
 fn check_path(field: &str, path: &str) -> Result<(), SpecError> {
     let ok = path.starts_with('/')
         && !path.split('/').any(|p| p == ".." || p == ".")
         && !path.chars().any(char::is_control);
-    if ok { Ok(()) } else { Err(SpecError::new(field, "an absolute path without . or ..")) }
+    if !ok {
+        return Err(SpecError::new(field, "an absolute path without . or .."));
+    }
+    if reserved(path) {
+        return Err(SpecError::new(field, format!("{RESERVED} is the node's")));
+    }
+    Ok(())
 }
 
 /// Checks every volume and that names and paths are unique.

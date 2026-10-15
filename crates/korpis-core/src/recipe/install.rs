@@ -128,10 +128,18 @@ pub enum InstallStep {
     Provider {
         /// `<publisher>/<step>`.
         provider: String,
-        /// Its arguments, validated by the provider's schema.
+        /// The workload path, in one of its volumes, that the artifacts the provider answers are
+        /// written beneath: their paths are relative to it.
+        to: String,
+        /// Its arguments, validated by the provider's schema; `to` is never one of them.
         args: ValueMap,
     },
 }
+
+/// Where an install worker finds what a `fetch` downloaded, by `<alg>/<hex>`: the `from` of an
+/// `extract` the node builds to unpack a step provider's archive. No recipe names it, since no
+/// recipe names a path beneath `/.korpis`.
+pub const FETCHED: &str = "/.korpis/content/fetched/";
 
 const MAX_MODE: u32 = 0o7777;
 /// The highest id a workload sees (§4.5 of docs/04-runtimes.md).
@@ -202,7 +210,10 @@ impl InstallStep {
                     artifact_path(&f("target"), target)
                 }
             }
-            Self::Provider { provider, .. } => provider_name(&f("provider"), provider),
+            Self::Provider { provider, to, .. } => {
+                provider_name(&f("provider"), provider)?;
+                workload_path(&f("to"), to)
+            }
         }
     }
 }

@@ -248,6 +248,7 @@ driver, because the default is the Linux one.
 | `chown` | `path`, `uid`, `gid` | workload-relative ids, 0 to 65535 (§4.5 of `04-runtimes.md`) |
 | `symlink` | `target`, `link` | both must resolve inside the volume |
 | `delete` | `path` | |
+| `<publisher>/<step>` | `to`, and the provider's own | a step provider's (below); its artifacts are written beneath `to` |
 
 `chown` first took an `owner` "within the tenant's uid range", which left open whether it named a
 user, a number, or a pair, and ranges turned out to be per workload, not per tenant. It takes `uid`
@@ -356,8 +357,10 @@ it did not finish, and three losses in a row fail the step rather than looping.
 one of the workload's volumes or beneath one, and a declaration whose volumes leave one outside is
 refused, naming the step. The worker that writes sees the workload's volumes and nothing else
 (§6 of `02-architecture.md`), and a file written anywhere else would vanish with the instance; a
-recipe that relied on it would install a workload that starts once. A provider step's paths are
-known when it is resolved, and are checked then.
+recipe that relied on it would install a workload that starts once. A provider step's own target
+is its `to`, checked with the rest; the paths of what it answers are beneath it, and are checked
+when it is resolved. Nothing a recipe names, and no volume, lies at or beneath `/.korpis`, which
+is where the node puts what it gives the worker to read.
 
 What it costs: an upgrade that should keep a file the tenant edited has to say so by not writing
 it, because a verb overwrites what it targets (below); and a declaration that moves a volume can be
@@ -434,7 +437,7 @@ recipe uses it declaratively:
 ```yaml
 install:
   steps:
-    - valve/steam.app: {appid: 730, branch: public, manifest: 8471…}
+    - valve/steam.app: {to: /data/server, appid: 730, branch: public, manifest: 8471…}
 ```
 
 The `valve/steam.app` provider is contributed by an extension. It runs **in the extension's own
@@ -442,6 +445,12 @@ sandbox, under the extension's own grant** (§3.7 of `01-model.md`, P8), not wit
 privileges, not in the tenant's namespace, and not with the ambient authority of core. It resolves
 the request into content-addressed artifacts, which then flow through the ordinary content store,
 and the workload's filesystem worker copies them in like any other content.
+
+`to` is the recipe's, not the provider's: the workload path, in one of its volumes, that the
+step's artifacts are written beneath. It is checked at declaration like every other target, and
+no provider declares an argument of that name. Decided 2026-10-15 (Finding 50 of
+`23-walkthroughs.md`): the interface had said an artifact's path was relative to "the volume
+root", and a workload with two volumes has two.
 
 The step is named by publisher, the provider that answers it is pinned by digest in the lockfile,
 and its contract (argument schema, idempotence, failure reasons, and whether its output was pinned

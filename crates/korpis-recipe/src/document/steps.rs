@@ -26,16 +26,22 @@ fn uid(a: &Args<'_>, key: &str) -> Result<u32, RecipeError> {
     a.opt_u32(key)?.ok_or_else(|| a.err(key, "required"))
 }
 
+/// A provider step: `to`, the workload path its artifacts are written beneath, and the provider's
+/// own arguments, which never include `to` (§4 of docs/09-recipes.md).
 fn provider(at: &str, name: &str, v: &Value) -> Result<InstallStep, RecipeError> {
-    let args: ValueMap = match v {
-        Value::Object(m) => m
-            .iter()
-            .map(|(k, x)| Ok((k.clone(), value(at, x)?)))
-            .collect::<Result<_, RecipeError>>()?,
-        Value::Null => ValueMap::new(),
-        _ => return Err(RecipeError::new(at, "provider arguments are a map")),
+    let Value::Object(m) = v else {
+        return Err(RecipeError::new(at, "a provider step is a map holding `to`"));
     };
-    Ok(InstallStep::Provider { provider: name.to_owned(), args })
+    let to = match m.get("to") {
+        Some(Value::String(to)) => to.clone(),
+        _ => return Err(RecipeError::new(&format!("{at}.to"), "required: where it installs")),
+    };
+    let args: ValueMap = m
+        .iter()
+        .filter(|(k, _)| k.as_str() != "to")
+        .map(|(k, x)| Ok((k.clone(), value(at, x)?)))
+        .collect::<Result<_, RecipeError>>()?;
+    Ok(InstallStep::Provider { provider: name.to_owned(), to, args })
 }
 
 fn moving(verb: &str, a: &Args<'_>) -> Result<InstallStep, RecipeError> {

@@ -99,6 +99,10 @@ fn subscriptions_providers_actions_and_slots_say_what_they_are_once() {
     m.step_arguments.insert("valve/steam.app".into(), schema(ArgumentType::Workload));
     let e = m.validate("cloudflare-dns").unwrap_err();
     assert_eq!(e.field, "extension.provides[1].arguments[0].type", "no resource arguments");
+    let to = vec![ActionArgument { name: "to".into(), kind: ArgumentType::String, required: true }];
+    m.step_arguments.insert("valve/steam.app".into(), to);
+    let e = m.validate("cloudflare-dns").unwrap_err();
+    assert_eq!(e.field, "extension.provides[1].arguments[0].name", "`to` is the recipe's");
     m.step_arguments.clear();
     m.step_arguments.insert("cloudflare".into(), schema(ArgumentType::Int));
     let e = m.validate("cloudflare-dns").unwrap_err();

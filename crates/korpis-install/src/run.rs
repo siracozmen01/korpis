@@ -10,7 +10,7 @@
 use super::archive::{self, Options};
 use super::beneath::{self, RESOLVE, Volumes};
 use super::files;
-use korpis_core::recipe::install::InstallStep;
+use korpis_core::recipe::install::{FETCHED, InstallStep};
 use korpis_core::recipe::installing::InstallAction;
 use korpis_core::recipe::template::{MAX_SOURCE, Template};
 use rustix::fs::{FileType, Mode, OFlags, openat2};
@@ -140,7 +140,11 @@ fn act(a: &InstallAction, volumes: &Volumes, content: &Content) -> Result<(), St
             write(volumes, to, &mut rendered.as_bytes())
         }
         InstallStep::Extract { from, to, strip, include } => {
-            let src = if from.starts_with('/') {
+            let src = if let Some(digest) = from.strip_prefix(FETCHED) {
+                // An archive a step provider answered, which the node fetched (§4 of
+                // docs/09-recipes.md): read from what fetches downloaded, as a `fetch` reads.
+                content.fetched(&digest.replacen('/', ":", 1))?
+            } else if from.starts_with('/') {
                 read_in(volumes, from)?
             } else {
                 content.artifact(from)?

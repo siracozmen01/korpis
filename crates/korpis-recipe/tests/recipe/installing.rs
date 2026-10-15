@@ -75,3 +75,42 @@ fn a_change_of_values_renders_again_only_the_templates_that_use_them() {
     assert!(r.templates_using(&["rcon_password".to_owned()]).is_empty());
     assert!(r.installs());
 }
+
+#[test]
+fn a_provider_step_says_where_it_installs_and_that_is_never_the_provider_s_argument() {
+    let step = r#"    - write: {path: /data/eula.txt, content: "eula=true\n"}"#;
+    let steam = r"    - valve/steam.app: {to: /data/server, appid: 730, branch: public}";
+    let doc = PAPER.replacen(step, &format!("{step}\n{steam}"), 1);
+    let r = parse(doc.as_bytes()).unwrap();
+    let InstallStep::Provider { provider, to, args } = &r.install[3] else {
+        panic!("{:?}", r.install[3])
+    };
+    assert_eq!((provider.as_str(), to.as_str()), ("valve/steam.app", "/data/server"));
+    assert!(!args.contains_key("to") && args.contains_key("appid"), "{args:?}");
+    r.check_targets(&[volume("/data")]).unwrap();
+    let e = r.check_targets(&[volume("/srv")]).unwrap_err();
+    assert!(e.field.starts_with("install.steps["), "{e:?}");
+
+    let detail = r.install_detail(&ValueMap::new(), InstallReason::Create, (true, &[])).unwrap();
+    let actions = actions_of(&detail).unwrap();
+    assert_eq!(actions[3].step, r.install[3], "the plan carries where it installs");
+
+    let without = doc.replacen("to: /data/server, ", "", 1);
+    let e = parse(without.as_bytes()).unwrap_err();
+    let korpis_recipe::DocumentError::Invalid(e) = e else { panic!("{e:?}") };
+    assert_eq!(e.field.rsplit('.').next(), Some("to"), "a provider step names where it installs");
+}
+
+#[test]
+fn nothing_a_recipe_names_lies_beneath_the_node_s_own_directory() {
+    let step = r#"    - write: {path: /data/eula.txt, content: "eula=true\n"}"#;
+    for verb in [
+        r"    - extract: {from: /.korpis/content/blobs/sha256/ab, to: /data/x}",
+        r#"    - write: {path: /.korpis/x, content: "x"}"#,
+    ] {
+        let doc = PAPER.replacen(step, &format!("{step}\n{verb}"), 1);
+        assert!(parse(doc.as_bytes()).is_err(), "{verb}");
+    }
+    assert!(korpis_core::workload::spec::volumes::reserved("/.korpis/content"));
+    assert!(!korpis_core::workload::spec::volumes::reserved("/.korpisx"));
+}

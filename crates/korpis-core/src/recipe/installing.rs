@@ -110,15 +110,14 @@ impl Recipe {
                 InstallStep::Fetch { to, .. }
                 | InstallStep::Copy { to, .. }
                 | InstallStep::Extract { to, .. }
-                | InstallStep::Template { to, .. } => Some((at("to"), to.as_str())),
+                | InstallStep::Template { to, .. }
+                | InstallStep::Provider { to, .. } => Some((at("to"), to.as_str())),
                 InstallStep::Mkdir { path, .. }
                 | InstallStep::Write { path, .. }
                 | InstallStep::Chmod { path, .. }
                 | InstallStep::Chown { path, .. }
                 | InstallStep::Delete { path } => Some((at("path"), path.as_str())),
                 InstallStep::Symlink { link, .. } => Some((at("link"), link.as_str())),
-                // Its targets are known once it is resolved, and checked then.
-                InstallStep::Provider { .. } => None,
             };
             out.extend(target);
         }

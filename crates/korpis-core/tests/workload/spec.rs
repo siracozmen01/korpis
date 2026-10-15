@@ -23,6 +23,7 @@ fn the_example_is_valid_and_each_rule_names_its_field() {
     assert_eq!(refused(|b| b.console = ConsoleMode::Serial), "console");
     assert_eq!(refused(|b| b.resources.memory.reservation = 8 << 30), "resources.memory");
     assert_eq!(refused(|b| b.volumes[0].path = "/data/../etc".into()), "volumes[0].path");
+    assert_eq!(refused(|b| b.volumes[0].path = "/.korpis/data".into()), "volumes[0].path");
     assert_eq!(refused(|b| b.volumes.push(b.volumes[0].clone())), "volumes[1].name");
     assert_eq!(refused(|b| b.endpoints[0].container_port = 0), "endpoints[0].container_port");
     assert_eq!(

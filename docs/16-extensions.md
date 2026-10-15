@@ -394,10 +394,10 @@ Calling out is the direction that carries risk, so the contract is strict:
   section had not yet written down.
 
   **As built in Phase 1.** `RunStep` carries the step kind, its arguments, the workload, and the
-  node's platform; the answer lists at most a thousand artifacts, each a path beneath the volume
-  root, an `http` or `https` URL, its SHA-256, its size and mode, and whether it is an archive to
-  unpack under the `extract` verb's rules, with `pinned` and what it `resolved` to. An answer whose
-  path leaves the volume or whose content has no hash is recorded as `provider.malformed` and
+  node's platform; the answer lists at most a thousand artifacts, each a relative path, an `http`
+  or `https` URL, its SHA-256, its size and mode, and whether it is an archive to unpack under the
+  `extract` verb's rules, with `pinned` and what it `resolved` to. An answer whose path climbs out
+  of where it is written or whose content has no hash is recorded as `provider.malformed` and
   never reaches a node, and the breaker counts it. The argument schema is the `arguments` of the
   step's `provides` entry, in the form an action declares its own, restricted to `string`, `int`,
   and `bool`: a step runs under the extension's grant, not the recipe author's, so a resource
@@ -405,6 +405,12 @@ Calling out is the direction that carries risk, so the contract is strict:
   recipe's step is checked against it before any provider is called. The idempotence declaration
   is corrected in place: see §4 of `09-recipes.md`. Failure reasons are the provider's own, in
   the answer, as for every other type.
+
+  > Corrected 2026-10-15, Finding 50 of `23-walkthroughs.md`. Each artifact's path was "beneath the
+  > volume root", and a workload with two volumes has two roots: nothing said which, and neither
+  > the provider nor the node could tell. The recipe's step names it: its `to`, a workload path in
+  > one of the volumes, which the provider is never asked and may not declare as an argument, and
+  > each artifact's path is relative to it (§4 of `09-recipes.md`).
 
 > Finding 23 of `23-walkthroughs.md`.
 
