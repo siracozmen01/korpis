@@ -14,6 +14,7 @@
 
 mod backups;
 mod console;
+mod install;
 mod node;
 mod oci;
 mod recipes;

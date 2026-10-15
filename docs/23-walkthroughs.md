@@ -1971,3 +1971,8 @@ into `01-model.md` §3.3 and `05-scheduling.md` §3.1
 
 † Step 4 is where the trace found Finding 51.
 
+The trace is also a test: `crates/korpis-e2e/tests/e2e/install.rs` runs it on a real node, its
+volume sixteen MiB against a thirty-two MiB world, then declared at ninety-six. The install fails
+at its extract with the fetch and the write done, resumes there without writing again or fetching
+again, and the workload runs; a new version of the recipe then installs again.
+

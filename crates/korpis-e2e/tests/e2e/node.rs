@@ -60,7 +60,7 @@ fn helper(socket: &Path, volumes: &Path, (state, content): (&Path, &Path)) {
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
     let jobs = korpis_helper::job::JobConfig {
         binary: built("korpis-backup", "korpis-backup-job"),
-        install_binary: None,
+        install_binary: Some(built("korpis-install", "korpis-install-job")),
         state: state.to_owned(),
         cgroups: None,
         content: Some(content.to_owned()),
@@ -173,7 +173,11 @@ impl Node {
 
     /// Starts the agent as `korpis-agent run --driver oci` does, and waits until it is welcomed.
     pub async fn agent(&self) -> Agent {
-        let content = ContentStore::open(&self.state.root().join("content"), registries()).unwrap();
+        // As `--fetch-allow 127.0.0.0/8` would: the tests serve what installs fetch on loopback.
+        let loopback = korpis_agent::content::Reach::with(vec!["127.0.0.0/8".parse().unwrap()]);
+        let content = ContentStore::open(&self.state.root().join("content"), registries())
+            .and_then(|c| c.reaching(loopback))
+            .unwrap();
         let host = NodeHost::new(HelperClient::new(&self.helper), content);
         let runtime = self.runtime();
         let server = self.state.load().unwrap().server;
