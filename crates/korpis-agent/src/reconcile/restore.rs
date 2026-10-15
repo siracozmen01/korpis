@@ -106,6 +106,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             work: Some(Work::Restore(Box::new(work))),
             data_key: grant.data_key,
             store: grant.store,
+            content_store: grant.content_store,
             concurrency: CONCURRENCY,
             ..Default::default()
         };

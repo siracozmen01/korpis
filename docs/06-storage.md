@@ -519,9 +519,19 @@ each by sha256 and size as the node's content store holds them, and a file byte-
 of them is recorded by reference and stores nothing. A restore reads such a file from the content
 store of the node it runs on. Content the node cannot name when the backup starts, because the
 registry is unreachable or the store no longer holds it, is left out, and those files are backed
-up as any other. What it does not do yet: keep a copy of referenced content in the repository,
-so a restore on a node whose store lacks it has nowhere to read it from; that copy, once per
-repository beneath its own prefix, is the rest of this work in Phase 1.
+up as any other. The repository keeps its own copy of what backups referenced, once for every
+workload in it, beneath `<prefix>content/`, beside the workloads' prefixes and beneath none of
+them: a backup job is granted that prefix to write alongside its workload's, keeps there each
+content it recorded by reference that the repository lacks, and a restore job, granted it to read,
+reads there whatever the node's own store lacks. Content is kept in parts of at most 8 MiB with an
+index written last, so a copy whose index exists is whole and neither job holds more than a part
+in memory; it is kept unsealed, because recipe content is public, and read back only if it hashes
+to the sha256 it is named by. What this does not do: remove content from the repository, which a
+prune never touches, so it is kept for the repository's life; record a read of it as sensitive,
+since it is public; or stop a node that holds write access from replacing a part, which makes
+that content fail its check and its restore refuse it, an availability loss and never a wrong
+byte. A copy that fails to be kept leaves the backup whole and restorable wherever the content is
+held, and the next backup tries again.
 
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore
@@ -708,8 +718,8 @@ What it costs: a prune reads every tree of every kept backup twice, once to mark
 sweep. Trees are small and shared between backups, but a volume of millions of files is millions
 of small reads, through the control plane. What it does not do: prune on a schedule, which waits
 for the `scheduled` lifecycle (Finding 33), or anything beneath the repository's own prefix
-outside the workload's, which is where recipe content will be kept (§5.2), and which no backup
-refers to yet.
+outside the workload's, which is where recipe content is kept (§5.4), and which outlives every
+backup that refers to it.
 
 ### 5.6 The backup target interface
 

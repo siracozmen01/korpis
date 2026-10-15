@@ -183,7 +183,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let answer = self.grant_backup_access(&target, &place, AccessMode::Read, ttl).await?;
         match answer.outcome {
             korpis_core::extension::CallOutcome::Access(access) => {
-                Ok(JobGrant { repository: repo.id, workload, data_key, access })
+                Ok(JobGrant { repository: repo.id, workload, data_key, access, content: None })
             }
             korpis_core::extension::CallOutcome::Failed(f) => {
                 Err(AppError::Unavailable { what: "the backup target", detail: f.reason })

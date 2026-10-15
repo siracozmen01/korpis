@@ -139,6 +139,14 @@ impl Repository {
         format!("{}workloads/{workload}/", self.prefix)
     }
 
+    /// Where the repository's recipe content is kept, once for every workload that backs up into
+    /// it (§5.2 of docs/06-storage.md): beside the workloads' prefixes, beneath none of them, so a
+    /// prune of one workload's backups never reaches it.
+    #[must_use]
+    pub fn content_prefix(&self) -> String {
+        format!("{}content/", self.prefix)
+    }
+
     /// Where `workload`'s offloaded stream segments are: beside its backups, never beneath them,
     /// so a prune of the backups never reaches them.
     #[must_use]

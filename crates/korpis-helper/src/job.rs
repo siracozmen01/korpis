@@ -178,6 +178,7 @@ impl Jobs {
             work: Some(placed.work),
             data_key: r.data_key.clone(),
             store: r.store.clone(),
+            content_store: r.content_store.clone(),
             concurrency: r.concurrency,
             directory: string(&placed.directory),
             cgroup: cgroup.map(string).unwrap_or_default(),

@@ -176,6 +176,10 @@ message JobGrant {
   bytes sealed_data_key = 5;
   // The workload whose key it is, `wl_…`: the context's second half.
   string workload = 6;
+  // Access to the repository's recipe content beneath its content/ prefix, for as long as
+  // `store`: write for a backup, read for a restore (§5.2 of docs/06-storage.md). Absent for an
+  // offload.
+  korpis.v1.S3Access content_store = 7;
 }
 
 // A backup job ended on the node: what its result says.

@@ -134,9 +134,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let called =
             self.grant_backup_access(&target, &place, AccessMode::Write, OFFLOAD_ACCESS).await?;
         match called.outcome {
-            CallOutcome::Access(access) => {
-                Ok(Ok(JobGrant { repository: repo.id, workload: w.id, data_key, access }))
-            }
+            CallOutcome::Access(access) => Ok(Ok(JobGrant {
+                repository: repo.id,
+                workload: w.id,
+                data_key,
+                access,
+                content: None,
+            })),
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),
         }

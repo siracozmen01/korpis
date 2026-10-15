@@ -159,6 +159,10 @@ message JobSpec {
   // The root of the node's content store, where recipe content is kept for a restore: a recipe's
   // files in blobs/sha256/ and what fetches downloaded in fetched/sha256/, each by its sha256.
   string content = 10;
+  // The repository's own copy of recipe content, beneath its content/ prefix (§5.2 of
+  // docs/06-storage.md): a backup keeps there what it recorded by reference and the repository
+  // lacks; a restore reads there what the node's store lacks. Absent where none was granted.
+  korpis.v1.S3Access content_store = 11;
 }
 
 message BackupWork {

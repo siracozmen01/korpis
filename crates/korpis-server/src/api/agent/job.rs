@@ -38,10 +38,12 @@ fn refused(reason: &str, retryable: bool) -> Box<pb::Error> {
 fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
     match granted {
         Ok(g) => {
-            let store = match access_to_pb(&g.access).protocol {
+            let s3 = |a: &korpis_core::extension::ObjectAccess| match access_to_pb(a).protocol {
                 Some(Protocol::S3(s)) => Some(*s),
                 _ => None,
             };
+            let store = s3(&g.access);
+            let content_store = g.content.as_ref().and_then(s3);
             let (data_key, sealed_data_key) = match &g.data_key {
                 JobKey::Clear(k) => (k.0.to_vec(), Vec::new()),
                 JobKey::Sealed(s) => (Vec::new(), s.clone()),
@@ -50,6 +52,7 @@ fn outcome(granted: Result<JobGrant, JobRefusal>) -> Outcome {
                 data_key,
                 sealed_data_key,
                 store: store.into(),
+                content_store: content_store.into(),
                 expires_at: timestamp(g.access.expires_at).into(),
                 repository: korpis_wire::wire_id(IdKind::Repository, g.repository),
                 workload: korpis_wire::wire_id(IdKind::Workload, g.workload),

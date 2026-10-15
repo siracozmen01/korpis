@@ -28,9 +28,12 @@ static ZEROS: [u8; 64 << 10] = [0; 64 << 10];
 
 /// Recipe content a file may be byte-identical to: sha256 digests by size, so only a file of a
 /// size some content has is hashed for it.
+/// A clone shares what the original matched, so the caller that hands one to a backup can read
+/// afterwards what it recorded by reference.
 #[derive(Debug, Clone, Default)]
 pub struct Content {
     by_size: BTreeMap<u64, BTreeSet<[u8; 32]>>,
+    matched: std::sync::Arc<std::sync::Mutex<BTreeSet<String>>>,
 }
 
 impl Content {
@@ -41,7 +44,13 @@ impl Content {
         for (size, digest) in files {
             by_size.entry(size).or_default().insert(digest);
         }
-        Self { by_size }
+        Self { by_size, matched: std::sync::Arc::default() }
+    }
+
+    /// The sha256 of each content a file was recorded by reference to, in lowercase hex.
+    #[must_use]
+    pub fn matched(&self) -> BTreeSet<String> {
+        self.matched.lock().map(|m| m.clone()).unwrap_or_default()
     }
 }
 
@@ -159,8 +168,11 @@ pub(crate) fn read<K: Sink>(
     if let Some(known) = content.by_size.get(&size) {
         let (sha, digest) = hashed(keys, file, size, &runs).map_err(io)?;
         if known.contains(&sha) {
-            let content = hex(&sha);
-            return Ok(Data { digest, content, ..Data::default() });
+            let hexed = hex(&sha);
+            if let Ok(mut m) = content.matched.lock() {
+                m.insert(hexed.clone());
+            }
+            return Ok(Data { digest, content: hexed, ..Data::default() });
         }
     }
     let mut data = Data::default();

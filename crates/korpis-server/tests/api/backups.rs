@@ -113,6 +113,8 @@ async fn granted(stream: &mut Stream, plan: &str, step: u32, workload: &str) {
         format!("repo/korpis/workloads/{workload_uuid}/"),
         "its prefix alone"
     );
+    let content = g.content_store.into_option().expect("the repository's recipe content");
+    assert_eq!(content.key_prefix, "repo/korpis/content/", "once per repository, beside workloads");
     let Outcome::Grant(again) = access(stream, "r2", plan, step).await else { panic!("refused") };
     assert_eq!(again.data_key, g.data_key, "the workload's one key");
     let Outcome::Refused(not_a_job) = access(stream, "r3", plan, 7).await else {

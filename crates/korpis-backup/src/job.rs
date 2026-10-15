@@ -7,12 +7,14 @@
 
 use crate::confine::{Bounds, Work, confine};
 use crate::error::Error;
+use crate::kept::{Chain, FromRepo, Kept};
 use crate::keys::{KEY_LEN, Keys};
 use crate::s3::{S3Config, S3Store};
 use crate::{Content, Options, Repo, Restore, backup, restore, verify};
 use buffa::Message as _;
 use korpis_proto::korpis::backup::v1 as pb;
 use korpis_proto::korpis::backup::v1::__buffa::oneof::job_spec::Work as W;
+use std::collections::BTreeSet;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -90,9 +92,8 @@ impl crate::ContentSource for ContentDir {
     }
 }
 
-fn repo(spec: &pb::JobSpec) -> Result<Repo<S3Store>, Error> {
-    let s = spec.store.as_option().ok_or_else(|| Error::Refused("no store".into()))?;
-    let config = S3Config {
+fn s3(s: &korpis_proto::korpis::v1::S3Access) -> S3Config {
+    S3Config {
         endpoint: s.endpoint.clone(),
         region: s.region.clone(),
         bucket: s.bucket.clone(),
@@ -101,13 +102,59 @@ fn repo(spec: &pb::JobSpec) -> Result<Repo<S3Store>, Error> {
         secret_access_key: s.secret_access_key.clone(),
         session_token: s.session_token.clone(),
         path_style: s.path_style,
-    };
+    }
+}
+
+fn repo(spec: &pb::JobSpec) -> Result<Repo<S3Store>, Error> {
+    let s = spec.store.as_option().ok_or_else(|| Error::Refused("no store".into()))?;
+    let config = s3(s);
     let key: [u8; KEY_LEN] = spec
         .data_key
         .as_slice()
         .try_into()
         .map_err(|_| Error::Refused("a data key is 32 bytes".into()))?;
     Ok(Repo::new(Arc::new(S3Store::new(config)?), Arc::new(Keys::derive(&key))))
+}
+
+/// The repository's copy of recipe content, where it was granted on the store's own endpoint:
+/// the job reaches no other (§5.2 of docs/06-storage.md).
+fn kept(spec: &pb::JobSpec) -> Result<Option<Kept<S3Store>>, Error> {
+    let (Some(store), Some(content)) = (spec.store.as_option(), spec.content_store.as_option())
+    else {
+        return Ok(None);
+    };
+    if content.endpoint != store.endpoint {
+        tracing::warn!("recipe content granted on another endpoint is not reached");
+        return Ok(None);
+    }
+    Ok(Some(Kept::new(Arc::new(S3Store::new(s3(content))?))))
+}
+
+/// Keeps in the repository each content `matched` names that it lacks, read from the node's
+/// store. A failure leaves the backup whole, restorable wherever the content is held, and the
+/// next backup tries again.
+async fn keep_matched(kept: &Kept<S3Store>, local: &ContentDir, matched: &BTreeSet<String>) {
+    for sha256 in matched {
+        let kept_one = match crate::ContentSource::open(local, sha256) {
+            Ok(Some(file)) => kept.keep(sha256, &file).await,
+            Ok(None) => continue,
+            Err(e) => Err(Error::Refused(e.to_string())),
+        };
+        if let Err(e) = kept_one {
+            tracing::warn!(%sha256, error = %e, "recipe content was not kept in the repository");
+        }
+    }
+}
+
+/// Where a restore reads recipe content: the node's store, then the repository's copy where one
+/// was granted, read into the job's own directory.
+fn restore_content(spec: &pb::JobSpec) -> Result<Arc<dyn crate::ContentSource>, Error> {
+    let local: Arc<dyn crate::ContentSource> = Arc::new(ContentDir(PathBuf::from(&spec.content)));
+    let Some(kept) = kept(spec)? else { return Ok(local) };
+    let dir = PathBuf::from(&spec.result).parent().map(Path::to_path_buf);
+    let dir = dir.ok_or_else(|| Error::Refused("no job directory".into()))?;
+    let handle = tokio::runtime::Handle::current();
+    Ok(Arc::new(Chain(vec![local, Arc::new(FromRepo::new(kept, handle, dir))])))
 }
 
 /// Does `spec`'s work; what it did.
@@ -122,6 +169,7 @@ pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
                 Content::new(b.content.iter().filter_map(|c| {
                     Some((c.size, <[u8; 32]>::try_from(c.sha256.as_slice()).ok()?))
                 }));
+            let referenced = content.clone();
             let parent = (!b.parent.is_empty()).then(|| b.parent.clone());
             let options = Options {
                 source: directory,
@@ -131,10 +179,13 @@ pub async fn run(spec: &pb::JobSpec) -> Result<pb::JobResult, Error> {
                 concurrency,
             };
             result.backup = backup(&r, &b.backup, options).await?.into();
+            if let Some(kept) = kept(spec)? {
+                let local = ContentDir(PathBuf::from(&spec.content));
+                keep_matched(&kept, &local, &referenced.matched()).await;
+            }
         }
         Some(W::Restore(w)) => {
-            let content: Arc<dyn crate::ContentSource> =
-                Arc::new(ContentDir(PathBuf::from(&spec.content)));
+            let content = restore_content(spec)?;
             let what = Restore {
                 backup: w.backup.clone(),
                 path: w.path.clone(),

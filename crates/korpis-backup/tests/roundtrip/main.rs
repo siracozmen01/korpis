@@ -201,3 +201,37 @@ async fn recipe_content_is_recorded_by_reference_and_restored_from_where_it_is_k
     restore(&r, with).await.unwrap();
     verify(&r, "b1", "", fresh.path().to_owned()).await.unwrap();
 }
+
+#[tokio::test]
+async fn a_node_without_the_content_restores_it_from_the_repository_s_copy() {
+    use korpis_backup::kept::{Chain, FromRepo, Kept};
+    use sha2::Digest as _;
+    let (src, work) = (scratch(), scratch());
+    let jar = tree::noise(1 << 20, 9);
+    std::fs::write(src.path().join("server.jar"), &jar).unwrap();
+    let sha: [u8; 32] = sha2::Sha256::digest(&jar).into();
+    let hex = sha.iter().fold(String::new(), |s, b| s + &format!("{b:02x}"));
+    let store = MemoryStore::default();
+    let r = repo(&store);
+    let mut o = options(src.path(), None);
+    let content = Content::new([(1 << 20, sha)]);
+    o.content = content.clone();
+    backup(&r, "b1", o).await.unwrap();
+    assert_eq!(content.matched(), [hex.clone()].into(), "what it recorded by reference");
+    // The node that backed it up keeps the content in the repository's own store.
+    let copy = Arc::new(MemoryStore::default());
+    let file = std::fs::File::open(src.path().join("server.jar")).unwrap();
+    Kept::new(Arc::clone(&copy)).keep(&hex, &file).await.unwrap();
+
+    // Another node, whose store lacks it, restores it from there.
+    let fresh = scratch();
+    let mut with = into(fresh.path(), "b1", "");
+    let from_repo =
+        FromRepo::new(Kept::new(copy), tokio::runtime::Handle::current(), work.path().into());
+    with.content = Arc::new(Chain(vec![Arc::new(korpis_backup::NoContent), Arc::new(from_repo)]));
+    restore(&r, with).await.unwrap();
+    verify(&r, "b1", "", fresh.path().to_owned()).await.unwrap();
+    let back: [u8; 32] =
+        sha2::Sha256::digest(std::fs::read(fresh.path().join("server.jar")).unwrap()).into();
+    assert_eq!(back, sha, "the jar, byte for byte");
+}

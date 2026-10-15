@@ -16,6 +16,7 @@ pub mod confine;
 pub mod error;
 mod file;
 pub mod job;
+pub mod kept;
 pub mod keys;
 pub mod live;
 mod meta;

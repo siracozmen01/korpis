@@ -211,6 +211,9 @@ message StartJobRequest {
   bytes data_key = 4;
   korpis.v1.S3Access store = 5;
   uint32 concurrency = 6;
+  // Access to the repository's recipe content, kept once per repository (§5.2 of
+  // docs/06-storage.md): written by a backup, read by a restore. Absent where none was granted.
+  korpis.v1.S3Access content_store = 8;
 }
 
 message BackupVolume {

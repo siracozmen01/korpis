@@ -41,6 +41,10 @@ pub struct JobGrant {
     pub data_key: super::keys::JobKey,
     /// Access to the workload's prefix, until it expires.
     pub access: ObjectAccess,
+    /// Access to the repository's recipe content, in the same mode, for as long; `None` where
+    /// the target refused it or the job needs none, and the job does without (§5.2 of
+    /// docs/06-storage.md).
+    pub content: Option<ObjectAccess>,
 }
 
 /// Why a job is given nothing.
@@ -130,11 +134,29 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let called = self.grant_backup_access(&target, &prefix, t.mode, JOB_ACCESS).await?;
         match called.outcome {
             CallOutcome::Access(access) => {
-                Ok(Ok(JobGrant { repository: t.repo.id, workload: t.workload, data_key, access }))
+                let content = self.content_access(&target, &t.repo, t.mode).await?;
+                let (repository, workload) = (t.repo.id, t.workload);
+                Ok(Ok(JobGrant { repository, workload, data_key, access, content }))
             }
             CallOutcome::Failed(f) => Ok(Err(JobRefusal::Store(f.reason))),
             _ => Ok(Err(JobRefusal::Store("provider.malformed".into()))),
         }
+    }
+
+    /// Access to `repo`'s recipe content in `mode`: `None` where the target refused it, since a
+    /// backup still records content by reference, and a restore still reads it from the node.
+    async fn content_access(
+        &self,
+        target: &CallTarget,
+        repo: &Repository,
+        mode: AccessMode,
+    ) -> Result<Option<ObjectAccess>, AppError> {
+        let prefix = repo.content_prefix();
+        let called = self.grant_backup_access(target, &prefix, mode, JOB_ACCESS).await?;
+        Ok(match called.outcome {
+            CallOutcome::Access(access) => Some(access),
+            _ => None,
+        })
     }
 
     /// Whether `node` holds the live volume `volume`.
