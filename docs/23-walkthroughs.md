@@ -64,7 +64,7 @@ findings than the first seven did, which is what an untraced surface is supposed
 | 2 | Recipe reference `…:1.20` resolved to a digest, decided under the organization's trust policy before anything is fetched, and **recorded in the intent** with what vouched for it; what the declaration leaves out is completed from that recipe, once ‡ | `09-recipes.md` §8, §7.1, §3.1 |
 | 3 | Config validated against the recipe's schema, per-field permissions applied | `09-recipes.md` §5 |
 | 4 | Quota checked | `05-scheduling.md` §5 |
-| 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams, bind in the approving transaction under the placement lock; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
+| 5 | Placement: static filter, score, a `FeasibilityQuery` to the shortlist over their streams before the approving transaction, then bind in it under the placement lock, filtering again with the answers; `Explanation` recorded, or the workload recorded as unplaced with it † ‡ | `05-scheduling.md` §2.1 to §2.3; `02-architecture.md` §4.3 |
 | 6 | Plan persisted; non-disruptive by the drivers that could run it and by the recipe's declared `disruption`, so auto-approved † | `01-model.md` §3.3; `04-runtimes.md` §4.1; `09-recipes.md` §5.1 |
 | 7 | `Intent` v1 written; approval moves `target` by compare-and-swap; `Effect` in the same transaction † | `03-state.md` §3.1, §3.2, §4 |
 | 8 | Agent receives the workload's signed `Assignment`: target intent, power, plan steps, and the recipe document; the plan becomes `applying` as it is sealed † ‡ | `02-architecture.md` §4.8 |
@@ -134,7 +134,13 @@ an installation with no edge tier to hold the address; the scheduler now judges 
 the mode the declaration resolves to (§3 of `07-networking.md`). The step's `FeasibilityQuery`
 is the one part of it Phase 0 does not run: the shortlist query and the re-placement after a
 post-bind rejection are homed in Phase 1, with the question of the placement lock they raise
-(§2.1 and question 9 of §10 of `05-scheduling.md`).
+(§2.1 and question 9 of §10 of `05-scheduling.md`). The query was built on 2026-10-15, and the
+step's row changed with it: asking inside the approving transaction would have held the placement
+lock across a round trip to every shortlisted node, so the query is asked before that transaction
+and the bind filters again with its answers. Asked at this step, what the query is evaluated with,
+and where: by the control-plane process, over the sessions it holds, which is every node of the
+single-machine installation of Phase 1 and not every node of one with several control-plane
+processes; that negative is stated in §2.1 there.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

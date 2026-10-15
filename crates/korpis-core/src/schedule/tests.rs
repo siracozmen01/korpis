@@ -15,6 +15,9 @@ use crate::workload::spec::{
 };
 use std::time::SystemTime;
 
+/// No node refused anything.
+static NONE_REFUSED: BTreeMap<Uuid, String> = BTreeMap::new();
+
 const GIB: u64 = 1 << 30;
 const ORG: Uuid = Uuid::from_u128(7);
 const PROJECT: Uuid = Uuid::from_u128(8);
@@ -153,6 +156,7 @@ impl Case {
             current: None,
             edge_tier: false,
             volumes: &[],
+            refused: &NONE_REFUSED,
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -284,6 +288,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         current: Some(Current { node: here.id, reserved: &reserved }),
         edge_tier: false,
         volumes: &[],
+        refused: &NONE_REFUSED,
     };
     let e = place(
         &req,
@@ -317,6 +322,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         current: None,
         edge_tier: false,
         volumes: &[],
+        refused: &NONE_REFUSED,
     }
 }
 

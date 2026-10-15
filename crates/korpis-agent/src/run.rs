@@ -191,6 +191,8 @@ impl Agent {
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let data = identity.clone();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let answerer = crate::feasibility::answerer(runtime.clone());
+        let session = session.answering(answerer, link.outbound.clone());
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
         let judged = Judged {
             keys: token_ring(&data.keys.token_keys),
@@ -226,12 +228,11 @@ impl Agent {
             options.period,
         )
         .map_err(io("the streams offloaded"))?;
-        let reconciler = Reconciler::new(runtime, host, wiring, progress, streams);
         let tasks = vec![
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),
             journal.maintain_every(options.maintain_every),
-            tokio::spawn(reconciler.run()),
+            tokio::spawn(Reconciler::new(runtime, host, wiring, progress, streams).run()),
             tokio::spawn(data.run()),
             tokio::spawn(offloader.run()),
         ];

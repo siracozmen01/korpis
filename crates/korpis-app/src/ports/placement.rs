@@ -10,6 +10,7 @@ use korpis_core::schedule::Peer;
 use korpis_core::tenancy::quota::Bounds;
 use std::collections::BTreeMap;
 use std::future::Future;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// Reading where workloads are.
@@ -92,4 +93,21 @@ pub trait PlacementWrite {
 
     /// Forgets that a workload was unplaced.
     fn clear_unplaced(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// The nodes whose driver refused `workload`'s target `intent`, each with its reason.
+    fn refusals(
+        &mut self,
+        workload: Uuid,
+        intent: Uuid,
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, String>>> + Send;
+
+    /// Records that `node`'s driver refused `target`, a workload and its target intent, at `at`,
+    /// for `reason`; a later refusal by the same node replaces the earlier one.
+    fn refuse(
+        &mut self,
+        target: (Uuid, Uuid),
+        node: Uuid,
+        reason: &str,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 }

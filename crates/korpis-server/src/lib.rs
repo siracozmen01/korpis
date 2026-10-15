@@ -11,6 +11,7 @@ pub mod authority;
 pub mod bodies;
 mod control_jobs;
 pub mod data;
+pub mod feasibility;
 pub mod install;
 pub mod keys;
 pub mod named_relays;

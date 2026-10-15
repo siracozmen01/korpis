@@ -9,6 +9,7 @@
 //! approval. Every attempt that finds no node is kept with its full derivation and logged once
 //! per target, so retrying does not flood the log.
 
+use super::screen::Screened;
 use crate::App;
 use crate::error::AppError;
 use crate::page::Page;
@@ -83,13 +84,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Tries one workload again, in a transaction of its own; false if it has no target now.
+    /// Tries one workload again, in a transaction of its own, asking the shortlist first; false
+    /// if it has no target now.
     async fn retry_placement(&self, id: Uuid) -> Result<bool, AppError> {
+        let screened = self.screen_current(id).await?;
         let mut tx = self.store.begin().await?;
         let Some(w) = tx.lock_workload(id).await? else { return Ok(false) };
         let Some(t) = w.target.filter(|_| w.deleted_at.is_none()) else { return Ok(false) };
         let target = self.store.intent(t).await?;
-        self.place_target(&mut tx, &w, target.as_ref()).await?;
+        self.place_screened(&mut tx, &w, target.as_ref(), &screened).await?;
         tx.commit().await?;
         Ok(true)
     }
@@ -101,6 +104,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx: &mut S::Tx,
         w: &Workload,
         target: Option<&Intent>,
+    ) -> Result<(), AppError> {
+        self.place_screened(tx, w, target, &Screened::default()).await
+    }
+
+    /// As [`Self::place_target`], with what a shortlist query found (§2.1 of
+    /// docs/05-scheduling.md): its refusals kept beside every refusal recorded for the target,
+    /// and the nodes that did not answer passed over.
+    pub(crate) async fn place_screened(
+        &self,
+        tx: &mut S::Tx,
+        w: &Workload,
+        target: Option<&Intent>,
+        screened: &Screened,
     ) -> Result<(), AppError> {
         tx.lock_placement().await?;
         let current = tx.placement_in(w.id).await?;
@@ -132,6 +148,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .map(|n| Candidate { node: n, allocated: allocations.get(&n.id).unwrap_or(&empty) })
             .collect();
         let volumes = self.existing_nodes(&target.body).await?;
+        let now = self.clock.now();
+        let (found, unanswered) = screened.for_target(target.id);
+        for (node, why) in found {
+            tx.refuse((w.id, target.id), *node, why, now).await?;
+        }
+        let mut refused = tx.refusals(w.id, target.id).await?;
+        refused.extend(unanswered.iter().map(|(n, why)| (*n, why.clone())));
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -141,6 +164,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             current: current.as_ref().map(|p| Current { node: p.node, reserved: &p.reserved }),
             edge_tier: EDGE_TIER,
             volumes: &volumes,
+            refused: &refused,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {

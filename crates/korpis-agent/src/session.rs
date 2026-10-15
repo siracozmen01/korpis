@@ -6,6 +6,7 @@
 //! acknowledges it. When the stream drops it dials again, backing off; the node keeps doing its
 //! job meanwhile from the set it holds (§4.6).
 
+use crate::feasibility::Answerer;
 use crate::held::HeldSet;
 use crate::identity::Credentials;
 use crate::jobs::JobAccesses;
@@ -21,8 +22,9 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::{broadcast, mpsc, watch};
+use tokio::sync::{Semaphore, broadcast, mpsc, watch};
 
+mod answer;
 mod link;
 
 pub use link::{Event, Facts, Link};
@@ -52,6 +54,9 @@ pub struct Session {
     credentials: Arc<Credentials>,
     jobs: Arc<JobAccesses>,
     steps: Arc<crate::steps::StepAnswers>,
+    /// What answers feasibility queries, when the agent drives a runtime that can (§2.1 of
+    /// docs/05-scheduling.md); where answers go; and how many more may be answered at once.
+    answering: Option<(Answerer, mpsc::Sender<agent::AgentMessage>, Arc<Semaphore>)>,
 }
 
 impl std::fmt::Debug for Session {
@@ -148,6 +153,7 @@ impl Session {
             credentials,
             jobs,
             steps,
+            answering: None,
         };
         (session, link)
     }
@@ -183,6 +189,7 @@ impl Session {
             capacity: facts.capacity.into(),
             allocatable: facts.allocatable.into(),
             advertised: facts.advertised.into(),
+            answers_feasibility: self.answers(),
             set_digest: self.held.borrow().digest.clone(),
             journal_head: head,
             journal_tail: tail,
@@ -319,6 +326,10 @@ impl Session {
             }
             Some(Down::StepResolution(answer)) => {
                 self.steps.answer(*answer);
+                Vec::new()
+            }
+            Some(Down::FeasibilityQuery(q)) => {
+                self.answer(q);
                 Vec::new()
             }
             Some(other) => {

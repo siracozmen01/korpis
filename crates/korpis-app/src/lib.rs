@@ -54,6 +54,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     assignment_sealer: Option<Arc<dyn ports::AssignmentSealer>>,
     certificate_issuer: Option<Arc<dyn ports::CertificateIssuer>>,
     vault: Option<Arc<dyn ports::KeyVault>>,
+    feasibility: Option<Arc<dyn ports::Feasibility>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
 }
@@ -73,6 +74,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             assignment_sealer: None,
             certificate_issuer: None,
             vault: None,
+            feasibility: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
         }
@@ -105,6 +107,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_vault(mut self, vault: Arc<dyn ports::KeyVault>) -> Self {
         self.vault = Some(vault);
+        self
+    }
+
+    /// Asks the shortlist's nodes through `feasibility` before binding (§2.1 of
+    /// docs/05-scheduling.md): without it, the bound node's `Prepare` alone refuses.
+    #[must_use]
+    pub fn with_feasibility(mut self, feasibility: Arc<dyn ports::Feasibility>) -> Self {
+        self.feasibility = Some(feasibility);
         self
     }
 

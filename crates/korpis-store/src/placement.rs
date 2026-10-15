@@ -18,6 +18,7 @@ use korpis_core::schedule::Peer;
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// The advisory lock every bind and every cordon holds: one key, for the installation.
@@ -203,6 +204,47 @@ impl PlacementWrite for PgTx {
             .execute(&mut *self.tx)
             .await
             .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn refusals(
+        &mut self,
+        workload: Uuid,
+        intent: Uuid,
+    ) -> StoreResult<BTreeMap<Uuid, String>> {
+        let rows = sqlx::query!(
+            "SELECT node_id, reason FROM placement_refusal
+              WHERE workload_id = $1 AND intent_id = $2",
+            workload,
+            intent
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.node_id, r.reason)).collect())
+    }
+
+    async fn refuse(
+        &mut self,
+        (workload, intent): (Uuid, Uuid),
+        node: Uuid,
+        reason: &str,
+        at: SystemTime,
+    ) -> StoreResult<()> {
+        sqlx::query!(
+            "INSERT INTO placement_refusal (workload_id, intent_id, node_id, reason, refused_at)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (workload_id, intent_id, node_id)
+             DO UPDATE SET reason = EXCLUDED.reason, refused_at = EXCLUDED.refused_at",
+            workload,
+            intent,
+            node,
+            reason,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
         Ok(())
     }
 }

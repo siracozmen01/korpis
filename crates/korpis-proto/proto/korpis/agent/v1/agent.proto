@@ -258,6 +258,11 @@ message Hello {
   NodeAuth auth = 12;
   // As in NodeStatus.
   Advertised advertised = 13;
+  // Whether this agent answers FeasibilityQuery (§2.1 of docs/05-scheduling.md). The control
+  // plane asks only an agent that says so: one that does not, built before the query or not
+  // running a driver it can ask, is not asked, and the check after a bind covers it, rather than
+  // being passed over for a silence that will never end.
+  bool answers_feasibility = 14;
 }
 
 // The session runs over TLS to a control plane certificate the agent pinned at enrollment; this
@@ -610,18 +615,25 @@ message JournalAck {
 // ---------------------------------------------------------------------------------------------
 // Placement, content, liveness
 
-// A side-effect-free Prepare against a supplied manifest (§2.1 of docs/05-scheduling.md).
+// A side-effect-free Prepare against a supplied manifest (§2.1 of docs/05-scheduling.md): asked
+// of the best scored nodes before a workload is bound, outside the placement lock. `query` is
+// random and answered by the node it was sent to alone.
 message FeasibilityQuery {
   string query = 1;
   korpis.v1.IntentBody body = 2;
   bytes recipe_manifest = 3;
 }
 
+// What the node's driver said. `accepted` is Prepare's acceptance; otherwise `reason` and
+// `detail` are its refusal, which the control plane keeps for the target, unless `unanswered`
+// says the driver could not be asked at all (it is not running, or the call failed), which
+// decides nothing and is not kept.
 message FeasibilityResult {
   string query = 1;
   bool accepted = 2;
   korpis.v1.UnsatisfiableReason reason = 3;
   string detail = 4;
+  bool unanswered = 5;
 }
 
 message ContentHint {

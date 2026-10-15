@@ -11,6 +11,7 @@ pub mod advertise;
 pub mod content;
 pub mod data;
 pub mod durable;
+pub mod feasibility;
 pub mod held;
 pub mod host;
 pub mod identity;

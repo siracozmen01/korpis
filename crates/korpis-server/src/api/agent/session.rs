@@ -118,7 +118,7 @@ pub(super) async fn open(
     let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;
     tx.send(journal_ack(ingested)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;
-    let (id, wake) = sessions.register(node, tx.clone());
+    let (id, wake) = sessions.register(node, tx.clone(), hello.answers_feasibility);
     tracing::info!(%node, protocol = %session.protocol, "agent session opened");
     let downlink = Downlink {
         app: Arc::clone(app),

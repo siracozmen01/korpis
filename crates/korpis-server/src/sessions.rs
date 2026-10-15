@@ -6,7 +6,8 @@
 //! reconnected after a network change must not leave a half-open twin receiving its
 //! assignments.
 
-use korpis_proto::korpis::agent::v1::ControlMessage;
+use korpis_app::ports::Feasible;
+use korpis_proto::korpis::agent::v1::{ControlMessage, FeasibilityResult};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -18,6 +19,8 @@ struct Entry {
     id: u64,
     tx: Sender<ControlMessage>,
     wake: Arc<Notify>,
+    /// Whether the agent said it answers feasibility queries.
+    answers: bool,
 }
 
 /// The registry.
@@ -28,6 +31,9 @@ pub struct Sessions {
     /// Reachability probes sent and not yet answered, by probe: where the node's answer goes,
     /// which is empty when it is listening and says why not when it is not.
     probes: Mutex<HashMap<String, oneshot::Sender<String>>>,
+    /// Feasibility queries sent and not yet answered, by query: the node asked, which alone may
+    /// answer, and where its driver's answer goes (§2.1 of docs/05-scheduling.md).
+    queries: Mutex<HashMap<String, (Uuid, oneshot::Sender<Feasible>)>>,
 }
 
 impl std::fmt::Debug for Sessions {
@@ -43,12 +49,18 @@ impl Sessions {
         self.open.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Registers the session of `node` sending through `tx`, replacing any other; its id, and
-    /// what wakes it to recompute the node's set.
-    pub fn register(&self, node: Uuid, tx: Sender<ControlMessage>) -> (u64, Arc<Notify>) {
+    /// Registers the session of `node` sending through `tx`, replacing any other, and whether
+    /// its agent `answers` feasibility queries; its id, and what wakes it to recompute the
+    /// node's set.
+    pub fn register(
+        &self,
+        node: Uuid,
+        tx: Sender<ControlMessage>,
+        answers: bool,
+    ) -> (u64, Arc<Notify>) {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let wake = Arc::new(Notify::new());
-        self.guard().insert(node, Entry { id, tx, wake: Arc::clone(&wake) });
+        self.guard().insert(node, Entry { id, tx, wake: Arc::clone(&wake), answers });
         (id, wake)
     }
 
@@ -107,9 +119,72 @@ impl Sessions {
         self.probes.lock().unwrap_or_else(PoisonError::into_inner).remove(probe);
     }
 
+    /// Where to send `node` a feasibility query: its session here, if its agent answers them.
+    #[must_use]
+    pub fn asker(&self, node: Uuid) -> Option<Sender<ControlMessage>> {
+        self.guard().get(&node).filter(|e| e.answers).map(|e| e.tx.clone())
+    }
+
+    /// Where `node`'s answer to `query` will arrive, once it has been sent it.
+    pub fn expect_feasibility(&self, query: &str, node: Uuid) -> oneshot::Receiver<Feasible> {
+        let (tx, rx) = oneshot::channel();
+        let mut queries = self.queries.lock().unwrap_or_else(PoisonError::into_inner);
+        queries.insert(query.to_owned(), (node, tx));
+        rx
+    }
+
+    /// `node`'s answer to a feasibility query. An answer from any node but the one asked is
+    /// dropped: a query's identifier is a secret between the control plane and that node.
+    pub fn feasibility_result(&self, node: Uuid, r: &FeasibilityResult) {
+        let mut queries = self.queries.lock().unwrap_or_else(PoisonError::into_inner);
+        if queries.get(&r.query).is_none_or(|(asked, _)| *asked != node) {
+            return;
+        }
+        let Some((_, tx)) = queries.remove(&r.query) else { return };
+        let answer = if r.unanswered {
+            Feasible::Unanswered
+        } else if r.accepted {
+            Feasible::Accepted
+        } else {
+            Feasible::Refused(r.detail.clone())
+        };
+        let _ = tx.send(answer);
+    }
+
+    /// Stops waiting for `query`.
+    pub fn forget_feasibility(&self, query: &str) {
+        self.queries.lock().unwrap_or_else(PoisonError::into_inner).remove(query);
+    }
+
     /// The nodes with a session here.
     #[must_use]
     pub fn nodes(&self) -> Vec<Uuid> {
         self.guard().keys().copied().collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+
+    use super::*;
+
+    fn result(query: &str) -> FeasibilityResult {
+        FeasibilityResult { query: query.to_owned(), accepted: true, ..Default::default() }
+    }
+
+    #[test]
+    fn a_feasibility_answer_is_taken_from_the_node_asked_alone() {
+        let sessions = Sessions::default();
+        let (asked, other) = (Uuid::now_v7(), Uuid::now_v7());
+        let mut answered = sessions.expect_feasibility("q1", asked);
+        sessions.feasibility_result(other, &result("q1"));
+        assert!(answered.try_recv().is_err(), "another node's answer is dropped");
+        sessions.feasibility_result(asked, &result("q1"));
+        assert_eq!(answered.try_recv().unwrap(), Feasible::Accepted);
+        let mut silent = sessions.expect_feasibility("q2", asked);
+        sessions.forget_feasibility("q2");
+        sessions.feasibility_result(asked, &result("q2"));
+        assert!(silent.try_recv().is_err(), "a forgotten query takes no answer");
     }
 }

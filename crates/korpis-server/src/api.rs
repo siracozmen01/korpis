@@ -98,13 +98,15 @@ impl Api {
     /// The API over `app`.
     #[must_use]
     pub fn new(app: ServerApp) -> Self {
-        let app = Arc::new(app);
+        let sessions = Arc::new(crate::sessions::Sessions::default());
+        let asking = crate::feasibility::SessionFeasibility::new(Arc::clone(&sessions));
+        let app = Arc::new(app.with_feasibility(Arc::new(asking)));
         let revocations = Arc::new(crate::revocations::Revocations::default());
         let in_process = InProcess::new(Arc::clone(&app), Arc::clone(&revocations));
         Self {
             app,
             ca_fingerprint: String::new(),
-            sessions: Arc::new(crate::sessions::Sessions::default()),
+            sessions,
             providers: Arc::new(crate::providers::Providers::default()),
             revocations,
             relay: Arc::new(RelayRole::new(Arc::new(in_process))),

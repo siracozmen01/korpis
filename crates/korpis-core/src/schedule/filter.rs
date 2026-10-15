@@ -205,5 +205,8 @@ pub(super) fn rejections(
     out.extend(storage_classes(req, c));
     out.extend(volumes(req, c));
     out.extend(affinity(req, c, fleet, peers, policy));
+    if let Some(why) = req.refused.get(&c.node.id) {
+        out.push((Check::Prepare, format!("its driver refused it: {why}")));
+    }
     out
 }

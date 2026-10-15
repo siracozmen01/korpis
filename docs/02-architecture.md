@@ -296,13 +296,13 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 
 | Message | Purpose |
 |---|---|
-| `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, what it advertises for inbound traffic (§9 of `07-networking.md`), the set digest it holds |
+| `Hello` | agent version, protocol version, driver capabilities, storage classes as the helper declares them (§2 of `06-storage.md`), node capacity, what it advertises for inbound traffic (§9 of `07-networking.md`), the set digest it holds, whether it answers a `FeasibilityQuery` |
 | `Observation` | current observed state of one workload, including what it has converged to (§4.3) |
 | `NodeStatus` | the heartbeat: capacity, allocation, pressure signals, driver health, what it advertises for inbound traffic (§9 of `07-networking.md`), and a digest of current observations |
 | `JournalRecords` | effects, metering samples, and break-glass records, in sequence order (§4.10) |
 | `LeaseRequest` | acquire or renew a lease, carrying a nonce; the clock starts when it is sent (§4.5) |
 | `LeaseReleased` | the node has stopped acting under an epoch; it is also a journal record |
-| `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, or rejected with a reason |
+| `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, rejected with a reason, or unanswered when the driver could not be asked |
 | `ContentStatus` | which recipe digests are present locally |
 | `Ack` | the assignment set digest the agent has received |
 | `CredentialRequest` | a workload asked its identity socket for a credential; names the workload and a request identifier (§9.5 of `08-identity.md`) |

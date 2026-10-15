@@ -136,6 +136,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let empty = Bounds::default();
         let c = Candidate { node, allocated: allocations.get(&node.id).unwrap_or(&empty) };
         let volumes = self.existing_nodes(&target.body).await?;
+        let drivers_refused = tx.refusals(w.id, target.id).await?;
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -145,6 +146,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             current: None,
             edge_tier: EDGE_TIER,
             volumes: &volumes,
+            refused: &drivers_refused,
         };
         let standing = operator_refusals(&req, &c, &peers, &self.policy);
         if !standing.is_empty() {

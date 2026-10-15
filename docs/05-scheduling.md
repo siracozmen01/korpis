@@ -90,6 +90,33 @@ manifest, and the driver answers with `Prepare`'s result. `Prepare` is pure (§4
 `04-runtimes.md`), the manifest is supplied so nothing is fetched, and the query has a timeout; a
 node that does not answer in time is treated as rejecting, with that reason recorded.
 
+**The query is asked outside the placement lock, before the transaction that binds.** The control
+plane scores the nodes as the store holds them, without the lock, and asks the best three at once,
+waiting five seconds for all of them together. Each query carries a random identifier, and an
+answer is taken only from the node it was sent to. Only an agent that says in its `Hello` that it
+answers is asked (§4.2 of `02-architecture.md`); one that does not, built before the query, is
+ranked and bound unasked, rather than passed over for a silence that would never end. The bind then
+runs as before, under the lock in the approving transaction (§2.3), and filters and scores again
+with what the query found: a node whose driver refused is rejected by the check `prepare` with the
+driver's reason, and a node that did not answer is rejected by the same check with that said. A
+refusal is kept for the target, so every later bind of that target, a retry or an operator's choice
+of node (§2.3), leaves the node out; a new target is asked again. A node that did not answer
+decided nothing, so it is passed over for that bind alone and asked again by the next. Because the
+bind filters again, a node that changed between the query and the bind is judged as it is when
+bound, and a node the query never reached, because the three best all refused or because the
+ranking moved, is bound unasked and checked by `Prepare` after the bind, below. The query is asked
+when a target is approved, at declaration or by a person, and when the retry pass tries an unplaced
+workload again; a workload that is already placed follows its target on its node or not at all
+(§8), so nothing is asked for it.
+
+What it costs. An approval waits up to five seconds when a shortlisted node is silent, and a node
+that answers slowly is passed over though it might have accepted. A driver that refuses the same
+target on one day and would accept it on the next, after an upgrade, is left out of that target
+until the target changes; the operator's remedy is declaring again. **A node whose session this
+process does not hold is not asked**: the control plane asks over its own sessions, so when
+several control-plane processes share an installation (§5 of `18-operations.md`), a node
+connected to another is ranked and bound unasked, and only the check after the bind covers it.
+
 **And `Prepare` runs again after binding, on the bound node,** as the first thing the agent does
 with a new assignment, because the node's state can change between the query and the bind. A
 rejection there is the `unsatisfiable` observation of §7, and the scheduler re-places with that
@@ -111,6 +138,9 @@ node excluded and the reason in the `Explanation`.
 > workload whose bound node's driver rejects it stays bound there, shown as unsatisfiable with
 > the reason, and nothing moves it, since moving a placed workload is migration. Whether the
 > shortlist query runs inside the placement lock is question 9 of §10.
+>
+> Updated 2026-10-15: the shortlist query is built, as above, and question 9 is resolved. The
+> re-placement after a post-bind rejection is not built yet.
 
 ### 2.2 Score: of those, which is *best*
 
@@ -843,7 +873,9 @@ estimates what a rebalance would achieve. It does not act.
    bind must re-check that what was queried still holds, and a node can change between the two.
    The second looks right, with the bind re-running the capability filter and the post-bind
    `Prepare` catching the rest, but it has not been built against a fleet. → here, before
-   Phase 1's scheduling
+   Phase 1's scheduling. **Resolved in §2.1, 2026-10-15:** outside the lock, before the binding
+   transaction, which filters again with what the query found; the cost is up to five seconds
+   added to an approval when a shortlisted node is silent.
 10. **What churn counts, and over what window.** A crash loop on one workload and a node that
     lost every workload in a power cut are both churn, and they say different things about the
     node. Whether churn counts workloads lost or loss events, whether a crash counts as much as a

@@ -54,13 +54,15 @@ enum Attempt {
 /// The nodes being probed, or tried recently without a measurement.
 type Attempts = Arc<Mutex<HashMap<Uuid, Attempt>>>;
 
-fn random<const N: usize>() -> Option<[u8; N]> {
+/// `N` random bytes, or nothing when the system has none to give.
+pub(crate) fn random<const N: usize>() -> Option<[u8; N]> {
     let mut bytes = [0u8; N];
     getrandom::fill(&mut bytes).ok()?;
     Some(bytes)
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// `bytes` in lowercase hexadecimal.
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
         let _ = write!(s, "{b:02x}");
         s

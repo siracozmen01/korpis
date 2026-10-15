@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO placement_refusal (workload_id, intent_id, node_id, reason, refused_at)\n             VALUES ($1, $2, $3, $4, $5)\n             ON CONFLICT (workload_id, intent_id, node_id)\n             DO UPDATE SET reason = EXCLUDED.reason, refused_at = EXCLUDED.refused_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a1d1015a5f95cc445bee469647274c6b0d52ec143ca6c7fdf908ce3e19a0e680"
+}

@@ -59,6 +59,7 @@ mod revocation;
 mod sdk;
 mod session;
 mod sets;
+mod shortlist;
 mod snapshots;
 mod standalone;
 mod step;

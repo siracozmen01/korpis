@@ -58,6 +58,9 @@ pub struct Request<'a> {
     /// Each existing volume the intent attaches, with the node holding it: a node-local volume
     /// is reachable from its node alone (§7 of docs/06-storage.md).
     pub volumes: &'a [(Uuid, Uuid)],
+    /// The nodes whose driver refused this intent, each with its reason: asked on the
+    /// shortlist, or after a bind (§2.1 of docs/05-scheduling.md).
+    pub refused: &'a BTreeMap<Uuid, String>,
 }
 
 /// A workload's existing placement.
@@ -120,11 +123,14 @@ pub enum Check {
     Volume,
     /// Every required affinity and anti-affinity rule.
     Affinity,
+    /// The node's driver accepted the intent when the shortlist asked it, or after it was bound
+    /// there (§2.1 of docs/05-scheduling.md).
+    Prepare,
 }
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -138,6 +144,7 @@ impl Check {
         Self::StorageClass,
         Self::Volume,
         Self::Affinity,
+        Self::Prepare,
     ];
 
     /// The check a name names.
@@ -163,6 +170,7 @@ impl Check {
             Self::StorageClass => "storage_class",
             Self::Volume => "volume",
             Self::Affinity => "affinity",
+            Self::Prepare => "prepare",
         }
     }
 }
@@ -243,6 +251,18 @@ pub fn place(
     peers: &[Peer],
     policy: &PlacementPolicy,
 ) -> Explanation {
+    ranked(req, nodes, peers, policy).0
+}
+
+/// As [`place`], with every node that survived the filter, best first: the shortlist a
+/// `FeasibilityQuery` asks is its head (§2.1 of docs/05-scheduling.md).
+#[must_use]
+pub fn ranked(
+    req: &Request<'_>,
+    nodes: &[Candidate<'_>],
+    peers: &[Peer],
+    policy: &PlacementPolicy,
+) -> (Explanation, Vec<Uuid>) {
     let fleet: topology::Fleet<'_> = nodes.iter().map(|c| (c.node.id, c.node)).collect();
     let mut filtered = Vec::new();
     let mut survivors = Vec::new();
@@ -258,14 +278,15 @@ pub fn place(
         }));
     }
     let (scored, ranking) = score::rank(req, &survivors, &fleet, peers, policy);
-    Explanation {
+    let explanation = Explanation {
         candidates: u32::try_from(nodes.len()).unwrap_or(u32::MAX),
         filtered,
         scored,
         chosen: ranking.first().copied(),
         runner_up: ranking.get(1).copied(),
         policy: policy.clone(),
-    }
+    };
+    (explanation, ranking)
 }
 
 #[cfg(test)]

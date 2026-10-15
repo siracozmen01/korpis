@@ -126,11 +126,15 @@ impl Uplink {
                 super::step::answer(app, node, (**r).clone(), self.tx.clone());
                 Ok(())
             }
+            Some(Up::FeasibilityResult(r)) => {
+                self.sessions.feasibility_result(node, r);
+                Ok(())
+            }
             Some(Up::ProbeListening(p)) => {
                 self.sessions.probe_listening(&p.probe, p.error.clone());
                 Ok(())
             }
-            // Feasibility answers and content status arrive with their consumers.
+            // Content status arrives with its consumer.
             _ => Ok(()),
         };
         if let Err(e) = result {

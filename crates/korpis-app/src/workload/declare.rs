@@ -10,6 +10,7 @@ mod providers;
 mod set;
 
 use super::propose::{self, Proposal};
+use super::screen::Screened;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -165,6 +166,8 @@ pub(crate) struct Prepared {
     changes: Vec<Change>,
     held: Option<Held>,
     holds: Held,
+    /// What the shortlist said of the intent, when it is approved as it is declared.
+    screened: Screened,
 }
 
 impl Prepared {
@@ -246,7 +249,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let declared = declared(&base, intent, plan, passage.as_ref());
         let held = base.held();
         let holds = base.holding(&declared.intent);
-        Ok(Prepared { base, declared, passage, changes, held, holds })
+        let screened = if declared.plan.approval == Approval::Auto {
+            self.screen(&declared.workload, &declared.intent).await?
+        } else {
+            Screened::default()
+        };
+        Ok(Prepared { base, declared, passage, changes, held, holds, screened })
     }
 
     /// Writes a prepared declaration in `tx`, approving and placing it when nothing in it needs
@@ -257,7 +265,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         p: &mut Prepared,
     ) -> Result<(), AppError> {
-        let Prepared { base, declared, passage, changes, held, holds } = p;
+        let Prepared { base, declared, passage, changes, held, holds, screened } = p;
         if let Some(p) = passage {
             self.create_set(tx, p).await?;
         }
@@ -273,7 +281,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if approved {
             tx.append_effect(&approval_effect(caller, base, &declared.plan)).await?;
             self.claim_existing(tx, &declared.workload, &declared.intent.body).await?;
-            self.place_target(tx, &declared.workload, Some(&declared.intent)).await?;
+            self.place_screened(tx, &declared.workload, Some(&declared.intent), screened).await?;
         }
         Ok(())
     }

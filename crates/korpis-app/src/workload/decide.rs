@@ -146,6 +146,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let plan = self.store.plan(cmd.plan).await?.ok_or(AppError::NotFound { kind: "plan" })?;
         let permit = self.authorize_plan_decision(caller, &plan).await?;
+        let screened = self.screen_plan(&plan).await?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         let (mut plan, w) = self.lock_proposed(&mut tx, cmd.plan).await?;
@@ -189,7 +190,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let target =
                     self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
                 self.claim_existing(&mut tx, &w, &target.body).await?;
-                self.place_target(&mut tx, &w, Some(&target)).await?;
+                self.place_screened(&mut tx, &w, Some(&target), &screened).await?;
             }
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,
             PlanTarget::Power(_)
