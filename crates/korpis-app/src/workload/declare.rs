@@ -238,6 +238,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
+        self.check_routes((base.workload.organization, base.workload.id), &body).await?;
         self.check_seeds(caller, base.target.as_ref().map(|t| &t.body), &body).await?;
         let passage = match &cmd.set {
             Some(through) => Some(self.passage(caller, &base, through, &body).await?),
@@ -281,7 +282,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         if approved {
             tx.append_effect(&approval_effect(caller, base, &declared.plan)).await?;
-            self.claim_existing(tx, &declared.workload, &declared.intent.body).await?;
+            self.claim_target(tx, &declared.workload, &declared.intent.body).await?;
             self.place_screened(tx, &declared.workload, Some(&declared.intent), screened).await?;
         }
         Ok(())

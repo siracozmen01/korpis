@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO route (name, organization_id, workload_id, endpoint, created_at)\n                 VALUES ($1, $2, $3, $4, $5)\n                 ON CONFLICT (name) DO UPDATE SET endpoint = EXCLUDED.endpoint\n                  WHERE route.workload_id = EXCLUDED.workload_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "76bbc3200793ff500981fc6162e753fbaeedccb3b8eae3944ff3c48f6d751db8"
+}

@@ -1146,8 +1146,9 @@ Endpoint
   address       Address?         assigned; shape depends on exposure
   client_address  preserved | translated | proxy_protocol   how the workload sees the client
                                  (§3.4 of 07-networking.md)
-  domains       []string         for ingress exposure: names its organization's verified
-                                 domains cover (§3.2 of 07-networking.md)
+  domains       []string         for ingress exposure only: 1 to 100 exact names its
+                                 organization holds, each routed by no other endpoint (§3.2
+                                 of 07-networking.md)
   tls           TLSSpec?         acme (the default), provided (a Certificate), or passthrough
   policy        NetworkPolicy    who may connect to it, and how many at once; a workload's
                                  outbound rules are its own (IntentBody.egress), corrected

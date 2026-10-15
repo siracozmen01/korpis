@@ -49,6 +49,19 @@ pub struct CreateDomain {
     pub how: Requested,
 }
 
+/// The conflict of a change to domains that would leave `name`, which an endpoint routes,
+/// without the organization routing it as its holder.
+pub(crate) fn routed(name: &DomainName) -> AppError {
+    AppError::conflict(
+        "domain.routed",
+        format!(
+            "{} is routed by an endpoint, whose organization would no longer hold it; change the \
+             endpoint first",
+            name.as_str()
+        ),
+    )
+}
+
 /// The conflict of a name another organization holds.
 pub(crate) fn held() -> AppError {
     AppError::conflict(
@@ -164,6 +177,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let others = tx.verified_overlapping(&created.name).await?;
             if blocked_by(&created, &others, &chain).is_some() {
                 return Err(held());
+            }
+            // A delegation makes its holder the holder of every name beneath it, so it may not
+            // take one that another organization's endpoint routes (§3.2 of
+            // docs/07-networking.md).
+            let beneath = tx.routes_beneath(&created.name).await?;
+            if let Some(r) = beneath.iter().find(|r| r.organization != created.organization) {
+                return Err(routed(&r.name));
             }
         }
         tx.insert_domain(&created).await.map_err(|e| match e {

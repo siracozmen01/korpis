@@ -75,6 +75,19 @@ pub fn new_token() -> Result<String, crate::authz::credential::EntropyError> {
     }))
 }
 
+/// A name the ingress routes, and to what (§3.2 of docs/07-networking.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Route {
+    /// The name.
+    pub name: DomainName,
+    /// The organization routing it, the workload's.
+    pub organization: Uuid,
+    /// The workload whose endpoint it routes to.
+    pub workload: Uuid,
+    /// The endpoint, by name.
+    pub endpoint: String,
+}
+
 /// How a domain is verified.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verification {

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM route WHERE workload_id = $1 AND name <> ALL($2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "68e697b64816115c0bf7385884add8863c30a9dc30d61ee9ed3db666da7d8cb6"
+}

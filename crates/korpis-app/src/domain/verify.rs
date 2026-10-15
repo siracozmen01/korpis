@@ -3,7 +3,7 @@
 //! Verifying a domain by its TXT record, deleting one with what was delegated beneath it, and
 //! reading them.
 
-use super::held;
+use super::{held, routed};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -12,7 +12,7 @@ use crate::page::{Page, Paged};
 use crate::ports::{Clock, DomainWrite as _, EffectWrite as _, LookupError, RecipeSource, Store};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::dns::domain::{Domain, Verification, blocked_by};
+use korpis_core::dns::domain::{Domain, Verification, blocked_by, holder_of};
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -93,6 +93,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (d, grant) = self.domain_for(caller, "domain.write", id).await?;
         let mut tx = self.store.begin().await?;
         tx.lock_domains().await?;
+        // Every route beneath it must keep its holder once it and its delegations are gone.
+        let tree = tx.delegation_tree(d.id).await?;
+        for r in tx.routes_beneath(&d.name).await? {
+            let mut covering = tx.verified_overlapping(&r.name).await?;
+            covering.retain(|c| !tree.contains(&c.id));
+            if holder_of(&r.name, &covering) != Some(r.organization) {
+                return Err(routed(&r.name));
+            }
+        }
         let gone = tx.delete_domain(d.id).await?;
         let effect = Effect::new(caller.principal.clone(), "domain.delete", Outcome::Succeeded)
             .under(grant)

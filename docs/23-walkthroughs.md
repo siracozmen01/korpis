@@ -2246,7 +2246,7 @@ installation would like that name too.
 | 1 | The tenant creates the domain `example.com` in its organization; the control plane issues a token | `07-networking.md` §3.2; `01-model.md` §3.6; `10-api.md` §5 |
 | 2 | The tenant publishes the token at `_korpis-verify.example.com` and asks for verification; the control plane resolves it and finds no other organization's verified domain covering it or beneath it | `07-networking.md` §3.2 |
 | 3 | The other tenant creates `shop.example.com` and asks for verification; it is refused, the name lying beneath a verified domain of another organization | `07-networking.md` §3.2 |
-| 4 | The tenant declares `web` with an endpoint `http`, exposure `ingress`, names `shop.example.com`, TLS left to its default, `acme`; the declaration finds the name covered and routed by no other endpoint | `07-networking.md` §3.2; `10-api.md` §5 |
+| 4 | The tenant declares `web` with an endpoint `http`, exposure `ingress`, names `shop.example.com`, TLS left to its default, `acme`; the declaration finds the name held by the tenant's organization and routed by no other endpoint, and approving the plan claims it | `07-networking.md` §3.2; `10-api.md` §5 |
 | 5 | `web` is placed on a node that advertises it can serve the ingress | `07-networking.md` §3.2; `05-scheduling.md` §2.1 |
 | 6 | The node's assignment carries the route; the agent hands it to its proxy, which answers on port 80 with a redirect | `07-networking.md` §3.2; `02-architecture.md` §6 |
 | 7 | The control plane orders the certificate: through the organization's DNS provider if one serves the zone, otherwise by handing the HTTP challenge's token to the node, whose proxy answers it | `07-networking.md` §3.2, §3.5 |
@@ -2256,7 +2256,9 @@ installation would like that name too.
 
 Each step was asked what evaluates it, where, and with what. Steps 2 and 3 are the control plane's,
 from its records of every verified domain and a DNS answer it obtains itself; nothing the tenant
-says is believed. Step 4 needs every route in the installation, which only the control plane holds.
+says is believed. Step 4 needs every route in the installation and every verified domain, which
+only the control plane holds; it is checked at declaration and claimed under the domains lock at
+approval, so a domain deleted or delegated meanwhile cannot leave the claim standing (Finding 59).
 Step 7 needs to know whether a DNS provider of the organization serves the zone, which the control
 plane learns by asking it: a provider answers `dns.zone_not_found` for a name outside its zones
 (§3.5), and the control plane then uses the HTTP challenge. Step 8 is answered by the control plane

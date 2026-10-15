@@ -9,7 +9,7 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{DomainRead, DomainWrite, StoreError, StoreResult};
-use korpis_core::dns::domain::{Domain, DomainName, Verification};
+use korpis_core::dns::domain::{Domain, DomainName, Route, Verification};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -44,6 +44,28 @@ impl TryFrom<DomainRow> for Domain {
             created_at: to_time(r.created_at),
         })
     }
+}
+
+struct RouteRow {
+    name: String,
+    organization_id: Uuid,
+    workload_id: Uuid,
+    endpoint: String,
+}
+
+fn routes(rows: Vec<RouteRow>) -> StoreResult<Vec<Route>> {
+    rows.into_iter()
+        .map(|r| {
+            let name = DomainName::parse(&r.name)
+                .ok_or_else(|| StoreError::Corrupt(format!("route {}", r.name)))?;
+            Ok(Route {
+                name,
+                organization: r.organization_id,
+                workload: r.workload_id,
+                endpoint: r.endpoint,
+            })
+        })
+        .collect()
 }
 
 fn domains(rows: Vec<DomainRow>) -> StoreResult<Vec<Domain>> {
@@ -98,6 +120,20 @@ impl DomainRead for PgStore {
         .await
         .map_err(from_sqlx)?;
         domains(rows)
+    }
+
+    async fn routes_of(&self, names: &[DomainName]) -> StoreResult<Vec<Route>> {
+        let names: Vec<String> = names.iter().map(|n| n.as_str().to_owned()).collect();
+        let rows = sqlx::query_as!(
+            RouteRow,
+            "SELECT name, organization_id, workload_id, endpoint FROM route
+              WHERE name = ANY($1) ORDER BY name",
+            &names
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        routes(rows)
     }
 }
 
@@ -170,5 +206,73 @@ impl DomainWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(gone.rows_affected())
+    }
+
+    async fn delegation_tree(&mut self, id: Uuid) -> StoreResult<Vec<Uuid>> {
+        let rows = sqlx::query_scalar!(
+            r#"WITH RECURSIVE tree AS (
+                 SELECT id FROM domain WHERE id = $1
+                 UNION ALL
+                 SELECT d.id FROM domain d JOIN tree t ON d.parent_id = t.id)
+             SELECT id AS "id!" FROM tree"#,
+            id
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows)
+    }
+
+    async fn routes_beneath(&mut self, name: &DomainName) -> StoreResult<Vec<Route>> {
+        let rows = sqlx::query_as!(
+            RouteRow,
+            "SELECT name, organization_id, workload_id, endpoint FROM route
+              WHERE name = $1 OR right(name, length($1) + 1) = '.' || $1
+              ORDER BY name",
+            name.as_str()
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        routes(rows)
+    }
+
+    async fn claim_routes(
+        &mut self,
+        workload: Uuid,
+        routes: &[Route],
+        at: SystemTime,
+    ) -> StoreResult<Option<DomainName>> {
+        let names: Vec<String> = routes.iter().map(|r| r.name.as_str().to_owned()).collect();
+        sqlx::query!(
+            "DELETE FROM route WHERE workload_id = $1 AND name <> ALL($2)",
+            workload,
+            &names
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        for r in routes {
+            // A name the workload already routes keeps its row and is pointed at the endpoint now
+            // naming it; one another workload routes is refused by the key.
+            let done = sqlx::query!(
+                "INSERT INTO route (name, organization_id, workload_id, endpoint, created_at)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (name) DO UPDATE SET endpoint = EXCLUDED.endpoint
+                  WHERE route.workload_id = EXCLUDED.workload_id",
+                r.name.as_str(),
+                r.organization,
+                workload,
+                r.endpoint,
+                from_time(at)
+            )
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+            if done.rows_affected() == 0 {
+                return Ok(Some(r.name.clone()));
+            }
+        }
+        Ok(None)
     }
 }

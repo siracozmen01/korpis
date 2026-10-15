@@ -71,11 +71,11 @@ async fn a_declaration_asking_what_no_node_enforces_is_refused_saying_why() {
         async move { workloads.declare_intent(declare).await.unwrap_err() }
     };
 
-    let mut ingress = body(&repo, &[]);
-    ingress.endpoints = vec![endpoint(pb::Exposure::EXPOSURE_INGRESS)];
-    let e = refused(ingress, "ingress").await;
+    let mut dedicated = body(&repo, &[]);
+    dedicated.endpoints = vec![endpoint(pb::Exposure::EXPOSURE_DEDICATED_IP)];
+    let e = refused(dedicated, "dedicated").await;
     assert_eq!(e.code, ErrorCode::Unimplemented);
-    assert!(e.message.as_deref().unwrap_or_default().contains("Phase 1"), "{e:?}");
+    assert!(e.message.as_deref().unwrap_or_default().contains("Phase 3"), "{e:?}");
 
     let mut outbound = body(&repo, &[]);
     let mut game = endpoint(pb::Exposure::EXPOSURE_NODE_BOUND);

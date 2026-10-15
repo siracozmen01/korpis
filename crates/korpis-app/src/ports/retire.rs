@@ -22,8 +22,9 @@ pub trait RetirementWrite {
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Retires the workload's identity at `at`: it is deleted, its name is free, its quota is
-    /// released, and every volume attached to it is detached, kept with its data (§7 of
-    /// docs/06-storage.md). False if it was already retired. Its identifier is kept forever.
+    /// released, every volume attached to it is detached, kept with its data (§7 of
+    /// docs/06-storage.md), and every name it routes is free (§3.2 of docs/07-networking.md).
+    /// False if it was already retired. Its identifier is kept forever.
     fn retire_workload(
         &mut self,
         workload: Uuid,

@@ -45,6 +45,10 @@ impl RetirementWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
+        sqlx::query!("DELETE FROM route WHERE workload_id = $1", workload)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
         sqlx::query!(
             "UPDATE volume SET attached_to = NULL, detached_at = $2 WHERE attached_to = $1",
             workload,

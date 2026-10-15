@@ -189,7 +189,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             PlanTarget::Intent(i) => {
                 let target =
                     self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
-                self.claim_existing(&mut tx, &w, &target.body).await?;
+                self.claim_target(&mut tx, &w, &target.body).await?;
                 self.place_screened(&mut tx, &w, Some(&target), &screened).await?;
             }
             PlanTarget::Retire => self.begin_retirement(&mut tx, &mut plan, &w).await?,

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE tree AS (\n                 SELECT id FROM domain WHERE id = $1\n                 UNION ALL\n                 SELECT d.id FROM domain d JOIN tree t ON d.parent_id = t.id)\n             SELECT id AS \"id!\" FROM tree",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5692b6c6fc8adf9cf0d49e2d8212cf9e719bb4b4ac4bbe4b8366b9b840a47010"
+}

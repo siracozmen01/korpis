@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::dns::domain::{Domain, DomainName};
+use korpis_core::dns::domain::{Domain, DomainName, Route};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -26,6 +26,12 @@ pub trait DomainRead {
         &self,
         name: &DomainName,
     ) -> impl Future<Output = StoreResult<Vec<Domain>>> + Send;
+
+    /// The routes of any of `names`.
+    fn routes_of(
+        &self,
+        names: &[DomainName],
+    ) -> impl Future<Output = StoreResult<Vec<Route>>> + Send;
 }
 
 /// Writing domains.
@@ -54,4 +60,23 @@ pub trait DomainWrite {
 
     /// Removes a domain and every domain delegated beneath it; how many went.
     fn delete_domain(&mut self, id: Uuid) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// The domain and every domain delegated beneath it, at any depth.
+    fn delegation_tree(&mut self, id: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// Every route of `name` or a name beneath it, as this transaction sees them.
+    fn routes_beneath(
+        &mut self,
+        name: &DomainName,
+    ) -> impl Future<Output = StoreResult<Vec<Route>>> + Send;
+
+    /// Makes `routes` the workload's, and no other: what it routed before and does not now is
+    /// free. Answers the first name another workload routes, if any, having claimed nothing
+    /// after it; the caller then abandons the transaction.
+    fn claim_routes(
+        &mut self,
+        workload: Uuid,
+        routes: &[Route],
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<DomainName>>> + Send;
 }

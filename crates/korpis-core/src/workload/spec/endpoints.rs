@@ -205,22 +205,16 @@ fn check_endpoint(i: usize, e: &EndpointSpec) -> Result<(), SpecError> {
     if e.container_port == 0 {
         return Err(SpecError::new(&at("container_port"), "1 to 65535"));
     }
-    let http = matches!(e.protocol, Protocol::Http | Protocol::Https);
-    if !e.domains.is_empty() && !http {
-        return Err(SpecError::new(&at("domains"), "domains route HTTP and HTTPS only"));
+    if e.exposure == Exposure::Ingress {
+        check_ingress(&at, e)?;
+    } else if !e.domains.is_empty() {
+        let why = "names are routed by the ingress: an endpoint of another exposure is reached \
+                   at its address (§3.2 of docs/07-networking.md)";
+        return Err(SpecError::new(&at("domains"), why));
+    } else if e.tls.is_some() {
+        let why = "certificates are the ingress's, which terminates TLS for its names";
+        return Err(SpecError::new(&at("tls"), why));
     }
-    if let Some(bad) = e.domains.iter().find(|d| !is_domain(d)) {
-        return Err(SpecError::new(&at("domains"), format!("{bad:?} is not a DNS name")));
-    }
-    match &e.tls {
-        Some(_) if e.protocol != Protocol::Https => {
-            Err(SpecError::new(&at("tls"), "certificates are for HTTPS endpoints"))
-        }
-        Some(TlsSpec::Provided { secret }) if secret.is_empty() => {
-            Err(SpecError::new(&at("tls.secret"), "a provided certificate names its secret"))
-        }
-        _ => Ok(()),
-    }?;
     if !e.policy.egress.is_empty() {
         return Err(SpecError::new(
             &at("policy.egress"),
@@ -230,13 +224,63 @@ fn check_endpoint(i: usize, e: &EndpointSpec) -> Result<(), SpecError> {
     check_rules(&at("policy.ingress"), &e.policy.ingress)
 }
 
-/// Checks every endpoint and that names are unique.
+/// The most names one endpoint routes: as many as one ACME certificate holds.
+pub const MAX_INGRESS_NAMES: usize = 100;
+
+/// An `ingress` endpoint (§3.2 of docs/07-networking.md): HTTP or HTTPS terminated by the proxy
+/// with a certificate from ACME or its organization, or TCP carrying TLS the proxy routes by SNI
+/// and passes through unread; at least one exact name, and at most [`MAX_INGRESS_NAMES`].
+fn check_ingress(at: &dyn Fn(&str) -> String, e: &EndpointSpec) -> Result<(), SpecError> {
+    match (e.protocol, &e.tls) {
+        (Protocol::Http | Protocol::Https, None | Some(TlsSpec::Acme))
+        | (Protocol::Tcp, Some(TlsSpec::Passthrough)) => {}
+        (Protocol::Http | Protocol::Https, Some(TlsSpec::Provided { secret })) => {
+            if secret.is_empty() {
+                let why = "a provided certificate is named by its identifier";
+                return Err(SpecError::new(&at("tls.secret"), why));
+            }
+        }
+        (Protocol::Tcp, _) | (_, Some(TlsSpec::Passthrough)) => {
+            let why = "TLS the proxy does not terminate is tcp with tls passthrough, routed by SNI";
+            return Err(SpecError::new(&at("tls"), why));
+        }
+        (Protocol::Udp | Protocol::Quic, _) => {
+            let why = "the ingress routes by name, and a UDP datagram carries none";
+            return Err(SpecError::new(&at("protocol"), why));
+        }
+    }
+    if e.domains.is_empty() || e.domains.len() > MAX_INGRESS_NAMES {
+        let why = format!("an ingress endpoint routes 1 to {MAX_INGRESS_NAMES} names");
+        return Err(SpecError::new(&at("domains"), why));
+    }
+    let mut seen = BTreeSet::new();
+    for d in &e.domains {
+        if crate::dns::domain::DomainName::parse(d).is_none() {
+            let why = format!(
+                "{d:?} is not an exact lowercase DNS name; a wildcard is question 11 of §11 of \
+                 docs/07-networking.md"
+            );
+            return Err(SpecError::new(&at("domains"), why));
+        }
+        if !seen.insert(d) {
+            return Err(SpecError::new(&at("domains"), format!("{d:?} is named twice")));
+        }
+    }
+    Ok(())
+}
+
+/// Checks every endpoint, that names are unique, and that no name is routed to two.
 pub fn validate(endpoints: &[EndpointSpec]) -> Result<(), SpecError> {
     let mut names = BTreeSet::new();
+    let mut routed = BTreeSet::new();
     for (i, e) in endpoints.iter().enumerate() {
         check_endpoint(i, e)?;
         if !names.insert(&e.name) {
             return Err(SpecError::new(&format!("endpoints[{i}].name"), "declared twice"));
+        }
+        if let Some(d) = e.domains.iter().find(|d| !routed.insert(d.as_str())) {
+            let why = format!("{d:?} routes to another endpoint: a name routes to one");
+            return Err(SpecError::new(&format!("endpoints[{i}].domains"), why));
         }
     }
     Ok(())

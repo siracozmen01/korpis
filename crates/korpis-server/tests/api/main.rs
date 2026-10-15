@@ -63,6 +63,7 @@ mod restores;
 mod resume;
 mod retire;
 mod revocation;
+mod routes;
 mod sdk;
 mod served_target;
 mod session;

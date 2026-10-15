@@ -9,7 +9,7 @@ use crate::error::AppError;
 use korpis_core::workload::IntentBody;
 use korpis_core::workload::spec::egress::{DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC};
 use korpis_core::workload::spec::endpoints::{
-    ConntrackLimits, EndpointSpec, Exposure, NetworkRule, Peer,
+    ConntrackLimits, EndpointSpec, Exposure, NetworkRule, Peer, TlsSpec,
 };
 
 /// Refuses what no node of this release would enforce in `body`: its endpoints' and its own.
@@ -53,17 +53,14 @@ fn half_open(at: &str, limits: ConntrackLimits) -> Result<(), AppError> {
 }
 
 fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
-    match e.exposure {
-        // The HTTP ingress, with its names and certificates, is the rest of Phase 1's networking;
-        // an address of a workload's own needs a routed address (§3 of docs/07-networking.md).
-        Exposure::Ingress => return Err(AppError::NotYet { what: "ingress endpoints", phase: 1 }),
-        Exposure::DedicatedIp => {
-            return Err(AppError::NotYet { what: "dedicated addresses", phase: 3 });
-        }
-        _ => {}
+    // An address of a workload's own needs a routed address (§3 of docs/07-networking.md).
+    if e.exposure == Exposure::DedicatedIp {
+        return Err(AppError::NotYet { what: "dedicated addresses", phase: 3 });
     }
-    if !e.domains.is_empty() || e.tls.is_some() {
-        return Err(AppError::NotYet { what: "domains and certificates", phase: 1 });
+    // A certificate its organization uploads is an object the control plane keeps sealed, which
+    // is the last of the ingress to be built (§3.2 there).
+    if matches!(e.tls, Some(TlsSpec::Provided { .. })) {
+        return Err(AppError::NotYet { what: "provided certificates", phase: 1 });
     }
     if e.shaping.egress_bits_per_sec > 0 || e.shaping.ingress_bits_per_sec > 0 || e.accounting {
         return Err(AppError::NotYet { what: "per-endpoint shaping and accounting", phase: 2 });

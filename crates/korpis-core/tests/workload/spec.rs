@@ -3,7 +3,7 @@
 //! A declaration's own consistency.
 
 use crate::support::body;
-use korpis_core::workload::spec::endpoints::{Protocol, TlsSpec};
+use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
 use korpis_core::workload::spec::health::{Probe, ProbeKind};
 use korpis_core::workload::spec::{ConsoleMode, Lifecycle};
 
@@ -11,6 +11,60 @@ fn refused(mutate: impl FnOnce(&mut korpis_core::workload::IntentBody)) -> Strin
     let mut b = body();
     mutate(&mut b);
     b.validate().expect_err("refused").field
+}
+
+/// The example's endpoint behind the ingress, as `protocol` with `tls`, routing `names`.
+fn ingress(
+    protocol: Protocol,
+    tls: Option<TlsSpec>,
+    names: &[&str],
+) -> impl FnOnce(&mut korpis_core::workload::IntentBody) {
+    let names: Vec<String> = names.iter().map(|n| (*n).to_owned()).collect();
+    move |b| {
+        let e = &mut b.endpoints[0];
+        (e.exposure, e.protocol, e.tls, e.domains) = (Exposure::Ingress, protocol, tls, names);
+    }
+}
+
+#[test]
+fn an_ingress_endpoint_routes_exact_names_over_http_or_tls_it_passes_through() {
+    let valid = |m: Box<dyn FnOnce(&mut korpis_core::workload::IntentBody)>| {
+        let mut b = body();
+        m(&mut b);
+        b.validate()
+    };
+    let shop = &["shop.example.com"][..];
+    assert!(valid(Box::new(ingress(Protocol::Http, None, shop))).is_ok(), "ACME by default");
+    assert!(valid(Box::new(ingress(Protocol::Https, Some(TlsSpec::Acme), shop))).is_ok());
+    assert!(valid(Box::new(ingress(Protocol::Tcp, Some(TlsSpec::Passthrough), shop))).is_ok());
+    assert_eq!(refused(ingress(Protocol::Tcp, None, shop)), "endpoints[0].tls");
+    assert_eq!(
+        refused(ingress(Protocol::Http, Some(TlsSpec::Passthrough), shop)),
+        "endpoints[0].tls"
+    );
+    assert_eq!(refused(ingress(Protocol::Udp, None, shop)), "endpoints[0].protocol");
+    let provided = Some(TlsSpec::Provided { secret: String::new() });
+    assert_eq!(refused(ingress(Protocol::Http, provided, shop)), "endpoints[0].tls.secret");
+    assert_eq!(refused(ingress(Protocol::Http, None, &[])), "endpoints[0].domains");
+    assert_eq!(refused(ingress(Protocol::Http, None, &["*.example.com"])), "endpoints[0].domains");
+    assert_eq!(
+        refused(ingress(Protocol::Http, None, &["Shop.example.com"])),
+        "endpoints[0].domains"
+    );
+    assert_eq!(
+        refused(ingress(Protocol::Http, None, &["a.example.com", "a.example.com"])),
+        "endpoints[0].domains"
+    );
+    let many: Vec<String> = (0..=100).map(|i| format!("n{i}.example.com")).collect();
+    let many: Vec<&str> = many.iter().map(String::as_str).collect();
+    assert_eq!(refused(ingress(Protocol::Http, None, &many)), "endpoints[0].domains");
+    let twice = |b: &mut korpis_core::workload::IntentBody| {
+        ingress(Protocol::Http, None, &["shop.example.com"])(b);
+        let mut other = b.endpoints[0].clone();
+        other.name = "admin".into();
+        b.endpoints.push(other);
+    };
+    assert_eq!(refused(twice), "endpoints[1].domains", "a name routes to one endpoint");
 }
 
 #[test]
@@ -41,9 +95,10 @@ fn the_example_is_valid_and_each_rule_names_its_field() {
     assert_eq!(refused(|b| b.health.readiness = Some(probe("rcon"))), "health.readiness");
     let mut ok = body();
     ok.health.liveness = Some(probe("game"));
+    ok.endpoints[0].exposure = Exposure::Ingress;
     ok.endpoints[0].protocol = Protocol::Https;
-    ok.endpoints[0].domains = vec!["mc.example.org".into(), "*.example.org".into()];
-    ok.endpoints[0].tls = Some(TlsSpec::Provided { secret: "cert".into() });
+    ok.endpoints[0].domains = vec!["mc.example.org".into(), "map.example.org".into()];
+    ok.endpoints[0].tls = Some(TlsSpec::Provided { secret: "crt_x".into() });
     ok.lifecycle = Lifecycle::Scheduled;
     ok.schedule = Some("0 4 * * *".into());
     ok.validate().unwrap();

@@ -25,6 +25,7 @@ mod reached;
 mod read;
 mod replace;
 mod retire;
+mod route;
 mod screen;
 mod seed;
 mod sets;

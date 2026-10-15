@@ -62,9 +62,13 @@ fn what_a_node_enforces_is_accepted() {
 
 #[test]
 fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
-    assert_eq!(refused(|e| e.exposure = Exposure::Ingress), "ingress endpoints in phase 1");
     assert_eq!(refused(|e| e.exposure = Exposure::DedicatedIp), "dedicated addresses in phase 3");
-    assert_eq!(refused(|e| e.tls = Some(TlsSpec::Acme)), "domains and certificates in phase 1");
+    let provided = Some(TlsSpec::Provided { secret: "crt_x".into() });
+    assert_eq!(refused(|e| e.tls = provided), "provided certificates in phase 1");
+    let mut ingress = declared();
+    (ingress.exposure, ingress.tls) = (Exposure::Ingress, Some(TlsSpec::Acme));
+    ingress.domains = vec!["shop.example.com".into()];
+    assert!(super::endpoint("e", &ingress).is_ok(), "the ingress is built");
     let shaping = "per-endpoint shaping and accounting in phase 2";
     assert_eq!(refused(|e| e.shaping.egress_bits_per_sec = 1), shaping);
     assert_eq!(refused(|e| e.accounting = true), shaping);

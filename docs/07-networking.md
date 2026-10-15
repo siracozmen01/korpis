@@ -330,20 +330,28 @@ records elsewhere, takes the traffic and no certificate can be issued for the ol
 endpoint. Whether to re-verify periodically is question 10 of §11.
 
 **A name routes to one endpoint, on the node its workload runs on.** An endpoint whose exposure is
-`ingress` lists its names, each a plain lowercase DNS name with no wildcard (question 11 of §11),
-its protocol is `http` or `https`, or `tcp` for a TLS service routed by SNI without termination
-(`tls.source: passthrough`), and its container port is where its workload listens. Two endpoints
-may not route one name in the whole installation, which the control plane keeps by holding the
-names it routes in one place it checks at declaration. The control plane places the workload on a
-node that can serve the ingress, which a node measures at start and advertises (it holds ports 80
-and 443 of its addresses), and the node's assignment carries the endpoint's names, its TLS source,
-and its certificate's identifier. The endpoint's address is the node's advertised addresses on port
-443, and on 80 for the redirect and ACME's HTTP challenge; publishing the names in DNS is the
-holder's, or the DNS provider's of its zone, which publishes `A` and `AAAA` records for the node's
-addresses as it publishes any endpoint's (§3.5). A workload that moves to another node takes its
-routes with it, and its names then need their records pointed at the new node, which a DNS provider
-does and a holder publishing by hand must; that is what `ingress` survives on one machine, and an
-edge tier makes it survive without the records changing.
+`ingress` lists its names, one to a hundred (what one ACME certificate holds), each a plain
+lowercase DNS name with no wildcard (question 11 of §11); its protocol is `http` or `https`, with
+`tls` `acme` (the default) or `provided`, or `tcp` for a TLS service routed by SNI without
+termination (`tls.source: passthrough`); and its container port is where its workload listens. An
+endpoint of any other exposure names no domain and declares no TLS: it is reached at its address,
+and a name for that address is a record, not a route. Two endpoints may not route one name in the
+whole installation, which the control plane keeps by holding the names it routes in one place,
+keyed by name: it checks them at declaration, and claims them when a plan moves the workload's
+target, under the lock verification takes, checking again that the workload's organization holds
+each; a target that no longer names one, and the workload's retirement, free it. Because a name
+stays routed only while its organization holds it, a domain cannot be deleted, nor delegated to
+another organization, while that would leave a name an endpoint routes without its holder; the
+change is refused, naming the name, until the endpoint stops routing it. The control plane places
+the workload on a node that can serve the ingress, which a node measures at start and advertises
+(it holds ports 80 and 443 of its addresses), and the node's assignment carries the endpoint's
+names, its TLS source, and its certificate's identifier. The endpoint's address is the node's
+advertised addresses on port 443, and on 80 for the redirect and ACME's HTTP challenge; publishing
+the names in DNS is the holder's, or the DNS provider's of its zone, which publishes `A` and `AAAA`
+records for the node's addresses as it publishes any endpoint's (§3.5). A workload that moves to
+another node takes its routes with it, and its names then need their records pointed at the new
+node, which a DNS provider does and a holder publishing by hand must; that is what `ingress`
+survives on one machine, and an edge tier makes it survive without the records changing.
 
 **The proxy is a process of its own on the node.** It is the node's most exposed surface: it parses
 requests from anyone on the internet. So it is not the agent: `korpis-ingress` is a separate
