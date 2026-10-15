@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- The backups of workload $2 in repository $1 being read at $3: one an open plan restores (a
 -- restore_volume step names it), or one read under access that has not ended.
 SELECT (s.step -> 'detail' -> 'backup' ->> 'string')::uuid AS "id!"

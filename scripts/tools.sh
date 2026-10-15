@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Installs the pinned tools into ./.tools: the code generators, and oras, which publishes the
 # recipes the end-to-end script runs (scripts/e2e-phase0.sh). Generated code is committed, so
 # building Korpis needs none of these; only changing a .proto does. Versions move only in a

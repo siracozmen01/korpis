@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its
 -- root organization, with labels. A node's parent is the organization it was enrolled into, and a
 -- volume's the project it belongs to, and a repository's its project, or its organization when it

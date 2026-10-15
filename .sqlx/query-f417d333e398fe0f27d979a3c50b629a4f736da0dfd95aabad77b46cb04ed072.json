@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Replaces organization $1's policy, or its removal, at version $5, if it is still at version $8.\n-- A removal is $9: the policy columns are then cleared and the ancestors' policy governs.\nUPDATE trust_policy SET accepted_signers = $2, allow_unsigned = $3, allow_unverified = $4,\n                        version = $5, set_by = $6, set_at = $7, inherit = $9\n WHERE organization_id = $1 AND version = $8\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Bool",
+        "Bool",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f417d333e398fe0f27d979a3c50b629a4f736da0dfd95aabad77b46cb04ed072"
+}

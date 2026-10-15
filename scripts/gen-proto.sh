@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Rebuilds crates/korpis-proto/descriptor.binpb, and crates/korpis-containerd/descriptor.binpb
 # from containerd's vendored API, with the pinned buf. The Rust code is generated from those
 # descriptor sets at build time (each crate's build.rs),

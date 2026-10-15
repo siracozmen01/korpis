@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Every check a commit must pass. Run from anywhere; exits non-zero on the first failure.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -14,6 +15,22 @@ echo "== file length (400 lines, CONTRIBUTING.md \"Code rules\")"
 long=$(find crates scripts -name '*.rs' -not -path '*/target/*' \
     -exec awk 'END { if (NR > 400) print FILENAME ": " NR " lines" }' {} \;)
 if [ -n "$long" ]; then echo "$long"; exit 1; fi
+
+echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
+# Untracked files too, so a new file is checked before it is committed. The containerd API is
+# vendored with its own headers.
+spdx=$(git ls-files --cached --others --exclude-standard \
+        'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' \
+    | grep -v '^crates/korpis-containerd/proto/' \
+    | while read -r f; do
+        case "$f" in
+            crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*)
+                want=Apache-2.0 ;;
+            *) want=AGPL-3.0-or-later ;;
+        esac
+        head -3 "$f" | grep -q "SPDX-License-Identifier: $want\$" || echo "$f: wants $want"
+    done)
+if [ -n "$spdx" ]; then echo "$spdx"; exit 1; fi
 
 echo "== layers (ARCHITECTURE.md §3)"
 ./scripts/check-layers.sh

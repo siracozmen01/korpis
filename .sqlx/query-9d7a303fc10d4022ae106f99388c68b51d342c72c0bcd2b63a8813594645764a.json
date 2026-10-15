@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Sets organization $1's first policy, at version $5; nothing if it already has one.\nINSERT INTO trust_policy (organization_id, accepted_signers, allow_unsigned, allow_unverified,\n                          version, set_by, set_at)\nVALUES ($1, $2, $3, $4, $5, $6, $7)\nON CONFLICT (organization_id) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Bool",
+        "Bool",
+        "Int8",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9d7a303fc10d4022ae106f99388c68b51d342c72c0bcd2b63a8813594645764a"
+}

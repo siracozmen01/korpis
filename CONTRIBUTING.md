@@ -93,8 +93,8 @@ scripts/test-tools.sh     the servers some tests run against (MinIO, built from 
 scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development
                           database and regenerates .sqlx/, which builds use offline
 scripts/check.sh          every check a commit must pass: the text rules, file length, the
-                          layer rule, the schema, rustfmt, clippy with warnings denied, the
-                          tests, and the dependency policy
+                          licence lines, the layer rule, the schema, rustfmt, clippy with
+                          warnings denied, the tests, and the dependency policy
 scripts/e2e-phase0.sh     the Phase 0 done-when (§4 of docs/20-roadmap.md) as an operator runs
                           it: the five binaries as processes, the recipe published with oras,
                           every step through the CLI; needs root and containerd, and leaves

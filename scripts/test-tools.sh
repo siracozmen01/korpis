@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Installs the servers some tests run against into ./.tools, pinned and verified: MinIO, the
 # S3-compatible store the backup job's client and the STS-scoped backup target are tested
 # against, and OpenBao, whose Transit engine the first-party key management provider is tested

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- One node ($1), locked until the transaction ends.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE id = $1 FOR UPDATE\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- One node ($1).\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE id = $1\n",
   "describe": {
     "columns": [
       {
@@ -252,5 +252,5 @@
       true
     ]
   },
-  "hash": "8d74f843495802672fb85b30b74b780b2c1f8c0a8146a3be9c3e5d567ec588a2"
+  "hash": "ff7469886abce619e5a1085cf7dc3e72004094bf0836df0f77a322f33d722b37"
 }

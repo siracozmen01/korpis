@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # The dependency rule of ARCHITECTURE.md §3: dependencies point inward only. The compiler already
 # makes an inward dependency impossible to forget; this makes an outward one impossible to add
 # quietly. Reads the normal (non-dev) dependency graph of each layer and fails on a forbidden

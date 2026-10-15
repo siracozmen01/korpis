@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Ends the attempt of job $1 held by worker $2 as $3: done, failed, pending again at $4, or
 -- deferred to $4 without counting the attempt. A retry past the job's last attempt fails it
 -- instead. $5 is why, $6 is now. Nothing changes for a worker whose lease ran out and whose job

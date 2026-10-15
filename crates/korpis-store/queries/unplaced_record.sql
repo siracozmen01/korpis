@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- The newest attempt that found no node for workload $1's target $2, returning the intent the
 -- previous record was for, if any: the statement's snapshot still sees that row. A retry that
 -- reaches the same intent and explanation leaves the record as it was, `since` included, so a

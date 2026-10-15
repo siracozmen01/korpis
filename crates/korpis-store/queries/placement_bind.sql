@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- A placement: new, or the one on the same node following its workload's target in place.
 INSERT INTO placement (workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason,
                        explanation, authoritative)

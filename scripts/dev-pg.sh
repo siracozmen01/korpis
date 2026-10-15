@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # A PostgreSQL for development and tests, isolated from anything else on the machine: its own
 # container, its own named volume, bound to loopback only.
 #

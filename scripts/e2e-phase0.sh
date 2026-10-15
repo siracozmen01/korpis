@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # The Phase 0 done-when (§4 of docs/20-roadmap.md), end to end, the way an operator runs it: the
 # five binaries started as processes with their own flags, the recipe published with oras, and
 # every step taken through the `korpis` CLI. It installs a control plane into a fresh database,

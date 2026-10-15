@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Plans that may have a control-plane step due: approved or applying, with a control-plane step
 -- not yet completed. Whether that step is the next one, and whether it is due, the caller decides.
 SELECT id, workload_id, kind, operation_id, from_intent, from_power, to_intent, to_power,

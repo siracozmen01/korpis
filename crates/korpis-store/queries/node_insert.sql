@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- A newly enrolled node.
 INSERT INTO node (id, name, organization_id, labels, taints, public_key, capacity, allocatable,
                   drivers, storage_classes, reachability, admin, connectivity, agent_version,

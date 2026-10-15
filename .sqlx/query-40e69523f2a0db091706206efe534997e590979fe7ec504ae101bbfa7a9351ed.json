@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The workloads of organization $1 other than $2 with an authoritative placement, and where.\nSELECT w.id AS workload, w.project_id AS project, w.labels, p.node_id AS node\n  FROM placement p JOIN workload w ON w.id = p.workload_id\n WHERE p.authoritative AND w.organization_id = $1 AND w.id <> $2 AND w.deleted_at IS NULL\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The workloads of organization $1 other than $2 with an authoritative placement, and where.\nSELECT w.id AS workload, w.project_id AS project, w.labels, p.node_id AS node\n  FROM placement p JOIN workload w ON w.id = p.workload_id\n WHERE p.authoritative AND w.organization_id = $1 AND w.id <> $2 AND w.deleted_at IS NULL\n",
   "describe": {
     "columns": [
       {
@@ -61,5 +61,5 @@
       false
     ]
   },
-  "hash": "f18fc034e2ab36bc6da54573f67e1e59d6f0cfbae2065e33d8a51c827a9c0035"
+  "hash": "40e69523f2a0db091706206efe534997e590979fe7ec504ae101bbfa7a9351ed"
 }

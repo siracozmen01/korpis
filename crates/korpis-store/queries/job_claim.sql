@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Claims the oldest due job of kinds $1 at $2 for worker $3 until $4: one pending and past its
 -- time, or one running under a lease that ran out. Its attempt is counted as it is claimed.
 UPDATE job

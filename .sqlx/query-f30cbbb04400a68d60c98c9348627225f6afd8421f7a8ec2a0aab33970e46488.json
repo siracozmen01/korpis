@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
   "describe": {
     "columns": [
       {
@@ -120,5 +120,5 @@
       false
     ]
   },
-  "hash": "d94179f4e7f39252aab8682a0a06c67e86fde7f4cea0cb182d2d32f20c9c9727"
+  "hash": "f30cbbb04400a68d60c98c9348627225f6afd8421f7a8ec2a0aab33970e46488"
 }

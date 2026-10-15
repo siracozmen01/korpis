@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- One backup ($1), or a workload's ($2) backups, newest first after a cursor ($4), at most $5;
 -- pruned ones only when $3. A backup still pending whose plan ended without it is failed: the
 -- plan was cancelled, refused, or failed before its node reported, and nothing will.

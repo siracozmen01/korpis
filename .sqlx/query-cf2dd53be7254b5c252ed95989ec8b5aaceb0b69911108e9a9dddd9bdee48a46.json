@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The version of organization $1's own policy row, set or removed.\nSELECT version FROM trust_policy WHERE organization_id = $1\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The version of organization $1's own policy row, set or removed.\nSELECT version FROM trust_policy WHERE organization_id = $1\n",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "24170432cc6557a7abd74f90d68682b5cf6c153437a9c04cc3cc8749ad7d2423"
+  "hash": "cf2dd53be7254b5c252ed95989ec8b5aaceb0b69911108e9a9dddd9bdee48a46"
 }

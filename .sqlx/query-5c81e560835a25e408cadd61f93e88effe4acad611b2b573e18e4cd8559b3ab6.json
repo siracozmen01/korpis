@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- What the placements on each node of $1 reserve, summed per dimension. Authoritative or not:\n-- during a migration both nodes hold the workload's capacity.\nSELECT p.node_id AS \"node_id!\", r.key AS \"dimension!\", sum(r.value::bigint)::bigint AS \"total!\"\n  FROM placement p, jsonb_each_text(p.reserved) r\n WHERE p.node_id = ANY($1)\n GROUP BY p.node_id, r.key\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- What the placements on each node of $1 reserve, summed per dimension. Authoritative or not:\n-- during a migration both nodes hold the workload's capacity.\nSELECT p.node_id AS \"node_id!\", r.key AS \"dimension!\", sum(r.value::bigint)::bigint AS \"total!\"\n  FROM placement p, jsonb_each_text(p.reserved) r\n WHERE p.node_id = ANY($1)\n GROUP BY p.node_id, r.key\n",
   "describe": {
     "columns": [
       {
@@ -38,5 +38,5 @@
       null
     ]
   },
-  "hash": "73cad57187a8679841a5eea67e8c0c372678e4bb73bd9ab64847c6b784fd8185"
+  "hash": "5c81e560835a25e408cadd61f93e88effe4acad611b2b573e18e4cd8559b3ab6"
 }

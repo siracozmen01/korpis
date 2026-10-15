@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Workloads not deleted whose approved target has no authoritative placement bound for it, in
 -- identifier order after $1, at most $2.
 SELECT w.id

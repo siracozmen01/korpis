@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- The trust policy governing organization $1: its own, or the nearest ancestor's, skipping any
 -- organization that removed its own.
 WITH RECURSIVE up AS (

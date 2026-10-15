@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Whether a live repository other than $4, of organization $1 and provider $2, has a place one
 -- prune of which would reach into a place of a repository at prefix $3: the same prefix, or one
 -- that starts with the other's followed by `workloads/` or `streams/`, where a repository keeps

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The nodes organization $1 owns, in identifier order after $2, at most $3.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n ORDER BY id LIMIT $3\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The nodes any organization of $1 owns, decommissioned ones excepted, in identifier order.\nSELECT id, name, organization_id, labels, taints, capacity, allocatable, drivers,\n       storage_classes, reachability, admin, connectivity, agent_version, last_seen, enrolled_at,\n       version, addresses, first_port, last_port, probed_at\n  FROM node WHERE organization_id = ANY($1) AND admin <> 'decommissioned'\n ORDER BY id\n",
   "describe": {
     "columns": [
       {
@@ -226,9 +226,7 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -254,5 +252,5 @@
       true
     ]
   },
-  "hash": "1e24d7635ab0418668a064d9809b5920836f8992cb56dd1f59ebf4198f8dd33f"
+  "hash": "b8b63fd23143307f1803ec8db685cba3487a58d635009716a331780948ca55bc"
 }

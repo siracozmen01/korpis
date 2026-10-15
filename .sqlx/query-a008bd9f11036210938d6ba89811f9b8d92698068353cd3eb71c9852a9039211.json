@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- The trust policy governing organization $1: its own, or the nearest ancestor's, skipping any\n-- organization that removed its own.\nWITH RECURSIVE up AS (\n    SELECT id, parent_id, 0 AS depth FROM organization WHERE id = $1\n    UNION ALL\n    SELECT o.id, o.parent_id, up.depth + 1 FROM organization o JOIN up ON o.id = up.parent_id\n)\nSELECT t.organization_id, t.accepted_signers, t.allow_unsigned, t.allow_unverified, t.version,\n       t.set_by, t.set_at\n  FROM up JOIN trust_policy t ON t.organization_id = up.id AND NOT t.inherit\n ORDER BY up.depth\n LIMIT 1\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The trust policy governing organization $1: its own, or the nearest ancestor's, skipping any\n-- organization that removed its own.\nWITH RECURSIVE up AS (\n    SELECT id, parent_id, 0 AS depth FROM organization WHERE id = $1\n    UNION ALL\n    SELECT o.id, o.parent_id, up.depth + 1 FROM organization o JOIN up ON o.id = up.parent_id\n)\nSELECT t.organization_id, t.accepted_signers, t.allow_unsigned, t.allow_unverified, t.version,\n       t.set_by, t.set_at\n  FROM up JOIN trust_policy t ON t.organization_id = up.id AND NOT t.inherit\n ORDER BY up.depth\n LIMIT 1\n",
   "describe": {
     "columns": [
       {
@@ -96,5 +96,5 @@
       false
     ]
   },
-  "hash": "5082eecca49eadcf3158853d74f53ce067aae204cf7b689e89184f1c3e21ce86"
+  "hash": "a008bd9f11036210938d6ba89811f9b8d92698068353cd3eb71c9852a9039211"
 }

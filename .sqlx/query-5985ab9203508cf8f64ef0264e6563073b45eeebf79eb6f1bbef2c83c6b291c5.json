@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- Claims the oldest due job of kinds $1 at $2 for worker $3 until $4: one pending and past its\n-- time, or one running under a lease that ran out. Its attempt is counted as it is claimed.\nUPDATE job\n   SET status = 'running', locked_by = $3, locked_until = $4, attempts = attempts + 1\n WHERE id = (\n        SELECT id FROM job\n         WHERE kind = ANY($1)\n           AND ((status = 'pending' AND run_after <= $2)\n                OR (status = 'running' AND locked_until <= $2))\n         ORDER BY run_after\n         LIMIT 1\n           FOR UPDATE SKIP LOCKED)\nRETURNING id, kind, payload, attempts, max_attempts\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Claims the oldest due job of kinds $1 at $2 for worker $3 until $4: one pending and past its\n-- time, or one running under a lease that ran out. Its attempt is counted as it is claimed.\nUPDATE job\n   SET status = 'running', locked_by = $3, locked_until = $4, attempts = attempts + 1\n WHERE id = (\n        SELECT id FROM job\n         WHERE kind = ANY($1)\n           AND ((status = 'pending' AND run_after <= $2)\n                OR (status = 'running' AND locked_until <= $2))\n         ORDER BY run_after\n         LIMIT 1\n           FOR UPDATE SKIP LOCKED)\nRETURNING id, kind, payload, attempts, max_attempts\n",
   "describe": {
     "columns": [
       {
@@ -75,5 +75,5 @@
       false
     ]
   },
-  "hash": "1e58b7dbaaa6e78c0b7d1f76aa3b14201dc517d55eac8065181c63cf212020fc"
+  "hash": "5985ab9203508cf8f64ef0264e6563073b45eeebf79eb6f1bbef2c83c6b291c5"
 }

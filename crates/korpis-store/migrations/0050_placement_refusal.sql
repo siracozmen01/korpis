@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- A node whose driver refused a workload's target (§2.1 of docs/05-scheduling.md): asked on the
 -- shortlist before a bind, or after one. The scheduler leaves such a node out when it places that
 -- target, and the explanation says why. A new target is asked again.

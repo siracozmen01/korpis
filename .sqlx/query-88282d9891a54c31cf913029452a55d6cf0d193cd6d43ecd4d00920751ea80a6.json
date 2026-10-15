@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Takes the prefix of workload $2 in repository $1 for sweep $3, if no backup into it is open and\n-- no other sweep holds it. Run after the row is locked FOR UPDATE in a statement of its own, so\n-- this one's snapshot sees every backup proposed by a transaction that held the row's share lock\n-- (§5.5 of docs/06-storage.md).\nUPDATE workload_key k\n   SET sweeping_job = $3\n WHERE k.repository_id = $1 AND k.workload_id = $2\n   AND (k.sweeping_job IS NULL OR k.sweeping_job = $3)\n   AND NOT EXISTS (\n        SELECT 1 FROM backup b JOIN plan p ON p.id = b.plan_id\n         WHERE b.repository_id = $1 AND b.workload_id = $2 AND b.status = 'pending'\n           AND p.status IN ('proposed', 'approved', 'queued', 'applying'))\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88282d9891a54c31cf913029452a55d6cf0d193cd6d43ecd4d00920751ea80a6"
+}

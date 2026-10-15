@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- What node $1's agent reported at $8, and that it is connected and was heard then. The agent's
 -- release and protocol ($6, $7), its storage classes ($5), and what it advertises ($9, $10, $11)
 -- are kept as they were when a report does not say. A change of what it advertises makes its

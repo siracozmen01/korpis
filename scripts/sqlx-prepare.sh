@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Rebuilds the development database from the migrations and regenerates the query metadata in
 # .sqlx/, which builds use offline. Run after changing a migration or a query. The database
 # named in .env (korpis_dev) is dropped and recreated; nothing else is touched.
