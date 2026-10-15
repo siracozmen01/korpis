@@ -7,7 +7,7 @@ use korpis_recipe::artifact::Artifact;
 use korpis_recipe::registry::Registry;
 
 /// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
-fn test_registry() -> String {
+pub fn test_registry() -> String {
     std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
 }
 
@@ -116,7 +116,7 @@ pub async fn push_target() -> String {
 }
 
 /// Pushes `document` to a repository no other test uses, named for `name`; the repository.
-async fn push(name: &str, document: String) -> String {
+pub async fn push(name: &str, document: String) -> String {
     let registry =
         std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
     let repo = format!("{registry}/test/{name}-{}", uuid::Uuid::now_v7().simple());

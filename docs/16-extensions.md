@@ -197,7 +197,9 @@ container reaches the control plane through its node, which relays `/run/korpis/
 (§9.5 of `08-identity.md`); the SDK uses that socket wherever it finds it, and the network
 otherwise, so the same extension runs in a container and, in a test, as a process on the host. The
 egress exception this paragraph once waited for was replaced by the relay (Finding 57 of
-`23-walkthroughs.md`).
+`23-walkthroughs.md`). Verified 2026-10-15 by a test extension the SDK builds, run in a container
+on a real node against a control plane listening on loopback: it registers its provider, answers a
+ping, and hears an event, every call through its node's relay.
 
 ---
 
