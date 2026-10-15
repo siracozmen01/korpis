@@ -182,6 +182,19 @@ pub struct Networking {
     pub pools: Pools,
     /// What is allocated.
     pub addresses: Addresses,
+    /// The control plane's API as this node reaches it, host and port, which an installed
+    /// extension's workload is opened to (§6 of docs/07-networking.md).
+    pub api: Option<(String, u16)>,
+}
+
+/// The host and port of the URL a node enrolled with, `server`: where it reaches the control
+/// plane's API. An `https` URL without a port is on 443.
+#[must_use]
+pub fn api_of(server: &str) -> Option<(String, u16)> {
+    let uri: http::Uri = server.parse().ok()?;
+    let host = uri.host()?.trim_start_matches('[').trim_end_matches(']').to_owned();
+    let port = uri.port_u16().unwrap_or(if uri.scheme_str() == Some("http") { 80 } else { 443 });
+    Some((host, port))
 }
 
 impl Networking {
@@ -242,6 +255,12 @@ pub async fn offered<R: Runtime, H: Host>(
         return None;
     }
     warn_closed(&described.closed_forward);
+    if !described.syn_cookies {
+        tracing::warn!(
+            "the kernel does not answer SYN floods with SYN cookies, so half-open connections \
+             can fill the connection table; `sysctl -w net.ipv4.tcp_syncookies=1` turns them on"
+        );
+    }
     let ipv6 = described.ipv6.then(|| ipv6.unwrap_or_else(|| unique_local(node)));
     Some(Pools { ipv4, ipv6 })
 }

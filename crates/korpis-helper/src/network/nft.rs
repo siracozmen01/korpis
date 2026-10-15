@@ -52,17 +52,39 @@ fn masquerade(family: &str, ula_only: bool) -> Value {
 
 /// The host's table, its translation, and its forwarding, which hold for every workload on the
 /// node and name none of them, so they are the same whatever pools the node's agents use.
-pub(crate) fn host() -> Vec<Value> {
-    let mut commands = vec![
-        json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
+///
+/// It is written only when the table lacks the marker of this version of it, an empty chain
+/// named for the version, so the rows' counters survive every workload's network being made;
+/// a table of another version has its base chains deleted and written anew, which is how a
+/// chain's priority changes, and its counters start again.
+pub(crate) fn host(chains: &[String]) -> Vec<Value> {
+    let mut commands = vec![json!({"add": {"table": {"family": "inet", "name": TABLE}}})];
+    if chains.iter().any(|c| c == BASE) {
+        return commands;
+    }
+    let stale = |c: &&String| BASE_CHAINS.contains(&c.as_str()) || c.starts_with("base_v");
+    for c in chains.iter().filter(stale) {
+        commands.push(json!({"delete": {"chain": {"family": "inet", "table": TABLE, "name": c}}}));
+    }
+    commands.extend([
         chain("postrouting", "nat", "postrouting", 100, "accept"),
         flush("postrouting"),
         masquerade("ipv4", false),
         masquerade("ipv6", true),
-    ];
+    ]);
     commands.extend(super::forward::base());
+    commands.extend(super::egress::base());
+    commands.push(json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": BASE}}}));
     commands
 }
+
+/// The marker of this version of the host table's base: raised whenever what [`host`] writes
+/// changes, so a node's table is written anew once and then left to count.
+const BASE: &str = "base_v1";
+
+/// The chains [`host`] writes, which a table of another version has deleted first.
+const BASE_CHAINS: [&str; 5] =
+    ["postrouting", "forward_prerouting", "forward_output", "workload_forward", "workload_input"];
 
 fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
     let matched = json!({"match": {"op": op, "left": left, "right": right}});

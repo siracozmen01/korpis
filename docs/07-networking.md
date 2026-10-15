@@ -616,7 +616,7 @@ host (§4.1), evaluated by the helper's nftables for every packet the workload s
 
 | Row | What matches |
 |---|---|
-| other workloads | the node's workload pools, IPv4 and IPv6; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
+| other workloads | anything the node would forward to another workload's link, whatever pool its address is in; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
 | node management | anything addressed to the host itself, on any of its addresses, except the resolver (§5.1) and ICMP to the gateway |
 | the control plane's API | its addresses as the node resolves the name it was enrolled with, on its port; opened, alone, for an installed extension's workload, which the assignment marks |
 | link-local metadata | `169.254.0.0/16` and `fe80::/10` beyond the gateway, `fd00:ec2::254` among them |
@@ -637,6 +637,30 @@ them until an operator-level policy exists (question 7 of §11). What it costs: 
 guess at what a game server or a web service needs, and one that opens more connections than that,
 a crawler or a proxy, needs its policy to say so; and as §9.1 of `17-security.md` says, a node
 whose root is compromised enforces none of this.
+
+**Built.** Added 2026-10-15. The rows are two base chains of the host's table, on the `forward` and
+`input` hooks, that judge what a workload's link sends; each row that denies counts what it drops,
+under a comment naming the row, which is how the tests tell this firewall's verdict apart from
+another one's on the same node, and what accounting (§7) will read. The chains shared by every
+workload are written once per version of their definition, marked in the table, and left alone as
+each workload's network is made, so their counts accumulate; the first version rewrote them for
+every workload, which zeroed every count, and a test racing another workload's start was what
+showed it. They run at priority -10, before the filter chains at the default priority, an
+operator's firewall among them, so what they deny is dropped early whatever another firewall
+decides; what they let through, another firewall can still drop (§4.1). A connection to a published
+endpoint is a client's, whoever makes it, so one a workload makes to another's endpoint through the
+node's address passes as any client's does, and the destination's own table judges it (§3). The
+rate limit is on the new connections a workload makes, to the internet or to the node; connections
+made to it are bounded by the tracked-connection limit, counted per workload address in both
+directions, and not by a rate, since a game server's players arrive in bursts its operator chose to
+serve. What differs between workloads, the control plane's API opened for an installed extension's
+workload and the rate's state, is a chain of the workload's own, reached through a map keyed by its
+link. The node opens the API at the addresses the name it enrolled with resolves to when the
+workload's network is made; an API that moves to another address is opened anew only when the
+workload's network is next made. The workload's own `NetworkPolicy` is not yet applied by the node:
+until it is, it is refused or built as the next part of Phase 1 says (§4 of `20-roadmap.md`),
+because a rule a tenant declares and nothing enforces is the displayed, unenforced limit Rule K-3
+forbids.
 
 ---
 

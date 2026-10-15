@@ -35,6 +35,14 @@ fn a_changed_pool_renumbers_and_a_full_one_refuses() {
 }
 
 #[test]
+fn the_api_is_where_the_node_enrolled() {
+    assert_eq!(api_of("https://cp.example:7443"), Some(("cp.example".into(), 7443)));
+    assert_eq!(api_of("https://cp.example"), Some(("cp.example".into(), 443)));
+    assert_eq!(api_of("https://[2001:db8::1]:7443"), Some(("2001:db8::1".into(), 7443)));
+    assert_eq!(api_of("not a url"), None);
+}
+
+#[test]
 fn a_node_s_unique_local_prefix_is_its_own_and_stable() {
     let one = unique_local("node-a");
     assert_eq!(one.prefix_len(), 64);

@@ -52,6 +52,27 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
     (inbound, forwards)
 }
 
+/// The control plane's API as this node reaches it, at every address its name resolves to now,
+/// which an installed extension's workload is opened to (§6 of docs/07-networking.md).
+async fn opened(api: Option<&(String, u16)>) -> Result<Vec<helper::Destination>, Failure> {
+    let (host, port) =
+        api.ok_or_else(|| Failure("the control plane's address is not known".into()))?;
+    let found = tokio::net::lookup_host((host.as_str(), *port))
+        .await
+        .map_err(|e| Failure(format!("the control plane's address {host}: {e}")))?;
+    let mut addresses: Vec<std::net::SocketAddr> = found.collect();
+    addresses.sort_unstable();
+    addresses.dedup();
+    Ok(addresses
+        .into_iter()
+        .map(|a| helper::Destination {
+            address: a.ip().to_string(),
+            port: u32::from(a.port()),
+            ..Default::default()
+        })
+        .collect())
+}
+
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Makes `a`'s workload's network and has `spec` join it, where the node gives networks;
     /// its namespaces map the uid range the assignment gives it.
@@ -68,6 +89,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let mut request = net.request(&a.workload, assigned);
         (request.uid_base, request.uid_count) = (a.uid_base, a.uid_count);
         (request.inbound, request.forwards) = ports(&a.endpoints);
+        if a.reaches_api {
+            request.opened = opened(net.api.as_ref()).await?;
+        }
         let made = self.host.ensure_network(&request).await?;
         spec.namespaces = made.namespaces;
         Ok(())

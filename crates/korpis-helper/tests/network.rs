@@ -174,3 +174,76 @@ fn a_node_port_reaches_the_declared_port_and_nothing_else() {
     let listed = String::from_utf8_lossy(&listed.unwrap().stdout).into_owned();
     assert!(!listed.contains(&node_port.to_string()), "released: {listed}");
 }
+
+/// What the rows of the host's table commented `comment` have counted, in packets.
+fn counted(comment: &str) -> u64 {
+    let out = Command::new("nft").args(["-j", "list", "table", "inet", "korpis"]).output().unwrap();
+    let listing: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let items =
+        listing.get("nftables").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
+    items
+        .iter()
+        .filter(|i| i.pointer("/rule/comment").and_then(|c| c.as_str()) == Some(comment))
+        .flat_map(|i| {
+            i.pointer("/rule/expr").and_then(|e| e.as_array()).cloned().unwrap_or_default()
+        })
+        .filter_map(|e| e.pointer("/counter/packets").and_then(serde_json::Value::as_u64))
+        .sum()
+}
+
+/// Tries a TCP connection from inside the namespace at `path` to `to`, for a second.
+fn knock(path: &Path, to: &str, port: u16) {
+    let script = format!(
+        "import socket\ntry: socket.create_connection(('{to}',{port}),1)\nexcept Exception: pass"
+    );
+    inside(path, &["python3", "-c", &script]);
+}
+
+#[test]
+fn each_row_of_the_egress_default_drops_what_it_names_and_counts_it() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    let Some(node) = host_address().filter(|_| able(&network)) else { return };
+    let pid = std::process::id();
+    let third = u8::try_from(pid % 250).unwrap();
+    let (a, b) = (format!("net-eg-a-{pid}"), format!("net-eg-b-{pid}"));
+    let ip_b = Ipv4Addr::new(10, 244, third, 3);
+    let mut ra = request(&a, Ipv4Addr::new(10, 244, third, 2));
+    ra.ipv4_pool = "10.244.0.0/16".into();
+    // The control plane's API, opened for this workload as for an installed extension's.
+    ra.opened =
+        vec![helper::Destination { address: node.to_string(), port: 7443, ..Default::default() }];
+    let mut rb = request(&b, ip_b);
+    rb.ipv4_pool = "10.244.0.0/16".into();
+    rb.uid_base = FIRST_WORKLOAD_ID + (1 << 16);
+    let path = Path::new(&network.ensure(&ra).unwrap().namespaces).join("net");
+    network.ensure(&rb).unwrap();
+
+    let rows = [
+        ("other workloads", ip_b.to_string(), 7001),
+        ("metadata", "169.254.169.254".to_owned(), 80),
+        ("private", "192.168.77.1".to_owned(), 80),
+        ("smtp", "203.0.113.5".to_owned(), 25),
+        ("node", node.to_string(), 22),
+        ("control plane", node.to_string(), 7443),
+    ];
+    let mut missed = Vec::new();
+    for (row, to, port) in rows {
+        let before = counted(row);
+        knock(&path, &to, port);
+        if counted(row) <= before {
+            missed.push(row);
+        }
+    }
+    // Past its rate, a workload's new connections are dropped.
+    let flood = "import socket\nfor _ in range(600):\n s=socket.socket();s.setblocking(False)\n \
+                 try: s.connect(('203.0.113.5',80))\n except Exception: pass";
+    let before = counted("rate");
+    inside(&path, &["python3", "-c", flood]);
+    if counted("rate") <= before {
+        missed.push("rate");
+    }
+    network.release(&a).unwrap();
+    network.release(&b).unwrap();
+    assert!(missed.is_empty(), "rows that counted nothing: {missed:?}");
+}

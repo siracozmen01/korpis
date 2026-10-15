@@ -162,6 +162,8 @@ pub(crate) struct Listed {
     pub(crate) ports: Vec<(u16, String)>,
     /// Its chains.
     pub(crate) chains: Vec<String>,
+    /// The links its egress map names.
+    pub(crate) outward: Vec<String>,
 }
 
 /// What the host table holds; nothing where it is not there yet.
@@ -188,5 +190,12 @@ pub(crate) fn listed() -> io::Result<Listed> {
             Some((port, target.to_owned()))
         })
         .collect();
-    Ok(Listed { ports, chains })
+    let outward = items
+        .iter()
+        .filter(|i| i.pointer("/map/name").and_then(Value::as_str) == Some(super::egress::OUTWARD))
+        .filter_map(|i| i.pointer("/map/elem").and_then(Value::as_array))
+        .flatten()
+        .filter_map(|e| e.get(0)?.as_str().map(str::to_owned))
+        .collect();
+    Ok(Listed { ports, chains, outward })
 }

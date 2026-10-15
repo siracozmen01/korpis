@@ -174,6 +174,15 @@ message EnsureNetworkRequest {
   // The ports of the node forwarded to it (§3 of docs/07-networking.md): each on every address
   // of the node but loopback, to the workload's address and a port inside it.
   repeated Forward forwards = 10;
+  // Destinations opened for it past the egress default (§6 of docs/07-networking.md): the
+  // control plane's API, for an installed extension's workload, and nothing else today.
+  repeated Destination opened = 11;
+}
+
+// An address and a TCP port.
+message Destination {
+  string address = 1;
+  uint32 port = 2;
 }
 
 // What a forwarded or accepted port is carried over.
@@ -229,6 +238,9 @@ message DescribeNetworkResponse {
   // reaches it from outside until its operator opens it for Korpis's links, which the helper
   // does not do (§4.1 of docs/07-networking.md).
   repeated string closed_forward = 4;
+  // Whether the kernel answers a SYN flood with SYN cookies, which keeps half-open connections
+  // from filling the connection table (§6 of docs/07-networking.md).
+  bool syn_cookies = 5;
 }
 
 message SnapshotVolumeRequest {

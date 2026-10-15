@@ -53,6 +53,9 @@ pub struct Assignment {
     /// The target's endpoints as placed on this node, each with the port of the node it holds
     /// where it holds one (§3 of docs/07-networking.md); sorted by name.
     pub endpoints: Vec<super::endpoint::Endpoint>,
+    /// Whether the workload runs an installed extension, whose node opens the control plane's
+    /// API to it past the egress default (§6 of docs/07-networking.md).
+    pub reaches_api: bool,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

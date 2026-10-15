@@ -47,6 +47,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         residual: a.residual,
         volume_ids: a.volume_ids.clone().into_iter().collect(),
         endpoints: a.endpoints.iter().map(|e| endpoint_to_pb(e, &[])).collect(),
+        reaches_api: a.reaches_api,
         ..Default::default()
     }
 }

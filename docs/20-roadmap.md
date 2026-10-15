@@ -170,16 +170,19 @@ through. The web client. Durable streams and console. Volumes with kernel-enforc
 quota, snapshots, deletion, and content-defined-chunking backup with per-workload keys. The
 shareable link of §6.1 of `08-identity.md`, the first test of Bet 1. The install DSL with its
 built-in verbs. Scheduling: filter, score, bind, with `Explanation`; cordon; the shortlist
-`FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality
-and churn signals (§2.1 and §2.2 of `05-scheduling.md`). Networking: `node_port` and `node_bound`
-exposure, each node's reachability measured by the relay's probe (§9 of `07-networking.md`), and
-the default egress policy of §6 there. Rate limits, with the web client's login and link redemption
+`FeasibilityQuery`, re-placement after a post-bind rejection, and the content locality and churn
+signals (§2.1 and §2.2 of `05-scheduling.md`). Networking: `node_port` and `node_bound` exposure,
+each node's reachability measured by the relay's probe (§9 of `07-networking.md`), and the default
+egress policy of §6 there, with a workload's own `NetworkPolicy` applied by its node; every other
+field of an endpoint declaration is enforced in this phase or refused at declaration until a later
+phase builds it (Rule K-3), added 2026-10-15 when the default was built and the declaration was
+found to accept what no node enforced. Rate limits, with the web client's login and link redemption
 that are the first endpoints to need them: the two buckets and the unauthenticated limits of §10 of
 `10-api.md`, and the recording of unauthenticated failures beside the denials Phase 0 already
 coalesces. Workloads of lifecycle `task` and `scheduled`, with their runs and `RunPolicy` (§4 of
 `05-scheduling.md`), after backups, so that a nightly backup is a scheduled run rather than a
-command someone has to type; added 2026-10-14 by Finding 33 of `23-walkthroughs.md`, since no
-phase had named them.
+command someone has to type; added 2026-10-14 by Finding 33 of `23-walkthroughs.md`, since no phase
+had named them.
 
 **Done when:** the single-machine constraint of §1 of `18-operations.md` is real, install, run
 workloads, back them up, restore them, and read an honest console, with every displayed limit

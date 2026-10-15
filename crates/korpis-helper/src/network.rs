@@ -7,6 +7,7 @@
 //! derives every name from the workload's identifier, and makes the rest so, whatever part of it
 //! a crash or a reboot left behind.
 
+mod egress;
 mod forward;
 mod netns;
 mod nft;
@@ -97,6 +98,7 @@ struct Asked {
     ids: (u32, u32),
     inbound: Vec<(Transport, u16)>,
     forwards: Vec<Forward>,
+    opened: Vec<egress::Opened>,
 }
 
 fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
@@ -167,8 +169,16 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         return Err(refuse("the workload holds no uid range for its namespaces to map"));
     }
     let (inbound, forwards) = ports(r)?;
+    let opened = r
+        .opened
+        .iter()
+        .map(|d| {
+            let addr = d.address.parse().map_err(|_| refuse("an opened address is not one"))?;
+            Ok(egress::Opened { addr, port: port("an opened port", d.port, 1)? })
+        })
+        .collect::<HelperResult<Vec<_>>>()?;
     let ids = (r.uid_base, r.uid_count);
-    Ok(Asked { workload: r.workload.clone(), ipv4, ipv6, ids, inbound, forwards })
+    Ok(Asked { workload: r.workload.clone(), ipv4, ipv6, ids, inbound, forwards, opened })
 }
 
 /// Configures the workload's side, from inside its namespace.
@@ -249,6 +259,8 @@ impl Network {
             why_not,
             ipv6: sysctl_on("/proc/sys/net/ipv6/conf/all/forwarding"),
             closed_forward: closed.unwrap_or_default(),
+            syn_cookies: std::fs::read_to_string("/proc/sys/net/ipv4/tcp_syncookies")
+                .is_ok_and(|v| v.trim() != "0"),
             ..Default::default()
         }
     }
@@ -277,8 +289,9 @@ impl Network {
         let link = host_link(&a.workload);
         linked(&dir, &link, fresh, (a.ipv4, ipv6))?;
         let listed = forward::listed()?;
-        let mut host = nft::host();
+        let mut host = nft::host(&listed.chains);
         host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
+        host.extend(egress::hold(&link, &a.opened, listed.outward.contains(&link)));
         nft::apply(&serde_json::json!({"nftables": host}))?;
         netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
         Ok(helper::EnsureNetworkResponse {
@@ -292,7 +305,11 @@ impl Network {
     /// Removes `workload`'s network; whether there was one.
     pub fn release(&self, workload: &str) -> HelperResult<bool> {
         identifier("workload", workload)?;
-        let unforwarded = forward::release(&host_link(workload), &forward::listed()?);
+        let link = host_link(workload);
+        let listed = forward::listed()?;
+        let mut unforwarded = forward::release(&link, &listed);
+        let chained = listed.chains.contains(&egress::chain_of(&link));
+        unforwarded.extend(egress::release(&link, (listed.outward.contains(&link), chained)));
         if !unforwarded.is_empty() {
             nft::apply(&serde_json::json!({"nftables": unforwarded}))?;
         }

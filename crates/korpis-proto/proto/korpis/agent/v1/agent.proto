@@ -389,6 +389,10 @@ message Assignment {
   // The target's endpoints as placed on this node, by name, each with the port of the node it
   // holds where its exposure holds one (§3 of docs/07-networking.md): what the node forwards.
   repeated korpis.v1.Endpoint endpoints = 19;
+  // The workload runs an installed extension: the node opens the control plane's API to it, as
+  // the node reaches the API, and nothing else of the control plane's (§6 of
+  // docs/07-networking.md). Decided by the control plane, which knows the installations.
+  bool reaches_api = 20;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

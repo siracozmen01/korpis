@@ -25,6 +25,7 @@ mod console;
 mod denials;
 mod dns;
 mod effects;
+mod egress;
 mod endpoints;
 mod enroll;
 mod events;

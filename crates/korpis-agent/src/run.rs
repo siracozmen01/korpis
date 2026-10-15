@@ -201,6 +201,7 @@ impl Kept {
                     pools,
                     addresses: Addresses::open(&root.join("addresses"))
                         .map_err(io("the workloads' addresses"))?,
+                    api: state.load().ok().and_then(|i| crate::network::api_of(&i.server)),
                 }),
                 None => None,
             },

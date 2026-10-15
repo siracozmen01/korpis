@@ -179,6 +179,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let on_lease_expiry = target.body.continuity.resolved(false);
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(&target.body).await?;
+        let installation = self.store.extension_of_workload(workload).await?;
+        let reaches_api = installation.is_some_and(|i| i.uninstalled_at.is_none());
         Ok(Some((
             Assignment {
                 workload,
@@ -197,6 +199,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 residual: false,
                 volume_ids,
                 endpoints: Vec::new(),
+                reaches_api,
             },
             plan,
         )))
@@ -247,6 +250,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 residual: true,
                 volume_ids: BTreeMap::new(),
                 endpoints: Vec::new(),
+                reaches_api: false,
             },
             Some(plan),
         )))
