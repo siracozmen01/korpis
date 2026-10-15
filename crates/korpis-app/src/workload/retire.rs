@@ -189,6 +189,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let declared = |v: &&Volume| v.kind == VolumeKind::Declared;
         cost.volumes = -i64::try_from(deleting.iter().filter(declared).count()).unwrap_or(0);
         let proposal = Proposal {
+            exposures: Vec::new(),
             workload: w.id,
             target: PlanTarget::Retire,
             from_intent: w.target,

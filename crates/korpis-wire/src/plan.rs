@@ -3,9 +3,11 @@
 //! Plans, their steps, and their impact. Plans are computed by the control plane and only ever
 //! leave it, so there is no reading direction.
 
+use crate::spec::endpoints::exposure_to_pb;
 use crate::value::map_to_pb;
 use crate::{duration, principal, scope, timestamp, wire_id};
 use korpis_core::id::IdKind;
+use korpis_core::workload::endpoint::{ExposureImpact, Survival};
 use korpis_core::workload::plan::VolumeOp;
 use korpis_core::workload::plan::{
     Approval, Estimate, Impact, Layer, PlanStatus, ResourceDelta, Step, StepExecutor,
@@ -96,6 +98,26 @@ pub fn impact_to_pb(i: &Impact, approval_reason: &str) -> pb::Impact {
         data_at_risk_unknown: !i.data_at_risk.is_known(),
         approval_reason: approval_reason.to_owned(),
         cost_delta: delta_to_pb(i.cost_delta).into(),
+        exposures: i.exposures.iter().map(exposure_impact_to_pb).collect(),
+        ..Default::default()
+    }
+}
+
+fn exposure_impact_to_pb(e: &ExposureImpact) -> pb::ExposureImpact {
+    let survives = match e.survives {
+        Survival::NoMove => pb::ExposureSurvival::EXPOSURE_SURVIVAL_NO_MOVE,
+        Survival::WhileItsNodeExists => {
+            pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS
+        }
+        Survival::Moves => pb::ExposureSurvival::EXPOSURE_SURVIVAL_MOVES,
+        Survival::Unreachable => pb::ExposureSurvival::EXPOSURE_SURVIVAL_UNREACHABLE,
+    };
+    pb::ExposureImpact {
+        endpoint: e.endpoint.clone(),
+        declared: exposure_to_pb(e.declared).into(),
+        resolved: exposure_to_pb(e.resolved).into(),
+        survives: survives.into(),
+        measured_inside: e.measured_inside,
         ..Default::default()
     }
 }

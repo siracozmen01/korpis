@@ -230,6 +230,7 @@ mod tests {
                 downtime: Estimate::Unknown,
                 data_at_risk: Estimate::Unknown,
                 cost_delta: ResourceDelta::default(),
+                exposures: Vec::new(),
             },
             approval: Approval::Auto,
             approval_reason: String::new(),

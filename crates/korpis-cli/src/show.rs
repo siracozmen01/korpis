@@ -44,7 +44,36 @@ pub fn plan(p: &pb::Plan, workload: &str) -> String {
             details.join(" ")
         );
     }
+    for e in p.impact.as_option().map(|i| i.exposures.as_slice()).unwrap_or_default() {
+        let _ = writeln!(out, "{}", exposure(e));
+    }
     out
+}
+
+/// What a plan does to one endpoint's exposure, in a line: the mode it resolves to, the one
+/// declared where they differ, and what it survives (§3 of docs/07-networking.md).
+fn exposure(e: &pb::ExposureImpact) -> String {
+    let resolved = short(e.resolved, "EXPOSURE_");
+    let declared = short(e.declared, "EXPOSURE_");
+    let from = if declared == resolved { String::new() } else { format!(" (declared {declared})") };
+    let survives = match e.survives.as_known() {
+        Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_NO_MOVE) => {
+            "its address does not survive a move"
+        }
+        Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS) => {
+            "its address survives a move while its node exists, not the node's loss"
+        }
+        Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_MOVES) => "its address survives a move",
+        Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_UNREACHABLE) => "nothing reaches it",
+        _ => "what it survives is not known",
+    };
+    let inside = if e.measured_inside {
+        "; its node was measured reachable from the control plane, so a firewall in front of it \
+         is yours to open"
+    } else {
+        ""
+    };
+    format!("  endpoint {}: {resolved}{from}, {survives}{inside}", e.endpoint)
 }
 
 /// One line for plans that wait: how to apply exactly them, with the flags they were planned
@@ -120,6 +149,22 @@ pub fn bytes(n: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_plan_says_what_a_resolved_exposure_survives_and_who_opens_the_firewall() {
+        let e = pb::ExposureImpact {
+            endpoint: "game".into(),
+            declared: pb::Exposure::EXPOSURE_STABLE.into(),
+            resolved: pb::Exposure::EXPOSURE_NODE_BOUND.into(),
+            survives: pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS.into(),
+            measured_inside: true,
+            ..Default::default()
+        };
+        let line = exposure(&e);
+        assert!(line.contains("game: node_bound (declared stable)"), "{line}");
+        assert!(line.contains("not the node's loss"), "{line}");
+        assert!(line.contains("firewall"), "{line}");
+    }
 
     #[test]
     fn a_time_is_written_in_utc() {

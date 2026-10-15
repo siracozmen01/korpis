@@ -59,6 +59,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let (driver, recipe) = (DriverClass::default(), Disruption::default());
         let steps = prune_steps(w.id, repo.id, &judged, propose::classifier(&driver, &recipe, &w));
         let proposal = Proposal {
+            exposures: Vec::new(),
             workload: w.id,
             target: PlanTarget::Prune(repo.id),
             from_intent: w.target,

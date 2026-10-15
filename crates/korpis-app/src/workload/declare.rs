@@ -333,6 +333,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             from_intent: from.map(|(id, _)| id),
             from_power: base.workload.power_target_version,
             delta: delta(from.map(|(_, b)| b), Some(&to.body)),
+            exposures: korpis_core::workload::endpoint::exposures(
+                from.map(|(_, b)| b.endpoints.as_slice()),
+                &to.body.endpoints,
+                super::EDGE_TIER,
+            ),
             steps,
             proposing: &base.proposing,
             grant: base.permit.grant,

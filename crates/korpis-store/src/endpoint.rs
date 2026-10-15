@@ -20,7 +20,7 @@ const PROTOCOLS: [(Protocol, &str); 5] = [
     (Protocol::Quic, "quic"),
 ];
 
-const EXPOSURES: [(Exposure, &str); 7] = [
+pub(crate) const EXPOSURES: [(Exposure, &str); 7] = [
     (Exposure::NodePort, "node_port"),
     (Exposure::NodeBound, "node_bound"),
     (Exposure::Stable, "stable"),
@@ -30,11 +30,11 @@ const EXPOSURES: [(Exposure, &str); 7] = [
     (Exposure::None, "none"),
 ];
 
-fn named<T: Copy + PartialEq>(table: &[(T, &'static str)], v: T) -> &'static str {
+pub(crate) fn named<T: Copy + PartialEq>(table: &[(T, &'static str)], v: T) -> &'static str {
     table.iter().find(|(t, _)| *t == v).map_or("", |(_, n)| n)
 }
 
-fn parsed<T: Copy>(table: &[(T, &'static str)], what: &str, s: &str) -> StoreResult<T> {
+pub(crate) fn parsed<T: Copy>(table: &[(T, &'static str)], what: &str, s: &str) -> StoreResult<T> {
     table
         .iter()
         .find(|(_, n)| *n == s)

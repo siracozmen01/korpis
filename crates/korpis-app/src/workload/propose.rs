@@ -28,6 +28,8 @@ pub(super) struct Proposal<'a> {
     pub from_power: u64,
     /// How reservations change.
     pub delta: ResourceDelta,
+    /// What it does to the exposure of each endpoint it creates or changes.
+    pub exposures: Vec<korpis_core::workload::endpoint::ExposureImpact>,
     pub steps: Vec<Step>,
     pub proposing: &'a Proposing,
     pub grant: Uuid,
@@ -60,7 +62,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
 /// The plan for a proposal, proposed by `caller` at `now`.
 pub(super) fn plan(caller: &Caller, p: Proposal<'_>, now: SystemTime) -> Plan {
-    let impact = assess(&p.steps, p.delta);
+    let mut impact = assess(&p.steps, p.delta);
+    impact.exposures = p.exposures;
     let (approval, approval_reason) = approval::required(&p.steps, &impact, p.proposing);
     Plan {
         id: Uuid::now_v7(),

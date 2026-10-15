@@ -593,8 +593,9 @@ Plan
                                re-evaluates it, and requires_approval_by is read from it
 
   steps         []Step
-  impact        Impact         disruptive?, downtime estimate, data at risk, cost delta, and
-                               why it does or does not auto-approve
+  impact        Impact         disruptive?, downtime estimate, data at risk, cost delta, the
+                               exposure of each endpoint it creates or changes (§3 of
+                               07-networking.md), and why it does or does not auto-approve
   status        proposed | approved | queued | applying | applied
                 | failed | cancelled | rejected | expired | superseded
   completed     int?           the last step whose completion effect has been ingested

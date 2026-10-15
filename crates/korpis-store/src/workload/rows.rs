@@ -240,7 +240,7 @@ impl PlanRow {
             computed_by: principal(&self.computed_by)?,
             proposed_under: self.proposed_under.ok_or_else(|| corrupt("plan", "no grant"))?,
             steps: steps.into_iter().map(StepDoc::into_domain).collect::<Result<_, _>>()?,
-            impact: impact.into_domain(),
+            impact: impact.into_domain()?,
             approval: approval(&self.approval, self.approval_scope)?,
             approval_reason: self.approval_reason,
             status: PlanStatus::parse(&self.status)

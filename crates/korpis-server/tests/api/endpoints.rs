@@ -110,3 +110,26 @@ async fn a_node_whose_ports_are_all_held_is_not_chosen() {
     let held = korpis_app::ports::EndpointRead::node_ports_held(&store, id.uuid()).await.unwrap();
     assert_eq!(held, [30000, 30001]);
 }
+
+#[tokio::test]
+async fn the_plan_that_creates_an_endpoint_says_what_it_resolves_to_and_survives() {
+    let h = Harness::new().await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let mut declare = create("d1", &project, "mc", body(&repo, &[]));
+    declare.propose = true;
+    let out = h.workloads(h.root()).declare_intent(declare).await.unwrap().into_owned();
+    let impact = out.plan.as_option().unwrap().impact.as_option().unwrap().clone();
+    let shown = |name: &str| impact.exposures.iter().find(|e| e.endpoint == name).cloned().unwrap();
+    let game = shown("game");
+    assert_eq!(game.declared.as_known(), Some(pb::Exposure::EXPOSURE_STABLE));
+    assert_eq!(game.resolved.as_known(), Some(pb::Exposure::EXPOSURE_NODE_BOUND), "no edge");
+    assert_eq!(
+        game.survives.as_known(),
+        Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS)
+    );
+    assert!(game.measured_inside, "the operator owns the firewall in front of the node");
+    let rcon = shown("rcon");
+    assert_eq!(rcon.survives.as_known(), Some(pb::ExposureSurvival::EXPOSURE_SURVIVAL_MOVES));
+    assert!(!rcon.measured_inside);
+}

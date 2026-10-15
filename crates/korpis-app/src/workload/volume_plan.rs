@@ -272,6 +272,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let steps = self.volume_steps(&w, &ask, classifier).await?;
         let gone = ask.op == VolumeOp::Delete && v.kind == VolumeKind::Declared;
         let proposal = Proposal {
+            exposures: Vec::new(),
             workload: w.id,
             target: PlanTarget::Volume(v.id, ask.op),
             from_intent: w.target,

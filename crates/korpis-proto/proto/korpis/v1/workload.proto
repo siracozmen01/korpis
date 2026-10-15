@@ -379,6 +379,34 @@ message Impact {
   string approval_reason = 7;
   // How the plan changes what the workload reserves; negative where it shrinks.
   ResourceDelta cost_delta = 8;
+  // What the plan does to the exposure of each endpoint it creates or whose declared exposure
+  // it changes (§3 of docs/07-networking.md).
+  repeated ExposureImpact exposures = 9;
+}
+
+message ExposureImpact {
+  string endpoint = 1;
+  Exposure declared = 2;
+  // What it resolves to in this installation: `stable` without an edge tier is `node_bound`.
+  Exposure resolved = 3;
+  ExposureSurvival survives = 4;
+  // It is reached on a node whose reachability the control plane measured itself, which may
+  // be inside the node's network: a firewall in front of the node is the operator's to open
+  // (§9 of docs/07-networking.md).
+  bool measured_inside = 5;
+}
+
+// What an endpoint's address survives (§3 of docs/07-networking.md).
+enum ExposureSurvival {
+  EXPOSURE_SURVIVAL_UNSPECIFIED = 0;
+  // No move: the node's address and a port that a move gives up.
+  EXPOSURE_SURVIVAL_NO_MOVE = 1;
+  // A move, for as long as the node it was first exposed on exists.
+  EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS = 2;
+  // A move, and the loss of any one node.
+  EXPOSURE_SURVIVAL_MOVES = 3;
+  // Nothing reaches it.
+  EXPOSURE_SURVIVAL_UNREACHABLE = 4;
 }
 
 // A signed change in reserved resources and counted objects.

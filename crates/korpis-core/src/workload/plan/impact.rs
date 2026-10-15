@@ -52,6 +52,9 @@ pub struct Impact {
     pub data_at_risk: Estimate<Vec<String>>,
     /// How reservations change.
     pub cost_delta: ResourceDelta,
+    /// What it does to the exposure of each endpoint it creates or changes (§3 of
+    /// docs/07-networking.md).
+    pub exposures: Vec<crate::workload::endpoint::ExposureImpact>,
 }
 
 fn signed(after: u64, before: u64) -> i64 {
@@ -103,5 +106,6 @@ pub fn assess(steps: &[Step], cost_delta: ResourceDelta) -> Impact {
         downtime: if disruptive { Estimate::Unknown } else { Estimate::Known(Duration::ZERO) },
         data_at_risk: Estimate::Known(deleted),
         cost_delta,
+        exposures: Vec::new(),
     }
 }

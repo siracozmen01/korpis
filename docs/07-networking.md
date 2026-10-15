@@ -151,6 +151,17 @@ reaches an endpoint at one of the node's other addresses and not at `localhost`.
 other firewall drops forwarded traffic (§4.1) forwards nothing from outside until its operator
 opens it, although connections made on the node itself still arrive.
 
+**What the plan shows, as built.** Added 2026-10-15. The plan that creates an endpoint, or changes
+its declared exposure, carries for each such endpoint the mode declared, the mode it resolves to in
+this installation, and what that survives: no move for `node_port`, a move while its node exists
+for `node_bound`, a move and a node's loss for the modes an edge, a proxy, a routed address, or the
+overlay holds, and nothing for `none`. For an endpoint reached on a port of its node, it says too
+that the node's reachability was measured by the control plane, which on one machine is inside the
+node's network, so a firewall in front of the node is the operator's to open (§9). It is computed
+when the plan is, from the declared endpoints and whether an edge tier serves the workload, both of
+which the control plane holds; what it does not know then is the node, so it says what any node of
+this installation gives, not the port.
+
 ### 3.1 `stable`: the edge
 
 An **edge** owns stable public addresses and forwards to wherever a workload currently is. For

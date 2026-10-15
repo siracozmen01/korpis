@@ -3,8 +3,10 @@
 //! A plan's steps and impact, as stored in the `plan` table.
 
 use super::scope::ObjectDoc;
-use korpis_app::ports::StoreError;
+use crate::endpoint::{EXPOSURES, named, parsed};
+use korpis_app::ports::{StoreError, StoreResult};
 use korpis_core::value::Value;
+use korpis_core::workload::endpoint::{ExposureImpact, Survival};
 use korpis_core::workload::plan::{
     Estimate, Impact, Layer, ResourceDelta, Step, StepAction, StepExecutor,
 };
@@ -166,6 +168,48 @@ pub(crate) struct ImpactDoc {
     downtime_ms: Option<u64>,
     data_at_risk: Option<Vec<String>>,
     cost_delta: DeltaDoc,
+    /// Absent from plans stored before exposures were shown, which showed none.
+    #[serde(default)]
+    exposures: Vec<ExposureDoc>,
+}
+
+/// What a plan does to one endpoint's exposure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ExposureDoc {
+    endpoint: String,
+    declared: String,
+    resolved: String,
+    survives: String,
+    measured_inside: bool,
+}
+
+const SURVIVALS: [(Survival, &str); 4] = [
+    (Survival::NoMove, "no_move"),
+    (Survival::WhileItsNodeExists, "while_its_node_exists"),
+    (Survival::Moves, "moves"),
+    (Survival::Unreachable, "unreachable"),
+];
+
+impl ExposureDoc {
+    fn from_domain(e: &ExposureImpact) -> Self {
+        Self {
+            endpoint: e.endpoint.clone(),
+            declared: named(&EXPOSURES, e.declared).to_owned(),
+            resolved: named(&EXPOSURES, e.resolved).to_owned(),
+            survives: named(&SURVIVALS, e.survives).to_owned(),
+            measured_inside: e.measured_inside,
+        }
+    }
+
+    fn into_domain(self) -> StoreResult<ExposureImpact> {
+        Ok(ExposureImpact {
+            endpoint: self.endpoint,
+            declared: parsed(&EXPOSURES, "exposure", &self.declared)?,
+            resolved: parsed(&EXPOSURES, "exposure", &self.resolved)?,
+            survives: parsed(&SURVIVALS, "survival", &self.survives)?,
+            measured_inside: self.measured_inside,
+        })
+    }
 }
 
 impl ImpactDoc {
@@ -189,12 +233,16 @@ impl ImpactDoc {
                 endpoints: d.endpoints,
                 workloads: d.workloads,
             },
+            exposures: i.exposures.iter().map(ExposureDoc::from_domain).collect(),
         }
     }
 
-    pub(crate) fn into_domain(self) -> Impact {
+    pub(crate) fn into_domain(self) -> StoreResult<Impact> {
         let d = self.cost_delta;
-        Impact {
+        let exposures: StoreResult<Vec<_>> =
+            self.exposures.into_iter().map(ExposureDoc::into_domain).collect();
+        Ok(Impact {
+            exposures: exposures?,
             disruptive: self.disruptive,
             downtime: self
                 .downtime_ms
@@ -208,6 +256,6 @@ impl ImpactDoc {
                 endpoints: d.endpoints,
                 workloads: d.workloads,
             },
-        }
+        })
     }
 }
