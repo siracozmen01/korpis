@@ -73,6 +73,19 @@ impl Signal {
         Self::Churn,
     ];
 
+    /// Its weight where a policy sets none. Content locality weighs a quarter, so it decides
+    /// between nodes whose utilization is close and never overrides the strategy: at the
+    /// weight of utilization, a node holding a popular recipe would take every workload of it
+    /// whatever the strategy said (question 3 of §10 of docs/05-scheduling.md). Every other
+    /// signal weighs 1.
+    #[must_use]
+    pub const fn default_weight(self) -> f64 {
+        match self {
+            Self::ContentLocality => 0.25,
+            _ => 1.0,
+        }
+    }
+
     /// Its name in an explanation and in a policy's weights.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -102,7 +115,7 @@ pub struct PlacementPolicy {
     pub spread: Vec<SpreadConstraint>,
     /// Affinity rules applied to every workload, beside its own.
     pub affinity: Vec<AffinityRule>,
-    /// Per signal; a signal absent weighs 1.
+    /// Per signal; a signal absent weighs [`Signal::default_weight`].
     pub weights: BTreeMap<Signal, f64>,
 }
 
@@ -110,6 +123,6 @@ impl PlacementPolicy {
     /// The weight of `signal`.
     #[must_use]
     pub fn weight(&self, signal: Signal) -> f64 {
-        self.weights.get(&signal).copied().unwrap_or(1.0)
+        self.weights.get(&signal).copied().unwrap_or_else(|| signal.default_weight())
     }
 }

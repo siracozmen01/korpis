@@ -71,6 +71,15 @@ pub trait SessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Records that `node` holds the content of the recipes with digests `present`, and nothing
+    /// else, as reported at `at` (§2.2 of docs/05-scheduling.md).
+    fn record_content(
+        &mut self,
+        node: Uuid,
+        present: &[String],
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// Marks unreachable every connected node last heard before `before`; how many.
     fn mark_silent_nodes(
         &mut self,

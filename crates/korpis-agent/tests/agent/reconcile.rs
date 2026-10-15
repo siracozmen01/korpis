@@ -4,7 +4,8 @@
 //! driver (§4 of docs/02-architecture.md): a declared workload is placed, its plan executed step
 //! by step under a lease, and it converges, all wired as `korpis-agent run` wires them; the agent restarts and adopts it without touching
 //! it; a crash is restarted as soon as the runtime reports it; and a retirement removes the runtime object, keeps the volumes,
-//! which the node reported as it made them, releases the lease, and retires the workload.
+//! which the node reported as it made them, releases the lease, and retires the workload. The
+//! node reports the recipe whose content it pulled, for content locality.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts};
@@ -177,6 +178,8 @@ async fn a_workload_converges_survives_an_agent_restart_untouched_and_retires() 
     assert!(base >= 1 << 30 && count == 1 << 16, "a workload slot: {base} {count}");
     let attached = "SELECT count(*) FROM volume WHERE name = 'data' AND attached_to IS NOT NULL";
     counted(&cp, attached, 1).await;
+    // Its recipe's content is held here now, and the node said so (§2.2 of 05-scheduling.md).
+    counted(&cp, "SELECT count(*) FROM node_content", 1).await;
 
     agent.stop().await;
     let before = runtime.calls().len();

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Scoring (§2.2 of docs/05-scheduling.md): of the nodes that can run this, which is best. A
-//! signal is scored only where its information exists; content locality and recent churn need
-//! what agents report, and are absent from an explanation until they do rather than guessed.
+//! signal is scored only where its information exists: content locality only for a node that
+//! reported its content, rather than a guess for one that did not.
 
 use super::topology::{Fleet, counts, domain, matching};
 use super::{
@@ -150,6 +150,9 @@ pub(super) fn rank(
         values.push((Signal::DeviceFit, if gpu { 0.0 } else { 1.0 }));
         if let Some(v) = failure_domain(req, c.node, &eligible, fleet, peers, policy) {
             values.push((Signal::FailureDomain, v));
+        }
+        if let Some(held) = req.content.get(&id) {
+            values.push((Signal::ContentLocality, if *held { 1.0 } else { 0.0 }));
         }
         let mut total = 0.0;
         for (signal, value) in values {

@@ -18,6 +18,9 @@ use std::time::SystemTime;
 /// No node refused anything.
 static NONE_REFUSED: BTreeMap<Uuid, String> = BTreeMap::new();
 
+/// No node reported its content.
+static NONE_HELD: BTreeMap<Uuid, bool> = BTreeMap::new();
+
 const GIB: u64 = 1 << 30;
 const ORG: Uuid = Uuid::from_u128(7);
 const PROJECT: Uuid = Uuid::from_u128(8);
@@ -126,6 +129,7 @@ struct Case {
     allocated: BTreeMap<Uuid, Bounds>,
     peers: Vec<Peer>,
     policy: PlacementPolicy,
+    content: BTreeMap<Uuid, bool>,
 }
 
 impl Case {
@@ -137,6 +141,7 @@ impl Case {
             allocated: BTreeMap::new(),
             peers: Vec::new(),
             policy: PlacementPolicy::default(),
+            content: BTreeMap::new(),
         }
     }
 
@@ -157,6 +162,7 @@ impl Case {
             edge_tier: false,
             volumes: &[],
             refused: &NONE_REFUSED,
+            content: &self.content,
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -289,6 +295,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         edge_tier: false,
         volumes: &[],
         refused: &NONE_REFUSED,
+        content: &NONE_HELD,
     };
     let e = place(
         &req,
@@ -323,6 +330,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         edge_tier: false,
         volumes: &[],
         refused: &NONE_REFUSED,
+        content: &NONE_HELD,
     }
 }
 
@@ -387,3 +395,5 @@ fn an_existing_volume_keeps_the_workload_on_the_node_holding_it() {
     assert_eq!(e.chosen, Some(two.id));
     assert!(e.filtered.iter().any(|r| r.node == one.id && r.check == Check::Volume));
 }
+
+mod signals;

@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT n.id AS \"node!\",\n                      EXISTS (SELECT 1 FROM node_content c\n                               WHERE c.node_id = n.id AND c.digest = $2) AS \"held!\"\n                 FROM node n\n                WHERE n.id = ANY($1) AND n.content_reported_at IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "held!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "9b8c7d99faca6c4220da6f6398a2650d12754ad4be243a6a38389e22f319c73d"
+}

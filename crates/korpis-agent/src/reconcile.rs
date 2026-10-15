@@ -98,6 +98,9 @@ pub struct Wiring {
     pub jobs: Arc<crate::jobs::JobAccesses>,
     /// Where installs ask what their provider steps resolved to.
     pub steps: Arc<crate::steps::StepAnswers>,
+    /// The recipes whose content the node holds, reported for content locality (§2.2 of
+    /// docs/05-scheduling.md).
+    pub inventory: crate::inventory::Inventory,
 }
 
 /// The reconciler.
@@ -195,6 +198,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 for t in self.tracked.values_mut() {
                     t.sent = None;
                 }
+                self.wiring.inventory.resend();
                 true
             }
             Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => true,
@@ -266,6 +270,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// One pass over the set held, and over what it no longer claims.
     async fn pass(&mut self) {
+        if let Some(report) = self.wiring.inventory.report() {
+            // A report lost with a session is sent again by the next one.
+            let _ = self.wiring.outbound.send(report).await;
+        }
         let held = self.wiring.held.borrow().clone();
         for a in held.assignments.values() {
             self.reconcile(a).await;

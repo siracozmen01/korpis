@@ -94,6 +94,14 @@ pub trait PlacementWrite {
     /// Forgets that a workload was unplaced.
     fn clear_unplaced(&mut self, workload: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// Of `nodes`, each that reported its content, with whether it holds the recipe `digest`
+    /// (§2.2 of docs/05-scheduling.md); a node that never reported is absent.
+    fn content_held(
+        &mut self,
+        nodes: &[Uuid],
+        digest: &str,
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, bool>>> + Send;
+
     /// The nodes whose driver refused `workload`'s target `intent`, each with its reason.
     fn refusals(
         &mut self,

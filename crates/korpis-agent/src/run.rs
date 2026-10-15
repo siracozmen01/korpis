@@ -13,6 +13,7 @@ use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
 use crate::identity::{ControlPlane, IdentitySockets};
+use crate::inventory::Inventory;
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
 use crate::offload::Offloader;
@@ -168,6 +169,30 @@ fn consoles<R: Runtime + Clone>(
         .with(console_write::ACTION, Arc::new(write))
 }
 
+/// What the agent keeps on disk under its state directory.
+struct Kept {
+    journal: JournalHandle,
+    progress: Progress,
+    streams: Streams,
+    inventory: Inventory,
+}
+
+impl Kept {
+    /// Opens each under `state`, the journal within `bounds`.
+    fn open(state: &StateDir, bounds: Bounds) -> Result<Self, RunError> {
+        let io = |what| move |source| RunError::Io { what, source };
+        let root = state.root();
+        Ok(Self {
+            journal: JournalHandle::open(&root.join("journal"), bounds)
+                .map_err(io("the journal"))?,
+            progress: Progress::open(&root.join("progress")).map_err(io("the progress"))?,
+            streams: Streams::open(&root.join("streams")).map_err(io("the streams watched"))?,
+            inventory: Inventory::open(&root.join("inventory"))
+                .map_err(io("the content inventory"))?,
+        })
+    }
+}
+
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
@@ -180,12 +205,7 @@ impl Agent {
     ) -> Result<Self, RunError> {
         let identity = state.load()?;
         let io = |what| move |source| RunError::Io { what, source };
-        let journal = JournalHandle::open(&state.root().join("journal"), options.journal)
-            .map_err(io("the journal"))?;
-        let progress =
-            Progress::open(&state.root().join("progress")).map_err(io("the progress"))?;
-        let streams =
-            Streams::open(&state.root().join("streams")).map_err(io("the streams watched"))?;
+        let Kept { journal, progress, streams, inventory } = Kept::open(state, options.journal)?;
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
@@ -215,6 +235,7 @@ impl Agent {
             runtimes,
             jobs: link.jobs.clone(),
             steps: link.steps.clone(),
+            inventory,
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),

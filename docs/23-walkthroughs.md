@@ -145,7 +145,8 @@ negative is stated in §2.1 there. The re-placement was built the same day, and 
 evaluated changed what it reads: not the `unsatisfiable` observation, which says nothing of whether
 the node already holds something of the workload, but the journalled failure of the step, which the
 agent, the one component that knows, marks `step.refused` when nothing was made (§2.1 and §7
-there).
+there). Content locality, which this step's scoring had always named and never had the information
+for, was built the same day from `ContentStatus`, which the agents now send.
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

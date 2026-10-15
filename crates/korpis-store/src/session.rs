@@ -100,6 +100,32 @@ impl SessionWrite for PgTx {
         Ok(done.rows_affected() == 1)
     }
 
+    async fn record_content(
+        &mut self,
+        node: Uuid,
+        present: &[String],
+        at: SystemTime,
+    ) -> StoreResult<()> {
+        sqlx::query!("DELETE FROM node_content WHERE node_id = $1", node)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        sqlx::query!(
+            "INSERT INTO node_content (node_id, digest)
+             SELECT $1, d FROM unnest($2::text[]) AS d ON CONFLICT DO NOTHING",
+            node,
+            present
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        sqlx::query!("UPDATE node SET content_reported_at = $2 WHERE id = $1", node, from_time(at))
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
+    }
+
     async fn mark_silent_nodes(&mut self, before: SystemTime) -> StoreResult<u64> {
         let done = sqlx::query!(
             "UPDATE node SET connectivity = 'unreachable'

@@ -154,6 +154,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.refuse((w.id, target.id), *node, why, now).await?;
         }
         let mut refused = tx.refusals(w.id, target.id).await?;
+        let content = tx.content_held(&ids, &target.body.recipe.digest).await?;
         refused.extend(unanswered.iter().map(|(n, why)| (*n, why.clone())));
         let req = Request {
             workload: w.id,
@@ -165,6 +166,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             edge_tier: EDGE_TIER,
             volumes: &volumes,
             refused: &refused,
+            content: &content,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {

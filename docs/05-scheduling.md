@@ -232,14 +232,14 @@ its own, and how two such policies combine over a node both may use, is question
 | failure domain | per spread constraints, preferred affinity rules, and the intent's preferred region |
 | recent churn | penalize nodes that recently lost workloads, they may be unhealthy |
 
-Each signal scores a node from 0 to 1 and is multiplied by its weight (1 unless the policy says
-otherwise); the highest sum wins, and a tie goes to the lower node identifier so that the same
-inputs always choose the same node. **A signal is scored only where its information exists.**
-Content locality needs the node's content inventory, which agents report as `ContentStatus`
-(§4.2 of `02-architecture.md`), and recent churn needs the node's history of lost workloads,
-which the control plane keeps itself: the crashes its agents observed and the placements it took
-away because the node failed. Until that information exists, the explanation omits the signal
-rather than scoring a guess.
+Each signal scores a node from 0 to 1 and is multiplied by its weight (a quarter for content
+locality and 1 for every other signal, unless the policy says otherwise); the highest sum wins, and
+a tie goes to the lower node identifier so that the same inputs always choose the same node. **A
+signal is scored only where its information exists.** Content locality needs the node's content
+inventory, which agents report as `ContentStatus` (§4.2 of `02-architecture.md`), and recent churn
+needs the node's history of lost workloads, which the control plane keeps itself: the crashes its
+agents observed and the placements it took away because the node failed. Until that information
+exists, the explanation omits the signal rather than scoring a guess.
 
 > Corrected 2026-10-13, from the implementation. This said agents report both. No agent message
 > carries a history of lost workloads, and none needs to: every loss is already an observation
@@ -248,6 +248,21 @@ rather than scoring a guess.
 > question 10 of §10. Volume locality applies only to
 a workload already placed, and failure domain only when a constraint, a preference, or a preferred
 region applies to the workload.
+
+**Content locality, as built.** A recipe's content is held on a node once a `pull_recipe` step
+fetched it there, and the agent keeps the digests of those recipes on disk and reports them as
+`ContentStatus`, all of them, on every new session and whenever one is added; each report replaces
+the last. The signal is 1 for a node that reported holding the recipe the intent names and 0 for
+one that reported without it, and a node that never reported is not scored for it. Its weight is a
+quarter, so it decides between nodes whose utilization is within a quarter of each other and never
+overrides the strategy (question 3 of §10). What it costs. Content is matched by the recipe's
+digest, not by the image layers it shares with others, so a node holding version 1.20 of a recipe
+is not preferred for 1.21 even when most of the bytes are the same. Nothing on a node removes
+fetched content yet, which is what keeps the inventory true; whatever comes to remove it must
+remove the recipe from the inventory too, or the node is preferred for content it no longer has.
+And a node can report content it does not hold. The control plane takes the node's word, as it
+takes its word for its capacity, and the cost is a slower start of what is placed there, not a
+breach: a report moves only a score, and a node is trusted with what it runs in any case.
 
 ### 2.3 Bind: and record why
 
@@ -861,7 +876,9 @@ estimates what a rebalance would achieve. It does not act.
 3. **Weighting content locality against strategy.** Preferring a node that already holds a 4 GB
    image conflicts with `distributed`. There is no obviously correct exchange rate between "starts
    in 2 seconds" and "shares a failure domain", and the honest answer may be that it is an operator
-   knob with a documented default rather than something Korpis decides. → here
+   knob with a documented default rather than something Korpis decides. → here. **Resolved in
+   §2.2, 2026-10-15:** an operator knob, the policy's weight for the signal, with a documented
+   default of a quarter, low enough that it breaks near-ties and never overrides the strategy.
 4. **Scheduling latency at scale.** Filtering and scoring five hundred nodes per placement is fine;
    doing it for a thousand queued placements during a mass migration is not. Agones batches
    allocation requests over ~500 ms specifically for this. Whether Korpis needs batching, or

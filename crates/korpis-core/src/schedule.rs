@@ -61,6 +61,9 @@ pub struct Request<'a> {
     /// The nodes whose driver refused this intent, each with its reason: asked on the
     /// shortlist, or after a bind (§2.1 of docs/05-scheduling.md).
     pub refused: &'a BTreeMap<Uuid, String>,
+    /// Each node that reported its content, with whether it holds this intent's recipe (§2.2
+    /// of docs/05-scheduling.md); content locality is scored for those alone.
+    pub content: &'a BTreeMap<Uuid, bool>,
 }
 
 /// A workload's existing placement.

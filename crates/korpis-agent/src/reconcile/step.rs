@@ -103,6 +103,16 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         plan.steps.iter().all(|s| s.index <= plan.through)
     }
 
+    /// Records that the content of `a`'s recipe is held here, now that it was fetched. Failing
+    /// to keep the record costs only content locality, so it does not fail the step.
+    fn held(&mut self, a: &agent::Assignment) {
+        let target = a.target.as_option().and_then(|t| t.body.as_option());
+        let digest = target.and_then(|b| b.recipe.as_option()).map(|r| r.digest.as_str());
+        if let Err(e) = self.wiring.inventory.hold(digest.unwrap_or_default()) {
+            tracing::warn!(error = %e, "the content inventory could not be kept");
+        }
+    }
+
     /// Whether the set held now still lets this node execute step `index` of `plan` for
     /// `workload`. A cancelled plan leaves the assignment, and a lowered `through` stops short
     /// of the step; either is read between steps, never only when a pass begins.
@@ -133,6 +143,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 let spec = self.prepare(a, t).await?;
                 self.host.fetch(&spec.rootfs).await?;
                 after.insert("rootfs".into(), text(&spec.rootfs));
+                self.held(a);
             }
             "create_volume" | "attach_volume" | "detach_volume" | "delete_volume"
             | "snapshot_volume" | "rollback_volume" | "delete_snapshot" => {

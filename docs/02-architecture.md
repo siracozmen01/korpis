@@ -304,7 +304,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `LeaseRequest` | acquire or renew a lease, carrying a nonce; the clock starts when it is sent (§4.5) |
 | `LeaseReleased` | the node has stopped acting under an epoch; it is also a journal record |
 | `FeasibilityResult` | the answer to a `FeasibilityQuery`: accepted, rejected with a reason, or unanswered when the driver could not be asked |
-| `ContentStatus` | which recipe digests are present locally |
+| `ContentStatus` | which recipe digests are present locally, all of them, on every new session and whenever one is added; each replaces the last (§2.2 of `05-scheduling.md`) |
 | `Ack` | the assignment set digest the agent has received |
 | `CredentialRequest` | a workload asked its identity socket for a credential; names the workload and a request identifier (§9.5 of `08-identity.md`) |
 | `ProbeListening` | the node is listening for a `ReachabilityProbe`, or why it could not |

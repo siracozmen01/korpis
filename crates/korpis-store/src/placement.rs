@@ -207,6 +207,26 @@ impl PlacementWrite for PgTx {
         Ok(())
     }
 
+    async fn content_held(
+        &mut self,
+        nodes: &[Uuid],
+        digest: &str,
+    ) -> StoreResult<BTreeMap<Uuid, bool>> {
+        let rows = sqlx::query!(
+            r#"SELECT n.id AS "node!",
+                      EXISTS (SELECT 1 FROM node_content c
+                               WHERE c.node_id = n.id AND c.digest = $2) AS "held!"
+                 FROM node n
+                WHERE n.id = ANY($1) AND n.content_reported_at IS NOT NULL"#,
+            nodes,
+            digest
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.node, r.held)).collect())
+    }
+
     async fn refusals(
         &mut self,
         workload: Uuid,

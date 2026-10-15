@@ -134,7 +134,9 @@ impl Uplink {
                 self.sessions.probe_listening(&p.probe, p.error.clone());
                 Ok(())
             }
-            // Content status arrives with its consumer.
+            Some(Up::ContentStatus(c)) => {
+                app.record_content(node, &c.present).await.map_err(|e| e.to_string())
+            }
             _ => Ok(()),
         };
         if let Err(e) = result {

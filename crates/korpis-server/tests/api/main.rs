@@ -32,6 +32,7 @@ mod journal;
 mod leases;
 mod lifecycle;
 mod links;
+mod locality;
 mod nodes;
 mod observe;
 mod offload_expiry;
