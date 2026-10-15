@@ -546,6 +546,75 @@ message ListRepositoriesResponse {
   PageResponse page = 2;
 }
 
+// Domains (§3.2 of docs/07-networking.md): asked for under domain.write on the organization that
+// will hold them; delegated under domain.write on the parent's holder as well; attested under
+// domain.attest on the installation's root organization.
+service DomainService {
+  rpc CreateDomain(CreateDomainRequest) returns (CreateDomainResponse);
+  // Verifies a DOMAIN_VERIFICATION_DNS_TXT domain by its TXT record; a verified domain is
+  // answered as it is.
+  rpc VerifyDomain(VerifyDomainRequest) returns (VerifyDomainResponse);
+  rpc GetDomain(GetDomainRequest) returns (GetDomainResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListDomains(ListDomainsRequest) returns (ListDomainsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Deletes a domain and every domain delegated beneath it.
+  rpc DeleteDomain(DeleteDomainRequest) returns (DeleteDomainResponse);
+}
+
+message CreateDomainRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string name = 3;
+  DomainVerification verification = 4;
+  // For DOMAIN_VERIFICATION_DELEGATED: the verified domain of an ancestor organization it lies
+  // beneath.
+  optional string parent = 5;
+}
+
+message CreateDomainResponse {
+  Domain domain = 1;
+}
+
+message VerifyDomainRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message VerifyDomainResponse {
+  Domain domain = 1;
+}
+
+message GetDomainRequest {
+  string id = 1;
+}
+
+message GetDomainResponse {
+  Domain domain = 1;
+}
+
+message ListDomainsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListDomainsResponse {
+  repeated Domain domains = 1;
+  PageResponse page = 2;
+}
+
+message DeleteDomainRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteDomainResponse {
+  // How many went: the domain and those delegated beneath it.
+  uint64 deleted = 1;
+}
+
 // Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's

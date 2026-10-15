@@ -305,19 +305,26 @@ proxy runs on the workload's own node.
 route any name would let one take another's traffic, and since ACME's HTTP challenge is answered by
 whoever the name's traffic reaches, obtain a certificate for it as well. So a name is held: a
 `Domain` (§3.6 of `01-model.md`) belongs to one organization and covers itself and every name
-beneath it, and an endpoint names only names a verified domain of its own organization covers. A
-domain is verified in one of three ways. By DNS: the control plane resolves the TXT record
-`_korpis-verify.<name>` through public DNS and finds the token it issued, which shows the holder
-controls the zone. By delegation: an organization holding a verified domain creates one beneath it
-for a descendant organization, which is how a reseller gives a customer `customer.reseller.example`
+beneath it, and an endpoint names only names its own organization holds: the holder of a name is
+the organization whose verified domain is the most specific one covering it. A domain is verified
+in one of three ways. By DNS: the control plane resolves the TXT record `_korpis-verify.<name>`
+through public DNS and finds the token it issued, which shows the holder controls the zone; public
+DNS is the system's resolvers, or the one `korpis-server serve --dns-resolver` names where those
+would answer from an internal view, and nothing is cached, so a record published a moment ago is
+found. By delegation: an organization holding a verified domain creates one beneath it for a
+descendant organization, which is how a reseller gives a customer `customer.reseller.example`
 without the customer proving anything about a zone they do not run. By attestation: an operator of
 the installation vouches for it, for names on a private network that public DNS does not answer and
 for an installation's own names. A verified domain of one organization may not cover or lie beneath
-another's, except one delegated beneath its parent; a pending one blocks no one. **What evaluates
-this, where, and with what information:** the control plane, at verification, from its own records
-of every verified domain and from the DNS answer it obtains itself; and again at every declaration,
-from the same records. What it does not do: check again later. A zone that changes hands keeps its
-domain verified here until its holder deletes it; what limits the damage is that every certificate
+another's, except one delegated beneath its parent; a pending one blocks no one. A delegated domain
+and its parent both cover the delegated names, which is why holding goes to the most specific: the
+reseller that delegated `customer.reseller.example` no longer routes it, though its own
+`reseller.example` still covers it (Finding 59 of `23-walkthroughs.md`). Deleting a domain deletes
+the domains delegated beneath it, whose verification rested on it. **What evaluates this, where,
+and with what information:** the control plane, at verification, from its own records of every
+verified domain and from the DNS answer it obtains itself; and again at every declaration, from the
+same records. What it does not do: check again later. A zone that changes hands keeps its domain
+verified here until its holder deletes it; what limits the damage is that every certificate
 issuance proves control of the name anew (below), so the new owner of the zone, pointing its
 records elsewhere, takes the traffic and no certificate can be issued for the old holder's
 endpoint. Whether to re-verify periodically is question 10 of §11.

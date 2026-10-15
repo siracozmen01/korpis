@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! A DNS server for tests: TXT records held in memory and answered over UDP on loopback, so a
+//! domain is verified against records a test publishes and withdraws.
+
+use hickory_proto::op::{Message, MessageType, ResponseCode};
+use hickory_proto::rr::rdata::TXT;
+use hickory_proto::rr::{RData, Record, RecordType};
+use std::collections::BTreeMap;
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+use tokio::net::UdpSocket;
+
+/// TXT records by name, without the final dot.
+#[derive(Debug, Clone, Default)]
+pub struct Zone(Arc<Mutex<BTreeMap<String, Vec<String>>>>);
+
+impl Zone {
+    /// Serves the zone on a loopback port until the test ends.
+    pub async fn serve() -> (Self, SocketAddr) {
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let at = socket.local_addr().unwrap();
+        let zone = Self::default();
+        tokio::spawn(answer_on(socket, zone.clone()));
+        (zone, at)
+    }
+
+    /// Publishes a TXT record at `name`.
+    pub fn publish(&self, name: &str, text: &str) {
+        self.0.lock().unwrap().entry(name.to_owned()).or_default().push(text.to_owned());
+    }
+
+    /// Withdraws every record at `name`.
+    pub fn withdraw(&self, name: &str) {
+        self.0.lock().unwrap().remove(name);
+    }
+
+    fn answer(&self, query: &[u8]) -> Option<Vec<u8>> {
+        let query = Message::from_vec(query).ok()?;
+        let mut reply = Message::response(query.metadata.id, query.metadata.op_code);
+        reply.metadata.recursion_desired = query.metadata.recursion_desired;
+        reply.metadata.recursion_available = true;
+        reply.metadata.authoritative = true;
+        let q = query.queries.first()?.clone();
+        let name = q.name().to_ascii().trim_end_matches('.').to_owned();
+        let found = self.0.lock().unwrap().get(&name).cloned().unwrap_or_default();
+        if found.is_empty() || q.query_type() != RecordType::TXT {
+            reply.metadata.response_code = ResponseCode::NXDomain;
+        }
+        if q.query_type() == RecordType::TXT {
+            for text in found {
+                let rdata = RData::TXT(TXT::new(vec![text]));
+                reply.answers.push(Record::from_rdata(q.name().clone(), 0, rdata));
+            }
+        }
+        reply.add_query(q);
+        debug_assert_eq!(reply.metadata.message_type, MessageType::Response);
+        reply.to_vec().ok()
+    }
+}
+
+/// Answers every query that reaches `socket` from `zone`.
+async fn answer_on(socket: UdpSocket, zone: Zone) {
+    let mut buf = [0u8; 1500];
+    while let Ok((n, from)) = socket.recv_from(&mut buf).await {
+        let Some(answer) = zone.answer(&buf[..n]) else { continue };
+        let _ = socket.send_to(&answer, from).await;
+    }
+}

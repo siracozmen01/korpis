@@ -1,8 +1,8 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
 -- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its
 -- root organization, with labels. A node's parent is the organization it was enrolled into, and a
--- volume's the project it belongs to, and a repository's its project, or its organization when it
--- is scoped to the whole of it. One
+-- volume's the project it belongs to, a repository's its project, or its organization when it is
+-- scoped to the whole of it, and a domain's the organization holding it. One
 -- statement walks from the object to its organization and then up the organization tree, so the
 -- answer is consistent with a single snapshot.
 WITH RECURSIVE
@@ -26,6 +26,9 @@ start AS (
     SELECT 'repository', r.id, '{}'::jsonb, 0, r.project_id,
            CASE WHEN r.project_id IS NULL THEN r.organization_id END
       FROM repository r WHERE $1 = 'repository' AND r.id = $2
+    UNION ALL
+    SELECT 'domain', d.id, '{}'::jsonb, 0, NULL, d.organization_id
+      FROM domain d WHERE $1 = 'domain' AND d.id = $2
 ),
 project_step AS (
     SELECT 'project'::text AS kind, p.id, p.labels, 1 AS depth,
@@ -36,7 +39,7 @@ first_org AS (
     SELECT up_org AS id, depth FROM project_step
     UNION ALL
     SELECT up_org, depth FROM start
-     WHERE kind IN ('project', 'organization', 'node')
+     WHERE kind IN ('project', 'organization', 'node', 'domain')
         OR (kind = 'repository' AND up_org IS NOT NULL)
 ),
 orgs AS (

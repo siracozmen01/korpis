@@ -14,6 +14,7 @@ pub mod data;
 pub mod feasibility;
 pub mod install;
 pub mod keys;
+pub mod lookup;
 pub mod named_relays;
 mod provider_calls;
 pub mod providers;
@@ -80,6 +81,9 @@ pub struct ServeConfig {
     /// The load balancers whose connections open with a PROXY header naming the client (§3.1 of
     /// docs/02-architecture.md); none reads no header from anyone.
     pub proxy_protocol_from: Vec<ipnet::IpNet>,
+    /// The DNS server domains are verified through (§3.2 of docs/07-networking.md); the
+    /// system's resolvers when none.
+    pub dns_resolver: Option<std::net::SocketAddr>,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -162,7 +166,11 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
             keys.assignment.clone(),
             keys.assignment_key_id.clone(),
         )))
-        .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?));
+        .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?))
+        .with_lookup(Arc::new(
+            lookup::Lookup::new(config.dns_resolver)
+                .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
+        ));
     app.register_keys(&keys.public()).await?;
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");

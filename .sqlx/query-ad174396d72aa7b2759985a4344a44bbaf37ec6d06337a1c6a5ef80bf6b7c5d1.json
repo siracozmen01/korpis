@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE tree AS (\n                 SELECT id FROM domain WHERE id = $1\n                 UNION ALL\n                 SELECT d.id FROM domain d JOIN tree t ON d.parent_id = t.id)\n             DELETE FROM domain WHERE id IN (SELECT id FROM tree)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ad174396d72aa7b2759985a4344a44bbaf37ec6d06337a1c6a5ef80bf6b7c5d1"
+}

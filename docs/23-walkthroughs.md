@@ -1091,6 +1091,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 56 | A workload's resolver depended on every other firewall on its host | §33 | `07-networking.md` §5.1, §6 |
 | 57 | An extension could not reach the control plane on one machine | §33 | `07-networking.md` §6, `08-identity.md` §9.5, `02-architecture.md` §6, `16-extensions.md` §3.3 |
 | 58 | A correction left standing in three documents | §36 | `17-security.md` §7, `02-architecture.md` §7, `06-storage.md` §5.5 |
+| 59 | A reseller could route the names it had delegated | §36 | `07-networking.md` §3.2, `01-model.md` §3.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2279,3 +2280,19 @@ the commit that wrote the rule's newest example.
 
 **Resolution.** Each is corrected in place, saying what it said before. → patched into
 `17-security.md` §7, `02-architecture.md` §7, and `06-storage.md` §5.5.
+
+**FINDING 59: A reseller could route the names it had delegated. `CONFIRMED`**
+
+Found 2026-10-15 while building steps 1 to 3, asking the algebra question of step 4: what decides
+that the tenant may route `shop.example.com`? The rule as written was that an endpoint names only
+names a verified domain of its own organization covers. Delegation (§3.2 of `07-networking.md`)
+lets a reseller holding `reseller.example` give a customer `customer.reseller.example`, and the
+reseller's own domain still covers the customer's name, so by that rule both could route it, and
+the reseller could take its customer's traffic and, through the HTTP challenge, a certificate for
+it. Coverage alone cannot say whose a name is once domains nest.
+
+**Resolution.** A name is held by the organization whose verified domain is the most specific one
+covering it; an endpoint names only names its own organization holds. Deleting a domain deletes the
+domains delegated beneath it, whose verification rested on it, so no delegation outlives the domain
+it was made under. → patched into `07-networking.md` §3.2 and `01-model.md` §3.6; enforced at
+declaration in step 4.

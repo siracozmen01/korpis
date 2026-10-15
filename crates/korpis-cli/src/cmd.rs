@@ -9,6 +9,7 @@ pub mod backup;
 pub mod classify;
 pub mod clone;
 pub mod console;
+pub mod domain;
 pub mod event;
 pub mod extension;
 pub mod get;

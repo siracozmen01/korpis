@@ -53,6 +53,7 @@ enum ObjectKind {
   OBJECT_KIND_REPOSITORY = 12;
   OBJECT_KIND_BACKUP = 13;
   OBJECT_KIND_INTENT = 14;
+  OBJECT_KIND_DOMAIN = 15;
 }
 
 // A dynamically typed value, for recipe configuration and plan step detail. Typed by the schema

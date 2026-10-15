@@ -237,3 +237,31 @@ enum BackupStatus {
   BACKUP_STATUS_SUCCEEDED = 2;
   BACKUP_STATUS_FAILED = 3;
 }
+
+// A DNS name an organization holds (§3.2 of docs/07-networking.md, §3.6 of docs/01-model.md): it
+// covers itself and every name beneath it, and its organization's endpoints may route the names
+// it is the most specific verified domain for.
+message Domain {
+  string id = 1;
+  string organization = 2;
+  string name = 3;
+  DomainVerification verification = 4;
+  // For DOMAIN_VERIFICATION_DNS_TXT: the TXT record to publish, and what it must hold.
+  string record = 5;
+  string token = 6;
+  // For DOMAIN_VERIFICATION_DELEGATED: the domain it lies beneath.
+  optional string parent = 7;
+  // Unset while pending.
+  google.protobuf.Timestamp verified_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+enum DomainVerification {
+  DOMAIN_VERIFICATION_UNSPECIFIED = 0;
+  // Its token in a TXT record the control plane resolves.
+  DOMAIN_VERIFICATION_DNS_TXT = 1;
+  // Beneath a verified domain of an ancestor organization, by that domain's holder.
+  DOMAIN_VERIFICATION_DELEGATED = 2;
+  // Attested by an operator of the installation.
+  DOMAIN_VERIFICATION_OPERATOR = 3;
+}

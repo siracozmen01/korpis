@@ -16,6 +16,7 @@ pub mod backup_target;
 pub mod caller;
 pub mod control;
 pub mod dns;
+pub mod domain;
 pub mod error;
 pub mod event;
 pub mod extension;
@@ -55,6 +56,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     certificate_issuer: Option<Arc<dyn ports::CertificateIssuer>>,
     vault: Option<Arc<dyn ports::KeyVault>>,
     feasibility: Option<Arc<dyn ports::Feasibility>>,
+    lookup: Option<Arc<dyn ports::TxtLookup>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
 }
@@ -75,6 +77,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             certificate_issuer: None,
             vault: None,
             feasibility: None,
+            lookup: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
         }
@@ -99,6 +102,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_certificate_issuer(mut self, issuer: Arc<dyn ports::CertificateIssuer>) -> Self {
         self.certificate_issuer = Some(issuer);
+        self
+    }
+
+    /// Verifies domains through `lookup` (§3.2 of docs/07-networking.md): without it, a domain is
+    /// verified only by delegation or attestation.
+    #[must_use]
+    pub fn with_lookup(mut self, lookup: Arc<dyn ports::TxtLookup>) -> Self {
+        self.lookup = Some(lookup);
         self
     }
 

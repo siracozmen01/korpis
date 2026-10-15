@@ -61,6 +61,8 @@ pub enum IdKind {
     Repository,
     /// A backup (`bkp_`).
     Backup,
+    /// A domain an organization holds (`dom_`).
+    Domain,
 }
 
 impl IdKind {
@@ -92,6 +94,7 @@ impl IdKind {
             Self::Snapshot => "snp",
             Self::Repository => "rep",
             Self::Backup => "bkp",
+            Self::Domain => "dom",
         }
     }
 }

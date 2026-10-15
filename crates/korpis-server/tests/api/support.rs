@@ -87,6 +87,21 @@ impl Harness {
 
     /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
     pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
+        Self::build(heartbeat, denial_window, None).await
+    }
+
+    /// A control plane verifying domains through the DNS server at `resolver`.
+    pub async fn with_resolver(resolver: std::net::SocketAddr) -> Self {
+        let (heartbeat, window) =
+            (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
+        Self::build(heartbeat, window, Some(resolver)).await
+    }
+
+    async fn build(
+        heartbeat: std::time::Duration,
+        denial_window: std::time::Duration,
+        dns_resolver: Option<std::net::SocketAddr>,
+    ) -> Self {
         // What the control plane logs at error, an internal error's cause among it, is printed
         // with the output of the test that failed, so a failure that needs load to happen
         // explains itself.
@@ -124,6 +139,7 @@ impl Harness {
             stream_retention_floor: std::time::Duration::ZERO,
             relay_role: true,
             proxy_protocol_from: Vec::new(),
+            dns_resolver,
         })
         .await
         .expect("serve");
@@ -201,6 +217,10 @@ impl Harness {
 
     pub fn volumes(&self, config: ClientConfig) -> pb::VolumeServiceClient<HttpClient> {
         pb::VolumeServiceClient::new(self.http.clone(), config)
+    }
+
+    pub fn domains(&self, config: ClientConfig) -> pb::DomainServiceClient<HttpClient> {
+        pb::DomainServiceClient::new(self.http.clone(), config)
     }
 
     pub fn repositories(&self, config: ClientConfig) -> pb::RepositoryServiceClient<HttpClient> {

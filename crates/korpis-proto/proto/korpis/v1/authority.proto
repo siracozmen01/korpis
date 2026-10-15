@@ -75,6 +75,8 @@ message Scope {
     string node = 7;
     SelectorScope selector = 8;
     string repository = 9;
+    // A domain an organization holds (§3.2 of docs/07-networking.md).
+    string domain = 10;
   }
 }
 

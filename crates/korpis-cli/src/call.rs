@@ -128,6 +128,11 @@ table! {
     "korpis.v1.RepositoryService/CreateRepository" => RepositoryServiceClient::create_repository(CreateRepositoryRequest);
     "korpis.v1.RepositoryService/GetRepository" => RepositoryServiceClient::get_repository(GetRepositoryRequest);
     "korpis.v1.RepositoryService/ListRepositories" => RepositoryServiceClient::list_repositories(ListRepositoriesRequest);
+    "korpis.v1.DomainService/CreateDomain" => DomainServiceClient::create_domain(CreateDomainRequest);
+    "korpis.v1.DomainService/VerifyDomain" => DomainServiceClient::verify_domain(VerifyDomainRequest);
+    "korpis.v1.DomainService/GetDomain" => DomainServiceClient::get_domain(GetDomainRequest);
+    "korpis.v1.DomainService/ListDomains" => DomainServiceClient::list_domains(ListDomainsRequest);
+    "korpis.v1.DomainService/DeleteDomain" => DomainServiceClient::delete_domain(DeleteDomainRequest);
     "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
     "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);

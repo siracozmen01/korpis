@@ -23,6 +23,8 @@ pub enum Kind {
     Node,
     /// A backup repository.
     Repository,
+    /// A domain an organization holds.
+    Domain,
 }
 
 impl Kind {
@@ -38,6 +40,7 @@ impl Kind {
             Self::Stream => "stream",
             Self::Node => "node",
             Self::Repository => "repository",
+            Self::Domain => "domain",
         }
     }
 
@@ -53,6 +56,7 @@ impl Kind {
             "stream" => Self::Stream,
             "node" => Self::Node,
             "repository" => Self::Repository,
+            "domain" => Self::Domain,
             _ => return None,
         })
     }

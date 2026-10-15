@@ -273,5 +273,6 @@ fn read_namespace(kind: Kind) -> &'static str {
         Kind::Endpoint => "endpoint",
         Kind::Node => "node",
         Kind::Repository => "repository",
+        Kind::Domain => "domain",
     }
 }

@@ -14,6 +14,7 @@ mod breaker;
 mod changes;
 mod clock;
 mod condition;
+mod domain;
 mod endpoint;
 mod enrollment;
 mod extension;
@@ -22,6 +23,7 @@ mod idempotency;
 mod job;
 mod journal;
 mod lease;
+mod lookup;
 mod node;
 mod observation;
 mod placement;
@@ -55,6 +57,7 @@ pub use breaker::{BreakerWrite, ProviderKey};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
+pub use domain::{DomainRead, DomainWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
@@ -63,6 +66,7 @@ pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
 pub use journal::{JournalRead, JournalWrite};
 pub use lease::LeaseWrite;
+pub use lookup::{LookupError, TxtLookup};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
@@ -117,6 +121,8 @@ pub enum Unique {
     RepositoryPrefix,
     /// A live repository already takes the streams of the same organization or project.
     RepositoryStreams,
+    /// An organization asks for one name once.
+    DomainName,
     /// Any other.
     Other,
 }
@@ -171,6 +177,7 @@ pub trait Store:
     + BackupRead
     + JobRead
     + PruneRead
+    + DomainRead
     + Send
     + Sync
     + 'static
@@ -235,6 +242,7 @@ pub trait Tx:
     + BackupWrite
     + JobWrite
     + PruneWrite
+    + DomainWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

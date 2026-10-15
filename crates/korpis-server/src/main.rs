@@ -106,6 +106,11 @@ struct ServeArgs {
     /// client, as a CIDR; repeatable. Connections from anywhere else are their own client.
     #[arg(long = "proxy-protocol-from", env = "KORPIS_PROXY_PROTOCOL_FROM", value_delimiter = ',')]
     proxy_protocol_from: Vec<ipnet::IpNet>,
+    /// The DNS server, `address:port`, that domains are verified through by their TXT records;
+    /// the system's resolvers when unset. Name a public resolver where the system's would answer
+    /// for an internal view of a zone (§3.2 of docs/07-networking.md).
+    #[arg(long, env = "KORPIS_DNS_RESOLVER")]
+    dns_resolver: Option<std::net::SocketAddr>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -239,6 +244,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         ),
         relay_role: args.relay_role,
         proxy_protocol_from: args.proxy_protocol_from,
+        dns_resolver: args.dns_resolver,
     })
     .await?;
     tokio::select! {

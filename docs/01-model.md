@@ -1192,7 +1192,14 @@ Domain
 **Invariants.** A verified domain of one organization neither covers nor lies beneath a verified
 domain of another, except one delegated beneath its parent, whose holder is an ancestor of its own
 holder. A pending domain blocks no one, so a name cannot be squatted by asking for it. An endpoint
-names only names a verified domain of its own organization covers.
+names only names its own organization holds, the holder of a name being the organization whose
+verified domain is the most specific one covering it. Deleting a domain deletes the domains
+delegated beneath it.
+
+> Corrected 2026-10-15, when domains were built: the last invariant said an endpoint names only
+> names a verified domain of its own organization covers, which let an organization route the
+> names it had delegated to a descendant, its own domain covering them still (Finding 59 of
+> `23-walkthroughs.md`).
 
 #### Certificate
 

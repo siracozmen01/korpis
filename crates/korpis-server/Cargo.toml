@@ -39,6 +39,7 @@ korpis-store = { workspace = true }
 korpis-stream = { workspace = true }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
+hickory-resolver = { version = "0.26", default-features = false, features = ["tokio", "system-config"] }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 # Certificate validity, as rcgen states it.
 time = "0.3"
@@ -68,6 +69,8 @@ korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 korpis-target-s3 = { path = "../korpis-target-s3" }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 url = "2"
+# A DNS server answering from memory, for verifying domains (tests/api/zone.rs).
+hickory-proto = { version = "0.26", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true

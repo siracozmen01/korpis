@@ -64,6 +64,7 @@ impl ControlPlane {
             stream_retention_floor: std::time::Duration::ZERO,
             relay_role: true,
             proxy_protocol_from: Vec::new(),
+            dns_resolver: None,
         })
         .await
         .expect("serve");

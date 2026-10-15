@@ -82,3 +82,25 @@ async fn the_commands_are_the_api_by_name() {
     let retired = json(&cp.korpis(&s, &["--json", "workload", "delete", "sleeper"]).await);
     assert!(retired["id"].as_str().unwrap().starts_with("pln_"), "{retired}");
 }
+
+#[tokio::test]
+async fn a_domain_is_asked_for_with_the_record_to_publish_and_attested_at_once() {
+    let cp = ControlPlane::start().await;
+    let s = cp.secret.clone();
+    let asked = ok(&cp.korpis(&s, &["domain", "create", "shop.example.com"]).await);
+    assert!(asked.contains("pending"), "{asked}");
+    assert!(asked.contains("_korpis-verify.shop.example.com  TXT  \""), "{asked}");
+    assert!(asked.contains("korpis domain verify dom_"), "{asked}");
+
+    let attested =
+        json(&cp.korpis(&s, &["--json", "domain", "create", "example.org", "--attest"]).await);
+    assert_eq!(attested["verification"], "DOMAIN_VERIFICATION_OPERATOR", "{attested}");
+    assert!(attested["verifiedAt"].is_string(), "verified at once: {attested}");
+    let id = attested["id"].as_str().unwrap();
+    let listed = ok(&cp.korpis(&s, &["domain", "list"]).await);
+    assert!(listed.contains("example.org") && listed.contains("operator"), "{listed}");
+    let gone = ok(&cp.korpis(&s, &["domain", "delete", id]).await);
+    assert_eq!(gone, "deleted 1 domain\n");
+    let bad = cp.korpis(&s, &["domain", "create", "*.example.org"]).await;
+    assert_eq!(bad.status.code(), Some(10), "invalid: no wildcard is held");
+}

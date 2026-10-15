@@ -245,6 +245,13 @@ grace period (§5.5 there).
 
 `korpis set list` and `korpis set mode` read a project's sets and change one's mode.
 
+The names an organization's endpoints may route are its domains (§3.2 of `07-networking.md`).
+`korpis domain create shop.example.com` asks for one and prints the TXT record to publish, and
+`korpis domain verify dom_…` has the control plane look for it; `--delegated-from dom_…` makes one
+beneath an ancestor organization's verified domain, and `--attest` vouches for one as an operator,
+each verified at once. `korpis domain list` and `korpis domain get dom_…` read them, and
+`korpis domain delete dom_…` deletes one with every domain delegated beneath it.
+
 ---
 
 ## 6. Two sources of truth, reconciled honestly

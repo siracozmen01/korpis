@@ -51,7 +51,7 @@ impl fmt::Debug for Secret {
 /// The operating system could not supply randomness.
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("no randomness available: {0}")]
-pub struct EntropyError(String);
+pub struct EntropyError(pub(crate) String);
 
 impl Secret {
     /// A fresh API token secret.

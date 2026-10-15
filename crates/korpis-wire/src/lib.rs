@@ -36,6 +36,7 @@ pub mod authz;
 pub mod backup;
 pub mod body;
 pub mod dns;
+pub mod domain;
 pub mod endpoint;
 pub mod event;
 pub mod extension;
@@ -110,6 +111,7 @@ pub fn id_kind(kind: Kind) -> IdKind {
         Kind::Stream => IdKind::Stream,
         Kind::Node => IdKind::Node,
         Kind::Repository => IdKind::Repository,
+        Kind::Domain => IdKind::Domain,
     }
 }
 

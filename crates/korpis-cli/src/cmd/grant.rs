@@ -114,7 +114,8 @@ fn place(s: Option<&pb::Scope>) -> String {
             | scope::Kind::Endpoint(id)
             | scope::Kind::Stream(id)
             | scope::Kind::Node(id)
-            | scope::Kind::Repository(id),
+            | scope::Kind::Repository(id)
+            | scope::Kind::Domain(id),
         ) => id.clone(),
         Some(scope::Kind::Selector(s)) => {
             let labels = s.selector.as_option().map(|l| &l.match_labels);

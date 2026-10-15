@@ -18,6 +18,8 @@ mod backup;
 mod backup_read;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod data;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod domain;
 pub mod error;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod event;
@@ -59,7 +61,7 @@ use korpis_app::{App, Caller, Page, Reply};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
-    BackupServiceExt, DeclaredSetServiceExt, EffectServiceExt, EventServiceExt,
+    BackupServiceExt, DeclaredSetServiceExt, DomainServiceExt, EffectServiceExt, EventServiceExt,
     ExtensionServiceExt, GrantServiceExt, NodeServiceExt, OrganizationServiceExt, PlanServiceExt,
     ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, ServerInfoServiceExt,
     StreamServiceExt, VolumeServiceExt, WorkloadServiceExt,
@@ -191,6 +193,7 @@ impl Api {
         let router = StreamServiceExt::register(Arc::clone(&self), router);
         let router = VolumeServiceExt::register(Arc::clone(&self), router);
         let router = RepositoryServiceExt::register(Arc::clone(&self), router);
+        let router = DomainServiceExt::register(Arc::clone(&self), router);
         let router = BackupServiceExt::register(Arc::clone(&self), router);
         let router =
             if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
