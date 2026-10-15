@@ -247,3 +247,96 @@ fn each_row_of_the_egress_default_drops_what_it_names_and_counts_it() {
     network.release(&b).unwrap();
     assert!(missed.is_empty(), "rows that counted nothing: {missed:?}");
 }
+
+/// What the rules commented `comment` in the namespace at `path` have counted, in packets.
+fn counted_inside(path: &Path, comment: &str) -> u64 {
+    let out = Command::new("nsenter")
+        .arg(format!("--net={}", path.display()))
+        .args(["nft", "-j", "list", "table", "inet", "korpis"])
+        .output()
+        .unwrap();
+    let listing: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let items =
+        listing.get("nftables").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
+    items
+        .iter()
+        .filter(|i| i.pointer("/rule/comment").and_then(|c| c.as_str()) == Some(comment))
+        .flat_map(|i| {
+            i.pointer("/rule/expr").and_then(|e| e.as_array()).cloned().unwrap_or_default()
+        })
+        .filter_map(|e| e.pointer("/counter/packets").and_then(serde_json::Value::as_u64))
+        .sum()
+}
+
+fn cidr_rule(allow: bool, cidr: &str) -> helper::Rule {
+    helper::Rule { allow, cidr: cidr.into(), ..Default::default() }
+}
+
+#[test]
+fn a_workload_s_own_policy_holds_before_the_default_and_never_opens_what_it_protects() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    let Some(node) = host_address().filter(|_| able(&network)) else { return };
+    let pid = std::process::id();
+    let workload = format!("net-own-{pid}");
+    let ip = Ipv4Addr::new(10, 243, u8::try_from(pid % 250).unwrap(), 2);
+    let mut r = request(&workload, ip);
+    r.ipv4_pool = "10.243.0.0/16".into();
+    r.egress = vec![cidr_rule(false, "198.51.100.0/24"), cidr_rule(true, "192.168.0.0/16")];
+    r.new_per_sec = 5;
+    let tcp = helper::Transport::TRANSPORT_TCP;
+    r.inbound = vec![helper::Port {
+        transport: tcp.into(),
+        port: 7001,
+        rules: vec![cidr_rule(false, &format!("{node}/32"))],
+        ..Default::default()
+    }];
+    let node_port = u16::try_from(32000 + pid % 1000).unwrap();
+    r.forwards = vec![helper::Forward {
+        transport: tcp.into(),
+        node_port: u32::from(node_port),
+        container_port: 7001,
+        ..Default::default()
+    }];
+    let path = Path::new(&network.ensure(&r).unwrap().namespaces).join("net");
+
+    let mut missed = Vec::new();
+    for (row, to) in [("policy", "198.51.100.7"), ("private", "192.168.77.1")] {
+        let before = counted(row);
+        knock(&path, to, 80);
+        if counted(row) <= before {
+            missed.push(row);
+        }
+    }
+    let flood = "import socket\nfor _ in range(60):\n s=socket.socket();s.setblocking(False)\n \
+                 try: s.connect(('203.0.113.5',80))\n except Exception: pass";
+    let before = counted("rate");
+    inside(&path, &["python3", "-c", flood]);
+    if counted("rate") <= before {
+        missed.push("its own rate");
+    }
+    // A client at the node's own address, which its forwarded port preserves, is denied by the
+    // endpoint's rule inside the namespace.
+    let mut listener = listen(&path, 7001);
+    std::thread::sleep(Duration::from_millis(500));
+    let at = SocketAddr::from((node, node_port));
+    let reached = TcpStream::connect_timeout(&at, Duration::from_secs(1));
+    let _ = listener.kill();
+    let _ = listener.wait();
+    if reached.is_ok() || counted_inside(&path, "policy") == 0 {
+        missed.push("the endpoint's own deny");
+    }
+    network.release(&workload).unwrap();
+    assert!(missed.is_empty(), "what did not hold: {missed:?}");
+}
+
+#[test]
+fn a_workload_s_own_limits_may_not_raise_the_default() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    let workload = format!("net-raised-{}", std::process::id());
+    let mut r = request(&workload, Ipv4Addr::new(10, 246, 1, 9));
+    r.max_connections = 1_000_000;
+    assert!(network.ensure(&r).is_err());
+    assert!(!tmp.path().join("netns").join(&workload).exists());
+}

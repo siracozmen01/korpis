@@ -48,3 +48,23 @@ fn the_example_is_valid_and_each_rule_names_its_field() {
     ok.schedule = Some("0 4 * * *".into());
     ok.validate().unwrap();
 }
+
+#[test]
+fn outbound_rules_are_the_workload_s_and_not_an_endpoint_s() {
+    use korpis_core::workload::spec::endpoints::{NetworkAction, NetworkRule, Peer, PortRange};
+    let rule = |ports| NetworkRule {
+        action: NetworkAction::Deny,
+        peer: Peer::Cidr("203.0.113.0/24".parse().unwrap()),
+        ports,
+        protocol: None,
+    };
+    let on_endpoint = |b: &mut korpis_core::workload::IntentBody| {
+        b.endpoints[0].policy.egress = vec![rule(Vec::new())];
+    };
+    assert_eq!(refused(on_endpoint), "endpoints[0].policy.egress");
+    let reversed = vec![PortRange { first: 9, last: 1 }];
+    assert_eq!(refused(|b| b.egress.rules = vec![rule(reversed)]), "egress.rules[0].ports");
+    let mut ok = body();
+    ok.egress.rules = vec![rule(vec![PortRange { first: 25, last: 25 }])];
+    ok.validate().unwrap();
+}

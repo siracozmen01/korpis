@@ -179,31 +179,35 @@ impl ControlPlane {
         repo: &str,
         volumes: Vec<pb::VolumeSpec>,
     ) -> String {
-        let declared = self
-            .workloads()
-            .declare_intent(pb::DeclareIntentRequest {
-                mutation: mutation(&format!("declare-{name}")).into(),
-                target: Some(Target::Create(Box::new(pb::NewWorkload {
-                    project: project.to_owned(),
-                    name: name.to_owned(),
-                    ..Default::default()
-                }))),
-                body: pb::IntentBody {
-                    recipe: pb::RecipeRef {
-                        name: repo.to_owned(),
-                        version: crate::recipes::VERSION.into(),
-                        ..Default::default()
-                    }
-                    .into(),
-                    volumes,
-                    ..Default::default()
-                }
-                .into(),
-                ..Default::default()
-            })
+        self.declare_body(project, name, repo, pb::IntentBody { volumes, ..Default::default() })
             .await
-            .unwrap()
-            .into_owned();
+    }
+
+    /// As [`Self::declare`], with `body` declared over the recipe's; its recipe is `repo`'s.
+    pub async fn declare_body(
+        &self,
+        project: &str,
+        name: &str,
+        repo: &str,
+        body: pb::IntentBody,
+    ) -> String {
+        let recipe = pb::RecipeRef {
+            name: repo.to_owned(),
+            version: crate::recipes::VERSION.into(),
+            ..Default::default()
+        };
+        let request = pb::DeclareIntentRequest {
+            mutation: mutation(&format!("declare-{name}")).into(),
+            target: Some(Target::Create(Box::new(pb::NewWorkload {
+                project: project.to_owned(),
+                name: name.to_owned(),
+                ..Default::default()
+            }))),
+            body: pb::IntentBody { recipe: recipe.into(), ..body }.into(),
+            ..Default::default()
+        };
+        let declared =
+            Box::pin(self.workloads().declare_intent(request)).await.unwrap().into_owned();
         declared.workload.as_option().unwrap().id.clone()
     }
 

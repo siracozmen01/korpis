@@ -429,6 +429,9 @@ Intent
   streams       StreamSpec     its console stream's rate, burst, and retention (bytes or a
                                duration), and how long its offloaded segments are kept; each
                                left unset is the default (§4 and §5 of 14-streams.md)
+  egress        EgressPolicy   where it may connect out beyond the egress default, and its
+                               own limits, which only lower the default's (§6 of
+                               07-networking.md); added 2026-10-15, moved from each endpoint
 ```
 
 > Corrected 2026-10-14, when streams were built. §5 of `14-streams.md` made a stream's rate "a
@@ -437,6 +440,14 @@ Intent
 > `20-roadmap.md` meant to freeze the schema in Phase 0; this field was missed there, and adding
 > it is recorded rather than passed over. An intent stored before it reads as one with the
 > defaults.
+
+> Corrected 2026-10-15, when a workload's own network policy was built (Finding 55 of
+> `23-walkthroughs.md`). Outbound rules were declared on each endpoint, where no node could
+> evaluate them, since a connection a workload opens leaves from no endpoint (§6 of
+> `07-networking.md`). They are the workload's, so `egress` is added here; the endpoint's field is
+> kept, because rule E of `20-roadmap.md` lets a later phase implement a frozen schema and not
+> change it, and a declaration that sets it is refused with where the rules now go. An intent
+> stored before it has no outbound rules of its own and reads as one with none.
 
 **Invariants**
 - An `Intent` is **never mutated**. Changing anything creates a new `Intent` with `version + 1` and
@@ -1137,7 +1148,9 @@ Endpoint
                                  (§3.4 of 07-networking.md)
   domains       []Domain         for ingress exposure
   tls           TLSSpec?         certificate source and policy
-  policy        NetworkPolicy    ingress/egress rules, rate limits
+  policy        NetworkPolicy    who may connect to it, and how many at once; a workload's
+                                 outbound rules are its own (IntentBody.egress), corrected
+                                 2026-10-15 (§6 of 07-networking.md)
   accounting    bool             meter traffic on this endpoint
   shaping       ShapingSpec?     bandwidth limits (§7 of 07-networking.md)
 ```

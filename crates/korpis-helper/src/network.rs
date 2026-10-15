@@ -11,6 +11,7 @@ mod egress;
 mod forward;
 mod netns;
 mod nft;
+mod policy;
 mod rtnl;
 
 use crate::error::{HelperError, HelperResult, identifier};
@@ -96,9 +97,11 @@ struct Asked {
     ipv4: Ipv4Addr,
     ipv6: Option<Ipv6Addr>,
     ids: (u32, u32),
-    inbound: Vec<(Transport, u16)>,
+    inbound: Vec<policy::Inbound>,
     forwards: Vec<Forward>,
     opened: Vec<egress::Opened>,
+    rules: Vec<policy::Rule>,
+    limits: policy::Limits,
 }
 
 fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
@@ -117,16 +120,12 @@ fn port(what: &str, p: u32, lowest: u16) -> HelperResult<u16> {
 }
 
 /// The ports a workload accepts connections on, and those of the node forwarded to it.
-type Ports = (Vec<(Transport, u16)>, Vec<Forward>);
+type Ports = (Vec<policy::Inbound>, Vec<Forward>);
 
 /// The ports a request accepts and forwards, checked: a node's port is never below 1024, which
 /// the node's own services hold, and none is forwarded twice.
 fn ports(r: &helper::EnsureNetworkRequest) -> HelperResult<Ports> {
-    let inbound = r
-        .inbound
-        .iter()
-        .map(|p| Ok((transport(p.transport)?, port("an inbound port", p.port, 1)?)))
-        .collect::<HelperResult<Vec<_>>>()?;
+    let inbound = policy::inbound(&r.inbound)?;
     let forwards = r
         .forwards
         .iter()
@@ -178,14 +177,16 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         })
         .collect::<HelperResult<Vec<_>>>()?;
     let ids = (r.uid_base, r.uid_count);
-    Ok(Asked { workload: r.workload.clone(), ipv4, ipv6, ids, inbound, forwards, opened })
+    let (rules, limits) = (policy::rules(&r.egress)?, policy::limits(r)?);
+    let workload = r.workload.clone();
+    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits })
 }
 
 /// Configures the workload's side, from inside its namespace.
 fn inside(
     ipv4: Ipv4Addr,
     ipv6: Option<Ipv6Addr>,
-    inbound: &[(Transport, u16)],
+    inbound: &[policy::Inbound],
 ) -> std::io::Result<()> {
     let mut nl = Rtnl::open()?;
     let missing = || std::io::Error::other("the namespace lacks its link");
@@ -199,8 +200,7 @@ fn inside(
         nl.add_address(eth, IpAddr::V6(v6), 128)?;
         nl.add_route((IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0), eth, Some(IpAddr::V6(GATEWAY_V6)))?;
     }
-    let inbound: Vec<(&str, u16)> = inbound.iter().map(|(t, p)| (t.name(), *p)).collect();
-    nft::apply(&nft::namespace(&inbound))
+    nft::apply(&nft::namespace(inbound))
 }
 
 /// Makes the host side of the workload's link, `link`, to its namespace in `dir`, with the
@@ -291,7 +291,8 @@ impl Network {
         let listed = forward::listed()?;
         let mut host = nft::host(&listed.chains);
         host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
-        host.extend(egress::hold(&link, &a.opened, listed.outward.contains(&link)));
+        let own = egress::Own { opened: &a.opened, rules: &a.rules, limits: a.limits };
+        host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
         nft::apply(&serde_json::json!({"nftables": host}))?;
         netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
         Ok(helper::EnsureNetworkResponse {

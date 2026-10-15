@@ -36,6 +36,7 @@ fn body() -> IntentBody {
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
         streams: crate::workload::spec::StreamSpec::default(),
+        egress: crate::workload::spec::EgressPolicy::default(),
     }
 }
 

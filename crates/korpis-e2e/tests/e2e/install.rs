@@ -162,7 +162,7 @@ async fn declared(
     d: pb::DeclareIntentRequest,
     wanted: pb::PlanStatus,
 ) -> (String, pb::Plan) {
-    let out = cp.workloads().declare_intent(d).await.unwrap().into_owned();
+    let out = Box::pin(cp.workloads().declare_intent(d)).await.unwrap().into_owned();
     let workload = out.workload.as_option().unwrap().id.clone();
     let plan = out.plan.into_option().unwrap();
     if plan.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {

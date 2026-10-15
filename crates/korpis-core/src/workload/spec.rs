@@ -7,6 +7,7 @@
 
 mod cron;
 pub mod dependencies;
+pub mod egress;
 pub mod endpoints;
 pub mod health;
 pub mod placement;
@@ -15,6 +16,7 @@ pub mod streams;
 pub mod volumes;
 
 pub use dependencies::Dependency;
+pub use egress::EgressPolicy;
 pub use endpoints::EndpointSpec;
 pub use health::HealthSpec;
 pub use placement::PlacementSpec;
@@ -145,6 +147,8 @@ pub struct IntentBody {
     pub dependencies: Vec<Dependency>,
     /// The limits of its console stream.
     pub streams: StreamSpec,
+    /// Where it may connect out, beyond the egress default.
+    pub egress: EgressPolicy,
 }
 
 impl IntentBody {
@@ -169,6 +173,7 @@ impl IntentBody {
         self.health.validate(&self.endpoints)?;
         dependencies::validate(&self.dependencies)?;
         self.streams.validate()?;
+        self.egress.validate()?;
         self.placement.validate()
     }
 }

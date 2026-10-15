@@ -8,15 +8,15 @@
 //! control plane's API for an installed extension's workload, and its new-connection rate.
 
 use super::nft::{TABLE, chain};
+use super::policy::{Limits, Rule, limited, matches};
+use korpis_core::workload::spec::egress::DEFAULT_MAX_CONNECTIONS;
 use serde_json::{Value, json};
 use std::net::IpAddr;
 
 /// The map from a workload's link to its own chain.
 pub(crate) const OUTWARD: &str = "outward";
 /// How many connections a workload may have tracked at once, in both directions.
-const TRACKED: u32 = 4096;
-/// New connections a second a workload may open, and the burst above it.
-const RATE: (u32, u32) = (200, 400);
+const TRACKED: u32 = DEFAULT_MAX_CONNECTIONS;
 const LINKS: &str = "kw*";
 const SMTP: [u16; 3] = [25, 465, 587];
 const PRIVATE_V4: [(&str, u8); 5] = [
@@ -199,15 +199,27 @@ pub(crate) fn chain_of(link: &str) -> String {
     format!("out_{link}")
 }
 
-/// Makes the chain of the workload with host link `link`: `opened` accepted, then its new
-/// connections limited to its rate; and its entry in the map, given whether it is `listed`.
-pub(crate) fn hold(link: &str, opened: &[Opened], listed: bool) -> Vec<Value> {
+/// What one workload's chain holds: the destinations opened for it, its own rules, and its
+/// limits.
+pub(crate) struct Own<'a> {
+    /// Destinations accepted before anything else.
+    pub(crate) opened: &'a [Opened],
+    /// Its rules: a deny drops, an allow returns to the default.
+    pub(crate) rules: &'a [Rule],
+    /// Its limits.
+    pub(crate) limits: Limits,
+}
+
+/// Makes the chain of the workload with host link `link`: what `own` opens accepted, then its
+/// new connections limited, then its own rules; and its entry in the map, given whether it is
+/// `listed`.
+pub(crate) fn hold(link: &str, own: &Own<'_>, listed: bool) -> Vec<Value> {
     let c = chain_of(link);
     let mut commands = vec![
         json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": c}}}),
         json!({"flush": {"chain": {"family": "inet", "table": TABLE, "name": c}}}),
     ];
-    for o in opened {
+    for o in own.opened {
         let family = if o.addr.is_ipv4() { "ip" } else { "ip6" };
         let expr = vec![
             is(daddr(family), json!(o.addr.to_string())),
@@ -218,10 +230,21 @@ pub(crate) fn hold(link: &str, opened: &[Opened], listed: bool) -> Vec<Value> {
         ];
         commands.push(rule(&c, Some("control plane"), expr));
     }
-    let limit = json!({"limit": {"rate": RATE.0, "burst": RATE.1, "per": "second", "inv": true}});
-    let mut expr = vec![state(&["new"]), limit];
-    expr.extend(drop_counted());
-    commands.push(rule(&c, Some("rate"), expr));
+    let l = own.limits;
+    let max = if l.max_connections < TRACKED { l.max_connections } else { 0 };
+    for (expr, comment) in limited(max, (l.new_per_sec, l.burst())) {
+        commands.push(rule(&c, Some(comment), expr));
+    }
+    for r in own.rules {
+        let mut expr = matches(r, "daddr");
+        if r.allow {
+            expr.push(json!({"return": null}));
+            commands.push(rule(&c, None, expr));
+        } else {
+            expr.extend(drop_counted());
+            commands.push(rule(&c, Some("policy"), expr));
+        }
+    }
     if !listed {
         let elem = json!([link, {"jump": {"target": c}}]);
         commands.push(json!({"add": {"element": {"family": "inet", "table": TABLE,

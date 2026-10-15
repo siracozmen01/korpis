@@ -6,6 +6,7 @@
 
 mod base;
 mod commit;
+mod enforced;
 mod providers;
 mod set;
 

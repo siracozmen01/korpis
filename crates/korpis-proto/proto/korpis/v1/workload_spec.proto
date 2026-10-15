@@ -177,10 +177,26 @@ enum TlsSource {
   TLS_SOURCE_PASSTHROUGH = 3;
 }
 
+// An endpoint's network policy: who may connect to it, and how many at once.
 message NetworkPolicy {
+  // Who may connect, in order; the first rule that matches decides, and a connection no rule
+  // matches is let in.
   repeated NetworkRule ingress = 1;
+  // Refused when set. Corrected 2026-10-15: a workload's outbound connections leave from no
+  // endpoint, so no node could judge a packet by an endpoint's rule; they are IntentBody.egress
+  // (§6 of docs/07-networking.md). Kept because the schema is frozen (rule E).
   repeated NetworkRule egress = 2;
+  // Limits on the connections made to it.
   ConntrackLimits conntrack = 3;
+}
+
+// Where a workload may connect out, beyond the egress default (§6 of docs/07-networking.md).
+message EgressPolicy {
+  // In order; the first that matches decides. A deny holds anywhere; an allow lets the
+  // connection on to the egress default, which decides the rest.
+  repeated NetworkRule rules = 1;
+  // Limits on the connections it opens; each may lower the default and not raise it.
+  ConntrackLimits limits = 2;
 }
 
 message NetworkRule {

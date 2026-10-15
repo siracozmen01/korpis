@@ -163,8 +163,9 @@ impl pb::ExtensionService for Api {
         let cmd = install_cmd(&req)?;
         let encoder = |i: &Installed| encode(&installed(i));
         let idem = Idempotent { key, encode: &encoder };
-        let reply =
-            self.app.install_extension(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        let reply = Box::pin(self.app.install_extension(&caller, &idem, cmd))
+            .await
+            .map_err(error::from_app)?;
         respond(reply, installed)
     }
 

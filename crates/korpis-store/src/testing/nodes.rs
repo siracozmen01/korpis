@@ -30,7 +30,7 @@ pub fn oci_driver() -> DriverInfo {
         mechanism: m.to_owned(),
         granularity: String::new(),
     };
-    let enforcement = ["memory", "cpu", "disk", "io", "pids", "egress"]
+    let enforcement = ["memory", "cpu", "disk", "io", "pids", "egress", "ingress"]
         .into_iter()
         .map(|k| (k.to_owned(), enforced("cgroup v2")))
         .collect();

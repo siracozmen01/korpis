@@ -44,6 +44,8 @@ pub struct Node {
     pub netns: PathBuf,
     /// The node's own IPv4 pool, so two nodes in one test never hand out one address.
     pub pool: ipnet::Ipv4Net,
+    /// The node's own ports, so two nodes on this one machine never forward one port.
+    pub ports: PortRange,
 }
 
 /// An address of this machine other than loopback: the one its traffic towards the internet
@@ -61,6 +63,13 @@ fn next_pool() -> ipnet::Ipv4Net {
     static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 50;
     ipnet::Ipv4Net::new(std::net::Ipv4Addr::new(10, 200 + n, 0, 0), 16).unwrap()
+}
+
+/// Ports no other node of this test process uses: fifty of the default range, from 30000.
+fn next_ports() -> PortRange {
+    static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+    let first = 30_000 + NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 50 * 50;
+    PortRange::new(first, first + 49).unwrap()
 }
 
 /// Whether this machine can run the test: containerd is there and the test is root.
@@ -192,6 +201,7 @@ impl Node {
             mounted,
             netns,
             pool: next_pool(),
+            ports: next_ports(),
         }
     }
 
@@ -214,7 +224,7 @@ impl Node {
         // As `--advertise-address` with this machine's own address would: the test's control
         // plane is on this machine, and the node forwards its endpoints' ports on every address
         // but loopback (§3 of docs/07-networking.md).
-        let advertise = Advertise::new(vec![host_address().into()], PortRange::DEFAULT, &server);
+        let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;

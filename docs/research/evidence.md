@@ -482,6 +482,12 @@ Primary:
   stayed consistent and the limit refused the write with `EDQUOT`. Reproduced 2026-10-14 on a
   loop-mounted filesystem, Linux 6.8.0, btrfs-progs 6.6.3. Why the helper never destroys a qgroup
   and enforces only while the accounting is consistent (§3 of `../06-storage.md`).
+- **[R]** Cilium enforces a policy that names a DNS name (`toFQDNs`) by proxying the workload's
+  DNS queries, learning the addresses each answer gives, and allowing those addresses for the
+  answer's lifetime ([Cilium: DNS-based
+  policies](https://docs.cilium.io/en/stable/security/dns/)); recorded from its documentation and
+  not reproduced here. One way a node could hold a rule naming a domain, the open question 8 of
+  §11 of `../07-networking.md`.
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

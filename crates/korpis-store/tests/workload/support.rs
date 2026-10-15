@@ -105,6 +105,7 @@ pub fn body(motd: &str) -> IntentBody {
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
         streams: korpis_core::workload::spec::StreamSpec::default(),
+        egress: korpis_core::workload::spec::EgressPolicy::default(),
     }
 }
 

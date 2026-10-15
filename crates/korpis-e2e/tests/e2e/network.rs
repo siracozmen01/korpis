@@ -2,13 +2,14 @@
 
 //! A workload's network on a real node (§4.1 of docs/07-networking.md): the agent allocates its
 //! address, the helper makes its namespace and routed link, the container joins that namespace
-//! rather than making its own, the host reaches it at its address, and retiring the workload
-//! releases all of it.
+//! rather than making its own, the host reaches it at its address, its declared policy holds
+//! there (§6), and retiring the workload releases all of it.
 
 use crate::node::{Node, live};
 use crate::recipes::push_answerer;
 use crate::support::ControlPlane;
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
 use std::os::unix::fs::MetadataExt as _;
 use std::process::Command;
 use std::time::Duration;
@@ -118,7 +119,7 @@ async fn a_client_reaches_the_declared_port_through_the_node_and_no_other() {
     let host = crate::node::host_address();
     assert_eq!(address.ips, [host.to_string()], "the node's own address");
     let port = u16::try_from(address.port).unwrap();
-    assert!((30000..=32767).contains(&port), "{port}");
+    assert!(node.ports.contains(port), "{port} is of the node's range");
     let reached = served((host, port).into()).await;
     assert!(reached.is_some_and(|r| r.contains("served")), "the node's port reaches it");
 
@@ -135,5 +136,60 @@ async fn a_client_reaches_the_declared_port_through_the_node_and_no_other() {
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
     assert!(served((host, port).into()).await.is_none(), "the port is closed with it");
+    agent.stop().await;
+}
+
+/// A rule denying `cidr`.
+fn deny(cidr: &str) -> pb::NetworkRule {
+    pb::NetworkRule {
+        action: pb::NetworkAction::NETWORK_ACTION_DENY.into(),
+        peer: Some(Peer::Cidr(cidr.into())),
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn a_declared_policy_reaches_the_node_and_holds_there() {
+    if !live() {
+        return;
+    }
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let node = Node::join(&cp, "net-3").await;
+    let agent = node.agent().await;
+    let host = crate::node::host_address();
+    let http = pb::EndpointSpec {
+        name: "http".into(),
+        policy: pb::NetworkPolicy {
+            ingress: vec![deny(&format!("{host}/32"))],
+            ..Default::default()
+        }
+        .into(),
+        ..Default::default()
+    };
+    let body = pb::IntentBody {
+        endpoints: vec![http],
+        egress: pb::EgressPolicy { rules: vec![deny("198.51.100.0/24")], ..Default::default() }
+            .into(),
+        ..Default::default()
+    };
+    let repo = crate::recipes::push_server().await;
+    let w = cp.declare_body(&project, "guarded", &repo, body).await;
+    node.guard(&w);
+    converged(&cp, &w).await;
+
+    let status = cp.status(&w).await;
+    let http = status.endpoints.iter().find(|e| e.name == "http").expect("its endpoint");
+    let port = u16::try_from(http.address.as_option().expect("an address").port).unwrap();
+    assert!(served((host, port).into()).await.is_none(), "the endpoint's own rule denies the node");
+    let ip = address_of(&node, &w).expect("its address on the node");
+    let link = korpis_helper::network::host_link(&w);
+    let chain = std::process::Command::new("nft")
+        .args(["list", "chain", "inet", "korpis", &format!("out_{link}")])
+        .output()
+        .unwrap();
+    let chain = String::from_utf8_lossy(&chain.stdout).into_owned();
+    assert!(chain.contains("198.51.100.0/24") && chain.contains("\"policy\""), "{ip}: {chain}");
+    cp.retire(&w).await;
     agent.stop().await;
 }

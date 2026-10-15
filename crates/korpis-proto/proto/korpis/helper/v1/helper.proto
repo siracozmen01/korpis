@@ -177,6 +177,12 @@ message EnsureNetworkRequest {
   // Destinations opened for it past the egress default (§6 of docs/07-networking.md): the
   // control plane's API, for an installed extension's workload, and nothing else today.
   repeated Destination opened = 11;
+  // Its own outbound rules, from its intent's egress policy, before the egress default.
+  repeated Rule egress = 12;
+  // Its own limits on the connections it opens: at most the default's, and zero for the
+  // default (§6 of docs/07-networking.md).
+  uint32 max_connections = 13;
+  uint32 new_per_sec = 14;
 }
 
 // An address and a TCP port.
@@ -195,6 +201,31 @@ enum Transport {
 message Port {
   Transport transport = 1;
   uint32 port = 2;
+  // Who may connect to it, from the endpoint's policy, in order: the first rule that matches
+  // decides, and a connection no rule matches is let in. A rule's ports are empty here.
+  repeated Rule rules = 3;
+  // Connections to it at once, and new ones a second; zero for no limit of its own.
+  uint32 max_connections = 4;
+  uint32 new_per_sec = 5;
+}
+
+// A rule of a workload's own policy (§6 of docs/07-networking.md), naming an address range.
+message Rule {
+  // Allow: inbound, let in; outbound, on to the egress default, which decides the rest. Deny:
+  // dropped, and counted.
+  bool allow = 1;
+  // The peer's range, as address/length.
+  string cidr = 2;
+  // The peer's ports; empty for any.
+  repeated PortSpan ports = 3;
+  // Unspecified for any.
+  Transport transport = 4;
+}
+
+// An inclusive range of ports.
+message PortSpan {
+  uint32 first = 1;
+  uint32 last = 2;
 }
 
 message Forward {

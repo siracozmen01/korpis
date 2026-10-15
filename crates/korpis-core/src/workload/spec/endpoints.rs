@@ -122,14 +122,16 @@ pub struct ConntrackLimits {
     pub max_half_open: u32,
 }
 
-/// An endpoint's network policy.
+/// An endpoint's network policy: who may connect to it, and how many at once.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NetworkPolicy {
-    /// Inbound rules, in order.
+    /// Who may connect, in order; the first rule that matches decides, and a connection no rule
+    /// matches is let in.
     pub ingress: Vec<NetworkRule>,
-    /// Outbound rules, in order.
+    /// Always empty: kept because the schema is frozen (rule E), and refused when set, since a
+    /// workload's outbound connections are its own (`super::EgressPolicy`).
     pub egress: Vec<NetworkRule>,
-    /// Connection-tracking limits.
+    /// Limits on the connections made to it.
     pub conntrack: ConntrackLimits,
 }
 
@@ -179,7 +181,7 @@ fn is_domain(d: &str) -> bool {
         })
 }
 
-fn check_rules(at: &str, rules: &[NetworkRule]) -> Result<(), SpecError> {
+pub(super) fn check_rules(at: &str, rules: &[NetworkRule]) -> Result<(), SpecError> {
     for (j, r) in rules.iter().enumerate() {
         let here = format!("{at}[{j}]");
         if let Peer::Domain(d) = &r.peer
@@ -219,8 +221,13 @@ fn check_endpoint(i: usize, e: &EndpointSpec) -> Result<(), SpecError> {
         }
         _ => Ok(()),
     }?;
-    check_rules(&at("policy.ingress"), &e.policy.ingress)?;
-    check_rules(&at("policy.egress"), &e.policy.egress)
+    if !e.policy.egress.is_empty() {
+        return Err(SpecError::new(
+            &at("policy.egress"),
+            "a workload's outbound connections leave from no endpoint: declare them in `egress`",
+        ));
+    }
+    check_rules(&at("policy.ingress"), &e.policy.ingress)
 }
 
 /// Checks every endpoint and that names are unique.

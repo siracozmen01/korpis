@@ -46,7 +46,7 @@ Endpoint
                                               sees the client (§3.4)
   domains                     []Domain
   tls                         TLSSpec?
-  policy                      NetworkPolicy
+  policy                      NetworkPolicy   who may connect to it, and how many (§6)
   accounting                  bool
   shaping                     ShapingSpec?
 ```
@@ -571,11 +571,27 @@ No panel in this market has egress control, and it is the gap that hurts operato
 compromised game server is a launchpad.
 
 ```
-NetworkPolicy
-  ingress   []Rule       who may connect in
-  egress    []Rule       where it may connect out
-  conntrack ConntrackLimits
+NetworkPolicy                   on each endpoint
+  ingress   []Rule              who may connect to it; the first rule that matches decides,
+                                and a connection no rule matches is let in
+  conntrack ConntrackLimits     connections to it at once, and new ones a second
+
+EgressPolicy                    the workload's own, IntentBody.egress
+  rules     []Rule              where it may connect out, before the defaults below
+  limits    ConntrackLimits     each may lower the default, and not raise it
 ```
+
+> Corrected 2026-10-15, when a workload's own policy was built (Finding 55 of
+> `23-walkthroughs.md`). The policy was one object on each endpoint, with outbound rules beside the
+> inbound ones, and a node judging a packet the workload sends has no endpoint to read a rule from:
+> a connection a workload opens leaves from no endpoint, so the outbound rules of two endpoints
+> that disagreed had no meaning any component could evaluate. The outbound rules and limits are the
+> workload's own, `IntentBody.egress`; an endpoint's policy says who may connect to it and how many
+> at once, which its node can judge, because a connection to an endpoint arrives at its port. The
+> endpoint's `egress` field stays in the frozen schema (rule E of `20-roadmap.md`) and a
+> declaration that sets it is refused, naming where the rules now go. What it costs: a workload
+> with one endpoint loses nothing, and one whose endpoints wanted different outbound rules was
+> asking for something no packet filter could hold.
 
 **Egress defaults, applied to every workload unless deliberately changed.** This table is the
 owner of the egress default. `17-security.md` §2 and §10 once described egress as "default-deny";
@@ -629,7 +645,7 @@ the new-connection rate above. Half-open connections have no counter of their ow
 connection rate bounds how fast they can be made, and the node turns on SYN cookies, so a flood of
 them costs the conntrack table nothing. Between two workloads on one node both ends hold (§9.1 of
 `17-security.md`): the source's chain on the host and the destination's own namespace. A workload's
-own `NetworkPolicy` is evaluated before the defaults. Its deny holds anywhere. Its allow holds only
+own policy is evaluated before the defaults. Its deny holds anywhere. Its allow holds only
 for the public internet and, through a dependency (§5), for a workload it depends on: the rows that
 protect the node, the operator's networks, the metadata service, other tenants, and the reputation
 of the operator's addresses (SMTP) are the operator's to relax, not a tenant's, and nothing relaxes
@@ -657,10 +673,28 @@ serve. What differs between workloads, the control plane's API opened for an ins
 workload and the rate's state, is a chain of the workload's own, reached through a map keyed by its
 link. The node opens the API at the addresses the name it enrolled with resolves to when the
 workload's network is made; an API that moves to another address is opened anew only when the
-workload's network is next made. The workload's own `NetworkPolicy` is not yet applied by the node:
-until it is, it is refused or built as the next part of Phase 1 says (§4 of `20-roadmap.md`),
-because a rule a tenant declares and nothing enforces is the displayed, unenforced limit Rule K-3
-forbids.
+workload's network is next made. The workload's own policy is the next paragraph.
+
+**A workload's own policy, as built.** Added 2026-10-15. The workload's rules are in its own chain
+on the host, after the destinations opened for it and its limits and before the rows of the
+default: a deny drops the connection and counts it, under the comment `policy`; an allow returns it
+to the default, which decides the rest, so an allow cannot open what the default protects. Its
+limits may lower the default's 4096 connections and 200 new a second and not raise them, since the
+default is what keeps one workload from taking the node's connection table from the others; a
+declaration that raises one is refused, and raising them is the operator-level policy of question 7
+of §11. An endpoint's rules are in the workload's own table, in a chain for the endpoint's port
+that the port's connections pass through: its limits first, a connection limit and a new-connection
+rate for the endpoint as a whole, then its rules in order, an allow letting the connection in and a
+deny dropping and counting it, and then anything no rule matched, let in. They see the client's own
+address, which the node's forwarding preserves (§3.4). Every rule names an address range, because a
+packet filter judges addresses: a rule naming workloads by label is refused until the control plane
+resolves labels to addresses for dependencies (§5), and one naming a domain is refused until
+question 8 of §11 is answered. A rule that arrives at a node anyway fails the workload's network
+rather than being left out, because a deny left out is a weaker policy than the one declared.
+Half-open connections have no limit of their own to declare (above), and a declaration that sets
+one is refused. What it costs: an endpoint's limits are for the endpoint as a whole and not for
+each client, so they protect the workload from a flood and not one player from another, which is
+the workload's own to judge.
 
 ---
 
@@ -696,6 +730,13 @@ sees a packet, so nothing on the node can guarantee inbound bandwidth, and Korpi
 says nothing about the network beyond it, and the interface says so. The first version offered
 reservations "per direction", which for inbound displayed a guarantee no component could hold
 (finding S47).
+
+**Not yet built.** Phase 2 builds shaping and accounting, beside the metering accounting feeds (§4
+of `20-roadmap.md`). Until then a declaration that asks an endpoint for either is refused, and a
+workload whose `bandwidth` sets a reservation or a limit is placed only on a node whose driver
+declares it enforces one, which no driver yet does, so it stays unplaced with that reason (§4.1 of
+`04-runtimes.md`, §5.3 of `05-scheduling.md`): either way nothing is shown as held that the kernel
+does not hold (Rule K-3).
 
 ---
 
@@ -902,3 +943,10 @@ promise, and it is now the one the document makes.
    operator's LAN. That needs an operator-level policy, and which scope it is set at (the
    installation, an organization, a node) and how a tenant sees that it applies are undecided.
    Until then nothing opens them. → here
+8. **Rules naming a domain.** A rule's peer may be a DNS name, and a packet filter sees addresses,
+   and the addresses a name resolves to change under it, are shared between unrelated names behind
+   a CDN, and differ between resolvers. A node could hold such a rule by learning the addresses
+   from the answers its own resolver (§5.1) gives the workload and keeping each in a set for its
+   record's lifetime, which is how Cilium enforces its `toFQDNs` policies; whether Korpis does
+   that, and what a deny by name means for an address a second name shares, is undecided. Until
+   then a declaration naming a domain is refused. → here

@@ -4,6 +4,7 @@
 
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, fits, invalid};
+use korpis_core::workload::spec::EgressPolicy;
 use korpis_core::workload::spec::endpoints::{
     ConntrackLimits, EndpointSpec, Exposure, NetworkAction, NetworkPolicy, NetworkRule, Peer,
     PortRange, Protocol, ShapingSpec, TlsSpec,
@@ -113,17 +114,28 @@ fn rules_from_pb(field: &str, rules: &[pb::NetworkRule]) -> Result<Vec<NetworkRu
     rules.iter().enumerate().map(|(i, r)| rule_from_pb(&format!("{field}[{i}]"), r)).collect()
 }
 
+fn limits_to_pb(c: ConntrackLimits) -> pb::ConntrackLimits {
+    pb::ConntrackLimits {
+        max_connections: c.max_connections,
+        new_per_sec: c.new_per_sec,
+        max_half_open: c.max_half_open,
+        ..Default::default()
+    }
+}
+
+fn limits_from_pb(c: Option<&pb::ConntrackLimits>) -> ConntrackLimits {
+    c.map_or_else(ConntrackLimits::default, |c| ConntrackLimits {
+        max_connections: c.max_connections,
+        new_per_sec: c.new_per_sec,
+        max_half_open: c.max_half_open,
+    })
+}
+
 fn policy_to_pb(p: &NetworkPolicy) -> pb::NetworkPolicy {
     pb::NetworkPolicy {
         ingress: p.ingress.iter().map(rule_to_pb).collect(),
         egress: p.egress.iter().map(rule_to_pb).collect(),
-        conntrack: pb::ConntrackLimits {
-            max_connections: p.conntrack.max_connections,
-            new_per_sec: p.conntrack.new_per_sec,
-            max_half_open: p.conntrack.max_half_open,
-            ..Default::default()
-        }
-        .into(),
+        conntrack: limits_to_pb(p.conntrack).into(),
         ..Default::default()
     }
 }
@@ -133,13 +145,26 @@ pub(crate) fn policy_from_pb(field: &str, p: Option<&pb::NetworkPolicy>) -> Resu
     Ok(NetworkPolicy {
         ingress: rules_from_pb(&format!("{field}.ingress"), &p.ingress)?,
         egress: rules_from_pb(&format!("{field}.egress"), &p.egress)?,
-        conntrack: p.conntrack.as_option().map_or_else(ConntrackLimits::default, |c| {
-            ConntrackLimits {
-                max_connections: c.max_connections,
-                new_per_sec: c.new_per_sec,
-                max_half_open: c.max_half_open,
-            }
-        }),
+        conntrack: limits_from_pb(p.conntrack.as_option()),
+    })
+}
+
+/// The wire form of a workload's outbound policy.
+#[must_use]
+pub fn egress_to_pb(e: &EgressPolicy) -> pb::EgressPolicy {
+    pb::EgressPolicy {
+        rules: e.rules.iter().map(rule_to_pb).collect(),
+        limits: limits_to_pb(e.limits).into(),
+        ..Default::default()
+    }
+}
+
+/// A workload's outbound policy from the field `field`; absent is none beyond the default.
+pub fn egress_from_pb(field: &str, e: Option<&pb::EgressPolicy>) -> Result<EgressPolicy> {
+    let Some(e) = e else { return Ok(EgressPolicy::default()) };
+    Ok(EgressPolicy {
+        rules: rules_from_pb(&format!("{field}.rules"), &e.rules)?,
+        limits: limits_from_pb(e.limits.as_option()),
     })
 }
 

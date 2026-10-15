@@ -132,6 +132,7 @@ pub fn declaration_from_pb(
             &b.dependencies,
         )?,
         streams: crate::stream::spec_from_pb(&f("streams"), b.streams.as_option())?,
+        egress: super::endpoints::egress_from_pb(&f("egress"), b.egress.as_option())?,
     };
     Ok((RecipeRequest { name: r.name.clone(), version }, declaration))
 }

@@ -65,6 +65,7 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
         ),
         ("pids", r.pids_limit > 0),
         ("egress", r.bandwidth.egress.effective() > 0),
+        ("ingress", r.bandwidth.ingress_limit > 0),
     ]
     .into_iter()
     .filter_map(|(k, set)| set.then_some(k))

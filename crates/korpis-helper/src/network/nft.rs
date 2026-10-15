@@ -6,6 +6,7 @@
 //! table, in its namespace, drops every new connection in that its endpoints do not declare. The
 //! rows of the egress default are added to the host's table by the policy (§6 there).
 
+use super::policy::{Inbound, limited, matches};
 use serde_json::{Value, json};
 use std::io::{self, Write as _};
 use std::process::{Command, Stdio};
@@ -91,12 +92,15 @@ fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
     rule("input", vec![matched, json!({"accept": null})])
 }
 
-/// A workload's own table: new connections in are dropped, except over loopback, the messages a
-/// network needs, and to the ports `inbound` its endpoints listen on; replies to its own
-/// connections are let back.
-pub(crate) fn namespace(inbound: &[(&str, u16)]) -> Value {
+/// A workload's own table, written whole: new connections in are dropped, except over loopback,
+/// the messages a network needs, and to the ports `inbound` its endpoints listen on, each through
+/// its endpoint's rules and limits where it has any; replies to its own connections are let back.
+pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
+    let table = json!({"table": {"family": "inet", "name": TABLE}});
     let mut commands = vec![
-        json!({"add": {"table": {"family": "inet", "name": TABLE}}}),
+        json!({ "add": table.clone() }),
+        json!({ "delete": table.clone() }),
+        json!({ "add": table }),
         chain("input", "filter", "input", 0, "drop"),
         flush("input"),
         accept_when(&json!({"meta": {"key": "iifname"}}), "==", &json!("lo")),
@@ -104,14 +108,51 @@ pub(crate) fn namespace(inbound: &[(&str, u16)]) -> Value {
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("icmp")),
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("ipv6-icmp")),
     ];
-    for (transport, port) in inbound {
+    for i in inbound {
         let proto = json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
-            "right": transport}});
+            "right": i.transport.name()}});
         let dport = json!({"match": {"op": "==",
-            "left": {"payload": {"protocol": "th", "field": "dport"}}, "right": port}});
-        commands.push(rule("input", vec![proto, dport, json!({"accept": null})]));
+            "left": {"payload": {"protocol": "th", "field": "dport"}}, "right": i.port}});
+        let guarded = !i.rules.is_empty() || i.max_connections > 0 || i.new_per_sec > 0;
+        if !guarded {
+            commands.push(rule("input", vec![proto, dport, json!({"accept": null})]));
+            continue;
+        }
+        let name = format!("port_{}_{}", i.transport.name(), i.port);
+        commands.push(json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": name}}}));
+        commands.push(rule("input", vec![proto, dport, json!({"jump": {"target": name}})]));
+        commands.extend(guard(&name, i));
     }
     json!({"nftables": commands})
+}
+
+/// The rules of the chain `name` for the port `i`: its limits, then its rules in order, then
+/// what no rule matched, let in.
+fn guard(name: &str, i: &Inbound) -> Vec<Value> {
+    let burst = i.new_per_sec.saturating_mul(2);
+    let mut rules: Vec<Value> = limited(i.max_connections, (i.new_per_sec, burst))
+        .into_iter()
+        .map(|(e, comment)| commented(rule(name, e), comment))
+        .collect();
+    for r in &i.rules {
+        let mut e = matches(r, "saddr");
+        if r.allow {
+            e.push(json!({"accept": null}));
+            rules.push(rule(name, e));
+        } else {
+            e.extend([json!({"counter": null}), json!({"drop": null})]);
+            rules.push(commented(rule(name, e), "policy"));
+        }
+    }
+    rules.push(rule(name, vec![json!({"accept": null})]));
+    rules
+}
+
+fn commented(mut command: Value, comment: &str) -> Value {
+    if let Some(r) = command.pointer_mut("/add/rule").and_then(Value::as_object_mut) {
+        r.insert("comment".into(), json!(comment));
+    }
+    command
 }
 
 /// Runs `nft` with `ruleset` as its JSON input, in the calling thread's network namespace.

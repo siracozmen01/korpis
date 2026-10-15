@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! What a declaration may ask of the network that a node of this release enforces (Rule K-3).
+//! A field nothing would enforce is refused when it is declared, naming the phase that builds it
+//! or why it is not one a packet filter can hold, rather than accepted, stored, and shown as if it
+//! held (§6 and §7 of docs/07-networking.md, §4 of docs/20-roadmap.md).
+
+use crate::error::AppError;
+use korpis_core::workload::IntentBody;
+use korpis_core::workload::spec::egress::{DEFAULT_MAX_CONNECTIONS, DEFAULT_NEW_PER_SEC};
+use korpis_core::workload::spec::endpoints::{
+    ConntrackLimits, EndpointSpec, Exposure, NetworkRule, Peer,
+};
+
+/// Refuses what no node of this release would enforce in `body`: its endpoints' and its own.
+pub(super) fn refuse_unenforced(body: &IntentBody) -> Result<(), AppError> {
+    for (i, e) in body.endpoints.iter().enumerate() {
+        endpoint(&format!("body.endpoints[{i}]"), e)?;
+    }
+    for (j, r) in body.egress.rules.iter().enumerate() {
+        peer(&format!("body.egress.rules[{j}]"), r)?;
+    }
+    limits(body.egress.limits)
+}
+
+/// Refuses a workload's own limits that raise the default's.
+fn limits(limits: ConntrackLimits) -> Result<(), AppError> {
+    half_open("body.egress.limits", limits)?;
+    if limits.max_connections > DEFAULT_MAX_CONNECTIONS || limits.new_per_sec > DEFAULT_NEW_PER_SEC
+    {
+        return Err(AppError::invalid(
+            "body.egress.limits",
+            format!(
+                "a workload's limits may lower the default of {DEFAULT_MAX_CONNECTIONS} \
+                 connections and {DEFAULT_NEW_PER_SEC} new a second, and not raise it: that \
+                 protects every other workload on the node, and only an operator-level policy \
+                 could relax it (question 7 of §11 of docs/07-networking.md)"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn half_open(at: &str, limits: ConntrackLimits) -> Result<(), AppError> {
+    if limits.max_half_open == 0 {
+        return Ok(());
+    }
+    Err(AppError::invalid(
+        format!("{at}.max_half_open"),
+        "half-open connections have no counter of their own: the new-connection rate and SYN \
+         cookies bound them (§6 of docs/07-networking.md)",
+    ))
+}
+
+fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
+    match e.exposure {
+        // The HTTP ingress, with its names and certificates, is the rest of Phase 1's networking;
+        // an address of a workload's own needs a routed address (§3 of docs/07-networking.md).
+        Exposure::Ingress => return Err(AppError::NotYet { what: "ingress endpoints", phase: 1 }),
+        Exposure::DedicatedIp => {
+            return Err(AppError::NotYet { what: "dedicated addresses", phase: 3 });
+        }
+        _ => {}
+    }
+    if !e.domains.is_empty() || e.tls.is_some() {
+        return Err(AppError::NotYet { what: "domains and certificates", phase: 1 });
+    }
+    if e.shaping.egress_bits_per_sec > 0 || e.shaping.ingress_bits_per_sec > 0 || e.accounting {
+        return Err(AppError::NotYet { what: "per-endpoint shaping and accounting", phase: 2 });
+    }
+    half_open(&format!("{at}.policy.conntrack"), e.policy.conntrack)?;
+    for (j, r) in e.policy.ingress.iter().enumerate() {
+        let here = format!("{at}.policy.ingress[{j}]");
+        if !r.ports.is_empty() || r.protocol.is_some() {
+            return Err(AppError::invalid(
+                here,
+                "an endpoint's ingress rules say who connects to its own port and protocol",
+            ));
+        }
+        peer(&here, r)?;
+    }
+    Ok(())
+}
+
+fn peer(at: &str, r: &NetworkRule) -> Result<(), AppError> {
+    match &r.peer {
+        Peer::Cidr(_) => Ok(()),
+        Peer::Domain(_) => Err(AppError::invalid(
+            format!("{at}.peer"),
+            "a packet filter sees addresses, not names, and what a name resolves to changes \
+             under it, so a rule naming a domain is not yet one a node can hold (question 8 of \
+             §11 of docs/07-networking.md)",
+        )),
+        // The node knows addresses, not labels: the control plane resolves a selector to the
+        // workloads it names, which it does with dependencies (§5 of docs/07-networking.md).
+        Peer::Workloads(_) => Err(AppError::NotYet { what: "rules naming workloads", phase: 1 }),
+    }
+}
+
+#[cfg(test)]
+mod tests;

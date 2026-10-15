@@ -47,6 +47,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut body = declaration
             .complete(reference, &recipe)
             .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
+        super::enforced::refuse_unenforced(&body)?;
         body.recipe.providers = self.pin_providers(&recipe, organization).await?;
         if !body.dependencies.is_empty() {
             // The schema is frozen here (rule E); resolving a dependency and injecting its

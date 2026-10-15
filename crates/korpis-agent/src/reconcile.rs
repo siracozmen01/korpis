@@ -17,6 +17,7 @@ mod jobs;
 mod managed;
 mod network;
 mod observe;
+mod policy;
 pub mod progress;
 mod restore;
 mod step;

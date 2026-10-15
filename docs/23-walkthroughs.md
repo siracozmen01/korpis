@@ -2095,7 +2095,26 @@ the workload's uid range, which owns it, mapping only the range its ledger recor
 workload, and the container joins both. → patched into `07-networking.md` §4.1, with what the
 change costs, and `04-runtimes.md` §2.
 
-† Step 7 is where the trace found Finding 53; step 5, when built, Finding 54.
+**FINDING 55: Outbound rules were declared where no node could evaluate them. `CONFIRMED`**
+
+Found 2026-10-15 at step 4, when the workload's own policy was built and asked what evaluates it,
+where, and with what. The helper writes the workload's outbound rules into its chain on the host,
+which judges each packet the workload sends by its addresses and ports. The rules were declared on
+each endpoint (`EndpointSpec.policy.egress`), and a connection the workload opens to download a mod
+leaves from no endpoint: the packet carries the workload's address and a port the kernel chose, so
+no component holds what would say which endpoint's rules apply, and two endpoints whose rules
+disagreed declared a policy nothing could hold. Inbound rules have no such problem: a connection to
+an endpoint arrives at the endpoint's port.
+
+**Resolution.** Outbound rules and limits are the workload's own, `IntentBody.egress`, which its
+chain on the host holds; an endpoint's policy keeps who may connect to it and how many at once,
+which its namespace holds per port. The endpoint's `egress` field stays in the frozen schema and a
+declaration that sets it is refused, naming where the rules go. → patched into `07-networking.md`
+§2 and §6 and `01-model.md` §3.3 and §3.6; built 2026-10-15 with the policy, and tested on a real
+node, from a declaration through the agent to the helper's rules.
+
+† Step 7 is where the trace found Finding 53; step 5, when built, Finding 54; step 4, when
+the workload's own policy was built, Finding 55.
 
 ‡ Added 2026-10-15, when step 3 was built: asked at step 3 what happens when the node has no
 free port, the allocation could only fail the node's whole assignment set or leave the endpoint

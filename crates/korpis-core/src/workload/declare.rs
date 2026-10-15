@@ -14,8 +14,8 @@ mod parts;
 pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_driver};
 
 use super::spec::{
-    ConsoleMode, Continuity, Dependency, HealthSpec, IntentBody, Lifecycle, PlacementSpec,
-    ResourceSpec, SpecError, StreamSpec,
+    ConsoleMode, Continuity, Dependency, EgressPolicy, HealthSpec, IntentBody, Lifecycle,
+    PlacementSpec, ResourceSpec, SpecError, StreamSpec,
 };
 use crate::recipe::{Recipe, RecipeRef};
 use crate::value::ValueMap;
@@ -49,6 +49,8 @@ pub struct Declaration {
     pub dependencies: Vec<Dependency>,
     /// The limits of its console stream.
     pub streams: StreamSpec,
+    /// Where it may connect out, beyond the egress default.
+    pub egress: EgressPolicy,
 }
 
 impl Declaration {
@@ -76,6 +78,7 @@ impl Declaration {
             continuity: self.continuity,
             dependencies: self.dependencies,
             streams: self.streams,
+            egress: self.egress,
         };
         body.validate()?;
         recipe

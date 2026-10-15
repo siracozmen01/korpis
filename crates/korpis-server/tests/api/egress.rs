@@ -2,13 +2,17 @@
 
 //! The egress default's one exception (§6 of docs/07-networking.md): the control plane marks the
 //! assignment of an installed extension's workload, and no other, as reaching its API; the node
-//! opens the API's address to it and nothing else of the control plane's.
+//! opens the API's address to it and nothing else of the control plane's. And what a
+//! declaration may ask of the network: what no node enforces is refused (Rule K-3).
 
 use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
-use crate::support::Harness;
+use crate::support::{Harness, detail};
 use buffa::Message as _;
+use connectrpc::ErrorCode;
 use korpis_proto::korpis::agent::v1 as agent;
+use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
 use std::time::Duration;
 
 /// Whether the latest assignment of the workload with wire id `workload` says it reaches the
@@ -44,4 +48,53 @@ async fn an_installed_extension_s_workload_reaches_the_api_and_no_other_does() {
     let out = h.workloads(h.root()).declare_intent(declare).await.unwrap().into_owned();
     let plain = out.workload.as_option().unwrap().id.clone();
     assert!(!reaches_api(&h, &plain).await, "a workload that is no extension");
+}
+
+#[tokio::test]
+async fn a_declaration_asking_what_no_node_enforces_is_refused_saying_why() {
+    let h = Harness::new().await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "games").await;
+    let endpoint = |exposure: pb::Exposure| pb::EndpointSpec {
+        name: "game".into(),
+        protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_TCP.into(),
+        container_port: 25565,
+        exposure: exposure.into(),
+        ..Default::default()
+    };
+    let refused = |b: pb::IntentBody, key: &str| {
+        let declare = create(key, &project, key, b);
+        let workloads = h.workloads(h.root());
+        async move { workloads.declare_intent(declare).await.unwrap_err() }
+    };
+
+    let mut ingress = body(&repo, &[]);
+    ingress.endpoints = vec![endpoint(pb::Exposure::EXPOSURE_INGRESS)];
+    let e = refused(ingress, "ingress").await;
+    assert_eq!(e.code, ErrorCode::Unimplemented);
+    assert!(e.message.as_deref().unwrap_or_default().contains("Phase 1"), "{e:?}");
+
+    let mut outbound = body(&repo, &[]);
+    let mut game = endpoint(pb::Exposure::EXPOSURE_NODE_BOUND);
+    game.policy = pb::NetworkPolicy {
+        egress: vec![pb::NetworkRule {
+            action: pb::NetworkAction::NETWORK_ACTION_DENY.into(),
+            peer: Some(Peer::Cidr("203.0.113.0/24".into())),
+            ..Default::default()
+        }],
+        ..Default::default()
+    }
+    .into();
+    outbound.endpoints = vec![game];
+    let e = refused(outbound, "outbound").await;
+    assert_eq!(detail(&e).field, "body.endpoints[0].policy.egress", "{e:?}");
+
+    let mut raised = body(&repo, &[]);
+    raised.egress = pb::EgressPolicy {
+        limits: pb::ConntrackLimits { max_connections: 1 << 20, ..Default::default() }.into(),
+        ..Default::default()
+    }
+    .into();
+    let e = refused(raised, "raised").await;
+    assert_eq!(detail(&e).field, "body.egress.limits", "{e:?}");
 }

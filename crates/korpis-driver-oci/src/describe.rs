@@ -46,10 +46,11 @@ fn enforcement() -> Vec<(String, pb::EnforcementDecl)> {
     let pids = enforced("cgroup v2 pids.max", "processes and threads together");
     let disk = not_enforced("a volume's size is the helper's to enforce, per volume");
     let io = not_enforced("no io.max is set");
-    let egress = not_enforced("the container's network holds only loopback");
+    let egress = not_enforced("no shaper is applied to the workload's link");
+    let ingress = not_enforced("no policer is applied to the workload's link");
     [("cpu", cpu), ("memory", memory), ("pids", pids), ("disk", disk), ("io", io)]
         .into_iter()
-        .chain([("egress", egress)])
+        .chain([("egress", egress), ("ingress", ingress)])
         .map(|(k, v)| (k.to_owned(), v))
         .collect()
 }

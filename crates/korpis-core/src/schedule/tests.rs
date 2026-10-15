@@ -122,6 +122,7 @@ fn body(memory: u64) -> IntentBody {
         continuity: Continuity::Derived,
         dependencies: Vec::new(),
         streams: crate::workload::spec::StreamSpec::default(),
+        egress: crate::workload::spec::EgressPolicy::default(),
     }
 }
 
@@ -209,6 +210,10 @@ fn a_limit_the_driver_cannot_hold_rejects_the_node() {
     let e = case.run();
     assert_eq!(checks(&e, 1), [Check::Enforcement]);
     assert!(e.filtered[0].detail.contains("pids"), "{}", e.filtered[0].detail);
+    case.body.resources.pids_limit = 0;
+    case.body.resources.bandwidth.ingress_limit = 100_000_000;
+    let e = case.run();
+    assert!(e.filtered[0].detail.contains("ingress"), "{}", e.filtered[0].detail);
 }
 
 #[test]

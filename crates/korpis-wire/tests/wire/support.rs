@@ -39,7 +39,8 @@ fn endpoint(name: &str, protocol: Protocol, port: u16) -> EndpointSpec {
     }
 }
 
-fn web() -> EndpointSpec {
+/// Where the fixture's workload may connect out.
+pub fn egress() -> korpis_core::workload::spec::EgressPolicy {
     let rule = NetworkRule {
         action: NetworkAction::Allow,
         peer: Peer::Workloads(LabelSelector {
@@ -49,6 +50,11 @@ fn web() -> EndpointSpec {
         ports: vec![PortRange { first: 5432, last: 5432 }],
         protocol: Some(Protocol::Tcp),
     };
+    let limits = ConntrackLimits { new_per_sec: 50, ..ConntrackLimits::default() };
+    korpis_core::workload::spec::EgressPolicy { rules: vec![rule], limits }
+}
+
+fn web() -> EndpointSpec {
     EndpointSpec {
         domains: vec!["map.example.com".into()],
         tls: Some(TlsSpec::Acme),
@@ -59,7 +65,7 @@ fn web() -> EndpointSpec {
                 ports: Vec::new(),
                 protocol: None,
             }],
-            egress: vec![rule],
+            egress: Vec::new(),
             conntrack: ConntrackLimits { max_connections: 1000, ..ConntrackLimits::default() },
         },
         accounting: true,
@@ -213,5 +219,6 @@ pub fn body() -> IntentBody {
             ),
             offload_retention: std::time::Duration::from_secs(7 * 86_400),
         },
+        egress: egress(),
     }
 }

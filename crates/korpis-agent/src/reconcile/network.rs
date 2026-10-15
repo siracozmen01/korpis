@@ -89,6 +89,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let mut request = net.request(&a.workload, assigned);
         (request.uid_base, request.uid_count) = (a.uid_base, a.uid_count);
         (request.inbound, request.forwards) = ports(&a.endpoints);
+        let body = a.target.as_option().and_then(|t| t.body.as_option());
+        super::policy::apply(&mut request, body)?;
         if a.reaches_api {
             request.opened = opened(net.api.as_ref()).await?;
         }
