@@ -6,6 +6,7 @@
 use crate::PgStore;
 use korpis_app::ports::{NodeWrite, Store, StoreResult, Tx};
 use korpis_core::labels::Labels;
+use korpis_core::node::advertised::{Advertised, PortRange};
 use korpis_core::node::driver::{
     FileAccess, IdMapCaps, NetworkMode, RootfsSource, VolumeSemantics,
 };
@@ -85,19 +86,31 @@ pub fn ready_node(
     labels: &[(&str, &str)],
 ) -> Result<Node, FixtureError> {
     let labels = labels.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned()));
+    // The node's ports are what its range holds, as a node reads back (§3 of
+    // docs/07-networking.md).
+    let ports = PortRange::DEFAULT;
+    let mut allocatable = capacity();
+    allocatable.insert(Dimension::NodePorts, ports.allocatable());
+    let mut capacity = capacity();
+    capacity.insert(Dimension::NodePorts, ports.len());
     Ok(Node {
         id: Uuid::now_v7(),
         name: Name::parse(name).map_err(|e| FixtureError(e.to_string()))?,
         organization,
         labels: Labels::new(labels).map_err(|e| FixtureError(e.to_string()))?,
         taints: Vec::new(),
-        capacity: capacity(),
-        allocatable: capacity(),
+        capacity,
+        allocatable,
         drivers: vec![oci_driver()],
         storage_classes: Vec::new(),
         reachability: Reachability::Public,
-        advertised: None,
-        probed_at: None,
+        // Public, so measured: an address in TEST-NET-3, and the default range, which holds the
+        // ports of the `stable` endpoints the fixtures' recipes declare.
+        advertised: Some(Advertised {
+            addresses: vec![std::net::Ipv4Addr::new(203, 0, 113, 10).into()],
+            ports,
+        }),
+        probed_at: Some(SystemTime::now()),
         admin: NodeAdmin::Active,
         connectivity: Connectivity::Connected,
         agent_version: Some("0.0.0".to_owned()),
@@ -115,5 +128,22 @@ pub async fn enroll(store: &PgStore, node: &Node) -> StoreResult<()> {
     key[16..].copy_from_slice(Uuid::now_v7().as_bytes());
     let mut tx = store.begin().await?;
     tx.enroll_node(node, &key).await?;
-    tx.commit().await
+    tx.commit().await?;
+    // Enrolling records nothing a node advertises; its first Hello does, and a fixture has none.
+    if let Some(a) = &node.advertised {
+        let addresses: Vec<String> = a.addresses.iter().map(ToString::to_string).collect();
+        sqlx::query(
+            "UPDATE node SET addresses = $2, first_port = $3, last_port = $4, probed_at = $5
+              WHERE id = $1",
+        )
+        .bind(node.id)
+        .bind(&addresses)
+        .bind(i32::from(a.ports.first()))
+        .bind(i32::from(a.ports.last()))
+        .bind(node.probed_at.map(crate::stored::from_time))
+        .execute(store.pool())
+        .await
+        .map_err(crate::errors::from_sqlx)?;
+    }
+    Ok(())
 }

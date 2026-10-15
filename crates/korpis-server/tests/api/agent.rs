@@ -67,16 +67,21 @@ impl TestAgent {
             .unwrap()
             .into_owned();
         // An enrolled node is edge-only until the prober measures it (§9 of
-        // docs/07-networking.md), and this hand-played node advertises nothing to measure. The
+        // docs/07-networking.md), and this hand-played node advertises nothing of its own. The
         // recipes these tests place have a `stable` endpoint, which without an edge tier needs a
-        // public node, so this stands in for the measurement.
+        // public node with a free port in its range, so this stands in for both: an address in
+        // TEST-NET-3 with the default range, measured now so the prober leaves it be.
         let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &enrolled.node).unwrap();
         let store = h.db.store().await.unwrap();
-        sqlx::query("UPDATE node SET reachability = 'public' WHERE id = $1")
-            .bind(id.uuid())
-            .execute(store.pool())
-            .await
-            .unwrap();
+        sqlx::query(
+            "UPDATE node SET reachability = 'public', addresses = '{203.0.113.10}',
+                             first_port = 30000, last_port = 32767, probed_at = now()
+              WHERE id = $1",
+        )
+        .bind(id.uuid())
+        .execute(store.pool())
+        .await
+        .unwrap();
         Self {
             key,
             node: enrolled.node,

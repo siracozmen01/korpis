@@ -5,6 +5,7 @@
 
 mod assign;
 mod attach;
+mod endpoints;
 mod enroll;
 
 pub(crate) use enroll::{OneUse, enrollment_grant};

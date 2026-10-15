@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port\n               FROM endpoint WHERE workload_id = $1 ORDER BY name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "protocol",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "protocol"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "container_port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "container_port"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "exposure",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "exposure"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "port",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "port"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7f289f62613bfdc0170d4e5cc0c1067711d87141264d4703d7ca4b1ed407ea7f"
+}

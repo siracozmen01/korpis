@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT port AS \"port!\" FROM endpoint WHERE node_id = $1 AND port IS NOT NULL\n                ORDER BY port",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "port!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "port"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "ce9d4089fc6e824eacb97f9ffbbdd64a8426a53b1d9d8916e4b2327e784cddef"
+}

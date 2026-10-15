@@ -26,6 +26,22 @@ pub struct ProbeDue {
     pub advertised: Advertised,
     /// Its public key, raw.
     pub key: Vec<u8>,
+    /// The ports of its range its endpoints hold, which the probe must not listen on: the node
+    /// forwards each to a workload (Finding 53 of docs/23-walkthroughs.md).
+    pub held: Vec<u16>,
+}
+
+impl ProbeDue {
+    /// The `n`th port of the node's range that no endpoint holds, counting from zero, wrapping
+    /// around; `None` if every port is held.
+    #[must_use]
+    pub fn free_port(&self, n: u32) -> Option<u16> {
+        let ports = self.advertised.ports;
+        let free: Vec<u16> =
+            (ports.first()..=ports.last()).filter(|p| !self.held.contains(p)).collect();
+        let len = u32::try_from(free.len()).ok().filter(|l| *l > 0)?;
+        free.get(usize::try_from(n % len).ok()?).copied()
+    }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -46,7 +62,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(None);
         }
         let key = self.store.node_key(node).await?.ok_or(AppError::NotFound { kind: "node" })?;
-        Ok(Some(ProbeDue { advertised, key }))
+        let held = self.store.node_ports_held(node).await?;
+        Ok(Some(ProbeDue { advertised, key, held }))
     }
 
     /// Records the recipes whose content `node` holds, as its agent reported them, replacing
@@ -77,5 +94,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.record_reachability(node, measured, reachability, self.clock.now()).await?;
         tx.commit().await?;
         Ok(recorded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use korpis_core::node::advertised::PortRange;
+
+    #[test]
+    fn the_probe_listens_only_on_a_port_no_endpoint_holds() {
+        let advertised =
+            Advertised { addresses: Vec::new(), ports: PortRange::new(30000, 30003).unwrap() };
+        let mut due = ProbeDue { advertised, key: Vec::new(), held: vec![30000, 30002] };
+        let picked: Vec<_> = (0..4).map(|n| due.free_port(n)).collect();
+        assert_eq!(picked, [Some(30001), Some(30003), Some(30001), Some(30003)]);
+        due.held = vec![30000, 30001, 30002, 30003];
+        assert_eq!(due.free_port(0), None, "every port held");
     }
 }

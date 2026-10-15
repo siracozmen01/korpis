@@ -50,6 +50,9 @@ pub struct Assignment {
     /// The helper's identifier of each existing volume the target attaches, by the name the
     /// workload mounts it under (§7 of docs/06-storage.md).
     pub volume_ids: BTreeMap<String, String>,
+    /// The target's endpoints as placed on this node, each with the port of the node it holds
+    /// where it holds one (§3 of docs/07-networking.md); sorted by name.
+    pub endpoints: Vec<super::endpoint::Endpoint>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

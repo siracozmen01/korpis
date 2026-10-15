@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p::integer AS port\n               FROM generate_series($2::integer, $3::integer) AS p\n              WHERE NOT EXISTS (SELECT 1 FROM endpoint WHERE node_id = $1 AND port = p)\n              ORDER BY p LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "port",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2c8f741d9e3b6573ff8597ec2f1702c51c6112331f0a1897210b2905e262530a"
+}

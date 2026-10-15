@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM endpoint e USING workload w\n              WHERE e.workload_id = w.id AND e.node_id = $1 AND w.deleted_at IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b39c3845596fa4c8507f4bcaeeec096421c26c18a4db81ae220f61b4e23c27d"
+}

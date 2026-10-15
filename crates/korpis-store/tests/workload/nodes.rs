@@ -16,7 +16,7 @@ async fn a_node_reads_back_as_enrolled() {
     let f = fixture().await;
     let mut n = ready_node(f.organization, "fra-3", &[("region", "eu")]).unwrap();
     n.taints = vec![Taint { key: "gpu".into(), value: "only".into() }];
-    (n.last_seen, n.enrolled_at) = (Some(now()), now());
+    (n.last_seen, n.enrolled_at, n.probed_at) = (Some(now()), now(), Some(now()));
     enroll(&f.store, &n).await.unwrap();
     assert_eq!(f.store.node(n.id).await.unwrap(), Some(n.clone()));
     assert_eq!(f.store.nodes(f.organization, Page::default()).await.unwrap(), [n]);

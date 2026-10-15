@@ -41,6 +41,9 @@ pub struct WorkloadView {
     pub observation: Option<Observed>,
     /// Present when it belongs to a set and its head was declared outside it.
     pub drift: Option<Drift>,
+    /// Its endpoints as placed, each with the addresses its node advertises, which a client
+    /// reaches the ports at (§3 of docs/07-networking.md).
+    pub endpoints: Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>,
 }
 
 /// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
@@ -91,7 +94,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }),
             None => None,
         };
+        let mut endpoints = Vec::new();
+        for e in self.store.endpoints(id).await? {
+            let node = self.store.node(e.node).await?;
+            let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
+            endpoints.push((e, addresses.unwrap_or_default()));
+        }
         let view = WorkloadView {
+            endpoints,
             drift,
             workload,
             power,

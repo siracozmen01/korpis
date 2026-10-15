@@ -14,6 +14,7 @@ mod breaker;
 mod changes;
 mod clock;
 mod condition;
+mod endpoint;
 mod enrollment;
 mod extension;
 mod feasibility;
@@ -54,6 +55,7 @@ pub use breaker::{BreakerWrite, ProviderKey};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
+pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
 pub use feasibility::{Answers, Feasibility, Feasible};
@@ -158,6 +160,7 @@ pub trait Store:
     + SetRead
     + ExtensionRead
     + ConditionRead
+    + EndpointRead
     + SubscriptionRead
     + ProviderRead
     + ProviderCallRead
@@ -214,6 +217,7 @@ pub trait Tx:
     + EnrollmentWrite
     + SessionWrite
     + AssignmentWrite
+    + EndpointWrite
     + LeaseWrite
     + JournalWrite
     + ObservationWrite

@@ -112,18 +112,27 @@ impl NodeRow {
             .into_iter()
             .find(|r| reachability_str(*r) == self.reachability)
             .ok_or_else(|| corrupt("reachability", &self.reachability))?;
+        let advertised = advertised(&self.addresses, self.first_port, self.last_port)?;
+        let mut capacity = bounds("node capacity", self.capacity)?;
+        let mut allocatable = bounds("node allocatable", self.allocatable)?;
+        // A node's ports are what its range holds, as it advertises it (§3 of
+        // docs/07-networking.md), not a figure it reports beside the range.
+        if let Some(ports) = advertised.as_ref().map(|a| a.ports) {
+            capacity.insert(Dimension::NodePorts, ports.len());
+            allocatable.insert(Dimension::NodePorts, ports.allocatable());
+        }
         Ok(Node {
             id: self.id,
             name: name(self.name)?,
             organization: self.organization_id,
             labels: labels(self.labels)?,
             taints: taints(self.taints)?,
-            capacity: bounds("node capacity", self.capacity)?,
-            allocatable: bounds("node allocatable", self.allocatable)?,
+            capacity,
+            allocatable,
             drivers: drivers(self.drivers)?,
             storage_classes: storage_classes(self.storage_classes)?,
             reachability,
-            advertised: advertised(&self.addresses, self.first_port, self.last_port)?,
+            advertised,
             probed_at: self.probed_at.map(to_time),
             admin,
             connectivity,

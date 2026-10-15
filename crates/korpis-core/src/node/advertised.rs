@@ -64,6 +64,25 @@ impl PortRange {
     pub fn contains(self, port: u16) -> bool {
         (self.first..=self.last).contains(&port)
     }
+
+    /// How many ports it has.
+    #[must_use]
+    pub fn len(self) -> u64 {
+        u64::from(self.last - self.first) + 1
+    }
+
+    /// Whether it has none, which a range never does.
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        false
+    }
+
+    /// How many ports endpoints may hold (§3 of docs/07-networking.md): every port but one,
+    /// which is kept free for the reachability probe to listen on (§9 there).
+    #[must_use]
+    pub fn allocatable(self) -> u64 {
+        self.len() - 1
+    }
 }
 
 impl std::str::FromStr for PortRange {

@@ -16,6 +16,7 @@ mod learned;
 mod observed;
 mod pin;
 mod place;
+pub(crate) use place::EDGE_TIER;
 mod power;
 mod propose;
 mod prune_plan;

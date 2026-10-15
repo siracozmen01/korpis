@@ -73,7 +73,9 @@ message Endpoint {
 }
 
 message Address {
-  string ip = 1;
+  // Every address it is reached at: for node_port and node_bound, each the node advertises,
+  // all with the same port.
+  repeated string ips = 1;
   uint32 port = 2;
   // For node_port and node_bound: the node it is bound to.
   string node = 3;

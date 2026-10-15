@@ -130,4 +130,6 @@ message Resources {
   uint64 endpoints = 12;
   uint64 dedicated_ipv4 = 13;
   uint64 pids = 14;
+  // Ports of a node held by node_port and node_bound endpoints (§3 of docs/07-networking.md).
+  uint64 node_ports = 15;
 }

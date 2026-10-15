@@ -33,6 +33,7 @@ pub fn resources_from_pb(r: &pb::Resources) -> Bounds {
         (Dimension::Volumes, r.volumes),
         (Dimension::Endpoints, r.endpoints),
         (Dimension::DedicatedIpv4, r.dedicated_ipv4),
+        (Dimension::NodePorts, r.node_ports),
     ]
     .into_iter()
     .filter(|(_, n)| *n > 0)

@@ -4,6 +4,7 @@
 //! encoded message are what the control plane signs, so the encoding is deterministic: every map
 //! in the schema is ordered.
 
+use crate::endpoint::endpoint_to_pb;
 use crate::plan::step_to_pb;
 use crate::spec::continuity_to_pb;
 use crate::wire_id;
@@ -45,6 +46,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         uid_count: a.ids.count,
         residual: a.residual,
         volume_ids: a.volume_ids.clone().into_iter().collect(),
+        endpoints: a.endpoints.iter().map(|e| endpoint_to_pb(e, &[])).collect(),
         ..Default::default()
     }
 }

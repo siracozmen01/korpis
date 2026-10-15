@@ -153,6 +153,8 @@ Quota dimensions
   volumes       count
   endpoints     count
   dedicated_ipv4  count        exclusive, never overcommitted; IPv6 is not counted
+  node_ports    count          ports of a node held by node_port and node_bound endpoints;
+                               exclusive (§3 of 07-networking.md)
 ```
 
 **Invariants**

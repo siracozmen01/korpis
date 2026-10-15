@@ -11,6 +11,7 @@
 //! left behind (§7 of docs/06-storage.md). It is sent a residual assignment, which carries that
 //! plan and nothing the node acts on besides; it leaves the set once the plan is done.
 
+use super::endpoints;
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
@@ -72,6 +73,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .as_ref()
             .ok_or_else(|| AppError::Internal("no assignment sealer is configured".into()))?;
         let desired = self.all_desired(node).await?;
+        let range = self.store.node(node).await?.and_then(|n| n.advertised).map(|a| a.ports);
         let mut tx = self.store.begin().await?;
         tx.lock_assignments(node).await?;
         let stored: BTreeMap<Uuid, StoredAssignment> =
@@ -80,6 +82,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for (mut assignment, plan) in desired {
             if !assignment.residual {
                 assignment.ids = ids(&mut tx, node, assignment.workload).await?;
+                let at = (node, assignment.workload);
+                let now = self.clock.now();
+                assignment.endpoints =
+                    endpoints::placed(&mut tx, at, &assignment.target.body, range, now).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let kept = stored.get(&assignment.workload);
@@ -190,6 +196,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ids: IdRange { base: 0, count: 0 },
                 residual: false,
                 volume_ids,
+                endpoints: Vec::new(),
             },
             plan,
         )))
@@ -239,6 +246,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ids: IdRange { base: 0, count: 0 },
                 residual: true,
                 volume_ids: BTreeMap::new(),
+                endpoints: Vec::new(),
             },
             Some(plan),
         )))

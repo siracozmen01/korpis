@@ -116,6 +116,25 @@ and the plan that creates it says what each survives. What it costs: a conntrack
 (question 1 of §11), and an address that is the node's, so a node that changes its advertised
 addresses changes every such endpoint's address with them.
 
+**A node's ports are a placement dimension.** Added 2026-10-15, when the allocation was built.
+Asked what keeps a placement from landing on a node whose every port is held, the allocation itself
+had no answer: it runs after the bind, when the only choices left are to fail the node's whole
+assignment set or to leave the endpoint unreached. So a node's ports are counted like its memory:
+`node_ports` is a reserved dimension (§2.1 of `05-scheduling.md`), a node's `allocatable` of it is
+its range less one port kept free for the probe (§9), which the control plane derives from the
+range the node advertises rather than taking a second figure beside it, and a placement reserves
+one for each endpoint that resolves to `node_port` or `node_bound`. It is a quota dimension too
+(§5.1 of `05-scheduling.md`), since a node's ports are as scarce as its addresses. The endpoints
+are kept as `Endpoint` objects: each keeps its identity while its workload declares it, moving with
+the workload, and gives its port back when the workload is retired, moves, or stops declaring it. A
+workload's status lists them, each with where a client reaches it. What it costs: an endpoint is
+counted as if no edge serves the installation, which is true of every installation until edges
+arrive (§4 of `20-roadmap.md`); once one does, a `stable` endpoint it serves still reserves a port
+of its node it does not use, until the count is made to know the edge, which Phase 3 does with
+edges (§4 of `20-roadmap.md`). A range narrowed below what its endpoints hold leaves an endpoint
+asking for a new port without one, and its status says so; placement keeps this from happening
+otherwise.
+
 ### 3.1 `stable`: the edge
 
 An **edge** owns stable public addresses and forwards to wherever a workload currently is. For

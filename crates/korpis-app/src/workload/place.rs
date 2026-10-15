@@ -26,7 +26,7 @@ use uuid::Uuid;
 /// Whether an edge tier serves the installation's workloads. Edges arrive in Phase 3 (§4 of
 /// docs/20-roadmap.md); until then a declared `stable` endpoint is placed as the `node_bound` it
 /// resolves to, which needs a node reachable on its own address (§3 of docs/07-networking.md).
-pub(super) const EDGE_TIER: bool = false;
+pub(crate) const EDGE_TIER: bool = false;
 
 /// What a bind writes, beside its explanation.
 struct Binding<'a> {

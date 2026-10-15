@@ -5,6 +5,7 @@
 
 pub mod assignment;
 pub mod declare;
+pub mod endpoint;
 pub mod lease;
 pub mod observation;
 pub mod plan;

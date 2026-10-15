@@ -35,7 +35,7 @@ A node survives the filter only if all hold:
 | offers a driver implementing the requested tier | `Node.drivers[].Capabilities.tiers` |
 | that driver's declared capabilities admit the intent | `Node.drivers[].Capabilities`, evaluated in the control plane (below) |
 | for the shortlist, the driver's `Prepare` accepts it | a `FeasibilityQuery` (§4.2 of `02-architecture.md`), side-effect free |
-| has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated` |
+| has unallocated capacity for every requested dimension | `Node.allocatable` minus `allocated`; among them `node_ports`, the ports of its range its `node_port` and `node_bound` endpoints hold (§3 of `07-networking.md`) |
 | has every requested device available | §6 |
 | satisfies the intent's constraints | `PlacementSpec` label selectors, required affinity rules |
 | offers every storage class the intent's volumes name | `Node.storage_classes` |
@@ -532,10 +532,11 @@ Admission requires an intent to fit within **every** matching entry. A tenant ca
 of 32 GB and a per-region cap of 4 GB simultaneously, and both are enforced. Composable, and it
 replaces the flat `Quota` struct of `01-model.md` §3.1.
 
-The dimensions are those listed in §3.1 of `01-model.md`, plus **dedicated IPv4 addresses**, a count
-that is exclusive and never overcommitted. IPv6 addresses are not a dimension: they are abundant,
-and counting them would make the scarce resource and the plentiful one look alike (§11 of
-`07-networking.md`, question 4).
+The dimensions are those listed in §3.1 of `01-model.md`, plus **dedicated IPv4 addresses**, a
+count that is exclusive and never overcommitted, and, added 2026-10-15, **node ports**, held by
+`node_port` and `node_bound` endpoints, likewise exclusive (§3 of `07-networking.md`). IPv6
+addresses are not a dimension: they are abundant, and counting them would make the scarce resource
+and the plentiful one look alike (§11 of `07-networking.md`, question 4).
 
 #### Inheritance: reservations sum, limits may oversell
 

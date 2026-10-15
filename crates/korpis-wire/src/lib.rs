@@ -36,6 +36,7 @@ pub mod authz;
 pub mod backup;
 pub mod body;
 pub mod dns;
+pub mod endpoint;
 pub mod event;
 pub mod extension;
 pub mod journal;

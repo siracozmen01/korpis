@@ -116,6 +116,7 @@ pub fn resources_to_pb(b: &Bounds) -> pb::Resources {
         volumes: n(Dimension::Volumes),
         endpoints: n(Dimension::Endpoints),
         dedicated_ipv4: n(Dimension::DedicatedIpv4),
+        node_ports: n(Dimension::NodePorts),
         ..Default::default()
     }
 }

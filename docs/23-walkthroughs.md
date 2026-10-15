@@ -2052,7 +2052,7 @@ joins.
 | # | Step | Governed by |
 |---|---|---|
 | 1 | The endpoint's declared `stable` resolves to `node_bound`: no edge tier serves the installation | `07-networking.md` §3 |
-| 2 | The node is chosen; it must be reachable on its own address, which its probe measured | `05-scheduling.md` §2.1, `07-networking.md` §9 |
+| 2 | The node is chosen; it must be reachable on its own address, which its probe measured, and hold a free port for the endpoint ‡ | `05-scheduling.md` §2.1, `07-networking.md` §3, §9 |
 | 3 | The node's assignment is computed and the endpoint is allocated a port from the node's range | `07-networking.md` §3, `02-architecture.md` §4.8 |
 | 4 | The agent allocates the workload's addresses; the helper makes its namespace, its link, its routes, its own firewall, and its chain on the host | `07-networking.md` §4.1, §6 |
 | 5 | The driver creates the container in that namespace † | `04-runtimes.md` §7, `07-networking.md` §4.1 |
@@ -2096,4 +2096,11 @@ workload, and the container joins both. → patched into `07-networking.md` §4.
 change costs, and `04-runtimes.md` §2.
 
 † Step 7 is where the trace found Finding 53; step 5, when built, Finding 54.
+
+‡ Added 2026-10-15, when step 3 was built: asked at step 3 what happens when the node has no
+free port, the allocation could only fail the node's whole assignment set or leave the endpoint
+unreached, because it runs after the bind. The node's ports became a placement dimension, so
+step 2 evaluates it, in the control plane, from the range the node advertises and the ports its
+endpoints hold. Not numbered as a finding, since it was asked and answered before any code
+shipped without it.
 

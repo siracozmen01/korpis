@@ -44,11 +44,14 @@ pub enum Dimension {
     Endpoints,
     /// Endpoints with a dedicated IPv4 address; never overcommitted.
     DedicatedIpv4,
+    /// Ports of a node held by endpoints the node itself exposes, `node_port` and `node_bound`
+    /// (§3 of docs/07-networking.md); never overcommitted, since a port is one endpoint's.
+    NodePorts,
 }
 
 impl Dimension {
     /// Every dimension.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Cpu,
         Self::Memory,
         Self::Disk,
@@ -61,6 +64,7 @@ impl Dimension {
         Self::Volumes,
         Self::Endpoints,
         Self::DedicatedIpv4,
+        Self::NodePorts,
     ];
 
     /// The stored and wire name: the field of `korpis.v1.Resources`.
@@ -79,6 +83,7 @@ impl Dimension {
             Self::Volumes => "volumes",
             Self::Endpoints => "endpoints",
             Self::DedicatedIpv4 => "dedicated_ipv4",
+            Self::NodePorts => "node_ports",
         }
     }
 
@@ -152,6 +157,9 @@ impl Held {
             (D::Volumes, count(created.len())),
             (D::Endpoints, count(body.endpoints.len())),
             (D::DedicatedIpv4, count(dedicated.count())),
+            // Counted as if no edge serves it, which is every installation until edges arrive
+            // (§4 of docs/20-roadmap.md): a `stable` endpoint holds a port of its node.
+            (D::NodePorts, crate::workload::endpoint::node_ports(&body.endpoints, false)),
         ];
         // A limit left unset is the reservation (`ReservedLimit::effective`); the I/O ceilings
         // have no reservation, so unset there is unbounded.

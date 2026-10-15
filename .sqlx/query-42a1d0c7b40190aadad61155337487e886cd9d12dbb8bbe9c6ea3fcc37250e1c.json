@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM endpoint WHERE workload_id = $1 AND NOT (name = ANY($2::text[]))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42a1d0c7b40190aadad61155337487e886cd9d12dbb8bbe9c6ea3fcc37250e1c"
+}

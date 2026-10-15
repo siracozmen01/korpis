@@ -16,6 +16,7 @@ mod backup;
 mod breaker;
 mod condition;
 mod denial;
+mod endpoint;
 mod enrollment;
 mod errors;
 mod events;

@@ -108,10 +108,8 @@ async fn answers(due: &ProbeDue, node: &str, address: IpAddr, port: u16) -> bool
 
 /// One measurement of `node`.
 async fn measure(api: &Api, node: Uuid, due: &ProbeDue) -> Result<Reachability, String> {
-    let ports = due.advertised.ports;
-    let span = u32::from(ports.last()) - u32::from(ports.first()) + 1;
-    let pick = random::<4>().map(u32::from_le_bytes).ok_or("no randomness")? % span;
-    let port = u16::try_from(u32::from(ports.first()) + pick).map_err(|e| e.to_string())?;
+    let pick = random::<4>().map(u32::from_le_bytes).ok_or("no randomness")?;
+    let port = due.free_port(pick).ok_or("every port of the node's range is held")?;
     let probe = hex(&random::<16>().ok_or("no randomness")?);
     let sender = api.sessions().sender(node).ok_or("the node's session ended")?;
     let answered = api.sessions().expect_probe(&probe);

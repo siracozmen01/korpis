@@ -22,8 +22,13 @@ use uuid::Uuid;
 
 /// The dimensions placement guarantees: a reservation in one of these is capacity a node sets
 /// aside. The others are quota's (§5 of docs/05-scheduling.md) or limits only.
-pub const RESERVED: [Dimension; 4] =
-    [Dimension::Cpu, Dimension::Memory, Dimension::Disk, Dimension::Bandwidth];
+pub const RESERVED: [Dimension; 5] = [
+    Dimension::Cpu,
+    Dimension::Memory,
+    Dimension::Disk,
+    Dimension::Bandwidth,
+    Dimension::NodePorts,
+];
 
 /// What a placement of `body` reserves on its node.
 #[must_use]

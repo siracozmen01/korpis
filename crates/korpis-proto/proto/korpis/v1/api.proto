@@ -399,6 +399,9 @@ message WorkloadStatus {
   Unplaced unplaced = 8;
   // Present when the workload belongs to a set and its head was declared outside it.
   Drift drift = 9;
+  // Its endpoints as placed: the exposure each resolved to and where it is reached (§3 of
+  // docs/07-networking.md). Empty while it is not placed.
+  repeated Endpoint endpoints = 10;
 }
 
 enum Convergence {
