@@ -360,20 +360,32 @@ filesystem but what it needs to start, no capability, its only network the socke
 connections to the node's workload addresses. The helper opens ports 80 and 443 on the node's
 addresses, which needs a privilege neither the agent nor the proxy has, and passes the sockets to
 the agent, which hands them to the proxy, as the resolver's are handed (§5.1). The agent gives the
-proxy its routes and certificates whole, again whenever they change, over a pipe; the proxy keeps
-nothing on disk. It accepts HTTP/1.1 and HTTP/2 from clients over TLS 1.2 and 1.3, chooses the
-certificate by SNI, redirects plain HTTP to HTTPS except for ACME's challenge path, routes by the
-`Host` header among the names the connection's certificate serves, and forwards to the workload's
-address over HTTP/1.1, with WebSocket upgrades carried through. It removes any `Forwarded` and
-`X-Forwarded-*` header a client sent and sets its own, so the workload learns the client's address
-from a header only the proxy writes; the endpoint's `client_address` is `translated`, since the
-workload's peer is the proxy (§3.4). A `passthrough` endpoint is routed by the SNI of the client's
-first message and spliced to the workload unread, which then terminates TLS itself and sees the
-proxy as its peer. It bounds what it accepts: header size and count, the time a client may take to
-send them, the time a connection may stay idle, and connections in all; a request beyond a bound is
-refused with the status that says which. What it costs: one more process per node, and a hop
-through it for every request; and a request's body is streamed, not buffered, so a slow workload
-holds the client's connection open as long as the workload does.
+proxy its routes and certificates whole, again whenever they change, over a Unix socket it names
+when it starts the proxy, and hands the listening sockets over the same connection as `SCM_RIGHTS`,
+so the proxy adopts them without inheriting descriptors by number; the proxy keeps nothing on disk.
+(Corrected 2026-10-15, when the proxy was built: this said a pipe, which carries no descriptors.)
+It accepts HTTP/1.1 and HTTP/2 from clients over TLS 1.2 and 1.3, chooses the certificate by SNI,
+redirects plain HTTP to HTTPS except for ACME's challenge path, routes by the `Host` header among
+the names the connection's certificate serves, and forwards to the workload's address over
+HTTP/1.1, with WebSocket upgrades carried through; for an endpoint whose protocol is `https`,
+within TLS to a workload serving its own certificate, which the proxy does not verify, since the
+workload made it for itself and no authority the proxy holds vouches for it, and checks only that
+the workload holds its key. That TLS hop costs a handshake and protects nothing the node could not
+already see, since it never leaves the node; it exists for workloads that serve only HTTPS. It
+removes any `Forwarded` and `X-Forwarded-*` header a client sent and sets its own, so the workload
+learns the client's address from a header only the proxy writes; the endpoint's `client_address` is
+`translated`, since the workload's peer is the proxy (§3.4). A `passthrough` endpoint is routed by
+the SNI of the client's first message and spliced to the workload unread, which then terminates TLS
+itself and sees the proxy as its peer. It bounds what it accepts: header size and count, the time a
+client may take to send them, the time a connection may stay idle, and connections in all. A head
+too large or with too many fields is refused 431; a connection beyond the bound is answered 503 on
+port 80 and closed on 443, where there is no TLS yet to answer in; a head not sent in time, a TLS
+greeting not sent in time, and a connection idle past its bound are closed, as HTTP lets a server
+do with a connection it gives up on. A request naming a name its connection's certificate does not
+serve is refused 421, and a client asking for a name nobody routes, or one with no certificate yet,
+gets no handshake. What it costs: one more process per node, and a hop through it for every
+request; and a request's body is streamed, not buffered, so a slow workload holds the client's
+connection open as long as the workload does.
 
 **Certificates belong to the control plane.** An endpoint's TLS is `acme` unless it says otherwise:
 the control plane obtains one certificate for the endpoint's names from the ACME directory the

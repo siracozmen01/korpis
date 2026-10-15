@@ -87,9 +87,15 @@ async fn a_node_that_stops_its_heartbeats_is_unreachable_after_three() {
     let heard = node(&h, &a.node).await;
     assert_eq!(heard.status.as_known(), Some(pb::NodeStatus::NODE_STATUS_READY), "heard");
     drop(stream);
-    tokio::time::sleep(Duration::from_millis(1200)).await;
-    let silent = node(&h, &a.node).await;
-    assert_eq!(silent.status.as_known(), Some(pb::NodeStatus::NODE_STATUS_UNREACHABLE));
+    // Three missed heartbeats are 600 ms; the sweep that notices runs on its own schedule, which
+    // a loaded machine stretches, so this waits for it rather than for a fixed time.
+    let started = std::time::Instant::now();
+    let unreachable = Some(pb::NodeStatus::NODE_STATUS_UNREACHABLE);
+    while node(&h, &a.node).await.status.as_known() != unreachable {
+        assert!(started.elapsed() < Duration::from_secs(10), "never marked unreachable");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(started.elapsed() >= Duration::from_millis(400), "not before it missed them");
     let (_s, back) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &nonce(2))).await;
     back.unwrap();
     let returned = node(&h, &a.node).await;

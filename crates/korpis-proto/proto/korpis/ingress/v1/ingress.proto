@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// What an agent tells its node's ingress proxy (§3.2 of docs/07-networking.md), over a Unix
+// socket the agent listens on and names to the proxy when it starts it. Every message is a
+// four-byte big-endian length followed by its encoding. The first is `Listeners`, with the
+// sockets the proxy serves attached as SCM_RIGHTS; every later one is an `IngressConfig`, the
+// whole configuration, sent each time anything in it changes, which replaces what the proxy
+// serves. The proxy keeps nothing on disk.
+
+syntax = "proto3";
+
+package korpis.ingress.v1;
+
+// The listening sockets attached to the first message: `http` of them for plain HTTP (port 80),
+// then `https` for TLS (port 443).
+message Listeners {
+  uint32 http = 1;
+  uint32 https = 2;
+}
+
+// Everything the proxy serves.
+message IngressConfig {
+  repeated Route routes = 1;
+  repeated Certificate certificates = 2;
+  // ACME's HTTP challenges the proxy answers on port 80.
+  repeated Challenge challenges = 3;
+  Limits limits = 4;
+}
+
+// The names one endpoint routes, and where its workload listens.
+message Route {
+  // Lowercase DNS names; a name is in one route.
+  repeated string names = 1;
+  // The workload's address on its network and the endpoint's container port, `ip:port`.
+  string backend = 2;
+  RouteMode mode = 3;
+  // For ROUTE_MODE_HTTP and ROUTE_MODE_HTTPS: the certificate, by its identifier; empty while
+  // there is none, and the route is then served on port 80 alone.
+  string certificate = 4;
+  // The workload and endpoint, for what the proxy logs.
+  string workload = 5;
+  string endpoint = 6;
+}
+
+enum RouteMode {
+  ROUTE_MODE_UNSPECIFIED = 0;
+  // TLS terminated by the proxy; forwarded over HTTP/1.1.
+  ROUTE_MODE_HTTP = 1;
+  // TLS terminated by the proxy; forwarded over HTTP/1.1 within TLS to a workload serving its
+  // own certificate, which is not verified.
+  ROUTE_MODE_HTTPS = 2;
+  // Routed by the SNI of the client's first message and spliced to the workload unread.
+  ROUTE_MODE_PASSTHROUGH = 3;
+}
+
+message Certificate {
+  string id = 1;
+  // PEM: the chain, leaf first, and its private key.
+  string chain = 2;
+  string key = 3;
+}
+
+// The answer to an ACME HTTP challenge, served at /.well-known/acme-challenge/<token>.
+message Challenge {
+  string token = 1;
+  string key_authorization = 2;
+}
+
+// What the proxy accepts; a zero is the proxy's default.
+message Limits {
+  // Connections open at once, on every port.
+  uint32 max_connections = 1;
+  // The bytes of a request's head, and the number of its header fields.
+  uint32 max_header_bytes = 2;
+  uint32 max_headers = 3;
+  // How long a client may take to send a request's head.
+  uint32 header_timeout_ms = 4;
+  // How long a connection may pass no byte either way.
+  uint32 idle_timeout_ms = 5;
+}

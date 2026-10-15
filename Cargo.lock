@@ -2543,6 +2543,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-ingress"
+version = "0.0.0"
+dependencies = [
+ "buffa",
+ "bytes",
+ "clap",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "korpis-confine",
+ "korpis-proto",
+ "landlock",
+ "rcgen",
+ "rustix",
+ "rustls",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "korpis-install"
 version = "0.0.0"
 dependencies = [

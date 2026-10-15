@@ -33,6 +33,9 @@ rules=(
     "korpis-egress||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-recipe connectrpc sqlx"
     # What every job does first: nothing of ours.
     "korpis-confine||korpis-core korpis-app korpis-wire korpis-store korpis-proto connectrpc tokio sqlx"
+    # The ingress proxy parses requests from anyone on the internet: its messages, its own
+    # confinement, and nothing of the agent's, the control plane's, or a store's.
+    "korpis-ingress||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-recipe connectrpc sqlx"
     # The install worker runs beside one workload's volumes: the domain's install vocabulary and
     # templates, and no RPC stack, runtime, network client, or store.
     "korpis-install||korpis-app korpis-store korpis-server korpis-agent connectrpc tokio sqlx hyper reqwest"

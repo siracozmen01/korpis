@@ -1035,8 +1035,8 @@ structure below is designed so that class of bug has nowhere to live.
 `07-networking.md`). `korpis-ingress` is the one process that parses requests from the internet, so
 it is held to the filesystem workers' rule from the other side: it accepts untrusted input and
 holds no privilege, no filesystem, and nothing of the agent's. The supervisor runs it, hands it the
-sockets the helper opened on ports 80 and 443 and its routes and certificates over a pipe, and
-restarts it if it exits.
+sockets the helper opened on ports 80 and 443 and its routes and certificates over a Unix socket
+(§3.2 of `07-networking.md`), and restarts it if it exits.
 
 Three properties follow from this structure:
 

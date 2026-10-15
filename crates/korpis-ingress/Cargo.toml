@@ -1,0 +1,36 @@
+[package]
+name = "korpis-ingress"
+description = "Korpis's ingress proxy: the HTTP and TLS front of a node's ingress endpoints, run and fed by its agent"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+buffa = { version = "=0.9.2" }
+bytes = "1"
+clap = { version = "4", features = ["derive"] }
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["server", "client", "http1", "http2"] }
+# Forwarding to a workload over HTTP/1.1, pooled, within TLS for a workload serving its own.
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "ring", "tls12"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto", "client-legacy", "http1", "http2"] }
+korpis-confine = { path = "../korpis-confine" }
+korpis-proto = { workspace = true }
+landlock = "0.4"
+rustix = { version = "1", features = ["net", "std", "thread"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }

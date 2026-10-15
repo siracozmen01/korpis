@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/driver/v1/driver.proto",
         "korpis/helper/v1/helper.proto",
         "korpis/backup/v1/backup.proto",
+        "korpis/ingress/v1/ingress.proto",
         "korpis/install/v1/install.proto",
     ];
     println!("cargo:rerun-if-changed=descriptor.binpb");
