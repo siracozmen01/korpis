@@ -77,7 +77,9 @@ async fn the_journal_is_ingested_once_in_order_across_a_restart_with_repeats_coa
     let cp = ControlPlane::start().await;
     let dir = tempfile::tempdir().unwrap();
     let (identity, state) = joined(&cp, &dir).await;
-    let bounds = Bounds { coalesce: Duration::from_millis(300), ..Bounds::default() };
+    // A window the four appends below fit inside however loaded the machine is: what is tested is
+    // that a run inside the window coalesces, not how short the window can be.
+    let bounds = Bounds { coalesce: Duration::from_secs(3), ..Bounds::default() };
     let journal = JournalHandle::open(&state.root().join("journal"), bounds).unwrap();
     let running = connect(&identity, &state, &journal).await;
     for body in [glass(1), glass(2), drift()] {
@@ -92,7 +94,7 @@ async fn the_journal_is_ingested_once_in_order_across_a_restart_with_repeats_coa
     for _ in 0..4 {
         journal.append(drift()).await.unwrap();
     }
-    tokio::time::sleep(Duration::from_millis(350)).await;
+    tokio::time::sleep(Duration::from_millis(3100)).await;
     journal.maintain().await.unwrap();
     assert_eq!(journal.marks().await.unwrap(), (7, 1), "seven records, all still held");
 

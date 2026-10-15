@@ -140,6 +140,14 @@ impl WorkloadRead for PgStore {
         rows.into_iter().map(PlanRow::into_domain).collect()
     }
 
+    async fn latest_plan_to(&self, workload: Uuid, intent: Uuid) -> StoreResult<Option<Plan>> {
+        let row = sqlx::query_file_as!(PlanRow, "queries/latest_plan_to.sql", workload, intent)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        row.map(PlanRow::into_domain).transpose()
+    }
+
     async fn plans(&self, workload: Uuid, page: Page) -> StoreResult<Vec<Plan>> {
         let rows = sqlx::query_file_as!(
             PlanRow,

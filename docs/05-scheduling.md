@@ -356,6 +356,12 @@ requirement; these are its mechanics:
 
 A plan that fails halfway is therefore a plan waiting to continue, which is what makes P9's
 "resumable, verifiable, reversible" true of ordinary workload creation and not only of migration.
+It continues through the workload's next plan, which is computed from the last intent the workload
+reached rather than from the target the failed plan never reached (§3.3 of `01-model.md`): the
+steps it completed are planned again and complete as no-ops, the step it failed and every step
+after it run, and an install resumes at the action that failed. Declaring the same body again is
+how a person asks for that, after fixing whatever made it fail. Added 2026-10-15, Finding 51 of
+`23-walkthroughs.md`: before, the next plan was computed from the target and planned nothing.
 
 **The guarantee has to reach inside a step, not stop at its edge.**
 

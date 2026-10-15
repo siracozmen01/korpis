@@ -89,6 +89,13 @@ pub trait WorkloadRead {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
 
+    /// The plan most recently approved to move `workload`'s target to `intent`, if any was.
+    fn latest_plan_to(
+        &self,
+        workload: Uuid,
+        intent: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Plan>>> + Send;
+
     /// A workload's plans, oldest first, after the page's cursor.
     fn plans(
         &self,

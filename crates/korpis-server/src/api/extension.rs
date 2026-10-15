@@ -231,8 +231,9 @@ impl pb::ExtensionService for Api {
         };
         let encoder = |u: &Upgraded| encode(&upgraded(u));
         let idem = Idempotent { key, encode: &encoder };
-        let reply =
-            self.app.upgrade_extension(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        let reply = Box::pin(self.app.upgrade_extension(&caller, &idem, cmd))
+            .await
+            .map_err(error::from_app)?;
         respond(reply, upgraded)
     }
 }

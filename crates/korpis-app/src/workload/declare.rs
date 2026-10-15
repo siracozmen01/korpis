@@ -110,6 +110,9 @@ struct Base {
     power: PowerRecord,
     head: Option<Intent>,
     target: Option<Intent>,
+    /// The last intent the workload's plans reached, which a new plan's steps are computed from:
+    /// the target, unless the plan approved to reach it failed (§3.3 of docs/01-model.md).
+    applied: Option<Intent>,
     permit: Permit,
     proposing: Proposing,
     action: &'static str,
@@ -310,7 +313,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
         let steps = intent_steps(
             to.workload,
-            (from.map(|(_, b)| b), &to.body),
+            (base.applied.as_ref().map(|a| &a.body), &to.body),
             Some(recipe),
             base.power.power.desired,
             classifier,

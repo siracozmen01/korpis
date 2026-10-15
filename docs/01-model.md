@@ -636,6 +636,18 @@ Step
 - **A failed or cancelled plan is resumable from `completed`.** Its completed steps' resources are
   retained and named (§3.1 of `05-scheduling.md`), and the next plan for the workload is computed
   against that state rather than against an assumption about it.
+- **An intent plan's steps are computed from the last intent the workload reached.** That is the
+  target, unless the plan approved to reach it failed; then it is the intent that plan started
+  from, followed back through any failed plan before it, or none. Cancelling already moves the
+  target back. The plan's `from_intent` still names the target, which is what approving it
+  compares. Every step is idempotent, so a step the failed plan completed is completed again as a
+  no-op, and an install with the same actions resumes at the action that failed (§3.1 of
+  `05-scheduling.md`): declaring the same body again is how a person resumes a failed plan.
+
+> Added 2026-10-15, Finding 51 of `23-walkthroughs.md`. Plans were computed from the target, which
+> approval moves before anything runs. A create plan that failed at its install left the target at
+> an intent nothing had reached, so the next plan for that same intent had no steps: `create` and
+> `start` were never planned again, and the install's saved progress was never used.
 - Plans expire. A stale plan is not an approvable plan.
 - **A retire plan moves no pointer, and approving it freezes the workload.** Deleting a workload
   proposes one: stop, detach and retain every volume, remove the runtime (§4.8 of

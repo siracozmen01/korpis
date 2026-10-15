@@ -36,7 +36,8 @@ found 36. §22 to §27, written as retention, the organization's own bucket, off
 tenant keys, share links, and stream ranges were built, found 37 to 47. §28 records Finding 48,
 which no trace found: an automated security review of the code flagged it, and the evidence file
 had named its class all along. §29, written when the install worker was given its content, found
-49, and §30, written when step providers were wired to installs, found 50.
+49, and §30, written when step providers were wired to installs, found 50. §31, written for the
+end-to-end install test, found 51.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1069,6 +1070,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 48 | A recipe's fetch reached wherever its URL pointed | §28 | `09-recipes.md` §4, `17-security.md` §3, `18-operations.md` §3, §9 |
 | 49 | Knowing a digest was enough to have another tenant's file installed | §29 | `06-storage.md` §6, `09-recipes.md` §4 |
 | 50 | A step provider's artifacts were relative to a volume nothing named | §30 | `09-recipes.md` §4, `16-extensions.md` §5 |
+| 51 | A failed plan's unfinished steps were never planned again | §31 | `01-model.md` §3.3, `05-scheduling.md` §3.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1931,4 +1933,41 @@ and one climbing out of it is malformed. → patched into `09-recipes.md` §4 an
 `16-extensions.md` §5
 
 † Steps 2 and 5 are where the trace found Finding 50.
+
+---
+
+## 31. A first install that fails, and is resumed
+
+Written 2026-10-15, for the end-to-end install test. A workload's create plan pulls its recipe,
+creates its volume, and runs its install, whose third action fails because the volume is full. The
+operator raises the volume's size and declares the same body again.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The create plan is approved: the target moves to the intent | `01-model.md` §3.3 |
+| 2 | The node completes the steps before the install; the install fails at its third action, its progress kept | `09-recipes.md` §4, `05-scheduling.md` §3.1 |
+| 3 | The plan is `failed`, `completed` naming the last step before the install | `01-model.md` §3.3 |
+| 4 | The same body is declared again; its plan is computed † | `01-model.md` §3.3 |
+| 5 | The node resumes the install at its third action, then creates and starts the workload | `05-scheduling.md` §3.1 |
+
+**FINDING 51: A failed plan's unfinished steps were never planned again. `CONFIRMED`**
+
+Asked at step 4 what the new plan is computed from, and with what information: from the target,
+which step 1 moved to the intent before anything ran. The new intent equals it, so the plan had no
+steps at all. `create` and `start` were never planned again, the install's saved progress was
+never used, and the workload stayed half made, while §3.3 of `01-model.md` and §3.1 of
+`05-scheduling.md` promised that the next plan is computed against what was actually reached. The
+control plane holds what is needed to know better: the plan approved to reach the target, and its
+status.
+
+**Resolution.** An intent plan's steps are computed from the last intent the workload reached: the
+target, unless the plan approved to reach it failed, then the intent that plan started from,
+followed back through failed plans. Steps are idempotent, so what the failed plan completed
+completes again as a no-op, and the install, with the same actions, resumes at its failed action
+by its digest. The plan's `from_intent` still names the target, which approval compares. → patched
+into `01-model.md` §3.3 and `05-scheduling.md` §3.1
+
+† Step 4 is where the trace found Finding 51.
 

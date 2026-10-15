@@ -53,6 +53,7 @@ mod relays;
 mod renewal;
 mod repositories;
 mod restores;
+mod resume;
 mod retire;
 mod revocation;
 mod sdk;
