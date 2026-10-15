@@ -4,6 +4,7 @@
 //! plane's assignment key, sent when it changes, and not sent again to a node that holds it.
 
 use crate::agent::{Stream, TestAgent, next, welcome};
+use crate::journal::complete;
 use crate::lifecycle::{approve, power};
 use crate::recipes::{body, create, project, push_paper};
 use crate::support::Harness;
@@ -31,6 +32,19 @@ fn only(a: &TestAgent, set: &agent::AssignmentSet) -> agent::Assignment {
     let signature = ed25519_dalek::Signature::from_slice(&signed.signature).unwrap();
     verifying.verify(&signed.assignment, &signature).expect("signed by the control plane");
     agent::Assignment::decode_from_slice(&signed.assignment).unwrap()
+}
+
+/// The first set, of those sent next, whose one assignment is told to stop.
+async fn stopped_set(a: &TestAgent, s: &mut Stream) -> (agent::AssignmentSet, agent::Assignment) {
+    for _ in 0..10 {
+        let Some(Down::AssignmentSet(got)) = next(s).await.message else { continue };
+        let told = only(a, &got);
+        let state = told.power.as_option().unwrap().desired.as_known();
+        if state == Some(pb::PowerState::POWER_STATE_STOPPED) {
+            return (*got, told);
+        }
+    }
+    panic!("never told to stop");
 }
 
 async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
@@ -86,12 +100,12 @@ async fn a_node_is_sent_its_signed_set_when_it_changes_and_not_when_it_holds_it(
     if stop_plan.status.as_known() == Some(pb::PlanStatus::PLAN_STATUS_PROPOSED) {
         h.plans(h.root()).approve_plan(approve("a", &stop_plan.id)).await.unwrap();
     }
-    let second = set(&next(&mut stream).await);
-    let changed = only(&a, &second);
-    assert_eq!(changed.generation, 2, "a change is a new generation");
+    // Queued behind the create, which is still applying, the stop changes nothing on the node
+    // until the create is done (§4.8 of docs/02-architecture.md, Finding 52).
+    complete(&mut stream, &workload, plan, 1).await;
+    let (second, changed) = stopped_set(&a, &mut stream).await;
+    assert!(changed.generation > 1, "a change is a new generation");
     assert_eq!(changed.uid_base, assignment.uid_base, "a workload keeps its range");
-    let state = changed.power.as_option().unwrap().desired.as_known();
-    assert_eq!(state, Some(pb::PowerState::POWER_STATE_STOPPED));
     drop(stream);
 
     let mut again = connect(&h, &a, 2, &second.set_digest).await;

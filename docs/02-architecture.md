@@ -240,8 +240,9 @@ stops being reachable degrades in latency, not in function.
 This is the single most important decision in the document.
 
 The control plane does **not** send "start workload X". It sends **the complete set of assignments
-for this node** (§4.8): for every workload placed there, the approved configuration, the desired
-power state, the lease, and any plan steps, retirement, or migration role in progress. The agent's
+for this node** (§4.8): for every workload placed there, the configuration and power state its
+approved plans have reached or are reaching, the lease, and any plan steps, retirement, or
+migration role in progress. The agent's
 job is to make reality match that set, creating what is missing, retiring what it is told to
 retire, and correcting what has drifted.
 
@@ -606,10 +607,12 @@ Assignment
   workload      WorkloadID
   owner         {project, organization}
   generation    int            monotonic per workload; any change below increments it
-  target        Intent         the approved configuration in full: Workload.target, never the
-                               head; the agent needs the body to run it
-  power         PowerRef       the approved power declaration: Workload.power_target, never
-                               the newest; desired state, version, and cycle (§3.3 of 01-model.md)
+  target        Intent         the configuration in full that the workload's plans reached, or
+                               that the plan in `plan` is reaching; never the head, and the
+                               target only once a plan reaches it; the agent needs the body
+  power         PowerRef       likewise for power: desired state, version, and cycle (§3.3 of
+                               01-model.md); stopped at version zero while no plan has brought
+                               the workload to any intent
   continuity    on_lease_expiry, resolved (§4.5)
   shaping       quota-imposed state, e.g. an exhausted egress budget (§3.1 of 01-model.md)
   plan          NodePlan?      present while an applying plan has steps this node executes
@@ -639,9 +642,23 @@ the gaps above:
   cannot converge toward a change nobody approved, which is the property P5 depends on and which
   the first version did not have (§3.2 of `03-state.md`).
 - **`power` carries start, stop, and restart, once approved.** A restart is a higher `cycle`; the
-  agent performs each cycle once and records that it did (§4.1). Like `target`, it is the approved
+  agent performs each cycle once and records that it did (§4.1). Like `target`, it is an approved
   declaration, so a stop waiting for confirmation has not reached the node (§3.3 of
   `01-model.md`, corrected 2026-10-13).
+- **Approved is not enough: `target` and `power` are what a plan made or is making.** Approval
+  moves the workload's target before anything runs, and the agent levels toward what it is told,
+  so a node told the target runs what no plan has made. It is told instead the intent and power
+  the workload's plans reached, or that the plan in `plan` is reaching: the target once a plan
+  reaches it, and until then the last one reached. A plan approved for a later window
+  (`apply_after`) changes nothing on the node before it is due, nor one queued behind another plan
+  before it begins. A workload no plan has brought to
+  any intent is told its target, which the plan's steps need, with power stopped at version zero,
+  so the node keeps the assignment, and what the steps saved, and runs nothing.
+
+  > Corrected 2026-10-15, Finding 52 of `23-walkthroughs.md`. `target` and `power` were the
+  > workload's approved ones. A create approved for a later window started at once, without its
+  > pull, volume, or install; a create whose plan failed started without its install; and a change
+  > waiting for its window was applied by the next crash restart, which rebuilds from the target.
 - **A residual assignment carries a plan for what a workload left behind.** A retained volume
   outlives its workload (§3.6 of `01-model.md`), so deleting one, or taking, rolling back to, or
   deleting one of its snapshots, is a plan for a workload that may no longer run anywhere. Its

@@ -648,6 +648,17 @@ Step
 > approval moves before anything runs. A create plan that failed at its install left the target at
 > an intent nothing had reached, so the next plan for that same intent had no steps: `create` and
 > `start` were never planned again, and the install's saved progress was never used.
+- **A node holds only what a plan made or is making.** It is told the intent and power the
+  workload's plans put on it, or that the plan it may act on now is reaching, not the target (§4.8
+  of `02-architecture.md`): the last intent reached, as above, passing also any plan that has not
+  begun. So `apply_after` holds: a plan approved for a later window, or queued behind another,
+  changes nothing on the node until it begins. A workload no plan has brought to any intent is told
+  its target with nothing to run, so the node keeps what the plan's steps saved and starts nothing.
+
+> Added 2026-10-15, Finding 52 of `23-walkthroughs.md`. Nodes were told the target, which approval
+> moves before anything runs, and a node runs what it is told: a create approved for a later
+> window started at once without its pull, volume, or install, a create whose plan failed started
+> without its install, and a change waiting for its window was applied by the next crash restart.
 - Plans expire. A stale plan is not an approvable plan.
 - **A retire plan moves no pointer, and approving it freezes the workload.** Deleting a workload
   proposes one: stop, detach and retain every volume, remove the runtime (§4.8 of

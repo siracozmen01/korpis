@@ -354,8 +354,12 @@ message Assignment {
   string organization = 3;
   // Monotonic per workload; any change below increments it.
   uint64 generation = 4;
-  // The approved configuration in full: Workload.target, never the head.
+  // The configuration in full that the workload's plans reached, or that `plan` is reaching:
+  // never the head, and the approved target only once a plan reaches it (§4.8 of
+  // docs/02-architecture.md).
   korpis.v1.Intent target = 5;
+  // Likewise for power; stopped at version zero while no plan has brought the workload to any
+  // intent, so the node keeps the assignment and runs nothing.
   korpis.v1.Power power = 6;
   // Resolved: never ON_LEASE_EXPIRY_UNSPECIFIED here.
   korpis.v1.OnLeaseExpiry on_lease_expiry = 7;

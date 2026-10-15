@@ -22,9 +22,11 @@ pub struct Assignment {
     pub organization: Uuid,
     /// Monotonic per workload and node; any change below increments it.
     pub generation: u64,
-    /// The approved intent in full: the workload's target, never its head.
+    /// The intent in full that the workload's plans reached, or that `plan` is reaching: never
+    /// its head, and its target only once a plan reaches it (§4.8 of docs/02-architecture.md).
     pub target: Intent,
-    /// The approved power declaration: the workload's power target, never the newest.
+    /// Likewise for power; stopped at version zero while no plan has brought the workload to
+    /// any intent.
     pub power: PowerRecord,
     /// What the node does when the lease ends: resolved, never [`Continuity::Derived`].
     pub on_lease_expiry: Continuity,

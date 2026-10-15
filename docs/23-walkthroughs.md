@@ -37,7 +37,8 @@ tenant keys, share links, and stream ranges were built, found 37 to 47. §28 rec
 which no trace found: an automated security review of the code flagged it, and the evidence file
 had named its class all along. §29, written when the install worker was given its content, found
 49, and §30, written when step providers were wired to installs, found 50. §31, written for the
-end-to-end install test, found 51.
+end-to-end install test, found 51, and §32, written when a refusal after the bind was tested on
+real agents, found 52.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1081,6 +1082,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 49 | Knowing a digest was enough to have another tenant's file installed | §29 | `06-storage.md` §6, `09-recipes.md` §4 |
 | 50 | A step provider's artifacts were relative to a volume nothing named | §30 | `09-recipes.md` §4, `16-extensions.md` §5 |
 | 51 | A failed plan's unfinished steps were never planned again | §31 | `01-model.md` §3.3, `05-scheduling.md` §3.1 |
+| 52 | A node ran a target no plan had made | §32 | `02-architecture.md` §4.8, `01-model.md` §3.3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1975,8 +1977,8 @@ status.
 **Resolution.** An intent plan's steps are computed from the last intent the workload reached: the
 target, unless the plan approved to reach it failed, then the intent that plan started from,
 followed back through failed plans. Steps are idempotent, so what the failed plan completed
-completes again as a no-op, and the install, with the same actions, resumes at its failed action
-by its digest. The plan's `from_intent` still names the target, which approval compares. → patched
+completes again as a no-op, and the install, with the same actions, resumes at its failed action by
+its digest. The plan's `from_intent` still names the target, which approval compares. → patched
 into `01-model.md` §3.3 and `05-scheduling.md` §3.1
 
 † Step 4 is where the trace found Finding 51.
@@ -1985,4 +1987,49 @@ The trace is also a test: `crates/korpis-e2e/tests/e2e/install.rs` runs it on a 
 volume sixteen MiB against a thirty-two MiB world, then declared at ninety-six. The install fails
 at its extract with the fetch and the write done, resumes there without writing again or fetching
 again, and the workload runs; a new version of the recipe then installs again.
+
+---
+
+## 32. A create approved for the night
+
+Written 2026-10-15, when a driver's refusal after the bind was tested on real agents: the test
+approved a create to apply three seconds later, so that the node's driver could be told to refuse
+before the plan reached it, and the workload ran on that node before the three seconds were up.
+An operator approves a new workload's create plan with `apply_after` set to 02:00, the
+maintenance window.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The plan is approved: the target and the power target move, and the workload is bound | `01-model.md` §3.3, `05-scheduling.md` §2.3 |
+| 2 | The node's set is computed: the plan is not due, so it is not in the assignment | `02-architecture.md` §4.8 |
+| 3 | The node is told the workload's target and power † | `02-architecture.md` §4.8 |
+| 4 | The agent levels toward what it is told | `02-architecture.md` §4.1 |
+| 5 | At 02:00 the plan is due; the periodic resync recomputes the node's set, and the plan is sent | `02-architecture.md` §4.8 |
+
+**FINDING 52: A node ran a target no plan had made. `CONFIRMED`**
+
+Asked at step 3 what the node is told, and with what consequence at step 4: the approved target
+and power, so a node with no plan and power `running` built the workload from its target and
+started it, at once, without the plan's pull, volume, or install. `apply_after` promised "approved
+now, applied in a window" (§3.3 of `01-model.md`), and nothing between the approval and the agent
+held the change back: the assignment carried what was approved, not what was applied. The same
+path started a create whose plan had failed, without its install, and applied a change waiting for
+its window at the next crash restart, which rebuilds from the target. The control plane holds what
+is needed to know better: the plans, and which of them reached what.
+
+**Resolution.** A node is told the intent and power the workload's plans reached, or that the plan
+it may act on now is reaching: the target only once a plan reaches it. A workload no plan has
+brought to any intent is told its target with power stopped at version zero, so the node keeps the
+assignment and what the steps saved, such as an install's progress, and runs nothing. What is on
+the node is found as Finding 51 finds what was reached, passing also plans that have not begun:
+approved for a later window, or queued behind another.
+→ patched into `02-architecture.md` §4.8, `01-model.md` §3.3, and `05-scheduling.md` §3.1
+
+The trace is also a test: `crates/korpis-server/tests/api/told.rs` checks what a node is told for a
+create approved for later and for one whose plan failed, and the test that found it,
+`crates/korpis-agent/tests/agent/refused.rs`, now passes on every run instead of by timing.
+
+† Step 3 is where the trace found Finding 52.
 

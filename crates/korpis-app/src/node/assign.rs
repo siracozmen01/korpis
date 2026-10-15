@@ -160,20 +160,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         workload: Uuid,
     ) -> Result<Option<(Assignment, Option<Plan>)>, AppError> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
-        let Some(target) = w.target else { return Ok(None) };
         let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
-        let target = self.store.intent(target).await?.ok_or_else(|| missing("target"))?;
-        let power = self
-            .store
-            .power_at(workload, w.power_target_version)
-            .await?
-            .ok_or_else(|| missing("power target"))?;
+        let plan = active_plan(self.store.open_plans(workload).await?, self.clock.now());
+        let Some((target, power)) = self.told(&w, plan.as_ref()).await? else { return Ok(None) };
         let manifest = self
             .store
             .cached_recipe(&target.body.recipe.digest)
             .await?
             .ok_or_else(|| missing("recipe document"))?;
-        let plan = active_plan(self.store.open_plans(workload).await?, self.clock.now());
         // No storage class a Phase 0 node offers is attachable from a second node, so a derived
         // answer keeps running (§4.5 of docs/02-architecture.md).
         let on_lease_expiry = target.body.continuity.resolved(false);

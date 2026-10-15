@@ -14,6 +14,7 @@ mod lease;
 mod observe;
 mod reachability;
 pub(crate) mod session;
+mod told;
 
 pub use assign::AssignmentSet;
 pub use attach::check_data_hello;

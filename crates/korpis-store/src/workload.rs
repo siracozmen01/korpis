@@ -9,7 +9,7 @@ mod write;
 use crate::PgStore;
 use crate::errors::from_sqlx;
 use korpis_app::Page;
-use korpis_app::ports::{StoreResult, WorkloadFilter, WorkloadRead};
+use korpis_app::ports::{StoreError, StoreResult, WorkloadFilter, WorkloadRead};
 use korpis_core::workload::{Intent, Plan, PowerRecord, Workload};
 use rows::{IntentRow, PlanRow, PowerRow, WorkloadRow};
 use uuid::Uuid;
@@ -145,6 +145,21 @@ impl WorkloadRead for PgStore {
             .fetch_optional(&self.pool)
             .await
             .map_err(from_sqlx)?;
+        row.map(PlanRow::into_domain).transpose()
+    }
+
+    async fn latest_plan_to_power(
+        &self,
+        workload: Uuid,
+        version: u64,
+    ) -> StoreResult<Option<Plan>> {
+        let version =
+            i64::try_from(version).map_err(|_| StoreError::Corrupt("power version".into()))?;
+        let row =
+            sqlx::query_file_as!(PlanRow, "queries/latest_plan_to_power.sql", workload, version)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(from_sqlx)?;
         row.map(PlanRow::into_domain).transpose()
     }
 

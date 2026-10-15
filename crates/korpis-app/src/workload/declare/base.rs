@@ -14,9 +14,8 @@ use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::recipe::resolve::Change;
 use korpis_core::recipe::{Recipe, RecipeRef};
 use korpis_core::workload::declare::Declaration;
-use korpis_core::workload::plan::PlanStatus;
 use korpis_core::workload::spec::IntentBody;
-use korpis_core::workload::{Intent, Power, PowerRecord, Workload};
+use korpis_core::workload::{Power, PowerRecord, Workload};
 use uuid::Uuid;
 
 /// Refuses an artifact whose kind the workload may not run.
@@ -129,7 +128,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Some(t) => Some(intent(t).await?),
             None => None,
         };
-        let applied = self.applied(id, target.clone()).await?;
+        let applied = self.reached_intent(id, target.clone()).await?;
         let power = self
             .store
             .power(id)
@@ -139,32 +138,4 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let extension = self.store.extension_of_workload(id).await?.map(|e| e.artifact_digest);
         Ok(Base { workload, power, head, target, applied, permit, proposing, action, extension })
     }
-
-    /// The last intent of `workload`'s that its plans reached, from its `target` back: an intent
-    /// whose plan failed was never reached, so the one that plan started from is looked at
-    /// instead, until one that was, or none (§3.3 of docs/01-model.md).
-    async fn applied(
-        &self,
-        workload: Uuid,
-        target: Option<Intent>,
-    ) -> Result<Option<Intent>, AppError> {
-        let mut at = target;
-        for _ in 0..MAX_FAILED_CHAIN {
-            let Some(i) = &at else { return Ok(None) };
-            let plan = self.store.latest_plan_to(workload, i.id).await?;
-            let Some(failed) = plan.filter(|p| p.status == PlanStatus::Failed) else {
-                return Ok(at);
-            };
-            at = match failed.from_intent {
-                Some(f) => self.store.intent(f).await?,
-                None => None,
-            };
-        }
-        // Past that many failures, planning from nothing is still safe: every step is idempotent,
-        // so what the failed plans completed is completed again as a no-op.
-        Ok(None)
-    }
 }
-
-/// How many failed plans in a row the search for the last reached intent follows.
-const MAX_FAILED_CHAIN: usize = 64;

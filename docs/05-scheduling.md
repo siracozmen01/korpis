@@ -409,6 +409,9 @@ steps it completed are planned again and complete as no-ops, the step it failed 
 after it run, and an install resumes at the action that failed. Declaring the same body again is
 how a person asks for that, after fixing whatever made it fail. Added 2026-10-15, Finding 51 of
 `23-walkthroughs.md`: before, the next plan was computed from the target and planned nothing.
+Until then the node holds what the plans reached (§4.8 of `02-architecture.md`), so a workload
+whose first plan failed runs nothing, and its install's saved progress waits on the node for the
+next plan (Finding 52 there).
 
 **The guarantee has to reach inside a step, not stop at its edge.**
 
