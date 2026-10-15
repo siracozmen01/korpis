@@ -72,6 +72,7 @@ message AgentMessage {
     CredentialRequest credential_request = 11;
     ProbeListening probe_listening = 12;
     JobAccessRequest job_access_request = 13;
+    StepRequest step_request = 14;
   }
 }
 
@@ -95,6 +96,7 @@ message ControlMessage {
     ReachabilityProbe reachability_probe = 14;
     Relays relays = 15;
     JobAccess job_access = 16;
+    StepResolution step_resolution = 17;
   }
 }
 
@@ -131,6 +133,30 @@ message JobAccess {
   string request = 1;
   oneof outcome {
     JobGrant grant = 2;
+    korpis.v1.Error refused = 3;
+  }
+}
+
+// A node running an install asks for one of its provider steps to be resolved (§4 of
+// docs/09-recipes.md). The control plane calls the step provider the workload's intent pinned
+// (§4.1 of docs/16-extensions.md) and answers what the step resolved to. It answers only the node
+// the workload is placed on, for an install step of a plan still open.
+message StepRequest {
+  // Echoed in the answer.
+  string request = 1;
+  string plan = 2;
+  uint32 step = 3;
+  // The provider step, by its index among the actions the install step's detail lists.
+  uint32 action = 4;
+  // The node's, since what a step resolves to may differ per platform.
+  korpis.v1.Platform platform = 5;
+}
+
+message StepResolution {
+  string request = 1;
+  oneof outcome {
+    // Every artifact's path is relative to the step's `to`, and was checked to stay beneath it.
+    korpis.v1.StepResult result = 2;
     korpis.v1.Error refused = 3;
   }
 }

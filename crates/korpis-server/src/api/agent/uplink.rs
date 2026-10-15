@@ -122,6 +122,10 @@ impl Uplink {
                 super::job::answer(app, node, (**r).clone(), self.tx.clone());
                 Ok(())
             }
+            Some(Up::StepRequest(r)) => {
+                super::step::answer(app, node, (**r).clone(), self.tx.clone());
+                Ok(())
+            }
             Some(Up::ProbeListening(p)) => {
                 self.sessions.probe_listening(&p.probe, p.error.clone());
                 Ok(())

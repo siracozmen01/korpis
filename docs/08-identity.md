@@ -1122,6 +1122,15 @@ plane stores only its digest, as it does for an API token (§3.7), together with
 lease epoch it was issued under. The workload renews it by asking the socket again, so a renewal is
 always a fresh proof that the node still runs it.
 
+A workload can ask before its node holds the lease: the socket exists from the moment its
+container is built, and the lease is obtained over the same stream as the credential, so the two
+can cross. The control plane then refuses with `credential.no_lease` marked
+retryable, and the socket answers `unavailable`, which tells the workload to ask again, as it does
+when the control plane cannot be reached. Only a refusal that will not pass, a workload placed
+elsewhere, is `permission_denied`. Added 2026-10-15, from the implementation: the first version
+answered every refusal as denied, so a workload asking as it started was told, wrongly, that it
+never would be.
+
 **What evaluates this, where, and with what information.** The control plane, at issue, from its
 own placement and lease records and from the identity of the node session the request arrived on
 (§7 of `02-architecture.md`). Nothing on the node decides that a workload is who it says: the agent

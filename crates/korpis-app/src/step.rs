@@ -5,6 +5,8 @@
 //! answer that names a path outside the volume or content without its hash is the provider's
 //! malfunction, recorded as such, and never reaches a node.
 
+pub mod install;
+
 use crate::App;
 use crate::error::AppError;
 use crate::extension::{CallTarget, Called};

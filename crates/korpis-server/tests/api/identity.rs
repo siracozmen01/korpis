@@ -68,6 +68,8 @@ async fn a_node_obtains_a_credential_only_for_what_it_runs_and_it_acts_as_the_wo
 
     let early = ask(&mut stream, &workload, "r1").await;
     assert_eq!(refused(&early), "credential.no_lease", "placed here, but not yet leased");
+    let Outcome::Refused(e) = &early else { unreachable!() };
+    assert!(e.retryable, "the lease may be on its way: the workload asks again");
     let lease =
         agent::LeaseRequest { workload: workload.clone(), nonce: vec![1; 8], ..Default::default() };
     send(&mut stream, Up::LeaseRequest(Box::new(lease))).await;

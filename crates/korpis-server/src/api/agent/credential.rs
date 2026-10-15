@@ -42,6 +42,15 @@ pub(super) fn answer(
             subject: principal::to_pb(&c.subject).into(),
             ..Default::default()
         })),
+        // The lease is the node's to obtain, and it may be on its way: a workload asking as it
+        // starts, or while its node renews after a partition, is told to ask again.
+        Ok(Err(r @ CredentialRefusal::NoLease)) => Outcome::Refused(Box::new(pb::Error {
+            code: pb::ErrorCode::ERROR_CODE_UNAVAILABLE.into(),
+            reason: r.reason().to_owned(),
+            message: "the node holds no live lease for the workload yet".to_owned(),
+            retryable: true,
+            ..Default::default()
+        })),
         Ok(Err(r)) => Outcome::Refused(refusal(
             r.reason(),
             "the workload is not placed on this node under a live lease",

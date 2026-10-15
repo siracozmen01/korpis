@@ -35,13 +35,22 @@ async fn exists(path: &Path, wanted: bool) {
     panic!("{} never {}", path.display(), if wanted { "appeared" } else { "went" });
 }
 
-/// The credential, asked for over HTTP/2 as a generated client asks.
+/// The credential, asked for over HTTP/2 as a generated client asks, and asked again while the
+/// socket says to, as a workload does until its node holds the lease.
 async fn over_http2(socket: &Path) -> agent::Credential {
     let authority = http::Uri::from_static("http://localhost");
     let conn = Http2Connection::lazy_unix(socket, authority.clone()).shared(4);
     let client = agent::WorkloadIdentityServiceClient::new(conn, ClientConfig::new(authority));
-    let answer = client.get_credential(agent::GetCredentialRequest::default()).await.unwrap();
-    answer.into_owned().credential.into_option().unwrap()
+    for _ in 0..100 {
+        match client.get_credential(agent::GetCredentialRequest::default()).await {
+            Ok(answer) => return answer.into_owned().credential.into_option().unwrap(),
+            Err(e) if e.code == ErrorCode::Unavailable => {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            Err(e) => panic!("{e:?}"),
+        }
+    }
+    panic!("the socket never issued a credential");
 }
 
 /// The raw response to a JSON request over HTTP/1.1, as `curl --unix-socket` sends it.

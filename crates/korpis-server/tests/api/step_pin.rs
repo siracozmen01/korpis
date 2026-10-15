@@ -9,7 +9,7 @@ use crate::step::serving;
 use crate::support::{Harness, detail};
 
 /// The example recipe, its install ending with `step`.
-fn with_step(step: &str) -> String {
+pub fn with_step(step: &str) -> String {
     let eula = r#"    - write: {path: /data/eula.txt, content: "eula=true\n"}"#;
     assert!(PAPER.contains(eula), "the example installs its eula");
     PAPER.replacen(eula, &format!("{eula}\n    - {step}"), 1)

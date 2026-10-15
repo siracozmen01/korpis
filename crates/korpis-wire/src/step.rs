@@ -54,6 +54,35 @@ pub fn step_result_from_pb(r: &pb::StepResult) -> StepResult {
     }
 }
 
+/// A step result as the control plane hands it to a node.
+#[must_use]
+pub fn step_result_to_pb(r: &StepResult) -> pb::StepResult {
+    pb::StepResult {
+        artifacts: r
+            .artifacts
+            .iter()
+            .map(|a| pb::StepArtifact {
+                path: a.path.clone(),
+                url: a.url.clone(),
+                sha256: a.sha256.clone(),
+                size: a.size,
+                mode: a.mode,
+                extract: a.extract,
+                ..Default::default()
+            })
+            .collect(),
+        pinned: r.pinned,
+        resolved: r.resolved.clone(),
+        ..Default::default()
+    }
+}
+
+/// A platform as a node names it.
+#[must_use]
+pub fn platform_from_pb(p: &pb::Platform) -> Platform {
+    Platform { os: p.os.clone(), arch: p.arch.clone() }
+}
+
 /// Arguments as a recipe step gives them; a malformed value names its field.
 pub fn arguments_from_pb<'a>(
     field: &str,

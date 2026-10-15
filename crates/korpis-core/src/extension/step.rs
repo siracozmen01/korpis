@@ -68,7 +68,7 @@ impl StepArtifact {
     #[must_use]
     pub fn problem(&self) -> Option<&'static str> {
         if !beneath(&self.path) {
-            return Some("its path leaves the volume");
+            return Some("its path climbs out of where it is written");
         }
         if !(self.url.starts_with("https://") || self.url.starts_with("http://")) {
             return Some("its url is not http or https");

@@ -425,6 +425,20 @@ Calling out is the direction that carries risk, so the contract is strict:
   > one of the volumes, which the provider is never asked and may not declare as an argument, and
   > each artifact's path is relative to it (§4 of `09-recipes.md`).
 
+  **Who calls it, as built** (2026-10-15). The node running the install asks, over its session,
+  for one provider action of an install step (`StepRequest`: plan, step, action, platform), and
+  the control plane answers on the same stream (`StepResolution`). A provider has no stream to a
+  node and a node has none to a provider, so the control plane is the only component that holds
+  both the node's question and the provider's registration. It answers only the node the workload
+  is placed on, only for an install step of a plan still open, and only through the installation
+  the intent pinned at its digest (§4.1); anything else is refused, `step.not_assigned`,
+  `step.not_a_step`, or `step.provider_changed`, and none of those is retryable. The provider's
+  own failures reach the node with the provider's reason and retryability. An unpinned result
+  sets the workload's `unreproducible` mark (§3.3 of `01-model.md`) with what it resolved to,
+  before the answer is sent. What it does not do: it checks the pin and then calls, so an upgrade
+  landing between the two is answered by the upgraded installation, once; the next resolution
+  refuses.
+
 > Finding 23 of `23-walkthroughs.md`.
 
 The last point exists because the first three all describe a provider that is broken, and the

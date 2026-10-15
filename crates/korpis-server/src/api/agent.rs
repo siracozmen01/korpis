@@ -8,6 +8,7 @@ mod downlink;
 mod job;
 mod published;
 mod session;
+mod step;
 mod uplink;
 
 pub(super) use session::proof_from_pb;

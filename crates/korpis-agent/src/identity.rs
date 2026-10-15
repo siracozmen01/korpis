@@ -70,6 +70,8 @@ impl Credentials {
         self.lock().remove(&id);
         match answered {
             Some(Outcome::Credential(c)) => Ok(*c),
+            // Not now, for a reason that passes: the workload asks again, as for no answer.
+            Some(Outcome::Refused(e)) if e.retryable => Err(NoCredential::Unavailable),
             Some(Outcome::Refused(e)) => Err(NoCredential::Refused(e.reason)),
             None => Err(NoCredential::Unavailable),
         }
