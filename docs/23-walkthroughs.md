@@ -2140,3 +2140,37 @@ step 2 evaluates it, in the control plane, from the range the node advertises an
 endpoints hold. Not numbered as a finding, since it was asked and answered before any code
 shipped without it.
 
+---
+
+## 34. A web app and its database, on one machine
+
+Written 2026-10-15, to design dependencies for Phase 1 before building them (§5 of
+`07-networking.md`); "a web app and its database" is the scenario §4 of `20-roadmap.md` names for
+Phase 1. A tenant runs a database and a web application that depends on it, on one machine.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The tenant declares `db`, a database whose recipe declares one endpoint, `pg`, TCP, `overlay_only` | `07-networking.md` §3, §5 |
+| 2 | The tenant declares `web` with a dependency `db`, `target: workload db`, `inject: both`, `required: true`; the declaration is checked: same project, and `db` has one reachable endpoint | `07-networking.md` §5; `01-model.md` §3.3 |
+| 3 | `web` is placed on the node `db` is on, the overlay being unavailable | `05-scheduling.md` §2.1; `07-networking.md` §5, §9 |
+| 4 | `web`'s assignment carries the dependency: `db`'s workload, `pg`, its container port and protocol | `07-networking.md` §5; `02-architecture.md` §4.8 |
+| 5 | The agent finds `db` running and ready on its node, so it may create `web` | `07-networking.md` §5 |
+| 6 | The agent resolves `db` to the address it allocated it, injects `KORPIS_DEP_DB_HOST` and `_PORT`, writes `/run/korpis/deps/db.json`, and opens that address and port in `web`'s chain | `07-networking.md` §4.1, §5, §6 |
+| 7 | `web` connects to `db`; `db`'s own table accepts its declared port | `07-networking.md` §4.1, §6 |
+| 8 | The tenant replaces `db` with a new workload a selector would match; `web` named it by identifier, so its dependency now names a retired workload | `07-networking.md` §5 |
+
+Each step was asked what evaluates it, where, and with what. Step 2 is evaluated by the control
+plane, which holds `db`'s intent and endpoints. Step 3 needs `db`'s placement, which the control
+plane holds, and every node's overlay, which none has. Step 5 needs `db`'s state and readiness,
+which only the node observes, so the node decides it, not the control plane. Step 6 needs `db`'s
+workload address, which only its agent allocated: the control plane resolves *which* endpoint, and
+the node *where* it is, and neither could do the other's half. Step 8 is the question the design
+had to answer: a dependency by identifier names one workload, and a retired one resolves to
+nothing, so `web`'s required dependency leaves it unplaced at its next placement and its status
+says why; a tenant who wants the dependency to follow a replacement names it by selector, which is
+evaluated each time `web`'s assignment is computed.
+
+No finding: the design was written against these steps, and the one place it had been silent, which
+half of resolution the node holds, was answered before it was built.

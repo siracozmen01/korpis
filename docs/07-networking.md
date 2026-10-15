@@ -508,7 +508,7 @@ Korpis resolves each dependency at start and injects the current address:
 
 ```
 KORPIS_DEP_DB_HOST, KORPIS_DEP_DB_PORT       (env)
-/korpis/deps/db.json                          (file, for workloads that reload)
+/run/korpis/deps/db.json                      (file, for workloads that reload)
 ```
 
 Explicit declaration is better than implicit DNS for four reasons, and they are the reasons this
@@ -531,6 +531,64 @@ workloads that watch for changes, and by DNS where the class supports it.
 The field is in the Phase 0 schema (`IntentBody.dependencies`), so it never has to be added to a
 frozen one; resolving and injecting arrive in Phase 1, and until then a declaration that names a
 dependency is refused as not yet available (§4 of `20-roadmap.md`).
+
+**As built.** Decided 2026-10-15, for Phase 1, which runs on one node. Each part of a dependency is
+evaluated where the information it needs is held.
+
+*Scope.* A dependency's target is in the dependent's own project, by identifier or by selector. A
+declaration naming a workload or an endpoint of another project is refused: reaching another
+project's workload is a grant of its own, which no action yet expresses (question 9 of §11).
+
+*What a target means.* Each target resolves to endpoints. A workload resolves to its one endpoint
+whose exposure is not `none`; a workload with none, or with several, is refused when the dependency
+is declared, naming the endpoint form, since nothing could say which was meant. An endpoint
+resolves to itself. A selector resolves, each time the dependent's assignment is computed, to every
+workload of the project it matches, each by its one reachable endpoint; a matched workload with
+several is left out, and the dependency's status says so. The control plane evaluates all of this,
+since it holds the intents, the labels, and the endpoints, and carries the result in the
+dependent's assignment: for each dependency its name, how it is injected, whether it is required,
+and each target's workload, endpoint name, container port, and protocol.
+
+*Where it is placed.* Until the overlay exists (Phase 3) no node reaches another's workloads, so a
+dependent is placed on the node its targets are on, which the filter row of §2.1 of
+`05-scheduling.md` already states for a node outside the overlay. A required dependency whose
+target is not placed leaves the dependent unplaced, saying so; one that is not required constrains
+nothing. Targets on two different nodes leave it unplaced: there is no node from which both are
+reachable.
+
+*The address.* The node turns each target into an address: the target's workload address, which its
+agent allocated and alone holds (§4.1), and the endpoint's container port. A target that is not on
+the dependent's node is not resolved.
+
+*Injection.* Into the environment at the container's creation: `KORPIS_DEP_<NAME>_HOST` and
+`_PORT`, of the first target in the order of the targets' names, and `_ADDRESSES`, every target as
+`host:port`, comma-separated. Into a file, `/run/korpis/deps/<name>.json`, in the workload's own
+directory that the identity socket's is (§9.5 of `08-identity.md`), mounted read-only: every
+target, with its workload, endpoint, host, port, and protocol, rewritten whole whenever it changes,
+so a workload that watches it follows a change without a restart. The environment changes only at
+the next start. A dependency that is not required and has no target now is injected as none: no
+variables, and a file with no addresses.
+
+*Reaching it.* The egress default denies other workloads (§6), so the agent opens each target's
+address and port, over its protocol, in the dependent's own chain on the host, as it opens the
+control plane's API for an extension's workload. The target's own table accepts its declared port
+already, and its endpoint's own rules still hold (§6).
+
+*Start order.* The agent creates the dependent's container only once every required dependency's
+targets on its node run and, where they have a readiness probe, are ready; until then the dependent
+is `starting`, and its status says which dependency it waits for. The agent judges this, since it
+observes both workloads.
+
+What it costs: a dependent and its targets share a node until the overlay exists, so a database
+that fills its node keeps its web application off every other; a change of address reaches the
+environment only at the next start; and a selector is evaluated when the assignment is computed,
+not continuously, so a workload that starts to match joins at the next computation, which any
+change on the node or the dependent's target triggers.
+
+> Corrected 2026-10-15, when it was designed. The file was `/korpis/deps/<name>.json`: a directory
+> of its own at the root, which needs a mount of its own. The workload's Korpis directory,
+> `/run/korpis`, is mounted already and is Korpis's own, so the files are there, and no host path
+> is mounted that was not before.
 
 ### 5.1 The resolver a workload uses
 
@@ -967,3 +1025,8 @@ promise, and it is now the one the document makes.
    record's lifetime, which is how Cilium enforces its `toFQDNs` policies; whether Korpis does
    that, and what a deny by name means for an address a second name shares, is undecided. Until
    then a declaration naming a domain is refused. → here
+9. **Dependencies across projects.** A dependency opens the dependent's way to its target, and a
+   target in another project, or another organization, is a workload the dependent's declarer may
+   have no authority over. Whether that needs an action of its own on the target, granted by its
+   owner, and how the target's owner sees and revokes it, is undecided; until then a dependency's
+   target is in the dependent's project. → `08-identity.md`
