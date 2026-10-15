@@ -62,6 +62,14 @@ pub trait Host: Send + Sync + 'static {
         reference: &str,
     ) -> impl Future<Output = Result<BTreeMap<String, String>, HostError>> + Send;
 
+    /// The bytes of content `digest` the node holds, a recipe's file among them; more than
+    /// `limit` of them is refused.
+    fn read_content(
+        &self,
+        digest: &str,
+        limit: usize,
+    ) -> impl Future<Output = Result<Vec<u8>, HostError>> + Send;
+
     /// Fetches what `url` serves, kept only if it hashes to `digest`; idempotent by digest
     /// (§4 of docs/09-recipes.md).
     fn fetch_url(
@@ -111,6 +119,8 @@ struct Kept {
     content: BTreeSet<String>,
     /// Each artifact's files, as a test made them available.
     files: BTreeMap<String, BTreeMap<String, String>>,
+    /// Content held, by digest, as a test offered it.
+    blobs: BTreeMap<String, Vec<u8>>,
     ids: BTreeMap<String, (u32, u32)>,
     snapshots: BTreeSet<(String, String)>,
     jobs: BTreeMap<String, helper::JobStatusResponse>,
@@ -149,6 +159,11 @@ impl InMemoryHost {
     /// Makes the artifact `reference` available with `files`, by path and digest.
     pub fn offer_files(&self, reference: &str, files: BTreeMap<String, String>) {
         let _ = self.with(|k| k.files.insert(reference.to_owned(), files));
+    }
+
+    /// Holds `bytes` as content `digest`.
+    pub fn offer_content(&self, digest: &str, bytes: &[u8]) {
+        let _ = self.with(|k| k.blobs.insert(digest.to_owned(), bytes.to_vec()));
     }
 
     /// The snapshots, by volume and snapshot.
@@ -227,6 +242,19 @@ impl Host for InMemoryHost {
             k.files.get(reference).cloned().unwrap_or_default()
         });
         ready(found)
+    }
+
+    fn read_content(
+        &self,
+        digest: &str,
+        limit: usize,
+    ) -> impl Future<Output = Result<Vec<u8>, HostError>> + Send {
+        let held = self.with(|k| k.blobs.get(digest).cloned()).ok().flatten();
+        ready(match held {
+            Some(b) if b.len() <= limit => Ok(b),
+            Some(_) => Err(HostError(format!("{digest} is over {limit} bytes"))),
+            None => Err(HostError(format!("{digest} is not held"))),
+        })
     }
 
     fn fetch_url(

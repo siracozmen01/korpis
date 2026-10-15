@@ -140,12 +140,9 @@ pub fn prepare(
         rejected(Reason::UNSATISFIABLE_REASON_IMAGE_UNSUPPORTED, why)
     })?;
     let values: ValueMap = body.config.iter().map(|(k, v)| (k.clone(), value_of(v))).collect();
+    // Managed files are the agent's to render, into the directory it hands the driver as the
+    // identity directory (§5.2 of docs/09-recipes.md); the driver sets only env and args.
     let delivered = recipe.config.delivered(&values).map_err(|e| refuse(e.to_string()))?;
-    if let Some(key) = delivered.managed.first() {
-        // Rendering a managed file needs the templating of Phase 1 (§4 of docs/20-roadmap.md);
-        // running without it would start the software without a value it was promised.
-        return Err(refuse(format!("config.{key} is a managed file, not rendered on this node")));
-    }
     let stream = stream(body, delivered.secrets);
     Ok(driver::PreparedSpec {
         workload: workload.to_owned(),

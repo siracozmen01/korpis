@@ -83,13 +83,17 @@ fn what_this_driver_cannot_run_is_refused_with_the_reason() {
     assert_eq!(reason(&other, &recipe("")), Some(R::UNSATISFIABLE_REASON_MISSING_DRIVER));
     let garbage = reason(&intent(CONTAINER), b"not a recipe");
     assert_eq!(garbage, Some(R::UNSATISFIABLE_REASON_PREPARE_REJECTED));
+}
+
+#[test]
+fn a_managed_file_is_left_to_the_agent_and_never_refused() {
     let managed = "    - {key: motd, type: string, default: x, deliver: managed_file}\n\
                    managed_files:\n  - {name: motd.txt, from: motd.txt, format: ini, vars: [motd]}\n";
     let mut with_motd = intent(CONTAINER);
     let motd = pb::Value { kind: Some(V::StringValue("x".into())), ..Default::default() };
     with_motd.body.get_or_insert_default().config.insert("motd".into(), motd);
-    let e = prepare("wl_1", &with_motd, &recipe(managed)).unwrap_err();
-    assert!(e.detail.contains("config.motd"), "{}", e.detail);
+    let spec = prepare("wl_1", &with_motd, &recipe(managed)).unwrap();
+    assert!(!spec.env.contains_key("motd"), "a managed file is the agent's, not an env var");
 }
 
 #[test]

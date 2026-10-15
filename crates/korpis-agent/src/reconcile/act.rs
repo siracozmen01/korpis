@@ -120,12 +120,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let mut spec = self.prepare(a, t).await?;
         self.mount(a, &mut spec).await?;
         self.stream(a, &mut spec).await?;
+        let mut dir = None;
         if let Some(identity) = &self.wiring.identity {
-            let dir = identity.ensure(&a.workload).map_err(|e| {
+            let served = identity.ensure(&a.workload).map_err(|e| {
                 Failure(format!("the workload's identity socket could not be served: {e}"))
             })?;
-            spec.identity_dir = dir.to_string_lossy().into_owned();
+            spec.identity_dir = served.to_string_lossy().into_owned();
+            dir = Some(served);
         }
+        self.managed(a, dir.as_deref()).await?;
         let power = a.power.as_option();
         spec.labels = driver::RuntimeLabels {
             workload: a.workload.clone(),

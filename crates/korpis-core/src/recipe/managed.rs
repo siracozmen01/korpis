@@ -38,8 +38,10 @@ impl ManagedFile {
     }
 }
 
-/// Whether `name` is a plain file name.
-fn plain(name: &str) -> bool {
+/// Whether `name` is a plain file name: what a managed file may be called, and all a node writes
+/// one as.
+#[must_use]
+pub fn plain(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= MAX_NAME
         && name != "."

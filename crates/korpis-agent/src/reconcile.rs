@@ -13,6 +13,7 @@ mod act;
 mod backup;
 mod install;
 mod jobs;
+mod managed;
 mod observe;
 pub mod progress;
 mod restore;

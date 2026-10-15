@@ -600,10 +600,12 @@ boolean as `true` or `false`, a quantity in its base unit (`4Gi` is `4294967296`
 `0.5`), and a duration in seconds (`1h30m` is `5400`). When the recipe's `entry` names no command,
 the arguments replace the image's own `CMD`, as an OCI runtime does.
 
-A `managed_file` field is rendered by Korpis rather than set by the driver, and its rendering
-arrives with the templating of Phase 1 (§4 of `20-roadmap.md`). Until then a node refuses at
-`Prepare` an intent in which such a field has a value, and says which field: starting the software
-without a value its recipe promised it would be a quieter failure than not starting it.
+A `managed_file` field is rendered by Korpis rather than set by the driver. It first arrived with
+the templating of Phase 1 (§4 of `20-roadmap.md`), and until it did a node refused at `Prepare` an
+intent in which such a field had a value: starting the software without a value its recipe
+promised it would be a quieter failure than not starting it. Corrected 2026-10-15: the node
+renders them now, as below, and the refusal is gone. A node that gives its workloads no directory
+of their own still refuses such a recipe, for the same reason.
 
 **Where a managed file is, and what renders into it** (decided 2026-10-15, from the
 implementation). The table above said "a file rendered into a read-only mount outside the
@@ -633,6 +635,15 @@ software that reads a setting only from a fixed path elsewhere cannot use a mana
 it accepts the path as an argument, which the recipe's `entry` can give it, or its image links
 that path to the managed one. Software that reads a setting only from its own data directory
 remains outside this channel, as the paragraph after the table says.
+
+As built: the agent renders every managed file each time it builds the workload's runtime object,
+so a changed value reaches the software at its next start, as every other setting does. It reads
+each template from the recipe's files in its content store, at most 1 MiB, renders it with only
+that file's fields in its context, and writes it whole, mode `0444`, into `config/` of the
+workload's directory, removing any file the recipe no longer declares. The agent renders rather
+than the workload's filesystem worker (§6): the engine reads nothing but its source and its
+context, and each file is written by name into a directory of the node's, so a template has no
+path to escape by.
 
 > Note, 2026-10-13, from the implementation (`crates/korpis-core/src/recipe/deliver.rs`). The
 > schema said `deliver_as` was "the argument template" and never said what a template was, and the

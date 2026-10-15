@@ -59,6 +59,22 @@ impl Host for NodeHost {
             .map_err(|e| HostError(format!("fetching {reference}: {e}")))
     }
 
+    async fn read_content(&self, digest: &str, limit: usize) -> Result<Vec<u8>, HostError> {
+        let fail = |e: &dyn std::fmt::Display| HostError(format!("reading {digest}: {e}"));
+        let path = self.content.path_of(digest).map_err(|e| fail(&e))?;
+        let file = tokio::fs::File::open(&path).await.map_err(|e| fail(&e))?;
+        let len = file.metadata().await.map_err(|e| fail(&e))?.len();
+        if usize::try_from(len).map_or(true, |n| n > limit) {
+            return Err(fail(&format!("over {limit} bytes")));
+        }
+        let mut bytes = Vec::new();
+        let mut bounded = tokio::io::AsyncReadExt::take(file, u64::try_from(limit).unwrap_or(0));
+        tokio::io::AsyncReadExt::read_to_end(&mut bounded, &mut bytes)
+            .await
+            .map_err(|e| fail(&e))?;
+        Ok(bytes)
+    }
+
     async fn fetch_url(&self, url: &str, digest: &str) -> Result<(), HostError> {
         let content = Arc::clone(&self.content);
         content

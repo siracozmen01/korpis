@@ -249,8 +249,10 @@ the intent's resolved configuration, the variables and arguments of §5.2 of `09
 the intent, its volumes as mounts whose sources the helper names before `Create`, and its
 resources, with the default process limit where none is set (§5.2 of `05-scheduling.md`). It
 refuses, naming why, a tier other than `container`, an intent that names another driver or sets
-driver configuration (its declared schema admits none), a recipe with no image for this
-architecture, and a configuration that needs a managed file. It maps no ports: the container's
+driver configuration (its declared schema admits none), and a recipe with no image for this
+architecture. It first also refused a configuration that needed a managed file; since 2026-10-15
+the agent renders managed files into the directory it hands the driver as `/run/korpis` (§5.2 of
+`09-recipes.md`), and the driver sets nothing for them. It maps no ports: the container's
 network holds only loopback until the networking of Phase 1, the driver declares
 `network_modes: none`, and an endpoint stays without an address rather than claiming one.
 
