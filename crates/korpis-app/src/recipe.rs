@@ -52,8 +52,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         version: &str,
         digest: String,
     ) -> Result<(RecipeRef, Described), AppError> {
-        let reference =
-            RecipeRef { name: name.to_owned(), version: version.to_owned(), digest, trust: None };
+        let reference = RecipeRef {
+            name: name.to_owned(),
+            version: version.to_owned(),
+            digest,
+            trust: None,
+            providers: Vec::new(),
+        };
         reference.validate().map_err(|e| AppError::invalid("recipe", e.to_string()))?;
         if let Some(cached) = self.store.cached_recipe(&reference.digest).await? {
             let described = self.recipes.parse(&cached.document).map_err(source_error)?;

@@ -86,13 +86,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Paged { items, next })
     }
 
-    async fn extension_view(&self, installation: Installation) -> Result<ExtensionView, AppError> {
+    /// The manifest `installation`'s artifact declares, read from the kept artifact.
+    pub(crate) async fn manifest_of(
+        &self,
+        installation: &Installation,
+    ) -> Result<ExtensionManifest, AppError> {
         let missing =
             |what: &str| AppError::Internal(format!("extension {}: {what}", installation.id));
         let cached = self.store.cached_recipe(&installation.artifact_digest).await?;
         let document = cached.ok_or_else(|| missing("its artifact is not kept"))?.document;
         let described = self.recipes.parse(&document).map_err(|e| missing(&e.to_string()))?;
-        let manifest = described.extension.ok_or_else(|| missing("its artifact is a recipe"))?;
+        described.extension.ok_or_else(|| missing("its artifact is a recipe"))
+    }
+
+    async fn extension_view(&self, installation: Installation) -> Result<ExtensionView, AppError> {
+        let missing =
+            |what: &str| AppError::Internal(format!("extension {}: {what}", installation.id));
+        let manifest = self.manifest_of(&installation).await?;
         let workload = self.store.workload(installation.workload).await?;
         let workload = workload.ok_or_else(|| missing("its workload is gone"))?;
         let intent = self.store.intent(workload.intent).await?;

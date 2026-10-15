@@ -317,6 +317,19 @@ organization and the provider's **artifact digest is recorded in the lockfile** 
 own (§8 of `09-recipes.md`), so a workload never changes provider because someone registered a new
 one later.
 
+**As built in Phase 1** (2026-10-15). The pin is part of the intent: its recipe reference carries,
+for each step kind the install names, the installation that answers it and that installation's
+artifact digest, set by the control plane at declaration whatever a client sends. Declaration
+walks up from the declaring organization to the nearest one with a live installation providing
+the kind, checks every step's arguments against the schema that installation's manifest declares,
+and refuses the declaration, on `body.recipe` naming the step, if no installation provides the
+kind or the arguments do not fit. A pin that differs from the previous intent's is an install
+change, as a new recipe digest is. What it costs: upgrading a step provider's installation changes
+its digest, so every workload pinned to the old one has to be declared again, which pins the new
+one and plans a reinstall, before its install can resolve; until then its install fails, saying
+so. That is the lockfile's promise kept, not a defect of it: an upgrade that silently changed what
+every workload installs is the thing a pin exists to stop.
+
 **As built in Phase 1.** Zones, backup repositories, and edges are not yet objects with owners
 of their own, so the resource a provider serves belongs to the organization its registration
 belongs to: installing anything that provides needs `extension.install` over the organization as

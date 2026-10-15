@@ -27,7 +27,11 @@ pub fn install_detail(
             return Ok(None);
         }
         None => (InstallReason::Create, (true, every)),
-        Some(f) if f.recipe.digest != to.recipe.digest => {
+        // A provider pinned anew is the lockfile changing, as a new recipe digest is (§8 of
+        // docs/09-recipes.md): its steps may now resolve to other bytes.
+        Some(f)
+            if f.recipe.digest != to.recipe.digest || f.recipe.providers != to.recipe.providers =>
+        {
             if !recipe.installs() {
                 return Ok(None);
             }

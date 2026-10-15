@@ -86,6 +86,7 @@ fn reference() -> RecipeRef {
         version: "1.21.4".into(),
         digest: format!("sha256:{}", "b".repeat(64)),
         trust: None,
+        providers: Vec::new(),
     }
 }
 

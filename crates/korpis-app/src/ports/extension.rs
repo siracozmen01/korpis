@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::Page;
-use korpis_core::extension::Installation;
+use korpis_core::extension::{Installation, ProviderType};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -26,6 +26,15 @@ pub trait ExtensionRead {
         &self,
         organization: Uuid,
         project: Option<Uuid>,
+        name: &str,
+    ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
+
+    /// The installation in `organization` itself that provides `kind` named `name`, if one is
+    /// installed: at most one does (§4.1 of docs/16-extensions.md).
+    fn providing_installation(
+        &self,
+        organization: Uuid,
+        kind: ProviderType,
         name: &str,
     ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
 

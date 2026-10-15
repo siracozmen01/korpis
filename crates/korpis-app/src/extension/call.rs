@@ -51,7 +51,10 @@ pub struct Called {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The organization whose installation serves `target`: the nearest, walking up.
-    async fn provider_owner(&self, target: &CallTarget) -> Result<Option<Uuid>, AppError> {
+    pub(crate) async fn provider_owner(
+        &self,
+        target: &CallTarget,
+    ) -> Result<Option<Uuid>, AppError> {
         let chain = self.organization_chain(target.organization).await?;
         let providing =
             self.store.providing_organizations(&chain, target.kind, &target.name).await?;

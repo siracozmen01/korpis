@@ -143,14 +143,24 @@ fn dependencies() -> Vec<Dependency> {
     ]
 }
 
+/// A resolved recipe reference with one step provider pinned.
+fn recipe() -> RecipeRef {
+    RecipeRef {
+        name: "ghcr.io/korpis/recipes/minecraft-paper".into(),
+        version: "1.21.4".into(),
+        digest: format!("sha256:{}", "9d2f".repeat(16)),
+        trust: Some(korpis_core::recipe::trust::Vouched::Signer("korpis".into())),
+        providers: vec![korpis_core::recipe::ProviderPin {
+            step: "valve/steam.app".into(),
+            extension: uuid::Uuid::from_u128(7),
+            digest: format!("sha256:{}", "5d0e".repeat(16)),
+        }],
+    }
+}
+
 pub fn body() -> IntentBody {
     IntentBody {
-        recipe: RecipeRef {
-            name: "ghcr.io/korpis/recipes/minecraft-paper".into(),
-            version: "1.21.4".into(),
-            digest: format!("sha256:{}", "9d2f".repeat(16)),
-            trust: Some(korpis_core::recipe::trust::Vouched::Signer("korpis".into())),
-        },
+        recipe: recipe(),
         lifecycle: Lifecycle::Persistent,
         schedule: None,
         console: ConsoleMode::Interactive,

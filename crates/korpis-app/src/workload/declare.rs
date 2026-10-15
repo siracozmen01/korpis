@@ -6,6 +6,7 @@
 
 mod base;
 mod commit;
+mod providers;
 mod set;
 
 use super::propose::{self, Proposal};

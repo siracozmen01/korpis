@@ -39,7 +39,13 @@ pub async fn check(
     let pulled = registry.pull(&r.name, &digest).await.map_err(|e| at(file, None, "recipe", e))?;
     let recipe = korpis_recipe::parse(&pulled.document).map_err(|e| at(file, None, "recipe", e))?;
     let tag = if is_digest(&r.version) { String::new() } else { r.version.clone() };
-    let reference = RecipeRef { name: r.name.clone(), version: tag, digest, trust: None };
+    let reference = RecipeRef {
+        name: r.name.clone(),
+        version: tag,
+        digest,
+        trust: None,
+        providers: Vec::new(),
+    };
     let completed = declaration.complete(reference, &recipe).map_err(|e| {
         let key = e.field.split('.').next().unwrap_or_default().to_owned();
         at(file, None, &key, format!("{}: {}", e.field, e.message))

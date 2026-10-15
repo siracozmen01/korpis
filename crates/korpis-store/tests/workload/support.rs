@@ -76,6 +76,7 @@ pub fn body(motd: &str) -> IntentBody {
             version: "1.21.4".into(),
             digest: format!("sha256:{}", "9d2f".repeat(16)),
             trust: Some(korpis_core::recipe::trust::Vouched::Signer("korpis".into())),
+            providers: Vec::new(),
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,

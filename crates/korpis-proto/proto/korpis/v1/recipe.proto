@@ -22,6 +22,19 @@ message RecipeRef {
   // What vouched for the recipe when it was declared (§7 of docs/09-recipes.md). Set by the
   // control plane at resolution; whatever a client sends here is replaced.
   RecipeTrust trust = 4;
+  // The installation that answers each step kind the recipe's install names, pinned with its
+  // artifact's digest at declaration (§4.1 of docs/16-extensions.md). Set by the control plane at
+  // resolution; whatever a client sends here is replaced.
+  repeated ProviderPin providers = 5;
+}
+
+message ProviderPin {
+  // `<publisher>/<step>`.
+  string step = 1;
+  // The installation that provides it.
+  string extension = 2;
+  // Its artifact's digest when the recipe was declared.
+  string digest = 3;
 }
 
 // Exactly one of the two.

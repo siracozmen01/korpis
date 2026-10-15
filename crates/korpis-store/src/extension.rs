@@ -8,7 +8,7 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{ExtensionRead, ExtensionWrite, StoreResult};
-use korpis_core::extension::Installation;
+use korpis_core::extension::{Installation, ProviderType};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -90,6 +90,30 @@ impl ExtensionRead for PgStore {
                 AND uninstalled_at IS NULL",
             organization,
             project,
+            name
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(ExtensionRow::into_domain).transpose()
+    }
+
+    async fn providing_installation(
+        &self,
+        organization: Uuid,
+        kind: ProviderType,
+        name: &str,
+    ) -> StoreResult<Option<Installation>> {
+        let row = sqlx::query_as!(
+            ExtensionRow,
+            "SELECT e.id, e.organization_id, e.project_id, e.name, e.version, e.api_version,
+                    e.workload_id, e.artifact_name, e.artifact_digest, e.installed_by,
+                    e.installed_at, e.uninstalled_at
+               FROM extension e JOIN extension_provides p ON p.extension_id = e.id
+              WHERE p.organization_id = $1 AND p.type = $2 AND p.name = $3
+                AND e.uninstalled_at IS NULL",
+            organization,
+            kind.as_str(),
             name
         )
         .fetch_optional(&self.pool)

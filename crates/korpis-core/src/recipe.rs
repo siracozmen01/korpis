@@ -23,7 +23,7 @@ pub use config::{
 pub use deliver::{Delivered, DeliveryError};
 pub use disruption::{Disruption, DisruptionDecl};
 pub use document::{Metadata, Recipe};
-pub use reference::{RecipeRef, RefError};
+pub use reference::{ProviderPin, RecipeRef, RefError};
 pub use resolve::{ConfigError, Resolved};
 
 use crate::workload::spec::endpoints::{EndpointSpec, NetworkPolicy, ShapingSpec};

@@ -81,8 +81,8 @@ fn arguments(appid: i64, manifest: Option<i64>) -> ValueMap {
 }
 
 /// Installs an extension providing `valve/steam.app` with its argument schema, and serves it with
-/// [`Steam`] through the SDK until the test ends.
-async fn serving(h: &Harness) {
+/// [`Steam`] through the SDK until the test ends; returns the installation.
+pub async fn serving(h: &Harness) -> pb::Extension {
     let document = DNS
         .replace(
             "    - {type: dns, name: cloudflare}",
@@ -114,6 +114,7 @@ async fn serving(h: &Harness) {
     let serving = Arc::clone(&provider);
     tokio::spawn(async move { serving.run().await });
     registered.wait_for(Option::is_some).await.unwrap();
+    x.extension
 }
 
 #[tokio::test]

@@ -2,8 +2,9 @@
 
 //! Recipe references, `korpis.v1.RecipeRef`, and trust policies, `korpis.v1.TrustPolicy`.
 
-use korpis_core::recipe::RecipeRef;
+use korpis_core::id::{Id, IdKind};
 use korpis_core::recipe::trust::{Signer, TrustPolicy, Vouched};
+use korpis_core::recipe::{ProviderPin, RecipeRef};
 use korpis_proto::korpis::v1 as pb;
 
 fn trust_to_pb(v: &Vouched) -> pb::RecipeTrust {
@@ -32,6 +33,16 @@ pub fn ref_to_pb(r: &RecipeRef) -> pb::RecipeRef {
         version: r.version.clone(),
         digest: r.digest.clone(),
         trust: r.trust.as_ref().map(trust_to_pb).into(),
+        providers: r
+            .providers
+            .iter()
+            .map(|p| pb::ProviderPin {
+                step: p.step.clone(),
+                extension: crate::wire_id(IdKind::Extension, p.extension),
+                digest: p.digest.clone(),
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }
@@ -45,6 +56,16 @@ pub fn ref_from_pb(r: &pb::RecipeRef) -> RecipeRef {
         version: r.version.clone(),
         digest: r.digest.clone(),
         trust: trust_from_pb(r.trust.as_option()),
+        // Pinned by the control plane at declaration; a client's are not read. Stored intents
+        // come back through here, so a pin that does not parse is kept out rather than invented.
+        providers: r
+            .providers
+            .iter()
+            .filter_map(|p| {
+                let extension = Id::parse(IdKind::Extension, &p.extension).ok()?.uuid();
+                Some(ProviderPin { step: p.step.clone(), extension, digest: p.digest.clone() })
+            })
+            .collect(),
     }
 }
 

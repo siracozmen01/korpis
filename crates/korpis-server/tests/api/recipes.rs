@@ -11,7 +11,7 @@ use korpis_recipe::registry::Registry;
 use uuid::Uuid;
 
 /// The example recipe of §3 of docs/09-recipes.md, as the recipe crate's tests load it.
-const PAPER: &str = include_str!("../../../korpis-recipe/tests/recipe/paper.yaml");
+pub const PAPER: &str = include_str!("../../../korpis-recipe/tests/recipe/paper.yaml");
 
 pub fn registry_address() -> String {
     std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
@@ -20,6 +20,23 @@ pub fn registry_address() -> String {
 /// Pushes the example, unsigned, to a repository no other test uses; returns the repository
 /// and the digest it pushed.
 pub async fn push_unsigned_paper() -> (String, String) {
+    push_unsigned_document(PAPER).await
+}
+
+/// Pushes `document` with the example's files, signed as [`push_paper`] is; returns the
+/// repository.
+pub async fn push_paper_like(document: &str) -> String {
+    let (repo, digest) = push_unsigned_document(document).await;
+    Registry::new(vec![registry_address()])
+        .unwrap()
+        .sign(&repo, &digest, &test_key())
+        .await
+        .unwrap();
+    repo
+}
+
+/// Pushes `document` with the example's files, unsigned, as [`push_unsigned_paper`] does.
+async fn push_unsigned_document(document: &str) -> (String, String) {
     let repo = format!("{}/test/paper-{}", registry_address(), Uuid::now_v7().simple());
     let file = |path: &str, data: &[u8]| File {
         path: path.to_owned(),
@@ -27,7 +44,7 @@ pub async fn push_unsigned_paper() -> (String, String) {
         data: data.to_vec(),
     };
     let artifact = Artifact {
-        document: PAPER.as_bytes().to_vec(),
+        document: document.as_bytes().to_vec(),
         files: vec![
             file("layers/rootfs.tar.zst", b"not really a rootfs"),
             file("templates/server.properties", b"motd={{motd}}\n"),

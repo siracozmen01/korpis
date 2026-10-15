@@ -15,6 +15,22 @@ pub struct RecipeRef {
     /// What vouched for the recipe when it was declared, under the declaring organization's
     /// policy (§7 of docs/09-recipes.md); `None` only in a declaration not yet resolved.
     pub trust: Option<crate::recipe::trust::Vouched>,
+    /// The installation that answers each step kind the recipe's install names, pinned at
+    /// declaration with its artifact's digest (§4.1 of docs/16-extensions.md), one per kind, in
+    /// kind order.
+    pub providers: Vec<ProviderPin>,
+}
+
+/// A recipe step kind pinned to the installation that answers it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProviderPin {
+    /// The step kind, `<publisher>/<step>`.
+    pub step: String,
+    /// The installation that provides it.
+    pub extension: uuid::Uuid,
+    /// That installation's artifact digest when the recipe was declared: an installation
+    /// upgraded since no longer answers for this declaration.
+    pub digest: String,
 }
 
 /// Why a reference is malformed.
@@ -63,8 +79,13 @@ mod tests {
         assert!(!is_digest(&format!("sha256:{}", "A".repeat(64))));
         assert!(!is_digest(&format!("sha512:{}", "a".repeat(64))));
         assert!(!is_digest("sha256:abc"));
-        let r =
-            RecipeRef { name: "korpis.io/x".into(), version: "1".into(), digest: ok, trust: None };
+        let r = RecipeRef {
+            name: "korpis.io/x".into(),
+            version: "1".into(),
+            digest: ok,
+            trust: None,
+            providers: Vec::new(),
+        };
         assert_eq!(r.validate(), Ok(()));
         let named = RecipeRef { name: "x@y".into(), ..r };
         assert!(named.validate().is_err());

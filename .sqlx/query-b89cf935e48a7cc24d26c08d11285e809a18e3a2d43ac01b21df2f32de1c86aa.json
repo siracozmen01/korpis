@@ -1,0 +1,162 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.id, e.organization_id, e.project_id, e.name, e.version, e.api_version,\n                    e.workload_id, e.artifact_name, e.artifact_digest, e.installed_by,\n                    e.installed_at, e.uninstalled_at\n               FROM extension e JOIN extension_provides p ON p.extension_id = e.id\n              WHERE p.organization_id = $1 AND p.type = $2 AND p.name = $3\n                AND e.uninstalled_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "api_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "api_version"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "artifact_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "artifact_name"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "artifact_digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "artifact_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "installed_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "installed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "installed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "installed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "uninstalled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "extension",
+            "name": "uninstalled_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "b89cf935e48a7cc24d26c08d11285e809a18e3a2d43ac01b21df2f32de1c86aa"
+}

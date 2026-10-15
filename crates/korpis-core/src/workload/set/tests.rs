@@ -17,6 +17,7 @@ fn body() -> IntentBody {
             version: "1".into(),
             digest: String::new(),
             trust: None,
+            providers: Vec::new(),
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,

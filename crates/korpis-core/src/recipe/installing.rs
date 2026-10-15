@@ -100,6 +100,14 @@ impl Recipe {
         !self.install.is_empty() || !self.templates.is_empty()
     }
 
+    /// The provider steps of its install: each one's index, step kind, and arguments.
+    pub fn provider_steps(&self) -> impl Iterator<Item = (usize, &str, &ValueMap)> {
+        self.install.iter().enumerate().filter_map(|(i, s)| match s {
+            InstallStep::Provider { provider, args, .. } => Some((i, provider.as_str(), args)),
+            _ => None,
+        })
+    }
+
     /// Every path an install writes, with where the recipe says it.
     #[must_use]
     pub fn install_targets(&self) -> Vec<(String, &str)> {
