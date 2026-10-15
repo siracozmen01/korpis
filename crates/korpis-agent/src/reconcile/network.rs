@@ -96,7 +96,51 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         let made = self.host.ensure_network(&request).await?;
         spec.namespaces = made.namespaces;
+        self.serve_resolver(&a.workload).await;
         Ok(())
+    }
+
+    /// Serves `workload`'s resolver on the sockets the helper opens in its namespace, unless it
+    /// is served; one that cannot be opened now is tried again at the next pass.
+    async fn serve_resolver(&mut self, workload: &str) {
+        let serving = self
+            .wiring
+            .network
+            .as_ref()
+            .is_some_and(|n| n.resolvers.get(workload).is_some_and(|t| !t.is_finished()));
+        if serving || self.wiring.network.is_none() {
+            return;
+        }
+        let bound = match self.host.open_resolver(workload).await {
+            Ok(fds) => crate::resolver::Bound::from_attached(fds).map_err(|e| e.to_string()),
+            Err(e) => Err(e.to_string()),
+        };
+        match bound {
+            Ok(bound) => {
+                let resolver = crate::resolver::Resolver::new("/etc/resolv.conf".into());
+                let task = tokio::spawn(resolver.serve(bound));
+                if let Some(n) = self.wiring.network.as_mut() {
+                    n.resolvers.insert(workload.to_owned(), task);
+                }
+            }
+            Err(e) => tracing::warn!(%workload, error = %e, "its resolver could not be served yet"),
+        }
+    }
+
+    /// Serves the resolver of every workload holding a network the set holds, which is how a
+    /// restarted agent answers its running workloads again.
+    pub(super) async fn serve_resolvers(&mut self, held: &HeldSet) {
+        let Some(net) = self.wiring.network.as_ref() else { return };
+        let holding: Vec<String> = net
+            .addresses
+            .workloads()
+            .filter(|w| held.assignments.contains_key(*w))
+            .filter(|w| net.resolvers.get(*w).is_none_or(tokio::task::JoinHandle::is_finished))
+            .cloned()
+            .collect();
+        for workload in holding {
+            self.serve_resolver(&workload).await;
+        }
     }
 
     /// Releases the network of every workload holding addresses that the set no longer holds
@@ -110,6 +154,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .cloned()
             .collect();
         for workload in leaving {
+            // Its sockets keep its namespace alive, so they are closed first.
+            if let Some(task) =
+                self.wiring.network.as_mut().and_then(|n| n.resolvers.remove(&workload))
+            {
+                task.abort();
+            }
             if let Err(e) = self.host.release_network(&workload).await {
                 tracing::warn!(%workload, error = %e, "a network could not be released yet");
                 continue;

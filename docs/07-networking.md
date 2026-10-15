@@ -546,22 +546,39 @@ all private ranges (where AWS puts the VPC resolver). A workload on either would
 - **The node, not the workload, talks to the provider's resolver.** The metadata address stays
   denied to workloads, so the credential-theft path of §6 stays closed, and resolution works on
   every cloud because the request leaves from the host.
-- The resolver's address is the one exception the policy carries by default, it is visible as such,
-  and it rate-limits queries per workload, because a resolver open to every tenant is a resource
-  every tenant can exhaust.
+- The resolver rate-limits queries per workload, because a resolver open to every tenant is a
+  resource every tenant can exhaust. This bullet also said the resolver's address was the one
+  exception the policy carries by default; as built it is none, since the resolver is in the
+  workload's own namespace and nothing reaches the node (corrected below).
 
-**As built.** Decided 2026-10-15. The resolver's address is the workload's gateway, `169.254.1.1`,
-which the node answers on every workload's link (§4.1), and every workload's `/etc/resolv.conf`
-names it alone. The agent serves it: queries a workload sends to port 53 there are redirected on
-the host to the agent's own unprivileged port, so the agent needs no privilege to answer them, and
-it forwards each, over UDP or TCP as it came, to the resolvers in the host's `/etc/resolv.conf`,
-which the host reaches, whatever they are, a local stub included. The agent knows which workload
-asked by the source address, and allows each workload 50 queries a second with a burst of 200,
-answering beyond that with `REFUSED`, which a resolver library treats as a failure to retry rather
-than as an answer. The dependency names of §5 are answered here once dependencies are resolved
-(§5). What it costs: a workload whose software ignores `/etc/resolv.conf` and asks a resolver of
-its own on the public internet still reaches it, as egress allows; one that asks a private
-resolver is denied by §6, as it should be.
+**As built.** Decided 2026-10-15. The resolver's address is `169.254.1.53`, an address of the
+workload's own namespace's loopback, and the `/etc/resolv.conf` its container is given names it
+alone; the file is mounted read-only. The helper opens a UDP socket and a listening TCP socket on
+that address's port 53 inside the namespace, and hands them to the agent with the answer to its
+request (`OpenResolver`, the descriptors attached as `SCM_RIGHTS`); the agent answers on them from
+the host, as a socket keeps the namespace it was made in. A query never leaves the workload's
+namespace, so no firewall on the host, Korpis's or another's, stands between a workload and its
+resolver; the agent knows which workload asked by the socket the query arrived on, needs no
+privilege, and binds nothing on the host. It forwards each query, over UDP or TCP as it came, to
+the resolvers in the host's `/etc/resolv.conf`, which the host reaches whatever they are, a local
+stub included, and allows each workload 50 queries a second with a burst of 200, answering beyond
+that with `REFUSED`, which a resolver library treats as a failure to retry rather than as an
+answer, and an upstream that does not answer in two seconds with `SERVFAIL`. An agent that restarts
+asks for every running workload's sockets again, and a workload's are closed when its network is
+released, since they keep its namespace alive. The dependency names of §5 are answered here once
+dependencies are resolved (§5). What it costs: a workload whose software ignores `/etc/resolv.conf`
+and asks a resolver of its own on the public internet still reaches it, as egress allows; one that
+asks a private resolver is denied by §6, as it should be; and the agent holds two descriptors for
+each workload it runs.
+
+> Corrected 2026-10-15, when it was built (Finding 56 of `23-walkthroughs.md`). The first version
+> made the resolver the workload's gateway, `169.254.1.1`, and redirected its port 53 on the host
+> to a port the agent listened on. A redirected query is delivered to the host, and every
+> firewall's input chain judges it, not only Korpis's: on a host whose firewall drops input by
+> default, as `ufw` does, no workload could resolve a name until its operator opened a port, and
+> Korpis does not change another firewall. That version also needed the one exception to the
+> default of §6 that the third bullet above names; this one needs none, since nothing reaches the
+> host.
 
 ---
 
@@ -633,7 +650,7 @@ host (§4.1), evaluated by the helper's nftables for every packet the workload s
 | Row | What matches |
 |---|---|
 | other workloads | anything the node would forward to another workload's link, whatever pool its address is in; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
-| node management | anything addressed to the host itself, on any of its addresses, except the resolver (§5.1) and ICMP to the gateway |
+| node management | anything addressed to the host itself, on any of its addresses, except ICMP to the gateway; the resolver is in the workload's own namespace (§5.1), so it needs no exception |
 | the control plane's API | its addresses as the node resolves the name it was enrolled with, on its port; opened, alone, for an installed extension's workload, which the assignment marks |
 | link-local metadata | `169.254.0.0/16` and `fe80::/10` beyond the gateway, `fd00:ec2::254` among them |
 | RFC 1918 and unique local | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, `fc00::/7`, and loopback |

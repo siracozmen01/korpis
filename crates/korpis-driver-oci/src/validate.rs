@@ -50,7 +50,8 @@ pub struct Policy {
     /// The directory the helper keeps volumes under.
     pub volume_root: PathBuf,
     /// The directory the agent makes the workloads' identity sockets under, one directory each
-    /// (§9.5 of docs/08-identity.md). These two roots are the only host paths ever mounted.
+    /// (§9.5 of docs/08-identity.md). These two roots, and the `resolv.conf` in the network
+    /// directory a spec joins, are the only host paths ever mounted.
     pub identity_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under, one each (§4.1 of
     /// docs/07-networking.md): the only namespaces a container joins rather than makes.

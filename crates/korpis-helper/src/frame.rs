@@ -37,6 +37,35 @@ pub fn write(w: &mut impl Write, body: &[u8]) -> io::Result<()> {
     w.flush()
 }
 
+/// The most descriptors one frame carries.
+pub const MAX_ATTACHED: usize = 4;
+
+/// Writes `body` as one message on `stream`, with `attached` sent as `SCM_RIGHTS` alongside its
+/// first bytes, as the peer's `recvmsg` of the length receives them.
+pub fn write_attaching(
+    stream: &std::os::unix::net::UnixStream,
+    body: &[u8],
+    attached: &[std::os::fd::OwnedFd],
+) -> io::Result<()> {
+    use rustix::net::{SendAncillaryBuffer, SendAncillaryMessage, SendFlags, sendmsg};
+    use std::os::fd::AsFd;
+    if attached.len() > MAX_ATTACHED {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "too many descriptors"));
+    }
+    let mut framed = Vec::with_capacity(4 + body.len());
+    write(&mut framed, body)?;
+    let fds: Vec<_> = attached.iter().map(AsFd::as_fd).collect();
+    let mut space = [std::mem::MaybeUninit::uninit(); rustix::cmsg_space!(ScmRights(MAX_ATTACHED))];
+    let mut control = SendAncillaryBuffer::new(&mut space);
+    if !control.push(SendAncillaryMessage::ScmRights(&fds)) {
+        return Err(io::Error::other("the descriptors do not fit their buffer"));
+    }
+    let sent = sendmsg(stream, &[io::IoSlice::new(&framed)], &mut control, SendFlags::empty())?;
+    let mut w = stream;
+    w.write_all(framed.get(sent..).unwrap_or_default())?;
+    w.flush()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

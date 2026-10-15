@@ -12,6 +12,7 @@ mod forward;
 mod netns;
 mod nft;
 mod policy;
+mod resolver;
 mod rtnl;
 
 use crate::error::{HelperError, HelperResult, identifier};
@@ -22,11 +23,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::fd::AsRawFd as _;
 use std::path::PathBuf;
 
-/// The address every workload's default route goes through, answered by the host's side of its
-/// link (§4.1 of docs/07-networking.md).
-pub const GATEWAY_V4: Ipv4Addr = Ipv4Addr::new(169, 254, 1, 1);
-/// The same, for IPv6.
-pub const GATEWAY_V6: Ipv6Addr = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
+use korpis_core::workload::network::RESOLVER_V4;
+pub use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6};
 /// The name of the workload's side of its link.
 const INNER: &str = "eth0";
 
@@ -192,6 +190,7 @@ fn inside(
     let missing = || std::io::Error::other("the namespace lacks its link");
     let lo = nl.link_index("lo")?.ok_or_else(missing)?;
     nl.set_up(lo)?;
+    nl.add_address(lo, IpAddr::V4(RESOLVER_V4), 32)?;
     let eth = nl.link_index(INNER)?.ok_or_else(missing)?;
     nl.add_address(eth, IpAddr::V4(ipv4), 32)?;
     nl.set_up(eth)?;
@@ -295,12 +294,24 @@ impl Network {
         host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
         nft::apply(&serde_json::json!({"nftables": host}))?;
         netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
+        resolver::write(&dir)?;
         Ok(helper::EnsureNetworkResponse {
             namespaces: dir.to_string_lossy().into_owned(),
             host_link: link,
             ipv6: ipv6.is_some(),
             ..Default::default()
         })
+    }
+
+    /// The sockets of `workload`'s resolver, opened inside its network namespace: UDP, then TCP
+    /// listening. Its network must have been made.
+    pub fn open_resolver(&self, workload: &str) -> HelperResult<Vec<rustix::fd::OwnedFd>> {
+        identifier("workload", workload)?;
+        let net = netns::net(&self.path(workload));
+        if !net.exists() {
+            return Err(HelperError::Refused("the workload has no network here".into()));
+        }
+        Ok(netns::within(&net, resolver::sockets)?)
     }
 
     /// Removes `workload`'s network; whether there was one.

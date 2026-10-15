@@ -51,11 +51,11 @@ fn joined(command: &[&str], namespaces: &str) -> Valid {
         identity_dir: "/i/wl_1".into(),
         ..Default::default()
     };
-    validate(
-        s,
-        &Policy { volume_root: "/v".into(), identity_root: "/i".into(), netns_root: "/n".into() },
-    )
-    .unwrap()
+    let netns_root = std::path::Path::new(namespaces)
+        .parent()
+        .map_or_else(|| "/n".into(), std::path::Path::to_owned);
+    validate(s, &Policy { volume_root: "/v".into(), identity_root: "/i".into(), netns_root })
+        .unwrap()
 }
 
 fn image() -> ImageConfig {
@@ -137,4 +137,23 @@ fn a_workload_given_a_network_joins_its_namespaces_and_still_states_its_mapping(
         serde_json::to_value(runtime_spec(&spec(&[]), &image(), "/korpis/x").unwrap()).unwrap();
     let made = own["linux"]["namespaces"].as_array().unwrap();
     assert!(made.iter().all(|n| n.get("path").is_none()), "nothing joined without a network");
+}
+
+#[test]
+fn a_network_s_resolv_conf_is_mounted_read_only_when_it_has_one() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("wl_1");
+    std::fs::create_dir(&dir).unwrap();
+    let net = dir.to_string_lossy().into_owned();
+    let mounts = |net: &str| -> Vec<Value> {
+        let spec = runtime_spec(&joined(&[], net), &image(), "/korpis/x").unwrap();
+        let j = serde_json::to_value(spec).unwrap();
+        j["mounts"].as_array().unwrap().clone()
+    };
+    let resolv = |ms: &[Value]| ms.iter().find(|m| m["destination"] == "/etc/resolv.conf").cloned();
+    assert!(resolv(&mounts(&net)).is_none(), "a network made without one gives none");
+    std::fs::write(dir.join("resolv.conf"), "nameserver 169.254.1.53\n").unwrap();
+    let m = resolv(&mounts(&net)).expect("mounted");
+    assert_eq!(m["source"], format!("{net}/resolv.conf"));
+    assert!(m["options"].as_array().unwrap().iter().any(|o| o == "ro"));
 }

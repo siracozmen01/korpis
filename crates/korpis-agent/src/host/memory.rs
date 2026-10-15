@@ -273,6 +273,13 @@ impl Host for InMemoryHost {
         ready(self.with(|k| k.networks.remove(workload).is_some()))
     }
 
+    fn open_resolver(
+        &self,
+        _workload: &str,
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
+        ready(Err(HostError("the in-memory host makes no networks".into())))
+    }
+
     fn describe_network(
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {

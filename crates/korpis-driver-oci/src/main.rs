@@ -28,8 +28,8 @@ struct Cli {
     /// The directory the helper keeps volumes under.
     #[arg(long, default_value = "/var/lib/korpis/volumes")]
     volume_root: PathBuf,
-    /// The directory the agent makes workload identity sockets under; with the volume root,
-    /// the only host paths ever mounted.
+    /// The directory the agent makes workload identity sockets under; with the volume root and
+    /// the `resolv.conf` of a workload's network directory, the only host paths ever mounted.
     #[arg(long, default_value = "/var/lib/korpis-agent/identity")]
     identity_root: PathBuf,
     /// The directory the helper binds workloads' network namespaces under.

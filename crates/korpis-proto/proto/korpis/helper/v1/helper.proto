@@ -79,6 +79,7 @@ message HelperRequest {
     EnsureNetworkRequest ensure_network = 15;
     ReleaseNetworkRequest release_network = 16;
     DescribeNetworkRequest describe_network = 17;
+    OpenResolverRequest open_resolver = 18;
   }
 }
 
@@ -103,6 +104,7 @@ message HelperResponse {
     EnsureNetworkResponse ensure_network = 16;
     ReleaseNetworkResponse release_network = 17;
     DescribeNetworkResponse describe_network = 18;
+    OpenResolverResponse open_resolver = 19;
   }
 }
 
@@ -183,6 +185,18 @@ message EnsureNetworkRequest {
   // default (§6 of docs/07-networking.md).
   uint32 max_connections = 13;
   uint32 new_per_sec = 14;
+}
+
+// Opens the sockets of a workload's resolver inside its network namespace, on the resolver's
+// address and port 53 (§5.1 of docs/07-networking.md), for the supervisor to answer on.
+message OpenResolverRequest {
+  string workload = 1;
+}
+
+// The sockets are attached to this answer's frame as SCM_RIGHTS: UDP first, then TCP, which
+// is listening. Each belongs to the workload's namespace, wherever its holder runs.
+message OpenResolverResponse {
+  uint32 attached = 1;
 }
 
 // An address and a TCP port.

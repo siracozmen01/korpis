@@ -7,6 +7,7 @@ pub mod assignment;
 pub mod declare;
 pub mod endpoint;
 pub mod lease;
+pub mod network;
 pub mod observation;
 pub mod plan;
 pub mod set;

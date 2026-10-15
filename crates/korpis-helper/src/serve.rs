@@ -87,7 +87,14 @@ fn connection(mut stream: UnixStream, helper: &mut Helper) {
                 return;
             }
         };
-        if let Err(e) = frame::write(&mut stream, &helper.handle(&request)) {
+        let answer = helper.handle(&request);
+        let attached = helper.take_attached();
+        let written = if attached.is_empty() {
+            frame::write(&mut stream, &answer)
+        } else {
+            frame::write_attaching(&stream, &answer, &attached)
+        };
+        if let Err(e) = written {
             tracing::warn!(error = %e, "an answer could not be sent");
             return;
         }

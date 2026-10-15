@@ -24,6 +24,7 @@ pub mod network;
 pub mod offload;
 pub mod probe;
 pub mod reconcile;
+pub mod resolver;
 pub mod revoked;
 pub mod run;
 pub mod runtime;

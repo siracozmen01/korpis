@@ -340,3 +340,36 @@ fn a_workload_s_own_limits_may_not_raise_the_default() {
     assert!(network.ensure(&r).is_err());
     assert!(!tmp.path().join("netns").join(&workload).exists());
 }
+
+#[test]
+fn a_workload_s_resolver_is_sockets_of_its_own_namespace_its_resolv_conf_names() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    if !able(&network) {
+        return;
+    }
+    let workload = format!("net-dns-{}", std::process::id());
+    let ip = Ipv4Addr::new(10, 242, u8::try_from(std::process::id() % 250).unwrap(), 2);
+    let mut r = request(&workload, ip);
+    r.ipv4_pool = "10.242.0.0/16".into();
+    let dir = Path::new(&network.ensure(&r).unwrap().namespaces).to_owned();
+    let conf = std::fs::read_to_string(dir.join("resolv.conf")).unwrap();
+    assert_eq!(conf, "nameserver 169.254.1.53\n");
+
+    let mut fds = network.open_resolver(&workload).unwrap().into_iter();
+    let udp = std::net::UdpSocket::from(fds.next().unwrap());
+    let tcp = std::net::TcpListener::from(fds.next().unwrap());
+    udp.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    let send = "import socket;socket.socket(socket.AF_INET,socket.SOCK_DGRAM)\
+                .sendto(b'asked',('169.254.1.53',53))";
+    assert!(inside(&dir.join("net"), &["python3", "-c", send]));
+    let mut buf = [0u8; 16];
+    // Sent within the namespace, from the resolver's own address: the socket is the workload.
+    let (n, _) = udp.recv_from(&mut buf).unwrap();
+    assert_eq!(&buf[..n], b"asked", "what the workload sent its resolver");
+    let connect = "import socket;socket.create_connection(('169.254.1.53',53),2)";
+    assert!(inside(&dir.join("net"), &["python3", "-c", connect]), "TCP listens");
+    drop((udp, tcp));
+    network.release(&workload).unwrap();
+    assert!(network.open_resolver(&workload).is_err(), "no network, no resolver");
+}

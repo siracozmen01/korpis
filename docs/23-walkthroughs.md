@@ -2064,8 +2064,9 @@ Each step was asked what evaluates it, where, and with what. Step 3 is evaluated
 plane, which holds every placement on the node and its range. Step 4 needs the workload's
 addresses, which the agent allocated and keeps, and for an extension the control plane's address,
 which the agent resolves from the name it enrolled with. Step 6 needs to know which workload asked,
-which the resolver reads from the source address the agent allocated. Step 8 needs the workload's
-address and the port, which the helper was given at step 4.
+which the resolver reads from the socket the query arrived on, opened in the workload's own
+namespace †. Step 8 needs the workload's address and the port, which the helper was given at step
+4.
 
 **FINDING 53: The reachability probe could listen on a port forwarded to a workload. `CONFIRMED`**
 
@@ -2113,8 +2114,24 @@ declaration that sets it is refused, naming where the rules go. → patched into
 §2 and §6 and `01-model.md` §3.3 and §3.6; built 2026-10-15 with the policy, and tested on a real
 node, from a declaration through the agent to the helper's rules.
 
+**FINDING 56: A workload's resolver depended on every other firewall on its host. `CONFIRMED`**
+
+Found 2026-10-15 at step 6, when the resolver was built and run on a real node. §5.1 of
+`07-networking.md` made the resolver the workload's gateway and redirected its port 53 to a port
+the agent listened on, on the host. A redirected packet is delivered to the host, and delivery is
+judged by the input chain of every firewall on it: Korpis's accepted the query, and the host's
+`ufw`, which drops input by default, dropped it. Korpis does not change another firewall, so on
+such a host no workload could resolve any name until its operator opened a port, and nothing in the
+design had asked what else judges a packet that reaches the host.
+
+**Resolution.** The resolver is an address of the workload's own namespace, and the helper opens
+its sockets there and hands them to the agent, so a query never reaches the host. The agent knows
+the workload by the socket, which also removed the one exception the egress default carried for the
+resolver. → patched into `07-networking.md` §5.1 and §6; built 2026-10-15 and tested on a host
+whose firewall drops input, over UDP and TCP.
+
 † Step 7 is where the trace found Finding 53; step 5, when built, Finding 54; step 4, when
-the workload's own policy was built, Finding 55.
+the workload's own policy was built, Finding 55; step 6, when the resolver was built, Finding 56.
 
 ‡ Added 2026-10-15, when step 3 was built: asked at step 3 what happens when the node has no
 free port, the allocation could only fail the node's whole assignment set or leave the endpoint

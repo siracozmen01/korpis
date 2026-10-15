@@ -297,6 +297,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
         }
         self.release_networks(&held).await;
+        self.serve_resolvers(&held).await;
         self.tail(&held).await;
         self.reap(&held).await;
         self.publish_runtimes();

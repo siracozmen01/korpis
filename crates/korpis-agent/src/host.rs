@@ -133,6 +133,13 @@ pub trait Host: Send + Sync + 'static {
         workload: &str,
     ) -> impl Future<Output = Result<bool, HostError>> + Send;
 
+    /// The sockets of a workload's resolver, opened inside its network namespace: UDP, then TCP
+    /// listening (§5.1 of docs/07-networking.md).
+    fn open_resolver(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send;
+
     /// Whether the node can give workloads networks, and what stands in the way.
     fn describe_network(
         &self,

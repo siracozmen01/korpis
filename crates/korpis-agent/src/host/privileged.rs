@@ -5,11 +5,14 @@
 //! open by the supervisor. Each message is framed as the protocol says, a 4-byte big-endian
 //! length and then one envelope, and the whole call has a deadline.
 
+mod attached;
+
 use super::HostError;
 use buffa::Message as _;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
+use std::os::fd::OwnedFd;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
@@ -145,6 +148,27 @@ impl HelperClient {
         match self.call(Verb::ReleaseNetwork(Box::new(r))).await? {
             Answer::ReleaseNetwork(a) => Ok(a.released),
             other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// The sockets of `workload`'s resolver, opened by the helper inside its network namespace:
+    /// UDP, then TCP listening (§5.1 of docs/07-networking.md).
+    pub async fn open_resolver(&self, workload: &str) -> Result<Vec<OwnedFd>, HostError> {
+        let r = helper::OpenResolverRequest { workload: workload.to_owned(), ..Default::default() };
+        let verb = Verb::OpenResolver(Box::new(r));
+        let request =
+            helper::HelperRequest { verb: Some(verb), ..Default::default() }.encode_to_vec();
+        let socket = self.socket.clone();
+        let call = move || attached::exchange(&socket, &request, (DEADLINE, MAX));
+        let (body, fds) =
+            tokio::task::spawn_blocking(call).await.map_err(failed)?.map_err(failed)?;
+        let response = helper::HelperResponse::decode_from_slice(&body).map_err(failed)?;
+        match response.result {
+            Some(Answer::OpenResolver(a)) if usize::try_from(a.attached) == Ok(fds.len()) => {
+                Ok(fds)
+            }
+            Some(Answer::Error(e)) => Err(failed(format!("{:?}: {}", e.code, e.message))),
+            other => Err(failed(format!("answered {other:?} with {} descriptors", fds.len()))),
         }
     }
 

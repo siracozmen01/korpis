@@ -161,6 +161,13 @@ impl Host for NodeHost {
         self.helper.release_network(workload)
     }
 
+    fn open_resolver(
+        &self,
+        workload: &str,
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
+        self.helper.open_resolver(workload)
+    }
+
     fn describe_network(
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {

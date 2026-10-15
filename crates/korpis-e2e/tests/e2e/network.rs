@@ -45,6 +45,40 @@ fn task_pid(w: &str) -> Option<u32> {
     line.split_whitespace().nth(1)?.parse().ok()
 }
 
+/// Asks `server` for `localhost`, which the host's resolver answers itself, from inside the
+/// network namespace at `net`, over `transport`: `answered` with an address, `failed` with an
+/// error code, or `silent`.
+fn ask(net: &std::path::Path, server: &str, transport: &str) -> String {
+    let script = format!(
+        "import socket,struct\n\
+         q=b'\\x12\\x34\\x01\\x00\\x00\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x09localhost\\x00\\x00\\x01\\x00\\x01'\n\
+         try:\n\
+         \x20if '{transport}'=='udp':\n\
+         \x20 s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.settimeout(2)\n\
+         \x20 s.sendto(q,('{server}',53));a=s.recv(512)\n\
+         \x20else:\n\
+         \x20 s=socket.create_connection(('{server}',53),2);s.settimeout(2)\n\
+         \x20 s.sendall(struct.pack('>H',len(q))+q);f=s.makefile('rb')\n\
+         \x20 n=struct.unpack('>H',f.read(2))[0];a=f.read(n)\n\
+         \x20ok=a[:2]==q[:2] and a[3]&15==0 and a[6:8]!=b'\\x00\\x00'\n\
+         \x20print('answered' if ok else 'failed')\n\
+         except Exception:\n\
+         \x20print('silent')"
+    );
+    let out = Command::new("nsenter")
+        .arg(format!("--net={}", net.display()))
+        .args(["python3", "-c", &script])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).trim().to_owned()
+}
+
+/// As [`ask`], on a thread of its own: the agent answering runs on this test's one thread.
+async fn asked(net: &std::path::Path, server: &str, transport: &str) -> String {
+    let (net, server, transport) = (net.to_owned(), server.to_owned(), transport.to_owned());
+    tokio::task::spawn_blocking(move || ask(&net, &server, &transport)).await.unwrap()
+}
+
 #[tokio::test]
 async fn a_workload_joins_its_own_routed_network_and_retiring_it_releases_it() {
     if !live() {
@@ -72,6 +106,16 @@ async fn a_workload_joins_its_own_routed_network_and_retiring_it_releases_it() {
     assert_eq!(joined, made, "the network namespace made for it");
     let ping = Command::new("ping").args(["-c1", "-W2", &ip]).output().unwrap();
     assert!(ping.status.success(), "the host reaches the workload at its address");
+
+    // Its resolver, named alone, answers it over UDP and TCP from inside its own namespace,
+    // whatever the host's firewall; the metadata address answers nothing (§5.1 and §6 of
+    // docs/07-networking.md).
+    let conf = std::fs::read_to_string(format!("/proc/{pid}/root/etc/resolv.conf")).unwrap();
+    assert_eq!(conf, "nameserver 169.254.1.53\n");
+    let net = bound.join("net");
+    assert_eq!(asked(&net, "169.254.1.53", "udp").await, "answered", "over UDP");
+    assert_eq!(asked(&net, "169.254.1.53", "tcp").await, "answered", "over TCP");
+    assert_eq!(asked(&net, "169.254.169.254", "udp").await, "silent", "the metadata address");
 
     cp.retire(&w).await;
     // As long as convergence is given: retiring is a plan, approved, applied, then the node's

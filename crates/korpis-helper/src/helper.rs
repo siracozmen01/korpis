@@ -24,6 +24,8 @@ pub struct Helper {
     ledger: Ledger,
     jobs: Option<Jobs>,
     network: Option<Network>,
+    /// Descriptors the last answer carries, sent with its frame and then closed here.
+    attached: Vec<rustix::fd::OwnedFd>,
 }
 
 fn unsupported() -> helper::HelperError {
@@ -38,7 +40,7 @@ impl Helper {
     /// A helper offering `classes`, the first the default, and keeping `ledger`.
     #[must_use]
     pub fn new(classes: Vec<Class>, ledger: Ledger) -> Self {
-        Self { classes, ledger, jobs: None, network: None }
+        Self { classes, ledger, jobs: None, network: None, attached: Vec::new() }
     }
 
     /// The same helper, giving workloads networks as `network` keeps them.
@@ -54,8 +56,13 @@ impl Helper {
             .ok_or_else(|| HelperError::Refused("this helper makes no networks".into()))
     }
 
+    /// The descriptors the last answer carries, which the transport sends with its frame.
+    pub fn take_attached(&mut self) -> Vec<rustix::fd::OwnedFd> {
+        std::mem::take(&mut self.attached)
+    }
+
     /// The answer to a network verb.
-    fn networking(&self, verb: Verb) -> HelperResult<Answer> {
+    fn networking(&mut self, verb: Verb) -> HelperResult<Answer> {
         Ok(match verb {
             Verb::EnsureNetwork(r) => {
                 // The namespaces map the workload's own range, recorded by EnsureIdRange, and
@@ -72,6 +79,14 @@ impl Helper {
                 let released = self.network()?.release(&r.workload)?;
                 Answer::ReleaseNetwork(Box::new(helper::ReleaseNetworkResponse {
                     released,
+                    ..Default::default()
+                }))
+            }
+            Verb::OpenResolver(r) => {
+                self.attached = self.network()?.open_resolver(&r.workload)?;
+                let attached = u32::try_from(self.attached.len()).unwrap_or(u32::MAX);
+                Answer::OpenResolver(Box::new(helper::OpenResolverResponse {
+                    attached,
                     ..Default::default()
                 }))
             }
@@ -312,9 +327,10 @@ impl Helper {
             | Verb::ForgetJob(_)
             | Verb::CommitJob(_)
             | Verb::ListJobs(_)) => self.job(v)?,
-            v @ (Verb::EnsureNetwork(_) | Verb::ReleaseNetwork(_) | Verb::DescribeNetwork(_)) => {
-                self.networking(v)?
-            }
+            v @ (Verb::EnsureNetwork(_)
+            | Verb::ReleaseNetwork(_)
+            | Verb::DescribeNetwork(_)
+            | Verb::OpenResolver(_)) => self.networking(v)?,
             Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
         })
     }

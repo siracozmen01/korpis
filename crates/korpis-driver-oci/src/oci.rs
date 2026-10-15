@@ -332,6 +332,13 @@ pub fn runtime_spec(
         let options = ["rbind", "nosuid", "nodev", "noexec", "ro"];
         mounts.push(mount(IDENTITY_MOUNT, "bind", &s.identity_dir, &options));
     }
+    // The resolver its network was made with, named alone (§5.1 of docs/07-networking.md):
+    // read-only, so the workload cannot point itself elsewhere through the file.
+    let resolv = std::path::Path::new(&s.namespaces).join("resolv.conf");
+    if !s.namespaces.is_empty() && resolv.is_file() {
+        let options = ["rbind", "nosuid", "nodev", "noexec", "ro"];
+        mounts.push(mount("/etc/resolv.conf", "bind", &resolv.to_string_lossy(), &options));
+    }
     let caps: Vec<&'static str> = CAPABILITIES.to_vec();
     let cwd =
         [s.working_dir.as_str(), image.working_dir.as_str()].into_iter().find(|w| !w.is_empty());
