@@ -70,7 +70,8 @@ pub fn confine_to(spec: &pb::JobSpec) -> Result<pb::Confinement, JobError> {
     Ok(confine(&bounds(spec)?)?)
 }
 
-/// Recipe content kept by the content store, by sha256.
+/// Recipe content kept by the node's content store, beneath its root: a recipe's files in
+/// `blobs/sha256/` and what fetches downloaded in `fetched/sha256/`, each by its sha256.
 struct ContentDir(PathBuf);
 
 impl crate::ContentSource for ContentDir {
@@ -78,11 +79,14 @@ impl crate::ContentSource for ContentDir {
         if sha256.len() != 64 || !sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Ok(None);
         }
-        match std::fs::File::open(self.0.join(sha256)) {
-            Ok(f) => Ok(Some(f)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e),
+        for kept in ["blobs/sha256", "fetched/sha256"] {
+            match std::fs::File::open(self.0.join(kept).join(sha256)) {
+                Ok(f) => return Ok(Some(f)),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e),
+            }
         }
+        Ok(None)
     }
 }
 
@@ -161,4 +165,27 @@ pub fn write_result(path: &Path, result: &pb::JobResult) -> std::io::Result<()> 
     std::fs::write(&staging, result.encode_to_vec())?;
     std::fs::File::open(&staging)?.sync_all()?;
     std::fs::rename(&staging, path)
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+
+    use super::*;
+    use crate::ContentSource as _;
+
+    #[test]
+    fn recipe_content_is_found_among_recipe_files_and_what_fetches_downloaded() {
+        let dir = tempfile::tempdir().unwrap();
+        let (file, fetched) = ("a".repeat(64), "b".repeat(64));
+        for (kept, hex) in [("blobs/sha256", &file), ("fetched/sha256", &fetched)] {
+            std::fs::create_dir_all(dir.path().join(kept)).unwrap();
+            std::fs::write(dir.path().join(kept).join(hex), hex.as_bytes()).unwrap();
+        }
+        let content = ContentDir(dir.path().to_owned());
+        assert!(content.open(&file).unwrap().is_some(), "a recipe's file");
+        assert!(content.open(&fetched).unwrap().is_some(), "what a fetch downloaded");
+        assert!(content.open(&"c".repeat(64)).unwrap().is_none(), "nothing else");
+        assert!(content.open("../../etc/passwd").unwrap().is_none(), "and only by sha256");
+    }
 }

@@ -11,6 +11,7 @@
 
 mod act;
 mod backup;
+mod content;
 mod install;
 mod jobs;
 mod managed;

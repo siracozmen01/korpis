@@ -59,6 +59,21 @@ impl Host for NodeHost {
             .map_err(|e| HostError(format!("fetching {reference}: {e}")))
     }
 
+    async fn content_size(&self, digest: &str) -> Result<Option<u64>, HostError> {
+        let fail = |e: &dyn std::fmt::Display| HostError(format!("sizing {digest}: {e}"));
+        let blob = self.content.path_of(digest).map_err(|e| fail(&e))?;
+        let fetched = self.content.file_of(digest).map_err(|e| fail(&e))?;
+        for path in [blob, fetched] {
+            match tokio::fs::metadata(&path).await {
+                Ok(m) if m.is_file() => return Ok(Some(m.len())),
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(fail(&e)),
+            }
+        }
+        Ok(None)
+    }
+
     async fn read_content(&self, digest: &str, limit: usize) -> Result<Vec<u8>, HostError> {
         let fail = |e: &dyn std::fmt::Display| HostError(format!("reading {digest}: {e}"));
         let path = self.content.path_of(digest).map_err(|e| fail(&e))?;

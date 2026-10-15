@@ -40,7 +40,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let job = super::jobs::job_of(s).unwrap_or_default();
         let status = self.host.job_status(&job).await?;
         match status.state.as_known() {
-            Some(helper::JobState::JOB_STATE_UNKNOWN) => self.start_backup(plan, s, &job).await,
+            Some(helper::JobState::JOB_STATE_UNKNOWN) => {
+                self.start_backup(a, (plan, s), &job).await
+            }
             Some(helper::JobState::JOB_STATE_RUNNING) => Ok(None),
             Some(helper::JobState::JOB_STATE_FINISHED) => {
                 let result = status.result.into_option().unwrap_or_default();
@@ -59,8 +61,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Starts the job, if the control plane grants what it needs; `None`, since it now runs.
     async fn start_backup(
         &self,
-        plan: &str,
-        s: &pb::Step,
+        a: &agent::Assignment,
+        (plan, s): (&str, &pb::Step),
         job: &str,
     ) -> Result<Option<After>, Failure> {
         let grant = match self.wiring.jobs.poll(plan, s.index) {
@@ -77,6 +79,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             take_snapshot: flag(s, "consistent"),
             backup: detail(s, "backup").unwrap_or_default().to_owned(),
             parent: detail(s, "parent").unwrap_or_default().to_owned(),
+            content: self.recipe_content(a).await,
             ..Default::default()
         };
         let request = helper::StartJobRequest {

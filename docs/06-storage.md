@@ -511,10 +511,17 @@ holding: its plan restores the backup into it after `create_volume` and before a
 it, and declaring it takes `backup.read` on the backup's workload, checked only for the volumes a
 declaration creates, so a volume made long ago from a backup since pruned is never declared
 again. `korpis backup clone` composes that from reads and one declaration: a workload like the
-backup's, beside it, which is the clone of the table above. What this does not do yet: keep,
-restore, or read recipe content by reference (§5.2). Nothing puts a recipe file in a volume until
-the install DSL does (§4 of `09-recipes.md`), so until then no backup has any to record; it is
-built with the install DSL, in Phase 1, not dropped.
+backup's, beside it, which is the clone of the table above. What this did not do at first: keep,
+restore, or read recipe content by reference (§5.2), because nothing put a recipe file in a volume
+until the install DSL did (§4 of `09-recipes.md`). Since 2026-10-15 a backup is given the
+workload's recipe content, the files of its recipe and what its install's `fetch`es downloaded,
+each by sha256 and size as the node's content store holds them, and a file byte-identical to one
+of them is recorded by reference and stores nothing. A restore reads such a file from the content
+store of the node it runs on. Content the node cannot name when the backup starts, because the
+registry is unreachable or the store no longer holds it, is left out, and those files are backed
+up as any other. What it does not do yet: keep a copy of referenced content in the repository,
+so a restore on a node whose store lacks it has nowhere to read it from; that copy, once per
+repository beneath its own prefix, is the rest of this work in Phase 1.
 
 **Replacing a volume needs room for two copies of it.** Until the exchange, the node's filesystem
 holds the live volume and the staging place in full, and nothing reserves that room: a restore

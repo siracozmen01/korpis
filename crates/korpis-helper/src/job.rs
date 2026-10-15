@@ -182,13 +182,8 @@ impl Jobs {
             directory: string(&placed.directory),
             cgroup: cgroup.map(string).unwrap_or_default(),
             result: string(&dir.join("result")),
-            // Recipe content is kept by sha256.
-            content: self
-                .config
-                .content
-                .as_deref()
-                .map(|c| string(&c.join("blobs/sha256")))
-                .unwrap_or_default(),
+            // The content store's root: recipe files and what fetches downloaded, by sha256.
+            content: self.config.content.as_deref().map(string).unwrap_or_default(),
             ..Default::default()
         };
         if let Some(kept) = &placed.kept {

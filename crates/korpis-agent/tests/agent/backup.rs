@@ -19,6 +19,7 @@ use korpis_agent::state::StateDir;
 use korpis_extension::backup::{Backup, BackupTarget, Failure};
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, IdentitySocket};
+use korpis_proto::korpis::helper::v1::__buffa::oneof::start_job_request::Work;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::object_access::Protocol;
 use korpis_proto::korpis::v1::__buffa::oneof::restore_backup_request::Target;
@@ -243,9 +244,16 @@ async fn the_agent_takes_a_backup_with_the_access_it_is_granted_and_reports_it()
     let (runtime, host) = (InMemory::new(), InMemoryHost::new());
     let (agent, root) = start(&cp, dir.path(), &runtime, &host).await;
     serve_target(&cp, &project, &root).await;
+    // The jar the recipe's install fetches, as the node's content store holds it.
+    let jar = format!("sha256:{}", "1".repeat(64));
+    host.offer_content(&jar, b"a jar");
     cp.declare(&project, "mc").await;
     let (id, plan) = backed_up(&cp, &project).await;
     let taken = settled(&cp, &id).await;
+    let job = host.started_jobs().into_iter().find(|j| j.starts_with("bkp")).expect("a backup job");
+    let Some(Work::Backup(work)) = host.started(&job).unwrap().work else { panic!("a backup") };
+    let content: Vec<_> = work.content.iter().map(|c| (c.size, c.sha256.clone())).collect();
+    assert_eq!(content, [(5, vec![0x11; 32])], "the recipe's content, by reference");
     assert_eq!(
         taken.status.as_known(),
         Some(pb::BackupStatus::BACKUP_STATUS_SUCCEEDED),
