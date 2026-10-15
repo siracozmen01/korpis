@@ -41,7 +41,7 @@ fn scheduler() -> Principal {
 }
 
 /// A placement effect, naming the grant of the decision it carries out.
-fn place_effect(w: &Workload, outcome: Outcome, grant: Option<Uuid>) -> Effect {
+pub(super) fn place_effect(w: &Workload, outcome: Outcome, grant: Option<Uuid>) -> Effect {
     let mut e = Effect::new(scheduler(), "workload.place", outcome);
     e.workload = Some(w.id);
     e.grant = grant;

@@ -185,6 +185,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.plan = Some(plan.id);
         e.step = Some(step);
         e.grant = Some(plan.proposed_under);
+        if let Some(why) = crate::workload::refused_before_anything(n)
+            && self.replace_refused(tx, node, &plan, &why).await?
+        {
+            // Placed again with the plan still open: it runs where the workload now is.
+            return Ok(e);
+        }
         self.progress(tx, plan, step, n.outcome).await?;
         Ok(e)
     }

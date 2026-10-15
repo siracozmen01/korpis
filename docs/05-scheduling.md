@@ -122,6 +122,23 @@ with a new assignment, because the node's state can change between the query and
 rejection there is the `unsatisfiable` observation of §7, and the scheduler re-places with that
 node excluded and the reason in the `Explanation`.
 
+What the scheduler reads is the plan step that failed. When the driver refuses before anything of
+the workload was made on the node, no step of its plan completed there and no runtime object
+exists, the agent journals the failure with the reason `step.refused` rather than `step.failed`;
+only the agent knows that nothing was made. Ingesting it, the control plane keeps the refusal for
+the target, as the shortlist's are kept, undoes the placement, and places the workload again with
+that node left out. The plan stays open, so it runs from its first step wherever the workload
+lands, or waits, unplaced with the full explanation, until a node can take it. Two cases are not
+moved. A workload an operator placed by hand stays, and its plan fails, since the scheduler does
+not overrule that choice (§2.3). A workload that already has something on the node, a volume a
+step made or a runtime object, has its refusal journalled as `step.failed`, and its plan fails
+there.
+
+What it costs. A workload whose node refused after a step made its volume stays on that node,
+failed, until its driver accepts or an operator acts, because moving what it has there is
+migration (§8). And a node that refuses after the bind has already cost the workload one round
+of its plan's first step, which the shortlist exists to avoid.
+
 > Second external review, finding S13. Recorded in §17 of `23-walkthroughs.md`. The first version
 > called `Prepare` from the scheduler "for every candidate", described it as free to ask, and the
 > agent protocol had no message that could ask it; trace §1 of `23-walkthroughs.md` ran it after
@@ -140,7 +157,7 @@ node excluded and the reason in the `Explanation`.
 > shortlist query runs inside the placement lock is question 9 of §10.
 >
 > Updated 2026-10-15: the shortlist query is built, as above, and question 9 is resolved. The
-> re-placement after a post-bind rejection is not built yet.
+> re-placement after a post-bind rejection is built too, as above.
 
 ### 2.2 Score: of those, which is *best*
 
@@ -729,6 +746,13 @@ Observation
 An observation is the agent's own domain; it is reporting what it sees, which is that it cannot get
 there from here. The **scheduler** reads that observation and decides: reschedule elsewhere,
 surface it to an operator, or leave it pending if the condition is transient.
+
+> Corrected 2026-10-15, from the implementation. The decision to place elsewhere reads the
+> journalled failure of the plan step the refusal stopped (§2.1), not the observation, which
+> stays what the workload's status shows. An observation is the latest of a series and may be
+> overwritten before it is read, and it does not say whether anything of the workload was made on
+> the node, which decides whether moving it loses anything. A journal record is ingested exactly
+> once, in order, and the agent marks it `step.refused` exactly when nothing was made.
 
 The fact belongs to the agent. The decision belongs to the control plane. Nothing in §2 bends, and
 the failure is visible within one observation interval instead of a timeout.

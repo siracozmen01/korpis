@@ -129,18 +129,22 @@ every plan classified that row by the vocabulary alone. Drivers now declare it p
 `04-runtimes.md`), and the control plane reads it from the nodes that could run the workload.
 The operator's row, the last one, had no field and no action either; it is set with
 `workload.classify` (§5 of `10-api.md`), on the record, and can never undercut the floor.
-Step 5 placed the game endpoint by its declared `stable`, so a node behind NAT could take it on
-an installation with no edge tier to hold the address; the scheduler now judges reachability on
-the mode the declaration resolves to (§3 of `07-networking.md`). The step's `FeasibilityQuery`
-is the one part of it Phase 0 does not run: the shortlist query and the re-placement after a
-post-bind rejection are homed in Phase 1, with the question of the placement lock they raise
-(§2.1 and question 9 of §10 of `05-scheduling.md`). The query was built on 2026-10-15, and the
-step's row changed with it: asking inside the approving transaction would have held the placement
-lock across a round trip to every shortlisted node, so the query is asked before that transaction
-and the bind filters again with its answers. Asked at this step, what the query is evaluated with,
-and where: by the control-plane process, over the sessions it holds, which is every node of the
-single-machine installation of Phase 1 and not every node of one with several control-plane
-processes; that negative is stated in §2.1 there.
+Step 5 placed the game endpoint by its declared `stable`, so a node behind NAT could take it on an
+installation with no edge tier to hold the address; the scheduler now judges reachability on the
+mode the declaration resolves to (§3 of `07-networking.md`). The step's `FeasibilityQuery` is the
+one part of it Phase 0 does not run: the shortlist query and the re-placement after a post-bind
+rejection are homed in Phase 1, with the question of the placement lock they raise (§2.1 and
+question 9 of §10 of `05-scheduling.md`). The query was built on 2026-10-15, and the step's row
+changed with it: asking inside the approving transaction would have held the placement lock across
+a round trip to every shortlisted node, so the query is asked before that transaction and the bind
+filters again with its answers. Asked at this step, what the query is evaluated with, and where: by
+the control-plane process, over the sessions it holds, which is every node of the single-machine
+installation of Phase 1 and not every node of one with several control-plane processes; that
+negative is stated in §2.1 there. The re-placement was built the same day, and asking where it is
+evaluated changed what it reads: not the `unsatisfiable` observation, which says nothing of whether
+the node already holds something of the workload, but the journalled failure of the step, which the
+agent, the one component that knows, marks `step.refused` when nothing was made (§2.1 and §7
+there).
 
 **FINDING 1: Quota is checked, but not held. `CONFIRMED`**
 

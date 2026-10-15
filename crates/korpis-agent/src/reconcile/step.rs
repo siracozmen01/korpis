@@ -4,7 +4,9 @@
 //! one not yet executed, never past `through`, and none once the plan is cancelled, which is read
 //! again before every step. Each completion is journalled, keyed by plan and
 //! step, before it is kept as done, and a failure is journalled and stops the plan here: the
-//! control plane fails it, and the next assignment no longer carries it.
+//! control plane fails it, and the next assignment no longer carries it. A failure because the
+//! driver refused, before anything of the workload was made here, is journalled as
+//! `step.refused`, which lets the control plane place the workload elsewhere instead.
 
 use super::act::Failure;
 use super::progress::Step;
@@ -37,6 +39,14 @@ pub(super) fn number(s: &pb::Step, key: &str) -> u64 {
     }
 }
 
+/// A step's failure for `why`: `step.refused` when the driver refused before anything of the
+/// workload was made here, which lets the control plane place it elsewhere (§2.1 of
+/// docs/05-scheduling.md), and `step.failed` otherwise.
+fn failure(why: String, refused_before_anything: bool) -> pb::Error {
+    let reason = if refused_before_anything { "step.refused" } else { "step.failed" };
+    pb::Error { reason: reason.into(), message: why, ..Default::default() }
+}
+
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Executes what is outstanding of `plan`; whether nothing is left that the node may do.
     pub(super) async fn steps(
@@ -50,6 +60,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return false;
         }
         let after = done.map(|s| s.index);
+        // Whether anything of the workload was made here: a step of this plan completed, or a
+        // runtime object exists. A refusal before then leaves nothing to move.
+        let mut made = after.is_some() || t.runtime.is_some();
         let outstanding: Vec<&pb::Step> = plan
             .steps
             .iter()
@@ -72,15 +85,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             e.step = Some(s.index);
             match result {
                 Ok(left) => e.after = left.into_iter().collect(),
-                Err(Failure(why)) => {
-                    let error = pb::Error {
-                        reason: "step.failed".into(),
-                        message: why,
-                        ..Default::default()
-                    };
-                    e.error = error.into();
-                }
+                Err(Failure(why)) => e.error = failure(why, t.rejected.is_some() && !made).into(),
             }
+            made |= ok;
             if !self.record(e).await {
                 return false;
             }

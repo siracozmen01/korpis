@@ -829,10 +829,12 @@ JournalRecord
   approved for that workload that is applying or applied, because the decision the node is
   keeping is that one; the control plane looks it up at ingestion, where the plans are. A step's
   completion moves the plan's progress; the last step applies the plan, a failure fails it, and a
-  retire plan applied retires the workload (§4.8). A gap record and a break-glass record are
-  effects in their own right. A metering sample is recorded only as having arrived
-  (`journal.unsupported`) until metering is stored in Phase 2 (§4 of `20-roadmap.md`): a loss that
-  is visible, not silent.
+  retire plan applied retires the workload (§4.8). A failure the node marks `step.refused`,
+  its driver refusing before anything of the workload was made there, places the workload
+  elsewhere instead, the plan still open (§2.1 of `05-scheduling.md`). A gap record and a
+  break-glass record are effects in their own right. A metering sample is recorded only as having
+  arrived (`journal.unsupported`) until metering is stored in Phase 2 (§4 of `20-roadmap.md`): a
+  loss that is visible, not silent.
 - **`JournalAck`** tells the agent the cursor. Nothing is discarded before it is acknowledged, and
   acknowledged records are kept for a further retention window (default seven days) before they
   are discarded, so that a control plane restored from an older backup can re-ingest them (§8 of
