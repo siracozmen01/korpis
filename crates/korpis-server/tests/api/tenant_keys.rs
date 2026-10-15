@@ -102,6 +102,7 @@ async fn kms_serving(h: &Harness, service: Service) {
         expires_at: SystemTime::now() + Duration::from_secs(900),
         control_plane: h.base_url(),
         ca_pem: h.ca_pem.clone(),
+        relay: None,
     })));
     let registration = Registration {
         kind: pb::ProviderType::PROVIDER_TYPE_KEY_MANAGEMENT,

@@ -33,6 +33,9 @@ pub struct IdentitySockets {
     credentials: Arc<Credentials>,
     control_plane: Arc<ControlPlane>,
     served: Mutex<HashMap<String, JoinHandle<()>>>,
+    /// The relays of the API served to installed extensions' workloads (§9.5 of
+    /// docs/08-identity.md).
+    relays: Mutex<HashMap<String, JoinHandle<()>>>,
 }
 
 /// Where a workload's credential is used, which the socket tells it with the credential: the
@@ -87,7 +90,8 @@ impl IdentitySockets {
         control_plane: ControlPlane,
     ) -> Arc<Self> {
         let control_plane = Arc::new(control_plane);
-        Arc::new(Self { root, credentials, control_plane, served: Mutex::new(HashMap::new()) })
+        let (served, relays) = (Mutex::new(HashMap::new()), Mutex::new(HashMap::new()));
+        Arc::new(Self { root, credentials, control_plane, served, relays })
     }
 
     /// The directory holding `workload`'s socket, which the driver mounts.
@@ -127,10 +131,40 @@ impl IdentitySockets {
         Ok(dir)
     }
 
-    /// Stops serving `workload`'s socket and removes its directory.
+    /// Serves `workload` the control plane's API on [`super::RELAY`] in its directory if
+    /// `wanted`, as for an installed extension's, and withdraws it otherwise. Its directory is
+    /// served first.
+    ///
+    /// # Errors
+    /// The directory or the socket cannot be made, or the node's address of the API is not one.
+    pub fn relay(&self, workload: &str, wanted: bool) -> std::io::Result<()> {
+        let mut relays = self.relays.lock().unwrap_or_else(PoisonError::into_inner);
+        if !wanted {
+            if let Some(task) = relays.remove(workload) {
+                task.abort();
+                let _ = std::fs::remove_file(self.dir(workload).join(super::RELAY));
+            }
+            return Ok(());
+        }
+        if relays.get(workload).is_some_and(|t| !t.is_finished()) {
+            return Ok(());
+        }
+        let dir = self.ensure(workload)?;
+        let api = crate::network::api_of(&self.control_plane.url).ok_or_else(|| {
+            std::io::Error::other(format!("{:?} names no API", self.control_plane.url))
+        })?;
+        relays.insert(workload.to_owned(), super::relay::serve(&dir, api)?);
+        Ok(())
+    }
+
+    /// Stops serving `workload`'s socket and relay and removes its directory.
     pub fn remove(&self, workload: &str) {
         let task = self.served.lock().unwrap_or_else(PoisonError::into_inner).remove(workload);
         if let Some(task) = task {
+            task.abort();
+        }
+        let relay = self.relays.lock().unwrap_or_else(PoisonError::into_inner).remove(workload);
+        if let Some(task) = relay {
             task.abort();
         }
         if plain(workload)
@@ -144,7 +178,7 @@ impl IdentitySockets {
 
 /// Binds `path`, replacing a socket a previous run left; anyone the mount reaches may connect,
 /// whatever user the workload's processes are mapped to, and the mount reaches one workload.
-fn bind(path: &Path) -> std::io::Result<UnixListener> {
+pub(super) fn bind(path: &Path) -> std::io::Result<UnixListener> {
     match std::fs::remove_file(path) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

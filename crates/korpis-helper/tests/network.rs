@@ -210,12 +210,12 @@ fn each_row_of_the_egress_default_drops_what_it_names_and_counts_it() {
     let ip_b = Ipv4Addr::new(10, 244, third, 3);
     let mut ra = request(&a, Ipv4Addr::new(10, 244, third, 2));
     ra.ipv4_pool = "10.244.0.0/16".into();
-    // The control plane's API, opened for this workload as for an installed extension's.
+    // The other workload's port 7002, opened for this one as for a dependency's target.
     ra.opened = vec![helper::Destination {
-        address: node.to_string(),
-        port: 7443,
+        address: ip_b.to_string(),
+        port: 7002,
         transport: helper::Transport::TRANSPORT_TCP.into(),
-        reason: helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE.into(),
+        reason: helper::DestinationReason::DESTINATION_REASON_DEPENDENCY.into(),
         ..Default::default()
     }];
     let mut rb = request(&b, ip_b);
@@ -230,7 +230,7 @@ fn each_row_of_the_egress_default_drops_what_it_names_and_counts_it() {
         ("private", "192.168.77.1".to_owned(), 80),
         ("smtp", "203.0.113.5".to_owned(), 25),
         ("node", node.to_string(), 22),
-        ("control plane", node.to_string(), 7443),
+        ("dependency", ip_b.to_string(), 7002),
     ];
     let mut missed = Vec::new();
     for (row, to, port) in rows {

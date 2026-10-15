@@ -96,6 +96,7 @@ async fn an_owners_records_are_made_exactly_so_and_a_refusal_names_why() {
         expires_at: SystemTime::now() + Duration::from_secs(900),
         control_plane: h.base_url(),
         ca_pem: h.ca_pem.clone(),
+        relay: None,
     })));
     let zone = Zone::default();
     let registration = Registration {

@@ -2,7 +2,9 @@
 
 //! A test extension written with the SDK (`korpis-extension`), against a real control plane: it
 //! registers as the DNS provider its installation provides and is pinged through the API, and it
-//! consumes the events its installation subscribes to, acknowledging each once handled.
+//! consumes the events its installation subscribes to, acknowledging each once handled. It does
+//! so over the network and through a relay socket, as its node serves one in a container (§9.5
+//! of docs/08-identity.md).
 
 use crate::extensions::{DNS, push_document};
 use crate::providers::installed_from;
@@ -12,6 +14,7 @@ use korpis_extension::consumer::{Consumer, EventHandler};
 use korpis_extension::provider::{Provider, Registration, Unsupported};
 use korpis_extension::{Connection, Credential, Fixed};
 use korpis_proto::korpis::v1 as pb;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::mpsc;
@@ -28,17 +31,51 @@ impl EventHandler for Forward {
 /// How long an event the test expects may take: the shared test server's horizon.
 const DELIVERY: Duration = Duration::from_secs(60);
 
+/// A relay of `dir/api.sock` to the control plane's address, as a node serves one: bytes alone,
+/// the TLS inside them the extension's.
+fn relay(dir: &Path, h: &Harness) -> PathBuf {
+    let path = dir.join("api.sock");
+    let listener = tokio::net::UnixListener::bind(&path).unwrap();
+    let uri: http::Uri = h.base_url().parse().unwrap();
+    let to = format!("{}:{}", uri.host().unwrap(), uri.port_u16().unwrap());
+    tokio::spawn(async move {
+        while let Ok((inside, _)) = listener.accept().await {
+            tokio::spawn(carry(inside, to.clone()));
+        }
+    });
+    path
+}
+
+async fn carry(mut inside: tokio::net::UnixStream, to: String) {
+    let mut outside = tokio::net::TcpStream::connect(to).await.unwrap();
+    let _ = tokio::io::copy_bidirectional(&mut inside, &mut outside).await;
+}
+
 #[tokio::test]
 async fn an_extension_written_with_the_sdk_serves_its_provider_and_consumes_its_events() {
     let h = Harness::new().await;
+    serves_and_consumes(&h, 41, None).await;
+}
+
+#[tokio::test]
+async fn it_does_the_same_through_the_relay_its_node_serves() {
+    let h = Harness::new().await;
+    let dir = tempfile::tempdir().unwrap();
+    serves_and_consumes(&h, 42, Some(relay(dir.path(), &h))).await;
+}
+
+/// Installs the extension as the `n`th node's, and serves and consumes as it, through `relay` if
+/// there is one.
+async fn serves_and_consumes(h: &Harness, n: u8, relay: Option<PathBuf>) {
     // The DNS extension, subscribed to project events so the test can make some.
     let document = DNS.replace("kinds: [endpoint.]", "kinds: [project.]");
-    let x = installed_from(&h, 41, "dns", push_document(&document).await).await;
+    let x = installed_from(h, n, &format!("dns-{n}"), push_document(&document).await).await;
     let connection = Arc::new(Connection::new(Fixed(Credential {
         secret: x.secret.clone(),
         expires_at: SystemTime::now() + Duration::from_secs(900),
         control_plane: h.base_url(),
         ca_pem: h.ca_pem.clone(),
+        relay,
     })));
 
     let registration = Registration {
@@ -75,7 +112,7 @@ async fn an_extension_written_with_the_sdk_serves_its_provider_and_consumes_its_
     assert_eq!(subscriptions.len(), 1, "the one its document declares");
     let (following, subscription) = (Arc::clone(&consumer), subscriptions[0].clone());
     tokio::spawn(async move { following.run(&subscription).await });
-    project(&h, &h.root_org(), "web").await;
+    project(h, &h.root_org(), &format!("web-{n}")).await;
     let event = tokio::time::timeout(DELIVERY, rx.recv()).await.unwrap().unwrap();
     assert_eq!(event.kind, "project.create");
 

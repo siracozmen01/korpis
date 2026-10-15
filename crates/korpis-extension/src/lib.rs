@@ -19,6 +19,8 @@ pub mod keys;
 pub mod keyseal;
 pub mod provider;
 pub mod step;
+pub mod transport;
 
 pub use error::Error;
 pub use identity::{Connection, Credential, CredentialSource, Fixed, IdentitySocket};
+pub use transport::Transport;

@@ -37,7 +37,7 @@ pub(crate) struct Opened {
     pub(crate) port: u16,
     /// Over what.
     pub(crate) transport: super::forward::Transport,
-    /// Why, as the rule's comment says it: `control plane` or `dependency`.
+    /// Why, as the rule's comment says it: `dependency`.
     pub(crate) why: &'static str,
 }
 

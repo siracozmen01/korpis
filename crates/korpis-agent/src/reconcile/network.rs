@@ -52,29 +52,6 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
     (inbound, forwards)
 }
 
-/// The control plane's API as this node reaches it, at every address its name resolves to now,
-/// which an installed extension's workload is opened to (§6 of docs/07-networking.md).
-async fn opened(api: Option<&(String, u16)>) -> Result<Vec<helper::Destination>, Failure> {
-    let (host, port) =
-        api.ok_or_else(|| Failure("the control plane's address is not known".into()))?;
-    let found = tokio::net::lookup_host((host.as_str(), *port))
-        .await
-        .map_err(|e| Failure(format!("the control plane's address {host}: {e}")))?;
-    let mut addresses: Vec<std::net::SocketAddr> = found.collect();
-    addresses.sort_unstable();
-    addresses.dedup();
-    Ok(addresses
-        .into_iter()
-        .map(|a| helper::Destination {
-            address: a.ip().to_string(),
-            port: u32::from(a.port()),
-            transport: helper::Transport::TRANSPORT_TCP.into(),
-            reason: helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE.into(),
-            ..Default::default()
-        })
-        .collect())
-}
-
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Makes `a`'s workload's network and has `spec` join it, where the node gives networks;
     /// its namespaces map the uid range the assignment gives it.
@@ -106,10 +83,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         (request.inbound, request.forwards) = ports(&a.endpoints);
         let body = a.target.as_option().and_then(|t| t.body.as_option());
         super::policy::apply(&mut request, body)?;
-        if a.reaches_api {
-            request.opened = opened(net.api.as_ref()).await?;
-        }
-        request.opened.extend(dependencies.iter().cloned());
+        request.opened.clone_from(&dependencies);
         let made = self.host.ensure_network(&request).await?;
         if let Some(n) = self.wiring.network.as_mut() {
             n.dependencies_opened.insert(a.workload.clone(), dependencies);
@@ -157,6 +131,20 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             .collect();
         for workload in holding {
             self.serve_resolver(&workload).await;
+        }
+    }
+
+    /// Serves the API's relay to every workload the set marks as an installed extension's and
+    /// that has a runtime object here, and withdraws it from every other: an installation can
+    /// begin or end while its workload runs, and a restarted agent serves it again (§9.5 of
+    /// docs/08-identity.md).
+    pub(super) fn serve_relays(&self, held: &HeldSet) {
+        let Some(identity) = &self.wiring.identity else { return };
+        for a in held.assignments.values().filter(|a| !a.residual) {
+            let built = self.tracked.get(&a.workload).is_some_and(|t| t.runtime.is_some());
+            if let Err(e) = identity.relay(&a.workload, a.reaches_api && built) {
+                tracing::warn!(workload = %a.workload, error = %e, "the API's relay could not be served");
+            }
         }
     }
 

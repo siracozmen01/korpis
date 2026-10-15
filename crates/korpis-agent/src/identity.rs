@@ -5,8 +5,10 @@
 //! the control stream naming the workload the socket was made for. The control plane decides;
 //! the agent passes the answer back and keeps nothing.
 
+mod relay;
 mod socket;
 
+pub use relay::{MOST_CONNECTIONS, RELAY};
 pub use socket::{ControlPlane, IdentitySockets, MOUNT_POINT};
 
 use korpis_proto::korpis::agent::v1 as agent;

@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 connectrpc = { version = "=0.9.1", default-features = false, features = ["client", "client-tls"] }
 http = "1"
+hyper-util = { version = "0.1", features = ["tokio"] }
 getrandom = "0.4"
 # Keys a key management provider hands out are sealed to their one recipient, never sent or
 # stored in the clear (§5.5 of docs/06-storage.md): HPKE, RFC 9180, base mode.
@@ -19,6 +20,9 @@ korpis-proto = { workspace = true, features = ["client"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+# The relay its node serves (§9.5 of docs/08-identity.md) is a socket TLS is spoken over.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }
 tracing = "0.1"
 
 [lints]

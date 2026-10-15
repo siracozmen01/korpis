@@ -125,6 +125,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             let served = identity.ensure(&a.workload).map_err(|e| {
                 Failure(format!("the workload's identity socket could not be served: {e}"))
             })?;
+            identity.relay(&a.workload, a.reaches_api).map_err(|e| {
+                Failure(format!("the control plane's relay could not be served: {e}"))
+            })?;
             spec.identity_dir = served.to_string_lossy().into_owned();
             dir = Some(served);
         }

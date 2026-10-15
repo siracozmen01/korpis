@@ -5,18 +5,19 @@
 //! proof that the node still runs the workload; a [`Connection`] renews it before it expires.
 
 use crate::error::Error;
-use connectrpc::client::{ClientConfig, Http2Connection, HttpClient};
+use crate::transport::{Transport, transport};
+use connectrpc::client::{ClientConfig, Http2Connection};
 use korpis_proto::korpis::agent::v1 as agent;
-use rustls::pki_types::CertificateDer;
-use rustls::pki_types::pem::PemObject as _;
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 
 /// Where a workload's identity socket is, inside the workload.
 pub const SOCKET: &str = "/run/korpis/identity.sock";
+
+/// The relay to the control plane, beside the socket, for an installed extension's workload.
+pub const RELAY: &str = "api.sock";
 
 /// How long before its expiry a credential is renewed.
 const RENEW_BEFORE: Duration = Duration::from_secs(300);
@@ -32,6 +33,9 @@ pub struct Credential {
     pub control_plane: String,
     /// The CA its certificate is verified under, PEM.
     pub ca_pem: Vec<u8>,
+    /// The relay its node serves it to the control plane, where it runs as an installed
+    /// extension's workload; the network otherwise.
+    pub relay: Option<PathBuf>,
 }
 
 impl std::fmt::Debug for Credential {
@@ -39,6 +43,7 @@ impl std::fmt::Debug for Credential {
         f.debug_struct("Credential")
             .field("expires_at", &self.expires_at)
             .field("control_plane", &self.control_plane)
+            .field("relay", &self.relay)
             .finish_non_exhaustive()
     }
 }
@@ -69,6 +74,14 @@ impl IdentitySocket {
     }
 }
 
+impl IdentitySocket {
+    /// The relay beside the socket, if the node serves one.
+    fn relay(&self) -> Option<PathBuf> {
+        let relay = self.path.parent()?.join(RELAY);
+        relay.exists().then_some(relay)
+    }
+}
+
 impl CredentialSource for IdentitySocket {
     async fn fetch(&self) -> Result<Credential, Error> {
         let authority = http::Uri::from_static("http://localhost");
@@ -89,6 +102,7 @@ impl CredentialSource for IdentitySocket {
             expires_at,
             control_plane: answer.control_plane,
             ca_pem: answer.ca_pem,
+            relay: self.relay(),
         })
     }
 }
@@ -104,25 +118,10 @@ impl CredentialSource for Fixed {
     }
 }
 
-/// The transport to the control plane for a credential's address and CA.
-fn transport(c: &Credential) -> Result<HttpClient, Error> {
-    let local = |what: &str, e: &dyn std::fmt::Display| Error::Local(format!("{what}: {e}"));
-    let ca = CertificateDer::from_pem_slice(&c.ca_pem).map_err(|e| local("the CA", &e))?;
-    let mut roots = rustls::RootCertStore::empty();
-    roots.add(ca).map_err(|e| local("the CA", &e))?;
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let tls = rustls::ClientConfig::builder_with_provider(provider)
-        .with_safe_default_protocol_versions()
-        .map_err(|e| local("TLS", &e))?
-        .with_root_certificates(roots)
-        .with_no_client_auth();
-    Ok(HttpClient::with_tls(Arc::new(tls)))
-}
-
 /// A way to the control plane as the extension, renewing its credential as it goes.
 pub struct Connection<S> {
     source: S,
-    current: Mutex<Option<(Credential, HttpClient)>>,
+    current: Mutex<Option<(Credential, Transport)>>,
 }
 
 impl<S> std::fmt::Debug for Connection<S> {
@@ -140,19 +139,20 @@ impl<S: CredentialSource> Connection<S> {
 
     /// The transport and configuration for a generated client, with a credential that is good
     /// for at least a few minutes more.
-    pub async fn client(&self) -> Result<(HttpClient, ClientConfig), Error> {
+    pub async fn client(&self) -> Result<(Transport, ClientConfig), Error> {
         let mut current = self.current.lock().await;
         let fresh = current.as_ref().is_some_and(|(c, _)| {
             c.expires_at.duration_since(SystemTime::now()).is_ok_and(|left| left > RENEW_BEFORE)
         });
         if !fresh {
             let c = self.source.fetch().await?;
-            let reuse = current
-                .as_ref()
-                .filter(|(old, _)| old.control_plane == c.control_plane && old.ca_pem == c.ca_pem);
+            let reuse = current.as_ref().filter(|(old, _)| {
+                (&old.control_plane, &old.ca_pem, &old.relay)
+                    == (&c.control_plane, &c.ca_pem, &c.relay)
+            });
             let http = match reuse {
                 Some((_, http)) => http.clone(),
-                None => transport(&c)?,
+                None => transport(&c.control_plane, &c.ca_pem, c.relay.as_deref())?,
             };
             *current = Some((c, http));
         }

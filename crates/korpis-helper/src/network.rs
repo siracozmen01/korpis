@@ -172,9 +172,6 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         .map(|d| {
             let addr = d.address.parse().map_err(|_| refuse("an opened address is not one"))?;
             let why = match d.reason.as_known() {
-                Some(helper::DestinationReason::DESTINATION_REASON_CONTROL_PLANE) => {
-                    "control plane"
-                }
                 Some(helper::DestinationReason::DESTINATION_REASON_DEPENDENCY) => "dependency",
                 _ => return Err(refuse("an opened destination says why it is opened")),
             };

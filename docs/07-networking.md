@@ -686,7 +686,7 @@ the public internet (finding S44):
 |---|---|---|
 | Other tenants' workloads | **deny** | lateral movement between customers |
 | Node management interfaces, SSH, the agent socket | **deny** | privilege escalation path |
-| The Korpis control plane's API | **deny**, except an installed extension's workload | a workload has no business reaching it; an extension's is how it works |
+| The Korpis control plane's API | **deny** | a workload has no business reaching it; an installed extension reaches it through its node, not the network (§9.5 of `08-identity.md`) |
 | Link-local metadata (`169.254.169.254`, `fd00:ec2::254`) | **deny** | classic cloud-credential theft |
 | RFC1918 / ULA generally | **deny** | the operator's own infrastructure |
 | Public internet | **allow**, rate-limited | mod downloads, auth servers, updates |
@@ -701,6 +701,17 @@ the public internet (finding S44):
 > does not decide it. It opens the API's address alone, as the node reaches it, and nothing else of
 > the control plane's. Any other workload that is granted something and wants to use it opens that
 > address in its own policy, deliberately, like any other change to the default.
+
+> Corrected again 2026-10-15, when an extension was first run in a container (Finding 57 of
+> `23-walkthroughs.md`). The exception opened the API's address as the node reaches it, and on a
+> single machine, the installation Phase 1 is for, the node reaches it on loopback, which a
+> workload's namespace never reaches; any other address of the host meets every firewall's input
+> chain, which an operator's may close. No extension could reach the control plane on the
+> installation it was most likely to run on. An installed extension's workload now reaches the API
+> through its node: the agent relays a socket in the workload's own directory to the control plane
+> over the host's network, and the extension speaks TLS through it to the control plane itself
+> (§9.5 of `08-identity.md`). Nothing is opened past the default for it, and the row is a deny for
+> every workload again.
 
 The metadata endpoint deny is small and specific and closes a real, repeatedly-exploited hole: a
 workload that can reach `169.254.169.254` on a cloud node can often read the instance's IAM
@@ -718,7 +729,7 @@ host (§4.1), evaluated by the helper's nftables for every packet the workload s
 |---|---|
 | other workloads | anything the node would forward to another workload's link, whatever pool its address is in; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
 | node management | anything addressed to the host itself, on any of its addresses, except ICMP to the gateway; the resolver is in the workload's own namespace (§5.1), so it needs no exception |
-| the control plane's API | its addresses as the node resolves the name it was enrolled with, on its port; opened, alone, for an installed extension's workload, which the assignment marks |
+| the control plane's API | nothing is opened for it: an installed extension's workload reaches it through its node (§9.5 of `08-identity.md`); on one machine its address is the node's own, which the node-management row denies, and where it is a public address a workload reaches it as any public address, which its authentication alone bounds |
 | link-local metadata | `169.254.0.0/16` and `fe80::/10` beyond the gateway, `fd00:ec2::254` among them |
 | RFC 1918 and unique local | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, `fc00::/7`, and loopback |
 | SMTP | TCP 25, 465, and 587, to anywhere |
@@ -753,11 +764,9 @@ node's address passes as any client's does, and the destination's own table judg
 rate limit is on the new connections a workload makes, to the internet or to the node; connections
 made to it are bounded by the tracked-connection limit, counted per workload address in both
 directions, and not by a rate, since a game server's players arrive in bursts its operator chose to
-serve. What differs between workloads, the control plane's API opened for an installed extension's
-workload and the rate's state, is a chain of the workload's own, reached through a map keyed by its
-link. The node opens the API at the addresses the name it enrolled with resolves to when the
-workload's network is made; an API that moves to another address is opened anew only when the
-workload's network is next made. The workload's own policy is the next paragraph.
+serve. What differs between workloads, the destinations its dependencies open (§5) and the rate's
+state, is a chain of the workload's own, reached through a map keyed by its link. The workload's
+own policy is the next paragraph.
 
 **A workload's own policy, as built.** Added 2026-10-15. The workload's rules are in its own chain
 on the host, after the destinations opened for it and its limits and before the rows of the

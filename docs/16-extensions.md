@@ -185,17 +185,19 @@ per-request traffic, which is what makes that acceptable. Finished calls are kep
 
 **The SDK.** An extension written in Rust links `korpis-extension`, which is Apache-2.0 like the
 protocol (§2 of `19-governance.md`) and links nothing of Korpis but the wire contract, so an
-extension carries whatever licence its author chooses. It fetches the credential from the
-identity socket and renews it five minutes before it expires; it follows the subscriptions its
-installation holds and acknowledges each event only once the handler returned, so what the
-handler failed on is delivered again; and it serves a provider stream, answering `Ping` itself,
-running other calls through the handler at most `concurrency` at a time, dropping a call at its
-`CancelCall`, and reconnecting with a backoff of one second doubling to thirty whenever the stream
-ends, so a control-plane replica going away costs a provider one reconnection. It stops only when
-it is refused (its installation may not register that name, or is gone). What is not yet verified:
-an extension running inside a container reaches the control plane only once the networking of
-Phase 1 applies the egress exception of §6 of `07-networking.md`; until then the SDK is tested from
-a process on the host, against a real control plane and a real node's identity socket.
+extension carries whatever licence its author chooses. It fetches the credential from the identity
+socket and renews it five minutes before it expires; it follows the subscriptions its installation
+holds and acknowledges each event only once the handler returned, so what the handler failed on is
+delivered again; and it serves a provider stream, answering `Ping` itself, running other calls
+through the handler at most `concurrency` at a time, dropping a call at its `CancelCall`, and
+reconnecting with a backoff of one second doubling to thirty whenever the stream ends, so a
+control-plane replica going away costs a provider one reconnection. It stops only when it is
+refused (its installation may not register that name, or is gone). An extension running inside a
+container reaches the control plane through its node, which relays `/run/korpis/api.sock` to it
+(§9.5 of `08-identity.md`); the SDK uses that socket wherever it finds it, and the network
+otherwise, so the same extension runs in a container and, in a test, as a process on the host. The
+egress exception this paragraph once waited for was replaced by the relay (Finding 57 of
+`23-walkthroughs.md`).
 
 ---
 

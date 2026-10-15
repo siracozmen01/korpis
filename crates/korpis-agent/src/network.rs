@@ -182,9 +182,6 @@ pub struct Networking {
     pub pools: Pools,
     /// What is allocated.
     pub addresses: Addresses,
-    /// The control plane's API as this node reaches it, host and port, which an installed
-    /// extension's workload is opened to (§6 of docs/07-networking.md).
-    pub api: Option<(String, u16)>,
     /// The resolver this agent serves for each workload, on sockets of its namespace (§5.1
     /// there); dropping one closes them.
     pub resolvers: std::collections::BTreeMap<String, tokio::task::JoinHandle<()>>,

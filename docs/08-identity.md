@@ -1131,6 +1131,22 @@ elsewhere, is `permission_denied`. Added 2026-10-15, from the implementation: th
 answered every refusal as denied, so a workload asking as it started was told, wrongly, that it
 never would be.
 
+**An installed extension reaches the API through its node.** Added 2026-10-15 (Finding 57 of
+`23-walkthroughs.md`). The agent serves an installed extension's workload a second socket in the
+same directory, `/run/korpis/api.sock`, and relays each connection on it, byte for byte, to the
+control plane's API at the address it was enrolled with, over the host's own network. The extension
+speaks TLS through the relay to the control plane itself, verifying it under the CA the identity
+socket gave it and naming it by the name in the address the socket gave it, so the agent carries
+what it cannot read, and the credential it already could obtain is all it could misuse. The control
+plane marks which workloads are installations in their assignments, and the agent serves the socket
+to those alone. This is what lets an extension run on a single machine, where the node reaches the
+control plane on loopback, which no workload's namespace reaches, and on a host whose firewall
+closes its input to workloads; and it needs no exception to the egress default (§6 of
+`07-networking.md`). What it costs: an extension's traffic to the control plane, a provider's open
+streams included, passes through its node's agent, so an agent that stops stops its node's
+extensions' calls with it, which a provider's reconnection then recovers (§3.3 of
+`16-extensions.md`).
+
 **What evaluates this, where, and with what information.** The control plane, at issue, from its
 own placement and lease records and from the identity of the node session the request arrived on
 (§7 of `02-architecture.md`). Nothing on the node decides that a workload is who it says: the agent
@@ -1151,12 +1167,14 @@ window is the cost of not making every API call round-trip to the node.
 > for the old placement at once, at the cost of that lookup on every call a workload makes.
 
 **Where the credential is used.** Added 2026-10-13, while building the extension SDK, from the
-algebra question: a workload holding a credential still had no way to learn where the control
-plane is or how to trust its certificate, and its node is the one party that knows both. So the
-socket answers with the credential, the control plane's address as the node reaches it, and the
-CA the node pinned at enrollment (§3 of `18-operations.md`). Whether that address is reachable
-from inside the workload is the workload's network's: §6 of `07-networking.md` opens it for an
-installed extension and for nothing else by default.
+algebra question: a workload holding a credential still had no way to learn where the control plane
+is or how to trust its certificate, and its node is the one party that knows both. So the socket
+answers with the credential, the control plane's address as the node reaches it, and the CA the
+node pinned at enrollment (§3 of `18-operations.md`). Whether that address is reachable from inside
+the workload is the workload's network's: §6 of `07-networking.md` opened it for an installed
+extension and for nothing else by default, until the relay below replaced the opening (Finding 57
+of `23-walkthroughs.md`). An installed extension's workload reaches the address through its node,
+and the address still names the control plane to its TLS.
 
 **Why not a secret in the intent.** A token written into the workload's configuration would be
 stored in the database in the clear, re-delivered on every placement, and readable by anyone with

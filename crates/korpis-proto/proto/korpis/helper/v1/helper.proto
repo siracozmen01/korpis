@@ -204,14 +204,16 @@ message Destination {
   string address = 1;
   uint32 port = 2;
   Transport transport = 3;
-  // Why it is opened: the control plane's API for an installed extension's workload, or a
-  // dependency's target (§5 and §6 of docs/07-networking.md).
+  // Why it is opened: a dependency's target (§5 of docs/07-networking.md).
   DestinationReason reason = 4;
 }
 
 enum DestinationReason {
+  // The control plane's API for an installed extension's workload, until the node relayed it
+  // instead (§9.5 of docs/08-identity.md).
+  reserved 1;
+  reserved "DESTINATION_REASON_CONTROL_PLANE";
   DESTINATION_REASON_UNSPECIFIED = 0;
-  DESTINATION_REASON_CONTROL_PLANE = 1;
   DESTINATION_REASON_DEPENDENCY = 2;
 }
 

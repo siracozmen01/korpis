@@ -103,6 +103,7 @@ pub async fn serving_with<T: BackupTarget + Send + Sync + 'static>(
         expires_at: SystemTime::now() + Duration::from_secs(900),
         control_plane: h.base_url(),
         ca_pem: h.ca_pem.clone(),
+        relay: None,
     })));
     let registration = Registration {
         kind: pb::ProviderType::PROVIDER_TYPE_BACKUP_TARGET,

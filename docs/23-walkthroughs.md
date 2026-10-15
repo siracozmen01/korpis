@@ -973,53 +973,52 @@ bounded per provider rather than per call so that one slow dependency cannot occ
 reconciliation capacity. `15-observability.md` §5 gains the provider-degraded event, because the
 operator whose creates got slow this morning should not have to infer the cause from a graph.
 
-¶ Added 2026-10-13, while building the extension contract. Step 2 could not happen as written:
-the extension runs on a node that accepts no inbound connection, so nothing could call it, and it
-had no way to prove it was the subject its grants were issued to. The extension now dials out and
-is called down its own stream (§3.3 of `16-extensions.md`), and authenticates with a short-lived
+¶ Added 2026-10-13, while building the extension contract. Step 2 could not happen as written: the
+extension runs on a node that accepts no inbound connection, so nothing could call it, and it had
+no way to prove it was the subject its grants were issued to. The extension now dials out and is
+called down its own stream (§3.3 of `16-extensions.md`), and authenticates with a short-lived
 credential its node obtains for it while it runs there (§9.5 of `08-identity.md`). Its subject was
-keyed by name, so one extension installed into two organizations would have been one subject; it
-is keyed by the installation (§3.2 of `01-model.md`). The events the provider's slowness produces
-now have a log that says what an event is and how a consumer keeps its place (§5 of
-`15-observability.md`). Building the credential then found two more gaps. The driver's door
-(§6.1 of `02-architecture.md`) allowed no mount but volumes, so the socket could not reach the
-extension at all until the door named the workload's own identity directory as the one other
-mount, read-only. And the identity root was readable by every user on the host, so any local
-process could have asked a workload's socket for its credential; it is now the supervisor's alone
-(§6 of `02-architecture.md`). Building install and uninstall found one restatement the re-keying
-of the subject had missed: the CLI still wrote an extension holder as `extension:NAME`, which
-named no installation; it is `ext_…` now (§7 of `13-surface-cli.md`). It also found that §9 of
+keyed by name, so one extension installed into two organizations would have been one subject; it is
+keyed by the installation (§3.2 of `01-model.md`). The events the provider's slowness produces now
+have a log that says what an event is and how a consumer keeps its place (§5 of
+`15-observability.md`). Building the credential then found two more gaps. The driver's door (§6.1
+of `02-architecture.md`) allowed no mount but volumes, so the socket could not reach the extension
+at all until the door named the workload's own identity directory as the one other mount,
+read-only. And the identity root was readable by every user on the host, so any local process could
+have asked a workload's socket for its credential; it is now the supervisor's alone (§6 of
+`02-architecture.md`). Building install and uninstall found one restatement the re-keying of the
+subject had missed: the CLI still wrote an extension holder as `extension:NAME`, which named no
+installation; it is `ext_…` now (§7 of `13-surface-cli.md`). It also found that §9 of
 `16-extensions.md` called an upgrade a plain rolling update, which would let a new version arrive
-with needs nobody approved; question 6 there records how an upgrade is approved instead.
-Building the call path found that step 2 assumed the control-plane replica running the step holds
-the provider's stream; with several replicas and no leader (§5 of `18-operations.md`) it rarely
-does. Calls are now queued in Postgres and claimed by the replica that holds a stream, and the
-bounded concurrency step 5 relies on is enforced by that claim, per stream (§3.3 of
-`16-extensions.md`). Building the breaker answered the algebra question of step 4 (what judges
-the breaker, where, with what information): each caller, after its call finishes, from the
-queue's own record of the provider's last twenty calls, under the breaker's row lock, so the
-provider of step 3 now trips it on latency and step 5 is cut short (§5 of `16-extensions.md`).
-It also found that §5 declared failure behaviour for two of the eight provider types while
-forbidding a guess for any; all eight are declared there now. The upgrade question 6 of §9 of
-`16-extensions.md` recorded is built: the provider of step 3 can be replaced by its next version
-with the grants its needs still ask for kept, its streams draining, and the same subject throughout
-(§7 of `13-surface-cli.md`).
-Writing the SDK the provider of step 2 is built with found that step 2 could still not happen
-from inside a container: the egress default of §6 of `07-networking.md` denied every workload the
-control plane, the one destination an extension exists to reach, and nothing told a workload
-where the control plane is or how to trust it. The default now opens the API's address to an
-installed extension's workload, decided by the control plane and applied by the node, and the
-identity socket answers with the address and the CA its node pinned (§9.5 of `08-identity.md`).
-The call of step 2 now exists in the contract: an endpoint's records are sent whole to the DNS
-provider, which makes its zones agree and refuses names outside them (§3.5 of
+with needs nobody approved; question 6 there records how an upgrade is approved instead. Building
+the call path found that step 2 assumed the control-plane replica running the step holds the
+provider's stream; with several replicas and no leader (§5 of `18-operations.md`) it rarely does.
+Calls are now queued in Postgres and claimed by the replica that holds a stream, and the bounded
+concurrency step 5 relies on is enforced by that claim, per stream (§3.3 of `16-extensions.md`).
+Building the breaker answered the algebra question of step 4 (what judges the breaker, where, with
+what information): each caller, after its call finishes, from the queue's own record of the
+provider's last twenty calls, under the breaker's row lock, so the provider of step 3 now trips it
+on latency and step 5 is cut short (§5 of `16-extensions.md`). It also found that §5 declared
+failure behaviour for two of the eight provider types while forbidding a guess for any; all eight
+are declared there now. The upgrade question 6 of §9 of `16-extensions.md` recorded is built: the
+provider of step 3 can be replaced by its next version with the grants its needs still ask for
+kept, its streams draining, and the same subject throughout (§7 of `13-surface-cli.md`). Writing
+the SDK the provider of step 2 is built with found that step 2 could still not happen from inside a
+container: the egress default of §6 of `07-networking.md` denied every workload the control plane,
+the one destination an extension exists to reach, and nothing told a workload where the control
+plane is or how to trust it. The default then opened the API's address to an installed extension's
+workload, decided by the control plane and applied by the node, and the identity socket answers
+with the address and the CA its node pinned (§9.5 of `08-identity.md`). Running one in a container
+later showed the opening reaches nothing on one machine (Finding 57), and the node now relays the
+API to it instead. The call of step 2 now exists in the contract: an endpoint's records are sent
+whole to the DNS provider, which makes its zones agree and refuses names outside them (§3.5 of
 `07-networking.md`), so a retry after the slow provider of step 3 times out converges rather than
-duplicating records.
-Step providers, the other provider of the install path, now answer with content-addressed
-artifacts the node fetches by hash, so a provider that fails at step four of an install (§12) can
-be retried without any risk to the volume: no provider can write it (§4 of `09-recipes.md`).
-Backup targets, the third provider type built, issue scoped access per job rather than holding a
-node's data, and building them found that a store unable to scope access has no path yet once its
-credential is a provider's (question 7 of §9 of `06-storage.md`).
+duplicating records. Step providers, the other provider of the install path, now answer with
+content-addressed artifacts the node fetches by hash, so a provider that fails at step four of an
+install (§12) can be retried without any risk to the volume: no provider can write it (§4 of
+`09-recipes.md`). Backup targets, the third provider type built, issue scoped access per job rather
+than holding a node's data, and building them found that a store unable to scope access has no path
+yet once its credential is a provider's (question 7 of §9 of `06-storage.md`).
 
 **One thing this trace did not find**, and it is worth recording because it was the suspicion that
 motivated the trace: the tenant boundary holds. A provider installed by one tenant is bounded by
@@ -2062,9 +2061,9 @@ joins.
 
 Each step was asked what evaluates it, where, and with what. Step 3 is evaluated by the control
 plane, which holds every placement on the node and its range. Step 4 needs the workload's
-addresses, which the agent allocated and keeps, and for an extension the control plane's address,
-which the agent resolves from the name it enrolled with. Step 6 needs to know which workload asked,
-which the resolver reads from the socket the query arrived on, opened in the workload's own
+addresses, which the agent allocated and keeps, and for an extension nothing more: it reaches the
+control plane through the relay its node serves (Finding 57). Step 6 needs to know which workload
+asked, which the resolver reads from the socket the query arrived on, opened in the workload's own
 namespace †. Step 8 needs the workload's address and the port, which the helper was given at step
 4.
 
@@ -2130,8 +2129,26 @@ the workload by the socket, which also removed the one exception the egress defa
 resolver. → patched into `07-networking.md` §5.1 and §6; built 2026-10-15 and tested on a host
 whose firewall drops input, over UDP and TCP.
 
-† Step 7 is where the trace found Finding 53; step 5, when built, Finding 54; step 4, when
-the workload's own policy was built, Finding 55; step 6, when the resolver was built, Finding 56.
+† Step 7 is where the trace found Finding 53; step 5, when built, Finding 54; step 4, when the
+workload's own policy was built, Finding 55; step 6, when the resolver was built, Finding 56; step
+4 again, when an extension was first run in a container, Finding 57.
+
+**FINDING 57: An extension could not reach the control plane on one machine. `CONFIRMED`**
+
+Found 2026-10-15 at step 4, designing the first extension to run in a container. The egress default
+opened the control plane's API to an installed extension's workload at the addresses the node
+enrolled with, and asked what that address is on a single machine, the answer was loopback,
+`https://127.0.0.1:7443` as an operator naturally enrolls a node beside its control plane, and a
+workload's namespace never reaches the host's loopback. Any other address of the host is delivered
+through the host's input chain, which an operator's firewall may close, as this project's own test
+machine's does. The design asserted a path that the installation most extensions would run on does
+not have.
+
+**Resolution.** The node relays the API: the agent serves an installed extension's workload
+`/run/korpis/api.sock` beside its identity socket and copies each connection to the control plane
+over the host's network, with TLS end to end between the extension and the control plane. The
+egress exception is removed. → patched into `07-networking.md` §6, `08-identity.md` §9.5,
+`02-architecture.md` §6, and `16-extensions.md` §3.3.
 
 ‡ Added 2026-10-15, when step 3 was built: asked at step 3 what happens when the node has no
 free port, the allocation could only fail the node's whole assignment set or leave the endpoint

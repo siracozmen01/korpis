@@ -2384,10 +2384,13 @@ dependencies = [
  "getrandom 0.4.3",
  "hpke",
  "http",
+ "hyper-util",
  "korpis-proto",
  "rustls",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-rustls",
+ "tower",
  "tracing",
 ]
 
