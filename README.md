@@ -63,7 +63,7 @@ Then whichever of these you actually care about:
 |---|---|
 | Does the model hold together? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
 | Is it safe? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): twenty-nine scenarios traced end to end, the defects they found, and two external reviews |
+| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): thirty scenarios traced end to end, the defects they found, and two external reviews |
 | Could I run it? | [`18-operations.md`](./docs/18-operations.md) |
 | Could I build on it? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
 | What gets built first? | [`20-roadmap.md`](./docs/20-roadmap.md) |

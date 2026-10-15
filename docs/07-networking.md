@@ -99,6 +99,23 @@ plan that creates the endpoint shows the resolved mode and what it does not surv
 > immediately on the node's loss. The two behaviours were real and different, so they are now two
 > modes, each named for what it actually guarantees.
 
+**`node_port` and `node_bound` on one node, as built.** Decided 2026-10-15. The control plane
+allocates each such endpoint a port from the range its node advertises (§9), when it computes the
+node's assignment, as it allocates the workload's id range there (§4.8 of `02-architecture.md`):
+it holds every placement on the node, so it alone can keep two endpoints from one port. The port
+stays the endpoint's for as long as the workload is placed on the node, including across a
+change of the node's range, so a narrowed range does not move an address a player already has;
+new allocations come from the range as it is. The allocation is in the assignment and in the
+`Endpoint`, whose address is the node's advertised addresses with that port. The helper forwards
+the port, on every address of the node, to the workload's address and declared container port by
+destination translation, over the endpoint's protocol, and the source is left alone, so the
+workload sees the client's own address (§3.4: `client_address: preserved`). On one node
+`node_bound` behaves as `node_port`, because what distinguishes them is what happens after a move
+(§10), and moves arrive with migration (§4 of `20-roadmap.md`): the endpoint records which it is,
+and the plan that creates it says what each survives. What it costs: a conntrack entry per flow
+(question 1 of §11), and an address that is the node's, so a node that changes its advertised
+addresses changes every such endpoint's address with them.
+
 ### 3.1 `stable`: the edge
 
 An **edge** owns stable public addresses and forwards to wherever a workload currently is. For
@@ -333,6 +350,64 @@ belongs to one node and a workload holding it cannot migrate. BGP or a provider 
 can follow the workload, which is what makes `dedicated_ip` compatible with migration rather than
 an anchor.
 
+### 4.1 A workload's network on a node, as built
+
+Decided 2026-10-15, for the networking of Phase 1 (§4 of `20-roadmap.md`), which runs on one
+machine; nothing here prevents the overlay of §9 from joining these namespaces later.
+
+**The agent decides, the helper executes, the driver joins.** A workload's network namespace is
+data-plane state the agent owns (§2 of `02-architecture.md`). From the assignment the agent
+computes what the workload's network must be: its addresses, its declared endpoints, its allocated
+ports, and its policy. The helper, which is root, makes it so with two operations, `EnsureNetwork`
+and `ReleaseNetwork`, idempotent and keyed by workload, as it does for volumes (§3 of
+`06-storage.md`). The driver joins the namespace by its path, `/run/korpis/netns/<workload>`, and
+declares `network_modes: veth` (§4.1 and §7 of `04-runtimes.md`); it builds no networking of its
+own.
+
+**One namespace per workload, routed, with no bridge.** The namespace has one interface, `eth0`,
+whose peer on the host is a point-to-point link named for the workload. The host routes each
+workload's addresses to its link and nothing else; inside, the default route is a link-local
+gateway, `169.254.1.1` and `fe80::1`, answered by the host side. There is no shared layer-2
+segment, so no workload can answer another's ARP or neighbour discovery, flood a bridge, or see a
+frame not addressed to it, and every packet a workload sends crosses the host's routing and
+nftables, which is where §6's policy is applied. The cost is a route and a firewall lookup per
+packet that a bridge would skip for traffic between two workloads on one node, which is traffic
+the default policy denies anyway.
+
+**Addresses come from node-scope pools, allocated by the agent.** IPv4 comes from a pool private
+to the node, `10.47.0.0/16` unless the operator names another with `korpis-agent run
+--workload-ipv4`, because a pool that collides with the operator's own network breaks it and only
+the operator knows that network. IPv6 comes from a prefix the operator routes to the node
+(`--workload-ipv6`), which makes every workload's IPv6 address routable, as §4 says it should be;
+a node given none uses a unique local prefix derived from its identity, with translation on the
+way out, and its workloads are reachable over IPv6 only through the node's own addresses. Both
+leave the node by masquerade except a routed IPv6 prefix, which needs none. The agent allocates
+the lowest free address of each pool when a workload first runs on the node, keeps it on disk
+across restarts, releases it when the workload is retired from the node, and reports it in the
+workload's observations, because an address is a fact about a node and the control plane learns
+it as it learns the others.
+
+**Inbound is closed in the namespace itself.** The namespace has its own nftables table, whose
+input policy is to drop: it accepts its loopback, the replies to connections it opened, the ICMP
+and neighbour-discovery messages a network needs, and new connections only to the ports of its
+declared endpoints, over their protocols. It is written by the helper with the rest, so an
+endpoint removed from the intent closes its port at the next assignment. A rule in the workload's
+own namespace holds for traffic from anywhere, the node and its other workloads included, which
+is what §4's "closed except where declared" requires.
+
+**The host's rules live in one table, a chain per workload.** The helper keeps the host's rules in
+one nftables table, `inet korpis`, with a chain per workload reached from a verdict map keyed by
+its interface, and replaces a workload's chains and map entries in one transaction, so a change
+is never half applied. It writes them with the `nft` command's JSON input, the interface
+nftables documents as stable, rather than through a C binding, which keeps the helper free of
+unsafe code; links, addresses, and routes it makes over netlink. A node therefore needs nftables
+1.0 or later (§2 of `18-operations.md`).
+
+What it costs. A pool that collides with the operator's network is the operator's to change, and
+changing it renumbers workloads at their next start on the node. A node without a routed IPv6
+prefix offers IPv6 the way it offers IPv4, translated. Per-packet accounting and shaping (§7) are
+not part of this; they are added to the same chains later.
+
 ---
 
 ## 5. Service discovery
@@ -399,6 +474,19 @@ all private ranges (where AWS puts the VPC resolver). A workload on either would
   and it rate-limits queries per workload, because a resolver open to every tenant is a resource
   every tenant can exhaust.
 
+**As built.** Decided 2026-10-15. The resolver's address is the workload's gateway, `169.254.1.1`,
+which the node answers on every workload's link (§4.1), and every workload's `/etc/resolv.conf`
+names it alone. The agent serves it: queries a workload sends to port 53 there are redirected on
+the host to the agent's own unprivileged port, so the agent needs no privilege to answer them, and
+it forwards each, over UDP or TCP as it came, to the resolvers in the host's `/etc/resolv.conf`,
+which the host reaches, whatever they are, a local stub included. The agent knows which workload
+asked by the source address, and allows each workload 50 queries a second with a burst of 200,
+answering beyond that with `REFUSED`, which a resolver library treats as a failure to retry rather
+than as an answer. The dependency names of §5 are answered here once dependencies are resolved
+(§5). What it costs: a workload whose software ignores `/etc/resolv.conf` and asks a resolver of
+its own on the public internet still reaches it, as egress allows; one that asks a private
+resolver is denied by §6, as it should be.
+
 ---
 
 ## 6. Policy
@@ -446,6 +534,33 @@ credentials and take over the operator's entire cloud account.
 half-open connections per workload. Without them one workload can exhaust the node's conntrack
 table and take every other workload offline, a resource exhaustion path with no visible cause, and
 one that appears in practice long before anyone thinks to look for it.
+
+**As built.** Decided 2026-10-15. Each row of the table is a rule in the workload's chain on the
+host (§4.1), evaluated by the helper's nftables for every packet the workload sends:
+
+| Row | What matches |
+|---|---|
+| other workloads | the node's workload pools, IPv4 and IPv6; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
+| node management | anything addressed to the host itself, on any of its addresses, except the resolver (§5.1) and ICMP to the gateway |
+| the control plane's API | its addresses as the node resolves the name it was enrolled with, on its port; opened, alone, for an installed extension's workload, which the assignment marks |
+| link-local metadata | `169.254.0.0/16` and `fe80::/10` beyond the gateway, `fd00:ec2::254` among them |
+| RFC 1918 and unique local | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, `fc00::/7`, and loopback |
+| SMTP | TCP 25, 465, and 587, to anywhere |
+| the public internet | everything else: allowed, at most 200 new connections a second with a burst of 400 |
+
+The conntrack limits are per workload: at most 4096 tracked connections, in both directions, and
+the new-connection rate above. Half-open connections have no counter of their own: the new
+connection rate bounds how fast they can be made, and the node turns on SYN cookies, so a flood of
+them costs the conntrack table nothing. Between two workloads on one node both ends hold (§9.1 of
+`17-security.md`): the source's chain on the host and the destination's own namespace. A workload's
+own `NetworkPolicy` is evaluated before the defaults. Its deny holds anywhere. Its allow holds only
+for the public internet and, through a dependency (§5), for a workload it depends on: the rows that
+protect the node, the operator's networks, the metadata service, other tenants, and the reputation
+of the operator's addresses (SMTP) are the operator's to relax, not a tenant's, and nothing relaxes
+them until an operator-level policy exists (question 7 of §11). What it costs: the limits are a
+guess at what a game server or a web service needs, and one that opens more connections than that,
+a crawler or a proxy, needs its policy to say so; and as §9.1 of `17-security.md` says, a node
+whose root is compromised enforces none of this.
 
 ---
 
@@ -583,17 +698,22 @@ reaches below 1024. A change of either makes the node's reachability unmeasured 
 do: an address that changes is noticed at the next heartbeat, so for up to one heartbeat interval
 the node is judged on its old addresses.
 
-**The probe, as built.** The control plane process that holds a node's session measures it when
-it has never been measured against what it advertises, and every ten minutes after. It asks the
-node to listen on a random port of its range, over TCP and UDP on every address, for fifteen
-seconds; the node answers each 32-byte nonce sent there with its node key's signature over a
-message bound to the purpose, the node, and the port, so a machine that holds the address but not
-the key is not taken for the node, and the answer is good for nothing else. The prober then tries
-each advertised address over TCP and over UDP, and the node is `public` if one address answers
-over both, and `edge_only` otherwise. Both, because a game server's port is usually UDP and a
-web endpoint's TCP, and a firewall that passes one need not pass the other; the cost is that a
-node whose firewall passes only TCP is `edge_only`, although a TCP endpoint on it would have been
-reachable. A measurement is recorded only if the node still advertises what was measured.
+**The probe, as built.** The control plane process that holds a node's session measures it when it
+has never been measured against what it advertises, and every ten minutes after. It asks the node
+to listen on a random port of its range that no endpoint on the node holds, over TCP and UDP on
+every address, for fifteen seconds; the node answers each 32-byte nonce sent there with its node
+key's signature over a message bound to the purpose, the node, and the port, so a machine that
+holds the address but not the key is not taken for the node, and the answer is good for nothing
+else. The prober then tries each advertised address over TCP and over UDP, and the node is `public`
+if one address answers over both, and `edge_only` otherwise. Both, because a game server's port is
+usually UDP and a web endpoint's TCP, and a firewall that passes one need not pass the other; the
+cost is that a node whose firewall passes only TCP is `edge_only`, although a TCP endpoint on it
+would have been reachable. A measurement is recorded only if the node still advertises what was
+measured. Corrected 2026-10-15, Finding 53 of `23-walkthroughs.md`: the port was any of the range,
+and once endpoints hold ports of it (§3) the probe could pick one the node forwards to a workload,
+so its nonces would reach the workload and the node would be judged unreachable, or reachable on
+the strength of a workload that answered. The control plane holds every allocation on the node, so
+it picks among the free ones, and the node refuses to listen on a port it forwards.
 
 What the probe does not do, stated plainly. It measures from where the control plane runs. A
 prober inside the node's network reaches a private address no client outside can, and a prober
@@ -675,3 +795,10 @@ promise, and it is now the one the document makes.
    enforced at both ends, so the destination never trusts the source; north-south is uncontained on
    a compromised node and says so; and each node's expected egress profile is published so an
    operator can enforce at a layer the node does not control.
+7. **Who relaxes the protected rows of the egress default.** The rows of §6 that protect the
+   node, the operator's own networks, the metadata service, other tenants, and the reputation of
+   the operator's addresses are not a tenant's to open, and some workloads legitimately need one
+   opened: a mail relay the operator runs, a workload that must reach a database on the
+   operator's LAN. That needs an operator-level policy, and which scope it is set at (the
+   installation, an organization, a node) and how a tenant sees that it applies are undecided.
+   Until then nothing opens them. → here

@@ -37,8 +37,8 @@ tenant keys, share links, and stream ranges were built, found 37 to 47. §28 rec
 which no trace found: an automated security review of the code flagged it, and the evidence file
 had named its class all along. §29, written when the install worker was given its content, found
 49, and §30, written when step providers were wired to installs, found 50. §31, written for the
-end-to-end install test, found 51, and §32, written when a refusal after the bind was tested on
-real agents, found 52.
+end-to-end install test, found 51, §32, written when a refusal after the bind was tested on real
+agents, found 52, and §33, written to design a workload's network on one machine, found 53.
 
 **The traces were re-run on 2026-10-12 against those changed mechanics.** Where a step now runs
 through a different mechanism, its row says so and cites the section that owns it; the findings and
@@ -1085,6 +1085,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 50 | A step provider's artifacts were relative to a volume nothing named | §30 | `09-recipes.md` §4, `16-extensions.md` §5 |
 | 51 | A failed plan's unfinished steps were never planned again | §31 | `01-model.md` §3.3, `05-scheduling.md` §3.1 |
 | 52 | A node ran a target no plan had made | §32 | `02-architecture.md` §4.8, `01-model.md` §3.3 |
+| 53 | The reachability probe could listen on a port forwarded to a workload | §33 | `07-networking.md` §9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2034,4 +2035,49 @@ create approved for later and for one whose plan failed, and the test that found
 `crates/korpis-agent/tests/agent/refused.rs`, now passes on every run instead of by timing.
 
 † Step 3 is where the trace found Finding 52.
+
+---
+
+## 33. A game server's first player, on one machine
+
+Written 2026-10-15, to design a workload's network for Phase 1 before building it (§4.1 of
+`07-networking.md`). A tenant runs a game server whose recipe declares a `game` endpoint, UDP,
+`exposure_default: stable`, on a single machine with a public address and no edge tier. A player
+joins.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The endpoint's declared `stable` resolves to `node_bound`: no edge tier serves the installation | `07-networking.md` §3 |
+| 2 | The node is chosen; it must be reachable on its own address, which its probe measured | `05-scheduling.md` §2.1, `07-networking.md` §9 |
+| 3 | The node's assignment is computed and the endpoint is allocated a port from the node's range | `07-networking.md` §3, `02-architecture.md` §4.8 |
+| 4 | The agent allocates the workload's addresses; the helper makes its namespace, its link, its routes, its own firewall, and its chain on the host | `07-networking.md` §4.1, §6 |
+| 5 | The driver creates the container in that namespace | `04-runtimes.md` §7, `07-networking.md` §4.1 |
+| 6 | The server resolves its mod repository's name through the node's resolver and downloads from it | `07-networking.md` §5.1, §6 |
+| 7 | Ten minutes on, the control plane measures the node again, on a random port of its range † | `07-networking.md` §9 |
+| 8 | The player connects to the node's address and the allocated port; the server sees the player's own address | `07-networking.md` §3, §3.4 |
+
+Each step was asked what evaluates it, where, and with what. Step 3 is evaluated by the control
+plane, which holds every placement on the node and its range. Step 4 needs the workload's
+addresses, which the agent allocated and keeps, and for an extension the control plane's address,
+which the agent resolves from the name it enrolled with. Step 6 needs to know which workload asked,
+which the resolver reads from the source address the agent allocated. Step 8 needs the workload's
+address and the port, which the helper was given at step 4.
+
+**FINDING 53: The reachability probe could listen on a port forwarded to a workload. `CONFIRMED`**
+
+Asked at step 7 what the probe measures, and with what: the control plane picks a random port of
+the node's range and asks the node to listen there. Before endpoints existed every port of the
+range was free. After step 3 one is forwarded to the game server, and a probe that picked it would
+send its nonces to the server: the node, not having answered, would be judged `edge_only`, and the
+game server's endpoint would be unplaceable at its next placement, or a server that echoed what it
+received would be taken for the node. The control plane holds what is needed to know better: every
+port it allocated on the node.
+
+**Resolution.** The probe picks among the ports of the range that no endpoint on the node holds,
+and the node refuses to listen on a port it forwards. → patched into `07-networking.md` §9; built
+with the allocation of endpoint ports.
+
+† Step 7 is where the trace found Finding 53.
 
