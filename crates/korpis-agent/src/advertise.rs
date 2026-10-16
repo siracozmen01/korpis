@@ -9,6 +9,8 @@
 use korpis_core::node::advertised::{PortRange, is_global};
 use korpis_proto::korpis::agent::v1 as agent;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs as _, UdpSocket};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// What to advertise, and how to find it.
 #[derive(Debug, Clone)]
@@ -16,8 +18,8 @@ pub struct Advertise {
     declared: Vec<IpAddr>,
     ports: PortRange,
     /// Whether the node holds ports 80 and 443 for the ingress proxy (§3.2 of
-    /// docs/07-networking.md); nothing opens them yet, so it does not.
-    ingress: bool,
+    /// docs/07-networking.md), which the ingress's supervisor says.
+    ingress: Arc<AtomicBool>,
     /// The control plane's addresses, resolved once at start.
     towards: Vec<SocketAddr>,
 }
@@ -47,7 +49,13 @@ impl Advertise {
     #[must_use]
     pub fn new(declared: Vec<IpAddr>, ports: PortRange, server: &str) -> Self {
         let towards = if declared.is_empty() { resolve(server) } else { Vec::new() };
-        Self { declared, ports, ingress: false, towards }
+        Self { declared, ports, ingress: Arc::new(AtomicBool::new(false)), towards }
+    }
+
+    /// What says whether the node serves the ingress, for its supervisor to set.
+    #[must_use]
+    pub fn ingress(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.ingress)
     }
 
     /// What to advertise now. Detection is repeated each time, so an address that changes is
@@ -65,7 +73,7 @@ impl Advertise {
             addresses: addresses.iter().map(ToString::to_string).collect(),
             first_port: u32::from(self.ports.first()),
             last_port: u32::from(self.ports.last()),
-            ingress: self.ingress,
+            ingress: self.ingress.load(Ordering::Relaxed),
             ..Default::default()
         }
     }

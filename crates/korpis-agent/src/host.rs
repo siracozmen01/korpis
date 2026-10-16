@@ -140,6 +140,23 @@ pub trait Host: Send + Sync + 'static {
         workload: &str,
     ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send;
 
+    /// Ports 80 and 443 of each of `addresses`, opened listening for the ingress proxy: every
+    /// port 80, then every 443 (§3.2 of docs/07-networking.md).
+    fn open_ingress(
+        &self,
+        addresses: &[String],
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send;
+
+    /// Starts the ingress proxy, connecting to the supervisor's socket at `control`; one started
+    /// before is stopped first. What confines it, as the helper could.
+    fn start_ingress(
+        &self,
+        control: &std::path::Path,
+    ) -> impl Future<Output = Result<helper::StartIngressResponse, HostError>> + Send;
+
+    /// Stops the ingress proxy; whether it ran.
+    fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send;
+
     /// Whether the node can give workloads networks, and what stands in the way.
     fn describe_network(
         &self,

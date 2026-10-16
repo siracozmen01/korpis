@@ -5,6 +5,7 @@
 
 use korpis_helper::helper::Helper;
 use korpis_helper::ids::Ledger;
+use korpis_helper::ingress::{Ingress, IngressConfig};
 use korpis_helper::job::JobConfig;
 use korpis_helper::network::Network;
 use korpis_helper::serve::{bound, inherited, serve};
@@ -18,7 +19,8 @@ use std::time::Duration;
 const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-root PATH] \
                      [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
-                     [--content PATH] [--netns-root PATH|none]";
+                     [--content PATH] [--netns-root PATH|none] \
+                     [--ingress-binary PATH|none]";
 
 /// Where the install job binary is, if install jobs are run.
 enum InstallBinary {
@@ -43,6 +45,8 @@ struct Args {
     job_binary: Option<PathBuf>,
     /// The install job binary.
     install_binary: InstallBinary,
+    /// The ingress proxy's binary.
+    ingress_binary: InstallBinary,
     job_cgroups: Option<PathBuf>,
     content: PathBuf,
     /// Where workloads' network namespaces are bound; none gives workloads no network.
@@ -59,6 +63,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         idle: None,
         job_binary: None,
         install_binary: InstallBinary::Beside,
+        ingress_binary: InstallBinary::Beside,
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
         content: PathBuf::from("/var/lib/korpis-agent/content"),
         netns_root: Some(PathBuf::from("/run/korpis/netns")),
@@ -77,6 +82,11 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--install-binary" => {
                 let v = value()?;
                 a.install_binary =
+                    if v == "none" { InstallBinary::None } else { InstallBinary::At(v.into()) };
+            }
+            "--ingress-binary" => {
+                let v = value()?;
+                a.ingress_binary =
                     if v == "none" { InstallBinary::None } else { InstallBinary::At(v.into()) };
             }
             "--job-cgroups" => {
@@ -126,14 +136,23 @@ fn run(a: Args) -> Result<(), String> {
         InstallBinary::At(b) => Some(b),
         InstallBinary::None => None,
     };
+    let ingress_binary = match a.ingress_binary {
+        InstallBinary::Beside => Some(beside("korpis-ingress")?),
+        InstallBinary::At(b) => Some(b),
+        InstallBinary::None => None,
+    };
     let jobs = JobConfig {
         binary,
         install_binary,
         state: a.state.clone(),
-        cgroups: a.job_cgroups,
+        cgroups: a.job_cgroups.clone(),
         content: Some(a.content),
     };
     let mut helper = Helper::new(vec![class], ledger).with_jobs(jobs);
+    if let Some(binary) = ingress_binary {
+        helper =
+            helper.with_ingress(Ingress::new(IngressConfig { binary, cgroups: a.job_cgroups }));
+    }
     if let Some(root) = a.netns_root {
         helper = helper.with_network(Network::new(root));
     }

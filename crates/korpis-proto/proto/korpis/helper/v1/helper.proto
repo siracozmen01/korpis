@@ -80,6 +80,9 @@ message HelperRequest {
     ReleaseNetworkRequest release_network = 16;
     DescribeNetworkRequest describe_network = 17;
     OpenResolverRequest open_resolver = 18;
+    OpenIngressRequest open_ingress = 19;
+    StartIngressRequest start_ingress = 20;
+    StopIngressRequest stop_ingress = 21;
   }
 }
 
@@ -105,6 +108,9 @@ message HelperResponse {
     ReleaseNetworkResponse release_network = 17;
     DescribeNetworkResponse describe_network = 18;
     OpenResolverResponse open_resolver = 19;
+    OpenIngressResponse open_ingress = 20;
+    StartIngressResponse start_ingress = 21;
+    StopIngressResponse stop_ingress = 22;
   }
 }
 
@@ -197,6 +203,42 @@ message OpenResolverRequest {
 // is listening. Each belongs to the workload's namespace, wherever its holder runs.
 message OpenResolverResponse {
   uint32 attached = 1;
+}
+
+// Opens ports 80 and 443 on each of the node's advertised addresses, for its ingress proxy (§3.2
+// of docs/07-networking.md): binding them needs a privilege neither the supervisor nor the proxy
+// has. Loopback, unspecified, and multicast addresses are refused.
+message OpenIngressRequest {
+  repeated string addresses = 1;
+}
+
+// The sockets are attached to this answer's frame as SCM_RIGHTS, listening: port 80 of each
+// address in the order asked, then port 443 of each.
+message OpenIngressResponse {
+  uint32 attached = 1;
+}
+
+// Starts the ingress proxy, `korpis-ingress --control <control>`, as the user and group that
+// asked, with no capability, in a cgroup of its own whose new connections may leave only through
+// a workload's link. A proxy the helper started before is stopped first.
+message StartIngressRequest {
+  // The asker's socket the proxy connects to, an absolute path.
+  string control = 1;
+}
+
+message StartIngressResponse {
+  uint32 pid = 1;
+  // Whether the proxy is in its own cgroup, and whether its new connections are confined to the
+  // workloads' links; each is false where the node cannot do it, and the asker reports it.
+  bool cgroup = 2;
+  bool outbound = 3;
+}
+
+// Stops the ingress proxy the helper started, if it runs.
+message StopIngressRequest {}
+
+message StopIngressResponse {
+  bool stopped = 1;
 }
 
 // An address and a port, over a transport, opened past the egress default.

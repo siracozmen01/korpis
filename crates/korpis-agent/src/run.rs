@@ -86,6 +86,10 @@ pub struct Options {
     /// The pools the node's workloads get addresses from, when it gives them networks (§4.1 of
     /// docs/07-networking.md); none gives them loopback alone.
     pub network: Option<Pools>,
+    /// Runs the node's ingress proxy, setting this when it holds the ingress's ports (§3.2 of
+    /// docs/07-networking.md); none runs no ingress. It needs the node to give its workloads
+    /// networks and to advertise an address.
+    pub ingress: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl Default for Options {
@@ -97,6 +101,7 @@ impl Default for Options {
             identity_root: None,
             handlers: Handlers::default(),
             network: None,
+            ingress: None,
         }
     }
 }
@@ -150,6 +155,32 @@ pub async fn facts_of<R: Runtime, H: Host>(
     let advertised = agent::Advertised::default();
     let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable, advertised };
     Ok(Arc::new(move || Facts { advertised: advertise.current(), ..facts.clone() }))
+}
+
+/// What the node's ingress proxy is fed from and the task that runs it, where the node runs one:
+/// it needs workloads to have networks, which the proxy reaches them on, and an address it
+/// advertises, which the proxy listens on.
+type Ingress = (
+    Option<tokio::sync::watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
+    Option<JoinHandle<()>>,
+);
+
+fn ingress<H: Host + Clone>(
+    state: &StateDir,
+    host: &H,
+    (facts, serving): (Facts, Option<Arc<std::sync::atomic::AtomicBool>>),
+    networks: bool,
+) -> Ingress {
+    let addresses = facts.advertised.addresses;
+    let Some(serving) = serving.filter(|_| networks && !addresses.is_empty()) else {
+        return (None, None);
+    };
+    let config = korpis_proto::korpis::ingress::v1::IngressConfig::default();
+    let (publish, config) = tokio::sync::watch::channel(config);
+    let control = state.root().join("ingress.sock");
+    let supervisor =
+        crate::ingress::Supervisor::new(host.clone(), addresses, control, config, serving);
+    (Some(publish), Some(tokio::spawn(supervisor.run())))
 }
 
 /// The running agent.
@@ -213,7 +244,7 @@ impl Kept {
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
-    pub fn start<R: Runtime + Clone, H: Host>(
+    pub fn start<R: Runtime + Clone, H: Host + Clone>(
         state: &StateDir,
         runtime: R,
         host: H,
@@ -225,6 +256,7 @@ impl Agent {
 
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
+        let (ingress, proxy) = ingress(state, &host, (facts(), options.ingress), network.is_some());
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
@@ -256,6 +288,7 @@ impl Agent {
             steps: link.steps.clone(),
             inventory,
             network,
+            ingress,
             identity: Some(IdentitySockets::new(
                 options.identity_root.unwrap_or_else(|| state.root().join("identity")),
                 link.credentials.clone(),
@@ -269,7 +302,7 @@ impl Agent {
             options.period,
         )
         .map_err(io("the streams offloaded"))?;
-        let tasks = vec![
+        let tasks = [
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),
             journal.maintain_every(options.maintain_every),
@@ -277,6 +310,7 @@ impl Agent {
             tokio::spawn(data.run()),
             tokio::spawn(offloader.run()),
         ];
+        let tasks = tasks.into_iter().chain(proxy).collect();
         Ok(Self { tasks, journal, events: link.events })
     }
 

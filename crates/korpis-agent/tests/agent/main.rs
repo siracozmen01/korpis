@@ -17,6 +17,7 @@ mod console_write;
 mod content;
 mod data;
 mod identity;
+mod ingress;
 mod join;
 mod journal;
 mod lease;

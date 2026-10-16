@@ -871,9 +871,9 @@ Node
   admin         active | cordoned | draining | decommissioned      what the operator decided
   connectivity  registering | connected | unreachable | unknown    whether it is heard
   overlay       available | unavailable    measured (§9 of 07-networking.md)
-  ingress       bool           whether it holds ports 80 and 443 for its ingress proxy, as it
-                               found at start; required of an ingress endpoint's node without
-                               an edge tier (§3.2 of 07-networking.md)
+  ingress       bool           whether its agent holds ports 80 and 443 for its ingress proxy;
+                               required of an ingress endpoint's node without an edge tier
+                               (§3.2 of 07-networking.md)
   status        derived from the two, below
   agent_version string
   last_seen     Timestamp

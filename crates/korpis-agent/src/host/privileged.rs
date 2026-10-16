@@ -155,7 +155,53 @@ impl HelperClient {
     /// UDP, then TCP listening (§5.1 of docs/07-networking.md).
     pub async fn open_resolver(&self, workload: &str) -> Result<Vec<OwnedFd>, HostError> {
         let r = helper::OpenResolverRequest { workload: workload.to_owned(), ..Default::default() };
-        let verb = Verb::OpenResolver(Box::new(r));
+        match self.call_attached(Verb::OpenResolver(Box::new(r))).await? {
+            (Answer::OpenResolver(a), fds) if usize::try_from(a.attached) == Ok(fds.len()) => {
+                Ok(fds)
+            }
+            (other, fds) => {
+                Err(failed(format!("answered {other:?} with {} descriptors", fds.len())))
+            }
+        }
+    }
+
+    /// Ports 80 and 443 of each of `addresses`, opened by the helper for the ingress proxy:
+    /// every port 80, then every 443 (§3.2 of docs/07-networking.md).
+    pub async fn open_ingress(&self, addresses: &[String]) -> Result<Vec<OwnedFd>, HostError> {
+        let r = helper::OpenIngressRequest { addresses: addresses.to_vec(), ..Default::default() };
+        match self.call_attached(Verb::OpenIngress(Box::new(r))).await? {
+            (Answer::OpenIngress(a), fds) if usize::try_from(a.attached) == Ok(fds.len()) => {
+                Ok(fds)
+            }
+            (other, fds) => {
+                Err(failed(format!("answered {other:?} with {} descriptors", fds.len())))
+            }
+        }
+    }
+
+    /// Starts the ingress proxy, connecting to `control`.
+    pub async fn start_ingress(
+        &self,
+        control: &std::path::Path,
+    ) -> Result<helper::StartIngressResponse, HostError> {
+        let control = control.to_string_lossy().into_owned();
+        let r = helper::StartIngressRequest { control, ..Default::default() };
+        match self.call(Verb::StartIngress(Box::new(r))).await? {
+            Answer::StartIngress(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// Stops the ingress proxy; whether it ran.
+    pub async fn stop_ingress(&self) -> Result<bool, HostError> {
+        match self.call(Verb::StopIngress(Box::default())).await? {
+            Answer::StopIngress(a) => Ok(a.stopped),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
+    /// Sends `verb` and returns its answer with the descriptors attached to it.
+    async fn call_attached(&self, verb: Verb) -> Result<(Answer, Vec<OwnedFd>), HostError> {
         let request =
             helper::HelperRequest { verb: Some(verb), ..Default::default() }.encode_to_vec();
         let socket = self.socket.clone();
@@ -164,11 +210,9 @@ impl HelperClient {
             tokio::task::spawn_blocking(call).await.map_err(failed)?.map_err(failed)?;
         let response = helper::HelperResponse::decode_from_slice(&body).map_err(failed)?;
         match response.result {
-            Some(Answer::OpenResolver(a)) if usize::try_from(a.attached) == Ok(fds.len()) => {
-                Ok(fds)
-            }
             Some(Answer::Error(e)) => Err(failed(format!("{:?}: {}", e.code, e.message))),
-            other => Err(failed(format!("answered {other:?} with {} descriptors", fds.len()))),
+            Some(answer) => Ok((answer, fds)),
+            None => Err(failed("an empty answer")),
         }
     }
 

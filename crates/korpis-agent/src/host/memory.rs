@@ -24,6 +24,10 @@ struct Kept {
     started: BTreeMap<String, helper::StartJobRequest>,
     /// The networks asked for, by workload; none is made, so none has a namespace.
     networks: BTreeMap<String, helper::EnsureNetworkRequest>,
+    /// The socket the ingress proxy was last started to connect to.
+    ingress: Option<std::path::PathBuf>,
+    /// How many times it was started.
+    ingress_starts: u32,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -65,6 +69,13 @@ impl InMemoryHost {
     #[must_use]
     pub fn started(&self, job: &str) -> Option<helper::StartJobRequest> {
         self.with(|k| k.started.get(job).cloned()).ok().flatten()
+    }
+
+    /// The socket the ingress proxy was last started to connect to, while it runs, and how many
+    /// times it was started.
+    #[must_use]
+    pub fn ingress(&self) -> (Option<std::path::PathBuf>, u32) {
+        self.with(|k| (k.ingress.clone(), k.ingress_starts)).unwrap_or_default()
     }
 
     /// Every job started, by name.
@@ -278,6 +289,38 @@ impl Host for InMemoryHost {
         _workload: &str,
     ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
         ready(Err(HostError("the in-memory host makes no networks".into())))
+    }
+
+    /// Listeners on loopback in place of each address's ports 80 and 443, so a test reaches
+    /// what the agent serves on them.
+    fn open_ingress(
+        &self,
+        addresses: &[String],
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
+        let opened = (0..addresses.len() * 2)
+            .map(|_| {
+                std::net::TcpListener::bind("127.0.0.1:0")
+                    .map(std::os::fd::OwnedFd::from)
+                    .map_err(|e| HostError(e.to_string()))
+            })
+            .collect();
+        ready(opened)
+    }
+
+    /// Records `control`, where a test then plays the proxy.
+    fn start_ingress(
+        &self,
+        control: &std::path::Path,
+    ) -> impl Future<Output = Result<helper::StartIngressResponse, HostError>> + Send {
+        let recorded = self.with(|k| {
+            k.ingress = Some(control.to_path_buf());
+            k.ingress_starts += 1;
+        });
+        ready(recorded.map(|()| helper::StartIngressResponse::default()))
+    }
+
+    fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send {
+        ready(self.with(|k| k.ingress.take().is_some()))
     }
 
     fn describe_network(

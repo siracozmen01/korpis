@@ -26,7 +26,9 @@ fn transport(p: &pb::Endpoint) -> helper::Transport {
 
 /// The ports inside the workload its endpoints listen on, which its firewall accepts, and the
 /// ports of the node forwarded to them (§3 of docs/07-networking.md). An endpoint of exposure
-/// `none` is not reachable, so its port stays closed.
+/// `none` is not reachable, so its port stays closed. Only `node_port` and `node_bound` hold a
+/// port of the node; an `ingress` endpoint's address is the proxy's, on 443, and the proxy
+/// reaches the workload at its own address.
 fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>) {
     let reachable =
         endpoints.iter().filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE));
@@ -39,6 +41,12 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
         .collect();
     let forwards = endpoints
         .iter()
+        .filter(|e| {
+            matches!(
+                e.exposure.as_known(),
+                Some(pb::Exposure::EXPOSURE_NODE_PORT | pb::Exposure::EXPOSURE_NODE_BOUND)
+            )
+        })
         .filter_map(|e| {
             let node_port = e.address.as_option()?.port;
             Some(helper::Forward {
@@ -116,6 +124,21 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             }
             Err(e) => tracing::warn!(%workload, error = %e, "its resolver could not be served yet"),
         }
+    }
+
+    /// Publishes what the node's ingress proxy serves for the set held, when it changed.
+    pub(super) fn publish_ingress(&self, held: &HeldSet) {
+        let (Some(publish), Some(net)) = (&self.wiring.ingress, &self.wiring.network) else {
+            return;
+        };
+        let config = crate::ingress::config(held, &net.addresses);
+        publish.send_if_modified(|served| {
+            let changed = *served != config;
+            if changed {
+                *served = config;
+            }
+            changed
+        });
     }
 
     /// Serves the resolver of every workload holding a network the set holds, which is how a
@@ -227,5 +250,16 @@ mod tests {
         assert_eq!(forwards.len(), 1);
         assert_eq!((forwards[0].node_port, forwards[0].container_port), (30001, 25565));
         assert_eq!(forwards[0].transport.as_known(), Some(helper::Transport::TRANSPORT_UDP));
+    }
+
+    #[test]
+    fn an_ingress_endpoints_address_is_the_proxys_and_not_forwarded() {
+        let http = pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP;
+        let (inbound, forwards) = ports(&[
+            endpoint(http, pb::Exposure::EXPOSURE_NODE_BOUND, Some(30001)),
+            endpoint(http, pb::Exposure::EXPOSURE_INGRESS, Some(443)),
+        ]);
+        assert_eq!(inbound.len(), 2, "its port is open to the proxy");
+        assert_eq!(forwards.iter().map(|f| f.node_port).collect::<Vec<_>>(), [30001]);
     }
 }

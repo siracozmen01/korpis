@@ -142,7 +142,7 @@ until_ok 10 test -S "$NODE/driver.sock"
 agent() {
     start agent "$BIN/korpis-agent" --state-dir "$NODE/agent" run \
         --driver-socket "$NODE/driver.sock" --helper-socket "$NODE/helper.sock" \
-        --plain-http "$REGISTRY"
+        --plain-http "$REGISTRY" --ingress false
     AGENT=$LAST
 }
 agent

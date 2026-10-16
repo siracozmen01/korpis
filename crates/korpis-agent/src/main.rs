@@ -91,6 +91,11 @@ enum Command {
         /// they get unique local ones, translated on the way out.
         #[arg(long)]
         workload_ipv6: Option<Ipv6Net>,
+        /// Serve the ingress: the helper opens ports 80 and 443 on the advertised addresses for
+        /// the node's ingress proxy, and the node says it serves it, so workloads with ingress
+        /// endpoints are placed here (§3.2 of docs/07-networking.md).
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        ingress: bool,
     },
 }
 
@@ -122,11 +127,12 @@ struct Node {
     ports: PortRange,
     workload_ipv4: Ipv4Net,
     workload_ipv6: Option<Ipv6Net>,
+    ingress: bool,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
 /// running.
-async fn serve<R: Runtime + Clone, H: Host>(
+async fn serve<R: Runtime + Clone, H: Host + Clone>(
     state: &StateDir,
     runtime: R,
     host: H,
@@ -140,6 +146,7 @@ async fn serve<R: Runtime + Clone, H: Host>(
         }
     };
     let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
+    let ingress = node.ingress.then(|| advertise.ingress());
     let facts = match facts_of(&runtime, &host, node.reserve, advertise).await {
         Ok(f) => f,
         Err(e) => {
@@ -149,7 +156,8 @@ async fn serve<R: Runtime + Clone, H: Host>(
     };
     let pools = (node.workload_ipv4, node.workload_ipv6);
     let network = korpis_agent::network::offered(&runtime, &host, &id, pools).await;
-    match Agent::start(state, runtime, host, facts, Options { network, ..Options::default() }) {
+    let options = Options { network, ingress, ..Options::default() };
+    match Agent::start(state, runtime, host, facts, options) {
         Ok(agent) => {
             tracing::info!("agent running");
             shutdown().await;
@@ -225,6 +233,7 @@ async fn main() -> ExitCode {
             ports,
             workload_ipv4,
             workload_ipv6,
+            ingress,
         } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
@@ -239,6 +248,7 @@ async fn main() -> ExitCode {
                 ports,
                 workload_ipv4,
                 workload_ipv6,
+                ingress,
             };
             run(&state, node).await
         }

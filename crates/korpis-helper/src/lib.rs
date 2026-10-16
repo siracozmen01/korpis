@@ -16,6 +16,7 @@ pub mod error;
 pub mod frame;
 pub mod helper;
 pub mod ids;
+pub mod ingress;
 pub mod job;
 pub mod kept;
 pub mod network;

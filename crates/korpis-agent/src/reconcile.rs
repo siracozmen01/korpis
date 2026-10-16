@@ -109,6 +109,9 @@ pub struct Wiring {
     /// The workloads' networks (§4.1 of docs/07-networking.md); none where the node gives its
     /// workloads loopback alone.
     pub network: Option<crate::network::Networking>,
+    /// Where what the node's ingress proxy serves is published (§3.2 of docs/07-networking.md);
+    /// none where the node runs no ingress.
+    pub ingress: Option<watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
 }
 
 /// The reconciler.
@@ -301,6 +304,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         self.release_networks(&held).await;
         self.serve_resolvers(&held).await;
+        self.publish_ingress(&held);
         self.serve_relays(&held);
         self.refresh_dependencies(&held).await;
         self.tail(&held).await;

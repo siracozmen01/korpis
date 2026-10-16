@@ -38,7 +38,7 @@ pub fn write(w: &mut impl Write, body: &[u8]) -> io::Result<()> {
 }
 
 /// The most descriptors one frame carries.
-pub const MAX_ATTACHED: usize = 4;
+pub const MAX_ATTACHED: usize = 2 * crate::ingress::MAX_ADDRESSES;
 
 /// Writes `body` as one message on `stream`, with `attached` sent as `SCM_RIGHTS` alongside its
 /// first bytes, as the peer's `recvmsg` of the length receives them.

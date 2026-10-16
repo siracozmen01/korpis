@@ -7,6 +7,7 @@
 
 use crate::error::{HelperError, HelperResult};
 use crate::ids::Ledger;
+use crate::ingress::Ingress;
 use crate::job::{DataJob, JobConfig, Jobs, Placed, make_into};
 use crate::kept::Kept;
 use crate::network::Network;
@@ -24,6 +25,9 @@ pub struct Helper {
     ledger: Ledger,
     jobs: Option<Jobs>,
     network: Option<Network>,
+    ingress: Option<Ingress>,
+    /// The user and group of the connection being answered, as the kernel recorded them.
+    peer: (u32, u32),
     /// Descriptors the last answer carries, sent with its frame and then closed here.
     attached: Vec<rustix::fd::OwnedFd>,
 }
@@ -40,7 +44,15 @@ impl Helper {
     /// A helper offering `classes`, the first the default, and keeping `ledger`.
     #[must_use]
     pub fn new(classes: Vec<Class>, ledger: Ledger) -> Self {
-        Self { classes, ledger, jobs: None, network: None, attached: Vec::new() }
+        Self {
+            classes,
+            ledger,
+            jobs: None,
+            network: None,
+            ingress: None,
+            peer: (u32::MAX, u32::MAX),
+            attached: Vec::new(),
+        }
     }
 
     /// The same helper, giving workloads networks as `network` keeps them.
@@ -48,6 +60,25 @@ impl Helper {
     pub fn with_network(mut self, network: Network) -> Self {
         self.network = Some(network);
         self
+    }
+
+    /// The same helper, starting the ingress proxy as `ingress` says.
+    #[must_use]
+    pub fn with_ingress(mut self, ingress: Ingress) -> Self {
+        self.ingress = Some(ingress);
+        self
+    }
+
+    /// Answers the connection of `uid` and `gid` from now on.
+    pub fn answering(&mut self, uid: u32, gid: u32) {
+        self.peer = (uid, gid);
+    }
+
+    /// The answer to an ingress verb, keeping the descriptors it carries for the transport.
+    fn ingress_verb(&mut self, verb: Verb) -> HelperResult<Answer> {
+        let (answer, attached) = crate::ingress::answer(self.ingress.as_mut(), self.peer, verb)?;
+        self.attached = attached;
+        Ok(answer)
     }
 
     fn network(&self) -> HelperResult<&Network> {
@@ -108,9 +139,11 @@ impl Helper {
         self
     }
 
-    /// Whether a job this helper started still runs, so it must not exit while idle.
+    /// Whether a job or the ingress proxy this helper started still runs, so it must not exit
+    /// while idle.
     pub fn busy(&mut self) -> bool {
         self.jobs.as_mut().is_some_and(Jobs::busy)
+            || self.ingress.as_mut().is_some_and(Ingress::running)
     }
 
     fn jobs(&mut self) -> HelperResult<&mut Jobs> {
@@ -331,6 +364,9 @@ impl Helper {
             | Verb::ReleaseNetwork(_)
             | Verb::DescribeNetwork(_)
             | Verb::OpenResolver(_)) => self.networking(v)?,
+            v @ (Verb::OpenIngress(_) | Verb::StartIngress(_) | Verb::StopIngress(_)) => {
+                self.ingress_verb(v)?
+            }
             Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
         })
     }

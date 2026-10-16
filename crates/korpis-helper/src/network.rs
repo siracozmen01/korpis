@@ -10,7 +10,7 @@
 mod egress;
 mod forward;
 mod netns;
-mod nft;
+pub(crate) mod nft;
 mod policy;
 mod resolver;
 mod rtnl;

@@ -39,20 +39,23 @@ pub fn bound(path: &Path) -> std::io::Result<UnixListener> {
     Ok(listener)
 }
 
-fn admitted(stream: &UnixStream, allowed: &BTreeSet<u32>) -> bool {
+/// The peer's user and group, if it is an allowed user.
+fn admitted(stream: &UnixStream, allowed: &BTreeSet<u32>) -> Option<(u32, u32)> {
     match rustix::net::sockopt::socket_peercred(stream) {
-        Ok(cred) if allowed.contains(&cred.uid.as_raw()) => true,
+        Ok(cred) if allowed.contains(&cred.uid.as_raw()) => {
+            Some((cred.uid.as_raw(), cred.gid.as_raw()))
+        }
         Ok(cred) => {
             tracing::warn!(
                 uid = cred.uid.as_raw(),
                 pid = cred.pid.as_raw_nonzero().get(),
                 "refused"
             );
-            false
+            None
         }
         Err(e) => {
             tracing::warn!(error = %e, "a connection without credentials was refused");
-            false
+            None
         }
     }
 }
@@ -125,7 +128,8 @@ pub fn serve(
             Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(e) => return Err(e),
         };
-        if admitted(&stream, allowed) {
+        if let Some((uid, gid)) = admitted(&stream, allowed) {
+            helper.answering(uid, gid);
             connection(stream, helper);
         }
     }

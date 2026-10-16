@@ -11,7 +11,7 @@ use std::path::Path;
 use std::time::Duration;
 
 /// The most descriptors an answer carries.
-const MAX_ATTACHED: usize = 4;
+const MAX_ATTACHED: usize = 32;
 
 /// Sends `request` to the helper at `socket` and returns its answer and the descriptors attached
 /// to it, within `deadline` for each read and write.

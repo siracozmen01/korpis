@@ -168,6 +168,24 @@ impl Host for NodeHost {
         self.helper.open_resolver(workload)
     }
 
+    fn open_ingress(
+        &self,
+        addresses: &[String],
+    ) -> impl Future<Output = Result<Vec<std::os::fd::OwnedFd>, HostError>> + Send {
+        self.helper.open_ingress(addresses)
+    }
+
+    fn start_ingress(
+        &self,
+        control: &std::path::Path,
+    ) -> impl Future<Output = Result<helper::StartIngressResponse, HostError>> + Send {
+        self.helper.start_ingress(control)
+    }
+
+    fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send {
+        self.helper.stop_ingress()
+    }
+
     fn describe_network(
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {

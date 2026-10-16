@@ -15,6 +15,7 @@ pub mod feasibility;
 pub mod held;
 pub mod host;
 pub mod identity;
+pub mod ingress;
 pub mod inventory;
 pub mod jobs;
 pub mod join;
