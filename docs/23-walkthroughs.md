@@ -1106,6 +1106,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 69 | A guessed password was checked whatever its source had spent, so the limit slowed nobody | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 70 | Guesses sent at once all passed a bucket with room for one | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 71 | Guesses at many names passed the source's failures at once, and failures recorded at once could stall the database pool | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
+| 72 | A workload under a sibling name could plant the session cookie | §38 | `08-identity.md` §9.4, §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2497,7 +2498,7 @@ drops, and shares the console with a moderator.
 |---|---|---|
 | 1 | `korpis-server install` creates the first account, holding the root grant, and prints its invitation; the operator opens the panel at the installation's address, served by the control plane from `--web-root`, and redeems it by registering a passkey, the only factor the bootstrap invitation takes | `08-identity.md` §9.1, §9.6; `11-surface-web.md` §1; `18-operations.md` §2 |
 | 2 | The operator issues the friend's grant, `workload.read`, the power actions, the console's, and `workload.file.write` on the friend's project, to a new user: the account is created holding it, and an invitation printed, handed over by message | `08-identity.md` §9.6, §3.7 |
-| 3 | The friend redeems it on a phone, choosing a sign-in name: a passkey registered for the installation's site to the account, the invitation voided, a session begun with its refresh cookie | `08-identity.md` §9.4, §9.6 |
+| 3 | The friend redeems it on a phone, choosing a sign-in name: a passkey registered for the installation's site to the account, the invitation voided, a session begun with its refresh cookie, and a device cookie for the account that spares this browser when a stranger spends the name's password guesses | `08-identity.md` §9.4, §9.6 |
 | 4 | The panel shows the friend's project and server and nothing else, each value known, stale, or unknown | `11-surface-web.md` §2, §5 |
 | 5 | The friend restarts the server: a plan applied at once, its convergence shown as it happens | `11-surface-web.md` §3, §4 |
 | 6 | The friend opens the console: the panel mints a capability token with its access token and opens the session at the relay with `Watch`, typing with `Send` | `02-architecture.md` §3.1; `14-streams.md` §6 |
@@ -2633,3 +2634,25 @@ under a budget of two. A use case holding a transaction charges buckets on that 
 connection (`RateWrite`), so recording a failure never asks the pool for a second one. →
 `10-api.md` §10 and `08-identity.md` §9.6; built in `crates/korpis-app/src/account/sign_in.rs`,
 `crates/korpis-app/src/authz/failure.rs`, and `crates/korpis-store/src/rate.rs`.
+
+**FINDING 72: A workload under a sibling name could plant the session cookie. `CONFIRMED`**
+
+Found 2026-10-17 by the agent building the device cookies, rereading the refresh cookie of §9.4
+of `08-identity.md` before the panel used it, and reported in the same hour by a security review
+of the commit that built it; confirmed against the text of RFC 6265 rather than in a browser. The
+cookie was `__Secure-korpis_refresh`, scoped to the session service's path. Step 3 of this trace
+serves the panel at the installation's own name, and a host that serves its customers' workloads
+under the same domain gives every customer a sibling name; a page there could set a
+`__Secure-` cookie for the parent domain, which the browser sends to the control plane beside its
+own and which the control plane cannot tell from its own (RFC 6265 §8.6), so a browser without a
+session of its own would be signed in to the planter's, and anything its holder then uploaded
+would land in the planter's account. The path did not help: a path is not a boundary a browser
+keeps (RFC 6265 §8.5).
+
+**Resolution.** The refresh cookie is `__Host-korpis_refresh` and every device cookie
+`__Host-korpis_device_` and the account's id; a browser keeps a `__Host-` cookie only when it was
+set by the control plane's own name, with no `Domain` and `Path=/`, so no other name can plant
+one. The cost is that the browser sends them with every request to the control plane; only the
+calls that read them do. → `08-identity.md` §9.4 and §9.6, `research/evidence.md` §5; built in
+`crates/korpis-server/src/api/cookie.rs` and tested there and in
+`crates/korpis-server/tests/api/devices.rs`.

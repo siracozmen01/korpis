@@ -56,9 +56,19 @@ fn registration(r: Option<&pb::PasskeyRegistration>) -> Result<NewRegistration, 
 
 /// `body`, with the cookie that gives the browser the refresh credential of `session`.
 fn with_cookie<B>(body: B, session: &Begun) -> ServiceResult<B> {
-    let cookie = cookie::set(session.refresh.expose(), session.expires_at, SystemTime::now())
-        .ok_or_else(|| error::internal(&"a refresh credential that is not a header value"))?;
-    Ok(Response::new(body).with_header(http::header::SET_COOKIE, cookie))
+    let now = SystemTime::now();
+    let not_a_header = || error::internal(&"a cookie that is not a header value");
+    let refresh =
+        cookie::set(session.refresh.expose(), session.expires_at, now).ok_or_else(not_a_header)?;
+    let response = Response::new(body).with_header(http::header::SET_COOKIE, refresh);
+    Ok(match &session.device {
+        Some(d) => {
+            let device = cookie::set_device(d.account, &d.cookie, d.expires_at, now)
+                .ok_or_else(not_a_header)?;
+            response.with_header(http::header::SET_COOKIE, device)
+        }
+        None => response,
+    })
 }
 
 fn redeemed(r: Redeemed) -> ServiceResult<pb::RedeemResponse> {
@@ -84,10 +94,16 @@ fn ip(ctx: &RequestContext) -> Option<IpAddr> {
     ctx.peer_addr().map(|a| a.ip())
 }
 
-/// The browser a ceremony comes from: a web session's, with the user agent it says it is.
+/// The browser a ceremony comes from: a web session's, with the user agent it says it is and
+/// the device cookies it holds.
 pub(super) fn client(ctx: &RequestContext) -> Client {
     let agent = ctx.header(http::header::USER_AGENT).and_then(|v| v.to_str().ok());
-    Client { kind: SessionKind::Web, user_agent: agent.unwrap_or_default().to_owned(), ip: ip(ctx) }
+    Client {
+        kind: SessionKind::Web,
+        user_agent: agent.unwrap_or_default().to_owned(),
+        ip: ip(ctx),
+        devices: cookie::devices(ctx.headers()),
+    }
 }
 
 impl Api {

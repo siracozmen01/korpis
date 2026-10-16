@@ -72,7 +72,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The keys bearers this control plane signed are verified with: its current token key.
-    fn token_ring(&self) -> Result<KeyRing, AppError> {
+    pub(crate) fn token_ring(&self) -> Result<KeyRing, AppError> {
         let mut keys = KeyRing::default();
         keys.insert(self.token_key.key_id, &self.token_key.public_bytes())
             .map_err(|e| AppError::Internal(e.to_string()))?;

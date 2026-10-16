@@ -96,6 +96,10 @@ impl Rate {
 /// (§9.6 of docs/08-identity.md).
 pub const GUESSES: Rate = Rate { interval: Duration::from_secs(90), burst: 10 };
 
+/// The guesses from one browser holding a device cookie for the account: five, then one every
+/// three minutes (§9.6 of docs/08-identity.md).
+pub const DEVICE_GUESSES: Rate = Rate { interval: Duration::from_secs(180), burst: 5 };
+
 /// The rates an installation charges requests to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rates {
@@ -114,6 +118,10 @@ pub struct Rates {
     pub recorded: Rate,
     /// Each sign-in name's, for the failed guesses at its password and the code beside it.
     pub guesses: Rate,
+    /// Each device cookie's, for the guesses from the browser holding it.
+    pub device_guesses: Rate,
+    /// Each account's, for the guesses from every browser holding a device cookie for it.
+    pub account_guesses: Rate,
 }
 
 impl Default for Rates {
@@ -126,6 +134,8 @@ impl Default for Rates {
             failures: Rate::per_minute(30, 30),
             recorded: Rate::per_minute(600, 600),
             guesses: GUESSES,
+            device_guesses: DEVICE_GUESSES,
+            account_guesses: GUESSES,
         }
     }
 }

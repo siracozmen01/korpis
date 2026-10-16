@@ -348,6 +348,8 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             failures: args.rate_failures,
             recorded: args.rate_failures_recorded,
             guesses: korpis_core::rate::GUESSES,
+            device_guesses: korpis_core::rate::DEVICE_GUESSES,
+            account_guesses: korpis_core::rate::GUESSES,
         },
         relying_party: korpis_server::relying_party::relying_party(
             args.public_url.as_deref(),

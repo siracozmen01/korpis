@@ -62,7 +62,7 @@ pub fn refresh_cookie(headers: &http::HeaderMap) -> Option<String> {
         .get_all(http::header::SET_COOKIE)
         .iter()
         .filter_map(|v| v.to_str().ok())
-        .find_map(|v| v.strip_prefix("__Secure-korpis_refresh="))
+        .find_map(|v| v.strip_prefix("__Host-korpis_refresh="))
         .and_then(|v| v.split(';').next())
         .map(str::to_owned)
 }

@@ -7,12 +7,14 @@
 //! part of it failed.
 
 mod ceremony;
+mod device;
 mod manage;
 mod redeem;
 mod session;
 mod sign_in;
 
 pub use ceremony::{NewRegistration, Registration, SignInOptions};
+pub use device::Device;
 pub use manage::AccountView;
 pub use redeem::{InvitationView, PasswordRedemption, Redeemed};
 pub use session::{Begun, Client, Exchanged, SessionView};

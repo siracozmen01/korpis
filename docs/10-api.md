@@ -621,8 +621,8 @@ by revoking the grant.
 > row only until its bucket refills, as every bucket does, because a bucket full again is
 > forgotten, a bucket kept nowhere being full. What it costs: anyone can spend a name's guesses
 > and keep its holder from signing in with a password for ninety seconds at a time, from any
-> browser, until the device cookies below spare the browsers the holder has used; a passkey is
-> never slowed, being impossible to guess.
+> browser, until the device cookies below spare the browsers the holder has used (built
+> 2026-10-17); a passkey is never slowed, being impossible to guess.
 
 > Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`), and designed with
 > it in §9.6 of `08-identity.md`, which fixes the thresholds: the limits of the
@@ -633,10 +633,11 @@ by revoking the grant.
 > counted against that cookie alone, so failures against an account cannot lock out its holder's
 > own browsers; failures from browsers without one are counted against the account, and past a
 > threshold the account refuses browsers without one for a while. (The count per sign-in name is
-> built, as the correction above says; the cookies that spare a holder's browsers arrive with the
-> web sessions of §9.4 of `08-identity.md`.) That last is a denial a stranger
-> can cause, to a holder's new browsers only, and it is the cost of slowing guesses at a password
-> at all.
+> built, as the correction above says, and so are the cookies that spare a holder's browsers,
+> since 2026-10-17: each device's guesses are charged to a bucket of its own and to one its
+> account's devices share, as §9.6 of `08-identity.md` records in its note of that day.) That
+> last is a denial a stranger can cause, to a holder's new browsers only, and it is the cost of
+> slowing guesses at a password at all.
 
 Expensive operations carry their own budgets, plan computation, migration, backup initiation, and
 recipe fetches are not comparable to a status read and are not counted against the same allowance.

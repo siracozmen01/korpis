@@ -26,6 +26,8 @@ fn ample() -> Rates {
         failures: rate,
         recorded: rate,
         guesses: rate,
+        device_guesses: rate,
+        account_guesses: rate,
     }
 }
 

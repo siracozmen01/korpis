@@ -17,6 +17,8 @@ pub mod action;
 #[cfg(feature = "authz")]
 pub mod credential;
 #[cfg(feature = "authz")]
+pub mod device;
+#[cfg(feature = "authz")]
 pub mod evaluate;
 #[cfg(feature = "authz")]
 pub mod grant;
@@ -32,6 +34,8 @@ pub use crate::scope;
 pub mod revocation;
 #[cfg(feature = "authz")]
 pub mod route;
+#[cfg(feature = "authz")]
+mod sealed;
 #[cfg(feature = "authz")]
 pub mod token;
 

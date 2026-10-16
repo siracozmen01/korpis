@@ -29,6 +29,7 @@ mod compromise;
 mod console;
 mod denials;
 mod dependencies;
+mod devices;
 mod dns;
 mod domains;
 mod effects;

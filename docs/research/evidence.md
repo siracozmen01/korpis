@@ -509,6 +509,15 @@ Primary:
   Cookies](https://community.owasp.org/Slow_Down_Online_Guessing_Attacks_with_Device_Cookies),
   read 2026-10-16). Why the login's limits count a target, and the API's credentials do not
   (§10 of `../10-api.md`).
+- **[V]** A cookie's path is not a boundary between the pages of one site ("Cookies do not always
+  provide isolation by path"), and a host can set a cookie its sibling cannot tell from one it set
+  itself ("Cookies do not provide integrity guarantees for sibling domains") ([RFC 6265 §8.5 and
+  §8.6](https://www.rfc-editor.org/rfc/rfc6265.html#section-8.5), read 2026-10-17). A cookie whose
+  name begins `__Host-` is kept only when it was set with `Secure`, `Path=/`, and no `Domain`
+  ([draft-ietf-httpbis-rfc6265bis-22
+  §4.1.3.2](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis), read
+  2026-10-17). Why the session and device cookies of §9.4 and §9.6 of `../08-identity.md` are
+  `__Host-` cookies (Finding 72 of `../23-walkthroughs.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

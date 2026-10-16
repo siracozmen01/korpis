@@ -13,7 +13,7 @@ use korpis_core::account::password::{STAND_IN, outdated};
 use korpis_core::account::record::{Account, Ceremony, sign_in_name};
 use korpis_core::account::recovery;
 use korpis_core::principal::Principal;
-use korpis_core::rate::{Bucket, Standing};
+use korpis_core::rate::Standing;
 use korpis_core::webauthn::{StoredPasskey, WebAuthnError, verify_assertion};
 use uuid::Uuid;
 
@@ -124,9 +124,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ///
     /// A password and a six-digit code can be guessed, as no other credential can, so the
     /// buckets that bound guessing are asked before anything is checked: the failures of the
-    /// source, and the guesses at the name. Once either refuses, nothing is checked, the right
+    /// source, and the guesses at the name, or at the device and its account when the browser
+    /// holds a device cookie for it (§9.6). Once one refuses, nothing is checked, the right
     /// password included, so a guesser that ignores the refusal learns nothing more (Finding 69
-    /// of docs/23-walkthroughs.md). Both are charged before the check, in one statement that
+    /// of docs/23-walkthroughs.md). They are charged before the check, in one statement that
     /// admits or refuses, and given back when the sign-in succeeds, so guesses sent at once
     /// cannot all pass a bucket that has room for one (Findings 70 and 71); a refusal is then
     /// recorded as a failed attempt and charged nothing more.
@@ -138,15 +139,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         client: &Client,
     ) -> Result<SignedIn, AppError> {
         let ip = client.ip;
-        let rate = self.limiter.rates.guesses;
-        let guessed = sign_in_name(name).ok().map(|n| Bucket {
-            policy: "guesses",
-            key: format!("n:{n}"),
-            rate,
-        });
-        let buckets: Vec<Bucket> =
-            std::iter::once(self.failure_bucket(ip)).chain(guessed).collect();
-        refused(self.store.charge(buckets.clone(), self.clock.now()).await?)?;
+        let buckets = self.charge_guess(ip, name, &client.devices).await?;
         let checked = self.check_password(name, password, second, client).await;
         match &checked {
             Ok(_) => {
@@ -234,7 +227,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 /// `RateLimited` if any of `standing` refused.
-fn refused(standing: Vec<Standing>) -> Result<(), AppError> {
+pub(super) fn refused(standing: Vec<Standing>) -> Result<(), AppError> {
     match standing.iter().filter(|s| !s.admitted).map(Standing::retry_after).max() {
         Some(retry_after) => Err(AppError::RateLimited { retry_after, standing }),
         None => Ok(()),

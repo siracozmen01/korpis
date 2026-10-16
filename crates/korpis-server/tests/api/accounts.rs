@@ -24,6 +24,8 @@ fn rates(individual: Rate, failures: Rate) -> Rates {
         failures,
         recorded: ample,
         guesses: ample,
+        device_guesses: ample,
+        account_guesses: ample,
     }
 }
 

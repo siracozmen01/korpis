@@ -7,9 +7,9 @@ package korpis.v1;
 import "google/protobuf/timestamp.proto";
 
 // User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
-// `__Secure-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and sent only to
-// this service's path, so no script can read it and no other call carries it; the CLI's travels
-// in the request and response bodies instead. Exchange and SignOut take no other credential and
+// `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
+// control plane's own name, so no script can read it, no other site's request carries it, and no
+// sibling name can set one; the CLI's travels in the request and response bodies instead. Exchange and SignOut take no other credential and
 // a refused one is a failed attempt (§10 of docs/10-api.md); the rest are called with an access
 // token, as any call is.
 service SessionService {

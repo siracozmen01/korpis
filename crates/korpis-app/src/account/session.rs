@@ -4,7 +4,7 @@
 //! refresh credential for access tokens, rotated on every exchange, and ended by idleness, by
 //! age, by its user, or by a rotated credential presented again, which only a copy can do.
 
-use super::{own_account, record};
+use super::{Device, own_account, record};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -29,6 +29,9 @@ pub struct Client {
     pub user_agent: String,
     /// The address it came from.
     pub ip: Option<IpAddr>,
+    /// The device cookies it presented (§9.6 of docs/08-identity.md), which only a password
+    /// sign-in asks about.
+    pub devices: Vec<String>,
 }
 
 /// A session begun, and its refresh credential, answered once and kept only as its digest.
@@ -40,6 +43,9 @@ pub struct Begun {
     pub refresh: Secret,
     /// When it ends whatever is done with it.
     pub expires_at: SystemTime,
+    /// The device cookie a browser is given for the account (§9.6 of docs/08-identity.md);
+    /// none for the CLI, which has no browser to keep one.
+    pub device: Option<Device>,
 }
 
 /// A refresh credential exchanged.
@@ -100,7 +106,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("source", session.source.clone().into()),
         ];
         record(tx, &Principal::User(account), "session.begun", account, more).await?;
-        Ok(Begun { id: session.id, refresh, expires_at: session.expires_at })
+        let device = (client.kind == SessionKind::Web).then(|| self.device_for(account));
+        Ok(Begun { id: session.id, refresh, expires_at: session.expires_at, device })
     }
 
     /// Exchanges the refresh credential `presented` for an access token and its successor.

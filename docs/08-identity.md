@@ -1161,6 +1161,19 @@ then expire within 120 seconds, the bound this table always gave.
 > answer signs in again; a grace window in which a just-rotated credential still worked would
 > spare that, and would let a copy taken in the same moment work too.
 
+> Corrected 2026-10-17, before the panel used it (Finding 72 of `23-walkthroughs.md`). The cookie
+> was `__Secure-korpis_refresh`, scoped to the session service's path, and the design above said
+> the browser sends it nowhere else. A path is not a boundary a browser keeps between the pages
+> of one site, and a `__Secure-` cookie may be set for a parent domain, so a workload served
+> under a sibling name of the installation's, which a host serving its customers' workloads under
+> its own domain gives every customer, could set one the control plane could not tell from its
+> own (RFC 6265 §8.5 and §8.6, `research/evidence.md` §5), and sign a browser in to a session of
+> its choosing. The cookie is now `__Host-korpis_refresh`, which a browser keeps only when it was
+> set by the control plane's own name, with no `Domain` and `Path=/`. What that costs: the browser
+> sends it with every request to the control plane, not only the session service's; nothing but
+> `Exchange` and `SignOut` reads it, and `SameSite=Strict` still keeps it off every request another
+> site starts.
+
 > Corrected 2026-10-16. The table's third row said a browser held "capability tokens" minted from
 > the refresh credential. What a browser presents to the API is the access token above, which
 > names the user rather than carrying a grant chain, because the control plane evaluates the
@@ -1334,9 +1347,35 @@ passkey assertion cannot be guessed, and its failures count against the source a
 > once either refuses the password is not checked at all, the right one included; checked first,
 > as every other credential is, a refusal only told a guesser that the guess was wrong. Both
 > buckets are charged before the check and given back when a sign-in succeeds, so guesses sent at
-> once cannot all pass them (Findings 70 and 71). Until the
-> device cookies arrive with the web sessions of §9.4, every browser counts as one without a
-> cookie.
+> once cannot all pass them (Findings 70 and 71). Until the device cookies arrive with the web
+> sessions of §9.4, every browser counts as one without a cookie. (They arrived the next day, in
+> the note below.)
+
+> As built, and corrected, 2026-10-17. A redemption or a sign-in from a browser sets a device
+> cookie, `__Host-korpis_device_` followed by the account's id, so a browser holds one for each
+> account it has signed in to. Its value names the account and a device id of its own, signed by
+> the control plane's token key under a purpose label of its own, so it cannot be presented as an
+> access token nor an access token as it, and it is honoured for 180 days; each sign-in gives a
+> new one. A password sign-in from a browser holding one for the account its name names is
+> charged to the device's bucket, five guesses and then one every three minutes, and to a bucket
+> every device of the account shares, ten and then one every ninety seconds, instead of to the
+> name's. The name is looked up only once a cookie this control plane signed is presented, so a
+> browser without one learns nothing from how long the answer takes. Once either of the device's
+> buckets refuses, its cookie is not honoured and the guess is charged to the name's, as from a
+> browser without one. The design above said five failures in a quarter of an hour stop a cookie
+> being honoured for a quarter of an hour; it is a bucket for the reason the name's count is, the
+> same five a quarter of an hour recovered a guess at a time. The shared bucket is not in OWASP's
+> design and is there because each sign-in gives a new device: without it, someone who once knew
+> the password could sign in again and again, keep a cookie from each, and after the password
+> changed guess at its successor five times a quarter of an hour for every cookie kept; with it,
+> every cookie of an account together has the name's budget, which only a browser that has signed
+> in can spend. What it costs: such a former holder of the password can spend the shared bucket
+> and send the holder's own browsers back to the name's bucket, which a stranger can spend too,
+> so an account whose password someone else once knew is as exposed as one with no device
+> cookies until theirs expire or the token key is rotated (§8 of `03-state.md`), which ends every
+> device cookie as it ends every access token, and makes every browser one without a cookie
+> until it signs in again. A passkey is still never slowed, and a CLI session (§9.4) is given no
+> device cookie, having no browser to keep one.
 
 > As built, 2026-10-16. Two rules hold after every change an account's holder makes to its
 > factors: something can still sign in, a passkey or a password; and a password has a lasting

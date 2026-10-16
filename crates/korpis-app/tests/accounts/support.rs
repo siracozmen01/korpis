@@ -141,5 +141,5 @@ pub fn signed_in(account: Uuid) -> Caller {
 
 /// A browser's client, from nowhere in particular.
 pub fn client() -> Client {
-    Client { kind: SessionKind::Web, user_agent: "test".into(), ip: None }
+    Client { kind: SessionKind::Web, user_agent: "test".into(), ip: None, devices: Vec::new() }
 }

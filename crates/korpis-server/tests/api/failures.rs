@@ -53,6 +53,8 @@ fn three_a_minute() -> Rates {
         failures: Rate::per_minute(3, 3),
         recorded: ample,
         guesses: ample,
+        device_guesses: ample,
+        account_guesses: ample,
     }
 }
 
