@@ -9,7 +9,8 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{
-    CertificateRead, CertificateWrite, Challenge, SealedKey, StoreError, StoreResult,
+    CertificateRead, CertificateWrite, HttpOffer, SealedKey, StandingRecord, StoreError,
+    StoreResult,
 };
 use korpis_core::dns::certificate::{Certificate, HttpChallenge, Owner, Source, State};
 use korpis_core::dns::domain::Route;
@@ -263,7 +264,7 @@ impl CertificateWrite for PgTx {
     async fn put_challenges(
         &mut self,
         certificate: Uuid,
-        challenges: &[Challenge],
+        challenges: &[(String, HttpOffer)],
     ) -> StoreResult<()> {
         issue::put_challenges(self, certificate, challenges).await
     }
@@ -286,6 +287,32 @@ impl CertificateWrite for PgTx {
 
     async fn remove_orphans(&mut self) -> StoreResult<u64> {
         issue::remove_orphans(self).await
+    }
+
+    async fn put_record(
+        &mut self,
+        certificate: Uuid,
+        provider: &str,
+        owner: &str,
+    ) -> StoreResult<()> {
+        issue::put_record(self, certificate, provider, owner).await
+    }
+
+    async fn drop_record(
+        &mut self,
+        certificate: Uuid,
+        provider: &str,
+        owner: &str,
+    ) -> StoreResult<()> {
+        issue::drop_record(self, certificate, provider, owner).await
+    }
+
+    async fn standing_records(
+        &mut self,
+        certificate: Option<Uuid>,
+        now: SystemTime,
+    ) -> StoreResult<Vec<StandingRecord>> {
+        issue::standing_records(self, certificate, now).await
     }
 
     async fn routes_served_by(&mut self, id: Uuid) -> StoreResult<Vec<Route>> {

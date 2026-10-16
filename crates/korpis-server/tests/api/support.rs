@@ -98,11 +98,12 @@ impl Harness {
         Self::build(heartbeat, window, Some(resolver), AcmeConfig::default()).await
     }
 
-    /// A control plane ordering certificates from the ACME directory `acme` names.
-    pub async fn with_acme(acme: AcmeConfig) -> Self {
+    /// A control plane ordering certificates from the ACME directory `acme` names, and resolving
+    /// names through the DNS server at `resolver`, if one is given.
+    pub async fn with_acme(acme: AcmeConfig, resolver: Option<std::net::SocketAddr>) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, None, acme).await
+        Self::build(heartbeat, window, resolver, acme).await
     }
 
     async fn build(

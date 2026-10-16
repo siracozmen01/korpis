@@ -9,6 +9,7 @@
 //! claim interleave.
 
 mod issue;
+mod publish;
 mod serve;
 
 use crate::App;

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A DNS server for tests: TXT records held in memory and answered over UDP on loopback, so a
-//! domain is verified against records a test publishes and withdraws.
+//! A DNS server for tests: TXT records held in memory and answered over UDP and TCP on one
+//! loopback port, so a domain is verified, and an ACME challenge validated, against records a test
+//! publishes and withdraws.
 
 use hickory_proto::op::{Message, MessageType, ResponseCode};
 use hickory_proto::rr::rdata::TXT;
@@ -9,20 +10,26 @@ use hickory_proto::rr::{RData, Record, RecordType};
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use tokio::net::UdpSocket;
+use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+use tokio::net::{TcpListener, UdpSocket};
 
 /// TXT records by name, without the final dot.
 #[derive(Debug, Clone, Default)]
 pub struct Zone(Arc<Mutex<BTreeMap<String, Vec<String>>>>);
 
 impl Zone {
-    /// Serves the zone on a loopback port until the test ends.
+    /// Serves the zone on a loopback port, over UDP and TCP, until the test ends.
     pub async fn serve() -> (Self, SocketAddr) {
-        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-        let at = socket.local_addr().unwrap();
         let zone = Self::default();
-        tokio::spawn(answer_on(socket, zone.clone()));
-        (zone, at)
+        for _ in 0..20 {
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let at = socket.local_addr().unwrap();
+            let Ok(listener) = TcpListener::bind(at).await else { continue };
+            tokio::spawn(answer_on(socket, zone.clone()));
+            tokio::spawn(answer_streams(listener, zone.clone()));
+            return (zone, at);
+        }
+        panic!("no loopback port free for both UDP and TCP");
     }
 
     /// Publishes a TXT record at `name`.
@@ -57,6 +64,26 @@ impl Zone {
         debug_assert_eq!(reply.metadata.message_type, MessageType::Response);
         reply.to_vec().ok()
     }
+}
+
+/// Answers every query on every connection `listener` accepts, each framed by its length.
+async fn answer_streams(listener: TcpListener, zone: Zone) {
+    while let Ok((stream, _)) = listener.accept().await {
+        tokio::spawn(answer_stream(stream, zone.clone()));
+    }
+}
+
+/// Answers the queries of one connection until it closes.
+async fn answer_stream(mut stream: tokio::net::TcpStream, zone: Zone) -> Option<()> {
+    let mut length = [0u8; 2];
+    while stream.read_exact(&mut length).await.is_ok() {
+        let mut query = vec![0u8; usize::from(u16::from_be_bytes(length))];
+        stream.read_exact(&mut query).await.ok()?;
+        let answer = zone.answer(&query)?;
+        let n = u16::try_from(answer.len()).ok()?;
+        stream.write_all(&[n.to_be_bytes().as_slice(), &answer].concat()).await.ok()?;
+    }
+    Some(())
 }
 
 /// Answers every query that reaches `socket` from `zone`.

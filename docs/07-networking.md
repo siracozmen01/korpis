@@ -405,30 +405,45 @@ when two thirds of its life have passed. The account is made at the first order,
 operator agreed to the directory's terms; without that agreement no `acme` certificate is issued
 and each says why (§7 of `18-operations.md`). Every order makes a key of its own for its
 certificate, which leaves the control plane only sealed and only to the node serving it. It answers
-ACME's challenge by DNS where a DNS provider of the holder's organization serves the name's zone,
-publishing the `_acme-challenge` TXT record through it (§3.5), and otherwise over HTTP: the control
-plane gives the token to the node the endpoint's workload is placed on, whose proxy answers it on
-port 80, which works once the name's records point at that node. The token travels in the
-workload's assignment, and the proxy takes it from the set its node holds rather than from the
-agent's reconciliation, so a long pass does not hold it back; the control plane tells the directory
-to look only once every node serving the names has acknowledged a set carrying it, and two seconds
-more. An `acme` certificate is its endpoint's, made when the endpoint's routes are claimed: an
-endpoint whose names change is given another, and one nothing names is removed. A failed attempt is
-retried after five minutes, doubling to a day, which keeps an installation inside a directory's
-limits on failed validations; a certificate issued before keeps serving meanwhile; a restart of the
-control plane tries every certificate not yet issued at once. A `provided` certificate is one its
-organization uploads, chain and key, and the endpoint names it by its identifier in
-`TlsSpec.secret`. The control plane checks at upload that the key is the leaf's, by their public
-keys, and that the leaf names DNS names and has not expired; and, wherever an endpoint names it,
-that it is the endpoint's organization's, valid now, and covers every name the endpoint routes, a
-wildcard covering one label, at declaration and again when the routes are claimed, the certificate
-locked against change until the claim commits. Its organization replaces it in place, keeping its
-identifier, with a chain that still covers every name served with it, which is how a provided
-certificate is renewed without declaring the endpoints again; it cannot be deleted while an
-endpoint serves with it, which the route records. The control plane says when one nears expiry, but
-it cannot renew it. Every private key is stored sealed by the control plane's TLS key, in its data
-directory beside its backup key (§6 of `18-operations.md`), and a node obtains an endpoint's
-certificate and key by asking for it over its session (`CertificateRequest`, §4.2 of
+ACME's challenge for each name on its own, by DNS where a DNS provider of the holder's organization
+serves the name's zone, publishing the `_acme-challenge` TXT record through it (§3.5), and
+otherwise over HTTP. The holder is the endpoint's organization, which alone routes the name, and
+its DNS providers are those it sees, its own before its ancestors', as a call is routed (§3.3 of
+`16-extensions.md`): each is asked in turn to publish the record until one does, a provider that
+manages no zone holding the name answering `dns.zone_not_found`. **What evaluates whether a
+provider serves the zone, and with what information:** the provider, from the zones it manages; the
+control plane holds no list of zones (§3.5), so it learns by asking, at the cost of one refused
+call per provider ahead of the one that serves. The record is applied for an owner of its own, the
+certificate and the name's place among its names (`crt_…/0`), so it never disturbs the endpoint's
+records, with a time to live of a minute. It is recorded before the provider is asked and withdrawn
+when the order ends, however it ends, so one an issuer published before it stopped is withdrawn by
+the next issuer that looks; a certificate is not removed while one of its records stands. A
+provider answers once its zone is changed, which its authoritative servers may not yet serve, so
+the control plane tells the directory to look once its own resolver finds the record (the system's,
+or the one `--dns-resolver` names, as for verification), or after two minutes if it never does. A
+provider that serves the zone but cannot be reached leaves the name to HTTP, which may still
+succeed. Over HTTP: the control plane gives the token to the node the endpoint's workload is placed
+on, whose proxy answers it on port 80, which works once the name's records point at that node. The
+token travels in the workload's assignment, and the proxy takes it from the set its node holds
+rather than from the agent's reconciliation, so a long pass does not hold it back; the control
+plane tells the directory to look only once every node serving the names has acknowledged a set
+carrying it, and two seconds more. An `acme` certificate is its endpoint's, made when the
+endpoint's routes are claimed: an endpoint whose names change is given another, and one nothing
+names is removed. A failed attempt is retried after five minutes, doubling to a day, which keeps an
+installation inside a directory's limits on failed validations; a certificate issued before keeps
+serving meanwhile; a restart of the control plane tries every certificate not yet issued at once. A
+`provided` certificate is one its organization uploads, chain and key, and the endpoint names it by
+its identifier in `TlsSpec.secret`. The control plane checks at upload that the key is the leaf's,
+by their public keys, and that the leaf names DNS names and has not expired; and, wherever an
+endpoint names it, that it is the endpoint's organization's, valid now, and covers every name the
+endpoint routes, a wildcard covering one label, at declaration and again when the routes are
+claimed, the certificate locked against change until the claim commits. Its organization replaces
+it in place, keeping its identifier, with a chain that still covers every name served with it,
+which is how a provided certificate is renewed without declaring the endpoints again; it cannot be
+deleted while an endpoint serves with it, which the route records. The control plane says when one
+nears expiry, but it cannot renew it. Every private key is stored sealed by the control plane's TLS
+key, in its data directory beside its backup key (§6 of `18-operations.md`), and a node obtains an
+endpoint's certificate and key by asking for it over its session (`CertificateRequest`, §4.2 of
 `02-architecture.md`), which is answered only to a node an endpoint served with it is placed on.
 The endpoint as placed names the certificate and its revision, which every replacement or renewal
 raises, so the node's assignment changes and the node asks again. The node keeps what it serves in
@@ -496,16 +511,17 @@ not the player.
 > nothing said in what form Korpis asks for them.
 
 **Korpis sends an owner's records whole, and the provider makes its zones agree.** An owner is the
-object the records exist for, an endpoint (`ep_…`), and the call `ApplyRecords` carries every
-record that owner should have: `A`, `AAAA`, `CNAME`, `SRV`, or `TXT`, each a lowercase name, a TTL
-of 30 to 86 400 seconds, and its values, at most a hundred records per owner. The provider creates
-what is missing, changes what differs, and removes what the owner had and no longer has; an empty
-list removes them all. It never touches a record it does not own, so it must know which are
-Korpis's and whose (a TXT ownership marker beside each, the way external-dns keeps its registry,
-or the provider's own tags). A name in no zone it manages fails `dns.zone_not_found`, and a name
-already held by a record it does not own fails `dns.conflict`, neither retryable; an unreachable
-DNS service fails retryably. Every record is checked by the control plane before any provider is
-called, so all providers are asked the same well-formed thing.
+object the records exist for, an endpoint (`ep_…`), or one name's ACME challenge of a certificate
+(`crt_…/<n>`, §3.2), and the call `ApplyRecords` carries every record that owner should have: `A`,
+`AAAA`, `CNAME`, `SRV`, or `TXT`, each a lowercase name, a TTL of 30 to 86 400 seconds, and its
+values, at most a hundred records per owner. The provider creates what is missing, changes what
+differs, and removes what the owner had and no longer has; an empty list removes them all. It never
+touches a record it does not own, so it must know which are Korpis's and whose (a TXT ownership
+marker beside each, the way external-dns keeps its registry, or the provider's own tags). A name in
+no zone it manages fails `dns.zone_not_found`, and a name already held by a record it does not own
+fails `dns.conflict`, neither retryable; an unreachable DNS service fails retryably. Every record
+is checked by the control plane before any provider is called, so all providers are asked the same
+well-formed thing.
 
 The reason for whole sets rather than add and delete: the call is then idempotent, so a retry
 after a lost answer, a provider replaced mid-way, or a resync after an outage all converge on the

@@ -2,18 +2,15 @@
 
 //! Issuing `acme` certificates (§3.2 of docs/07-networking.md). The issuer takes one certificate
 //! due at a time, under a lease no other issuer takes it through, and orders it from the
-//! directory. Each name's HTTP-01 challenge is carried to the nodes the endpoint's workload is
-//! placed on in their assignments; the directory is told to look only once every such node has
-//! acknowledged a set carrying it, and a moment more, its proxy taking challenges from the set it
-//! holds rather than from its reconciler's pass. What is issued is read and checked like an upload,
-//! its key sealed, and its revision raised, so the nodes fetch it. A failure is recorded with its
-//! reason and retried after a backoff; a certificate issued before keeps serving meanwhile.
+//! directory, each name proven by DNS or over HTTP as `publish` says. What is issued is read and
+//! checked like an upload, its key sealed, and its revision raised, so the nodes fetch it; the
+//! order's DNS records are withdrawn however it ended. A failure is recorded with its reason and
+//! retried after a backoff; a certificate issued before keeps serving meanwhile.
 
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AcmeError, CertificateWrite as _, Challenge, Clock, EffectWrite as _, Issued, Proof,
-    RecipeSource, Store, Tx as _,
+    AcmeError, CertificateWrite as _, Clock, EffectWrite as _, Issued, RecipeSource, Store, Tx as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::dns::certificate::{Certificate, State, backoff, renew_after};
@@ -23,14 +20,24 @@ use uuid::Uuid;
 
 /// How long an issuer holds the certificate it took: longer than an order takes.
 const HOLD: Duration = Duration::from_secs(15 * 60);
-/// How long the nodes serving a certificate's names have to acknowledge its challenges.
-const HELD_WITHIN: Duration = Duration::from_secs(60);
-/// How long a node's proxy is given, past its node's acknowledgement, to answer them.
-const GRACE: Duration = Duration::from_secs(2);
-/// How often the issuer looks whether the nodes hold the challenges.
-const POLL: Duration = Duration::from_millis(500);
 /// How long a certificate whose endpoint is placed nowhere waits before it is looked at again.
 const UNPLACED: Duration = Duration::from_secs(60);
+/// How long a DNS provider is given to answer.
+pub(super) const CALL_WITHIN: Duration = Duration::from_secs(30);
+
+/// What an order publishes through: the certificate, as whose organization providers are called,
+/// the DNS providers that organization sees, and the nodes serving its names.
+#[derive(Debug)]
+pub(super) struct Order {
+    /// The certificate.
+    pub(super) id: Uuid,
+    /// Its organization.
+    pub(super) organization: Uuid,
+    /// The DNS providers, by name, the organization's own first.
+    pub(super) providers: Vec<String>,
+    /// The nodes its endpoint is placed on.
+    pub(super) nodes: Vec<Uuid>,
+}
 
 fn effect(c: &Certificate, outcome: Outcome, reason: Option<&str>) -> Effect {
     Effect::new(Principal::System(SystemActor::Authority), "certificate.issue", outcome).after(
@@ -90,8 +97,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let none = AcmeError::Unavailable("the control plane has no ACME directory".into());
             return self.attempt_failed(c, &none).await;
         };
+        let providers = self.dns_providers(c.organization).await?;
         let nodes = self.serving(c.id).await?;
-        if nodes.is_empty() {
+        if nodes.is_empty() && providers.is_empty() {
             let waiting = Certificate {
                 reason: Some("its endpoint is placed on no node yet".into()),
                 next_attempt: Some(self.clock.now() + UNPLACED),
@@ -99,48 +107,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             };
             return self.record(&waiting, None).await;
         }
-        let id = c.id;
-        let publish: crate::ports::Publish<'_> =
-            Box::new(move |challenges| Box::pin(self.publish(id, nodes, challenges)));
-        match acme.issue(&c.names, Proof::Http01, publish).await {
+        let order = Order { id: c.id, organization: c.organization, providers, nodes };
+        let publish: crate::ports::Publish<'_> = Box::new(move |challenges| {
+            Box::pin(async move { self.publish(&order, challenges).await })
+        });
+        let issued = acme.issue(&c.names, publish).await;
+        self.withdraw_records(Some(c.id)).await?;
+        match issued {
             Ok(issued) => self.issued(c, &issued).await,
             Err(e) => self.attempt_failed(c, &e).await,
-        }
-    }
-
-    /// Carries `challenges` to `nodes` through their assignments, answering once every one has
-    /// acknowledged a set carrying them, and its proxy has had a moment to take them.
-    async fn publish(
-        &self,
-        id: Uuid,
-        nodes: Vec<Uuid>,
-        challenges: Vec<Challenge>,
-    ) -> Result<(), AcmeError> {
-        let store = |e: AppError| AcmeError::Unavailable(e.to_string());
-        let mut tx = self.store.begin().await.map_err(|e| store(e.into()))?;
-        tx.put_challenges(id, &challenges).await.map_err(|e| store(e.into()))?;
-        tx.commit().await.map_err(|e| store(e.into()))?;
-        let timer = self.timer.clone().ok_or_else(|| {
-            AcmeError::Unavailable("the control plane cannot wait for its nodes".into())
-        })?;
-        let mut waited = Duration::ZERO;
-        loop {
-            let mut held = true;
-            for &node in &nodes {
-                let set = self.sync_assignments(node).await.map_err(store)?;
-                let acked = self.store.acked_set(node).await.map_err(|e| store(e.into()))?;
-                held &= acked.as_deref() == Some(set.digest.as_str());
-            }
-            if held {
-                timer.sleep(GRACE).await;
-                return Ok(());
-            }
-            if waited >= HELD_WITHIN {
-                let why = "the node serving the names did not take the challenges within a minute";
-                return Err(AcmeError::Unavailable(why.into()));
-            }
-            timer.sleep(POLL).await;
-            waited += POLL;
         }
     }
 

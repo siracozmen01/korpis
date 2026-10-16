@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM certificate_record\n          WHERE certificate_id = $1 AND provider = $2 AND owner = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9fbf41148d7254dd3a2201cb53afafc8c5a24f1e7ffe518bc88e351b81ed6d56"
+}

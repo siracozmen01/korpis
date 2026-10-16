@@ -2319,7 +2319,16 @@ the node, which only the directory's own lookup shows; a validation that fails f
 attempt, retried after the backoff, and the endpoint is served on port 80 alone meanwhile. The
 ingress end-to-end test runs the step for real: Pebble resolves the name to the test machine
 through a DNS server of its own and fetches the token from the proxy on port 80, and the
-certificate issued is then served on port 443.
+certificate issued is then served on port 443. By DNS, the same question has a different answer.
+Whether a provider serves the name's zone is evaluated by the provider, the only component that
+knows its zones, and the control plane learns it by asking each provider its organization sees
+until one publishes the record; whether the record is served yet is evaluated by the control
+plane's resolver, which it asks until it finds the record or two minutes pass. Neither needs a
+node, so a name a DNS provider serves is proven even where no node can answer on port 80, a private
+network's name say. What the control plane cannot see is the directory's own view of the zone; a
+record its resolver finds and the directory does not is a failed attempt, retried. The API test
+`issuance_dns` runs this against Pebble resolving through a zone the test's DNS provider publishes
+into, behind a provider that refuses the name.
 
 **FINDING 60: A domain could be an IPv4 address. `CONFIRMED`**
 

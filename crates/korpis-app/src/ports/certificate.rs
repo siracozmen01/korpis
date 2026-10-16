@@ -3,7 +3,7 @@
 //! Certificates organizations hold for the ingress (§3.2 of docs/07-networking.md), and the
 //! control plane's TLS key, which reads what is uploaded and seals every certificate's key.
 
-use super::Challenge;
+use super::HttpOffer;
 use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;
 use korpis_core::dns::certificate::{Certificate, HttpChallenge, Leaf, Owner};
@@ -40,6 +40,19 @@ pub trait TlsVault: Send + Sync + std::fmt::Debug {
         certificate: Uuid,
         sealed: &SealedKey,
     ) -> Result<zeroize::Zeroizing<String>, VaultError>;
+}
+
+/// A DNS-01 challenge record published for a certificate and not yet withdrawn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StandingRecord {
+    /// The certificate.
+    pub certificate: Uuid,
+    /// Its organization, as whom the provider is called.
+    pub organization: Uuid,
+    /// The DNS provider, by name.
+    pub provider: String,
+    /// The owner the record was applied for.
+    pub owner: String,
 }
 
 /// Reading certificates.
@@ -116,11 +129,12 @@ pub trait CertificateWrite {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<HttpChallenge>>> + Send;
 
-    /// Makes `challenges` the certificate's, replacing any it had.
+    /// Makes `challenges`, each a name's HTTP-01 challenge, the certificate's, replacing any it
+    /// had.
     fn put_challenges(
         &mut self,
         certificate: Uuid,
-        challenges: &[Challenge],
+        challenges: &[(String, HttpOffer)],
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// An `acme` certificate due for issuance at `now`, held for the caller until `until`: one
@@ -142,6 +156,31 @@ pub trait CertificateWrite {
 
     /// Removes the `acme` certificates no route names and nothing holds; how many went.
     fn remove_orphans(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Records that a challenge record for the certificate was asked of the DNS provider
+    /// `provider`, applied for `owner`.
+    fn put_record(
+        &mut self,
+        certificate: Uuid,
+        provider: &str,
+        owner: &str,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Forgets a challenge record, withdrawn or never published.
+    fn drop_record(
+        &mut self,
+        certificate: Uuid,
+        provider: &str,
+        owner: &str,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// The challenge records standing: of the certificate `certificate` names, or, without one,
+    /// of every certificate no issuer holds at `now`.
+    fn standing_records(
+        &mut self,
+        certificate: Option<Uuid>,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<StandingRecord>>> + Send;
 
     /// The routes served with the certificate, as this transaction sees them.
     fn routes_served_by(

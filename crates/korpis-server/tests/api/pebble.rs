@@ -7,7 +7,12 @@ use korpis_server::testing::{Pebble, PebbleOptions, TestingError};
 
 /// Pebble, every challenge taken as valid when `always_valid`; `None` where it is not installed.
 pub async fn start(always_valid: bool) -> Option<Pebble> {
-    match Pebble::start(PebbleOptions { always_valid, ..PebbleOptions::default() }).await {
+    start_with(PebbleOptions { always_valid, ..PebbleOptions::default() }).await
+}
+
+/// Pebble, validating as `options` say; `None` where it is not installed.
+pub async fn start_with(options: PebbleOptions) -> Option<Pebble> {
+    match Pebble::start(options).await {
         Ok(p) => Some(p),
         Err(e @ TestingError::NotInstalled(_)) => {
             #[expect(clippy::print_stderr, reason = "a skipped test says why")]

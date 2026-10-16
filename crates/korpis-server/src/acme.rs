@@ -12,8 +12,11 @@ use instant_acme::{
     Account, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier, NewAccount,
     NewOrder, OrderStatus, RetryPolicy,
 };
-use korpis_app::ports::{Acme, AcmeError, AcmeFuture, Challenge, Issued, Proof, Publish};
+use korpis_app::ports::{
+    Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish,
+};
 use sha2::{Digest as _, Sha256};
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -129,11 +132,13 @@ impl AcmeClient {
     }
 }
 
-/// The challenges of `order` of `kind` not yet valid.
-async fn challenges(
+/// The challenges of `kind` offered for each name of `order` not yet valid, each read by
+/// `offer`: the authorizations are read once per kind, since a handle gives one challenge.
+async fn offered<T>(
     order: &mut instant_acme::Order,
     kind: ChallengeType,
-) -> Result<Vec<Challenge>, AcmeError> {
+    offer: impl Fn(&instant_acme::ChallengeHandle<'_>) -> T,
+) -> Result<Vec<(String, Option<T>)>, AcmeError> {
     let mut out = Vec::new();
     let mut authorizations = order.authorizations();
     while let Some(next) = authorizations.next().await {
@@ -144,29 +149,51 @@ async fn challenges(
             other => return Err(AcmeError::Refused(format!("an authorization is {other:?}"))),
         }
         let name = authorization.identifier().to_string();
-        let challenge = authorization.challenge(kind.clone()).ok_or_else(|| {
-            AcmeError::Refused(format!("the directory offers no {kind:?} challenge for {name}"))
-        })?;
-        let authorized = challenge.key_authorization();
-        out.push(Challenge {
-            name,
-            token: challenge.token.clone(),
-            key_authorization: authorized.as_str().to_owned(),
-            dns_value: authorized.dns_value(),
-        });
+        out.push((name, authorization.challenge(kind.clone()).as_ref().map(&offer)));
     }
     Ok(out)
 }
 
-/// Tells the directory every pending challenge of `kind` of `order` is ready.
-async fn ready(order: &mut instant_acme::Order, kind: ChallengeType) -> Result<(), AcmeError> {
+/// The challenges offered for each name of `order` not yet valid.
+async fn challenges(order: &mut instant_acme::Order) -> Result<Vec<Challenge>, AcmeError> {
+    let http = offered(order, ChallengeType::Http01, |c| HttpOffer {
+        token: c.token.clone(),
+        key_authorization: c.key_authorization().as_str().to_owned(),
+    })
+    .await?;
+    let dns: BTreeMap<String, Option<String>> =
+        offered(order, ChallengeType::Dns01, |c| c.key_authorization().dns_value())
+            .await?
+            .into_iter()
+            .collect();
+    Ok(http
+        .into_iter()
+        .map(|(name, http)| {
+            let dns_value = dns.get(&name).cloned().flatten();
+            Challenge { name, http, dns_value }
+        })
+        .collect())
+}
+
+/// Tells the directory each pending name's challenge is ready, of the kind `proofs` says it was
+/// published by.
+async fn ready(
+    order: &mut instant_acme::Order,
+    proofs: &BTreeMap<String, Proof>,
+) -> Result<(), AcmeError> {
     let mut authorizations = order.authorizations();
     while let Some(next) = authorizations.next().await {
         let mut authorization = next.map_err(judged)?;
         if authorization.status != AuthorizationStatus::Pending {
             continue;
         }
-        if let Some(mut challenge) = authorization.challenge(kind.clone()) {
+        let name = authorization.identifier().to_string();
+        let kind = match proofs.get(&name) {
+            Some(Proof::Http01) => ChallengeType::Http01,
+            Some(Proof::Dns01) => ChallengeType::Dns01,
+            None => return Err(AcmeError::Refused(format!("{name} was not published"))),
+        };
+        if let Some(mut challenge) = authorization.challenge(kind) {
             challenge.set_ready().await.map_err(judged)?;
         }
     }
@@ -174,25 +201,17 @@ async fn ready(order: &mut instant_acme::Order, kind: ChallengeType) -> Result<(
 }
 
 impl Acme for AcmeClient {
-    fn issue<'a>(
-        &'a self,
-        names: &'a [String],
-        proof: Proof,
-        publish: Publish<'a>,
-    ) -> AcmeFuture<'a, Issued> {
+    fn issue<'a>(&'a self, names: &'a [String], publish: Publish<'a>) -> AcmeFuture<'a, Issued> {
         Box::pin(async move {
             let account = self.account().await?;
-            let kind = match proof {
-                Proof::Http01 => ChallengeType::Http01,
-                Proof::Dns01 => ChallengeType::Dns01,
-            };
             let identifiers: Vec<Identifier> =
                 names.iter().map(|n| Identifier::Dns(n.clone())).collect();
             let mut order =
                 account.new_order(&NewOrder::new(&identifiers)).await.map_err(judged)?;
-            let pending = challenges(&mut order, kind.clone()).await?;
-            publish(pending).await?;
-            ready(&mut order, kind).await?;
+            let pending = challenges(&mut order).await?;
+            let pending_names: Vec<String> = pending.iter().map(|c| c.name.clone()).collect();
+            let proofs = publish(pending).await?;
+            ready(&mut order, &pending_names.into_iter().zip(proofs).collect()).await?;
             let within = RetryPolicy::default().timeout(ORDER_WITHIN);
             let status = order.poll_ready(&within).await.map_err(judged)?;
             if status != OrderStatus::Ready {

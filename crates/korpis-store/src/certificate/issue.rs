@@ -9,7 +9,7 @@ use super::CertificateRow;
 use crate::PgTx;
 use crate::errors::from_sqlx;
 use crate::stored::from_time;
-use korpis_app::ports::{Challenge, StoreResult};
+use korpis_app::ports::{HttpOffer, StandingRecord, StoreResult};
 use korpis_core::dns::certificate::{Certificate, HttpChallenge, Owner};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -82,16 +82,16 @@ pub(super) async fn clear_challenges(tx: &mut PgTx, certificate: Uuid) -> StoreR
 pub(super) async fn put_challenges(
     tx: &mut PgTx,
     certificate: Uuid,
-    challenges: &[Challenge],
+    challenges: &[(String, HttpOffer)],
 ) -> StoreResult<()> {
     clear_challenges(tx, certificate).await?;
-    for c in challenges {
+    for (name, c) in challenges {
         sqlx::query!(
             "INSERT INTO certificate_challenge (certificate_id, token, name, key_authorization)
              VALUES ($1, $2, $3, $4)",
             certificate,
             c.token,
-            c.name,
+            name,
             c.key_authorization
         )
         .execute(&mut *tx.tx)
@@ -163,10 +163,79 @@ pub(super) async fn remove_orphans(tx: &mut PgTx) -> StoreResult<u64> {
                         WHERE c.source = 'acme'
                           AND NOT EXISTS (SELECT 1 FROM route r WHERE r.certificate_id = c.id)
                           AND NOT EXISTS (SELECT 1 FROM endpoint e WHERE e.certificate_id = c.id)
+                          AND NOT EXISTS (SELECT 1 FROM certificate_record d
+                                           WHERE d.certificate_id = c.id)
                         FOR UPDATE SKIP LOCKED)"
     )
     .execute(&mut *tx.tx)
     .await
     .map_err(from_sqlx)?;
     Ok(done.rows_affected())
+}
+
+pub(super) async fn put_record(
+    tx: &mut PgTx,
+    certificate: Uuid,
+    provider: &str,
+    owner: &str,
+) -> StoreResult<()> {
+    sqlx::query!(
+        "INSERT INTO certificate_record (certificate_id, provider, owner) VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING",
+        certificate,
+        provider,
+        owner
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(())
+}
+
+pub(super) async fn drop_record(
+    tx: &mut PgTx,
+    certificate: Uuid,
+    provider: &str,
+    owner: &str,
+) -> StoreResult<()> {
+    sqlx::query!(
+        "DELETE FROM certificate_record
+          WHERE certificate_id = $1 AND provider = $2 AND owner = $3",
+        certificate,
+        provider,
+        owner
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(())
+}
+
+pub(super) async fn standing_records(
+    tx: &mut PgTx,
+    certificate: Option<Uuid>,
+    now: SystemTime,
+) -> StoreResult<Vec<StandingRecord>> {
+    let rows = sqlx::query!(
+        "SELECT d.certificate_id, c.organization_id, d.provider, d.owner
+           FROM certificate_record d JOIN certificate c ON c.id = d.certificate_id
+          WHERE CASE WHEN $1::uuid IS NULL
+                     THEN c.issuing_until IS NULL OR c.issuing_until < $2
+                     ELSE d.certificate_id = $1 END
+          ORDER BY d.certificate_id, d.provider, d.owner",
+        certificate,
+        from_time(now)
+    )
+    .fetch_all(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(rows
+        .into_iter()
+        .map(|r| StandingRecord {
+            certificate: r.certificate_id,
+            organization: r.organization_id,
+            provider: r.provider,
+            owner: r.owner,
+        })
+        .collect())
 }

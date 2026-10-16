@@ -45,7 +45,7 @@ mod trust;
 mod volume;
 mod workload;
 
-pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, Issued, Proof, Publish};
+pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
 };
@@ -57,7 +57,7 @@ pub use authz::{
 };
 pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 pub use breaker::{BreakerWrite, ProviderKey};
-pub use certificate::{CertificateRead, CertificateWrite, ReadError, TlsVault};
+pub use certificate::{CertificateRead, CertificateWrite, ReadError, StandingRecord, TlsVault};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock, Timer};
 pub use condition::{ConditionRead, ConditionWrite};

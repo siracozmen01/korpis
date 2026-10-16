@@ -2,7 +2,8 @@
 
 //! The control plane's issuer of `acme` certificates (§3.2 of docs/07-networking.md): whenever a
 //! certificate is made, and every ten seconds besides, it issues each certificate due, a few at
-//! once, and removes those nothing names. At
+//! once, withdraws the DNS challenge records an issuer that stopped mid-order left standing, and
+//! removes the certificates nothing names. At
 //! start it makes every certificate not issued due at once, so a setting the operator changed,
 //! the directory's terms agreed for one, is tried without waiting out a backoff. Each certificate
 //! is taken under a lease, so replicas share the work rather than repeat it.
@@ -57,6 +58,11 @@ pub async fn keep(api: Arc<Api>) {
     let mut wakeups = api.app().store().certificates();
     loop {
         sweep(&api).await;
+        match api.app().withdraw_stale_records().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(records = n, "challenge records left standing withdrawn"),
+            Err(e) => tracing::warn!(error = %e, "withdrawing challenge records failed"),
+        }
         match api.app().remove_orphan_certificates().await {
             Ok(0) => {}
             Ok(n) => tracing::info!(certificates = n, "certificates nothing names removed"),

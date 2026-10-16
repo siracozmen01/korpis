@@ -36,6 +36,7 @@ mod events;
 mod extensions;
 mod identity;
 mod issuance;
+mod issuance_dns;
 mod journal;
 mod leases;
 mod lifecycle;
