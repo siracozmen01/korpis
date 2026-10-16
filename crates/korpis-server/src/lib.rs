@@ -12,17 +12,20 @@ pub mod authority;
 pub mod bodies;
 mod control_jobs;
 pub mod data;
+pub mod factor_vault;
 pub mod feasibility;
 pub mod install;
 pub mod issuer;
 pub mod keys;
 pub mod lookup;
 pub mod named_relays;
+pub mod passwords;
 mod provider_calls;
 pub mod providers;
 mod reachability;
 pub mod records;
 pub mod relay;
+pub mod relying_party;
 mod repos;
 pub mod revocations;
 pub mod sealer;
@@ -95,6 +98,9 @@ pub struct ServeConfig {
     pub acme: acme::AcmeConfig,
     /// The rates of the client API's buckets (§10 of docs/10-api.md).
     pub rates: korpis_core::rate::Rates,
+    /// The site passkeys are bound to and the origins a ceremony may come from (§9.6 of
+    /// docs/08-identity.md); without one, no passkey can be registered or used.
+    pub relying_party: Option<korpis_core::webauthn::RelyingParty>,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -158,7 +164,7 @@ fn application(
         lease_term: config.lease_term,
         ..Default::default()
     };
-    Ok(App::new(store, SystemClock, keys.token.clone(), recipes)
+    let app = App::new(store, SystemClock, keys.token.clone(), recipes)
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)
         .with_denial_window(config.denial_window)
@@ -176,7 +182,14 @@ fn application(
         .with_lookup(Arc::new(
             lookup::Lookup::new(config.dns_resolver)
                 .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
-        )))
+        ))
+        .with_factor_vault(Arc::new(factor_vault::FactorKeys::load_or_create(&config.data)?))
+        .with_passwords(Arc::new(passwords::Bounded::per_core()));
+    if let Some(rp) = &config.relying_party {
+        return Ok(app.with_relying_party(rp.clone()));
+    }
+    tracing::warn!("no --public-url: passkeys cannot be registered or used");
+    Ok(app)
 }
 
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can

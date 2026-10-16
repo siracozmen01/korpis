@@ -72,6 +72,7 @@ impl ControlPlane {
             dns_resolver: None,
             acme,
             rates: korpis_core::rate::Rates::default(),
+            relying_party: None,
         })
         .await
         .expect("serve");

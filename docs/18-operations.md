@@ -422,6 +422,7 @@ client-side encrypted, restorable to a new volume.
 | the node identity certificate | agents' per-node keys are pinned to it, and it is **not** rotated on restore |
 | the control plane's backup key | it seals every `operator`-custody repository's key-encryption key (§5.5 of `06-storage.md`); without it no tenant backup made under it can be read, so it is **not** rotated on restore |
 | the control plane's TLS key | it seals the private key of every certificate the ingress serves (§3.2 of `07-networking.md`); lost, every `acme` certificate is issued again with a new key and every `provided` one must be uploaded again, so it is worth keeping, not essential |
+| the control plane's factor key | it seals every account's TOTP secret (§9.6 of `08-identity.md`); lost, no TOTP factor opens, so each account signs in with a passkey, or with its password and a recovery code, and enrols TOTP again, and an account whose password had only TOTP and spent recovery codes beside it is recovered by an administrator (§9.3), so it is worth keeping, not essential |
 | the installation's ACME account key | it is the account `acme` certificates are ordered with; lost, a new account is made at the next order, and certificates the old one ordered stay valid until they expire, so it is worth keeping, not essential |
 | the `max_issued_epoch` watermark and the epoch issue-rate cap | the first fence mechanism of §8 of `03-state.md` computes its bound from both |
 

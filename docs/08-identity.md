@@ -1308,7 +1308,16 @@ passkey assertion cannot be guessed, and its failures count against the source a
 > refused and recorded as `account.passkey_cloned`, naming the account and the passkey;
 > invitations, redemptions, sign-ins, and factor changes are effects too (`account.invited`,
 > `account.redeemed`, `account.signed_in`, `account.factor_added`, `account.factor_removed`,
-> `account.recovery_codes_renewed`).
+> `account.recovery_codes_renewed`). The relying party is configured by `korpis-server serve
+> --public-url`, the address the installation is reached at, whose host is the identifier unless
+> `--rp-id` names a registrable suffix of it, and whose origin, with each `--web-origin`, is an
+> origin a ceremony may come from; each must lie inside the identifier, or the control plane
+> refuses to start, and without `--public-url` it says at start that no passkey can be used. It
+> does not consult the public suffix list, so an `--rp-id` that is a public suffix is not refused
+> at start; the browser refuses every ceremony for it instead. Passwords are hashed off the
+> threads that serve requests, at most as many at once as the machine has cores, so a burst of
+> sign-ins costs time rather than memory: at 19 MiB each, a sixteen-core machine spends at most
+> about 300 MiB on them.
 
 What it costs. The holder of an account who has lost every browser and every factor gets back
 in only through an administrator (§9.3) or, for root, through the machine (§9.2): the price of

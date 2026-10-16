@@ -147,6 +147,18 @@ struct ServeArgs {
     /// past it, every source's failures are counted together.
     #[arg(long, default_value = "600/600", value_parser = Rate::parse_per_minute)]
     rate_failures_recorded: Rate,
+    /// The address the installation is reached at, such as `https://korpis.example.com`: its
+    /// origin is the panel's and its host the site passkeys are bound to (§9.6 of
+    /// docs/08-identity.md). Without it, no passkey can be registered or used.
+    #[arg(long, env = "KORPIS_PUBLIC_URL")]
+    public_url: Option<String>,
+    /// The site passkeys are bound to, when it is a registrable suffix of the public URL's host
+    /// rather than the host itself, so a panel at a sibling name can share it.
+    #[arg(long, env = "KORPIS_RP_ID")]
+    rp_id: Option<String>,
+    /// Another origin a panel is served from, on the same site (§1 of docs/11-surface-web.md).
+    #[arg(long = "web-origin", env = "KORPIS_WEB_ORIGIN", value_delimiter = ',')]
+    web_origin: Vec<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -295,6 +307,11 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             failures: args.rate_failures,
             recorded: args.rate_failures_recorded,
         },
+        relying_party: korpis_server::relying_party::relying_party(
+            args.public_url.as_deref(),
+            args.rp_id.as_deref(),
+            &args.web_origin,
+        )?,
     })
     .await?;
     tokio::select! {

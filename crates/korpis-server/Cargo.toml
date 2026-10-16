@@ -33,7 +33,7 @@ korpis-app = { workspace = true }
 # The control plane reads a backup's trees and files when one is browsed or read (§5.4 of
 # docs/06-storage.md).
 korpis-backup = { path = "../korpis-backup" }
-korpis-core = { workspace = true, features = ["authz", "identity"] }
+korpis-core = { workspace = true, features = ["accounts", "authz", "identity"] }
 korpis-egress = { workspace = true }
 # Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
 korpis-extension = { workspace = true }
@@ -74,7 +74,7 @@ korpis-store = { workspace = true, features = ["testing"] }
 sqlx = { workspace = true }
 tempfile = "3"
 base64 = "0.22"
-korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
+korpis-core = { workspace = true, features = ["authz", "identity", "testing", "trust"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 # The first-party S3 target, against MinIO, behind the control plane end to end.

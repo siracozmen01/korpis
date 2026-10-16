@@ -177,6 +177,7 @@ impl Harness {
             dns_resolver,
             acme,
             rates,
+            relying_party: Some(crate::panel::relying_party()),
         };
         let running = korpis_server::serve(config.clone()).await.expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
