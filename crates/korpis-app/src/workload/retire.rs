@@ -8,8 +8,11 @@
 //! A retire plan moves no pointer. Approving it means the workload is being retired: nothing else
 //! may be declared or approved for it, and every other proposal is superseded. Its identity is
 //! retired (soft-deleted, its name and quota released) when retirement is complete: at once for a
-//! workload nothing was ever approved for, which no node holds, and otherwise when its node
-//! reports the runtime removed.
+//! workload no node holds, whether nothing was ever approved for it or what was approved no node
+//! could take, and otherwise when its node reports the runtime removed. A node removed holds
+//! nothing. Approving such a plan checks again that no node holds the workload, since one may
+//! have taken it meanwhile, and refuses if one does, so its deletion is proposed again with the
+//! steps that node runs.
 
 use super::propose::{self, Proposal};
 use crate::App;
@@ -164,6 +167,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         (proposing, deleting): (&korpis_core::workload::plan::Proposing, &[Volume]),
         grant: Uuid,
     ) -> Result<Plan, AppError> {
+        let held = self.held_by_a_node(w.id).await?;
         let target = match w.target {
             Some(t) => Some(self.store.intent(t).await?.ok_or_else(|| {
                 AppError::Internal(format!("workload {} target {t} missing", w.id))
@@ -177,7 +181,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         };
         let (driver, disruption) = self.running_layers(w).await?;
-        let body = target.as_ref().map(|t| &t.body);
+        // What no node holds has nothing a node could stop or remove.
+        let body = target.as_ref().map(|t| &t.body).filter(|_| held);
         let classifier = propose::classifier(&driver, &disruption, w);
         let steps = retire_steps(w.id, (body, power), deleting, classifier);
         let held = match &target {
@@ -205,6 +210,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What approving a retire plan does beyond moving its status: every other proposal is
     /// superseded, and a plan the control plane executes alone (nothing ever reached a node) is
     /// applied at once, retiring the identity.
+    /// Whether a node not removed holds `workload`: it is placed there, or the node holds an
+    /// active assignment for it, or a volume an approved plan of it deletes.
+    async fn held_by_a_node(&self, workload: Uuid) -> Result<bool, AppError> {
+        for node in self.store.nodes_of(workload).await? {
+            let found = self.store.node(node).await?;
+            if found.is_some_and(|n| n.admin != korpis_core::node::NodeAdmin::Decommissioned) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub(super) async fn begin_retirement(
         &self,
         tx: &mut S::Tx,
@@ -214,6 +231,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.supersede_all_proposed(plan).await?;
         if plan.steps.iter().any(|s| s.executor != StepExecutor::ControlPlane) {
             return Ok(());
+        }
+        if self.held_by_a_node(w.id).await? {
+            let why = "a node took it after its deletion was proposed; propose it again";
+            return Err(AppError::conflict("workload.moved", why));
         }
         let from = plan.status;
         for to in [PlanStatus::Applying, PlanStatus::Applied] {

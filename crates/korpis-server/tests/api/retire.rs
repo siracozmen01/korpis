@@ -134,3 +134,17 @@ async fn a_retirement_is_cancelled_while_no_step_has_run_and_superseded_if_the_w
     let e = h.plans(h.root()).approve_plan(approve("late", &pending.id)).await.unwrap_err();
     assert_eq!(reason(&e), "plan.superseded", "computed for a target that has moved");
 }
+
+#[tokio::test]
+async fn a_workload_no_node_could_take_retires_at_once_when_its_deletion_is_approved() {
+    let h = Harness::new().await;
+    let (w, _) = workload(&h).await;
+    let s = get(&h, &w).await;
+    assert!(s.target.is_set() && !s.placement.is_set(), "approved, and placed nowhere");
+    let plan = retire_plan(&h, "d", &w).await;
+    assert_eq!(actions(&plan), ["retire"], "nothing for a node to stop or remove");
+    let approved = h.plans(h.root()).approve_plan(approve("a", &plan.id)).await.unwrap();
+    let approved = approved.into_owned().plan.into_option().unwrap();
+    assert_eq!(approved.status.as_known(), Some(pb::PlanStatus::PLAN_STATUS_APPLIED));
+    assert!(get(&h, &w).await.workload.as_option().unwrap().deleted_at.is_set(), "retired");
+}

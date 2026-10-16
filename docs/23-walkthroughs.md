@@ -1095,6 +1095,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 58 | A correction left standing in three documents | §36 | `17-security.md` §7, `02-architecture.md` §7, `06-storage.md` §5.5 |
 | 59 | A reseller could route the names it had delegated | §36 | `07-networking.md` §3.2, `01-model.md` §3.6 |
 | 60 | A domain could be an IPv4 address | §36 | `07-networking.md` §3.2 |
+| 61 | A workload no node could take waited forever to be deleted | §18 | `01-model.md` §3.3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1373,6 +1374,23 @@ A completion is now believed only for a step that is the node's own in that work
 record that is not is kept as a rejection; and a retire plan approved while the create plan was
 still applying waited in `queued` with nothing to move it on, so a queued plan now becomes the
 node's next plan once the one ahead of it is applied (§4.8 of `02-architecture.md`).
+
+**FINDING 61: A workload no node could take waited forever to be deleted. `CONFIRMED`**
+
+Found 2026-10-16, when removing a node as compromised left workloads placed nowhere. The resolution
+above covered a workload nothing was ever approved for and missed its neighbour: one whose target
+was approved but which no node could take. Its retire plan had a node's steps, stop and remove the
+runtime, because its target described something running, and no node held it to run them, so the
+plan applied forever and its name and quota were never released. What evaluates whether a node
+holds a workload, and with what information: the control plane, from its placement, the nodes
+holding an active assignment for it, and the nodes holding a volume an approved plan of it deletes,
+a decommissioned node holding nothing.
+
+**Resolution.** A retire plan for a workload no node holds has only the control plane's step,
+whatever was approved for it, and completes at approval; approval checks again that no node holds
+it, since one may have taken it after the plan was proposed, and refuses the plan as stale if one
+does, so the deletion is proposed again with that node's steps. → patched into `01-model.md` §3.3;
+enforced in `crates/korpis-app/src/workload/retire.rs`.
 
 § Added 2026-10-14, from the implementation, when console capture was built.
 

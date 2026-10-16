@@ -681,8 +681,9 @@ Step
   floor, so it always waits for a human. Once it is approved, every other proposal is superseded
   and nothing else may be declared or approved until it finishes or is cancelled. `deleted_at` is
   set when the retirement is complete, which releases the name and the quota: when the node reports
-  the runtime removed, or at approval for a workload nothing was ever approved for, which no node
-  holds and whose plan the control plane executes alone.
+  the runtime removed, or at approval for a workload no node holds, whether nothing was ever
+  approved for it or no node could take what was, whose plan the control plane executes alone;
+  approval checks again that no node took it meanwhile (Finding 61 of `23-walkthroughs.md`).
 - A plan containing a step marked `reversible: false`, deleting a volume, releasing an IP, always
   requires explicit approval. A plan whose steps are all non-disruptive is auto-approved by default
   policy, and **`disruptive` is declared, never inferred** (below).
