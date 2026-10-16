@@ -1100,6 +1100,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 63 | Slowing the target of a failed attempt let anyone deny the target | §37 | `10-api.md` §10, `17-security.md` §10 |
 | 64 | Failures naming invented targets, or from many addresses, each wrote an effect at once | §37 | `10-api.md` §10 |
 | 65 | One address could spend the shared recording budget and hide everyone's failures | §37 | `10-api.md` §10 |
+| 66 | A reseller's address could not host its customers' sign-in | §38 | `08-identity.md` §9.6, `11-surface-web.md` §7, `20-roadmap.md` §4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2474,4 +2475,57 @@ source spends the shared bucket only while its source's bucket admits it, so one
 more of it than its own allows. Past either, the failure is counted under `*` with its target
 kept, since targets are only the installation's nodes and are bounded already. → patched into
 `10-api.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
+
+---
+
+## 38. A customer signs in, restarts a server, and uploads a world
+
+Written 2026-10-16, to design the web client of Phase 1 before building it (§10 of
+`11-surface-web.md`, §9 of `08-identity.md`, §3.2 of `06-storage.md`). An operator installs Korpis
+on one machine and gives a friend a Minecraft server on it; the friend signs in from a phone,
+restarts the server, reads its console, uploads a world from a laptop over a connection that
+drops, and shares the console with a moderator.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | `korpis-server install` prints the bootstrap invitation; the operator opens the panel at the installation's address, served by the control plane from `--web-root`, and redeems it by registering a passkey, becoming the first user, holding the root grant | `08-identity.md` §9.1, §9.6; `11-surface-web.md` §1; `18-operations.md` §2 |
+| 2 | The operator invites the friend: an invitation for `workload.*` and `workload.file.write` on the friend's project, handed over by message | `08-identity.md` §9.6, §3.7 |
+| 3 | The friend redeems it on a phone: a passkey registered for the installation's site, a user created, the grant issued, a session begun with its refresh cookie | `08-identity.md` §9.4, §9.6 |
+| 4 | The panel shows the friend's project and server and nothing else, each value known, stale, or unknown | `11-surface-web.md` §2, §5 |
+| 5 | The friend restarts the server: a plan applied at once, its convergence shown as it happens | `11-surface-web.md` §3, §4 |
+| 6 | The friend opens the console: the panel mints a capability token with its access token and opens the session at the relay with `Watch`, typing with `Send` | `02-architecture.md` §3.1; `14-streams.md` §6 |
+| 7 | On a laptop, the friend uploads a 6 GB world; the connection drops at 4 GB; the panel reopens the session, reads the size written, and continues | `06-storage.md` §3.2 |
+| 8 | The friend shares the console with a moderator as a link, for 24 hours and three uses | `11-surface-web.md` §6; `08-identity.md` §6.1 |
+| 9 | The machine's control plane stops; the friend's cached panel loads and shows every value unknown, with how long the control plane has been unreachable | `11-surface-web.md` §10, question 3 |
+
+Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
+it holds the invitation's digest, verifies the attestation-free registration against its own site
+and the origin the browser reports, and creates the user and the grant in the transaction that
+voids the invitation. Step 4 is the API's: the panel renders what the list and get calls return,
+which existence follows read authority (§8 of `10-api.md`) to decide; the panel decides nothing.
+Step 5's plan is the control plane's and its convergence the node's report, which the panel reads
+from the workload's watch stream. Step 6 is the relay's and the node's, each verifying the token,
+the browser carrying the session in the two shapes it can. Step 7 is the worker's, from the
+volume's own filesystem: the size written is what the file holds, so nothing remembers an upload
+but the file. Step 9 is the browser's alone, which is why it may claim nothing.
+
+**FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
+
+Found 2026-10-16 while writing step 3, asking what a passkey is bound to. The theme design of §7
+of `11-surface-web.md` showed a reseller's customers "the reseller's sign-in page at the reseller's
+address", and §9.6 of `08-identity.md` said the relying party's identifier was "the installation's
+name". Both cannot hold. A passkey is bound to the registrable domain of the page that registers
+it, the web session is a cookie the browser sends only to its own site, and the panel must share a
+site with the control plane (§1 of `11-surface-web.md`). A panel at the reseller's address
+therefore needs the control plane answering under that address too, with a certificate for it, and
+a passkey registered there works only there. No document designed the control plane answering
+under a name an organization holds.
+
+**Resolution.** In Phase 1 the panel is reached at the installation's own name, which is the
+relying party's identifier, and the sign-in page is the root organization's. The control plane
+answering under names organizations hold, which names, with which certificates, and how a person
+who signs in at two sites holds a passkey at each, is Phase 2's, with the resellers it serves. →
+patched into `08-identity.md` §9.6, `11-surface-web.md` §7, and `20-roadmap.md` §4.
 

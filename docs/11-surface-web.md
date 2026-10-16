@@ -176,6 +176,30 @@ built from and where that source is published, and themes cannot remove or resty
 the branded chrome: a host's customers see the host's brand everywhere they look, and the notice is
 where the licence needs it to be rather than where a brand would notice it.
 
+**What a theme is, designed 2026-10-16.** A `Theme` belongs to an organization and is inherited by
+everything beneath it unless a descendant sets its own, as a layout is (question 2): a product
+name, a logo, a fixed set of colour tokens for the light and the dark scheme, the text of the
+sign-in page, and optionally a stylesheet of at most 64 KiB. The panel applies the theme of the
+organization the viewer is looking at; before anyone has signed in, it applies the root
+organization's. A reseller's sign-in page at the reseller's own address needs the control plane to
+answer there, which Phase 2 designs with the names organizations hold for their customers (Finding
+66 of `23-walkthroughs.md`); the theme of the organization holding the verified domain the panel
+was reached at, which the browser states in its `Origin`, is applied then. Setting one is
+`org.write` on the organization. A theme is read through the API like everything else, with the
+logo inside it, so the panel fetches nothing a theme names.
+
+**A stylesheet is code that runs in the panel, and it is fenced.** The panel's content security
+policy, which the bundle carries in its own page so it holds wherever the bundle is served, admits
+images, fonts, and connections from the panel's own origin, the control plane, and its relays,
+and nothing else, so a stylesheet cannot send what it can see to a server of its author's: a
+selector that matches a value on screen and loads a background image from elsewhere is refused by
+the browser. What it can still do is restyle what the viewer sees, which a reseller styling its
+customers' panel is meant to; and it cannot reach `/about/source`, which is served unstyled. What
+it costs: a host who wants a font or an image from a CDN of its own serves it through the theme's
+own data instead. Email templates are part of a theme when Korpis sends email, which it does not
+in Phase 1: there is no emailed reset (§9.3 of `08-identity.md`), and invitations are handed over
+by whoever issues them.
+
 As decided 2026-10-16: the page is generated when the bundle is built, from the revision it is
 built from and the repository the build names, and is a file of the bundle like any other, so it
 is served wherever the bundle is; a host that modifies the panel and builds it names its own
@@ -267,9 +291,24 @@ A dashboard is a `Layout`: a named arrangement of panel components and extension
 own. It is data, so it is per-organization by construction, and it can only place what already
 exists, so it cannot become a way around the slot inventory. Every component on it renders under
 the viewer's own authority, so a host's dashboard shown to a customer shows that customer's view.
-3. **Offline and PWA.** Attractive for the incident case, the panel loading while the control plane
-   is degraded. Requires deciding what a cached view is allowed to claim, which collides with §2. →
-   here
+
+Phased 2026-10-16: Phase 2 (§4 of `20-roadmap.md`). A layout is a host composing a landing screen
+for its customers, a relationship Phase 2 creates, and what it can place is the slot inventory,
+which question 4 of §9 of `16-extensions.md` says is driven by the core extensions' needs, most of
+which arrive after Phase 1. Phase 1's panel has one landing screen, its own.
+3. **Offline and PWA. Resolved 2026-10-16: the panel may be cached, what it shows may not.**
+   Attractive for the incident case, the panel loading while the control plane is degraded.
+   Requires deciding what a cached view is allowed to claim, which collides with §2.
+
+The bundle is cached by a service worker, so a browser that has loaded the panel once loads it
+again when the control plane cannot be reached; no value the API returned is ever cached. A panel
+loaded that way shows every value as unknown, with how long the control plane has been unreachable,
+which is §2 applied to the whole screen, and the incident it was wanted for at least gets a true
+account of itself instead of a browser's error page. A new bundle replaces the cached one at the
+next load once it is served, so an upgrade never leaves a browser on an old panel past one reload.
+What it costs: a service worker, which a browser keeps until the panel removes it, and a panel that
+loads while it can do nothing, which is what the incident case asked for. Built in Phase 1 with
+the panel.
 4. **Internationalization. Resolved here.** Community translation is one of the reasons Pterodactyl
    spread. The decision is whether recipe-supplied strings (§5 of `09-recipes.md`) participate in
    the same translation pipeline as core strings, which is not obvious. It was routed to
@@ -282,6 +321,10 @@ translation of a recipe is a new recipe version rather than a file someone else'
 runtime. The panel resolves a string from the recipe's catalogue for the viewer's locale, then the
 recipe's default locale, and never displays a raw key. Community translators work on core and on
 first-party recipes with the same tools; third-party recipes are their authors' to translate.
+
+Built in Phase 1 with the panel, decided 2026-10-16: every string the panel shows comes from a
+catalogue, English first, and the recipe catalogues of §5 of `09-recipes.md` are read and served
+by the control plane with the recipe they came in, so the panel needs no second source.
 5. **Bulk selection. Resolved in §3 of `05-scheduling.md`**: a selection becomes a `bulk_intent`
    Operation, one approval, a plan per workload, and per-item results. The interface will want
    "select 200 workloads and restart them", which needs the bulk mutation semantics that were open

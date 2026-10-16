@@ -1257,13 +1257,17 @@ shown once at enrolment (§9.3). Passwords are stored as Argon2id with the param
 recommends (19 MiB, two passes, one lane), and refused if shorter than twelve characters; TOTP
 secrets are sealed by the control plane's vault, as every secret field is.
 
-**The relying party is the control plane, and its identifier is the installation's name.** A
-passkey is bound to the registrable domain the panel is served under, which is why the panel and
-the control plane must share a site (§1 of `11-surface-web.md`): the control plane checks that
-the browser signed for its own identifier and that the origin it reports is one it serves or
-lists in `--web-origin`. It accepts ES256, EdDSA, and RS256, which is what platform
-authenticators produce, and attestation `none`, since the installation has no list of authenticator
-models to trust and asking for attestation would only identify the user's device to it.
+**The relying party is the control plane, and its identifier is the site the panel is reached at.**
+A passkey is bound to a registrable domain, and the panel and the control plane share a site (§1 of
+`11-surface-web.md`), so the identifier is that site's registrable domain: the control plane checks
+that the browser signed for it and that the origin it reports is one it serves or lists in
+`--web-origin`. In Phase 1 that is the installation's own name. A reseller's customers signing in
+at the reseller's address need the control plane to answer under that address, which Phase 2
+designs (Finding 66 of `23-walkthroughs.md`); a passkey then works at the site it was registered
+at, and a person who signs in at two sites registers one at each. It accepts ES256, EdDSA, and
+RS256, which is what platform authenticators produce, and attestation `none`, since the
+installation has no list of authenticator models to trust and asking for attestation would only
+identify the user's device to it.
 
 **What a sign-in is limited by** (§10 of `10-api.md`). Every failure, a password, a second-factor
 code, or an assertion that does not verify, is charged to its source like any failed attempt. A

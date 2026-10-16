@@ -688,6 +688,17 @@ What it costs: a recipe author who needs a conditional or a string operation can
 and has to ask for a field the operator sets instead. That is the intended trade; an expression
 language that can branch is a program, and recipes contain no programs (§4).
 
+**The strings a recipe shows, designed 2026-10-16** (question 4 of §10 of `11-surface-web.md`). A
+field's `label` and the recipe's `metadata.description` are messages in the recipe's default
+locale, which the document names (`metadata.locale`, `en` if absent), in ICU MessageFormat; a
+recipe's `metadata.name` is an identifier and is never translated. A recipe may carry catalogues
+for other locales as files `i18n/<locale>.json` in its content, each mapping a message's key to its
+translation; a key is the path of the message in the document, `config.fields.<key>.label` or
+`metadata.description`, so a key changes only when what it labels does. They are part of the
+artifact, signed and versioned with it. The control plane reads them when it resolves the recipe
+and refuses a catalogue that is not valid MessageFormat or names a key the document does not have,
+so a translation cannot add a string the recipe never showed.
+
 ---
 
 ## 6. Templating is sandboxed
