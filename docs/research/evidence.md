@@ -488,6 +488,15 @@ Primary:
   policies](https://docs.cilium.io/en/stable/security/dns/)); recorded from its documentation and
   not reproduced here. One way a node could hold a rule naming a domain, the open question 8 of
   §11 of `../07-networking.md`.
+- **[V]** OWASP's device cookies slow online guessing without letting a stranger lock an account
+  out of its holder's own browsers: a browser that signed in to an account is given a cookie the
+  server signs, failures from it are counted against the cookie alone, and failures from browsers
+  without one are counted against the account, past a threshold refusing every untrusted browser
+  for that account for a while, which OWASP names as a denial an attacker can still cause
+  ([OWASP: Slow Down Online Guessing Attacks with Device
+  Cookies](https://community.owasp.org/Slow_Down_Online_Guessing_Attacks_with_Device_Cookies),
+  read 2026-10-16). Why the login's limits count a target, and the API's credentials do not
+  (§10 of `../10-api.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

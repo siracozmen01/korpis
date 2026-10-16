@@ -17,12 +17,13 @@ use std::time::{Duration, Instant};
 
 /// Rates no test here reaches, but for those it sets.
 fn ample() -> Rates {
-    let rate = Rate { per_second: 1000, burst: 1000 };
+    let rate = Rate::per_second(1000, 1000);
     Rates {
         individual: rate,
         organization: rate,
         expensive_individual: rate,
         expensive_organization: rate,
+        failures: rate,
     }
 }
 
@@ -84,8 +85,7 @@ fn retry_after(e: &ConnectError) -> Duration {
 
 #[tokio::test]
 async fn a_subject_is_refused_past_its_own_bucket_and_told_where_it_stands() {
-    let h = Harness::with_rates(Rates { individual: Rate { per_second: 1, burst: 5 }, ..ample() })
-        .await;
+    let h = Harness::with_rates(Rates { individual: Rate::per_second(1, 5), ..ample() }).await;
     let (secret, _) = reader(&h, (h.root(), h.root_grant()), "g1", false).await;
     let config = h.config(Some(&secret));
 
@@ -109,7 +109,7 @@ async fn a_subject_is_refused_past_its_own_bucket_and_told_where_it_stands() {
 
 #[tokio::test]
 async fn a_grant_minted_by_attenuation_shares_its_organizations_bucket() {
-    let organization = Rate { per_second: 1, burst: 8 };
+    let organization = Rate::per_second(1, 8);
     let h = Harness::with_rates(Rates { organization, ..ample() }).await;
     let (a, grant) = reader(&h, (h.root(), h.root_grant()), "g1", true).await;
     let (b, _) = reader(&h, (h.config(Some(&a)), grant), "g2", false).await;
@@ -125,7 +125,7 @@ async fn a_grant_minted_by_attenuation_shares_its_organizations_bucket() {
 
 #[tokio::test]
 async fn the_expensive_budget_refuses_alone_and_leaves_reads_admitted() {
-    let expensive_individual = Rate { per_second: 1, burst: 2 };
+    let expensive_individual = Rate::per_second(1, 2);
     let h = Harness::with_rates(Rates { expensive_individual, ..ample() }).await;
     let (secret, _) = reader(&h, (h.root(), h.root_grant()), "g1", false).await;
     let config = h.config(Some(&secret));
@@ -151,8 +151,7 @@ async fn the_expensive_budget_refuses_alone_and_leaves_reads_admitted() {
 
 #[tokio::test]
 async fn every_replica_charges_the_same_buckets() {
-    let h = Harness::with_rates(Rates { individual: Rate { per_second: 1, burst: 4 }, ..ample() })
-        .await;
+    let h = Harness::with_rates(Rates { individual: Rate::per_second(1, 4), ..ample() }).await;
     let (secret, _) = reader(&h, (h.root(), h.root_grant()), "g1", false).await;
     let replica =
         korpis_server::ServeConfig { listen: "127.0.0.1:0".parse().unwrap(), ..h.served.clone() };

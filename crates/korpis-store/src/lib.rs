@@ -23,6 +23,7 @@ mod enrollment;
 mod errors;
 mod events;
 mod extension;
+mod failure;
 mod feed;
 mod idempotency;
 mod job;

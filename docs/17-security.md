@@ -403,7 +403,7 @@ unbounded resource is a denial-of-service vulnerability with a friendlier name.
 | log storage | counts against the tenant's storage quota | §4 of `14-streams.md` |
 | metric cardinality | tenant-controlled values are never labels | §3 of `15-observability.md` |
 | API calls | rate limits per authenticated subject and per organization, never multiplied by attenuation | §10 of `10-api.md` |
-| unauthenticated attempts | per source and per targeted account or link, slowing rather than locking | §10 of `10-api.md` |
+| unauthenticated attempts | per source, answered `RATE_LIMITED` past the source's budget, a working credential still admitted; a guessable secret (a password, a second factor) also per account, sparing browsers that have signed in to it (corrected 2026-10-16, Finding 63) | §10 of `10-api.md` |
 | recorded denials | charged to the caller and coalesced per window | §10 of `10-api.md` |
 | node journal | a declared size, coalescing, then a gap record | §4.10 of `02-architecture.md` |
 | control-plane work | expensive operations carry separate budgets | §10 of `10-api.md` |

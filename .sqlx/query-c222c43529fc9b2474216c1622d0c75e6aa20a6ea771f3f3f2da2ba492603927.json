@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO failure_run (source, action, target, opened, repeats, first_repeat,\n                                      last_repeat)\n             VALUES ($1, $2, $3, $4, $5, $6, $7)\n             ON CONFLICT (source, action, target) DO UPDATE\n                SET opened = $4, repeats = $5, first_repeat = $6, last_repeat = $7",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c222c43529fc9b2474216c1622d0c75e6aa20a6ea771f3f3f2da2ba492603927"
+}

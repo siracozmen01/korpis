@@ -139,6 +139,10 @@ struct ServeArgs {
     /// Each organization's bucket for requests that compute a plan, back up, or install.
     #[arg(long, default_value = "10/100", value_parser = Rate::parse)]
     rate_expensive_organization: Rate,
+    /// Each source's bucket for failed attempts to authenticate, `<per minute>/<burst>`; the
+    /// source is the address, or the /64 of an IPv6 one.
+    #[arg(long, default_value = "30/30", value_parser = Rate::parse_per_minute)]
+    rate_failures: Rate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -284,6 +288,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             organization: args.rate_organization,
             expensive_individual: args.rate_expensive_individual,
             expensive_organization: args.rate_expensive_organization,
+            failures: args.rate_failures,
         },
     })
     .await?;

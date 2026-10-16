@@ -449,6 +449,12 @@ second-factor verification, link redemption, and the chat-interaction exchange (
 with failures slowing that target exponentially rather than locking it, because a lockout is a
 denial of service anyone can trigger against someone else.
 
+> Corrected 2026-10-16 (Finding 63). Per targeted account only, and not by slowing the target for
+> everyone: a link, a token, and a node's key cannot be guessed, so a target slowdown on them
+> protects nothing and lets anyone who names a target deny it, renewed every time it lapses. The
+> account's limits spare the browsers that have signed in to it, as the note at the end of the
+> as-built part of this section says.
+
 **Denials are charged and coalesced.** A denied request costs the caller's buckets like any other,
 so probing is not free. Every denial is still recorded (§4 of `15-observability.md`), but repeated
 identical denials from one subject within a window are recorded as one effect with a count and the
@@ -521,24 +527,60 @@ holding grants in several organizations is bounded by the emptiest; a refusal ad
 
 **Unauthenticated attempts** are every presentation of a credential that is not yet trusted: an API
 token, a workload credential, or a share link presented to the API; a node's `Hello`; an enrollment
-token joined; a relay's enrollment. Each failure is charged to a bucket of its source, the address,
-or the /64 for IPv6, at 30 a minute; and to its target, where the attempt names one (the link's
-grant, the node, the enrollment token), which it slows exponentially: after a target's nth failure
-in a row, the next attempt against it is refused for 2ⁿ⁻¹ seconds, at most fifteen minutes, and a
-success clears the count. Nothing is ever locked, so no one can deny a target to its holder for
-longer than that. Failures are recorded as denials are, coalesced by source, target, and kind
-within the window, the first written at once.
+token joined; a relay's enrollment. Each is checked first, and one that opens is admitted, whatever
+its source has done. Each that fails is charged to a bucket of its source, the address, or the /64
+for IPv6, at 30 a minute with a burst of 30 (`--rate-failures`, `<per minute>/<burst>`), and once
+that bucket refuses, a failure is answered `RATE_LIMITED` with `retry_after` and `Retry-After`
+rather than `UNAUTHENTICATED`, so a client in a loop is told to stop and for how long. Failures are
+recorded as denials are, by the actor `anonymous` (§3.2 of `01-model.md`), coalesced by source,
+kind, and target within the window, the first written at once; the target is what the attempt
+named where it named one, the node of a `Hello`, so a forged `Hello` is in that node's effects.
+What evaluates it, where, and with what: the replica that received the attempt, from the address
+its connection came from (the client a configured load balancer's PROXY header names, §3.1 of
+`02-architecture.md`), the bucket every replica shares, and the runs of failures in the same
+database.
 
-What it costs: one database statement per request, which serializes an organization's requests on
-its bucket's row for the moment the statement takes; and a subject's organizations are up to a
-minute stale, so a grant just issued in another organization is charged there a minute late, and a
-grant just revoked is charged for a minute more. A subject holding grants in several organizations
-spends each of their buckets on every request, including those that concern only one of them: an
-organization that grants a stranger pays for the stranger's activity elsewhere, bounded by the
-stranger's own bucket, a fifth of an organization's by default, and ended by revoking the grant.
+> Corrected 2026-10-16, when this was built (Finding 63 in §37 of `23-walkthroughs.md`). As
+> designed, each failure was also charged "to its target, where the attempt names one (the link's
+> grant, the node, the enrollment token), which it slows exponentially: after a target's nth
+> failure in a row, the next attempt against it is refused for 2ⁿ⁻¹ seconds, at most fifteen
+> minutes", and "nothing is ever locked, so no one can deny a target to its holder for longer than
+> that." Both halves were wrong for these credentials. Each is 32 random bytes or a signature by a
+> key the control plane never sees, which no rate of guessing finds, so slowing its target protects
+> nothing. And the target of an unauthenticated attempt is whatever the attempt names: anyone could
+> name a node in a forged `Hello` once every fifteen minutes and keep it out of its session for as
+> long as they cared to, which is the lockout this section forbids, renewed instead of permanent.
+> The source is charged after the credential is checked, not before, for the reason the CGNAT
+> paragraph gives: refusing a working credential because a stranger behind the same address
+> failed is an outage, and refusing before checking would save nothing, the check being one
+> indexed lookup or one signature, no more than the bucket's own statement.
+
+What the unauthenticated half costs: a source's failures are each still checked, so the bucket
+bounds how they are answered, not the work of checking them; a flood of bad credentials costs a
+lookup or a signature each, and stopping a flood by volume is the network's. A bucket for an
+address shared by many clients is shared by them too, so their failures, not their successes, slow
+each other's failures. The effects of failures that name no node are in no tenant's view; the
+installation's operators read them from the log (§4 of `15-observability.md`).
+
+What the authenticated half costs: one database statement per request, which serializes an
+organization's requests on its bucket's row for the moment the statement takes; and a subject's
+organizations are up to a minute stale, so a grant just issued in another organization is charged
+there a minute late, and a grant just revoked is charged for a minute more. A subject holding
+grants in several organizations spends each of their buckets on every request, including those that
+concern only one of them: an organization that grants a stranger pays for the stranger's activity
+elsewhere, bounded by the stranger's own bucket, a fifth of an organization's by default, and ended
+by revoking the grant.
 
 > Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`): the limits of the
-> login and second-factor endpoints, which are the same mechanism with an account as target.
+> login and second-factor endpoints. Their failures are charged to the source as above; and because
+> a password or a six-digit code can be guessed, as no credential above can, they are also charged
+> to the account they name, after OWASP's device cookies (`research/evidence.md` §5): a browser that
+> has signed in to the account holds a cookie the control plane signed, and its failures are
+> counted against that cookie alone, so failures against an account cannot lock out its holder's
+> own browsers; failures from browsers without one are counted against the account, and past a
+> threshold the account refuses browsers without one for a while. That last is a denial a stranger
+> can cause, to a holder's new browsers only, and it is the cost of slowing guesses at a password
+> at all.
 
 Expensive operations carry their own budgets, plan computation, migration, backup initiation, and
 recipe fetches are not comparable to a status read and are not counted against the same allowance.

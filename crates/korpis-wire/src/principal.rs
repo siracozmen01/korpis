@@ -45,6 +45,8 @@ pub fn from_pb(field: &str, s: &pb::Subject) -> Result<Principal, crate::WireErr
         subject::Kind::Extension(v) => Principal::Extension(id(IdKind::Extension, field, v)?),
         subject::Kind::Link(v) => Principal::Link(id(IdKind::Grant, field, v)?),
         subject::Kind::System(a) => Principal::System(system_actor(*a).ok_or_else(none)?),
+        subject::Kind::Anonymous(true) => Principal::Anonymous,
+        subject::Kind::Anonymous(false) => return Err(none()),
         subject::Kind::External(e) => external(e).ok_or_else(none)?,
     };
     p.validate().map_err(|e| invalid(field, e.to_string()))?;
@@ -60,6 +62,7 @@ pub fn to_pb(p: &Principal) -> pb::Subject {
         Principal::Workload(w) => subject::Kind::Workload(wire_id(IdKind::Workload, *w)),
         Principal::Extension(e) => subject::Kind::Extension(wire_id(IdKind::Extension, *e)),
         Principal::Link(g) => subject::Kind::Link(wire_id(IdKind::Grant, *g)),
+        Principal::Anonymous => subject::Kind::Anonymous(true),
         Principal::System(a) => subject::Kind::System(
             match a {
                 SystemActor::Reconciler => pb::SystemActor::SYSTEM_ACTOR_RECONCILER,

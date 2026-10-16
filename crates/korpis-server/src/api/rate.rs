@@ -11,7 +11,10 @@ use connectrpc::interceptor::{StreamRequest, StreamResponse, UnaryRequest, Unary
 use connectrpc::{ConnectError, Interceptor, Next, NextStream, PayloadStream, RequestContext};
 use http::{HeaderMap, HeaderValue};
 use korpis_app::AppError;
+use korpis_core::audit::failure::Attempt;
+use korpis_core::authz::ObjectRef;
 use korpis_core::rate::Standing;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -54,32 +57,60 @@ impl Charging {
     }
 
     /// Charges the request `ctx` carries, handing its caller on to the handler; where its buckets
-    /// stand, or the refusal. A request that does not authenticate is not charged here: its
-    /// handler refuses it, as an unauthenticated attempt.
+    /// stand, or the refusal. A request presenting no credential is not charged here: its
+    /// handler refuses it, or serves it if it needs none. One presenting a credential that opens
+    /// nothing is a failed attempt, charged to its source (§10 of docs/10-api.md).
     async fn admit(&self, ctx: &mut RequestContext) -> Result<Vec<Standing>, ConnectError> {
         let Some(path) = ctx.path().map(str::to_owned) else { return Ok(Vec::new()) };
         if UNCHARGED.iter().any(|p| path.starts_with(p)) {
             return Ok(Vec::new());
         }
-        let Ok(caller) = self.api.authenticated(ctx).await else { return Ok(Vec::new()) };
+        let presented = super::bearer(ctx);
+        if presented.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ip = ctx.peer_addr().map(|a| a.ip());
+        let app = self.api.app();
+        let caller = match app.authenticate(presented, ip).await {
+            Ok(caller) => caller,
+            Err(e) => return Err(self.api.failed(e, (Attempt::Credential, ip, None)).await),
+        };
         let expensive = EXPENSIVE.contains(&path.as_str());
-        match self.api.app().charge_request(&caller, expensive).await {
-            Ok(standing) => {
-                ctx.extensions_mut().insert(caller);
-                Ok(standing)
+        let standing = app.charge_request(&caller, expensive).await.map_err(refused)?;
+        ctx.extensions_mut().insert(caller);
+        Ok(standing)
+    }
+}
+
+impl Api {
+    /// The answer to an attempt to authenticate that failed with `e`: a failure of `attempt` from
+    /// `ip`, naming `target`, is charged to its source and recorded, and answered
+    /// `UNAUTHENTICATED`, or `RATE_LIMITED` once its source's bucket refuses; anything else is
+    /// answered as it is.
+    pub(super) async fn failed(
+        &self,
+        e: AppError,
+        (attempt, ip, target): (Attempt, Option<IpAddr>, Option<ObjectRef>),
+    ) -> ConnectError {
+        match e {
+            AppError::Unauthenticated => {
+                refused(self.app().authentication_failed(attempt, ip, target).await)
             }
-            Err(AppError::RateLimited { retry_after, standing }) => {
-                let mut refused = error::rate_limited(retry_after);
-                let headers = refused.response_headers_mut();
-                headers.extend(standing_headers(&standing));
-                if let Ok(v) = HeaderValue::from_str(&seconds(retry_after).to_string()) {
-                    headers.insert(http::header::RETRY_AFTER, v);
-                }
-                Err(refused)
-            }
-            Err(e) => Err(error::from_app(e)),
+            other => error::from_app(other),
         }
     }
+}
+
+/// `e` on the wire, a refusal by a bucket carrying where each bucket stands and `Retry-After`.
+fn refused(e: AppError) -> ConnectError {
+    let AppError::RateLimited { retry_after, standing } = e else { return error::from_app(e) };
+    let mut refused = error::rate_limited(retry_after);
+    let headers = refused.response_headers_mut();
+    headers.extend(standing_headers(&standing));
+    if let Ok(v) = HeaderValue::from_str(&seconds(retry_after).to_string()) {
+        headers.insert(http::header::RETRY_AFTER, v);
+    }
+    refused
 }
 
 #[connectrpc::async_trait]

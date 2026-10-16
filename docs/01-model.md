@@ -186,7 +186,7 @@ Quota dimensions
 > Anything that can act. Not necessarily a person, and not necessarily registered with Korpis.
 
 ```
-Subject = User | Token | ExternalIdentity | Workload | Extension | System
+Subject = User | Token | ExternalIdentity | Workload | Extension | Link | System | Anonymous
 ```
 
 | Variant | Is | Example |
@@ -196,7 +196,9 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 | `ExternalIdentity` | a claim from an identity provider | Discord user `123`, Discord role `@mod` in guild `456`, an OIDC group |
 | `Workload` | a running workload acting for itself | a bot that restarts its own sibling |
 | `Extension` | a running extension | a backup extension reading volumes |
+| `Link` | whoever holds a share link, the bearer of the link-form grant it names (§6.1 of `08-identity.md`) | a moderator sent a link that restarts one server |
 | `System` | the control plane acting on a decision already made | the reconciler correcting drift, the scheduler binding a placement, the bootstrap that creates the root grant, the authority renewing an admitted relay's certificate |
+| `Anonymous` | whoever presented a credential that opened nothing, known only by where it came from | a script presenting a deleted token, a forged `Hello` |
 
 > Added 2026-10-12, while writing the wire schema (`crates/korpis-proto`). Every `Effect` names an
 > actor, and drift correction, placement, and installation bootstrap had none to name: they are
@@ -211,6 +213,14 @@ Subject = User | Token | ExternalIdentity | Workload | Extension | System
 > which holds because every part but the last is refused if it contains `:`. The first schema
 > stored the wire message instead; that tied an append-only audit log to the protocol's field
 > names, and migration `0005_principal_keys.sql` records the correction.
+
+> Added 2026-10-16, when failed attempts to authenticate began to be recorded (§10 of
+> `10-api.md`). A failure has no subject to name, since the credential it presented opened
+> nothing, and the effect recording it must name an actor: `Anonymous`, key `anonymous`, is that
+> actor. Like `System` it holds no grant and can be issued none; the effect carries the source the
+> attempt came from and what it named. `Link`, key `link:<grant>`, was added with share links on
+> 2026-10-14 (§6.1 of `08-identity.md`) and was missing from this list and the one above until
+> now.
 
 `ExternalIdentity` being a first-class subject is what makes Bet 1 work. A grant can name *the
 Discord role `@moderator` in guild X* directly. Nobody needs a Korpis account for that role to

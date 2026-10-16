@@ -16,6 +16,7 @@ use super::{Api, ServerApp, error};
 use crate::revocations::Revocations;
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::relay::JoinRelay;
+use korpis_core::audit::failure::Attempt;
 use korpis_core::id::IdKind;
 use korpis_core::relay::SEEN_EVERY;
 use korpis_proto::korpis::relay::v1 as relay;
@@ -161,7 +162,11 @@ impl relay::RelayControlService for Api {
             tls_key: req.tls_key,
             source_ip: ctx.peer_addr().map(|a| a.ip()),
         };
-        let joined = self.app.join_relay(cmd).await.map_err(error::from_app)?;
+        let ip = cmd.source_ip;
+        let joined = match self.app.join_relay(cmd).await {
+            Ok(joined) => joined,
+            Err(e) => return Err(self.failed(e, (Attempt::RelayJoin, ip, None)).await),
+        };
         Response::ok(relay::JoinResponse {
             relay: wire_id(IdKind::Relay, joined.relay.id),
             name: joined.relay.name.as_str().to_owned(),

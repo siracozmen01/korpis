@@ -6,6 +6,7 @@
 mod approve;
 mod attest;
 mod denial;
+mod failure;
 pub(crate) mod gateway;
 mod issue;
 mod mint;

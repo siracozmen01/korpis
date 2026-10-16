@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM failure_run WHERE source = $1 AND action = $2 AND target = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7dcded336faafb984fc8c23fa18d738ad08332be127069cc2627429a3161f769"
+}

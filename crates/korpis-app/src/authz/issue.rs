@@ -88,6 +88,9 @@ fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
         Holder::Principal(Principal::Link(_)) => {
             Err(AppError::invalid("subject", "a link's holder is made by issuing a link"))
         }
+        Holder::Principal(Principal::Anonymous) => {
+            Err(AppError::invalid("subject", "no grant is held by whoever failed to authenticate"))
+        }
         Holder::Principal(p) => {
             p.validate().map_err(|e| AppError::invalid("subject", e.to_string()))
         }

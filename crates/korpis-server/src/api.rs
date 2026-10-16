@@ -221,17 +221,20 @@ impl Api {
 
     /// The bearer API token's caller, from the peer address.
     async fn authenticated(&self, ctx: &RequestContext) -> Result<Caller, ConnectError> {
-        let presented = ctx
-            .headers()
-            .get(http::header::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "))
-            .unwrap_or_default();
         self.app
-            .authenticate(presented, ctx.peer_addr().map(|a| a.ip()))
+            .authenticate(bearer(ctx), ctx.peer_addr().map(|a| a.ip()))
             .await
             .map_err(error::from_app)
     }
+}
+
+/// The bearer credential a request presents; empty if it presents none.
+fn bearer(ctx: &RequestContext) -> &str {
+    ctx.headers()
+        .get(http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or_default()
 }
 
 /// The idempotency key every mutation carries (§6 of docs/10-api.md).

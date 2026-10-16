@@ -24,7 +24,7 @@ const ORGANIZATIONS_HELD: usize = 10_000;
 /// The rates an installation charges, and what it remembers to charge them.
 #[derive(Debug, Default)]
 pub struct Limiter {
-    rates: Rates,
+    pub(crate) rates: Rates,
     organizations: Mutex<HashMap<String, (SystemTime, Vec<Uuid>)>>,
 }
 

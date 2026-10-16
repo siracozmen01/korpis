@@ -1097,6 +1097,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 60 | A domain could be an IPv4 address | §36 | `07-networking.md` §3.2 |
 | 61 | A workload no node could take waited forever to be deleted | §18 | `01-model.md` §3.3 |
 | 62 | A revoked subject still spent its organization's rate limit bucket | §37 | `10-api.md` §10 |
+| 63 | Slowing the target of a failed attempt let anyone deny the target | §37 | `10-api.md` §10, `17-security.md` §10 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2390,6 +2391,9 @@ script keeps calling.
 | 3 | The script outruns the token's bucket; its calls are refused `RATE_LIMITED` with `retry_after`, and the organization's own members, charged to the same organization's bucket, are not refused, the token's bucket being, by default, a fifth of the organization's | `10-api.md` §8, §10 |
 | 4 | The organization revokes the grant; the script's calls are refused as denials, recorded coalesced, and still charged to the token's bucket | `08-identity.md` §3; `15-observability.md` §4; `10-api.md` §10 |
 | 5 | Within a minute the token stops being charged to the organization's bucket | `10-api.md` §10 |
+| 6 | The helper's organization deletes the token; the script keeps presenting it, and each call is a failed attempt, charged to the script's address and recorded by `anonymous`, the first at once and the rest of each window as one effect with a count | `10-api.md` §10; `01-model.md` §3.2 |
+| 7 | Past thirty failures in a minute the script is answered `RATE_LIMITED` with `Retry-After`; the organization's members behind the same address, presenting their own tokens, are admitted | `10-api.md` §10 |
+| 8 | The script, told nothing useful, forges a `Hello` naming one of the installation's nodes; it fails, is charged to its address, and is recorded in that node's effects; the node's own `Hello`, signed with its key, still opens its session | `10-api.md` §10; `02-architecture.md` §7 |
 
 Each step was asked what evaluates it, where, and with what. Step 2 is the interceptor every client
 service passes through, on the replica that received the call: it authenticates the token, which
@@ -2397,7 +2401,10 @@ names the subject, and reads the organizations of the subject's grants from the 
 every replica shares, as it shares the buckets. Step 3 is one statement charging every bucket of
 the call, all or none. Step 5 needs to know which of the token's grants still work, which the
 database answers by walking each grant's chain to its root; the replica holds the answer for a
-minute.
+minute. Steps 6 to 8 are the replica that receives each attempt, from the address the connection
+came from, the bucket of that address every replica shares, and the runs of failures in the same
+database; whether a credential opens is decided before any of it, so a failure costs its source and
+a success costs nothing here.
 
 **FINDING 62: A revoked subject still spent its organization's rate limit bucket. `CONFIRMED`**
 
@@ -2413,4 +2420,22 @@ the rest. Step 5 did not hold.
 grant whose whole chain is unrevoked, unsuspended, and unexpired, all of them, read in one
 statement. → patched into `10-api.md` §10; tested in
 `crates/korpis-server/tests/api/rate_grants.rs`.
+
+**FINDING 63: Slowing the target of a failed attempt let anyone deny the target. `CONFIRMED`**
+
+Found 2026-10-16 while building steps 6 to 8, asking the algebra question of the design in §10 of
+`10-api.md`: after a target's nth failure in a row, attempts against it were to be refused for
+2ⁿ⁻¹ seconds, at most fifteen minutes, and nothing locked, "so no one can deny a target to its
+holder for longer than that". What names the target of an unauthenticated attempt? The attempt
+itself. A forged `Hello` naming a node, sent once every fifteen minutes, would have kept that node
+out of its session indefinitely; the bound held per lockout and not over time. And the slowdown
+protected nothing it applied to: a token is 32 random bytes and a `Hello` a signature by a key the
+control plane never holds, which no rate of guessing finds.
+
+**Resolution.** The credentials presented to the API, a node's `Hello`, and the two enrollments are
+charged to their source alone, after they are checked, so a working credential is admitted from
+any address. A target is counted only for the secrets a person can guess, a password and a second
+factor, which arrive with the login, and there after OWASP's device cookies, so failures against an
+account do not lock out the browsers its holder has signed in from. → patched into `10-api.md` §10
+and `17-security.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
 

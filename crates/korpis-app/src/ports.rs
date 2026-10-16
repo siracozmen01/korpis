@@ -52,6 +52,7 @@ pub use assignment::{
 };
 pub use audit::{
     DenialKey, DenialRead, DenialWrite, EffectCursor, EffectFilter, EffectRead, EffectWrite,
+    FailureKey, FailureRead, FailureWrite,
 };
 pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
@@ -162,6 +163,7 @@ pub trait Store:
     + CredentialRead
     + EffectRead
     + DenialRead
+    + FailureRead
     + IdempotencyRead
     + KeyRegistry
     + RecipeCache
@@ -233,6 +235,7 @@ pub trait Tx:
     + CredentialWrite
     + EffectWrite
     + DenialWrite
+    + FailureWrite
     + IdempotencyWrite
     + WorkloadWrite
     + QuotaWrite

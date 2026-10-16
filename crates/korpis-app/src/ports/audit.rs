@@ -5,6 +5,7 @@
 use super::StoreResult;
 use korpis_core::audit::Effect;
 use korpis_core::audit::denial::DenialRun;
+use korpis_core::audit::failure::Attempt;
 use korpis_core::object::ObjectRef;
 use korpis_core::principal::Principal;
 use std::future::Future;
@@ -101,4 +102,48 @@ pub trait DenialWrite {
 
     /// Removes the run for `key`.
     fn drop_denial_run(&mut self, key: &DenialKey) -> impl Future<Output = StoreResult<()>> + Send;
+}
+
+/// What a run of identical failed attempts to authenticate is keyed by: where they came from,
+/// what was presented, and what it named, if anything (§10 of docs/10-api.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailureKey {
+    /// The source, as [`korpis_core::audit::failure::source`] names it.
+    pub source: String,
+    /// What was presented.
+    pub attempt: Attempt,
+    /// What it named: the node of a `Hello`.
+    pub target: Option<ObjectRef>,
+}
+
+/// Finding the runs of identical failures whose window has closed.
+pub trait FailureRead {
+    /// Runs opened at or before `opened_by`, at most `limit`, oldest first.
+    fn failure_runs_opened_by(
+        &self,
+        opened_by: SystemTime,
+        limit: u32,
+    ) -> impl Future<Output = StoreResult<Vec<FailureKey>>> + Send;
+}
+
+/// The working state of runs of identical failures, as [`DenialWrite`] holds denials'.
+pub trait FailureWrite {
+    /// Locks the run for `key` until the transaction ends, and reads it.
+    fn lock_failure_run(
+        &mut self,
+        key: &FailureKey,
+    ) -> impl Future<Output = StoreResult<Option<DenialRun>>> + Send;
+
+    /// Stores the run for `key`, replacing any.
+    fn put_failure_run(
+        &mut self,
+        key: &FailureKey,
+        run: &DenialRun,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Removes the run for `key`.
+    fn drop_failure_run(
+        &mut self,
+        key: &FailureKey,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 }

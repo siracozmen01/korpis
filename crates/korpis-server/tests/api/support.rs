@@ -24,15 +24,16 @@ use uuid::Uuid;
 
 /// Rates no test outside the rate limits' own reaches, so that a test making many requests at
 /// once is not refused for it; every request is still charged.
-const UNMETERED: Rates = {
-    let rate = Rate { per_second: 1_000_000, burst: 1_000_000 };
+fn unmetered() -> Rates {
+    let rate = Rate::per_second(1_000_000, 1_000_000);
     Rates {
         individual: rate,
         organization: rate,
         expensive_individual: rate,
         expensive_organization: rate,
+        failures: rate,
     }
-};
+}
 
 /// The signer of every test recipe [`crate::recipes::push_paper`] pushes.
 pub const TEST_SIGNER: &str = "korpis-test";
@@ -103,7 +104,7 @@ impl Harness {
 
     /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
     pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
-        Self::build(heartbeat, denial_window, None, AcmeConfig::default(), UNMETERED).await
+        Self::build(heartbeat, denial_window, None, AcmeConfig::default(), unmetered()).await
     }
 
     /// A control plane charging the client API's requests at `rates` (§10 of docs/10-api.md).
@@ -117,7 +118,7 @@ impl Harness {
     pub async fn with_resolver(resolver: std::net::SocketAddr) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default(), UNMETERED).await
+        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default(), unmetered()).await
     }
 
     /// A control plane ordering certificates from the ACME directory `acme` names, and resolving
@@ -125,7 +126,7 @@ impl Harness {
     pub async fn with_acme(acme: AcmeConfig, resolver: Option<std::net::SocketAddr>) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, resolver, acme, UNMETERED).await
+        Self::build(heartbeat, window, resolver, acme, unmetered()).await
     }
 
     async fn build(

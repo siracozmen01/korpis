@@ -4,6 +4,7 @@
 //! and how it turned out. Every action is one, refusals included.
 
 pub mod denial;
+pub mod failure;
 
 use crate::principal::Principal;
 use serde_json::{Map, Value};

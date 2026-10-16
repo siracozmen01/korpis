@@ -13,6 +13,8 @@ use connectrpc::{ConnectError, InboundStream};
 use futures_util::StreamExt as _;
 use korpis_app::node::{Hello, NodeProof, Session};
 use korpis_app::ports::NodeFacts;
+use korpis_core::audit::failure::Attempt;
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
@@ -21,6 +23,7 @@ use korpis_wire::duration;
 use korpis_wire::node::{
     advertised_from_pb, drivers_from_pb, resources_from_pb, storage_classes_from_pb,
 };
+use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -101,10 +104,12 @@ fn welcome(app: &ServerApp, s: &Session) -> agent::ControlMessage {
     }
 }
 
-/// Reads the Hello, opens the session, and returns where the control plane's messages go out.
+/// Reads the Hello, from `ip`, opens the session, and returns where the control plane's messages
+/// go out. A Hello that does not prove its node is a failed attempt naming that node.
 pub(super) async fn open(
     api: &Api,
     mut requests: InboundStream<agent::AgentMessage>,
+    ip: Option<IpAddr>,
 ) -> Result<mpsc::Receiver<agent::ControlMessage>, ConnectError> {
     let (app, sessions) = (&api.app, &api.sessions);
     let first = requests.next().await.ok_or_else(|| error::invalid("hello", "required"))??;
@@ -112,7 +117,12 @@ pub(super) async fn open(
     let Some(Up::Hello(hello)) = first.message.as_ref() else {
         return Err(error::invalid("hello", "the first message of a session is a Hello"));
     };
-    let session = app.open_session(hello_from_pb(hello)?).await.map_err(error::from_app)?;
+    let proof = hello_from_pb(hello)?;
+    let named = Some(ObjectRef::new(Kind::Node, proof.node));
+    let session = match app.open_session(proof).await {
+        Ok(session) => session,
+        Err(e) => return Err(api.failed(e, (Attempt::Hello, ip, named)).await),
+    };
     let (tx, rx) = mpsc::channel(OUTBOUND);
     tx.send(welcome(app, &session)).await.map_err(|e| error::internal(&e))?;
     let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;

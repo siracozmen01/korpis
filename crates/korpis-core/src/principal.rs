@@ -62,6 +62,9 @@ impl SystemActor {
     }
 }
 
+/// The key of [`Principal::Anonymous`].
+const ANONYMOUS: &str = "anonymous";
+
 /// A principal, in structured form.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Principal {
@@ -78,6 +81,9 @@ pub enum Principal {
     Extension(Uuid),
     /// The control plane itself.
     System(SystemActor),
+    /// Whoever presented a credential that opened nothing: the actor of a failed attempt to
+    /// authenticate, known only by where it came from (§10 of docs/10-api.md). It holds nothing.
+    Anonymous,
     /// One person, verified by an identity provider extension.
     ExternalUser {
         /// The provider, e.g. `discord`.
@@ -137,7 +143,8 @@ impl Principal {
             | Self::Link(_)
             | Self::Workload(_)
             | Self::Extension(_)
-            | Self::System(_) => Ok(()),
+            | Self::System(_)
+            | Self::Anonymous => Ok(()),
         }
     }
 
@@ -151,6 +158,7 @@ impl Principal {
             Self::Workload(id) => format!("workload:{id}"),
             Self::Extension(id) => format!("extension:{id}"),
             Self::System(actor) => format!("system:{}", actor.name()),
+            Self::Anonymous => ANONYMOUS.to_owned(),
             Self::ExternalUser { provider, user } => format!("ext:{provider}:user:{user}"),
             Self::ExternalSet { provider, realm, member_of } => {
                 format!("ext:{provider}:set:{realm}:{member_of}")
@@ -167,6 +175,9 @@ impl Principal {
     /// The principal a key names.
     pub fn from_key(key: &str) -> Result<Self, PrincipalError> {
         let bad = || PrincipalError::BadKey(key.to_owned());
+        if key == ANONYMOUS {
+            return Ok(Self::Anonymous);
+        }
         let (kind, rest) = key.split_once(':').ok_or_else(bad)?;
         let uuid = || Uuid::parse_str(rest).map_err(|_| bad());
         let principal = match kind {
@@ -222,6 +233,7 @@ mod tests {
             Principal::Workload(Uuid::now_v7()),
             Principal::Extension(Uuid::now_v7()),
             Principal::System(SystemActor::Bootstrap),
+            Principal::Anonymous,
             Principal::ExternalUser { provider: "discord".into(), user: "12:34".into() },
             Principal::ExternalSet {
                 provider: "discord".into(),

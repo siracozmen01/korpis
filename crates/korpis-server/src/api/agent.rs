@@ -14,13 +14,14 @@ mod uplink;
 
 pub(super) use session::proof_from_pb;
 
+use super::Api;
 use super::wire::{timestamp, wire_id};
-use super::{Api, error};
 use connectrpc::{
     InboundStream, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
 use korpis_app::node::{Enroll, Enrolled};
 use korpis_app::ports::VerifyKey;
+use korpis_core::audit::failure::Attempt;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::agent::v1 as agent;
 
@@ -56,16 +57,20 @@ impl agent::AgentService for Api {
             hostname: req.hostname,
             source_ip: ctx.peer_addr().map(|a| a.ip()),
         };
-        let enrolled = self.app.enroll(cmd).await.map_err(error::from_app)?;
+        let ip = cmd.source_ip;
+        let enrolled = match self.app.enroll(cmd).await {
+            Ok(enrolled) => enrolled,
+            Err(e) => return Err(self.failed(e, (Attempt::Join, ip, None)).await),
+        };
         Response::ok(enrolled_to_pb(&enrolled))
     }
 
     async fn session(
         &self,
-        _ctx: RequestContext,
+        ctx: RequestContext,
         requests: InboundStream<agent::AgentMessage>,
     ) -> ServiceResult<ServiceStream<agent::ControlMessage>> {
-        let rx = session::open(self, requests).await?;
+        let rx = session::open(self, requests, ctx.peer_addr().map(|a| a.ip())).await?;
         let out = futures_util::stream::unfold(rx, |mut rx| async move {
             rx.recv().await.map(|m| (Ok(m), rx))
         });

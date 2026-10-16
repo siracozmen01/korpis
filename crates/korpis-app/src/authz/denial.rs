@@ -48,8 +48,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Writes the repeats of every run of denials whose window has closed by now, and forgets
-    /// the runs; returns how many runs it closed. The composition root calls it periodically,
+    /// Writes the repeats of every run of denials, and of failed attempts to authenticate, whose
+    /// window has closed by now, and forgets the runs; returns how many runs it closed. The composition root calls it periodically,
     /// so a run that stops repeating is still written within about one window of its last
     /// repeat.
     ///
@@ -65,7 +65,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 closed += 1;
             }
         }
-        Ok(closed)
+        Ok(closed + self.close_failure_runs(now).await?)
     }
 
     async fn close_run(&self, key: &DenialKey, now: SystemTime) -> Result<bool, AppError> {

@@ -35,6 +35,7 @@ mod endpoints;
 mod enroll;
 mod events;
 mod extensions;
+mod failures;
 mod identity;
 mod issuance;
 mod issuance_dns;

@@ -92,6 +92,7 @@ fn who(s: Option<&pb::Subject>) -> String {
         Some(S::Link(grant)) => format!("link {grant}"),
         Some(S::External(e)) => format!("{} identity", e.provider),
         Some(S::System(_)) => "the control plane".into(),
+        Some(S::Anonymous(_)) => "someone unauthenticated".into(),
         None => "someone".into(),
     }
 }

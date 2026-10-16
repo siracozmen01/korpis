@@ -99,6 +99,7 @@ fn who(s: Option<&pb::Subject>) -> String {
             None => "-".into(),
         },
         Some(S::System(a)) => short(a, "SYSTEM_ACTOR_"),
+        Some(S::Anonymous(_)) => "anonymous".into(),
         None => "-".into(),
     }
 }

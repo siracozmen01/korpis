@@ -17,6 +17,7 @@ fn subject(s: Option<&pb::Subject>) -> String {
         Some(S::Link(grant)) => format!("link {grant}"),
         Some(S::External(_)) => "external".into(),
         Some(S::System(_)) => "system".into(),
+        Some(S::Anonymous(_)) => "anonymous".into(),
         None => "-".into(),
     }
 }
