@@ -20,23 +20,9 @@ use korpis_wire::observation::observation_to_pb;
 /// Everything a client needs to render one workload (§4.3 of docs/02-architecture.md), its
 /// placement as the caller may see it. The observation is empty until a node reports one.
 pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
-    let placed = v.placement.as_ref().and_then(|p| p.node);
     pb::WorkloadStatus {
-        endpoints: v
-            .endpoints
-            .iter()
-            .map(|(e, addresses)| {
-                let mut shown = korpis_wire::endpoint::endpoint_to_pb(e, addresses);
-                // The addresses are what a client connects to; the node is named only to a
-                // caller who may see where the workload is placed.
-                if placed != Some(e.node)
-                    && let Some(a) = shown.address.as_option_mut()
-                {
-                    a.node = String::new();
-                }
-                shown
-            })
-            .collect(),
+        endpoints: endpoints(v),
+        certificates: certificates(v),
         workload: workload_to_pb(&v.workload, &v.power).into(),
         target: v.target.as_ref().map(intent_to_pb).into(),
         head: intent_to_pb(&v.head).into(),
@@ -77,6 +63,40 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
             .into(),
         ..Default::default()
     }
+}
+
+/// Its endpoints as placed; the node is named only to a caller who may see where the workload is
+/// placed, the addresses being what a client connects to.
+fn endpoints(v: &WorkloadView) -> Vec<pb::Endpoint> {
+    let placed = v.placement.as_ref().and_then(|p| p.node);
+    v.endpoints
+        .iter()
+        .map(|(e, addresses)| {
+            let mut shown = korpis_wire::endpoint::endpoint_to_pb(e, addresses);
+            if placed != Some(e.node)
+                && let Some(a) = shown.address.as_option_mut()
+            {
+                a.node = String::new();
+            }
+            shown
+        })
+        .collect()
+}
+
+/// The certificate of each of its ingress endpoints, without its chain.
+fn certificates(v: &WorkloadView) -> Vec<pb::EndpointCertificate> {
+    v.certificates
+        .iter()
+        .map(|(endpoint, c)| pb::EndpointCertificate {
+            endpoint: endpoint.clone(),
+            certificate: pb::Certificate {
+                chain: String::new(),
+                ..korpis_wire::certificate::certificate_to_pb(c)
+            }
+            .into(),
+            ..Default::default()
+        })
+        .collect()
 }
 
 /// The set a request names, if it names one.

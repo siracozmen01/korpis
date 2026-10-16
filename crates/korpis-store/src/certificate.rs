@@ -9,15 +9,19 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{
-    CertificateRead, CertificateWrite, HttpOffer, SealedKey, StandingRecord, StoreError,
+    CertificateRead, CertificateWrite, Expiry, HttpOffer, SealedKey, StandingRecord, StoreError,
     StoreResult,
 };
-use korpis_core::dns::certificate::{Certificate, HttpChallenge, Owner, Source, State};
+use korpis_core::dns::certificate::{
+    Certificate, ExpiryAlert, HttpChallenge, Owner, Source, State,
+};
 use korpis_core::dns::domain::Route;
+use korpis_core::event::Severity;
 use korpis_core::workload::endpoint::Served;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+mod expiry;
 mod issue;
 
 pub(crate) struct CertificateRow {
@@ -127,6 +131,22 @@ impl CertificateRead for PgStore {
         .map_err(from_sqlx)?;
         rows.into_iter().map(Certificate::try_from).collect()
     }
+
+    async fn certificate_expiries(&self) -> StoreResult<Vec<Expiry>> {
+        expiry::certificate_expiries(&self.pool).await
+    }
+
+    async fn routed_certificates(&self, workload: Uuid) -> StoreResult<Vec<(String, Uuid)>> {
+        let rows = sqlx::query!(
+            r#"SELECT DISTINCT endpoint, certificate_id AS "certificate!" FROM route
+                WHERE workload_id = $1 AND certificate_id IS NOT NULL ORDER BY endpoint"#,
+            workload
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.endpoint, r.certificate)).collect())
+    }
 }
 
 impl CertificateWrite for PgTx {
@@ -200,7 +220,9 @@ impl CertificateWrite for PgTx {
             "UPDATE certificate
                 SET names = $2, chain = $3, key_sealed = $4, sealed_by = $5, not_before = $6,
                     not_after = $7, state = $8, reason = $9, renew_after = $10, revision = $11,
-                    attempts = $12, next_attempt_at = $13, issuing_until = NULL
+                    attempts = $12, next_attempt_at = $13, issuing_until = NULL,
+                    expiry_alert = CASE WHEN not_after IS DISTINCT FROM $7 THEN NULL
+                                        ELSE expiry_alert END
               WHERE id = $1",
             c.id,
             &c.names,
@@ -287,6 +309,14 @@ impl CertificateWrite for PgTx {
 
     async fn remove_orphans(&mut self) -> StoreResult<u64> {
         issue::remove_orphans(self).await
+    }
+
+    async fn alert_certificate(
+        &mut self,
+        alert: &ExpiryAlert,
+        expected: Option<Severity>,
+    ) -> StoreResult<bool> {
+        expiry::alert_certificate(self, alert, expected).await
     }
 
     async fn put_record(

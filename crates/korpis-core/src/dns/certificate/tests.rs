@@ -83,6 +83,19 @@ fn failed_attempts_back_off_from_five_minutes_to_a_day() {
 }
 
 #[test]
+fn expiry_is_told_in_the_certificates_own_life() {
+    use crate::event::Severity;
+    let day = |n: u64| at(n * 86_400);
+    // Ninety days: renewed at sixty, told at seventy-five, critical at eighty-five.
+    assert_eq!(expiry_alert(day(0), day(90), day(74)), None);
+    assert_eq!(expiry_alert(day(0), day(90), day(75)), Some(Severity::Warning));
+    assert_eq!(expiry_alert(day(0), day(90), day(85)), Some(Severity::Critical));
+    assert_eq!(expiry_alert(day(0), day(90), day(91)), Some(Severity::Critical), "expired");
+    // Six days is not told all its life.
+    assert_eq!(expiry_alert(day(0), day(6), day(4)), None);
+}
+
+#[test]
 fn renewal_begins_two_thirds_through_a_certificates_life() {
     assert_eq!(renew_after(at(0), at(90 * 86_400)), at(60 * 86_400));
     assert_eq!(renew_after(at(10), at(5)), at(10), "a life that ends before it begins");

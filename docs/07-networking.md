@@ -441,23 +441,32 @@ claimed, the certificate locked against change until the claim commits. Its orga
 it in place, keeping its identifier, with a chain that still covers every name served with it,
 which is how a provided certificate is renewed without declaring the endpoints again; it cannot be
 deleted while an endpoint serves with it, which the route records. The control plane says when one
-nears expiry, but it cannot renew it. Every private key is stored sealed by the control plane's TLS
-key, in its data directory beside its backup key (§6 of `18-operations.md`), and a node obtains an
-endpoint's certificate and key by asking for it over its session (`CertificateRequest`, §4.2 of
-`02-architecture.md`), which is answered only to a node an endpoint served with it is placed on.
-The endpoint as placed names the certificate and its revision, which every replacement or renewal
-raises, so the node's assignment changes and the node asks again. The node keeps what it serves in
-its state directory, readable by the agent alone, so a restart while the control plane is
-unreachable still serves (§4.6 of `02-architecture.md`), and removes a certificate, key and all,
-once no endpoint placed on it serves with it. **What evaluates this, where, and with what
-information:** issuance and renewal, the control plane, which holds the endpoint, its placement,
-its holder's DNS providers, and the account; the challenge's answer, the proxy, from the token it
-was given; which certificate a connection gets, the proxy, from the SNI the client sent. What it
-costs: a node holds the private keys of the endpoints placed on it, which a compromised node could
-take, as it could already read the workloads' own memory, and which removing a node as compromised
-therefore revokes and replaces (§9 of `17-security.md`); and an issuance that fails, because the
-name does not point at the node yet or the directory refuses, leaves the endpoint served on 80
-alone, its observation saying why, and is retried with the directory's back-off.
+nears expiry, but it cannot renew it: every issued certificate, of either source, is a
+`certificate.expiring` event in its organization once five sixths of its life have passed, a
+warning, and critical at seventeen eighteenths, each once for one validity, the control plane
+looking hourly; measured in its own life, so a certificate of days and one of a year are each told
+in time, and an `acme` one, renewed at two thirds, is told only when its renewal is late. Every
+private key is stored sealed by the control plane's TLS key, in its data directory beside its
+backup key (§6 of `18-operations.md`), and a node obtains an endpoint's certificate and key by
+asking for it over its session (`CertificateRequest`, §4.2 of `02-architecture.md`), which is
+answered only to a node an endpoint served with it is placed on. The endpoint as placed names the
+certificate and its revision, which every replacement or renewal raises, so the node's assignment
+changes and the node asks again. The node keeps what it serves in its state directory, readable by
+the agent alone, so a restart while the control plane is unreachable still serves (§4.6 of
+`02-architecture.md`), and removes a certificate, key and all, once no endpoint placed on it serves
+with it. **What evaluates this, where, and with what information:** issuance and renewal, the
+control plane, which holds the endpoint, its placement, its holder's DNS providers, and the
+account; the challenge's answer, the proxy, from the token it was given; which certificate a
+connection gets, the proxy, from the SNI the client sent. What it costs: a node holds the private
+keys of the endpoints placed on it, which a compromised node could take, as it could already read
+the workloads' own memory, and which removing a node as compromised therefore revokes and replaces
+(§9 of `17-security.md`); and an issuance that fails, because the name does not point at the node
+yet or the directory refuses, leaves the endpoint served on 80 alone, its status saying why, and is
+retried after the back-off. The status shows each ingress endpoint's certificate beside the
+workload's endpoints: its state, its validity, and for one not issued its reason, which are the
+control plane's own records rather than an observation a node reported. (Corrected 2026-10-16, when
+it was built: this said the endpoint's observation, which is what a node reports, and no node knows
+why a directory refused.)
 
 What the ingress does not do in Phase 1, stated plainly: HTTP/3, which needs the UDP path an edge
 tier brings; HTTP/2 or gRPC to the workload, since a backend's protocol beyond HTTP/1.1 is not yet

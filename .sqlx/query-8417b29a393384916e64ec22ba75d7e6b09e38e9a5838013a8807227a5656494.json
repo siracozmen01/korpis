@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, organization_id, names, source, not_before AS \"not_before!\",\n                  not_after AS \"not_after!\", expiry_alert\n             FROM certificate\n            WHERE state = 'issued' AND not_before IS NOT NULL AND not_after IS NOT NULL\n            ORDER BY not_after",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "names",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "names"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "not_before!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "not_before"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "not_after!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "not_after"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "expiry_alert",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "expiry_alert"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8417b29a393384916e64ec22ba75d7e6b09e38e9a5838013a8807227a5656494"
+}

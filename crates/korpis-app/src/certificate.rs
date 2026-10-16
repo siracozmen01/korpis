@@ -8,6 +8,7 @@
 //! which endpoints do is recorded on their routes, so the check holds however a deletion and a
 //! claim interleave.
 
+mod expiry;
 mod issue;
 mod publish;
 mod serve;

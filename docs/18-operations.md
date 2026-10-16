@@ -521,7 +521,10 @@ every node disconnecting within the same hour, at 03:00, on a holiday.
 - Approaching expiry is an event with escalating severity (§5 of `15-observability.md`), not a log
   line nobody reads. As built for relays: a relay certificate fourteen days from expiry is a
   `relay.certificate_expiring` warning, three days from it critical, each reported once, and a
-  renewal starts the count again; the control plane looks hourly.
+  renewal starts the count again; the control plane looks hourly. As built for the ingress's
+  certificates, measured in each one's own life since they range from days to years: five sixths
+  through it is a `certificate.expiring` warning, seventeen eighteenths critical, reported to the
+  certificate's organization once each per validity (§3.2 of `07-networking.md`).
 - Manual rotation exists and is a documented, rehearsed operation, because it is what a compromise
   requires (§9 of `17-security.md`).
 

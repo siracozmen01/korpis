@@ -6,8 +6,9 @@
 use super::HttpOffer;
 use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;
-use korpis_core::dns::certificate::{Certificate, HttpChallenge, Leaf, Owner};
+use korpis_core::dns::certificate::{Certificate, ExpiryAlert, HttpChallenge, Leaf, Owner, Source};
 use korpis_core::dns::domain::Route;
+use korpis_core::event::Severity;
 use korpis_core::workload::endpoint::Served;
 use std::future::Future;
 use std::time::SystemTime;
@@ -40,6 +41,25 @@ pub trait TlsVault: Send + Sync + std::fmt::Debug {
         certificate: Uuid,
         sealed: &SealedKey,
     ) -> Result<zeroize::Zeroizing<String>, VaultError>;
+}
+
+/// An issued certificate's validity, and the expiry alert last reported for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Expiry {
+    /// The certificate.
+    pub certificate: Uuid,
+    /// Its organization.
+    pub organization: Uuid,
+    /// The names it covers.
+    pub names: Vec<String>,
+    /// Where it came from.
+    pub source: Source,
+    /// Valid from.
+    pub not_before: SystemTime,
+    /// Valid until.
+    pub not_after: SystemTime,
+    /// The alert last reported, if any.
+    pub alerted: Option<Severity>,
 }
 
 /// A DNS-01 challenge record published for a certificate and not yet withdrawn.
@@ -75,6 +95,15 @@ pub trait CertificateRead {
         organization: Uuid,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Certificate>>> + Send;
+
+    /// Every issued certificate's validity, with the expiry alert last reported for it.
+    fn certificate_expiries(&self) -> impl Future<Output = StoreResult<Vec<Expiry>>> + Send;
+
+    /// The certificates `workload`'s routes are served with, each with its endpoint's name.
+    fn routed_certificates(
+        &self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<(String, Uuid)>>> + Send;
 }
 
 /// Writing certificates.
@@ -156,6 +185,14 @@ pub trait CertificateWrite {
 
     /// Removes the `acme` certificates no route names and nothing holds; how many went.
     fn remove_orphans(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Records `alert` and appends its event, if the alert last reported for the certificate is
+    /// still `expected` and its validity still ends at the alert's; whether it did.
+    fn alert_certificate(
+        &mut self,
+        alert: &ExpiryAlert,
+        expected: Option<Severity>,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Records that a challenge record for the certificate was asked of the DNS provider
     /// `provider`, applied for `owner`.

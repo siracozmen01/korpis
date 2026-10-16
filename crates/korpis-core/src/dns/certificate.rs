@@ -7,6 +7,7 @@
 //! leaf says, and what follows from it, is decided here.
 
 use super::domain::DomainName;
+use crate::event::Severity;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -217,6 +218,59 @@ impl Certificate {
 pub fn renew_after(not_before: SystemTime, not_after: SystemTime) -> SystemTime {
     let life = not_after.duration_since(not_before).unwrap_or(Duration::ZERO);
     not_before + life / 3 * 2
+}
+
+/// How near `not_after` a certificate valid from `not_before` is at `now`, as an event says it:
+/// a warning once five sixths of its life have passed, critical once seventeen eighteenths have.
+/// Measured in its own life rather than in days, so a certificate of six days and one of a year
+/// are each told in time to act and neither is told all its life; an `acme` one, renewed at two
+/// thirds, is told only when its renewal is half its window late.
+#[must_use]
+pub fn expiry_alert(
+    not_before: SystemTime,
+    not_after: SystemTime,
+    now: SystemTime,
+) -> Option<Severity> {
+    let life = not_after.duration_since(not_before).unwrap_or(Duration::ZERO);
+    let left = not_after.duration_since(now).unwrap_or(Duration::ZERO);
+    if left <= life / 18 {
+        Some(Severity::Critical)
+    } else if left <= life / 6 {
+        Some(Severity::Warning)
+    } else {
+        None
+    }
+}
+
+/// A certificate came a step closer to expiring: an event, keyed to the certificate, in its
+/// organization.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpiryAlert {
+    /// The certificate.
+    pub certificate: Uuid,
+    /// Its organization.
+    pub organization: Uuid,
+    /// The names it covers.
+    pub names: Vec<String>,
+    /// Where it came from.
+    pub source: Source,
+    /// When it expires.
+    pub not_after: SystemTime,
+    /// How close that is.
+    pub severity: Severity,
+    /// When it was decided, on the control plane's clock.
+    pub at: SystemTime,
+}
+
+impl ExpiryAlert {
+    /// The event's kind.
+    pub const KIND: &'static str = "certificate.expiring";
+
+    /// The event's key: one ordered history per certificate.
+    #[must_use]
+    pub fn key(&self) -> String {
+        format!("certificate:{}", self.certificate)
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE certificate SET expiry_alert = $2\n          WHERE id = $1 AND expiry_alert IS NOT DISTINCT FROM $3 AND not_after = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36591f1c3ee26999a6a8e68488e6be80ca31fbae264b0ecca7d20303325e005f"
+}

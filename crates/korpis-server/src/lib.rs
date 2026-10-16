@@ -225,7 +225,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(provider_calls::dispatch(Arc::clone(api)));
     tokio::spawn(revocations::keep(Arc::clone(api)));
     tokio::spawn(named_relays::keep(Arc::clone(api)));
-    tokio::spawn(alert_relay_certificates(Arc::clone(api)));
+    tokio::spawn(alert_certificates(Arc::clone(api)));
     tokio::spawn(reachability::keep(Arc::clone(api)));
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
     tokio::spawn(expire_offloaded(Arc::clone(api)));
@@ -299,9 +299,10 @@ async fn track_conditions(api: Arc<Api>) {
     }
 }
 
-/// Reports, hourly, each relay certificate that came a step closer to expiring (§7 of
-/// docs/18-operations.md). The task ends with the process.
-async fn alert_relay_certificates(api: Arc<Api>) {
+/// Reports, hourly, each relay certificate and each ingress certificate that came a step closer to
+/// expiring (§7 of docs/18-operations.md, §3.2 of docs/07-networking.md). The task ends with the
+/// process.
+async fn alert_certificates(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(3600));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
@@ -310,6 +311,11 @@ async fn alert_relay_certificates(api: Arc<Api>) {
             Ok(0) => {}
             Ok(n) => tracing::warn!(relays = n, "relay certificates nearing expiry"),
             Err(e) => tracing::warn!(error = %e, "checking relay certificates failed"),
+        }
+        match api.app().alert_certificates().await {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(certificates = n, "ingress certificates nearing expiry"),
+            Err(e) => tracing::warn!(error = %e, "checking ingress certificates failed"),
         }
     }
 }

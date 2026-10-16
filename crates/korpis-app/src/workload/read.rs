@@ -44,6 +44,9 @@ pub struct WorkloadView {
     /// Its endpoints as placed, each with the addresses its node advertises, which a client
     /// reaches the ports at (§3 of docs/07-networking.md).
     pub endpoints: Vec<(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)>,
+    /// The certificate each of its ingress endpoints is served with, by endpoint name, once its
+    /// names are routed (§3.2 of docs/07-networking.md).
+    pub certificates: Vec<(String, korpis_core::dns::certificate::Certificate)>,
 }
 
 /// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
@@ -100,7 +103,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let addresses = node.and_then(|n| n.advertised).map(|a| a.addresses);
             endpoints.push((e, addresses.unwrap_or_default()));
         }
+        let mut certificates = Vec::new();
+        for (endpoint, c) in self.store.routed_certificates(id).await? {
+            if let Some(found) = self.store.certificate(c).await? {
+                certificates.push((endpoint, found));
+            }
+        }
         let view = WorkloadView {
+            certificates,
             endpoints,
             drift,
             workload,

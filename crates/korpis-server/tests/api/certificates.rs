@@ -198,3 +198,53 @@ async fn the_key_goes_to_the_node_its_endpoint_is_placed_on_and_again_when_repla
     h.certificates(h.root()).replace_certificate(replace).await.unwrap();
     until(&mut s, carries(2)).await;
 }
+
+/// A self-signed certificate for `names` valid from `since` ago until `left` from now.
+fn issued_for(names: &[&str], since: time::Duration, left: time::Duration) -> (String, String) {
+    let names: Vec<String> = names.iter().map(|n| (*n).to_owned()).collect();
+    let mut params = rcgen::CertificateParams::new(names).unwrap();
+    let now = time::OffsetDateTime::now_utc();
+    (params.not_before, params.not_after) = (now - since, now + left);
+    let key = rcgen::KeyPair::generate().unwrap();
+    (params.self_signed(&key).unwrap().pem(), key.serialize_pem())
+}
+
+#[tokio::test]
+async fn a_certificate_near_expiry_is_told_once_a_step_to_its_organization() {
+    let h = Harness::new().await;
+    let near =
+        issued_for(&["shop.example.com"], time::Duration::days(80), time::Duration::days(10));
+    let made = upload(&h, "c1", &h.root_org(), near).await;
+    let far = issued_for(&["www.example.com"], time::Duration::days(1), time::Duration::days(89));
+    upload(&h, "c2", &h.root_org(), far).await;
+
+    assert_eq!(h.api.app().alert_certificates().await.unwrap(), 1, "five sixths of its life");
+    assert_eq!(h.api.app().alert_certificates().await.unwrap(), 0, "told once");
+    let store = h.db.store().await.unwrap();
+    let (key, severity): (String, String) =
+        sqlx::query_as("SELECT key, severity FROM event WHERE kind = 'certificate.expiring'")
+            .fetch_one(store.pool())
+            .await
+            .unwrap();
+    let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Certificate, &made.id).unwrap();
+    assert_eq!((key, severity.as_str()), (format!("certificate:{}", id.uuid()), "warning"));
+
+    let closer =
+        issued_for(&["shop.example.com"], time::Duration::days(88), time::Duration::days(2));
+    let req = pb::ReplaceCertificateRequest {
+        mutation: mutation("c1-again").into(),
+        id: made.id.clone(),
+        chain: closer.0,
+        key: closer.1,
+        ..Default::default()
+    };
+    h.certificates(h.root()).replace_certificate(req).await.unwrap();
+    assert_eq!(h.api.app().alert_certificates().await.unwrap(), 1, "a new validity, told again");
+    let severities: Vec<String> = sqlx::query_scalar(
+        "SELECT severity FROM event WHERE kind = 'certificate.expiring' ORDER BY seq",
+    )
+    .fetch_all(store.pool())
+    .await
+    .unwrap();
+    assert_eq!(severities, ["warning", "critical"]);
+}

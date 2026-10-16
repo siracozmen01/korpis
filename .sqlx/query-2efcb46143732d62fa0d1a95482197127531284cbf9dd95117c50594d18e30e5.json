@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT endpoint, certificate_id AS \"certificate!\" FROM route\n                WHERE workload_id = $1 AND certificate_id IS NOT NULL ORDER BY endpoint",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "endpoint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "route",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "certificate!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "route",
+            "name": "certificate_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "2efcb46143732d62fa0d1a95482197127531284cbf9dd95117c50594d18e30e5"
+}

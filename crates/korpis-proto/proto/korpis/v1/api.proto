@@ -402,6 +402,17 @@ message WorkloadStatus {
   // Its endpoints as placed: the exposure each resolved to and where it is reached (§3 of
   // docs/07-networking.md). Empty while it is not placed.
   repeated Endpoint endpoints = 10;
+  // The certificate each of its ingress endpoints is served with, as the control plane holds it:
+  // its state, its validity, and for one not issued why (§3.2 of docs/07-networking.md). Without
+  // its chain. Present once the endpoint's names are routed.
+  repeated EndpointCertificate certificates = 11;
+}
+
+// An ingress endpoint's certificate.
+message EndpointCertificate {
+  // The endpoint, by name.
+  string endpoint = 1;
+  Certificate certificate = 2;
 }
 
 enum Convergence {

@@ -243,12 +243,13 @@ that generates events.
 Event
   id            EventID        global, increasing; a consumer's position is the last it acked
   key           workload:<id> | organization:<id> | provider:<org>:<type>:<name> | relay:<id>
+                | certificate:<id>
                                what it concerns, and so what orders it
   seq           int            per key, from 1, with no gaps: a consumer sees a hole as a hole
   at            Timestamp      the ingest clock, as for an effect
   kind          string         an effect's action, or a condition: `health.changed`,
                                `convergence.changed`, `provider.degraded`, `provider.recovered`,
-                               `relay.certificate_expiring`, ...
+                               `relay.certificate_expiring`, `certificate.expiring`, ...
   severity      info | warning | critical
   organization  OrgID
   workload      WorkloadID?
