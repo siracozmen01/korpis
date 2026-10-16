@@ -406,6 +406,34 @@ message WorkloadStatus {
   // its state, its validity, and for one not issued why (§3.2 of docs/07-networking.md). Without
   // its chain. Present once the endpoint's names are routed.
   repeated EndpointCertificate certificates = 11;
+  // Each name its ingress endpoints route, in DNS: the addresses it should resolve to, and
+  // whether a DNS provider of its organization publishes them, or its holder must (§3.5 of
+  // docs/07-networking.md).
+  repeated EndpointName names = 12;
+}
+
+// A name an ingress endpoint routes, in DNS.
+message EndpointName {
+  // The endpoint, by name.
+  string endpoint = 1;
+  string name = 2;
+  // What it should resolve to: its node's advertised addresses.
+  repeated string addresses = 3;
+  EndpointNameState state = 4;
+  // The DNS provider publishing it, or last asked to.
+  string provider = 5;
+  // Why, when it is not published.
+  string reason = 6;
+}
+
+enum EndpointNameState {
+  ENDPOINT_NAME_STATE_UNSPECIFIED = 0;
+  // Not yet asked of any provider.
+  ENDPOINT_NAME_STATE_PENDING = 1;
+  ENDPOINT_NAME_STATE_PUBLISHED = 2;
+  // No DNS provider of its organization serves its zone: its holder publishes it.
+  ENDPOINT_NAME_STATE_UNMANAGED = 3;
+  ENDPOINT_NAME_STATE_FAILED = 4;
 }
 
 // An ingress endpoint's certificate.

@@ -507,7 +507,9 @@ refused at load in step 4 that happens to be a *provider* (a DNS provider, say),
 dependents in `unsatisfiable` with the provider named, which is the same treatment
 `16-extensions.md` §5 gives a provider that is merely down. A refused-at-load provider and a
 crashed provider produce the same observable state, and that is correct: from a workload's
-perspective they are the same event.
+perspective they are the same event. (Corrected 2026-10-16: for a DNS provider, its dependents are
+the names it publishes, each `failed` in its workload's status with the provider named, not an
+observation, which is what a node reports; §3.5 of `07-networking.md`.)
 
 `18-operations.md` §10.5 already proposes `korpis upgrade --plan` to surface step 4 *before*
 anything moves. This trace is the argument that it is not optional.

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM endpoint_record\n          WHERE wanted IS NULL AND provider IS NULL\n            AND (applying_until IS NULL OR applying_until < $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51b9d41fc031ab107e7cab168186b7212f4970331887b1abfcd3b87b8180fec8"
+}

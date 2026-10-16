@@ -49,7 +49,7 @@ fn unavailable(e: impl std::fmt::Display) -> AcmeError {
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The DNS providers `organization` sees, by name, its own first: one of an ancestor of the
     /// same name is shadowed, as calls are routed (§3.3 of docs/16-extensions.md).
-    pub(super) async fn dns_providers(&self, organization: Uuid) -> Result<Vec<String>, AppError> {
+    pub(crate) async fn dns_providers(&self, organization: Uuid) -> Result<Vec<String>, AppError> {
         let mut names: Vec<String> = Vec::new();
         for org in self.organization_chain(organization).await? {
             let mut own: Vec<String> = self

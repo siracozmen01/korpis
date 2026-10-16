@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE endpoint_record\n            SET applied = $3, provider = $4, state = $5, reason = $6, attempts = $7,\n                next_attempt_at = $8, applying_until = NULL\n          WHERE endpoint_id = $1 AND name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "93f7124bc211fc919da4d0327e8802091c4d5083e174ba6f697533a1b9b329c7"
+}

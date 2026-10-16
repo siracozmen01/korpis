@@ -47,6 +47,9 @@ pub struct WorkloadView {
     /// The certificate each of its ingress endpoints is served with, by endpoint name, once its
     /// names are routed (§3.2 of docs/07-networking.md).
     pub certificates: Vec<(String, korpis_core::dns::certificate::Certificate)>,
+    /// Each name its ingress endpoints route, in DNS, by endpoint name (§3.5 of
+    /// docs/07-networking.md).
+    pub names: Vec<(String, korpis_core::dns::published::EndpointRecord)>,
 }
 
 /// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
@@ -109,7 +112,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 certificates.push((endpoint, found));
             }
         }
+        let mut names = Vec::new();
+        for r in self.store.endpoint_records(id).await? {
+            let endpoint = endpoints.iter().find(|(e, _)| e.id == r.endpoint);
+            if let Some((e, _)) = endpoint {
+                names.push((e.name.clone(), r));
+            }
+        }
         let view = WorkloadView {
+            names,
             certificates,
             endpoints,
             drift,

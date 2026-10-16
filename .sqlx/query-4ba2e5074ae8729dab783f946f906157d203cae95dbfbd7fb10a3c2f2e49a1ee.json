@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE endpoint_record r SET wanted = NULL, next_attempt_at = NULL\n          WHERE r.wanted IS NOT NULL\n            AND NOT EXISTS (SELECT 1 FROM endpoint e\n                             WHERE e.id = r.endpoint_id AND e.exposure = 'ingress'\n                               AND r.name = ANY (e.domains))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "4ba2e5074ae8729dab783f946f906157d203cae95dbfbd7fb10a3c2f2e49a1ee"
+}

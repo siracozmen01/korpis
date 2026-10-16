@@ -217,6 +217,10 @@ pub trait Store:
     /// Wakes, from now on, whenever an `acme` certificate is made, and on an interval besides,
     /// since a retry's or a renewal's time comes by the clock.
     fn certificates(&self) -> Self::Wakeups;
+
+    /// Wakes, from now on, whenever an endpoint is placed, moved, or removed, or a node's
+    /// advertised addresses change, and on an interval besides.
+    fn endpoint_changes(&self) -> Self::Wakeups;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.

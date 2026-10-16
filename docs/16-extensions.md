@@ -390,9 +390,10 @@ Calling out is the direction that carries risk, so the contract is strict:
 
 - Every provider call has a deadline. There is no unbounded wait on third-party code.
 - Failure behaviour is **declared per provider type**, never guessed. A DNS provider that is
-  unreachable does not block a workload from starting; the endpoint's observation becomes
-  `unsatisfiable` with the reason attached, and reconciliation retries, the same treatment §7 of
-  `05-scheduling.md` gives every other unsatisfiable condition. An identity provider that is
+  unreachable does not block a workload from starting; the name it was to publish is `failed` in
+  the workload's status with the provider and the reason attached, and reconciliation retries (§3.5
+  of `07-networking.md`). (Corrected 2026-10-16: this said the endpoint's observation became
+  `unsatisfiable`, but an observation is what a node reports.) An identity provider that is
   unreachable fails closed, because failing open there is an authentication bypass.
 - Providers are circuit-broken. A provider failing consistently is marked down, its dependents are
   marked `unsatisfiable` with the provider named, and it is retried on a backoff, instead of every

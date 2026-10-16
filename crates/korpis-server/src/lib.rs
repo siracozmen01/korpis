@@ -21,6 +21,7 @@ pub mod named_relays;
 mod provider_calls;
 pub mod providers;
 mod reachability;
+pub mod records;
 pub mod relay;
 mod repos;
 pub mod revocations;
@@ -232,6 +233,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
+    tokio::spawn(records::keep(Arc::clone(api)));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

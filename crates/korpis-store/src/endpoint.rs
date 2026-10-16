@@ -6,11 +6,14 @@ use crate::errors::from_sqlx;
 use crate::stored::from_time;
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{EndpointRead, EndpointWrite, StoreError, StoreResult};
+use korpis_core::dns::published::EndpointRecord;
 use korpis_core::node::advertised::PortRange;
 use korpis_core::workload::endpoint::{Endpoint, Served};
 use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
 use std::time::SystemTime;
 use uuid::Uuid;
+
+mod record;
 
 const PROTOCOLS: [(Protocol, &str); 5] = [
     (Protocol::Tcp, "tcp"),
@@ -122,6 +125,10 @@ impl EndpointRead for PgStore {
         domain(rows)
     }
 
+    async fn endpoint_records(&self, workload: Uuid) -> StoreResult<Vec<EndpointRecord>> {
+        record::endpoint_records(self, workload).await
+    }
+
     async fn endpoint(&self, id: Uuid) -> StoreResult<Option<Endpoint>> {
         let rows = sqlx::query_as!(
             EndpointRow,
@@ -150,6 +157,26 @@ impl EndpointRead for PgStore {
 }
 
 impl EndpointWrite for PgTx {
+    async fn sync_endpoint_records(&mut self, now: SystemTime) -> StoreResult<()> {
+        record::sync(self, now).await
+    }
+
+    async fn take_due_record(
+        &mut self,
+        now: SystemTime,
+        until: SystemTime,
+    ) -> StoreResult<Option<EndpointRecord>> {
+        record::take_due(self, now, until).await
+    }
+
+    async fn put_endpoint_record(&mut self, r: &EndpointRecord) -> StoreResult<()> {
+        record::put(self, r).await
+    }
+
+    async fn drop_endpoint_record(&mut self, endpoint: Uuid, name: &str) -> StoreResult<()> {
+        record::drop(self, endpoint, name).await
+    }
+
     async fn release_endpoints(
         &mut self,
         node: Uuid,

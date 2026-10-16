@@ -1,0 +1,161 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE endpoint_record SET applying_until = $2\n          WHERE (endpoint_id, name) = (\n                SELECT endpoint_id, name FROM endpoint_record\n                 WHERE (applying_until IS NULL OR applying_until < $1)\n                   AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                   AND (state IN ('pending', 'failed', 'unmanaged')\n                        OR wanted IS DISTINCT FROM applied)\n                 ORDER BY next_attempt_at NULLS FIRST, endpoint_id, name\n                 LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING endpoint_id, name, workload_id, organization_id, owner, wanted, applied,\n                    provider, state, reason, attempts, next_attempt_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "endpoint_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "endpoint_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "owner",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "owner"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "wanted",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "wanted"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "applied",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "applied"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "provider"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "next_attempt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "endpoint_record",
+            "name": "next_attempt_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "42e5ce6c492a71a88f8594420d07f8dc7c7427f519ca6f96aaedcb9f73d77041"
+}

@@ -23,6 +23,7 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
     pb::WorkloadStatus {
         endpoints: endpoints(v),
         certificates: certificates(v),
+        names: names(v),
         workload: workload_to_pb(&v.workload, &v.power).into(),
         target: v.target.as_ref().map(intent_to_pb).into(),
         head: intent_to_pb(&v.head).into(),
@@ -94,6 +95,30 @@ fn certificates(v: &WorkloadView) -> Vec<pb::EndpointCertificate> {
                 ..korpis_wire::certificate::certificate_to_pb(c)
             }
             .into(),
+            ..Default::default()
+        })
+        .collect()
+}
+
+/// Each name its ingress endpoints route, in DNS.
+fn names(v: &WorkloadView) -> Vec<pb::EndpointName> {
+    use korpis_core::dns::published::RecordState as S;
+    use pb::EndpointNameState as P;
+    v.names
+        .iter()
+        .map(|(endpoint, r)| pb::EndpointName {
+            endpoint: endpoint.clone(),
+            name: r.name.clone(),
+            addresses: r.wanted.iter().flatten().map(ToString::to_string).collect(),
+            state: match r.state {
+                S::Pending => P::ENDPOINT_NAME_STATE_PENDING,
+                S::Published => P::ENDPOINT_NAME_STATE_PUBLISHED,
+                S::Unmanaged => P::ENDPOINT_NAME_STATE_UNMANAGED,
+                S::Failed => P::ENDPOINT_NAME_STATE_FAILED,
+            }
+            .into(),
+            provider: r.provider.clone().unwrap_or_default(),
+            reason: r.reason.clone().unwrap_or_default(),
             ..Default::default()
         })
         .collect()

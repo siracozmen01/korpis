@@ -4,6 +4,8 @@
 //! are checked here, so a provider is only ever asked to publish what is well formed, and the
 //! call is an ordinary provider call: queued, deadline-bound, and judged by the breaker.
 
+mod records;
+
 use crate::App;
 use crate::error::AppError;
 use crate::extension::{CallTarget, Called};

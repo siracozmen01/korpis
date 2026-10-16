@@ -532,16 +532,32 @@ fails `dns.conflict`, neither retryable; an unreachable DNS service fails retrya
 is checked by the control plane before any provider is called, so all providers are asked the same
 well-formed thing.
 
-The reason for whole sets rather than add and delete: the call is then idempotent, so a retry
-after a lost answer, a provider replaced mid-way, or a resync after an outage all converge on the
-same records, and the control plane's reconciliation, which already works from desired state,
-needs nothing else. What it costs: every change resends the owner's whole set, a hundred records at
-most, and every provider must keep an ownership registry, which is the price of never deleting a
-record a person made. What it does not decide: which names an organization may publish. Zones are
-not yet objects with owners (§4.1 of `16-extensions.md`), so a DNS provider publishes, within the
-zones it manages, whatever its organization's endpoints ask for; when zones become objects, the
-check moves to the control plane, before the call. A failure makes the endpoint's observation
-`unsatisfiable` with the provider named, and reconciliation retries (§5 of `16-extensions.md`).
+The reason for whole sets rather than add and delete: the call is then idempotent, so a retry after
+a lost answer, a provider replaced mid-way, or a resync after an outage all converge on the same
+records, and the control plane's reconciliation, which already works from desired state, needs
+nothing else. What it costs: every change resends the owner's whole set, a hundred records at most,
+and every provider must keep an ownership registry, which is the price of never deleting a record a
+person made. Which names an organization may publish is decided before any provider is asked: only
+names an ingress endpoint routes are published, and a name is routed only by the organization
+holding it (§3.2). (Corrected 2026-10-16, when endpoints' records were built: this said zones were
+not objects, so a provider published whatever its organization's endpoints asked for until zones
+became objects. Zones still are not, but domains are, and holding a domain is the check.) **As
+built for endpoints.** Each name an ingress endpoint routes resolves to the addresses its node
+advertises, an `A` set and an `AAAA` set with a time to live of a minute, so a workload that moves
+is found at its new node a minute after its records change. Each name is applied for an owner of
+its own, the endpoint and a digest of the name (`ep_…/…`), so each is published through whichever
+provider serves its zone, asked in the order of §3.2: the one that published it before, then the
+others the organization sees, its own before its ancestors'. A name no provider serves is the
+holder's to publish, and the workload's status says so beside the name, `unmanaged`; the providers
+are asked again hourly, so one installed meanwhile takes it over. A name no longer routed is
+withdrawn from the provider that published it. A change of an endpoint or of its node's addresses
+wakes the reconciler, which also looks every thirty seconds, and takes each name under a lease, so
+replicas share the work. A failure does not touch the workload, which runs: the name is `failed` in
+the workload's status with the provider and its reason, and is retried after five minutes, doubling
+to a day. (Corrected 2026-10-16: this said the endpoint's observation became `unsatisfiable`, but
+an observation is what a node reports, and no node knows what a DNS provider answered.) What it
+does not do: publish anything for an endpoint of any other exposure, which names no domain in Phase
+1.
 
 ---
 

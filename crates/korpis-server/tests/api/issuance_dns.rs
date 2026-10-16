@@ -154,5 +154,8 @@ async fn a_name_a_dns_provider_serves_is_proven_by_dns_and_its_record_withdrawn(
         .await
         .unwrap();
     assert_eq!(standing, 0, "the record is withdrawn and forgotten");
-    assert!(publishing.owned.lock().unwrap().values().all(Vec::is_empty), "nothing left owned");
+    // The endpoint's own records stand beside it, under an owner of their own (§3.5).
+    let owned = publishing.owned.lock().unwrap().clone();
+    let challenge = owned.values().flatten().any(|n| n.starts_with("_acme-challenge."));
+    assert!(!challenge, "no challenge record left: {owned:?}");
 }
