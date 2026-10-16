@@ -46,7 +46,7 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
     let mut held = HeldSet::default();
     held.assignments.insert("w1".into(), w1);
     held.assignments.insert("w2".into(), unaddressed);
-    let c = config(&held, &addresses);
+    let c = config(&held, &addresses, Vec::new());
     let routes: Vec<_> = c
         .routes
         .iter()

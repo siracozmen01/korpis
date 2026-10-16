@@ -7,7 +7,7 @@ use crate::stored::from_time;
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{EndpointRead, EndpointWrite, StoreError, StoreResult};
 use korpis_core::node::advertised::PortRange;
-use korpis_core::workload::endpoint::Endpoint;
+use korpis_core::workload::endpoint::{Endpoint, Served};
 use korpis_core::workload::spec::endpoints::{Exposure, Protocol, TlsSpec};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -78,6 +78,8 @@ struct EndpointRow {
     domains: Vec<String>,
     tls: Option<String>,
     tls_secret: String,
+    certificate_id: Option<Uuid>,
+    certificate_revision: Option<i64>,
 }
 
 impl EndpointRow {
@@ -93,6 +95,10 @@ impl EndpointRow {
             port: self.port.map(|p| port("port", p)).transpose()?,
             domains: self.domains,
             tls: tls(self.tls.as_deref(), self.tls_secret)?,
+            certificate: self
+                .certificate_id
+                .zip(self.certificate_revision)
+                .map(|(id, revision)| Served { id, revision }),
         })
     }
 }
@@ -106,7 +112,7 @@ impl EndpointRead for PgStore {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret
+                    domains, tls, tls_secret, certificate_id, certificate_revision
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -120,7 +126,7 @@ impl EndpointRead for PgStore {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret
+                    domains, tls, tls_secret, certificate_id, certificate_revision
                FROM endpoint WHERE id = $1",
             id
         )
@@ -183,7 +189,7 @@ impl EndpointWrite for PgTx {
         let rows = sqlx::query_as!(
             EndpointRow,
             "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,
-                    domains, tls, tls_secret
+                    domains, tls, tls_secret, certificate_id, certificate_revision
                FROM endpoint WHERE workload_id = $1 ORDER BY name",
             workload
         )
@@ -214,13 +220,15 @@ impl EndpointWrite for PgTx {
         let (tls, tls_secret) = tls_columns(e.tls.as_ref());
         sqlx::query!(
             "INSERT INTO endpoint (id, workload_id, name, protocol, container_port, exposure,
-                                   node_id, port, created_at, domains, tls, tls_secret)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                                   node_id, port, created_at, domains, tls, tls_secret,
+                                   certificate_id, certificate_revision)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              ON CONFLICT (workload_id, name) DO UPDATE
                 SET protocol = EXCLUDED.protocol, container_port = EXCLUDED.container_port,
                     exposure = EXCLUDED.exposure, node_id = EXCLUDED.node_id,
                     port = EXCLUDED.port, domains = EXCLUDED.domains, tls = EXCLUDED.tls,
-                    tls_secret = EXCLUDED.tls_secret",
+                    tls_secret = EXCLUDED.tls_secret, certificate_id = EXCLUDED.certificate_id,
+                    certificate_revision = EXCLUDED.certificate_revision",
             e.id,
             e.workload,
             e.name,
@@ -232,7 +240,9 @@ impl EndpointWrite for PgTx {
             from_time(at),
             &e.domains,
             tls,
-            tls_secret
+            tls_secret,
+            e.certificate.map(|c| c.id),
+            e.certificate.map(|c| c.revision)
         )
         .execute(&mut *self.tx)
         .await

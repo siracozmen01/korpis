@@ -1153,6 +1153,9 @@ Endpoint
                                  organization holds, each routed by no other endpoint (§3.2
                                  of 07-networking.md)
   tls           TLSSpec?         acme (the default), provided (a Certificate), or passthrough
+  certificate   CertificateID?   for ingress the proxy terminates: the certificate it is served
+                                 with, once one with a key is held, and that certificate's
+                                 revision, so its node fetches it again when it changes
   policy        NetworkPolicy    who may connect to it, and how many at once; a workload's
                                  outbound rules are its own (IntentBody.egress), corrected
                                  2026-10-15 (§6 of 07-networking.md)

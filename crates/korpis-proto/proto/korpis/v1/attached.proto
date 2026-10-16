@@ -70,6 +70,11 @@ message Endpoint {
   NetworkPolicy policy = 11;
   bool accounting = 12;
   ShapingSpec shaping = 13;
+  // For an ingress endpoint the proxy terminates: the certificate it is served with, once one
+  // with a key is held, and that certificate's revision; its node fetches the certificate again
+  // when the revision changes (§3.2 of docs/07-networking.md).
+  string certificate = 14;
+  int64 certificate_revision = 15;
 }
 
 message Address {

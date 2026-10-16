@@ -292,6 +292,9 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
 | `Relays` | the relays to keep a data connection to, and whether the control plane serves the role itself; sent when the session opens and when they change (§3.1) |
 | `WorkloadCredential` | the answer to a `CredentialRequest`: a credential for the workload and its expiry, or the refusal (§9.5 of `08-identity.md`) |
+| `JobAccess` | the answer to a `JobAccessRequest`: the workload's data key and scoped access to its repository's store, or the refusal (§5.5 of `06-storage.md`) |
+| `StepResolution` | the answer to a `StepRequest`: what the provider step resolved to, or the refusal (§4 of `09-recipes.md`) |
+| `CertificateKey` | the answer to a `CertificateRequest`: the certificate's chain and key at its revision, or the refusal (§3.2 of `07-networking.md`) |
 
 **Agent → control plane**
 
@@ -308,6 +311,15 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `Ack` | the assignment set digest the agent has received |
 | `CredentialRequest` | a workload asked its identity socket for a credential; names the workload and a request identifier (§9.5 of `08-identity.md`) |
 | `ProbeListening` | the node is listening for a `ReachabilityProbe`, or why it could not |
+| `JobAccessRequest` | a backup, restore, or offload asks for what it needs; answered only to the node holding the workload's lease whose assignment carries the step (§5.5 of `06-storage.md`) |
+| `StepRequest` | an install asks for one of its provider steps to be resolved; answered only to the node the workload is placed on (§4 of `09-recipes.md`) |
+| `CertificateRequest` | the proxy needs a certificate an assignment names; answered only to a node an endpoint served with it is placed on (§3.2 of `07-networking.md`) |
+
+> Corrected 2026-10-16, when the node's certificate fetch was built. These tables lacked the
+> job-access and step-resolution exchanges, which were added to the protocol when backups (P1.3)
+> and provider steps (P1.4) were built and never listed here; a table of the protocol that is
+> missing messages is a restatement the corrections did not reach. They are listed now, beside the
+> certificate fetch.
 
 > Corrected 2026-10-14, from the implementation. `NodeStatus` was said to carry the node's
 > reachability. A node cannot know that from the inside (§9 of `07-networking.md`); it carries

@@ -87,4 +87,7 @@ pub struct Link {
     /// Told when what the node offers changes, such as its ingress being served; the session
     /// reports it at once rather than at the next heartbeat, so placement learns of it.
     pub offered: Arc<tokio::sync::Notify>,
+    /// The certificates the node's proxy serves with, asked for up this session and answered
+    /// down it (§3.2 of docs/07-networking.md).
+    pub certificates: Arc<crate::ingress::Certificates>,
 }

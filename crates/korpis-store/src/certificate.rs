@@ -11,6 +11,7 @@ use korpis_app::page::Page;
 use korpis_app::ports::{CertificateRead, CertificateWrite, SealedKey, StoreError, StoreResult};
 use korpis_core::dns::certificate::{Certificate, Source, State};
 use korpis_core::dns::domain::Route;
+use korpis_core::workload::endpoint::Served;
 use uuid::Uuid;
 
 struct CertificateRow {
@@ -63,6 +64,28 @@ impl CertificateRead for PgStore {
         .await
         .map_err(from_sqlx)?;
         row.map(Certificate::try_from).transpose()
+    }
+
+    async fn routed_with(&self, id: Uuid) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_scalar!(
+            "SELECT DISTINCT workload_id FROM route WHERE certificate_id = $1 ORDER BY workload_id",
+            id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)
+    }
+
+    async fn sealed_key(&self, id: Uuid) -> StoreResult<Option<SealedKey>> {
+        let row = sqlx::query!(
+            r#"SELECT key_sealed AS "sealed!", sealed_by AS "sealed_by!" FROM certificate
+                WHERE id = $1 AND key_sealed IS NOT NULL AND sealed_by IS NOT NULL"#,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(row.map(|r| SealedKey { sealed_by: r.sealed_by, sealed: r.sealed }))
     }
 
     async fn certificates_of(
@@ -180,6 +203,23 @@ impl CertificateWrite for PgTx {
             .await
             .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn served_for(&mut self, workload: Uuid) -> StoreResult<Vec<(String, Served)>> {
+        let rows = sqlx::query!(
+            "SELECT DISTINCT r.endpoint, c.id, c.revision
+               FROM route r JOIN certificate c ON c.id = r.certificate_id
+              WHERE r.workload_id = $1 AND c.key_sealed IS NOT NULL
+              ORDER BY r.endpoint",
+            workload
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.endpoint, Served { id: r.id, revision: r.revision }))
+            .collect())
     }
 
     async fn routes_served_by(&mut self, id: Uuid) -> StoreResult<Vec<Route>> {

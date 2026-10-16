@@ -131,7 +131,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let (Some(publish), Some(net)) = (&self.wiring.ingress, &self.wiring.network) else {
             return;
         };
-        let config = crate::ingress::config(held, &net.addresses);
+        let certificates = &self.wiring.certificates;
+        let wanted = crate::ingress::wanted(held);
+        for (id, revision) in &wanted {
+            certificates.want(id, *revision);
+        }
+        let served = certificates.serve(&wanted.into_keys().collect());
+        let config = crate::ingress::config(held, &net.addresses, served);
         publish.send_if_modified(|served| {
             let changed = *served != config;
             if changed {

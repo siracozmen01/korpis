@@ -2470,6 +2470,7 @@ dependencies = [
  "korpis-stream",
  "korpis-target-s3",
  "korpis-wire",
+ "rcgen",
  "reqwest",
  "rustls",
  "serde_json",

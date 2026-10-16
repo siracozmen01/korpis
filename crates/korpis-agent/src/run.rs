@@ -184,6 +184,30 @@ fn ingress<H: Host + Clone>(
     (Some(publish), Some(tokio::spawn(supervisor.run())))
 }
 
+/// The workloads' identity sockets, under `root` or `identity` in the state directory, answered
+/// through `credentials` and reaching `control_plane` (§9.5 of docs/08-identity.md).
+fn identity_sockets(
+    state: &StateDir,
+    root: Option<std::path::PathBuf>,
+    credentials: &Arc<crate::identity::Credentials>,
+    control_plane: ControlPlane,
+) -> Arc<IdentitySockets> {
+    let root = root.unwrap_or_else(|| state.root().join("identity"));
+    IdentitySockets::new(root, Arc::clone(credentials), control_plane)
+}
+
+/// What offloads the consoles in `streams`, its positions kept in the state directory.
+fn offloader(
+    state: &StateDir,
+    streams: &Streams,
+    (journal, jobs): (&JournalHandle, &Arc<crate::jobs::JobAccesses>),
+    period: Duration,
+) -> Result<Offloader, RunError> {
+    let positions = state.root().join("offloaded");
+    Offloader::new(&positions, streams.located(), (journal.clone(), Arc::clone(jobs)), period)
+        .map_err(|source| RunError::Io { what: "the streams offloaded", source })
+}
+
 /// The data link of the node `identity` names, judging tokens by what `link` holds and serving
 /// `handlers`.
 fn data_link(identity: crate::state::Identity, link: &Link, handlers: Handlers) -> DataLink {
@@ -301,19 +325,15 @@ impl Agent {
             inventory,
             network,
             ingress,
-            identity: Some(IdentitySockets::new(
-                options.identity_root.unwrap_or_else(|| state.root().join("identity")),
-                link.credentials.clone(),
+            certificates: link.certificates.clone(),
+            identity: Some(identity_sockets(
+                state,
+                options.identity_root,
+                &link.credentials,
                 control_plane,
             )),
         };
-        let offloader = Offloader::new(
-            &state.root().join("offloaded"),
-            streams.located(),
-            (journal.clone(), link.jobs.clone()),
-            options.period,
-        )
-        .map_err(|source| RunError::Io { what: "the streams offloaded", source })?;
+        let offloader = offloader(state, &streams, (&journal, &link.jobs), options.period)?;
         let tasks = [
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),

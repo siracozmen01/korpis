@@ -112,6 +112,8 @@ pub struct Wiring {
     /// Where what the node's ingress proxy serves is published (§3.2 of docs/07-networking.md);
     /// none where the node runs no ingress.
     pub ingress: Option<watch::Sender<korpis_proto::korpis::ingress::v1::IngressConfig>>,
+    /// The certificates its proxy serves with, asked of the control plane and kept.
+    pub certificates: Arc<crate::ingress::Certificates>,
 }
 
 /// The reconciler.

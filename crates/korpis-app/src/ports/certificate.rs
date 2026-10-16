@@ -7,6 +7,7 @@ use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;
 use korpis_core::dns::certificate::{Certificate, Leaf};
 use korpis_core::dns::domain::Route;
+use korpis_core::workload::endpoint::Served;
 use std::future::Future;
 use uuid::Uuid;
 
@@ -47,6 +48,12 @@ pub trait CertificateRead {
         id: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Certificate>>> + Send;
 
+    /// The workloads whose routes are served with the certificate.
+    fn routed_with(&self, id: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// The certificate's key, sealed, once it holds one.
+    fn sealed_key(&self, id: Uuid) -> impl Future<Output = StoreResult<Option<SealedKey>>> + Send;
+
     /// An organization's certificates, a page at a time, in identifier order.
     fn certificates_of(
         &self,
@@ -82,6 +89,13 @@ pub trait CertificateWrite {
 
     /// Removes a certificate no route names.
     fn delete_certificate(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// The certificate each of `workload`'s endpoints is served with, by endpoint name: those its
+    /// routes name that hold a key.
+    fn served_for(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<(String, Served)>>> + Send;
 
     /// The routes served with the certificate, as this transaction sees them.
     fn routes_served_by(

@@ -73,6 +73,7 @@ message AgentMessage {
     ProbeListening probe_listening = 12;
     JobAccessRequest job_access_request = 13;
     StepRequest step_request = 14;
+    CertificateRequest certificate_request = 15;
   }
 }
 
@@ -97,6 +98,7 @@ message ControlMessage {
     Relays relays = 15;
     JobAccess job_access = 16;
     StepResolution step_resolution = 17;
+    CertificateKey certificate_key = 18;
   }
 }
 
@@ -135,6 +137,31 @@ message JobAccess {
     JobGrant grant = 2;
     korpis.v1.Error refused = 3;
   }
+}
+
+// A node whose proxy is to serve an endpoint with a certificate asks for its chain and key (§3.2
+// of docs/07-networking.md). The control plane answers only a node an endpoint served with the
+// certificate is placed on, and only once it holds a key.
+message CertificateRequest {
+  // Echoed in the answer.
+  string request = 1;
+  string certificate = 2;
+}
+
+message CertificateKey {
+  string request = 1;
+  oneof outcome {
+    ServedCertificate certificate = 2;
+    korpis.v1.Error refused = 3;
+  }
+}
+
+// A certificate as its node serves it: the chain, leaf first, and the leaf's private key, in PEM.
+message ServedCertificate {
+  string id = 1;
+  int64 revision = 2;
+  string chain = 3;
+  string key = 4;
 }
 
 // A node running an install asks for one of its provider steps to be resolved (§4 of

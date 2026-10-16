@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret\n               FROM endpoint WHERE id = $1",
+  "query": "SELECT id, workload_id, name, protocol, container_port, exposure, node_id, port,\n                    domains, tls, tls_secret, certificate_id, certificate_revision\n               FROM endpoint WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -123,6 +123,28 @@
             "name": "tls_secret"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "certificate_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "certificate_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "certificate_revision",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "endpoint",
+            "name": "certificate_revision"
+          }
+        }
       }
     ],
     "parameters": {
@@ -141,8 +163,10 @@
       true,
       false,
       true,
-      false
+      false,
+      true,
+      true
     ]
   },
-  "hash": "686f1831e9f604468b7e6ca5f71912363df2343796d527a60e36d61c0040e120"
+  "hash": "579512f11f54cd9362090a8103168b62ebd2dd3edc6b14af5899f0394852bd36"
 }

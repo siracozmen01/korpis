@@ -30,6 +30,7 @@ pub(super) async fn placed<T: Tx>(
     let names: Vec<String> = body.endpoints.iter().map(|e| e.name.clone()).collect();
     tx.release_endpoints(node, workload, &names).await?;
     let held = tx.held_endpoints(workload).await?;
+    let served = tx.served_for(workload).await?;
     let mut out = Vec::with_capacity(body.endpoints.len());
     for declared in &body.endpoints {
         let before = held.iter().find(|e| e.name == declared.name);
@@ -53,6 +54,7 @@ pub(super) async fn placed<T: Tx>(
             port,
             domains: if ingress { declared.domains.clone() } else { Vec::new() },
             tls: ingress.then(|| declared.tls.clone().unwrap_or(TlsSpec::Acme)),
+            certificate: served.iter().find(|(e, _)| *e == declared.name).map(|(_, c)| *c),
         };
         if before != Some(&endpoint) {
             tx.put_endpoint(&endpoint, at).await?;

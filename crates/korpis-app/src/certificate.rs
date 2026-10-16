@@ -49,7 +49,7 @@ fn effect(caller: &Caller, action: &str, grant: Uuid, c: &Certificate) -> Effect
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    fn tls(&self) -> Result<&Arc<dyn TlsVault>, AppError> {
+    pub(crate) fn tls(&self) -> Result<&Arc<dyn TlsVault>, AppError> {
         self.tls.as_ref().ok_or_else(|| AppError::Unavailable {
             what: "certificates",
             detail: "the control plane was started without its TLS key".into(),

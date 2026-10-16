@@ -48,6 +48,8 @@ pub fn endpoint_to_pb(e: &Endpoint, addresses: &[IpAddr]) -> pb::Endpoint {
         },
         domains: e.domains.clone(),
         tls: e.tls.as_ref().map(tls_to_pb).into(),
+        certificate: e.certificate.map(|c| wire_id(IdKind::Certificate, c.id)).unwrap_or_default(),
+        certificate_revision: e.certificate.map_or(0, |c| c.revision),
         ..Default::default()
     }
 }

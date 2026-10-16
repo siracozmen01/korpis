@@ -26,6 +26,7 @@ use tokio::sync::{Semaphore, broadcast, mpsc, watch};
 
 mod answer;
 mod link;
+mod receive;
 
 pub use link::{Event, Facts, Link};
 
@@ -55,6 +56,7 @@ pub struct Session {
     jobs: Arc<JobAccesses>,
     steps: Arc<crate::steps::StepAnswers>,
     offered: Arc<tokio::sync::Notify>,
+    certificates: Arc<crate::ingress::Certificates>,
     /// What answers feasibility queries, when the agent drives a runtime that can (§2.1 of
     /// docs/05-scheduling.md); where answers go; and how many more may be answered at once.
     answering: Option<(Answerer, mpsc::Sender<agent::AgentMessage>, Arc<Semaphore>)>,
@@ -130,6 +132,10 @@ impl Session {
         let jobs = JobAccesses::new(outbound_tx.clone());
         let steps = crate::steps::StepAnswers::new(outbound_tx.clone());
         let offered = Arc::new(tokio::sync::Notify::new());
+        let certificates = crate::ingress::Certificates::open(
+            state.root().join("certificates"),
+            outbound_tx.clone(),
+        );
         let link = Link {
             held: held_rx,
             revoked: revoked_rx,
@@ -141,6 +147,7 @@ impl Session {
             jobs: jobs.clone(),
             steps: steps.clone(),
             offered: Arc::clone(&offered),
+            certificates: Arc::clone(&certificates),
         };
         let session = Self {
             identity,
@@ -157,6 +164,7 @@ impl Session {
             jobs,
             steps,
             offered,
+            certificates,
             answering: None,
         };
         (session, link)
@@ -288,104 +296,5 @@ impl Session {
                 send.send(m).await.map_err(|e| e.to_string())?;
             }
         }
-    }
-
-    /// Handles one message; what to send in answer.
-    async fn receive(
-        &self,
-        m: agent::ControlMessage,
-        shipper: &mut Shipper,
-    ) -> Vec<agent::AgentMessage> {
-        match m.message {
-            Some(Down::AssignmentSet(set)) => self.hold(&set).into_iter().collect(),
-            Some(Down::InSync(_)) => {
-                let _ = self.events.send(Event::InSync);
-                Vec::new()
-            }
-            Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
-            Some(Down::RevocationList(list)) => {
-                match self.revoked.receive(&list) {
-                    Ok((version, entries)) => {
-                        let _ = self.events.send(Event::Revocations { version, entries });
-                    }
-                    // The list held stays; the control plane sends the next one within seconds.
-                    Err(e) => {
-                        tracing::error!(error = %e, "revocation list refused: a security event");
-                    }
-                }
-                Vec::new()
-            }
-            Some(Down::Relays(r)) => {
-                self.name_relays(&r);
-                Vec::new()
-            }
-            Some(Down::ReachabilityProbe(p)) => {
-                let forwarded = self.held.borrow().forwarded();
-                let me = (self.identity.node.as_str(), &self.identity.key);
-                vec![crate::probe::begin(me, *p, &forwarded).await]
-            }
-            Some(Down::WorkloadCredential(answer)) => {
-                self.credentials.answer(*answer);
-                Vec::new()
-            }
-            Some(Down::JobAccess(answer)) => {
-                self.jobs.answer(*answer);
-                Vec::new()
-            }
-            Some(Down::StepResolution(answer)) => {
-                self.steps.answer(*answer);
-                Vec::new()
-            }
-            Some(Down::FeasibilityQuery(q)) => {
-                self.answer(q);
-                Vec::new()
-            }
-            Some(other) => {
-                let _ = self.inbound.send(other).await;
-                Vec::new()
-            }
-            None => Vec::new(),
-        }
-    }
-
-    /// Keeps one data connection to each relay `r` names, the control plane's own address
-    /// standing for its relay role.
-    fn name_relays(&self, r: &agent::Relays) {
-        let mut wanted = r.urls.clone();
-        if r.control_plane {
-            wanted.push(self.identity.server.clone());
-        }
-        wanted.sort();
-        wanted.dedup();
-        self.relays.send_if_modified(|held| {
-            let changed = *held != wanted;
-            if changed {
-                held.clone_from(&wanted);
-            }
-            changed
-        });
-    }
-
-    /// Believes, keeps, and acknowledges a set, or refuses it and keeps the one held.
-    fn hold(&self, set: &agent::AssignmentSet) -> Option<agent::AgentMessage> {
-        let keys = &self.identity.keys.assignment_keys;
-        let verified = match HeldSet::verify(set, keys, &self.identity.node) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!(error = %e, "assignment set refused: a security event");
-                let _ = self.events.send(Event::Refused(e));
-                return None;
-            }
-        };
-        if let Err(e) = verified.save(&self.state.root().join("assignments.binpb")) {
-            // Not kept, not acknowledged: the control plane sends it again on reconnect.
-            tracing::error!(error = %e, "the assignment set could not be kept");
-            return None;
-        }
-        let digest = verified.digest.clone();
-        self.held.send_replace(verified);
-        let _ = self.events.send(Event::Held { digest: digest.clone() });
-        let ack = agent::Ack { set_digest: digest, ..Default::default() };
-        Some(message(Up::Ack(Box::new(ack))))
     }
 }

@@ -140,6 +140,18 @@ pub struct Endpoint {
     /// For `ingress`: where its certificate comes from, `acme` when the declaration left it to
     /// the default; or that TLS is passed through to the workload.
     pub tls: Option<TlsSpec>,
+    /// For `ingress` terminated by the proxy: the certificate it is served with, once one with a
+    /// key is held, and its revision, so its node fetches it again when it changes.
+    pub certificate: Option<Served>,
+}
+
+/// A certificate an endpoint is served with, at a revision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Served {
+    /// The certificate.
+    pub id: Uuid,
+    /// Its revision.
+    pub revision: i64,
 }
 
 #[cfg(test)]

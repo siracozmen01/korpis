@@ -6,7 +6,9 @@
 //! declaration and again when the routes are claimed, the certificate locked against a change
 //! until the claim commits.
 
+use crate::App;
 use crate::error::AppError;
+use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::dns::certificate::Certificate;
 use korpis_core::dns::domain::DomainName;
 use korpis_core::id::{Id, IdKind};
@@ -48,4 +50,33 @@ pub(crate) fn servable(
         return Err(AppError::conflict("endpoint.certificate", why));
     }
     Ok(())
+}
+
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// The certificate `id` and its key, for `node` to serve: answered only if an endpoint served
+    /// with it is placed on that node, and only once it holds a key (§3.2 of
+    /// docs/07-networking.md).
+    pub async fn certificate_for_node(
+        &self,
+        node: Uuid,
+        id: Uuid,
+    ) -> Result<(Certificate, zeroize::Zeroizing<String>), AppError> {
+        let not_here = || {
+            let why = "no endpoint placed on this node is served with it";
+            AppError::conflict("certificate.not_here", why)
+        };
+        let placed = self.store.placed_on(node).await?;
+        let routed = self.store.routed_with(id).await?;
+        if !routed.iter().any(|w| placed.contains(w)) {
+            return Err(not_here());
+        }
+        let c = self.store.certificate(id).await?.ok_or_else(not_here)?;
+        let sealed = self
+            .store
+            .sealed_key(id)
+            .await?
+            .ok_or_else(|| AppError::conflict("certificate.pending", "it holds no key yet"))?;
+        let key = self.tls()?.open(id, &sealed).map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok((c, key))
+    }
 }

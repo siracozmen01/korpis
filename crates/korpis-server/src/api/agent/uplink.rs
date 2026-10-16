@@ -122,6 +122,10 @@ impl Uplink {
                 super::job::answer(app, node, (**r).clone(), self.tx.clone());
                 Ok(())
             }
+            Some(Up::CertificateRequest(r)) => {
+                super::certificate::answer(app, node, (**r).clone(), self.tx.clone());
+                Ok(())
+            }
             Some(Up::StepRequest(r)) => {
                 super::step::answer(app, node, (**r).clone(), self.tx.clone());
                 Ok(())

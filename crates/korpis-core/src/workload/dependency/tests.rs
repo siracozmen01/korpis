@@ -70,6 +70,7 @@ fn each_target_form_resolves_within_the_project_alone() {
         port: None,
         domains: Vec::new(),
         tls: None,
+        certificate: None,
     };
     let target = DependencyTarget::Endpoint(placed.id);
     assert_eq!(resolve(&dependency(target.clone()), &project, Some(&placed)).targets.len(), 1);

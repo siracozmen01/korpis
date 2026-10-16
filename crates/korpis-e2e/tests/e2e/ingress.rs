@@ -5,10 +5,12 @@
 //! rule that lets its new connections leave only through a workload's link; the node says at
 //! once that it serves the ingress; the agent feeds the proxy the routes of a workload's ingress
 //! endpoints. Port 80 redirects a routed name to HTTPS and answers ACME's challenge path only for
-//! a token it holds; port 443 passes a TLS stream through by its server name to the workload,
-//! which receives exactly what the client sent; retiring the workload withdraws its routes.
-//! Terminating TLS needs a certificate, which issuance brings with its own test. It needs root
-//! and containerd, and holds ports 80 and 443 of this machine's address while it runs.
+//! a token it holds; port 443 terminates TLS for a name served with a certificate its
+//! organization uploaded, which the node fetched over its session, and forwards the request with
+//! a `Forwarded` header only the proxy wrote; it passes a TLS stream through by its server name to
+//! a workload, which receives exactly what the client sent; retiring the workload withdraws its
+//! routes. It needs root and containerd, and holds ports 80 and 443 of this machine's address
+//! while it runs.
 
 use crate::network::converged;
 use crate::node::{Node, host_address, live};
@@ -83,9 +85,88 @@ async fn passed(at: SocketAddr, hello: &[u8]) -> Vec<u8> {
     back
 }
 
-/// The workload's endpoints: `web`, HTTP, named `web.example.com`, and `tls`, its TLS passed
-/// through, named `tls.example.com`.
-fn endpoints() -> Vec<pb::EndpointSpec> {
+/// A test authority, and a certificate it issued for `name` with its key, in PEM.
+fn issued(name: &str) -> (rustls::pki_types::CertificateDer<'static>, String, String) {
+    let ca_key = rcgen::KeyPair::generate().unwrap();
+    let mut ca = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
+    ca.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    let authority = ca.self_signed(&ca_key).unwrap();
+    let issuer = rcgen::Issuer::new(ca, ca_key);
+    let key = rcgen::KeyPair::generate().unwrap();
+    let leaf = rcgen::CertificateParams::new(vec![name.to_owned()]).unwrap();
+    let leaf = leaf.signed_by(&key, &issuer).unwrap();
+    (authority.der().clone(), leaf.pem(), key.serialize_pem())
+}
+
+/// Uploads a certificate for `name` to the root organization; its identifier, and the authority
+/// a client trusts it by.
+async fn uploaded(
+    cp: &ControlPlane,
+    name: &str,
+) -> (String, rustls::pki_types::CertificateDer<'static>) {
+    let (authority, chain, key) = issued(name);
+    let req = pb::CreateCertificateRequest {
+        mutation: mutation("certificate").into(),
+        organization: cp.root_org.clone(),
+        chain,
+        key,
+        ..Default::default()
+    };
+    let client = pb::CertificateServiceClient::new(cp.http(), cp.config());
+    let made = client.create_certificate(req).await.unwrap().into_owned();
+    (made.certificate.into_option().unwrap().id, authority)
+}
+
+/// What `GET /` on `name` answers over TLS on port 443 of `at`, trusting `authority` alone, the
+/// client claiming in a `Forwarded` header of its own to be someone else.
+fn secure(
+    at: SocketAddr,
+    name: &str,
+    authority: &rustls::pki_types::CertificateDer<'static>,
+) -> Option<String> {
+    use std::io::{Read as _, Write as _};
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(authority.clone()).ok()?;
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let config = rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .ok()?
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let server = rustls::pki_types::ServerName::try_from(name.to_owned()).ok()?;
+    let connection = rustls::ClientConnection::new(Arc::new(config), server).ok()?;
+    let tcp = std::net::TcpStream::connect_timeout(&at, Duration::from_secs(2)).ok()?;
+    tcp.set_read_timeout(Some(Duration::from_secs(2))).ok()?;
+    let mut tls = rustls::StreamOwned::new(connection, tcp);
+    let request = format!(
+        "GET / HTTP/1.1\r\nhost: {name}\r\nforwarded: for=6.6.6.6\r\nconnection: close\r\n\r\n"
+    );
+    tls.write_all(request.as_bytes()).ok()?;
+    let mut got = String::new();
+    let _ = tls.read_to_string(&mut got);
+    (!got.is_empty()).then_some(got)
+}
+
+/// The first answer of [`secure`], within a minute: the node fetches the certificate first.
+async fn securely(
+    at: SocketAddr,
+    name: &str,
+    authority: &rustls::pki_types::CertificateDer<'static>,
+) -> String {
+    for _ in 0..120 {
+        let (name, authority) = (name.to_owned(), authority.clone());
+        let got = tokio::task::spawn_blocking(move || secure(at, &name, &authority));
+        if let Some(answer) = got.await.unwrap() {
+            return answer;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    panic!("port 443 never served {name} over TLS");
+}
+
+/// The workload's endpoints: `web`, HTTP, named `web.example.com` and served with `certificate`,
+/// and `tls`, its TLS passed through, named `tls.example.com`.
+fn endpoints(certificate: &str) -> Vec<pb::EndpointSpec> {
     let ingress = |name: &str, protocol: pb::EndpointProtocol, port: u32| pb::EndpointSpec {
         name: name.into(),
         protocol: protocol.into(),
@@ -98,7 +179,14 @@ fn endpoints() -> Vec<pb::EndpointSpec> {
     tls.tls =
         pb::TlsSpec { source: pb::TlsSource::TLS_SOURCE_PASSTHROUGH.into(), ..Default::default() }
             .into();
-    vec![ingress("web", pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP, 8080), tls]
+    let mut web = ingress("web", pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP, 8080);
+    web.tls = pb::TlsSpec {
+        source: pb::TlsSource::TLS_SOURCE_PROVIDED.into(),
+        secret: certificate.into(),
+        ..Default::default()
+    }
+    .into();
+    vec![web, tls]
 }
 
 /// Waits until the control plane holds the node as serving the ingress.
@@ -113,7 +201,7 @@ async fn serving(cp: &ControlPlane) {
 }
 
 #[tokio::test]
-async fn the_proxy_redirects_on_80_and_passes_tls_through_by_name_on_443() {
+async fn the_proxy_redirects_on_80_terminates_and_passes_tls_through_by_name_on_443() {
     if !live() {
         return;
     }
@@ -130,7 +218,8 @@ async fn the_proxy_redirects_on_80_and_passes_tls_through_by_name_on_443() {
         ..Default::default()
     };
     pb::DomainServiceClient::new(cp.http(), cp.config()).create_domain(attest).await.unwrap();
-    let body = pb::IntentBody { endpoints: endpoints(), ..Default::default() };
+    let (certificate, authority) = uploaded(&cp, "web.example.com").await;
+    let body = pb::IntentBody { endpoints: endpoints(&certificate), ..Default::default() };
     let w = cp.declare_body(&project, "web", &push_web().await, body).await;
     node.guard(&w);
     converged(&cp, &w).await;
@@ -144,6 +233,12 @@ async fn the_proxy_redirects_on_80_and_passes_tls_through_by_name_on_443() {
     assert!(challenge.starts_with("HTTP/1.1 404"), "a token it does not hold: {challenge}");
     let elsewhere = plain((host, 80).into(), "elsewhere.example.org", "/").await;
     assert!(elsewhere.starts_with("HTTP/1.1 404"), "a name it does not route: {elsewhere}");
+
+    let page = securely((host, 443).into(), "web.example.com", &authority).await;
+    assert!(page.starts_with("HTTP/1.1 200") && page.contains("served"), "{page}");
+    let forwarded = format!("forwarded: for={host};host=web.example.com;proto=https");
+    assert!(page.contains(&forwarded), "the proxy's alone: {page}");
+    assert!(!page.contains("6.6.6.6"), "the client's own is removed: {page}");
 
     let hello = client_hello("tls.example.com");
     assert_eq!(passed((host, 443).into(), &hello).await, hello, "the workload echoed it");
