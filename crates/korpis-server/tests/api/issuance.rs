@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 
 /// A node serving the ingress, enrolled and connected, and a workload with an `acme` endpoint
 /// for `shop.example.com` placed on it.
-async fn placed(h: &Harness) -> (Stream, pb::Workload) {
+pub(crate) async fn placed(h: &Harness) -> (Stream, pb::Workload) {
     let edge = TestAgent::enroll(h, "fra-1", 1).await;
     let (s, first) = TestAgent::open(h, edge.hello_at(SystemTime::now(), &[1; 16])).await;
     welcome(&first.unwrap());
@@ -36,7 +36,7 @@ async fn placed(h: &Harness) -> (Stream, pb::Workload) {
 }
 
 /// The certificate of `workload`'s endpoint `web`, as its status shows it.
-async fn shown(h: &Harness, workload: &str) -> Option<pb::Certificate> {
+pub(crate) async fn shown(h: &Harness, workload: &str) -> Option<pb::Certificate> {
     let get = pb::GetWorkloadRequest { id: workload.to_owned(), ..Default::default() };
     let got = h.workloads(h.root()).get_workload(get).await.unwrap().into_owned();
     let status = got.status.into_option()?;
@@ -46,7 +46,7 @@ async fn shown(h: &Harness, workload: &str) -> Option<pb::Certificate> {
 
 /// Acknowledges every set the node is sent, as an agent holding it would, until one whose
 /// assignment serves `web` with its certificate at `revision`.
-async fn served_at(s: &mut Stream, revision: i64) {
+pub(crate) async fn served_at(s: &mut Stream, revision: i64) {
     for _ in 0..60 {
         let Some(Down::AssignmentSet(set)) = crate::agent::next(s).await.message else { continue };
         let ack = agent::Ack { set_digest: set.set_digest.clone(), ..Default::default() };
@@ -67,7 +67,7 @@ fn challenged(d: &Down) -> Option<(String, agent::AcmeChallenge)> {
     Some((s.set_digest.clone(), a.challenges.first()?.clone()))
 }
 
-async fn send(s: &mut Stream, up: Up) {
+pub(crate) async fn send(s: &mut Stream, up: Up) {
     s.send(agent::AgentMessage { message: Some(up), ..Default::default() }).await.unwrap();
 }
 

@@ -143,6 +143,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             revision: c.revision + 1,
             attempts: 0,
             next_attempt: None,
+            // Every order makes a key of its own, so what was exposed is not this.
+            exposed: c.exposed && c.key_id.as_deref() == Some(leaf.key_id.as_str()),
+            key_id: Some(leaf.key_id),
             ..c
         };
         let mut tx = self.store.begin().await?;

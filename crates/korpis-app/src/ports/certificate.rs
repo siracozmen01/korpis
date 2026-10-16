@@ -62,6 +62,36 @@ pub struct Expiry {
     pub alerted: Option<Severity>,
 }
 
+/// A node given a certificate's key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Exposure {
+    /// The certificate.
+    pub certificate: Uuid,
+    /// The node.
+    pub node: Uuid,
+    /// The revision it was given.
+    pub revision: i64,
+    /// The key's identifier.
+    pub key_id: String,
+    /// The chain it was given, which revoking it presents.
+    pub chain: String,
+    /// When.
+    pub at: SystemTime,
+}
+
+/// A chain given to a node removed as compromised, waiting to be revoked.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingRevocation {
+    /// The certificate.
+    pub certificate: Uuid,
+    /// The node.
+    pub node: Uuid,
+    /// The revision.
+    pub revision: i64,
+    /// The chain.
+    pub chain: String,
+}
+
 /// A DNS-01 challenge record published for a certificate and not yet withdrawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StandingRecord {
@@ -193,6 +223,35 @@ pub trait CertificateWrite {
         alert: &ExpiryAlert,
         expected: Option<Severity>,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records that a node was given a certificate's key.
+    fn record_exposure(
+        &mut self,
+        exposure: &Exposure,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Marks `node` removed as compromised at `at`, and each certificate whose current key it was
+    /// given exposed, an `acme` one due for a new key at once, each told to its organization as a
+    /// `certificate.exposed` event; how many.
+    fn expose_certificates(
+        &mut self,
+        node: Uuid,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// The chains of `acme` certificates given to nodes removed as compromised and not yet
+    /// revoked.
+    fn pending_revocations(
+        &mut self,
+    ) -> impl Future<Output = StoreResult<Vec<PendingRevocation>>> + Send;
+
+    /// Records what revoking `revocation` came to.
+    fn record_revocation(
+        &mut self,
+        revocation: &PendingRevocation,
+        outcome: &str,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Records that a challenge record for the certificate was asked of the DNS provider
     /// `provider`, applied for `owner`.

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at\n               FROM certificate WHERE id = $1",
+  "query": "UPDATE certificate SET issuing_until = $2\n          WHERE id = (SELECT id FROM certificate\n                       WHERE source = 'acme'\n                         AND (issuing_until IS NULL OR issuing_until < $1)\n                         AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                         AND (state <> 'issued' OR renew_after <= $1)\n                       ORDER BY next_attempt_at NULLS FIRST, id\n                       LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at, key_id, exposed",
   "describe": {
     "columns": [
       {
@@ -178,11 +178,34 @@
             "name": "next_attempt_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "exposed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "exposed"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Timestamptz",
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -201,8 +224,10 @@
       true,
       true,
       false,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "97aa891c0bfe3469ecf3408c970ccb9e8463356af297aac14f7ef1c8961437fa"
+  "hash": "8c4557bb976c658b630a978fcaa4845052a6e206103e1e463e0e9e5cd931c0d8"
 }

@@ -87,6 +87,9 @@ pub struct Leaf {
     pub not_before: SystemTime,
     /// When it stops being valid.
     pub not_after: SystemTime,
+    /// Its key's identifier: the SHA-256 of its subject public key info, in lowercase hex. Two
+    /// chains share it exactly when they share a key.
+    pub key_id: String,
 }
 
 /// Why a leaf cannot be a certificate here.
@@ -166,6 +169,11 @@ pub struct Certificate {
     pub attempts: u32,
     /// For `Acme`: when the next attempt may be made, after one failed.
     pub next_attempt: Option<SystemTime>,
+    /// Its key's identifier, once it holds one ([`Leaf::key_id`]).
+    pub key_id: Option<String>,
+    /// Whether its key was given to a node later removed as compromised (§9 of
+    /// docs/17-security.md), until a chain with another key replaces it.
+    pub exposed: bool,
 }
 
 /// The endpoint an `acme` certificate is for.

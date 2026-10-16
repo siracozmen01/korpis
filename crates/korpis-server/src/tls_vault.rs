@@ -14,6 +14,8 @@ use korpis_app::ports::{ReadError, SealedKey, TlsVault, VaultError};
 use korpis_core::dns::certificate::Leaf;
 use rustls::pki_types::pem::PemObject as _;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use sha2::{Digest as _, Sha256};
+use std::fmt::Write as _;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -81,10 +83,16 @@ fn leaf_of(leaf: &CertificateDer<'_>) -> Result<Leaf, ReadError> {
         })
         .unwrap_or_default();
     let validity = parsed.validity();
+    let spki = Sha256::digest(parsed.public_key().raw);
+    let key_id = spki.iter().fold(String::new(), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    });
     Ok(Leaf {
         names,
         not_before: time(validity.not_before.timestamp()),
         not_after: time(validity.not_after.timestamp()),
+        key_id,
     })
 }
 

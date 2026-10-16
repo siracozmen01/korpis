@@ -11,6 +11,7 @@
 mod expiry;
 mod issue;
 mod publish;
+mod revoke;
 mod serve;
 
 use crate::App;
@@ -107,6 +108,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             owner: None,
             attempts: 0,
             next_attempt: None,
+            key_id: Some(leaf.key_id),
+            exposed: false,
         };
         let mut tx = self.store.begin().await?;
         tx.insert_certificate(&created, Some(&sealed)).await?;
@@ -135,6 +138,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let why = "an acme certificate is the control plane's to issue and renew";
             return Err(AppError::conflict("certificate.acme", why));
         }
+        // A chain for the key that was exposed is still exposed; one for another key is not.
+        let exposed = held.exposed && held.key_id.as_deref() == Some(leaf.key_id.as_str());
         let replaced = Certificate {
             names: leaf.names,
             chain,
@@ -143,6 +148,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             state: State::Issued,
             reason: None,
             revision: held.revision + 1,
+            key_id: Some(leaf.key_id),
+            exposed,
             ..held
         };
         let served: Vec<DomainName> =

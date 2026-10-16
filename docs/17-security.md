@@ -322,7 +322,18 @@ keeps working for as long as its certificate is valid. So removing a node as com
 through the ACME directory, every `acme` certificate whose key it was given, and issues each
 endpoint a new one with a new key; a `provided` certificate cannot be revoked by Korpis, and its
 endpoint's status says its key was exposed, for its organization to replace. Added 2026-10-15, with
-the ingress design (§3.2 of `07-networking.md`).
+the ingress design (§3.2 of `07-networking.md`). **As built (2026-10-16), and what evaluates it:**
+the control plane, from its own record of every certificate key it gave a node, written when it
+answers the node's request: the certificate, the revision, the key's identifier (a digest of the
+leaf's public key), and the chain given. Removing the node as compromised marks each certificate
+whose current key it was given exposed and tells the certificate's organization in a
+`certificate.exposed` event, critical; an `acme` one is given a new key at once, on whatever node
+its endpoint is placed next; every chain of an `acme` certificate the node was given, each
+revision, is revoked through the directory with the reason `keyCompromise`, asked again until the
+directory answers. A `provided` one stays exposed, in its status, until its organization replaces
+it with a chain for another key; a new chain for the same key is still exposed. What revocation
+does not do: reach a client that does not check, and many do not, so the protection that holds
+regardless is a certificate's short life; revocation shortens the window for the clients that look.
 
 ### 9.1 Egress is enforced by the party being contained
 

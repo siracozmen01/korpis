@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE certificate c\n            SET exposed = true,\n                renew_after = CASE WHEN c.source = 'acme' THEN $2 ELSE c.renew_after END,\n                next_attempt_at = CASE WHEN c.source = 'acme' THEN NULL ELSE c.next_attempt_at END\n          WHERE EXISTS (SELECT 1 FROM certificate_exposure e\n                         WHERE e.certificate_id = c.id AND e.node_id = $1\n                           AND e.key_id = c.key_id)\n         RETURNING c.id, c.organization_id, c.names, c.source",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "names",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "names"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8bf05a1f6b5d7178bb423dd0468f07732ae763de4cae48fd549fd4c126f709bf"
+}

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE certificate SET issuing_until = $2\n          WHERE id = (SELECT id FROM certificate\n                       WHERE source = 'acme'\n                         AND (issuing_until IS NULL OR issuing_until < $1)\n                         AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                         AND (state <> 'issued' OR renew_after <= $1)\n                       ORDER BY next_attempt_at NULLS FIRST, id\n                       LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at",
+  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at, key_id, exposed\n               FROM certificate\n              WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -178,12 +178,35 @@
             "name": "next_attempt_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "exposed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "exposed"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Timestamptz",
-        "Timestamptz"
+        "Uuid",
+        "Uuid",
+        "Int8"
       ]
     },
     "nullable": [
@@ -202,8 +225,10 @@
       true,
       true,
       false,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "4442ae0768ab73ed80fb1aa09c5253e33daf90f7110053bd6f58165f9bb86c7f"
+  "hash": "d30e40989e0d15b4a2185b1b28bc800db0c3f7f9bfae3a5851117dcba1480da3"
 }

@@ -19,7 +19,8 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
-    Clock, EffectWrite as _, NodeWrite as _, PlacementWrite as _, RecipeSource, Store,
+    CertificateWrite as _, Clock, EffectWrite as _, NodeWrite as _, PlacementWrite as _,
+    RecipeSource, Store,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -69,6 +70,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 moved += usize::from(self.displace(&mut tx, w, id).await?);
             }
             let endpoints = tx.drop_node_endpoints(id).await?;
+            let exposed =
+                if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };
             tx.announce_resync().await?;
             let mut effect =
                 Effect::new(caller.principal.clone(), "node.remove", Outcome::Succeeded)
@@ -80,6 +83,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                         ("workloads_placed_again", moved.into()),
                         ("endpoints_dropped", endpoints.into()),
                         ("volumes_lost", volumes.into()),
+                        ("certificates_exposed", exposed.into()),
                     ]));
             effect.node = Some(id);
             tx.append_effect(&effect).await?;

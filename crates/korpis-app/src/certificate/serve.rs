@@ -8,7 +8,7 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, RecipeSource, Store};
+use crate::ports::{CertificateWrite as _, Clock, Exposure, RecipeSource, Store, Tx as _};
 use korpis_core::dns::certificate::Certificate;
 use korpis_core::dns::domain::DomainName;
 use korpis_core::id::{Id, IdKind};
@@ -55,7 +55,8 @@ pub(crate) fn servable(
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The certificate `id` and its key, for `node` to serve: answered only if an endpoint served
     /// with it is placed on that node, and only once it holds a key (§3.2 of
-    /// docs/07-networking.md).
+    /// docs/07-networking.md). That the node was given it is recorded first, so removing the
+    /// node as compromised knows what to revoke (§9 of docs/17-security.md).
     pub async fn certificate_for_node(
         &self,
         node: Uuid,
@@ -77,6 +78,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .await?
             .ok_or_else(|| AppError::conflict("certificate.pending", "it holds no key yet"))?;
         let key = self.tls()?.open(id, &sealed).map_err(|e| AppError::Internal(e.to_string()))?;
+        let exposure = Exposure {
+            certificate: id,
+            node,
+            revision: c.revision,
+            key_id: c.key_id.clone().unwrap_or_default(),
+            chain: c.chain.clone(),
+            at: self.clock.now(),
+        };
+        let mut tx = self.store.begin().await?;
+        tx.record_exposure(&exposure).await?;
+        tx.commit().await?;
         Ok((c, key))
     }
 }

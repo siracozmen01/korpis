@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                        reason, renew_after, revision, created_at, workload_id, endpoint,\n                        attempts, next_attempt_at\n                   FROM certificate WHERE id = $1 FOR SHARE",
+  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at, key_id, exposed\n               FROM certificate WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -178,6 +178,28 @@
             "name": "next_attempt_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "exposed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "exposed"
+          }
+        }
       }
     ],
     "parameters": {
@@ -201,8 +223,10 @@
       true,
       true,
       false,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "0610035aee49b50f42d8bbba9c98c17ad9c29f1cb64ed095e35773a8686ca048"
+  "hash": "3ca7813972a141390a9a4ef07c446a737b3ea4d528e55edbdebf0e022a8f9cbc"
 }

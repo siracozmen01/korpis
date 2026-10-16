@@ -2330,6 +2330,16 @@ record its resolver finds and the directory does not is a failed attempt, retrie
 `issuance_dns` runs this against Pebble resolving through a zone the test's DNS provider publishes
 into, behind a provider that refuses the name.
 
+**How step 10 was built.** Added 2026-10-16. What decides which certificates a compromised node
+held, and with what information? The control plane, from a record it writes whenever it answers a
+node's `CertificateRequest`: before that record existed, the answer was the only trace, and step 10
+had nothing to evaluate. The record names the key, not only the certificate, because a renewal
+replaces the chain while the node may still hold the old key, and a provided certificate replaced
+with the same key is no safer. What it cannot know is whether a node copied a key elsewhere before
+it was removed; revocation and a new key are the answer to that, and a client that does not check
+revocation is the honest negative of §9 of `17-security.md`. The API test `compromise` runs both
+sources.
+
 **FINDING 60: A domain could be an IPv4 address. `CONFIRMED`**
 
 Found 2026-10-16 while testing the certificate's reading of a leaf's names, whose test expected

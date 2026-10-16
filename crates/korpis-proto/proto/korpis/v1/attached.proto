@@ -281,6 +281,10 @@ message Certificate {
   // Raised whenever its chain and key change.
   int64 revision = 11;
   google.protobuf.Timestamp created_at = 12;
+  // Its key was given to a node later removed as compromised (§9 of docs/17-security.md): an
+  // acme certificate is given a new key at once; a provided one waits for its organization to
+  // replace it with a chain for another key, which clears this.
+  bool exposed = 13;
 }
 
 enum CertificateSource {

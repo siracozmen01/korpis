@@ -10,11 +10,13 @@
 use crate::data::DataDir;
 use instant_acme::{
     Account, AccountCredentials, AuthorizationStatus, ChallengeType, Identifier, NewAccount,
-    NewOrder, OrderStatus, RetryPolicy,
+    NewOrder, OrderStatus, RetryPolicy, RevocationReason, RevocationRequest,
 };
 use korpis_app::ports::{
     Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish,
 };
+use rustls::pki_types::CertificateDer;
+use rustls::pki_types::pem::PemObject as _;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -220,6 +222,20 @@ impl Acme for AcmeClient {
             let key = Zeroizing::new(order.finalize().await.map_err(judged)?);
             let chain = order.poll_certificate(&within).await.map_err(judged)?;
             Ok(Issued { chain, key })
+        })
+    }
+
+    fn revoke<'a>(&'a self, chain: &'a str) -> AcmeFuture<'a, ()> {
+        Box::pin(async move {
+            let leaf = CertificateDer::pem_slice_iter(chain.as_bytes())
+                .next()
+                .ok_or_else(|| AcmeError::Refused("the chain holds no certificate".into()))?
+                .map_err(|e| AcmeError::Refused(e.to_string()))?;
+            let request = RevocationRequest {
+                certificate: &leaf,
+                reason: Some(RevocationReason::KeyCompromise),
+            };
+            self.account().await?.revoke(&request).await.map_err(judged)
         })
     }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at\n               FROM certificate\n              WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
+  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                        reason, renew_after, revision, created_at, workload_id, endpoint,\n                        attempts, next_attempt_at, key_id, exposed\n                   FROM certificate WHERE id = $1 FOR SHARE",
   "describe": {
     "columns": [
       {
@@ -178,13 +178,33 @@
             "name": "next_attempt_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "key_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "key_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "exposed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "exposed"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -203,8 +223,10 @@
       true,
       true,
       false,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "03877a62f736cd3bf88b533a3a51f8d49e9bfe0a5afbbca5c74dc841f264f662"
+  "hash": "9ee0356d5af7eeeca4d7abc09ac8578ff9f50a26a527c35fdc5441a4c2dd2c54"
 }

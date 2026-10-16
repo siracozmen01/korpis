@@ -15,6 +15,7 @@ fn leaf(names: &[&str]) -> Leaf {
         names: names.iter().map(|n| (*n).to_owned()).collect(),
         not_before: at(1000),
         not_after: at(4000),
+        key_id: "k1".into(),
     }
 }
 
@@ -65,6 +66,8 @@ fn a_certificate_serves_the_names_it_covers_while_valid() {
         owner: None,
         attempts: 0,
         next_attempt: None,
+        key_id: Some("k1".into()),
+        exposed: false,
     };
     let wanted = [name("example.com"), name("shop.example.com"), name("a.b.example.com")];
     assert_eq!(c.uncovered(&wanted), Some(&wanted[2]));

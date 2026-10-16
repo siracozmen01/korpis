@@ -23,6 +23,7 @@ mod cancel;
 mod certificates;
 mod churn;
 mod classify;
+mod compromise;
 mod console;
 mod denials;
 mod dependencies;

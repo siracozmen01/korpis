@@ -58,7 +58,8 @@ pub use authz::{
 pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use certificate::{
-    CertificateRead, CertificateWrite, Expiry, ReadError, StandingRecord, TlsVault,
+    CertificateRead, CertificateWrite, Expiry, Exposure, PendingRevocation, ReadError,
+    StandingRecord, TlsVault,
 };
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock, Timer};

@@ -94,4 +94,8 @@ pub trait Acme: Send + Sync + std::fmt::Debug {
     /// Orders a certificate for `names`: the challenges offered are handed to `publish`, and the
     /// directory told to look at those it says it published once it answers.
     fn issue<'a>(&'a self, names: &'a [String], publish: Publish<'a>) -> AcmeFuture<'a, Issued>;
+
+    /// Revokes the certificate `chain` leads with, its key having been exposed
+    /// (`keyCompromise`, RFC 5280 §5.3.1).
+    fn revoke<'a>(&'a self, chain: &'a str) -> AcmeFuture<'a, ()>;
 }

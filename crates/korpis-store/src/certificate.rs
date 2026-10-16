@@ -9,8 +9,8 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{
-    CertificateRead, CertificateWrite, Expiry, HttpOffer, SealedKey, StandingRecord, StoreError,
-    StoreResult,
+    CertificateRead, CertificateWrite, Expiry, Exposure, HttpOffer, PendingRevocation, SealedKey,
+    StandingRecord, StoreError, StoreResult,
 };
 use korpis_core::dns::certificate::{
     Certificate, ExpiryAlert, HttpChallenge, Owner, Source, State,
@@ -22,6 +22,7 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 mod expiry;
+mod exposure;
 mod issue;
 
 pub(crate) struct CertificateRow {
@@ -41,6 +42,8 @@ pub(crate) struct CertificateRow {
     endpoint: Option<String>,
     attempts: i32,
     next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
+    key_id: Option<String>,
+    exposed: bool,
 }
 
 impl TryFrom<CertificateRow> for Certificate {
@@ -67,6 +70,8 @@ impl TryFrom<CertificateRow> for Certificate {
                 .map(|(workload, endpoint)| Owner { workload, endpoint }),
             attempts: u32::try_from(r.attempts).map_err(|_| corrupt("attempts"))?,
             next_attempt: r.next_attempt_at.map(to_time),
+            key_id: r.key_id,
+            exposed: r.exposed,
         })
     }
 }
@@ -77,7 +82,7 @@ impl CertificateRead for PgStore {
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                     reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
-                    next_attempt_at
+                    next_attempt_at, key_id, exposed
                FROM certificate WHERE id = $1",
             id
         )
@@ -118,7 +123,7 @@ impl CertificateRead for PgStore {
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                     reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
-                    next_attempt_at
+                    next_attempt_at, key_id, exposed
                FROM certificate
               WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -158,8 +163,9 @@ impl CertificateWrite for PgTx {
         sqlx::query!(
             "INSERT INTO certificate (id, organization_id, names, source, chain, key_sealed,
                                       sealed_by, not_before, not_after, state, reason,
-                                      renew_after, revision, created_at, workload_id, endpoint)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
+                                      renew_after, revision, created_at, workload_id, endpoint,
+                                      key_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
             c.id,
             c.organization,
             &c.names,
@@ -175,7 +181,8 @@ impl CertificateWrite for PgTx {
             c.revision,
             from_time(c.created_at),
             c.owner.as_ref().map(|o| o.workload),
-            c.owner.as_ref().map(|o| o.endpoint.as_str())
+            c.owner.as_ref().map(|o| o.endpoint.as_str()),
+            c.key_id
         )
         .execute(&mut *self.tx)
         .await
@@ -194,7 +201,7 @@ impl CertificateWrite for PgTx {
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                         reason, renew_after, revision, created_at, workload_id, endpoint,
-                        attempts, next_attempt_at
+                        attempts, next_attempt_at, key_id, exposed
                    FROM certificate WHERE id = $1 FOR UPDATE",
                 id
             )
@@ -205,7 +212,7 @@ impl CertificateWrite for PgTx {
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                         reason, renew_after, revision, created_at, workload_id, endpoint,
-                        attempts, next_attempt_at
+                        attempts, next_attempt_at, key_id, exposed
                    FROM certificate WHERE id = $1 FOR SHARE",
                 id
             )
@@ -220,7 +227,8 @@ impl CertificateWrite for PgTx {
             "UPDATE certificate
                 SET names = $2, chain = $3, key_sealed = $4, sealed_by = $5, not_before = $6,
                     not_after = $7, state = $8, reason = $9, renew_after = $10, revision = $11,
-                    attempts = $12, next_attempt_at = $13, issuing_until = NULL,
+                    attempts = $12, next_attempt_at = $13, issuing_until = NULL, key_id = $14,
+                    exposed = $15,
                     expiry_alert = CASE WHEN not_after IS DISTINCT FROM $7 THEN NULL
                                         ELSE expiry_alert END
               WHERE id = $1",
@@ -236,7 +244,9 @@ impl CertificateWrite for PgTx {
             c.renew_after.map(from_time),
             c.revision,
             i32::try_from(c.attempts).unwrap_or(i32::MAX),
-            c.next_attempt.map(from_time)
+            c.next_attempt.map(from_time),
+            c.key_id,
+            c.exposed
         )
         .execute(&mut *self.tx)
         .await
@@ -317,6 +327,27 @@ impl CertificateWrite for PgTx {
         expected: Option<Severity>,
     ) -> StoreResult<bool> {
         expiry::alert_certificate(self, alert, expected).await
+    }
+
+    async fn record_exposure(&mut self, e: &Exposure) -> StoreResult<()> {
+        exposure::record_exposure(self, e).await
+    }
+
+    async fn expose_certificates(&mut self, node: Uuid, at: SystemTime) -> StoreResult<u64> {
+        exposure::expose_certificates(self, node, at).await
+    }
+
+    async fn pending_revocations(&mut self) -> StoreResult<Vec<PendingRevocation>> {
+        exposure::pending_revocations(self).await
+    }
+
+    async fn record_revocation(
+        &mut self,
+        r: &PendingRevocation,
+        outcome: &str,
+        at: SystemTime,
+    ) -> StoreResult<()> {
+        exposure::record_revocation(self, r, outcome, at).await
     }
 
     async fn put_record(

@@ -249,7 +249,8 @@ Event
   at            Timestamp      the ingest clock, as for an effect
   kind          string         an effect's action, or a condition: `health.changed`,
                                `convergence.changed`, `provider.degraded`, `provider.recovered`,
-                               `relay.certificate_expiring`, `certificate.expiring`, ...
+                               `relay.certificate_expiring`, `certificate.expiring`,
+                               `certificate.exposed`, ...
   severity      info | warning | critical
   organization  OrgID
   workload      WorkloadID?

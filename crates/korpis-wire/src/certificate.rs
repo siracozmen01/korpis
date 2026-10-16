@@ -42,6 +42,7 @@ pub fn certificate_to_pb(c: &Certificate) -> pb::Certificate {
         renew_after: c.renew_after.map(timestamp).into(),
         revision: c.revision,
         created_at: timestamp(c.created_at).into(),
+        exposed: c.exposed,
         ..Default::default()
     }
 }

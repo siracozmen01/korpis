@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO certificate_exposure (certificate_id, node_id, revision, key_id, chain,\n                                           given_at)\n         VALUES ($1, $2, $3, $4, $5, $6)\n         ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "402b98cac4abe36d71a11ca7200a7827d2c656b7ded58995d70133e875c756d6"
+}

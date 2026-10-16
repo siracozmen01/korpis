@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.certificate_id, e.node_id, e.revision, e.chain\n           FROM certificate_exposure e\n           JOIN node n ON n.id = e.node_id\n           JOIN certificate c ON c.id = e.certificate_id\n          WHERE n.compromised_at IS NOT NULL AND e.revoked_at IS NULL AND c.source = 'acme'\n          ORDER BY e.given_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "certificate_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate_exposure",
+            "name": "certificate_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate_exposure",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "revision",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "certificate_exposure",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "chain",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate_exposure",
+            "name": "chain"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6abb13972a573ae1d062d2412e169c3ff1a3fdec0be6dedebd3ab599738dc948"
+}

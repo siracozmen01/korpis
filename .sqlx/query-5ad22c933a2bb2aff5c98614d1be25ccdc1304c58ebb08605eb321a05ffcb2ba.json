@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT korpis_append_event($1, $2, 'certificate.exposed', 'critical', $3, NULL,\n                                        NULL, $4)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "korpis_append_event",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5ad22c933a2bb2aff5c98614d1be25ccdc1304c58ebb08605eb321a05ffcb2ba"
+}
