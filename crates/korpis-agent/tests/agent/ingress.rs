@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The node's ingress as its agent runs it (§3.2 of docs/07-networking.md), the test playing the
-//! proxy the helper would start: the agent holds the sockets and says it serves the ingress,
-//! hands them to the proxy that connects, sends it the routes of its ingress endpoints as they
-//! change, and has it started again when it goes away.
+//! proxy the helper would start: the agent holds the sockets and says at once that it serves the
+//! ingress, hands them to the proxy that connects, sends it the routes of its ingress endpoints as
+//! they change, and has it started again when it goes away.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};
@@ -79,6 +79,18 @@ async fn started(host: &InMemoryHost, n: u32) -> PathBuf {
     panic!("the proxy was not started {n} times: {:?}", host.ingress());
 }
 
+/// Waits until the control plane holds the node as serving the ingress, which the agent reports
+/// as soon as it holds the sockets rather than at its next heartbeat, thirty seconds away.
+async fn advertised_at_once(cp: &ControlPlane) {
+    for _ in 0..50 {
+        if cp.scalar::<bool>("SELECT coalesce(bool_and(ingress), false) FROM node").await {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the node's ingress was not reported within five seconds");
+}
+
 async fn declare_web(cp: &ControlPlane, project: &str) {
     let web = pb::EndpointSpec {
         name: "web".into(),
@@ -123,8 +135,14 @@ async fn the_agent_hands_its_proxy_the_sockets_and_the_routes_and_restarts_it() 
         ..Options::default()
     };
     let host = InMemoryHost::new();
-    let agent =
-        Agent::start(&state, InMemory::new(), host.clone(), Arc::new(facts), options).unwrap();
+    // As `Advertise` does: the node says it serves the ingress while the agent holds its sockets.
+    let advertised = Arc::clone(&serving);
+    let facts = Arc::new(move || {
+        let mut f = facts();
+        f.advertised.ingress = advertised.load(Ordering::Relaxed);
+        f
+    });
+    let agent = Agent::start(&state, InMemory::new(), host.clone(), facts, options).unwrap();
     until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
 
     let control = started(&host, 1).await;
@@ -141,7 +159,7 @@ async fn the_agent_hands_its_proxy_the_sockets_and_the_routes_and_restarts_it() 
     assert!(first.routes.is_empty());
 
     cp.measured().await;
-    cp.execute("UPDATE node SET ingress = true").await;
+    advertised_at_once(&cp).await;
     let attest = pb::CreateDomainRequest {
         mutation: mutation("domain").into(),
         organization: cp.root_org.clone(),

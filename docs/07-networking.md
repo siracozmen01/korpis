@@ -366,8 +366,9 @@ table drops a new connection from it that leaves by anything but a workload's li
 naming ports and not addresses, could not express. Where the node cannot make the cgroup or the
 rule, the agent says the proxy runs without that part of its confinement. When the proxy goes away
 the agent has it started again, waiting longer each time it fails quickly; the node says it serves
-the ingress while the agent holds the sockets, and an operator who wants a node to serve none runs
-its agent with `--ingress false`. The agent gives the proxy its routes and certificates whole,
+the ingress while the agent holds the sockets, and says so as soon as it holds them rather than at
+its next heartbeat, so placement does not wait on it; an operator who wants a node to serve none
+runs its agent with `--ingress false`. The agent gives the proxy its routes and certificates whole,
 again whenever they change, over a Unix socket it names when it starts the proxy, and hands the
 listening sockets over the same connection as `SCM_RIGHTS`, so the proxy adopts them without
 inheriting descriptors by number; the proxy keeps nothing on disk. (Corrected 2026-10-15, when the

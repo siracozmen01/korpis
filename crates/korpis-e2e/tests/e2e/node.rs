@@ -30,7 +30,7 @@ pub const CONTAINERD: &str = "/run/containerd/containerd.sock";
 
 /// A joined node.
 pub struct Node {
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
     pub state: StateDir,
     pub volumes: PathBuf,
     driver: PathBuf,
@@ -97,11 +97,29 @@ fn helper(socket: &Path, volumes: &Path, (state, content, netns): (&Path, &Path,
         content: Some(content.to_owned()),
     };
     let network = korpis_helper::network::Network::new(netns.to_owned());
+    // As `--ingress-binary` beside the helper would, the proxy's cgroup made beneath one of the
+    // test's own, which the node removes when it is dropped.
+    let ingress =
+        korpis_helper::ingress::IngressConfig { binary: proxy(), cgroups: Some(cgroups(state)) };
     let mut h = korpis_helper::helper::Helper::new(vec![class], ledger)
         .with_jobs(jobs)
-        .with_network(network);
+        .with_network(network)
+        .with_ingress(korpis_helper::ingress::Ingress::new(ingress));
     let listener = korpis_helper::serve::bound(socket).unwrap();
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
+}
+
+/// The ingress proxy, built where this test was, once per test process.
+fn proxy() -> PathBuf {
+    static BUILT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    BUILT.get_or_init(|| built("korpis-ingress", "korpis-ingress")).clone()
+}
+
+/// The cgroup the helper whose state is at `state` makes its ingress proxy's beneath: one of
+/// this test process's own, named for that helper, so no two nodes share it.
+fn cgroups(state: &Path) -> PathBuf {
+    let name = state.parent().and_then(Path::file_name).unwrap_or_default().to_string_lossy();
+    PathBuf::from(format!("/sys/fs/cgroup/korpis-e2e-{}-{name}", std::process::id()))
 }
 
 /// The stream writer, built where this test was if it is not already.
@@ -192,7 +210,7 @@ impl Node {
         helper(&helper_socket, &volumes, (&dir.path().join("helper"), &content, &netns));
         driver(&driver_socket, &state, (&volumes, &netns)).await;
         Self {
-            _dir: dir,
+            dir,
             state,
             volumes,
             driver: driver_socket,
@@ -210,8 +228,19 @@ impl Node {
         DriverRuntime::connect(&self.driver)
     }
 
-    /// Starts the agent as `korpis-agent run --driver oci` does, and waits until it is welcomed.
+    /// Starts the agent as `korpis-agent run --driver oci --ingress false` does, and waits until
+    /// it is welcomed: only a test of the ingress has its node open ports 80 and 443 on this
+    /// machine's address, which two nodes cannot both hold.
     pub async fn agent(&self) -> Agent {
+        self.agent_with(false).await
+    }
+
+    /// As [`Self::agent`], the node serving the ingress, as `korpis-agent run` does by default.
+    pub async fn serving_ingress(&self) -> Agent {
+        self.agent_with(true).await
+    }
+
+    async fn agent_with(&self, ingress: bool) -> Agent {
         // As `--fetch-allow 127.0.0.0/8` would: the tests serve what installs fetch on loopback.
         let loopback = korpis_agent::content::Reach::with(vec!["127.0.0.0/8".parse().unwrap()]);
         let content = ContentStore::open(&self.state.root().join("content"), registries())
@@ -225,10 +254,12 @@ impl Node {
         // plane is on this machine, and the node forwards its endpoints' ports on every address
         // but loopback (§3 of docs/07-networking.md).
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
+        let ingress = ingress.then(|| advertise.ingress());
         let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
-        let options = Options { period: Duration::from_millis(500), network, ..Options::default() };
+        let period = Duration::from_millis(500);
+        let options = Options { period, network, ingress, ..Options::default() };
         let agent = Agent::start(&self.state, runtime, host, facts, options).unwrap();
         let mut events = agent.events();
         let welcomed =
@@ -260,6 +291,20 @@ impl Drop for Node {
         let networks = korpis_helper::network::Network::new(self.netns.clone());
         for entry in std::fs::read_dir(&self.netns).into_iter().flatten().flatten() {
             let _ = networks.release(&entry.file_name().to_string_lossy());
+        }
+        // The proxy left when its agent did; its cgroup goes, with the rule naming it.
+        let cgroups = cgroups(&self.dir.path().join("helper"));
+        let _ = std::fs::write(cgroups.join("ingress/cgroup.kill"), "1");
+        if cgroups.exists() {
+            let chain = ["delete", "chain", "inet", "korpis", "ingress_output"];
+            let _ = Command::new("nft").args(chain).status();
+        }
+        for _ in 0..20 {
+            let _ = std::fs::remove_dir(cgroups.join("ingress"));
+            if std::fs::remove_dir(&cgroups).is_ok() || !cgroups.exists() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
         }
         if let Some(at) = &self.mounted {
             let _ = Command::new("umount").arg("-l").arg(at).status();

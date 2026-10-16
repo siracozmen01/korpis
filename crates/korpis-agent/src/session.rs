@@ -54,6 +54,7 @@ pub struct Session {
     credentials: Arc<Credentials>,
     jobs: Arc<JobAccesses>,
     steps: Arc<crate::steps::StepAnswers>,
+    offered: Arc<tokio::sync::Notify>,
     /// What answers feasibility queries, when the agent drives a runtime that can (§2.1 of
     /// docs/05-scheduling.md); where answers go; and how many more may be answered at once.
     answering: Option<(Answerer, mpsc::Sender<agent::AgentMessage>, Arc<Semaphore>)>,
@@ -128,6 +129,7 @@ impl Session {
         let credentials = Credentials::new(outbound_tx.clone());
         let jobs = JobAccesses::new(outbound_tx.clone());
         let steps = crate::steps::StepAnswers::new(outbound_tx.clone());
+        let offered = Arc::new(tokio::sync::Notify::new());
         let link = Link {
             held: held_rx,
             revoked: revoked_rx,
@@ -138,6 +140,7 @@ impl Session {
             credentials: credentials.clone(),
             jobs: jobs.clone(),
             steps: steps.clone(),
+            offered: Arc::clone(&offered),
         };
         let session = Self {
             identity,
@@ -153,6 +156,7 @@ impl Session {
             credentials,
             jobs,
             steps,
+            offered,
             answering: None,
         };
         (session, link)
@@ -264,6 +268,7 @@ impl Session {
         let mut tick = tokio::time::interval(interval);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let (journal, mut shipper) = (self.journal.clone(), Shipper::new(self.journal.clone()));
+        let offered = Arc::clone(&self.offered);
         loop {
             let up = tokio::select! {
                 next = rx.recv() => {
@@ -276,6 +281,7 @@ impl Session {
                     up
                 }
                 () = journal.changed() => shipped(shipper.pump().await),
+                () = offered.notified() => vec![self.heartbeat().await],
                 Some(up) = self.outbound.recv() => vec![up],
             };
             for m in up {

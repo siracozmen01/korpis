@@ -84,4 +84,7 @@ pub struct Link {
     /// Installs' provider-step questions, sent up this session and answered down it (§4 of
     /// docs/09-recipes.md).
     pub steps: Arc<crate::steps::StepAnswers>,
+    /// Told when what the node offers changes, such as its ingress being served; the session
+    /// reports it at once rather than at the next heartbeat, so placement learns of it.
+    pub offered: Arc<tokio::sync::Notify>,
 }

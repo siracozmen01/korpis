@@ -110,6 +110,35 @@ extension:
     )
 }
 
+/// A recipe running the test web program in `image`; its endpoints are the intent's to declare.
+fn web(image: &str) -> String {
+    let entry = crate::image::TEST_WEB.entry();
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: web, version: "{VERSION}", description: serves, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{image}"}}
+  entry:
+    command: [{entry}]
+preset:
+  lifecycle: persistent
+  console: logs
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu:    {{min: 50m, recommended: 100m}}
+"#
+    )
+}
+
+/// Pushes the web recipe over the test web program's image to a repository no other test uses;
+/// the repository.
+pub async fn push_web() -> String {
+    let image = crate::image::push_image(&test_registry(), crate::image::TEST_WEB).await;
+    push("web", web(&image)).await
+}
+
 /// Pushes the backup target extension to a repository no other test uses; the repository.
 pub async fn push_target() -> String {
     push("s3-target", target()).await

@@ -18,6 +18,7 @@ mod dependencies;
 mod extension;
 mod fs_target;
 mod image;
+mod ingress;
 mod install;
 mod network;
 mod node;

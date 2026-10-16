@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::watch;
+use tokio::sync::{Notify, watch};
 
 /// How long the proxy has to connect once started.
 const CONNECT: Duration = Duration::from_secs(10);
@@ -33,6 +33,7 @@ pub struct Supervisor<H> {
     control: PathBuf,
     config: watch::Receiver<ingress::IngressConfig>,
     serving: Arc<AtomicBool>,
+    offered: Arc<Notify>,
 }
 
 fn framed(body: &[u8]) -> io::Result<Vec<u8>> {
@@ -68,15 +69,16 @@ async fn hand_over(
 
 impl<H: Host> Supervisor<H> {
     /// The proxy of a node advertising `addresses`, served on what `config` holds, its control
-    /// socket at `control`; `serving` says whether the node holds the ingress's sockets.
+    /// socket at `control`; `serving` says whether the node holds the ingress's sockets, and
+    /// `offered` is told when that changes.
     pub fn new(
         host: H,
         addresses: Vec<String>,
         control: PathBuf,
         config: watch::Receiver<ingress::IngressConfig>,
-        serving: Arc<AtomicBool>,
+        (serving, offered): (Arc<AtomicBool>, Arc<Notify>),
     ) -> Self {
-        Self { host, addresses, control, config, serving }
+        Self { host, addresses, control, config, serving, offered }
     }
 
     /// Opens the sockets, then keeps a proxy serving them; never returns.
@@ -93,6 +95,7 @@ impl<H: Host> Supervisor<H> {
             }
         };
         self.serving.store(true, Ordering::Relaxed);
+        self.offered.notify_one();
         let mut wait = Duration::from_secs(1);
         loop {
             let started = Instant::now();

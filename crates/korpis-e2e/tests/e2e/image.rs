@@ -2,7 +2,7 @@
 
 //! Programs of the workspace, built static and pushed to the test registry as OCI images of one
 //! file each, so a real node runs them in containers: the test extension (`korpis-extension`'s
-//! example) and the first-party extensions.
+//! example), the test web program (this crate's), and the first-party extensions.
 
 use sha2::{Digest as _, Sha256};
 use std::collections::HashMap;
@@ -24,6 +24,8 @@ pub struct Program {
 /// The test extension.
 pub const TEST_EXTENSION: Program =
     Program { package: "korpis-extension", example: true, name: "test-extension" };
+/// The test web program: HTTP on 8080, answering with the request's head, and an echo on 8443.
+pub const TEST_WEB: Program = Program { package: "korpis-e2e", example: true, name: "test-web" };
 /// The backup target for a disk.
 pub const FS_TARGET: Program =
     Program { package: "korpis-target-fs", example: false, name: "korpis-target-fs" };

@@ -14,7 +14,7 @@ use std::os::unix::fs::MetadataExt as _;
 use std::process::Command;
 use std::time::Duration;
 
-async fn converged(cp: &ControlPlane, w: &str) {
+pub async fn converged(cp: &ControlPlane, w: &str) {
     for _ in 0..900 {
         let s = cp.status(w).await;
         if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {

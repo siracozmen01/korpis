@@ -23,7 +23,7 @@ use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
 use crate::revoked::token_ring;
 use crate::runtime::{Runtime, RuntimeError};
-use crate::session::{Event, Facts, Session};
+use crate::session::{Event, Facts, Link, Session};
 use crate::state::{StateDir, StateError};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
@@ -169,7 +169,7 @@ fn ingress<H: Host + Clone>(
     state: &StateDir,
     host: &H,
     (facts, serving): (Facts, Option<Arc<std::sync::atomic::AtomicBool>>),
-    networks: bool,
+    (networks, offered): (bool, &Arc<tokio::sync::Notify>),
 ) -> Ingress {
     let addresses = facts.advertised.addresses;
     let Some(serving) = serving.filter(|_| networks && !addresses.is_empty()) else {
@@ -178,9 +178,22 @@ fn ingress<H: Host + Clone>(
     let config = korpis_proto::korpis::ingress::v1::IngressConfig::default();
     let (publish, config) = tokio::sync::watch::channel(config);
     let control = state.root().join("ingress.sock");
+    let watched = (serving, Arc::clone(offered));
     let supervisor =
-        crate::ingress::Supervisor::new(host.clone(), addresses, control, config, serving);
+        crate::ingress::Supervisor::new(host.clone(), addresses, control, config, watched);
     (Some(publish), Some(tokio::spawn(supervisor.run())))
+}
+
+/// The data link of the node `identity` names, judging tokens by what `link` holds and serving
+/// `handlers`.
+fn data_link(identity: crate::state::Identity, link: &Link, handlers: Handlers) -> DataLink {
+    let judged = Judged {
+        keys: token_ring(&identity.keys.token_keys),
+        revoked: link.revoked.clone(),
+        held: link.held.clone(),
+        handlers,
+    };
+    DataLink::new(identity, judged, link.relays.clone())
 }
 
 /// The running agent.
@@ -252,26 +265,25 @@ impl Agent {
         options: Options,
     ) -> Result<Self, RunError> {
         let identity = state.load()?;
-        let io = |what| move |source| RunError::Io { what, source };
-
         let Kept { journal, progress, streams, inventory, network } =
             Kept::open(state, options.journal, options.network)?;
-        let (ingress, proxy) = ingress(state, &host, (facts(), options.ingress), network.is_some());
         let node = identity.node.clone();
         let control_plane =
             ControlPlane { url: identity.server.clone(), ca_pem: identity.ca_pem.clone() };
         let data = identity.clone();
+        let ingress_facts = facts();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let (ingress, proxy) = ingress(
+            state,
+            &host,
+            (ingress_facts, options.ingress),
+            (network.is_some(), &link.offered),
+        );
         let answerer = crate::feasibility::answerer(runtime.clone());
         let session = session.answering(answerer, link.outbound.clone());
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
-        let judged = Judged {
-            keys: token_ring(&data.keys.token_keys),
-            revoked: link.revoked.clone(),
-            held: link.held.clone(),
-            handlers: consoles(options.handlers, &streams, (&runtime, &runtimes), &journal),
-        };
-        let data = DataLink::new(data, judged, link.relays.clone());
+        let handlers = consoles(options.handlers, &streams, (&runtime, &runtimes), &journal);
+        let data = data_link(data, &link, handlers);
         let leases = Leases::new(journal.clone());
         let keeper =
             Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound.clone());
@@ -301,7 +313,7 @@ impl Agent {
             (journal.clone(), link.jobs.clone()),
             options.period,
         )
-        .map_err(io("the streams offloaded"))?;
+        .map_err(|source| RunError::Io { what: "the streams offloaded", source })?;
         let tasks = [
             tokio::spawn(session.run()),
             tokio::spawn(keeper.run()),
