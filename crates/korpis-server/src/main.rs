@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use clap::{Parser, Subcommand};
-use korpis_app::install::Installation;
-use korpis_core::id::{Id, IdKind};
+use korpis_app::install::RootHolder;
 use korpis_core::rate::{Rate, Rates};
 use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;
-use korpis_server::install::{InstallConfig, install};
+use korpis_server::install::{
+    InstallConfig, RecoverConfig, install, installed_report, invitation_report, recover_root,
+};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -24,7 +25,8 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Install into an empty database: migrate, create keys and TLS, create the root
-    /// organization, and print the root API token once.
+    /// organization and the account holding its root grant, and print that account's
+    /// invitation once, to redeem by registering a passkey within the hour.
     Install {
         /// The data directory for keys and TLS material. Back it up outside Korpis.
         #[arg(long, env = "KORPIS_DATA_DIR")]
@@ -38,6 +40,15 @@ enum Command {
         /// Names and addresses the server certificate is valid for.
         #[arg(long = "tls-name", default_values = ["localhost", "127.0.0.1"])]
         tls_names: Vec<String>,
+        /// Issue the root grant to an API token instead, printed once: a bearer secret with no
+        /// second factor, for an unattended install or a test (§9.1 of docs/08-identity.md).
+        #[arg(long)]
+        root_token: bool,
+    },
+    /// Administration done at the machine, by its root user.
+    Admin {
+        #[command(subcommand)]
+        command: AdminCommand,
     },
     /// Serve the API.
     Serve(Box<ServeArgs>),
@@ -162,6 +173,21 @@ struct ServeArgs {
 }
 
 #[derive(Debug, Subcommand)]
+enum AdminCommand {
+    /// Issue a new root grant to a new account and print its invitation, to redeem by
+    /// registering a passkey within the hour, when every holder of root is locked out (§9.2 of
+    /// docs/08-identity.md). Recorded as the bootstrap actor and the user who ran it.
+    RecoverRoot {
+        /// The installation's data directory.
+        #[arg(long, env = "KORPIS_DATA_DIR")]
+        data_dir: PathBuf,
+        /// The installation's database.
+        #[arg(long, env = "KORPIS_DATABASE_URL")]
+        database_url: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 enum RelayCommand {
     /// Join the control plane once, with an enrollment token from
     /// `korpis call korpis.v1.NodeService/CreateRelayEnrollmentToken`.
@@ -224,15 +250,22 @@ fn fail(e: &dyn std::error::Error) {
 
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
-        Command::Install { data_dir, database_owner_url, organization, tls_names } => {
+        Command::Install { data_dir, database_owner_url, organization, tls_names, root_token } => {
             let config = InstallConfig {
                 data: DataDir::new(data_dir),
                 owner_url: database_owner_url,
                 organization: Name::parse(organization)?,
                 tls_names,
+                root: if root_token { RootHolder::Token } else { RootHolder::Passkey },
             };
             let done = install(&config).await?;
-            report(&config, &done);
+            say(&installed_report(&config, &done));
+            Ok(())
+        }
+        Command::Admin { command: AdminCommand::RecoverRoot { data_dir, database_url } } => {
+            let config = RecoverConfig { data: DataDir::new(data_dir), database_url };
+            let invitation = recover_root(&config, &operator()).await?;
+            say(&invitation_report(&invitation));
             Ok(())
         }
         Command::Serve(args) => serve(*args).await,
@@ -331,17 +364,20 @@ fn default_listen(
     Ok(SocketAddr::from(([0, 0, 0, 0], port)))
 }
 
-#[expect(clippy::print_stdout, reason = "the installation report is this command's output")]
-fn report(config: &InstallConfig, done: &Installation) {
-    let org = Id::from_uuid(IdKind::Organization, done.organization.id);
-    println!("Korpis is installed.");
-    println!();
-    println!("  root organization  {org}");
-    println!("  CA certificate     {}", config.data.tls().join("ca.pem").display());
-    println!();
-    println!("The root API token is shown once. Store it somewhere safe:");
-    println!();
-    println!("  {}", done.secret.expose());
-    println!();
-    println!("It holds the root grant. Every other grant descends from it.");
+#[expect(clippy::print_stdout, reason = "a command's answer is its output")]
+fn say(text: &str) {
+    print!("{text}");
+}
+
+/// The operating-system user running this, as the effect of a recovery names them: the user
+/// `sudo` was run by, if it was, and the user it runs as.
+fn operator() -> String {
+    use std::os::unix::fs::MetadataExt as _;
+    let uid = std::fs::metadata("/proc/self").map(|m| m.uid().to_string());
+    let uid = uid.unwrap_or_else(|_| "unknown".to_owned());
+    let user = std::env::var("USER").unwrap_or_default();
+    match std::env::var("SUDO_USER") {
+        Ok(by) => format!("uid {uid} ({user}), by sudo from {by}"),
+        Err(_) => format!("uid {uid} ({user})"),
+    }
 }

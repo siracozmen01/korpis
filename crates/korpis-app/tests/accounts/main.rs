@@ -15,4 +15,5 @@
 mod manage;
 mod passkeys;
 mod passwords;
+mod root;
 mod support;

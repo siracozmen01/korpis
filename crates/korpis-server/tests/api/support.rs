@@ -152,6 +152,7 @@ impl Harness {
             owner_url: db.owner_url.clone(),
             organization: Name::parse("acme").unwrap(),
             tls_names: vec!["localhost".to_owned()],
+            root: korpis_server::install::RootHolder::Token,
         })
         .await
         .expect("install");
@@ -236,7 +237,7 @@ impl Harness {
     }
 
     pub fn root(&self) -> ClientConfig {
-        self.config(Some(self.installed.secret.expose()))
+        self.config(Some(self.installed.token().unwrap().1.expose()))
     }
 
     pub fn orgs(&self, config: ClientConfig) -> pb::OrganizationServiceClient<HttpClient> {

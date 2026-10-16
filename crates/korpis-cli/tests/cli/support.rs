@@ -70,6 +70,7 @@ impl ControlPlane {
             owner_url: db.owner_url.clone(),
             organization: Name::parse("acme").unwrap(),
             tls_names: vec!["localhost".to_owned()],
+            root: korpis_server::install::RootHolder::Token,
         })
         .await
         .expect("install");
@@ -107,7 +108,7 @@ impl ControlPlane {
             data,
             url: format!("https://localhost:{}", running.addr.port()),
             root_org,
-            secret: installed.secret.expose().to_owned(),
+            secret: installed.token().unwrap().1.expose().to_owned(),
             server: running.task,
         }
     }

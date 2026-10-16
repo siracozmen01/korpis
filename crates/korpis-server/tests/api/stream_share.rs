@@ -137,7 +137,7 @@ async fn a_shared_range_of_an_offloaded_stream_is_all_that_is_sent() {
     let firsts: Vec<u64> =
         shown.stream.as_option().unwrap().segments.iter().map(|s| s.first_offset).collect();
     assert_eq!(firsts, [2, 4], "its index shows only what holds some of the range");
-    let root = h.installed.secret.expose().to_owned();
+    let root = h.installed.token().unwrap().1.expose().to_owned();
     assert_eq!(read_as(&h, &root, &workload).await.len(), 6, "an unranged reader");
 
     let both = ["workload.console.read", "workload.restart"];

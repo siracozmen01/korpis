@@ -1073,6 +1073,12 @@ Every other grant in the installation descends from that one.
 > second factor. One installation uses one path or the other, never both, so a scripted install is
 > not a passkey-held root with a bearer secret beside it.
 
+> As built, 2026-10-16. `korpis-server install` creates the account and its root grant and prints
+> the invitation, its expiry, and that only registering a passkey redeems it; with `--root-token`
+> it prints the token and says it has no second factor. Until the panel of `11-surface-web.md`
+> is built, later in Phase 1, redeeming the invitation needs a client of the account service of
+> its own, so an installation that must be usable before then is installed with `--root-token`.
+
 ### 9.2 When the last administrator is locked out
 
 Whoever holds root on the machine running the control plane already holds everything: the
@@ -1088,6 +1094,13 @@ done from anywhere except the machine.
 > account holding a new root grant, and prints the account's invitation, which only registering a
 > passkey redeems, in the panel, as at installation. The effect it writes names the `System`
 > bootstrap actor and the operating-system user who ran it.
+
+> As built, 2026-10-16: `korpis-server admin recover-root --data-dir --database-url` refuses a
+> directory that holds no installation's server certificate, and the effect `root.recovered`,
+> recorded under the new root grant, names the account, the grant, and the operator as the
+> process's user id with the `USER` and `SUDO_USER` it was run with. The user id is the kernel's;
+> the two names are what the shell said, which whoever runs it as root controls, so they say who
+> claimed to run it and the user id says with what authority.
 
 ### 9.3 Account recovery
 

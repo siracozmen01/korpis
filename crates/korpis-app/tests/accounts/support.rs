@@ -5,6 +5,7 @@
 
 use korpis_app::account::{NewRegistration, Redeemed};
 use korpis_app::authz::{Holder, IssueGrant};
+use korpis_app::install::RootHolder;
 use korpis_app::ports::{FactorVault, SealedKey, SystemClock, VaultError};
 use korpis_app::{App, Caller, Idempotent, NoRecipes, Reply};
 use korpis_core::account::totp::{STEP_SECONDS, TotpSecret};
@@ -60,8 +61,8 @@ pub async fn fixture() -> Fixture {
     let app = App::new(store, SystemClock, Arc::new(SigningKey::generate(1)), NoRecipes)
         .with_relying_party(RelyingParty { id: RP.into(), origins: vec![ORIGIN.into()] })
         .with_factor_vault(Arc::new(Bound));
-    let installed = app.install(Name::parse("acme").unwrap()).await.unwrap();
-    let root = Caller::new(Principal::Token(installed.token.id), None, false);
+    let installed = app.install(Name::parse("acme").unwrap(), RootHolder::Token).await.unwrap();
+    let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
     Fixture { _db: db, app, root, organization: installed.organization.id }
 }
 
