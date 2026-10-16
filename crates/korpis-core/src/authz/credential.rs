@@ -20,6 +20,12 @@ pub const SECRET_PREFIX: &str = "korpis_";
 /// found.
 pub const WORKLOAD_PREFIX: &str = "korpiswl_";
 
+/// Every invitation starts with this (§9.6 of docs/08-identity.md).
+pub const INVITATION_PREFIX: &str = "korpisiv_";
+
+/// Every refresh credential starts with this (§9.4 of docs/08-identity.md).
+pub const REFRESH_PREFIX: &str = "korpisrt_";
+
 /// Which kind of credential a secret is, by its prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretKind {
@@ -27,6 +33,11 @@ pub enum SecretKind {
     ApiToken,
     /// A running workload's, issued through its node (§9.5 of docs/08-identity.md).
     Workload,
+    /// An invitation's, redeemed once to create an account (§9.6 of docs/08-identity.md).
+    Invitation,
+    /// A session's refresh credential, exchanged for access tokens (§9.4 of
+    /// docs/08-identity.md). Never a bearer of API calls.
+    Refresh,
 }
 
 impl SecretKind {
@@ -34,6 +45,8 @@ impl SecretKind {
         match self {
             Self::ApiToken => SECRET_PREFIX,
             Self::Workload => WORKLOAD_PREFIX,
+            Self::Invitation => INVITATION_PREFIX,
+            Self::Refresh => REFRESH_PREFIX,
         }
     }
 }
@@ -73,7 +86,14 @@ impl Secret {
         s.starts_with(SECRET_PREFIX).then(|| Self(s.to_owned()))
     }
 
-    /// A secret of either kind as presented by a client, with its kind.
+    /// A secret of `kind` as presented by a client. `None` if it cannot be one.
+    #[must_use]
+    pub fn presented_as(kind: SecretKind, s: &str) -> Option<Self> {
+        s.starts_with(kind.prefix()).then(|| Self(s.to_owned()))
+    }
+
+    /// A secret that bears API calls, an API token's or a workload's, as presented by a client,
+    /// with its kind. An invitation or a refresh credential bears none and is never one.
     #[must_use]
     pub fn presented_any(s: &str) -> Option<(SecretKind, Self)> {
         [SecretKind::Workload, SecretKind::ApiToken]

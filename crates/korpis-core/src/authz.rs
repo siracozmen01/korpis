@@ -11,6 +11,8 @@
 //! The action vocabulary is plain data, needed wherever an extension's document is read, so it
 //! is compiled always; everything else is behind the `authz` feature.
 
+#[cfg(feature = "authz")]
+pub mod access;
 pub mod action;
 #[cfg(feature = "authz")]
 pub mod credential;

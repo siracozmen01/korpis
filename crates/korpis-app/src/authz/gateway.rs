@@ -42,6 +42,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let held = self.store.authenticate_workload(&secret.digest(), now).await?;
                 held.ok_or(AppError::Unauthenticated)?.subject
             }
+            // Never presented as the bearer of a call; `presented_any` does not offer them.
+            SecretKind::Invitation | SecretKind::Refresh => return Err(AppError::Unauthenticated),
         };
         Ok(Caller::new(principal, source_ip, false))
     }

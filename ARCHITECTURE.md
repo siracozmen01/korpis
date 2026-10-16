@@ -235,4 +235,6 @@ independent implementation of the other side, in a package under `conformance/` 
 of its own: `conformance/webauthn` registers and signs in to the WebAuthn relying party of
 `korpis-core` with 1Password's software authenticator. Each has its own lockfile, so what it pulls
 in for the other side cannot change, through Cargo's feature unification, how the main workspace's
-crates build and test; `scripts/check.sh` formats, lints, tests, and audits each on its own.
+crates build and test; `scripts/check.sh` formats, lints, tests, and audits each on its own. A
+change to the dependencies of a crate a conformance package uses changes that package's lockfile
+too, which `cargo metadata --manifest-path conformance/<name>/Cargo.toml` writes.

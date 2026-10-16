@@ -23,7 +23,7 @@ trust = ["dep:base64", "dep:p256", "dep:sha2"]
 # shared by the agent that signs and the control plane that verifies.
 identity = ["dep:ed25519-dalek", "dep:sha2"]
 # Accounts: signing in (§9.6 of docs/08-identity.md), the control plane's.
-accounts = ["dep:base64", "dep:ciborium", "dep:coset", "dep:ring", "dep:serde", "dep:sha2"]
+accounts = ["dep:argon2", "dep:base64", "dep:ciborium", "dep:coset", "dep:getrandom", "dep:ring", "dep:serde", "dep:sha2"]
 # Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
 # agent that fetches them and the driver that imports them.
 content = ["dep:serde", "dep:sha2"]
@@ -31,6 +31,8 @@ content = ["dep:serde", "dep:sha2"]
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
 base64 = { version = "0.22", optional = true }
+# Accounts: passwords are Argon2id at OWASP's parameters (§9.6 of docs/08-identity.md).
+argon2 = { version = "0.5", optional = true }
 # Accounts: the WebAuthn relying party (§9.6 of docs/08-identity.md) decodes CBOR and COSE and
 # verifies signatures with ring, which the TLS stack already brings.
 ciborium = { version = "0.2", optional = true }
