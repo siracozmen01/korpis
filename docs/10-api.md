@@ -64,6 +64,12 @@ the same assignment would encode differently from one computation to the next an
 comparison would read as a change. A third-party agent needs no such property: it verifies the
 bytes it was sent, whatever order they are in.
 
+**Times are `google.protobuf.Timestamp`, within the range that type defines.** Added 2026-10-16
+(Finding 67 of `23-walkthroughs.md`): a time a client sends is refused, as `INVALID_ARGUMENT`
+naming its field, when it falls before 1970, which no time in this API predates, or after the last
+second of 9999, where the type's own definition ends, so no value a client can write is one the
+control plane cannot store.
+
 Connect rather than raw gRPC because it speaks Connect, gRPC, and gRPC-Web on one endpoint, works
 through ordinary HTTP proxies and CDNs, and is reachable from a browser without a translating
 proxy.
@@ -528,29 +534,28 @@ holding grants in several organizations is bounded by the emptiest; a refusal ad
 **Unauthenticated attempts** are every presentation of a credential that is not yet trusted: an API
 token, a workload credential, or a share link presented to the API; a node's `Hello`; an enrollment
 token joined; a relay's enrollment; and, with the login of §9.6 of `08-identity.md`, an access
-token, a refresh credential, an invitation, and each factor of a sign-in. Each is checked first, and one that opens is admitted, whatever
-its source has done. Each that fails is charged to a bucket of its source, the address, or the /64
-for IPv6, at 30 a minute with a burst of 30 (`--rate-failures`, `<per minute>/<burst>`), and once
-that bucket refuses, a failure is answered `RATE_LIMITED` with `retry_after` and `Retry-After`
-rather than `UNAUTHENTICATED`, so a client in a loop is told to stop and for how long. Failures are
-recorded as denials are, by the actor `anonymous` (§3.2 of `01-model.md`), coalesced by source,
-kind, and target within the window, the first written at once; the target is what the attempt
-named where it named one, the node of a `Hello` if that node exists, so a forged `Hello` is in
-that node's effects. What is recorded is bounded whoever sends the failures, and no sender can hide
-another's (Findings 64 and 65). A failure that joins a run already open costs nothing more. One that
-would open a run, and so write an effect at once, opens it under its own source only while its
-source's bucket admits it and a bucket the whole installation shares, 600 a minute
-(`--rate-failures-recorded`), has room, which it then spends; otherwise it is counted in the run of
-its kind and target under the source `*`. One address can spend no more of the shared bucket than
-its own allows; the log receives at most that bucket's worth of effects, and one per kind and node,
-each window, however many addresses an attacker holds and however many identifiers it invents; and
-a failure against a node is recorded against that node whatever the budgets say. What is lost under
-a flood from many addresses is the attribution of the excess to its sources, never its count or
-its target.
-What evaluates it, where, and with what: the replica that received the attempt, from the address
-its connection came from (the client a configured load balancer's PROXY header names, §3.1 of
-`02-architecture.md`), the bucket every replica shares, and the runs of failures in the same
-database.
+token, a refresh credential, an invitation, and each factor of a sign-in. Each is checked first,
+and one that opens is admitted, whatever its source has done. Each that fails is charged to a
+bucket of its source, the address, or the /64 for IPv6, at 30 a minute with a burst of 30
+(`--rate-failures`, `<per minute>/<burst>`), and once that bucket refuses, a failure is answered
+`RATE_LIMITED` with `retry_after` and `Retry-After` rather than `UNAUTHENTICATED`, so a client in a
+loop is told to stop and for how long. Failures are recorded as denials are, by the actor
+`anonymous` (§3.2 of `01-model.md`), coalesced by source, kind, and target within the window, the
+first written at once; the target is what the attempt named where it named one, the node of a
+`Hello` if that node exists, so a forged `Hello` is in that node's effects. What is recorded is
+bounded whoever sends the failures, and no sender can hide another's (Findings 64 and 65). A
+failure that joins a run already open costs nothing more. One that would open a run, and so write
+an effect at once, opens it under its own source only while its source's bucket admits it and a
+bucket the whole installation shares, 600 a minute (`--rate-failures-recorded`), has room, which it
+then spends; otherwise it is counted in the run of its kind and target under the source `*`. One
+address can spend no more of the shared bucket than its own allows; the log receives at most that
+bucket's worth of effects, and one per kind and node, each window, however many addresses an
+attacker holds and however many identifiers it invents; and a failure against a node is recorded
+against that node whatever the budgets say. What is lost under a flood from many addresses is the
+attribution of the excess to its sources, never its count or its target. What evaluates it, where,
+and with what: the replica that received the attempt, from the address its connection came from
+(the client a configured load balancer's PROXY header names, §3.1 of `02-architecture.md`), the
+bucket every replica shares, and the runs of failures in the same database.
 
 > Corrected 2026-10-16, when this was built (Finding 63 in §37 of `23-walkthroughs.md`). As
 > designed, each failure was also charged "to its target, where the attempt names one (the link's

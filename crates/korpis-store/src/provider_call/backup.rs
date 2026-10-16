@@ -15,7 +15,8 @@ fn secs(t: SystemTime) -> u64 {
 }
 
 fn at(v: &Value, key: &str) -> Option<SystemTime> {
-    Some(UNIX_EPOCH + Duration::from_secs(v.get(key)?.as_u64()?))
+    // A provider's answer is an extension's bytes: a time it cannot be is no time.
+    UNIX_EPOCH.checked_add(Duration::from_secs(v.get(key)?.as_u64()?))
 }
 
 fn text(v: &Value, key: &str) -> Option<String> {

@@ -60,7 +60,10 @@ fn entry_to_pb(e: &format::Entry) -> pb::BackupEntry {
         _ => pb::BackupEntryKind::BACKUP_ENTRY_KIND_SPECIAL,
     };
     let seconds = u64::try_from(e.mtime_seconds).unwrap_or(0);
-    let modified = UNIX_EPOCH + Duration::new(seconds, e.mtime_nanos);
+    let modified = UNIX_EPOCH
+        .checked_add(Duration::from_secs(seconds))
+        .and_then(|t| t.checked_add(Duration::from_nanos(u64::from(e.mtime_nanos))))
+        .unwrap_or(UNIX_EPOCH);
     pb::BackupEntry {
         name: e.name.clone(),
         kind: kind.into(),

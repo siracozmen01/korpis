@@ -1101,6 +1101,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 64 | Failures naming invented targets, or from many addresses, each wrote an effect at once | §37 | `10-api.md` §10 |
 | 65 | One address could spend the shared recording budget and hide everyone's failures | §37 | `10-api.md` §10 |
 | 66 | A reseller's address could not host its customers' sign-in | §38 | `08-identity.md` §9.6, `11-surface-web.md` §7, `20-roadmap.md` §4 |
+| 67 | A forged access token, or a time far in the future, could stop the control plane's handler | §38 | `10-api.md` §2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2528,4 +2529,22 @@ relying party's identifier, and the sign-in page is the root organization's. The
 answering under names organizations hold, which names, with which certificates, and how a person
 who signs in at two sites holds a passkey at each, is Phase 2's, with the resellers it serves. →
 patched into `08-identity.md` §9.6, `11-surface-web.md` §7, and `20-roadmap.md` §4.
+
+**FINDING 67: A forged access token, or a time far in the future, could stop the control plane's
+handler. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that built the access token of step 3, and
+confirmed by reading it; the search it prompted found the same defect older and wider. The access
+token's expiry was read, and turned into a time by plain addition, before its signature was
+checked, so a token anyone could write with an expiry near the largest number panicked the
+handler that read it. The same addition, unchecked, read times from a provider's answer, and the
+conversion every stored time goes through panicked on a year past 262143, which a client could
+send in any timestamp field.
+
+**Resolution.** A time read from outside is added with a check, and refused, or held at the
+latest time a value can be, where it cannot be represented; an access token longer than any the
+control plane makes is refused before it is decoded; and a timestamp on the wire is refused before
+1970 and after 9999, the range the protobuf `Timestamp` itself defines. → `10-api.md` §2 already
+says times are `Timestamp`s; the bound is the type's own, enforced now in
+`crates/korpis-wire/src/lib.rs`.
 

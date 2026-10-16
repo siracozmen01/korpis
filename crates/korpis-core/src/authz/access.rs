@@ -30,6 +30,9 @@ const PURPOSE: &[u8] = b"korpis.access.v1\0";
 const VERSION: u8 = 1;
 /// The payload's length: version, key id, user, session, expiry.
 const PAYLOAD: usize = 1 + 4 + 16 + 16 + 8;
+/// The longest a presented token can be: the prefix, the payload and a 64-byte signature in
+/// base64url, and the dot. Anything longer is refused before it is decoded.
+const LONGEST: usize = ACCESS_PREFIX.len() + 60 + 1 + 86;
 
 /// What an access token says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,6 +85,9 @@ pub fn verify(
     presented: &str,
     now: SystemTime,
 ) -> Result<AccessClaims, AccessError> {
+    if presented.len() > LONGEST {
+        return Err(AccessError::Malformed);
+    }
     let body = presented.strip_prefix(ACCESS_PREFIX).ok_or(AccessError::Malformed)?;
     let (payload, signature) = body.split_once('.').ok_or(AccessError::Malformed)?;
     let payload = URL_SAFE_NO_PAD.decode(payload).map_err(|_| AccessError::Malformed)?;
@@ -112,7 +118,11 @@ fn parse(payload: &[u8]) -> Result<Fields, AccessError> {
     if version != VERSION || !rest.is_empty() {
         return Err(AccessError::Malformed);
     }
-    let expires_at = UNIX_EPOCH + Duration::from_secs(u64::from_be_bytes(*expiry));
+    // Read before the signature is checked, so it is anyone's bytes: an expiry past what a time
+    // can hold is malformed, never an overflow.
+    let expires_at = UNIX_EPOCH
+        .checked_add(Duration::from_secs(u64::from_be_bytes(*expiry)))
+        .ok_or(AccessError::Malformed)?;
     Ok(Fields {
         key_id: u32::from_be_bytes(*key_id),
         claims: AccessClaims {
@@ -159,5 +169,22 @@ mod tests {
         forged.replace_range(12..13, if &token[12..13] == "A" { "B" } else { "A" });
         assert!(verify(&ring(&key), &forged, now).is_err(), "a payload altered");
         assert_eq!(verify(&ring(&key), "korpis_x", now), Err(AccessError::Malformed));
+    }
+
+    #[test]
+    fn a_forged_payload_is_refused_without_panicking() {
+        let key = SigningKey::generate(3);
+        let mut payload = vec![VERSION];
+        payload.extend_from_slice(&3u32.to_be_bytes());
+        payload.extend_from_slice(&[0; 32]);
+        payload.extend_from_slice(&u64::MAX.to_be_bytes());
+        let forged = format!(
+            "{ACCESS_PREFIX}{}.{}",
+            URL_SAFE_NO_PAD.encode(&payload),
+            URL_SAFE_NO_PAD.encode([0u8; 64])
+        );
+        assert_eq!(verify(&ring(&key), &forged, UNIX_EPOCH), Err(AccessError::Malformed));
+        let long = format!("{ACCESS_PREFIX}{}", "A".repeat(10_000));
+        assert_eq!(verify(&ring(&key), &long, UNIX_EPOCH), Err(AccessError::Malformed));
     }
 }

@@ -84,7 +84,8 @@ fn repo_of(g: &agent::JobGrant) -> Result<(Repo<S3Store>, SystemTime), String> {
     };
     let store = S3Store::new(config).map_err(failed)?;
     let until = g.expires_at.as_option().map_or(UNIX_EPOCH, |t| {
-        UNIX_EPOCH + Duration::from_secs(u64::try_from(t.seconds).unwrap_or(0))
+        let seconds = Duration::from_secs(u64::try_from(t.seconds).unwrap_or(0));
+        UNIX_EPOCH.checked_add(seconds).unwrap_or(UNIX_EPOCH)
     });
     Ok((Repo::new(Arc::new(store), Arc::new(Keys::derive(&key))), until))
 }

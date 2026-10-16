@@ -63,7 +63,7 @@ pub(super) async fn alert_certificate(
         "certificate": alert.certificate.to_string(),
         "names": alert.names,
         "source": alert.source.as_str(),
-        "not_after": chrono::DateTime::<chrono::Utc>::from(alert.not_after).to_rfc3339(),
+        "not_after": crate::stored::from_time(alert.not_after).to_rfc3339(),
     });
     sqlx::query!(
         "SELECT korpis_append_event($1, $2, $3, $4, $5, NULL, NULL, $6)",

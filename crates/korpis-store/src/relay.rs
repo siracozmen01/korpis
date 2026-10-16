@@ -255,7 +255,7 @@ impl RelayWrite for PgTx {
         let detail = serde_json::json!({
             "relay": alert.relay.to_string(),
             "name": alert.name,
-            "expires_at": chrono::DateTime::<Utc>::from(alert.expires_at).to_rfc3339(),
+            "expires_at": crate::stored::from_time(alert.expires_at).to_rfc3339(),
         });
         sqlx::query!(
             "SELECT korpis_append_event($1, $2, $3, $4, $5, NULL, NULL, $6)",

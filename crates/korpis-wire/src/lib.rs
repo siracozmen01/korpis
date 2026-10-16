@@ -133,9 +133,17 @@ pub fn timestamp(t: SystemTime) -> Timestamp {
     }
 }
 
-/// A time from the field `field`. Times before 1970 are refused rather than clamped.
+/// The last second a wire time may name, 9999-12-31T23:59:59Z: the end of the range the
+/// `google.protobuf.Timestamp` it is read from defines, and far inside what every store holds.
+const LAST_SECOND: u64 = 253_402_300_799;
+
+/// A time from the field `field`. Times before 1970 are refused rather than clamped, and times
+/// after 9999 as outside what a timestamp is.
 pub fn time(field: &str, t: &Timestamp) -> Result<SystemTime> {
     let secs = u64::try_from(t.seconds).map_err(|_| invalid(field, "before 1970"))?;
+    if secs > LAST_SECOND {
+        return Err(invalid(field, "after the year 9999"));
+    }
     let nanos = u32::try_from(t.nanos).map_err(|_| invalid(field, "negative nanoseconds"))?;
     if nanos >= 1_000_000_000 {
         return Err(invalid(field, "nanoseconds out of range"));
@@ -166,4 +174,19 @@ pub fn duration_from(field: &str, d: &PbDuration) -> Result<Duration> {
 /// A wire count that must fit `T`, from the field `field`.
 pub fn fits<T: TryFrom<u64>>(field: &str, n: u64) -> Result<T> {
     T::try_from(n).map_err(|_| invalid(field, format!("{n} is out of range")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_time_is_refused_before_1970_and_after_9999() {
+        let at = |seconds: i64| Timestamp { seconds, ..Default::default() };
+        assert!(time("t", &at(1_700_000_000)).is_ok());
+        assert!(time("t", &at(253_402_300_799)).is_ok(), "the last second of 9999");
+        assert!(time("t", &at(253_402_300_800)).is_err());
+        assert!(time("t", &at(i64::MAX)).is_err(), "a stored time could not hold it");
+        assert!(time("t", &at(-1)).is_err());
+    }
 }
