@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE rate_bucket\n                SET full_at = greatest(full_at - make_interval(secs => $2::bigint / 1000000.0), $3)\n              WHERE key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "60e3d55682d460f3c7da5eab9dcf709919e7a3d18b2ffe5b5eb320a796946fc5"
+}

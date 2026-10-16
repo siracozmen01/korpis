@@ -26,6 +26,14 @@ pub trait RateBuckets {
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Vec<Standing>>> + Send;
 
+    /// Gives back one request charged to `bucket` at `now`: what a charge taken before a check
+    /// returns when the check proves it needn't have been taken.
+    fn refund(
+        &self,
+        bucket: &Bucket,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// Forgets at most `limit` buckets that are full again at `now`, which a bucket kept nowhere
     /// is too, so a bucket costs a row only while it owes; answers how many it forgot.
     fn forget_full_buckets(

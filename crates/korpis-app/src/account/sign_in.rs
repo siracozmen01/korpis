@@ -118,9 +118,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ///
     /// A password and a six-digit code can be guessed, as no other credential can, so the
     /// buckets that bound guessing are asked before anything is checked: the failures of the
-    /// source, and the guesses at the name, which every refusal charges. Once either refuses,
-    /// nothing is checked, the right password included, so a guesser that ignores the refusal
-    /// learns nothing more (Finding 69 of docs/23-walkthroughs.md).
+    /// source, and the guesses at the name. Once either refuses, nothing is checked, the right
+    /// password included, so a guesser that ignores the refusal learns nothing more (Finding 69
+    /// of docs/23-walkthroughs.md). The name's bucket is charged before the check, in one
+    /// statement that admits or refuses, and given back when the sign-in succeeds, so guesses
+    /// sent at once cannot all pass a bucket that has room for one (Finding 70).
     pub async fn sign_in_with_password(
         &self,
         name: &str,
@@ -134,15 +136,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             key: format!("n:{n}"),
             rate,
         });
-        let buckets = std::iter::once(self.failure_bucket(ip)).chain(guessed.clone()).collect();
-        let standing = self.store.peek(buckets, self.clock.now()).await?;
-        let refused = standing.iter().filter(|s| !s.admitted).map(Standing::retry_after).max();
-        if let Some(retry_after) = refused {
-            return Err(AppError::RateLimited { retry_after, standing });
+        let source = self.store.peek(vec![self.failure_bucket(ip)], self.clock.now()).await?;
+        refused(source)?;
+        if let Some(bucket) = &guessed {
+            refused(self.store.charge(vec![bucket.clone()], self.clock.now()).await?)?;
         }
         let checked = self.check_password(name, password, second).await;
-        if let (Err(AppError::Unauthenticated), Some(bucket)) = (&checked, guessed) {
-            self.store.charge(vec![bucket], self.clock.now()).await?;
+        if let (Ok(_), Some(bucket)) = (&checked, &guessed) {
+            self.store.refund(bucket, self.clock.now()).await?;
         }
         checked
     }
@@ -210,5 +211,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(None);
         }
         Ok(self.store.password(account.id).await?.map(|phc| (account.id, phc)))
+    }
+}
+
+/// `RateLimited` if any of `standing` refused.
+fn refused(standing: Vec<Standing>) -> Result<(), AppError> {
+    match standing.iter().filter(|s| !s.admitted).map(Standing::retry_after).max() {
+        Some(retry_after) => Err(AppError::RateLimited { retry_after, standing }),
+        None => Ok(()),
     }
 }

@@ -611,7 +611,10 @@ by revoking the grant.
 > telling the guesser it was wrong, so the source's bucket slowed nobody who ignored it. So a
 > password sign-in asks two buckets before it checks anything: its source's failures, and a
 > bucket of the sign-in name it names, ten guesses and then one every ninety seconds, which every
-> refused sign-in charges. Once either refuses, nothing is checked, the right password included.
+> sign-in charges before it is checked, in the one statement that admits or refuses it, and a
+> sign-in that succeeds is given back (Finding 70: charged after the check, guesses sent at once
+> all found the bucket open). Once either refuses, nothing is checked, the right password
+> included.
 > The name's bucket is kept for any well-formed name, one that names no account included, so
 > neither its answer nor its timing says whether the account exists; an invented name costs a
 > row only until its bucket refills, as every bucket does, because a bucket full again is

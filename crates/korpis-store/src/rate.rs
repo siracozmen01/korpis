@@ -60,6 +60,22 @@ impl RateBuckets for PgStore {
             .collect())
     }
 
+    async fn refund(&self, bucket: &Bucket, now: SystemTime) -> StoreResult<()> {
+        let micros = i64::try_from(bucket.rate.interval().as_micros()).unwrap_or(i64::MAX);
+        sqlx::query!(
+            "UPDATE rate_bucket
+                SET full_at = greatest(full_at - make_interval(secs => $2::bigint / 1000000.0), $3)
+              WHERE key = $1",
+            bucket.key,
+            micros,
+            from_time(now)
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
     async fn forget_full_buckets(&self, now: SystemTime, limit: u32) -> StoreResult<u64> {
         let done = sqlx::query!(
             "DELETE FROM rate_bucket

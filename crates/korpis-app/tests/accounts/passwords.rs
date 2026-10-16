@@ -99,3 +99,17 @@ async fn ten_wrong_guesses_at_a_name_refuse_even_the_right_password() {
     let other = f.app.sign_in_with_password("nobody", PASSWORD, recovery(), None).await;
     assert_eq!(other, Err(AppError::Unauthenticated), "another name is not slowed");
 }
+
+#[tokio::test]
+async fn guesses_sent_at_once_cannot_all_pass_a_bucket_with_room_for_ten() {
+    let f = fixture().await;
+    let (redeemed, _) = redeem(&f, "friend").await;
+    let recovery = SecondFactor::Recovery(redeemed.recovery_codes[0].clone());
+    let guesses = (0..30).map(|_| {
+        f.app.sign_in_with_password("friend", "not the password!", recovery.clone(), None)
+    });
+    let answers = futures_util::future::join_all(guesses).await;
+    let checked = answers.iter().filter(|a| **a == Err(AppError::Unauthenticated)).count();
+    let refused = answers.iter().filter(|a| matches!(a, Err(AppError::RateLimited { .. }))).count();
+    assert_eq!((checked, refused), (10, 20), "{answers:?}");
+}

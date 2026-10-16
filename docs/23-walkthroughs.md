@@ -1104,6 +1104,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 67 | A forged access token, or a time far in the future, could stop the control plane's handler | §38 | `10-api.md` §2 |
 | 68 | A client hanging up mid-sign-in could start more password hashes than the bound | §38 | `08-identity.md` §9.6 |
 | 69 | A guessed password was checked whatever its source had spent, so the limit slowed nobody | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
+| 70 | Guesses sent at once all passed a bucket with room for one | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2591,3 +2592,22 @@ full again is forgotten every minute, a bucket kept nowhere being full, and the 
 bucket forgotten under it as the full bucket it was (migration 0068). → `10-api.md` §10 and
 `08-identity.md` §9.6, corrected in place; built in `crates/korpis-app/src/account/sign_in.rs`,
 `crates/korpis-store/src/rate.rs`, and `crates/korpis-server/src/buckets.rs`.
+
+**FINDING 70: Guesses sent at once all passed a bucket with room for one. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that resolved Finding 69, and confirmed by a
+test that sends thirty guesses together. The name's bucket was read before the check and charged
+after it, and a check takes the length of a password hash, so every guess sent before the first
+charge landed read the bucket open, and all of them were checked. The same review observed that
+anyone can spend a name's guesses and keep its holder from signing in with a password, ninety
+seconds at a time; that is the cost §10 of `10-api.md` states for slowing guesses at all, which
+the device cookies of §9.6 of `08-identity.md` narrow to the holder's new browsers when the web
+sessions they belong to are built, and a passkey is never slowed.
+
+**Resolution.** The name's bucket is charged before the check, in the one statement that admits
+or refuses, and the charge is given back when the sign-in succeeds, so the bucket counts failures
+and no more than its room are ever checked at once; the test finds ten checked and twenty
+refused. The source's failure bucket is still read rather than charged first, since the
+account service's own per-source bucket, charged atomically on every call, already bounds how
+many guesses one address has in flight. → `10-api.md` §10 and `08-identity.md` §9.6; built in
+`crates/korpis-app/src/account/sign_in.rs` and `crates/korpis-store/src/rate.rs`.

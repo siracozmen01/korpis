@@ -2407,6 +2407,7 @@ dependencies = [
 name = "korpis-app"
 version = "0.0.0"
 dependencies = [
+ "futures-util",
  "korpis-core",
  "korpis-store",
  "serde_json",

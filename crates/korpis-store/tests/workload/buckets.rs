@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Rate limit buckets (§10 of docs/10-api.md): a peek charges nothing, and a bucket full again
-//! is forgotten, which changes nothing a charge answers.
+//! Rate limit buckets (§10 of docs/10-api.md): a peek charges nothing, a refund gives a request
+//! back and never more than the bucket holds, and a bucket full again is forgotten, which changes
+//! nothing a charge answers.
 
 use crate::support::{fixture, now};
 use korpis_app::ports::RateBuckets as _;
@@ -27,4 +28,8 @@ async fn a_peek_charges_nothing_and_a_full_bucket_is_forgotten_as_if_kept() {
     let charged = f.store.charge(vec![bucket()], later).await.unwrap();
     assert!(charged[0].admitted, "a forgotten bucket is a full one");
     assert_eq!(charged[0].remaining(), 1);
+    f.store.refund(&bucket(), later).await.unwrap();
+    f.store.refund(&bucket(), later).await.unwrap();
+    let peeked = f.store.peek(vec![bucket()], later).await.unwrap();
+    assert_eq!(peeked[0].remaining(), 2, "given back, and never past full");
 }
