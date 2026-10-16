@@ -1300,9 +1300,9 @@ passkey assertion cannot be guessed, and its failures count against the source a
 > quarter of an hour but recovered a guess at a time rather than refused for the quarter and then
 > forgiven at once. Both it and the source's bucket are asked before a password is checked, and
 > once either refuses the password is not checked at all, the right one included; checked first,
-> as every other credential is, a refusal only told a guesser that the guess was wrong. The name's
-> bucket is charged before the check and given back when a sign-in succeeds, so guesses sent at
-> once cannot all pass it (Finding 70). Until the
+> as every other credential is, a refusal only told a guesser that the guess was wrong. Both
+> buckets are charged before the check and given back when a sign-in succeeds, so guesses sent at
+> once cannot all pass them (Findings 70 and 71). Until the
 > device cookies arrive with the web sessions of §9.4, every browser counts as one without a
 > cookie.
 

@@ -51,3 +51,15 @@ pub trait RateBuckets {
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 }
+
+/// Charging buckets inside a transaction: a use case that holds one charges on its connection,
+/// never asking the pool for a second while it waits on its first (Finding 71 of
+/// docs/23-walkthroughs.md).
+pub trait RateWrite {
+    /// As [`RateBuckets::charge`], within the transaction.
+    fn charge_within(
+        &mut self,
+        buckets: Vec<Bucket>,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<Standing>>> + Send;
+}

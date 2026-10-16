@@ -9,7 +9,9 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, FailureKey, FailureWrite, RecipeSource, Store, Tx};
+use crate::ports::{
+    Clock, EffectWrite, FailureKey, FailureWrite, RateWrite as _, RecipeSource, Store, Tx,
+};
 use korpis_core::audit::denial::{DenialRun, Offer, offer};
 use korpis_core::audit::failure::{Attempt, source};
 use korpis_core::audit::{Effect, Outcome, details};
@@ -64,6 +66,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
+    /// Records a failed sign-in from `ip` whose buckets were charged before it was checked, so
+    /// charges nothing more (§10 of docs/10-api.md).
+    pub(crate) async fn guess_failed(&self, ip: Option<IpAddr>) -> Result<(), AppError> {
+        let key = FailureKey { source: source(ip), attempt: Attempt::SignIn, target: None };
+        self.record_failure(&key, true).await
+    }
+
     /// The bucket the failures from `ip` are charged to.
     pub(crate) fn failure_bucket(&self, ip: Option<IpAddr>) -> Bucket {
         let rate = self.limiter.rates.failures;
@@ -77,11 +86,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Whether the bucket the installation shares has room for a run recorded apart, which
-    /// it then spends.
-    async fn recordable(&self, now: SystemTime) -> Result<bool, AppError> {
+    /// it then spends, charged within `tx`, whose connection is already held.
+    async fn recordable(&self, tx: &mut S::Tx, now: SystemTime) -> Result<bool, AppError> {
         let rate = self.limiter.rates.recorded;
         let all = Bucket { policy: "failures-recorded", key: "f:*".into(), rate };
-        Ok(self.store.charge(vec![all], now).await?.iter().all(|s| s.admitted))
+        Ok(tx.charge_within(vec![all], now).await?.iter().all(|s| s.admitted))
     }
 
     /// Counts the failure `key` names in its run, or opens one; a run is opened under its own
@@ -92,7 +101,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let offered = offer(tx.lock_failure_run(key).await?, now, window);
         let apart = match offered {
             Offer::Count { .. } => true,
-            Offer::Write { .. } => within && self.recordable(now).await?,
+            Offer::Write { .. } => within && self.recordable(&mut tx, now).await?,
         };
         if apart {
             enter(&mut tx, key, offered).await?;

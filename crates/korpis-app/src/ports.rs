@@ -87,7 +87,7 @@ pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
 pub use quota::{Holder, QuotaWrite};
-pub use rate::RateBuckets;
+pub use rate::{RateBuckets, RateWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
@@ -241,6 +241,7 @@ pub trait Store:
 pub trait Tx:
     TenancyWrite
     + AccountWrite
+    + RateWrite
     + GrantWrite
     + CredentialWrite
     + EffectWrite

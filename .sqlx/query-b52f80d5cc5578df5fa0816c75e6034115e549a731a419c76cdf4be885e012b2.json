@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT key AS \"key!\", admitted AS \"admitted!\", full_at AS \"full_at!\"\n                 FROM korpis_rate_charge($1, $2, $3, $4)",
+  "query": "SELECT key AS \"key!\", admitted AS \"admitted!\", full_at AS \"full_at!\"\n             FROM korpis_rate_charge($1, $2, $3, $4)",
   "describe": {
     "columns": [
       {
@@ -36,5 +36,5 @@
       null
     ]
   },
-  "hash": "b25f43129529dc46048b5bf3348f36429e71c483643e65760771602dd8610951"
+  "hash": "b52f80d5cc5578df5fa0816c75e6034115e549a731a419c76cdf4be885e012b2"
 }

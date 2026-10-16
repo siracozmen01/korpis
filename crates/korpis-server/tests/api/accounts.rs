@@ -161,6 +161,27 @@ async fn a_source_that_keeps_guessing_is_told_to_stop_and_then_nothing_is_checke
 }
 
 #[tokio::test]
+async fn guesses_at_many_names_sent_at_once_pass_no_more_than_the_source_s_failures() {
+    let ample = Rate::per_second(1000, 1000);
+    let h = Harness::with_rates(rates(ample, Rate::per_minute(2, 2))).await;
+    let client = accounts(&h);
+    let guess = |n: usize| {
+        client.sign_in_with_password(pb::SignInWithPasswordRequest {
+            name: format!("name-{n}"),
+            password: "a wrong guess".to_owned(),
+            second: Some(Second::RecoveryCode("AAAA-AAAA-AAAA-AAAA".to_owned())),
+            ..Default::default()
+        })
+    };
+    let answers = futures_util::future::join_all((0..20).map(guess)).await;
+    let checked = answers
+        .iter()
+        .filter(|a| a.as_ref().is_err_and(|e| e.code == ErrorCode::Unauthenticated))
+        .count();
+    assert_eq!(checked, 2, "the source has room for two failures, however many are in flight");
+}
+
+#[tokio::test]
 async fn every_call_to_the_service_is_charged_to_its_source() {
     let ample = Rate::per_second(1000, 1000);
     let h = Harness::with_rates(rates(Rate::per_minute(3, 3), ample)).await;

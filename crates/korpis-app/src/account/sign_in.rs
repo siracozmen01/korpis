@@ -120,9 +120,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// buckets that bound guessing are asked before anything is checked: the failures of the
     /// source, and the guesses at the name. Once either refuses, nothing is checked, the right
     /// password included, so a guesser that ignores the refusal learns nothing more (Finding 69
-    /// of docs/23-walkthroughs.md). The name's bucket is charged before the check, in one
-    /// statement that admits or refuses, and given back when the sign-in succeeds, so guesses
-    /// sent at once cannot all pass a bucket that has room for one (Finding 70).
+    /// of docs/23-walkthroughs.md). Both are charged before the check, in one statement that
+    /// admits or refuses, and given back when the sign-in succeeds, so guesses sent at once
+    /// cannot all pass a bucket that has room for one (Findings 70 and 71); a refusal is then
+    /// recorded as a failed attempt and charged nothing more.
     pub async fn sign_in_with_password(
         &self,
         name: &str,
@@ -136,14 +137,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             key: format!("n:{n}"),
             rate,
         });
-        let source = self.store.peek(vec![self.failure_bucket(ip)], self.clock.now()).await?;
-        refused(source)?;
-        if let Some(bucket) = &guessed {
-            refused(self.store.charge(vec![bucket.clone()], self.clock.now()).await?)?;
-        }
+        let buckets: Vec<Bucket> =
+            std::iter::once(self.failure_bucket(ip)).chain(guessed).collect();
+        refused(self.store.charge(buckets.clone(), self.clock.now()).await?)?;
         let checked = self.check_password(name, password, second).await;
-        if let (Ok(_), Some(bucket)) = (&checked, &guessed) {
-            self.store.refund(bucket, self.clock.now()).await?;
+        match &checked {
+            Ok(_) => {
+                for bucket in &buckets {
+                    self.store.refund(bucket, self.clock.now()).await?;
+                }
+            }
+            Err(AppError::Unauthenticated) => self.guess_failed(ip).await?,
+            Err(_) => {}
         }
         checked
     }

@@ -1105,6 +1105,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 68 | A client hanging up mid-sign-in could start more password hashes than the bound | §38 | `08-identity.md` §9.6 |
 | 69 | A guessed password was checked whatever its source had spent, so the limit slowed nobody | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 70 | Guesses sent at once all passed a bucket with room for one | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
+| 71 | Guesses at many names passed the source's failures at once, and failures recorded at once could stall the database pool | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2607,7 +2608,28 @@ sessions they belong to are built, and a passkey is never slowed.
 **Resolution.** The name's bucket is charged before the check, in the one statement that admits
 or refuses, and the charge is given back when the sign-in succeeds, so the bucket counts failures
 and no more than its room are ever checked at once; the test finds ten checked and twenty
-refused. The source's failure bucket is still read rather than charged first, since the
-account service's own per-source bucket, charged atomically on every call, already bounds how
-many guesses one address has in flight. → `10-api.md` §10 and `08-identity.md` §9.6; built in
-`crates/korpis-app/src/account/sign_in.rs` and `crates/korpis-store/src/rate.rs`.
+refused. (The source's failure bucket was left read rather than charged first, on the argument
+that the account service's per-source bucket bounded what one address had in flight; Finding 71
+shows that bound was two hundred, not thirty.) → `10-api.md` §10 and `08-identity.md` §9.6; built
+in `crates/korpis-app/src/account/sign_in.rs` and `crates/korpis-store/src/rate.rs`.
+
+**FINDING 71: Guesses at many names passed the source's failures at once, and failures recorded
+at once could stall the database pool. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that resolved Finding 70, and confirmed by a
+test sending twenty guesses together from one address, each at a different name. The source's
+failure bucket, thirty a minute, was still read before the check and charged after it, so every
+guess in flight passed it; what bounded them was the account service's per-source bucket, whose
+burst is two hundred. Writing the test that confirmed it found a second defect, older: recording
+a failure held a transaction while charging the bucket of recorded failures on another
+connection from the pool, so as many failures arriving at once as the pool has connections each
+held one and waited for a second, and every request of the control plane waited the pool's
+timeout. Any flood of failed attempts, whatever the credential, could have stalled it.
+
+**Resolution.** A password sign-in charges its source's failure bucket and its name's bucket
+together before the check, in the one statement that admits or refuses, gives both back on
+success, and records a failure without charging again; twenty guesses at once find two checked
+under a budget of two. A use case holding a transaction charges buckets on that transaction's
+connection (`RateWrite`), so recording a failure never asks the pool for a second one. →
+`10-api.md` §10 and `08-identity.md` §9.6; built in `crates/korpis-app/src/account/sign_in.rs`,
+`crates/korpis-app/src/authz/failure.rs`, and `crates/korpis-store/src/rate.rs`.

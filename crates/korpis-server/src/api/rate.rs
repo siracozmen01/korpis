@@ -111,7 +111,7 @@ impl Api {
 }
 
 /// `e` on the wire, a refusal by a bucket carrying where each bucket stands and `Retry-After`.
-fn refused(e: AppError) -> ConnectError {
+pub(super) fn refused(e: AppError) -> ConnectError {
     let AppError::RateLimited { retry_after, standing } = e else { return error::from_app(e) };
     let mut refused = error::rate_limited(retry_after);
     let headers = refused.response_headers_mut();

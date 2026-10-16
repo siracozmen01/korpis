@@ -203,7 +203,9 @@ impl pb::AccountService for Api {
             Some(Second::RecoveryCode(c)) => SecondFactor::Recovery(c),
             None => return Err(error::invalid("second", "a TOTP code or a recovery code")),
         };
+        // The use case charges and records its own failures: a password can be guessed, so its
+        // buckets are charged before it is checked (§10 of docs/10-api.md).
         let done = self.app.sign_in_with_password(&req.name, &req.password, second, ip(&ctx)).await;
-        Response::ok(signed_in(self.attempted(done, Attempt::SignIn, ip(&ctx)).await?.account))
+        Response::ok(signed_in(done.map_err(super::rate::refused)?.account))
     }
 }
