@@ -6,7 +6,7 @@
 use korpis_app::account::{Client, NewRegistration, Redeemed};
 use korpis_app::authz::{Holder, IssueGrant};
 use korpis_app::install::RootHolder;
-use korpis_app::ports::{FactorVault, SealedKey, SystemClock, VaultError};
+use korpis_app::ports::{Clock, FactorVault, SealedKey, VaultError};
 use korpis_app::{App, Caller, Idempotent, NoRecipes, Reply};
 use korpis_core::account::session::{SessionKind, SessionLimits};
 use korpis_core::account::totp::{STEP_SECONDS, TotpSecret};
@@ -21,7 +21,8 @@ use korpis_core::webauthn::testing::SoftAuthenticator;
 use korpis_store::PgStore;
 use korpis_store::testing::TestDb;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub const RP: &str = "example.com";
@@ -49,9 +50,27 @@ impl FactorVault for Bound {
     }
 }
 
+/// The system's clock, moved ahead as far as a test says.
+#[derive(Debug, Clone, Default)]
+pub struct TestClock(Arc<AtomicU64>);
+
+impl TestClock {
+    /// Moves the clock `by` ahead.
+    pub fn advance(&self, by: Duration) {
+        self.0.fetch_add(by.as_secs(), Ordering::SeqCst);
+    }
+}
+
+impl Clock for TestClock {
+    fn now(&self) -> SystemTime {
+        SystemTime::now() + Duration::from_secs(self.0.load(Ordering::SeqCst))
+    }
+}
+
 pub struct Fixture {
     _db: TestDb,
-    pub app: App<PgStore, SystemClock, NoRecipes>,
+    pub app: App<PgStore, TestClock, NoRecipes>,
+    pub clock: TestClock,
     pub root: Caller,
     pub organization: Uuid,
 }
@@ -64,13 +83,14 @@ pub async fn fixture() -> Fixture {
 pub async fn fixture_with(limits: SessionLimits) -> Fixture {
     let db = TestDb::new().await.unwrap();
     let store = db.store().await.unwrap();
-    let app = App::new(store, SystemClock, Arc::new(SigningKey::generate(1)), NoRecipes)
+    let clock = TestClock::default();
+    let app = App::new(store, clock.clone(), Arc::new(SigningKey::generate(1)), NoRecipes)
         .with_relying_party(RelyingParty { id: RP.into(), origins: vec![ORIGIN.into()] })
         .with_factor_vault(Arc::new(Bound))
         .with_session_limits(limits);
     let installed = app.install(Name::parse("acme").unwrap(), RootHolder::Token).await.unwrap();
     let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
-    Fixture { _db: db, app, root, organization: installed.organization.id }
+    Fixture { _db: db, app, clock, root, organization: installed.organization.id }
 }
 
 /// Issues `workload.read` on the organization to a new user called `display_name`; answers its
@@ -134,9 +154,14 @@ pub fn code(secret: &TotpSecret, ahead: u64) -> String {
     format!("{:06}", secret.code(step + ahead))
 }
 
-/// The caller signed in as `account`.
+/// The caller signed in as `account`, with no session: as an API token held by the user calls.
 pub fn signed_in(account: Uuid) -> Caller {
     Caller::new(Principal::User(account), None, true)
+}
+
+/// The caller signed in to the session `redeemed` began.
+pub fn in_session(redeemed: &Redeemed) -> Caller {
+    signed_in(redeemed.account).with_session(redeemed.session.id)
 }
 
 /// A browser's client, from nowhere in particular.

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_session SET authenticated_at = $3 WHERE account_id = $1 AND id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "40060b0af1805da4a112baf5dc87dec74dd1ae92c8c5a90eaab2b91e07c6a638"
+}

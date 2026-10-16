@@ -310,7 +310,10 @@ unused, and a lost grant-holding token is disarmed by revoking its grant.
 > challenge, or a refresh credential, so a retry after a lost answer is refused rather than applied
 > twice, which is the property the key exists to give. What it costs: a client that lost the answer
 > to a redemption has an account with its first factor and no recovery codes it saw, and renews
-> them once signed in.
+> them once signed in. Extended 2026-10-17 to the changes a holder makes to their own factors
+> (§9.6), which have a caller but nothing a replay could duplicate: adding a passkey spends its
+> challenge, and the rest, retried, set again what they set, find nothing more to remove, or
+> replace recovery codes the lost answer never showed.
 
 ### Read-your-writes
 

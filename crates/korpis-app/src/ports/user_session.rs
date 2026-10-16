@@ -39,6 +39,13 @@ pub trait UserSessionRead {
         account: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<UserSession>>> + Send;
 
+    /// Session `id` of `account`, if it has not ended.
+    fn user_session(
+        &self,
+        account: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<UserSession>>> + Send;
+
     /// Forgets at most `limit` sessions ended by age or by `idle` at `now`; how many it forgot.
     fn forget_lapsed_sessions(
         &self,
@@ -72,6 +79,14 @@ pub trait UserSessionWrite {
         new: &[u8; 32],
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Records that session `id` of `account` re-authenticated `at`; false if it has none such.
+    fn reauthenticated(
+        &mut self,
+        account: Uuid,
+        id: Uuid,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Ends session `id` of `account`; false if it has none such.
     fn end_user_session(

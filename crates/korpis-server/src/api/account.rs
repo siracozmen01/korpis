@@ -27,7 +27,7 @@ use zeroize::Zeroizing;
 /// The issuer an authenticator app shows beside a code, when the installation has no site.
 const ISSUER: &str = "Korpis";
 
-fn creation(r: Registration) -> pb::PasskeyCreation {
+pub(super) fn creation(r: Registration) -> pb::PasskeyCreation {
     pb::PasskeyCreation {
         challenge_id: r.challenge_id.to_string(),
         challenge: r.challenge.to_vec(),
@@ -40,17 +40,30 @@ fn creation(r: Registration) -> pb::PasskeyCreation {
     }
 }
 
-fn challenge_id(field: &str, s: &str) -> Result<Uuid, ConnectError> {
+pub(super) fn challenge_id(field: &str, s: &str) -> Result<Uuid, ConnectError> {
     Uuid::parse_str(s).map_err(|_| error::invalid(field, "not a challenge this issued"))
 }
 
-fn registration(r: Option<&pb::PasskeyRegistration>) -> Result<NewRegistration, ConnectError> {
+pub(super) fn registration(
+    r: Option<&pb::PasskeyRegistration>,
+) -> Result<NewRegistration, ConnectError> {
     let r = r.ok_or_else(|| error::invalid("registration", "required"))?;
     Ok(NewRegistration {
         challenge: challenge_id("registration.challenge_id", &r.challenge_id)?,
         label: r.label.clone(),
         client_data_json: r.client_data_json.clone(),
         attestation_object: r.attestation_object.clone(),
+    })
+}
+
+/// The passkey assertion `req` carries, answering a challenge of `BeginSignIn`.
+pub(super) fn assertion(req: pb::SignInWithPasskeyRequest) -> Result<Assertion, ConnectError> {
+    Ok(Assertion {
+        challenge: challenge_id("challenge_id", &req.challenge_id)?,
+        credential_id: req.credential_id,
+        client_data_json: req.client_data_json,
+        authenticator_data: req.authenticator_data,
+        signature: req.signature,
     })
 }
 
@@ -108,7 +121,7 @@ pub(super) fn client(ctx: &RequestContext) -> Client {
 
 impl Api {
     /// `result`, or its refusal as a failed `attempt` from `ip`.
-    async fn attempted<T>(
+    pub(super) async fn attempted<T>(
         &self,
         result: Result<T, AppError>,
         attempt: Attempt,
@@ -220,14 +233,7 @@ impl pb::AccountService for Api {
         ctx: RequestContext,
         request: ServiceRequest<'_, pb::SignInWithPasskeyRequest>,
     ) -> ServiceResult<pb::SignInResponse> {
-        let req = request.to_owned_message();
-        let a = Assertion {
-            challenge: challenge_id("challenge_id", &req.challenge_id)?,
-            credential_id: req.credential_id,
-            client_data_json: req.client_data_json,
-            authenticator_data: req.authenticator_data,
-            signature: req.signature,
-        };
+        let a = assertion(request.to_owned_message())?;
         let done = self.app.sign_in_with_passkey(a, &client(&ctx)).await;
         signed_in(&self.attempted(done, Attempt::SignIn, ip(&ctx)).await?)
     }

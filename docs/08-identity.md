@@ -1402,6 +1402,23 @@ passkey assertion cannot be guessed, and its failures count against the source a
 > sign-ins costs time rather than memory: at 19 MiB each, a sixteen-core machine spends at most
 > about 300 MiB on them.
 
+> As built, 2026-10-17. A holder changes their own factors through `ProfileService`, called with
+> the access token of a session (§9.4): passkeys added and removed, the password set and removed,
+> TOTP enrolled and removed, recovery codes renewed. Each change needs a recent sign-in: the
+> session signed in, or re-authenticated, within the last ten minutes, or the change is refused
+> with the reason `session.not_recent` and the panel asks for a factor first. A session
+> re-authenticates with a passkey of its own account, answering a challenge of the sign-in
+> ceremony, or with the account's password and a code beside it, charged and limited exactly as a
+> sign-in is (§10 of `10-api.md`), and is recorded as `session.reauthenticated`. This follows
+> OWASP ASVS 3.7.1 (`research/evidence.md` §5): without it, a session left open on a borrowed
+> machine, or an access token copied from one, could replace the factors and keep the account
+> after the session ended, and the factors are what a holder uses to end a takeover. A caller
+> without a session, an API token held by a user, cannot re-authenticate and changes no factor.
+> Reading the account and its factors needs no recent sign-in. Like the ceremonies, a change
+> carries no idempotency key (§6 of `10-api.md`). What it costs: a holder who signed in more than
+> ten minutes ago answers one more ceremony before a change, and one who signs in with a password
+> and a recovery code spends a second code to re-authenticate.
+
 What it costs. The holder of an account who has lost every browser and every factor gets back
 in only through an administrator (§9.3) or, for root, through the machine (§9.2): the price of
 no email reset. An operator who turns on open registration answers for the accounts it creates.

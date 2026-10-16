@@ -2505,6 +2505,7 @@ drops, and shares the console with a moderator.
 | 7 | On a laptop, the friend uploads a 6 GB world; the connection drops at 4 GB; the panel reopens the session, reads the size written, and continues | `06-storage.md` §3.2 |
 | 8 | The friend shares the console with a moderator as a link, for 24 hours and three uses | `11-surface-web.md` §6; `08-identity.md` §6.1 |
 | 9 | The machine's control plane stops; the friend's cached panel loads and shows every value unknown, with how long the control plane has been unreachable | `11-surface-web.md` §10, question 3 |
+| 10 | A month later the friend adds the laptop as a second passkey: signed in more than ten minutes ago, the panel is refused `session.not_recent`, re-authenticates with the phone's passkey, and registers the laptop's | `08-identity.md` §9.4, §9.6 |
 
 Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
 it holds the invitation's digest, verifies the attestation-free registration against its own site
@@ -2516,7 +2517,9 @@ nothing. Step 5's plan is the control plane's and its convergence the node's rep
 panel reads from the workload's watch stream. Step 6 is the relay's and the node's, each verifying
 the token, the browser carrying the session in the two shapes it can. Step 7 is the worker's, from
 the volume's own filesystem: the size written is what the file holds, so nothing remembers an
-upload but the file. Step 9 is the browser's alone, which is why it may claim nothing.
+upload but the file. Step 9 is the browser's alone, which is why it may claim nothing. Step 10 is
+the control plane's: the session row holds when it last signed in or re-authenticated, and the
+access token names the session, so the change reads the one beside the other.
 
 **FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
 

@@ -37,6 +37,8 @@ mod node;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod profile;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod provider;
 mod rate;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
@@ -71,9 +73,9 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     AccountServiceExt, BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt,
     DomainServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
-    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
-    RepositoryServiceExt, ServerInfoServiceExt, SessionServiceExt, StreamServiceExt,
-    VolumeServiceExt, WorkloadServiceExt,
+    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProfileServiceExt, ProjectServiceExt,
+    ProviderServiceExt, RepositoryServiceExt, ServerInfoServiceExt, SessionServiceExt,
+    StreamServiceExt, VolumeServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -208,6 +210,7 @@ impl Api {
         let router = BackupServiceExt::register(Arc::clone(&self), router);
         let router = AccountServiceExt::register(Arc::clone(&self), router);
         let router = SessionServiceExt::register(Arc::clone(&self), router);
+        let router = ProfileServiceExt::register(Arc::clone(&self), router);
         let router =
             if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
         let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(

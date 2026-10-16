@@ -73,6 +73,17 @@ table! {
     "korpis.v1.SessionService/ListSessions" => SessionServiceClient::list_sessions(ListSessionsRequest);
     "korpis.v1.SessionService/EndSession" => SessionServiceClient::end_session(EndSessionRequest);
     "korpis.v1.SessionService/EndOtherSessions" => SessionServiceClient::end_other_sessions(EndOtherSessionsRequest);
+    "korpis.v1.ProfileService/GetProfile" => ProfileServiceClient::get_profile(GetProfileRequest);
+    "korpis.v1.ProfileService/ReauthenticateWithPasskey" => ProfileServiceClient::reauthenticate_with_passkey(SignInWithPasskeyRequest);
+    "korpis.v1.ProfileService/ReauthenticateWithPassword" => ProfileServiceClient::reauthenticate_with_password(ReauthenticateWithPasswordRequest);
+    "korpis.v1.ProfileService/BeginAddPasskey" => ProfileServiceClient::begin_add_passkey(BeginAddPasskeyRequest);
+    "korpis.v1.ProfileService/AddPasskey" => ProfileServiceClient::add_passkey(AddPasskeyRequest);
+    "korpis.v1.ProfileService/RemovePasskey" => ProfileServiceClient::remove_passkey(RemovePasskeyRequest);
+    "korpis.v1.ProfileService/SetPassword" => ProfileServiceClient::set_password(SetPasswordRequest);
+    "korpis.v1.ProfileService/RemovePassword" => ProfileServiceClient::remove_password(RemovePasswordRequest);
+    "korpis.v1.ProfileService/EnrolTotp" => ProfileServiceClient::enrol_totp(EnrolTotpRequest);
+    "korpis.v1.ProfileService/RemoveTotp" => ProfileServiceClient::remove_totp(RemoveTotpRequest);
+    "korpis.v1.ProfileService/RenewRecoveryCodes" => ProfileServiceClient::renew_recovery_codes(RenewRecoveryCodesRequest);
     "korpis.v1.OrganizationService/CreateOrganization" => OrganizationServiceClient::create_organization(CreateOrganizationRequest);
     "korpis.v1.OrganizationService/GetOrganization" => OrganizationServiceClient::get_organization(GetOrganizationRequest);
     "korpis.v1.OrganizationService/ListOrganizations" => OrganizationServiceClient::list_organizations(ListOrganizationsRequest);

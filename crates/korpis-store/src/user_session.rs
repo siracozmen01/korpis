@@ -57,6 +57,21 @@ impl UserSessionRead for PgStore {
         rows.into_iter().map(UserSession::try_from).collect()
     }
 
+    async fn user_session(&self, account: Uuid, id: Uuid) -> StoreResult<Option<UserSession>> {
+        let row = sqlx::query_as!(
+            SessionRow,
+            "SELECT id, account_id, kind, created_at, last_used_at, authenticated_at, expires_at,
+                    user_agent, source
+               FROM user_session WHERE account_id = $1 AND id = $2",
+            account,
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(UserSession::try_from).transpose()
+    }
+
     async fn forget_lapsed_sessions(
         &self,
         now: SystemTime,
@@ -172,6 +187,24 @@ impl UserSessionWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn reauthenticated(
+        &mut self,
+        account: Uuid,
+        id: Uuid,
+        at: SystemTime,
+    ) -> StoreResult<bool> {
+        let done = sqlx::query!(
+            "UPDATE user_session SET authenticated_at = $3 WHERE account_id = $1 AND id = $2",
+            account,
+            id,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected() == 1)
     }
 
     async fn end_user_session(&mut self, account: Uuid, id: Uuid) -> StoreResult<bool> {

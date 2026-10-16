@@ -3,7 +3,7 @@
 //! A signed-in user managing their own factors: nothing leaves the account without a way to sign
 //! in, or a password without a lasting second factor beside it.
 
-use crate::support::{browser, code, fixture, invite, redeem, signed_in};
+use crate::support::{browser, code, fixture, in_session, invite, redeem};
 use korpis_app::AppError;
 use korpis_app::account::NewRegistration;
 use korpis_core::account::totp::TotpSecret;
@@ -17,8 +17,7 @@ async fn the_last_way_to_sign_in_cannot_be_removed() {
     let f = fixture().await;
     let invitation = invite(&f, "A Friend").await;
     let phone = browser();
-    let account = redeem(&f, &invitation, "friend", &phone).await.unwrap().account;
-    let me = signed_in(account);
+    let me = in_session(&redeem(&f, &invitation, "friend", &phone).await.unwrap());
 
     let refused = f.app.remove_passkey(&me, phone.credential_id()).await.unwrap_err();
     assert!(last_factor(&refused), "{refused:?}");
@@ -45,8 +44,7 @@ async fn a_password_keeps_a_passkey_or_totp_beside_it() {
     let f = fixture().await;
     let invitation = invite(&f, "A Friend").await;
     let phone = browser();
-    let account = redeem(&f, &invitation, "friend", &phone).await.unwrap().account;
-    let me = signed_in(account);
+    let me = in_session(&redeem(&f, &invitation, "friend", &phone).await.unwrap());
 
     f.app.set_password(&me, "correct horse battery").await.unwrap();
     let refused = f.app.remove_passkey(&me, phone.credential_id()).await.unwrap_err();

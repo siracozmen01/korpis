@@ -518,6 +518,12 @@ Primary:
   §4.1.3.2](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis), read
   2026-10-17). Why the session and device cookies of §9.4 and §9.6 of `../08-identity.md` are
   `__Host-` cookies (Finding 72 of `../23-walkthroughs.md`).
+- **[V]** OWASP ASVS 4.0.3 requirement 3.7.1, at every level: "Verify the application ensures a
+  full, valid login session or requires re-authentication or secondary verification" before
+  high-value transactions or changes to account settings ([ASVS V3 Session
+  management](https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md),
+  read 2026-10-17). Why a change to an account's factors needs a recent sign-in (§9.6 of
+  `../08-identity.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

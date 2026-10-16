@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A signed-in user managing their own factors (§9.3 and §9.6 of docs/08-identity.md). Two rules
-//! hold after every change: something can still sign in, a passkey or a password; and a password
-//! has a lasting second factor beside it, a passkey or TOTP, since recovery codes run out. Each
-//! change locks the account first, so two removals racing cannot leave it with neither.
+//! A signed-in user managing their own factors (§9.3 and §9.6 of docs/08-identity.md), each
+//! change behind a recent sign-in (`recent`). Two rules hold after every change: something can
+//! still sign in, a passkey or a password; and a password has a lasting second factor beside it,
+//! a passkey or TOTP, since recovery codes run out. Each change locks the account first, so two
+//! removals racing cannot leave it with neither.
 
 use super::{Registration, fresh_codes, own_account, record};
 use crate::App;
@@ -57,6 +58,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Begins registering another passkey for the caller.
     pub async fn begin_add_passkey(&self, caller: &Caller) -> Result<Registration, AppError> {
+        self.recently_signed_in(caller).await?;
         let view = self.own_account(caller).await?;
         let name = view.account.name.clone().unwrap_or_else(|| view.account.id.to_string());
         let exclude = view.passkeys.into_iter().map(|p| p.credential_id).collect();
@@ -69,7 +71,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         r: super::NewRegistration,
     ) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let challenge = self.take_challenge(r.challenge, Ceremony::Register).await?;
         if challenge.account != Some(id) || challenge.invitation.is_some() {
             return Err(AppError::Unauthenticated);
@@ -103,7 +105,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         credential_id: &[u8],
     ) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
         if !tx.remove_passkey(id, credential_id).await? {
@@ -127,7 +129,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Sets the caller's password, which needs a passkey or TOTP beside it.
     pub async fn set_password(&self, caller: &Caller, password: &str) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let phc = self
             .passwords()
             .hash(password)
@@ -154,7 +156,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Removes the caller's password.
     pub async fn remove_password(&self, caller: &Caller) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
         if !tx.remove_password(id).await? {
@@ -184,7 +186,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         secret: &TotpSecret,
         code: &str,
     ) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let step = secret
             .accept(code, self.clock.now(), None)
             .ok_or_else(|| AppError::invalid("code", "not the code the secret gives now"))?;
@@ -201,7 +203,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Removes the caller's TOTP factor.
     pub async fn remove_totp(&self, caller: &Caller) -> Result<(), AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let mut tx = self.store.begin().await?;
         let mut after = locked(&mut tx, id).await?;
         if !tx.remove_totp(id).await? {
@@ -225,7 +227,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Replaces the caller's recovery codes with ten fresh ones, answered once.
     pub async fn renew_recovery_codes(&self, caller: &Caller) -> Result<Vec<String>, AppError> {
-        let id = own_account(caller)?;
+        let id = self.recently_signed_in(caller).await?;
         let mut tx = self.store.begin().await?;
         locked(&mut tx, id).await?;
         let codes = fresh_codes(&mut tx, id).await?;

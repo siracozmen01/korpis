@@ -7,8 +7,10 @@
 //! part of it failed.
 
 mod ceremony;
+mod check;
 mod device;
 mod manage;
+mod recent;
 mod redeem;
 mod session;
 mod sign_in;

@@ -10,6 +10,9 @@ use uuid::Uuid;
 pub const SESSION_IDLE: Duration = Duration::from_secs(12 * 3600);
 /// How long any session lasts, unless the operator says otherwise.
 pub const SESSION_MAX: Duration = Duration::from_secs(7 * 24 * 3600);
+/// How recently a session must have signed in, or re-authenticated, to change its account's
+/// factors (§9.6 of docs/08-identity.md).
+pub const REAUTHENTICATE_WITHIN: Duration = Duration::from_secs(10 * 60);
 /// The longest user agent kept with a session, in characters.
 pub const MAX_USER_AGENT: usize = 256;
 

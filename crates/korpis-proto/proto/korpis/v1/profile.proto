@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/v1/account.proto";
+
+// The signed-in user's own account (§9.6 of docs/08-identity.md): its factors, read and changed.
+// Called with an access token, as any call is, and only by a user signed in to a session; an API
+// token is refused. Every change also needs a recent sign-in, the session's sign-in or its last
+// re-authentication within ten minutes, or is refused CONFLICT with the reason
+// `session.not_recent`, and the client re-authenticates with a factor first. Two rules hold after
+// every change, and a change that would break one is refused CONFLICT `account.last_factor`:
+// something can still sign in, and a password has a passkey or TOTP beside it. Like the
+// ceremonies of AccountService, no change carries an idempotency key (§6 of docs/10-api.md): each
+// spends a single-use proof or leaves the account as it found it when retried.
+service ProfileService {
+  // The caller's account and the factors it holds.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Re-authenticates the session with a passkey's answer to a challenge of
+  // AccountService.BeginSignIn; the passkey must be the caller's.
+  rpc ReauthenticateWithPasskey(SignInWithPasskeyRequest) returns (ReauthenticateResponse);
+  // Re-authenticates the session with the caller's password and a TOTP code or a recovery code
+  // beside it; refused and limited as a sign-in is (§10 of docs/10-api.md).
+  rpc ReauthenticateWithPassword(ReauthenticateWithPasswordRequest)
+      returns (ReauthenticateResponse);
+  // Begins registering another passkey: the options of `navigator.credentials.create`.
+  rpc BeginAddPasskey(BeginAddPasskeyRequest) returns (BeginAddPasskeyResponse);
+  // Adds the passkey the browser registered.
+  rpc AddPasskey(AddPasskeyRequest) returns (AddPasskeyResponse);
+  // Removes one of the caller's passkeys.
+  rpc RemovePasskey(RemovePasskeyRequest) returns (RemovePasskeyResponse);
+  // Sets the caller's password, replacing any.
+  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
+  // Removes the caller's password.
+  rpc RemovePassword(RemovePasswordRequest) returns (RemovePasswordResponse);
+  // Enrols a TOTP secret AccountService.OfferTotp gave, replacing any, confirmed by a code.
+  rpc EnrolTotp(EnrolTotpRequest) returns (EnrolTotpResponse);
+  // Removes the caller's TOTP factor.
+  rpc RemoveTotp(RemoveTotpRequest) returns (RemoveTotpResponse);
+  // Replaces the caller's recovery codes with ten fresh ones, shown once.
+  rpc RenewRecoveryCodes(RenewRecoveryCodesRequest) returns (RenewRecoveryCodesResponse);
+}
+
+message GetProfileRequest {}
+
+message ProfilePasskey {
+  bytes credential_id = 1;
+  string label = 2;
+  google.protobuf.Timestamp created_at = 3;
+  // Unset until it first signs in.
+  google.protobuf.Timestamp last_used_at = 4;
+  // Whether the authenticator may copy it to the holder's other devices.
+  bool backup_eligible = 5;
+}
+
+message GetProfileResponse {
+  // As `usr_…`.
+  string account = 1;
+  // The sign-in name.
+  string name = 2;
+  string display_name = 3;
+  repeated ProfilePasskey passkeys = 4;
+  bool password = 5;
+  bool totp = 6;
+  // How many recovery codes are unused.
+  uint32 recovery_codes = 7;
+  // When the session last signed in or re-authenticated; a change needs it within ten minutes.
+  google.protobuf.Timestamp authenticated_at = 8;
+}
+
+message ReauthenticateWithPasswordRequest {
+  string password = 1;
+  oneof second {
+    string totp_code = 2;
+    string recovery_code = 3;
+  }
+}
+
+message ReauthenticateResponse {
+  google.protobuf.Timestamp authenticated_at = 1;
+}
+
+message BeginAddPasskeyRequest {}
+
+message BeginAddPasskeyResponse {
+  PasskeyCreation creation = 1;
+}
+
+message AddPasskeyRequest {
+  PasskeyRegistration registration = 1;
+}
+
+message AddPasskeyResponse {}
+
+message RemovePasskeyRequest {
+  bytes credential_id = 1;
+}
+
+message RemovePasskeyResponse {}
+
+message SetPasswordRequest {
+  // At least 12 characters and at most 1024 bytes.
+  string password = 1;
+}
+
+message SetPasswordResponse {}
+
+message RemovePasswordRequest {}
+
+message RemovePasswordResponse {}
+
+message EnrolTotpRequest {
+  // The secret OfferTotp gave.
+  bytes secret = 1;
+  // A code the authenticator app shows now.
+  string code = 2;
+}
+
+message EnrolTotpResponse {}
+
+message RemoveTotpRequest {}
+
+message RemoveTotpResponse {}
+
+message RenewRecoveryCodesRequest {}
+
+message RenewRecoveryCodesResponse {
+  // Ten codes, each a second factor once; the ones they replace no longer work.
+  repeated string recovery_codes = 1;
+}

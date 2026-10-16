@@ -58,6 +58,7 @@ mod pebble;
 mod pin;
 mod placement;
 mod plans;
+mod profile;
 mod provider_breaker;
 mod provider_calls;
 mod providers;
