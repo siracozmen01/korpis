@@ -18,6 +18,10 @@ pub enum Attempt {
     Join,
     /// An enrollment token, joined by a relay.
     RelayJoin,
+    /// An invitation, read or redeemed (§9.6 of docs/08-identity.md).
+    Invitation,
+    /// A sign-in: a password, the code beside it, or a passkey's answer.
+    SignIn,
 }
 
 impl Attempt {
@@ -29,13 +33,15 @@ impl Attempt {
             Self::Hello => "node.hello",
             Self::Join => "node.join",
             Self::RelayJoin => "relay.join",
+            Self::Invitation => "account.redeem",
+            Self::SignIn => "account.sign_in",
         }
     }
 
     /// The attempt whose failures are recorded as `action`.
     #[must_use]
     pub fn from_action(action: &str) -> Option<Self> {
-        [Self::Credential, Self::Hello, Self::Join, Self::RelayJoin]
+        [Self::Credential, Self::Hello, Self::Join, Self::RelayJoin, Self::Invitation, Self::SignIn]
             .into_iter()
             .find(|a| a.action() == action)
     }

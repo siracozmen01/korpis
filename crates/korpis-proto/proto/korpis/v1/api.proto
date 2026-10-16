@@ -1263,6 +1263,18 @@ message IssueGrantRequest {
   // Issue to an API token created in the same transaction, which exists only to hold this grant
   // and expires with it (§3.7 of docs/08-identity.md).
   bool to_new_token = 10;
+  // Issue to an account created in the same transaction, holding this grant and no factor, with
+  // an invitation to register its first (§9.6 of docs/08-identity.md). Exclusive with
+  // `subject`, `to_new_token`, and `link_form`.
+  NewUser to_new_user = 11;
+}
+
+// An account to create to hold a grant.
+message NewUser {
+  // How the account is shown, 1 to 100 characters.
+  string display_name = 1;
+  // When its invitation stops working: within seven days, and seven days if absent.
+  google.protobuf.Timestamp invitation_expires_at = 2;
 }
 
 message IssueGrantResponse {
@@ -1273,6 +1285,9 @@ message IssueGrantResponse {
   // With `to_new_token`: the token's secret, shown once and never stored. A replay of the same
   // mutation returns the response without it (§6 of docs/10-api.md).
   string token = 4;
+  // With `to_new_user`: the invitation's secret, `korpisiv_` and the rest, shown once and stored
+  // only as its digest; a replay returns the response without it.
+  string invitation = 5;
 }
 
 message GetGrantRequest {

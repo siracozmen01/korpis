@@ -60,6 +60,14 @@ macro_rules! table {
 
 table! {
     "korpis.v1.ServerInfoService/GetServerInfo" => ServerInfoServiceClient::get_server_info(GetServerInfoRequest);
+    "korpis.v1.AccountService/GetInvitation" => AccountServiceClient::get_invitation(GetInvitationRequest);
+    "korpis.v1.AccountService/BeginRedemption" => AccountServiceClient::begin_redemption(BeginRedemptionRequest);
+    "korpis.v1.AccountService/RedeemWithPasskey" => AccountServiceClient::redeem_with_passkey(RedeemWithPasskeyRequest);
+    "korpis.v1.AccountService/OfferTotp" => AccountServiceClient::offer_totp(OfferTotpRequest);
+    "korpis.v1.AccountService/RedeemWithPassword" => AccountServiceClient::redeem_with_password(RedeemWithPasswordRequest);
+    "korpis.v1.AccountService/BeginSignIn" => AccountServiceClient::begin_sign_in(BeginSignInRequest);
+    "korpis.v1.AccountService/SignInWithPasskey" => AccountServiceClient::sign_in_with_passkey(SignInWithPasskeyRequest);
+    "korpis.v1.AccountService/SignInWithPassword" => AccountServiceClient::sign_in_with_password(SignInWithPasswordRequest);
     "korpis.v1.OrganizationService/CreateOrganization" => OrganizationServiceClient::create_organization(CreateOrganizationRequest);
     "korpis.v1.OrganizationService/GetOrganization" => OrganizationServiceClient::get_organization(GetOrganizationRequest);
     "korpis.v1.OrganizationService/ListOrganizations" => OrganizationServiceClient::list_organizations(ListOrganizationsRequest);

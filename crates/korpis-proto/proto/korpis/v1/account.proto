@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Accounts (§9.6 of docs/08-identity.md): redeeming an invitation by registering a first factor,
+// and signing in. Every procedure here is called without a credential: what it checks is in the
+// request, an invitation's secret, a password, a code, or a passkey's answer to a challenge, and
+// each one refused is a failed attempt (§10 of docs/10-api.md), answered UNAUTHENTICATED whichever
+// part of it failed, or RATE_LIMITED once its source has failed too often. A ceremony carries no
+// idempotency key (§6 of docs/10-api.md): each spends a single-use proof, so a retry is refused
+// rather than applied twice, and a client that lost an answer begins the ceremony again.
+service AccountService {
+  // What an open invitation is for, before it is redeemed.
+  rpc GetInvitation(GetInvitationRequest) returns (GetInvitationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Begins redeeming an invitation by registering a passkey: the options of
+  // `navigator.credentials.create`.
+  rpc BeginRedemption(BeginRedemptionRequest) returns (BeginRedemptionResponse);
+  // Redeems an invitation with the passkey the browser registered.
+  rpc RedeemWithPasskey(RedeemWithPasskeyRequest) returns (RedeemResponse);
+  // A fresh TOTP secret for an authenticator app to read, for a redemption or an enrolment.
+  rpc OfferTotp(OfferTotpRequest) returns (OfferTotpResponse);
+  // Redeems an invitation with a password and the TOTP secret offered, confirmed by a code.
+  rpc RedeemWithPassword(RedeemWithPasswordRequest) returns (RedeemResponse);
+  // Begins a passkey sign-in: the options of `navigator.credentials.get`, naming no credential,
+  // so the authenticator offers the accounts it holds for the site.
+  rpc BeginSignIn(BeginSignInRequest) returns (BeginSignInResponse);
+  // Signs in with a passkey's answer.
+  rpc SignInWithPasskey(SignInWithPasskeyRequest) returns (SignInResponse);
+  // Signs in with a sign-in name and password, and a TOTP code or a recovery code beside them.
+  rpc SignInWithPassword(SignInWithPasswordRequest) returns (SignInResponse);
+}
+
+message GetInvitationRequest {
+  // The invitation's secret, `korpisiv_` and the rest.
+  string invitation = 1;
+}
+
+message GetInvitationResponse {
+  // The account's display name, as its issuer gave it.
+  string display_name = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // Only registering a passkey redeems it (§9.1 and §9.2 of docs/08-identity.md).
+  bool passkey_only = 3;
+}
+
+message BeginRedemptionRequest {
+  string invitation = 1;
+  // The sign-in name chosen: 3 to 64 of `a-z`, `0-9`, `.`, `_`, `-`, lowercased.
+  string name = 2;
+}
+
+// The options of `navigator.credentials.create`: ES256, EdDSA, and RS256 accepted, attestation
+// `none`, a resident key and user verification required.
+message PasskeyCreation {
+  // Returned with the answer.
+  string challenge_id = 1;
+  bytes challenge = 2;
+  string rp_id = 3;
+  // The user handle: the account's identifier, 16 bytes.
+  bytes user_id = 4;
+  string user_name = 5;
+  string display_name = 6;
+  // Credentials the account holds already, which the authenticator should not register again.
+  repeated bytes exclude_credentials = 7;
+}
+
+message BeginRedemptionResponse {
+  PasskeyCreation creation = 1;
+}
+
+// What `navigator.credentials.create` answered.
+message PasskeyRegistration {
+  string challenge_id = 1;
+  // What its holder calls it, at most 64 characters.
+  string label = 2;
+  bytes client_data_json = 3;
+  bytes attestation_object = 4;
+}
+
+message RedeemWithPasskeyRequest {
+  string invitation = 1;
+  string name = 2;
+  PasskeyRegistration registration = 3;
+}
+
+message RedeemResponse {
+  // The account, as `usr_…`.
+  string account = 1;
+  // Ten codes, each a second factor once; shown once and stored only as digests (§9.3 of
+  // docs/08-identity.md).
+  repeated string recovery_codes = 2;
+}
+
+message OfferTotpRequest {
+  // How the authenticator app labels the account: its sign-in name.
+  string name = 1;
+}
+
+message OfferTotpResponse {
+  // The secret, 20 bytes, held by the client until a code of it confirms it.
+  bytes secret = 1;
+  // The `otpauth://` address an authenticator app reads, as a QR code or a link.
+  string uri = 2;
+}
+
+message RedeemWithPasswordRequest {
+  string invitation = 1;
+  string name = 2;
+  // At least 12 characters and at most 1024 bytes.
+  string password = 3;
+  // The secret OfferTotp gave.
+  bytes totp_secret = 4;
+  // A code the authenticator app shows now.
+  string totp_code = 5;
+}
+
+message BeginSignInRequest {}
+
+// The options of `navigator.credentials.get`.
+message PasskeyRequest {
+  string challenge_id = 1;
+  bytes challenge = 2;
+  string rp_id = 3;
+}
+
+message BeginSignInResponse {
+  PasskeyRequest request = 1;
+}
+
+message SignInWithPasskeyRequest {
+  string challenge_id = 1;
+  bytes credential_id = 2;
+  bytes client_data_json = 3;
+  bytes authenticator_data = 4;
+  bytes signature = 5;
+}
+
+message SignInWithPasswordRequest {
+  string name = 1;
+  string password = 2;
+  oneof second {
+    string totp_code = 3;
+    string recovery_code = 4;
+  }
+}
+
+message SignInResponse {
+  // The account signed in to, as `usr_…`.
+  string account = 1;
+}

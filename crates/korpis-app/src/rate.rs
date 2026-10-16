@@ -60,6 +60,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(orgs)
     }
 
+    /// Charges a request that presents no credential, from `ip`, to its source's bucket at the
+    /// individual rate (§10 of docs/10-api.md): the sign-in and redemption ceremonies, which
+    /// anyone may begin, each writing a challenge.
+    pub async fn charge_source(
+        &self,
+        ip: Option<std::net::IpAddr>,
+    ) -> Result<Vec<Standing>, AppError> {
+        let source = korpis_core::audit::failure::source(ip);
+        let bucket = Bucket {
+            policy: "source",
+            key: format!("s:{source}"),
+            rate: self.limiter.rates.individual,
+        };
+        let standing = self.store.charge(vec![bucket], self.clock.now()).await?;
+        let refused = standing.iter().filter(|s| !s.admitted).map(Standing::retry_after).max();
+        match refused {
+            Some(retry_after) => Err(AppError::RateLimited { retry_after, standing }),
+            None => Ok(standing),
+        }
+    }
+
     /// Charges `caller`'s request, `expensive` or not, to its buckets; where each stands, or
     /// `RateLimited` if any refused it, which then charged none.
     pub async fn charge_request(

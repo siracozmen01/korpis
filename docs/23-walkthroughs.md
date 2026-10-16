@@ -1102,6 +1102,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 65 | One address could spend the shared recording budget and hide everyone's failures | §37 | `10-api.md` §10 |
 | 66 | A reseller's address could not host its customers' sign-in | §38 | `08-identity.md` §9.6, `11-surface-web.md` §7, `20-roadmap.md` §4 |
 | 67 | A forged access token, or a time far in the future, could stop the control plane's handler | §38 | `10-api.md` §2 |
+| 68 | A client hanging up mid-sign-in could start more password hashes than the bound | §38 | `08-identity.md` §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2549,3 +2550,19 @@ control plane makes is refused before it is decoded; and a timestamp on the wire
 says times are `Timestamp`s; the bound is the type's own, enforced now in
 `crates/korpis-wire/src/lib.rs`.
 
+**FINDING 68: A client hanging up mid-sign-in could start more password hashes than the bound.
+`CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that bounded password hashing, and confirmed
+by reading it. §9.6 of `08-identity.md` says passwords are hashed at most as many at once as the
+machine has cores, so a burst of sign-ins costs time rather than memory. The permit that counted a
+hash was held by the request waiting on it, and the hash ran on the blocking pool, where dropping
+the request does not stop it: a client that sent a sign-in and hung up at once released the permit
+while its hash went on, so a loop of them ran as many 19 MiB hashes at a time as it liked. The
+algebra question, what holds the count while the work runs, answered "the request", which is not
+the thing doing the work.
+
+**Resolution.** The permit moves into the task that hashes and is released when the hash ends, so
+the bound counts hashes running, whoever is still waiting for them; a test hangs up mid-hash and
+finds the permit still held. → built in `crates/korpis-server/src/passwords.rs`; §9.6 of
+`08-identity.md` already states the bound it now keeps.

@@ -223,6 +223,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self
     }
 
+    /// The site passkeys are bound to, if one is configured: what an authenticator app names
+    /// the installation by.
+    pub fn passkey_site(&self) -> Option<&str> {
+        self.relying_party.as_ref().map(|rp| rp.id.as_str())
+    }
+
     /// Now, by the application's clock: what adapters render time-dependent state against.
     pub fn now(&self) -> std::time::SystemTime {
         self.clock.now()

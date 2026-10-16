@@ -303,6 +303,14 @@ response without it, and a replay returns the outcome with the secret empty. The
 the first response has lost the secret and asks for a new one; a lost enrollment token expires
 unused, and a lost grant-holding token is disarmed by revoking its grant.
 
+> Decided 2026-10-16, when the account service was built. The ceremonies of §9.6 of
+> `08-identity.md` (redeeming an invitation, signing in) carry no idempotency key. A key is kept
+> per caller, and these have none until they succeed; and each spends a single-use proof, an
+> invitation or a challenge, so a retry after a lost answer is refused rather than applied twice,
+> which is the property the key exists to give. What it costs: a client that lost the answer to a
+> redemption has an account with its first factor and no recovery codes it saw, and renews them
+> once signed in.
+
 ### Read-your-writes
 
 > Resolves open question 5 of `03-state.md`.
@@ -587,6 +595,15 @@ grants in several organizations spends each of their buckets on every request, i
 concern only one of them: an organization that grants a stranger pays for the stranger's activity
 elsewhere, bounded by the stranger's own bucket, a fifth of an organization's by default, and ended
 by revoking the grant.
+
+> Built 2026-10-16 with the account service, for the source: an invitation read or redeemed and a
+> sign-in refused are failed attempts of the kinds `account.redeem` and `account.sign_in`, charged
+> and recorded as above. Every call to the account service, which anyone may make without a
+> credential, is charged besides to a bucket of its source at the individual rate, because each
+> ceremony it begins writes a challenge, and nothing else would bound how many one address can
+> make; an address shared by many people beginning sign-ins shares that bucket, at twenty a second
+> with a burst of two hundred by default. The per-account limits below arrive with the web
+> sessions they spare (§9.4 of `08-identity.md`), later in Phase 1.
 
 > Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`), and designed with
 > it in §9.6 of `08-identity.md`, which fixes the thresholds: the limits of the

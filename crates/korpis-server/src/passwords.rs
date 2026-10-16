@@ -31,14 +31,23 @@ impl Bounded {
         Self::new(std::thread::available_parallelism().map_or(1, std::num::NonZero::get))
     }
 
-    /// `work` on the blocking pool once a permit is free; `failed` if it could not run.
+    /// `work` on the blocking pool once a permit is free; `failed` if it could not run. The
+    /// permit moves into the task and is released when the work ends, not when the request
+    /// waiting on it does: a client that hangs up mid-hash leaves its hash running, and the
+    /// permit with it, so hanging up cannot start more hashes than the bound.
     async fn run<T: Send + 'static>(
         &self,
         work: impl FnOnce() -> T + Send + 'static,
         failed: T,
     ) -> T {
-        let Ok(_permit) = self.permits.acquire().await else { return failed };
-        tokio::task::spawn_blocking(work).await.unwrap_or(failed)
+        let Ok(permit) = Arc::clone(&self.permits).acquire_owned().await else { return failed };
+        tokio::task::spawn_blocking(move || {
+            let done = work();
+            drop(permit);
+            done
+        })
+        .await
+        .unwrap_or(failed)
     }
 }
 
@@ -59,6 +68,21 @@ impl Passwords for Bounded {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_hash_whose_request_hung_up_still_holds_its_permit() {
+        let passwords = Bounded::new(1);
+        let abandoned = tokio::time::timeout(
+            std::time::Duration::from_millis(1),
+            passwords.hash("correct horse battery"),
+        )
+        .await;
+        assert!(abandoned.is_err(), "hung up before the hash finished");
+        assert_eq!(passwords.permits.available_permits(), 0, "the hash still runs, and counts");
+        let stored = passwords.hash("another horse battery").await.unwrap();
+        assert!(passwords.matches("another horse battery", &stored).await);
+        assert_eq!(passwords.permits.available_permits(), 1);
+    }
 
     #[tokio::test]
     async fn hashes_run_off_the_request_thread_and_match_only_themselves() {

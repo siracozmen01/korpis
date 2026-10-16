@@ -8,6 +8,8 @@
 // signatures. The futures are Send (the router requires it), and nothing outside relies on the
 // refinement.
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod account;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod agent;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod audit;
@@ -64,9 +66,9 @@ use korpis_app::{App, Caller, Page, Reply};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
-    BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt, DomainServiceExt,
-    EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt, NodeServiceExt,
-    OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
+    AccountServiceExt, BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt,
+    DomainServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
+    NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProjectServiceExt, ProviderServiceExt,
     RepositoryServiceExt, ServerInfoServiceExt, StreamServiceExt, VolumeServiceExt,
     WorkloadServiceExt,
 };
@@ -201,6 +203,7 @@ impl Api {
         let router = DomainServiceExt::register(Arc::clone(&self), router);
         let router = CertificateServiceExt::register(Arc::clone(&self), router);
         let router = BackupServiceExt::register(Arc::clone(&self), router);
+        let router = AccountServiceExt::register(Arc::clone(&self), router);
         let router =
             if self.serves_relay { Arc::clone(&self.relay).register(router) } else { router };
         let router = korpis_proto::korpis::relay::v1::RelayControlServiceExt::register(

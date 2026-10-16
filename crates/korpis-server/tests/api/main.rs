@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod accounts;
 mod acme;
 mod agent;
 mod assignments;

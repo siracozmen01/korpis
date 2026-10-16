@@ -26,6 +26,10 @@ const UNCHARGED: [&str; 4] = [
     "/korpis.v1.ServerInfoService/",
 ];
 
+/// The service anyone may call without a credential, whose every request is charged to its
+/// source instead: each sign-in or redemption it begins writes a challenge.
+const ANONYMOUS: &str = "/korpis.v1.AccountService/";
+
 /// The procedures charged to the expensive budget as well: those that compute a plan, take or
 /// restore a backup or a snapshot, or install an extension.
 const EXPENSIVE: [&str; 12] = [
@@ -57,19 +61,23 @@ impl Charging {
     }
 
     /// Charges the request `ctx` carries, handing its caller on to the handler; where its buckets
-    /// stand, or the refusal. A request presenting no credential is not charged here: its
-    /// handler refuses it, or serves it if it needs none. One presenting a credential that opens
-    /// nothing is a failed attempt, charged to its source (§10 of docs/10-api.md).
+    /// stand, or the refusal. A request presenting no credential is not charged to a caller: its
+    /// handler refuses it, or serves it if it needs none, and one to the account service is
+    /// charged to its source. One presenting a credential that opens nothing is a failed
+    /// attempt, charged to its source's failure bucket (§10 of docs/10-api.md).
     async fn admit(&self, ctx: &mut RequestContext) -> Result<Vec<Standing>, ConnectError> {
         let Some(path) = ctx.path().map(str::to_owned) else { return Ok(Vec::new()) };
         if UNCHARGED.iter().any(|p| path.starts_with(p)) {
             return Ok(Vec::new());
         }
         let presented = super::bearer(ctx);
-        if presented.is_empty() {
-            return Ok(Vec::new());
-        }
         let ip = ctx.peer_addr().map(|a| a.ip());
+        if presented.is_empty() {
+            if !path.starts_with(ANONYMOUS) {
+                return Ok(Vec::new());
+            }
+            return self.api.app().charge_source(ip).await.map_err(refused);
+        }
         let app = self.api.app();
         let caller = match app.authenticate(presented, ip).await {
             Ok(caller) => caller,

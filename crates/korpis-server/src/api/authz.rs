@@ -15,6 +15,24 @@ use korpis_proto::korpis::v1::__buffa::oneof::list_grants_request::Filter;
 use std::time::{Duration, SystemTime};
 
 fn holder(req: &pb::IssueGrantRequest) -> Result<Holder, ConnectError> {
+    if let Some(user) = req.to_new_user.as_option() {
+        if req.subject.as_option().is_some() || req.to_new_token || req.link_form {
+            return Err(error::invalid(
+                "to_new_user",
+                "alone: not with subject, to_new_token, or link_form",
+            ));
+        }
+        let invitation_expires_at = user
+            .invitation_expires_at
+            .as_option()
+            .map(|t| wire::time("to_new_user.invitation_expires_at", t))
+            .transpose()
+            .refuse()?;
+        return Ok(Holder::NewUser {
+            display_name: user.display_name.clone(),
+            invitation_expires_at,
+        });
+    }
     match (req.subject.as_option(), req.to_new_token, req.link_form) {
         (Some(s), false, false) => {
             Ok(Holder::Principal(principal::from_pb("subject", s).refuse()?))
@@ -45,15 +63,17 @@ fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError
     })
 }
 
-/// The answer to an issue; the record kept for a replay leaves the token's secret and the link
-/// out, because a secret recorded is a secret stored (§6 of docs/10-api.md).
+/// The answer to an issue; the record kept for a replay leaves the token's secret, the link, and
+/// the invitation out, because a secret recorded is a secret stored (§6 of docs/10-api.md).
 fn issued(i: &Issued, now: SystemTime, secret: bool) -> pb::IssueGrantResponse {
     let token = i.secret.as_ref().filter(|_| secret).map(|s| s.expose().to_owned());
     let link = i.link.clone().filter(|_| secret);
+    let invitation = i.invitation.as_ref().filter(|_| secret).map(|s| s.expose().to_owned());
     pb::IssueGrantResponse {
         grant: grant_to_pb(&i.record, now).into(),
         token: token.unwrap_or_default(),
         link_token: link.unwrap_or_default(),
+        invitation: invitation.unwrap_or_default(),
         ..Default::default()
     }
 }
