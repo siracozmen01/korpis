@@ -1,8 +1,8 @@
 # The Web Client
 
-**Status:** design **Date:** 2026-08-07 **Depends on:** [`10-api.md`](./10-api.md),
-[`08-identity.md`](./08-identity.md), [`01-model.md`](./01-model.md) **Implements:** Principles P2,
-P4, P5, P10
+**Status:** design; framework and serving decided 2026-10-16 **Date:** 2026-08-07 **Depends
+on:** [`10-api.md`](./10-api.md), [`08-identity.md`](./08-identity.md),
+[`01-model.md`](./01-model.md) **Implements:** Principles P2, P4, P5, P10
 
 ---
 
@@ -21,6 +21,21 @@ A consequence worth stating because hosts will want it: **the panel can be serve
 A host can put it on their own CDN, at their own domain, with their own branding, pointed at their
 control plane. Nothing about that is a special deployment mode; it is what a static bundle talking
 to a public API already is.
+
+**Where it is served by default, and what serving it elsewhere needs.** Decided 2026-10-16, before
+the panel was built. The control plane serves the bundle itself, from the directory
+`korpis-server serve --web-root` names, on the same address as the API: a request whose path is a
+procedure of the API goes to the API, and any other path is a file of the bundle, so an
+installation has a panel at its own address with nothing else to run, and the panel and the API
+share an origin. Without `--web-root` the control plane serves the API alone and says so at start.
+A panel served from another origin must be on the same site as the control plane (a sibling name
+under the same registrable domain, such as `panel.example.com` beside `api.example.com`), and its
+origin must be listed in `--web-origin`: the web session is a cookie the browser sends only to its
+own site (§9.4 of `08-identity.md`), and the API answers cross-origin requests, with credentials,
+only for the origins listed. What it costs: a panel on a CDN under an unrelated domain cannot hold
+a web session with the control plane, and a host who wants one there serves it under a name of its
+own site instead; a panel that holds no session, one opened from a share link, works from anywhere
+listed.
 
 ---
 
@@ -161,6 +176,11 @@ built from and where that source is published, and themes cannot remove or resty
 the branded chrome: a host's customers see the host's brand everywhere they look, and the notice is
 where the licence needs it to be rather than where a brand would notice it.
 
+As decided 2026-10-16: the page is generated when the bundle is built, from the revision it is
+built from and the repository the build names, and is a file of the bundle like any other, so it
+is served wherever the bundle is; a host that modifies the panel and builds it names its own
+repository, which is the obligation the AGPL places on it.
+
 ---
 
 ## 8. The hard screens
@@ -204,9 +224,35 @@ explicit paused-and-buffered reading mode rather than by leaving it unsolved.
 
 ## 10. Open questions
 
-1. **Framework.** Deferred deliberately; the constraints are already fixed, static output, no
+1. **Framework. Resolved 2026-10-16: React, in TypeScript, built by Vite.** Deferred deliberately
+   until the panel was next to be built; the constraints were already fixed, static output, no
    server runtime, streams over polling, and small enough that a host serving it from a cheap CDN
-   is ordinary. → here
+   is ordinary.
+
+Every candidate meets those four (React, Svelte, Solid, and Lit all build to static files and
+consume a server stream), so they do not decide it. What decides it is §9 and §5. Keyboard
+navigation that is complete, and dialogs, menus, comboboxes, tables, and date fields that a screen
+reader can operate, is the requirement every panel in this market fails, and the most complete set
+of accessible primitives that exists, React Aria (Adobe, Apache-2.0), exists for React alone;
+building that set again for another framework is a larger project than the panel. A panel that
+renders correctly for an arbitrary grant set is a composition of small components that each
+render or do not, which every candidate does equally well. And the panel is where most community
+contributions to a panel land, and React is the framework most of those contributors already
+write, Pterodactyl's own panel included (`research/evidence.md` §5).
+
+What it costs. React's runtime is larger than what Svelte or Solid compile to, about 60 KB
+compressed against 10 to 20, which a CDN serves without noticing and a first load on a slow phone
+does notice. Its rendering model re-renders components where a compiled framework updates a node,
+which matters only where values change many times a second: so the console does not render its
+lines through React (§8); a windowed renderer writes the visible rows directly and React owns the
+frame around it. And extension UI is not React and must not be: an extension's custom UI is an
+iframe on a separate origin (§5 of `16-extensions.md`), written in whatever its author likes,
+which is also what keeps it from reading the viewer's session.
+
+The rest of the toolchain follows from it and is fixed in §9 of `21-stack.md`: Connect-ES with
+clients generated from the same `.proto` as the server (§3 of `10-api.md`), FormatJS for the ICU
+MessageFormat catalogues of question 4, Vitest and Testing Library for components, and
+Playwright for the browser tests that run the panel against a real control plane.
 2. **Custom dashboards. Resolved here: a saved layout object over declared slots.** Hosts want a
    landing screen composed for their customers. Whether that is an extension slot, a saved layout
    object, or both determines whether it can be per-organization. It was routed to

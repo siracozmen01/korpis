@@ -488,6 +488,9 @@ Primary:
   policies](https://docs.cilium.io/en/stable/security/dns/)); recorded from its documentation and
   not reproduced here. One way a node could hold a rule naming a domain, the open question 8 of
   §11 of `../07-networking.md`.
+- **[V]** Pterodactyl's panel is written in React and TypeScript: its `package.json` on the
+  `develop` branch depends on `react` `^16.14.0` and `typescript` `~5.1.0` (read 2026-10-16). One
+  reason the web client chose React (question 1 of §10 of `../11-surface-web.md`).
 - **[V]** OWASP's device cookies slow online guessing without letting a stranger lock an account
   out of its holder's own browsers: a browser that signed in to an account is given a cookie the
   server signs, failures from it are counted against the cookie alone, and failures from browsers
