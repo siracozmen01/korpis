@@ -35,6 +35,7 @@ mod node;
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod provider;
+mod rate;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod relay;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
@@ -71,6 +72,7 @@ use korpis_proto::korpis::v1::{
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
+pub use rate::Charging;
 pub use relay::RelayRole;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -208,8 +210,17 @@ impl Api {
         korpis_proto::korpis::agent::v1::AgentServiceExt::register(self, router)
     }
 
-    /// The caller of a request: the bearer API token, from the peer address.
+    /// The caller of a request: as the rate limit interceptor authenticated it, or else the bearer
+    /// API token, from the peer address.
     async fn caller(&self, ctx: &RequestContext) -> Result<Caller, ConnectError> {
+        if let Some(caller) = ctx.extensions().get::<Caller>() {
+            return Ok(caller.clone());
+        }
+        self.authenticated(ctx).await
+    }
+
+    /// The bearer API token's caller, from the peer address.
+    async fn authenticated(&self, ctx: &RequestContext) -> Result<Caller, ConnectError> {
         let presented = ctx
             .headers()
             .get(http::header::AUTHORIZATION)

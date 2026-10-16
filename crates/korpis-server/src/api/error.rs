@@ -26,9 +26,9 @@ fn transport(code: pb::ErrorCode) -> ErrorCode {
         pb::ErrorCode::ERROR_CODE_NOT_FOUND => ErrorCode::NotFound,
         pb::ErrorCode::ERROR_CODE_CONFLICT => ErrorCode::Aborted,
         pb::ErrorCode::ERROR_CODE_UNSATISFIABLE => ErrorCode::FailedPrecondition,
-        pb::ErrorCode::ERROR_CODE_QUOTA_EXCEEDED | pb::ErrorCode::ERROR_CODE_OVERFLOW => {
-            ErrorCode::ResourceExhausted
-        }
+        pb::ErrorCode::ERROR_CODE_QUOTA_EXCEEDED
+        | pb::ErrorCode::ERROR_CODE_OVERFLOW
+        | pb::ErrorCode::ERROR_CODE_RATE_LIMITED => ErrorCode::ResourceExhausted,
         pb::ErrorCode::ERROR_CODE_UNAVAILABLE => ErrorCode::Unavailable,
         pb::ErrorCode::ERROR_CODE_INTERNAL | pb::ErrorCode::ERROR_CODE_UNSPECIFIED => {
             ErrorCode::Internal
@@ -183,6 +183,28 @@ pub fn from_app(e: AppError) -> ConnectError {
                 retryable: true,
             })
         }
+        AppError::RateLimited { retry_after, .. } => rate_limited(retry_after),
         AppError::Internal(cause) => internal(&cause),
     }
+}
+
+/// A refusal by a rate limit bucket, retryable after `retry_after`.
+#[must_use]
+pub fn rate_limited(retry_after: std::time::Duration) -> ConnectError {
+    let message = format!("rate limited; retry in {} ms", retry_after.as_millis());
+    let detail = pb::Error {
+        code: pb::ErrorCode::ERROR_CODE_RATE_LIMITED.into(),
+        reason: "rate.limited".into(),
+        retryable: true,
+        retry_after: buffa_types::google::protobuf::Duration {
+            seconds: i64::try_from(retry_after.as_secs()).unwrap_or(i64::MAX),
+            nanos: i32::try_from(retry_after.subsec_nanos()).unwrap_or(0),
+            ..Default::default()
+        }
+        .into(),
+        message: message.clone(),
+        ..Default::default()
+    };
+    ConnectError::new(ErrorCode::ResourceExhausted, message)
+        .with_detail(ErrorDetail::from_message(DETAIL_TYPE, &detail))
 }

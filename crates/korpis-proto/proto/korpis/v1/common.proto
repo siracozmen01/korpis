@@ -112,6 +112,8 @@ enum ErrorCode {
   ERROR_CODE_OVERFLOW = 8;
   ERROR_CODE_UNAVAILABLE = 9;
   ERROR_CODE_INTERNAL = 10;
+  // A rate limit bucket is empty (§10 of docs/10-api.md): retryable, after retry_after.
+  ERROR_CODE_RATE_LIMITED = 11;
 }
 
 // Resource quantities, used for capacity, allocation, quota, and usage.

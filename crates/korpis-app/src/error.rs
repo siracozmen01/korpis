@@ -83,6 +83,14 @@ pub enum AppError {
         /// The roadmap phase that builds it.
         phase: u8,
     },
+    /// A rate limit bucket refused the request (§10 of docs/10-api.md); it charged none.
+    #[error("rate limited: retry after {retry_after:?}")]
+    RateLimited {
+        /// When the fullest refusing bucket admits it.
+        retry_after: std::time::Duration,
+        /// Where each bucket stands.
+        standing: Vec<korpis_core::rate::Standing>,
+    },
     /// Something Korpis depends on could not be reached; retrying may help.
     #[error("{what} is unavailable")]
     Unavailable {

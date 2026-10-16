@@ -68,11 +68,12 @@ pub async fn run(
     let fed = Arc::new(Fed::new(url(&dir)?));
     let addr = listener.local_addr()?;
     let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
+    let service = connectrpc::ConnectRpcService::new(router);
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
     let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
     let task = tokio::spawn(async move {
         let ended = tokio::select! {
-            served = crate::accept::serve_on(listener, tls, router, proxies.into()) => {
+            served = crate::accept::serve_on(listener, tls, service, proxies.into()) => {
                 served.map_err(RunError::Serve)
             }
             refused = following => match refused {

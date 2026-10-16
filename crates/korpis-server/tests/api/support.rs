@@ -10,6 +10,7 @@ use korpis_core::authz::credential::Secret;
 use korpis_core::authz::{Kind, ObjectRef, Scope};
 use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::Principal;
+use korpis_core::rate::{Rate, Rates};
 use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
 use korpis_server::acme::AcmeConfig;
@@ -20,6 +21,18 @@ use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
 use uuid::Uuid;
+
+/// Rates no test outside the rate limits' own reaches, so that a test making many requests at
+/// once is not refused for it; every request is still charged.
+const UNMETERED: Rates = {
+    let rate = Rate { per_second: 1_000_000, burst: 1_000_000 };
+    Rates {
+        individual: rate,
+        organization: rate,
+        expensive_individual: rate,
+        expensive_organization: rate,
+    }
+};
 
 /// The signer of every test recipe [`crate::recipes::push_paper`] pushes.
 pub const TEST_SIGNER: &str = "korpis-test";
@@ -54,6 +67,8 @@ pub struct Harness {
     /// The control plane's state, to call use cases no RPC reaches yet.
     pub api: std::sync::Arc<korpis_server::api::Api>,
     server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
+    /// What the control plane was served with, to serve another replica of it.
+    pub served: korpis_server::ServeConfig,
 }
 
 impl Drop for Harness {
@@ -88,14 +103,21 @@ impl Harness {
 
     /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
     pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
-        Self::build(heartbeat, denial_window, None, AcmeConfig::default()).await
+        Self::build(heartbeat, denial_window, None, AcmeConfig::default(), UNMETERED).await
+    }
+
+    /// A control plane charging the client API's requests at `rates` (§10 of docs/10-api.md).
+    pub async fn with_rates(rates: Rates) -> Self {
+        let (heartbeat, window) =
+            (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
+        Self::build(heartbeat, window, None, AcmeConfig::default(), rates).await
     }
 
     /// A control plane verifying domains through the DNS server at `resolver`.
     pub async fn with_resolver(resolver: std::net::SocketAddr) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default()).await
+        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default(), UNMETERED).await
     }
 
     /// A control plane ordering certificates from the ACME directory `acme` names, and resolving
@@ -103,7 +125,7 @@ impl Harness {
     pub async fn with_acme(acme: AcmeConfig, resolver: Option<std::net::SocketAddr>) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, resolver, acme).await
+        Self::build(heartbeat, window, resolver, acme, UNMETERED).await
     }
 
     async fn build(
@@ -111,6 +133,7 @@ impl Harness {
         denial_window: std::time::Duration,
         dns_resolver: Option<std::net::SocketAddr>,
         acme: AcmeConfig,
+        rates: Rates,
     ) -> Self {
         // What the control plane logs at error, an internal error's cause among it, is printed
         // with the output of the test that failed, so a failure that needs load to happen
@@ -129,7 +152,7 @@ impl Harness {
         })
         .await
         .expect("install");
-        let running = korpis_server::serve(korpis_server::ServeConfig {
+        let config = korpis_server::ServeConfig {
             data: data.clone(),
             database_url: db.owner_url.clone(),
             listen: "127.0.0.1:0".parse().unwrap(),
@@ -151,14 +174,24 @@ impl Harness {
             proxy_protocol_from: Vec::new(),
             dns_resolver,
             acme,
-        })
-        .await
-        .expect("serve");
+            rates,
+        };
+        let running = korpis_server::serve(config.clone()).await.expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
         let http = client_tls(&data);
         let ca_pem = std::fs::read(data.tls().join("ca.pem")).expect("CA");
-        let api = running.api;
-        let h = Self { db, _dir: dir, installed, http, base, ca_pem, api, server: running.task };
+        let (api, task) = (running.api, running.task);
+        let h = Self {
+            db,
+            _dir: dir,
+            installed,
+            http,
+            base,
+            ca_pem,
+            api,
+            server: task,
+            served: config,
+        };
         h.accept_test_signer().await;
         h
     }

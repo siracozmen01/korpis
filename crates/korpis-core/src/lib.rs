@@ -23,6 +23,7 @@ pub mod object;
 pub mod placement;
 pub mod principal;
 pub mod quantity;
+pub mod rate;
 pub mod recipe;
 pub mod relay;
 pub mod schedule;

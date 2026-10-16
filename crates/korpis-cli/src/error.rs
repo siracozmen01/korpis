@@ -56,6 +56,7 @@ pub fn code_name(code: pb::ErrorCode) -> &'static str {
         C::ERROR_CODE_OVERFLOW => "OVERFLOW",
         C::ERROR_CODE_UNAVAILABLE => "UNAVAILABLE",
         C::ERROR_CODE_INTERNAL | C::ERROR_CODE_UNSPECIFIED => "INTERNAL",
+        C::ERROR_CODE_RATE_LIMITED => "RATE_LIMITED",
     }
 }
 
@@ -75,6 +76,7 @@ pub fn exit_code_of(code: pb::ErrorCode) -> u8 {
         C::ERROR_CODE_OVERFLOW => 17,
         C::ERROR_CODE_UNAVAILABLE => 18,
         C::ERROR_CODE_INTERNAL | C::ERROR_CODE_UNSPECIFIED => 19,
+        C::ERROR_CODE_RATE_LIMITED => 20,
     }
 }
 

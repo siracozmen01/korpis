@@ -92,6 +92,7 @@ impl ControlPlane {
             proxy_protocol_from: Vec::new(),
             dns_resolver: None,
             acme: korpis_server::acme::AcmeConfig::default(),
+            rates: korpis_core::rate::Rates::default(),
         })
         .await
         .expect("serve");

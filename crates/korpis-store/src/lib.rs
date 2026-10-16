@@ -35,6 +35,7 @@ mod provider;
 mod provider_call;
 mod prune;
 mod quota;
+mod rate;
 mod recipe;
 mod relay;
 mod session;

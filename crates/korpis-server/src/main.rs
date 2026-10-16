@@ -3,6 +3,7 @@
 use clap::{Parser, Subcommand};
 use korpis_app::install::Installation;
 use korpis_core::id::{Id, IdKind};
+use korpis_core::rate::{Rate, Rates};
 use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;
@@ -126,6 +127,18 @@ struct ServeArgs {
     /// no `acme` certificate is issued, each saying why.
     #[arg(long, env = "KORPIS_ACME_AGREE_TERMS")]
     acme_agree_terms: bool,
+    /// Each subject's bucket, `<per second>/<burst>` (§10 of docs/10-api.md).
+    #[arg(long, default_value = "20/200", value_parser = Rate::parse)]
+    rate_individual: Rate,
+    /// Each organization's bucket, shared by every subject holding a grant in it.
+    #[arg(long, default_value = "100/1000", value_parser = Rate::parse)]
+    rate_organization: Rate,
+    /// Each subject's bucket for requests that compute a plan, back up, or install.
+    #[arg(long, default_value = "2/20", value_parser = Rate::parse)]
+    rate_expensive_individual: Rate,
+    /// Each organization's bucket for requests that compute a plan, back up, or install.
+    #[arg(long, default_value = "10/100", value_parser = Rate::parse)]
+    rate_expensive_organization: Rate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -265,6 +278,12 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             ca: args.acme_ca,
             contact: args.acme_contact,
             agreed: args.acme_agree_terms,
+        },
+        rates: Rates {
+            individual: args.rate_individual,
+            organization: args.rate_organization,
+            expensive_individual: args.rate_expensive_individual,
+            expensive_organization: args.rate_expensive_organization,
         },
     })
     .await?;

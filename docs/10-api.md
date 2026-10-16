@@ -354,6 +354,7 @@ Structured and machine-readable, never a message string clients parse:
 Error
   code       INVALID | UNAUTHENTICATED | DENIED | NOT_FOUND | CONFLICT
              | UNSATISFIABLE | QUOTA_EXCEEDED | OVERFLOW | UNAVAILABLE | INTERNAL
+             | RATE_LIMITED   a bucket of §10 is empty: retryable, after retry_after
   reason     stable identifier, e.g. "quota.memory.exceeded"
   field      path, for validation errors
   detail     structured, code-specific
@@ -466,12 +467,66 @@ Unauthenticated failures are recorded the same way, aggregated per source and ta
 > refused request still writes one row, of working state rather than of the log, and an auditor
 > sees a burst's repeats up to a window and a quarter late.
 >
-> Not yet built: the buckets of this section, and recording unauthenticated failures. They
-> arrive together in Phase 1 (§4 of `20-roadmap.md`), with the web client whose login and link
-> redemption are the first unauthenticated endpoints that take a secret a person chose. Until
-> then a request presenting an unknown API token is refused without an effect; such a token is
-> 256 random bits, so guessing one is not a threat the record would reveal, but the record this
-> section promises is still missing until Phase 1.
+> Not yet built when Phase 0 shipped: the buckets of this section, and recording
+> unauthenticated failures. Built in Phase 1, 2026-10-16, as the rest of this section describes.
+
+**As built.** A bucket is a generic cell rate: a rate and a burst, kept as one timestamp, the
+instant the bucket would be full again, in a table of PostgreSQL that is not written to its log, so
+every replica charges the same buckets and a crash forgives what was owed rather than adding to it.
+One statement charges every bucket a request is charged to, all or none, and answers how far each
+is from empty; a request refused by any bucket charges none of them.
+
+**What evaluates it, where, and with what information.** The replica that receives the request, in
+an interceptor that every client service passes through before its handler: it authenticates the
+request once, which tells it the subject, and finds the organizations the subject holds a grant in,
+from the scope of each grant it holds (§3 of `08-identity.md`), cached for a minute. The individual
+bucket is the subject's: the token, the link, the workload, the extension, each by its own
+identifier. The organization bucket is each organization the subject holds a grant in, so a token
+minted by attenuation, whose grants are scoped within its creator's, adds a subject and no
+organization; a subject holding grants in two organizations is charged in both, which can only
+refuse sooner. The agent's and the relays' services authenticate by their own proofs (§7 of
+`02-architecture.md`) and are not charged here: they are the installation's own machines, not
+tenants, and a proof that fails to open one is an unauthenticated attempt, limited as below.
+
+**The expensive budget.** Computing a plan, which declaring, starting, stopping, restarting,
+placing, and deleting a workload each do; creating and restoring a backup, and taking a snapshot
+and rolling a volume back to one; installing and upgrading an extension: each is also charged to a
+second pair of buckets, the subject's and its organizations', with a rate a tenth of the ordinary
+one, so a loop of declarations cannot crowd out reads. A request is charged before its handler
+runs, so one its handler refuses has been charged all the same, as a denial is above. Migrating
+a workload joins the list when Phase 3 builds it (§4 of `20-roadmap.md`).
+
+**The defaults, and what an operator changes.** The individual bucket allows 20 requests a second
+with a burst of 200, the organization 100 a second with a burst of 1 000; the expensive buckets 2
+and 10 a second, with bursts of 20 and 100. Each is a flag of `korpis-server serve`
+(`--rate-individual`, `--rate-organization`, `--rate-expensive-individual`,
+`--rate-expensive-organization`, each `<per second>/<burst>`), and the operator may raise any of
+them as far as they like: these bound a tenant, never the host (Principle P10).
+
+**A refusal** is `RATE_LIMITED` (§8), retryable, with `retry_after` the moment the fullest refusing
+bucket admits the request; on the Connect wire it is `resource_exhausted`. **Every response** says
+where the caller stands, in the fields of the IETF HTTP API working group's rate limit headers
+draft: `RateLimit-Policy` names each bucket charged with its burst (`q`) and the seconds it takes
+to refill (`w`), and `RateLimit` its remaining requests (`r`) and the seconds until it is full
+again (`t`), each policy naming the one of its buckets furthest from full, since a subject
+holding grants in several organizations is bounded by the emptiest; a refusal adds `Retry-After`.
+
+**Unauthenticated attempts** are every presentation of a credential that is not yet trusted: an API
+token, a workload credential, or a share link presented to the API; a node's `Hello`; an enrollment
+token joined; a relay's enrollment. Each failure is charged to a bucket of its source, the address,
+or the /64 for IPv6, at 30 a minute; and to its target, where the attempt names one (the link's
+grant, the node, the enrollment token), which it slows exponentially: after a target's nth failure
+in a row, the next attempt against it is refused for 2ⁿ⁻¹ seconds, at most fifteen minutes, and a
+success clears the count. Nothing is ever locked, so no one can deny a target to its holder for
+longer than that. Failures are recorded as denials are, coalesced by source, target, and kind
+within the window, the first written at once.
+
+What it costs: one database statement per request, which serializes an organization's requests on
+its bucket's row for the moment the statement takes; and a subject's organizations are up to a
+minute stale, so a grant just issued in another organization is charged there a minute late.
+
+> Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`): the limits of the
+> login and second-factor endpoints, which are the same mechanism with an account as target.
 
 Expensive operations carry their own budgets, plan computation, migration, backup initiation, and
 recipe fetches are not comparable to a status read and are not counted against the same allowance.

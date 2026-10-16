@@ -26,6 +26,7 @@ pub mod install;
 pub mod node;
 pub mod page;
 pub mod ports;
+pub mod rate;
 pub mod recipe;
 pub mod relay;
 pub mod step;
@@ -63,6 +64,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     timer: Option<Arc<dyn ports::Timer>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
+    limiter: rate::Limiter,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -87,7 +89,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             timer: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
+            limiter: rate::Limiter::default(),
         }
+    }
+
+    /// Charges requests at `rates` (§10 of docs/10-api.md) instead of the defaults.
+    #[must_use]
+    pub fn with_rates(mut self, rates: korpis_core::rate::Rates) -> Self {
+        self.limiter = rate::Limiter::new(rates);
+        self
     }
 
     /// Places workloads by `policy`, the installation's (§2.2 of docs/05-scheduling.md),

@@ -49,14 +49,14 @@ meaningful and map to the error codes of §8 of `10-api.md`, `DENIED`, `CONFLICT
 | 1 | refused by the CLI itself before anything was sent: a file, an argument, a value |
 | 2 | the command line does not parse |
 | 3 | the control plane could not be reached, or answered without a structured error |
-| 10 to 19 | `INVALID`, `UNAUTHENTICATED`, `DENIED`, `NOT_FOUND`, `CONFLICT`, `UNSATISFIABLE`, `QUOTA_EXCEEDED`, `OVERFLOW`, `UNAVAILABLE`, `INTERNAL`, in that order |
+| 10 to 20 | `INVALID`, `UNAUTHENTICATED`, `DENIED`, `NOT_FOUND`, `CONFLICT`, `UNSATISFIABLE`, `QUOTA_EXCEEDED`, `OVERFLOW`, `UNAVAILABLE`, `INTERNAL`, `RATE_LIMITED`, in that order |
 
 With `--json` a failure is written to standard error as the API's error (code, reason, field, and
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
 `status`, `plan approve|reject|cancel`, `workload
-start|stop|restart|place|classify|delete`, and `node token create|cordon|uncordon`, each one
+start|stop|restart|place|classify|delete`, and `node token create|cordon|uncordon|remove`, each one
 call of the API once its names are resolved. An object is named
 by its identifier, by its name, or, for a workload, as `project/name`. A name is resolved by
 listing what the caller may read, never by a lookup the API does not offer, so a name the caller

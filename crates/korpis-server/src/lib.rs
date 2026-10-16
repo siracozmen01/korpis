@@ -93,6 +93,8 @@ pub struct ServeConfig {
     /// The ACME directory `acme` certificates are ordered from, and as whom (§3.2 of
     /// docs/07-networking.md).
     pub acme: acme::AcmeConfig,
+    /// The rates of the client API's buckets (§10 of docs/10-api.md).
+    pub rates: korpis_core::rate::Rates,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -160,6 +162,7 @@ fn application(
         .with_placement_policy(config.placement_policy.clone())
         .with_session_terms(terms)
         .with_denial_window(config.denial_window)
+        .with_rates(config.rates)
         .with_stream_floor(config.stream_retention_floor)
         .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
@@ -207,10 +210,12 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
     api.relay().trust(relay::token_ring(names));
     background(&api, &config);
-    let router = Arc::clone(&api).router();
+    let charging = api::Charging::new(Arc::clone(&api));
+    let service = connectrpc::ConnectRpcService::new(Arc::clone(&api).router());
+    let service = service.with_interceptor(charging);
     let proxies: Arc<[ipnet::IpNet]> = config.proxy_protocol_from.clone().into();
     let task = tokio::spawn(async move {
-        accept::serve_on(listener, tls, router, proxies).await.map_err(ServeError::Serve)
+        accept::serve_on(listener, tls, service, proxies).await.map_err(ServeError::Serve)
     });
     tracing::info!(%addr, "serving");
     Ok(Running { addr, task, api })

@@ -9,8 +9,8 @@
 
 pub mod proxy;
 
+use connectrpc::ConnectRpcService;
 use connectrpc::server::PeerAddr;
-use connectrpc::{ConnectRpcService, Router};
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder;
 use ipnet::IpNet;
@@ -27,32 +27,31 @@ const HANDSHAKE: Duration = Duration::from_secs(10);
 /// How long a connection has to send its first request's headers.
 const HEADERS: Duration = Duration::from_secs(30);
 
-/// Serves `router` on `listener` with `tls`: with connectrpc's own server when no proxy is
+/// Serves `service` on `listener` with `tls`: with connectrpc's own server when no proxy is
 /// configured, and with [`serve`] when one is. Ends only on failure.
 pub async fn serve_on(
     listener: TcpListener,
     tls: Arc<rustls::ServerConfig>,
-    router: Router,
+    service: ConnectRpcService,
     proxies: Arc<[IpNet]>,
 ) -> Result<(), String> {
     if proxies.is_empty() {
         let bound = connectrpc::server::Server::from_listener(listener).with_tls(tls);
-        bound.serve(router).await.map_err(|e| e.to_string())
+        bound.serve_with_service(service).await.map_err(|e| e.to_string())
     } else {
-        serve(listener, tls, router, proxies).await.map_err(|e| e.to_string())
+        serve(listener, tls, service, proxies).await.map_err(|e| e.to_string())
     }
 }
 
-/// Serves `router` on `listener` with `tls`, reading a PROXY header from every connection whose
+/// Serves `service` on `listener` with `tls`, reading a PROXY header from every connection whose
 /// peer is in `proxies`. Ends only if accepting fails.
 pub async fn serve(
     listener: TcpListener,
     tls: Arc<rustls::ServerConfig>,
-    router: Router,
+    service: ConnectRpcService,
     proxies: Arc<[IpNet]>,
 ) -> std::io::Result<()> {
     let acceptor = TlsAcceptor::from(tls);
-    let service = ConnectRpcService::new(router);
     loop {
         let (stream, peer) = listener.accept().await?;
         let (acceptor, service, proxies) =

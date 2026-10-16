@@ -33,6 +33,7 @@ mod provider;
 mod provider_call;
 mod prune;
 mod quota;
+mod rate;
 mod recipe;
 mod relay;
 mod retire;
@@ -81,6 +82,7 @@ pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
 pub use quota::{Holder, QuotaWrite};
+pub use rate::RateBuckets;
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
@@ -153,7 +155,8 @@ pub type StoreResult<T> = Result<T, StoreError>;
 
 /// The read side of the store, and where transactions begin.
 pub trait Store:
-    TenancyRead
+    RateBuckets
+    + TenancyRead
     + HierarchyRead
     + GrantRead
     + CredentialRead
