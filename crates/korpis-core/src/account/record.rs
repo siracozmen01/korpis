@@ -2,7 +2,7 @@
 
 //! What the control plane keeps of an account and its factors (§9.6 of docs/08-identity.md).
 
-use crate::webauthn::Algorithm;
+use crate::webauthn::{Algorithm, NewPasskey};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -46,6 +46,9 @@ pub enum NameError {
          letter or digit"
     )]
     SignIn,
+    /// A passkey's label is too long or holds a control character.
+    #[error("a passkey's label is at most 64 characters, none of them control")]
+    Label,
 }
 
 /// `name`, checked as a display name and trimmed.
@@ -119,6 +122,37 @@ pub struct Passkey {
     pub created_at: SystemTime,
     /// When it last signed in.
     pub last_used_at: Option<SystemTime>,
+}
+
+impl Passkey {
+    /// The passkey a verified registration made, for `account`, called `label`, at `now`.
+    #[must_use]
+    pub fn registered(new: NewPasskey, account: Uuid, label: String, now: SystemTime) -> Self {
+        Self {
+            credential_id: new.credential_id,
+            account,
+            public_key: new.public_key,
+            algorithm: new.algorithm,
+            sign_count: new.sign_count,
+            aaguid: new.aaguid,
+            backup_eligible: new.backup_eligible,
+            label,
+            created_at: now,
+            last_used_at: None,
+        }
+    }
+}
+
+/// The longest label a passkey may carry, in characters.
+pub const MAX_LABEL: usize = 64;
+
+/// `label`, checked as a passkey's label and trimmed; it may be empty.
+pub fn passkey_label(label: &str) -> Result<String, NameError> {
+    let label = label.trim();
+    if label.chars().count() > MAX_LABEL || label.chars().any(char::is_control) {
+        return Err(NameError::Label);
+    }
+    Ok(label.to_owned())
 }
 
 /// What a `WebAuthn` challenge is for.

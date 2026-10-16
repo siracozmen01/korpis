@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Issuing a grant: attenuating one the caller holds (§3.2 of docs/08-identity.md), to a named
-//! holder, to an API token created to hold it (§3.7), or to whoever holds the share link it is
-//! answered as (§6.1).
+//! holder, to an API token created to hold it (§3.7), to an account created to hold it and invited
+//! to register its first factor (§9.6), or to whoever holds the share link it is answered as
+//! (§6.1).
 
 use super::Snapshot;
 use crate::App;
@@ -10,15 +11,18 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
-    Clock, CredentialWrite, EffectWrite, GrantWrite, RecipeSource, Store, StoreError, Unique,
+    AccountWrite, Clock, CredentialWrite, EffectWrite, GrantWrite, RecipeSource, Store, StoreError,
+    Unique,
 };
+use korpis_core::account::record::{Account, INVITATION_LIFETIME, Invitation, display_name};
 use korpis_core::audit::{Effect, Outcome, details};
-use korpis_core::authz::credential::{ApiToken, Secret};
+use korpis_core::authz::credential::{ApiToken, Secret, SecretKind};
 use korpis_core::authz::evaluate::{IssueError, issue};
 use korpis_core::authz::link;
 use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Resource, Scope};
 use korpis_core::principal::Principal;
 use std::collections::BTreeSet;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 const OPERATION: &str = "authz.issue_grant";
@@ -33,6 +37,14 @@ pub enum Holder {
     Principal(Principal),
     /// An API token created in the same transaction, which exists only to hold the grant.
     NewToken,
+    /// An account created in the same transaction, holding the grant and no factor, with an
+    /// invitation to register its first (§9.6 of docs/08-identity.md).
+    NewUser {
+        /// How the account is shown.
+        display_name: String,
+        /// When the invitation stops working, at most seven days on; seven days if not said.
+        invitation_expires_at: Option<SystemTime>,
+    },
     /// Whoever holds the share link the grant is answered as: a link-form grant, which must
     /// expire and limit its uses, on one object, and can never delegate (§6.1).
     Link,
@@ -67,6 +79,18 @@ pub struct Issued {
     pub secret: Option<Secret>,
     /// The share link, answered once and stored nowhere.
     pub link: Option<String>,
+    /// The new account's invitation, answered once and stored only as its digest.
+    pub invitation: Option<Secret>,
+}
+
+/// What an issue creates to hold the grant, beside it.
+enum Created {
+    /// Nothing: the holder exists, or is a link.
+    Nothing,
+    /// An API token, and its secret.
+    Token(ApiToken, Secret),
+    /// An account, its invitation, and the invitation's secret.
+    User(Account, Invitation, Secret),
 }
 
 fn issue_error(e: &IssueError) -> AppError {
@@ -99,7 +123,44 @@ fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
             Err(AppError::invalid("label", "a new token is named by its label"))
         }
         Holder::NewToken => Ok(()),
+        Holder::NewUser { display_name: name, .. } => display_name(name)
+            .map(|_| ())
+            .map_err(|e| AppError::invalid("display_name", e.to_string())),
     }
+}
+
+/// The account and invitation a grant to a new user creates, issued by `caller` at `now`.
+fn new_user(
+    caller: &Caller,
+    name: &str,
+    expires_at: Option<SystemTime>,
+    now: SystemTime,
+) -> Result<(Account, Invitation, Secret), AppError> {
+    let latest = now + INVITATION_LIFETIME;
+    let expires_at = expires_at.unwrap_or(latest);
+    if expires_at <= now || expires_at > latest {
+        return Err(AppError::invalid("invitation_expires_at", "within the next seven days"));
+    }
+    let account = Account {
+        id: Uuid::now_v7(),
+        display_name: display_name(name)
+            .map_err(|e| AppError::invalid("display_name", e.to_string()))?,
+        name: None,
+        created_by: caller.principal.key(),
+        created_at: now,
+        disabled_at: None,
+    };
+    let invitation = Invitation {
+        id: Uuid::now_v7(),
+        account: account.id,
+        issued_by: caller.principal.key(),
+        expires_at,
+        passkey_only: false,
+        redeemed_at: None,
+    };
+    let secret = Secret::generate_kind(SecretKind::Invitation)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok((account, invitation, secret))
 }
 
 /// What a link must say of itself (§6.1 of docs/08-identity.md): short expiry and a use cap
@@ -133,9 +194,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         validate(&cmd)?;
         let now = self.clock.now();
         let id = Uuid::now_v7();
-        let (holder, token) = match cmd.holder {
-            Holder::Principal(p) => (p, None),
-            Holder::Link => (Principal::Link(id), None),
+        let (holder, created) = match cmd.holder {
+            Holder::Principal(p) => (p, Created::Nothing),
+            Holder::Link => (Principal::Link(id), Created::Nothing),
             Holder::NewToken => {
                 let token = ApiToken {
                     id: Uuid::now_v7(),
@@ -143,7 +204,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     expires_at: cmd.conditions.expires_at,
                 };
                 let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
-                (Principal::Token(token.id), Some((token, secret)))
+                (Principal::Token(token.id), Created::Token(token, secret))
+            }
+            Holder::NewUser { display_name, invitation_expires_at } => {
+                let (account, invitation, secret) =
+                    new_user(caller, &display_name, invitation_expires_at, now)?;
+                (Principal::User(account.id), Created::User(account, invitation, secret))
             }
         };
         let mut record = GrantRecord {
@@ -172,17 +238,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             label: cmd.label,
         };
         let parent = self.parent_for(caller, &mut record.grant).await?;
-        self.record_issue(caller, idem, record, &parent, token).await
+        self.record_issue(caller, idem, record, &parent, created).await
     }
 
-    /// Writes an issued grant, the token holding it when there is one, and its effect.
+    /// Writes an issued grant, the token or account created to hold it, and its effect.
     async fn record_issue(
         &self,
         caller: &Caller,
         idem: &Idempotent<'_, Issued>,
         record: GrantRecord,
         parent: &Grant,
-        token: Option<(ApiToken, Secret)>,
+        created: Created,
     ) -> Result<Reply<Issued>, AppError> {
         let mut tx = self.store.begin().await?;
         // A child takes its uses from a use-limited parent under compare-and-swap (§6.2), so two
@@ -193,8 +259,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Err(AppError::conflict("grant.uses_taken", "the parent's uses changed"));
         }
-        if let Some((t, secret)) = &token {
-            tx.insert_token(t, &secret.digest(), &caller.principal).await?;
+        match &created {
+            Created::Nothing => {}
+            Created::Token(t, secret) => {
+                tx.insert_token(t, &secret.digest(), &caller.principal).await?;
+            }
+            Created::User(account, invitation, secret) => {
+                tx.insert_account(account).await?;
+                tx.insert_invitation(invitation, &secret.digest()).await?;
+                let effect =
+                    Effect::new(caller.principal.clone(), "account.invited", Outcome::Succeeded)
+                        .under(parent.id)
+                        .after(details([
+                            ("account", account.id.to_string().into()),
+                            ("display_name", account.display_name.clone().into()),
+                            ("invitation", invitation.id.to_string().into()),
+                        ]));
+                tx.append_effect(&effect).await?;
+            }
         }
         tx.insert_grant(&record).await.map_err(|e| match e {
             StoreError::Duplicate(Unique::Other) => {
@@ -211,7 +293,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("label", record.label.clone().into()),
             ]));
         tx.append_effect(&effect).await?;
-        let secret = token.map(|(_, s)| s);
+        let (secret, invitation) = match created {
+            Created::Nothing => (None, None),
+            Created::Token(_, secret) => (Some(secret), None),
+            Created::User(.., secret) => (None, Some(secret)),
+        };
         let link = match (&record.holder, record.grant.conditions.expires_at) {
             (Principal::Link(grant), Some(expires_at)) => Some(
                 link::mint(&self.token_key, *grant, expires_at)
@@ -219,7 +305,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ),
             _ => None,
         };
-        finish(tx, caller, idem, OPERATION, Issued { record, secret, link }).await
+        finish(tx, caller, idem, OPERATION, Issued { record, secret, link, invitation }).await
     }
 
     /// The parent `child` is attenuated from, checked: the one it names, or else the one grant

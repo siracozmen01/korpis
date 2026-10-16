@@ -59,6 +59,10 @@ pub fn matches(password: &str, stored: &str) -> bool {
     hasher().is_ok_and(|h| h.verify_password(password.as_bytes(), &parsed).is_ok())
 }
 
+/// A hash, with today's parameters, of a random password nobody kept: what a sign-in naming no
+/// account checks its password against, so it takes as long as one naming an account does.
+pub const STAND_IN: &str = "$argon2id$v=19$m=19456,t=2,p=1$9iggPYZ1U00DFX67MGD4Zg$8fKl0z+QH5D/Mude9t4AbjDnJWqk/w8C1T+jUVc19j4";
+
 /// Whether `stored` was made with parameters weaker than today's, so the next successful
 /// sign-in should store a new hash.
 #[must_use]
@@ -87,5 +91,12 @@ mod tests {
         assert!(!outdated(&stored));
         assert_eq!(hash("too short"), Err(PasswordError::TooShort));
         assert_eq!(hash(&"x".repeat(MAX_BYTES + 1)), Err(PasswordError::TooLong));
+    }
+
+    #[test]
+    fn the_stand_in_is_checked_as_long_as_a_real_hash() {
+        assert!(PasswordHash::new(STAND_IN).is_ok());
+        assert!(!outdated(STAND_IN), "raise it with the parameters");
+        assert!(!matches("correct horse battery", STAND_IN));
     }
 }

@@ -47,7 +47,9 @@ mod trust;
 mod volume;
 mod workload;
 
-pub use account::{AccountRead, AccountWrite, FactorVault, TotpFactor};
+pub use account::{
+    AccountRead, AccountWrite, FactorVault, InPlace, PasswordFuture, Passwords, TotpFactor,
+};
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,

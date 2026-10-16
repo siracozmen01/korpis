@@ -9,6 +9,7 @@
 
 #![warn(missing_docs)]
 
+pub mod account;
 pub mod audit;
 pub mod authz;
 pub mod backup;
@@ -65,6 +66,9 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
     limiter: rate::Limiter,
+    relying_party: Option<korpis_core::webauthn::RelyingParty>,
+    factor_vault: Option<Arc<dyn ports::FactorVault>>,
+    passwords: Arc<dyn ports::Passwords>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -90,6 +94,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
             limiter: rate::Limiter::default(),
+            relying_party: None,
+            factor_vault: None,
+            passwords: Arc::new(ports::InPlace),
         }
     }
 
@@ -191,6 +198,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub const fn with_stream_floor(mut self, floor: std::time::Duration) -> Self {
         self.stream_floor = floor;
+        self
+    }
+
+    /// Registers and verifies passkeys as `rp` (§9.6 of docs/08-identity.md): without it, no
+    /// passkey can be registered or signed in with.
+    #[must_use]
+    pub fn with_relying_party(mut self, rp: korpis_core::webauthn::RelyingParty) -> Self {
+        self.relying_party = Some(rp);
+        self
+    }
+
+    /// Seals TOTP secrets with `vault`: without one, no TOTP factor can be enrolled or checked.
+    #[must_use]
+    pub fn with_factor_vault(mut self, vault: Arc<dyn ports::FactorVault>) -> Self {
+        self.factor_vault = Some(vault);
+        self
+    }
+
+    /// Hashes and checks passwords with `passwords` instead of in place.
+    #[must_use]
+    pub fn with_passwords(mut self, passwords: Arc<dyn ports::Passwords>) -> Self {
+        self.passwords = passwords;
         self
     }
 

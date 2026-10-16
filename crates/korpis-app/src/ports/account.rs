@@ -4,9 +4,11 @@
 //! (§9.6 of docs/08-identity.md); and the vault that seals TOTP secrets.
 
 use super::{SealedKey, StoreResult, VaultError};
+use korpis_core::account::password::{self, PasswordError};
 use korpis_core::account::record::{Account, Challenge, Factors, Invitation, Passkey};
 use korpis_core::account::totp::TotpSecret;
 use std::future::Future;
+use std::pin::Pin;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -153,6 +155,14 @@ pub trait AccountWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
+    /// Locks `account` until the transaction ends, and answers the factors it holds: what a
+    /// change of factors checks its rules against, so two changes racing are decided in turn.
+    /// `None` if there is no such account.
+    fn lock_factors(
+        &mut self,
+        account: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Factors>>> + Send;
+
     /// Adds a challenge, forgetting some that expired before `now`.
     fn insert_challenge(
         &mut self,
@@ -176,4 +186,33 @@ pub trait FactorVault: Send + Sync + std::fmt::Debug {
 
     /// The secret of `account`, opened from `sealed`.
     fn open(&self, account: Uuid, sealed: &SealedKey) -> Result<TotpSecret, VaultError>;
+}
+
+/// A future the password port answers with.
+pub type PasswordFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// What hashes and checks passwords. Argon2id takes tens of milliseconds and 19 MiB each time,
+/// on purpose, so the control plane runs it off the threads that serve requests, and bounds how
+/// many run at once so a burst of sign-ins costs time rather than memory.
+pub trait Passwords: Send + Sync + std::fmt::Debug {
+    /// The stored form of `password`, if it may be one.
+    fn hash<'a>(&'a self, password: &'a str) -> PasswordFuture<'a, Result<String, PasswordError>>;
+
+    /// Whether `password` is the one `stored` was made from.
+    fn matches<'a>(&'a self, password: &'a str, stored: &'a str) -> PasswordFuture<'a, bool>;
+}
+
+/// Hashing in place, on whatever thread awaits it: for tests and tools, which serve no one else
+/// meanwhile.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InPlace;
+
+impl Passwords for InPlace {
+    fn hash<'a>(&'a self, password: &'a str) -> PasswordFuture<'a, Result<String, PasswordError>> {
+        Box::pin(std::future::ready(password::hash(password)))
+    }
+
+    fn matches<'a>(&'a self, password: &'a str, stored: &'a str) -> PasswordFuture<'a, bool> {
+        Box::pin(std::future::ready(password::matches(password, stored)))
+    }
 }

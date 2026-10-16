@@ -24,6 +24,9 @@ trust = ["dep:base64", "dep:p256", "dep:sha2"]
 identity = ["dep:ed25519-dalek", "dep:sha2"]
 # Accounts: signing in (§9.6 of docs/08-identity.md), the control plane's.
 accounts = ["dep:argon2", "dep:base64", "dep:ciborium", "dep:coset", "dep:getrandom", "dep:ring", "dep:serde", "dep:sha2"]
+# A software WebAuthn authenticator, for the tests of what uses the relying party. Never on in a
+# release build.
+testing = ["accounts"]
 # Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
 # agent that fetches them and the driver that imports them.
 content = ["dep:serde", "dep:sha2"]

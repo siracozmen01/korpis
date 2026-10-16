@@ -16,5 +16,11 @@ thiserror = { workspace = true }
 zeroize = "1"
 uuid = { workspace = true }
 
+[dev-dependencies]
+# The use cases of accounts are tested against the real schema, with a software authenticator.
+korpis-core = { workspace = true, features = ["testing"] }
+korpis-store = { path = "../korpis-store", features = ["testing"] }
+tokio = { workspace = true }
+
 [lints]
 workspace = true

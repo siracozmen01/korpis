@@ -83,6 +83,27 @@ fn count(n: Option<i64>) -> u32 {
     n.and_then(|n| u32::try_from(n).ok()).unwrap_or(0)
 }
 
+/// The factors `account` holds, as `e` sees them.
+async fn factors<'e, E: sqlx::PgExecutor<'e>>(e: E, account: Uuid) -> StoreResult<Factors> {
+    let r = sqlx::query!(
+        r#"SELECT (SELECT count(*) FROM passkey WHERE account_id = $1) AS passkeys,
+                  EXISTS (SELECT 1 FROM password_factor WHERE account_id = $1) AS "password!",
+                  EXISTS (SELECT 1 FROM totp_factor WHERE account_id = $1) AS "totp!",
+                  (SELECT count(*) FROM recovery_code
+                    WHERE account_id = $1 AND used_at IS NULL) AS recovery_codes"#,
+        account
+    )
+    .fetch_one(e)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(Factors {
+        passkeys: count(r.passkeys),
+        password: r.password,
+        totp: r.totp,
+        recovery_codes: count(r.recovery_codes),
+    })
+}
+
 impl AccountRead for PgStore {
     async fn account(&self, id: Uuid) -> StoreResult<Option<Account>> {
         let row = sqlx::query_as!(
@@ -130,23 +151,7 @@ impl AccountRead for PgStore {
     }
 
     async fn factors(&self, account: Uuid) -> StoreResult<Factors> {
-        let r = sqlx::query!(
-            r#"SELECT (SELECT count(*) FROM passkey WHERE account_id = $1) AS passkeys,
-                      EXISTS (SELECT 1 FROM password_factor WHERE account_id = $1) AS "password!",
-                      EXISTS (SELECT 1 FROM totp_factor WHERE account_id = $1) AS "totp!",
-                      (SELECT count(*) FROM recovery_code
-                        WHERE account_id = $1 AND used_at IS NULL) AS recovery_codes"#,
-            account
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        Ok(Factors {
-            passkeys: count(r.passkeys),
-            password: r.password,
-            totp: r.totp,
-            recovery_codes: count(r.recovery_codes),
-        })
+        factors(&self.pool, account).await
     }
 
     async fn passkey(&self, credential_id: &[u8]) -> StoreResult<Option<Passkey>> {
@@ -318,6 +323,17 @@ impl AccountWrite for PgTx {
         at: SystemTime,
     ) -> StoreResult<bool> {
         factor::use_recovery_code(self, account, digest, at).await
+    }
+
+    async fn lock_factors(&mut self, account: Uuid) -> StoreResult<Option<Factors>> {
+        let locked = sqlx::query!("SELECT id FROM account WHERE id = $1 FOR UPDATE", account)
+            .fetch_optional(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        match locked {
+            Some(_) => factors(&mut *self.tx, account).await.map(Some),
+            None => Ok(None),
+        }
     }
 
     async fn insert_challenge(&mut self, c: &Challenge, now: SystemTime) -> StoreResult<()> {

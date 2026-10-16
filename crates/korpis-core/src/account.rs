@@ -21,6 +21,11 @@ pub(crate) fn random<const N: usize>() -> Result<[u8; N], EntropyError> {
     Ok(bytes)
 }
 
+/// 32 random bytes: a `WebAuthn` challenge, or a test credential's identifier.
+pub fn nonce() -> Result<[u8; 32], EntropyError> {
+    random()
+}
+
 /// RFC 4648 base32, upper case, without padding: what authenticator apps read a TOTP secret in,
 /// and what a recovery code is written in.
 pub(crate) fn base32(bytes: &[u8]) -> String {

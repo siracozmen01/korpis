@@ -1294,6 +1294,22 @@ every browser without a cookie for a quarter of an hour. A stranger can therefor
 account's holder from signing in from a new browser, and never from one they have used before. A
 passkey assertion cannot be guessed, and its failures count against the source alone.
 
+> As built, 2026-10-16. Two rules hold after every change an account's holder makes to its
+> factors: something can still sign in, a passkey or a password; and a password has a lasting
+> second factor beside it, a passkey or TOTP, because recovery codes run out and an account whose
+> password outlived its last one could not sign in. Each change locks the account first, so two
+> removals racing are decided in turn and cannot leave it with neither. Every single-use thing is
+> spent by a conditional write: an invitation, a TOTP step (the step that confirmed enrolment
+> included), a recovery code, a passkey's counter, and a challenge, which the answer naming it
+> takes in a transaction of its own, so a refused answer spends it as surely as an accepted one.
+> A sign-in refused for any reason is the same refusal, and a password naming no account is
+> checked against a stand-in hash with today's parameters, so neither the answer nor its timing
+> says whether a sign-in name exists. A passkey answering with a counter that did not advance is
+> refused and recorded as `account.passkey_cloned`, naming the account and the passkey;
+> invitations, redemptions, sign-ins, and factor changes are effects too (`account.invited`,
+> `account.redeemed`, `account.signed_in`, `account.factor_added`, `account.factor_removed`,
+> `account.recovery_codes_renewed`).
+
 What it costs. The holder of an account who has lost every browser and every factor gets back
 in only through an administrator (§9.3) or, for root, through the machine (§9.2): the price of
 no email reset. An operator who turns on open registration answers for the accounts it creates.

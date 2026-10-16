@@ -12,6 +12,8 @@
 mod authdata;
 mod client_data;
 mod key;
+#[cfg(feature = "testing")]
+pub mod testing;
 
 pub use key::Algorithm;
 
