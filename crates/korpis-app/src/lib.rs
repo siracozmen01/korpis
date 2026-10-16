@@ -246,6 +246,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.relying_party.as_ref().map(|rp| rp.id.as_str())
     }
 
+    /// The address the installation's panel is served at, its relying party's own origin, if
+    /// one is configured: where a device authorization's user code is typed.
+    pub fn panel_origin(&self) -> Option<&str> {
+        self.relying_party.as_ref().and_then(|rp| rp.origins.first()).map(String::as_str)
+    }
+
     /// Now, by the application's clock: what adapters render time-dependent state against.
     pub fn now(&self) -> std::time::SystemTime {
         self.clock.now()

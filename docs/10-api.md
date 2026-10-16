@@ -606,7 +606,10 @@ by revoking the grant.
 > credential, is charged besides to a bucket of its source at the individual rate, because each
 > ceremony it begins writes a challenge, and nothing else would bound how many one address can
 > make; an address shared by many people beginning sign-ins shares that bucket, at twenty a second
-> with a burst of two hundred by default.
+> with a burst of two hundred by default. Extended 2026-10-17 to the procedures of the session
+> service that take no other credential, `Exchange`, `SignOut`, `AuthorizeDevice`, and
+> `DeviceToken` (§9.4 of `08-identity.md`): each is charged to the same bucket, and a refresh
+> credential or a device code refused is a failed attempt of the kind `session.refresh`.
 
 > Corrected 2026-10-16 (Finding 69 in `23-walkthroughs.md`). "Each is checked first, and one that
 > opens is admitted, whatever its source has done" is right for every credential above that

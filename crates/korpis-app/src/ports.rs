@@ -17,6 +17,7 @@ mod certificate;
 mod changes;
 mod clock;
 mod condition;
+mod device_grant;
 mod domain;
 mod endpoint;
 mod enrollment;
@@ -71,6 +72,7 @@ pub use certificate::{
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock, Timer};
 pub use condition::{ConditionRead, ConditionWrite};
+pub use device_grant::{DeviceGrantRead, DeviceGrantWrite, Polled};
 pub use domain::{DomainRead, DomainWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
@@ -169,6 +171,7 @@ pub trait Store:
     RateBuckets
     + AccountRead
     + UserSessionRead
+    + DeviceGrantRead
     + TenancyRead
     + HierarchyRead
     + GrantRead
@@ -245,6 +248,7 @@ pub trait Tx:
     TenancyWrite
     + AccountWrite
     + UserSessionWrite
+    + DeviceGrantWrite
     + RateWrite
     + GrantWrite
     + CredentialWrite

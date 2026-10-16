@@ -2,11 +2,12 @@
 
 //! Forgetting what has lapsed: the rate limit buckets that are full again (§10 of
 //! docs/10-api.md), since a bucket kept nowhere is full, so the addresses and invented sign-in
-//! names a flood brings leave nothing behind once their buckets refill; and the user sessions
-//! ended by age or idleness (§9.4 of docs/08-identity.md), with the credentials they rotated.
+//! names a flood brings leave nothing behind once their buckets refill; the user sessions ended
+//! by age or idleness (§9.4 of docs/08-identity.md), with the credentials they rotated; and the
+//! device authorizations that expired undecided or unspent.
 
 use crate::api::Api;
-use korpis_app::ports::{RateBuckets as _, UserSessionRead as _};
+use korpis_app::ports::{DeviceGrantRead as _, RateBuckets as _, UserSessionRead as _};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -35,8 +36,8 @@ pub async fn forget(api: Arc<Api>) {
     }
 }
 
-/// Forgets, every minute, the user sessions ended by age or idleness, a batch at a time until
-/// none is left. The task ends with the process.
+/// Forgets, every minute, the user sessions ended by age or idleness and the device
+/// authorizations expired, a batch at a time until none is left. The task ends with the process.
 pub async fn forget_sessions(api: Arc<Api>) {
     let mut tick = tokio::time::interval(EVERY);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -49,6 +50,17 @@ pub async fn forget_sessions(api: Arc<Api>) {
                 Ok(_) => {}
                 Err(e) => {
                     tracing::warn!(error = %e, "forgetting lapsed sessions failed");
+                    break;
+                }
+            }
+        }
+        loop {
+            let store = api.app().store();
+            match store.forget_expired_device_authorizations(SystemTime::now(), BATCH).await {
+                Ok(n) if n < u64::from(BATCH) => break,
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::warn!(error = %e, "forgetting expired device authorizations failed");
                     break;
                 }
             }

@@ -18,6 +18,7 @@ mod breaker;
 mod certificate;
 mod condition;
 mod denial;
+mod device_grant;
 mod domain;
 mod endpoint;
 mod enrollment;

@@ -4,21 +4,13 @@
 //! changes their own factors, re-authenticating with a passkey, and an API token has none to
 //! change.
 
-use crate::panel::{accounts, browser, invite, redeem_keeping_cookie};
+use crate::panel::{access, accounts, browser, invite, redeem_keeping_cookie};
 use crate::support::Harness;
 use connectrpc::client::HttpClient;
 use korpis_proto::korpis::v1 as pb;
 
 fn profile(h: &Harness, bearer: &str) -> pb::ProfileServiceClient<HttpClient> {
     pb::ProfileServiceClient::new(h.http.clone(), h.config(Some(bearer)))
-}
-
-/// An access token for the session whose refresh credential is `cookie`.
-async fn access(h: &Harness, cookie: &str) -> String {
-    let config =
-        h.config(None).with_default_header("cookie", format!("__Host-korpis_refresh={cookie}"));
-    let sessions = pb::SessionServiceClient::new(h.http.clone(), config);
-    sessions.exchange(pb::ExchangeRequest::default()).await.unwrap().into_owned().access_token
 }
 
 #[tokio::test]

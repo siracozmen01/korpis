@@ -26,6 +26,9 @@ pub const INVITATION_PREFIX: &str = "korpisiv_";
 /// Every refresh credential starts with this (§9.4 of docs/08-identity.md).
 pub const REFRESH_PREFIX: &str = "korpisrt_";
 
+/// Every device code starts with this (§9.4 of docs/08-identity.md).
+pub const DEVICE_CODE_PREFIX: &str = "korpisdv_";
+
 /// Which kind of credential a secret is, by its prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretKind {
@@ -38,6 +41,9 @@ pub enum SecretKind {
     /// A session's refresh credential, exchanged for access tokens (§9.4 of
     /// docs/08-identity.md). Never a bearer of API calls.
     Refresh,
+    /// A device authorization's device code, which the CLI polls with until its user approves
+    /// it (§9.4 of docs/08-identity.md). Never a bearer of API calls.
+    DeviceCode,
 }
 
 impl SecretKind {
@@ -47,6 +53,7 @@ impl SecretKind {
             Self::Workload => WORKLOAD_PREFIX,
             Self::Invitation => INVITATION_PREFIX,
             Self::Refresh => REFRESH_PREFIX,
+            Self::DeviceCode => DEVICE_CODE_PREFIX,
         }
     }
 }

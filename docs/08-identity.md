@@ -1188,6 +1188,28 @@ tokens, and rotates as the panel does. Where no keychain is reachable, a server 
 session, it says so and keeps the credential in a file readable by its user alone, and
 `korpis login --no-store` holds it in memory for one command's life instead.
 
+> As built, 2026-10-17, the control plane's half; the CLI's is built next (§7 of
+> `13-surface-cli.md`). `SessionService.AuthorizeDevice`, called without a credential, answers a
+> device code, `korpisdv_` and 256 random bits of which the control plane keeps the digest, and a
+> user code of eight characters from the twenty consonants RFC 8628 §6.1 recommends, shown as
+> `BCDF-GHJK`, with the panel's page to type it into, `--public-url` followed by `/device`, and
+> refuses without a public URL, there being no panel to approve in. It waits ten minutes. The CLI
+> polls `DeviceToken` every five seconds and is answered `device.pending` until the code is
+> decided; a poll sooner than its interval is refused `RATE_LIMITED` and lengthens the interval by
+> five seconds (RFC 8628 §3.5). A signed-in user reads the authorization by its code, shown
+> where it was asked from and what the CLI said it was, and approves or denies it; approving needs
+> a recent sign-in, as a change of factors does (§9.6), because it begins a session as long-lived
+> as a browser's, and both are effects (`device.approved`, `device.denied`). The next poll after
+> an approval begins the CLI's session, answering its refresh credential in the body, and spends
+> the authorization; one denied is answered `device.denied`, one expired `device.expired`, and
+> either is then forgotten, as every expired one is within a minute. What this does not stop: a
+> stranger can begin an authorization and talk someone into approving its code, the remote
+> phishing of RFC 8628 §5.4, which no protocol can tell from the holder's own CLI. The panel
+> says it is approving a sign-in for a command-line client, and where that client asked from,
+> which is what the RFC recommends and all it can do; the user who approves anyway has signed the
+> stranger in. A user code is guessed only by a signed-in user, inside their own rate limit, and
+> must name one of the few authorizations pending at the time, among 20^8.
+
 ### 9.5 A running workload's identity
 
 > Added 2026-10-13, while designing the extension contract of Phase 1. `Workload` and

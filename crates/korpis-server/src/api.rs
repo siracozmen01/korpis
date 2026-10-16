@@ -23,6 +23,7 @@ mod certificate;
 mod cookie;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod data;
+mod device;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod domain;
 pub mod error;

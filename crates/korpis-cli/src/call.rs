@@ -73,6 +73,11 @@ table! {
     "korpis.v1.SessionService/ListSessions" => SessionServiceClient::list_sessions(ListSessionsRequest);
     "korpis.v1.SessionService/EndSession" => SessionServiceClient::end_session(EndSessionRequest);
     "korpis.v1.SessionService/EndOtherSessions" => SessionServiceClient::end_other_sessions(EndOtherSessionsRequest);
+    "korpis.v1.SessionService/AuthorizeDevice" => SessionServiceClient::authorize_device(AuthorizeDeviceRequest);
+    "korpis.v1.SessionService/DeviceToken" => SessionServiceClient::device_token(DeviceTokenRequest);
+    "korpis.v1.SessionService/GetDeviceAuthorization" => SessionServiceClient::get_device_authorization(GetDeviceAuthorizationRequest);
+    "korpis.v1.SessionService/ApproveDevice" => SessionServiceClient::approve_device(ApproveDeviceRequest);
+    "korpis.v1.SessionService/DenyDevice" => SessionServiceClient::deny_device(DenyDeviceRequest);
     "korpis.v1.ProfileService/GetProfile" => ProfileServiceClient::get_profile(GetProfileRequest);
     "korpis.v1.ProfileService/ReauthenticateWithPasskey" => ProfileServiceClient::reauthenticate_with_passkey(SignInWithPasskeyRequest);
     "korpis.v1.ProfileService/ReauthenticateWithPassword" => ProfileServiceClient::reauthenticate_with_password(ReauthenticateWithPasswordRequest);

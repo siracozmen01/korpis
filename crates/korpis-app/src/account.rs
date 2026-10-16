@@ -9,6 +9,7 @@
 mod ceremony;
 mod check;
 mod device;
+mod device_grant;
 mod manage;
 mod recent;
 mod redeem;
@@ -17,6 +18,7 @@ mod sign_in;
 
 pub use ceremony::{NewRegistration, Registration, SignInOptions};
 pub use device::Device;
+pub use device_grant::{Authorized, DeviceSignedIn};
 pub use manage::AccountView;
 pub use redeem::{InvitationView, PasswordRedemption, Redeemed};
 pub use session::{Begun, Client, Exchanged, SessionView};

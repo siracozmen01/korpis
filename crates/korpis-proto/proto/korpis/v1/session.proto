@@ -9,9 +9,10 @@ import "google/protobuf/timestamp.proto";
 // User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
 // `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
 // control plane's own name, so no script can read it, no other site's request carries it, and no
-// sibling name can set one; the CLI's travels in the request and response bodies instead. Exchange and SignOut take no other credential and
-// a refused one is a failed attempt (§10 of docs/10-api.md); the rest are called with an access
-// token, as any call is.
+// sibling name can set one; the CLI's travels in the request and response bodies instead.
+// Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
+// is a failed attempt (§10 of docs/10-api.md); the rest are called with an access token, as any
+// call is.
 service SessionService {
   // Exchanges the refresh credential for an access token, rotating it: the cookie is replaced,
   // or, for a credential sent in the body, the next one is answered in the body. A credential
@@ -27,6 +28,26 @@ service SessionService {
   rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
   // Ends every session of the caller's but the one it is calling from.
   rpc EndOtherSessions(EndOtherSessionsRequest) returns (EndOtherSessionsResponse);
+  // Begins the CLI's sign-in, the device authorization grant of RFC 8628: a device code for the
+  // CLI to poll with and a user code for its user to approve in the panel. Called without a
+  // credential.
+  rpc AuthorizeDevice(AuthorizeDeviceRequest) returns (AuthorizeDeviceResponse);
+  // Polls with a device code: refused CONFLICT `device.pending` until the user code is
+  // approved, RATE_LIMITED if polled sooner than the interval (which then grows by five
+  // seconds), CONFLICT `device.denied` or `device.expired` for good; once approved, the CLI's
+  // session, its refresh credential in the body. Called without a credential.
+  rpc DeviceToken(DeviceTokenRequest) returns (DeviceTokenResponse);
+  // A pending device authorization by its user code, with where it was asked from, which the
+  // panel shows before the user decides it.
+  rpc GetDeviceAuthorization(GetDeviceAuthorizationRequest)
+      returns (GetDeviceAuthorizationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Approves a pending device authorization for the caller's account; needs a recent sign-in,
+  // as a change of factors does (profile.proto).
+  rpc ApproveDevice(ApproveDeviceRequest) returns (ApproveDeviceResponse);
+  // Denies a pending device authorization.
+  rpc DenyDevice(DenyDeviceRequest) returns (DenyDeviceResponse);
 }
 
 message ExchangeRequest {
@@ -91,3 +112,60 @@ message EndOtherSessionsResponse {
   // How many ended.
   uint64 ended = 1;
 }
+
+message AuthorizeDeviceRequest {}
+
+message AuthorizeDeviceResponse {
+  // What the CLI polls with, `korpisdv_` and the rest; shown to no one.
+  string device_code = 1;
+  // What the user types into the panel, `BCDF-GHJK`.
+  string user_code = 2;
+  // Where to type it: the panel's device page.
+  string verification_uri = 3;
+  // The same page with the code filled in, for a link or a QR code.
+  string verification_uri_complete = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  // Seconds to wait between polls.
+  uint32 interval = 6;
+}
+
+message DeviceTokenRequest {
+  string device_code = 1;
+}
+
+message DeviceTokenResponse {
+  // The account that approved it, as `usr_…`.
+  string account = 1;
+  // The CLI's session, as `ses_…`.
+  string session = 2;
+  // Its refresh credential, `korpisrt_` and the rest, exchanged as ExchangeRequest says.
+  string refresh = 3;
+  google.protobuf.Timestamp session_expires_at = 4;
+}
+
+message GetDeviceAuthorizationRequest {
+  // As typed: case, spaces, and the hyphen do not matter.
+  string user_code = 1;
+}
+
+message GetDeviceAuthorizationResponse {
+  string user_code = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  // What the CLI said it was.
+  string user_agent = 4;
+  // Where it asked from: an address, or an IPv6 /64.
+  string source = 5;
+}
+
+message ApproveDeviceRequest {
+  string user_code = 1;
+}
+
+message ApproveDeviceResponse {}
+
+message DenyDeviceRequest {
+  string user_code = 1;
+}
+
+message DenyDeviceResponse {}

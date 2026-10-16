@@ -101,3 +101,11 @@ pub async fn redeem_keeping_cookie(
     let cookie = refresh_cookie(response.headers()).unwrap_or_default();
     Ok((response.into_owned(), cookie))
 }
+
+/// An access token for the session whose refresh credential is `cookie`.
+pub async fn access(h: &Harness, cookie: &str) -> String {
+    let config =
+        h.config(None).with_default_header("cookie", format!("__Host-korpis_refresh={cookie}"));
+    let sessions = pb::SessionServiceClient::new(h.http.clone(), config);
+    sessions.exchange(pb::ExchangeRequest::default()).await.unwrap().into_owned().access_token
+}

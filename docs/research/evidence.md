@@ -524,6 +524,13 @@ Primary:
   management](https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x12-V3-Session-management.md),
   read 2026-10-17). Why a change to an account's factors needs a recent sign-in (§9.6 of
   `../08-identity.md`).
+- **[V]** RFC 8628, the OAuth device authorization grant: user codes from the twenty consonants
+  "BCDFGHJKLMNPQRSTVWXZ", eight of them for an entropy of 20^8 (§6.1); a poll interval of five
+  seconds by default (§3.2), which a `slow_down` answer lengthens by five seconds "for this and
+  all subsequent requests" (§3.5); "it is recommended that the server rate-limit user code
+  attempts" (§5.1); and, against remote phishing, "it is RECOMMENDED to inform the user that they
+  are authorizing a device" (§5.4) ([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628.html), read
+  2026-10-17). How `korpis login` signs in (§9.4 of `../08-identity.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

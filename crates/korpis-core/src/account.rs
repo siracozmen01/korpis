@@ -4,6 +4,7 @@
 //! which `webauthn` verifies. A password is never a sign-in alone; a TOTP code or a recovery code
 //! is the second factor beside it.
 
+pub mod device_grant;
 pub mod password;
 pub mod record;
 pub mod recovery;

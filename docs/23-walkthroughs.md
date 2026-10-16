@@ -2507,6 +2507,7 @@ drops, and shares the console with a moderator.
 | 8 | The friend shares the console with a moderator as a link, for 24 hours and three uses | `11-surface-web.md` §6; `08-identity.md` §6.1 |
 | 9 | The machine's control plane stops; the friend's cached panel loads and shows every value unknown, with how long the control plane has been unreachable | `11-surface-web.md` §10, question 3 |
 | 10 | A month later the friend adds the laptop as a second passkey: signed in more than ten minutes ago, the panel is refused `session.not_recent`, re-authenticates with the phone's passkey, and registers the laptop's | `08-identity.md` §9.4, §9.6 |
+| 11 | The operator signs the CLI in on the machine: `korpis login` prints a user code and the panel's device page, the operator approves the code in the panel, shown that a command-line client on the machine's address asked, and the CLI's next poll receives a session of its own | `08-identity.md` §9.4; `13-surface-cli.md` §7 |
 
 Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
 it holds the invitation's digest, verifies the attestation-free registration against its own site
@@ -2520,7 +2521,10 @@ the token, the browser carrying the session in the two shapes it can. Step 7 is 
 the volume's own filesystem: the size written is what the file holds, so nothing remembers an
 upload but the file. Step 9 is the browser's alone, which is why it may claim nothing. Step 10 is
 the control plane's: the session row holds when it last signed in or re-authenticated, and the
-access token names the session, so the change reads the one beside the other.
+access token names the session, so the change reads the one beside the other. Step 11 is the
+control plane's twice: approving reads the panel session's last sign-in as step 10 does, and the
+poll finds the decision on the row its device code's digest names, which nothing but that CLI
+holds.
 
 **FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
 

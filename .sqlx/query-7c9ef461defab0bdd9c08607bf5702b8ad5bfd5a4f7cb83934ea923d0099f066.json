@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM device_authorization\n              WHERE id IN (SELECT id FROM device_authorization WHERE expires_at <= $1\n                            LIMIT $2 FOR UPDATE SKIP LOCKED)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7c9ef461defab0bdd9c08607bf5702b8ad5bfd5a4f7cb83934ea923d0099f066"
+}

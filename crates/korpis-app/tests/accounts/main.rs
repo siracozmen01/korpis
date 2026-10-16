@@ -12,6 +12,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod device_grant;
 mod devices;
 mod manage;
 mod passkeys;

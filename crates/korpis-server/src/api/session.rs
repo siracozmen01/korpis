@@ -5,7 +5,7 @@
 //! sessions listed and ended.
 
 use super::wire::Refuse as _;
-use super::{Api, cookie, error};
+use super::{Api, cookie, device, error};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::account::{Exchanged, SessionView};
 use korpis_core::audit::failure::Attempt;
@@ -140,5 +140,57 @@ impl pb::SessionService for Api {
         let caller = self.caller(&ctx).await?;
         let ended = self.app.end_other_sessions(&caller).await.map_err(error::from_app)?;
         Response::ok(pb::EndOtherSessionsResponse { ended, ..Default::default() })
+    }
+
+    async fn authorize_device(
+        &self,
+        ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::AuthorizeDeviceRequest>,
+    ) -> ServiceResult<pb::AuthorizeDeviceResponse> {
+        Response::ok(Api::authorize_device(self, &ctx).await?)
+    }
+
+    async fn device_token(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::DeviceTokenRequest>,
+    ) -> ServiceResult<pb::DeviceTokenResponse> {
+        Response::ok(Api::device_token(self, &ctx, request.device_code).await?)
+    }
+
+    async fn get_device_authorization(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetDeviceAuthorizationRequest>,
+    ) -> ServiceResult<pb::GetDeviceAuthorizationResponse> {
+        let caller = self.caller(&ctx).await?;
+        let a = self
+            .app
+            .device_authorization(&caller, request.user_code)
+            .await
+            .map_err(error::from_app)?;
+        Response::ok(device::device_authorization(&a))
+    }
+
+    async fn approve_device(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ApproveDeviceRequest>,
+    ) -> ServiceResult<pb::ApproveDeviceResponse> {
+        let caller = self.caller(&ctx).await?;
+        let code = request.user_code;
+        self.app.decide_device(&caller, code, true).await.map_err(error::from_app)?;
+        Response::ok(pb::ApproveDeviceResponse::default())
+    }
+
+    async fn deny_device(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::DenyDeviceRequest>,
+    ) -> ServiceResult<pb::DenyDeviceResponse> {
+        let caller = self.caller(&ctx).await?;
+        let code = request.user_code;
+        self.app.decide_device(&caller, code, false).await.map_err(error::from_app)?;
+        Response::ok(pb::DenyDeviceResponse::default())
     }
 }
