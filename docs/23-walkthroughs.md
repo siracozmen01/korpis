@@ -1107,6 +1107,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 70 | Guesses sent at once all passed a bucket with room for one | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 71 | Guesses at many names passed the source's failures at once, and failures recorded at once could stall the database pool | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 72 | A workload under a sibling name could plant the session cookie | §38 | `08-identity.md` §9.4, §9.6 |
+| 73 | A device cookie outlived the password it was earned with | §38 | `08-identity.md` §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2659,3 +2660,23 @@ one. The cost is that the browser sends them with every request to the control p
 calls that read them do. → `08-identity.md` §9.4 and §9.6, `research/evidence.md` §5; built in
 `crates/korpis-server/src/api/cookie.rs` and tested there and in
 `crates/korpis-server/tests/api/devices.rs`.
+
+**FINDING 73: A device cookie outlived the password it was earned with. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that built the device cookies, reported as a
+bypass of the guess limits, and confirmed by a test. Someone who once knew an account's password
+and signed in held a device cookie for 180 days. After the holder changed the password, that
+cookie still sent the former holder's guesses at the new one to the device's bucket and the
+bucket the account's devices share, and once those refused, to the name's, which a browser
+without a cookie could have spent anyway; so the former holder guessed with the shared bucket on
+top of everything a stranger has. The note that built the cookies stated the cost and named
+expiry or a rotated token key as its only end, neither of which a holder controls. The test
+confirms it: a cookie from before the change, with the name's guesses unspent, spent ten guesses
+and was still checked.
+
+**Resolution.** The account keeps when its password or TOTP, the secrets a guess is aimed at,
+last changed, and a device cookie issued before that second is not honoured, so the former
+holder is a stranger again. The browser that made the change gets a new cookie in the answer to
+it; the holder's other browsers are trusted again when they next sign in. → `08-identity.md`
+§9.6; built in `crates/korpis-app/src/account/device.rs`, migration 0070, and
+`crates/korpis-server/src/api/profile.rs`; tested in `crates/korpis-app/tests/accounts/devices.rs`.

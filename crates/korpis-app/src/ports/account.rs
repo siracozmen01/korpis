@@ -57,6 +57,13 @@ pub trait AccountRead {
 
     /// The TOTP factor of `account`.
     fn totp(&self, account: Uuid) -> impl Future<Output = StoreResult<Option<TotpFactor>>> + Send;
+
+    /// When the password or the TOTP factor of `account` was last changed by its holder, if
+    /// either has been since it was redeemed.
+    fn secrets_changed_at(
+        &self,
+        account: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
 }
 
 /// Writing accounts and their factors. Every check-and-set here answers false when what it
@@ -139,6 +146,13 @@ pub trait AccountWrite {
 
     /// Removes the TOTP factor of `account`; false if it had none.
     fn remove_totp(&mut self, account: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records that the holder of `account` changed its password or TOTP factor `at`.
+    fn secrets_changed(
+        &mut self,
+        account: Uuid,
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Replaces every recovery code of `account` with those of `digests`.
     fn replace_recovery_codes(

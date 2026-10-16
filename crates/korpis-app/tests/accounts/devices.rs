@@ -5,9 +5,10 @@
 //! and, once it has spent them, as a browser without a cookie, and a cookie for another account
 //! or one this control plane did not sign is not honoured.
 
-use crate::support::{Fixture, client, code, fixture, invite};
+use crate::support::{Fixture, client, code, fixture, in_session, invite};
 use korpis_app::AppError;
-use korpis_app::account::{Client, PasswordRedemption, SecondFactor};
+use korpis_app::account::{Client, PasswordRedemption, Redeemed, SecondFactor};
+use std::time::Duration;
 use zeroize::Zeroizing;
 
 const PASSWORD: &str = "correct horse battery";
@@ -15,6 +16,12 @@ const PASSWORD: &str = "correct horse battery";
 /// Redeems an invitation as `name` with a password, answering the recovery codes and the
 /// browser that redeemed it, holding the device cookie the redemption gave it.
 async fn redeem(f: &Fixture, name: &str) -> (Vec<String>, Client) {
+    let (redeemed, held) = redeemed(f, name).await;
+    (redeemed.recovery_codes, held)
+}
+
+/// [`redeem`], answering the redemption itself.
+async fn redeemed(f: &Fixture, name: &str) -> (Redeemed, Client) {
     let invitation = invite(f, "A Friend").await;
     let totp = korpis_core::account::totp::TotpSecret::generate().unwrap();
     let r = PasswordRedemption {
@@ -24,10 +31,10 @@ async fn redeem(f: &Fixture, name: &str) -> (Vec<String>, Client) {
         totp,
     };
     let redeemed = f.app.redeem_with_password(&invitation, r, &client()).await.unwrap();
-    let device = redeemed.session.device.expect("a browser is given a device cookie");
+    let device = redeemed.session.device.clone().expect("a browser is given a device cookie");
     assert_eq!(device.account, redeemed.account);
     let held = Client { devices: vec![device.cookie], ..client() };
-    (redeemed.recovery_codes, held)
+    (redeemed, held)
 }
 
 async fn guess(f: &Fixture, codes: &[String], password: &str, from: &Client) -> AppError {
@@ -83,4 +90,28 @@ async fn a_cookie_for_another_account_or_unsigned_is_not_honoured() {
     }
     let spent = guess(&f, &codes, PASSWORD, &other).await;
     assert!(matches!(spent, AppError::RateLimited { .. }), "ten charged to the name: {spent:?}");
+}
+
+#[tokio::test]
+async fn a_cookie_from_before_a_new_password_is_not_honoured_and_the_changer_gets_a_new_one() {
+    let f = fixture().await;
+    let (redeemed, former) = redeemed(&f, "friend").await;
+    let codes = redeemed.recovery_codes.clone();
+    f.clock.advance(Duration::from_secs(2));
+    let me = in_session(&redeemed);
+    let renewed = "a new password, long enough";
+    // Two seconds on, the session that redeemed is still recent.
+    f.app.set_password(&me, renewed).await.unwrap();
+    let fresh = f.app.device_cookie(&me).unwrap();
+    let changer = Client { devices: vec![fresh.cookie], ..client() };
+
+    for _ in 0..10 {
+        let wrong = guess(&f, &codes, "not the password!", &former).await;
+        assert_eq!(wrong, AppError::Unauthenticated, "charged to the name now");
+    }
+    let refused = guess(&f, &codes, renewed, &former).await;
+    assert!(matches!(refused, AppError::RateLimited { .. }), "{refused:?}");
+    let second = SecondFactor::Recovery(codes[0].clone());
+    let held = f.app.sign_in_with_password("friend", renewed, second, &changer).await;
+    assert!(held.is_ok(), "the browser that changed it is still spared: {held:?}");
 }

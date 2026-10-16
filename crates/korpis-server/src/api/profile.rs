@@ -4,8 +4,9 @@
 //! read and changed behind a recent sign-in, and the session re-authenticated to make one.
 
 use super::account::{assertion, client, creation, registration};
-use super::{Api, error};
+use super::{Api, cookie, error};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use korpis_app::Caller;
 use korpis_app::account::{AccountView, SecondFactor};
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::audit::failure::Attempt;
@@ -46,6 +47,18 @@ fn reauthenticated(at: SystemTime) -> ServiceResult<pb::ReauthenticateResponse> 
         authenticated_at: Some(timestamp(at)).into(),
         ..Default::default()
     })
+}
+
+impl Api {
+    /// `body`, with a fresh device cookie for the caller's browser: a change to the account's
+    /// password or TOTP has just stopped honouring the one it held (§9.6 of
+    /// docs/08-identity.md).
+    fn with_device<B>(&self, body: B, caller: &Caller) -> ServiceResult<B> {
+        let d = self.app.device_cookie(caller).map_err(error::from_app)?;
+        let set = cookie::set_device(d.account, &d.cookie, d.expires_at, SystemTime::now())
+            .ok_or_else(|| error::internal(&"a device cookie that is not a header value"))?;
+        Ok(Response::new(body).with_header(http::header::SET_COOKIE, set))
+    }
 }
 
 impl pb::ProfileService for Api {
@@ -134,7 +147,7 @@ impl pb::ProfileService for Api {
     ) -> ServiceResult<pb::SetPasswordResponse> {
         let caller = self.caller(&ctx).await?;
         self.app.set_password(&caller, request.password).await.map_err(error::from_app)?;
-        Response::ok(pb::SetPasswordResponse::default())
+        self.with_device(pb::SetPasswordResponse::default(), &caller)
     }
 
     async fn remove_password(
@@ -144,7 +157,7 @@ impl pb::ProfileService for Api {
     ) -> ServiceResult<pb::RemovePasswordResponse> {
         let caller = self.caller(&ctx).await?;
         self.app.remove_password(&caller).await.map_err(error::from_app)?;
-        Response::ok(pb::RemovePasswordResponse::default())
+        self.with_device(pb::RemovePasswordResponse::default(), &caller)
     }
 
     async fn enrol_totp(
@@ -157,7 +170,7 @@ impl pb::ProfileService for Api {
             .map_err(|_| error::invalid("secret", "the 20 bytes OfferTotp gave"))?;
         let secret = TotpSecret::from_bytes(bytes);
         self.app.enrol_totp(&caller, &secret, request.code).await.map_err(error::from_app)?;
-        Response::ok(pb::EnrolTotpResponse::default())
+        self.with_device(pb::EnrolTotpResponse::default(), &caller)
     }
 
     async fn remove_totp(
@@ -167,7 +180,7 @@ impl pb::ProfileService for Api {
     ) -> ServiceResult<pb::RemoveTotpResponse> {
         let caller = self.caller(&ctx).await?;
         self.app.remove_totp(&caller).await.map_err(error::from_app)?;
-        Response::ok(pb::RemoveTotpResponse::default())
+        self.with_device(pb::RemoveTotpResponse::default(), &caller)
     }
 
     async fn renew_recovery_codes(

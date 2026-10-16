@@ -37,6 +37,15 @@ pub struct DeviceClaims {
     pub expires_at: SystemTime,
 }
 
+impl DeviceClaims {
+    /// When it was issued: its lifetime before it expires, to the second, since the expiry it
+    /// carries is kept in whole seconds.
+    #[must_use]
+    pub fn issued_at(&self) -> SystemTime {
+        self.expires_at.checked_sub(DEVICE_LIFETIME).unwrap_or(SystemTime::UNIX_EPOCH)
+    }
+}
+
 /// Mints a device cookie's value for `claims`, signed by `key`.
 #[must_use]
 pub fn mint(key: &SigningKey, claims: &DeviceClaims) -> String {

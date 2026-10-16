@@ -189,6 +189,10 @@ impl AccountRead for PgStore {
             .map_err(from_sqlx)
     }
 
+    async fn secrets_changed_at(&self, account: Uuid) -> StoreResult<Option<SystemTime>> {
+        factor::secrets_changed_at(&self.pool, account).await
+    }
+
     async fn totp(&self, account: Uuid) -> StoreResult<Option<TotpFactor>> {
         let row = sqlx::query!(
             "SELECT sealed_by, sealed, last_step FROM totp_factor WHERE account_id = $1",
@@ -306,6 +310,10 @@ impl AccountWrite for PgTx {
 
     async fn remove_totp(&mut self, account: Uuid) -> StoreResult<bool> {
         factor::remove_totp(self, account).await
+    }
+
+    async fn secrets_changed(&mut self, account: Uuid, at: SystemTime) -> StoreResult<()> {
+        factor::secrets_changed(self, account, at).await
     }
 
     async fn replace_recovery_codes(

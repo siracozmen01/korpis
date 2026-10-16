@@ -7,15 +7,17 @@
 //! therefore keeps its holder out of new browsers only, and once a device has spent its own it
 //! is no longer honoured and is charged as a browser without one.
 
+use super::own_account;
 use super::sign_in::refused;
 use crate::App;
+use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::account::record::sign_in_name;
 use korpis_core::authz::device::{self, DEVICE_LIFETIME, DeviceClaims};
 use korpis_core::rate::Bucket;
 use std::net::IpAddr;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 /// The most device cookies one sign-in is asked about: a browser signed in to more accounts
@@ -34,6 +36,12 @@ pub struct Device {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// A fresh device cookie for the browser the caller is calling from, which a change to the
+    /// account's secrets has just stopped honouring the one it held.
+    pub fn device_cookie(&self, caller: &Caller) -> Result<Device, AppError> {
+        Ok(self.device_for(own_account(caller)?))
+    }
+
     /// A device cookie for a browser that has just signed in to `account`.
     pub(super) fn device_for(&self, account: Uuid) -> Device {
         let expires_at = self.clock.now() + DEVICE_LIFETIME;
@@ -91,7 +99,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         ]
     }
 
-    /// The device cookie among `presented` that names the account `name` names, if one does.
+    /// The device cookie among `presented` that names the account `name` names, if one does
+    /// and was issued no earlier than the second its password or TOTP last changed: a browser
+    /// that signed in with a secret since replaced is a browser without a cookie (Finding 73 of
+    /// docs/23-walkthroughs.md).
     /// Only a cookie this control plane signed is looked at further, and only then is the name
     /// looked up, so a browser without one learns nothing from how long this takes.
     async fn trusted(
@@ -110,6 +121,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let Ok(name) = sign_in_name(name) else { return Ok(None) };
         let Some(account) = self.store.account_named(&name).await? else { return Ok(None) };
-        Ok(held.into_iter().find(|c| c.account == account.id))
+        let Some(found) = held.into_iter().find(|c| c.account == account.id) else {
+            return Ok(None);
+        };
+        let changed = self.store.secrets_changed_at(account.id).await?;
+        Ok(changed
+            .is_none_or(|changed| seconds(found.issued_at()) >= seconds(changed))
+            .then_some(found))
     }
+}
+
+/// Whole seconds since the epoch: a device cookie's issue is known to the second.
+fn seconds(t: SystemTime) -> u64 {
+    t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }

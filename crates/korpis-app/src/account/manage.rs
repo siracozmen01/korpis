@@ -4,7 +4,8 @@
 //! change behind a recent sign-in (`recent`). Two rules hold after every change: something can
 //! still sign in, a passkey or a password; and a password has a lasting second factor beside it,
 //! a passkey or TOTP, since recovery codes run out. Each change locks the account first, so two
-//! removals racing cannot leave it with neither.
+//! removals racing cannot leave it with neither. Changing the password or TOTP, the secrets a
+//! guess is aimed at, stops every device cookie issued before it being honoured (`device`).
 
 use super::{Registration, fresh_codes, own_account, record};
 use crate::App;
@@ -141,7 +142,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !sound(&after) {
             return Err(unsound());
         }
-        tx.set_password(id, &phc, self.clock.now()).await?;
+        let now = self.clock.now();
+        tx.set_password(id, &phc, now).await?;
+        tx.secrets_changed(id, now).await?;
         record(
             &mut tx,
             &caller.principal,
@@ -162,6 +165,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.remove_password(id).await? {
             return Err(AppError::NotFound { kind: "password" });
         }
+        tx.secrets_changed(id, self.clock.now()).await?;
         after.password = false;
         if !sound(&after) {
             return Err(unsound());
@@ -195,6 +199,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         locked(&mut tx, id).await?;
         tx.set_totp(id, &sealed, step).await?;
+        tx.secrets_changed(id, self.clock.now()).await?;
         record(&mut tx, &caller.principal, "account.factor_added", id, [("factor", "totp".into())])
             .await?;
         tx.commit().await?;
@@ -209,6 +214,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.remove_totp(id).await? {
             return Err(AppError::NotFound { kind: "totp" });
         }
+        tx.secrets_changed(id, self.clock.now()).await?;
         after.totp = false;
         if !sound(&after) {
             return Err(unsound());

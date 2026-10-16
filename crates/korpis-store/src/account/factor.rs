@@ -4,7 +4,7 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::from_time;
+use crate::stored::{from_time, to_time};
 use korpis_app::ports::{SealedKey, StoreError, StoreResult};
 use korpis_core::account::record::Passkey;
 use std::time::SystemTime;
@@ -183,4 +183,31 @@ pub(super) async fn use_recovery_code(
     .await
     .map_err(from_sqlx)?;
     Ok(done.rows_affected() == 1)
+}
+
+pub(super) async fn secrets_changed_at(
+    pool: &sqlx::PgPool,
+    account: Uuid,
+) -> StoreResult<Option<SystemTime>> {
+    let at = sqlx::query_scalar!("SELECT secrets_changed_at FROM account WHERE id = $1", account)
+        .fetch_optional(pool)
+        .await
+        .map_err(from_sqlx)?;
+    Ok(at.flatten().map(to_time))
+}
+
+pub(super) async fn secrets_changed(
+    tx: &mut PgTx,
+    account: Uuid,
+    at: SystemTime,
+) -> StoreResult<()> {
+    sqlx::query!(
+        "UPDATE account SET secrets_changed_at = $2 WHERE id = $1",
+        account,
+        from_time(at)
+    )
+    .execute(&mut *tx.tx)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(())
 }

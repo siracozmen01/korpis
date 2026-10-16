@@ -1377,6 +1377,17 @@ passkey assertion cannot be guessed, and its failures count against the source a
 > until it signs in again. A passkey is still never slowed, and a CLI session (§9.4) is given no
 > device cookie, having no browser to keep one.
 
+> Corrected the same day (Finding 73 of `23-walkthroughs.md`, from a security review of the
+> commit that built the cookies). The cost above was larger than it said: a device cookie
+> outlived the password it was earned with, so whoever had once signed in kept, after the holder
+> changed the password, the shared bucket on top of the name's, a budget a stranger never has,
+> until the cookie expired 180 days later. A change of the password or of TOTP, the secrets a
+> guess is aimed at, now stops every device cookie issued before it being honoured; the account
+> keeps when they last changed, and a cookie is compared to it in whole seconds, which is all its
+> expiry carries. The browser that made the change is given a new cookie in the same answer. What
+> it costs: every other browser the holder uses is a browser without a cookie until it signs in
+> again, so a stranger spending the name's guesses in that window keeps those browsers out too.
+
 > As built, 2026-10-16. Two rules hold after every change an account's holder makes to its
 > factors: something can still sign in, a passkey or a password; and a password has a lasting
 > second factor beside it, a passkey or TOTP, because recovery codes run out and an account whose
