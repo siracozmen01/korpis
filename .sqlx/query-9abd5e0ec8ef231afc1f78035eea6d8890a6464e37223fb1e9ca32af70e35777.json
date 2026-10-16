@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT c.token, c.key_authorization\n           FROM certificate_challenge c JOIN route r ON r.certificate_id = c.certificate_id\n          WHERE r.workload_id = $1 ORDER BY c.token",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate_challenge",
+            "name": "token"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "key_authorization",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate_challenge",
+            "name": "key_authorization"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "9abd5e0ec8ef231afc1f78035eea6d8890a6464e37223fb1e9ca32af70e35777"
+}

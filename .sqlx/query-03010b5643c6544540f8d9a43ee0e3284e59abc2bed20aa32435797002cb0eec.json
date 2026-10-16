@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE certificate\n            SET state = $2, reason = $3, attempts = $4, next_attempt_at = $5, issuing_until = NULL\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "03010b5643c6544540f8d9a43ee0e3284e59abc2bed20aa32435797002cb0eec"
+}

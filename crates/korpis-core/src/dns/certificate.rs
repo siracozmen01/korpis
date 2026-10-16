@@ -159,6 +159,40 @@ pub struct Certificate {
     pub revision: i64,
     /// When it was created.
     pub created_at: SystemTime,
+    /// For `Acme`: the endpoint whose names it is for.
+    pub owner: Option<Owner>,
+    /// For `Acme`: how many attempts in a row to issue it failed.
+    pub attempts: u32,
+    /// For `Acme`: when the next attempt may be made, after one failed.
+    pub next_attempt: Option<SystemTime>,
+}
+
+/// The endpoint an `acme` certificate is for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Owner {
+    /// The workload.
+    pub workload: Uuid,
+    /// The endpoint, by name.
+    pub endpoint: String,
+}
+
+/// An HTTP-01 challenge a node's proxy answers on port 80 while an order runs: the key
+/// authorization at `/.well-known/acme-challenge/<token>`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpChallenge {
+    /// The token.
+    pub token: String,
+    /// What is answered.
+    pub key_authorization: String,
+}
+
+/// How long the issuer waits before attempt `attempts + 1`, after `attempts` failed in a row:
+/// five minutes, doubling, at most a day, which keeps an installation within a directory's
+/// limits on failed validations (Let's Encrypt allows five an hour for a name).
+#[must_use]
+pub fn backoff(attempts: u32) -> Duration {
+    let minutes = 5u64.saturating_mul(1u64 << attempts.saturating_sub(1).min(16));
+    Duration::from_secs(minutes.saturating_mul(60)).min(Duration::from_secs(86_400))
 }
 
 impl Certificate {

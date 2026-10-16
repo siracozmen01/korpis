@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE certificate SET next_attempt_at = NULL, issuing_until = NULL\n          WHERE source = 'acme' AND state <> 'issued'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "5c34defa38b49330bd114b5a000b919e8bd84ffd75eb13384c6fafce612b439b"
+}

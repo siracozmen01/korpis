@@ -71,6 +71,15 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         endpoints: a.endpoints.iter().map(|e| endpoint_to_pb(e, &[])).collect(),
         reaches_api: a.reaches_api,
         dependencies: a.dependencies.iter().map(resolved_to_pb).collect(),
+        challenges: a
+            .challenges
+            .iter()
+            .map(|c| agent::AcmeChallenge {
+                token: c.token.clone(),
+                key_authorization: c.key_authorization.clone(),
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }

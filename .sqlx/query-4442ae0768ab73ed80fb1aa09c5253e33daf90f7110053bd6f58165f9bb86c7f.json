@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at\n               FROM certificate\n              WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
+  "query": "UPDATE certificate SET issuing_until = $2\n          WHERE id = (SELECT id FROM certificate\n                       WHERE source = 'acme'\n                         AND (issuing_until IS NULL OR issuing_until < $1)\n                         AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                         AND (state <> 'issued' OR renew_after <= $1)\n                       ORDER BY next_attempt_at NULLS FIRST, id\n                       LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at",
   "describe": {
     "columns": [
       {
@@ -134,13 +134,56 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 12,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "endpoint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "next_attempt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "next_attempt_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Uuid",
-        "Int8"
+        "Timestamptz",
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -155,8 +198,12 @@
       true,
       true,
       false,
-      false
+      false,
+      true,
+      true,
+      false,
+      true
     ]
   },
-  "hash": "508c3856541791fcb08d79c14d35f06f29db5793544b832d26a321c7422ac12c"
+  "hash": "4442ae0768ab73ed80fb1aa09c5253e33daf90f7110053bd6f58165f9bb86c7f"
 }

@@ -169,7 +169,7 @@ fn ingress<H: Host + Clone>(
     state: &StateDir,
     host: &H,
     (facts, serving): (Facts, Option<Arc<std::sync::atomic::AtomicBool>>),
-    (networks, offered): (bool, &Arc<tokio::sync::Notify>),
+    (networks, link): (bool, &Link),
 ) -> Ingress {
     let addresses = facts.advertised.addresses;
     let Some(serving) = serving.filter(|_| networks && !addresses.is_empty()) else {
@@ -178,9 +178,14 @@ fn ingress<H: Host + Clone>(
     let config = korpis_proto::korpis::ingress::v1::IngressConfig::default();
     let (publish, config) = tokio::sync::watch::channel(config);
     let control = state.root().join("ingress.sock");
-    let watched = (serving, Arc::clone(offered));
-    let supervisor =
-        crate::ingress::Supervisor::new(host.clone(), addresses, control, config, watched);
+    let watched = (serving, Arc::clone(&link.offered));
+    let supervisor = crate::ingress::Supervisor::new(
+        host.clone(),
+        addresses,
+        control,
+        (config, link.held.clone()),
+        watched,
+    );
     (Some(publish), Some(tokio::spawn(supervisor.run())))
 }
 
@@ -297,12 +302,8 @@ impl Agent {
         let data = identity.clone();
         let ingress_facts = facts();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
-        let (ingress, proxy) = ingress(
-            state,
-            &host,
-            (ingress_facts, options.ingress),
-            (network.is_some(), &link.offered),
-        );
+        let (ingress, proxy) =
+            ingress(state, &host, (ingress_facts, options.ingress), (network.is_some(), &link));
         let answerer = crate::feasibility::answerer(runtime.clone());
         let session = session.answering(answerer, link.outbound.clone());
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());

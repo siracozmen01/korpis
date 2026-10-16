@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT acked_set_digest FROM node WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "acked_set_digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "acked_set_digest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "2d2caeb81d920f5d40ba763b013093f5dde6b36f07385ec2ab017b55e0e2d5bc"
+}

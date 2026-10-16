@@ -29,6 +29,14 @@ impl AssignmentRead for PgStore {
         .map_err(from_sqlx)
     }
 
+    async fn acked_set(&self, node: Uuid) -> StoreResult<Option<String>> {
+        let acked = sqlx::query_scalar!("SELECT acked_set_digest FROM node WHERE id = $1", node)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(acked.flatten())
+    }
+
     async fn residual_on(&self, node: Uuid) -> StoreResult<Vec<Uuid>> {
         let rows = sqlx::query_scalar!(
             r#"SELECT DISTINCT p.workload_id AS "workload!"

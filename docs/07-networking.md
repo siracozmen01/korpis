@@ -408,8 +408,16 @@ certificate, which leaves the control plane only sealed and only to the node ser
 ACME's challenge by DNS where a DNS provider of the holder's organization serves the name's zone,
 publishing the `_acme-challenge` TXT record through it (§3.5), and otherwise over HTTP: the control
 plane gives the token to the node the endpoint's workload is placed on, whose proxy answers it on
-port 80, which works once the name's records point at that node. A `provided` certificate is one
-its organization uploads, chain and key, and the endpoint names it by its identifier in
+port 80, which works once the name's records point at that node. The token travels in the
+workload's assignment, and the proxy takes it from the set its node holds rather than from the
+agent's reconciliation, so a long pass does not hold it back; the control plane tells the directory
+to look only once every node serving the names has acknowledged a set carrying it, and two seconds
+more. An `acme` certificate is its endpoint's, made when the endpoint's routes are claimed: an
+endpoint whose names change is given another, and one nothing names is removed. A failed attempt is
+retried after five minutes, doubling to a day, which keeps an installation inside a directory's
+limits on failed validations; a certificate issued before keeps serving meanwhile; a restart of the
+control plane tries every certificate not yet issued at once. A `provided` certificate is one its
+organization uploads, chain and key, and the endpoint names it by its identifier in
 `TlsSpec.secret`. The control plane checks at upload that the key is the leaf's, by their public
 keys, and that the leaf names DNS names and has not expired; and, wherever an endpoint names it,
 that it is the endpoint's organization's, valid now, and covers every name the endpoint routes, a

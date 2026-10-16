@@ -7,6 +7,7 @@
 //! again, waiting longer each time it fails quickly. The node says it serves the ingress while
 //! the agent holds the sockets, which is what placement relies on.
 
+use crate::held::HeldSet;
 use crate::host::Host;
 use buffa::Message as _;
 use korpis_proto::korpis::ingress::v1 as ingress;
@@ -32,6 +33,7 @@ pub struct Supervisor<H> {
     addresses: Vec<String>,
     control: PathBuf,
     config: watch::Receiver<ingress::IngressConfig>,
+    held: watch::Receiver<HeldSet>,
     serving: Arc<AtomicBool>,
     offered: Arc<Notify>,
 }
@@ -68,17 +70,25 @@ async fn hand_over(
 }
 
 impl<H: Host> Supervisor<H> {
-    /// The proxy of a node advertising `addresses`, served on what `config` holds, its control
-    /// socket at `control`; `serving` says whether the node holds the ingress's sockets, and
-    /// `offered` is told when that changes.
+    /// The proxy of a node advertising `addresses`, served on what `config` holds and the
+    /// challenges of the set `held`, its control socket at `control`; `serving` says whether the
+    /// node holds the ingress's sockets, and `offered` is told when that changes.
     pub fn new(
         host: H,
         addresses: Vec<String>,
         control: PathBuf,
-        config: watch::Receiver<ingress::IngressConfig>,
+        (config, held): (watch::Receiver<ingress::IngressConfig>, watch::Receiver<HeldSet>),
         (serving, offered): (Arc<AtomicBool>, Arc<Notify>),
     ) -> Self {
-        Self { host, addresses, control, config, serving, offered }
+        Self { host, addresses, control, config, held, serving, offered }
+    }
+
+    /// What the proxy is sent now: the routes and certificates published, and the challenges
+    /// of the set held.
+    fn current(&mut self) -> ingress::IngressConfig {
+        let mut config = self.config.borrow_and_update().clone();
+        config.challenges = super::challenges(&self.held.borrow_and_update());
+        config
     }
 
     /// Opens the sockets, then keeps a proxy serving them; never returns.
@@ -130,11 +140,16 @@ impl<H: Host> Supervisor<H> {
         hand_over(&mut stream, sockets, self.addresses.len()).await?;
         tracing::info!(pid = confined.pid, "the ingress proxy serves");
         loop {
-            let config = self.config.borrow_and_update().encode_to_vec();
+            let config = self.current().encode_to_vec();
             stream.write_all(&framed(&config)?).await?;
             let mut byte = [0u8; 1];
             tokio::select! {
                 changed = self.config.changed() => {
+                    if changed.is_err() {
+                        return Ok(());
+                    }
+                }
+                changed = self.held.changed() => {
                     if changed.is_err() {
                         return Ok(());
                     }

@@ -60,6 +60,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     lookup: Option<Arc<dyn ports::TxtLookup>>,
     tls: Option<Arc<dyn ports::TlsVault>>,
     acme: Option<Arc<dyn ports::Acme>>,
+    timer: Option<Arc<dyn ports::Timer>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
 }
@@ -83,6 +84,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             lookup: None,
             tls: None,
             acme: None,
+            timer: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
         }
@@ -123,6 +125,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_acme(mut self, acme: Arc<dyn ports::Acme>) -> Self {
         self.acme = Some(acme);
+        self
+    }
+
+    /// Waits with `timer`, where a use case must: the issuer of certificates, for the nodes to
+    /// hold an order's challenges.
+    #[must_use]
+    pub fn with_timer(mut self, timer: Arc<dyn ports::Timer>) -> Self {
+        self.timer = Some(timer);
         self
     }
 

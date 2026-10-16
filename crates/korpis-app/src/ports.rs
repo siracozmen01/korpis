@@ -59,7 +59,7 @@ pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, Seale
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use certificate::{CertificateRead, CertificateWrite, ReadError, TlsVault};
 pub use changes::{Change, Changes, Wakeups};
-pub use clock::{Clock, SystemClock};
+pub use clock::{Clock, SystemClock, Timer};
 pub use condition::{ConditionRead, ConditionWrite};
 pub use domain::{DomainRead, DomainWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
@@ -210,6 +210,10 @@ pub trait Store:
 
     /// Wakes, from now on, whenever a job is queued or put back for a later attempt.
     fn jobs(&self) -> Self::Wakeups;
+
+    /// Wakes, from now on, whenever an `acme` certificate is made, and on an interval besides,
+    /// since a retry's or a renewal's time comes by the clock.
+    fn certificates(&self) -> Self::Wakeups;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.

@@ -98,6 +98,13 @@ impl Harness {
         Self::build(heartbeat, window, Some(resolver), AcmeConfig::default()).await
     }
 
+    /// A control plane ordering certificates from the ACME directory `acme` names.
+    pub async fn with_acme(acme: AcmeConfig) -> Self {
+        let (heartbeat, window) =
+            (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
+        Self::build(heartbeat, window, None, acme).await
+    }
+
     async fn build(
         heartbeat: std::time::Duration,
         denial_window: std::time::Duration,

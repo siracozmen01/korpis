@@ -42,6 +42,27 @@ pub fn wanted(held: &HeldSet) -> BTreeMap<String, i64> {
     wanted
 }
 
+/// The HTTP-01 challenges the assignments `held` carry, which the proxy answers on port 80.
+/// They are taken from the set the node holds, not from the reconciler's pass, so a challenge is
+/// answered as soon as the set carrying it is held, however long a pass takes.
+#[must_use]
+pub fn challenges(held: &HeldSet) -> Vec<ingress::Challenge> {
+    let mut out: Vec<ingress::Challenge> = held
+        .assignments
+        .values()
+        .filter(|a| !a.residual)
+        .flat_map(|a| &a.challenges)
+        .map(|c| ingress::Challenge {
+            token: c.token.clone(),
+            key_authorization: c.key_authorization.clone(),
+            ..Default::default()
+        })
+        .collect();
+    out.sort_by(|a, b| a.token.cmp(&b.token));
+    out.dedup_by(|a, b| a.token == b.token);
+    out
+}
+
 /// What the proxy serves for the assignments `held`, each workload reached at its address in
 /// `addresses`, with `certificates`: one route for each of their `ingress` endpoints. A
 /// workload with no address yet has no route until its network is made. A residual assignment

@@ -14,6 +14,7 @@ mod control_jobs;
 pub mod data;
 pub mod feasibility;
 pub mod install;
+pub mod issuer;
 pub mod keys;
 pub mod lookup;
 pub mod named_relays;
@@ -165,6 +166,7 @@ fn application(
         .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?))
         .with_tls(Arc::new(tls_vault::TlsKeys::load_or_create(&config.data)?))
         .with_acme(Arc::new(acme::AcmeClient::new(config.acme.clone(), &config.data)))
+        .with_timer(Arc::new(issuer::TokioTimer))
         .with_lookup(Arc::new(
             lookup::Lookup::new(config.dns_resolver)
                 .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
@@ -227,6 +229,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(expire_offloaded(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
+    tokio::spawn(issuer::keep(Arc::clone(api)));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

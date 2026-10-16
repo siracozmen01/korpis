@@ -62,6 +62,9 @@ fn a_certificate_serves_the_names_it_covers_while_valid() {
         renew_after: None,
         revision: 1,
         created_at: at(1000),
+        owner: None,
+        attempts: 0,
+        next_attempt: None,
     };
     let wanted = [name("example.com"), name("shop.example.com"), name("a.b.example.com")];
     assert_eq!(c.uncovered(&wanted), Some(&wanted[2]));
@@ -69,6 +72,14 @@ fn a_certificate_serves_the_names_it_covers_while_valid() {
     assert!(c.valid_at(at(1000)) && c.valid_at(at(3999)));
     assert!(!c.valid_at(at(999)) && !c.valid_at(at(4000)));
     assert!(!Certificate { state: State::Pending, ..c }.valid_at(at(2000)));
+}
+
+#[test]
+fn failed_attempts_back_off_from_five_minutes_to_a_day() {
+    let minutes = |n| backoff(n).as_secs() / 60;
+    assert_eq!([minutes(1), minutes(2), minutes(3), minutes(4)], [5, 10, 20, 40]);
+    assert_eq!(minutes(0), 5, "the first failure waits too");
+    assert_eq!(backoff(30), Duration::from_secs(86_400));
 }
 
 #[test]

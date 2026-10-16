@@ -15,8 +15,8 @@ use super::endpoints;
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AssignmentWrite, Clock, RecipeSource, SealError, Sealed, Store, StoredAssignment, Tx,
-    WorkloadWrite,
+    AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, SealError, Sealed, Store,
+    StoredAssignment, Tx, WorkloadWrite,
 };
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
@@ -86,6 +86,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let now = self.clock.now();
                 assignment.endpoints =
                     endpoints::placed(&mut tx, at, &assignment.target.body, range, now).await?;
+                assignment.challenges = tx.challenges_for(assignment.workload).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let kept = stored.get(&assignment.workload);
@@ -202,6 +203,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 endpoints: Vec::new(),
                 reaches_api,
                 dependencies,
+                challenges: Vec::new(),
             },
             plan,
         )))
@@ -254,6 +256,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 endpoints: Vec::new(),
                 reaches_api: false,
                 dependencies: Vec::new(),
+                challenges: Vec::new(),
             },
             Some(plan),
         )))

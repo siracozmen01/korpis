@@ -56,6 +56,9 @@ pub trait AssignmentRead {
     /// The workloads placed on `node`.
     fn placed_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
+    /// The digest of the set `node` last acknowledged holding, if it acknowledged one.
+    fn acked_set(&self, node: Uuid) -> impl Future<Output = StoreResult<Option<String>>> + Send;
+
     /// The workloads not placed on `node` with an approved, queued, or applying plan deleting a
     /// retained volume there: those whose residual assignment it is sent (§7 of
     /// docs/06-storage.md).

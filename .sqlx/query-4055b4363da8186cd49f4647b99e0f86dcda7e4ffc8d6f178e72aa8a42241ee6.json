@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM certificate_challenge WHERE certificate_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4055b4363da8186cd49f4647b99e0f86dcda7e4ffc8d6f178e72aa8a42241ee6"
+}

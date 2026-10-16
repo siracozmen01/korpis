@@ -61,3 +61,28 @@ fn each_ingress_endpoint_of_a_workload_with_an_address_is_a_route() {
         "w2 has no address yet"
     );
 }
+
+#[test]
+fn the_challenges_of_every_live_assignment_are_answered_once_each() {
+    let challenge = |token: &str| agent::AcmeChallenge {
+        token: token.into(),
+        key_authorization: format!("{token}.thumb"),
+        ..Default::default()
+    };
+    let live = agent::Assignment {
+        challenges: vec![challenge("b"), challenge("a")],
+        ..Default::default()
+    };
+    let also = agent::Assignment { challenges: vec![challenge("a")], ..Default::default() };
+    let residual = agent::Assignment {
+        residual: true,
+        challenges: vec![challenge("c")],
+        ..Default::default()
+    };
+    let mut held = HeldSet::default();
+    held.assignments.insert("w1".into(), live);
+    held.assignments.insert("w2".into(), also);
+    held.assignments.insert("w3".into(), residual);
+    let answered: Vec<_> = challenges(&held).into_iter().map(|c| c.token).collect();
+    assert_eq!(answered, ["a", "b"], "sorted, once each, and none of a residual assignment");
+}

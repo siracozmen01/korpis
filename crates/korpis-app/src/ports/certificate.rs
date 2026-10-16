@@ -3,12 +3,14 @@
 //! Certificates organizations hold for the ingress (§3.2 of docs/07-networking.md), and the
 //! control plane's TLS key, which reads what is uploaded and seals every certificate's key.
 
+use super::Challenge;
 use super::{SealedKey, StoreResult, VaultError};
 use crate::page::Page;
-use korpis_core::dns::certificate::{Certificate, Leaf};
+use korpis_core::dns::certificate::{Certificate, HttpChallenge, Leaf, Owner};
 use korpis_core::dns::domain::Route;
 use korpis_core::workload::endpoint::Served;
 use std::future::Future;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// Why an uploaded chain and key cannot be a certificate.
@@ -80,7 +82,8 @@ pub trait CertificateWrite {
         exclusive: bool,
     ) -> impl Future<Output = StoreResult<Option<Certificate>>> + Send;
 
-    /// Writes `c`'s names, chain, validity, state, renewal, and revision, and its key.
+    /// Writes `c`'s names, chain, validity, state, renewal, revision, and attempts, and its key;
+    /// removes its challenges and releases it.
     fn replace_certificate(
         &mut self,
         c: &Certificate,
@@ -96,6 +99,49 @@ pub trait CertificateWrite {
         &mut self,
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<(String, Served)>>> + Send;
+
+    /// The `acme` certificate of `owner` for `names`, sorted, made pending if it has none, and
+    /// locked against removal until the transaction ends.
+    fn acme_certificate(
+        &mut self,
+        organization: Uuid,
+        owner: &Owner,
+        names: &[String],
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<Uuid>> + Send;
+
+    /// The HTTP-01 challenges standing for the certificates `workload`'s routes name.
+    fn challenges_for(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<HttpChallenge>>> + Send;
+
+    /// Makes `challenges` the certificate's, replacing any it had.
+    fn put_challenges(
+        &mut self,
+        certificate: Uuid,
+        challenges: &[Challenge],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// An `acme` certificate due for issuance at `now`, held for the caller until `until`: one
+    /// pending or failed whose next attempt may be made, or issued and due for renewal; none if
+    /// none is, or every one that is is held already.
+    fn take_due(
+        &mut self,
+        now: SystemTime,
+        until: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<Certificate>>> + Send;
+
+    /// Records an attempt that issued nothing: the certificate's state, reason, attempts, and
+    /// next attempt as `c` says, its challenges removed, and released.
+    fn record_attempt(&mut self, c: &Certificate) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Makes every `acme` certificate not issued due at once, as a restart does, so a change of
+    /// the control plane's settings is tried without waiting out a backoff.
+    fn rearm_certificates(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Removes the `acme` certificates no route names and nothing holds; how many went.
+    fn remove_orphans(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// The routes served with the certificate, as this transaction sees them.
     fn routes_served_by(

@@ -168,6 +168,10 @@ impl Store for PgStore {
         self.job_wakeups()
     }
 
+    fn certificates(&self) -> feed::Wakeups {
+        self.certificate_wakeups()
+    }
+
     async fn begin(&self) -> StoreResult<PgTx> {
         let tx = self.pool.begin().await.map_err(errors::from_sqlx)?;
         Ok(PgTx { tx, bodies: Arc::clone(&self.bodies) })

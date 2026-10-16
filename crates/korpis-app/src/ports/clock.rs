@@ -11,6 +11,15 @@ pub trait Clock: Send + Sync + 'static {
     fn now(&self) -> SystemTime;
 }
 
+/// Waiting, which only a runtime can do: supplied by the process the use cases run in.
+pub trait Timer: Send + Sync + std::fmt::Debug {
+    /// Answers once `d` has passed.
+    fn sleep(
+        &self,
+        d: std::time::Duration,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>;
+}
+
 /// The system's clock.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SystemClock;

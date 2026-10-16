@@ -35,6 +35,7 @@ mod enroll;
 mod events;
 mod extensions;
 mod identity;
+mod issuance;
 mod journal;
 mod leases;
 mod lifecycle;

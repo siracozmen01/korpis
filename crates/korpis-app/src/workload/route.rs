@@ -13,10 +13,11 @@ use crate::certificate::{named, servable};
 use crate::error::AppError;
 use crate::ports::{CertificateWrite as _, Clock, DomainWrite as _};
 use crate::ports::{RecipeSource, Store};
+use korpis_core::dns::certificate::Owner;
 use korpis_core::dns::domain::{DomainName, Route, holder_of};
 use korpis_core::workload::Workload;
 use korpis_core::workload::spec::IntentBody;
-use korpis_core::workload::spec::endpoints::Exposure;
+use korpis_core::workload::spec::endpoints::{Exposure, TlsSpec};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -38,6 +39,19 @@ fn routes_in(
         }));
     }
     Ok(routes)
+}
+
+/// The names each endpoint of `body` routes whose certificate the control plane orders, sorted.
+fn acme_names(body: &IntentBody) -> Vec<(String, Vec<String>)> {
+    body.endpoints
+        .iter()
+        .filter(|e| e.exposure == Exposure::Ingress && matches!(e.tls, None | Some(TlsSpec::Acme)))
+        .map(|e| {
+            let mut names = e.domains.clone();
+            names.sort();
+            (e.name.clone(), names)
+        })
+        .collect()
 }
 
 /// The certificates `routes` name, each with the names served with it.
@@ -129,6 +143,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for (id, names) in served(&routes) {
             let found = tx.lock_certificate(id, false).await?;
             servable((id, found.as_ref()), w.organization, &names, now)?;
+        }
+        let mut routes = routes;
+        for (endpoint, names) in acme_names(body) {
+            let owner = Owner { workload: w.id, endpoint };
+            let id = tx.acme_certificate(w.organization, &owner, &names, now).await?;
+            for r in routes.iter_mut().filter(|r| r.endpoint == owner.endpoint) {
+                r.certificate = Some(id);
+            }
         }
         match tx.claim_routes(w.id, &routes, self.clock.now()).await? {
             Some(taken) => Err(routed(&taken)),

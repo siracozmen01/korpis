@@ -1225,6 +1225,9 @@ Certificate
   reason        string?          why it failed, for `failed`
   renew_after   Timestamp?       for `acme`: when its renewal begins
   revision      int              raised whenever its chain and key change
+  endpoint      (WorkloadID, string)?  for `acme`: the endpoint whose names it is for
+  attempts      int              for `acme`: attempts in a row that failed
+  next_attempt  Timestamp?       for `acme`: when the next may be made
 ```
 
 **Invariants.** Its key is stored only sealed (§3.2 of `07-networking.md`). An `acme` certificate

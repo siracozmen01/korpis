@@ -8,6 +8,7 @@
 //! which endpoints do is recorded on their routes, so the check holds however a deletion and a
 //! claim interleave.
 
+mod issue;
 mod serve;
 
 use crate::App;
@@ -101,6 +102,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             renew_after: None,
             revision: 1,
             created_at: self.clock.now(),
+            owner: None,
+            attempts: 0,
+            next_attempt: None,
         };
         let mut tx = self.store.begin().await?;
         tx.insert_certificate(&created, Some(&sealed)).await?;

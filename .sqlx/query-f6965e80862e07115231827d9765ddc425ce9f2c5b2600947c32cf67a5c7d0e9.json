@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO certificate_challenge (certificate_id, token, name, key_authorization)\n             VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f6965e80862e07115231827d9765ddc425ce9f2c5b2600947c32cf67a5c7d0e9"
+}

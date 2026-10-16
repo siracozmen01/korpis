@@ -59,6 +59,9 @@ pub struct Assignment {
     /// Its dependencies, resolved to the endpoints they reach now (§5 of
     /// docs/07-networking.md).
     pub dependencies: Vec<super::dependency::ResolvedDependency>,
+    /// The HTTP-01 challenges the node's proxy answers for its endpoints' names while their
+    /// certificates are ordered (§3.2 of docs/07-networking.md).
+    pub challenges: Vec<crate::dns::certificate::HttpChallenge>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

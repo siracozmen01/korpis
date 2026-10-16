@@ -8,13 +8,18 @@ use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
-use korpis_app::ports::{CertificateRead, CertificateWrite, SealedKey, StoreError, StoreResult};
-use korpis_core::dns::certificate::{Certificate, Source, State};
+use korpis_app::ports::{
+    CertificateRead, CertificateWrite, Challenge, SealedKey, StoreError, StoreResult,
+};
+use korpis_core::dns::certificate::{Certificate, HttpChallenge, Owner, Source, State};
 use korpis_core::dns::domain::Route;
 use korpis_core::workload::endpoint::Served;
+use std::time::SystemTime;
 use uuid::Uuid;
 
-struct CertificateRow {
+mod issue;
+
+pub(crate) struct CertificateRow {
     id: Uuid,
     organization_id: Uuid,
     names: Vec<String>,
@@ -27,6 +32,10 @@ struct CertificateRow {
     renew_after: Option<chrono::DateTime<chrono::Utc>>,
     revision: i64,
     created_at: chrono::DateTime<chrono::Utc>,
+    workload_id: Option<Uuid>,
+    endpoint: Option<String>,
+    attempts: i32,
+    next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl TryFrom<CertificateRow> for Certificate {
@@ -47,6 +56,12 @@ impl TryFrom<CertificateRow> for Certificate {
             renew_after: r.renew_after.map(to_time),
             revision: r.revision,
             created_at: to_time(r.created_at),
+            owner: r
+                .workload_id
+                .zip(r.endpoint)
+                .map(|(workload, endpoint)| Owner { workload, endpoint }),
+            attempts: u32::try_from(r.attempts).map_err(|_| corrupt("attempts"))?,
+            next_attempt: r.next_attempt_at.map(to_time),
         })
     }
 }
@@ -56,7 +71,8 @@ impl CertificateRead for PgStore {
         let row = sqlx::query_as!(
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                    reason, renew_after, revision, created_at
+                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
+                    next_attempt_at
                FROM certificate WHERE id = $1",
             id
         )
@@ -96,7 +112,8 @@ impl CertificateRead for PgStore {
         let rows = sqlx::query_as!(
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                    reason, renew_after, revision, created_at
+                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
+                    next_attempt_at
                FROM certificate
               WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -120,8 +137,8 @@ impl CertificateWrite for PgTx {
         sqlx::query!(
             "INSERT INTO certificate (id, organization_id, names, source, chain, key_sealed,
                                       sealed_by, not_before, not_after, state, reason,
-                                      renew_after, revision, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                                      renew_after, revision, created_at, workload_id, endpoint)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
             c.id,
             c.organization,
             &c.names,
@@ -135,7 +152,9 @@ impl CertificateWrite for PgTx {
             c.reason,
             c.renew_after.map(from_time),
             c.revision,
-            from_time(c.created_at)
+            from_time(c.created_at),
+            c.owner.as_ref().map(|o| o.workload),
+            c.owner.as_ref().map(|o| o.endpoint.as_str())
         )
         .execute(&mut *self.tx)
         .await
@@ -153,7 +172,8 @@ impl CertificateWrite for PgTx {
             sqlx::query_as!(
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                        reason, renew_after, revision, created_at
+                        reason, renew_after, revision, created_at, workload_id, endpoint,
+                        attempts, next_attempt_at
                    FROM certificate WHERE id = $1 FOR UPDATE",
                 id
             )
@@ -163,7 +183,8 @@ impl CertificateWrite for PgTx {
             sqlx::query_as!(
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                        reason, renew_after, revision, created_at
+                        reason, renew_after, revision, created_at, workload_id, endpoint,
+                        attempts, next_attempt_at
                    FROM certificate WHERE id = $1 FOR SHARE",
                 id
             )
@@ -177,7 +198,8 @@ impl CertificateWrite for PgTx {
         sqlx::query!(
             "UPDATE certificate
                 SET names = $2, chain = $3, key_sealed = $4, sealed_by = $5, not_before = $6,
-                    not_after = $7, state = $8, reason = $9, renew_after = $10, revision = $11
+                    not_after = $7, state = $8, reason = $9, renew_after = $10, revision = $11,
+                    attempts = $12, next_attempt_at = $13, issuing_until = NULL
               WHERE id = $1",
             c.id,
             &c.names,
@@ -189,12 +211,14 @@ impl CertificateWrite for PgTx {
             c.state.as_str(),
             c.reason,
             c.renew_after.map(from_time),
-            c.revision
+            c.revision,
+            i32::try_from(c.attempts).unwrap_or(i32::MAX),
+            c.next_attempt.map(from_time)
         )
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(())
+        issue::clear_challenges(self, c.id).await
     }
 
     async fn delete_certificate(&mut self, id: Uuid) -> StoreResult<()> {
@@ -220,6 +244,48 @@ impl CertificateWrite for PgTx {
             .into_iter()
             .map(|r| (r.endpoint, Served { id: r.id, revision: r.revision }))
             .collect())
+    }
+
+    async fn acme_certificate(
+        &mut self,
+        organization: Uuid,
+        owner: &Owner,
+        names: &[String],
+        at: SystemTime,
+    ) -> StoreResult<Uuid> {
+        issue::acme_certificate(self, organization, owner, (names, at)).await
+    }
+
+    async fn challenges_for(&mut self, workload: Uuid) -> StoreResult<Vec<HttpChallenge>> {
+        issue::challenges_for(self, workload).await
+    }
+
+    async fn put_challenges(
+        &mut self,
+        certificate: Uuid,
+        challenges: &[Challenge],
+    ) -> StoreResult<()> {
+        issue::put_challenges(self, certificate, challenges).await
+    }
+
+    async fn take_due(
+        &mut self,
+        now: SystemTime,
+        until: SystemTime,
+    ) -> StoreResult<Option<Certificate>> {
+        issue::take_due(self, now, until).await
+    }
+
+    async fn record_attempt(&mut self, c: &Certificate) -> StoreResult<()> {
+        issue::record_attempt(self, c).await
+    }
+
+    async fn rearm_certificates(&mut self) -> StoreResult<u64> {
+        issue::rearm(self).await
+    }
+
+    async fn remove_orphans(&mut self) -> StoreResult<u64> {
+        issue::remove_orphans(self).await
     }
 
     async fn routes_served_by(&mut self, id: Uuid) -> StoreResult<Vec<Route>> {

@@ -139,6 +139,13 @@ message JobAccess {
   }
 }
 
+// An ACME HTTP-01 challenge: the key authorization answered at
+// /.well-known/acme-challenge/<token>.
+message AcmeChallenge {
+  string token = 1;
+  string key_authorization = 2;
+}
+
 // A node whose proxy is to serve an endpoint with a certificate asks for its chain and key (§3.2
 // of docs/07-networking.md). The control plane answers only a node an endpoint served with the
 // certificate is placed on, and only once it holds a key.
@@ -443,6 +450,9 @@ message Assignment {
   // Its dependencies, each resolved to the endpoints it reaches now; where each endpoint's
   // workload is, the node knows (§5 of docs/07-networking.md).
   repeated ResolvedDependency dependencies = 21;
+  // The HTTP-01 challenges the node's proxy answers on port 80 for the names of this
+  // workload's endpoints while their certificates are ordered (§3.2 of docs/07-networking.md).
+  repeated AcmeChallenge challenges = 22;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

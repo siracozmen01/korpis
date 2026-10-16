@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE certificate\n                SET names = $2, chain = $3, key_sealed = $4, sealed_by = $5, not_before = $6,\n                    not_after = $7, state = $8, reason = $9, renew_after = $10, revision = $11,\n                    attempts = $12, next_attempt_at = $13, issuing_until = NULL\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Text",
+        "Bytea",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2f44910b96c3511a32301a341b18edf075e76cbcec77abe3c2797459f55a3fa1"
+}

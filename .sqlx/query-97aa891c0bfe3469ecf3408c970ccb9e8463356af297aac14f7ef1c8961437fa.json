@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at\n               FROM certificate WHERE id = $1",
+  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at\n               FROM certificate WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -134,6 +134,50 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 12,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "endpoint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "next_attempt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "next_attempt_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -153,8 +197,12 @@
       true,
       true,
       false,
-      false
+      false,
+      true,
+      true,
+      false,
+      true
     ]
   },
-  "hash": "815a3b34e3a237e97e2627c07c662a6437695e5dfa5bef922db818303b548e5c"
+  "hash": "97aa891c0bfe3469ecf3408c970ccb9e8463356af297aac14f7ef1c8961437fa"
 }

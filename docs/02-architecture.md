@@ -632,6 +632,21 @@ Assignment
   migration     MigrationRole? present during a migration: role, phase, peer
   ids           IdRange        the host ids the workload's user namespace maps onto, unique
                                on this node (§4.5 of 04-runtimes.md)
+  lease_epoch   int            the epoch the node holds the workload's lease under (§4.5)
+  recipe_manifest  bytes       the resolved recipe the target names, so the node needs no
+                               registry to know what to run
+  residual      bool           what a retired workload left on the node: its plan, and nothing
+                               else (§7 of 06-storage.md)
+  volume_ids    map            the helper's identifier of each existing volume the target
+                               attaches (§7 of 06-storage.md)
+  endpoints     []Endpoint     the target's endpoints as placed here, with the node ports they
+                               hold, and for the ingress their names and certificates (§3 of
+                               07-networking.md)
+  dependencies  []Resolved     its dependencies, resolved to what they reach now (§5 of
+                               07-networking.md)
+  reaches_api   bool           whether the node relays the API to it (§9.5 of 08-identity.md)
+  challenges    []AcmeChallenge  the HTTP-01 challenges its node's proxy answers while its
+                               endpoints' certificates are ordered (§3.2 of 07-networking.md)
   signature     the control plane's signature over all of the above
 
 NodePlan
@@ -644,6 +659,12 @@ MigrationRole
   phase         prepare | replicate | quiesce | final_sync | verify | cutover | release
   peer          NodeID
 ```
+
+> Corrected 2026-10-16, when the issuer of certificates added `challenges`. The block above
+> listed the assignment as first designed; the fields added as volumes, residual plans,
+> endpoints, dependencies, and the API relay were built were each documented where they were
+> built and never added here. They are listed now; `migration` and `shaping` are still designed,
+> not built.
 
 The assignment is still level-triggered. It describes what should be true, and the node makes it
 true; nothing in it is an instruction that is lost if a message is lost. Each part answers one of
