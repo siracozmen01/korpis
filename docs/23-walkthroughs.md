@@ -1098,6 +1098,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 61 | A workload no node could take waited forever to be deleted | §18 | `01-model.md` §3.3 |
 | 62 | A revoked subject still spent its organization's rate limit bucket | §37 | `10-api.md` §10 |
 | 63 | Slowing the target of a failed attempt let anyone deny the target | §37 | `10-api.md` §10, `17-security.md` §10 |
+| 64 | Failures naming invented targets, or from many addresses, each wrote an effect at once | §37 | `10-api.md` §10 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2438,4 +2439,20 @@ any address. A target is counted only for the secrets a person can guess, a pass
 factor, which arrive with the login, and there after OWASP's device cookies, so failures against an
 account do not lock out the browsers its holder has signed in from. → patched into `10-api.md` §10
 and `17-security.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
+
+**FINDING 64: Failures naming invented targets, or from many addresses, each wrote an effect at
+once. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that built steps 6 to 8, and confirmed by
+reading it. A failure was recorded in a run keyed by its source, kind, and target, and the first
+failure of a run is written at once. The target of a `Hello` is whatever identifier it carries, so
+a script inventing a new one for every attempt opened a new run, and wrote a new effect, every
+time; and an attacker holding many addresses, which IPv6 hands out by the /64, did the same with
+sources. The coalescing that was to keep failures from being an unbounded write path bounded
+nothing against either. Step 8 did not hold.
+
+**Resolution.** A target is kept only if the node it names exists. A source past its own bucket is
+counted in one run per kind, its targets dropped. Every failure is also charged to a bucket the
+whole installation shares, past which every source's failures are counted together in one run per
+kind. → patched into `10-api.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
 

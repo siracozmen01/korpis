@@ -143,6 +143,10 @@ struct ServeArgs {
     /// source is the address, or the /64 of an IPv6 one.
     #[arg(long, default_value = "30/30", value_parser = Rate::parse_per_minute)]
     rate_failures: Rate,
+    /// The installation's bucket for failed attempts recorded apart, `<per minute>/<burst>`;
+    /// past it, every source's failures are counted together.
+    #[arg(long, default_value = "600/600", value_parser = Rate::parse_per_minute)]
+    rate_failures_recorded: Rate,
 }
 
 #[derive(Debug, Subcommand)]
@@ -289,6 +293,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             expensive_individual: args.rate_expensive_individual,
             expensive_organization: args.rate_expensive_organization,
             failures: args.rate_failures,
+            recorded: args.rate_failures_recorded,
         },
     })
     .await?;

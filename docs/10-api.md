@@ -534,7 +534,13 @@ that bucket refuses, a failure is answered `RATE_LIMITED` with `retry_after` and
 rather than `UNAUTHENTICATED`, so a client in a loop is told to stop and for how long. Failures are
 recorded as denials are, by the actor `anonymous` (§3.2 of `01-model.md`), coalesced by source,
 kind, and target within the window, the first written at once; the target is what the attempt
-named where it named one, the node of a `Hello`, so a forged `Hello` is in that node's effects.
+named where it named one, the node of a `Hello` if that node exists, so a forged `Hello` is in
+that node's effects. What is recorded is bounded whoever sends the failures: a source past its own
+bucket is counted in one run per kind, its targets dropped; and every failure is also charged to a
+bucket the whole installation shares, 600 a minute (`--rate-failures-recorded`), past which the
+failures of every source are counted in one run per kind with the source `*`. However many
+addresses an attacker holds and however many identifiers it invents, the log receives at most that
+bucket's worth of effects, and one per kind, each window (Finding 64).
 What evaluates it, where, and with what: the replica that received the attempt, from the address
 its connection came from (the client a configured load balancer's PROXY header names, §3.1 of
 `02-architecture.md`), the bucket every replica shares, and the runs of failures in the same

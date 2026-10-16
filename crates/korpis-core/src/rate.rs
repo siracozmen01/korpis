@@ -99,6 +99,9 @@ pub struct Rates {
     pub expensive_organization: Rate,
     /// Each source's, for the failed attempts to authenticate that come from it.
     pub failures: Rate,
+    /// The installation's, for the failed attempts it records apart: past it, every source's
+    /// are counted together.
+    pub recorded: Rate,
 }
 
 impl Default for Rates {
@@ -109,6 +112,7 @@ impl Default for Rates {
             expensive_individual: Rate::per_second(2, 20),
             expensive_organization: Rate::per_second(10, 100),
             failures: Rate::per_minute(30, 30),
+            recorded: Rate::per_minute(600, 600),
         }
     }
 }

@@ -15,7 +15,7 @@ use korpis_core::audit::failure::{Attempt, source};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::principal::Principal;
-use korpis_core::rate::Bucket;
+use korpis_core::rate::{Bucket, Standing};
 use std::net::IpAddr;
 use std::time::SystemTime;
 
@@ -26,30 +26,54 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// A presentation of `attempt` from `ip`, naming `target`, opened nothing: charges its
     /// source's bucket and records it. The answer to give: `UNAUTHENTICATED`, or `RATE_LIMITED`
     /// once the source's bucket refuses.
+    ///
+    /// What is recorded is bounded whoever sends the failures. A target is kept only if it
+    /// exists, so a forged `Hello` cannot open a run for every identifier it can invent. A
+    /// source past its own bucket is counted in one run of its own per kind, its targets
+    /// dropped. And every failure is charged to a bucket the whole installation shares; past
+    /// it, failures from every source are counted in one run per kind, so however many
+    /// addresses an attacker holds, the log receives at most that bucket's worth of effects and
+    /// one per kind each window.
     pub async fn authentication_failed(
         &self,
         attempt: Attempt,
         ip: Option<IpAddr>,
         target: Option<ObjectRef>,
     ) -> AppError {
-        let key = FailureKey { source: source(ip), attempt, target };
-        let bucket = Bucket {
-            policy: "failures",
-            key: format!("f:{}", key.source),
-            rate: self.limiter.rates.failures,
+        match self.charge_failure(attempt, ip, target).await {
+            Ok(answer) | Err(answer) => answer,
+        }
+    }
+
+    async fn charge_failure(
+        &self,
+        attempt: Attempt,
+        ip: Option<IpAddr>,
+        target: Option<ObjectRef>,
+    ) -> Result<AppError, AppError> {
+        let (rates, now) = (self.limiter.rates, self.clock.now());
+        let source = source(ip);
+        let own = Bucket { policy: "failures", key: format!("f:{source}"), rate: rates.failures };
+        let all = Bucket { policy: "failures-recorded", key: "f:*".into(), rate: rates.recorded };
+        let standing = self.store.charge(vec![own], now).await?;
+        let refused = standing.iter().find(|s| !s.admitted).map(Standing::retry_after);
+        let recordable = self.store.charge(vec![all], now).await?.iter().all(|s| s.admitted);
+        let key = match (recordable, refused) {
+            (false, _) => FailureKey { source: "*".into(), attempt, target: None },
+            (true, Some(_)) => FailureKey { source, attempt, target: None },
+            (true, None) => FailureKey { source, attempt, target: self.existing(target).await? },
         };
-        if let Err(e) = self.record_failure(&key).await {
-            return e;
-        }
-        match self.store.charge(vec![bucket], self.clock.now()).await {
-            Ok(standing) => match standing.iter().find(|s| !s.admitted) {
-                Some(refused) => {
-                    AppError::RateLimited { retry_after: refused.retry_after(), standing }
-                }
-                None => AppError::Unauthenticated,
-            },
-            Err(e) => e.into(),
-        }
+        self.record_failure(&key).await?;
+        Ok(match refused {
+            Some(retry_after) => AppError::RateLimited { retry_after, standing },
+            None => AppError::Unauthenticated,
+        })
+    }
+
+    /// `target`, if it names something that exists; only a node is ever named.
+    async fn existing(&self, target: Option<ObjectRef>) -> Result<Option<ObjectRef>, AppError> {
+        let Some(t) = target.filter(|t| t.kind == Kind::Node) else { return Ok(None) };
+        Ok(self.store.node(t.id).await?.map(|_| t))
     }
 
     async fn record_failure(&self, key: &FailureKey) -> Result<(), AppError> {

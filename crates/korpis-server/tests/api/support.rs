@@ -32,6 +32,7 @@ fn unmetered() -> Rates {
         expensive_individual: rate,
         expensive_organization: rate,
         failures: rate,
+        recorded: rate,
     }
 }
 
