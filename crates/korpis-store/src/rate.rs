@@ -43,6 +43,37 @@ impl RateBuckets for PgStore {
             .collect()
     }
 
+    async fn peek(&self, buckets: Vec<Bucket>, now: SystemTime) -> StoreResult<Vec<Standing>> {
+        let keys: Vec<String> = buckets.iter().map(|b| b.key.clone()).collect();
+        let rows = sqlx::query!("SELECT key, full_at FROM rate_bucket WHERE key = ANY($1)", &keys)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(buckets
+            .into_iter()
+            .map(|bucket| {
+                let full_at = rows.iter().find(|r| r.key == bucket.key).map(|r| to_time(r.full_at));
+                let full_in = full_at.and_then(|t| t.duration_since(now).ok()).unwrap_or_default();
+                let admitted = bucket.rate.admits(full_in);
+                Standing { bucket, admitted, full_in }
+            })
+            .collect())
+    }
+
+    async fn forget_full_buckets(&self, now: SystemTime, limit: u32) -> StoreResult<u64> {
+        let done = sqlx::query!(
+            "DELETE FROM rate_bucket
+              WHERE key IN (SELECT key FROM rate_bucket WHERE full_at <= $1
+                             LIMIT $2 FOR UPDATE SKIP LOCKED)",
+            from_time(now),
+            i64::from(limit)
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
+    }
+
     async fn organizations_held(
         &self,
         subject_key: &str,

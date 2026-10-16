@@ -12,6 +12,7 @@
 )]
 
 mod accounts;
+mod buckets;
 mod chain;
 mod events;
 mod ids;

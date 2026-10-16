@@ -25,6 +25,7 @@ fn ample() -> Rates {
         expensive_organization: rate,
         failures: rate,
         recorded: rate,
+        guesses: rate,
     }
 }
 

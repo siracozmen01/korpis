@@ -54,9 +54,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         target: Option<ObjectRef>,
     ) -> Result<AppError, AppError> {
         let source = source(ip);
-        let rate = self.limiter.rates.failures;
-        let own = Bucket { policy: "failures", key: format!("f:{source}"), rate };
-        let standing = self.store.charge(vec![own], self.clock.now()).await?;
+        let standing = self.store.charge(vec![self.failure_bucket(ip)], self.clock.now()).await?;
         let refused = standing.iter().find(|s| !s.admitted).map(Standing::retry_after);
         let key = FailureKey { source, attempt, target: self.existing(target).await? };
         self.record_failure(&key, refused.is_none()).await?;
@@ -64,6 +62,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Some(retry_after) => AppError::RateLimited { retry_after, standing },
             None => AppError::Unauthenticated,
         })
+    }
+
+    /// The bucket the failures from `ip` are charged to.
+    pub(crate) fn failure_bucket(&self, ip: Option<IpAddr>) -> Bucket {
+        let rate = self.limiter.rates.failures;
+        Bucket { policy: "failures", key: format!("f:{}", source(ip)), rate }
     }
 
     /// `target`, if it names something that exists; only a node is ever named.

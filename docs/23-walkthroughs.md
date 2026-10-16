@@ -1103,6 +1103,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 66 | A reseller's address could not host its customers' sign-in | §38 | `08-identity.md` §9.6, `11-surface-web.md` §7, `20-roadmap.md` §4 |
 | 67 | A forged access token, or a time far in the future, could stop the control plane's handler | §38 | `10-api.md` §2 |
 | 68 | A client hanging up mid-sign-in could start more password hashes than the bound | §38 | `08-identity.md` §9.6 |
+| 69 | A guessed password was checked whatever its source had spent, so the limit slowed nobody | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2566,3 +2567,27 @@ the thing doing the work.
 the bound counts hashes running, whoever is still waiting for them; a test hangs up mid-hash and
 finds the permit still held. → built in `crates/korpis-server/src/passwords.rs`; §9.6 of
 `08-identity.md` already states the bound it now keeps.
+
+**FINDING 69: A guessed password was checked whatever its source had spent, so the limit slowed
+nobody. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that served sign-in, and confirmed by reading
+it. §10 of `10-api.md` checked every presented credential first and admitted one that opened,
+whatever its source had done, charging only the failures, and answered a source past its budget
+`RATE_LIMITED` instead of `UNAUTHENTICATED`. For a token that rule costs nothing, because no rate
+of guessing finds one. For a password it meant every guess was checked: a guesser that ignored
+`RATE_LIMITED` was told each wrong guess was wrong by the refusal itself, and admitted on the
+right one, so the bucket bounded nothing. And nothing yet counted guesses against one account
+from many addresses, the per-account count of §9.6 having been left for the sessions. The same
+review found that a bucket, once written, was never deleted, so each new address, and each name
+a guesser invented once the name was counted, would have been a row kept forever. The algebra
+question, what stops the thousandth guess, had the answer "the source's bucket", which nothing
+consulted before the check.
+
+**Resolution.** A password sign-in peeks at its source's failure bucket and its sign-in name's
+bucket, ten guesses and then one every ninety seconds, before checking anything, and refuses
+without checking once either is spent; every refused sign-in charges the name's bucket. A bucket
+full again is forgotten every minute, a bucket kept nowhere being full, and the charge reads a
+bucket forgotten under it as the full bucket it was (migration 0068). → `10-api.md` §10 and
+`08-identity.md` §9.6, corrected in place; built in `crates/korpis-app/src/account/sign_in.rs`,
+`crates/korpis-store/src/rate.rs`, and `crates/korpis-server/src/buckets.rs`.

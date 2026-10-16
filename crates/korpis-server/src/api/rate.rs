@@ -104,6 +104,7 @@ impl Api {
             AppError::Unauthenticated => {
                 refused(self.app().authentication_failed(attempt, ip, target).await)
             }
+            e @ AppError::RateLimited { .. } => refused(e),
             other => error::from_app(other),
         }
     }

@@ -52,6 +52,7 @@ fn three_a_minute() -> Rates {
         expensive_organization: ample,
         failures: Rate::per_minute(3, 3),
         recorded: ample,
+        guesses: ample,
     }
 }
 

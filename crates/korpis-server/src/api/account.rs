@@ -203,7 +203,7 @@ impl pb::AccountService for Api {
             Some(Second::RecoveryCode(c)) => SecondFactor::Recovery(c),
             None => return Err(error::invalid("second", "a TOTP code or a recovery code")),
         };
-        let done = self.app.sign_in_with_password(&req.name, &req.password, second).await;
+        let done = self.app.sign_in_with_password(&req.name, &req.password, second, ip(&ctx)).await;
         Response::ok(signed_in(self.attempted(done, Attempt::SignIn, ip(&ctx)).await?.account))
     }
 }

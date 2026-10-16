@@ -13,7 +13,9 @@ use korpis_core::account::password::{STAND_IN, outdated};
 use korpis_core::account::record::{Account, Ceremony, sign_in_name};
 use korpis_core::account::recovery;
 use korpis_core::principal::Principal;
+use korpis_core::rate::{Bucket, Standing};
 use korpis_core::webauthn::{StoredPasskey, WebAuthnError, verify_assertion};
+use std::net::IpAddr;
 use uuid::Uuid;
 
 /// What stands beside a password.
@@ -112,8 +114,41 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::Unauthenticated)
     }
 
-    /// Signs in as `name` with `password` and `second` beside it.
+    /// Signs in as `name` with `password` and `second` beside it, from `ip`.
+    ///
+    /// A password and a six-digit code can be guessed, as no other credential can, so the
+    /// buckets that bound guessing are asked before anything is checked: the failures of the
+    /// source, and the guesses at the name, which every refusal charges. Once either refuses,
+    /// nothing is checked, the right password included, so a guesser that ignores the refusal
+    /// learns nothing more (Finding 69 of docs/23-walkthroughs.md).
     pub async fn sign_in_with_password(
+        &self,
+        name: &str,
+        password: &str,
+        second: SecondFactor,
+        ip: Option<IpAddr>,
+    ) -> Result<SignedIn, AppError> {
+        let rate = self.limiter.rates.guesses;
+        let guessed = sign_in_name(name).ok().map(|n| Bucket {
+            policy: "guesses",
+            key: format!("n:{n}"),
+            rate,
+        });
+        let buckets = std::iter::once(self.failure_bucket(ip)).chain(guessed.clone()).collect();
+        let standing = self.store.peek(buckets, self.clock.now()).await?;
+        let refused = standing.iter().filter(|s| !s.admitted).map(Standing::retry_after).max();
+        if let Some(retry_after) = refused {
+            return Err(AppError::RateLimited { retry_after, standing });
+        }
+        let checked = self.check_password(name, password, second).await;
+        if let (Err(AppError::Unauthenticated), Some(bucket)) = (&checked, guessed) {
+            self.store.charge(vec![bucket], self.clock.now()).await?;
+        }
+        checked
+    }
+
+    /// Checks `password` and `second` for `name`, and records the sign-in if both hold.
+    async fn check_password(
         &self,
         name: &str,
         password: &str,

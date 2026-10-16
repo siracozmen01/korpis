@@ -10,6 +10,7 @@ pub mod acme;
 pub mod api;
 pub mod authority;
 pub mod bodies;
+mod buckets;
 mod control_jobs;
 pub mod data;
 pub mod factor_vault;
@@ -252,6 +253,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
     tokio::spawn(records::keep(Arc::clone(api)));
+    tokio::spawn(buckets::forget(Arc::clone(api)));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

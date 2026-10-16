@@ -84,7 +84,17 @@ impl Rate {
     pub fn window(self) -> Duration {
         self.interval.saturating_mul(self.burst)
     }
+
+    /// Whether a bucket of this rate, full again in `full_in`, would admit a request now.
+    #[must_use]
+    pub fn admits(self, full_in: Duration) -> bool {
+        full_in.saturating_add(self.interval) <= self.window()
+    }
 }
+
+/// The guesses at one sign-in name's password and code: ten, then one every ninety seconds
+/// (§9.6 of docs/08-identity.md).
+pub const GUESSES: Rate = Rate { interval: Duration::from_secs(90), burst: 10 };
 
 /// The rates an installation charges requests to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,6 +112,8 @@ pub struct Rates {
     /// The installation's, for the failed attempts it records apart: past it, every source's
     /// are counted together.
     pub recorded: Rate,
+    /// Each sign-in name's, for the failed guesses at its password and the code beside it.
+    pub guesses: Rate,
 }
 
 impl Default for Rates {
@@ -113,6 +125,7 @@ impl Default for Rates {
             expensive_organization: Rate::per_second(10, 100),
             failures: Rate::per_minute(30, 30),
             recorded: Rate::per_minute(600, 600),
+            guesses: GUESSES,
         }
     }
 }
@@ -188,5 +201,9 @@ mod tests {
         let empty = Standing { bucket, admitted: false, full_in: Duration::from_millis(500) };
         assert_eq!(empty.remaining(), 0);
         assert_eq!(empty.retry_after(), Duration::from_millis(100));
+        let rate = Rate::per_second(10, 5);
+        assert!(rate.admits(Duration::ZERO));
+        assert!(rate.admits(Duration::from_millis(400)));
+        assert!(!rate.admits(Duration::from_millis(401)));
     }
 }

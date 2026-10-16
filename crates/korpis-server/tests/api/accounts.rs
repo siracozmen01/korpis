@@ -23,6 +23,7 @@ fn rates(individual: Rate, failures: Rate) -> Rates {
         expensive_organization: ample,
         failures,
         recorded: ample,
+        guesses: ample,
     }
 }
 
@@ -115,22 +116,47 @@ async fn an_invitation_is_redeemed_with_a_password_and_totp_that_sign_in_togethe
     assert_eq!(spent.code, ErrorCode::Unauthenticated);
 }
 
+/// Redeems a new invitation as `friend` with a password and TOTP; the TOTP secret.
+async fn password_account(h: &Harness) -> Vec<u8> {
+    let invitation = invite(h, "invite-friend", "A Friend").await.invitation;
+    let offer = accounts(h)
+        .offer_totp(pb::OfferTotpRequest { name: "friend".to_owned(), ..Default::default() })
+        .await
+        .unwrap()
+        .into_owned();
+    accounts(h)
+        .redeem_with_password(pb::RedeemWithPasswordRequest {
+            invitation,
+            name: "friend".to_owned(),
+            password: "correct horse battery".to_owned(),
+            totp_secret: offer.secret.clone(),
+            totp_code: code(&offer.secret, 0),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    offer.secret
+}
+
 #[tokio::test]
-async fn a_source_that_keeps_guessing_is_told_to_stop() {
+async fn a_source_that_keeps_guessing_is_told_to_stop_and_then_nothing_is_checked() {
     let ample = Rate::per_second(1000, 1000);
     let h = Harness::with_rates(rates(ample, Rate::per_minute(2, 2))).await;
-    let guess = || pb::SignInWithPasswordRequest {
+    let secret = password_account(&h).await;
+    let attempt = |password: &str| pb::SignInWithPasswordRequest {
         name: "friend".to_owned(),
-        password: "not the password at all".to_owned(),
-        second: Some(Second::RecoveryCode("AAAA-AAAA-AAAA-AAAA".to_owned())),
+        password: password.to_owned(),
+        second: Some(Second::TotpCode(code(&secret, 1))),
         ..Default::default()
     };
     for _ in 0..2 {
-        let refused = accounts(&h).sign_in_with_password(guess()).await.unwrap_err();
-        assert_eq!(refused.code, ErrorCode::Unauthenticated);
+        let refused = accounts(&h).sign_in_with_password(attempt("a wrong guess")).await;
+        assert_eq!(refused.unwrap_err().code, ErrorCode::Unauthenticated);
     }
-    let stopped = accounts(&h).sign_in_with_password(guess()).await.unwrap_err();
-    assert_eq!(stopped.code, ErrorCode::ResourceExhausted);
+    let right = accounts(&h).sign_in_with_password(attempt("correct horse battery")).await;
+    let stopped = right.unwrap_err();
+    assert_eq!(stopped.code, ErrorCode::ResourceExhausted, "the right password is not checked");
+    assert!(stopped.response_headers().contains_key("retry-after"));
     assert!(!h.effects("account.sign_in").await.is_empty(), "failures are recorded");
 }
 

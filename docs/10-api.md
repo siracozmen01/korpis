@@ -602,8 +602,23 @@ by revoking the grant.
 > credential, is charged besides to a bucket of its source at the individual rate, because each
 > ceremony it begins writes a challenge, and nothing else would bound how many one address can
 > make; an address shared by many people beginning sign-ins shares that bucket, at twenty a second
-> with a burst of two hundred by default. The per-account limits below arrive with the web
-> sessions they spare (§9.4 of `08-identity.md`), later in Phase 1.
+> with a burst of two hundred by default.
+
+> Corrected 2026-10-16 (Finding 69 in `23-walkthroughs.md`). "Each is checked first, and one that
+> opens is admitted, whatever its source has done" is right for every credential above that
+> cannot be guessed, and was wrong for the two that can: a password and the six-digit code beside
+> it. Checked first, a guess was answered whatever its source had spent, `RATE_LIMITED` only
+> telling the guesser it was wrong, so the source's bucket slowed nobody who ignored it. So a
+> password sign-in asks two buckets before it checks anything: its source's failures, and a
+> bucket of the sign-in name it names, ten guesses and then one every ninety seconds, which every
+> refused sign-in charges. Once either refuses, nothing is checked, the right password included.
+> The name's bucket is kept for any well-formed name, one that names no account included, so
+> neither its answer nor its timing says whether the account exists; an invented name costs a
+> row only until its bucket refills, as every bucket does, because a bucket full again is
+> forgotten, a bucket kept nowhere being full. What it costs: anyone can spend a name's guesses
+> and keep its holder from signing in with a password for ninety seconds at a time, from any
+> browser, until the device cookies below spare the browsers the holder has used; a passkey is
+> never slowed, being impossible to guess.
 
 > Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`), and designed with
 > it in §9.6 of `08-identity.md`, which fixes the thresholds: the limits of the
@@ -613,7 +628,9 @@ by revoking the grant.
 > has signed in to the account holds a cookie the control plane signed, and its failures are
 > counted against that cookie alone, so failures against an account cannot lock out its holder's
 > own browsers; failures from browsers without one are counted against the account, and past a
-> threshold the account refuses browsers without one for a while. That last is a denial a stranger
+> threshold the account refuses browsers without one for a while. (The count per sign-in name is
+> built, as the correction above says; the cookies that spare a holder's browsers arrive with the
+> web sessions of §9.4 of `08-identity.md`.) That last is a denial a stranger
 > can cause, to a holder's new browsers only, and it is the cost of slowing guesses at a password
 > at all.
 

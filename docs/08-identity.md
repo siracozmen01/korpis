@@ -1294,6 +1294,16 @@ every browser without a cookie for a quarter of an hour. A stranger can therefor
 account's holder from signing in from a new browser, and never from one they have used before. A
 passkey assertion cannot be guessed, and its failures count against the source alone.
 
+> Corrected 2026-10-16, when sign-in was built (Finding 69 of `23-walkthroughs.md`). The untrusted
+> count is kept per sign-in name, whether or not it names an account, so it says nothing about
+> which names exist, and as a bucket: ten failures, then one every ninety seconds, the same ten a
+> quarter of an hour but recovered a guess at a time rather than refused for the quarter and then
+> forgiven at once. Both it and the source's bucket are asked before a password is checked, and
+> once either refuses the password is not checked at all, the right one included; checked first,
+> as every other credential is, a refusal only told a guesser that the guess was wrong. Until the
+> device cookies arrive with the web sessions of §9.4, every browser counts as one without a
+> cookie.
+
 > As built, 2026-10-16. Two rules hold after every change an account's holder makes to its
 > factors: something can still sign in, a passkey or a password; and a password has a lasting
 > second factor beside it, a passkey or TOTP, because recovery codes run out and an account whose

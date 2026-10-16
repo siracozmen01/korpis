@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM rate_bucket\n              WHERE key IN (SELECT key FROM rate_bucket WHERE full_at <= $1\n                             LIMIT $2 FOR UPDATE SKIP LOCKED)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2e9fef6655c8f00c2e5ee94a72b758e7f0c5c87d0c6d31db4aa9de0f1cdc1bdf"
+}

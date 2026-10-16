@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT key, full_at FROM rate_bucket WHERE key = ANY($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rate_bucket",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "full_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "rate_bucket",
+            "name": "full_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "611741d54270a858d9918684747be983a3e92fe6d629d416304cdcbfc974b500"
+}

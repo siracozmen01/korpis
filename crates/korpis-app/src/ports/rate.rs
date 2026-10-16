@@ -18,6 +18,22 @@ pub trait RateBuckets {
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Vec<Standing>>> + Send;
 
+    /// Where each of `buckets` stands at `now`, charging none: whether each would admit a
+    /// request. What a check that must not run once a bucket refuses asks first.
+    fn peek(
+        &self,
+        buckets: Vec<Bucket>,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<Standing>>> + Send;
+
+    /// Forgets at most `limit` buckets that are full again at `now`, which a bucket kept nowhere
+    /// is too, so a bucket costs a row only while it owes; answers how many it forgot.
+    fn forget_full_buckets(
+        &self,
+        now: SystemTime,
+        limit: u32,
+    ) -> impl Future<Output = StoreResult<u64>> + Send;
+
     /// The organizations the subject keyed `subject_key` holds a grant in that is live at `now`,
     /// its whole chain unrevoked, unsuspended, and unexpired: the organization each one's scope
     /// is anchored in, over every grant it holds.
