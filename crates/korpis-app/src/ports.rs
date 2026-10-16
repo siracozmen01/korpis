@@ -6,6 +6,7 @@
 //! and the effect recording it commit together or not at all (§4 of docs/03-state.md). Methods
 //! return `impl Future + Send` so a use case can run on any multi-threaded executor.
 
+mod account;
 mod acme;
 mod assignment;
 mod audit;
@@ -46,6 +47,7 @@ mod trust;
 mod volume;
 mod workload;
 
+pub use account::{AccountRead, AccountWrite, FactorVault, TotpFactor};
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
@@ -133,6 +135,10 @@ pub enum Unique {
     RepositoryStreams,
     /// An organization asks for one name once.
     DomainName,
+    /// A sign-in name names one account.
+    AccountName,
+    /// A passkey's credential is registered once.
+    Passkey,
     /// Any other.
     Other,
 }
@@ -157,6 +163,7 @@ pub type StoreResult<T> = Result<T, StoreError>;
 /// The read side of the store, and where transactions begin.
 pub trait Store:
     RateBuckets
+    + AccountRead
     + TenancyRead
     + HierarchyRead
     + GrantRead
@@ -231,6 +238,7 @@ pub trait Store:
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.
 pub trait Tx:
     TenancyWrite
+    + AccountWrite
     + GrantWrite
     + CredentialWrite
     + EffectWrite

@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod accounts;
 mod chain;
 mod events;
 mod ids;

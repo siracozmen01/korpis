@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT phc FROM password_factor WHERE account_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "phc",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "password_factor",
+            "name": "phc"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f3db2fb6a5206e0c6545c8eb7991c8926097db5a99814efe3cd46116ca438650"
+}

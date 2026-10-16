@@ -2491,9 +2491,9 @@ drops, and shares the console with a moderator.
 
 | # | Step | Governed by |
 |---|---|---|
-| 1 | `korpis-server install` prints the bootstrap invitation; the operator opens the panel at the installation's address, served by the control plane from `--web-root`, and redeems it by registering a passkey, becoming the first user, holding the root grant | `08-identity.md` §9.1, §9.6; `11-surface-web.md` §1; `18-operations.md` §2 |
-| 2 | The operator invites the friend: an invitation for `workload.*` and `workload.file.write` on the friend's project, handed over by message | `08-identity.md` §9.6, §3.7 |
-| 3 | The friend redeems it on a phone: a passkey registered for the installation's site, a user created, the grant issued, a session begun with its refresh cookie | `08-identity.md` §9.4, §9.6 |
+| 1 | `korpis-server install` creates the first account, holding the root grant, and prints its invitation; the operator opens the panel at the installation's address, served by the control plane from `--web-root`, and redeems it by registering a passkey, the only factor the bootstrap invitation takes | `08-identity.md` §9.1, §9.6; `11-surface-web.md` §1; `18-operations.md` §2 |
+| 2 | The operator issues the friend's grant, `workload.read`, the power actions, the console's, and `workload.file.write` on the friend's project, to a new user: the account is created holding it, and an invitation printed, handed over by message | `08-identity.md` §9.6, §3.7 |
+| 3 | The friend redeems it on a phone, choosing a sign-in name: a passkey registered for the installation's site to the account, the invitation voided, a session begun with its refresh cookie | `08-identity.md` §9.4, §9.6 |
 | 4 | The panel shows the friend's project and server and nothing else, each value known, stale, or unknown | `11-surface-web.md` §2, §5 |
 | 5 | The friend restarts the server: a plan applied at once, its convergence shown as it happens | `11-surface-web.md` §3, §4 |
 | 6 | The friend opens the console: the panel mints a capability token with its access token and opens the session at the relay with `Watch`, typing with `Send` | `02-architecture.md` §3.1; `14-streams.md` §6 |
@@ -2503,14 +2503,15 @@ drops, and shares the console with a moderator.
 
 Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
 it holds the invitation's digest, verifies the attestation-free registration against its own site
-and the origin the browser reports, and creates the user and the grant in the transaction that
-voids the invitation. Step 4 is the API's: the panel renders what the list and get calls return,
-which existence follows read authority (§8 of `10-api.md`) to decide; the panel decides nothing.
-Step 5's plan is the control plane's and its convergence the node's report, which the panel reads
-from the workload's watch stream. Step 6 is the relay's and the node's, each verifying the token,
-the browser carrying the session in the two shapes it can. Step 7 is the worker's, from the
-volume's own filesystem: the size written is what the file holds, so nothing remembers an upload
-but the file. Step 9 is the browser's alone, which is why it may claim nothing.
+and the origin the browser reports, and adds the passkey to the account in the transaction that
+voids the invitation; the account and its grant were made at step 2, by the ordinary issuing of a
+grant, with every check it runs. Step 4 is the API's: the panel renders what the list and get calls
+return, which existence follows read authority (§8 of `10-api.md`) to decide; the panel decides
+nothing. Step 5's plan is the control plane's and its convergence the node's report, which the
+panel reads from the workload's watch stream. Step 6 is the relay's and the node's, each verifying
+the token, the browser carrying the session in the two shapes it can. Step 7 is the worker's, from
+the volume's own filesystem: the size written is what the file holds, so nothing remembers an
+upload but the file. Step 9 is the browser's alone, which is why it may claim nothing.
 
 **FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
 

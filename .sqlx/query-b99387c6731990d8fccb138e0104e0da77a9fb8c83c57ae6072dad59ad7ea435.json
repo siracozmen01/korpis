@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO password_factor (account_id, phc, updated_at) VALUES ($1, $2, $3)\n         ON CONFLICT (account_id) DO UPDATE SET phc = $2, updated_at = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b99387c6731990d8fccb138e0104e0da77a9fb8c83c57ae6072dad59ad7ea435"
+}

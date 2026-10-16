@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE totp_factor SET last_step = $2\n          WHERE account_id = $1 AND (last_step IS NULL OR last_step < $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8ee7fec85113b3e8bfb07f4a20906a6c2136b2ba680388ad4db8cb70a4fb462b"
+}

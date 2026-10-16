@@ -1064,13 +1064,14 @@ Every other grant in the installation descends from that one.
 > revoked once a passkey-held root grant has been issued through local root recovery (§9.2).
 
 > Designed 2026-10-16, for the web client of Phase 1. The bootstrap token is an **invitation**
-> (§9.6): `korpis-server install` prints one, redeemable within the hour by registering a passkey
-> in the panel at the installation's own address, which creates the first user and issues it the
-> root grant. The Phase 0 path stays for what cannot register a passkey, an unattended install
-> or a test: `korpis-server install --root-token` issues the root grant to an API token as
-> before, and says when it does that this root has no second factor. One installation uses one
-> path or the other, never both, so a scripted install is not a passkey-held root with a bearer
-> secret beside it.
+> (§9.6): `korpis-server install` creates the first account, holding the root grant and no factor,
+> and prints its invitation, redeemable within the hour and only by registering a passkey, in the
+> panel at the installation's own address. (Corrected the same day, with §9.6: this said redeeming
+> the invitation created the user and issued it the root grant.) The Phase 0 path stays for what
+> cannot register a passkey, an unattended install or a test: `korpis-server install --root-token`
+> issues the root grant to an API token as before, and says when it does that this root has no
+> second factor. One installation uses one path or the other, never both, so a scripted install is
+> not a passkey-held root with a bearer secret beside it.
 
 ### 9.2 When the last administrator is locked out
 
@@ -1083,10 +1084,10 @@ data is in scope can see. It needs no network listener and no secret question, a
 done from anywhere except the machine.
 
 > Designed 2026-10-16. A passkey is registered in a browser, and the machine's root user may have
-> none, so `recover-root` does not register one itself: it writes an invitation for a new root
-> grant straight into the database and prints it, and the passkey is registered by redeeming the
-> invitation in the panel, as at installation. The effect it writes names the `System` bootstrap
-> actor and the operating-system user who ran it.
+> none, so `recover-root` does not register one itself: it creates, straight in the database, a new
+> account holding a new root grant, and prints the account's invitation, which only registering a
+> passkey redeems, in the panel, as at installation. The effect it writes names the `System`
+> bootstrap actor and the operating-system user who ran it.
 
 ### 9.3 Account recovery
 
@@ -1231,21 +1232,34 @@ already placed in the node.
 > factors and §9.1 to §9.4 how authority and sessions begin and end; nothing said what an account
 > is, how a person comes to have one, or what a sign-in checks.
 
-**An account is a `User`** (§3.2 of `01-model.md`): an identifier, a display name, and the
-factors registered to it. It holds no authority by being an account; everything it may do is
-the grants issued to `user:<id>`, exactly as for any other subject.
+**An account is a `User`** (§3.2 of `01-model.md`): an identifier, a display name its issuer gives
+it, a sign-in name its holder chooses when redeeming its invitation, and the factors registered to
+it. The sign-in name is what a password sign-in names the account by, unique in the installation
+and lowercase, three to sixty-four of `a-z`, `0-9`, `.`, `_`, and `-`; a passkey sign-in needs
+none, since the authenticator offers the account. It holds no authority by being an account;
+everything it may do is the grants issued to `user:<id>`, exactly as for any other subject.
 
-**A person comes to have an account by redeeming an invitation.** An invitation is a random
-256-bit secret, shown once, of which the control plane keeps the digest, naming a grant to issue
-to whoever redeems it: issuing a grant to a new user is the same call as issuing one to a new
-token (§3.7), with the holder a person not yet registered. Redeeming it in the panel registers the
-first factor, creates the user, issues the grant, and voids the invitation, in one transaction.
-An invitation expires after seven days unless its issuer says less, and the bootstrap token of
-§9.1 is an invitation for the root grant that expires in an hour. **There is no open
-registration by default**: an account with no grants can do nothing, and a sign-up form that
-creates accounts nobody asked for is only an attack surface. An operator selling to the public
-turns it on (`--registration open`), and an account created that way holds nothing until a grant
-is issued to it, by the host's billing system through the API, for example.
+**A person comes to have an account by redeeming an invitation.** Issuing a grant to a new user
+is the same call as issuing one to a new token (§3.7): it creates the account, holding the grant
+and no factor, and an invitation for it, a random 256-bit secret shown once, of which the control
+plane keeps the digest. Redeeming the invitation in the panel registers the account's first factor
+and voids the invitation, in one transaction. An invitation expires after seven days unless its
+issuer says less, and the bootstrap token of §9.1 is an invitation for the account holding the
+root grant that expires in an hour. An account whose invitation lapsed holds its grants and has no
+factor, so no one can sign in as it; its issuer sees it as invited and never joined, and may issue
+it another invitation or revoke what it holds.
+
+> Corrected 2026-10-16, when accounts were built. The first version created the account and issued
+> its grant when the invitation was redeemed, which left the grant's checks to be run a second time
+> at redemption against a parent that might since have changed. Creating both when the grant is
+> issued, as a new token is, runs every check once, where it always runs, and shows the grant in
+> its parent's tree from the moment it exists; the cost is an account with no factor for as long
+> as its invitation is outstanding, which can do nothing.
+
+**There is no open registration by default**: an account with no grants can do nothing, and a
+sign-up form that creates accounts nobody asked for is only an attack surface. An operator selling
+to the public turns it on (`--registration open`), and an account created that way holds nothing
+until a grant is issued to it, by the host's billing system through the API, for example.
 
 **Factors.** A **passkey** (WebAuthn, a discoverable credential with user verification required)
 is a complete sign-in by itself, because it is something held and something known or been, and

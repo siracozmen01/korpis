@@ -9,7 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-korpis-core = { workspace = true, features = ["authz", "identity", "trust"] }
+korpis-core = { workspace = true, features = ["accounts", "authz", "identity", "trust"] }
 serde_json = "1"
 thiserror = { workspace = true }
 # An opened data key is wiped when the job that needed it has it.

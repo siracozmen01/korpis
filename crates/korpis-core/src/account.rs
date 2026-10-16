@@ -5,6 +5,7 @@
 //! is the second factor beside it.
 
 pub mod password;
+pub mod record;
 pub mod recovery;
 pub mod totp;
 

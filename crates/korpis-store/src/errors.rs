@@ -18,6 +18,8 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("repository_streams") => Unique::RepositoryStreams,
         Some("domain_organization_id_name_key") => Unique::DomainName,
         Some("node_name_key") => Unique::NodeName,
+        Some("account_name_key") => Unique::AccountName,
+        Some("passkey_pkey") => Unique::Passkey,
         Some("node_public_key_key") => Unique::NodeKey,
         Some("relay_name_key" | "relay_url_key" | "relay_public_key_key") => Unique::Relay,
         _ => Unique::Other,

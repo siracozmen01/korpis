@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE invitation SET redeemed_at = $2\n              WHERE id = $1 AND redeemed_at IS NULL AND expires_at > $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a1e630fc82ca7a8dae9afc64db2b70d24d1315a5fda63de322e24f734ceb55b"
+}

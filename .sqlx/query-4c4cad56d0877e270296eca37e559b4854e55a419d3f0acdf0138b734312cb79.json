@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO totp_factor (account_id, sealed_by, sealed, last_step) VALUES ($1, $2, $3, $4)\n         ON CONFLICT (account_id) DO UPDATE\n            SET sealed_by = $2, sealed = $3, last_step = $4, created_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4c4cad56d0877e270296eca37e559b4854e55a419d3f0acdf0138b734312cb79"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM passkey WHERE account_id = $1) AS passkeys,\n                      EXISTS (SELECT 1 FROM password_factor WHERE account_id = $1) AS \"password!\",\n                      EXISTS (SELECT 1 FROM totp_factor WHERE account_id = $1) AS \"totp!\",\n                      (SELECT count(*) FROM recovery_code\n                        WHERE account_id = $1 AND used_at IS NULL) AS recovery_codes",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "passkeys",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "password!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "totp!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "recovery_codes",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "f8e4c01ff9665189cd5e0d60e066db672f8d4da4622d38742a04e5d4dd69cfae"
+}
