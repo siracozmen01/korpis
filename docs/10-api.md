@@ -478,13 +478,21 @@ is from empty; a request refused by any bucket charges none of them.
 
 **What evaluates it, where, and with what information.** The replica that receives the request, in
 an interceptor that every client service passes through before its handler: it authenticates the
-request once, which tells it the subject, and finds the organizations the subject holds a grant in,
-from the scope of each grant it holds (§3 of `08-identity.md`), cached for a minute. The individual
-bucket is the subject's: the token, the link, the workload, the extension, each by its own
-identifier. The organization bucket is each organization the subject holds a grant in, so a token
-minted by attenuation, whose grants are scoped within its creator's, adds a subject and no
+request once, which tells it the subject, and finds the organizations the subject holds a live
+grant in, from the scope of each grant it holds whose whole chain is unrevoked, unsuspended, and
+unexpired (§3 of `08-identity.md`), all of them, in one statement, cached for a minute. The
+individual bucket is the subject's: the token, the link, the workload, the extension, each by its
+own identifier. The organization bucket is each organization the subject holds a grant in, so a
+token minted by attenuation, whose grants are scoped within its creator's, adds a subject and no
 organization; a subject holding grants in two organizations is charged in both, which can only
-refuse sooner. The agent's and the relays' services authenticate by their own proofs (§7 of
+refuse sooner.
+
+> Corrected 2026-10-16 (Finding 62 in §37 of `23-walkthroughs.md`). As first built, the
+> organizations were read from every grant the subject had ever held, revoked or not, and from at
+> most the first thousand: a revoked subject went on spending the bucket of the organization that
+> had revoked it, and a subject holding more grants than that was never charged to the rest.
+
+The agent's and the relays' services authenticate by their own proofs (§7 of
 `02-architecture.md`) and are not charged here: they are the installation's own machines, not
 tenants, and a proof that fails to open one is an unauthenticated attempt, limited as below.
 
@@ -523,7 +531,11 @@ within the window, the first written at once.
 
 What it costs: one database statement per request, which serializes an organization's requests on
 its bucket's row for the moment the statement takes; and a subject's organizations are up to a
-minute stale, so a grant just issued in another organization is charged there a minute late.
+minute stale, so a grant just issued in another organization is charged there a minute late, and a
+grant just revoked is charged for a minute more. A subject holding grants in several organizations
+spends each of their buckets on every request, including those that concern only one of them: an
+organization that grants a stranger pays for the stranger's activity elsewhere, bounded by the
+stranger's own bucket, a fifth of an organization's by default, and ended by revoking the grant.
 
 > Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`): the limits of the
 > login and second-factor endpoints, which are the same mechanism with an account as target.

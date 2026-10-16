@@ -8,9 +8,7 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::page::Page;
 use crate::ports::{Clock, RecipeSource, Store};
-use korpis_core::authz::Kind;
 use korpis_core::principal::Principal;
 use korpis_core::rate::{Bucket, Rates, Standing};
 use std::collections::HashMap;
@@ -39,7 +37,9 @@ impl Limiter {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The organizations `subject` holds a grant in: the organization of each grant's scope.
+    /// The organizations `subject` holds a live grant in: the organization of each one's scope. A
+    /// grant revoked, suspended, or expired, or descending from one that is, charges nothing, so
+    /// an organization that revokes a subject stops paying for it within a minute.
     async fn organizations_of(&self, subject: &Principal) -> Result<Vec<Uuid>, AppError> {
         let key = subject.key();
         let now = self.clock.now();
@@ -51,15 +51,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Ok(orgs.clone());
             }
         }
-        let mut orgs = Vec::new();
-        for g in self.store.grants_held(&key, Page::new(None, Page::MAX)).await? {
-            let ancestry = self.store.ancestry(g.grant.scope.anchor()).await?;
-            let org = ancestry.iter().find(|n| n.object.kind == Kind::Organization);
-            if let Some(o) = org.map(|n| n.object.id).filter(|o| !orgs.contains(o)) {
-                orgs.push(o);
-            }
-        }
-        orgs.sort();
+        let orgs = self.store.organizations_held(&key, now).await?;
         let mut held = self.limiter.organizations.lock().unwrap_or_else(PoisonError::into_inner);
         if held.len() >= ORGANIZATIONS_HELD {
             held.clear();

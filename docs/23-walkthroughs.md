@@ -1096,6 +1096,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 59 | A reseller could route the names it had delegated | §36 | `07-networking.md` §3.2, `01-model.md` §3.6 |
 | 60 | A domain could be an IPv4 address | §36 | `07-networking.md` §3.2 |
 | 61 | A workload no node could take waited forever to be deleted | §18 | `01-model.md` §3.3 |
+| 62 | A revoked subject still spent its organization's rate limit bucket | §37 | `10-api.md` §10 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2370,3 +2371,46 @@ no client sends an address as SNI (RFC 6066 §3) and no top-level domain is all 
 
 **Resolution.** A name's last label may not be digits alone. → patched into `07-networking.md`
 §3.2; enforced by the name's parsing, which every domain, route, and certificate name goes through.
+
+---
+
+## 37. A helper is revoked, and keeps asking
+
+Written 2026-10-16, when the rate limits of §10 of `10-api.md` were built. An organization on a
+shared installation gives a helper from another organization a token holding `org.read` and
+`workload.read` on it; the helper's script loops; the organization revokes the grant, and the
+script keeps calling.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The organization issues the grant to the helper's token from a grant it holds | `08-identity.md` §3 |
+| 2 | Each call the script makes is authenticated once, by the replica that receives it, and charged to the token's own bucket and to the bucket of each organization the token holds a live grant in | `10-api.md` §10 |
+| 3 | The script outruns the token's bucket; its calls are refused `RATE_LIMITED` with `retry_after`, and the organization's own members, charged to the same organization's bucket, are not refused, the token's bucket being, by default, a fifth of the organization's | `10-api.md` §8, §10 |
+| 4 | The organization revokes the grant; the script's calls are refused as denials, recorded coalesced, and still charged to the token's bucket | `08-identity.md` §3; `15-observability.md` §4; `10-api.md` §10 |
+| 5 | Within a minute the token stops being charged to the organization's bucket | `10-api.md` §10 |
+
+Each step was asked what evaluates it, where, and with what. Step 2 is the interceptor every client
+service passes through, on the replica that received the call: it authenticates the token, which
+names the subject, and reads the organizations of the subject's grants from the database, which
+every replica shares, as it shares the buckets. Step 3 is one statement charging every bucket of
+the call, all or none. Step 5 needs to know which of the token's grants still work, which the
+database answers by walking each grant's chain to its root; the replica holds the answer for a
+minute.
+
+**FINDING 62: A revoked subject still spent its organization's rate limit bucket. `CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that built step 2, and confirmed by reading it.
+The organizations a request was charged to were read from every grant the subject had ever held,
+revoked or not, and from at most the first thousand of them. A revoked helper's script therefore
+went on spending the bucket of the organization that had revoked it, for as long as it ran, and an
+organization's members could be refused for a stranger's loop the organization had already cut
+off; and a subject holding more than a thousand grants was never charged to the organizations of
+the rest. Step 5 did not hold.
+
+**Resolution.** A request is charged to the organizations of the subject's live grants only: every
+grant whose whole chain is unrevoked, unsuspended, and unexpired, all of them, read in one
+statement. → patched into `10-api.md` §10; tested in
+`crates/korpis-server/tests/api/rate_grants.rs`.
+

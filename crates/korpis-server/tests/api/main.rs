@@ -59,6 +59,7 @@ mod providers;
 mod proxy;
 mod prunes;
 mod quota;
+mod rate_grants;
 mod rates;
 mod reads;
 mod recipes;

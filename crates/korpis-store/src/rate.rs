@@ -8,6 +8,7 @@ use crate::stored::{from_time, to_time};
 use korpis_app::ports::{RateBuckets, StoreError, StoreResult};
 use korpis_core::rate::{Bucket, Standing};
 use std::time::SystemTime;
+use uuid::Uuid;
 
 impl RateBuckets for PgStore {
     async fn charge(&self, buckets: Vec<Bucket>, now: SystemTime) -> StoreResult<Vec<Standing>> {
@@ -40,5 +41,16 @@ impl RateBuckets for PgStore {
                 Ok(Standing { bucket, admitted: row.admitted, full_in })
             })
             .collect()
+    }
+
+    async fn organizations_held(
+        &self,
+        subject_key: &str,
+        now: SystemTime,
+    ) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_file_scalar!("queries/organizations_held.sql", subject_key, from_time(now))
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)
     }
 }

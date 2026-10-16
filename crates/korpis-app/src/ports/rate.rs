@@ -6,6 +6,7 @@ use super::StoreResult;
 use korpis_core::rate::{Bucket, Standing};
 use std::future::Future;
 use std::time::SystemTime;
+use uuid::Uuid;
 
 /// The buckets every replica charges.
 pub trait RateBuckets {
@@ -16,4 +17,13 @@ pub trait RateBuckets {
         buckets: Vec<Bucket>,
         now: SystemTime,
     ) -> impl Future<Output = StoreResult<Vec<Standing>>> + Send;
+
+    /// The organizations the subject keyed `subject_key` holds a grant in that is live at `now`,
+    /// its whole chain unrevoked, unsuspended, and unexpired: the organization each one's scope
+    /// is anchored in, over every grant it holds.
+    fn organizations_held(
+        &self,
+        subject_key: &str,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 }
