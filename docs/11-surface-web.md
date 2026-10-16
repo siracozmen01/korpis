@@ -203,6 +203,10 @@ failures here are on the server side of the boundary, and §3 of `06-storage.md`
 are where they are addressed, the interface's own obligation is simply never to become a privileged
 path.
 
+What a file session can do, how an upload resumes, and what is recorded were designed on
+2026-10-16 in §3.2 of `06-storage.md`; a browser carries the session with the relay's `Watch` and
+`Send` (§3.1 of `02-architecture.md`), since it cannot stream both ways.
+
 **Metering.** Numbers people will be billed on. Every figure names its source, its window, and its
 collection method, and disagreements between the instantaneous and the accounted value are shown
 rather than reconciled behind the scenes. `15-observability.md` defines what is measured; the

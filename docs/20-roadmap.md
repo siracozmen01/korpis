@@ -223,17 +223,22 @@ machine the answer is a local resolver and the semantics are the same.
 
 ### Phase 2: Multi-tenant, and the two bets that live there
 
-Organizations and recursive delegation, and suspending one (§2.1 of `08-identity.md`).
-`GrantTemplate`. `IdentityBinding` and role-to-template mapping. Quota sets. Metering, with the
-exactness guarantees of §2 of `15-observability.md`. Tenant-visible audit. External identity
-through OIDC, as a provider on the Phase 1 contract core. Bandwidth shaping, a workload's
-reservation and limits (§5.2 of `05-scheduling.md`) and an endpoint's own, and per-endpoint traffic
-accounting in kernel counters, which metering reads (§7 of `07-networking.md`); until then a
-declaration that asks for either is refused, or, for a workload's bandwidth, left unplaced on every
-node whose driver does not enforce it (Rule K-3). The ingress's remaining protocol features, which
-Phase 1 leaves out (§3.2 of `07-networking.md`): WebSocket over HTTP/2, client certificates, and
-the PROXY protocol for a `passthrough` workload; a reseller's names delegated to its customers are
-Phase 1's, since domains are.
+Organizations and recursive delegation, and suspending one (§2.1 of `08-identity.md`). SFTP, in
+front of the same filesystem worker and file operations as the panel's file manager (§6 of
+`02-architecture.md`, §3.2 of `06-storage.md`): added 2026-10-16, when the file manager was
+designed for Phase 1 and SFTP was found to belong to no phase; its users are the tenants who reach
+their files without a shell, who arrive here, and where its connections are accepted and how a
+client names the workload are decided when it is built. `GrantTemplate`. `IdentityBinding` and
+role-to-template mapping. Quota sets. Metering, with the exactness guarantees of §2 of
+`15-observability.md`. Tenant-visible audit. External identity through OIDC, as a provider on the
+Phase 1 contract core. Bandwidth shaping, a workload's reservation and limits (§5.2 of
+`05-scheduling.md`) and an endpoint's own, and per-endpoint traffic accounting in kernel counters,
+which metering reads (§7 of `07-networking.md`); until then a declaration that asks for either is
+refused, or, for a workload's bandwidth, left unplaced on every node whose driver does not enforce
+it (Rule K-3). The ingress's remaining protocol features, which Phase 1 leaves out (§3.2 of
+`07-networking.md`): WebSocket over HTTP/2, client certificates, and the PROXY protocol for a
+`passthrough` workload; a reseller's names delegated to its customers are Phase 1's, since domains
+are.
 
 **The chat client is not here.** It is a first-party extension and ships in Phase 4 (§10 of
 `12-surface-discord.md`). What Phase 2 owes it is the machinery (external identity mapped to

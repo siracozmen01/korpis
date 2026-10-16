@@ -225,6 +225,23 @@ the operator controls. End-to-end encryption between a browser and a node would 
 to hold a publicly trusted certificate, which is the inbound-reachability requirement §3 exists to
 avoid. The cost is recorded in §8 of `17-security.md` rather than implied away.
 
+**From a browser, decided 2026-10-16.** A session is one stream both ways (`RelayService.Open`),
+and a browser cannot open one: the Connect protocol over `fetch` carries unary calls and server
+streams, and no browser lets a request keep sending while its response is being read, Chrome's
+half-duplex streams included. So the relay serves the same session two further ways, for any
+client that cannot stream both ways. `RelayService.Watch` takes the opening message and streams
+the session's frames back; `RelayService.Send` delivers the client's frames, each call naming the
+session and numbering its frames, and the relay hands them to the node in order and once: a
+retried call whose frames were already delivered is acknowledged and not delivered again, so a
+dropped connection neither loses nor repeats a keystroke or a chunk of an upload. A `Send` that
+reaches a process not holding the session, a replica behind a load balancer with no affinity, is
+refused as `session.not_here`, and the client opens the session again; console output is a durable
+stream (§4 of `14-streams.md`) and an upload resumes from the size already written (§3.2 of
+`06-storage.md`), so the reopening loses nothing, and a balancer with session affinity avoids it.
+What it costs: one call per batch of input instead of one stream, which a keystroke's latency
+does not notice and an upload amortizes over chunks of a mebibyte; and a third shape of session
+for the relay to keep, though the frames and the node's side are the same as `Open`'s.
+
 **A direct path is an optimization, never a dependency.** A node that is reachable and holds a
 certificate the client trusts may advertise a direct endpoint in `NodeStatus`. The CLI and SDKs,
 which pin the Korpis CA, use it when present; browsers use it only when the node's certificate is
@@ -1143,6 +1160,12 @@ more than the supervisor already holds.
 panel, arbitrary paths, arbitrary names, arbitrary sizes, from untrusted users. Giving them one
 confined implementation instead of two privileged ones removes the most productive bug source in
 this product category.
+
+> Phased 2026-10-16. The file manager is Phase 1's, with the web client that is its first user
+> (§3.2 of `06-storage.md`); SFTP had no phase until then and is Phase 2's (§4 of
+> `20-roadmap.md`), where the tenants who need it without a shell first exist. When it is built it
+> is a second protocol in front of the same worker and the same file operations, so nothing about
+> the worker is decided twice.
 
 **Where the volume is a block device the guest owns, the worker runs in a guest kernel.** A
 `microvm` or `vm` volume is formatted and mounted by the guest (§3.1 of `06-storage.md`), so the

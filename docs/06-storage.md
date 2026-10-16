@@ -249,6 +249,49 @@ stated at backup time rather than discovered at restore time.
 
 ---
 
+### 3.2 Files, as their owner reaches them
+
+> Designed 2026-10-16, for the web client's file manager of Phase 1 (§8 of `11-surface-web.md`).
+> The worker that serves it was described in §6 of `02-architecture.md` from its first version;
+> what it serves was not.
+
+**A file session is a data-path session** (§3.1 of `02-architecture.md`): opened at a relay with a
+capability token for `workload.file.read`, or `workload.file.write`, which implies it, on one
+workload, carried to its node, and served there by a filesystem worker the helper starts for the
+session, confined as an install's worker is (§4 of `09-recipes.md`): its own mount namespace, the
+workload's volumes bind-mounted at their declared paths under an empty root, Landlock to them,
+every path resolved beneath that root (`openat2` with `RESOLVE_BENEATH`), no network, and only the
+capabilities a file owner needs. It sees the workload's volumes and nothing else, so the session
+can name only paths within them, and a symbolic link that points outside one resolves to nothing.
+Writing runs as the volume's owner inside the workload's user namespace, so what the session
+writes is the workload's and counts against the volume's quota in the write path (§3): a full
+volume refuses a write with `EDQUOT`, which the session reports as the volume being full.
+
+**What a session can do**: list a directory, page by page; read a file's metadata; read a file
+from an offset; write to a file at an offset, creating it or truncating it first if asked; make a
+directory; rename within the workload's volumes; and remove a file, or a directory with what is in
+it. Reads and writes move in chunks of at most a mebibyte, so a large file streams and never sits
+whole in the worker, the relay, or the browser. **An upload resumes**: a client that lost its
+session reads the size of what it wrote and continues from there, so a 40 GB world survives a
+dropped connection, and since the worker writes nothing anywhere but the volume, an upload that is
+never finished is a partial file its owner can see and remove, not hidden state.
+
+**What it records.** Opening and ending a session are recorded by the node as console sessions
+are, under the chain of the token. Every change is recorded with the session's end, as one effect:
+how many files and bytes were written, and every path removed or renamed, up to a thousand, then
+their count; a session that ends uncleanly is recorded when the node notices. Reads are not
+recorded one by one, except that opening a session under a grant scoped above the workload's
+organization, a host reading a customer's files, is the operator access of §7 of
+`08-identity.md` and recorded as such.
+
+**What it does not do.** It does not compress or extract archives, set permissions, or follow a
+symbolic link out of the volumes; a recipe's install does what a recipe needs (§4 of
+`09-recipes.md`), and the rest is for the workload's own tools. It does not reach a volume of a
+`microvm` or `vm` workload from the host: there the worker runs in the guest (§6 of
+`02-architecture.md`), which Phase 3 builds with those tiers. What it costs: a worker process per
+session, started in a few milliseconds and gone at its end; and a session's writes are recorded
+when it ends, so an auditor sees a long session's changes when it closes, not as they happen.
+
 ## 4. Snapshots are not backups
 
 Conflating these is common and dangerous, so the model separates them.
