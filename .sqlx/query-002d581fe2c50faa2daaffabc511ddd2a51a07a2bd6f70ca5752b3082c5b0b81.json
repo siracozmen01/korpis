@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT min(position) FROM event",
+  "query": "SELECT coalesce((SELECT min(position) FROM event),\n                               (SELECT next FROM event_sequencer)) AS \"first!\"",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "min",
+        "name": "first!",
         "type_info": "Int8",
         "origin": "Expression"
       }
@@ -17,5 +17,5 @@
       null
     ]
   },
-  "hash": "66f670df92d72e29958352bc5a10eac2ade0537c0bfd32b759a6fd96f054551a"
+  "hash": "002d581fe2c50faa2daaffabc511ddd2a51a07a2bd6f70ca5752b3082c5b0b81"
 }

@@ -19,8 +19,9 @@ pub trait SubscriptionRead {
     /// The position of the newest event positioned; 0 before the first.
     fn last_position(&self) -> impl Future<Output = StoreResult<u64>> + Send;
 
-    /// The oldest event the log still keeps; `None` when it keeps none.
-    fn first_position(&self) -> impl Future<Output = StoreResult<Option<u64>>> + Send;
+    /// The oldest event the log still keeps, or, when it keeps none, the next to be positioned:
+    /// both read at one instant, so an event positioned meanwhile is never taken for one lost.
+    fn first_position(&self) -> impl Future<Output = StoreResult<u64>> + Send;
 
     /// Up to `limit` events after position `after`, in position order.
     fn events_after(

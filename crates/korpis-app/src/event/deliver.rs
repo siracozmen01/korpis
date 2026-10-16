@@ -70,10 +70,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let subscription = self.get_subscription(caller, d.subscription).await?;
             let mut out = Vec::new();
             // With nothing kept, the oldest event is the next one to be positioned.
-            let first = match self.store.first_position().await? {
-                Some(first) => first,
-                None => self.store.last_position().await? + 1,
-            };
+            let first = self.store.first_position().await?;
             if first > d.cursor + 1 {
                 out.push(Delivered::Gap { resumes_at: first });
                 d.cursor = first - 1;

@@ -135,12 +135,16 @@ impl SubscriptionRead for PgStore {
         count("last position", next - 1)
     }
 
-    async fn first_position(&self) -> StoreResult<Option<u64>> {
-        let first = sqlx::query_scalar!("SELECT min(position) FROM event")
-            .fetch_one(&self.pool)
-            .await
-            .map_err(from_sqlx)?;
-        first.map(|p| count("first position", p)).transpose()
+    async fn first_position(&self) -> StoreResult<u64> {
+        // One statement, one snapshot: the sequencer advances in the transaction that positions.
+        let first = sqlx::query_scalar!(
+            r#"SELECT coalesce((SELECT min(position) FROM event),
+                               (SELECT next FROM event_sequencer)) AS "first!""#
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        count("first position", first)
     }
 
     async fn events_after(&self, after: u64, limit: u32) -> StoreResult<Vec<Event>> {
