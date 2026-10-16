@@ -1092,6 +1092,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 57 | An extension could not reach the control plane on one machine | §33 | `07-networking.md` §6, `08-identity.md` §9.5, `02-architecture.md` §6, `16-extensions.md` §3.3 |
 | 58 | A correction left standing in three documents | §36 | `17-security.md` §7, `02-architecture.md` §7, `06-storage.md` §5.5 |
 | 59 | A reseller could route the names it had delegated | §36 | `07-networking.md` §3.2, `01-model.md` §3.6 |
+| 60 | A domain could be an IPv4 address | §36 | `07-networking.md` §3.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2298,3 +2299,24 @@ covering it; an endpoint names only names its own organization holds. Deleting a
 domains delegated beneath it, whose verification rested on it, so no delegation outlives the domain
 it was made under. → patched into `07-networking.md` §3.2 and `01-model.md` §3.6; enforced at
 declaration in step 4.
+
+**A certificate the tenant brings.** Added 2026-10-16, when provided certificates were built. A
+tenant that already holds a certificate for `shop.example.com` uploads it and names it in step 4
+instead of leaving TLS to `acme`. What evaluates each part, where, and with what: that the key is
+the leaf's, the control plane at upload, from the chain and the key alone, by comparing their public
+keys; that the certificate is the endpoint's organization's, valid, and covers its names, the
+control plane at declaration from the certificate's record, and again at approval with the
+certificate locked, so a replacement or a deletion cannot slip between the check and the claim;
+that a certificate in use is not deleted, the control plane, from the routes, which name the
+certificate each is served with. Step 8 is unchanged: the node asks for the key the same way.
+
+**FINDING 60: A domain could be an IPv4 address. `CONFIRMED`**
+
+Found 2026-10-16 while testing the certificate's reading of a leaf's names, whose test expected
+`203.0.113.7` to be refused as a DNS name and found it accepted. The rule for a domain and a routed
+name was lowercase dotted labels of letters, digits, and inner hyphens, which an IPv4 address in
+dotted form satisfies; a tenant could have asked for `203.0.113.7` as a domain and routed it, though
+no client sends an address as SNI (RFC 6066 §3) and no top-level domain is all digits (RFC 3696 §2).
+
+**Resolution.** A name's last label may not be digits alone. → patched into `07-networking.md`
+§3.2; enforced by the name's parsing, which every domain, route, and certificate name goes through.

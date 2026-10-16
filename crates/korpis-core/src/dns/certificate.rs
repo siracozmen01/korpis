@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Certificates the ingress terminates TLS with (§3.2 of docs/07-networking.md, §3.6 of
+//! docs/01-model.md). A certificate is its organization's, for the names its leaf names; an
+//! endpoint serves with one only if it covers every name the endpoint routes and is valid now.
+//! Reading a chain and matching its key is the adapter's (a port of the application); what the
+//! leaf says, and what follows from it, is decided here.
+
+use super::domain::DomainName;
+use std::time::{Duration, SystemTime};
+use uuid::Uuid;
+
+/// The most names one certificate is for, as ACME's directories bound an order.
+pub const MAX_NAMES: usize = 100;
+
+/// Where a certificate comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    /// Issued and renewed by the control plane from an ACME directory.
+    Acme,
+    /// Uploaded by its organization, chain and key.
+    Provided,
+}
+
+impl Source {
+    /// The stored and wire name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Acme => "acme",
+            Self::Provided => "provided",
+        }
+    }
+
+    /// The source a stored name names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "acme" => Self::Acme,
+            "provided" => Self::Provided,
+            _ => return None,
+        })
+    }
+}
+
+/// Where a certificate is in its life.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum State {
+    /// Being obtained; no chain yet.
+    Pending,
+    /// Held, chain and key.
+    Issued,
+    /// Its issuance failed, for the reason it records.
+    Failed,
+}
+
+impl State {
+    /// The stored and wire name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Issued => "issued",
+            Self::Failed => "failed",
+        }
+    }
+
+    /// The state a stored name names.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "pending" => Self::Pending,
+            "issued" => Self::Issued,
+            "failed" => Self::Failed,
+            _ => return None,
+        })
+    }
+}
+
+/// What a chain's leaf says of itself, as the adapter reads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Leaf {
+    /// The DNS names of its subject alternative names, lowercase, wildcards as `*.` names.
+    pub names: Vec<String>,
+    /// When it becomes valid.
+    pub not_before: SystemTime,
+    /// When it stops being valid.
+    pub not_after: SystemTime,
+}
+
+/// Why a leaf cannot be a certificate here.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum LeafError {
+    /// It names no DNS name, or more than [`MAX_NAMES`].
+    #[error("a certificate names 1 to {MAX_NAMES} DNS names; this one names {0}")]
+    Names(usize),
+    /// A name is neither a DNS name nor a wildcard over one.
+    #[error("{0:?} is not a DNS name, nor a wildcard of one label over one")]
+    Name(String),
+    /// It has already expired, or its validity ends before it begins.
+    #[error("it has expired, or its validity ends before it begins")]
+    Expired,
+}
+
+/// Whether `pattern`, a certificate's name, covers `name`: the same name, or a wildcard whose
+/// `*` stands for exactly one label of it, as RFC 6125 matches.
+#[must_use]
+pub fn matches(pattern: &str, name: &DomainName) -> bool {
+    match pattern.strip_prefix("*.") {
+        Some(parent) => name.as_str().split_once('.').is_some_and(|(_, rest)| rest == parent),
+        None => pattern == name.as_str(),
+    }
+}
+
+impl Leaf {
+    /// Checks that it can be a certificate at `now`: it names 1 to [`MAX_NAMES`] names, each a
+    /// DNS name or a wildcard over one, and it has not expired.
+    pub fn check(&self, now: SystemTime) -> Result<(), LeafError> {
+        if self.names.is_empty() || self.names.len() > MAX_NAMES {
+            return Err(LeafError::Names(self.names.len()));
+        }
+        for n in &self.names {
+            let exact = n.strip_prefix("*.").unwrap_or(n);
+            if DomainName::parse(exact).is_none() {
+                return Err(LeafError::Name(n.clone()));
+            }
+        }
+        if self.not_after <= now || self.not_after <= self.not_before {
+            return Err(LeafError::Expired);
+        }
+        Ok(())
+    }
+}
+
+/// A certificate and its key, the key sealed and kept apart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Certificate {
+    /// Its identifier.
+    pub id: Uuid,
+    /// Its organization.
+    pub organization: Uuid,
+    /// The names it is for: its leaf's, or, while pending, those it is asked for.
+    pub names: Vec<String>,
+    /// Where it comes from.
+    pub source: Source,
+    /// Its chain in PEM, leaf first; empty while pending.
+    pub chain: String,
+    /// When its leaf becomes valid, once issued.
+    pub not_before: Option<SystemTime>,
+    /// When its leaf stops being valid, once issued.
+    pub not_after: Option<SystemTime>,
+    /// Where it is in its life.
+    pub state: State,
+    /// Why it failed, for `Failed`.
+    pub reason: Option<String>,
+    /// For `Acme`: when its renewal begins.
+    pub renew_after: Option<SystemTime>,
+    /// Raised whenever its chain and key change, so a node serving it knows to fetch it again.
+    pub revision: i64,
+    /// When it was created.
+    pub created_at: SystemTime,
+}
+
+impl Certificate {
+    /// The first of `names` it does not cover, if any.
+    #[must_use]
+    pub fn uncovered<'a>(&self, names: &'a [DomainName]) -> Option<&'a DomainName> {
+        names.iter().find(|n| !self.names.iter().any(|p| matches(p, n)))
+    }
+
+    /// Whether it can be served at `now`: issued, and within its validity.
+    #[must_use]
+    pub fn valid_at(&self, now: SystemTime) -> bool {
+        self.state == State::Issued
+            && self.not_before.is_some_and(|b| b <= now)
+            && self.not_after.is_some_and(|a| now < a)
+    }
+}
+
+/// When a certificate valid from `not_before` to `not_after` is renewed: two thirds of the way
+/// through its life (§3.2 of docs/07-networking.md).
+#[must_use]
+pub fn renew_after(not_before: SystemTime, not_after: SystemTime) -> SystemTime {
+    let life = not_after.duration_since(not_before).unwrap_or(Duration::ZERO);
+    not_before + life / 3 * 2
+}
+
+#[cfg(test)]
+mod tests;

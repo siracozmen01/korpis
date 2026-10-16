@@ -4,6 +4,7 @@
 //! docs/07-networking.md). A record is checked here, before any provider sees it, so a provider
 //! is never asked to publish something malformed and every provider is asked the same thing.
 
+pub mod certificate;
 pub mod domain;
 
 use std::net::{Ipv4Addr, Ipv6Addr};

@@ -77,6 +77,8 @@ message Scope {
     string repository = 9;
     // A domain an organization holds (§3.2 of docs/07-networking.md).
     string domain = 10;
+    // A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md).
+    string certificate = 11;
   }
 }
 

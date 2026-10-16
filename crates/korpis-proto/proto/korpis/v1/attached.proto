@@ -256,6 +256,43 @@ message Domain {
   google.protobuf.Timestamp created_at = 9;
 }
 
+// A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md, §3.6 of
+// docs/01-model.md), without its key, which the control plane keeps sealed.
+message Certificate {
+  string id = 1;
+  string organization = 2;
+  // The DNS names its leaf names; a wildcard covers one label.
+  repeated string names = 3;
+  CertificateSource source = 4;
+  // PEM, leaf first; empty while pending.
+  string chain = 5;
+  google.protobuf.Timestamp not_before = 6;
+  google.protobuf.Timestamp not_after = 7;
+  CertificateState state = 8;
+  // Why its issuance or renewal failed, where it did.
+  string reason = 9;
+  // For CERTIFICATE_SOURCE_ACME: when its renewal begins.
+  google.protobuf.Timestamp renew_after = 10;
+  // Raised whenever its chain and key change.
+  int64 revision = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+enum CertificateSource {
+  CERTIFICATE_SOURCE_UNSPECIFIED = 0;
+  // Issued and renewed by the control plane from an ACME directory.
+  CERTIFICATE_SOURCE_ACME = 1;
+  // Uploaded by its organization.
+  CERTIFICATE_SOURCE_PROVIDED = 2;
+}
+
+enum CertificateState {
+  CERTIFICATE_STATE_UNSPECIFIED = 0;
+  CERTIFICATE_STATE_PENDING = 1;
+  CERTIFICATE_STATE_ISSUED = 2;
+  CERTIFICATE_STATE_FAILED = 3;
+}
+
 enum DomainVerification {
   DOMAIN_VERIFICATION_UNSPECIFIED = 0;
   // Its token in a TXT record the control plane resolves.

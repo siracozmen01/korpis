@@ -35,6 +35,7 @@ pub mod audit;
 pub mod authz;
 pub mod backup;
 pub mod body;
+pub mod certificate;
 pub mod dns;
 pub mod domain;
 pub mod endpoint;
@@ -112,6 +113,7 @@ pub fn id_kind(kind: Kind) -> IdKind {
         Kind::Node => IdKind::Node,
         Kind::Repository => IdKind::Repository,
         Kind::Domain => IdKind::Domain,
+        Kind::Certificate => IdKind::Certificate,
     }
 }
 

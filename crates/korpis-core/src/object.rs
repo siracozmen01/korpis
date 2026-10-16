@@ -25,6 +25,8 @@ pub enum Kind {
     Repository,
     /// A domain an organization holds.
     Domain,
+    /// A certificate the ingress serves.
+    Certificate,
 }
 
 impl Kind {
@@ -41,6 +43,7 @@ impl Kind {
             Self::Node => "node",
             Self::Repository => "repository",
             Self::Domain => "domain",
+            Self::Certificate => "certificate",
         }
     }
 
@@ -57,6 +60,7 @@ impl Kind {
             "node" => Self::Node,
             "repository" => Self::Repository,
             "domain" => Self::Domain,
+            "certificate" => Self::Certificate,
             _ => return None,
         })
     }

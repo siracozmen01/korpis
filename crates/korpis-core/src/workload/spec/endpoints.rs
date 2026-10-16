@@ -60,9 +60,9 @@ impl Exposure {
 pub enum TlsSpec {
     /// Issued by ACME.
     Acme,
-    /// Provided by the tenant, held in a secret.
+    /// Provided by its organization: a certificate it uploaded.
     Provided {
-        /// The secret holding the certificate and key.
+        /// The certificate, by its identifier (`crt_…`).
         secret: String,
     },
     /// Not terminated: the workload handles TLS itself.

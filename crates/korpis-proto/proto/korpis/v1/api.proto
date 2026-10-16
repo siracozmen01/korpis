@@ -615,6 +615,74 @@ message DeleteDomainResponse {
   uint64 deleted = 1;
 }
 
+// Certificates the ingress serves with (§3.2 of docs/07-networking.md): uploaded and replaced
+// under certificate.write on the organization holding them; read under certificate.read. A
+// certificate's key is sent once, when it is uploaded, and never returned.
+service CertificateService {
+  // Uploads a chain and its key; the chain's leaf must be valid now and the key its own.
+  rpc CreateCertificate(CreateCertificateRequest) returns (CreateCertificateResponse);
+  // Replaces a provided certificate's chain and key, keeping its identifier, so the endpoints
+  // serving with it serve the new one; the new leaf must cover every name they route.
+  rpc ReplaceCertificate(ReplaceCertificateRequest) returns (ReplaceCertificateResponse);
+  rpc GetCertificate(GetCertificateRequest) returns (GetCertificateResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListCertificates(ListCertificatesRequest) returns (ListCertificatesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Deletes a certificate no endpoint serves with.
+  rpc DeleteCertificate(DeleteCertificateRequest) returns (DeleteCertificateResponse);
+}
+
+message CreateCertificateRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // PEM, leaf first.
+  string chain = 3;
+  // The leaf's private key, PEM: PKCS #8, PKCS #1, or SEC 1.
+  string key = 4;
+}
+
+message CreateCertificateResponse {
+  Certificate certificate = 1;
+}
+
+message ReplaceCertificateRequest {
+  Mutation mutation = 1;
+  string id = 2;
+  string chain = 3;
+  string key = 4;
+}
+
+message ReplaceCertificateResponse {
+  Certificate certificate = 1;
+}
+
+message GetCertificateRequest {
+  string id = 1;
+}
+
+message GetCertificateResponse {
+  Certificate certificate = 1;
+}
+
+message ListCertificatesRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListCertificatesResponse {
+  repeated Certificate certificates = 1;
+  PageResponse page = 2;
+}
+
+message DeleteCertificateRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeleteCertificateResponse {}
+
 // Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's

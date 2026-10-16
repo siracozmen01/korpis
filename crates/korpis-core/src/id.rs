@@ -63,6 +63,8 @@ pub enum IdKind {
     Backup,
     /// A domain an organization holds (`dom_`).
     Domain,
+    /// A certificate the ingress serves (`crt_`).
+    Certificate,
 }
 
 impl IdKind {
@@ -95,6 +97,7 @@ impl IdKind {
             Self::Repository => "rep",
             Self::Backup => "bkp",
             Self::Domain => "dom",
+            Self::Certificate => "crt",
         }
     }
 }

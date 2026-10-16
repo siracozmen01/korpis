@@ -252,6 +252,14 @@ beneath an ancestor organization's verified domain, and `--attest` vouches for o
 each verified at once. `korpis domain list` and `korpis domain get dom_…` read them, and
 `korpis domain delete dom_…` deletes one with every domain delegated beneath it.
 
+A certificate an organization brings for its endpoints is uploaded with `korpis certificate create
+--chain chain.pem --key key.pem`, which shows the names the chain's leaf is for and its expiry; an
+endpoint serves with it by naming its `crt_…` identifier in `tls.secret`. `korpis certificate
+replace crt_… --chain … --key …` renews it in place, so the endpoints serving with it need not be
+declared again, and is refused if the new chain no longer covers a name one of them routes.
+`korpis certificate list` and `korpis certificate get crt_…` read them, the chain but never the
+key, and `korpis certificate delete crt_…` deletes one no endpoint serves with.
+
 ---
 
 ## 6. Two sources of truth, reconciled honestly

@@ -331,27 +331,29 @@ endpoint. Whether to re-verify periodically is question 10 of §11.
 
 **A name routes to one endpoint, on the node its workload runs on.** An endpoint whose exposure is
 `ingress` lists its names, one to a hundred (what one ACME certificate holds), each a plain
-lowercase DNS name with no wildcard (question 11 of §11); its protocol is `http` or `https`, with
-`tls` `acme` (the default) or `provided`, or `tcp` for a TLS service routed by SNI without
-termination (`tls.source: passthrough`); and its container port is where its workload listens. An
-endpoint of any other exposure names no domain and declares no TLS: it is reached at its address,
-and a name for that address is a record, not a route. Two endpoints may not route one name in the
-whole installation, which the control plane keeps by holding the names it routes in one place,
-keyed by name: it checks them at declaration, and claims them when a plan moves the workload's
-target, under the lock verification takes, checking again that the workload's organization holds
-each; a target that no longer names one, and the workload's retirement, free it. Because a name
-stays routed only while its organization holds it, a domain cannot be deleted, nor delegated to
-another organization, while that would leave a name an endpoint routes without its holder; the
-change is refused, naming the name, until the endpoint stops routing it. The control plane places
-the workload on a node that can serve the ingress, which a node measures at start and advertises
-(it holds ports 80 and 443 of its addresses), and the node's assignment carries the endpoint's
-names, its TLS source, and its certificate's identifier. The endpoint's address is the node's
-advertised addresses on port 443, and on 80 for the redirect and ACME's HTTP challenge; publishing
-the names in DNS is the holder's, or the DNS provider's of its zone, which publishes `A` and `AAAA`
-records for the node's addresses as it publishes any endpoint's (§3.5). A workload that moves to
-another node takes its routes with it, and its names then need their records pointed at the new
-node, which a DNS provider does and a holder publishing by hand must; that is what `ingress`
-survives on one machine, and an edge tier makes it survive without the records changing.
+lowercase DNS name with no wildcard (question 11 of §11) and no last label of digits alone, which
+would make it an IPv4 address, never a name a client asks TLS for (Finding 60 of
+`23-walkthroughs.md`); its protocol is `http` or `https`, with `tls` `acme` (the default) or
+`provided`, or `tcp` for a TLS service routed by SNI without termination (`tls.source:
+passthrough`); and its container port is where its workload listens. An endpoint of any other
+exposure names no domain and declares no TLS: it is reached at its address, and a name for that
+address is a record, not a route. Two endpoints may not route one name in the whole installation,
+which the control plane keeps by holding the names it routes in one place, keyed by name: it checks
+them at declaration, and claims them when a plan moves the workload's target, under the lock
+verification takes, checking again that the workload's organization holds each; a target that no
+longer names one, and the workload's retirement, free it. Because a name stays routed only while
+its organization holds it, a domain cannot be deleted, nor delegated to another organization, while
+that would leave a name an endpoint routes without its holder; the change is refused, naming the
+name, until the endpoint stops routing it. The control plane places the workload on a node that can
+serve the ingress, which a node measures at start and advertises (it holds ports 80 and 443 of its
+addresses), and the node's assignment carries the endpoint's names, its TLS source, and its
+certificate's identifier. The endpoint's address is the node's advertised addresses on port 443,
+and on 80 for the redirect and ACME's HTTP challenge; publishing the names in DNS is the holder's,
+or the DNS provider's of its zone, which publishes `A` and `AAAA` records for the node's addresses
+as it publishes any endpoint's (§3.5). A workload that moves to another node takes its routes with
+it, and its names then need their records pointed at the new node, which a DNS provider does and a
+holder publishing by hand must; that is what `ingress` survives on one machine, and an edge tier
+makes it survive without the records changing.
 
 **The proxy is a process of its own on the node.** It is the node's most exposed surface: it parses
 requests from anyone on the internet. So it is not the agent: `korpis-ingress` is a separate
@@ -404,22 +406,28 @@ the holder's organization serves the name's zone, publishing the `_acme-challeng
 through it (§3.5), and otherwise over HTTP: the control plane gives the token to the node the
 endpoint's workload is placed on, whose proxy answers it on port 80, which works once the name's
 records point at that node. A `provided` certificate is one its organization uploads, chain and
-key, and the endpoint names it by its identifier in `TlsSpec.secret`; the control plane checks that
-its key matches, that it covers the endpoint's names, and that it has not expired, and says when it
-nears expiry, but it cannot renew it. Every private key is stored sealed by the control plane's TLS
-key, in its data directory beside its backup key (§6 of `18-operations.md`), and a node obtains an
-endpoint's certificate and key by asking for it over its session, which is answered only to the
-node the endpoint's workload is placed on. The node keeps what it serves in its state directory,
-readable by the agent alone, so a restart while the control plane is unreachable still serves (§4.6
-of `02-architecture.md`). **What evaluates this, where, and with what information:** issuance and
-renewal, the control plane, which holds the endpoint, its placement, its holder's DNS providers,
-and the account; the challenge's answer, the proxy, from the token it was given; which certificate
-a connection gets, the proxy, from the SNI the client sent. What it costs: a node holds the private
-keys of the endpoints placed on it, which a compromised node could take, as it could already read
-the workloads' own memory, and which removing a node as compromised therefore revokes and replaces
-(§9 of `17-security.md`); and an issuance that fails, because the name does not point at the node
-yet or the directory refuses, leaves the endpoint served on 80 alone, its observation saying why,
-and is retried with the directory's back-off.
+key, and the endpoint names it by its identifier in `TlsSpec.secret`. The control plane checks at
+upload that the key is the leaf's, by their public keys, and that the leaf names DNS names and has
+not expired; and, wherever an endpoint names it, that it is the endpoint's organization's, valid
+now, and covers every name the endpoint routes, a wildcard covering one label, at declaration and
+again when the routes are claimed, the certificate locked against change until the claim commits.
+Its organization replaces it in place, keeping its identifier, with a chain that still covers every
+name served with it, which is how a provided certificate is renewed without declaring the endpoints
+again; it cannot be deleted while an endpoint serves with it, which the route records. The control
+plane says when one nears expiry, but it cannot renew it. Every private key is stored sealed by the
+control plane's TLS key, in its data directory beside its backup key (§6 of `18-operations.md`),
+and a node obtains an endpoint's certificate and key by asking for it over its session, which is
+answered only to the node the endpoint's workload is placed on. The node keeps what it serves in
+its state directory, readable by the agent alone, so a restart while the control plane is
+unreachable still serves (§4.6 of `02-architecture.md`). **What evaluates this, where, and with
+what information:** issuance and renewal, the control plane, which holds the endpoint, its
+placement, its holder's DNS providers, and the account; the challenge's answer, the proxy, from the
+token it was given; which certificate a connection gets, the proxy, from the SNI the client sent.
+What it costs: a node holds the private keys of the endpoints placed on it, which a compromised
+node could take, as it could already read the workloads' own memory, and which removing a node as
+compromised therefore revokes and replaces (§9 of `17-security.md`); and an issuance that fails,
+because the name does not point at the node yet or the directory refuses, leaves the endpoint
+served on 80 alone, its observation saying why, and is retried with the directory's back-off.
 
 What the ingress does not do in Phase 1, stated plainly: HTTP/3, which needs the UDP path an edge
 tier brings; HTTP/2 or gRPC to the workload, since a backend's protocol beyond HTTP/1.1 is not yet

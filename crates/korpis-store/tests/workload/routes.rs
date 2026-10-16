@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 fn route(organization: Uuid, workload: Uuid, endpoint: &str, name: &str) -> Route {
     let name = DomainName::parse(name).unwrap();
-    Route { name, organization, workload, endpoint: endpoint.into() }
+    Route { name, organization, workload, endpoint: endpoint.into(), certificate: None }
 }
 
 fn names(routes: &[Route]) -> Vec<&str> {

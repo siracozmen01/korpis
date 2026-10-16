@@ -5,31 +5,50 @@
 //! covering it, and routed by no other workload in the installation. Both are checked at
 //! declaration, from the records as they are, and again when a plan moves the target, under the
 //! domains lock, where the names are claimed: the declaration's check answers early, and the
-//! claim is what holds.
+//! claim is what holds. A route records the certificate its endpoint serves with, which must
+//! serve every name the endpoint routes, checked the same two times.
 
 use crate::App;
+use crate::certificate::{named, servable};
 use crate::error::AppError;
-use crate::ports::{Clock, DomainWrite as _, RecipeSource, Store};
+use crate::ports::{CertificateWrite as _, Clock, DomainWrite as _};
+use crate::ports::{RecipeSource, Store};
 use korpis_core::dns::domain::{DomainName, Route, holder_of};
 use korpis_core::workload::Workload;
 use korpis_core::workload::spec::IntentBody;
 use korpis_core::workload::spec::endpoints::Exposure;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// The routes `body` declares for `workload` of `organization`.
-fn routes_in((organization, workload): (Uuid, Uuid), body: &IntentBody) -> Vec<Route> {
-    body.endpoints
-        .iter()
-        .filter(|e| e.exposure == Exposure::Ingress)
-        .flat_map(|e| {
-            e.domains.iter().filter_map(|d| DomainName::parse(d)).map(|name| Route {
-                name,
-                organization,
-                workload,
-                endpoint: e.name.clone(),
-            })
-        })
-        .collect()
+fn routes_in(
+    (organization, workload): (Uuid, Uuid),
+    body: &IntentBody,
+) -> Result<Vec<Route>, AppError> {
+    let mut routes = Vec::new();
+    for (i, e) in body.endpoints.iter().enumerate().filter(|(_, e)| e.exposure == Exposure::Ingress)
+    {
+        let certificate = named(&format!("endpoints[{i}]"), e)?;
+        routes.extend(e.domains.iter().filter_map(|d| DomainName::parse(d)).map(|name| Route {
+            name,
+            organization,
+            workload,
+            endpoint: e.name.clone(),
+            certificate,
+        }));
+    }
+    Ok(routes)
+}
+
+/// The certificates `routes` name, each with the names served with it.
+fn served(routes: &[Route]) -> BTreeMap<Uuid, Vec<DomainName>> {
+    let mut by = BTreeMap::<Uuid, Vec<DomainName>>::new();
+    for r in routes {
+        if let Some(c) = r.certificate {
+            by.entry(c).or_default().push(r.name.clone());
+        }
+    }
+    by
 }
 
 fn not_held(name: &DomainName) -> AppError {
@@ -58,12 +77,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         owner: (Uuid, Uuid),
         body: &IntentBody,
     ) -> Result<(), AppError> {
-        let routes = routes_in(owner, body);
+        let routes = routes_in(owner, body)?;
         for r in &routes {
             let covering = self.store.verified_covering(&r.name).await?;
             if holder_of(&r.name, &covering) != Some(owner.0) {
                 return Err(not_held(&r.name));
             }
+        }
+        let now = self.clock.now();
+        for (id, names) in served(&routes) {
+            let found = self.store.certificate(id).await?;
+            servable((id, found.as_ref()), owner.0, &names, now)?;
         }
         let names: Vec<DomainName> = routes.into_iter().map(|r| r.name).collect();
         let taken = self.store.routes_of(&names).await?;
@@ -93,13 +117,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         w: &Workload,
         body: &IntentBody,
     ) -> Result<(), AppError> {
-        let routes = routes_in((w.organization, w.id), body);
+        let routes = routes_in((w.organization, w.id), body)?;
         tx.lock_domains().await?;
         for r in &routes {
             let covering = tx.verified_overlapping(&r.name).await?;
             if holder_of(&r.name, &covering) != Some(w.organization) {
                 return Err(not_held(&r.name));
             }
+        }
+        let now = self.clock.now();
+        for (id, names) in served(&routes) {
+            let found = tx.lock_certificate(id, false).await?;
+            servable((id, found.as_ref()), w.organization, &names, now)?;
         }
         match tx.claim_routes(w.id, &routes, self.clock.now()).await? {
             Some(taken) => Err(routed(&taken)),

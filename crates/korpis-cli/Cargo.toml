@@ -45,3 +45,4 @@ korpis-recipe = { workspace = true }
 korpis-server = { workspace = true }
 korpis-store = { workspace = true, features = ["testing"] }
 tempfile = "3"
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }

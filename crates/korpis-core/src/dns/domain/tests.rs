@@ -21,12 +21,21 @@ fn held(org: u128, n: &str, verified: bool) -> Domain {
 
 #[test]
 fn a_name_is_lowercase_dotted_labels_without_a_wildcard() {
-    for good in ["example.com", "shop.example.com", "xn--bcher-kva.example", "a-b.c1.io"] {
+    for good in ["example.com", "shop.example.com", "xn--bcher-kva.example", "a-b.c1.io", "1.2.io"]
+    {
         assert!(DomainName::parse(good).is_some(), "{good}");
     }
-    for bad in
-        ["com", "Example.com", "*.example.com", "example.com.", "-a.com", "a..com", "_x.com", ""]
-    {
+    for bad in [
+        "com",
+        "Example.com",
+        "*.example.com",
+        "example.com.",
+        "-a.com",
+        "a..com",
+        "_x.com",
+        "",
+        "203.0.113.7",
+    ] {
         assert!(DomainName::parse(bad).is_none(), "{bad}");
     }
     assert_eq!(name("example.com").verification_record(), "_korpis-verify.example.com");

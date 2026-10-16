@@ -104,3 +104,27 @@ async fn a_domain_is_asked_for_with_the_record_to_publish_and_attested_at_once()
     let bad = cp.korpis(&s, &["domain", "create", "*.example.org"]).await;
     assert_eq!(bad.status.code(), Some(10), "invalid: no wildcard is held");
 }
+
+#[tokio::test]
+async fn a_certificate_is_uploaded_from_its_files_and_shown_without_its_key() {
+    let cp = ControlPlane::start().await;
+    let s = cp.secret.clone();
+    let dir = tempfile::tempdir().unwrap();
+    let made = rcgen::generate_simple_self_signed(vec!["shop.example.com".into()]).unwrap();
+    let (chain, key) = (dir.path().join("chain.pem"), dir.path().join("key.pem"));
+    std::fs::write(&chain, made.cert.pem()).unwrap();
+    std::fs::write(&key, made.signing_key.serialize_pem()).unwrap();
+    let (chain, key) = (chain.to_str().unwrap(), key.to_str().unwrap());
+    let args = ["--json", "certificate", "create", "--chain", chain, "--key", key];
+    let uploaded = json(&cp.korpis(&s, &args).await);
+    assert_eq!(uploaded["names"][0], "shop.example.com", "{uploaded}");
+    assert_eq!(uploaded["state"], "CERTIFICATE_STATE_ISSUED", "{uploaded}");
+    let id = uploaded["id"].as_str().unwrap();
+    let listed = ok(&cp.korpis(&s, &["certificate", "list"]).await);
+    assert!(listed.contains(id) && listed.contains("provided"), "{listed}");
+    let shown = ok(&cp.korpis(&s, &["certificate", "get", id]).await);
+    assert!(shown.contains("BEGIN CERTIFICATE") && !shown.contains("PRIVATE"), "{shown}");
+    assert_eq!(ok(&cp.korpis(&s, &["certificate", "delete", id]).await), "deleted\n");
+    let missing = cp.korpis(&s, &["certificate", "create", "--chain", "/none", "--key", key]).await;
+    assert_ne!(missing.status.code(), Some(0), "a file that is not there");
+}

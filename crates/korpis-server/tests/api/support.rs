@@ -223,6 +223,10 @@ impl Harness {
         pb::DomainServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn certificates(&self, config: ClientConfig) -> pb::CertificateServiceClient<HttpClient> {
+        pb::CertificateServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn repositories(&self, config: ClientConfig) -> pb::RepositoryServiceClient<HttpClient> {
         pb::RepositoryServiceClient::new(self.http.clone(), config)
     }

@@ -227,7 +227,7 @@ ext.<extension>.<action>              extensions define their own, namespaced
   beneath it to a descendant, held beside `domain.write` on the descendant. `domain.attest` is
   vouching for a name without DNS, an operator's power: it is held on the installation's root
   organization, and an attested domain is created for any organization in its subtree.
-  `certificate.write` uploads and deletes an organization's provided certificates and
+  `certificate.write` uploads, replaces, and deletes an organization's provided certificates and
   `certificate.read` lists them, never their keys, which no action reads back. Routing a held name
   from an endpoint is `workload.write`, as declaring any endpoint is.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an

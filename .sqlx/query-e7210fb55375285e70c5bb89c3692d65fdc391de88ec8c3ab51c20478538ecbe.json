@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT name, organization_id, workload_id, endpoint FROM route\n              WHERE name = $1 OR right(name, length($1) + 1) = '.' || $1\n              ORDER BY name",
+  "query": "SELECT name, organization_id, workload_id, endpoint, certificate_id FROM route\n              WHERE name = $1 OR right(name, length($1) + 1) = '.' || $1\n              ORDER BY name",
   "describe": {
     "columns": [
       {
@@ -46,6 +46,17 @@
             "name": "endpoint"
           }
         }
+      },
+      {
+        "ordinal": 4,
+        "name": "certificate_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "route",
+            "name": "certificate_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -57,8 +68,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "0d0c2e400ccf017441ab8a5503b3a275b8aef1fb37040a09a3e4408b4ec71372"
+  "hash": "e7210fb55375285e70c5bb89c3692d65fdc391de88ec8c3ab51c20478538ecbe"
 }

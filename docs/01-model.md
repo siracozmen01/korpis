@@ -1213,7 +1213,7 @@ delegated beneath it.
 Certificate
   id            CertificateID    crt_…
   organization  OrganizationID
-  names         []string         the names it is for
+  names         []string         the names it is for; a wildcard covers one label
   source        acme | provided
   chain         PEM              leaf first
   key           sealed           the private key, sealed by the control plane's TLS key
@@ -1221,12 +1221,15 @@ Certificate
   state         pending | issued | failed
   reason        string?          why it failed, for `failed`
   renew_after   Timestamp?       for `acme`: when its renewal begins
+  revision      int              raised whenever its chain and key change
 ```
 
 **Invariants.** Its key is stored only sealed (§3.2 of `07-networking.md`). An `acme` certificate
 is the control plane's to issue and renew, for one endpoint's names; a `provided` one is uploaded
 by its organization and named by the endpoints that use it (`TlsSpec.secret` holds its
-identifier, §3.2 of `07-networking.md`).
+identifier, §3.2 of `07-networking.md`), which must be its organization's and covered by it, and
+is replaced in place by its organization, keeping its identifier, raising its revision. A
+certificate an endpoint serves with is not deleted: the endpoint's routes name it.
 
 #### Stream
 

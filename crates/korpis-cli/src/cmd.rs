@@ -6,6 +6,7 @@
 
 pub mod act;
 pub mod backup;
+pub mod certificate;
 pub mod classify;
 pub mod clone;
 pub mod console;

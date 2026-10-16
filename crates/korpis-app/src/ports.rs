@@ -11,6 +11,7 @@ mod audit;
 mod authz;
 mod backup;
 mod breaker;
+mod certificate;
 mod changes;
 mod clock;
 mod condition;
@@ -54,6 +55,7 @@ pub use authz::{
 };
 pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
 pub use breaker::{BreakerWrite, ProviderKey};
+pub use certificate::{CertificateRead, CertificateWrite, ReadError, TlsVault};
 pub use changes::{Change, Changes, Wakeups};
 pub use clock::{Clock, SystemClock};
 pub use condition::{ConditionRead, ConditionWrite};
@@ -178,6 +180,7 @@ pub trait Store:
     + JobRead
     + PruneRead
     + DomainRead
+    + CertificateRead
     + Send
     + Sync
     + 'static
@@ -243,6 +246,7 @@ pub trait Tx:
     + JobWrite
     + PruneWrite
     + DomainWrite
+    + CertificateWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

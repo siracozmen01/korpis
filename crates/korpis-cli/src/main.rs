@@ -7,6 +7,7 @@ use clap_complete::CompleteEnv;
 use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::backup::{self, BackupAction};
+use korpis_cli::cmd::certificate::{self, CertificateAction};
 use korpis_cli::cmd::clone;
 use korpis_cli::cmd::domain::{self, DomainAction};
 use korpis_cli::cmd::event::{self, EventAction};
@@ -101,6 +102,10 @@ enum Command {
     /// Makes, lists, and shows backup repositories.
     #[command(subcommand)]
     Repository(RepositoryAction),
+    /// Uploads, replaces, lists, shows, and deletes the certificates an organization's endpoints
+    /// serve with.
+    #[command(subcommand)]
+    Certificate(CertificateAction),
     /// Asks for, verifies, lists, shows, and deletes the domains an organization holds.
     #[command(subcommand)]
     Domain(DomainAction),
@@ -248,6 +253,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
         Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
         Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
+        Command::Certificate(a) => answer(cli, certificate::certificate(&cli.required()?, a).await),
         Command::Domain(a) => answer(cli, domain::domain(&cli.required()?, a).await),
         Command::Backup(BackupAction::Clone { backup, name, project }) => {
             let c = cli.required()?;

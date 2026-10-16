@@ -26,6 +26,7 @@ pub mod sealer;
 pub mod sessions;
 pub mod standalone;
 pub mod tls;
+pub mod tls_vault;
 pub mod vault;
 
 use api::Api;
@@ -132,6 +133,39 @@ pub struct Running {
     pub api: Arc<Api>,
 }
 
+/// The control plane's use cases over `store`, holding `keys` and what `config` gives them.
+fn application(
+    config: &ServeConfig,
+    store: PgStore,
+    keys: &keys::Keys,
+) -> Result<api::ServerApp, ServeError> {
+    let reach = Reach::with(config.fetch_allow.clone());
+    let registry = Registry::reaching(config.plain_http_registries.clone(), reach)
+        .map_err(|e| ServeError::Serve(format!("the registry client: {e}")))?;
+    let recipes = RegistrySource::new(registry);
+    let terms = SessionTerms {
+        heartbeat_interval: config.heartbeat_interval,
+        lease_term: config.lease_term,
+        ..Default::default()
+    };
+    Ok(App::new(store, SystemClock, keys.token.clone(), recipes)
+        .with_placement_policy(config.placement_policy.clone())
+        .with_session_terms(terms)
+        .with_denial_window(config.denial_window)
+        .with_stream_floor(config.stream_retention_floor)
+        .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
+        .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
+            keys.assignment.clone(),
+            keys.assignment_key_id.clone(),
+        )))
+        .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?))
+        .with_tls(Arc::new(tls_vault::TlsKeys::load_or_create(&config.data)?))
+        .with_lookup(Arc::new(
+            lookup::Lookup::new(config.dns_resolver)
+                .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
+        )))
+}
+
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can
 /// connect immediately.
 pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
@@ -147,30 +181,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.ensure_partitions(3).await?;
     tokio::spawn(prune_events(store.clone(), config.event_retention));
     let keys = keys::Keys::load_or_create(&config.data)?;
-    let reach = Reach::with(config.fetch_allow.clone());
-    let registry = Registry::reaching(config.plain_http_registries.clone(), reach)
-        .map_err(|e| ServeError::Serve(format!("the registry client: {e}")))?;
-    let recipes = RegistrySource::new(registry);
-    let terms = SessionTerms {
-        heartbeat_interval: config.heartbeat_interval,
-        lease_term: config.lease_term,
-        ..Default::default()
-    };
-    let app = App::new(store, SystemClock, keys.token.clone(), recipes)
-        .with_placement_policy(config.placement_policy.clone())
-        .with_session_terms(terms)
-        .with_denial_window(config.denial_window)
-        .with_stream_floor(config.stream_retention_floor)
-        .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
-        .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
-            keys.assignment.clone(),
-            keys.assignment_key_id.clone(),
-        )))
-        .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?))
-        .with_lookup(Arc::new(
-            lookup::Lookup::new(config.dns_resolver)
-                .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
-        ));
+    let app = application(&config, store, &keys)?;
     app.register_keys(&keys.public()).await?;
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");

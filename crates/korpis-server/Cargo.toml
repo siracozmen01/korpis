@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
 buffa-types = { version = "=0.9.2", features = ["json"] }
 clap = { version = "4", features = ["derive", "env", "string"] }
@@ -39,6 +40,8 @@ korpis-store = { workspace = true }
 korpis-stream = { workspace = true }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
+# Reading uploaded certificates: their names and validity.
+x509-parser = "0.18"
 hickory-resolver = { version = "0.26", default-features = false, features = ["tokio", "system-config"] }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 # Certificate validity, as rcgen states it.

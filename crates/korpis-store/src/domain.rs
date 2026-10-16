@@ -46,14 +46,15 @@ impl TryFrom<DomainRow> for Domain {
     }
 }
 
-struct RouteRow {
-    name: String,
-    organization_id: Uuid,
-    workload_id: Uuid,
-    endpoint: String,
+pub(crate) struct RouteRow {
+    pub(crate) name: String,
+    pub(crate) organization_id: Uuid,
+    pub(crate) workload_id: Uuid,
+    pub(crate) endpoint: String,
+    pub(crate) certificate_id: Option<Uuid>,
 }
 
-fn routes(rows: Vec<RouteRow>) -> StoreResult<Vec<Route>> {
+pub(crate) fn routes(rows: Vec<RouteRow>) -> StoreResult<Vec<Route>> {
     rows.into_iter()
         .map(|r| {
             let name = DomainName::parse(&r.name)
@@ -63,6 +64,7 @@ fn routes(rows: Vec<RouteRow>) -> StoreResult<Vec<Route>> {
                 organization: r.organization_id,
                 workload: r.workload_id,
                 endpoint: r.endpoint,
+                certificate: r.certificate_id,
             })
         })
         .collect()
@@ -126,7 +128,7 @@ impl DomainRead for PgStore {
         let names: Vec<String> = names.iter().map(|n| n.as_str().to_owned()).collect();
         let rows = sqlx::query_as!(
             RouteRow,
-            "SELECT name, organization_id, workload_id, endpoint FROM route
+            "SELECT name, organization_id, workload_id, endpoint, certificate_id FROM route
               WHERE name = ANY($1) ORDER BY name",
             &names
         )
@@ -226,7 +228,7 @@ impl DomainWrite for PgTx {
     async fn routes_beneath(&mut self, name: &DomainName) -> StoreResult<Vec<Route>> {
         let rows = sqlx::query_as!(
             RouteRow,
-            "SELECT name, organization_id, workload_id, endpoint FROM route
+            "SELECT name, organization_id, workload_id, endpoint, certificate_id FROM route
               WHERE name = $1 OR right(name, length($1) + 1) = '.' || $1
               ORDER BY name",
             name.as_str()
@@ -256,14 +258,17 @@ impl DomainWrite for PgTx {
             // A name the workload already routes keeps its row and is pointed at the endpoint now
             // naming it; one another workload routes is refused by the key.
             let done = sqlx::query!(
-                "INSERT INTO route (name, organization_id, workload_id, endpoint, created_at)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (name) DO UPDATE SET endpoint = EXCLUDED.endpoint
+                "INSERT INTO route (name, organization_id, workload_id, endpoint, certificate_id,
+                                    created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (name) DO UPDATE
+                    SET endpoint = EXCLUDED.endpoint, certificate_id = EXCLUDED.certificate_id
                   WHERE route.workload_id = EXCLUDED.workload_id",
                 r.name.as_str(),
                 r.organization,
                 workload,
                 r.endpoint,
+                r.certificate,
                 from_time(at)
             )
             .execute(&mut *self.tx)

@@ -40,7 +40,12 @@ fn random() -> Result<Zeroizing<[u8; 32]>, VaultError> {
     Ok(k)
 }
 
-fn seal(key: &[u8; 32], context: &str, plain: &[u8; 32]) -> Result<Vec<u8>, VaultError> {
+/// `plain`, sealed under `key` for `context` alone: a fresh random nonce, then the ciphertext.
+pub(crate) fn seal_bytes(
+    key: &[u8; 32],
+    context: &str,
+    plain: &[u8],
+) -> Result<Vec<u8>, VaultError> {
     let mut nonce = [0u8; NONCE];
     getrandom::fill(&mut nonce).map_err(failed)?;
     let payload = Payload { msg: plain, aad: context.as_bytes() };
@@ -50,17 +55,30 @@ fn seal(key: &[u8; 32], context: &str, plain: &[u8; 32]) -> Result<Vec<u8>, Vaul
     Ok([nonce.as_slice(), &sealed].concat())
 }
 
-fn open(key: &[u8; 32], context: &str, sealed: &[u8]) -> Result<Zeroizing<[u8; 32]>, VaultError> {
+/// What [`seal_bytes`] sealed under `key` for `context`; anything else is refused as forged.
+pub(crate) fn open_bytes(
+    key: &[u8; 32],
+    context: &str,
+    sealed: &[u8],
+) -> Result<Zeroizing<Vec<u8>>, VaultError> {
     let forged = || VaultError::Forged(context.to_owned());
     let (nonce, ciphertext) = sealed.split_at_checked(NONCE).ok_or_else(forged)?;
     let nonce: [u8; NONCE] = nonce.try_into().map_err(|_| forged())?;
     let payload = Payload { msg: ciphertext, aad: context.as_bytes() };
-    let plain = Zeroizing::new(
-        XChaCha20Poly1305::new(key.into())
-            .decrypt(&XNonce::from(nonce), payload)
-            .map_err(|_| forged())?,
-    );
-    let key: [u8; 32] = plain.as_slice().try_into().map_err(|_| forged())?;
+    XChaCha20Poly1305::new(key.into())
+        .decrypt(&XNonce::from(nonce), payload)
+        .map(Zeroizing::new)
+        .map_err(|_| forged())
+}
+
+fn seal(key: &[u8; 32], context: &str, plain: &[u8; 32]) -> Result<Vec<u8>, VaultError> {
+    seal_bytes(key, context, plain)
+}
+
+fn open(key: &[u8; 32], context: &str, sealed: &[u8]) -> Result<Zeroizing<[u8; 32]>, VaultError> {
+    let plain = open_bytes(key, context, sealed)?;
+    let key: [u8; 32] =
+        plain.as_slice().try_into().map_err(|_| VaultError::Forged(context.to_owned()))?;
     Ok(Zeroizing::new(key))
 }
 

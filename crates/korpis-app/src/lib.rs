@@ -14,6 +14,7 @@ pub mod authz;
 pub mod backup;
 pub mod backup_target;
 pub mod caller;
+pub mod certificate;
 pub mod control;
 pub mod dns;
 pub mod domain;
@@ -57,6 +58,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     vault: Option<Arc<dyn ports::KeyVault>>,
     feasibility: Option<Arc<dyn ports::Feasibility>>,
     lookup: Option<Arc<dyn ports::TxtLookup>>,
+    tls: Option<Arc<dyn ports::TlsVault>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
 }
@@ -78,6 +80,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             vault: None,
             feasibility: None,
             lookup: None,
+            tls: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
         }
@@ -102,6 +105,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_certificate_issuer(mut self, issuer: Arc<dyn ports::CertificateIssuer>) -> Self {
         self.certificate_issuer = Some(issuer);
+        self
+    }
+
+    /// Reads certificates and seals their keys with `tls` (§3.2 of docs/07-networking.md):
+    /// without it, no certificate can be uploaded or issued.
+    #[must_use]
+    pub fn with_tls(mut self, tls: Arc<dyn ports::TlsVault>) -> Self {
+        self.tls = Some(tls);
         self
     }
 

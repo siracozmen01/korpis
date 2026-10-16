@@ -14,7 +14,7 @@ use korpis_proto::korpis::v1 as pb;
 use pb::DomainVerification as V;
 
 /// The example with a `web` endpoint behind the ingress routing `names`.
-fn web(repo: &str, names: &[&str]) -> pb::IntentBody {
+pub fn web(repo: &str, names: &[&str]) -> pb::IntentBody {
     let web = pb::EndpointSpec {
         name: "web".into(),
         protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP.into(),
@@ -26,7 +26,7 @@ fn web(repo: &str, names: &[&str]) -> pb::IntentBody {
     pb::IntentBody { endpoints: vec![web], ..body(repo, &[]) }
 }
 
-async fn attest(h: &Harness, key: &str, org: &str, name: &str) -> pb::Domain {
+pub async fn attest(h: &Harness, key: &str, org: &str, name: &str) -> pb::Domain {
     let req = pb::CreateDomainRequest {
         mutation: mutation(key).into(),
         organization: org.into(),
@@ -38,13 +38,13 @@ async fn attest(h: &Harness, key: &str, org: &str, name: &str) -> pb::Domain {
     made.domain.into_option().unwrap()
 }
 
-async fn declare(h: &Harness, project: &str, name: &str, b: pb::IntentBody) -> pb::Workload {
+pub async fn declare(h: &Harness, project: &str, name: &str, b: pb::IntentBody) -> pb::Workload {
     let d = create(name, project, name, b);
     let out = h.workloads(h.root()).declare_intent(d).await.unwrap().into_owned();
     out.workload.into_option().unwrap()
 }
 
-async fn refused(h: &Harness, project: &str, name: &str, b: pb::IntentBody) -> String {
+pub async fn refused(h: &Harness, project: &str, name: &str, b: pb::IntentBody) -> String {
     let d = create(name, project, name, b);
     reason(&h.workloads(h.root()).declare_intent(d).await.unwrap_err())
 }

@@ -13,8 +13,10 @@ use uuid::Uuid;
 pub const VERIFY_LABEL: &str = "_korpis-verify";
 
 /// A DNS name a domain or a route names: lowercase dotted labels of letters, digits, and inner
-/// hyphens, at least two of them, at most 253 bytes, with no final dot and no wildcard. A name in
-/// another script is written in its ASCII form (`xn--…`).
+/// hyphens, at least two of them, at most 253 bytes, with no final dot and no wildcard, and a last
+/// label that is not all digits, since no top-level domain is and a name that ends in one is an
+/// IPv4 address, which TLS never names by SNI (RFC 3696 §2, RFC 6066 §3). A name in another script
+/// is written in its ASCII form (`xn--…`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DomainName(String);
 
@@ -29,7 +31,8 @@ impl DomainName {
                 && !l.ends_with('-')
                 && l.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
         };
-        let ok = s.len() <= 253 && s.contains('.') && s.split('.').all(label);
+        let top = s.rsplit('.').next().is_some_and(|t| !t.bytes().all(|b| b.is_ascii_digit()));
+        let ok = s.len() <= 253 && s.contains('.') && top && s.split('.').all(label);
         ok.then(|| Self(s.to_owned()))
     }
 
@@ -86,6 +89,8 @@ pub struct Route {
     pub workload: Uuid,
     /// The endpoint, by name.
     pub endpoint: String,
+    /// The certificate it is served with, once the endpoint's TLS names or is given one.
+    pub certificate: Option<Uuid>,
 }
 
 /// How a domain is verified.
