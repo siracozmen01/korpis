@@ -535,12 +535,17 @@ rather than `UNAUTHENTICATED`, so a client in a loop is told to stop and for how
 recorded as denials are, by the actor `anonymous` (§3.2 of `01-model.md`), coalesced by source,
 kind, and target within the window, the first written at once; the target is what the attempt
 named where it named one, the node of a `Hello` if that node exists, so a forged `Hello` is in
-that node's effects. What is recorded is bounded whoever sends the failures: a source past its own
-bucket is counted in one run per kind, its targets dropped; and every failure is also charged to a
-bucket the whole installation shares, 600 a minute (`--rate-failures-recorded`), past which the
-failures of every source are counted in one run per kind with the source `*`. However many
-addresses an attacker holds and however many identifiers it invents, the log receives at most that
-bucket's worth of effects, and one per kind, each window (Finding 64).
+that node's effects. What is recorded is bounded whoever sends the failures, and no sender can hide
+another's (Findings 64 and 65). A failure that joins a run already open costs nothing more. One that
+would open a run, and so write an effect at once, opens it under its own source only while its
+source's bucket admits it and a bucket the whole installation shares, 600 a minute
+(`--rate-failures-recorded`), has room, which it then spends; otherwise it is counted in the run of
+its kind and target under the source `*`. One address can spend no more of the shared bucket than
+its own allows; the log receives at most that bucket's worth of effects, and one per kind and node,
+each window, however many addresses an attacker holds and however many identifiers it invents; and
+a failure against a node is recorded against that node whatever the budgets say. What is lost under
+a flood from many addresses is the attribution of the excess to its sources, never its count or
+its target.
 What evaluates it, where, and with what: the replica that received the attempt, from the address
 its connection came from (the client a configured load balancer's PROXY header names, §3.1 of
 `02-architecture.md`), the bucket every replica shares, and the runs of failures in the same

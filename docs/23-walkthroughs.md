@@ -1099,6 +1099,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 62 | A revoked subject still spent its organization's rate limit bucket | §37 | `10-api.md` §10 |
 | 63 | Slowing the target of a failed attempt let anyone deny the target | §37 | `10-api.md` §10, `17-security.md` §10 |
 | 64 | Failures naming invented targets, or from many addresses, each wrote an effect at once | §37 | `10-api.md` §10 |
+| 65 | One address could spend the shared recording budget and hide everyone's failures | §37 | `10-api.md` §10 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2455,4 +2456,22 @@ nothing against either. Step 8 did not hold.
 counted in one run per kind, its targets dropped. Every failure is also charged to a bucket the
 whole installation shares, past which every source's failures are counted together in one run per
 kind. → patched into `10-api.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
+
+**FINDING 65: One address could spend the shared recording budget and hide everyone's failures.
+`CONFIRMED`**
+
+Found 2026-10-16 by a security review of the commit that resolved Finding 64, and confirmed by
+reading it. That resolution charged every failure to the installation's recording bucket, those
+its own source had already refused included, and dropped the target of a failure from a source
+past its bucket. One address could send six hundred failures a minute, each refused, spend the
+whole bucket, and leave every other sender's failures counted under `*` with no source; and a
+script could spend its own small budget on junk first, so that its forged `Hello` was recorded
+without the node it named. The bound held, and the audit it was for did not.
+
+**Resolution.** The budgets are spent per run opened, which is per effect written at once, not per
+failure: a failure joining a run already open costs nothing, and one opening a run under its own
+source spends the shared bucket only while its source's bucket admits it, so one address spends no
+more of it than its own allows. Past either, the failure is counted under `*` with its target
+kept, since targets are only the installation's nodes and are bounded already. → patched into
+`10-api.md` §10; tested in `crates/korpis-server/tests/api/failures.rs`.
 

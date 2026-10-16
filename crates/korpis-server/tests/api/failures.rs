@@ -127,19 +127,50 @@ async fn a_hello_naming_no_node_is_recorded_without_a_target() {
     assert_eq!(found[0].2, None, "an identifier anyone can invent opens no run of its own");
 }
 
+/// A `Hello` for `agent`'s node, signed by another key; how it is refused.
+async fn forge(h: &Harness, agent: &TestAgent, nonce: u8) -> ErrorCode {
+    let key = ed25519_dalek::SigningKey::from_bytes(&[9; 32]);
+    let node = agent.node.clone();
+    let forger = TestAgent { key, node, assignment_keys: Vec::new(), token_keys: Vec::new() };
+    let (_s, refused) = TestAgent::open(h, forger.hello_at(SystemTime::now(), &[nonce; 16])).await;
+    refused.unwrap_err().code
+}
+
 #[tokio::test]
-async fn past_the_installations_budget_every_source_is_counted_together() {
+async fn past_the_installations_budget_failures_are_counted_together_by_node() {
     let mut rates = three_a_minute();
     rates.failures = Rate::per_second(1000, 1000);
     rates.recorded = Rate::per_minute(1, 1);
     let h = Harness::with_rates(rates).await;
-    let forged = h.config(Some("kpt_not-a-token-this-installation-issued"));
-    for _ in 0..3 {
-        let get = pb::GetOrganizationRequest { id: h.root_org(), ..Default::default() };
-        let e = h.orgs(forged.clone()).get_organization(get).await.unwrap_err();
-        assert_eq!(e.code, ErrorCode::Unauthenticated);
+    let first = TestAgent::enroll(&h, "fra-1", 1).await;
+    let second = TestAgent::enroll(&h, "fra-2", 2).await;
+    for (agent, nonce) in [(&first, 1), (&first, 2), (&second, 3)] {
+        assert_eq!(forge(&h, agent, nonce).await, ErrorCode::Unauthenticated);
     }
-    let found = recorded(&h, "credential.present", |f| f.len() >= 3).await;
-    let sources: Vec<(&str, i64)> = found.iter().map(|f| (f.3.as_str(), f.1)).collect();
-    assert_eq!(sources, vec![("127.0.0.1/32", 1), ("*", 1), ("*", 1)], "{found:?}");
+
+    let found = recorded(&h, "node.hello", |f| f.len() >= 2).await;
+    let id = |a: &TestAgent| korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &a.node);
+    let seen: Vec<_> = found.iter().map(|f| (f.3.as_str(), f.2)).collect();
+    let (one, two) = (id(&first).unwrap().uuid(), id(&second).unwrap().uuid());
+    assert_eq!(
+        seen,
+        vec![("127.0.0.1/32", Some(one)), ("*", Some(two))],
+        "a run already open costs nothing; a new one past the budget is counted under *, by node"
+    );
+}
+
+#[tokio::test]
+async fn a_source_that_spent_its_budget_cannot_hide_a_failure_against_a_node() {
+    let h = Harness::with_rates(three_a_minute()).await;
+    let a = TestAgent::enroll(&h, "fra-1", 1).await;
+    let junk = h.config(Some("kpt_not-a-token-this-installation-issued"));
+    for _ in 0..4 {
+        let get = pb::GetOrganizationRequest { id: h.root_org(), ..Default::default() };
+        h.orgs(junk.clone()).get_organization(get).await.unwrap_err();
+    }
+    assert_eq!(forge(&h, &a, 1).await, ErrorCode::ResourceExhausted, "its budget is spent");
+    let node = korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &a.node).unwrap();
+    let found = recorded(&h, "node.hello", |f| !f.is_empty()).await;
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].2, Some(node.uuid()), "recorded against the node it named");
 }

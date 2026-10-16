@@ -17,7 +17,7 @@ use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::principal::Principal;
 use korpis_core::rate::{Bucket, Standing};
 use std::net::IpAddr;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 /// How many closed runs one pass writes at most.
 const CLOSE_BATCH: u32 = 256;
@@ -27,13 +27,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// source's bucket and records it. The answer to give: `UNAUTHENTICATED`, or `RATE_LIMITED`
     /// once the source's bucket refuses.
     ///
-    /// What is recorded is bounded whoever sends the failures. A target is kept only if it
-    /// exists, so a forged `Hello` cannot open a run for every identifier it can invent. A
-    /// source past its own bucket is counted in one run of its own per kind, its targets
-    /// dropped. And every failure is charged to a bucket the whole installation shares; past
-    /// it, failures from every source are counted in one run per kind, so however many
-    /// addresses an attacker holds, the log receives at most that bucket's worth of effects and
-    /// one per kind each window.
+    /// What is recorded is bounded whoever sends the failures, and no sender can hide another's.
+    /// A target is kept only if it exists, so it is always one of the installation's nodes. A
+    /// failure joining a run already open costs nothing more. One that would open a run, and so
+    /// write an effect at once, does so under its own source only while its source's bucket
+    /// admits it and the bucket the whole installation shares has room, which it then spends;
+    /// otherwise it is counted in the run of its kind and target under the source `*`. One
+    /// address can therefore spend no more of the shared bucket than its own allows, the log
+    /// receives at most that bucket's worth of effects and one per kind and node each window, and
+    /// a failure against a node is recorded against that node whatever the budgets say.
     pub async fn authentication_failed(
         &self,
         attempt: Attempt,
@@ -51,19 +53,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         ip: Option<IpAddr>,
         target: Option<ObjectRef>,
     ) -> Result<AppError, AppError> {
-        let (rates, now) = (self.limiter.rates, self.clock.now());
         let source = source(ip);
-        let own = Bucket { policy: "failures", key: format!("f:{source}"), rate: rates.failures };
-        let all = Bucket { policy: "failures-recorded", key: "f:*".into(), rate: rates.recorded };
-        let standing = self.store.charge(vec![own], now).await?;
+        let rate = self.limiter.rates.failures;
+        let own = Bucket { policy: "failures", key: format!("f:{source}"), rate };
+        let standing = self.store.charge(vec![own], self.clock.now()).await?;
         let refused = standing.iter().find(|s| !s.admitted).map(Standing::retry_after);
-        let recordable = self.store.charge(vec![all], now).await?.iter().all(|s| s.admitted);
-        let key = match (recordable, refused) {
-            (false, _) => FailureKey { source: "*".into(), attempt, target: None },
-            (true, Some(_)) => FailureKey { source, attempt, target: None },
-            (true, None) => FailureKey { source, attempt, target: self.existing(target).await? },
-        };
-        self.record_failure(&key).await?;
+        let key = FailureKey { source, attempt, target: self.existing(target).await? };
+        self.record_failure(&key, refused.is_none()).await?;
         Ok(match refused {
             Some(retry_after) => AppError::RateLimited { retry_after, standing },
             None => AppError::Unauthenticated,
@@ -76,19 +72,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(self.store.node(t.id).await?.map(|_| t))
     }
 
-    async fn record_failure(&self, key: &FailureKey) -> Result<(), AppError> {
-        let now = self.clock.now();
+    /// Whether the bucket the installation shares has room for a run recorded apart, which
+    /// it then spends.
+    async fn recordable(&self, now: SystemTime) -> Result<bool, AppError> {
+        let rate = self.limiter.rates.recorded;
+        let all = Bucket { policy: "failures-recorded", key: "f:*".into(), rate };
+        Ok(self.store.charge(vec![all], now).await?.iter().all(|s| s.admitted))
+    }
+
+    /// Counts the failure `key` names in its run, or opens one; a run is opened under its own
+    /// source only `within` its source's budget and with room in the installation's.
+    async fn record_failure(&self, key: &FailureKey, within: bool) -> Result<(), AppError> {
+        let (now, window) = (self.clock.now(), self.denial_window);
         let mut tx = self.store.begin().await?;
-        let open = tx.lock_failure_run(key).await?;
-        match offer(open, now, self.denial_window) {
-            Offer::Count { run } => tx.put_failure_run(key, &run).await?,
-            Offer::Write { closed, run } => {
-                if let Some(effect) = closed.and_then(|c| repeats(key, &c)) {
-                    tx.append_effect(&effect).await?;
-                }
-                tx.append_effect(&failure(key)).await?;
-                tx.put_failure_run(key, &run).await?;
-            }
+        let offered = offer(tx.lock_failure_run(key).await?, now, window);
+        let apart = match offered {
+            Offer::Count { .. } => true,
+            Offer::Write { .. } => within && self.recordable(now).await?,
+        };
+        if apart {
+            enter(&mut tx, key, offered).await?;
+        } else {
+            together(&mut tx, key, offered, (now, window)).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -115,6 +120,45 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         Ok(closed)
     }
+}
+
+/// Counts a failure that may not open a run of its own in the run of its kind and target under
+/// the source `*`, closing its own run first if `offered` found that closed.
+async fn together<T: FailureWrite + EffectWrite + Send>(
+    tx: &mut T,
+    key: &FailureKey,
+    offered: Offer,
+    (now, window): (SystemTime, Duration),
+) -> Result<(), AppError> {
+    if let Offer::Write { closed: Some(c), .. } = offered {
+        if let Some(effect) = repeats(key, &c) {
+            tx.append_effect(&effect).await?;
+        }
+        tx.drop_failure_run(key).await?;
+    }
+    let together = FailureKey { source: "*".into(), ..key.clone() };
+    let offered = offer(tx.lock_failure_run(&together).await?, now, window);
+    enter(tx, &together, offered).await
+}
+
+/// Enters a failure in the run of `key` as `offered`: counted in it, or written at once after
+/// the closed run's repeats, opening a new one.
+async fn enter<T: FailureWrite + EffectWrite + Send>(
+    tx: &mut T,
+    key: &FailureKey,
+    offered: Offer,
+) -> Result<(), AppError> {
+    match offered {
+        Offer::Count { run } => tx.put_failure_run(key, &run).await?,
+        Offer::Write { closed, run } => {
+            if let Some(effect) = closed.and_then(|c| repeats(key, &c)) {
+                tx.append_effect(&effect).await?;
+            }
+            tx.append_effect(&failure(key)).await?;
+            tx.put_failure_run(key, &run).await?;
+        }
+    }
+    Ok(())
 }
 
 /// The effect recording one failure: by no one, from its source, of its kind, naming its target.
