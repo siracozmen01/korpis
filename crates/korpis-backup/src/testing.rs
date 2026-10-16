@@ -46,12 +46,27 @@ fn failed(e: impl std::fmt::Display) -> String {
 
 impl Minio {
     /// A MinIO serving with its data beneath `scratch`, or `None` where none is installed.
+    ///
+    /// A free port is free only until another test takes it, and a MinIO that lost its port to
+    /// another exits while the other answers on it, readily; so each start proves the server it
+    /// reached is its own, by making a bucket and finding it in its own data, and starts again on
+    /// other ports if it is not.
     pub async fn start(scratch: &std::path::Path) -> Result<Option<Self>, String> {
         if !binary().exists() {
             tracing::warn!("MinIO is not installed (scripts/test-tools.sh): the test does not run");
             return Ok(None);
         }
         let _ = rustls::crypto::ring::default_provider().install_default();
+        for _ in 0..5 {
+            let m = Self::spawn(scratch)?;
+            if m.ready().await && m.owns().await? {
+                return Ok(Some(m));
+            }
+        }
+        Err("MinIO did not start on a port of its own".into())
+    }
+
+    fn spawn(scratch: &std::path::Path) -> Result<Self, String> {
         let data = scratch.join(format!("minio-{}", free_port().map_err(failed)?));
         std::fs::create_dir_all(&data).map_err(failed)?;
         let (port, console) = (free_port().map_err(failed)?, free_port().map_err(failed)?);
@@ -63,18 +78,43 @@ impl Minio {
             .env("MINIO_ROOT_PASSWORD", SECRET)
             .env("MINIO_BROWSER", "off")
             .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()
             .map_err(failed)?;
-        let m = Self { child, data, endpoint: format!("http://127.0.0.1:{port}") };
-        // Ready, not merely live: a live server still answers 503 until it is initialized.
-        let ready = format!("{}/minio/health/ready", m.endpoint);
+        Ok(Self { child, data, endpoint: format!("http://127.0.0.1:{port}") })
+    }
+
+    /// Whether something answers ready at its endpoint: ready, not merely live, since a live
+    /// server still answers 503 until it is initialized.
+    async fn ready(&self) -> bool {
+        let ready = format!("{}/minio/health/ready", self.endpoint);
         for _ in 0..200 {
             if reqwest::get(&ready).await.is_ok_and(|r| r.status().is_success()) {
-                return Ok(Some(m));
+                return true;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        Err("MinIO did not start".into())
+        false
+    }
+
+    /// Whether the server at its endpoint is this one: a bucket made there is in its data.
+    async fn owns(&self) -> Result<bool, String> {
+        let nanos = std::time::SystemTime::UNIX_EPOCH.elapsed().map_or(0, |d| d.as_nanos());
+        let probe = format!("probe-{}-{nanos}", std::process::id());
+        if self.bucket(&probe).await.is_err() {
+            return Ok(false);
+        }
+        let ours = self.data.join(&probe).is_dir();
+        if ours {
+            let endpoint = url::Url::parse(&self.endpoint).map_err(failed)?;
+            let bucket =
+                rusty_s3::Bucket::new(endpoint, rusty_s3::UrlStyle::Path, probe, "us-east-1")
+                    .map_err(failed)?;
+            let creds = rusty_s3::Credentials::new(USER, SECRET);
+            let url = bucket.delete_bucket(&creds).sign(Duration::from_secs(60));
+            reqwest::Client::new().delete(url).send().await.map_err(failed)?;
+        }
+        Ok(ours)
     }
 
     /// Makes bucket `name`.
