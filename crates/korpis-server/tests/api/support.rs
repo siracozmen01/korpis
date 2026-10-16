@@ -2,8 +2,7 @@
 
 //! A control plane installed into a throwaway database and served on a free port.
 
-use buffa::Message;
-use connectrpc::ConnectError;
+pub use crate::refusal::{detail, reason};
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_app::install::Installation;
 use korpis_core::authz::credential::Secret;
@@ -138,12 +137,7 @@ impl Harness {
         acme: AcmeConfig,
         rates: Rates,
     ) -> Self {
-        // What the control plane logs at error, an internal error's cause among it, is printed
-        // with the output of the test that failed, so a failure that needs load to happen
-        // explains itself.
-        let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("error"));
-        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
+        log_errors();
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
@@ -180,6 +174,7 @@ impl Harness {
             acme,
             rates,
             relying_party: Some(crate::panel::relying_party()),
+            session_limits: korpis_core::account::session::SessionLimits::default(),
         };
         let running = korpis_server::serve(config.clone()).await.expect("serve");
         let base = format!("https://localhost:{}", running.addr.port()).parse().unwrap();
@@ -371,6 +366,14 @@ impl Harness {
     }
 }
 
+/// Prints what the control plane logs at error, an internal error's cause among it, with the
+/// output of the test that failed, so a failure that needs load to happen explains itself.
+fn log_errors() {
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("error"));
+    let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
+}
+
 pub fn mutation(key: &str) -> pb::Mutation {
     pb::Mutation { idempotency_key: key.to_owned(), ..Default::default() }
 }
@@ -378,23 +381,4 @@ pub fn mutation(key: &str) -> pb::Mutation {
 pub fn org_scope(id: &str) -> pb::Scope {
     let id = Id::parse(IdKind::Organization, id).unwrap().uuid();
     scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Organization, id)))
-}
-
-/// The structured error detail of §8 of docs/10-api.md.
-pub fn detail(e: &ConnectError) -> pb::Error {
-    use base64::Engine;
-    e.details
-        .iter()
-        .filter(|d| d.type_url.ends_with("korpis.v1.Error"))
-        .filter_map(|d| d.value.as_deref())
-        .filter_map(|v| {
-            base64::engine::general_purpose::STANDARD_NO_PAD.decode(v.trim_end_matches('=')).ok()
-        })
-        .find_map(|bytes| pb::Error::decode_from_slice(&bytes).ok())
-        .unwrap_or_default()
-}
-
-/// The structured reason a client branches on (§8 of docs/10-api.md).
-pub fn reason(e: &ConnectError) -> String {
-    detail(e).reason
 }

@@ -91,7 +91,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let Some(w) = tx.lock_workload(id).await? else { return Ok(false) };
         let Some(t) = w.target.filter(|_| w.deleted_at.is_none()) else { return Ok(false) };
-        let target = self.store.intent(t).await?;
+        let target = tx.intent_within(t).await?;
         self.place_screened(&mut tx, &w, target.as_ref(), &screened).await?;
         tx.commit().await?;
         Ok(true)

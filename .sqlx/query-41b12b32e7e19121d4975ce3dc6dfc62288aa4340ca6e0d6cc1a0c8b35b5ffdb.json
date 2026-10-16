@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT max(expires_at) FROM backup_access\n              WHERE repository_id = $1 AND workload_id = $2 AND mode = 'write'\n                AND area = 'backups' AND expires_at > $3",
+  "query": "SELECT max(expires_at) FROM backup_access\n          WHERE repository_id = $1 AND workload_id = $2 AND mode = 'write'\n            AND area = 'backups' AND expires_at > $3",
   "describe": {
     "columns": [
       {
@@ -21,5 +21,5 @@
       null
     ]
   },
-  "hash": "7444e0a4591958c6298713e8b723ebc39b101d3a2ab0ab0a83fbdf90f4d408b7"
+  "hash": "41b12b32e7e19121d4975ce3dc6dfc62288aa4340ca6e0d6cc1a0c8b35b5ffdb"
 }

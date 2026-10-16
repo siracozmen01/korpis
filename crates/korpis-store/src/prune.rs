@@ -16,6 +16,27 @@ use std::collections::BTreeSet;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+/// When the last write grant to `prefix` live at `now` expires, read through `e`, a pool or a
+/// transaction.
+async fn writable_until<'e, E: sqlx::PgExecutor<'e>>(
+    e: E,
+    (repository, workload): Prefix,
+    now: SystemTime,
+) -> StoreResult<Option<SystemTime>> {
+    let until = sqlx::query_scalar!(
+        "SELECT max(expires_at) FROM backup_access
+          WHERE repository_id = $1 AND workload_id = $2 AND mode = 'write'
+            AND area = 'backups' AND expires_at > $3",
+        repository,
+        workload,
+        from_time(now)
+    )
+    .fetch_one(e)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(until.map(to_time))
+}
+
 impl PruneRead for PgStore {
     async fn prune_candidates(
         &self,
@@ -64,21 +85,10 @@ impl PruneRead for PgStore {
 
     async fn writable_until(
         &self,
-        (repository, workload): Prefix,
+        prefix: Prefix,
         now: SystemTime,
     ) -> StoreResult<Option<SystemTime>> {
-        let until = sqlx::query_scalar!(
-            "SELECT max(expires_at) FROM backup_access
-              WHERE repository_id = $1 AND workload_id = $2 AND mode = 'write'
-                AND area = 'backups' AND expires_at > $3",
-            repository,
-            workload,
-            from_time(now)
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        Ok(until.map(to_time))
+        writable_until(&self.pool, prefix, now).await
     }
 
     async fn streams_granted(
@@ -139,6 +149,14 @@ impl PruneRead for PgStore {
 }
 
 impl PruneWrite for PgTx {
+    async fn writable_until_within(
+        &mut self,
+        prefix: Prefix,
+        now: SystemTime,
+    ) -> StoreResult<Option<SystemTime>> {
+        writable_until(&mut *self.tx, prefix, now).await
+    }
+
     async fn record_access(&mut self, a: &AccessRecord) -> StoreResult<()> {
         let mode = match a.mode {
             AccessMode::Read => "read",

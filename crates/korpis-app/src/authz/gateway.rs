@@ -10,9 +10,9 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, GrantWrite, RecipeSource, Store, Tx};
 use korpis_core::authz::credential::{Secret, SecretKind};
-use korpis_core::authz::link;
 use korpis_core::authz::token::KeyRing;
 use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
+use korpis_core::authz::{access, link};
 use korpis_core::principal::Principal;
 use korpis_core::workload::plan::Proposing;
 use std::net::IpAddr;
@@ -28,6 +28,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         source_ip: Option<IpAddr>,
     ) -> Result<Caller, AppError> {
         let now = self.clock.now();
+        if presented.starts_with(access::ACCESS_PREFIX) {
+            // Verified by its signature and expiry alone (§9.4 of docs/08-identity.md): what the
+            // user may do is evaluated per call, from the grants it holds then.
+            let claims = access::verify(&self.token_ring()?, presented, now)
+                .map_err(|_| AppError::Unauthenticated)?;
+            let caller = Caller::new(Principal::User(claims.user), source_ip, true);
+            return Ok(caller.with_session(claims.session));
+        }
         if presented.starts_with(link::LINK_PREFIX) {
             let grant = self.linked(presented, now).await?;
             return Ok(Caller::new(Principal::Link(grant), source_ip, false));
@@ -52,9 +60,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// by this control plane's current token key, not expired, and naming a grant that exists
     /// unrevoked. What it permits, and the use each call spends, is evaluated like any grant.
     async fn linked(&self, presented: &str, now: SystemTime) -> Result<Uuid, AppError> {
-        let mut keys = KeyRing::default();
-        keys.insert(self.token_key.key_id, &self.token_key.public_bytes())
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let keys = self.token_ring()?;
         let found = link::verify(presented, &keys, now).map_err(|_| AppError::Unauthenticated)?;
         let chain = self.store.grant_chain(found.grant).await?;
         let works = chain.first().is_some_and(|leaf| {
@@ -63,6 +69,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 && !leaf.grant.revoked
         });
         if works { Ok(found.grant) } else { Err(AppError::Unauthenticated) }
+    }
+
+    /// The keys bearers this control plane signed are verified with: its current token key.
+    fn token_ring(&self) -> Result<KeyRing, AppError> {
+        let mut keys = KeyRing::default();
+        keys.insert(self.token_key.key_id, &self.token_key.public_bytes())
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok(keys)
     }
 
     /// Evaluates `action` on `object` for `caller` without recording anything; through only the

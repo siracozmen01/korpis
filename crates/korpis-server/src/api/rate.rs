@@ -26,9 +26,14 @@ const UNCHARGED: [&str; 4] = [
     "/korpis.v1.ServerInfoService/",
 ];
 
-/// The service anyone may call without a credential, whose every request is charged to its
-/// source instead: each sign-in or redemption it begins writes a challenge.
-const ANONYMOUS: &str = "/korpis.v1.AccountService/";
+/// The procedures anyone may call without a credential, whose every request is charged to its
+/// source instead: each sign-in or redemption the account service begins writes a challenge,
+/// and a refresh credential is presented without another.
+const ANONYMOUS: [&str; 3] = [
+    "/korpis.v1.AccountService/",
+    "/korpis.v1.SessionService/Exchange",
+    "/korpis.v1.SessionService/SignOut",
+];
 
 /// The procedures charged to the expensive budget as well: those that compute a plan, take or
 /// restore a backup or a snapshot, or install an extension.
@@ -73,7 +78,7 @@ impl Charging {
         let presented = super::bearer(ctx);
         let ip = ctx.peer_addr().map(|a| a.ip());
         if presented.is_empty() {
-            if !path.starts_with(ANONYMOUS) {
+            if !ANONYMOUS.iter().any(|p| path.starts_with(p)) {
                 return Ok(Vec::new());
             }
             return self.api.app().charge_source(ip).await.map_err(refused);

@@ -7,6 +7,7 @@
 pub mod password;
 pub mod record;
 pub mod recovery;
+pub mod session;
 pub mod totp;
 
 /// The operating system could not supply randomness.

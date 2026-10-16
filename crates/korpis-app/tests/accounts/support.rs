@@ -3,11 +3,12 @@
 //! An installation to invite accounts into, a vault for their TOTP secrets, and a browser's
 //! software authenticator.
 
-use korpis_app::account::{NewRegistration, Redeemed};
+use korpis_app::account::{Client, NewRegistration, Redeemed};
 use korpis_app::authz::{Holder, IssueGrant};
 use korpis_app::install::RootHolder;
 use korpis_app::ports::{FactorVault, SealedKey, SystemClock, VaultError};
 use korpis_app::{App, Caller, Idempotent, NoRecipes, Reply};
+use korpis_core::account::session::{SessionKind, SessionLimits};
 use korpis_core::account::totp::{STEP_SECONDS, TotpSecret};
 use korpis_core::authz::token::SigningKey;
 use korpis_core::authz::{Action, Conditions, Delegation};
@@ -56,11 +57,17 @@ pub struct Fixture {
 }
 
 pub async fn fixture() -> Fixture {
+    fixture_with(SessionLimits::default()).await
+}
+
+/// [`fixture`], its sessions ending by `limits`.
+pub async fn fixture_with(limits: SessionLimits) -> Fixture {
     let db = TestDb::new().await.unwrap();
     let store = db.store().await.unwrap();
     let app = App::new(store, SystemClock, Arc::new(SigningKey::generate(1)), NoRecipes)
         .with_relying_party(RelyingParty { id: RP.into(), origins: vec![ORIGIN.into()] })
-        .with_factor_vault(Arc::new(Bound));
+        .with_factor_vault(Arc::new(Bound))
+        .with_session_limits(limits);
     let installed = app.install(Name::parse("acme").unwrap(), RootHolder::Token).await.unwrap();
     let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
     Fixture { _db: db, app, root, organization: installed.organization.id }
@@ -116,7 +123,7 @@ pub async fn redeem(
         client_data_json: created.client_data_json,
         attestation_object: created.attestation_object,
     };
-    f.app.redeem_with_passkey(invitation, name, r).await
+    f.app.redeem_with_passkey(invitation, (name, r), &client()).await
 }
 
 /// The code `secret` gives `ahead` steps from now: a code is accepted a step early, and only
@@ -130,4 +137,9 @@ pub fn code(secret: &TotpSecret, ahead: u64) -> String {
 /// The caller signed in as `account`.
 pub fn signed_in(account: Uuid) -> Caller {
     Caller::new(Principal::User(account), None, true)
+}
+
+/// A browser's client, from nowhere in particular.
+pub fn client() -> Client {
+    Client { kind: SessionKind::Web, user_agent: "test".into(), ip: None }
 }

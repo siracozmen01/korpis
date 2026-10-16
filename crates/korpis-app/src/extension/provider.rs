@@ -8,7 +8,9 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, ProviderWrite, RecipeSource, Store, Tx};
+use crate::ports::{
+    Clock, EffectWrite, ExtensionWrite as _, ProviderWrite, RecipeSource, Store, Tx,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::extension::{
     CallFailure, CallOutcome, MAX_CONCURRENCY, MAX_VERSION, ProvidedInterface, ProviderType,
@@ -137,7 +139,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let gone = tx.expire_registrations(before).await?;
         for r in &gone {
-            let workload = self.store.extension(r.extension).await?.map(|i| i.workload);
+            let workload = tx.extension_within(r.extension).await?.map(|i| i.workload);
             let actor = Principal::System(SystemActor::Reconciler);
             tx.append_effect(&effect(actor, "provider.withdraw", r, workload)).await?;
         }

@@ -304,12 +304,13 @@ the first response has lost the secret and asks for a new one; a lost enrollment
 unused, and a lost grant-holding token is disarmed by revoking its grant.
 
 > Decided 2026-10-16, when the account service was built. The ceremonies of §9.6 of
-> `08-identity.md` (redeeming an invitation, signing in) carry no idempotency key. A key is kept
-> per caller, and these have none until they succeed; and each spends a single-use proof, an
-> invitation or a challenge, so a retry after a lost answer is refused rather than applied twice,
-> which is the property the key exists to give. What it costs: a client that lost the answer to a
-> redemption has an account with its first factor and no recovery codes it saw, and renews them
-> once signed in.
+> `08-identity.md` (redeeming an invitation, signing in), and the exchange of a session's refresh
+> credential and signing out with it (§9.4), carry no idempotency key. A key is kept per caller,
+> and these have none until they succeed; and each spends a single-use proof, an invitation, a
+> challenge, or a refresh credential, so a retry after a lost answer is refused rather than applied
+> twice, which is the property the key exists to give. What it costs: a client that lost the answer
+> to a redemption has an account with its first factor and no recovery codes it saw, and renews
+> them once signed in.
 
 ### Read-your-writes
 

@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! What `korpis-server serve`'s flags are read as, where reading one is more than parsing a
+//! number.
+
+use crate::ServeError;
+use korpis_core::schedule::PlacementPolicy;
+use std::time::Duration;
+
+/// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
+pub fn placement_policy(json: &str) -> Result<PlacementPolicy, ServeError> {
+    let message: korpis_proto::korpis::v1::PlacementPolicy = serde_json::from_str(json)
+        .map_err(|e| ServeError::Config(format!("placement policy: {e}")))?;
+    korpis_wire::placement::policy_from_pb("placement_policy", &message)
+        .map_err(|e| ServeError::Config(format!("{}: {}", e.field, e.message)))
+}
+
+/// A span of time as a flag writes it: a whole number of minutes, hours, or days, `<n>m`,
+/// `<n>h`, or `<n>d`, at least a minute and at most a year.
+///
+/// # Errors
+/// It is not so written, or is out of that range.
+pub fn span(s: &str) -> Result<Duration, String> {
+    let bad = || format!("{s:?}: a span is <n>m, <n>h, or <n>d, from a minute to a year");
+    let (n, unit) = s.split_at_checked(s.len().saturating_sub(1)).ok_or_else(bad)?;
+    let n: u64 = n.parse().map_err(|_| bad())?;
+    let seconds = match unit {
+        "m" => n.checked_mul(60),
+        "h" => n.checked_mul(3600),
+        "d" => n.checked_mul(86_400),
+        _ => None,
+    };
+    seconds.filter(|s| (60..=365 * 86_400).contains(s)).map(Duration::from_secs).ok_or_else(bad)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_span_is_minutes_hours_or_days_from_a_minute_to_a_year() {
+        assert_eq!(span("12h"), Ok(Duration::from_secs(12 * 3600)));
+        assert_eq!(span("7d"), Ok(Duration::from_secs(7 * 86_400)));
+        assert_eq!(span("1m"), Ok(Duration::from_secs(60)));
+        for bad in ["0m", "366d", "12", "h", "", "1.5h", "-1h", "99999999999999999999d"] {
+            assert!(span(bad).is_err(), "{bad}");
+        }
+    }
+}

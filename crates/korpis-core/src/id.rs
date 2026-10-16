@@ -65,6 +65,8 @@ pub enum IdKind {
     Domain,
     /// A certificate the ingress serves (`crt_`).
     Certificate,
+    /// A user's session (`ses_`).
+    Session,
 }
 
 impl IdKind {
@@ -98,6 +100,7 @@ impl IdKind {
             Self::Backup => "bkp",
             Self::Domain => "dom",
             Self::Certificate => "crt",
+            Self::Session => "ses",
         }
     }
 }

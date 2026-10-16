@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
+// `__Secure-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and sent only to
+// this service's path, so no script can read it and no other call carries it; the CLI's travels
+// in the request and response bodies instead. Exchange and SignOut take no other credential and
+// a refused one is a failed attempt (§10 of docs/10-api.md); the rest are called with an access
+// token, as any call is.
+service SessionService {
+  // Exchanges the refresh credential for an access token, rotating it: the cookie is replaced,
+  // or, for a credential sent in the body, the next one is answered in the body. A credential
+  // already rotated, presented again, ends the session.
+  rpc Exchange(ExchangeRequest) returns (ExchangeResponse);
+  // Ends the session of the refresh credential, and clears the cookie.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+  // The caller's live sessions, newest first.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Ends one of the caller's sessions.
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  // Ends every session of the caller's but the one it is calling from.
+  rpc EndOtherSessions(EndOtherSessionsRequest) returns (EndOtherSessionsResponse);
+}
+
+message ExchangeRequest {
+  // The CLI's refresh credential, `korpisrt_` and the rest; empty for a browser, whose cookie
+  // carries it.
+  string refresh = 1;
+}
+
+message ExchangeResponse {
+  // The bearer of the account's calls, `korpisat_` and the rest.
+  string access_token = 1;
+  google.protobuf.Timestamp access_expires_at = 2;
+  // The account, as `usr_…`.
+  string account = 3;
+  // The session, as `ses_…`.
+  string session = 4;
+  // The next refresh credential, when the one exchanged came in the body.
+  string refresh = 5;
+  // When the session ends whatever is done with it.
+  google.protobuf.Timestamp session_expires_at = 6;
+}
+
+message SignOutRequest {
+  // As in ExchangeRequest.
+  string refresh = 1;
+}
+
+message SignOutResponse {}
+
+message ListSessionsRequest {}
+
+message Session {
+  // As `ses_…`.
+  string id = 1;
+  // `web` or `cli`.
+  string kind = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp last_used_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  // What the client that began it said it was.
+  string user_agent = 6;
+  // Where it began from: an address, or an IPv6 /64.
+  string source = 7;
+  // The session the caller is calling from.
+  bool current = 8;
+}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message EndSessionRequest {
+  // As `ses_…`.
+  string session = 1;
+}
+
+message EndSessionResponse {}
+
+message EndOtherSessionsRequest {}
+
+message EndOtherSessionsResponse {
+  // How many ended.
+  uint64 ended = 1;
+}

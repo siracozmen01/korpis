@@ -20,7 +20,7 @@ async fn redeem(f: &Fixture, name: &str) -> (Redeemed, TotpSecret) {
         totp: totp.clone(),
         code: code(&totp, 0),
     };
-    (f.app.redeem_with_password(&invitation, r).await.unwrap(), totp)
+    (f.app.redeem_with_password(&invitation, r, &crate::support::client()).await.unwrap(), totp)
 }
 
 #[tokio::test]
@@ -28,15 +28,20 @@ async fn a_password_signs_in_only_with_a_code_beside_it_and_each_code_once() {
     let f = fixture().await;
     let (redeemed, totp) = redeem(&f, "friend").await;
     let next = SecondFactor::Totp(code(&totp, 1));
-    let signed_in =
-        f.app.sign_in_with_password("friend", PASSWORD, next.clone(), None).await.unwrap();
+    let signed_in = f
+        .app
+        .sign_in_with_password("friend", PASSWORD, next.clone(), &crate::support::client())
+        .await
+        .unwrap();
     assert_eq!(signed_in.account, redeemed.account);
     assert!(signed_in.mfa);
-    let again = f.app.sign_in_with_password("friend", PASSWORD, next, None).await;
+    let again =
+        f.app.sign_in_with_password("friend", PASSWORD, next, &crate::support::client()).await;
     assert_eq!(again, Err(AppError::Unauthenticated), "the step is spent");
 
     let wrong = SecondFactor::Totp("000000".into());
-    let refused = f.app.sign_in_with_password("friend", PASSWORD, wrong, None).await;
+    let refused =
+        f.app.sign_in_with_password("friend", PASSWORD, wrong, &crate::support::client()).await;
     assert_eq!(refused, Err(AppError::Unauthenticated));
 }
 
@@ -45,9 +50,13 @@ async fn a_recovery_code_stands_beside_a_password_once() {
     let f = fixture().await;
     let (redeemed, _) = redeem(&f, "friend").await;
     let recovery = SecondFactor::Recovery(redeemed.recovery_codes[3].to_lowercase());
-    let signed_in = f.app.sign_in_with_password("friend", PASSWORD, recovery.clone(), None).await;
+    let signed_in = f
+        .app
+        .sign_in_with_password("friend", PASSWORD, recovery.clone(), &crate::support::client())
+        .await;
     assert_eq!(signed_in.unwrap().account, redeemed.account);
-    let spent = f.app.sign_in_with_password("friend", PASSWORD, recovery, None).await;
+    let spent =
+        f.app.sign_in_with_password("friend", PASSWORD, recovery, &crate::support::client()).await;
     assert_eq!(spent, Err(AppError::Unauthenticated));
 }
 
@@ -59,10 +68,16 @@ async fn every_refusal_is_the_same_whichever_part_failed() {
     for (name, password) in
         [("friend", "not the password at all"), ("nobody", PASSWORD), ("not a name", PASSWORD)]
     {
-        let refused = f.app.sign_in_with_password(name, password, recovery(), None).await;
+        let refused = f
+            .app
+            .sign_in_with_password(name, password, recovery(), &crate::support::client())
+            .await;
         assert_eq!(refused, Err(AppError::Unauthenticated), "{name}");
     }
-    let unspent = f.app.sign_in_with_password("friend", PASSWORD, recovery(), None).await;
+    let unspent = f
+        .app
+        .sign_in_with_password("friend", PASSWORD, recovery(), &crate::support::client())
+        .await;
     assert!(unspent.is_ok(), "a refused password spends no recovery code");
 }
 
@@ -78,9 +93,23 @@ async fn a_redemption_refuses_a_short_password_and_a_code_of_another_secret() {
         totp: totp.clone(),
         code,
     };
-    let short = f.app.redeem_with_password(&invitation, attempt("short", code(&totp, 0))).await;
+    let short = f
+        .app
+        .redeem_with_password(
+            &invitation,
+            attempt("short", code(&totp, 0)),
+            &crate::support::client(),
+        )
+        .await;
     assert!(matches!(short, Err(AppError::Invalid { ref field, .. }) if field == "password"));
-    let unread = f.app.redeem_with_password(&invitation, attempt(PASSWORD, code(&other, 0))).await;
+    let unread = f
+        .app
+        .redeem_with_password(
+            &invitation,
+            attempt(PASSWORD, code(&other, 0)),
+            &crate::support::client(),
+        )
+        .await;
     assert!(matches!(unread, Err(AppError::Invalid { ref field, .. }) if field == "code"));
     assert!(f.app.invitation(&invitation).await.is_ok(), "nothing was spent");
 }
@@ -90,13 +119,20 @@ async fn ten_wrong_guesses_at_a_name_refuse_even_the_right_password() {
     let f = fixture().await;
     let (redeemed, _) = redeem(&f, "friend").await;
     let recovery = || SecondFactor::Recovery(redeemed.recovery_codes[0].clone());
+    let client = crate::support::client();
     for _ in 0..10 {
-        let wrong = f.app.sign_in_with_password("Friend", "not the password!", recovery(), None);
+        let wrong = f.app.sign_in_with_password("Friend", "not the password!", recovery(), &client);
         assert_eq!(wrong.await, Err(AppError::Unauthenticated));
     }
-    let right = f.app.sign_in_with_password("friend", PASSWORD, recovery(), None).await;
+    let right = f
+        .app
+        .sign_in_with_password("friend", PASSWORD, recovery(), &crate::support::client())
+        .await;
     assert!(matches!(right, Err(AppError::RateLimited { .. })), "{right:?}");
-    let other = f.app.sign_in_with_password("nobody", PASSWORD, recovery(), None).await;
+    let other = f
+        .app
+        .sign_in_with_password("nobody", PASSWORD, recovery(), &crate::support::client())
+        .await;
     assert_eq!(other, Err(AppError::Unauthenticated), "another name is not slowed");
 }
 
@@ -105,8 +141,9 @@ async fn guesses_sent_at_once_cannot_all_pass_a_bucket_with_room_for_ten() {
     let f = fixture().await;
     let (redeemed, _) = redeem(&f, "friend").await;
     let recovery = SecondFactor::Recovery(redeemed.recovery_codes[0].clone());
+    let client = crate::support::client();
     let guesses = (0..30).map(|_| {
-        f.app.sign_in_with_password("friend", "not the password!", recovery.clone(), None)
+        f.app.sign_in_with_password("friend", "not the password!", recovery.clone(), &client)
     });
     let answers = futures_util::future::join_all(guesses).await;
     let checked = answers.iter().filter(|a| **a == Err(AppError::Unauthenticated)).count();

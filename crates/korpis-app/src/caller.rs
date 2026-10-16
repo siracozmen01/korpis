@@ -15,15 +15,24 @@ pub struct Caller {
     pub subject: Subject,
     /// Where the request came from, for network conditions.
     pub source_ip: Option<IpAddr>,
-    /// Whether the credential carried a second factor. API tokens never do; passkeys arrive with
-    /// the web client (§9 of docs/08-identity.md).
+    /// Whether the credential carried a second factor. API tokens never do; a signed-in user's
+    /// access token always does, since no sign-in is one factor (§9.6 of docs/08-identity.md).
     pub mfa: bool,
+    /// The session a signed-in user's access token was exchanged under.
+    pub session: Option<uuid::Uuid>,
 }
 
 impl Caller {
     /// A caller acting as `principal`.
     #[must_use]
     pub fn new(principal: Principal, source_ip: Option<IpAddr>, mfa: bool) -> Self {
-        Self { subject: principal.subject(), principal, source_ip, mfa }
+        Self { subject: principal.subject(), principal, source_ip, mfa, session: None }
+    }
+
+    /// The caller, acting under the user session `session`.
+    #[must_use]
+    pub const fn with_session(mut self, session: uuid::Uuid) -> Self {
+        self.session = Some(session);
+        self
     }
 }

@@ -58,6 +58,10 @@ impl PgTx {
 }
 
 impl WorkloadWrite for PgTx {
+    async fn intent_within(&mut self, id: Uuid) -> StoreResult<Option<Intent>> {
+        super::intent(&mut *self.tx, self.bodies.as_ref(), id).await
+    }
+
     async fn lock_workload(&mut self, id: Uuid) -> StoreResult<Option<Workload>> {
         let row = sqlx::query_as!(
             WorkloadRow,

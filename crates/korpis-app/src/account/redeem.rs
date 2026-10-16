@@ -5,7 +5,7 @@
 //! is spent, in one transaction. A refused secret is [`AppError::Unauthenticated`], so nothing
 //! answers whether an invitation exists.
 
-use super::{NewRegistration, Registration, fresh_codes, record};
+use super::{Begun, Client, NewRegistration, Registration, fresh_codes, record};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{AccountWrite as _, Clock, RecipeSource, Store, StoreError, Tx as _, Unique};
@@ -54,6 +54,8 @@ pub struct Redeemed {
     pub account: Uuid,
     /// Its recovery codes, answered once.
     pub recovery_codes: Vec<String>,
+    /// The session its redemption began.
+    pub session: Begun,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -107,12 +109,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Redeems the invitation `secret` as `name` with the passkey registration `r`, answering
-    /// the challenge [`Self::begin_redemption`] issued.
+    /// the challenge [`Self::begin_redemption`] issued, and begins a session for `client`.
     pub async fn redeem_with_passkey(
         &self,
         secret: &str,
-        name: &str,
-        r: NewRegistration,
+        (name, r): (&str, NewRegistration),
+        client: &Client,
     ) -> Result<Redeemed, AppError> {
         let (invitation, account) = self.open_invitation(secret).await?;
         let name = self.free_name(account.id, name).await?;
@@ -132,14 +134,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         self.spend(&mut tx, &invitation, &account, &name).await?;
         tx.insert_passkey(&passkey).await.map_err(registered)?;
-        self.finish_redemption(tx, &invitation, account.id, "passkey").await
+        self.finish_redemption(tx, (&invitation, account.id), "passkey", client).await
     }
 
-    /// Redeems the invitation `secret` with a password and TOTP beside it.
+    /// Redeems the invitation `secret` with a password and TOTP beside it, and begins a session
+    /// for `client`.
     pub async fn redeem_with_password(
         &self,
         secret: &str,
         r: PasswordRedemption,
+        client: &Client,
     ) -> Result<Redeemed, AppError> {
         let (invitation, account) = self.open_invitation(secret).await?;
         if invitation.passkey_only {
@@ -163,7 +167,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.spend(&mut tx, &invitation, &account, &name).await?;
         tx.set_password(account.id, &phc, self.clock.now()).await?;
         tx.set_totp(account.id, &sealed, step).await?;
-        self.finish_redemption(tx, &invitation, account.id, "password+totp").await
+        self.finish_redemption(tx, (&invitation, account.id), "password+totp", client).await
     }
 
     /// Spends `invitation` and names `account` `name`, in `tx`.
@@ -183,19 +187,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// Gives the account its recovery codes, records the redemption, and commits.
+    /// Gives the account its recovery codes, records the redemption, begins a session for
+    /// `client`, and commits.
     async fn finish_redemption(
         &self,
         mut tx: S::Tx,
-        invitation: &Invitation,
-        account: Uuid,
+        (invitation, account): (&Invitation, Uuid),
         factor: &str,
+        client: &Client,
     ) -> Result<Redeemed, AppError> {
         let recovery_codes = fresh_codes(&mut tx, account).await?;
         let more = [("invitation", invitation.id.to_string().into()), ("factor", factor.into())];
         record(&mut tx, &Principal::User(account), "account.redeemed", account, more).await?;
+        let session = self.begin_session(&mut tx, account, client).await?;
         tx.commit().await?;
-        Ok(Redeemed { account, recovery_codes })
+        Ok(Redeemed { account, recovery_codes, session })
     }
 }
 

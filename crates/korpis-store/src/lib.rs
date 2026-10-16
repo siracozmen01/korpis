@@ -50,6 +50,7 @@ mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;
 mod trust;
+mod user_session;
 mod volume;
 mod workload;
 

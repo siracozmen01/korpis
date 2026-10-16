@@ -10,6 +10,8 @@ pub mod acme;
 pub mod api;
 pub mod authority;
 pub mod bodies;
+mod flags;
+pub use flags::{placement_policy, span};
 mod buckets;
 mod control_jobs;
 pub mod data;
@@ -102,14 +104,8 @@ pub struct ServeConfig {
     /// The site passkeys are bound to and the origins a ceremony may come from (§9.6 of
     /// docs/08-identity.md); without one, no passkey can be registered or used.
     pub relying_party: Option<korpis_core::webauthn::RelyingParty>,
-}
-
-/// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
-pub fn placement_policy(json: &str) -> Result<PlacementPolicy, ServeError> {
-    let message: korpis_proto::korpis::v1::PlacementPolicy = serde_json::from_str(json)
-        .map_err(|e| ServeError::Config(format!("placement policy: {e}")))?;
-    korpis_wire::placement::policy_from_pb("placement_policy", &message)
-        .map_err(|e| ServeError::Config(format!("{}: {}", e.field, e.message)))
+    /// How long user sessions last (§9.4 of docs/08-identity.md).
+    pub session_limits: korpis_core::account::session::SessionLimits,
 }
 
 /// Why serving failed.
@@ -185,7 +181,8 @@ fn application(
                 .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,
         ))
         .with_factor_vault(Arc::new(factor_vault::FactorKeys::load_or_create(&config.data)?))
-        .with_passwords(Arc::new(passwords::Bounded::per_core()));
+        .with_passwords(Arc::new(passwords::Bounded::per_core()))
+        .with_session_limits(config.session_limits);
     if let Some(rp) = &config.relying_party {
         return Ok(app.with_relying_party(rp.clone()));
     }
@@ -254,6 +251,7 @@ fn background(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(issuer::keep(Arc::clone(api)));
     tokio::spawn(records::keep(Arc::clone(api)));
     tokio::spawn(buckets::forget(Arc::clone(api)));
+    tokio::spawn(buckets::forget_sessions(Arc::clone(api)));
 }
 
 /// Tries again, every `every`, each workload whose approved target no node could take: a node

@@ -68,6 +68,11 @@ table! {
     "korpis.v1.AccountService/BeginSignIn" => AccountServiceClient::begin_sign_in(BeginSignInRequest);
     "korpis.v1.AccountService/SignInWithPasskey" => AccountServiceClient::sign_in_with_passkey(SignInWithPasskeyRequest);
     "korpis.v1.AccountService/SignInWithPassword" => AccountServiceClient::sign_in_with_password(SignInWithPasswordRequest);
+    "korpis.v1.SessionService/Exchange" => SessionServiceClient::exchange(ExchangeRequest);
+    "korpis.v1.SessionService/SignOut" => SessionServiceClient::sign_out(SignOutRequest);
+    "korpis.v1.SessionService/ListSessions" => SessionServiceClient::list_sessions(ListSessionsRequest);
+    "korpis.v1.SessionService/EndSession" => SessionServiceClient::end_session(EndSessionRequest);
+    "korpis.v1.SessionService/EndOtherSessions" => SessionServiceClient::end_other_sessions(EndOtherSessionsRequest);
     "korpis.v1.OrganizationService/CreateOrganization" => OrganizationServiceClient::create_organization(CreateOrganizationRequest);
     "korpis.v1.OrganizationService/GetOrganization" => OrganizationServiceClient::get_organization(GetOrganizationRequest);
     "korpis.v1.OrganizationService/ListOrganizations" => OrganizationServiceClient::list_organizations(ListOrganizationsRequest);

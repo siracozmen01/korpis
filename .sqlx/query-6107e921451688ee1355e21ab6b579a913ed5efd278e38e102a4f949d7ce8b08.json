@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM user_session\n              WHERE id IN (SELECT id FROM user_session\n                            WHERE expires_at <= $1 OR last_used_at <= $2\n                            LIMIT $3 FOR UPDATE SKIP LOCKED)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6107e921451688ee1355e21ab6b579a913ed5efd278e38e102a4f949d7ce8b08"
+}

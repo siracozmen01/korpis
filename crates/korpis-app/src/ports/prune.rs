@@ -92,6 +92,14 @@ pub trait PruneRead {
 
 /// Writing what a prune decides, in a transaction.
 pub trait PruneWrite {
+    /// [`PruneRead::writable_until`], read within the transaction (Finding 71 of
+    /// docs/23-walkthroughs.md).
+    fn writable_until_within(
+        &mut self,
+        prefix: Prefix,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
+
     /// Records access about to be asked for.
     fn record_access(
         &mut self,

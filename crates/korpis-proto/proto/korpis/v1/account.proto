@@ -95,6 +95,9 @@ message RedeemResponse {
   // Ten codes, each a second factor once; shown once and stored only as digests (§9.3 of
   // docs/08-identity.md).
   repeated string recovery_codes = 2;
+  // The session the redemption began, as `ses_…`; its refresh credential is set as the cookie
+  // of the session service (session.proto).
+  string session = 3;
 }
 
 message OfferTotpRequest {
@@ -153,4 +156,7 @@ message SignInWithPasswordRequest {
 message SignInResponse {
   // The account signed in to, as `usr_…`.
   string account = 1;
+  // The session the sign-in began, as `ses_…`; its refresh credential is set as the cookie of
+  // the session service (session.proto).
+  string session = 2;
 }

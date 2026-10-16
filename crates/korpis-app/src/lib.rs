@@ -69,6 +69,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     relying_party: Option<korpis_core::webauthn::RelyingParty>,
     factor_vault: Option<Arc<dyn ports::FactorVault>>,
     passwords: Arc<dyn ports::Passwords>,
+    session_limits: korpis_core::account::session::SessionLimits,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -97,6 +98,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             relying_party: None,
             factor_vault: None,
             passwords: Arc::new(ports::InPlace),
+            session_limits: korpis_core::account::session::SessionLimits::default(),
         }
     }
 
@@ -221,6 +223,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub fn with_passwords(mut self, passwords: Arc<dyn ports::Passwords>) -> Self {
         self.passwords = passwords;
         self
+    }
+
+    /// Ends user sessions by `limits` instead of the defaults (§9.4 of docs/08-identity.md).
+    #[must_use]
+    pub const fn with_session_limits(
+        mut self,
+        limits: korpis_core::account::session::SessionLimits,
+    ) -> Self {
+        self.session_limits = limits;
+        self
+    }
+
+    /// How long user sessions last.
+    pub const fn session_limits(&self) -> korpis_core::account::session::SessionLimits {
+        self.session_limits
     }
 
     /// The site passkeys are bound to, if one is configured: what an authenticator app names

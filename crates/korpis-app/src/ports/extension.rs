@@ -48,6 +48,12 @@ pub trait ExtensionRead {
 
 /// Writing installations.
 pub trait ExtensionWrite {
+    /// One installation, read within the transaction (Finding 71 of docs/23-walkthroughs.md).
+    fn extension_within(
+        &mut self,
+        id: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Installation>>> + Send;
+
     /// A new installation. Another of its name installed in the same place is
     /// [`Unique::ExtensionName`](super::Unique::ExtensionName).
     fn insert_extension(

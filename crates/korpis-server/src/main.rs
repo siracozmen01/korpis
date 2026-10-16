@@ -2,6 +2,7 @@
 
 use clap::{Parser, Subcommand};
 use korpis_app::install::RootHolder;
+use korpis_core::account::session::SessionLimits;
 use korpis_core::rate::{Rate, Rates};
 use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::Name;
@@ -170,6 +171,13 @@ struct ServeArgs {
     /// Another origin a panel is served from, on the same site (§1 of docs/11-surface-web.md).
     #[arg(long = "web-origin", env = "KORPIS_WEB_ORIGIN", value_delimiter = ',')]
     web_origin: Vec<String>,
+    /// How long a user session lasts without being used, as `<n>m`, `<n>h`, or `<n>d` (§9.4 of
+    /// docs/08-identity.md).
+    #[arg(long, default_value = "12h", value_parser = korpis_server::span)]
+    session_idle: Duration,
+    /// How long a user session lasts in all, as `--session-idle` is written.
+    #[arg(long, default_value = "7d", value_parser = korpis_server::span)]
+    session_max: Duration,
 }
 
 #[derive(Debug, Subcommand)]
@@ -346,6 +354,7 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             args.rp_id.as_deref(),
             &args.web_origin,
         )?,
+        session_limits: SessionLimits { idle: args.session_idle, max: args.session_max },
     })
     .await?;
     tokio::select! {

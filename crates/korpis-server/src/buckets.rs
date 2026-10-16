@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Forgetting the rate limit buckets that are full again (§10 of docs/10-api.md): a bucket kept
-//! nowhere is full, so a bucket costs a row only while it owes, and the addresses and invented
-//! sign-in names a flood brings leave nothing behind once their buckets refill.
+//! Forgetting what has lapsed: the rate limit buckets that are full again (§10 of
+//! docs/10-api.md), since a bucket kept nowhere is full, so the addresses and invented sign-in
+//! names a flood brings leave nothing behind once their buckets refill; and the user sessions
+//! ended by age or idleness (§9.4 of docs/08-identity.md), with the credentials they rotated.
 
 use crate::api::Api;
-use korpis_app::ports::RateBuckets as _;
+use korpis_app::ports::{RateBuckets as _, UserSessionRead as _};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -27,6 +28,27 @@ pub async fn forget(api: Arc<Api>) {
                 Ok(_) => {}
                 Err(e) => {
                     tracing::warn!(error = %e, "forgetting full rate limit buckets failed");
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Forgets, every minute, the user sessions ended by age or idleness, a batch at a time until
+/// none is left. The task ends with the process.
+pub async fn forget_sessions(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(EVERY);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let idle = api.app().session_limits().idle;
+    loop {
+        tick.tick().await;
+        loop {
+            match api.app().store().forget_lapsed_sessions(SystemTime::now(), idle, BATCH).await {
+                Ok(n) if n < u64::from(BATCH) => break,
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::warn!(error = %e, "forgetting lapsed sessions failed");
                     break;
                 }
             }

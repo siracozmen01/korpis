@@ -62,9 +62,10 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
         authenticator_data: got.authenticator_data,
         signature: got.signature,
     };
-    let signed_in = f.app.sign_in_with_passkey(assertion.clone()).await.unwrap();
+    let signed_in =
+        f.app.sign_in_with_passkey(assertion.clone(), &crate::support::client()).await.unwrap();
     assert_eq!(signed_in.account, account);
-    let replayed = f.app.sign_in_with_passkey(assertion).await;
+    let replayed = f.app.sign_in_with_passkey(assertion, &crate::support::client()).await;
     assert_eq!(replayed, Err(AppError::Unauthenticated), "the challenge was taken");
 
     // Another authenticator holding the credential answers with a counter behind the stored one.
@@ -78,7 +79,10 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
         authenticator_data: got.authenticator_data,
         signature: got.signature,
     };
-    assert_eq!(f.app.sign_in_with_passkey(cloned).await, Err(AppError::Unauthenticated));
+    assert_eq!(
+        f.app.sign_in_with_passkey(cloned, &crate::support::client()).await,
+        Err(AppError::Unauthenticated)
+    );
     let all = EffectFilter { workload: None, plan: None, node: None, since: None };
     let effects = f.app.store().effects(&all, None, 1000).await.unwrap();
     let cloned = effects.iter().find(|e| e.action == "account.passkey_cloned").unwrap();
@@ -97,7 +101,7 @@ async fn a_registration_answering_another_invitation_s_challenge_is_refused() {
         client_data_json: created.client_data_json,
         attestation_object: created.attestation_object,
     };
-    let crossed = f.app.redeem_with_passkey(&two, "two", r).await;
+    let crossed = f.app.redeem_with_passkey(&two, ("two", r), &crate::support::client()).await;
     assert_eq!(crossed.unwrap_err(), AppError::Unauthenticated);
     assert!(f.app.invitation(&two).await.is_ok(), "the other invitation is still open");
 }

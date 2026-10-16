@@ -188,7 +188,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         match plan.target {
             PlanTarget::Intent(i) => {
                 let target =
-                    self.store.intent(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
+                    tx.intent_within(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
                 self.claim_target(&mut tx, &w, &target.body).await?;
                 self.place_screened(&mut tx, &w, Some(&target), &screened).await?;
             }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, project_id, name, version, api_version, workload_id,\n                    artifact_name, artifact_digest, installed_by, installed_at, uninstalled_at\n               FROM extension WHERE id = $1",
+  "query": "SELECT id, organization_id, project_id, name, version, api_version, workload_id,\n                artifact_name, artifact_digest, installed_by, installed_at, uninstalled_at\n           FROM extension WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -156,5 +156,5 @@
       true
     ]
   },
-  "hash": "f66ee71587056cb6c2b0bb7989eb4508bda196d7f99790ff334d0a7b32b016c9"
+  "hash": "f950e3d78ee6b56820cbc49a34fbd8d9b208831303833d640fede691e76e60d3"
 }

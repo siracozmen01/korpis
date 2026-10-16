@@ -1142,6 +1142,25 @@ hours without an exchange and any session after 7 days (`--session-idle`, `--ses
 Ending a session, or all others, deletes their refresh credentials at once; their access tokens
 then expire within 120 seconds, the bound this table always gave.
 
+> As built, 2026-10-17. A redemption or a sign-in begins the session and sets its refresh
+> credential as the cookie `__Secure-korpis_refresh`, `HttpOnly`, `Secure`, `SameSite=Strict`, and
+> `Path=/korpis.v1.SessionService/`, the path of `SessionService`, whose `Exchange` reads it and
+> replaces it. The CLI sends its credential in the request body instead and receives the next one
+> there. Every digest a session rotated away is kept for the session's life, so a rotated
+> credential presented again is recognised whenever it is, and ends the session, recorded as
+> `session.reused`; a session ended by age or idleness is forgotten within a minute, with the
+> digests it rotated. The access token is verified at the gateway with the control plane's
+> current token key, so rotating that key (§8 of `03-state.md`) signs every browser out within
+> 120 seconds, as it ends every capability token. The flags are `--session-idle` and
+> `--session-max`, written `12h` and `7d`. Exchanging a credential and signing out with it carry no
+> idempotency key, as the ceremonies of §9.6 do not (§6 of `10-api.md`). What strict rotation
+> costs: an exchange whose answer is lost, retried, presents a rotated credential and ends the
+> session, and so would two tabs of one browser exchanging the same cookie at once. So the panel
+> exchanges from one tab at a time, holding a lock of the browser's (the Web Locks API) for the
+> exchange and sharing the access token it gets with its other tabs, and a client that lost an
+> answer signs in again; a grace window in which a just-rotated credential still worked would
+> spare that, and would let a copy taken in the same moment work too.
+
 > Corrected 2026-10-16. The table's third row said a browser held "capability tokens" minted from
 > the refresh credential. What a browser presents to the API is the access token above, which
 > names the user rather than carrying a grant chain, because the control plane evaluates the

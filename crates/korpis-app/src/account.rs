@@ -9,11 +9,13 @@
 mod ceremony;
 mod manage;
 mod redeem;
+mod session;
 mod sign_in;
 
 pub use ceremony::{NewRegistration, Registration, SignInOptions};
 pub use manage::AccountView;
 pub use redeem::{InvitationView, PasswordRedemption, Redeemed};
+pub use session::{Begun, Client, Exchanged, SessionView};
 pub use sign_in::{Assertion, SecondFactor, SignedIn};
 
 use crate::App;

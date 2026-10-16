@@ -5,7 +5,7 @@
 //! failed, and a password is checked against a stand-in hash when there is no account to check it
 //! against, so how long a refusal takes does not say whether a sign-in name exists.
 
-use super::record;
+use super::{Begun, Client, record};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{AccountWrite as _, Clock, RecipeSource, Store, Tx as _};
@@ -15,7 +15,6 @@ use korpis_core::account::recovery;
 use korpis_core::principal::Principal;
 use korpis_core::rate::{Bucket, Standing};
 use korpis_core::webauthn::{StoredPasskey, WebAuthnError, verify_assertion};
-use std::net::IpAddr;
 use uuid::Uuid;
 
 /// What stands beside a password.
@@ -42,7 +41,7 @@ pub struct Assertion {
     pub signature: Vec<u8>,
 }
 
-/// A sign-in that succeeded.
+/// A sign-in that succeeded, and the session it began.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedIn {
     /// The account.
@@ -50,11 +49,17 @@ pub struct SignedIn {
     /// Whether it satisfies `requires_mfa` (§9 of docs/08-identity.md): every sign-in this
     /// accepts does, since none is one factor.
     pub mfa: bool,
+    /// The session, and its refresh credential.
+    pub session: Begun,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Signs in with the passkey assertion `a`.
-    pub async fn sign_in_with_passkey(&self, a: Assertion) -> Result<SignedIn, AppError> {
+    /// Signs in with the passkey assertion `a`, beginning a session for `client`.
+    pub async fn sign_in_with_passkey(
+        &self,
+        a: Assertion,
+        client: &Client,
+    ) -> Result<SignedIn, AppError> {
         let challenge = self.take_challenge(a.challenge, Ceremony::SignIn).await?;
         let passkey =
             self.store.passkey(&a.credential_id).await?.ok_or(AppError::Unauthenticated)?;
@@ -91,8 +96,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             more,
         )
         .await?;
+        let session = self.begin_session(&mut tx, passkey.account, client).await?;
         tx.commit().await?;
-        Ok(SignedIn { account: passkey.account, mfa: true })
+        Ok(SignedIn { account: passkey.account, mfa: true, session })
     }
 
     /// Records that a passkey of `account` answered with a counter that did not advance: two
@@ -129,8 +135,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         name: &str,
         password: &str,
         second: SecondFactor,
-        ip: Option<IpAddr>,
+        client: &Client,
     ) -> Result<SignedIn, AppError> {
+        let ip = client.ip;
         let rate = self.limiter.rates.guesses;
         let guessed = sign_in_name(name).ok().map(|n| Bucket {
             policy: "guesses",
@@ -140,7 +147,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let buckets: Vec<Bucket> =
             std::iter::once(self.failure_bucket(ip)).chain(guessed).collect();
         refused(self.store.charge(buckets.clone(), self.clock.now()).await?)?;
-        let checked = self.check_password(name, password, second).await;
+        let checked = self.check_password(name, password, second, client).await;
         match &checked {
             Ok(_) => {
                 for bucket in &buckets {
@@ -153,12 +160,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         checked
     }
 
-    /// Checks `password` and `second` for `name`, and records the sign-in if both hold.
+    /// Checks `password` and `second` for `name`, and records the sign-in and begins a session
+    /// for `client` if both hold. Everything read is read before the transaction begins, so it
+    /// never holds a connection while asking the pool for another (Finding 71).
     async fn check_password(
         &self,
         name: &str,
         password: &str,
         second: SecondFactor,
+        client: &Client,
     ) -> Result<SignedIn, AppError> {
         let Some((account, phc)) = self.password_of(name).await? else {
             let _ = self.passwords().matches(password, STAND_IN).await;
@@ -167,11 +177,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.passwords().matches(password, &phc).await {
             return Err(AppError::Unauthenticated);
         }
+        let totp = match &second {
+            SecondFactor::Totp(_) => self.store.totp(account).await?,
+            SecondFactor::Recovery(_) => None,
+        };
+        let rehashed =
+            if outdated(&phc) { self.passwords().hash(password).await.ok() } else { None };
         let mut tx = self.store.begin().await?;
         let now = self.clock.now();
         let factor = match &second {
             SecondFactor::Totp(code) => {
-                let totp = self.store.totp(account).await?.ok_or(AppError::Unauthenticated)?;
+                let totp = totp.ok_or(AppError::Unauthenticated)?;
                 let secret = self
                     .factor_vault()?
                     .open(account, &totp.sealed)
@@ -190,11 +206,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 "password+recovery_code"
             }
         };
-        if outdated(&phc) {
-            let fresh = self.passwords().hash(password).await;
-            if let Ok(fresh) = fresh {
-                tx.set_password(account, &fresh, now).await?;
-            }
+        if let Some(fresh) = rehashed {
+            tx.set_password(account, &fresh, now).await?;
         }
         record(
             &mut tx,
@@ -204,8 +217,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             [("factor", factor.into())],
         )
         .await?;
+        let session = self.begin_session(&mut tx, account, client).await?;
         tx.commit().await?;
-        Ok(SignedIn { account, mfa: true })
+        Ok(SignedIn { account, mfa: true, session })
     }
 
     /// The account `name` names and its password hash, if it may sign in with one.

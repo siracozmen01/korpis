@@ -44,6 +44,7 @@ mod stream;
 mod subscription;
 mod tenancy;
 mod trust;
+mod user_session;
 mod volume;
 mod workload;
 
@@ -99,6 +100,7 @@ pub use stream::{Expired, Reported, StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
+pub use user_session::{Presented, UserSessionRead, UserSessionWrite};
 pub use volume::{SnapshotRead, SnapshotWrite, VolumeRead, VolumeWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
 
@@ -166,6 +168,7 @@ pub type StoreResult<T> = Result<T, StoreError>;
 pub trait Store:
     RateBuckets
     + AccountRead
+    + UserSessionRead
     + TenancyRead
     + HierarchyRead
     + GrantRead
@@ -241,6 +244,7 @@ pub trait Store:
 pub trait Tx:
     TenancyWrite
     + AccountWrite
+    + UserSessionWrite
     + RateWrite
     + GrantWrite
     + CredentialWrite

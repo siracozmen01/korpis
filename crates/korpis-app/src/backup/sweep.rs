@@ -65,7 +65,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        let writable = self.store.writable_until(prefix, now).await?;
+        let writable = tx.writable_until_within(prefix, now).await?;
         let wait = match writable {
             Some(until) => Some(until),
             None if !tx.hold_for_sweep(prefix, job.id).await? => Some(now + BUSY),

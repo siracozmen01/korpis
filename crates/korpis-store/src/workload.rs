@@ -14,6 +14,25 @@ use korpis_core::workload::{Intent, Plan, PowerRecord, Workload};
 use rows::{IntentRow, PlanRow, PowerRow, WorkloadRow};
 use uuid::Uuid;
 
+/// Intent `id`, read through `e`, a pool or a transaction.
+pub(crate) async fn intent<'e, E: sqlx::PgExecutor<'e>>(
+    e: E,
+    bodies: &dyn korpis_app::ports::IntentCodec,
+    id: Uuid,
+) -> StoreResult<Option<Intent>> {
+    let row = sqlx::query_as!(
+        IntentRow,
+        r#"SELECT id, workload_id, version, parent_id, declared_by, declared_at,
+                  body::text AS "body", schema_version, managed_by
+             FROM intent WHERE id = $1"#,
+        id
+    )
+    .fetch_optional(e)
+    .await
+    .map_err(from_sqlx)?;
+    row.map(|r| r.into_domain(bodies)).transpose()
+}
+
 impl WorkloadRead for PgStore {
     async fn workload(&self, id: Uuid) -> StoreResult<Option<Workload>> {
         let row = sqlx::query_as!(
@@ -58,17 +77,7 @@ impl WorkloadRead for PgStore {
     }
 
     async fn intent(&self, id: Uuid) -> StoreResult<Option<Intent>> {
-        let row = sqlx::query_as!(
-            IntentRow,
-            r#"SELECT id, workload_id, version, parent_id, declared_by, declared_at,
-                      body::text AS "body", schema_version, managed_by
-                 FROM intent WHERE id = $1"#,
-            id
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        row.map(|r| r.into_domain(self.bodies.as_ref())).transpose()
+        intent(&self.pool, self.bodies.as_ref(), id).await
     }
 
     async fn intents(&self, workload: Uuid, page: Page) -> StoreResult<Vec<Intent>> {

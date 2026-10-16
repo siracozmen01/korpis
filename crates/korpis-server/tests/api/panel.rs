@@ -53,6 +53,27 @@ pub async fn redeem(
     name: &str,
     browser: &SoftAuthenticator,
 ) -> Result<pb::RedeemResponse, connectrpc::ConnectError> {
+    Ok(redeem_keeping_cookie(h, invitation, name, browser).await?.0)
+}
+
+/// The refresh credential a response's `Set-Cookie` gives the browser, if it gives one.
+pub fn refresh_cookie(headers: &http::HeaderMap) -> Option<String> {
+    headers
+        .get_all(http::header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find_map(|v| v.strip_prefix("__Secure-korpis_refresh="))
+        .and_then(|v| v.split(';').next())
+        .map(str::to_owned)
+}
+
+/// [`redeem`], with the refresh credential its response set as the browser's cookie.
+pub async fn redeem_keeping_cookie(
+    h: &Harness,
+    invitation: &str,
+    name: &str,
+    browser: &SoftAuthenticator,
+) -> Result<(pb::RedeemResponse, String), connectrpc::ConnectError> {
     let begun = accounts(h)
         .begin_redemption(pb::BeginRedemptionRequest {
             invitation: invitation.to_owned(),
@@ -76,5 +97,7 @@ pub async fn redeem(
         registration: registration.into(),
         ..Default::default()
     };
-    Ok(accounts(h).redeem_with_passkey(request).await?.into_owned())
+    let response = accounts(h).redeem_with_passkey(request).await?;
+    let cookie = refresh_cookie(response.headers()).unwrap_or_default();
+    Ok((response.into_owned(), cookie))
 }

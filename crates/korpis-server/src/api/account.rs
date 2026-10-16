@@ -5,12 +5,14 @@
 //! refused is a failed attempt charged to its source (§10 of docs/10-api.md), so a source that
 //! keeps guessing is answered `RATE_LIMITED` instead.
 
-use super::{Api, error};
+use super::{Api, cookie, error};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::AppError;
 use korpis_app::account::{
-    Assertion, NewRegistration, PasswordRedemption, Redeemed, Registration, SecondFactor,
+    Assertion, Begun, Client, NewRegistration, PasswordRedemption, Redeemed, Registration,
+    SecondFactor, SignedIn,
 };
+use korpis_core::account::session::SessionKind;
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::audit::failure::Attempt;
 use korpis_core::id::IdKind;
@@ -18,6 +20,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::sign_in_with_password_request::Second;
 use korpis_wire::{timestamp, wire_id};
 use std::net::IpAddr;
+use std::time::SystemTime;
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -51,20 +54,40 @@ fn registration(r: Option<&pb::PasskeyRegistration>) -> Result<NewRegistration, 
     })
 }
 
-fn redeemed(r: Redeemed) -> pb::RedeemResponse {
-    pb::RedeemResponse {
-        account: wire_id(IdKind::User, r.account),
-        recovery_codes: r.recovery_codes,
-        ..Default::default()
-    }
+/// `body`, with the cookie that gives the browser the refresh credential of `session`.
+fn with_cookie<B>(body: B, session: &Begun) -> ServiceResult<B> {
+    let cookie = cookie::set(session.refresh.expose(), session.expires_at, SystemTime::now())
+        .ok_or_else(|| error::internal(&"a refresh credential that is not a header value"))?;
+    Ok(Response::new(body).with_header(http::header::SET_COOKIE, cookie))
 }
 
-fn signed_in(account: Uuid) -> pb::SignInResponse {
-    pb::SignInResponse { account: wire_id(IdKind::User, account), ..Default::default() }
+fn redeemed(r: Redeemed) -> ServiceResult<pb::RedeemResponse> {
+    let body = pb::RedeemResponse {
+        account: wire_id(IdKind::User, r.account),
+        recovery_codes: r.recovery_codes,
+        session: wire_id(IdKind::Session, r.session.id),
+        ..Default::default()
+    };
+    with_cookie(body, &r.session)
+}
+
+fn signed_in(s: &SignedIn) -> ServiceResult<pb::SignInResponse> {
+    let body = pb::SignInResponse {
+        account: wire_id(IdKind::User, s.account),
+        session: wire_id(IdKind::Session, s.session.id),
+        ..Default::default()
+    };
+    with_cookie(body, &s.session)
 }
 
 fn ip(ctx: &RequestContext) -> Option<IpAddr> {
     ctx.peer_addr().map(|a| a.ip())
+}
+
+/// The browser a ceremony comes from: a web session's, with the user agent it says it is.
+pub(super) fn client(ctx: &RequestContext) -> Client {
+    let agent = ctx.header(http::header::USER_AGENT).and_then(|v| v.to_str().ok());
+    Client { kind: SessionKind::Web, user_agent: agent.unwrap_or_default().to_owned(), ip: ip(ctx) }
 }
 
 impl Api {
@@ -118,8 +141,9 @@ impl pb::AccountService for Api {
     ) -> ServiceResult<pb::RedeemResponse> {
         let req = request.to_owned_message();
         let r = registration(req.registration.as_option())?;
-        let done = self.app.redeem_with_passkey(&req.invitation, &req.name, r).await;
-        Response::ok(redeemed(self.attempted(done, Attempt::Invitation, ip(&ctx)).await?))
+        let done =
+            self.app.redeem_with_passkey(&req.invitation, (&req.name, r), &client(&ctx)).await;
+        redeemed(self.attempted(done, Attempt::Invitation, ip(&ctx)).await?)
     }
 
     #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
@@ -153,8 +177,8 @@ impl pb::AccountService for Api {
             totp: TotpSecret::from_bytes(bytes),
             code: req.totp_code.clone(),
         };
-        let done = self.app.redeem_with_password(&req.invitation, r).await;
-        Response::ok(redeemed(self.attempted(done, Attempt::Invitation, ip(&ctx)).await?))
+        let done = self.app.redeem_with_password(&req.invitation, r, &client(&ctx)).await;
+        redeemed(self.attempted(done, Attempt::Invitation, ip(&ctx)).await?)
     }
 
     async fn begin_sign_in(
@@ -188,8 +212,8 @@ impl pb::AccountService for Api {
             authenticator_data: req.authenticator_data,
             signature: req.signature,
         };
-        let done = self.app.sign_in_with_passkey(a).await;
-        Response::ok(signed_in(self.attempted(done, Attempt::SignIn, ip(&ctx)).await?.account))
+        let done = self.app.sign_in_with_passkey(a, &client(&ctx)).await;
+        signed_in(&self.attempted(done, Attempt::SignIn, ip(&ctx)).await?)
     }
 
     async fn sign_in_with_password(
@@ -205,7 +229,8 @@ impl pb::AccountService for Api {
         };
         // The use case charges and records its own failures: a password can be guessed, so its
         // buckets are charged before it is checked (§10 of docs/10-api.md).
-        let done = self.app.sign_in_with_password(&req.name, &req.password, second, ip(&ctx)).await;
-        Response::ok(signed_in(done.map_err(super::rate::refused)?.account))
+        let done =
+            self.app.sign_in_with_password(&req.name, &req.password, second, &client(&ctx)).await;
+        signed_in(&done.map_err(super::rate::refused)?)
     }
 }

@@ -115,6 +115,13 @@ pub trait WorkloadRead {
 /// Writing workloads. The compare-and-swaps return `false` when the state they were computed
 /// against has moved, which the use case reports as a conflict (§3.2 of docs/03-state.md).
 pub trait WorkloadWrite {
+    /// One intent, read within the transaction, so a use case holding one never asks the pool
+    /// for a second connection (Finding 71 of docs/23-walkthroughs.md).
+    fn intent_within(
+        &mut self,
+        id: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Intent>>> + Send;
+
     /// One workload, locked until the transaction ends, so that declarations, power changes and
     /// approvals for it are serialized.
     fn lock_workload(

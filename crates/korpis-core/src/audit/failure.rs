@@ -22,6 +22,8 @@ pub enum Attempt {
     Invitation,
     /// A sign-in: a password, the code beside it, or a passkey's answer.
     SignIn,
+    /// A session's refresh credential, exchanged or signed out with.
+    Refresh,
 }
 
 impl Attempt {
@@ -35,15 +37,24 @@ impl Attempt {
             Self::RelayJoin => "relay.join",
             Self::Invitation => "account.redeem",
             Self::SignIn => "account.sign_in",
+            Self::Refresh => "session.refresh",
         }
     }
 
     /// The attempt whose failures are recorded as `action`.
     #[must_use]
     pub fn from_action(action: &str) -> Option<Self> {
-        [Self::Credential, Self::Hello, Self::Join, Self::RelayJoin, Self::Invitation, Self::SignIn]
-            .into_iter()
-            .find(|a| a.action() == action)
+        [
+            Self::Credential,
+            Self::Hello,
+            Self::Join,
+            Self::RelayJoin,
+            Self::Invitation,
+            Self::SignIn,
+            Self::Refresh,
+        ]
+        .into_iter()
+        .find(|a| a.action() == action)
     }
 }
 

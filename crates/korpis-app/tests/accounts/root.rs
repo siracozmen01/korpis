@@ -41,7 +41,10 @@ async fn the_installed_root_account_is_redeemed_by_a_passkey_alone() {
         code: crate::support::code(&totp, 0),
         totp,
     };
-    let refused = app.redeem_with_password(invitation, with_password).await.unwrap_err();
+    let refused = app
+        .redeem_with_password(invitation, with_password, &crate::support::client())
+        .await
+        .unwrap_err();
     assert!(matches!(refused, AppError::Invalid { ref field, .. } if field == "invitation"));
 
     let options = app.begin_redemption(invitation, "admin").await.unwrap();
@@ -52,7 +55,8 @@ async fn the_installed_root_account_is_redeemed_by_a_passkey_alone() {
         client_data_json: created.client_data_json,
         attestation_object: created.attestation_object,
     };
-    let redeemed = app.redeem_with_passkey(invitation, "admin", r).await.unwrap();
+    let redeemed =
+        app.redeem_with_passkey(invitation, ("admin", r), &crate::support::client()).await.unwrap();
     assert_eq!(redeemed.account, root.account);
     let held = app.own_account(&signed_in(root.account)).await.unwrap();
     assert_eq!(held.factors.passkeys, 1);

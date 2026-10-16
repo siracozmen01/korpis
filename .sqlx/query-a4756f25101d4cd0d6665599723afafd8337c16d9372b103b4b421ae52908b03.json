@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                      body::text AS \"body\", schema_version, managed_by\n                 FROM intent WHERE id = $1",
+  "query": "SELECT id, workload_id, version, parent_id, declared_by, declared_at,\n                  body::text AS \"body\", schema_version, managed_by\n             FROM intent WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -115,5 +115,5 @@
       true
     ]
   },
-  "hash": "436181f3faf236fbd30762e05690d20e3dc7a1e246edc6d68fe5db6a69e7bcc1"
+  "hash": "a4756f25101d4cd0d6665599723afafd8337c16d9372b103b4b421ae52908b03"
 }

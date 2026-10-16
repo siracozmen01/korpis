@@ -95,6 +95,7 @@ impl ControlPlane {
             acme: korpis_server::acme::AcmeConfig::default(),
             rates: korpis_core::rate::Rates::default(),
             relying_party: None,
+            session_limits: korpis_core::account::session::SessionLimits::default(),
         })
         .await
         .expect("serve");

@@ -46,19 +46,27 @@ impl ExtensionRow {
     }
 }
 
+/// Installation `id`, read through `e`, a pool or a transaction.
+async fn extension<'e, E: sqlx::PgExecutor<'e>>(
+    e: E,
+    id: Uuid,
+) -> StoreResult<Option<Installation>> {
+    let row = sqlx::query_as!(
+        ExtensionRow,
+        "SELECT id, organization_id, project_id, name, version, api_version, workload_id,
+                artifact_name, artifact_digest, installed_by, installed_at, uninstalled_at
+           FROM extension WHERE id = $1",
+        id
+    )
+    .fetch_optional(e)
+    .await
+    .map_err(from_sqlx)?;
+    row.map(ExtensionRow::into_domain).transpose()
+}
+
 impl ExtensionRead for PgStore {
     async fn extension(&self, id: Uuid) -> StoreResult<Option<Installation>> {
-        let row = sqlx::query_as!(
-            ExtensionRow,
-            "SELECT id, organization_id, project_id, name, version, api_version, workload_id,
-                    artifact_name, artifact_digest, installed_by, installed_at, uninstalled_at
-               FROM extension WHERE id = $1",
-            id
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        row.map(ExtensionRow::into_domain).transpose()
+        extension(&self.pool, id).await
     }
 
     async fn extension_of_workload(&self, workload: Uuid) -> StoreResult<Option<Installation>> {
@@ -143,6 +151,10 @@ impl ExtensionRead for PgStore {
 }
 
 impl ExtensionWrite for PgTx {
+    async fn extension_within(&mut self, id: Uuid) -> StoreResult<Option<Installation>> {
+        extension(&mut *self.tx, id).await
+    }
+
     async fn insert_extension(&mut self, e: &Installation) -> StoreResult<()> {
         sqlx::query!(
             "INSERT INTO extension (id, organization_id, project_id, name, version, api_version,
