@@ -1063,6 +1063,15 @@ Every other grant in the installation descends from that one.
 > bootstrap token above replaces this path, and an installation's Phase 0 root token can be
 > revoked once a passkey-held root grant has been issued through local root recovery (§9.2).
 
+> Designed 2026-10-16, for the web client of Phase 1. The bootstrap token is an **invitation**
+> (§9.6): `korpis-server install` prints one, redeemable within the hour by registering a passkey
+> in the panel at the installation's own address, which creates the first user and issues it the
+> root grant. The Phase 0 path stays for what cannot register a passkey, an unattended install
+> or a test: `korpis-server install --root-token` issues the root grant to an API token as
+> before, and says when it does that this root has no second factor. One installation uses one
+> path or the other, never both, so a scripted install is not a passkey-held root with a bearer
+> secret beside it.
+
 ### 9.2 When the last administrator is locked out
 
 Whoever holds root on the machine running the control plane already holds everything: the
@@ -1072,6 +1081,12 @@ database, the signing key, the process. Pretending otherwise would be the kind o
 to a newly registered passkey and writes an effect saying exactly that, which every tenant whose
 data is in scope can see. It needs no network listener and no secret question, and it cannot be
 done from anywhere except the machine.
+
+> Designed 2026-10-16. A passkey is registered in a browser, and the machine's root user may have
+> none, so `recover-root` does not register one itself: it writes an invitation for a new root
+> grant straight into the database and prints it, and the passkey is registered by redeeming the
+> invitation in the panel, as at installation. The effect it writes names the `System` bootstrap
+> actor and the operating-system user who ran it.
 
 ### 9.3 Account recovery
 
@@ -1098,6 +1113,34 @@ Every live session is listed for its user with where and when it was created, an
 be ended, including "end all others", which revokes the refresh credentials immediately and lets the
 outstanding capability tokens expire within their lifetime. A session never outlives the grants it
 exercises: each token is minted against current authority.
+
+**How a session works, as designed 2026-10-16.** Signing in (§9.6) creates a session and sets
+its **refresh credential**, a random 256-bit secret of which the control plane keeps only the
+digest, in a cookie that is `HttpOnly`, `Secure`, `SameSite=Strict`, and scoped to the path of
+the session service, so the browser sends it nowhere else and no script can read it. The panel
+exchanges it for an **access token**: 120 seconds, signed by the control plane's token key, naming
+the user and the session. The access token is the bearer of every API call; it is verified by its
+signature and expiry alone, and the authority of each call is evaluated then, from the grants the
+user holds then, so the token carries no authority of its own and a revoked grant stops working at
+the next call. Each exchange rotates the refresh credential, and presenting one already rotated
+ends the whole session, since only a copy can present it twice. An idle session ends after 12
+hours without an exchange and any session after 7 days (`--session-idle`, `--session-max`).
+Ending a session, or all others, deletes their refresh credentials at once; their access tokens
+then expire within 120 seconds, the bound this table always gave.
+
+> Corrected 2026-10-16. The table's third row said a browser held "capability tokens" minted from
+> the refresh credential. What a browser presents to the API is the access token above, which
+> names the user rather than carrying a grant chain, because the control plane evaluates the
+> user's authority on every call and needs no chain from the caller. Capability tokens (§6) are
+> still minted, through the API with an access token, for what is verified offline: a console
+> session at a node or a relay.
+
+The CLI's session is the same with a different first step: `korpis login` runs the OAuth device
+authorization grant (RFC 8628), the user approves the code in the panel, and the CLI receives a
+refresh credential, which it keeps in the operating system's keychain, exchanges for access
+tokens, and rotates as the panel does. Where no keychain is reachable, a server without a desktop
+session, it says so and keeps the credential in a file readable by its user alone, and
+`korpis login --no-store` holds it in memory for one command's life instead.
 
 ### 9.5 A running workload's identity
 
@@ -1181,6 +1224,65 @@ stored in the database in the clear, re-delivered on every placement, and readab
 `workload.secret.read`; it would also survive the workload's move to a node that should no longer
 be trusted with it. Node attestation has none of those properties, and it is the same trust
 already placed in the node.
+
+### 9.6 Signing in
+
+> Designed 2026-10-16, for the web client of Phase 1 (§4 of `20-roadmap.md`). §9 listed the
+> factors and §9.1 to §9.4 how authority and sessions begin and end; nothing said what an account
+> is, how a person comes to have one, or what a sign-in checks.
+
+**An account is a `User`** (§3.2 of `01-model.md`): an identifier, a display name, and the
+factors registered to it. It holds no authority by being an account; everything it may do is
+the grants issued to `user:<id>`, exactly as for any other subject.
+
+**A person comes to have an account by redeeming an invitation.** An invitation is a random
+256-bit secret, shown once, of which the control plane keeps the digest, naming a grant to issue
+to whoever redeems it: issuing a grant to a new user is the same call as issuing one to a new
+token (§3.7), with the holder a person not yet registered. Redeeming it in the panel registers the
+first factor, creates the user, issues the grant, and voids the invitation, in one transaction.
+An invitation expires after seven days unless its issuer says less, and the bootstrap token of
+§9.1 is an invitation for the root grant that expires in an hour. **There is no open
+registration by default**: an account with no grants can do nothing, and a sign-up form that
+creates accounts nobody asked for is only an attack surface. An operator selling to the public
+turns it on (`--registration open`), and an account created that way holds nothing until a grant
+is issued to it, by the host's billing system through the API, for example.
+
+**Factors.** A **passkey** (WebAuthn, a discoverable credential with user verification required)
+is a complete sign-in by itself, because it is something held and something known or been, and
+it satisfies `requires_mfa` (§9). A **password** is never a sign-in by itself: it is accepted only
+with a second factor, a passkey, a TOTP code, or a recovery code, so an account with a password
+always has one. **TOTP** (RFC 6238, SHA-1, six digits, thirty seconds, one step of skew, each
+code accepted once) is second class, as §9 says. **Recovery codes** are ten, each used once,
+shown once at enrolment (§9.3). Passwords are stored as Argon2id with the parameters OWASP
+recommends (19 MiB, two passes, one lane), and refused if shorter than twelve characters; TOTP
+secrets are sealed by the control plane's vault, as every secret field is.
+
+**The relying party is the control plane, and its identifier is the installation's name.** A
+passkey is bound to the registrable domain the panel is served under, which is why the panel and
+the control plane must share a site (§1 of `11-surface-web.md`): the control plane checks that
+the browser signed for its own identifier and that the origin it reports is one it serves or
+lists in `--web-origin`. It accepts ES256, EdDSA, and RS256, which is what platform
+authenticators produce, and attestation `none`, since the installation has no list of authenticator
+models to trust and asking for attestation would only identify the user's device to it.
+
+**What a sign-in is limited by** (§10 of `10-api.md`). Every failure, a password, a second-factor
+code, or an assertion that does not verify, is charged to its source like any failed attempt. A
+password or a code can be guessed, so a failure also counts against the account, after OWASP's
+device cookies: a browser that has signed in to the account holds a cookie the control plane
+signed, naming the account, and its failures count against that cookie alone, which after five
+in a quarter of an hour stops being honoured for a quarter of an hour; a browser without one
+counts against the account's untrusted count, which after ten in a quarter of an hour refuses
+every browser without a cookie for a quarter of an hour. A stranger can therefore keep an
+account's holder from signing in from a new browser, and never from one they have used before. A
+passkey assertion cannot be guessed, and its failures count against the source alone.
+
+What it costs. The holder of an account who has lost every browser and every factor gets back
+in only through an administrator (§9.3) or, for root, through the machine (§9.2): the price of
+no email reset. An operator who turns on open registration answers for the accounts it creates.
+And the relying party is Korpis's own code, on Rust cryptography already in the tree, because the
+established WebAuthn libraries for Rust are either licensed on terms this project does not take
+into its dependencies or maintained by one person on a release cadence it cannot depend on; it is
+tested against a software authenticator and a browser's virtual one (§9 of `21-stack.md`).
 
 ---
 

@@ -527,7 +527,8 @@ holding grants in several organizations is bounded by the emptiest; a refusal ad
 
 **Unauthenticated attempts** are every presentation of a credential that is not yet trusted: an API
 token, a workload credential, or a share link presented to the API; a node's `Hello`; an enrollment
-token joined; a relay's enrollment. Each is checked first, and one that opens is admitted, whatever
+token joined; a relay's enrollment; and, with the login of §9.6 of `08-identity.md`, an access
+token, a refresh credential, an invitation, and each factor of a sign-in. Each is checked first, and one that opens is admitted, whatever
 its source has done. Each that fails is charged to a bucket of its source, the address, or the /64
 for IPv6, at 30 a minute with a burst of 30 (`--rate-failures`, `<per minute>/<burst>`), and once
 that bucket refuses, a failure is answered `RATE_LIMITED` with `retry_after` and `Retry-After`
@@ -582,7 +583,8 @@ concern only one of them: an organization that grants a stranger pays for the st
 elsewhere, bounded by the stranger's own bucket, a fifth of an organization's by default, and ended
 by revoking the grant.
 
-> Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`): the limits of the
+> Not built until the web client's login exists (Phase 1, §4 of `20-roadmap.md`), and designed with
+> it in §9.6 of `08-identity.md`, which fixes the thresholds: the limits of the
 > login and second-factor endpoints. Their failures are charged to the source as above; and because
 > a password or a six-digit code can be guessed, as no credential above can, they are also charged
 > to the account they name, after OWASP's device cookies (`research/evidence.md` §5): a browser that

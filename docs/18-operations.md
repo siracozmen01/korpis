@@ -86,7 +86,9 @@ korpis-server install
 
 Download one signed binary, verify it against the published digest, run it. It runs preflight, asks
 where PostgreSQL should come from rather than assuming, generates the signing keys, writes the
-systemd units, and prints the join command for the first node. Then it is the same binary that runs
+systemd units, and prints the join command for the first node and the bootstrap invitation that
+makes its first user root (§9.1 of `08-identity.md`; `--root-token` instead issues root to an API
+token, for an unattended install). Then it is the same binary that runs
 the control plane, there is no separate installer artifact to drift out of sync with what it
 installs.
 

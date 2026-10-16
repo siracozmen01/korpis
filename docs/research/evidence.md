@@ -491,6 +491,15 @@ Primary:
 - **[V]** Pterodactyl's panel is written in React and TypeScript: its `package.json` on the
   `develop` branch depends on `react` `^16.14.0` and `typescript` `~5.1.0` (read 2026-10-16). One
   reason the web client chose React (question 1 of §10 of `../11-surface-web.md`).
+- **[V]** OWASP's password storage guidance: "Use Argon2id with a minimum configuration of 19 MiB
+  of memory, an iteration count of 2, and 1 degree of parallelism" ([OWASP Password Storage Cheat
+  Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), read
+  2026-10-16). The parameters §9.6 of `../08-identity.md` stores passwords with.
+- **[V]** The Rust WebAuthn relying-party libraries, as read from crates.io on 2026-10-16:
+  `webauthn-rs` and its core are MPL-2.0, outside the permissive licences `deny.toml` admits;
+  `webauthn_rp` is MIT or Apache-2.0, published by one maintainer from a personal repository, with
+  no release since 2025-04-03 and about 35,000 downloads in all. Why the relying party of §9.6 of
+  `../08-identity.md` is Korpis's own code.
 - **[V]** OWASP's device cookies slow online guessing without letting a stranger lock an account
   out of its holder's own browsers: a browser that signed in to an account is given a cookie the
   server signs, failures from it are counted against the cookie alone, and failures from browsers

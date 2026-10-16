@@ -326,6 +326,14 @@ its author, which is what makes choosing `strict` an informed decision rather th
 No long-lived admin key in a dotfile. Interactive login is a browser or device-code flow that
 yields a short-lived capability token held in the OS keyring.
 
+> Designed 2026-10-16 (§9.4 of `08-identity.md`). `korpis login` runs the device-code flow: it
+> prints a code and the panel's address, the user approves the code there, and the CLI receives a
+> refresh credential, which is what the keyring holds; each command exchanges it for an access
+> token of 120 seconds, the short-lived bearer. Where no keyring is reachable it says so and keeps
+> the credential in a file only its user can read, or in memory alone with `--no-store`.
+> `korpis logout` ends the session. A token from `KORPIS_TOKEN` or `--token-file`, below, still
+> takes precedence, for automation.
+
 Until that flow exists, the CLI keeps no credential at all: the token is read from `KORPIS_TOKEN`
 or from a file named with `--token-file` or `KORPIS_TOKEN_FILE`, the control plane from
 `KORPIS_SERVER` or `--server`, and its certificate authority from `KORPIS_CA` or `--ca`, a PEM
