@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT workload_id, generation, content_digest, body, signature, key_id, active\n               FROM assignment WHERE node_id = $1 ORDER BY workload_id",
+  "query": "SELECT workload_id, generation, content_digest, body, signature, key_id, active,\n                    runs_digest, runs_generation\n               FROM assignment WHERE node_id = $1 ORDER BY workload_id",
   "describe": {
     "columns": [
       {
@@ -79,6 +79,28 @@
             "name": "active"
           }
         }
+      },
+      {
+        "ordinal": 7,
+        "name": "runs_digest",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "assignment",
+            "name": "runs_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "runs_generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "assignment",
+            "name": "runs_generation"
+          }
+        }
       }
     ],
     "parameters": {
@@ -93,8 +115,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "00e64205e31fc143920075c312237b6b0ffc3a4036acf7572c85ce4ccb666524"
+  "hash": "a004b4179901ce231460e82aac7b80f0555b9bbe22c424852e7dd147e1886e1c"
 }

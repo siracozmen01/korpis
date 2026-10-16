@@ -1,16 +1,16 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT generation FROM assignment WHERE workload_id = $1 AND node_id = $2 AND active",
+  "query": "SELECT runs_generation FROM assignment\n              WHERE workload_id = $1 AND node_id = $2 AND active",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "generation",
+        "name": "runs_generation",
         "type_info": "Int8",
         "origin": {
           "Table": {
             "table": "assignment",
-            "name": "generation"
+            "name": "runs_generation"
           }
         }
       }
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "1275819a14614579976e56a9adb01b89b7dc9981dde450afc188ea8603993258"
+  "hash": "2b1a33d95d39aa37718aae4e2d92b461abed736e3479d71fa0319a09a53e684e"
 }

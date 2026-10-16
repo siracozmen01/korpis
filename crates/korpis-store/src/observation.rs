@@ -29,7 +29,8 @@ impl ObservationRead for PgStore {
 
     async fn assignment_generation(&self, workload: Uuid, node: Uuid) -> StoreResult<Option<u64>> {
         let generation = sqlx::query_scalar!(
-            "SELECT generation FROM assignment WHERE workload_id = $1 AND node_id = $2 AND active",
+            "SELECT runs_generation FROM assignment
+              WHERE workload_id = $1 AND node_id = $2 AND active",
             workload,
             node
         )

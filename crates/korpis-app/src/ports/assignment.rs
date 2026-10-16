@@ -45,6 +45,12 @@ pub struct StoredAssignment {
     pub generation: u64,
     /// Over its content, generation ignored.
     pub content_digest: Vec<u8>,
+    /// Over what it has the node run: its content without its plan and its ACME challenges,
+    /// which are measured by their own progress (§4.3 of docs/02-architecture.md).
+    pub runs_digest: Vec<u8>,
+    /// The generation at which what it has the node run last changed: what the node's report is
+    /// compared with to say whether the workload converged.
+    pub runs_generation: u64,
     /// What was sent.
     pub sealed: Sealed,
     /// Whether it is in the node's set; an inactive one is kept for its generation.

@@ -113,7 +113,8 @@ impl AssignmentWrite for PgTx {
 
     async fn stored_assignments(&mut self, node: Uuid) -> StoreResult<Vec<StoredAssignment>> {
         let rows = sqlx::query!(
-            "SELECT workload_id, generation, content_digest, body, signature, key_id, active
+            "SELECT workload_id, generation, content_digest, body, signature, key_id, active,
+                    runs_digest, runs_generation
                FROM assignment WHERE node_id = $1 ORDER BY workload_id",
             node
         )
@@ -126,6 +127,8 @@ impl AssignmentWrite for PgTx {
                     workload: r.workload_id,
                     generation: count("assignment generation", r.generation)?,
                     content_digest: r.content_digest,
+                    runs_digest: r.runs_digest,
+                    runs_generation: count("assignment generation", r.runs_generation)?,
                     sealed: Sealed { body: r.body, signature: r.signature, key_id: r.key_id },
                     active: r.active,
                 })
@@ -136,19 +139,23 @@ impl AssignmentWrite for PgTx {
     async fn put_assignment(&mut self, node: Uuid, a: &StoredAssignment) -> StoreResult<()> {
         sqlx::query!(
             "INSERT INTO assignment (workload_id, node_id, generation, body, signature, key_id,
-                                     content_digest, active, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, true, now())
+                                     content_digest, active, updated_at, runs_digest,
+                                     runs_generation)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, true, now(), $8, $9)
              ON CONFLICT (workload_id, node_id) DO UPDATE SET
                  generation = EXCLUDED.generation, body = EXCLUDED.body,
                  signature = EXCLUDED.signature, key_id = EXCLUDED.key_id,
-                 content_digest = EXCLUDED.content_digest, active = true, updated_at = now()",
+                 content_digest = EXCLUDED.content_digest, active = true, updated_at = now(),
+                 runs_digest = EXCLUDED.runs_digest, runs_generation = EXCLUDED.runs_generation",
             a.workload,
             node,
             to_count("assignment generation", a.generation)?,
             a.sealed.body,
             a.sealed.signature,
             a.sealed.key_id,
-            a.content_digest
+            a.content_digest,
+            a.runs_digest,
+            to_count("assignment generation", a.runs_generation)?
         )
         .execute(&mut *self.tx)
         .await

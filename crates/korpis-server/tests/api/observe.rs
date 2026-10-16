@@ -128,7 +128,10 @@ async fn convergence_follows_what_the_node_reports_and_is_unknown_when_it_is_not
     complete(&mut s, &w, &plan, 1).await;
     let applied = until(&mut s, assignment(|a| !a.plan.is_set())).await;
     assert_eq!(applied.generation, 2);
-    status(&h, &w, pb::Convergence::CONVERGENCE_APPLYING).await;
+    // Generation 2 only drops the finished plan, so a node that ran generation 1 to the target
+    // has converged; it does not read applying again until the node takes it (§4.3).
+    report(&mut s, &seen(1, pb::ObservedState::OBSERVED_STATE_RUNNING)).await;
+    status(&h, &w, pb::Convergence::CONVERGENCE_CONVERGED).await;
 
     report(&mut s, &seen(2, pb::ObservedState::OBSERVED_STATE_RUNNING)).await;
     let converged = status(&h, &w, pb::Convergence::CONVERGENCE_CONVERGED).await;

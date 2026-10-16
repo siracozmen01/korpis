@@ -310,15 +310,10 @@ async fn a_new_workload_is_created_holding_a_backup_before_it_first_runs() {
         pb::VolumeSpec { name: "data".into(), from_backup: Some(id), ..Default::default() };
     let copy = cp.declare_with(&project, "mc-copy", vec![seeded]).await;
     // Three minutes: the restore runs a real job, which takes seconds alone and has taken over a
-    // minute while every other test runs beside it. Converged for two seconds running, since the
-    // assignment that drops the finished restore plan is a new generation, and the status reads
-    // applying again until the node has seen it.
-    let mut held = 0;
+    // minute while every other test runs beside it.
     for _ in 0..1800 {
         let s = cp.status(&copy).await;
-        let converged = s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED);
-        held = if converged { held + 1 } else { 0 };
-        if held == 20 {
+        if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
             break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;

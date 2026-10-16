@@ -352,8 +352,9 @@ Those fields make the whole system honest:
 
 - every reported field matches the current assignment, no plan steps are outstanding, and the
   observed state agrees with `Power.desired` → **converged**
-- `assignment_seen` trails `generation` → the agent has not received or not yet applied the latest
-  assignment. The UI says "applying", with the exact lag.
+- `assignment_seen` trails the generation at which what the assignment has the node run last
+  changed → the agent has not received or not yet applied it. The UI says "applying", with the
+  exact lag.
 - `assignment_seen` matches, plan steps are outstanding, and the last one reported progress within
   its declared timeout → **applying**, and the UI names the step.
 - `assignment_seen` matches and the observed state still disagrees with the assignment, with no
@@ -363,16 +364,28 @@ Those fields make the whole system honest:
   current (P4).
 
 An observation is **current** only while it comes from the node the workload is placed on and that
-node is heard; the staleness window is the node's, three missed heartbeats (question 6 of §10),
-not a per-workload clock. One that is not current is still shown, with its time, and with its
-state `unknown`, so a reader sees what was last known without mistaking it for now. A node's
-observation is believed only for a workload it holds an assignment or placement for, as its
-journal records are (§4.10); the latest replaces the one before, and history is the effect log.
-`intent_seen` is compared with the approved target, `power_seen` with the approved power
-declaration's version and cycle, `assignment_seen` with the generation of the node's assignment,
-and the state with `Power.desired`. A state the node reports as crashed or unsatisfiable is
-failing whatever else matches; a transitional state (starting, stopping) with everything else
+node is heard; the staleness window is the node's, three missed heartbeats (question 6 of §10), not
+a per-workload clock. One that is not current is still shown, with its time, and with its state
+`unknown`, so a reader sees what was last known without mistaking it for now. A node's observation
+is believed only for a workload it holds an assignment or placement for, as its journal records are
+(§4.10); the latest replaces the one before, and history is the effect log. `intent_seen` is
+compared with the approved target, `power_seen` with the approved power declaration's version and
+cycle, `assignment_seen` with the generation at which what the node's assignment has it run last
+changed, and the state with `Power.desired`. A state the node reports as crashed or unsatisfiable
+is failing whatever else matches; a transitional state (starting, stopping) with everything else
 matching is applying.
+
+**A generation that changes nothing the node runs does not unsettle a converged workload.** Decided
+2026-10-16. The generation rises with every change of the assignment (§4.8), including two that
+change nothing the workload runs: dropping a plan once it is applied, and carrying an ACME
+challenge while a certificate is ordered (§3.2 of `07-networking.md`). Compared with the generation
+itself, a workload that had converged read `applying` again until its node took the new one, a
+flicker the backup tests caught and had to wait out. So the control plane keeps, beside each
+assignment, the generation at which it last changed in anything but its plan and its challenges,
+and compares the node's report with that; a plan is measured by its own progress, which already
+reads `applying` while it is. What it costs: one more digest per assignment computed, and a node
+that has not yet taken a generation which only drops a finished plan still holds that plan, which
+it has completed and does nothing with.
 
 Two states that are not about the node at all are computed in the control plane, never inferred
 from an observation: a declared intent waiting for approval (`Workload.intent` ahead of

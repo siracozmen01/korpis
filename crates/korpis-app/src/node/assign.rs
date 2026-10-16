@@ -38,6 +38,17 @@ fn seal_error(SealError(why): SealError) -> AppError {
     AppError::Internal(format!("sealing an assignment: {why}"))
 }
 
+/// The digest of what `assignment` has its node run: all of it but its plan, which is measured by
+/// its own progress, and its ACME challenges, which the proxy answers for a minute and which
+/// change nothing the workload runs (§4.3 of docs/02-architecture.md).
+fn runs_digest(
+    sealer: &dyn crate::ports::AssignmentSealer,
+    assignment: &Assignment,
+) -> Result<Vec<u8>, AppError> {
+    let runs = Assignment { plan: None, challenges: Vec::new(), ..assignment.clone() };
+    sealer.content_digest(&runs).map_err(seal_error)
+}
+
 /// The plan a node is to be executing for a workload: the applying one, or else the earliest
 /// approved or queued whose window has opened, which becomes applying when it is first assigned.
 /// A queued plan waited for the one ahead of it; once that one is done, it is next.
@@ -89,16 +100,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 assignment.challenges = tx.challenges_for(assignment.workload).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
+            let runs = runs_digest(sealer.as_ref(), &assignment)?;
             let kept = stored.get(&assignment.workload);
             let current = match kept {
                 Some(s) if s.active && s.content_digest == digest => s.clone(),
                 _ => {
                     assignment.generation = kept.map_or(1, |s| s.generation + 1);
                     let signed: Sealed = sealer.seal(&assignment).map_err(seal_error)?;
+                    let runs_generation = kept
+                        .filter(|s| s.active && s.runs_digest == runs)
+                        .map_or(assignment.generation, |s| s.runs_generation);
                     let fresh = StoredAssignment {
                         workload: assignment.workload,
                         generation: assignment.generation,
                         content_digest: digest,
+                        runs_digest: runs,
+                        runs_generation,
                         sealed: signed,
                         active: true,
                     };

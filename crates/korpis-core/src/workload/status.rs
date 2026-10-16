@@ -101,7 +101,8 @@ pub struct Reported<'a> {
     /// Whether the node is heard. An observation from a node that missed three heartbeats is
     /// not current, however recent it looks (question 6 of §10 of docs/02-architecture.md).
     pub fresh: bool,
-    /// The generation of the node's assignment now.
+    /// The generation at which what the node's assignment has it run last changed: all of the
+    /// assignment but its plan, measured by its own progress, and its ACME challenges.
     pub generation: u64,
     /// The approved power declaration.
     pub power: &'a Power,

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO assignment (workload_id, node_id, generation, body, signature, key_id,\n                                     content_digest, active, updated_at, runs_digest,\n                                     runs_generation)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, true, now(), $8, $9)\n             ON CONFLICT (workload_id, node_id) DO UPDATE SET\n                 generation = EXCLUDED.generation, body = EXCLUDED.body,\n                 signature = EXCLUDED.signature, key_id = EXCLUDED.key_id,\n                 content_digest = EXCLUDED.content_digest, active = true, updated_at = now(),\n                 runs_digest = EXCLUDED.runs_digest, runs_generation = EXCLUDED.runs_generation",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Bytea",
+        "Bytea",
+        "Text",
+        "Bytea",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "871b9c21f017c91ba627026e31a9efecd080ccb5703c15e89b99e4f6c3f949ee"
+}
