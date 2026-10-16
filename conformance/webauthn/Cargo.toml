@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The WebAuthn relying party of korpis-core, against an independent software authenticator
+# (1Password's passkey crate), as a browser would register and sign in (§9.6 of
+# docs/08-identity.md, §9 of docs/21-stack.md). A workspace of its own, with its own lockfile:
+# the authenticator turns on serde_json's `preserve_order`, and in the main workspace every
+# crate's tests would then order JSON maps differently from production. scripts/check.sh builds,
+# lints, tests, and audits it on its own.
+
+[package]
+name = "korpis-webauthn-conformance"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[workspace]
+
+[dev-dependencies]
+async-trait = "0.1"
+coset = "0.4"
+korpis-core = { path = "../../crates/korpis-core", features = ["accounts"] }
+passkey = "0.6"
+public-suffix = "0.1"
+tokio = { version = "1", features = ["macros", "rt"] }
+url = "2"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

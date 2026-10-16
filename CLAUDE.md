@@ -52,6 +52,7 @@ docs/01-model.md .. docs/23-walkthroughs.md      the specification, in dependenc
 docs/research/evidence.md                        the citations every deviation is argued from
 ARCHITECTURE.md                                  how the code is layered, and the dependency rule
 Cargo.toml crates/                               the Rust workspace, one crate per layer or program
+conformance/                                     packages tested against independent implementations
 scripts/check.sh                                 every check a commit must pass
 ```
 

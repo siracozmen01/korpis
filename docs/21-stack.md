@@ -318,8 +318,12 @@ that breaks the panel fails like one that breaks the server.
 
 The control plane's side of a passkey sign-in, the WebAuthn relying party (§9.6 of
 `08-identity.md`), is Korpis's own: CBOR and COSE decoded by `ciborium` and `coset`, signatures
-verified by `ring`, which the TLS stack already brings. Its tests register and assert with a
-software authenticator, 1Password's `passkey` crate, as a development dependency only.
+verified by `ring`, which the TLS stack already brings. It is tested against an independent
+software authenticator, 1Password's `passkey` crate, which registers and asserts as a browser
+would, in a package of its own (`conformance/webauthn`) with its own lockfile: the authenticator
+turns on a `serde_json` feature that changes how JSON maps are ordered, and in the main workspace it
+would have changed that for every crate's tests, so that they no longer tested what production
+runs.
 
 ---
 

@@ -22,6 +22,8 @@ trust = ["dep:base64", "dep:p256", "dep:sha2"]
 # Node identity: the Ed25519 key a node proves itself with (§7 of docs/02-architecture.md),
 # shared by the agent that signs and the control plane that verifies.
 identity = ["dep:ed25519-dalek", "dep:sha2"]
+# Accounts: signing in (§9.6 of docs/08-identity.md), the control plane's.
+accounts = ["dep:base64", "dep:ciborium", "dep:coset", "dep:ring", "dep:serde", "dep:sha2"]
 # Content: OCI images as a node holds them, by digest (§6 of docs/04-runtimes.md), shared by the
 # agent that fetches them and the driver that imports them.
 content = ["dep:serde", "dep:sha2"]
@@ -29,6 +31,11 @@ content = ["dep:serde", "dep:sha2"]
 [dependencies]
 biscuit-auth = { version = "=6.0.0", default-features = false, features = ["datalog-macro"], optional = true }
 base64 = { version = "0.22", optional = true }
+# Accounts: the WebAuthn relying party (§9.6 of docs/08-identity.md) decodes CBOR and COSE and
+# verifies signatures with ring, which the TLS stack already brings.
+ciborium = { version = "0.2", optional = true }
+coset = { version = "0.4", optional = true }
+ring = { version = "0.17", optional = true }
 # Routes (authz::route): the node a session is carried to, sealed so the client cannot read it.
 chacha20poly1305 = { version = "0.10", optional = true }
 ed25519-dalek = { version = "2.2", optional = true }

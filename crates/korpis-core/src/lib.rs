@@ -30,4 +30,6 @@ pub mod schedule;
 pub mod scope;
 pub mod tenancy;
 pub mod value;
+#[cfg(feature = "accounts")]
+pub mod webauthn;
 pub mod workload;

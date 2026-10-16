@@ -12,7 +12,7 @@ if grep -rnI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --excl
     -e '01-landscape' -e 'prior-art' .; then exit 1; fi
 
 echo "== file length (400 lines, CONTRIBUTING.md \"Code rules\")"
-long=$(find crates scripts -name '*.rs' -not -path '*/target/*' \
+long=$(find crates scripts conformance -name '*.rs' -not -path '*/target/*' \
     -exec awk 'END { if (NR > 400) print FILENAME ": " NR " lines" }' {} \;)
 if [ -n "$long" ]; then echo "$long"; exit 1; fi
 
@@ -20,7 +20,7 @@ echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
 # Untracked files too, so a new file is checked before it is committed. The containerd API is
 # vendored with its own headers.
 spdx=$(git ls-files --cached --others --exclude-standard \
-        'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' \
+        'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'conformance/*.rs' \
     | grep -v '^crates/korpis-containerd/proto/' \
     | while read -r f; do
         case "$f" in
@@ -70,22 +70,31 @@ fi
 # Everything below builds from the committed query metadata, as a fresh checkout would.
 export SQLX_OFFLINE=true
 
+# The conformance packages are workspaces of their own (conformance/webauthn/Cargo.toml says why),
+# checked like the main one into a target directory of their own.
+conformance="--manifest-path conformance/webauthn/Cargo.toml"
+conformance_target="--target-dir target/conformance"
+
 echo "== rustfmt"
 cargo fmt --all --check
+cargo fmt $conformance --check
 
 echo "== clippy"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 # The helper links the domain without its authority module; that build must stay clean too.
 cargo clippy -p korpis-core --no-default-features --locked -- -D warnings
+cargo clippy $conformance $conformance_target --all-targets --locked -- -D warnings
 
 echo "== tests (database: scripts/dev-pg.sh, registry: scripts/dev-registry.sh)"
 if [ -z "${KORPIS_TEST_PG_URL:-}" ]; then ./scripts/dev-pg.sh up >/dev/null; fi
 if [ -z "${KORPIS_TEST_REGISTRY:-}" ]; then ./scripts/dev-registry.sh up >/dev/null; fi
 cargo test --workspace --all-features --locked
+cargo test $conformance $conformance_target --locked
 
 if command -v cargo-deny >/dev/null; then
     echo "== cargo deny"
     cargo deny --locked check
+    cargo deny $conformance --locked check
 else
     echo "== cargo deny: not installed, skipped (cargo install --locked cargo-deny)"
 fi

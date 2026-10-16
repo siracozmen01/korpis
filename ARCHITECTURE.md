@@ -229,3 +229,10 @@ semantics (transaction isolation, constraint behaviour) drift from the real one 
 noticing. The cost is that use-case tests need the development database (`scripts/dev-pg.sh up`)
 and take seconds rather than milliseconds. If the suite grows slow enough to matter, the remedy is
 a contract test suite that both a fake and the PostgreSQL store must pass, not a fake on its own.
+
+**Conformance packages.** Where Korpis implements a standard itself, it is also tested against an
+independent implementation of the other side, in a package under `conformance/` that is a workspace
+of its own: `conformance/webauthn` registers and signs in to the WebAuthn relying party of
+`korpis-core` with 1Password's software authenticator. Each has its own lockfile, so what it pulls
+in for the other side cannot change, through Cargo's feature unification, how the main workspace's
+crates build and test; `scripts/check.sh` formats, lints, tests, and audits each on its own.
