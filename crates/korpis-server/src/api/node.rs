@@ -26,6 +26,10 @@ fn uncordoned(v: &NodeView) -> pb::UncordonNodeResponse {
     pb::UncordonNodeResponse { node: view_to_pb(v).into(), ..Default::default() }
 }
 
+fn removed(v: &NodeView) -> pb::RemoveNodeResponse {
+    pb::RemoveNodeResponse { node: view_to_pb(v).into(), ..Default::default() }
+}
+
 impl pb::NodeService for Api {
     async fn create_enrollment_token(
         &self,
@@ -128,6 +132,25 @@ impl pb::NodeService for Api {
             .await
             .map_err(error::from_app)?;
         respond(reply, uncordoned)
+    }
+
+    async fn remove_node(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RemoveNodeRequest>,
+    ) -> ServiceResult<pb::RemoveNodeResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let id = wire::id(IdKind::Node, "node", &req.node).refuse()?;
+        let encoder = |v: &NodeView| encode(&removed(v));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply = self
+            .app
+            .remove_node(&caller, &idem, id, req.compromised)
+            .await
+            .map_err(error::from_app)?;
+        respond(reply, removed)
     }
 
     async fn create_relay_enrollment_token(

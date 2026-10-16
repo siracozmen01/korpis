@@ -1237,11 +1237,12 @@ twice that, so a captured Hello cannot open a second session while its timestamp
 accepted. Every failure of the proof is answered `UNAUTHENTICATED` with nothing more, except a
 timestamp outside the window, which says so: it is the one refusal an honest agent can act on, by
 its clock, and `Welcome` carries the control plane's time so the agent can notice drift before its
-next Hello is refused. A decommissioned node's key opens nothing. A node holds one session; a new
-one replaces the old, whose stream ends, so an agent that reconnected after a network change does
-not leave a half-open twin receiving its assignments. The node's labels are the operator's, bound
-at enrollment, and a `Hello` that reports others changes nothing: a node that could label itself
-could attract the workloads of anyone whose placement selects on the label.
+next Hello is refused. A decommissioned node's key opens nothing, and the session it held when it
+was removed ends at once, every replica telling its sessions to look again. A node holds one
+session; a new one replaces the old, whose stream ends, so an agent that reconnected after a
+network change does not leave a half-open twin receiving its assignments. The node's labels are the
+operator's, bound at enrollment, and a `Hello` that reports others changes nothing: a node that
+could label itself could attract the workloads of anyone whose placement selects on the label.
 
 **No node ever receives a credential it does not need.** The critical advisory GHSA-pfvc-3p5h-x7h6
 exists because Wings held registry credentials and a daemon token in a scope that tenant-authored

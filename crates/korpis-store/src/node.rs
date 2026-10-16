@@ -245,4 +245,39 @@ impl NodeWrite for PgTx {
         .map_err(from_sqlx)?;
         Ok(done.rows_affected() == 1)
     }
+
+    async fn node_holdings(&mut self, node: Uuid) -> StoreResult<(Vec<Uuid>, u64)> {
+        let placed = sqlx::query_scalar!(
+            "SELECT workload_id FROM placement WHERE node_id = $1 ORDER BY workload_id",
+            node
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let volumes = sqlx::query_scalar!(
+            r#"SELECT count(*) AS "n!" FROM volume WHERE node_id = $1 AND deleted_at IS NULL"#,
+            node
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok((placed, u64::try_from(volumes).unwrap_or(0)))
+    }
+
+    async fn drop_node_endpoints(&mut self, node: Uuid) -> StoreResult<u64> {
+        let done = sqlx::query!("DELETE FROM endpoint WHERE node_id = $1", node)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
+    }
+
+    async fn announce_resync(&mut self) -> StoreResult<()> {
+        // An empty payload names no workload, which every listener takes as a resync.
+        sqlx::query!("SELECT pg_notify('korpis_workload', '')")
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
+    }
 }

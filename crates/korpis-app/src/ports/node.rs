@@ -53,4 +53,18 @@ pub trait NodeWrite {
         node: &Node,
         expected: u64,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// What `node` holds, as this transaction sees it: the workloads placed on it, and how many
+    /// volumes on it are not deleted.
+    fn node_holdings(
+        &mut self,
+        node: Uuid,
+    ) -> impl Future<Output = StoreResult<(Vec<Uuid>, u64)>> + Send;
+
+    /// Removes every endpoint placed on `node`; how many there were.
+    fn drop_node_endpoints(&mut self, node: Uuid) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Tells every replica, at commit, to recompute every session's set: a change to a node that
+    /// no workload's change announces.
+    fn announce_resync(&mut self) -> impl Future<Output = StoreResult<()>> + Send;
 }

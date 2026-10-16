@@ -159,6 +159,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Session { node, protocol: hello.protocol, terms: self.session_terms })
     }
 
+    /// Whether `node` may still hold a session: it exists and is not decommissioned. A session
+    /// asks before each set it sends, so one whose node was removed ends at its next wake.
+    pub async fn session_admitted(&self, node: Uuid) -> Result<bool, AppError> {
+        let found = self.store.node(node).await?;
+        Ok(found.is_some_and(|n| n.admin != NodeAdmin::Decommissioned))
+    }
+
     /// Whether `proof` is `node`'s signature over `message` (the Hello's or the `DataHello`'s
     /// form), made within the skew window of `now`. The nonce is the caller's to remember, in
     /// the transaction that acts on the proof.

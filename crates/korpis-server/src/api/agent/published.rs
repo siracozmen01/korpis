@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 /// Sends each value `held` publishes down session `id` of `node`, as `wrap` makes it a message.
 pub(super) async fn push<T: Clone + Send + Sync>(
-    (sessions, node, id): (Arc<Sessions>, Uuid, u64),
+    (sessions, node, id, mut ended): (Arc<Sessions>, Uuid, u64, watch::Receiver<bool>),
     tx: Sender<agent::ControlMessage>,
     mut held: watch::Receiver<Option<Arc<T>>>,
     wrap: fn(Box<T>) -> Down,
@@ -34,6 +34,7 @@ pub(super) async fn push<T: Clone + Send + Sync>(
         tokio::select! {
             changed = held.changed() => if changed.is_err() { return },
             () = tx.closed() => return,
+            _ = ended.wait_for(|e| *e) => return,
         }
         if !sessions.is_current(node, id) {
             return;

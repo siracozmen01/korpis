@@ -180,6 +180,25 @@ impl Node {
             (from, to) => Err(AdminError { from, to }),
         }
     }
+
+    /// Retires the node for good. A node is removed from `cordoned`, once it holds nothing,
+    /// which the caller checks; one removed as `compromised` is removed from any state, since
+    /// nothing it holds can be trusted to leave by an operation it takes part in (§9 of
+    /// docs/17-security.md). Returns whether anything changed.
+    pub fn decommission(&mut self, compromised: bool) -> Result<bool, AdminError> {
+        match self.admin {
+            NodeAdmin::Decommissioned => Ok(false),
+            NodeAdmin::Cordoned => {
+                self.admin = NodeAdmin::Decommissioned;
+                Ok(true)
+            }
+            _ if compromised => {
+                self.admin = NodeAdmin::Decommissioned;
+                Ok(true)
+            }
+            from => Err(AdminError { from, to: NodeAdmin::Decommissioned }),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -228,5 +247,17 @@ mod tests {
         assert!(n.set_admin(NodeAdmin::Draining).is_err(), "draining is an operation");
         let mut d = node(NodeAdmin::Draining, Connectivity::Connected);
         assert!(d.set_admin(NodeAdmin::Active).is_err(), "only its operation ends a drain");
+    }
+
+    #[test]
+    fn a_node_is_removed_cordoned_or_as_compromised_and_never_comes_back() {
+        let mut active = node(NodeAdmin::Active, Connectivity::Connected);
+        assert!(active.decommission(false).is_err(), "cordoned first");
+        assert_eq!(active.decommission(true), Ok(true), "a compromised one from any state");
+        assert_eq!(active.status(), NodeStatus::Decommissioned);
+        assert_eq!(active.decommission(true), Ok(false));
+        assert!(active.set_admin(NodeAdmin::Active).is_err(), "never used again");
+        let mut cordoned = node(NodeAdmin::Cordoned, Connectivity::Unreachable);
+        assert_eq!(cordoned.decommission(false), Ok(true));
     }
 }

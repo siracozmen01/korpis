@@ -61,6 +61,7 @@ mod reads;
 mod recipes;
 mod relay;
 mod relays;
+mod removal;
 mod renewal;
 mod replace;
 mod repositories;

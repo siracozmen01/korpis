@@ -301,12 +301,21 @@ reached, which §7 has deliberately made small: no other workload's backups, no 
 assignments, no registry beyond one artifact for a few minutes. It can also obtain the credentials
 of the workloads placed on it, which act as those workloads (§9.5 of `08-identity.md`): each lasts
 fifteen minutes at most, ends at once when its workload is placed elsewhere, and none can be had
-for a workload placed elsewhere. Recovery: revoke the node
-key, and **increment the lease epoch**. §4.5 of `02-architecture.md` and §8 of `03-state.md` make
-epochs monotonic and fencing mandatory, so a compromised agent that keeps running cannot reacquire
-ownership of anything, and cannot write an observation the control plane will accept. Workloads are
-rescheduled elsewhere from their intents, which are unaffected. The node is not trusted to clean
-itself up; it is fenced and rebuilt.
+for a workload placed elsewhere. Recovery: revoke the node key, and **increment the lease epoch**.
+§4.5 of `02-architecture.md` and §8 of `03-state.md` make epochs monotonic and fencing mandatory,
+so a compromised agent that keeps running cannot reacquire ownership of anything, and cannot write
+an observation the control plane will accept. Workloads are rescheduled elsewhere from their
+intents, which are unaffected. The node is not trusted to clean itself up; it is fenced and
+rebuilt. As built (2026-10-16), the recovery is one call, removing the node as compromised (§3 of
+`18-operations.md`), which decommissions it whatever it holds: its session ends and its key opens
+no other, each workload placed on it is placed again from its target on the nodes that remain, and
+its endpoints there are dropped. Its leases are fenced by the clocks of §4.5 of
+`02-architecture.md`, not by a message it would have to accept: it cannot renew them, so each is
+over within one term, and the next issue, to another node, raises the epoch, so incrementing the
+epoch is that issue rather than a step of its own. What it does not do: its volumes are lost with
+it, since nothing moves a volume off a node before migration; a workload attached to one stays
+unplaced, saying why, until it is restored from a backup elsewhere. On one machine there is no
+other node, so every workload stays unplaced until the machine is rebuilt and enrolled again.
 
 It also held the private keys of the ingress endpoints placed on it, which outlive the fence: a key
 keeps working for as long as its certificate is valid. So removing a node as compromised revokes,

@@ -14,6 +14,7 @@ mod journal;
 mod lease;
 mod observe;
 mod reachability;
+mod remove;
 pub(crate) mod session;
 mod told;
 

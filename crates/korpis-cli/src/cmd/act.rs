@@ -198,6 +198,21 @@ pub async fn node(c: &Connection, server: &str, action: &NodeAction) -> Result<A
             };
             client.uncordon_node(request).await?.into_owned().node
         }
+        NodeAction::Remove { node, compromised, yes } => {
+            if !yes {
+                let why = "removing a node cannot be undone: its key opens nothing again; \
+                           pass --yes to remove it";
+                return Err(CliError::Local(why.into()));
+            }
+            let node = resolve::node(c, node).await?;
+            let request = pb::RemoveNodeRequest {
+                mutation: mutation(None).into(),
+                node,
+                compromised: *compromised,
+                ..Default::default()
+            };
+            client.remove_node(request).await?.into_owned().node
+        }
     };
     let n = node.into_option().unwrap_or_default();
     let human = format!("{} ({})  {}\n", n.name, n.id, short(n.status, "NODE_STATUS_"));

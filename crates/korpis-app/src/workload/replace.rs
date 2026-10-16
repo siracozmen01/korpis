@@ -8,7 +8,8 @@
 //! node left out, its plan still open, to run from its first step wherever it lands. A workload an
 //! operator placed by hand is not moved, since the scheduler does not overrule that choice (§2.3);
 //! its plan fails as any other does, and a workload that ran on the node never reports a refusal
-//! this way, so it stays and moving it is migration (§8).
+//! this way, so it stays and moving it is migration (§8). A workload on a node removed as
+//! compromised is placed again the same way, from its target.
 
 use super::place::place_effect;
 use crate::App;
@@ -62,6 +63,32 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let grant = tx.decision_grant(w.id).await?;
         tx.append_effect(&place_effect(&w, Outcome::RolledBack, grant)).await?;
         self.place_target(tx, &w, Some(&target)).await?;
+        Ok(true)
+    }
+
+    /// Places `workload` again away from `node`, which is being removed as compromised (§9 of
+    /// docs/17-security.md): its placement there is undone and it is placed from its target as
+    /// any workload is, the node no longer among those that serve; whether it was on `node`.
+    /// An operator's placement there is undone too, since the node it named is gone.
+    pub(crate) async fn displace(
+        &self,
+        tx: &mut S::Tx,
+        workload: Uuid,
+        node: Uuid,
+    ) -> Result<bool, AppError> {
+        let Some(w) = tx.lock_workload(workload).await? else { return Ok(false) };
+        let Some(p) = tx.placement_in(w.id).await? else { return Ok(false) };
+        if p.node != node {
+            return Ok(false);
+        }
+        tx.unbind(w.id).await?;
+        let grant = tx.decision_grant(w.id).await?;
+        tx.append_effect(&place_effect(&w, Outcome::RolledBack, grant)).await?;
+        let target = match w.target.filter(|_| w.deleted_at.is_none()) {
+            Some(t) => self.store.intent(t).await?,
+            None => None,
+        };
+        self.place_target(tx, &w, target.as_ref()).await?;
         Ok(true)
     }
 }

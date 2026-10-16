@@ -4,7 +4,8 @@
 //! node can be pushed down the stream that node opened (§4.2 of docs/02-architecture.md). A new
 //! session for a node replaces the old one, whose outbound stream then ends: an agent that
 //! reconnected after a network change must not leave a half-open twin receiving its
-//! assignments.
+//! assignments. A session replaced or forgotten is told so at once, and every task serving it
+//! stops, so its stream ends then rather than at the next message one of them happens to handle.
 
 use korpis_app::ports::Feasible;
 use korpis_proto::korpis::agent::v1::{ControlMessage, FeasibilityResult};
@@ -12,13 +13,15 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{Notify, oneshot};
+use tokio::sync::{Notify, oneshot, watch};
 use uuid::Uuid;
 
 struct Entry {
     id: u64,
     tx: Sender<ControlMessage>,
     wake: Arc<Notify>,
+    /// Set once the session is replaced or forgotten.
+    ended: watch::Sender<bool>,
     /// Whether the agent said it answers feasibility queries.
     answers: bool,
 }
@@ -50,18 +53,22 @@ impl Sessions {
     }
 
     /// Registers the session of `node` sending through `tx`, replacing any other, and whether
-    /// its agent `answers` feasibility queries; its id, and what wakes it to recompute the
-    /// node's set.
+    /// its agent `answers` feasibility queries; its id, what wakes it to recompute the node's
+    /// set, and what says it ended.
     pub fn register(
         &self,
         node: Uuid,
         tx: Sender<ControlMessage>,
         answers: bool,
-    ) -> (u64, Arc<Notify>) {
+    ) -> (u64, Arc<Notify>, watch::Receiver<bool>) {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let wake = Arc::new(Notify::new());
-        self.guard().insert(node, Entry { id, tx, wake: Arc::clone(&wake), answers });
-        (id, wake)
+        let (ended, ending) = watch::channel(false);
+        let entry = Entry { id, tx, wake: Arc::clone(&wake), ended, answers };
+        if let Some(old) = self.guard().insert(node, entry) {
+            old.ended.send_replace(true);
+        }
+        (id, wake, ending)
     }
 
     /// Wakes `node`'s session, if it has one here, to recompute its set. A wake while it is
@@ -88,8 +95,10 @@ impl Sessions {
     /// Forgets session `id` of `node`, if it is still the current one.
     pub fn unregister(&self, node: Uuid, id: u64) {
         let mut open = self.guard();
-        if open.get(&node).is_some_and(|e| e.id == id) {
-            open.remove(&node);
+        if open.get(&node).is_some_and(|e| e.id == id)
+            && let Some(gone) = open.remove(&node)
+        {
+            gone.ended.send_replace(true);
         }
     }
 

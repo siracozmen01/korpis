@@ -227,6 +227,19 @@ pub enum NodeAction {
         /// The node, by name or identifier.
         node: String,
     },
+    /// Retires a node for good: once cordoned and empty, or at once as compromised.
+    Remove {
+        #[arg(add = ArgValueCompleter::new(complete::nodes))]
+        /// The node, by name or identifier.
+        node: String,
+        /// It is compromised: remove it whatever it holds, placing its workloads again from
+        /// their targets; its volumes are lost with it.
+        #[arg(long)]
+        compromised: bool,
+        /// Removing a node cannot be undone; say so.
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 /// A set's drift mode, as typed.

@@ -912,12 +912,16 @@ snapshot, or live-migrate. The scheduler asks; it never assumes (Rule K-9).
 
 ```
 admin          active ⇄ cordoned ──▶ draining ──▶ (empty) ──▶ decommissioned
+               cordoned and empty ──────────────────────▶ decommissioned
+               any, removed as compromised ─────────────▶ decommissioned
 connectivity   registering ──▶ connected ⇄ unreachable
                                    ▲
                unknown ────────────┘  (after a control-plane restart, until heard)
 ```
 
-Reconnecting returns a node to the `admin` state it had: a cordoned node comes back cordoned.
+Reconnecting returns a node to the `admin` state it had: a cordoned node comes back cordoned. A
+decommissioned node does not come back: its key opens no session, and removing it ends the one it
+held (§3 of `18-operations.md`).
 
 A node is `connected` from a verified Hello (§7 of `02-architecture.md`) and while its heartbeats
 arrive; it is `unreachable` once three heartbeat intervals pass without one, whether its stream

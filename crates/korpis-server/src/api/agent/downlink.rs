@@ -24,6 +24,8 @@ pub(super) struct Downlink {
     pub(super) id: u64,
     pub(super) tx: Sender<agent::ControlMessage>,
     pub(super) wake: Arc<Notify>,
+    /// Set once the session is replaced or forgotten.
+    pub(super) ended: tokio::sync::watch::Receiver<bool>,
     /// The digest of the set the agent said it holds.
     pub(super) held: String,
 }
@@ -53,16 +55,27 @@ fn in_sync(digest: &str) -> agent::ControlMessage {
 }
 
 impl Downlink {
-    /// Sends the set until the session ends or another replaces it.
+    /// Sends the set until the session ends, another replaces it, or its node is removed, which
+    /// ends the session: the node's messages are not handled once it is no longer current.
     pub(super) async fn run(self) {
         let mut last: Option<String> = None;
+        let mut ended = self.ended.clone();
         loop {
-            if !self.sessions.is_current(self.node, self.id) || !self.pass(&mut last).await {
+            if !self.sessions.is_current(self.node, self.id) {
+                return;
+            }
+            if matches!(self.app.session_admitted(self.node).await, Ok(false)) {
+                tracing::info!(node = %self.node, "the node was removed; its session ends");
+                self.sessions.unregister(self.node, self.id);
+                return;
+            }
+            if !self.pass(&mut last).await {
                 return;
             }
             tokio::select! {
                 () = self.wake.notified() => {}
                 () = self.tx.closed() => return,
+                _ = ended.wait_for(|e| *e) => return,
             }
         }
     }

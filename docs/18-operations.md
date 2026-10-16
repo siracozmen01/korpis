@@ -239,8 +239,14 @@ installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korp
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
-will land. Drain arrives with migration, in Phase 3 (§4 of `20-roadmap.md`); until then,
-emptying a node is cordoning it and stopping or deleting what runs there.
+will land. Drain arrives with migration, in Phase 3 (§4 of `20-roadmap.md`); until then, emptying a
+node is cordoning it and stopping or deleting what runs there. Removing it is then `korpis node
+remove` (`NodeService.RemoveNode`, the irreversible action `node.remove`), refused unless the node
+is cordoned and holds no workload and no volume not deleted, since nothing yet moves a volume off a
+node: the node is decommissioned for good, its session ends on whichever replica holds it, and its
+key opens no other. A node removed as compromised (`--compromised`) is removed whatever it holds,
+which §9 of `17-security.md` describes; the CLI asks for `--yes` either way. Added 2026-10-16, when
+it was built; the documents named decommissioning from the start and no operation reached it.
 
 **Enrolling a relay** that runs as its own process (§3.1 of `02-architecture.md`) is the same
 procedure with three differences. The token is created over the root organization only

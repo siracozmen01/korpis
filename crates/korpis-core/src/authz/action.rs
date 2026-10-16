@@ -69,6 +69,7 @@ pub const CORE: &[&str] = &[
     "node.drain",
     "node.evacuate",
     "node.place",
+    "node.remove",
 ];
 
 /// Irreversible actions: excluded from set-subject and link-form grants by default, and routed
@@ -80,6 +81,7 @@ pub const IRREVERSIBLE: &[&str] = &[
     "volume.snapshot.delete",
     "endpoint.release",
     "backup.prune",
+    "node.remove",
 ];
 
 /// Tenant-private actions: they do not cross an organization boundary implicitly (§3.3 of

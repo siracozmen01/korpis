@@ -184,7 +184,7 @@ stream.share
 grant.read · grant.revoke
 org.read · org.create · org.write · org.suspend · org.quota.write
 project.read · project.create · project.write · project.delete
-node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place
+node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place · node.remove
 ext.<extension>.<action>              extensions define their own, namespaced
 ```
 
@@ -196,10 +196,15 @@ ext.<extension>.<action>              extensions define their own, namespaced
   and the second is strictly stronger.
 - **Some actions are marked irreversible in the schema**: `workload.delete`, `volume.delete`,
   `volume.snapshot.rollback` (what was written since the snapshot is lost),
-  `volume.snapshot.delete`, `endpoint.release` (giving up an address), and `backup.prune`. The mark
-  is what §5.2 of `08-identity.md` excludes from set-subject and link-form grants by default, and
-  what the chat client and the panel route to an explicit confirmation. There is one list, here,
-  and every other document refers to it (finding S35).
+  `volume.snapshot.delete`, `endpoint.release` (giving up an address), `backup.prune`, and
+  `node.remove` (a node removed is never used again). The mark is what §5.2 of `08-identity.md`
+  excludes from set-subject and link-form grants by default, and what the chat client and the panel
+  route to an explicit confirmation. There is one list, here, and every other document refers to it
+  (finding S35).
+- **`node.remove` is a new action implied by nothing.** Added 2026-10-16, when removing a node was
+  built (§3 of `18-operations.md`). `node.cordon` does not imply it: cordoning is undone by
+  uncordoning, and a removal is undone by nothing, so it is irreversible and the grants that could
+  cordon a node cannot thereby retire one.
 - **`volume.snapshot.rollback` and `volume.snapshot.delete` are new actions implied by nothing.**
   Added 2026-10-14, when snapshots were built (§4 of `06-storage.md`). Neither power existed
   before, so by the rule above no grant that already exists gains it; both lose data, so both are

@@ -118,7 +118,7 @@ pub(super) async fn open(
     let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;
     tx.send(journal_ack(ingested)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;
-    let (id, wake) = sessions.register(node, tx.clone(), hello.answers_feasibility);
+    let (id, wake, ended) = sessions.register(node, tx.clone(), hello.answers_feasibility);
     tracing::info!(%node, protocol = %session.protocol, "agent session opened");
     let downlink = Downlink {
         app: Arc::clone(app),
@@ -127,14 +127,16 @@ pub(super) async fn open(
         id,
         tx: tx.clone(),
         wake,
+        ended: ended.clone(),
         held: hello.set_digest.clone(),
     };
-    let at = || (Arc::clone(sessions), node, id);
+    let at = || (Arc::clone(sessions), node, id, ended.clone());
     let lists = api.revocations.subscribe();
     tokio::spawn(published::push(at(), tx.clone(), lists, Down::RevocationList));
     let relays = api.named_relays.subscribe();
     tokio::spawn(published::push(at(), tx.clone(), relays, Down::Relays));
-    let uplink = Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx };
+    let uplink =
+        Uplink { app: Arc::clone(app), sessions: Arc::clone(sessions), node, id, tx, ended };
     tokio::spawn(downlink.run());
     tokio::spawn(uplink.run(requests));
     Ok(rx)

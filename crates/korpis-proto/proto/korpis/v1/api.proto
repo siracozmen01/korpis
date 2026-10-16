@@ -1056,6 +1056,11 @@ service NodeService {
   // node.cordon, both ways.
   rpc CordonNode(CordonNodeRequest) returns (CordonNodeResponse);
   rpc UncordonNode(UncordonNodeRequest) returns (UncordonNodeResponse);
+  // node.remove, irreversible: decommissions a node for good, its key opening nothing and its
+  // session ended (§3 of docs/18-operations.md). Refused unless it is cordoned and holds no
+  // workload and no volume, except as `compromised`, which removes it whatever it holds and
+  // places each of its workloads again from its target (§9 of docs/17-security.md).
+  rpc RemoveNode(RemoveNodeRequest) returns (RemoveNodeResponse);
   // node.enroll over the root organization: a one-time token a relay exchanges for its identity
   // and its certificate (§3.1 of docs/02-architecture.md). A relay carries every organization's
   // sessions, so only authority over the root enrolls one.
@@ -1165,6 +1170,16 @@ message ListNodesRequest {
 message ListNodesResponse {
   repeated Node nodes = 1;
   PageResponse page = 2;
+}
+
+message RemoveNodeRequest {
+  Mutation mutation = 1;
+  string node = 2;
+  bool compromised = 3;
+}
+
+message RemoveNodeResponse {
+  Node node = 1;
 }
 
 message CordonNodeRequest {

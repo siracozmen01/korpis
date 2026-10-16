@@ -78,6 +78,10 @@ async fn the_commands_are_the_api_by_name() {
     assert!(token.contains("--ca-fingerprint sha256:"), "{token}");
     let ghost = cp.korpis(&s, &["node", "cordon", "ghost"]).await;
     assert_eq!(ghost.status.code(), Some(1), "a name nobody can read is a local error");
+    let unconfirmed = cp.korpis(&s, &["node", "remove", "ghost"]).await;
+    assert_eq!(unconfirmed.status.code(), Some(1), "removing a node is said with --yes");
+    let said = String::from_utf8_lossy(&unconfirmed.stderr).into_owned();
+    assert!(said.contains("--yes"), "{said}");
 
     let retired = json(&cp.korpis(&s, &["--json", "workload", "delete", "sleeper"]).await);
     assert!(retired["id"].as_str().unwrap().starts_with("pln_"), "{retired}");

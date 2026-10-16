@@ -32,6 +32,8 @@ pub(super) struct Uplink {
     pub(super) node: Uuid,
     pub(super) id: u64,
     pub(super) tx: Sender<agent::ControlMessage>,
+    /// Set once the session is replaced or forgotten.
+    pub(super) ended: tokio::sync::watch::Receiver<bool>,
 }
 
 fn answer(request: &agent::LeaseRequest, a: LeaseAnswer) -> agent::ControlMessage {
@@ -83,7 +85,13 @@ pub(super) fn journal_ack(through: u64) -> agent::ControlMessage {
 impl Uplink {
     /// Handles what the agent sends until the stream ends or another session replaces this one.
     pub(super) async fn run(self, mut requests: InboundStream<agent::AgentMessage>) {
-        while let Some(next) = requests.next().await {
+        let mut ended = self.ended.clone();
+        loop {
+            let next = tokio::select! {
+                next = requests.next() => next,
+                _ = ended.wait_for(|e| *e) => None,
+            };
+            let Some(next) = next else { break };
             if !self.sessions.is_current(self.node, self.id) {
                 break;
             }
