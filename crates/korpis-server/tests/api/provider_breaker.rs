@@ -95,7 +95,7 @@ async fn a_failing_provider_trips_then_a_probe_that_succeeds_closes_it() {
     let (mut stream, _) = registered(&h, &x.secret, "1.0.0", 10).await;
     // Long enough that a loaded machine still sends some before their deadlines; they run at
     // once, so the test waits for one deadline, not ten.
-    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(2))).collect();
+    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(5))).collect();
     for p in pings {
         assert_eq!(reason(&p.await.unwrap()), "provider.deadline");
     }

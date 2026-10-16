@@ -74,6 +74,7 @@ impl ControlPlane {
             relay_role,
             proxy_protocol_from: Vec::new(),
             dns_resolver: None,
+            acme: korpis_server::acme::AcmeConfig::default(),
         })
         .await
         .expect("serve");

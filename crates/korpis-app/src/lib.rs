@@ -59,6 +59,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     feasibility: Option<Arc<dyn ports::Feasibility>>,
     lookup: Option<Arc<dyn ports::TxtLookup>>,
     tls: Option<Arc<dyn ports::TlsVault>>,
+    acme: Option<Arc<dyn ports::Acme>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
 }
@@ -81,6 +82,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             feasibility: None,
             lookup: None,
             tls: None,
+            acme: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
         }
@@ -113,6 +115,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_tls(mut self, tls: Arc<dyn ports::TlsVault>) -> Self {
         self.tls = Some(tls);
+        self
+    }
+
+    /// Orders `acme` certificates from the directory `acme` reaches (§3.2 of
+    /// docs/07-networking.md): without it, none is issued.
+    #[must_use]
+    pub fn with_acme(mut self, acme: Arc<dyn ports::Acme>) -> Self {
+        self.acme = Some(acme);
         self
     }
 

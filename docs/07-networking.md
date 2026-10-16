@@ -401,37 +401,40 @@ the workload does.
 **Certificates belong to the control plane.** An endpoint's TLS is `acme` unless it says otherwise:
 the control plane obtains one certificate for the endpoint's names from the ACME directory the
 operator configures (Let's Encrypt by default), with the installation's ACME account, and renews it
-when two thirds of its life have passed. It answers ACME's challenge by DNS where a DNS provider of
-the holder's organization serves the name's zone, publishing the `_acme-challenge` TXT record
-through it (§3.5), and otherwise over HTTP: the control plane gives the token to the node the
-endpoint's workload is placed on, whose proxy answers it on port 80, which works once the name's
-records point at that node. A `provided` certificate is one its organization uploads, chain and
-key, and the endpoint names it by its identifier in `TlsSpec.secret`. The control plane checks at
-upload that the key is the leaf's, by their public keys, and that the leaf names DNS names and has
-not expired; and, wherever an endpoint names it, that it is the endpoint's organization's, valid
-now, and covers every name the endpoint routes, a wildcard covering one label, at declaration and
-again when the routes are claimed, the certificate locked against change until the claim commits.
-Its organization replaces it in place, keeping its identifier, with a chain that still covers every
-name served with it, which is how a provided certificate is renewed without declaring the endpoints
-again; it cannot be deleted while an endpoint serves with it, which the route records. The control
-plane says when one nears expiry, but it cannot renew it. Every private key is stored sealed by the
-control plane's TLS key, in its data directory beside its backup key (§6 of `18-operations.md`),
-and a node obtains an endpoint's certificate and key by asking for it over its session
-(`CertificateRequest`, §4.2 of `02-architecture.md`), which is answered only to a node an endpoint
-served with it is placed on. The endpoint as placed names the certificate and its revision, which
-every replacement or renewal raises, so the node's assignment changes and the node asks again. The
-node keeps what it serves in its state directory, readable by the agent alone, so a restart while
-the control plane is unreachable still serves (§4.6 of `02-architecture.md`), and removes a
-certificate, key and all, once no endpoint placed on it serves with it. **What evaluates this,
-where, and with what information:** issuance and renewal, the control plane, which holds the
-endpoint, its placement, its holder's DNS providers, and the account; the challenge's answer, the
-proxy, from the token it was given; which certificate a connection gets, the proxy, from the SNI
-the client sent. What it costs: a node holds the private keys of the endpoints placed on it, which
-a compromised node could take, as it could already read the workloads' own memory, and which
-removing a node as compromised therefore revokes and replaces (§9 of `17-security.md`); and an
-issuance that fails, because the name does not point at the node yet or the directory refuses,
-leaves the endpoint served on 80 alone, its observation saying why, and is retried with the
-directory's back-off.
+when two thirds of its life have passed. The account is made at the first order, and only if the
+operator agreed to the directory's terms; without that agreement no `acme` certificate is issued
+and each says why (§7 of `18-operations.md`). Every order makes a key of its own for its
+certificate, which leaves the control plane only sealed and only to the node serving it. It answers
+ACME's challenge by DNS where a DNS provider of the holder's organization serves the name's zone,
+publishing the `_acme-challenge` TXT record through it (§3.5), and otherwise over HTTP: the control
+plane gives the token to the node the endpoint's workload is placed on, whose proxy answers it on
+port 80, which works once the name's records point at that node. A `provided` certificate is one
+its organization uploads, chain and key, and the endpoint names it by its identifier in
+`TlsSpec.secret`. The control plane checks at upload that the key is the leaf's, by their public
+keys, and that the leaf names DNS names and has not expired; and, wherever an endpoint names it,
+that it is the endpoint's organization's, valid now, and covers every name the endpoint routes, a
+wildcard covering one label, at declaration and again when the routes are claimed, the certificate
+locked against change until the claim commits. Its organization replaces it in place, keeping its
+identifier, with a chain that still covers every name served with it, which is how a provided
+certificate is renewed without declaring the endpoints again; it cannot be deleted while an
+endpoint serves with it, which the route records. The control plane says when one nears expiry, but
+it cannot renew it. Every private key is stored sealed by the control plane's TLS key, in its data
+directory beside its backup key (§6 of `18-operations.md`), and a node obtains an endpoint's
+certificate and key by asking for it over its session (`CertificateRequest`, §4.2 of
+`02-architecture.md`), which is answered only to a node an endpoint served with it is placed on.
+The endpoint as placed names the certificate and its revision, which every replacement or renewal
+raises, so the node's assignment changes and the node asks again. The node keeps what it serves in
+its state directory, readable by the agent alone, so a restart while the control plane is
+unreachable still serves (§4.6 of `02-architecture.md`), and removes a certificate, key and all,
+once no endpoint placed on it serves with it. **What evaluates this, where, and with what
+information:** issuance and renewal, the control plane, which holds the endpoint, its placement,
+its holder's DNS providers, and the account; the challenge's answer, the proxy, from the token it
+was given; which certificate a connection gets, the proxy, from the SNI the client sent. What it
+costs: a node holds the private keys of the endpoints placed on it, which a compromised node could
+take, as it could already read the workloads' own memory, and which removing a node as compromised
+therefore revokes and replaces (§9 of `17-security.md`); and an issuance that fails, because the
+name does not point at the node yet or the directory refuses, leaves the endpoint served on 80
+alone, its observation saying why, and is retried with the directory's back-off.
 
 What the ingress does not do in Phase 1, stated plainly: HTTP/3, which needs the UDP path an edge
 tier brings; HTTP/2 or gRPC to the workload, since a backend's protocol beyond HTTP/1.1 is not yet

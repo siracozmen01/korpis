@@ -12,6 +12,7 @@ use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::Principal;
 use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
+use korpis_server::acme::AcmeConfig;
 use korpis_server::api::wire::{principal, scope, wire_id};
 use korpis_server::data::DataDir;
 use korpis_server::install::{InstallConfig, install};
@@ -87,20 +88,21 @@ impl Harness {
 
     /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
     pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
-        Self::build(heartbeat, denial_window, None).await
+        Self::build(heartbeat, denial_window, None, AcmeConfig::default()).await
     }
 
     /// A control plane verifying domains through the DNS server at `resolver`.
     pub async fn with_resolver(resolver: std::net::SocketAddr) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, Some(resolver)).await
+        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default()).await
     }
 
     async fn build(
         heartbeat: std::time::Duration,
         denial_window: std::time::Duration,
         dns_resolver: Option<std::net::SocketAddr>,
+        acme: AcmeConfig,
     ) -> Self {
         // What the control plane logs at error, an internal error's cause among it, is printed
         // with the output of the test that failed, so a failure that needs load to happen
@@ -140,6 +142,7 @@ impl Harness {
             relay_role: true,
             proxy_protocol_from: Vec::new(),
             dns_resolver,
+            acme,
         })
         .await
         .expect("serve");

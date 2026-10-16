@@ -268,6 +268,7 @@ every connection (§3.1 of `02-architecture.md`). Where relays carry the session
 serve --relay-role false` takes the role off the control plane, so nodes attach to the relays
 alone.
 
+
 ---
 
 ## 4. Upgrade
@@ -413,6 +414,7 @@ client-side encrypted, restorable to a new volume.
 | the node identity certificate | agents' per-node keys are pinned to it, and it is **not** rotated on restore |
 | the control plane's backup key | it seals every `operator`-custody repository's key-encryption key (§5.5 of `06-storage.md`); without it no tenant backup made under it can be read, so it is **not** rotated on restore |
 | the control plane's TLS key | it seals the private key of every certificate the ingress serves (§3.2 of `07-networking.md`); lost, every `acme` certificate is issued again with a new key and every `provided` one must be uploaded again, so it is worth keeping, not essential |
+| the installation's ACME account key | it is the account `acme` certificates are ordered with; lost, a new account is made at the next order, and certificates the old one ordered stay valid until they expire, so it is worth keeping, not essential |
 | the `max_issued_epoch` watermark and the epoch issue-rate cap | the first fence mechanism of §8 of `03-state.md` computes its bound from both |
 
 **The backup lives outside the system it protects.**
@@ -522,6 +524,16 @@ every node disconnecting within the same hour, at 03:00, on a holiday.
   renewal starts the count again; the control plane looks hourly.
 - Manual rotation exists and is a documented, rehearsed operation, because it is what a compromise
   requires (§9 of `17-security.md`).
+
+The ingress's `acme` certificates are ordered from the directory `--acme-directory` names, Let's
+Encrypt's production directory by default (§3.2 of `07-networking.md`). The installation's account
+there is made at the first order, never at start, and only if the operator agreed to the
+directory's terms with `--acme-agree-terms`: without it every `acme` certificate stays pending and
+says why. `--acme-contact mailto:…`, repeatable, gives the account a contact, which Let's Encrypt
+writes to about expiring certificates and changes to its terms. The account's key is kept in the
+data directory beside the other keys, one file per directory, so moving to another directory makes
+another account. A directory with an authority of its own, a test one or an enterprise one, is
+trusted with `--acme-ca`, a PEM certificate, instead of the system's roots.
 
 ---
 

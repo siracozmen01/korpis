@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod accept;
+pub mod acme;
 pub mod api;
 pub mod authority;
 pub mod bodies;
@@ -85,6 +86,9 @@ pub struct ServeConfig {
     /// The DNS server domains are verified through (§3.2 of docs/07-networking.md); the
     /// system's resolvers when none.
     pub dns_resolver: Option<std::net::SocketAddr>,
+    /// The ACME directory `acme` certificates are ordered from, and as whom (§3.2 of
+    /// docs/07-networking.md).
+    pub acme: acme::AcmeConfig,
 }
 
 /// A placement policy from its JSON form, a `korpis.v1.PlacementPolicy`.
@@ -160,6 +164,7 @@ fn application(
         )))
         .with_vault(Arc::new(vault::Vault::load_or_create(&config.data)?))
         .with_tls(Arc::new(tls_vault::TlsKeys::load_or_create(&config.data)?))
+        .with_acme(Arc::new(acme::AcmeClient::new(config.acme.clone(), &config.data)))
         .with_lookup(Arc::new(
             lookup::Lookup::new(config.dns_resolver)
                 .map_err(|e| ServeError::Config(format!("DNS resolver: {e}")))?,

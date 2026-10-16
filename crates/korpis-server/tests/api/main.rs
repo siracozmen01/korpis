@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod acme;
 mod agent;
 mod assignments;
 mod authority;
@@ -44,6 +45,7 @@ mod observe;
 mod offload_expiry;
 mod offloads;
 mod operator;
+mod pebble;
 mod pin;
 mod placement;
 mod plans;

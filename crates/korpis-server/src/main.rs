@@ -39,7 +39,7 @@ enum Command {
         tls_names: Vec<String>,
     },
     /// Serve the API.
-    Serve(ServeArgs),
+    Serve(Box<ServeArgs>),
     /// A relay of the data path running as its own process (§3.1 of docs/02-architecture.md).
     Relay {
         #[command(subcommand)]
@@ -111,6 +111,21 @@ struct ServeArgs {
     /// for an internal view of a zone (§3.2 of docs/07-networking.md).
     #[arg(long, env = "KORPIS_DNS_RESOLVER")]
     dns_resolver: Option<std::net::SocketAddr>,
+    /// The ACME directory `acme` certificates are ordered from (§3.2 of
+    /// docs/07-networking.md).
+    #[arg(long, env = "KORPIS_ACME_DIRECTORY", default_value = korpis_server::acme::LETS_ENCRYPT)]
+    acme_directory: String,
+    /// A certificate, in PEM, the ACME directory's own is trusted by instead of the system's
+    /// roots: for a test directory with an authority of its own.
+    #[arg(long, env = "KORPIS_ACME_CA")]
+    acme_ca: Option<PathBuf>,
+    /// A contact for the installation's account at the ACME directory, `mailto:…`; repeatable.
+    #[arg(long = "acme-contact", env = "KORPIS_ACME_CONTACT", value_delimiter = ',')]
+    acme_contact: Vec<String>,
+    /// Agree to the ACME directory's terms of service; without it no account is made there and
+    /// no `acme` certificate is issued, each saying why.
+    #[arg(long, env = "KORPIS_ACME_AGREE_TERMS")]
+    acme_agree_terms: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -187,7 +202,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             report(&config, &done);
             Ok(())
         }
-        Command::Serve(args) => serve(args).await,
+        Command::Serve(args) => serve(*args).await,
         Command::Relay { command: RelayCommand::Join { dir, server, token, ca_fingerprint } } => {
             let dir = korpis_server::standalone::RelayDir::new(dir);
             let id =
@@ -245,6 +260,12 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         relay_role: args.relay_role,
         proxy_protocol_from: args.proxy_protocol_from,
         dns_resolver: args.dns_resolver,
+        acme: korpis_server::acme::AcmeConfig {
+            directory: args.acme_directory,
+            ca: args.acme_ca,
+            contact: args.acme_contact,
+            agreed: args.acme_agree_terms,
+        },
     })
     .await?;
     tokio::select! {

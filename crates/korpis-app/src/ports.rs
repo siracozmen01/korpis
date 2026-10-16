@@ -6,6 +6,7 @@
 //! and the effect recording it commit together or not at all (§4 of docs/03-state.md). Methods
 //! return `impl Future + Send` so a use case can run on any multi-threaded executor.
 
+mod acme;
 mod assignment;
 mod audit;
 mod authz;
@@ -44,6 +45,7 @@ mod trust;
 mod volume;
 mod workload;
 
+pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, Issued, Proof, Publish};
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
 };
