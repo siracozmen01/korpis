@@ -4,7 +4,6 @@
 //! the terms agreed and is kept, an order's challenges are handed over before the directory is
 //! told to look, and what it issues is a chain whose leaf the fresh key it came with matches.
 
-use crate::pebble::Pebble;
 use korpis_app::ports::{Acme, AcmeError, Challenge, Proof, ReadError, TlsVault};
 use korpis_server::acme::{AcmeClient, AcmeConfig};
 use korpis_server::data::DataDir;
@@ -13,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 #[tokio::test]
 async fn an_order_hands_over_its_challenges_and_issues_for_a_fresh_key() {
-    let Some(pebble) = Pebble::start(true, 5002).await else { return };
+    let Some(pebble) = crate::pebble::start(true).await else { return };
     let dir = tempfile::tempdir().unwrap();
     let data = DataDir::new(dir.path().join("data"));
     std::fs::create_dir_all(data.keys()).unwrap();

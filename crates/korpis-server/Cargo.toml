@@ -8,6 +8,10 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# Test support other crates' tests run the control plane with: Pebble and its DNS.
+testing = ["dep:tempfile"]
+
 [dependencies]
 base64 = "0.22"
 buffa = { version = "=0.9.2", features = ["json"] }
@@ -60,7 +64,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { workspace = true }
 zeroize = "1"
 
+# Only for `testing`.
+tempfile = { version = "3", optional = true }
 [dev-dependencies]
+korpis-server = { path = ".", features = ["testing"] }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-store = { workspace = true, features = ["testing"] }

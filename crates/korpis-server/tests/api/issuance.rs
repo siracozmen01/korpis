@@ -9,7 +9,6 @@
 
 use crate::agent::{Stream, TestAgent, welcome};
 use crate::journal::{assignment, until};
-use crate::pebble::Pebble;
 use crate::recipes::{project, push_paper};
 use crate::routes::{attest, declare, web};
 use crate::support::Harness;
@@ -49,7 +48,7 @@ async fn send(s: &mut Stream, up: Up) {
 
 #[tokio::test]
 async fn an_endpoints_certificate_is_ordered_once_its_node_holds_the_challenge() {
-    let Some(pebble) = Pebble::start(true, 5002).await else { return };
+    let Some(pebble) = crate::pebble::start(true).await else { return };
     let h = Harness::with_acme(pebble.config()).await;
     let mut s = placed(&h).await;
 
@@ -92,7 +91,7 @@ async fn an_endpoints_certificate_is_ordered_once_its_node_holds_the_challenge()
 
 #[tokio::test]
 async fn without_the_directorys_terms_agreed_a_certificate_fails_saying_why() {
-    let Some(pebble) = Pebble::start(true, 5002).await else { return };
+    let Some(pebble) = crate::pebble::start(true).await else { return };
     let h = Harness::with_acme(AcmeConfig { agreed: false, ..pebble.config() }).await;
     let _s = placed(&h).await;
     let listed = pb::ListCertificatesRequest { organization: h.root_org(), ..Default::default() };

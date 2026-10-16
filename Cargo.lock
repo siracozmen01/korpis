@@ -2702,6 +2702,7 @@ dependencies = [
  "korpis-extension",
  "korpis-proto",
  "korpis-recipe",
+ "korpis-server",
  "korpis-store",
  "korpis-stream",
  "korpis-target-s3",

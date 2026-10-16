@@ -2310,13 +2310,16 @@ certificate locked, so a replacement or a deletion cannot slip between the check
 that a certificate in use is not deleted, the control plane, from the routes, which name the
 certificate each is served with. Step 8 is unchanged: the node asks for the key the same way.
 
-**How step 7 was built.** Added 2026-10-16. What decides that the directory may look, and with
-what information? The control plane, which holds the challenge and the set it sent each node, and
-learns from each node's acknowledgement that the node holds that set; the proxy answers from the
-set its node holds, not from the agent's reconciliation, so the acknowledgement is close to the
-truth, and two seconds of grace close the rest. What it does not know is whether the name's records
-point at the node, which only the directory's own lookup shows; a validation that fails for that is
-a failed attempt, retried after the backoff, and the endpoint is served on port 80 alone meanwhile.
+**How step 7 was built.** Added 2026-10-16. What decides that the directory may look, and with what
+information? The control plane, which holds the challenge and the set it sent each node, and learns
+from each node's acknowledgement that the node holds that set; the proxy answers from the set its
+node holds, not from the agent's reconciliation, so the acknowledgement is close to the truth, and
+two seconds of grace close the rest. What it does not know is whether the name's records point at
+the node, which only the directory's own lookup shows; a validation that fails for that is a failed
+attempt, retried after the backoff, and the endpoint is served on port 80 alone meanwhile. The
+ingress end-to-end test runs the step for real: Pebble resolves the name to the test machine
+through a DNS server of its own and fetches the token from the proxy on port 80, and the
+certificate issued is then served on port 443.
 
 **FINDING 60: A domain could be an IPv4 address. `CONFIRMED`**
 

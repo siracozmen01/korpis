@@ -8,15 +8,20 @@
 //! a token it holds; port 443 terminates TLS for a name served with a certificate its
 //! organization uploaded, which the node fetched over its session, and forwards the request with
 //! a `Forwarded` header only the proxy wrote; it passes a TLS stream through by its server name to
-//! a workload, which receives exactly what the client sent; retiring the workload withdraws its
-//! routes. It needs root and containerd, and holds ports 80 and 443 of this machine's address
-//! while it runs.
+//! a workload, which receives exactly what the client sent. An endpoint left to `acme` is given a
+//! certificate from Pebble, which validates its HTTP-01 challenge for real, resolving the name
+//! through a DNS server answering this machine's address and fetching the token from the proxy on
+//! port 80, and is then served over HTTPS like the uploaded one. Retiring the workload withdraws
+//! its routes. It needs root, containerd, and Pebble, and holds ports 80 and 443 of this machine's
+//! address while it runs.
 
 use crate::network::converged;
 use crate::node::{Node, host_address, live};
 use crate::recipes::push_web;
 use crate::support::{ControlPlane, mutation};
 use korpis_proto::korpis::v1 as pb;
+use korpis_server::acme::AcmeConfig;
+use korpis_server::testing::{ChallengeDns, Pebble, PebbleOptions, TestingError};
 use std::net::SocketAddr;
 use std::process::Command;
 use std::sync::Arc;
@@ -164,8 +169,60 @@ async fn securely(
     panic!("port 443 never served {name} over TLS");
 }
 
-/// The workload's endpoints: `web`, HTTP, named `web.example.com` and served with `certificate`,
-/// and `tls`, its TLS passed through, named `tls.example.com`.
+/// Pebble validating for real: resolving every name to this machine's address through the
+/// challenge test server's DNS, and fetching HTTP-01 tokens from port 80. `None` where it is not
+/// installed, and the `acme` endpoint's issuance is then not tested.
+async fn directory() -> Option<(Pebble, ChallengeDns)> {
+    let dns = match ChallengeDns::start(host_address()).await {
+        Ok(dns) => dns,
+        Err(e @ TestingError::NotInstalled(_)) => {
+            #[expect(clippy::print_stderr, reason = "a skipped check says why")]
+            {
+                eprintln!("{e}: an acme endpoint's issuance not tested");
+            }
+            return None;
+        }
+        Err(e) => panic!("pebble-challtestsrv: {e}"),
+    };
+    let options =
+        PebbleOptions { always_valid: false, http_port: Some(80), dns: Some(dns.address) };
+    let pebble = Pebble::start(options).await.expect("pebble");
+    Some((pebble, dns))
+}
+
+/// Attests `domain` to the root organization, as the operator.
+async fn attest(cp: &ControlPlane, domain: &str) {
+    let attest = pb::CreateDomainRequest {
+        mutation: mutation(domain).into(),
+        organization: cp.root_org.clone(),
+        name: domain.into(),
+        verification: pb::DomainVerification::DOMAIN_VERIFICATION_OPERATOR.into(),
+        ..Default::default()
+    };
+    pb::DomainServiceClient::new(cp.http(), cp.config()).create_domain(attest).await.unwrap();
+}
+
+/// Pebble's issuing root, which what it issues is trusted by.
+async fn issuing_root(pebble: &Pebble) -> rustls::pki_types::CertificateDer<'static> {
+    use rustls::pki_types::pem::PemObject as _;
+    let ca = rustls::pki_types::CertificateDer::from_pem_file(&pebble.ca).unwrap();
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(ca).unwrap();
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let tls = rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let http = reqwest::Client::builder().tls_backend_preconfigured(tls).build().unwrap();
+    let pem = http.get(format!("{}/roots/0", pebble.management)).send().await.unwrap();
+    let pem = pem.text().await.unwrap();
+    rustls::pki_types::CertificateDer::from_pem_slice(pem.as_bytes()).unwrap()
+}
+
+/// The workload's endpoints: `web`, HTTP, named `web.example.com` and served with `certificate`;
+/// `auto`, HTTP on the same port, named `auto.example.com`, its certificate left to `acme`; and
+/// `tls`, its TLS passed through, named `tls.example.com`.
 fn endpoints(certificate: &str) -> Vec<pb::EndpointSpec> {
     let ingress = |name: &str, protocol: pb::EndpointProtocol, port: u32| pb::EndpointSpec {
         name: name.into(),
@@ -186,7 +243,8 @@ fn endpoints(certificate: &str) -> Vec<pb::EndpointSpec> {
         ..Default::default()
     }
     .into();
-    vec![web, tls]
+    let auto = ingress("auto", pb::EndpointProtocol::ENDPOINT_PROTOCOL_HTTP, 8080);
+    vec![web, auto, tls]
 }
 
 /// Waits until the control plane holds the node as serving the ingress.
@@ -205,19 +263,14 @@ async fn the_proxy_redirects_on_80_terminates_and_passes_tls_through_by_name_on_
     if !live() {
         return;
     }
-    let cp = ControlPlane::start().await;
+    let directory = directory().await;
+    let acme = directory.as_ref().map_or_else(AcmeConfig::default, |(pebble, _)| pebble.config());
+    let cp = ControlPlane::start_with(acme).await;
     let project = cp.project().await;
     let node = Node::join(&cp, "edge-1").await;
     let agent = node.serving_ingress().await;
     serving(&cp).await;
-    let attest = pb::CreateDomainRequest {
-        mutation: mutation("example.com").into(),
-        organization: cp.root_org.clone(),
-        name: "example.com".into(),
-        verification: pb::DomainVerification::DOMAIN_VERIFICATION_OPERATOR.into(),
-        ..Default::default()
-    };
-    pb::DomainServiceClient::new(cp.http(), cp.config()).create_domain(attest).await.unwrap();
+    attest(&cp, "example.com").await;
     let (certificate, authority) = uploaded(&cp, "web.example.com").await;
     let body = pb::IntentBody { endpoints: endpoints(&certificate), ..Default::default() };
     let w = cp.declare_body(&project, "web", &push_web().await, body).await;
@@ -239,6 +292,12 @@ async fn the_proxy_redirects_on_80_terminates_and_passes_tls_through_by_name_on_
     let forwarded = format!("forwarded: for={host};host=web.example.com;proto=https");
     assert!(page.contains(&forwarded), "the proxy's alone: {page}");
     assert!(!page.contains("6.6.6.6"), "the client's own is removed: {page}");
+
+    if let Some((pebble, _)) = &directory {
+        let root = issuing_root(pebble).await;
+        let page = securely((host, 443).into(), "auto.example.com", &root).await;
+        assert!(page.starts_with("HTTP/1.1 200") && page.contains("served"), "{page}");
+    }
 
     let hello = client_hello("tls.example.com");
     assert_eq!(passed((host, 443).into(), &hello).await, hello, "the workload echoed it");

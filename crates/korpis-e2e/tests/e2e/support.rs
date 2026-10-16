@@ -32,6 +32,11 @@ impl Drop for ControlPlane {
 
 impl ControlPlane {
     pub async fn start() -> Self {
+        Self::start_with(korpis_server::acme::AcmeConfig::default()).await
+    }
+
+    /// A control plane ordering certificates from the ACME directory `acme` names.
+    pub async fn start_with(acme: korpis_server::acme::AcmeConfig) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
@@ -65,7 +70,7 @@ impl ControlPlane {
             relay_role: true,
             proxy_protocol_from: Vec::new(),
             dns_resolver: None,
-            acme: korpis_server::acme::AcmeConfig::default(),
+            acme,
         })
         .await
         .expect("serve");

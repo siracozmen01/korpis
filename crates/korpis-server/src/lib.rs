@@ -27,6 +27,8 @@ pub mod revocations;
 pub mod sealer;
 pub mod sessions;
 pub mod standalone;
+#[cfg(feature = "testing")]
+pub mod testing;
 pub mod tls;
 pub mod tls_vault;
 pub mod vault;
