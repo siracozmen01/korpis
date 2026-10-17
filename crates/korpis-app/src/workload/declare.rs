@@ -9,6 +9,7 @@ mod commit;
 mod enforced;
 mod providers;
 mod set;
+mod shown;
 
 use super::propose::{self, Proposal};
 use super::screen::Screened;
@@ -80,6 +81,9 @@ pub struct DeclareIntent {
     pub propose: bool,
     /// Through a declared set (§3.3 of docs/01-model.md).
     pub set: Option<SetDeclaration>,
+    /// Configuration keys whose values are kept from the head as they are: how a caller that
+    /// may not read a secret declares everything else (§5.2 of docs/09-recipes.md).
+    pub keep: Vec<String>,
 }
 
 /// A declaration through a declared set.
@@ -104,6 +108,9 @@ pub struct Declared {
     pub power: PowerRecord,
     /// The plan toward the intent.
     pub plan: Plan,
+    /// The configuration keys whose values were left out of `intent` as the caller is shown
+    /// it: secrets it may not read (§5.2 of docs/09-recipes.md).
+    pub withheld: Vec<String>,
 }
 
 /// The state a declaration is made against.
@@ -156,6 +163,7 @@ fn declared(base: &Base, intent: Intent, plan: Plan, passage: Option<&set::Passa
         intent,
         power: base.power.clone(),
         plan,
+        withheld: Vec::new(),
     }
 }
 
@@ -210,10 +218,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // dropped: nothing is held and nothing is written.
             let p = &prepared;
             self.admit(&mut tx, &p.declared.workload, p.held.as_ref(), &p.holds).await?;
-            return Ok(Reply::Fresh(prepared.declared));
+            return Ok(Reply::Fresh(
+                Box::pin(self.declared_shown(caller, prepared.declared)).await?,
+            ));
         }
         self.write_prepared(&mut tx, caller, &mut prepared).await?;
-        finish(tx, caller, idem, OPERATION, prepared.declared).await
+        // Withheld once written and before it is answered, so the response kept for a replay
+        // holds no more than the caller may read either.
+        let declared = Box::pin(self.declared_shown(caller, prepared.declared)).await?;
+        finish(tx, caller, idem, OPERATION, declared).await
     }
 
     /// Computes a declaration and checks it against the state it reads. `installing` names the
@@ -233,9 +246,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if installing.is_some() {
             base.extension = installing;
         }
+        let declaration = shown::kept(&base, cmd.declaration, &cmd.keep)?;
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
         let (body, recipe, changes) =
-            self.complete_declaration(caller, &base, recipe_ref, cmd.declaration).await?;
+            self.complete_declaration(caller, &base, recipe_ref, declaration).await?;
+        self.check_kept(caller, &base, &cmd.keep, &recipe).await?;
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
         self.check_routes((base.workload.organization, base.workload.id), &body).await?;

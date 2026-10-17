@@ -84,6 +84,7 @@ mod retire;
 mod revocation;
 mod routes;
 mod sdk;
+mod secrets;
 mod served_target;
 mod session;
 mod sessions;

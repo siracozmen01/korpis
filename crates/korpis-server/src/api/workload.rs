@@ -8,7 +8,7 @@ use super::wire::scope::selector_from_pb;
 use super::wire::spec::declare::declaration_from_pb;
 use super::wire::tenancy::labels;
 use super::wire::workload::{
-    classification_from_pb, intent_to_pb, power_state_from_pb, power_to_pb, workload_to_pb,
+    classification_from_pb, power_state_from_pb, power_to_pb, shown_intent_to_pb, workload_to_pb,
 };
 use super::wire::{self, name};
 use super::{Api, ServerApp, encode, error, mutation_key, next_page, page, respond};
@@ -62,7 +62,7 @@ fn deleted(p: &Plan) -> pb::DeleteWorkloadResponse {
 fn declared(d: &Declared) -> pb::DeclareIntentResponse {
     pb::DeclareIntentResponse {
         workload: workload_to_pb(&d.workload, &d.power).into(),
-        intent: intent_to_pb(&d.intent).into(),
+        intent: shown_intent_to_pb(&d.intent, &d.withheld).into(),
         plan: plan_to_pb(&d.plan).into(),
         ..Default::default()
     }
@@ -143,6 +143,7 @@ impl pb::WorkloadService for Api {
             dry_run: req.dry_run,
             propose: req.propose,
             set: through_set(&req)?,
+            keep: req.keep.clone(),
         };
         let encoder = |d: &Declared| encode(&declared(d));
         let idem = Idempotent { key, encode: &encoder };
@@ -317,7 +318,11 @@ impl pb::WorkloadService for Api {
         let listed =
             self.app.list_intents(&caller, workload, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListIntentsResponse {
-            intents: listed.items.iter().map(intent_to_pb).collect(),
+            intents: listed
+                .items
+                .iter()
+                .map(|s| shown_intent_to_pb(&s.intent, &s.withheld))
+                .collect(),
             page: next_page(listed.next, IdKind::Intent).into(),
             ..Default::default()
         })

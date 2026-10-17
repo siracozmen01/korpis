@@ -7,7 +7,7 @@ use super::super::error;
 use super::super::wire::placement::{bound_by_to_pb, explanation_to_pb};
 use super::super::wire::plan::plan_to_pb;
 use super::super::wire::spec::tier_to_pb;
-use super::super::wire::workload::{convergence_to_pb, intent_to_pb, workload_to_pb};
+use super::super::wire::workload::{convergence_to_pb, shown_intent_to_pb, workload_to_pb};
 use super::super::wire::{self, Refuse, timestamp, wire_id};
 use connectrpc::ConnectError;
 use korpis_app::workload::{Classified, PlacementView, SetDeclaration, WorkloadView};
@@ -25,8 +25,8 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
         certificates: certificates(v),
         names: names(v),
         workload: workload_to_pb(&v.workload, &v.power).into(),
-        target: v.target.as_ref().map(intent_to_pb).into(),
-        head: intent_to_pb(&v.head).into(),
+        target: v.target.as_ref().map(|t| shown_intent_to_pb(t, &v.withheld.target)).into(),
+        head: shown_intent_to_pb(&v.head, &v.withheld.head).into(),
         convergence: convergence_to_pb(v.convergence).into(),
         active_plan: v.active_plan.as_ref().map(plan_to_pb).into(),
         placement: v.placement.as_ref().map(|p| placement_to_pb(v.workload.id, p)).into(),

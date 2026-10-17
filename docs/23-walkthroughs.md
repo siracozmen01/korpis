@@ -1118,6 +1118,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 81 | A sync read a path again after looking at it, so a link swapped in was followed | §38 | `13-surface-cli.md` §8 |
 | 82 | A listing printed the tenant's file names to the operator's terminal as they were | §38 | `13-surface-cli.md` §8 |
 | 83 | A tenant's theme dressed its provider's screens, a share link's disclosure, and the profile | §38 | `11-surface-web.md` §7 |
+| 84 | A secret field's value was read back by anyone who could read the workload | §38 | `09-recipes.md` §5.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2888,3 +2889,29 @@ danger notice on the background, or text on the accent would fall below WCAG's 4
 left unset taken as the panel's own. → `11-surface-web.md` §7; built and tested in
 `web/src/theme/useTheme.tsx`, `web/src/theme/theme.ts`, and
 `crates/korpis-core/src/tenancy/theme.rs`.
+
+**FINDING 84: A secret field's value was read back by anyone who could read the workload.
+`CONFIRMED`**
+
+Found 2026-10-17 while building step 13 of this trace, the panel's form for a server's
+configuration, which would have shown every value its status carried. §5.2 of
+`09-recipes.md` says a secret field is readable back only with `workload.secret.read`, and
+nothing evaluated that: the action existed and no read checked it. Every read that returns an
+intent returned its body as stored, so the friend of step 2, holding `workload.read`, read the
+RCON password the operator set, and so did the moderator of step 12 through a share link that
+allows nothing but seeing the server's status. A plan and an effect name a changed secret by key
+only, as §5.2 asks; the intent beside them carried the value.
+
+**Resolution.** What evaluates the rule is the control plane, at each read, with what it holds:
+the caller's grants, and the recipe the intent pins by digest, which says which fields are
+secret and never changes for that intent. A caller without `workload.secret.read` on the
+workload is shown every intent with those fields' values left out and their keys in the
+intent's `withheld`, from `GetWorkload`, `ListWorkloads`, `WatchWorkload`, `ListIntents`, and
+the answer to `DeclareIntent`, whose copy kept for a replay is withheld the same way; a recipe
+that cannot be read withholds every value. `DeclareIntent` takes `keep`, keys whose values are
+carried from the head as they are, so such a caller declares a change to everything else
+without a secret it was never shown; a kept key that the recipe it is declared with does not
+mark secret needs `workload.secret.read`, or a change of recipe would carry the value somewhere
+it could be read (found by a security review of this fix before it was committed). → `09-recipes.md` §5.2; built and tested in
+`crates/korpis-app/src/workload/withhold.rs`, `crates/korpis-app/src/workload/declare/shown.rs`,
+and `crates/korpis-server/tests/api/secrets.rs`.

@@ -293,6 +293,7 @@ async fn redeclaration<S: Store, C: Clock, R: RecipeSource>(
         dry_run: false,
         propose: false,
         set: None,
+        keep: Vec::new(),
     })
 }
 

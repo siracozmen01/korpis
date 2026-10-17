@@ -257,6 +257,7 @@ fn workload_declaration(cmd: &InstallExtension, target: &Target, name: &Name) ->
         dry_run: false,
         propose: false,
         set: None,
+        keep: Vec::new(),
     }
 }
 

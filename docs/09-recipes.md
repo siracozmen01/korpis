@@ -581,6 +581,23 @@ recipe loader says so rather than letting the recipe claim a protection it canno
 effects (they record that it changed, not what to), and readable back only with
 `workload.secret.read` (§5 of `10-api.md`).
 
+> Corrected 2026-10-17 (Finding 84 of `23-walkthroughs.md`). The last clause was not true of
+> what was built: every read that returns an intent (`GetWorkload`, `ListWorkloads`,
+> `WatchWorkload`, `ListIntents`, and the answer to `DeclareIntent`) returned its body as stored,
+> so a holder of `workload.read`, a share link's among them, read the RCON password the example
+> above marks secret. Now each of those withholds, from a caller without `workload.secret.read`
+> on the workload, the values of the fields the intent's recipe marks secret, and names the keys
+> in the intent's `withheld`, so a client knows a value is set without learning it; a recipe
+> that cannot be read withholds every value. Such a caller changes everything else by declaring
+> with `keep`, which carries the named values from the head as they are, so it never has to
+> know a secret to leave it alone. A kept value stays out of sight only while the recipe it is
+> declared with marks it secret, so keeping one that the recipe declared with does not mark
+> secret, as a change of recipe could, needs `workload.secret.read` as reading it would. What it
+> costs: one more authorization check and a recipe read
+> per workload a read returns, both kept per call; and a clone made by a caller who may not
+> read the source's secrets starts with the recipe's defaults for them, since a value it was
+> never shown is not one it can copy.
+
 > Note, 2026-10-12, from the implementation (`crates/korpis-core/src/recipe/config.rs`). The wire
 > schema names the `file` channel `CONFIG_DELIVERY_TEMPLATE`: the field reaches the software only
 > through templates rendered into its volumes, which is the same tenant-writable channel. The

@@ -95,7 +95,15 @@ pub fn classification_from_pb(
         .collect()
 }
 
-/// The wire form of an intent.
+/// The wire form of an intent as a caller is shown it: with `withheld`, the keys whose values its
+/// body leaves out.
+#[must_use]
+pub fn shown_intent_to_pb(i: &Intent, withheld: &[String]) -> pb::Intent {
+    pb::Intent { withheld: withheld.to_vec(), ..intent_to_pb(i) }
+}
+
+/// The wire form of an intent, as the node it is assigned to receives it, or as a caller is
+/// shown it once its secrets are withheld.
 #[must_use]
 pub fn intent_to_pb(i: &Intent) -> pb::Intent {
     pb::Intent {

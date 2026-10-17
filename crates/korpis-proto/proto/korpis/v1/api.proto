@@ -346,6 +346,11 @@ message DeclareIntentRequest {
   bool reconcile = 8;
   // With `set`, onto a workload that belongs to no set: take it into the set.
   bool adopt = 9;
+  // Configuration keys whose values are kept from the workload's head intent as they are, and
+  // left out of `body`: how a client that may not read a secret (an intent's `withheld`) declares
+  // a change to everything else without knowing it (§5.2 of docs/09-recipes.md). Only onto an
+  // existing workload; a key may not be both kept and declared.
+  repeated string keep = 10;
 }
 
 message NewWorkload {

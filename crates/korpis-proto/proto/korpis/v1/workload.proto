@@ -77,6 +77,10 @@ message Intent {
   IntentBody body = 7;
   // The declared set whose apply declared it; absent for any other declaration.
   optional string managed_by = 8;
+  // Output only: the keys of `body.config` whose values are left out, as secrets of its recipe
+  // the caller may not read without `workload.secret.read` (§5.2 of docs/09-recipes.md). A key
+  // here has a value; the caller is not shown it.
+  repeated string withheld = 9;
 }
 
 // A named group of workloads one declarative source owns, in one project (§3.3 of

@@ -5,6 +5,7 @@
 
 use super::explain::{Found, PlacementView, UnplacedView};
 use super::observed::Observed;
+use super::withhold::Shown;
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -50,6 +51,18 @@ pub struct WorkloadView {
     /// Each name its ingress endpoints route, in DNS, by endpoint name (§3.5 of
     /// docs/07-networking.md).
     pub names: Vec<(String, korpis_core::dns::published::EndpointRecord)>,
+    /// The configuration keys whose values were left out of its head and target, as secrets the
+    /// caller may not read (§5.2 of docs/09-recipes.md).
+    pub withheld: Withheld,
+}
+
+/// The keys whose values a view left out, by intent.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Withheld {
+    /// Of the head.
+    pub head: Vec<String>,
+    /// Of the target.
+    pub target: Vec<String>,
 }
 
 /// A member of a set whose head was declared outside it (§6 of docs/13-surface-cli.md).
@@ -133,6 +146,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             placement: None,
             unplaced: None,
             observation,
+            withheld: Withheld::default(),
         };
         Ok((view, found))
     }
@@ -150,6 +164,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             found.push(f);
         }
         self.render_placements(caller, &mut views, found).await?;
+        self.withhold_views(caller, &mut views).await?;
         Ok(views)
     }
 
@@ -202,16 +217,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Paged { items: self.views(caller, matching).await?, next })
     }
 
-    /// A workload's intents, oldest first.
+    /// A workload's intents, oldest first, as the caller is shown them.
     pub async fn list_intents(
         &self,
         caller: &Caller,
         workload: Uuid,
         page: Page,
-    ) -> Result<Paged<Intent>, AppError> {
+    ) -> Result<Paged<Shown>, AppError> {
         self.authorize(caller, "workload.read", ObjectRef::new(Kind::Workload, workload)).await?;
         let items = self.store.intents(workload, page).await?;
         let next = page.next(&items, |i| i.id);
-        Ok(Paged { items, next })
+        Ok(Paged { items: self.shown(caller, workload, items).await?, next })
     }
 }
