@@ -12,6 +12,7 @@ import { useLoad } from "../views/load";
 import { refusal } from "../views/refusal";
 import { Shown } from "../views/Shown";
 import type { ProfileServices } from "./services";
+import { intl, t } from "../i18n/intl";
 
 /** The sessions screen, read again after each change. */
 export function Sessions({ services }: { readonly services: ProfileServices }) {
@@ -29,17 +30,26 @@ export function Sessions({ services }: { readonly services: ProfileServices }) {
   };
   return (
     <section aria-labelledby="sessions">
-      <h2 id="sessions">Where you are signed in</h2>
+      <h2 id="sessions">{t({ defaultMessage: "Where you are signed in", id: "qmFAWUlu" })}</h2>
       <Listed key={round} services={services} end={end} />
       <Button
         onPress={() => {
           sessions.endOtherSessions({}).then((r) => {
-            setSaid(`${r.ended.toString()} ended.`);
+            setSaid(
+              t(
+                {
+                  defaultMessage:
+                    "{n, plural, =0 {No other session was open.} one {# session ended.} other {# sessions ended.}}",
+                  id: "dXVcO4GV",
+                },
+                { n: Number(r.ended) },
+              ),
+            );
             again();
           }, fail);
         }}
       >
-        End every other session
+        {t({ defaultMessage: "End every other session", id: "C3v4CI1c" })}
       </Button>
       {said !== undefined && <p role="status">{said}</p>}
     </section>
@@ -54,23 +64,58 @@ function Listed(props: { readonly services: ProfileServices; readonly end: (s: S
   return (
     <Shown
       loaded={listed}
-      what="your sessions"
+      reading={t({ defaultMessage: "Reading your sessions…", id: "JyQxWYW1" })}
       done={(list) => (
         <ul>
           {list.map((s) => (
             <li key={s.id}>
-              {s.kind === "cli" ? "Command line" : "Browser"}:{" "}
-              {s.userAgent === "" ? "unnamed" : s.userAgent}, from {s.source}
-              {s.lastUsedAt && `, last used ${timestampDate(s.lastUsedAt).toLocaleString()}`}
+              {t(
+                {
+                  defaultMessage:
+                    "{kind, select, cli {Command line} other {Browser}}: {agent}, from {source}{used, select, yes {, last used {lastUsed}} other {}}",
+                  id: "kBgKnjmv",
+                  description: "one session: its kind, client, address, and last use",
+                },
+                {
+                  kind: s.kind,
+                  agent:
+                    s.userAgent === ""
+                      ? t({
+                          defaultMessage: "unnamed",
+                          id: "PRlKOXbY",
+                          description: "a session with no client name",
+                        })
+                      : s.userAgent,
+                  source: s.source,
+                  used: s.lastUsedAt === undefined ? "no" : "yes",
+                  lastUsed:
+                    s.lastUsedAt === undefined
+                      ? ""
+                      : intl.formatDate(timestampDate(s.lastUsedAt), {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }),
+                },
+              )}
               {s.current ? (
-                <strong> (this one)</strong>
+                <strong className="aside">
+                  {t({
+                    defaultMessage: "(this one)",
+                    id: "1G5SDr8l",
+                    description: "the session in use now",
+                  })}
+                </strong>
               ) : (
                 <Button
                   onPress={() => {
                     props.end(s);
                   }}
                 >
-                  End it
+                  {t({
+                    defaultMessage: "End it",
+                    id: "3jqpN1eS",
+                    description: "button: end a session",
+                  })}
                 </Button>
               )}
             </li>

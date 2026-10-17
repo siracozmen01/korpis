@@ -9,14 +9,32 @@ import { useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
 import { FileKind, type FileEntry } from "../gen/korpis/v1/files_pb";
 import type { FileSession } from "./session";
-import { bytes, partial, upload, within } from "./transfer";
+import { bytes } from "../i18n/format";
+import { SEPARATOR, partial, upload, within } from "./transfer";
+import { intl, t } from "../i18n/intl";
 
 const KIND: Record<FileKind, string> = {
   [FileKind.UNSPECIFIED]: "",
-  [FileKind.FILE]: "file",
-  [FileKind.DIRECTORY]: "directory",
-  [FileKind.SYMLINK]: "link, not followed",
-  [FileKind.OTHER]: "not a file",
+  [FileKind.FILE]: t({
+    defaultMessage: "file",
+    id: "/GKa1+lg",
+    description: "a listing entry's kind",
+  }),
+  [FileKind.DIRECTORY]: t({
+    defaultMessage: "directory",
+    id: "KU6egau4",
+    description: "a listing entry's kind",
+  }),
+  [FileKind.SYMLINK]: t({
+    defaultMessage: "link, not followed",
+    id: "z03iN+NR",
+    description: "a listing entry's kind",
+  }),
+  [FileKind.OTHER]: t({
+    defaultMessage: "not a file",
+    id: "aM06WstJ",
+    description: "a listing entry's kind",
+  }),
 };
 
 /** One entry of the listing; changes offered when `fs` is given. */
@@ -45,43 +63,66 @@ export function Row(props: {
       <td>
         {opens ? (
           <Button
-            aria-label={e.kind === FileKind.DIRECTORY ? `Open ${e.name}` : `Download ${e.name}`}
+            aria-label={
+              e.kind === FileKind.DIRECTORY
+                ? t({ defaultMessage: "Open {name}", id: "X1BDgPIM" }, { name: e.name })
+                : t({ defaultMessage: "Download {name}", id: "R3ptDDpo" }, { name: e.name })
+            }
             onPress={props.open}
           >
-            {e.kind === FileKind.DIRECTORY ? `${e.name}/` : e.name}
+            {e.name}
+            {e.kind === FileKind.DIRECTORY && SEPARATOR}
           </Button>
         ) : (
           <span>{e.name}</span>
-        )}{" "}
-        <small>{KIND[e.kind]}</small>
+        )}
+        <small className="aside">{KIND[e.kind]}</small>
       </td>
       <td>{e.kind === FileKind.FILE ? bytes(Number(e.size)) : ""}</td>
-      <td>{modified === "" ? "" : modified.toLocaleString()}</td>
+      <td>
+        {modified === ""
+          ? ""
+          : intl.formatDate(modified, { dateStyle: "medium", timeStyle: "short" })}
+      </td>
       {fs !== undefined && (
         <td>
           {doing === undefined && (
             <>
               <Button
-                aria-label={`Rename ${e.name}`}
+                aria-label={t(
+                  { defaultMessage: "Rename {name}", id: "NZmMEEju" },
+                  { name: e.name },
+                )}
                 onPress={() => {
                   setDoing("rename");
                 }}
               >
-                Rename
+                {t({
+                  defaultMessage: "Rename",
+                  id: "rxv4RRs4",
+                  description: "button: rename a file",
+                })}
               </Button>
               <Button
-                aria-label={`Remove ${e.name}`}
+                aria-label={t(
+                  { defaultMessage: "Remove {name}", id: "T0e6Lh8l" },
+                  { name: e.name },
+                )}
                 onPress={() => {
                   setDoing("remove");
                 }}
               >
-                Remove
+                {t({
+                  defaultMessage: "Remove",
+                  id: "Nf2GrGr0",
+                  description: "button: remove a file",
+                })}
               </Button>
             </>
           )}
           {doing === "rename" && (
             <Named
-              label={`New name for ${e.name}`}
+              label={t({ defaultMessage: "New name for {name}", id: "zYuUqeRO" }, { name: e.name })}
               initial={e.name}
               done={(name) => {
                 act((s) =>
@@ -94,24 +135,40 @@ export function Row(props: {
             />
           )}
           {doing === "remove" && (
-            <span role="group" aria-label={`Remove ${e.name}`}>
+            <span
+              role="group"
+              aria-label={t({ defaultMessage: "Remove {name}", id: "T0e6Lh8l" }, { name: e.name })}
+            >
               {e.kind === FileKind.DIRECTORY
-                ? `Remove ${e.name} and everything in it? This cannot be undone.`
-                : `Remove ${e.name}? This cannot be undone.`}
+                ? t(
+                    {
+                      defaultMessage: "Remove {name} and everything in it? This cannot be undone.",
+                      id: "miozhqcP",
+                    },
+                    { name: e.name },
+                  )
+                : t(
+                    { defaultMessage: "Remove {name}? This cannot be undone.", id: "rGyY3Tcv" },
+                    { name: e.name },
+                  )}
               <Button
                 onPress={() => {
                   const recursive = e.kind === FileKind.DIRECTORY;
                   act((s) => s.ask({ case: "remove", value: { path, recursive } }));
                 }}
               >
-                Remove
+                {t({
+                  defaultMessage: "Remove",
+                  id: "Nf2GrGr0",
+                  description: "button: remove a file",
+                })}
               </Button>
               <Button
                 onPress={() => {
                   setDoing(undefined);
                 }}
               >
-                Cancel
+                {t({ defaultMessage: "Cancel", id: "47FYwba+" })}
               </Button>
             </span>
           )}
@@ -142,9 +199,9 @@ function Named(props: {
         <Input />
       </TextField>
       <Button type="submit" isDisabled={!plain}>
-        Save
+        {t({ defaultMessage: "Save", id: "jvo0vs3n" })}
       </Button>
-      <Button onPress={props.cancel}>Cancel</Button>
+      <Button onPress={props.cancel}>{t({ defaultMessage: "Cancel", id: "47FYwba+" })}</Button>
     </Form>
   );
 }
@@ -169,9 +226,14 @@ export function Changes(props: {
   const [asking, setAsking] = useState<Asking>();
   const send = async (file: File, from: number) => {
     await upload(fs, file, within(dir, file.name), from, (done, total) => {
-      tell(`Uploading ${file.name}: ${bytes(done)} of ${bytes(total)}`);
+      tell(
+        t(
+          { defaultMessage: "Uploading {name}: {done} of {total}", id: "qyvx6JZq" },
+          { name: file.name, done: bytes(done), total: bytes(total) },
+        ),
+      );
     });
-    tell(`Uploaded ${file.name}.`);
+    tell(t({ defaultMessage: "Uploaded {name}.", id: "k/D6s5T/" }, { name: file.name }));
   };
   /** Uploads `files` in turn, stopping to ask about one already partly there. */
   const each = async (files: File[]) => {
@@ -200,7 +262,7 @@ export function Changes(props: {
   return (
     <div className="changes">
       <label className="upload">
-        Upload files
+        {t({ defaultMessage: "Upload files", id: "2jjdVzJX" })}
         <input
           type="file"
           multiple
@@ -214,7 +276,7 @@ export function Changes(props: {
       </label>
       {making ? (
         <Named
-          label="New directory"
+          label={t({ defaultMessage: "New directory", id: "c6s3fip6" })}
           initial=""
           done={(name) => {
             run(async () => {
@@ -233,32 +295,49 @@ export function Changes(props: {
             setMaking(true);
           }}
         >
-          New directory
+          {t({ defaultMessage: "New directory", id: "c6s3fip6" })}
         </Button>
       )}
       {asking !== undefined && (
-        <div role="group" aria-label={`Upload ${asking.file.name}`}>
-          {`${asking.file.name} is there with ${bytes(asking.there)} of ${bytes(asking.file.size)}.`}
+        <div
+          role="group"
+          aria-label={t(
+            { defaultMessage: "Upload {name}", id: "H+C4LITW" },
+            { name: asking.file.name },
+          )}
+        >
+          {t(
+            { defaultMessage: "{name} is there with {there} of {size}.", id: "Od6W77Tm" },
+            { name: asking.file.name, there: bytes(asking.there), size: bytes(asking.file.size) },
+          )}
           <Button
             onPress={() => {
               decide(asking.there);
             }}
           >
-            Resume
+            {t({
+              defaultMessage: "Resume",
+              id: "RimURWP3",
+              description: "button: resume an upload",
+            })}
           </Button>
           <Button
             onPress={() => {
               decide(0);
             }}
           >
-            Replace
+            {t({
+              defaultMessage: "Replace",
+              id: "SzKCJJnE",
+              description: "button: replace a partly uploaded file",
+            })}
           </Button>
           <Button
             onPress={() => {
               decide(undefined);
             }}
           >
-            Skip
+            {t({ defaultMessage: "Skip", id: "sBDwIptW", description: "button: skip an upload" })}
           </Button>
         </div>
       )}

@@ -9,6 +9,7 @@
 
 import { FileErrorCode, FileKind } from "../gen/korpis/v1/files_pb";
 import { type FileSession, Refused } from "./session";
+import { t } from "../i18n/intl";
 
 /** The most bytes one request moves. */
 export const CHUNK = 1 << 20;
@@ -93,7 +94,10 @@ export async function download(
 ): Promise<void> {
   const read = (at: number) =>
     fs.ask({ case: "read", value: { path, offset: BigInt(at), length: chunk } }).then((said) => {
-      if (said.case !== "data") throw new Error("the node answered a read with no data");
+      if (said.case !== "data")
+        throw new Error(
+          t({ defaultMessage: "the node answered a read with no data", id: "6WRJhCn7" }),
+        );
       return said.value;
     });
   const ahead: Promise<Uint8Array>[] = [];
@@ -162,6 +166,11 @@ export async function pickedSink(name: string): Promise<Sink | undefined> {
   };
 }
 
+/** What separates a path's names, and what names a directory's parent: a path's own
+ * characters, shown as they are in every language. */
+export const SEPARATOR = "/";
+export const PARENT = "..";
+
 /** `name` in the directory `dir`. */
 export function within(dir: string, name: string): string {
   return dir === "/" ? `/${name}` : `${dir}/${name}`;
@@ -171,16 +180,4 @@ export function within(dir: string, name: string): string {
 export function parent(path: string): string {
   const at = path.lastIndexOf("/");
   return at <= 0 ? "/" : path.slice(0, at);
-}
-
-/** A byte count as a person reads it. */
-export function bytes(n: number): string {
-  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
-  let v = n;
-  let u = 0;
-  while (v >= 1024 && u < units.length - 1) {
-    v /= 1024;
-    u += 1;
-  }
-  return u === 0 ? `${n.toString()} B` : `${v.toFixed(1)} ${units[u] ?? "B"}`;
 }

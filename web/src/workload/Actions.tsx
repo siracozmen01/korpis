@@ -11,6 +11,7 @@ import { Button, CheckboxButton, CheckboxField } from "react-aria-components";
 import { useReach } from "../clients";
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import { PlanApproval, PlanStatus, type Plan } from "../gen/korpis/v1/workload_pb";
+import { t } from "../i18n/intl";
 import { refusal } from "../views/refusal";
 import { type Action, LABEL, confirm, offered, propose, withdraw } from "./act";
 import { PlanView } from "./PlanView";
@@ -45,7 +46,8 @@ export function Actions({ status }: { readonly status: WorkloadStatus }) {
   const begin = (action: Action) => {
     run(async () => {
       const plan = await propose(clients, status, action);
-      if (plan === undefined) throw new Error("the control plane sent no plan");
+      if (plan === undefined)
+        throw new Error(t({ defaultMessage: "the control plane sent no plan", id: "TAhO4thL" }));
       const waits = plan.status !== PlanStatus.PROPOSED || plan.approval === PlanApproval.AUTHORITY;
       if (waits) return { kind: "waiting", plan };
       const tier = tierOf(plan);
@@ -76,7 +78,13 @@ export function Actions({ status }: { readonly status: WorkloadStatus }) {
     );
   }
   return (
-    <section aria-label="Actions">
+    <section
+      aria-label={t({
+        defaultMessage: "Actions",
+        id: "ZWw2kSUj",
+        description: "a workload's actions",
+      })}
+    >
       {offered(status, allowed).map((a) => (
         <Button
           key={a}
@@ -89,34 +97,56 @@ export function Actions({ status }: { readonly status: WorkloadStatus }) {
         </Button>
       ))}
       {step.kind === "preview" && (
-        <div aria-label="Preview">
-          <p>{LABEL[step.action]} will do this:</p>
+        <div
+          aria-label={t({
+            defaultMessage: "Preview",
+            id: "G3xFadAQ",
+            description: "a plan previewed",
+          })}
+        >
+          <p>
+            {t(
+              { defaultMessage: "{action} will do this:", id: "tiVJHECN" },
+              { action: LABEL[step.action] },
+            )}
+          </p>
           <PlanView plan={step.plan} />
           <Button
             onPress={() => {
               run(confirmed(step.action, step.plan));
             }}
           >
-            Confirm
+            {t({ defaultMessage: "Confirm", id: "N2IrpMDH" })}
           </Button>
           <Button
             onPress={() => {
               cancel(step.plan);
             }}
           >
-            Cancel
+            {t({ defaultMessage: "Cancel", id: "47FYwba+" })}
           </Button>
         </div>
       )}
       {step.kind === "waiting" && (
         <p role="status">
-          Its plan waits for approval:{" "}
-          {step.plan.impact?.approvalReason ?? "someone must approve it"}
+          {t(
+            { defaultMessage: "Its plan waits for approval: {why}", id: "AZ8OrWtY" },
+            {
+              why:
+                step.plan.impact?.approvalReason ??
+                t({ defaultMessage: "someone must approve it", id: "zb3eS1/R" }),
+            },
+          )}
         </p>
       )}
       {step.kind === "done" && (
         <details>
-          <summary>{LABEL[step.action]}: done. What it did</summary>
+          <summary>
+            {t(
+              { defaultMessage: "{action}: done. What it did", id: "0bWtzCgd" },
+              { action: LABEL[step.action] },
+            )}
+          </summary>
           <PlanView plan={step.plan} />
         </details>
       )}
@@ -135,18 +165,29 @@ function Review(props: {
   const [read, setRead] = useState(false);
   return (
     <section aria-labelledby="review">
-      <h2 id="review">Review: {LABEL[props.step.action]}</h2>
-      <p>Every step it takes, and every object it acts on:</p>
+      <h2 id="review">
+        {t(
+          { defaultMessage: "Review: {action}", id: "aMLvvtkX" },
+          { action: LABEL[props.step.action] },
+        )}
+      </h2>
+      <p>
+        {t({ defaultMessage: "Every step it takes, and every object it acts on:", id: "e258PFM2" })}
+      </p>
       <PlanView plan={props.step.plan} />
       <CheckboxField isSelected={read} onChange={setRead}>
         <CheckboxButton>
-          I have read every step, and what is marked irreversible cannot be undone
+          {t({
+            defaultMessage:
+              "I have read every step, and what is marked irreversible cannot be undone",
+            id: "Jby50rYV",
+          })}
         </CheckboxButton>
       </CheckboxField>
       <Button isDisabled={!read} onPress={props.confirm}>
         {LABEL[props.step.action]}
       </Button>
-      <Button onPress={props.cancel}>Cancel</Button>
+      <Button onPress={props.cancel}>{t({ defaultMessage: "Cancel", id: "47FYwba+" })}</Button>
       {props.alert}
     </section>
   );

@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
 import { Redeem, type RedeemProps } from "./Redeem";
+import { t } from "../i18n/intl";
 
 /** The prefix every invitation starts with (credential.rs). */
 export const INVITATION_PREFIX = "korpisiv_";
@@ -21,7 +22,7 @@ export function Invitation(
   if (invitation !== undefined) return <Redeem {...redeem} invitation={invitation} />;
   return (
     <main>
-      <h1>Redeem an invitation</h1>
+      <h1>{t({ defaultMessage: "Redeem an invitation", id: "g52ZeLQR" })}</h1>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -37,13 +38,16 @@ export function Invitation(
           validate={(v) =>
             v.trim().startsWith(INVITATION_PREFIX)
               ? null
-              : `An invitation starts ${INVITATION_PREFIX}`
+              : t(
+                  { defaultMessage: "An invitation starts {prefix}", id: "zQpbwSBJ" },
+                  { prefix: INVITATION_PREFIX },
+                )
           }
         >
-          <Label>The invitation</Label>
+          <Label>{t({ defaultMessage: "The invitation", id: "MUFpIc0k" })}</Label>
           <Input />
         </TextField>
-        <Button type="submit">Continue</Button>
+        <Button type="submit">{t({ defaultMessage: "Continue", id: "acrOozm0" })}</Button>
       </Form>
     </main>
   );

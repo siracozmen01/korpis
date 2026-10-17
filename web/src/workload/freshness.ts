@@ -10,6 +10,7 @@
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Convergence, type WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import { ObservedState } from "../gen/korpis/v1/workload_pb";
+import { intl } from "../i18n/intl";
 
 /** Whether the panel is hearing the workload, and when it last heard. */
 export interface Heard {
@@ -35,13 +36,15 @@ export function freshness(status: WorkloadStatus, heard: Heard): Freshness {
   return heard.live ? { kind: "known" } : { kind: "stale", heardAt: heard.at };
 }
 
-/** A span of milliseconds in words: seconds, minutes, hours, or days. */
+/** A span of milliseconds in the panel's locale's words: seconds, minutes, hours, or days. */
 export function age(ms: number): string {
+  const span = (value: number, unit: string) =>
+    intl.formatNumber(value, { style: "unit", unit, unitDisplay: "short" });
   const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 60) return `${s.toString()} s`;
+  if (s < 60) return span(s, "second");
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m.toString()} min`;
+  if (m < 60) return span(m, "minute");
   const h = Math.floor(m / 60);
-  if (h < 48) return `${h.toString()} h`;
-  return `${Math.floor(h / 24).toString()} d`;
+  if (h < 48) return span(h, "hour");
+  return span(Math.floor(h / 24), "day");
 }

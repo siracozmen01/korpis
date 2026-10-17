@@ -13,6 +13,7 @@ import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import type { Heard } from "../workload/freshness";
 import { type Timeline, advance } from "../workload/timeline";
 import { notTheirs } from "./load";
+import { t } from "../i18n/intl";
 
 /** What the screen knows of the workload, and how it came to know it. */
 export interface Live {
@@ -91,7 +92,7 @@ export function useLive(clients: Clients, id: string, automatic: boolean): Live 
           const status = change.status;
           if (status !== undefined) dispatch({ kind: "heard", status, at: Date.now() });
         }
-        throw new Error("the live view ended");
+        throw new Error(t({ defaultMessage: "the live view ended", id: "A76GYv5R" }));
       } catch (why) {
         if (!stop.signal.aborted) dispatch({ kind: "ended", why });
       }

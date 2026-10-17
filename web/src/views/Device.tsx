@@ -16,6 +16,7 @@ import type { GetDeviceAuthorizationResponse, SessionService } from "../gen/korp
 import type { Assertion } from "../session/webauthn";
 import { Reauthenticate } from "./Reauthenticate";
 import { reasonOf, refusal } from "./refusal";
+import { intl, t } from "../i18n/intl";
 
 /** What the device page needs. */
 export interface DeviceProps {
@@ -34,8 +35,10 @@ type Step =
   | { readonly kind: "decided"; readonly approved: boolean };
 
 /** A time as the user's own clock and language write it. */
-function when(t: GetDeviceAuthorizationResponse["createdAt"]): string {
-  return t === undefined ? "an unknown time" : timestampDate(t).toLocaleString();
+function when(at: GetDeviceAuthorizationResponse["createdAt"]): string {
+  return at === undefined
+    ? t({ defaultMessage: "an unknown time", id: "EOBZyeyd" })
+    : intl.formatDate(timestampDate(at), { dateStyle: "medium", timeStyle: "medium" });
 }
 
 /** The device page. */
@@ -100,18 +103,38 @@ export function Device(props: DeviceProps) {
     case "decided":
       return (
         <main>
-          <h1>{step.approved ? "Signed in" : "Refused"}</h1>
+          <h1>
+            {step.approved
+              ? t({
+                  defaultMessage: "Signed in",
+                  id: "6Ll5hj0k",
+                  description: "a device sign-in approved",
+                })
+              : t({
+                  defaultMessage: "Refused",
+                  id: "bASS+sB6",
+                  description: "a device sign-in denied",
+                })}
+          </h1>
           <p>
             {step.approved
-              ? "The command-line client is signed in as you. You can return to your terminal."
-              : "The command-line client was refused, and its code no longer works."}
+              ? t({
+                  defaultMessage:
+                    "The command-line client is signed in as you. You can return to your terminal.",
+                  id: "g6viPdJR",
+                })
+              : t({
+                  defaultMessage:
+                    "The command-line client was refused, and its code no longer works.",
+                  id: "Zcs/kMyq",
+                })}
           </p>
         </main>
       );
     case "recent":
       return (
         <main>
-          <h1>Sign in a command-line client</h1>
+          <h1>{t({ defaultMessage: "Sign in a command-line client", id: "Rsr0afH7" })}</h1>
           <Reauthenticate
             accounts={props.accounts}
             profiles={props.profiles}
@@ -137,7 +160,7 @@ function Ask(props: {
   const [code, setCode] = useState(props.initial);
   return (
     <main>
-      <h1>Sign in a command-line client</h1>
+      <h1>{t({ defaultMessage: "Sign in a command-line client", id: "Rsr0afH7" })}</h1>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -145,14 +168,16 @@ function Ask(props: {
         }}
       >
         <TextField name="code" isRequired value={code} onChange={setCode} autoComplete="off">
-          <Label>The code your terminal shows</Label>
+          <Label>{t({ defaultMessage: "The code your terminal shows", id: "JeLzuc6N" })}</Label>
           <Input />
         </TextField>
         <Button type="submit" isDisabled={props.reading}>
-          Continue
+          {t({ defaultMessage: "Continue", id: "acrOozm0" })}
         </Button>
       </Form>
-      {props.reading && <p role="status">Reading the request…</p>}
+      {props.reading && (
+        <p role="status">{t({ defaultMessage: "Reading the request\u2026", id: "AKsYwJZw" })}</p>
+      )}
       {props.alert}
     </main>
   );
@@ -167,22 +192,33 @@ function Decide(props: {
   const { asked } = props;
   return (
     <main>
-      <h1>Sign in a command-line client</h1>
+      <h1>{t({ defaultMessage: "Sign in a command-line client", id: "Rsr0afH7" })}</h1>
       <p>
-        A command-line client asks to sign in as you. Approve it only if you started it yourself and
-        your terminal shows this code:
+        {t({
+          defaultMessage:
+            "A command-line client asks to sign in as you. Approve it only if you started it yourself and your terminal shows this code:",
+          id: "OBu6D0B5",
+        })}
       </p>
       <p>
         <strong>{asked.userCode}</strong>
       </p>
       <dl>
-        <dt>It says it is</dt>
-        <dd>{asked.userAgent === "" ? "nothing" : asked.userAgent}</dd>
-        <dt>It asked from</dt>
+        <dt>{t({ defaultMessage: "It says it is", id: "FpysbNB0" })}</dt>
+        <dd>
+          {asked.userAgent === ""
+            ? t({
+                defaultMessage: "nothing",
+                id: "DIHNjZk9",
+                description: "a client that names no user agent",
+              })
+            : asked.userAgent}
+        </dd>
+        <dt>{t({ defaultMessage: "It asked from", id: "hJ6uj4ZM" })}</dt>
         <dd>{asked.source}</dd>
-        <dt>It asked at</dt>
+        <dt>{t({ defaultMessage: "It asked at", id: "BkY/4vDn" })}</dt>
         <dd>{when(asked.createdAt)}</dd>
-        <dt>The code expires at</dt>
+        <dt>{t({ defaultMessage: "The code expires at", id: "DDEIbpCL" })}</dt>
         <dd>{when(asked.expiresAt)}</dd>
       </dl>
       <Button
@@ -190,14 +226,14 @@ function Decide(props: {
           props.decide(asked, true);
         }}
       >
-        Approve
+        {t({ defaultMessage: "Approve", id: "59XppT0s", description: "button" })}
       </Button>
       <Button
         onPress={() => {
           props.decide(asked, false);
         }}
       >
-        Deny
+        {t({ defaultMessage: "Deny", id: "Lr/1fpfn", description: "button" })}
       </Button>
       {props.alert}
     </main>

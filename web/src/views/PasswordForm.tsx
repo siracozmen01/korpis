@@ -15,6 +15,7 @@ import {
   RadioGroup,
   TextField,
 } from "react-aria-components";
+import { t } from "../i18n/intl";
 
 /** The second factor beside a password, as the API's `oneof second` carries it. */
 export type Second =
@@ -57,12 +58,12 @@ export function PasswordForm(props: {
     >
       {props.withName && (
         <TextField name="name" isRequired autoComplete="username">
-          <Label>Sign-in name</Label>
+          <Label>{t({ defaultMessage: "Sign-in name", id: "zRVBYlyI" })}</Label>
           <Input />
         </TextField>
       )}
       <TextField name="password" type="password" isRequired autoComplete="current-password">
-        <Label>Password</Label>
+        <Label>{t({ defaultMessage: "Password", id: "5sg7KCrr" })}</Label>
         <Input />
       </TextField>
       <RadioGroup
@@ -71,16 +72,32 @@ export function PasswordForm(props: {
           setKind(v === "recoveryCode" ? "recoveryCode" : "totpCode");
         }}
       >
-        <Label>Beside it</Label>
+        <Label>
+          {t({
+            defaultMessage: "Beside it",
+            id: "6/tAYJsQ",
+            description: "the second factor given beside a password",
+          })}
+        </Label>
         <RadioField value="totpCode">
-          <RadioButton>A code from your authenticator app</RadioButton>
+          <RadioButton>
+            {t({ defaultMessage: "A code from your authenticator app", id: "yuk2Sbg3" })}
+          </RadioButton>
         </RadioField>
         <RadioField value="recoveryCode">
-          <RadioButton>A recovery code</RadioButton>
+          <RadioButton>{t({ defaultMessage: "A recovery code", id: "+PRD45NT" })}</RadioButton>
         </RadioField>
       </RadioGroup>
       <TextField name="code" isRequired autoComplete="one-time-code">
-        <Label>{kind === "totpCode" ? "Code" : "Recovery code"}</Label>
+        <Label>
+          {kind === "totpCode"
+            ? t({
+                defaultMessage: "Code",
+                id: "N+x6wMk/",
+                description: "an authenticator app's code",
+              })
+            : t({ defaultMessage: "Recovery code", id: "e4C1p0sc" })}
+        </Label>
         <Input />
       </TextField>
       <Button type="submit" isDisabled={props.busy}>

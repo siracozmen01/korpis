@@ -23,24 +23,29 @@ import {
   TextField,
 } from "react-aria-components";
 import { useReach } from "../clients";
+import { t } from "../i18n/intl";
 import { refusal } from "../views/refusal";
+import { ALLOWS } from "./allows";
 
-/** What a link may allow, in the words the share screen uses. */
-const OFFERED: readonly (readonly [string, string])[] = [
-  ["workload.read", "see its status"],
-  ["workload.console.read", "read its console"],
-  ["workload.console.write", "send commands to its console"],
-  ["workload.restart", "restart it"],
-  ["workload.start", "start it"],
-  ["workload.stop", "stop it"],
-  ["workload.file.read", "read its files"],
+/** What a link made here may allow. */
+const OFFERED: readonly string[] = [
+  "workload.read",
+  "workload.console.read",
+  "workload.console.write",
+  "workload.restart",
+  "workload.start",
+  "workload.stop",
+  "workload.file.read",
 ];
+
+const hoursOf = (n: number) =>
+  t({ defaultMessage: "{n, plural, one {# hour} other {# hours}}", id: "57WbSh0o" }, { n });
 
 /** How long a link may last, in hours. */
 const LASTS: readonly (readonly [string, number])[] = [
-  ["1 hour", 1],
-  ["24 hours", 24],
-  ["7 days", 168],
+  [hoursOf(1), 1],
+  [hoursOf(24), 24],
+  [t({ defaultMessage: "{n, plural, one {# day} other {# days}}", id: "jYLOYRR/" }, { n: 7 }), 168],
 ];
 
 const HOUR_MS = 3_600_000;
@@ -80,7 +85,7 @@ export function Share({ id }: { readonly id: string }) {
   if (link !== undefined) return <Issued link={link} />;
   return (
     <section aria-labelledby="share">
-      <h2 id="share">Share as a link</h2>
+      <h2 id="share">{t({ defaultMessage: "Share as a link", id: "7L9bcZ1z" })}</h2>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -88,15 +93,21 @@ export function Share({ id }: { readonly id: string }) {
         }}
       >
         <CheckboxGroup value={actions} onChange={setActions} isRequired>
-          <Label>They can</Label>
-          {OFFERED.map(([action, words]) => (
+          <Label>{t({ defaultMessage: "They can", id: "C0bpQ4YI" })}</Label>
+          {OFFERED.map((action) => (
             <CheckboxField key={action} value={action}>
-              <CheckboxButton>{words}</CheckboxButton>
+              <CheckboxButton>{ALLOWS[action]}</CheckboxButton>
             </CheckboxField>
           ))}
         </CheckboxGroup>
         <RadioGroup value={hours} onChange={setHours}>
-          <Label>For</Label>
+          <Label>
+            {t({
+              defaultMessage: "For",
+              id: "stvCF2Qv",
+              description: "how long a share link lasts",
+            })}
+          </Label>
           {LASTS.map(([words, h]) => (
             <RadioField key={h} value={h.toString()}>
               <RadioButton>{words}</RadioButton>
@@ -104,21 +115,33 @@ export function Share({ id }: { readonly id: string }) {
           ))}
         </RadioGroup>
         <NumberField value={uses} onChange={setUses} minValue={1} maxValue={1000}>
-          <Label>Uses</Label>
+          <Label>
+            {t({
+              defaultMessage: "Uses",
+              id: "ZInTaFOM",
+              description: "how many uses a share link has",
+            })}
+          </Label>
           <Input />
         </NumberField>
         <TextField value={label} onChange={setLabel}>
-          <Label>What it is for (shown wherever it is listed)</Label>
+          <Label>
+            {t({ defaultMessage: "What it is for (shown wherever it is listed)", id: "gFzZ9t+1" })}
+          </Label>
           <Input />
         </TextField>
         <p>
-          Whoever holds the link can do this, with no account. Opening its screen is one use, and so
-          is each action; using it needs the control plane to be reachable. It lasts at most{" "}
-          {uses.toString()} uses and {LASTS.find(([, h]) => h.toString() === hours)?.[0]}, and you
-          can revoke it at any time.
+          {t(
+            {
+              defaultMessage:
+                "Whoever holds the link can do this, with no account. Opening its screen is one use, and so is each action; using it needs the control plane to be reachable. It lasts at most {uses, plural, one {# use} other {# uses}} and {lasts}, and you can revoke it at any time.",
+              id: "rFlt7Wwo",
+            },
+            { uses, lasts: LASTS.find(([, h]) => h.toString() === hours)?.[0] ?? "" },
+          )}
         </p>
         <Button type="submit" isDisabled={actions.length === 0}>
-          Make the link
+          {t({ defaultMessage: "Make the link", id: "FAkmp8n+" })}
         </Button>
       </Form>
       {error !== undefined && <p role="alert">{error}</p>}
@@ -131,8 +154,14 @@ function Issued({ link }: { readonly link: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <section aria-labelledby="issued">
-      <h2 id="issued">The link</h2>
-      <p>It is shown this once. Send it only to the person it is for, not to a group.</p>
+      <h2 id="issued">{t({ defaultMessage: "The link", id: "1gwFNojj" })}</h2>
+      <p>
+        {t({
+          defaultMessage:
+            "It is shown this once. Send it only to the person it is for, not to a group.",
+          id: "lfun+oaM",
+        })}
+      </p>
       <p>
         <code>{link}</code>
       </p>
@@ -143,7 +172,9 @@ function Issued({ link }: { readonly link: string }) {
           });
         }}
       >
-        {copied ? "Copied" : "Copy"}
+        {copied
+          ? t({ defaultMessage: "Copied", id: "p556q3uv" })
+          : t({ defaultMessage: "Copy", id: "4l6vz1/e" })}
       </Button>
     </section>
   );

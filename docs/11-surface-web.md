@@ -281,13 +281,13 @@ where the licence needs it to be rather than where a brand would notice it.
 everything beneath it unless a descendant sets its own, as a layout is (question 2): a product
 name, a logo, a fixed set of colour tokens for the light and the dark scheme, the text of the
 sign-in page, and optionally a stylesheet of at most 64 KiB. The panel applies the theme of the
-viewer's provider, the top organization the viewer can read, whatever they are looking at;
-before anyone has signed in, it applies the root organization's. A reseller's sign-in page at the reseller's own address needs the control plane to
-answer there, which Phase 2 designs with the names organizations hold for their customers (Finding
-66 of `23-walkthroughs.md`); the theme of the organization holding the verified domain the panel
-was reached at, which the browser states in its `Origin`, is applied then. Setting one is
-`org.write` on the organization. A theme is read through the API like everything else, with the
-logo inside it, so the panel fetches nothing a theme names.
+viewer's provider, the top organization the viewer can read, whatever they are looking at; before
+anyone has signed in, it applies the root organization's. A reseller's sign-in page at the
+reseller's own address needs the control plane to answer there, which Phase 2 designs with the
+names organizations hold for their customers (Finding 66 of `23-walkthroughs.md`); the theme of the
+organization holding the verified domain the panel was reached at, which the browser states in its
+`Origin`, is applied then. Setting one is `org.write` on the organization. A theme is read through
+the API like everything else, with the logo inside it, so the panel fetches nothing a theme names.
 
 **A stylesheet is code that runs in the panel, and it is fenced.** The panel's content security
 policy, which the bundle carries in its own page so it holds wherever the bundle is served, admits
@@ -519,7 +519,39 @@ first-party recipes with the same tools; third-party recipes are their authors' 
 Built in Phase 1 with the panel, decided 2026-10-16: every string the panel shows comes from a
 catalogue, English first, and the recipe catalogues of §5 of `09-recipes.md` are read and served
 by the control plane with the recipe they came in, so the panel needs no second source.
+
+> As built, 2026-10-17 (`web/src/i18n`). Every string the panel shows is a FormatJS message
+> written where it is used, its English text beside a stable identifier that is a hash of that
+> text and its description, so a changed sentence is a new message a translation cannot silently
+> keep the old meaning of, and a word that two screens use differently ("running" declared,
+> "running" observed) carries a description that makes it two. A sentence is one message, with
+> ICU plurals and selects inside it, never English fragments spliced together, so a language can
+> order and inflect it; a list is joined by the locale's list format, and a time, a number, a span,
+> or a byte count is the locale's own. `pnpm extract` writes every message with its description
+> to `web/src/i18n/en.json`, the file translators work from; a translation is
+> `web/src/i18n/catalogues/<locale>.json`, identifier to text. The locale is the first of the
+> browser's preferences that a catalogue speaks, by its exact tag or by its language alone, and
+> English otherwise, and the page's `lang` says which. A message a catalogue lacks, or holds in
+> ICU that does not parse, is shown in English, never as its identifier. The lint refuses a
+> literal string in the markup a person reads (text and the `aria-label`, `alt`, `title`,
+> `placeholder`, and `label` props) and a message without its English text or with an identifier
+> that is not its hash; `scripts/check-web.sh` refuses an `en.json` that differs from what
+> extracting the source writes, so no message is missing from it and none is unused, a
+> translation naming a message the source lacks, and a translation that does not compile. A
+> space between a value and a remark on it is drawn by the stylesheet rather than written in a
+> message, and a path's separators are shown as they are. English is the only catalogue so far.
+> What it costs: every catalogue is in the bundle, so the locale is known before anything renders
+> and nothing is fetched to show the first screen, at the price of the bundle growing with each
+> language until catalogues are worth splitting by locale; and the control plane's own words, a
+> refusal's message, are shown as it wrote them (question 6).
 5. **Bulk selection. Resolved in §3 of `05-scheduling.md`**: a selection becomes a `bulk_intent`
    Operation, one approval, a plan per workload, and per-item results. The interface will want
    "select 200 workloads and restart them", which needs the bulk mutation semantics that were open
    in §12 of `10-api.md` and the `Operation` object of `05-scheduling.md`.
+6. **The control plane's own words.** A refusal carries a stable `reason` (§8 of `10-api.md`)
+   and a message the control plane writes in English, and the panel shows the message where it has
+   no sentence of its own for the refusal. Translating refusals by their reason in the panel's
+   catalogue would put every reason the control plane can give into the panel's source, where a
+   reason added by a newer control plane would show untranslated anyway; carrying the viewer's
+   locale to the control plane would put catalogues in the server. Which, and whether a recipe's
+   refusals join it, is decided before a second catalogue ships. → here

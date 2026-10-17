@@ -31,6 +31,7 @@ import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
 import { Profile } from "./profile/Profile";
 import { Brand, type Source, Themed } from "./theme/useTheme";
+import { t } from "./i18n/intl";
 
 /** The signed-in user's clients, and links written from the panel's root. */
 const signedInReach = { clients: signedInClients, base: "", metered: false, relay };
@@ -109,12 +110,15 @@ function Routes({ session }: { readonly session: Session }) {
     const link = takeFragment(LINK_PREFIX);
     return <LinkShell clients={link === undefined ? undefined : linkClients(link)} path={path} />;
   }
-  if (standing === "unknown") return <p>Signing in…</p>;
+  if (standing === "unknown")
+    return <p>{t({ defaultMessage: "Signing in\u2026", id: "s4yZXgis" })}</p>;
   if (standing === "unreachable") {
     return (
       <main>
-        <p role="alert">The control plane cannot be reached.</p>
-        <Button onPress={retry}>Try again</Button>
+        <p role="alert">
+          {t({ defaultMessage: "The control plane cannot be reached.", id: "YVga+2AS" })}
+        </p>
+        <Button onPress={retry}>{t({ defaultMessage: "Try again", id: "FazwRldA" })}</Button>
       </main>
     );
   }
@@ -138,8 +142,14 @@ function Routes({ session }: { readonly session: Session }) {
         <header>
           <Link href="/">
             <Brand />
-          </Link>{" "}
-          <Link href="/profile">Profile</Link>
+          </Link>
+          <Link href="/profile">
+            {t({
+              defaultMessage: "Profile",
+              id: "cy+bnRnd",
+              description: "link to the viewer's own profile",
+            })}
+          </Link>
           <Button
             onPress={() => {
               void cookieSessions.signOut({}).finally(() => {
@@ -147,7 +157,7 @@ function Routes({ session }: { readonly session: Session }) {
               });
             }}
           >
-            Sign out
+            {t({ defaultMessage: "Sign out", id: "xXbJsopy" })}
           </Button>
         </header>
         {path === "/profile" ? (
@@ -163,13 +173,19 @@ function Routes({ session }: { readonly session: Session }) {
           </main>
         ) : (
           <main>
-            <h1>Not found</h1>
-            <p>The panel has no page at this address.</p>
+            <h1>{t({ defaultMessage: "Not found", id: "TThIOMeM" })}</h1>
+            <p>{t({ defaultMessage: "The panel has no page at this address.", id: "GDi3Iw2v" })}</p>
           </main>
         )}
         <footer>
           {/* The control plane's own page, not the panel's: loaded, not routed. */}
-          <a href="/about/source">Source</a>
+          <a href="/about/source">
+            {t({
+              defaultMessage: "Source",
+              id: "pl9W7HkD",
+              description: "link to the panel's source code notice",
+            })}
+          </a>
         </footer>
       </Themed>
     </ReachProvider>

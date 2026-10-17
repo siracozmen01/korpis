@@ -115,7 +115,7 @@ test("reading mode holds the view still and says how much arrived meanwhile", as
   fireEvent.click(screen.getByRole("button", { name: "Reading mode" }));
   expect(screen.getByRole("log").getAttribute("aria-live")).toBe("off");
   more();
-  expect(await screen.findByRole("button", { name: "Back to live (1 new lines)" })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: "Back to live (1 new line)" })).toBeTruthy();
   expect(screen.queryByText("later")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Back to live/ }));
   expect(screen.getByText("later")).toBeTruthy();

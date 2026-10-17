@@ -2,7 +2,8 @@
 
 import { expect, test } from "vitest";
 import type { Asked, FileSession, Said } from "./session";
-import { bytes, download, parent, upload, within } from "./transfer";
+import { bytes } from "../i18n/format";
+import { download, parent, upload, within } from "./transfer";
 
 /** A chunk small enough that the tests move bytes, not mebibytes. */
 const CHUNK = 8;
@@ -105,5 +106,5 @@ test("paths and sizes read as a person reads them", () => {
   expect(parent("/data/a")).toBe("/data");
   expect(parent("/data")).toBe("/");
   expect(bytes(512)).toBe("512 B");
-  expect(bytes(3 * 1024 * 1024)).toBe("3.0 MiB");
+  expect(bytes(3 * 1024 * 1024)).toBe("3 MiB");
 });

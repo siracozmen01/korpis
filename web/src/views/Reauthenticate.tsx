@@ -13,6 +13,7 @@ import type { ProfileService } from "../gen/korpis/v1/profile_pb";
 import type { Assertion } from "../session/webauthn";
 import { type Credentials, PasswordForm } from "./PasswordForm";
 import { refusal } from "./refusal";
+import { t } from "../i18n/intl";
 
 /** What re-authenticating needs. */
 export interface ReauthenticateProps {
@@ -44,7 +45,10 @@ export function Reauthenticate({ accounts, profiles, assert, done }: Reauthentic
     attempt(async () => {
       const begun = await accounts.beginSignIn({});
       const request = begun.request;
-      if (request === undefined) throw new Error("the control plane sent no challenge");
+      if (request === undefined)
+        throw new Error(
+          t({ defaultMessage: "the control plane sent no challenge", id: "9u4qdqD4" }),
+        );
       const a = await assert(request.challenge, request.rpId);
       await profiles.reauthenticateWithPasskey({ challengeId: request.challengeId, ...a });
     });
@@ -54,15 +58,21 @@ export function Reauthenticate({ accounts, profiles, assert, done }: Reauthentic
 
   return (
     <section aria-labelledby="reauthenticate">
-      <h2 id="reauthenticate">Confirm it is you</h2>
-      <p>Your last sign-in was more than ten minutes ago. Sign in again to continue.</p>
+      <h2 id="reauthenticate">{t({ defaultMessage: "Confirm it is you", id: "kqUARBb+" })}</h2>
+      <p>
+        {t({
+          defaultMessage:
+            "Your last sign-in was more than ten minutes ago. Sign in again to continue.",
+          id: "+8amu4Ol",
+        })}
+      </p>
       <Button isDisabled={busy} onPress={() => void withPasskey()}>
-        Use a passkey
+        {t({ defaultMessage: "Use a passkey", id: "bvrOBBs/" })}
       </Button>
       <PasswordForm
         withName={false}
         busy={busy}
-        action="Confirm"
+        action={t({ defaultMessage: "Confirm", id: "N2IrpMDH" })}
         submit={(c) => void withPassword(c)}
       />
       {error !== undefined && <p role="alert">{error}</p>}

@@ -10,6 +10,7 @@ import type { Clients } from "../clients";
 import type { ConsoleChunk } from "../gen/korpis/v1/console_pb";
 import { type Relay, chunkOf, open, reading } from "./relay";
 import { EMPTY, type View, append, prepend } from "./view";
+import { t } from "../i18n/intl";
 
 /** How many records the console starts with, and reads at a time when going back. */
 export const BACK = 200;
@@ -96,7 +97,7 @@ export function useConsole(reaching: Reaching) {
               heard.message === "" ? `the session ended (${heard.code})` : heard.message,
             );
         }
-        throw new Error("the session ended");
+        throw new Error(t({ defaultMessage: "the session ended", id: "ba8ytnij" }));
       } catch (e) {
         if (!stop.signal.aborted)
           dispatch({ kind: "ended", why: e instanceof Error ? e.message : String(e) });

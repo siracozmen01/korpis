@@ -12,6 +12,7 @@ import type { Creation, Registered } from "../session/webauthn";
 import { field } from "./PasswordForm";
 import { Qr } from "./Qr";
 import { refusal } from "./refusal";
+import { t } from "../i18n/intl";
 
 /** What redeeming needs. */
 export interface RedeemProps {
@@ -60,7 +61,11 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
   }, [accounts, invitation]);
 
   if (step.kind === "read") {
-    return error === undefined ? <p>Reading the invitation…</p> : <p role="alert">{error}</p>;
+    return error === undefined ? (
+      <p>{t({ defaultMessage: "Reading the invitation\u2026", id: "3grWaoK5" })}</p>
+    ) : (
+      <p role="alert">{error}</p>
+    );
   }
   if (step.kind === "codes") return <Codes codes={step.codes} done={redeemed} />;
 
@@ -68,9 +73,20 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
     run(async () => {
       const begun = await accounts.beginRedemption({ invitation, name });
       const c = begun.creation;
-      if (c === undefined) throw new Error("the control plane sent no registration");
+      if (c === undefined)
+        throw new Error(
+          t({ defaultMessage: "the control plane sent no registration", id: "XiPLZivE" }),
+        );
       const made = await create({ ...c, exclude: c.excludeCredentials });
-      const registration = { challengeId: c.challengeId, label: "passkey", ...made };
+      const registration = {
+        challengeId: c.challengeId,
+        label: t({
+          defaultMessage: "passkey",
+          id: "OJ+KsVog",
+          description: "a passkey's label, until renamed",
+        }),
+        ...made,
+      };
       const r = await accounts.redeemWithPasskey({ invitation, name, registration });
       setStep({ kind: "codes", codes: r.recoveryCodes });
     });
@@ -104,7 +120,9 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
   }
   return (
     <main>
-      <h1>Welcome, {step.offer.displayName}</h1>
+      <h1>
+        {t({ defaultMessage: "Welcome, {name}", id: "msSyC/mx" }, { name: step.offer.displayName })}
+      </h1>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -112,10 +130,10 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
         }}
       >
         <TextField name="name" isRequired autoComplete="username" value={name} onChange={setName}>
-          <Label>Choose a sign-in name</Label>
+          <Label>{t({ defaultMessage: "Choose a sign-in name", id: "/Sh00btp" })}</Label>
           <Input />
         </TextField>
-        <Button type="submit">Register a passkey</Button>
+        <Button type="submit">{t({ defaultMessage: "Register a passkey", id: "iKKCuLhf" })}</Button>
         {!step.offer.passkeyOnly && (
           <Button
             isDisabled={name === ""}
@@ -123,7 +141,7 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
               offerTotp(name);
             }}
           >
-            Use a password and an authenticator app
+            {t({ defaultMessage: "Use a password and an authenticator app", id: "pSEaRCSm" })}
           </Button>
         )}
       </Form>
@@ -140,8 +158,14 @@ function Password(props: {
 }) {
   return (
     <main>
-      <h1>Set a password</h1>
-      <p>Add this account to your authenticator app, by its QR code or by this address:</p>
+      <h1>{t({ defaultMessage: "Set a password", id: "d2sELMI6" })}</h1>
+      <p>
+        {t({
+          defaultMessage:
+            "Add this account to your authenticator app, by its QR code or by this address:",
+          id: "T0+4f3BN",
+        })}
+      </p>
       <Qr uri={props.uri} />
       <Form
         onSubmit={(event) => {
@@ -157,14 +181,20 @@ function Password(props: {
           autoComplete="new-password"
           minLength={12}
         >
-          <Label>Password, at least 12 characters</Label>
+          <Label>{t({ defaultMessage: "Password, at least 12 characters", id: "c3XoMktx" })}</Label>
           <Input />
         </TextField>
         <TextField name="code" isRequired autoComplete="one-time-code">
-          <Label>The code your app shows now</Label>
+          <Label>{t({ defaultMessage: "The code your app shows now", id: "RMzLxhOc" })}</Label>
           <Input />
         </TextField>
-        <Button type="submit">Redeem</Button>
+        <Button type="submit">
+          {t({
+            defaultMessage: "Redeem",
+            id: "E1h4MoXX",
+            description: "button: redeem an invitation",
+          })}
+        </Button>
       </Form>
       {props.error !== undefined && <p role="alert">{props.error}</p>}
     </main>
@@ -181,10 +211,13 @@ export function Codes({
 }) {
   return (
     <main>
-      <h1>Your recovery codes</h1>
+      <h1>{t({ defaultMessage: "Your recovery codes", id: "co3A9BSP" })}</h1>
       <p>
-        Each code signs you in once beside your password, if you lose your other factors. They are
-        shown here once: keep them somewhere safe now.
+        {t({
+          defaultMessage:
+            "Each code signs you in once beside your password, if you lose your other factors. They are shown here once: keep them somewhere safe now.",
+          id: "2NWVup5w",
+        })}
       </p>
       <ol>
         {codes.map((c) => (
@@ -193,7 +226,7 @@ export function Codes({
           </li>
         ))}
       </ol>
-      <Button onPress={done}>I have kept them</Button>
+      <Button onPress={done}>{t({ defaultMessage: "I have kept them", id: "KLW42pdD" })}</Button>
     </main>
   );
 }

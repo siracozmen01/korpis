@@ -14,6 +14,7 @@ import {
   type FileResponse,
 } from "../gen/korpis/v1/files_pb";
 import { type Heard, type Opening, type Session, open } from "../console/relay";
+import { t } from "../i18n/intl";
 
 /** The action that reads. */
 export const READ = "workload.file.read";
@@ -77,9 +78,17 @@ export class FileSession {
       signal: stop.signal,
     });
     const first = await heard.next();
-    if (first.done === true) throw new Ended("unavailable", "the session did not open");
+    if (first.done === true)
+      throw new Ended(
+        "unavailable",
+        t({ defaultMessage: "the session did not open", id: "YB8VbPji" }),
+      );
     if (first.value.kind === "end") throw new Ended(first.value.code, first.value.message);
-    if (first.value.kind !== "opened") throw new Ended("unavailable", "the session did not open");
+    if (first.value.kind !== "opened")
+      throw new Ended(
+        "unavailable",
+        t({ defaultMessage: "the session did not open", id: "YB8VbPji" }),
+      );
     const s = new FileSession(first.value.session, stop, writes);
     void s.hear(heard);
     return s;
@@ -87,7 +96,7 @@ export class FileSession {
 
   /** Reads the session's answers until it ends, settling each request it answers. */
   private async hear(heard: AsyncGenerator<Heard>): Promise<void> {
-    let end = new Ended("closed", "the session was closed");
+    let end = new Ended("closed", t({ defaultMessage: "the session was closed", id: "e/zsRyEz" }));
     try {
       for await (const h of heard) {
         if (h.kind === "end") {
@@ -101,7 +110,7 @@ export class FileSession {
         waiting?.resolve(answer.response);
       }
     } catch {
-      end = new Ended("unavailable", "the session was lost");
+      end = new Ended("unavailable", t({ defaultMessage: "the session was lost", id: "R4Vpa9Ew" }));
     }
     this.#ended = end;
     for (const w of this.#waiting.values()) w.reject(end);

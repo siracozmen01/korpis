@@ -9,16 +9,33 @@
 import type { Clients } from "../clients";
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
 import { PowerState, type Plan } from "../gen/korpis/v1/workload_pb";
+import { t } from "../i18n/intl";
 
 /** An action on a workload, by the action name a grant holds for it (§5 of docs/10-api.md). */
 export type Action = "workload.start" | "workload.stop" | "workload.restart" | "workload.delete";
 
 /** The words of each action's button. */
 export const LABEL: Record<Action, string> = {
-  "workload.start": "Start",
-  "workload.stop": "Stop",
-  "workload.restart": "Restart",
-  "workload.delete": "Delete",
+  "workload.start": t({
+    defaultMessage: "Start",
+    id: "ZE5n9bcN",
+    description: "button: start a workload",
+  }),
+  "workload.stop": t({
+    defaultMessage: "Stop",
+    id: "hfrR434C",
+    description: "button: stop a workload",
+  }),
+  "workload.restart": t({
+    defaultMessage: "Restart",
+    id: "/6RJEreY",
+    description: "button: restart a workload",
+  }),
+  "workload.delete": t({
+    defaultMessage: "Delete",
+    id: "F1KlqJdE",
+    description: "button: delete a workload",
+  }),
 };
 
 /** The actions that make sense for what is declared now, among those `allowed`, if known. */

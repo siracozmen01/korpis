@@ -8,6 +8,7 @@ import { Shown } from "../views/Shown";
 import { Factors } from "./Factors";
 import type { ProfileServices } from "./services";
 import { Sessions } from "./Sessions";
+import { t } from "../i18n/intl";
 
 /** The profile screen, its factors read again after each change. */
 export function Profile({ services }: { readonly services: ProfileServices }) {
@@ -33,11 +34,11 @@ function Read(props: { readonly services: ProfileServices; readonly changed: () 
   return (
     <Shown
       loaded={profile}
-      what="your profile"
+      reading={t({ defaultMessage: "Reading your profile…", id: "3AVtR6Oy" })}
       done={(p) => (
         <>
           <h1>{p.displayName}</h1>
-          <p>Signed in as {p.name}.</p>
+          <p>{t({ defaultMessage: "Signed in as {name}.", id: "TDUCXqaO" }, { name: p.name })}</p>
           <Factors profile={p} services={services} changed={changed} />
         </>
       )}

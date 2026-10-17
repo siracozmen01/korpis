@@ -8,6 +8,7 @@
 
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { Convergence, type WorkloadStatus } from "../gen/korpis/v1/api_pb";
+import { t } from "../i18n/intl";
 import { declaredAt } from "./diagnosis";
 
 /** A moment of the timeline: not yet, done at a known time, or done before it was heard. */
@@ -35,13 +36,30 @@ function keyOf(s: WorkloadStatus): string {
 /** What the declaration asked for, in words, and the version it is known by. */
 function described(s: WorkloadStatus, prev: Timeline | undefined): [string, string] {
   const power = s.workload?.power;
-  const intent = `intent v${(s.target?.version ?? 0n).toString()}`;
+  const intent = t(
+    {
+      defaultMessage: "intent v{version}",
+      id: "wHbkqfPX",
+      description: "the version of a workload's intent",
+    },
+    { version: (s.target?.version ?? 0n).toString() },
+  );
   if (prev !== undefined && power !== undefined) {
     const [, version, cycle] = prev.key.split(":");
-    if (cycle !== power.cycle.toString()) return ["Restart requested", intent];
-    if (version !== power.version.toString()) return ["Power changed", intent];
+    if (cycle !== power.cycle.toString()) {
+      return [t({ defaultMessage: "Restart requested", id: "6f0LBR2I" }), intent];
+    }
+    if (version !== power.version.toString())
+      return [t({ defaultMessage: "Power changed", id: "kHzm3iTk" }), intent];
   }
-  return ["Declared", intent];
+  return [
+    t({
+      defaultMessage: "Declared",
+      id: "YOjHY4hC",
+      description: "the moment a declaration was made",
+    }),
+    intent,
+  ];
 }
 
 /** Whether the node has taken the declaration up: converged, or a step of its plan reported. */

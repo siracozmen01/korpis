@@ -67,7 +67,7 @@ test("a grant on the workload is listed and revoked, with what it took with it",
   );
   expect(await screen.findByText(/whoever holds a share link: workload.restart/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
-  expect(await screen.findByText("Revoked, with 2 attenuated from it.")).toBeTruthy();
+  expect(await screen.findByText("Revoked, with 2 grants attenuated from it.")).toBeTruthy();
   expect(seen.revoked).toBe("grt_1");
   expect(screen.queryByRole("button", { name: "Revoke" })).toBeNull();
 });

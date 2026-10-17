@@ -4,6 +4,8 @@
 // gives, as `navigator.credentials` takes them, and its answer as the control plane reads it.
 // Every byte travels as bytes; nothing is re-encoded on the way.
 
+import { t } from "../i18n/intl";
+
 /** What `navigator.credentials.get` answered, as `SignInWithPasskey` takes it. */
 export interface Assertion {
   readonly credentialId: Uint8Array;
@@ -40,7 +42,7 @@ export async function assert(challenge: Uint8Array, rpId: string): Promise<Asser
     },
   });
   if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error("no passkey answered");
+    throw new Error(t({ defaultMessage: "no passkey answered", id: "L/Pkbpdp" }));
   }
   const response = credential.response as AuthenticatorAssertionResponse;
   return {
@@ -76,7 +78,7 @@ export async function create(c: Creation): Promise<Registered> {
     },
   });
   if (!(credential instanceof PublicKeyCredential)) {
-    throw new Error("no passkey was made");
+    throw new Error(t({ defaultMessage: "no passkey was made", id: "5ot6y0in" }));
   }
   const response = credential.response as AuthenticatorAttestationResponse;
   return {

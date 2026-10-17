@@ -7,6 +7,7 @@
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ErrorSchema } from "../gen/korpis/v1/common_pb";
+import { t } from "../i18n/intl";
 
 /** The reason of the refusal's `korpis.v1.Error` detail, such as `session.not_recent`. */
 export function reasonOf(e: unknown): string | undefined {
@@ -18,15 +19,26 @@ export function refusal(e: unknown): string {
   const error = ConnectError.from(e);
   switch (error.code) {
     case Code.Unauthenticated:
-      return "That did not sign you in.";
+      return t({ defaultMessage: "That did not sign you in.", id: "e9SAPfzd" });
     case Code.ResourceExhausted: {
       const after = error.metadata.get("retry-after");
-      return after === null
-        ? "Too many attempts. Wait a little and try again."
-        : `Too many attempts. Try again in ${after} seconds.`;
+      const seconds = after === null ? NaN : Number(after);
+      return Number.isFinite(seconds)
+        ? t(
+            {
+              defaultMessage:
+                "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+              id: "9Z1gVcoX",
+            },
+            { seconds },
+          )
+        : t({ defaultMessage: "Too many attempts. Wait a little and try again.", id: "BZ0iK1XF" });
     }
     case Code.Unavailable:
-      return "The control plane cannot be reached. Try again.";
+      return t({
+        defaultMessage: "The control plane cannot be reached. Try again.",
+        id: "1UtyFZcc",
+      });
     default:
       return error.rawMessage;
   }

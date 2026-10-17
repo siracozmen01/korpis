@@ -8,32 +8,66 @@
 import { durationMs } from "@bufbuild/protobuf/wkt";
 import { ObjectKind } from "../gen/korpis/v1/common_pb";
 import type { Plan, Step } from "../gen/korpis/v1/workload_pb";
+import { intl, t } from "../i18n/intl";
 
-const KIND: Partial<Record<ObjectKind, string>> = {
-  [ObjectKind.WORKLOAD]: "workload",
-  [ObjectKind.VOLUME]: "volume",
-  [ObjectKind.ENDPOINT]: "endpoint",
-  [ObjectKind.STREAM]: "stream",
-};
+/** The kind of object a step acts on, in words. */
+function kindOf(kind: ObjectKind): string {
+  const named: Partial<Record<ObjectKind, string>> = {
+    [ObjectKind.WORKLOAD]: "workload",
+    [ObjectKind.VOLUME]: "volume",
+    [ObjectKind.ENDPOINT]: "endpoint",
+    [ObjectKind.STREAM]: "stream",
+  };
+  const said = named[kind];
+  return t(
+    {
+      defaultMessage:
+        "{kind, select, workload {workload} volume {volume} endpoint {endpoint} stream {stream} other {object}}",
+      id: "q57TbyeF",
+      description: "the kind of object a plan's step acts on",
+    },
+    { kind: said ?? "other" },
+  );
+}
 
 /** What a step is marked as. */
 function marks(s: Step): string {
-  const said = [s.reversible ? "" : "IRREVERSIBLE", s.disruptive ? "interrupts service" : ""];
-  return said.filter((m) => m !== "").join(", ");
+  const said = [
+    s.reversible ? "" : t({ defaultMessage: "IRREVERSIBLE", id: "vcc/+oBE" }),
+    s.disruptive ? t({ defaultMessage: "interrupts service", id: "ConS74VK" }) : "",
+  ];
+  return intl.formatList(
+    said.filter((m) => m !== ""),
+    { type: "unit" },
+  );
 }
 
 /** The impact, in sentences. */
 function impact(plan: Plan): string[] {
   const i = plan.impact;
-  if (i === undefined) return ["Its impact is unknown."];
+  if (i === undefined) return [t({ defaultMessage: "Its impact is unknown.", id: "iJNuzDiK" })];
   const down = i.downtimeEstimate;
   const lines = [
     i.downtimeUnknown || down === undefined
-      ? "Downtime: unknown."
-      : `Downtime: about ${Math.round(durationMs(down) / 1000).toString()} s.`,
+      ? t({ defaultMessage: "Downtime: unknown.", id: "w9y4DE8u" })
+      : t(
+          {
+            defaultMessage: "Downtime: about {seconds, plural, one {# second} other {# seconds}}.",
+            id: "HErk5s7f",
+          },
+          { seconds: Math.round(durationMs(down) / 1000) },
+        ),
   ];
-  if (i.dataAtRiskUnknown) lines.push("Data at risk: unknown.");
-  else if (i.dataAtRisk.length > 0) lines.push(`Data at risk: ${i.dataAtRisk.join(", ")}.`);
+  if (i.dataAtRiskUnknown)
+    lines.push(t({ defaultMessage: "Data at risk: unknown.", id: "ZVtnkB2O" }));
+  else if (i.dataAtRisk.length > 0) {
+    lines.push(
+      t(
+        { defaultMessage: "Data at risk: {volumes}.", id: "Zs6s57kx" },
+        { volumes: intl.formatList(i.dataAtRisk, { type: "unit" }) },
+      ),
+    );
+  }
   if (i.approvalReason !== "") lines.push(i.approvalReason);
   return lines;
 }
@@ -47,12 +81,18 @@ export function PlanView({ plan }: { readonly plan: Plan }) {
           <li key={s.index}>
             {s.action}
             {s.target !== undefined && (
-              <>
-                {" "}
-                {KIND[s.target.kind] ?? "object"} <code>{s.target.id}</code>
-              </>
+              <span className="aside">
+                {kindOf(s.target.kind)} <code>{s.target.id}</code>
+              </span>
             )}
-            {marks(s) !== "" && <strong> ({marks(s)})</strong>}
+            {marks(s) !== "" && (
+              <strong className="aside">
+                {t(
+                  { defaultMessage: "({marks})", id: "1BDY1a0A", description: "a step's marks" },
+                  { marks: marks(s) },
+                )}
+              </strong>
+            )}
             {s.reason !== "" && <small> {s.reason}</small>}
           </li>
         ))}

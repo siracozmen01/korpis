@@ -14,18 +14,38 @@ import { refusal } from "../views/refusal";
 import "./files.css";
 import { Changes, Row } from "./parts";
 import { Ended, type FileSession, Refused } from "./session";
-import { blobSink, bytes, download, parent, pickedSink, saveBlob, within } from "./transfer";
+import { bytes } from "../i18n/format";
+import {
+  PARENT,
+  SEPARATOR,
+  blobSink,
+  download,
+  parent,
+  pickedSink,
+  saveBlob,
+  within,
+} from "./transfer";
 import { useFiles } from "./useFiles";
+import { t } from "../i18n/intl";
 
 const SAYS: Partial<Record<FileErrorCode, string>> = {
-  [FileErrorCode.NOT_FOUND]: "It is not there.",
-  [FileErrorCode.EXISTS]: "Something by that name is there already.",
-  [FileErrorCode.FULL]: "The volume is full.",
-  [FileErrorCode.NOT_A_DIRECTORY]: "A part of the path is not a directory.",
-  [FileErrorCode.IS_A_DIRECTORY]: "It is a directory.",
-  [FileErrorCode.NOT_EMPTY]: "The directory is not empty.",
-  [FileErrorCode.OUTSIDE]: "That is outside the workload's volumes.",
-  [FileErrorCode.REFUSED]: "Not allowed here.",
+  [FileErrorCode.NOT_FOUND]: t({ defaultMessage: "It is not there.", id: "WRNdUk9E" }),
+  [FileErrorCode.EXISTS]: t({
+    defaultMessage: "Something by that name is there already.",
+    id: "1KC4ynaR",
+  }),
+  [FileErrorCode.FULL]: t({ defaultMessage: "The volume is full.", id: "lxaBrkGd" }),
+  [FileErrorCode.NOT_A_DIRECTORY]: t({
+    defaultMessage: "A part of the path is not a directory.",
+    id: "iQQgmW3M",
+  }),
+  [FileErrorCode.IS_A_DIRECTORY]: t({ defaultMessage: "It is a directory.", id: "DDAS95WS" }),
+  [FileErrorCode.NOT_EMPTY]: t({ defaultMessage: "The directory is not empty.", id: "YgBq8K12" }),
+  [FileErrorCode.OUTSIDE]: t({
+    defaultMessage: "That is outside the workload's volumes.",
+    id: "q7jGRPKA",
+  }),
+  [FileErrorCode.REFUSED]: t({ defaultMessage: "Not allowed here.", id: "9lS0MI/F" }),
 };
 
 /** What a failed request says to the person who asked. */
@@ -44,7 +64,10 @@ interface Listing {
 /** A page of directory `path` after `after`. */
 async function read(s: FileSession, path: string, after: string): Promise<Listing> {
   const r = await s.ask({ case: "list", value: { path, after, limit: 200 } });
-  if (r.case !== "entries") throw new Error("the node answered a listing with no entries");
+  if (r.case !== "entries")
+    throw new Error(
+      t({ defaultMessage: "the node answered a listing with no entries", id: "WLC8/hBB" }),
+    );
   return { path, entries: r.value.entries, next: r.value.next };
 }
 
@@ -95,24 +118,48 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
     const run = async () => {
       const sink = (await pickedSink(e.name)) ?? blobSink(e.name, saveBlob);
       await download(fs, path, total, sink, (done) => {
-        setStatus(`Downloading ${e.name}: ${bytes(done)} of ${bytes(total)}`);
+        setStatus(
+          t(
+            { defaultMessage: "Downloading {name}: {done} of {total}", id: "nIafWUcM" },
+            { name: e.name, done: bytes(done), total: bytes(total) },
+          ),
+        );
       });
-      setStatus(`Downloaded ${e.name}.`);
+      setStatus(t({ defaultMessage: "Downloaded {name}.", id: "aKY5Nsss" }, { name: e.name }));
     };
     run().catch(failed);
   };
   return (
     <section aria-labelledby="files">
-      <h2 id="files">Files</h2>
+      <h2 id="files">
+        {t({ defaultMessage: "Files", id: "uBUvoH5J", description: "a workload's files" })}
+      </h2>
       <p role="status">
         {fs !== undefined
-          ? (status ?? (props.writes ? "Open." : "Open to read."))
+          ? (status ??
+            (props.writes
+              ? t({
+                  defaultMessage: "Open.",
+                  id: "b3rCwi2e",
+                  description: "a file session is open",
+                })
+              : t({
+                  defaultMessage: "Open to read.",
+                  id: "Usf2nt81",
+                  description: "a read-only file session",
+                })))
           : held.ended === undefined
-            ? "Opening…"
-            : `Not open: ${held.ended}.`}
+            ? t({
+                defaultMessage: "Opening…",
+                id: "oxCCI1AN",
+                description: "a file session opening",
+              })
+            : t({ defaultMessage: "Not open: {why}.", id: "5yTPpEp5" }, { why: held.ended })}
         {fs === undefined && held.ended !== undefined && (
           <Button onPress={held.reopen}>
-            {metered ? "Open it again (uses one of the link's uses)" : "Open it again"}
+            {metered
+              ? t({ defaultMessage: "Open it again (uses one of the link's uses)", id: "acNLq/ZK" })
+              : t({ defaultMessage: "Open it again", id: "T6KHmZeW" })}
           </Button>
         )}
       </p>
@@ -131,10 +178,28 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
       <table className="files">
         <thead>
           <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Size</th>
-            <th scope="col">Modified</th>
-            {props.writes && <th scope="col">Change</th>}
+            <th scope="col">
+              {t({ defaultMessage: "Name", id: "c+plKHGA", description: "column: a file's name" })}
+            </th>
+            <th scope="col">
+              {t({ defaultMessage: "Size", id: "bazDyBRA", description: "column: a file's size" })}
+            </th>
+            <th scope="col">
+              {t({
+                defaultMessage: "Modified",
+                id: "FNNGdHd/",
+                description: "column: when a file was modified",
+              })}
+            </th>
+            {props.writes && (
+              <th scope="col">
+                {t({
+                  defaultMessage: "Change",
+                  id: "Nz+sqiZJ",
+                  description: "column: changes to a file",
+                })}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -142,11 +207,12 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
             <tr>
               <td>
                 <Button
+                  aria-label={t({ defaultMessage: "The directory above", id: "hkRoo7vP" })}
                   onPress={() => {
                     go(parent(listing.path));
                   }}
                 >
-                  ..
+                  {PARENT}
                 </Button>
               </td>
             </tr>
@@ -175,7 +241,11 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
             show(fs, listing.path, listing.next);
           }}
         >
-          More
+          {t({
+            defaultMessage: "More",
+            id: "KJXGpJqL",
+            description: "button: read more of a directory",
+          })}
         </Button>
       )}
       {error !== undefined && <p role="alert">{error}</p>}
@@ -187,13 +257,17 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
 function Crumbs(props: { readonly path: string; readonly go: (path: string) => void }) {
   const parts = props.path.split("/").filter((p) => p !== "");
   return (
-    <nav aria-label="Path" className="crumbs">
+    <nav
+      aria-label={t({ defaultMessage: "Path", id: "Msrt5CyF", description: "a directory's path" })}
+      className="crumbs"
+    >
       <Button
+        aria-label={t({ defaultMessage: "The top directory", id: "xQ+xIgWb" })}
         onPress={() => {
           props.go("/");
         }}
       >
-        /
+        {SEPARATOR}
       </Button>
       {parts.map((p, i) => (
         <Button
@@ -202,7 +276,8 @@ function Crumbs(props: { readonly path: string; readonly go: (path: string) => v
             props.go(`/${parts.slice(0, i + 1).join("/")}`);
           }}
         >
-          {p}/
+          {p}
+          {SEPARATOR}
         </Button>
       ))}
     </nav>

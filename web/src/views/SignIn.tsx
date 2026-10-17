@@ -12,6 +12,7 @@ import type { Assertion } from "../session/webauthn";
 import { type Credentials, PasswordForm } from "./PasswordForm";
 import { refusal } from "./refusal";
 import { Brand, useWorn } from "../theme/useTheme";
+import { t } from "../i18n/intl";
 
 /** What signing in needs: the account service and the browser's passkey ceremony. */
 export interface SignInProps {
@@ -42,7 +43,10 @@ export function SignIn({ accounts, assert, signedIn }: SignInProps) {
     attempt(async () => {
       const begun = await accounts.beginSignIn({});
       const request = begun.request;
-      if (request === undefined) throw new Error("the control plane sent no challenge");
+      if (request === undefined)
+        throw new Error(
+          t({ defaultMessage: "the control plane sent no challenge", id: "9u4qdqD4" }),
+        );
       const a = await assert(request.challenge, request.rpId);
       await accounts.signInWithPasskey({ challengeId: request.challengeId, ...a });
     });
@@ -55,15 +59,26 @@ export function SignIn({ accounts, assert, signedIn }: SignInProps) {
       <h1>
         <Brand />
       </h1>
-      <h2>Sign in</h2>
+      <h2>
+        {t({
+          defaultMessage: "Sign in",
+          id: "+3ifsPpL",
+          description: "heading of the sign-in page",
+        })}
+      </h2>
       {worn?.signInText !== undefined && worn.signInText !== "" && (
         <p className="sign-in-text">{worn.signInText}</p>
       )}
       <Button isDisabled={busy} onPress={() => void withPasskey()}>
-        Sign in with a passkey
+        {t({ defaultMessage: "Sign in with a passkey", id: "sn+Rj5s3" })}
       </Button>
-      <h2>Or with a password</h2>
-      <PasswordForm withName busy={busy} action="Sign in" submit={(c) => void withPassword(c)} />
+      <h2>{t({ defaultMessage: "Or with a password", id: "y09OFmzc" })}</h2>
+      <PasswordForm
+        withName
+        busy={busy}
+        action={t({ defaultMessage: "Sign in", id: "Bg2qLKJO", description: "button: sign in" })}
+        submit={(c) => void withPassword(c)}
+      />
       {error !== undefined && <p role="alert">{error}</p>}
     </main>
   );

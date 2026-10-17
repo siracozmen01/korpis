@@ -15,6 +15,7 @@ import { Qr } from "../views/Qr";
 import { Codes } from "../views/Redeem";
 import { useGuard } from "./guard";
 import type { ProfileServices } from "./services";
+import { intl, t } from "../i18n/intl";
 
 /** The factors of `profile`; `changed` reads it again after a change. */
 export function Factors(props: {
@@ -33,7 +34,10 @@ export function Factors(props: {
     guard.run(
       then(async () => {
         const c = (await profiles.beginAddPasskey({})).creation;
-        if (c === undefined) throw new Error("the control plane sent no registration");
+        if (c === undefined)
+          throw new Error(
+            t({ defaultMessage: "the control plane sent no registration", id: "XiPLZivE" }),
+          );
         const made = await services.create({ ...c, exclude: c.excludeCredentials });
         await profiles.addPasskey({ registration: { challengeId: c.challengeId, label, ...made } });
       }),
@@ -59,22 +63,42 @@ export function Factors(props: {
   }
   return (
     <section aria-labelledby="factors">
-      <h2 id="factors">How you sign in</h2>
-      <h3>Passkeys</h3>
+      <h2 id="factors">{t({ defaultMessage: "How you sign in", id: "+c3DMOtz" })}</h2>
+      <h3>{t({ defaultMessage: "Passkeys", id: "ASrBq85Q" })}</h3>
       <ul>
         {profile.passkeys.map((p) => (
           <li key={p.label + String(p.createdAt?.seconds)}>
-            {p.label}, added {p.createdAt && timestampDate(p.createdAt).toLocaleDateString()}
-            {p.lastUsedAt === undefined
-              ? ", never used"
-              : `, last used ${timestampDate(p.lastUsedAt).toLocaleDateString()}`}
-            {p.backupEligible && ", may be copied to your other devices"}
+            {t(
+              {
+                defaultMessage:
+                  "{label}, added {added}{used, select, yes {, last used {lastUsed}} other {, never used}}{copied, select, yes {, may be copied to your other devices} other {}}",
+                id: "S89oXUto",
+                description: "one passkey: its label, when added and last used, whether it syncs",
+              },
+              {
+                label: p.label,
+                added:
+                  p.createdAt === undefined
+                    ? ""
+                    : intl.formatDate(timestampDate(p.createdAt), { dateStyle: "medium" }),
+                used: p.lastUsedAt === undefined ? "no" : "yes",
+                lastUsed:
+                  p.lastUsedAt === undefined
+                    ? ""
+                    : intl.formatDate(timestampDate(p.lastUsedAt), { dateStyle: "medium" }),
+                copied: p.backupEligible ? "yes" : "no",
+              },
+            )}
             <Button
               onPress={() => {
                 guard.run(then(() => profiles.removePasskey({ credentialId: p.credentialId })));
               }}
             >
-              Remove
+              {t({
+                defaultMessage: "Remove",
+                id: "tnUrzlep",
+                description: "button: remove a passkey",
+              })}
             </Button>
           </li>
         ))}
@@ -86,12 +110,12 @@ export function Factors(props: {
         }}
       >
         <TextField name="label" isRequired maxLength={64}>
-          <Label>Name for a new passkey</Label>
+          <Label>{t({ defaultMessage: "Name for a new passkey", id: "v8oIEeoT" })}</Label>
           <Input />
         </TextField>
-        <Button type="submit">Add a passkey</Button>
+        <Button type="submit">{t({ defaultMessage: "Add a passkey", id: "Ck5euHVk" })}</Button>
       </Form>
-      <h3>Password</h3>
+      <h3>{t({ defaultMessage: "Password", id: "zuF+uaw8", description: "heading" })}</h3>
       <Form
         onSubmit={(e) => {
           e.preventDefault();
@@ -107,11 +131,17 @@ export function Factors(props: {
           autoComplete="new-password"
         >
           <Label>
-            {profile.password ? "A new password" : "A password"}, at least 12 characters
+            {profile.password
+              ? t({ defaultMessage: "A new password, at least 12 characters", id: "OTwZkKc4" })
+              : t({ defaultMessage: "A password, at least 12 characters", id: "KMcIYorx" })}
           </Label>
           <Input />
         </TextField>
-        <Button type="submit">{profile.password ? "Change the password" : "Set a password"}</Button>
+        <Button type="submit">
+          {profile.password
+            ? t({ defaultMessage: "Change the password", id: "ytucBzBe" })
+            : t({ defaultMessage: "Set a password", id: "d2sELMI6" })}
+        </Button>
       </Form>
       {profile.password && (
         <Button
@@ -119,15 +149,29 @@ export function Factors(props: {
             guard.run(then(() => profiles.removePassword({})));
           }}
         >
-          Remove the password
+          {t({ defaultMessage: "Remove the password", id: "pAyCIq9x" })}
         </Button>
       )}
-      <h3>Authenticator app</h3>
+      <h3>{t({ defaultMessage: "Authenticator app", id: "izYqCARS" })}</h3>
       <p>
-        {profile.totp ? "An authenticator app gives you codes." : "No authenticator app is set up."}
+        {profile.totp
+          ? t({ defaultMessage: "An authenticator app gives you codes.", id: "eSjlm7P3" })
+          : t({ defaultMessage: "No authenticator app is set up.", id: "9xEmy1yk" })}
       </p>
       {totp === undefined ? (
-        <Button onPress={offerTotp}>{profile.totp ? "Replace it" : "Set one up"}</Button>
+        <Button onPress={offerTotp}>
+          {profile.totp
+            ? t({
+                defaultMessage: "Replace it",
+                id: "ZjYy6Yll",
+                description: "replace the authenticator app",
+              })
+            : t({
+                defaultMessage: "Set one up",
+                id: "CnfyIJ6Y",
+                description: "set up an authenticator app",
+              })}
+        </Button>
       ) : (
         <Form
           onSubmit={(e) => {
@@ -143,10 +187,16 @@ export function Factors(props: {
         >
           <Qr uri={totp.uri} />
           <TextField name="code" isRequired autoComplete="one-time-code">
-            <Label>The code your app shows now</Label>
+            <Label>{t({ defaultMessage: "The code your app shows now", id: "RMzLxhOc" })}</Label>
             <Input />
           </TextField>
-          <Button type="submit">Enrol it</Button>
+          <Button type="submit">
+            {t({
+              defaultMessage: "Enrol it",
+              id: "pCb+hggQ",
+              description: "button: enrol an authenticator app",
+            })}
+          </Button>
         </Form>
       )}
       {profile.totp && (
@@ -155,11 +205,19 @@ export function Factors(props: {
             guard.run(then(() => profiles.removeTotp({})));
           }}
         >
-          Remove the authenticator app
+          {t({ defaultMessage: "Remove the authenticator app", id: "eN1HQN31" })}
         </Button>
       )}
-      <h3>Recovery codes</h3>
-      <p>{profile.recoveryCodes.toString()} unused.</p>
+      <h3>{t({ defaultMessage: "Recovery codes", id: "a0PUqsnM" })}</h3>
+      <p>
+        {t(
+          {
+            defaultMessage: "{n, plural, one {# unused code} other {# unused codes}}.",
+            id: "gyWfsTF2",
+          },
+          { n: profile.recoveryCodes },
+        )}
+      </p>
       <Button
         onPress={() => {
           guard.run(async () => {
@@ -167,7 +225,11 @@ export function Factors(props: {
           });
         }}
       >
-        Make new ones
+        {t({
+          defaultMessage: "Make new ones",
+          id: "Ak/ics6v",
+          description: "button: make new recovery codes",
+        })}
       </Button>
       {guard.said}
     </section>

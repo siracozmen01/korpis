@@ -10,13 +10,14 @@ import { refusal } from "./refusal";
 /** `loaded` rendered by `done` once read. */
 export function Shown<T>(props: {
   readonly loaded: Loaded<T>;
-  readonly what: string;
+  /** What is shown while it is read, a sentence such as "Reading your sessions…". */
+  readonly reading: string;
   readonly done: (value: T) => ReactNode;
 }) {
   const { loaded } = props;
   switch (loaded.state) {
     case "loading":
-      return <p role="status">Reading {props.what}…</p>;
+      return <p role="status">{props.reading}</p>;
     case "hidden":
       return null;
     case "failed":

@@ -13,6 +13,7 @@ import {
   type StreamRecord,
 } from "../gen/korpis/v1/console_pb";
 import { type Run, type Style, runs } from "./ansi";
+import { t } from "../i18n/intl";
 
 /** A line of the console: text, or a gap. */
 export type Line =
@@ -44,7 +45,12 @@ const decoder = new TextDecoder();
 
 function gapSays(r: StreamRecord): string {
   const g = r.gap;
-  if (g === undefined) return "records were lost here";
+  if (g === undefined)
+    return t({
+      defaultMessage: "records were lost here",
+      id: "KK2vTsR3",
+      description: "a gap in a console",
+    });
   const what =
     g.records > 0n ? `${g.records.toString()} records lost` : `${g.bytes.toString()} bytes lost`;
   return g.reason === "" ? what : `${what}: ${g.reason}`;

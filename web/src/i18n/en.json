@@ -1,0 +1,1130 @@
+{
+  "+3ifsPpL": {
+    "defaultMessage": "Sign in",
+    "description": "heading of the sign-in page"
+  },
+  "+8amu4Ol": {
+    "defaultMessage": "Your last sign-in was more than ten minutes ago. Sign in again to continue."
+  },
+  "+PRD45NT": {
+    "defaultMessage": "A recovery code"
+  },
+  "+c3DMOtz": {
+    "defaultMessage": "How you sign in"
+  },
+  "+e3kx38m": {
+    "defaultMessage": "its image is not supported there",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "/3iT1gnB": {
+    "defaultMessage": "Danger",
+    "description": "a theme colour"
+  },
+  "/65aXYXD": {
+    "defaultMessage": "Light colours"
+  },
+  "/6RJEreY": {
+    "defaultMessage": "Restart",
+    "description": "button: restart a workload"
+  },
+  "/GKa1+lg": {
+    "defaultMessage": "file",
+    "description": "a listing entry's kind"
+  },
+  "/Sh00btp": {
+    "defaultMessage": "Choose a sign-in name"
+  },
+  "/o5ltHSh": {
+    "defaultMessage": "[{says}]",
+    "description": "a gap in a console"
+  },
+  "05J8UAPw": {
+    "defaultMessage": "stopped",
+    "description": "a workload's declared power state"
+  },
+  "07sHvW3R": {
+    "defaultMessage": "cannot run",
+    "description": "a workload's state as its node observed it"
+  },
+  "07xzvM/V": {
+    "defaultMessage": "unknown",
+    "description": "a grant's state"
+  },
+  "0bWtzCgd": {
+    "defaultMessage": "{action}: done. What it did"
+  },
+  "1BDY1a0A": {
+    "defaultMessage": "({marks})",
+    "description": "a step's marks"
+  },
+  "1G5SDr8l": {
+    "defaultMessage": "(this one)",
+    "description": "the session in use now"
+  },
+  "1KC4ynaR": {
+    "defaultMessage": "Something by that name is there already."
+  },
+  "1UtyFZcc": {
+    "defaultMessage": "The control plane cannot be reached. Try again."
+  },
+  "1YKny+jf": {
+    "defaultMessage": "Reading its organizations…"
+  },
+  "1gwFNojj": {
+    "defaultMessage": "The link"
+  },
+  "2BoX8B7b": {
+    "defaultMessage": "+{lag}",
+    "description": "time after the declaration"
+  },
+  "2E9YtXqZ": {
+    "defaultMessage": "Its plan applies at {when}."
+  },
+  "2NWVup5w": {
+    "defaultMessage": "Each code signs you in once beside your password, if you lose your other factors. They are shown here once: keep them somewhere safe now."
+  },
+  "2jjdVzJX": {
+    "defaultMessage": "Upload files"
+  },
+  "2ku0j3Lw": {
+    "defaultMessage": "awaiting approval",
+    "description": "where a workload stands against what was declared"
+  },
+  "3AVtR6Oy": {
+    "defaultMessage": "Reading your profile…"
+  },
+  "3K8BEHus": {
+    "defaultMessage": "stopping",
+    "description": "a workload's state as its node observed it"
+  },
+  "3Py1cc+q": {
+    "defaultMessage": "run commands in it"
+  },
+  "3grWaoK5": {
+    "defaultMessage": "Reading the invitation…"
+  },
+  "3jqpN1eS": {
+    "defaultMessage": "End it",
+    "description": "button: end a session"
+  },
+  "47FYwba+": {
+    "defaultMessage": "Cancel"
+  },
+  "4H4xOTsE": {
+    "defaultMessage": "Converged",
+    "description": "the moment a workload converged"
+  },
+  "4jmg2y3r": {
+    "defaultMessage": "This link opens nothing."
+  },
+  "4l6vz1/e": {
+    "defaultMessage": "Copy"
+  },
+  "4xwCWoPe": {
+    "defaultMessage": "Open the link again"
+  },
+  "57WbSh0o": {
+    "defaultMessage": "{n, plural, one {# hour} other {# hours}}"
+  },
+  "59XppT0s": {
+    "defaultMessage": "Approve",
+    "description": "button"
+  },
+  "5OvTyyrO": {
+    "defaultMessage": "{check} ({nodes, plural, one {# node} other {# nodes}})",
+    "description": "a placement check that refused, and how many nodes it refused"
+  },
+  "5ot6y0in": {
+    "defaultMessage": "no passkey was made"
+  },
+  "5sg7KCrr": {
+    "defaultMessage": "Password"
+  },
+  "5yTPpEp5": {
+    "defaultMessage": "Not open: {why}."
+  },
+  "6/tAYJsQ": {
+    "defaultMessage": "Beside it",
+    "description": "the second factor given beside a password"
+  },
+  "67v1+jt2": {
+    "defaultMessage": "Nothing has been observed of it yet."
+  },
+  "6Ll5hj0k": {
+    "defaultMessage": "Signed in",
+    "description": "a device sign-in approved"
+  },
+  "6WRJhCn7": {
+    "defaultMessage": "the node answered a read with no data"
+  },
+  "6f0LBR2I": {
+    "defaultMessage": "Restart requested"
+  },
+  "7L9bcZ1z": {
+    "defaultMessage": "Share as a link"
+  },
+  "8RMoim+k": {
+    "defaultMessage": "Declared {declared}, {convergence}"
+  },
+  "8syzz/1K": {
+    "defaultMessage": "{kind, select, user {user {id}} token {token {id}} workload {workload {id}} other {extension {id}}}",
+    "description": "the subject a grant is issued to"
+  },
+  "9+4JL8Ec": {
+    "defaultMessage": "not placed",
+    "description": "where a workload stands against what was declared"
+  },
+  "99Xie+BN": {
+    "defaultMessage": "{cores} cores"
+  },
+  "9G511qz9": {
+    "defaultMessage": "nothing declared",
+    "description": "a workload's declared power state"
+  },
+  "9HUO3CrK": {
+    "defaultMessage": "read its files"
+  },
+  "9UaA8ufC": {
+    "defaultMessage": "{colour} (#rrggbb)"
+  },
+  "9YURJKmQ": {
+    "defaultMessage": "see its status"
+  },
+  "9YypKw6B": {
+    "defaultMessage": "a volume is unavailable",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "9Z1gVcoX": {
+    "defaultMessage": "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}."
+  },
+  "9b5VJp+J": {
+    "defaultMessage": "expired",
+    "description": "a grant's state"
+  },
+  "9lS0MI/F": {
+    "defaultMessage": "Not allowed here."
+  },
+  "9u4qdqD4": {
+    "defaultMessage": "the control plane sent no challenge"
+  },
+  "9xEmy1yk": {
+    "defaultMessage": "No authenticator app is set up."
+  },
+  "A76GYv5R": {
+    "defaultMessage": "the live view ended"
+  },
+  "AKsYwJZw": {
+    "defaultMessage": "Reading the request…"
+  },
+  "ALnyx0KZ": {
+    "defaultMessage": "Dark colours"
+  },
+  "ASrBq85Q": {
+    "defaultMessage": "Passkeys"
+  },
+  "AX61Yquk": {
+    "defaultMessage": "failing",
+    "description": "where a workload stands against what was declared"
+  },
+  "AZ8OrWtY": {
+    "defaultMessage": "Its plan waits for approval: {why}"
+  },
+  "Ak/ics6v": {
+    "defaultMessage": "Make new ones",
+    "description": "button: make new recovery codes"
+  },
+  "BIIyPmVF": {
+    "defaultMessage": "unknown",
+    "description": "a workload's state as its node observed it"
+  },
+  "BMaKGRvT": {
+    "defaultMessage": "Console",
+    "description": "a workload's console"
+  },
+  "BZ0iK1XF": {
+    "defaultMessage": "Too many attempts. Wait a little and try again."
+  },
+  "BeBCMfk4": {
+    "defaultMessage": "Workloads"
+  },
+  "Bg2qLKJO": {
+    "defaultMessage": "Sign in",
+    "description": "button: sign in"
+  },
+  "BkY/4vDn": {
+    "defaultMessage": "It asked at"
+  },
+  "C0bpQ4YI": {
+    "defaultMessage": "They can"
+  },
+  "C3v4CI1c": {
+    "defaultMessage": "End every other session"
+  },
+  "CCPT98zG": {
+    "defaultMessage": "No node can take it."
+  },
+  "CM8HNi8Q": {
+    "defaultMessage": "Convergence",
+    "description": "the convergence timeline"
+  },
+  "Ck5euHVk": {
+    "defaultMessage": "Add a passkey"
+  },
+  "CnfyIJ6Y": {
+    "defaultMessage": "Set one up",
+    "description": "set up an authenticator app"
+  },
+  "ConS74VK": {
+    "defaultMessage": "interrupts service"
+  },
+  "DDAS95WS": {
+    "defaultMessage": "It is a directory."
+  },
+  "DDEIbpCL": {
+    "defaultMessage": "The code expires at"
+  },
+  "DIHNjZk9": {
+    "defaultMessage": "nothing",
+    "description": "a client that names no user agent"
+  },
+  "DbQxUDQO": {
+    "defaultMessage": "{known, select, yes {Declared {ago} ago} other {Declared}}, {where, select, node {node {node}} region {its node in {region}} other {its node}} has not acknowledged."
+  },
+  "E1h4MoXX": {
+    "defaultMessage": "Redeem",
+    "description": "button: redeem an invitation"
+  },
+  "EOBZyeyd": {
+    "defaultMessage": "an unknown time"
+  },
+  "Eh+k5eCM": {
+    "defaultMessage": "Stylesheet"
+  },
+  "EildnEYR": {
+    "defaultMessage": "change its files"
+  },
+  "Ekt8OuWU": {
+    "defaultMessage": "(heard {ago} ago)"
+  },
+  "Eu7t3/2z": {
+    "defaultMessage": "Revoke",
+    "description": "button"
+  },
+  "F1KlqJdE": {
+    "defaultMessage": "Delete",
+    "description": "button: delete a workload"
+  },
+  "FAkmp8n+": {
+    "defaultMessage": "Make the link"
+  },
+  "FId+XQnj": {
+    "defaultMessage": "Reading the workload…"
+  },
+  "FMmGBvrK": {
+    "defaultMessage": "Background",
+    "description": "a theme colour"
+  },
+  "FNNGdHd/": {
+    "defaultMessage": "Modified",
+    "description": "column: when a file was modified"
+  },
+  "FaYLfRYl": {
+    "defaultMessage": "Node acknowledged"
+  },
+  "FazwRldA": {
+    "defaultMessage": "Try again"
+  },
+  "FpysbNB0": {
+    "defaultMessage": "It says it is"
+  },
+  "G3xFadAQ": {
+    "defaultMessage": "Preview",
+    "description": "a plan previewed"
+  },
+  "GDi3Iw2v": {
+    "defaultMessage": "The panel has no page at this address."
+  },
+  "GrnZDNX+": {
+    "defaultMessage": "Saved."
+  },
+  "H+C4LITW": {
+    "defaultMessage": "Upload {name}"
+  },
+  "HErk5s7f": {
+    "defaultMessage": "Downtime: about {seconds, plural, one {# second} other {# seconds}}."
+  },
+  "HmNW5Y9i": {
+    "defaultMessage": "Text",
+    "description": "a theme colour"
+  },
+  "HnsZRsrg": {
+    "defaultMessage": "It crashed on {where, select, node {node {node}} region {its node in {region}} other {its node}}{coded, select, yes {, exit code {code}} other {}}."
+  },
+  "IfkE03As": {
+    "defaultMessage": "Reading its workloads…"
+  },
+  "Iqf4wUcI": {
+    "defaultMessage": "Health",
+    "description": "a workload's health"
+  },
+  "IrnB9O3m": {
+    "defaultMessage": "What this link allows"
+  },
+  "IyTtQLIW": {
+    "defaultMessage": "Reading what you can reach…"
+  },
+  "J35Dw5fO": {
+    "defaultMessage": "revoked",
+    "description": "a grant's state"
+  },
+  "JD2pwHED": {
+    "defaultMessage": "Organizations"
+  },
+  "JFlcSpSl": {
+    "defaultMessage": "read its console"
+  },
+  "Jby50rYV": {
+    "defaultMessage": "I have read every step, and what is marked irreversible cannot be undone"
+  },
+  "JeLzuc6N": {
+    "defaultMessage": "The code your terminal shows"
+  },
+  "JiItQLSQ": {
+    "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} has not been heard for {span}."
+  },
+  "JyH1osZt": {
+    "defaultMessage": "Reading mode"
+  },
+  "JyQxWYW1": {
+    "defaultMessage": "Reading your sessions…"
+  },
+  "KJXGpJqL": {
+    "defaultMessage": "More",
+    "description": "button: read more of a directory"
+  },
+  "KK2vTsR3": {
+    "defaultMessage": "records were lost here",
+    "description": "a gap in a console"
+  },
+  "KLW42pdD": {
+    "defaultMessage": "I have kept them"
+  },
+  "KMcIYorx": {
+    "defaultMessage": "A password, at least 12 characters"
+  },
+  "KU6egau4": {
+    "defaultMessage": "directory",
+    "description": "a listing entry's kind"
+  },
+  "KZ0aUUdu": {
+    "defaultMessage": "preparing it was refused",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "L/Pkbpdp": {
+    "defaultMessage": "no passkey answered"
+  },
+  "LMQ8/0ve": {
+    "defaultMessage": "suspended",
+    "description": "a grant's state"
+  },
+  "LTNNkoPm": {
+    "defaultMessage": "the console refused input"
+  },
+  "LkssjtoZ": {
+    "defaultMessage": "Preview",
+    "description": "button: preview a theme"
+  },
+  "Lr/1fpfn": {
+    "defaultMessage": "Deny",
+    "description": "button"
+  },
+  "MCN1/L+K": {
+    "defaultMessage": "QR code of the authenticator address"
+  },
+  "MUFpIc0k": {
+    "defaultMessage": "The invitation"
+  },
+  "MddyXGDM": {
+    "defaultMessage": "State",
+    "description": "a workload's observed state"
+  },
+  "MnHvrun/": {
+    "defaultMessage": "Reading who holds authority over it…"
+  },
+  "Msrt5CyF": {
+    "defaultMessage": "Path",
+    "description": "a directory's path"
+  },
+  "N+x6wMk/": {
+    "defaultMessage": "Code",
+    "description": "an authenticator app's code"
+  },
+  "N2IrpMDH": {
+    "defaultMessage": "Confirm"
+  },
+  "NZmMEEju": {
+    "defaultMessage": "Rename {name}"
+  },
+  "Nf2GrGr0": {
+    "defaultMessage": "Remove",
+    "description": "button: remove a file"
+  },
+  "NuSEztoC": {
+    "defaultMessage": "its runtime driver is missing",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "Nz+sqiZJ": {
+    "defaultMessage": "Change",
+    "description": "column: changes to a file"
+  },
+  "O3El0XWZ": {
+    "defaultMessage": "in force",
+    "description": "a grant's state"
+  },
+  "OBu6D0B5": {
+    "defaultMessage": "A command-line client asks to sign in as you. Approve it only if you started it yourself and your terminal shows this code:"
+  },
+  "OJ+KsVog": {
+    "defaultMessage": "passkey",
+    "description": "a passkey's label, until renamed"
+  },
+  "OTwZkKc4": {
+    "defaultMessage": "A new password, at least 12 characters"
+  },
+  "OWdB2JGz": {
+    "defaultMessage": "Send a command"
+  },
+  "OWlpMeOP": {
+    "defaultMessage": "unknown",
+    "description": "an observed value not known"
+  },
+  "Od6W77Tm": {
+    "defaultMessage": "{name} is there with {there} of {size}."
+  },
+  "OuCSDnvE": {
+    "defaultMessage": "Disk"
+  },
+  "OvK35h+3": {
+    "defaultMessage": "Logo (PNG, WebP, or SVG, at most 256 KiB)"
+  },
+  "PIXTVfME": {
+    "defaultMessage": "Its plan is scheduled."
+  },
+  "PRlKOXbY": {
+    "defaultMessage": "unnamed",
+    "description": "a session with no client name"
+  },
+  "PlDPAwJR": {
+    "defaultMessage": "Not live: {why}."
+  },
+  "PwHgAn9a": {
+    "defaultMessage": "Lines",
+    "description": "a theme colour"
+  },
+  "QgBuiVs5": {
+    "defaultMessage": "CPU"
+  },
+  "R+2+cn8K": {
+    "defaultMessage": "Reading the organization…"
+  },
+  "R3ptDDpo": {
+    "defaultMessage": "Download {name}"
+  },
+  "R4Vpa9Ew": {
+    "defaultMessage": "the session was lost"
+  },
+  "RD54aDMn": {
+    "defaultMessage": "Theme",
+    "description": "an organization's theme"
+  },
+  "RMzLxhOc": {
+    "defaultMessage": "The code your app shows now"
+  },
+  "RimURWP3": {
+    "defaultMessage": "Resume",
+    "description": "button: resume an upload"
+  },
+  "Rsr0afH7": {
+    "defaultMessage": "Sign in a command-line client"
+  },
+  "S89oXUto": {
+    "defaultMessage": "{label}, added {added}{used, select, yes {, last used {lastUsed}} other {, never used}}{copied, select, yes {, may be copied to your other devices} other {}}",
+    "description": "one passkey: its label, when added and last used, whether it syncs"
+  },
+  "SsdT0IyI": {
+    "defaultMessage": "used up",
+    "description": "a grant's state"
+  },
+  "SzKCJJnE": {
+    "defaultMessage": "Replace",
+    "description": "button: replace a partly uploaded file"
+  },
+  "T0+4f3BN": {
+    "defaultMessage": "Add this account to your authenticator app, by its QR code or by this address:"
+  },
+  "T0e6Lh8l": {
+    "defaultMessage": "Remove {name}"
+  },
+  "T6KHmZeW": {
+    "defaultMessage": "Open it again"
+  },
+  "T7B9Z5G2": {
+    "defaultMessage": "Send",
+    "description": "button: send a console command"
+  },
+  "TAhO4thL": {
+    "defaultMessage": "the control plane sent no plan"
+  },
+  "TDUCXqaO": {
+    "defaultMessage": "Signed in as {name}."
+  },
+  "TThIOMeM": {
+    "defaultMessage": "Not found"
+  },
+  "TVvaeAem": {
+    "defaultMessage": "Reading its projects…"
+  },
+  "Usf2nt81": {
+    "defaultMessage": "Open to read.",
+    "description": "a read-only file session"
+  },
+  "Uw77NfUG": {
+    "defaultMessage": "restart it"
+  },
+  "UxTJRaKa": {
+    "defaultMessage": "Projects"
+  },
+  "VXCry6sZ": {
+    "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} is applying step {step, number} of {steps, number}."
+  },
+  "WLC8/hBB": {
+    "defaultMessage": "the node answered a listing with no entries"
+  },
+  "WQNWGK22": {
+    "defaultMessage": "applying",
+    "description": "where a workload stands against what was declared"
+  },
+  "WRNdUk9E": {
+    "defaultMessage": "It is not there."
+  },
+  "WlKwuX88": {
+    "defaultMessage": "unknown",
+    "description": "where a workload stands against what was declared"
+  },
+  "X1BDgPIM": {
+    "defaultMessage": "Open {name}"
+  },
+  "XKxxNWbL": {
+    "defaultMessage": "{holder}: {actions}{labelled, select, yes { ({label})} other {}}, {state}{expiring, select, yes {, until {until}} other {}}",
+    "description": "one grant: who holds it, its actions, its label, state, and expiry"
+  },
+  "XiPLZivE": {
+    "defaultMessage": "the control plane sent no registration"
+  },
+  "Y0g70Mpa": {
+    "defaultMessage": "send commands to its console"
+  },
+  "YB8VbPji": {
+    "defaultMessage": "the session did not open"
+  },
+  "YCjxvQQ4": {
+    "defaultMessage": "No grant is anchored on this workload itself."
+  },
+  "YOjHY4hC": {
+    "defaultMessage": "Declared",
+    "description": "the moment a declaration was made"
+  },
+  "YVga+2AS": {
+    "defaultMessage": "The control plane cannot be reached."
+  },
+  "YYmFtOqj": {
+    "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} cannot run it."
+  },
+  "YgBq8K12": {
+    "defaultMessage": "The directory is not empty."
+  },
+  "YvHdWl5o": {
+    "defaultMessage": "(last observed {ago} ago: {value})"
+  },
+  "YxsNQ0kQ": {
+    "defaultMessage": "it has too few resources left",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "Z12PiHVA": {
+    "defaultMessage": "starting",
+    "description": "a workload's state as its node observed it"
+  },
+  "ZE5n9bcN": {
+    "defaultMessage": "Start",
+    "description": "button: start a workload"
+  },
+  "ZInTaFOM": {
+    "defaultMessage": "Uses",
+    "description": "how many uses a share link has"
+  },
+  "ZVtnkB2O": {
+    "defaultMessage": "Data at risk: unknown."
+  },
+  "ZWw2kSUj": {
+    "defaultMessage": "Actions",
+    "description": "a workload's actions"
+  },
+  "Zcs/kMyq": {
+    "defaultMessage": "The command-line client was refused, and its code no longer works."
+  },
+  "ZjYy6Yll": {
+    "defaultMessage": "Replace it",
+    "description": "replace the authenticator app"
+  },
+  "Zs6s57kx": {
+    "defaultMessage": "Data at risk: {volumes}."
+  },
+  "a0PUqsnM": {
+    "defaultMessage": "Recovery codes"
+  },
+  "aKY5Nsss": {
+    "defaultMessage": "Downloaded {name}."
+  },
+  "aM06WstJ": {
+    "defaultMessage": "not a file",
+    "description": "a listing entry's kind"
+  },
+  "aMLvvtkX": {
+    "defaultMessage": "Review: {action}"
+  },
+  "aWpBzjCX": {
+    "defaultMessage": "Show more"
+  },
+  "acNLq/ZK": {
+    "defaultMessage": "Open it again (uses one of the link's uses)"
+  },
+  "acrOozm0": {
+    "defaultMessage": "Continue"
+  },
+  "b3rCwi2e": {
+    "defaultMessage": "Open.",
+    "description": "a file session is open"
+  },
+  "bASS+sB6": {
+    "defaultMessage": "Refused",
+    "description": "a device sign-in denied"
+  },
+  "bBY+B+a1": {
+    "defaultMessage": "What you can reach"
+  },
+  "bGX7tJeG": {
+    "defaultMessage": "Opening…",
+    "description": "a console opening"
+  },
+  "ba8ytnij": {
+    "defaultMessage": "the session ended"
+  },
+  "bazDyBRA": {
+    "defaultMessage": "Size",
+    "description": "column: a file's size"
+  },
+  "bvrOBBs/": {
+    "defaultMessage": "Use a passkey"
+  },
+  "c+plKHGA": {
+    "defaultMessage": "Name",
+    "description": "column: a file's name"
+  },
+  "c3XoMktx": {
+    "defaultMessage": "Password, at least 12 characters"
+  },
+  "c6s3fip6": {
+    "defaultMessage": "New directory"
+  },
+  "c8yWpaVr": {
+    "defaultMessage": "Removed; the nearest theme above applies."
+  },
+  "cbCaFOB4": {
+    "defaultMessage": "{n, plural, =0 {Revoked.} one {Revoked, with # grant attenuated from it.} other {Revoked, with # grants attenuated from it.}}"
+  },
+  "co3A9BSP": {
+    "defaultMessage": "Your recovery codes"
+  },
+  "cy+bnRnd": {
+    "defaultMessage": "Profile",
+    "description": "link to the viewer's own profile"
+  },
+  "d147hhoF": {
+    "defaultMessage": "Its plan waits for approval."
+  },
+  "d2sELMI6": {
+    "defaultMessage": "Set a password"
+  },
+  "dVx3yznM": {
+    "defaultMessage": "Memory"
+  },
+  "dXVcO4GV": {
+    "defaultMessage": "{n, plural, =0 {No other session was open.} one {# session ended.} other {# sessions ended.}}"
+  },
+  "e/zsRyEz": {
+    "defaultMessage": "the session was closed"
+  },
+  "e258PFM2": {
+    "defaultMessage": "Every step it takes, and every object it acts on:"
+  },
+  "e4C1p0sc": {
+    "defaultMessage": "Recovery code"
+  },
+  "e9SAPfzd": {
+    "defaultMessage": "That did not sign you in."
+  },
+  "eN1HQN31": {
+    "defaultMessage": "Remove the authenticator app"
+  },
+  "ePicdenZ": {
+    "defaultMessage": "Text on the accent",
+    "description": "a theme colour"
+  },
+  "eSjlm7P3": {
+    "defaultMessage": "An authenticator app gives you codes."
+  },
+  "ecniKn1Y": {
+    "defaultMessage": "whoever holds a share link"
+  },
+  "fKWNsalK": {
+    "defaultMessage": "not yet",
+    "description": "a convergence moment still to come"
+  },
+  "fcokJlVA": {
+    "defaultMessage": "healthy",
+    "description": "a workload's health check answer"
+  },
+  "fk9cvb2U": {
+    "defaultMessage": "Who can act on it"
+  },
+  "fsoxyMc0": {
+    "defaultMessage": "Sign-in text"
+  },
+  "g52ZeLQR": {
+    "defaultMessage": "Redeem an invitation"
+  },
+  "g6viPdJR": {
+    "defaultMessage": "The command-line client is signed in as you. You can return to your terminal."
+  },
+  "gFzZ9t+1": {
+    "defaultMessage": "What it is for (shown wherever it is listed)"
+  },
+  "gaANAXFU": {
+    "defaultMessage": "This organization's own theme, worn here and beneath unless an organization sets its own."
+  },
+  "gyWfsTF2": {
+    "defaultMessage": "{n, plural, one {# unused code} other {# unused codes}}."
+  },
+  "h69n2KEA": {
+    "defaultMessage": "Muted text",
+    "description": "a theme colour"
+  },
+  "hJ6uj4ZM": {
+    "defaultMessage": "It asked from"
+  },
+  "hfrR434C": {
+    "defaultMessage": "Stop",
+    "description": "button: stop a workload"
+  },
+  "hkRoo7vP": {
+    "defaultMessage": "The directory above"
+  },
+  "hybHBiuq": {
+    "defaultMessage": "None you can read."
+  },
+  "i+q7WayW": {
+    "defaultMessage": "Observed",
+    "description": "what the node observed"
+  },
+  "iJNuzDiK": {
+    "defaultMessage": "Its impact is unknown."
+  },
+  "iKKCuLhf": {
+    "defaultMessage": "Register a passkey"
+  },
+  "iQQgmW3M": {
+    "defaultMessage": "A part of the path is not a directory."
+  },
+  "iX+GUVAl": {
+    "defaultMessage": "Live.",
+    "description": "the console is live"
+  },
+  "iitdQxcB": {
+    "defaultMessage": "running",
+    "description": "a workload's state as its node observed it"
+  },
+  "izYqCARS": {
+    "defaultMessage": "Authenticator app"
+  },
+  "j1jIuAyi": {
+    "defaultMessage": "done",
+    "description": "a convergence moment passed at a time unknown"
+  },
+  "jURFdkY7": {
+    "defaultMessage": "No grant you hold opens an organization, a project, or a workload yet."
+  },
+  "jYLOYRR/": {
+    "defaultMessage": "{n, plural, one {# day} other {# days}}"
+  },
+  "jbhLQnPx": {
+    "defaultMessage": "for a reason it did not give",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "jvo0vs3n": {
+    "defaultMessage": "Save"
+  },
+  "k/D6s5T/": {
+    "defaultMessage": "Uploaded {name}."
+  },
+  "kBgKnjmv": {
+    "defaultMessage": "{kind, select, cli {Command line} other {Browser}}: {agent}, from {source}{used, select, yes {, last used {lastUsed}} other {}}",
+    "description": "one session: its kind, client, address, and last use"
+  },
+  "kHzm3iTk": {
+    "defaultMessage": "Power changed"
+  },
+  "kPM5WT90": {
+    "defaultMessage": "Surfaces",
+    "description": "a theme colour"
+  },
+  "ka5UfM/i": {
+    "defaultMessage": "unknown",
+    "description": "a workload's health check answer"
+  },
+  "kb5FY9Br": {
+    "defaultMessage": "{unit, select, B {{size} B} KiB {{size} KiB} MiB {{size} MiB} GiB {{size} GiB} TiB {{size} TiB} other {{size} PiB}}",
+    "description": "a byte count in binary units"
+  },
+  "kn6QOTAC": {
+    "defaultMessage": "stopped",
+    "description": "a workload's state as its node observed it"
+  },
+  "kqUARBb+": {
+    "defaultMessage": "Confirm it is you"
+  },
+  "kvFHVWDb": {
+    "defaultMessage": "A share link is held only while its page is open, so it is not left in the browser. Open it again from where it was sent to you."
+  },
+  "lfun+oaM": {
+    "defaultMessage": "It is shown this once. Send it only to the person it is for, not to a group."
+  },
+  "liG+xsKp": {
+    "defaultMessage": "No node can take it: {checks}."
+  },
+  "lxaBrkGd": {
+    "defaultMessage": "The volume is full."
+  },
+  "m+KRi2NS": {
+    "defaultMessage": "Earlier",
+    "description": "button: read earlier console lines"
+  },
+  "mJqqsxJJ": {
+    "defaultMessage": "a device is unavailable",
+    "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "ma+8ta3Y": {
+    "defaultMessage": "Reading the project…"
+  },
+  "miozhqcP": {
+    "defaultMessage": "Remove {name} and everything in it? This cannot be undone."
+  },
+  "msSyC/mx": {
+    "defaultMessage": "Welcome, {name}"
+  },
+  "nIafWUcM": {
+    "defaultMessage": "Downloading {name}: {done} of {total}"
+  },
+  "nVDoOwm8": {
+    "defaultMessage": "running",
+    "description": "a workload's declared power state"
+  },
+  "nXNb6xjd": {
+    "defaultMessage": "{kind, select, organization {Reading the organization…} project {Reading the project…} other {Reading the workload…}}"
+  },
+  "oFH8Xx1m": {
+    "defaultMessage": "Remove the logo"
+  },
+  "oQ2tYHx3": {
+    "defaultMessage": "{n, plural, one {# older line left the view} other {# older lines left the view}}; use Earlier to read them."
+  },
+  "oxCCI1AN": {
+    "defaultMessage": "Opening…",
+    "description": "a file session opening"
+  },
+  "p556q3uv": {
+    "defaultMessage": "Copied"
+  },
+  "pAyCIq9x": {
+    "defaultMessage": "Remove the password"
+  },
+  "pCb+hggQ": {
+    "defaultMessage": "Enrol it",
+    "description": "button: enrol an authenticator app"
+  },
+  "pSEaRCSm": {
+    "defaultMessage": "Use a password and an authenticator app"
+  },
+  "pl9W7HkD": {
+    "defaultMessage": "Source",
+    "description": "link to the panel's source code notice"
+  },
+  "q57TbyeF": {
+    "defaultMessage": "{kind, select, workload {workload} volume {volume} endpoint {endpoint} stream {stream} other {object}}",
+    "description": "the kind of object a plan's step acts on"
+  },
+  "q7jGRPKA": {
+    "defaultMessage": "That is outside the workload's volumes."
+  },
+  "qYynOpiu": {
+    "defaultMessage": "stop it"
+  },
+  "qmFAWUlu": {
+    "defaultMessage": "Where you are signed in"
+  },
+  "qyvx6JZq": {
+    "defaultMessage": "Uploading {name}: {done} of {total}"
+  },
+  "rFlt7Wwo": {
+    "defaultMessage": "Whoever holds the link can do this, with no account. Opening its screen is one use, and so is each action; using it needs the control plane to be reachable. It lasts at most {uses, plural, one {# use} other {# uses}} and {lasts}, and you can revoke it at any time."
+  },
+  "rGyY3Tcv": {
+    "defaultMessage": "Remove {name}? This cannot be undone."
+  },
+  "rs6XNweZ": {
+    "defaultMessage": "Product name"
+  },
+  "rxv4RRs4": {
+    "defaultMessage": "Rename",
+    "description": "button: rename a file"
+  },
+  "s4yZXgis": {
+    "defaultMessage": "Signing in…"
+  },
+  "sBDwIptW": {
+    "defaultMessage": "Skip",
+    "description": "button: skip an upload"
+  },
+  "sCY1Nc/A": {
+    "defaultMessage": "crashed",
+    "description": "a workload's state as its node observed it"
+  },
+  "sTddvshh": {
+    "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} holds it and cannot run it: {why}."
+  },
+  "sYQQIZsv": {
+    "defaultMessage": "start it"
+  },
+  "smLX0ybU": {
+    "defaultMessage": "Remove this organization's theme"
+  },
+  "sn+Rj5s3": {
+    "defaultMessage": "Sign in with a passkey"
+  },
+  "stvCF2Qv": {
+    "defaultMessage": "For",
+    "description": "how long a share link lasts"
+  },
+  "tiVJHECN": {
+    "defaultMessage": "{action} will do this:"
+  },
+  "tnUrzlep": {
+    "defaultMessage": "Remove",
+    "description": "button: remove a passkey"
+  },
+  "to6AYEiK": {
+    "defaultMessage": "This link lets you {allows}.{expiring, select, yes { It works until {until}.} other {}}{capped, select, yes { It can be used {uses, plural, one {# time} other {# times}} in all.} other {}}",
+    "description": "what a share link allows, until when, and how many uses"
+  },
+  "u6Mspyx9": {
+    "defaultMessage": "{kind, select, organization {organization} project {project} other {workload}}",
+    "description": "the kind of a place the viewer can reach"
+  },
+  "uBUvoH5J": {
+    "defaultMessage": "Files",
+    "description": "a workload's files"
+  },
+  "uj4MMHqP": {
+    "defaultMessage": "This organization wears the theme of the nearest organization above that sets one."
+  },
+  "uzVYhI2z": {
+    "defaultMessage": "Reading what the link allows…"
+  },
+  "v8oIEeoT": {
+    "defaultMessage": "Name for a new passkey"
+  },
+  "vcc/+oBE": {
+    "defaultMessage": "IRREVERSIBLE"
+  },
+  "vlFWCnal": {
+    "defaultMessage": "Focus ring",
+    "description": "a theme colour"
+  },
+  "vxN1EcKI": {
+    "defaultMessage": "someone",
+    "description": "a grant's subject, unnamed"
+  },
+  "w9y4DE8u": {
+    "defaultMessage": "Downtime: unknown."
+  },
+  "wEQGjatf": {
+    "defaultMessage": "Accent",
+    "description": "a theme colour"
+  },
+  "wFzKoo/B": {
+    "defaultMessage": "{n, plural, =0 {Back to live} one {Back to live (# new line)} other {Back to live (# new lines)}}"
+  },
+  "wHbkqfPX": {
+    "defaultMessage": "intent v{version}",
+    "description": "the version of a workload's intent"
+  },
+  "xIksTt1G": {
+    "defaultMessage": "Not live: last heard {ago} ago.{reconnecting, select, yes { Reconnecting…} other {}}"
+  },
+  "xIzLahez": {
+    "defaultMessage": "scheduled",
+    "description": "where a workload stands against what was declared"
+  },
+  "xQ+xIgWb": {
+    "defaultMessage": "The top directory"
+  },
+  "xV3WEmSo": {
+    "defaultMessage": "unhealthy",
+    "description": "a workload's health check answer"
+  },
+  "xXbJsopy": {
+    "defaultMessage": "Sign out"
+  },
+  "y09OFmzc": {
+    "defaultMessage": "Or with a password"
+  },
+  "yS/twS6R": {
+    "defaultMessage": "converged",
+    "description": "where a workload stands against what was declared"
+  },
+  "ytucBzBe": {
+    "defaultMessage": "Change the password"
+  },
+  "yuk2Sbg3": {
+    "defaultMessage": "A code from your authenticator app"
+  },
+  "z03iN+NR": {
+    "defaultMessage": "link, not followed",
+    "description": "a listing entry's kind"
+  },
+  "zQpbwSBJ": {
+    "defaultMessage": "An invitation starts {prefix}"
+  },
+  "zRVBYlyI": {
+    "defaultMessage": "Sign-in name"
+  },
+  "zYuUqeRO": {
+    "defaultMessage": "New name for {name}"
+  },
+  "zb3eS1/R": {
+    "defaultMessage": "someone must approve it"
+  },
+  "zuF+uaw8": {
+    "defaultMessage": "Password",
+    "description": "heading"
+  }
+}

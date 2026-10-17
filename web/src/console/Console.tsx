@@ -13,6 +13,7 @@ import { Writer } from "./input";
 import type { Relay } from "./relay";
 import { useConsole } from "./useConsole";
 import type { Line, View } from "./view";
+import { t } from "../i18n/intl";
 
 /** The console of workload `id`; typing is offered when `typing`. */
 export function Console(props: { readonly id: string; readonly typing: boolean }) {
@@ -28,11 +29,19 @@ export function Console(props: { readonly id: string; readonly typing: boolean }
       : c.view.lines.length - held.lines.length + (c.view.dropped - held.dropped);
   return (
     <section aria-labelledby="console">
-      <h2 id="console">Console</h2>
+      <h2 id="console">
+        {t({ defaultMessage: "Console", id: "BMaKGRvT", description: "a workload's console" })}
+      </h2>
       <p role="status">
-        {c.live ? "Live." : c.ended === undefined ? "Opening…" : `Not live: ${c.ended}.`}
+        {c.live
+          ? t({ defaultMessage: "Live.", id: "iX+GUVAl", description: "the console is live" })
+          : c.ended === undefined
+            ? t({ defaultMessage: "Opening…", id: "bGX7tJeG", description: "a console opening" })
+            : t({ defaultMessage: "Not live: {why}.", id: "PlDPAwJR" }, { why: c.ended })}
         {c.ended !== undefined && metered && (
-          <Button onPress={c.reopen}>Open it again (uses one of the link's uses)</Button>
+          <Button onPress={c.reopen}>
+            {t({ defaultMessage: "Open it again (uses one of the link's uses)", id: "acNLq/ZK" })}
+          </Button>
         )}
       </p>
       <Button
@@ -41,8 +50,15 @@ export function Console(props: { readonly id: string; readonly typing: boolean }
         }}
       >
         {held === undefined
-          ? "Reading mode"
-          : `Back to live${waiting > 0 ? ` (${waiting.toString()} new lines)` : ""}`}
+          ? t({ defaultMessage: "Reading mode", id: "JyH1osZt" })
+          : t(
+              {
+                defaultMessage:
+                  "{n, plural, =0 {Back to live} one {Back to live (# new line)} other {Back to live (# new lines)}}",
+                id: "wFzKoo/B",
+              },
+              { n: waiting },
+            )}
       </Button>
       <Button
         isDisabled={shown.first === undefined || shown.first === 0n}
@@ -52,10 +68,23 @@ export function Console(props: { readonly id: string; readonly typing: boolean }
           });
         }}
       >
-        Earlier
+        {t({
+          defaultMessage: "Earlier",
+          id: "m+KRi2NS",
+          description: "button: read earlier console lines",
+        })}
       </Button>
       {shown.dropped > 0 && (
-        <p>{shown.dropped.toString()} older lines left the view; use Earlier to read them.</p>
+        <p>
+          {t(
+            {
+              defaultMessage:
+                "{n, plural, one {# older line left the view} other {# older lines left the view}}; use Earlier to read them.",
+              id: "oQ2tYHx3",
+            },
+            { n: shown.dropped },
+          )}
+        </p>
       )}
       <pre
         className="console"
@@ -74,7 +103,16 @@ export function Console(props: { readonly id: string; readonly typing: boolean }
 }
 
 function LineView({ line }: { readonly line: Line }) {
-  if (line.kind === "gap") return <div className="console-gap">[{line.says}]</div>;
+  if (line.kind === "gap") {
+    return (
+      <div className="console-gap">
+        {t(
+          { defaultMessage: "[{says}]", id: "/o5ltHSh", description: "a gap in a console" },
+          { says: line.says },
+        )}
+      </div>
+    );
+  }
   return (
     <div className={line.source === "stderr" ? "console-stderr" : undefined}>
       {line.runs.map((r, i) => (
@@ -117,10 +155,16 @@ function Typing({ id, relay }: { readonly id: string; readonly relay: () => Prom
       }}
     >
       <TextField value={line} onChange={setLine} autoComplete="off">
-        <Label>Send a command</Label>
+        <Label>{t({ defaultMessage: "Send a command", id: "OWdB2JGz" })}</Label>
         <Input />
       </TextField>
-      <Button type="submit">Send</Button>
+      <Button type="submit">
+        {t({
+          defaultMessage: "Send",
+          id: "T7B9Z5G2",
+          description: "button: send a console command",
+        })}
+      </Button>
       {error !== undefined && <p role="alert">{error}</p>}
     </Form>
   );

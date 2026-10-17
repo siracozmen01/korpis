@@ -18,19 +18,26 @@ import {
 } from "../gen/korpis/v1/tenancy_pb";
 import { refusal } from "../views/refusal";
 import { wear } from "./theme";
+import { t } from "../i18n/intl";
 
 type Token = keyof Omit<ThemeColors, "$typeName" | "$unknown">;
 
 const TOKENS: readonly [Token, string][] = [
-  ["background", "Background"],
-  ["text", "Text"],
-  ["muted", "Muted text"],
-  ["line", "Lines"],
-  ["accent", "Accent"],
-  ["accentText", "Text on the accent"],
-  ["danger", "Danger"],
-  ["surface", "Surfaces"],
-  ["focus", "Focus ring"],
+  [
+    "background",
+    t({ defaultMessage: "Background", id: "FMmGBvrK", description: "a theme colour" }),
+  ],
+  ["text", t({ defaultMessage: "Text", id: "HmNW5Y9i", description: "a theme colour" })],
+  ["muted", t({ defaultMessage: "Muted text", id: "h69n2KEA", description: "a theme colour" })],
+  ["line", t({ defaultMessage: "Lines", id: "PwHgAn9a", description: "a theme colour" })],
+  ["accent", t({ defaultMessage: "Accent", id: "wEQGjatf", description: "a theme colour" })],
+  [
+    "accentText",
+    t({ defaultMessage: "Text on the accent", id: "ePicdenZ", description: "a theme colour" }),
+  ],
+  ["danger", t({ defaultMessage: "Danger", id: "/3iT1gnB", description: "a theme colour" })],
+  ["surface", t({ defaultMessage: "Surfaces", id: "kPM5WT90", description: "a theme colour" })],
+  ["focus", t({ defaultMessage: "Focus ring", id: "vlFWCnal", description: "a theme colour" })],
 ];
 
 /** What the editor holds: the draft, the version it was read at, and whose theme it shows. */
@@ -82,7 +89,11 @@ export function ThemeEditor({ id }: { readonly id: string }) {
       })
       .then(
         () => {
-          setSaid(theme === undefined ? "Removed; the nearest theme above applies." : "Saved.");
+          setSaid(
+            theme === undefined
+              ? t({ defaultMessage: "Removed; the nearest theme above applies.", id: "c8yWpaVr" })
+              : t({ defaultMessage: "Saved.", id: "GrnZDNX+" }),
+          );
           setAttempt((n) => n + 1);
         },
         (e: unknown) => {
@@ -92,11 +103,21 @@ export function ThemeEditor({ id }: { readonly id: string }) {
   };
   return (
     <section aria-labelledby="theme">
-      <h2 id="theme">Theme</h2>
+      <h2 id="theme">
+        {t({ defaultMessage: "Theme", id: "RD54aDMn", description: "an organization's theme" })}
+      </h2>
       <p>
         {held.own
-          ? "This organization's own theme, worn here and beneath unless an organization sets its own."
-          : "This organization wears the theme of the nearest organization above that sets one."}
+          ? t({
+              defaultMessage:
+                "This organization's own theme, worn here and beneath unless an organization sets its own.",
+              id: "gaANAXFU",
+            })
+          : t({
+              defaultMessage:
+                "This organization wears the theme of the nearest organization above that sets one.",
+              id: "uj4MMHqP",
+            })}
       </p>
       <Form
         onSubmit={(e) => {
@@ -110,7 +131,7 @@ export function ThemeEditor({ id }: { readonly id: string }) {
             edit({ productName: v });
           }}
         >
-          <Label>Product name</Label>
+          <Label>{t({ defaultMessage: "Product name", id: "rs6XNweZ" })}</Label>
           <Input />
         </TextField>
         <TextField
@@ -119,13 +140,17 @@ export function ThemeEditor({ id }: { readonly id: string }) {
             edit({ signInText: v });
           }}
         >
-          <Label>Sign-in text</Label>
+          <Label>{t({ defaultMessage: "Sign-in text", id: "fsoxyMc0" })}</Label>
           <TextArea />
         </TextField>
         <Logo held={held.draft} edit={edit} />
         {(["light", "dark"] as const).map((scheme) => (
           <fieldset key={scheme}>
-            <legend>{scheme === "light" ? "Light colours" : "Dark colours"}</legend>
+            <legend>
+              {scheme === "light"
+                ? t({ defaultMessage: "Light colours", id: "/65aXYXD" })
+                : t({ defaultMessage: "Dark colours", id: "ALnyx0KZ" })}
+            </legend>
             {TOKENS.map(([token, label]) => (
               <TextField
                 key={token}
@@ -134,7 +159,9 @@ export function ThemeEditor({ id }: { readonly id: string }) {
                   colour(scheme, token, v);
                 }}
               >
-                <Label>{`${label} (#rrggbb)`}</Label>
+                <Label>
+                  {t({ defaultMessage: "{colour} (#rrggbb)", id: "9UaA8ufC" }, { colour: label })}
+                </Label>
                 <Input />
               </TextField>
             ))}
@@ -146,7 +173,7 @@ export function ThemeEditor({ id }: { readonly id: string }) {
             edit({ stylesheet: v });
           }}
         >
-          <Label>Stylesheet</Label>
+          <Label>{t({ defaultMessage: "Stylesheet", id: "Eh+k5eCM" })}</Label>
           <TextArea />
         </TextField>
         <Button
@@ -154,16 +181,16 @@ export function ThemeEditor({ id }: { readonly id: string }) {
             wear(document, held.draft, { stylesheet: true });
           }}
         >
-          Preview
+          {t({ defaultMessage: "Preview", id: "LkssjtoZ", description: "button: preview a theme" })}
         </Button>
-        <Button type="submit">Save</Button>
+        <Button type="submit">{t({ defaultMessage: "Save", id: "jvo0vs3n" })}</Button>
         {held.own && (
           <Button
             onPress={() => {
               save(undefined);
             }}
           >
-            Remove this organization's theme
+            {t({ defaultMessage: "Remove this organization's theme", id: "smLX0ybU" })}
           </Button>
         )}
       </Form>
@@ -178,7 +205,7 @@ function Logo(props: { readonly held: Theme; readonly edit: (c: Partial<Theme>) 
   return (
     <div>
       <label>
-        Logo (PNG, WebP, or SVG, at most 256 KiB)
+        {t({ defaultMessage: "Logo (PNG, WebP, or SVG, at most 256 KiB)", id: "OvK35h+3" })}
         <input
           type="file"
           accept="image/png,image/webp,image/svg+xml"
@@ -203,7 +230,7 @@ function Logo(props: { readonly held: Theme; readonly edit: (c: Partial<Theme>) 
             props.edit({ logo: undefined });
           }}
         >
-          Remove the logo
+          {t({ defaultMessage: "Remove the logo", id: "oFH8Xx1m" })}
         </Button>
       )}
     </div>

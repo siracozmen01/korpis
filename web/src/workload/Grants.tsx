@@ -11,16 +11,41 @@ import { Button } from "react-aria-components";
 import { useReach } from "../clients";
 import { type Grant, GrantState } from "../gen/korpis/v1/authority_pb";
 import type { Subject } from "../gen/korpis/v1/tenancy_pb";
+import { intl, t } from "../i18n/intl";
 import { PAGE_SIZE, Pages } from "../views/Pages";
 import { refusal } from "../views/refusal";
 
 const STATE: Record<GrantState, string> = {
-  [GrantState.UNSPECIFIED]: "unknown",
-  [GrantState.ISSUED]: "in force",
-  [GrantState.EXPIRED]: "expired",
-  [GrantState.EXHAUSTED]: "used up",
-  [GrantState.REVOKED]: "revoked",
-  [GrantState.SUSPENDED]: "suspended",
+  [GrantState.UNSPECIFIED]: t({
+    defaultMessage: "unknown",
+    id: "07xzvM/V",
+    description: "a grant's state",
+  }),
+  [GrantState.ISSUED]: t({
+    defaultMessage: "in force",
+    id: "O3El0XWZ",
+    description: "a grant's state",
+  }),
+  [GrantState.EXPIRED]: t({
+    defaultMessage: "expired",
+    id: "9b5VJp+J",
+    description: "a grant's state",
+  }),
+  [GrantState.EXHAUSTED]: t({
+    defaultMessage: "used up",
+    id: "SsdT0IyI",
+    description: "a grant's state",
+  }),
+  [GrantState.REVOKED]: t({
+    defaultMessage: "revoked",
+    id: "J35Dw5fO",
+    description: "a grant's state",
+  }),
+  [GrantState.SUSPENDED]: t({
+    defaultMessage: "suspended",
+    id: "LMQ8/0ve",
+    description: "a grant's state",
+  }),
 };
 
 /** Who a subject is, as far as the grant says. */
@@ -28,14 +53,26 @@ function holder(s: Subject | undefined): string {
   const k = s?.kind;
   switch (k?.case) {
     case "link":
-      return "whoever holds a share link";
+      return t({ defaultMessage: "whoever holds a share link", id: "ecniKn1Y" });
     case "user":
     case "token":
     case "workload":
     case "extension":
-      return `${k.case} ${k.value}`;
+      return t(
+        {
+          defaultMessage:
+            "{kind, select, user {user {id}} token {token {id}} workload {workload {id}} other {extension {id}}}",
+          id: "8syzz/1K",
+          description: "the subject a grant is issued to",
+        },
+        { kind: k.case, id: k.value },
+      );
     default:
-      return "someone";
+      return t({
+        defaultMessage: "someone",
+        id: "vxN1EcKI",
+        description: "a grant's subject, unnamed",
+      });
   }
 }
 
@@ -55,9 +92,9 @@ export function Grants({ id }: { readonly id: string }) {
   return (
     <Pages
       load={load}
-      what="who holds authority over it"
-      title="Who can act on it"
-      empty="No grant is anchored on this workload itself."
+      reading={t({ defaultMessage: "Reading who holds authority over it…", id: "MnHvrun/" })}
+      title={t({ defaultMessage: "Who can act on it", id: "fk9cvb2U" })}
+      empty={t({ defaultMessage: "No grant is anchored on this workload itself.", id: "YCjxvQQ4" })}
       item={(g) => <GrantItem key={g.id} grant={g} />}
     />
   );
@@ -76,7 +113,16 @@ function GrantItem({ grant }: { readonly grant: Grant }) {
         (r) => {
           setState(GrantState.REVOKED);
           const n = Number(r.cascaded);
-          setSaid(n === 0 ? "Revoked." : `Revoked, with ${n.toString()} attenuated from it.`);
+          setSaid(
+            t(
+              {
+                defaultMessage:
+                  "{n, plural, =0 {Revoked.} one {Revoked, with # grant attenuated from it.} other {Revoked, with # grants attenuated from it.}}",
+                id: "cbCaFOB4",
+              },
+              { n },
+            ),
+          );
         },
         (e: unknown) => {
           setSaid(refusal(e));
@@ -85,10 +131,34 @@ function GrantItem({ grant }: { readonly grant: Grant }) {
   };
   return (
     <li>
-      {holder(grant.subject)}: {grant.actions.join(", ")}
-      {grant.label !== "" && <> ({grant.label})</>}, {STATE[state]}
-      {expires !== undefined && `, until ${timestampDate(expires).toLocaleString()}`}
-      {state === GrantState.ISSUED && <Button onPress={revoke}>Revoke</Button>}
+      {t(
+        {
+          defaultMessage:
+            "{holder}: {actions}{labelled, select, yes { ({label})} other {}}, {state}{expiring, select, yes {, until {until}} other {}}",
+          id: "XKxxNWbL",
+          description: "one grant: who holds it, its actions, its label, state, and expiry",
+        },
+        {
+          holder: holder(grant.subject),
+          actions: intl.formatList(grant.actions, { type: "unit" }),
+          labelled: grant.label === "" ? "no" : "yes",
+          label: grant.label,
+          state: STATE[state],
+          expiring: expires === undefined ? "no" : "yes",
+          until:
+            expires === undefined
+              ? ""
+              : intl.formatDate(timestampDate(expires), {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
+        },
+      )}
+      {state === GrantState.ISSUED && (
+        <Button onPress={revoke}>
+          {t({ defaultMessage: "Revoke", id: "Eu7t3/2z", description: "button" })}
+        </Button>
+      )}
       {said !== undefined && <span role="status"> {said}</span>}
     </li>
   );

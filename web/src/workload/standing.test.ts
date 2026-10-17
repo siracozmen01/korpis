@@ -27,10 +27,10 @@ test("a value is known while current and heard, stale once not heard, unknown wh
     observedAt: undefined,
   });
   expect([age(4_400), age(125_000), age(3 * 3_600_000), age(72 * 3_600_000)]).toEqual([
-    "4 s",
+    "4 sec",
     "2 min",
-    "3 h",
-    "3 d",
+    "3 hr",
+    "3 days",
   ]);
 });
 
@@ -43,7 +43,7 @@ test("each stage short of converged is said from what the status holds", () => {
     target: declared,
   });
   expect(diagnosis(waiting, T + 40_000)).toBe(
-    "Declared 40 s ago, node fra-3 has not acknowledged.",
+    "Declared 40 sec ago, node fra-3 has not acknowledged.",
   );
   const stepping = status({
     convergence: Convergence.APPLYING,

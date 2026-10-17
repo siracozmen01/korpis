@@ -5,13 +5,14 @@
 // as text beside it too, for an app that cannot scan.
 
 import { renderSVG } from "uqr";
+import { t } from "../i18n/intl";
 
 /** The `otpauth://` address `uri`, as a QR code and as text. */
 export function Qr({ uri }: { readonly uri: string }) {
   return (
     <>
       <img
-        alt="QR code of the authenticator address"
+        alt={t({ defaultMessage: "QR code of the authenticator address", id: "MCN1/L+K" })}
         src={`data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(uri))}`}
       />
       <p>

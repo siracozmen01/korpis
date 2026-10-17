@@ -109,6 +109,12 @@ small {
   color: var(--muted);
 }
 
+/* What follows a value as a remark on it: a kind, an age, a mark. The space before it is the
+   page's to draw, not a word of any language, so no message carries it. */
+.aside {
+  margin-inline-start: 0.35em;
+}
+
 ul,
 ol {
   padding-left: 1.25rem;

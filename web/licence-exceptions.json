@@ -2,5 +2,9 @@
   "caniuse-lite": {
     "licence": "CC-BY-4.0",
     "reason": "Browser-support data read by the build's Babel when it compiles the panel, never shipped in the bundle; attribution is its own LICENSE, which the package carries."
+  },
+  "jsonify": {
+    "licence": "Public Domain",
+    "reason": "Douglas Crockford's JSON reader and writer, dedicated to the public domain; read by eslint-plugin-formatjs (through json-stable-stringify) when the panel's sources are linted, never shipped in the bundle."
   }
 }

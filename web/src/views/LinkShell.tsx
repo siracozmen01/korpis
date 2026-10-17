@@ -16,7 +16,9 @@ import { entryOf } from "./entries";
 import { useLoad } from "./load";
 import { Place, placeAt } from "./place";
 import { Shown } from "./Shown";
+import { intl, t } from "../i18n/intl";
 import { Themed } from "../theme/useTheme";
+import { ALLOWS } from "../workload/allows";
 
 /** The prefix every share link starts with (link.rs). */
 export const LINK_PREFIX = "korpislk_";
@@ -24,29 +26,19 @@ export const LINK_PREFIX = "korpislk_";
 /** The base path of a share link's screens. */
 export const LINK_BASE = "/g";
 
-/** What each action lets the link's holder do, in words. */
-const ALLOWS: Record<string, string> = {
-  "workload.read": "see its status",
-  "workload.console.read": "read its console",
-  "workload.console.write": "send commands to its console",
-  "workload.start": "start it",
-  "workload.stop": "stop it",
-  "workload.restart": "restart it",
-  "workload.file.read": "read its files",
-  "workload.file.write": "change its files",
-  "workload.exec": "run commands in it",
-};
-
 /** The share link's screen, given clients that present `link`; `path` is within `LINK_BASE`. */
 export function LinkShell(props: { readonly clients: Clients | undefined; readonly path: string }) {
   const { clients } = props;
   if (clients === undefined) {
     return (
       <main>
-        <h1>Open the link again</h1>
+        <h1>{t({ defaultMessage: "Open the link again", id: "4xwCWoPe" })}</h1>
         <p>
-          A share link is held only while its page is open, so it is not left in the browser. Open
-          it again from where it was sent to you.
+          {t({
+            defaultMessage:
+              "A share link is held only while its page is open, so it is not left in the browser. Open it again from where it was sent to you.",
+            id: "kvFHVWDb",
+          })}
         </p>
       </main>
     );
@@ -61,10 +53,10 @@ function Held({ clients, path }: { readonly clients: Clients; readonly path: str
   return (
     <Shown
       loaded={own}
-      what="what the link allows"
+      reading={t({ defaultMessage: "Reading what the link allows…", id: "uzVYhI2z" })}
       done={(grant) =>
         grant === undefined ? (
-          <p role="alert">This link opens nothing.</p>
+          <p role="alert">{t({ defaultMessage: "This link opens nothing.", id: "4jmg2y3r" })}</p>
         ) : (
           <Granted clients={clients} grant={grant} path={path} />
         )
@@ -90,11 +82,32 @@ function Granted(props: {
   const uses = grant.conditions?.maxUses;
   return (
     <ReachProvider value={reach}>
-      <aside aria-label="What this link allows">
+      <aside aria-label={t({ defaultMessage: "What this link allows", id: "IrnB9O3m" })}>
         <p>
-          This link lets you {grant.actions.map((a) => ALLOWS[a] ?? a).join(", ")}.
-          {expires !== undefined && ` It works until ${timestampDate(expires).toLocaleString()}.`}
-          {uses !== undefined && ` It can be used ${uses.toString()} times in all.`}
+          {t(
+            {
+              defaultMessage:
+                "This link lets you {allows}.{expiring, select, yes { It works until {until}.} other {}}{capped, select, yes { It can be used {uses, plural, one {# time} other {# times}} in all.} other {}}",
+              id: "to6AYEiK",
+              description: "what a share link allows, until when, and how many uses",
+            },
+            {
+              allows: intl.formatList(
+                grant.actions.map((a) => ALLOWS[a] ?? a),
+                { type: "conjunction" },
+              ),
+              expiring: expires === undefined ? "no" : "yes",
+              until:
+                expires === undefined
+                  ? ""
+                  : intl.formatDate(timestampDate(expires), {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }),
+              capped: uses === undefined ? "no" : "yes",
+              uses: Number(uses ?? 0n),
+            },
+          )}
         </p>
       </aside>
       {entry !== undefined && (

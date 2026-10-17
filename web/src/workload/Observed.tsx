@@ -6,6 +6,8 @@
 // node did not report is unknown too, never 0.
 
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
+import { bytes } from "../i18n/format";
+import { intl, t } from "../i18n/intl";
 import { type Freshness, age } from "./freshness";
 import { HEALTH, OBSERVED } from "./words";
 
@@ -16,37 +18,42 @@ export function Value(props: {
   readonly now: number;
 }) {
   const { value, freshness: f, now } = props;
-  if (value === undefined) return <span>unknown</span>;
+  const unknown = t({
+    defaultMessage: "unknown",
+    id: "OWlpMeOP",
+    description: "an observed value not known",
+  });
+  if (value === undefined) return <span>{unknown}</span>;
   switch (f.kind) {
     case "known":
       return <span>{value}</span>;
     case "stale":
       return (
         <span className="stale">
-          {value} <small>(heard {age(now - f.heardAt)} ago)</small>
+          {value}
+          <small className="aside">
+            {t(
+              { defaultMessage: "(heard {ago} ago)", id: "Ekt8OuWU" },
+              { ago: age(now - f.heardAt) },
+            )}
+          </small>
         </span>
       );
     case "unknown":
       return (
         <span>
-          unknown
+          {unknown}
           {f.observedAt !== undefined && (
-            <small className="stale">
-              {" "}
-              (last observed {age(now - f.observedAt)} ago: {value})
+            <small className="stale aside">
+              {t(
+                { defaultMessage: "(last observed {ago} ago: {value})", id: "YvHdWl5o" },
+                { ago: age(now - f.observedAt), value },
+              )}
             </small>
           )}
         </span>
       );
   }
-}
-
-const MIB = 1024 * 1024;
-
-/** Bytes in words. */
-function bytes(n: bigint): string {
-  const mib = Number(n) / MIB;
-  return mib >= 1024 ? `${(mib / 1024).toFixed(1)} GiB` : `${mib.toFixed(0)} MiB`;
 }
 
 /** The observed values of `status`. */
@@ -58,15 +65,45 @@ export function Observed(props: {
   const o = props.status.observation;
   const r = o?.resources;
   const rows: [string, string | undefined][] = [
-    ["State", o === undefined ? undefined : OBSERVED[o.state]],
-    ["Health", o === undefined ? undefined : HEALTH[o.health]],
-    ["CPU", r === undefined ? undefined : `${(Number(r.cpuMillis) / 1000).toFixed(2)} cores`],
-    ["Memory", r === undefined ? undefined : bytes(r.memoryBytes)],
-    ["Disk", r === undefined ? undefined : bytes(r.diskBytes)],
+    [
+      t({ defaultMessage: "State", id: "MddyXGDM", description: "a workload's observed state" }),
+      o === undefined ? undefined : OBSERVED[o.state],
+    ],
+    [
+      t({ defaultMessage: "Health", id: "Iqf4wUcI", description: "a workload's health" }),
+      o === undefined ? undefined : HEALTH[o.health],
+    ],
+    [
+      t({ defaultMessage: "CPU", id: "QgBuiVs5" }),
+      r === undefined
+        ? undefined
+        : t(
+            { defaultMessage: "{cores} cores", id: "99Xie+BN" },
+            {
+              cores: intl.formatNumber(Number(r.cpuMillis) / 1000, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }),
+            },
+          ),
+    ],
+    [
+      t({ defaultMessage: "Memory", id: "dVx3yznM" }),
+      r === undefined ? undefined : bytes(r.memoryBytes),
+    ],
+    [
+      t({ defaultMessage: "Disk", id: "OuCSDnvE" }),
+      r === undefined ? undefined : bytes(r.diskBytes),
+    ],
   ];
+  const heading = t({
+    defaultMessage: "Observed",
+    id: "i+q7WayW",
+    description: "what the node observed",
+  });
   return (
-    <section aria-label="Observed">
-      <h2>Observed</h2>
+    <section aria-label={heading}>
+      <h2>{heading}</h2>
       <dl>
         {rows.map(([name, value]) => (
           <div key={name}>

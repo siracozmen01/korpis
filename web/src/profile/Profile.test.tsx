@@ -76,11 +76,11 @@ test("a change refused as not recent asks for the user again and is then made", 
 test("new recovery codes are shown once, and sessions are listed and ended", async () => {
   const seen: string[] = [];
   render(<Profile services={services(seen)} />);
-  expect(await screen.findByText("7 unused.")).toBeTruthy();
+  expect(await screen.findByText("7 unused codes.")).toBeTruthy();
   expect(await screen.findByText(/Command line: korpis\/0.1.0, from 198.51.100.4/)).toBeTruthy();
   expect(screen.getByText("(this one)")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "End every other session" }));
-  expect(await screen.findByText("1 ended.")).toBeTruthy();
+  expect(await screen.findByText("1 session ended.")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Make new ones" }));
   expect(await screen.findByText("new-1")).toBeTruthy();
   expect(seen).toEqual(["others ended"]);

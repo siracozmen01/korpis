@@ -8,6 +8,7 @@
 import { create, toBinary } from "@bufbuild/protobuf";
 import { ConsoleInputSchema } from "../gen/korpis/v1/console_pb";
 import { type Opening, type Session, open } from "./relay";
+import { t } from "../i18n/intl";
 
 const WRITE = "workload.console.write";
 
@@ -47,7 +48,7 @@ export class Writer {
     });
     const first = await heard.next();
     if (first.done === true || first.value.kind !== "opened")
-      throw new Error("the console refused input");
+      throw new Error(t({ defaultMessage: "the console refused input", id: "LTNNkoPm" }));
     // The rest of the session is its end, if it ends: drained so the watch stays read, and a
     // session that ended, or was closed, is opened again by the next line typed.
     void (async () => {

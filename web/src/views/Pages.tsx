@@ -6,6 +6,7 @@
 
 import { useCallback, useState, type ReactNode } from "react";
 import { Button } from "react-aria-components";
+import { t } from "../i18n/intl";
 import { useLoad } from "./load";
 import { refusal } from "./refusal";
 import { Shown } from "./Shown";
@@ -22,7 +23,8 @@ export const PAGE_SIZE = 100;
 /** The list `load` reads, one page per token, its items shown by `item`. */
 export function Pages<T>(props: {
   readonly load: (token: string) => Promise<Page<T>>;
-  readonly what: string;
+  /** What is shown while the first page is read, a sentence such as "Reading its projects…". */
+  readonly reading: string;
   readonly title: string;
   readonly item: (value: T) => ReactNode;
   readonly empty: string;
@@ -53,7 +55,7 @@ export function Pages<T>(props: {
   return (
     <Shown
       loaded={first}
-      what={props.what}
+      reading={props.reading}
       done={(page) => {
         const items = [...page.items, ...rest.items];
         const next = rest.next ?? page.next;
@@ -71,7 +73,7 @@ export function Pages<T>(props: {
                   more(next);
                 }}
               >
-                Show more
+                {t({ defaultMessage: "Show more", id: "aWpBzjCX" })}
               </Button>
             )}
             {error !== undefined && <p role="alert">{error}</p>}

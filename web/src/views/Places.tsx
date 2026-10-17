@@ -14,6 +14,7 @@ import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
 import { CONVERGENCE } from "../workload/words";
 import { ThemeEditor } from "../theme/ThemeEditor";
+import { t } from "../i18n/intl";
 
 /** The places the caller's grants open. */
 export function Home() {
@@ -32,13 +33,19 @@ export function Home() {
   const loaded = useLoad(load);
   return (
     <section aria-labelledby="reach">
-      <h2 id="reach">What you can reach</h2>
+      <h2 id="reach">{t({ defaultMessage: "What you can reach", id: "bBY+B+a1" })}</h2>
       <Shown
         loaded={loaded}
-        what="what you can reach"
+        reading={t({ defaultMessage: "Reading what you can reach…", id: "IyTtQLIW" })}
         done={(found) =>
           found.length === 0 ? (
-            <p>No grant you hold opens an organization, a project, or a workload yet.</p>
+            <p>
+              {t({
+                defaultMessage:
+                  "No grant you hold opens an organization, a project, or a workload yet.",
+                id: "jURFdkY7",
+              })}
+            </p>
           ) : (
             <ul>
               {found.map((e) => (
@@ -70,10 +77,28 @@ function EntryItem({ entry }: { readonly entry: Entry }) {
   return (
     <Shown
       loaded={loaded}
-      what={`the ${entry.kind}`}
+      reading={t(
+        {
+          defaultMessage:
+            "{kind, select, organization {Reading the organization…} project {Reading the project…} other {Reading the workload…}}",
+          id: "nXNb6xjd",
+        },
+        { kind: entry.kind },
+      )}
       done={(name) => (
         <li>
-          <Link href={pathOf(base, entry)}>{name}</Link> <small>{entry.kind}</small>
+          <Link href={pathOf(base, entry)}>{name}</Link>
+          <small className="aside">
+            {t(
+              {
+                defaultMessage:
+                  "{kind, select, organization {organization} project {project} other {workload}}",
+                id: "u6Mspyx9",
+                description: "the kind of a place the viewer can reach",
+              },
+              { kind: entry.kind },
+            )}
+          </small>
         </li>
       )}
     />
@@ -112,12 +137,16 @@ export function OrganizationPage({ id }: { readonly id: string }) {
   );
   return (
     <main>
-      <Shown loaded={name} what="the organization" done={(o) => <h1>{o?.name ?? id}</h1>} />
+      <Shown
+        loaded={name}
+        reading={t({ defaultMessage: "Reading the organization…", id: "R+2+cn8K" })}
+        done={(o) => <h1>{o?.name ?? id}</h1>}
+      />
       <Pages
         load={children}
-        what="its organizations"
-        title="Organizations"
-        empty="None you can read."
+        reading={t({ defaultMessage: "Reading its organizations…", id: "1YKny+jf" })}
+        title={t({ defaultMessage: "Organizations", id: "JD2pwHED" })}
+        empty={t({ defaultMessage: "None you can read.", id: "hybHBiuq" })}
         item={(o) => (
           <li key={o.id}>
             <Link href={pathOf(base, { kind: "organization", id: o.id })}>{o.name}</Link>
@@ -126,9 +155,9 @@ export function OrganizationPage({ id }: { readonly id: string }) {
       />
       <Pages
         load={inside}
-        what="its projects"
-        title="Projects"
-        empty="None you can read."
+        reading={t({ defaultMessage: "Reading its projects…", id: "TVvaeAem" })}
+        title={t({ defaultMessage: "Projects", id: "UxTJRaKa" })}
+        empty={t({ defaultMessage: "None you can read.", id: "hybHBiuq" })}
         item={(p) => (
           <li key={p.id}>
             <Link href={pathOf(base, { kind: "project", id: p.id })}>{p.name}</Link>
@@ -162,16 +191,20 @@ export function ProjectPage({ id }: { readonly id: string }) {
   );
   return (
     <main>
-      <Shown loaded={name} what="the project" done={(p) => <h1>{p?.name ?? id}</h1>} />
+      <Shown
+        loaded={name}
+        reading={t({ defaultMessage: "Reading the project…", id: "ma+8ta3Y" })}
+        done={(p) => <h1>{p?.name ?? id}</h1>}
+      />
       <Pages
         load={inside}
-        what="its workloads"
-        title="Workloads"
-        empty="None you can read."
+        reading={t({ defaultMessage: "Reading its workloads…", id: "IfkE03As" })}
+        title={t({ defaultMessage: "Workloads", id: "BeBCMfk4" })}
+        empty={t({ defaultMessage: "None you can read.", id: "hybHBiuq" })}
         item={({ workload: w, convergence }) => (
           <li key={w.id}>
-            <Link href={pathOf(base, { kind: "workload", id: w.id })}>{w.name}</Link>{" "}
-            <small>{CONVERGENCE[convergence]}</small>
+            <Link href={pathOf(base, { kind: "workload", id: w.id })}>{w.name}</Link>
+            <small className="aside">{CONVERGENCE[convergence]}</small>
           </li>
         )}
       />
