@@ -26,7 +26,13 @@ pub async fn push_unsigned_paper() -> (String, String) {
 /// Pushes `document` with the example's files, signed as [`push_paper`] is; returns the
 /// repository.
 pub async fn push_paper_like(document: &str) -> String {
-    let (repo, digest) = push_unsigned_document(document).await;
+    push_paper_with(document, Vec::new()).await
+}
+
+/// Pushes `document` with the example's files and `more`, signed as [`push_paper`] is; returns
+/// the repository.
+pub async fn push_paper_with(document: &str, more: Vec<File>) -> String {
+    let (repo, digest) = push_document(document, more).await;
     Registry::new(vec![registry_address()])
         .unwrap()
         .sign(&repo, &digest, &test_key())
@@ -37,6 +43,11 @@ pub async fn push_paper_like(document: &str) -> String {
 
 /// Pushes `document` with the example's files, unsigned, as [`push_unsigned_paper`] does.
 async fn push_unsigned_document(document: &str) -> (String, String) {
+    push_document(document, Vec::new()).await
+}
+
+/// Pushes `document` with the example's files and `more`, unsigned.
+async fn push_document(document: &str, more: Vec<File>) -> (String, String) {
     let repo = format!("{}/test/paper-{}", registry_address(), Uuid::now_v7().simple());
     let file = |path: &str, data: &[u8]| File {
         path: path.to_owned(),
@@ -45,10 +56,14 @@ async fn push_unsigned_document(document: &str) -> (String, String) {
     };
     let artifact = Artifact {
         document: document.as_bytes().to_vec(),
-        files: vec![
-            file("layers/rootfs.tar.zst", b"not really a rootfs"),
-            file("templates/server.properties", b"motd={{motd}}\n"),
-        ],
+        files: [
+            vec![
+                file("layers/rootfs.tar.zst", b"not really a rootfs"),
+                file("templates/server.properties", b"motd={{motd}}\n"),
+            ],
+            more,
+        ]
+        .concat(),
     };
     let registry = Registry::new(vec![registry_address()]).unwrap();
     let digest = registry.push(&repo, "1.21.4", &artifact).await.unwrap();

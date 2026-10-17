@@ -254,6 +254,25 @@ impl pb::WorkloadService for Api {
         Response::ok(pb::GetWorkloadResponse { status: status(&view).into(), ..Default::default() })
     }
 
+    async fn get_workload_recipe(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetWorkloadRecipeRequest>,
+    ) -> ServiceResult<pb::GetWorkloadRecipeResponse> {
+        let caller = self.caller(&ctx).await?;
+        let id = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
+        let locales: Vec<String> = request.locales.iter().map(|l| (*l).to_owned()).collect();
+        let r = self.app.workload_recipe(&caller, id, &locales).await.map_err(error::from_app)?;
+        Response::ok(pb::GetWorkloadRecipeResponse {
+            recipe: korpis_wire::recipe::ref_to_pb(&r.reference).into(),
+            metadata: korpis_wire::recipe_schema::metadata_to_pb(&r.recipe.metadata).into(),
+            config: korpis_wire::recipe_schema::schema_to_pb(&r.recipe.config).into(),
+            locale: r.locale,
+            messages: r.messages.into_iter().collect(),
+            ..Default::default()
+        })
+    }
+
     async fn list_workloads(
         &self,
         ctx: RequestContext,

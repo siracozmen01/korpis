@@ -723,6 +723,16 @@ so a translation cannot add a string the recipe never showed.
 > resolved before catalogues were read keeps none, and shows its own messages. What it costs: a
 > recipe that wants a count or a name inside a label cannot have one until the panel has values
 > to give it, which is the first thing to change when a recipe string needs one.
+>
+> Served 2026-10-17 by `WorkloadService.GetWorkloadRecipe`, under `workload.read`: the recipe
+> the workload's approved intent names (its head's while nothing is approved), its metadata and
+> configuration schema, and every message it shows in one locale. The caller lists its languages,
+> most preferred first and at most 32; the control plane picks the first the recipe speaks, by
+> its exact tag or its language alone, as the panel picks its own (question 4 of §10 of
+> `11-surface-web.md`), and the recipe's own locale otherwise. A message the chosen catalogue
+> lacks is given in the recipe's own words, so a client is never handed a key without its text.
+> The schema keeps the document's own words; the messages are what a client shows. `korpis
+> workload recipe` prints them (§2 of `13-surface-cli.md`).
 
 ---
 

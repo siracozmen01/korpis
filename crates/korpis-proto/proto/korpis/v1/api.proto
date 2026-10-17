@@ -308,6 +308,12 @@ service WorkloadService {
   rpc GetWorkload(GetWorkloadRequest) returns (GetWorkloadResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // workload.read. The recipe the workload runs, as its approved intent names it (its head's
+  // while nothing is approved): its metadata and configuration schema, and every message it
+  // shows in the first of the caller's locales it speaks (§5.3 of docs/09-recipes.md).
+  rpc GetWorkloadRecipe(GetWorkloadRecipeRequest) returns (GetWorkloadRecipeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
   rpc ListWorkloads(ListWorkloadsRequest) returns (ListWorkloadsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -437,6 +443,28 @@ message GetWorkloadRequest {
 
 message GetWorkloadResponse {
   WorkloadStatus status = 1;
+}
+
+message GetWorkloadRecipeRequest {
+  string workload = 1;
+  // The caller's languages as BCP 47 tags, most preferred first, as a browser lists them; at
+  // most 32. A tag that is not one is passed over.
+  repeated string locales = 2;
+}
+
+message GetWorkloadRecipeResponse {
+  // The recipe as the intent pins it, by digest.
+  RecipeRef recipe = 1;
+  RecipeMetadata metadata = 2;
+  ConfigSchema config = 3;
+  // The locale `messages` are in: the first of the caller's the recipe has a catalogue for,
+  // else the recipe's own.
+  string locale = 4;
+  // Every message the recipe shows, by key (`config.fields.<key>.label`,
+  // `metadata.description`), in `locale`, or in the recipe's own words where its catalogue
+  // for `locale` lacks one, so no message is missing. Each is ICU MessageFormat with no
+  // argument: a client formats it with its quoting and no values.
+  map<string, string> messages = 5;
 }
 
 // Everything a client needs to render one workload honestly (§4.3 of

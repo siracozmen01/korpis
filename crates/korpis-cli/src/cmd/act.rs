@@ -97,7 +97,7 @@ async fn place(
     Ok(Answer { json: json(&r), human })
 }
 
-/// Answers `korpis workload start|stop|restart|place|classify|delete`.
+/// Answers `korpis workload start|stop|restart|place|classify|delete|recipe`.
 pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer, CliError> {
     let client = pb::WorkloadServiceClient::new(c.http(), c.config());
     let (WorkloadAction::Start { workload }
@@ -105,9 +105,13 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
     | WorkloadAction::Restart { workload }
     | WorkloadAction::Place { workload, .. }
     | WorkloadAction::Classify { workload, .. }
-    | WorkloadAction::Delete { workload, .. }) = action;
+    | WorkloadAction::Delete { workload, .. }
+    | WorkloadAction::Recipe { workload, .. }) = action;
     let id = resolve::workload(c, workload).await?;
     match action {
+        WorkloadAction::Recipe { locales, .. } => {
+            return super::recipe::recipe(c, id, locales).await;
+        }
         WorkloadAction::Place { node, reason, .. } => return place(c, id, node, reason).await,
         WorkloadAction::Classify { overrides, reason, .. } => {
             return super::classify::classify(c, id, overrides, reason).await;
@@ -139,7 +143,8 @@ pub async fn workload(c: &Connection, action: &WorkloadAction) -> Result<Answer,
         WorkloadAction::Restart { .. }
         | WorkloadAction::Delete { .. }
         | WorkloadAction::Place { .. }
-        | WorkloadAction::Classify { .. } => {
+        | WorkloadAction::Classify { .. }
+        | WorkloadAction::Recipe { .. } => {
             let request =
                 pb::RestartRequest { mutation: m.into(), workload: id, ..Default::default() };
             client.restart(request).await?

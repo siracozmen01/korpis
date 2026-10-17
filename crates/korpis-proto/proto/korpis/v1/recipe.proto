@@ -87,6 +87,8 @@ message RecipeMetadata {
   // SPDX expression for the software the recipe runs.
   string license = 5;
   map<string, string> annotations = 6;
+  // The locale its own messages are written in, a BCP 47 tag (§5.3 of docs/09-recipes.md).
+  string locale = 7;
 }
 
 message RecipeRuntime {

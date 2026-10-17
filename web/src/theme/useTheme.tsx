@@ -7,7 +7,14 @@
 // colours, name, and logo but never its stylesheet; before anyone signs in, the installation
 // root's. A theme that cannot be read leaves the panel's own on, which is what its absence means.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Client } from "@connectrpc/connect";
 import type { Clients } from "../clients";
 import type { ServerInfoService } from "../gen/korpis/v1/api_pb";
@@ -105,7 +112,8 @@ export function Themed(props: {
     // The source is read again when what it names changes, not when its object is rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  useEffect(() => {
+  // Worn before the browser paints, so no frame shows the new page in the old theme.
+  useLayoutEffect(() => {
     wear(document, theme, { stylesheet });
     // A page outside every theme, the device approval among them, wears the panel's own, not
     // what the page before it wore.

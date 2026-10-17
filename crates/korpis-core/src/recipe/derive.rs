@@ -18,6 +18,8 @@
 
 use crate::quantity::Quantity;
 
+mod source;
+
 /// The longest expression accepted, in bytes.
 pub const MAX_LEN: usize = 256;
 /// The deepest nesting accepted.
@@ -337,6 +339,18 @@ mod tests {
         assert_eq!(eval("max(config.players * 2, 50) - (10 / 2)"), Ok(45.0));
         assert_eq!(eval("-1 + 2 * 3"), Ok(5.0));
         assert_eq!(eval("min(500m, 1)"), Ok(0.5));
+    }
+
+    #[test]
+    fn an_expression_written_out_reads_back_as_itself() {
+        for src in [
+            "resources.memory * 0.8",
+            "max(config.players * 2, 50) - -1",
+            "resources.cpu.limit / 4Ki",
+        ] {
+            let e = Expr::parse(src).unwrap();
+            assert_eq!(Expr::parse(&e.to_string()), Ok(e), "{src}");
+        }
     }
 
     #[test]

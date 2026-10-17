@@ -54,6 +54,28 @@ pub fn check_message(field: &str, text: &str) -> Result<(), RecipeError> {
     Ok(())
 }
 
+/// What a message says once its quoting is read, as the panel's formatter shows it: what a client
+/// without one prints. A message that holds a placeholder is not one this returns sense for, and
+/// a recipe holds none.
+#[must_use]
+pub fn plain(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    let mut quoted = false;
+    while let Some(c) = chars.next() {
+        match (c, quoted) {
+            ('\'', _) if chars.peek() == Some(&'\'') => {
+                chars.next();
+                out.push('\'');
+            }
+            ('\'', true) => quoted = false,
+            ('\'', false) if matches!(chars.peek(), Some('{' | '}')) => quoted = true,
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 /// Checks that `tag` is a BCP 47 language tag of the plain form a catalogue's file is named by:
 /// a language of two or three letters, then subtags of letters and digits.
 pub fn check_locale(field: &str, tag: &str) -> Result<(), RecipeError> {
@@ -70,7 +92,49 @@ pub fn check_locale(field: &str, tag: &str) -> Result<(), RecipeError> {
     }
 }
 
+/// The first of `asked` that one of `have` speaks, by its exact tag or by its language alone,
+/// compared without regard to case, as the panel picks its own locale; `fallback` where none
+/// does. A tag that is not one is passed over.
+#[must_use]
+pub fn negotiate<'a>(asked: &[String], have: &[&'a str], fallback: &'a str) -> &'a str {
+    for tag in asked.iter().filter(|t| check_locale("", t).is_ok()) {
+        if let Some(exact) = have.iter().find(|h| h.eq_ignore_ascii_case(tag)) {
+            return exact;
+        }
+        let language = tag.split('-').next().unwrap_or_default();
+        if let Some(near) = have.iter().find(|h| h.eq_ignore_ascii_case(language)) {
+            return near;
+        }
+    }
+    fallback
+}
+
 impl Recipe {
+    /// The recipe's messages for a viewer who prefers `asked`, most preferred first: the locale
+    /// chosen among the recipe's own and its catalogues', and every message the recipe shows in
+    /// it, each the catalogue lacks in the recipe's own words, so none is ever missing.
+    #[must_use]
+    pub fn localized(
+        &self,
+        catalogues: &BTreeMap<String, Catalogue>,
+        asked: &[String],
+    ) -> (String, BTreeMap<String, String>) {
+        let own = self.metadata.locale.as_str();
+        let have: Vec<&str> =
+            std::iter::once(own).chain(catalogues.keys().map(String::as_str)).collect();
+        let locale = negotiate(asked, &have, own);
+        let translated = catalogues.get(locale);
+        let messages = self
+            .messages()
+            .into_iter()
+            .map(|(key, text)| {
+                let said = translated.and_then(|c| c.get(&key)).map_or(text, String::as_str);
+                (key, said.to_owned())
+            })
+            .collect();
+        (locale.to_owned(), messages)
+    }
+
     /// Every message the recipe shows, by key, in its default locale.
     #[must_use]
     pub fn messages(&self) -> BTreeMap<String, &str> {
@@ -117,7 +181,7 @@ impl Recipe {
 
 #[cfg(test)]
 mod tests {
-    use super::{check_locale, check_message};
+    use super::{check_locale, check_message, negotiate, plain};
 
     #[test]
     fn a_message_is_text_with_its_braces_quoted() {
@@ -133,6 +197,22 @@ mod tests {
             "the rest is quoted, as the panel reads it"
         );
         assert!(check_message("f", &"x".repeat(5000)).is_err());
+    }
+
+    #[test]
+    fn a_message_reads_as_its_quoting_says() {
+        assert_eq!(plain("It''s '{here}'"), "It's {here}");
+        assert_eq!(plain("don't"), "don't");
+    }
+
+    #[test]
+    fn the_first_preferred_locale_spoken_is_chosen() {
+        let asked = |tags: &[&str]| tags.iter().map(|t| (*t).to_owned()).collect::<Vec<_>>();
+        let have = ["en", "tr", "pt-BR"];
+        assert_eq!(negotiate(&asked(&["tr-TR", "en"]), &have, "en"), "tr");
+        assert_eq!(negotiate(&asked(&["pt-br"]), &have, "en"), "pt-BR");
+        assert_eq!(negotiate(&asked(&["*", "../x", "ja"]), &have, "en"), "en");
+        assert_eq!(negotiate(&[], &have, "en"), "en");
     }
 
     #[test]

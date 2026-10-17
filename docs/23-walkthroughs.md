@@ -2519,6 +2519,7 @@ drops, and shares the console with a moderator.
 | 10 | A month later the friend adds the laptop as a second passkey: signed in more than ten minutes ago, the panel is refused `session.not_recent`, re-authenticates with the phone's passkey, and registers the laptop's | `08-identity.md` §9.4, §9.6 |
 | 11 | The operator signs the CLI in on the machine: `korpis login` prints a user code and the panel's device page, the operator approves the code in the panel, shown that a command-line client on the machine's address asked, and the CLI's next poll receives a session of its own | `08-identity.md` §9.4; `13-surface-cli.md` §7 |
 | 12 | The moderator opens the link: the control plane answers `/g/` with the panel, which takes the link from the fragment and clears it, reads the link's own grant to say what it allows, and opens the workload's watch, which spends one of the three uses however long it stays open and however many changes it hears | `11-surface-web.md` §6; `08-identity.md` §6.1 |
+| 13 | The friend, whose phone is set to Turkish, opens the server's configuration: the panel asks for the recipe with the browser's languages, and the control plane answers its fields' labels and description from the recipe's `i18n/tr.json`, falling back to the recipe's own English for any it lacks; the operator reads the same from `korpis workload recipe` with `LANG=tr_TR.UTF-8` (added 2026-10-17, when the catalogues were built) | `09-recipes.md` §2, §5.3; `11-surface-web.md` §10, question 4; `13-surface-cli.md` §2 |
 
 Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
 it holds the invitation's digest, verifies the attestation-free registration against its own site
@@ -2538,7 +2539,9 @@ poll finds the decision on the row its device code's digest names, which nothing
 holds. Step 12 is the gateway's: it verifies the link against the token key and finds its grant
 as it stands, reading a grant one holds spends nothing, and the watch's first read is the call
 it counts; each later read is evaluated through that same grant as a renewal is, which Finding
-76 found it was not.
+76 found it was not. Step 13 is the control plane's: it holds the catalogues it read and checked
+when the recipe resolved, kept beside the document by digest, so the answer needs neither the
+registry nor the node; the panel only formats what it is given, and the CLI only prints it.
 
 **FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
 

@@ -110,4 +110,5 @@ mod volumes;
 mod watch;
 mod web;
 mod workload;
+mod workload_recipe;
 mod zone;

@@ -50,6 +50,7 @@ pub mod plan;
 pub mod principal;
 pub mod provider;
 pub mod recipe;
+pub mod recipe_schema;
 pub mod record;
 pub mod relay;
 pub mod repository;

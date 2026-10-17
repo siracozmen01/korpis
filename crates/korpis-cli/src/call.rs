@@ -112,6 +112,7 @@ table! {
     "korpis.v1.WorkloadService/SetClassification" => WorkloadServiceClient::set_classification(SetClassificationRequest);
     "korpis.v1.WorkloadService/DeleteWorkload" => WorkloadServiceClient::delete_workload(DeleteWorkloadRequest);
     "korpis.v1.WorkloadService/GetWorkload" => WorkloadServiceClient::get_workload(GetWorkloadRequest);
+    "korpis.v1.WorkloadService/GetWorkloadRecipe" => WorkloadServiceClient::get_workload_recipe(GetWorkloadRecipeRequest);
     "korpis.v1.WorkloadService/ListWorkloads" => WorkloadServiceClient::list_workloads(ListWorkloadsRequest);
     "korpis.v1.WorkloadService/ListIntents" => WorkloadServiceClient::list_intents(ListIntentsRequest);
     "korpis.v1.WorkloadService/WatchWorkload" => WorkloadServiceClient::watch_workload(WatchWorkloadRequest) stream WatchWorkloadResponse;
