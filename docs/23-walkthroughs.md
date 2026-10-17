@@ -1111,6 +1111,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 74 | A device authorization's approval began a session for an account that could no longer sign in | §38 | `08-identity.md` §9.4 |
 | 75 | An approval outlived the session that gave it | §38 | `08-identity.md` §9.4 |
 | 76 | A watch through a share link spent a use on every change it heard | §38 | `08-identity.md` §6.1 |
+| 77 | A provider stream registered while its replica confirmed the others was closed | §14 | `16-extensions.md` §3.3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2742,3 +2743,23 @@ consulted, so a continuation is never paid for by another. → `08-identity.md` 
 `crates/korpis-app/src/authz/gateway.rs`; tested in `crates/korpis-server/tests/api/watch.rs`,
 which opens a one-use link's watch, finds a fresh read refused, hears the next change anyway, and
 ends with the revocation.
+
+**FINDING 77: A provider stream registered while its replica confirmed the others was closed.
+`CONFIRMED`**
+
+Found 2026-10-17 by a test that failed once under the full suite's load and passed alone (step 2
+of trace §14), and confirmed by reading the replica's confirmation. Every few seconds a replica
+asks the database which of its registrations are still alive and closes every stream it holds
+that is not among them, which is how a registration withdrawn elsewhere loses its stream. A
+registration commits and then its stream is held, so one that committed after the question's
+snapshot but was held before the answer was applied was missing from the answer without having
+been withdrawn, and its stream was closed seconds after the provider was told it was registered.
+Its calls were then failed as retryable and its provider reconnected, so nothing was lost, but a
+provider that registered at the wrong moment flapped, under load more often.
+
+**Resolution.** The replica notes which streams it holds before it asks, and closes only those
+of them that the answer leaves out: a stream held then belongs to a registration committed
+before the question, so it is missing only if withdrawn, and one held since is judged at the next
+confirmation. → `16-extensions.md` §3.3, whose rule is unchanged; built in
+`crates/korpis-server/src/providers.rs` (`close_withdrawn`) and
+`crates/korpis-server/src/provider_calls.rs`; tested in the former.

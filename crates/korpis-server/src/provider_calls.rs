@@ -82,8 +82,9 @@ pub(crate) async fn keep_registrations(api: Arc<Api>) {
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         tick.tick().await;
+        let before = api.providers().held_ids();
         match api.app().keep_registrations(api.providers().replica()).await {
-            Ok(alive) => api.providers().keep_only(&alive),
+            Ok(alive) => api.providers().close_withdrawn(&before, &alive),
             Err(e) => tracing::warn!(error = %e, "confirming provider streams failed"),
         }
         match api.app().expire_registrations(REGISTRATIONS_SEEN * 6).await {

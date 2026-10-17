@@ -63,10 +63,20 @@ impl Providers {
         self.guard().remove(&id).map(|h| h.registration)
     }
 
-    /// Closes every held stream whose registration is not in `alive`: dropping its sender ends
-    /// the stream the provider reads.
-    pub fn keep_only(&self, alive: &[Uuid]) {
-        self.guard().retain(|id, _| alive.contains(id));
+    /// Closes every stream of `before` whose registration is not in `alive`: dropping its sender
+    /// ends the stream the provider reads. `before` is what was held when `alive` was asked
+    /// for, and only those streams are judged by it: a registration commits before its stream
+    /// is held, so one held then was committed before the question and is in `alive` unless
+    /// it was withdrawn, while one held since may have committed after the question was
+    /// answered, and is judged at the next confirmation instead of being closed for a race.
+    pub fn close_withdrawn(&self, before: &[Uuid], alive: &[Uuid]) {
+        self.guard().retain(|id, _| !before.contains(id) || alive.contains(id));
+    }
+
+    /// The registrations whose streams this replica holds now.
+    #[must_use]
+    pub fn held_ids(&self) -> Vec<Uuid> {
+        self.guard().keys().copied().collect()
     }
 
     /// Every registration whose stream this replica holds.
@@ -103,5 +113,48 @@ impl Providers {
             // A full stream drops the cancellation: the call has finished here regardless.
             let _ = held.tx.try_send(message);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use korpis_core::extension::ProviderType;
+    use std::time::SystemTime;
+
+    fn held(p: &Providers) -> (Uuid, tokio::sync::mpsc::Receiver<ProviderControl>) {
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let id = Uuid::now_v7();
+        let registration = Registration {
+            id,
+            extension: Uuid::now_v7(),
+            organization: Uuid::now_v7(),
+            kind: ProviderType::Dns,
+            name: "dns".into(),
+            version: "1.0.0".into(),
+            concurrency: 1,
+            replica: p.replica(),
+            connected_at: SystemTime::now(),
+            seen_at: SystemTime::now(),
+        };
+        p.hold(registration, tx);
+        (id, rx)
+    }
+
+    #[test]
+    fn only_a_stream_held_before_the_confirmation_is_closed_for_missing_from_it() {
+        let p = Providers::default();
+        let (withdrawn, _a) = held(&p);
+        let (confirmed, _b) = held(&p);
+        let before = p.held_ids();
+        // Registered after the confirmation read the database: missing from its answer, not
+        // withdrawn.
+        let (late, _c) = held(&p);
+        p.close_withdrawn(&before, &[confirmed]);
+        let mut left = p.held_ids();
+        left.sort();
+        let mut want = vec![confirmed, late];
+        want.sort();
+        assert_eq!(left, want, "{withdrawn} closed, the rest kept");
     }
 }
