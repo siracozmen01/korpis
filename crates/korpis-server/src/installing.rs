@@ -2,7 +2,10 @@
 
 //! `korpis-server install` as a command (§2 of docs/18-operations.md): preflight first, and
 //! nothing changed when it refuses; then the users the units run as, the installation in the
-//! database, the environment file and the units; and last, what the operator runs next.
+//! database, the environment file and the units; and last, what the operator runs next. Where
+//! the PostgreSQL server comes from is decided first, in [`provision`].
+
+mod provision;
 
 use clap::Args;
 use korpis_app::install::RootHolder;
@@ -10,10 +13,11 @@ use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;
 use korpis_server::install::preflight::{Asked, control_plane};
 use korpis_server::install::target::BackupTarget;
-use korpis_server::install::units::{Layout, SYSUSERS, units};
+use korpis_server::install::units::{Layout, NODE_STATE, SYSUSERS, units};
 use korpis_server::install::{InstallConfig, Installed, install, installed_report, system};
 use std::fmt::Write as _;
 use std::net::SocketAddr;
+use std::os::unix::fs::DirBuilderExt as _;
 use std::path::{Path, PathBuf};
 
 /// What `install` is told.
@@ -23,9 +27,11 @@ pub struct InstallArgs {
     #[arg(long, env = "KORPIS_DATA_DIR", default_value = "/var/lib/korpis-server")]
     data_dir: PathBuf,
     /// A database URL with schema-owner rights, for migrations and to make the control plane's
-    /// own login.
+    /// own login, on a server you run.
     #[arg(long, env = "KORPIS_DATABASE_OWNER_URL")]
-    database_owner_url: String,
+    database_owner_url: Option<String>,
+    #[command(flatten)]
+    postgres: provision::PostgresArgs,
     /// The control plane's login, made by the operator and a member of `korpis_app`; unset,
     /// installation makes `korpis_server` with a new password.
     #[arg(long)]
@@ -87,7 +93,8 @@ type Failure = Box<dyn std::error::Error>;
 
 /// Runs the installation `args` describe.
 pub async fn run(args: InstallArgs) -> Result<(), Failure> {
-    let config = config(&args)?;
+    let Some(database) = provision::database(&args).await? else { return Ok(()) };
+    let config = config(&args, &database.owner_url)?;
     let facts = korpis_store::server::server_facts(&config.owner_url).await?;
     let report = control_plane(&Asked {
         facts: &facts,
@@ -114,14 +121,26 @@ pub async fn run(args: InstallArgs) -> Result<(), Failure> {
                 done.database_url
             ));
         }
+        if let Some(made) = database.made {
+            crate::say(&provision::made_report(made, &config.owner_url, None));
+        }
         return Ok(());
     }
+    on_the_system(&args, &config, &database).await
+}
+
+/// The installation with its users, units, and environment files.
+async fn on_the_system(
+    args: &InstallArgs,
+    config: &InstallConfig,
+    database: &provision::Database,
+) -> Result<(), Failure> {
     let bin = match &args.bin_dir {
         Some(b) => b.clone(),
         None => std::env::current_exe()?.parent().map(Path::to_path_buf).unwrap_or_default(),
     };
     if args.dry_run {
-        crate::say(&dry_run(&args, bin));
+        crate::say(&dry_run(args, bin));
         return Ok(());
     }
     if !is_root() {
@@ -131,7 +150,7 @@ pub async fn run(args: InstallArgs) -> Result<(), Failure> {
     }
     system::make_users(Path::new(SYSUSERS_FILE), SYSUSERS)?;
     let agent = lookup("korpis-agent")?;
-    let done = install(&config).await?;
+    let done = install(config).await?;
     let layout = Layout {
         bin,
         data: args.data_dir.clone(),
@@ -139,21 +158,30 @@ pub async fn run(args: InstallArgs) -> Result<(), Failure> {
         env_file: args.env_file.clone(),
         agent_uid: agent.0,
     };
-    write_system(&args, &done, &public_url, &layout)?;
-    crate::say(&installed_report(&config, &done, &public_url));
+    let public_url = public_url(args);
+    write_system(args, &done, &public_url, &layout)?;
+    crate::say(&installed_report(config, &done, &public_url));
+    if let Some(made) = database.made {
+        let file = args.env_file.with_file_name("owner.env");
+        system::write_environment(
+            &file,
+            &[("KORPIS_DATABASE_OWNER_URL", config.owner_url.clone())],
+        )?;
+        crate::say(&provision::made_report(made, &config.owner_url, Some(&file)));
+    }
     crate::say(&next_steps());
     Ok(())
 }
 
 /// The library's configuration, from the command's.
-fn config(args: &InstallArgs) -> Result<InstallConfig, Failure> {
+fn config(args: &InstallArgs, owner_url: &str) -> Result<InstallConfig, Failure> {
     let first_node = match &args.first_node {
         Some(n) => n.clone(),
         None => host_name()?,
     };
     Ok(InstallConfig {
         data: DataDir::new(args.data_dir.clone()),
-        owner_url: args.database_owner_url.clone(),
+        owner_url: owner_url.to_owned(),
         organization: Name::parse(args.organization.clone())?,
         tls_names: args.tls_names.clone(),
         root: if args.root_token { RootHolder::Token } else { RootHolder::Passkey },
@@ -206,6 +234,7 @@ fn write_system(
     system::write_environment(&args.env_file, &env)?;
     system::write_units(&args.units_dir, &units(layout))?;
     system::give(&args.data_dir, lookup("korpis")?)?;
+    std::fs::DirBuilder::new().recursive(true).mode(0o755).create(NODE_STATE)?;
     std::fs::create_dir_all(&args.agent_state)?;
     system::give(&args.agent_state, lookup("korpis-agent")?)?;
     Ok(())

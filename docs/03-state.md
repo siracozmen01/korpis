@@ -106,7 +106,10 @@ A revocation binds only a credential that cannot take it back. The schema's owne
 any login that is a member of the owner, so the running control plane connects as a login of its
 own that is a member of `korpis_app` alone; the owner's credential is used to migrate and nothing
 else. As built, 2026-10-17: installation makes that login, `korpis_server` (§2 of
-`18-operations.md`).
+`18-operations.md`). The owner itself sets `korpis_app` when it installs, as every store
+connection does, which an owner that is not a superuser may do only as a member; on PostgreSQL 16
+and later its creating the role does not make it one, so a migration grants it the role with `SET`
+and without `INHERIT` (Finding 93 of `23-walkthroughs.md`).
 
 `body` is `jsonb` rather than fifty columns because the intent body evolves with every new runtime
 driver, endpoint type, and health probe kind, and because it is validated against a schema before

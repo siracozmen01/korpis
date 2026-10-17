@@ -23,6 +23,11 @@ pub struct Layout {
     pub agent_uid: u32,
 }
 
+/// The node's state that is root's: the helper's, and the volumes it makes. Made by
+/// installation, as the helper would make it, before any unit names it: systemd refuses to start
+/// a unit whose read-write path is missing.
+pub const NODE_STATE: &str = "/var/lib/korpis";
+
 /// The users the units run as, for `systemd-sysusers`.
 pub const SYSUSERS: &str = "\
 # Korpis (§2 of docs/18-operations.md): the control plane, and the node agent's supervisor.
@@ -141,13 +146,14 @@ RuntimeDirectory=korpis
 RuntimeDirectoryPreserve=yes
 StateDirectory=korpis-driver-oci
 CapabilityBoundingSet=
-ReadWritePaths=/run/korpis /var/lib/korpis-agent /var/lib/korpis
+ReadWritePaths=/run/korpis {state} {NODE_STATE}
 {HARDENED}
 [Install]
 WantedBy=multi-user.target
 ",
         bin = l.bin.display(),
         uid = l.agent_uid,
+        state = l.agent_state.display(),
     )
 }
 

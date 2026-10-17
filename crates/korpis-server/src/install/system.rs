@@ -55,9 +55,9 @@ pub fn make_users(file: &Path, text: &str) -> std::io::Result<()> {
 ///
 /// # Errors
 /// A unit could not be written.
-pub fn write_units(dir: &Path, units: &[super::units::Unit]) -> std::io::Result<()> {
+pub fn write_units<N: AsRef<str>>(dir: &Path, units: &[(N, String)]) -> std::io::Result<()> {
     for (name, text) in units {
-        replace(&dir.join(name), text, 0o644)?;
+        replace(&dir.join(name.as_ref()), text, 0o644)?;
     }
     Ok(())
 }

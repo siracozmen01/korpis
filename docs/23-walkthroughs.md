@@ -1134,6 +1134,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 90 | A file session went on sending after a request it could not tell was delivered | §38 | `11-surface-web.md` §8 |
 | 91 | A used-up link showed an empty screen, and a stopped transfer its progress | §38 | `11-surface-web.md` §6, §8 |
 | 92 | A console link spent two uses on every opening of its screen | §38 | `11-surface-web.md` §6 |
+| 93 | An owner that is not a superuser could not act as the application role | §39 | `03-state.md` §3.1 |
+| 94 | The oci driver's unit could not start on a machine with no volumes yet | §39 | `18-operations.md` §2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3032,3 +3034,65 @@ open only when asked, by a button that says it costs a use, so the screen's open
 use it is said to be and each session is an action of its own. → `11-surface-web.md` §6; built
 in `web/src/views/WorkloadPage.tsx` and tested by `web/src/views/WorkloadPage.test.tsx` and
 `web/e2e/workload.spec.ts`.
+
+## 39. A machine installed from nothing, its PostgreSQL included
+
+Written 2026-10-17, when installation was built (§2 of `18-operations.md`). An operator has a
+fresh machine with systemd, a second disk mounted for backups, and no PostgreSQL. They run the
+installer, let it install the distribution's PostgreSQL, start the control plane, and join the
+machine as its first node.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The installer is asked where PostgreSQL comes from, by flag or on the terminal | `18-operations.md` §2 |
+| 2 | Before anything is changed, the data directory and the backup target are checked: the target on another device than the data directory | `18-operations.md` §2, §6 |
+| 3 | The distribution's server is installed and started by its package manager and systemd; the owner `korpis_owner`, with `CREATEROLE` and not a superuser, and the database `korpis`, are made as the server's superuser | `18-operations.md` §2; `03-state.md` §6 |
+| 4 | Preflight asks the server its version and what the owner may do, and stops, having changed nothing more, when an essential check lacks | `18-operations.md` §2 |
+| 5 | The migrations run as the owner, which creates `korpis_app` and revokes from it what is append-only ‡ | `03-state.md` §3.1 |
+| 6 | The installation is made by a store connection that acts as `korpis_app`, as every store connection does ‡ | `03-state.md` §3.1; `08-identity.md` §9.1 |
+| 7 | The control plane is given its own login, a member of `korpis_app` that owns nothing, written to a file only root reads | `18-operations.md` §2; `03-state.md` §3.1 |
+| 8 | The users, the node's state directory, and the units are written; the operator starts the control plane, the helper's socket, and the driver ‡ | `18-operations.md` §2; `02-architecture.md` §6 |
+| 9 | The first node joins with the enrollment installation printed, attenuated from the root grant | `18-operations.md` §3; `08-identity.md` §9.1 |
+
+Each step was asked what evaluates it, where, and with what. Step 2 is evaluated by the
+installer on the machine, by the devices the two directories are on, which is all it can see:
+another partition of the same disk passes, which §2 of `18-operations.md` says. Step 4 is
+evaluated by the installer from what the server says of itself and of the connecting role. Step
+6 needs the owner to be allowed to set the application role, which only the server decides, and
+step 8 needs every path a unit names to exist when systemd starts it, which only the machine
+decides; neither was asked until `scripts/test-install-package.sh` asked both on real machines.
+
+‡ The steps marked were where the findings below were found.
+
+**FINDING 93: An owner that is not a superuser could not act as the application role.
+`CONFIRMED`**
+
+Found 2026-10-17 by the container path's test, the first in this repository to install as an
+owner that is not a superuser. Every store connection sets the role `korpis_app` after it
+connects, so that what the schema revokes from that role binds the code (§3.1 of `03-state.md`).
+A superuser may set any role. An owner with `CREATEROLE` may set only a role it is a member of,
+and on PostgreSQL 16 and later creating a role makes its creator able to administer it and not
+to set it, unless `createrole_self_grant` says otherwise, which by default it does not. So
+step 5 succeeded, and step 6 failed with "permission denied to set role", on exactly the server
+the installer provisions. **Resolution.** A migration grants the owner `korpis_app` with `SET`
+and without `INHERIT` when it is not a superuser (on 16 and later; before 16, membership is what
+`SET ROLE` needs): the owner acts as the application role only when it asks to, and an owner that
+is a superuser is left as it was. → `03-state.md` §3.1; built in
+`crates/korpis-store/migrations/0075_owner_acts_as_app.sql` and tested by
+`crates/korpis-server/tests/api/provision.rs` and `scripts/test-install-package.sh`.
+
+**FINDING 94: The oci driver's unit could not start on a machine with no volumes yet.
+`CONFIRMED`**
+
+Found 2026-10-17 by `scripts/test-install-package.sh`, at step 8. The driver's unit names the
+helper's state directory, `/var/lib/korpis`, as a path it may write, since containerd mounts the
+volumes the helper makes there. The helper makes that directory when it first makes a volume, and
+systemd refuses to start a unit whose read-write path does not exist, so on a fresh machine the
+driver failed at every start and the agent, which requires it, never could. The unit also named
+the agent's state directory by its default rather than by the one installation was given.
+**Resolution.** Installation makes the node's state directory, root's, before any unit names it,
+and the driver's unit names the agent's state directory installation was given. →
+`18-operations.md` §2; built in `crates/korpis-server/src/install/units.rs` and
+`crates/korpis-server/src/installing.rs`, and tested by `scripts/test-install-package.sh`.

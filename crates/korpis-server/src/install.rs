@@ -8,6 +8,7 @@
 //! plane is given a login of its own, its backup target is declared, and the systemd units are
 //! written.
 
+pub mod postgres;
 pub mod preflight;
 pub mod system;
 pub mod target;
@@ -105,12 +106,7 @@ pub async fn install(config: &InstallConfig) -> Result<Installed, InstallError> 
 /// Makes the control plane's own login with a new password; the URL it connects with, the
 /// owner's with the login and password in place of the owner's.
 async fn server_login(owner_url: &str) -> Result<String, InstallError> {
-    let mut bytes = [0u8; 24];
-    getrandom::fill(&mut bytes).map_err(|e| std::io::Error::other(e.to_string()))?;
-    let password = bytes.iter().fold(String::new(), |mut s, b| {
-        let _ = write!(s, "{b:02x}");
-        s
-    });
+    let password = postgres::password()?;
     korpis_store::server::ensure_login(owner_url, SERVER_ROLE, &password).await?;
     let mut url = url::Url::parse(owner_url)
         .map_err(|e| std::io::Error::other(format!("the owner URL: {e}")))?;

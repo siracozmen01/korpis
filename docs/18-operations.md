@@ -127,14 +127,36 @@ installs.
 > not run itself. `--dry-run` prints the report and every file it would write; `--no-system`
 > installs into the database and the data directory alone, for a container or a test whose
 > processes something else starts, and prints the login it made once, since no file keeps it.
-> Not built yet:
-> asking where PostgreSQL should come from, and provisioning it through the package manager or a
-> container; today the operator names an existing server with `--database-owner-url`. The backup
+> The backup
 > target is a directory, checked to be writable and on another device than the data directory,
 > which a bind mount of the same filesystem is not and another partition of the same disk is, so
 > that one passes; an S3 target is refused as not built. Declaring a target records it beside the
 > data directory and makes the key its backup is sealed with; writing the backup there is the
 > control-plane backup of §6, not built yet.
+
+> As built, 2026-10-17 (`crates/korpis-server/src/install/postgres`). Where PostgreSQL comes
+> from is decided first: `--postgres existing`, implied by `--database-owner-url`, names a server
+> the operator runs; `--postgres package` installs the distribution's own with `apt-get` or `dnf`
+> and starts it with systemd; `--postgres container` runs the official `postgres:17` image,
+> pinned by its index digest, with podman or docker, published on loopback alone. On a terminal
+> with neither flag nor URL the installer asks; unattended, it refuses rather than guess. A
+> server it provisions is provisioned only after the checks that need no server, the data
+> directory and the backup target, have passed, and is given the same owner either way:
+> `korpis_owner`, with `CREATEROLE` and not a superuser, owning a database `korpis`, made as the
+> server's superuser over its local socket; everything after is what installation does on any
+> server. The owner's URL, which an upgrade migrates with, goes to `/etc/korpis/owner.env`, root's
+> alone and read by no unit. What each path verifies, and what it cannot: the package path takes
+> whatever major the distribution packages, and preflight then says whether it is the tested one
+> (Debian 13 packages 17; Ubuntu 24.04 and Fedora 42 package 16, reported unchecked); on the Red
+> Hat family it creates the cluster itself with password authentication over TCP, since that
+> family's default, `ident`, admits no URL, and elsewhere it relies on the distribution's default
+> of passwords on loopback, which it does not check. `scripts/test-install-package.sh` runs the
+> whole installer, units started, in a systemd container of Debian 13, Ubuntu 24.04, and Fedora
+> 42; no other distribution is tried. The container path is tested against docker on every
+> commit; with podman, which has no daemon to restart it, a unit runs the container, and that is
+> not tested here. A container is said, when it is made, to be an evaluation setup: nothing backs
+> it up, upgrades it, or watches it, and its image is the one pinned in the release, updated only
+> by a commit that changes the digest.
 
 **There is no `curl | sh`.** It is what everyone in this market ships and it is inconsistent with
 being a project whose recipes reject a `fetch` without a hash (§4 of `09-recipes.md`), whose

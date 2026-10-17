@@ -134,7 +134,9 @@ fn shared(f: &ServerFacts) -> Check {
     c
 }
 
-fn data_directory(data: &Path) -> Check {
+/// The check of the data directory: absolute, on a disk, and closed to other users.
+#[must_use]
+pub fn data_directory(data: &Path) -> Check {
     let (name, needed_for) = ("data directory", "the signing keys and TLS material");
     let tmpfs = on_tmpfs(data);
     let found = format!("{}", data.display());
