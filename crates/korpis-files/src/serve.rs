@@ -4,7 +4,7 @@
 //! workload's volumes, and its `FileResponse` carries what it returned or why it was not done. A
 //! refused request ends nothing; the session goes on to the next.
 
-use crate::fs::{CHUNK, Entry, Fault, Kind};
+use crate::fs::{CHUNK, Entry, Fault, Kind, Placing};
 use crate::volumes::Volumes;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request;
@@ -21,6 +21,7 @@ fn code(f: Fault) -> pb::FileErrorCode {
         Fault::Outside => pb::FileErrorCode::FILE_ERROR_CODE_OUTSIDE,
         Fault::Refused => pb::FileErrorCode::FILE_ERROR_CODE_REFUSED,
         Fault::Io => pb::FileErrorCode::FILE_ERROR_CODE_IO,
+        Fault::Moved => pb::FileErrorCode::FILE_ERROR_CODE_MOVED,
     }
 }
 
@@ -36,6 +37,7 @@ fn says(f: Fault) -> &'static str {
         Fault::Outside => "outside the workload's volumes",
         Fault::Refused => "not allowed in this session, or too large",
         Fault::Io => "the filesystem failed",
+        Fault::Moved => "the file does not end where this write was to go on from",
     }
 }
 
@@ -88,7 +90,8 @@ fn done(root: &Volumes, request: Option<Request>) -> Result<Response, Fault> {
             Ok(Response::Data(root.read(&r.path, r.offset, length)?))
         }
         Request::Write(w) => {
-            Ok(Response::Written(root.write(&w.path, w.offset, &w.data, (w.create, w.truncate))?))
+            let how = Placing { create: w.create, truncate: w.truncate, at_end: w.at_end };
+            Ok(Response::Written(root.write(&w.path, w.offset, &w.data, how)?))
         }
         Request::Mkdir(m) => root.mkdir(&m.path).map(|()| Response::Done(true)),
         Request::Rename(r) => root.rename(&r.from, &r.to).map(|()| Response::Done(true)),

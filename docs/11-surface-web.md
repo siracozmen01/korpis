@@ -242,6 +242,9 @@ version of this screen showed neither (finding S29). A link can never be used to
 > the grant spends nothing; a workload's screen is its watch, one call, so opening it spends one
 > use however long it stays open (Finding 76 of `23-walkthroughs.md`). A reload forgets the link,
 > which lives only in memory, and the screen asks for it to be opened again rather than failing.
+> A link no longer in force (used up, expired, revoked, or suspended) says which, from its own
+> grant, and asks nothing of the object it can no longer read; until the browser test opened a
+> link a third time it showed an empty screen (Finding 91 of `23-walkthroughs.md`).
 > A link for an organization or a project shows its lists empty, because a listing spends nothing
 > and so shows a use-limited grant nothing (§6.1 of `08-identity.md`); a link is for one object,
 > and the screen that issues links (P1.12e6) issues them for workloads.
@@ -420,7 +423,12 @@ What a file session can do, how an upload resumes, and what is recorded were des
 > mebibyte per request, four ahead, replacing what is there only from its first byte; onto a
 > smaller file of the same name it asks whether to resume from what is there, to replace it, or
 > to skip it, since only the person knows whether it is the same file. Removing asks first, and
-> says when a directory goes with everything in it.
+> says when a directory goes with everything in it. Each chunk asks to land where the file ends,
+> so what a resume reads is only what arrived in order (§3.2 of `06-storage.md`). A request that
+> could not be sent ends the session, since whether the relay took it is unknown and its count
+> and the session's may no longer agree, and another session is opened; a transfer that stops
+> says where it stopped rather than leaving its progress on the screen (Findings 89 to 91 of
+> `23-walkthroughs.md`, found by the browser test that cuts an upload off and resumes it).
 
 **Metering.** Numbers people will be billed on. Every figure names its source, its window, and its
 collection method, and disagreements between the instantaneous and the accounted value are shown

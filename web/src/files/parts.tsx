@@ -225,14 +225,27 @@ export function Changes(props: {
   const [making, setMaking] = useState(false);
   const [asking, setAsking] = useState<Asking>();
   const send = async (file: File, from: number) => {
-    await upload(fs, file, within(dir, file.name), from, (done, total) => {
+    let sent = from;
+    try {
+      await upload(fs, file, within(dir, file.name), from, (done, total) => {
+        sent = done;
+        tell(
+          t(
+            { defaultMessage: "Uploading {name}: {done} of {total}", id: "qyvx6JZq" },
+            { name: file.name, done: bytes(done), total: bytes(total) },
+          ),
+        );
+      });
+    } catch (e) {
+      // What was said while it ran is no longer so: it is said where it stopped.
       tell(
         t(
-          { defaultMessage: "Uploading {name}: {done} of {total}", id: "qyvx6JZq" },
-          { name: file.name, done: bytes(done), total: bytes(total) },
+          { defaultMessage: "The upload of {name} stopped at {done} of {total}.", id: "9Q4NboHp" },
+          { name: file.name, done: bytes(sent), total: bytes(file.size) },
         ),
       );
-    });
+      throw e;
+    }
     tell(t({ defaultMessage: "Uploaded {name}.", id: "k/D6s5T/" }, { name: file.name }));
   };
   /** Uploads `files` in turn, stopping to ask about one already partly there. */

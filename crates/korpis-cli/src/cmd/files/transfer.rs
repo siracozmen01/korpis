@@ -86,6 +86,9 @@ pub async fn upload(
                 data,
                 create: true,
                 truncate: at == 0,
+                // Sent ahead of the answers: a chunk lost leaves every later one refused rather
+                // than written past a hole, so the file's size stays where a resume goes on from.
+                at_end: true,
                 ..Default::default()
             };
             r.send(Request::Write(Box::new(w))).await?;

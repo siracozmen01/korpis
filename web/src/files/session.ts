@@ -112,8 +112,8 @@ export class FileSession {
     } catch {
       end = new Ended("unavailable", t({ defaultMessage: "the session was lost", id: "R4Vpa9Ew" }));
     }
-    this.#ended = end;
-    for (const w of this.#waiting.values()) w.reject(end);
+    this.#ended ??= end;
+    for (const w of this.#waiting.values()) w.reject(this.#ended);
     this.#waiting.clear();
   }
 
@@ -126,15 +126,25 @@ export class FileSession {
       this.#waiting.set(id, { resolve, reject });
     });
     const bytes = toBinary(FileRequestSchema, create(FileRequestSchema, { id, request }));
-    const sent = this.#sending.then(() =>
-      this.session.send([{ frame: { case: "data", value: bytes } }]),
-    );
+    const sent = this.#sending.then(() => {
+      if (this.#ended !== undefined) throw this.#ended;
+      return this.session.send([{ frame: { case: "data", value: bytes } }]);
+    });
     this.#sending = sent.catch(() => undefined);
     try {
       await sent;
     } catch (e) {
       this.#waiting.delete(id);
-      throw e;
+      if (e instanceof Ended) throw e;
+      // Whether the relay took the frame is not known, so what it counts as delivered and what
+      // this session counts as sent may no longer agree, and a later frame could be taken for a
+      // repeat and dropped: nothing more is sent on this session, and another is opened.
+      this.#ended ??= new Ended(
+        "unavailable",
+        t({ defaultMessage: "a request could not be sent", id: "U8NwcEng" }),
+      );
+      this.close();
+      throw this.#ended;
     }
     const said = await answered;
     if (said.case === "error") throw new Refused(said.value.code, said.value.message);

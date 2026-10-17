@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use super::fs::{Fault, Kind, Root};
+use super::fs::{Fault, Kind, Placing, Root};
 use rustix::fs::{Mode, OFlags};
+
+/// Written with `create` and `truncate`, anywhere.
+fn how(create: bool, truncate: bool) -> Placing {
+    Placing { create, truncate, at_end: false }
+}
 
 fn root(dir: &std::path::Path, write: bool) -> Root {
     let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
@@ -13,9 +18,9 @@ fn a_file_is_written_in_chunks_read_back_and_resumed_from_its_size() {
     let dir = tempfile::tempdir().unwrap();
     let r = root(dir.path(), true);
     r.mkdir("/world").unwrap();
-    assert_eq!(r.write("/world/level.dat", 0, b"hello ", true, true).unwrap(), 6);
+    assert_eq!(r.write("/world/level.dat", 0, b"hello ", how(true, true)).unwrap(), 6);
     let resumed = r.stat("/world/level.dat").unwrap().size;
-    assert_eq!(r.write("/world/level.dat", resumed, b"world", false, false).unwrap(), 5);
+    assert_eq!(r.write("/world/level.dat", resumed, b"world", how(false, false)).unwrap(), 5);
     assert_eq!(r.read("/world/level.dat", 0, 64).unwrap(), b"hello world");
     assert_eq!(r.read("/world/level.dat", 6, 3).unwrap(), b"wor");
     let (entries, next) = r.list("/", "", 10).unwrap();
@@ -30,7 +35,7 @@ fn a_listing_comes_a_page_at_a_time_in_name_order() {
     let dir = tempfile::tempdir().unwrap();
     let r = root(dir.path(), true);
     for n in ["c", "a", "b"] {
-        r.write(&format!("/{n}"), 0, b"x", true, false).unwrap();
+        r.write(&format!("/{n}"), 0, b"x", how(true, false)).unwrap();
     }
     let (page, next) = r.list("/", "", 2).unwrap();
     assert_eq!(
@@ -52,7 +57,7 @@ fn nothing_outside_the_root_is_reached_by_a_link_or_by_climbing() {
     assert_eq!(r.read("/planted", 0, 10).unwrap_err(), Fault::Outside);
     assert_eq!(r.read("/door/secret", 0, 10).unwrap_err(), Fault::Outside);
     assert_eq!(r.read("/../secret", 0, 10).unwrap_err(), Fault::Outside);
-    assert_eq!(r.write("/planted", 0, b"x", false, false).unwrap_err(), Fault::Outside);
+    assert_eq!(r.write("/planted", 0, b"x", how(false, false)).unwrap_err(), Fault::Outside);
     assert_eq!(r.stat("/planted").unwrap().kind, Kind::Symlink, "shown, never followed");
     assert_eq!(std::fs::read(outside.path().join("secret")).unwrap(), b"host");
 }
@@ -63,13 +68,13 @@ fn a_session_to_read_changes_nothing_and_a_rename_never_replaces() {
     std::fs::write(dir.path().join("a"), b"1").unwrap();
     std::fs::write(dir.path().join("b"), b"2").unwrap();
     let reading = root(dir.path(), false);
-    assert_eq!(reading.write("/a", 0, b"x", false, false).unwrap_err(), Fault::Refused);
+    assert_eq!(reading.write("/a", 0, b"x", how(false, false)).unwrap_err(), Fault::Refused);
     assert_eq!(reading.remove("/a", false).unwrap_err(), Fault::Refused);
     let r = root(dir.path(), true);
     assert_eq!(r.rename("/a", "/b").unwrap_err(), Fault::Exists);
     r.rename("/a", "/c").unwrap();
     r.mkdir("/d").unwrap();
-    r.write("/d/e", 0, b"x", true, false).unwrap();
+    r.write("/d/e", 0, b"x", how(true, false)).unwrap();
     assert_eq!(r.remove("/d", false).unwrap_err(), Fault::NotEmpty);
     assert_eq!(r.remove("/d", true).unwrap(), 2);
     assert_eq!(r.stat("/d").unwrap_err(), Fault::NotFound);
@@ -88,7 +93,7 @@ fn a_fifo_is_refused_not_waited_on_and_a_tree_too_deep_is_refused_not_walked() {
     .unwrap();
     let r = root(dir.path(), true);
     assert_eq!(r.read("/pipe", 0, 10).unwrap_err(), Fault::Refused, "and it returned at once");
-    assert_eq!(r.write("/pipe", 0, b"x", false, false).unwrap_err(), Fault::Refused);
+    assert_eq!(r.write("/pipe", 0, b"x", how(false, false)).unwrap_err(), Fault::Refused);
     let mut deep = String::new();
     for _ in 0..=super::fs::DEPTH {
         deep.push_str("/d");
@@ -111,9 +116,9 @@ fn what_a_session_makes_is_its_directory_s_owner_s_and_what_was_there_keeps_its_
     std::os::unix::fs::chown(&home, Some(1000), Some(1001)).unwrap();
     std::fs::write(home.join("kept"), b"x").unwrap();
     let r = root(dir.path(), true);
-    r.write("/home/up.jar", 0, b"jar", true, true).unwrap();
+    r.write("/home/up.jar", 0, b"jar", how(true, true)).unwrap();
     r.mkdir("/home/plugins").unwrap();
-    r.write("/home/kept", 0, b"y", true, false).unwrap();
+    r.write("/home/kept", 0, b"y", how(true, false)).unwrap();
     let owner = |n: &str| {
         let m = std::fs::metadata(home.join(n)).unwrap();
         (m.uid(), m.gid())
@@ -121,4 +126,18 @@ fn what_a_session_makes_is_its_directory_s_owner_s_and_what_was_there_keeps_its_
     assert_eq!(owner("up.jar"), (1000, 1001));
     assert_eq!(owner("plugins"), (1000, 1001));
     assert_eq!(owner("kept"), (0, 0));
+}
+
+#[test]
+fn a_write_at_the_end_lands_only_where_the_file_ends() {
+    let dir = tempfile::tempdir().unwrap();
+    let r = root(dir.path(), true);
+    let at_end = Placing { create: true, truncate: false, at_end: true };
+    assert_eq!(r.write("/world.bin", 0, b"aaaa", at_end).unwrap(), 4);
+    // The chunk at 4 was lost: the one after it is refused, and nothing of it is written.
+    assert_eq!(r.write("/world.bin", 8, b"cccc", at_end).unwrap_err(), Fault::Moved);
+    assert_eq!(r.stat("/world.bin").unwrap().size, 4, "the size is all that was written");
+    assert_eq!(r.write("/world.bin", 4, b"bbbb", at_end).unwrap(), 4);
+    assert_eq!(r.write("/world.bin", 8, b"cccc", at_end).unwrap(), 4);
+    assert_eq!(r.read("/world.bin", 0, 64).unwrap(), b"aaaabbbbcccc");
 }

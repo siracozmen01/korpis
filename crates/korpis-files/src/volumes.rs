@@ -7,7 +7,7 @@
 //! only the directories the volumes are mounted on: it can be listed, to find them, and nothing
 //! in it can be changed.
 
-use crate::fs::{Entry, Fault, Root};
+use crate::fs::{Entry, Fault, Placing, Root};
 use std::os::fd::OwnedFd;
 
 /// The volumes a session serves, and the root they are mounted in.
@@ -109,16 +109,10 @@ impl Volumes {
         }
     }
 
-    /// Writes `data` to `path` at `offset`; how many bytes.
-    pub fn write(
-        &self,
-        path: &str,
-        offset: u64,
-        data: &[u8],
-        (create, truncate): (bool, bool),
-    ) -> Result<u64, Fault> {
+    /// Writes `data` to `path` at `offset`, placed as `how` says; how many bytes.
+    pub fn write(&self, path: &str, offset: u64, data: &[u8], how: Placing) -> Result<u64, Fault> {
         let (root, rel) = self.changing(path)?;
-        root.write(&rel, offset, data, create, truncate)
+        root.write(&rel, offset, data, how)
     }
 
     /// Makes directory `path`.
@@ -152,7 +146,7 @@ mod tests {
     )]
 
     use super::Volumes;
-    use crate::fs::{Fault, Kind};
+    use crate::fs::{Fault, Kind, Placing};
     use rustix::fs::{Mode, OFlags};
     use std::path::Path;
 
@@ -192,9 +186,18 @@ mod tests {
         assert_eq!(names("/srv/data/plugins"), ["a.jar"]);
         let root = v.stat("/srv/data/plugins").unwrap();
         assert_eq!((root.name.as_str(), root.kind), ("plugins", Kind::Directory));
-        v.write("/srv/data/new.txt", 0, b"hi", (true, false)).unwrap();
+        v.write(
+            "/srv/data/new.txt",
+            0,
+            b"hi",
+            Placing { create: true, truncate: false, at_end: false },
+        )
+        .unwrap();
         assert_eq!(std::fs::read(t.path().join("data/new.txt")).unwrap(), b"hi");
-        assert_eq!(v.write("/srv/x", 0, b"hi", (true, false)), Err(Fault::Outside));
+        assert_eq!(
+            v.write("/srv/x", 0, b"hi", Placing { create: true, truncate: false, at_end: false }),
+            Err(Fault::Outside)
+        );
         assert_eq!(v.mkdir("/etc"), Err(Fault::Outside));
         assert_eq!(v.read("/srv/data/../../etc/passwd", 0, 10), Err(Fault::Outside));
         assert_eq!(v.read("srv/data/level.dat", 0, 10), Err(Fault::Refused));
@@ -209,7 +212,15 @@ mod tests {
     fn a_session_opened_to_read_changes_nothing() {
         let (_t, v) = bench(false);
         assert_eq!(v.read("/srv/data/level.dat", 0, 10).unwrap(), b"world");
-        assert_eq!(v.write("/srv/data/level.dat", 0, b"x", (false, false)), Err(Fault::Refused));
+        assert_eq!(
+            v.write(
+                "/srv/data/level.dat",
+                0,
+                b"x",
+                Placing { create: false, truncate: false, at_end: false }
+            ),
+            Err(Fault::Refused)
+        );
         assert_eq!(v.remove("/srv/data/level.dat", false), Err(Fault::Refused));
     }
 }

@@ -500,8 +500,9 @@ whose slash the first form would take for the path's. Reads and writes move a me
 request with four sent ahead, and the token is renewed on the session while an answer is awaited.
 `put --resume` continues from the size the workload holds and `get --resume` from the size of the
 local file; without it each starts over, since only the caller knows the partial file is the same
-one. A caller who may write but holds no grant of reading reads through a writing session, which
-reads too. A download with no local name is written under the last component of the path asked
+one. Every chunk `put` sends asks to land where the file ends, so the size the workload holds is
+only ever what arrived in order (§3.2 of `06-storage.md`). A caller who may write but holds no
+grant of reading reads through a writing session, which reads too. A download with no local name is written under the last component of the path asked
 for, never under a name the node answered with (Finding 80 of `23-walkthroughs.md`). A refusal is
 reported as the API's errors are, with its reason `file.full`,
 `file.outside`, and so on, and the path as the field.
@@ -513,8 +514,8 @@ changed, and a changed file is sent whole, not by block, because a file session 
 (question 6). It follows no symbolic link at any depth, reaching every entry through its
 directory's open descriptor and reading a file only if it is still the one it looked at (Finding
 81), and it removes nothing in the workload. A name from the workload, a refusal's message, and a
-session's end reason are printed with their control characters escaped (Finding 82). Not built yet: the
-direct endpoint of the paragraph above, which waits on nodes advertising one.
+session's end reason are printed with their control characters escaped (Finding 82). Not built
+yet: the direct endpoint of the paragraph above, which waits on nodes advertising one.
 
 `event subscribe --kind workload.` keeps a position in the event log for you (§5 of
 `15-observability.md`); `event follow` prints what it is delivered as it comes, and with `--ack`

@@ -1123,6 +1123,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 86 | Saving a configuration showed nothing of the plan it applied | §38 | `11-surface-web.md` §4 |
 | 87 | A recipe's `pre_stop` hook was checked and never run | §38 | `09-recipes.md` §3 |
 | 88 | Every screen that was loading failed when the device's network changed | §38 | `11-surface-web.md` §9 |
+| 89 | A resumed upload could finish a file with a hole of zeros in it | §38 | `06-storage.md` §3.2 |
+| 90 | A file session went on sending after a request it could not tell was delivered | §38 | `11-surface-web.md` §8 |
+| 91 | A used-up link showed an empty screen, and a stopped transfer its progress | §38 | `11-surface-web.md` §6, §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2967,3 +2970,44 @@ that moment said "Failed to fetch" until the page was loaded again. **Resolution
 own calls, and its relay sessions', are sent again when the network failed them with no answer,
 twice; a share link's are not, since each may have spent a use. → `11-surface-web.md` §9; built
 and tested in `web/src/retrying.ts`.
+
+**FINDING 89: A resumed upload could finish a file with a hole of zeros in it. `CONFIRMED`**
+
+Found 2026-10-17 while writing the browser test that cuts an upload off and resumes it (step 7
+of this trace). §3.2 of `06-storage.md` resumes an upload from the size of the file on the
+volume, and both clients send four chunks ahead of their answers, each a write at its own
+offset. Asked what the size means, and who keeps it true: nothing did. A chunk lost on the way,
+or refused by the node, while a later one was written leaves the file longer than what arrived
+in order, with zeros where the lost chunk was; a resume reads that size, sends what comes after
+it, and reports the upload whole. A world uploaded that way loads with a corrupted region and
+nothing says why. **Resolution.** A write may ask to land only where the file ends (`at_end`),
+and the node refuses it with `MOVED`, writing nothing, unless the file's size is its offset.
+Both clients ask it of every chunk, so a chunk lost leaves every later one refused, and the size
+is only ever what arrived in order. → `06-storage.md` §3.2; built and tested in
+`crates/korpis-files/src/fs.rs`, `web/src/files/transfer.ts`,
+`crates/korpis-cli/src/cmd/files/transfer.rs`, and by `web/e2e/workload.spec.ts`, whose harness
+compares the file on the node with the one uploaded.
+
+**FINDING 90: A file session went on sending after a request it could not tell was delivered.
+`CONFIRMED`**
+
+Found 2026-10-17 alongside Finding 89. A browser's session sends each frame with a number, so the
+relay can tell a repeat from a new frame. When a `Send` failed past its retries, the panel could
+not know whether the relay took it, and the next frame went with the old number: had the lost
+one been delivered, the relay would take the next for a repeat and drop it, and the request
+would wait for an answer forever. **Resolution.** A file session whose frame could not be sent
+ends itself, and the panel opens another, by itself for a signed-in user. → `11-surface-web.md`
+§8; built in `web/src/files/session.ts` and tested by `web/e2e/workload.spec.ts`.
+
+**FINDING 91: A used-up link showed an empty screen, and a stopped transfer its progress.
+`CONFIRMED`**
+
+Found 2026-10-17 by the same browser test. A share link opened once more than its uses allow
+showed what it allows and nothing else: the workload's watch was refused, and a screen that may
+not read an object renders nothing of it (§5 of `11-surface-web.md`), which is right inside a
+page and wrong as the whole of one. And an upload the network cut off left "Uploading world.bin:
+2 MiB of 5 MiB" on the screen, which §2 of the same document forbids. **Resolution.** A link not
+in force says which, from its own grant, which reading spends nothing; an upload or a download
+that stops says where it stopped. → `11-surface-web.md` §6 and §8; built in
+`web/src/views/LinkShell.tsx` and `web/src/files/parts.tsx`, and tested by
+`web/src/views/LinkShell.test.tsx` and `web/e2e/workload.spec.ts`.

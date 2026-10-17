@@ -3,10 +3,11 @@
 // A workload on a real node, used in a browser whose language is Turkish: an operator restarts it
 // and is shown the plan after, types into its console and reads the answer, changes its
 // configuration through the form its recipe generates, whose labels are the recipe's own Turkish
-// ones (§5.3 of docs/09-recipes.md), and previews a deletion and cancels it. The panel itself has
-// no Turkish catalogue yet, so its own words stay English.
+// ones (§5.3 of docs/09-recipes.md), previews a deletion and cancels it, uploads a file the
+// network cuts off and resumes it, and shares it by a link whose uses run out. The panel itself
+// has no Turkish catalogue yet, so its own words stay English.
 
-import { expect, test, type Page } from "@playwright/test";
+import { type Browser, expect, test, type Page } from "@playwright/test";
 import { authenticator, given } from "./support";
 
 test.use({ locale: "tr-TR" });
@@ -21,7 +22,86 @@ async function signedIn(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "What you can reach" })).toBeVisible();
 }
 
-test("a workload is restarted, typed into, and configured", async ({ page }) => {
+/** The file uploaded: five mebibytes no two of whose chunks are alike, as the harness checks it
+ * on the node, so a chunk out of place or missing cannot pass for the file. */
+function world(): Buffer {
+  const mib = 1 << 20;
+  const bytes = Buffer.alloc(5 * mib);
+  for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 7 + Math.floor(i / mib)) % 251;
+  return bytes;
+}
+
+/** An upload into the workload's volume that the network cuts off after its first chunks, and
+ * that is resumed from what reached the node once the network is back (§8 of
+ * docs/11-surface-web.md). */
+async function uploadResumed(page: Page): Promise<void> {
+  const files = page.getByRole("region", { name: "Files" });
+  await files.getByRole("button", { name: "Open data" }).click();
+  const file = { name: "world.bin", mimeType: "application/octet-stream", buffer: world() };
+  // The stat and two chunks reach the relay; every request after them is lost, as on a train
+  // going into a tunnel, its retries included.
+  let sent = 0;
+  await page.route("**/korpis.v1.RelayService/Send", (route) => {
+    sent += 1;
+    return sent <= 3 ? route.continue() : route.abort("internetdisconnected");
+  });
+  await files.getByLabel("Upload files").setInputFiles(file);
+  await expect(files.getByText("a request could not be sent")).toBeVisible({ timeout: 15_000 });
+  await expect(
+    files.getByText(/^The upload of world\.bin stopped at 2 MiB of 5 MiB\.$/),
+  ).toBeVisible();
+  await page.unroute("**/korpis.v1.RelayService/Send");
+  // The session that lost a request is not trusted again; another opens by itself.
+  await expect(files.getByRole("button", { name: "Download world.bin" })).toBeVisible({
+    timeout: 15_000,
+  });
+  await files.getByLabel("Upload files").setInputFiles(file);
+  const asking = files.getByRole("group", { name: "Upload world.bin" });
+  await expect(asking).toContainText("world.bin is there with 2");
+  await asking.getByRole("button", { name: "Resume" }).click();
+  await expect(files.getByText("Uploaded world.bin.")).toBeVisible({ timeout: 30_000 });
+}
+
+/** A share link that may only see the workload's status, twice, opened by someone with no
+ * account in a browser of their own until its uses run out (§6 of docs/11-surface-web.md). */
+async function sharedTwice(page: Page, browser: Browser): Promise<void> {
+  const share = page.getByRole("region", { name: "Share as a link" });
+  const console_ = share.getByRole("checkbox", { name: "read its console" });
+  await share.getByText("read its console", { exact: true }).click();
+  await expect(console_).not.toBeChecked();
+  await share.getByLabel("Uses").fill("2");
+  await share.getByRole("button", { name: "Make the link" }).click();
+  const link = await page.getByRole("region", { name: "The link" }).locator("code").innerText();
+  const elsewhere = await browser.newContext({ ignoreHTTPSErrors: true });
+  const holder = await elsewhere.newPage();
+  for (const use of [1, 2]) {
+    await holder.goto("about:blank");
+    await holder.goto(link);
+    await expect(
+      holder.getByRole("heading", { name: "talker", level: 1 }),
+      `use ${use.toString()} shows the workload`,
+    ).toBeVisible();
+    await expect(holder.getByRole("button", { name: "Restart" })).toHaveCount(0);
+  }
+  await holder.goto("about:blank");
+  await holder.goto(link);
+  await expect(holder.getByRole("alert")).toHaveText(
+    "This link has been used as many times as it allows, and opens nothing now.",
+  );
+  await expect(holder.getByRole("heading", { name: "talker", level: 1 })).toHaveCount(0);
+  await elsewhere.close();
+  await page.reload();
+  const grants = page.getByRole("region", { name: "Who can act on it" });
+  await expect(
+    grants.getByRole("listitem").filter({ hasText: /^whoever holds a share link: .*used up/ }),
+  ).toBeVisible();
+}
+
+test("a workload is restarted, typed into, configured, filled, and shared", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
   test.skip(
     process.env.KORPIS_E2E_WORKLOAD === undefined,
     "no node runs workloads here: the harness needs root beside containerd",
@@ -65,4 +145,7 @@ test("a workload is restarted, typed into, and configured", async ({ page }) => 
   await preview.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("button", { name: "Delete" })).toBeEnabled();
   await expect(page.getByText("Declared running, converged")).toBeVisible();
+
+  await uploadResumed(page);
+  await sharedTwice(page, browser);
 });

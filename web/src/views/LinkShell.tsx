@@ -5,13 +5,14 @@
 // fragment of `/g/#korpislk_…`, is held in memory and cleared from the address bar, and every
 // call is made with it and nothing else. Reading the link's own grant spends nothing; the
 // workload's live status is one call, so opening the screen spends one use of the link's cap
-// (§6.1 of docs/08-identity.md), and a reload, which forgets the link, asks for it again.
+// (§6.1 of docs/08-identity.md), and a reload, which forgets the link, asks for it again. A link
+// no longer in force says why, rather than showing an object it can no longer read as nothing.
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useMemo } from "react";
 import { relay } from "../api";
 import { type Clients, ReachProvider } from "../clients";
-import type { Grant } from "../gen/korpis/v1/authority_pb";
+import { type Grant, GrantState } from "../gen/korpis/v1/authority_pb";
 import { entryOf } from "./entries";
 import { useLoad } from "./load";
 import { Place, placeAt } from "./place";
@@ -65,6 +66,26 @@ function Held({ clients, path }: { readonly clients: Clients; readonly path: str
   );
 }
 
+/** Why a link no longer opens anything, by its grant's state; nothing while it is in force. */
+const OVER: Partial<Record<GrantState, string>> = {
+  [GrantState.EXHAUSTED]: t({
+    defaultMessage: "This link has been used as many times as it allows, and opens nothing now.",
+    id: "2YHAe6BV",
+  }),
+  [GrantState.EXPIRED]: t({
+    defaultMessage: "This link has expired, and opens nothing now.",
+    id: "T8qBobwN",
+  }),
+  [GrantState.REVOKED]: t({
+    defaultMessage: "This link was revoked, and opens nothing now.",
+    id: "YBUErdAk",
+  }),
+  [GrantState.SUSPENDED]: t({
+    defaultMessage: "This link is suspended, and opens nothing for now.",
+    id: "ogPKfS8e",
+  }),
+};
+
 /** What the link allows, and the object it is for, offering only the actions it holds. */
 function Granted(props: {
   readonly clients: Clients;
@@ -110,10 +131,16 @@ function Granted(props: {
           )}
         </p>
       </aside>
-      {entry !== undefined && (
-        <Themed source={{ kind: "link", clients, entry }} stylesheet={false}>
-          <Place entry={entry} />
-        </Themed>
+      {OVER[grant.state] !== undefined ? (
+        <main>
+          <p role="alert">{OVER[grant.state]}</p>
+        </main>
+      ) : (
+        entry !== undefined && (
+          <Themed source={{ kind: "link", clients, entry }} stylesheet={false}>
+            <Place entry={entry} />
+          </Themed>
+        )
       )}
     </ReachProvider>
   );

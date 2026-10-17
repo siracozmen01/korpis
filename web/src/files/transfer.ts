@@ -62,7 +62,9 @@ export async function upload(
   const pending: Promise<void>[] = [];
   for (let at = from; at < file.size; at += chunk) {
     const data = new Uint8Array(await file.slice(at, at + chunk).arrayBuffer());
-    const value = { path, offset: BigInt(at), data, create: true, truncate: at === 0 };
+    // Sent ahead of the answers: a chunk lost leaves every later one refused rather than written
+    // past a hole, so the file's size stays where a resume goes on from.
+    const value = { path, offset: BigInt(at), data, create: true, truncate: at === 0, atEnd: true };
     const written = fs.ask({ case: "write", value }).then((said) => {
       if (said.case !== "written" || Number(said.value) !== data.length)
         throw new Error(`the node wrote less than was sent at ${at.toString()}`);

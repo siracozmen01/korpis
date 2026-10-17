@@ -287,6 +287,14 @@ session reads the size of what it wrote and continues from there, so a 40 GB wor
 dropped connection, and since the worker writes nothing anywhere but the volume, an upload that is
 never finished is a partial file its owner can see and remove, not hidden state.
 
+> Corrected 2026-10-17 (Finding 89 of `23-walkthroughs.md`). "The size of what it wrote" holds
+> only if the file never holds a chunk without every chunk before it, and a client sending chunks
+> ahead of their answers could break that: one lost, the next written past it, and the size
+> counts a hole of zeros a resume then never fills. A write may now ask to land only where the
+> file ends (`at_end`), refused with `MOVED` and nothing written otherwise; both clients ask it
+> of every chunk, so a chunk lost leaves every later one refused, and the size a resume reads is
+> what was written, in order.
+
 **What it records.** Opening and ending a session are recorded by the node as console input is
 (§6 of `14-streams.md`), as acts of the session's subject under the chain of the token. Every
 change is recorded with the session's end, as one effect: how many files and bytes were written,

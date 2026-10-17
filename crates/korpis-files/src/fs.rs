@@ -34,6 +34,21 @@ pub enum Fault {
     Outside,
     Refused,
     Io,
+    /// A write asked to land where the file ends found it ending elsewhere.
+    Moved,
+}
+
+/// Where a write puts its bytes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Placing {
+    /// Make the file if it is not there.
+    pub create: bool,
+    /// Empty it first; only at offset 0.
+    pub truncate: bool,
+    /// Only where the file now ends: refused, with nothing written, unless its size is the
+    /// offset. A pipelined upload asks it of every chunk, so a chunk that was lost leaves every
+    /// later one refused, and the file's size is always where a resumed upload may go on from.
+    pub at_end: bool,
 }
 
 impl From<Errno> for Fault {
@@ -235,21 +250,17 @@ impl Root {
         Ok(buf)
     }
 
-    /// Writes `data` to `path` at `offset`; how many bytes.
-    pub fn write(
-        &self,
-        path: &str,
-        offset: u64,
-        data: &[u8],
-        create: bool,
-        truncate: bool,
-    ) -> Result<u64, Fault> {
+    /// Writes `data` to `path` at `offset`, placed as `how` says; how many bytes.
+    pub fn write(&self, path: &str, offset: u64, data: &[u8], how: Placing) -> Result<u64, Fault> {
         self.writable()?;
-        if data.len() > CHUNK || (truncate && offset != 0) {
+        if data.len() > CHUNK || (how.truncate && offset != 0) {
             return Err(Fault::Refused);
         }
-        let flags = if truncate { OFlags::WRONLY | OFlags::TRUNC } else { OFlags::WRONLY };
-        let fd = if create { self.created(path, flags)? } else { self.file(path, flags)? };
+        let flags = if how.truncate { OFlags::WRONLY | OFlags::TRUNC } else { OFlags::WRONLY };
+        let fd = if how.create { self.created(path, flags)? } else { self.file(path, flags)? };
+        if how.at_end && u64::try_from(rustix::fs::fstat(&fd)?.st_size).ok() != Some(offset) {
+            return Err(Fault::Moved);
+        }
         let mut done = 0;
         while let Some(rest) = data.get(done..).filter(|r| !r.is_empty()) {
             let at = offset + u64::try_from(done).unwrap_or(u64::MAX);

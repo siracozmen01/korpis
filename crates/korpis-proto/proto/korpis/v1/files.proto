@@ -59,6 +59,11 @@ message FileWrite {
   bool create = 4;
   // Empty it first; only with offset 0.
   bool truncate = 5;
+  // Only where the file now ends: refused with MOVED, nothing written, unless the file's size is
+  // the offset. An upload that sends chunks ahead of their answers asks it of every chunk, so a
+  // chunk that was lost leaves every later one refused, and the file never holds a later chunk
+  // without every earlier one: its size is where a resumed upload goes on from.
+  bool at_end = 6;
 }
 
 message FileMkdir {
@@ -134,4 +139,7 @@ enum FileErrorCode {
   // A write in a session opened only to read, or a request too large.
   FILE_ERROR_CODE_REFUSED = 8;
   FILE_ERROR_CODE_IO = 9;
+  // An `at_end` write whose offset is not where the file ends: something before it was lost, or
+  // the file changed since.
+  FILE_ERROR_CODE_MOVED = 10;
 }

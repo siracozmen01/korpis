@@ -11,11 +11,15 @@
 use crate::console::converged;
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push_with};
+use crate::support::korpis;
 use crate::support::{ControlPlane, mutation};
 use korpis_agent::run::Agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::artifact::File;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt as _, BufReader};
 
 /// The talker's Turkish catalogue (§5.3 of docs/09-recipes.md).
 const TR: &str = r#"{"config.fields.greeting.label": "Selamlama",
@@ -41,6 +45,8 @@ runtime:
 preset:
   lifecycle: persistent
   console: interactive
+  volumes:
+    - {{name: data, path: /data, size_default: 64Mi}}
   resources:
     memory: {{min: 64Mi, recommended: 128Mi}}
     cpu:    {{min: 100m, recommended: 250m}}
@@ -82,9 +88,16 @@ fn browsers() -> PathBuf {
 }
 
 impl ControlPlane {
-    /// Issues `actions` on the root organization to a new user named `display_name`, invited;
-    /// the invitation.
-    async fn invite(&self, display_name: &str, actions: &[&str]) -> String {
+    /// Issues `actions` on the root organization to a new user named `display_name`, invited,
+    /// who may delegate `shares` of them once, as a share link does; the invitation.
+    async fn invite(&self, display_name: &str, actions: &[&str], shares: &[&str]) -> String {
+        let owned = |list: &[&str]| list.iter().map(|a| (*a).to_owned()).collect::<Vec<_>>();
+        let delegation = pb::DelegationPolicy {
+            allowed: !shares.is_empty(),
+            max_depth: Some(u32::from(!shares.is_empty())),
+            actions: owned(shares),
+            ..Default::default()
+        };
         let scope = pb::Scope {
             kind: Some(pb::scope::Kind::Organization(self.root_org.clone())),
             ..Default::default()
@@ -92,8 +105,9 @@ impl ControlPlane {
         pb::GrantServiceClient::new(self.http(), self.config())
             .issue_grant(pb::IssueGrantRequest {
                 mutation: mutation(display_name).into(),
-                actions: actions.iter().map(|a| (*a).to_owned()).collect(),
+                actions: owned(actions),
                 scope: scope.into(),
+                delegation: delegation.into(),
                 to_new_user: pb::NewUser {
                     display_name: display_name.to_owned(),
                     ..Default::default()
@@ -118,9 +132,11 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         return;
     }
     let cp = ControlPlane::start_panel(dist).await;
-    let invitation = cp.invite("Friend", &["workload.read", "workload.write", "org.read"]).await;
-    let operator = cp.invite("Operator", OPERATOR).await;
+    let invitation = cp.invite("Friend", FRIEND, &[]).await;
+    let operator = cp.invite("Operator", OPERATOR, &["workload.read"]).await;
     let talking = talking(&cp).await;
+    let config = tempfile::tempdir().unwrap();
+    let (login, approve_at) = logging_in(&cp, config.path()).await;
     let mut playwright = tokio::process::Command::new("pnpm");
     playwright
         .args(["exec", "playwright", "test", "--config", "e2e/playwright.config.ts"])
@@ -128,16 +144,62 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         .env("PLAYWRIGHT_BROWSERS_PATH", browsers())
         .env("KORPIS_E2E_URL", &cp.url)
         .env("KORPIS_E2E_INVITATION", invitation)
-        .env("KORPIS_E2E_OPERATOR_INVITATION", operator);
+        .env("KORPIS_E2E_OPERATOR_INVITATION", operator)
+        .env("KORPIS_E2E_DEVICE_URL", approve_at);
     if let Some((_, _, w)) = &talking {
         playwright.env("KORPIS_E2E_WORKLOAD", w);
     }
     let ran = playwright.status().await.unwrap();
     assert!(ran.success(), "the browser tests failed: {ran}");
-    if let Some((_, agent, _)) = talking {
+    let logged = tokio::time::timeout(Duration::from_secs(30), login.wait_with_output());
+    let logged = logged.await.expect("korpis login ended once approved").unwrap();
+    let said = String::from_utf8_lossy(&logged.stdout);
+    assert!(logged.status.success(), "korpis login: {said}");
+    assert!(said.contains("friend"), "signed in as the friend who approved it: {said}");
+    if let Some((node, agent, w)) = talking {
+        let uploaded = std::fs::read(node.volumes.join(format!("{w}.data/world.bin"))).unwrap();
+        assert!(uploaded == world(), "the resumed upload is the file, whole and in order");
         agent.stop().await;
     }
 }
+
+/// The file the browser uploads, as `web/e2e/workload.spec.ts` makes it: five mebibytes no two
+/// of whose chunks are alike, so a chunk out of place or missing cannot pass for the file.
+fn world() -> Vec<u8> {
+    (0..5u32 << 20).map(|i| u8::try_from((i * 7 + i / 1_048_576) % 251).unwrap_or(0)).collect()
+}
+
+/// `korpis login`, keeping nothing, run to read the caller's profile once signed in, its
+/// sessions under `config`; the process, and the address its user code is approved at.
+async fn logging_in(cp: &ControlPlane, config: &Path) -> (tokio::process::Child, String) {
+    let mut child = tokio::process::Command::new(korpis())
+        .args(["login", "--no-store", "--", "call", "ProfileService/GetProfile"])
+        .env("KORPIS_SERVER", &cp.url)
+        .env("KORPIS_CA", cp.data.tls().join("ca.pem"))
+        .env_remove("KORPIS_TOKEN")
+        .env("KORPIS_KEYRING", "off")
+        .env("KORPIS_CONFIG_DIR", config)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    // "To sign in, open <uri> and enter the code <code>", then "or open <uri with the code>".
+    let mut told = BufReader::new(child.stderr.take().unwrap()).lines();
+    let read = async {
+        while let Some(line) = told.next_line().await.unwrap() {
+            if let Some(at) = line.strip_prefix("or open ") {
+                return at.to_owned();
+            }
+        }
+        panic!("korpis login named no address to approve it at");
+    };
+    let at = tokio::time::timeout(Duration::from_secs(30), read).await.unwrap();
+    (child, at)
+}
+
+/// What the friend of the account flows may do, on the root organization.
+const FRIEND: &[&str] = &["org.read", "workload.read", "workload.write"];
 
 /// What the operator of the workload flows may do, on the root organization.
 const OPERATOR: &[&str] = &[
@@ -149,4 +211,7 @@ const OPERATOR: &[&str] = &[
     "workload.delete",
     "workload.console.read",
     "workload.console.write",
+    "workload.file.read",
+    "workload.file.write",
+    "grant.read",
 ];

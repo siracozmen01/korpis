@@ -115,9 +115,11 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
     if (fs === undefined) return;
     const path = within(listing.path, e.name);
     const total = Number(e.size);
+    let got = 0;
     const run = async () => {
       const sink = (await pickedSink(e.name)) ?? blobSink(e.name, saveBlob);
       await download(fs, path, total, sink, (done) => {
+        got = done;
         setStatus(
           t(
             { defaultMessage: "Downloading {name}: {done} of {total}", id: "nIafWUcM" },
@@ -127,7 +129,18 @@ export function FileManager(props: { readonly id: string; readonly writes: boole
       });
       setStatus(t({ defaultMessage: "Downloaded {name}.", id: "aKY5Nsss" }, { name: e.name }));
     };
-    run().catch(failed);
+    run().catch((err: unknown) => {
+      setStatus(
+        t(
+          {
+            defaultMessage: "The download of {name} stopped at {done} of {total}.",
+            id: "oZyTX6w6",
+          },
+          { name: e.name, done: bytes(got), total: bytes(total) },
+        ),
+      );
+      failed(err);
+    });
   };
   return (
     <section aria-labelledby="files">

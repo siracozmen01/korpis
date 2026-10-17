@@ -53,3 +53,32 @@ test("without the link in memory the screen asks for it again rather than failin
   render(<LinkShell clients={undefined} path="/g/" />);
   expect(screen.getByRole("heading", { name: "Open the link again" })).toBeTruthy();
 });
+
+test("a link used up says so, and asks nothing of the object it can no longer read", async () => {
+  const watched: string[] = [];
+  const transport = createRouterTransport(({ service }) => {
+    service(GrantService, {
+      listGrants: () => ({
+        grants: [
+          {
+            scope: { kind: { case: "workload", value: "wl_b" } },
+            actions: ["workload.read"],
+            conditions: { maxUses: 2n },
+            linkForm: true,
+            state: GrantState.EXHAUSTED,
+          },
+        ],
+      }),
+    });
+    service(WorkloadService, {
+      // eslint-disable-next-line require-yield
+      async *watchWorkload(r) {
+        watched.push(r.workload);
+        await new Promise(() => undefined);
+      },
+    });
+  });
+  render(<LinkShell clients={clientsOver(transport)} path="/g/" />);
+  expect((await screen.findByRole("alert")).textContent).toMatch(/used as many times as it allows/);
+  expect(watched).toEqual([]);
+});

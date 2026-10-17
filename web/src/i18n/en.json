@@ -83,6 +83,9 @@
   "2NWVup5w": {
     "defaultMessage": "Each code signs you in once beside your password, if you lose your other factors. They are shown here once: keep them somewhere safe now."
   },
+  "2YHAe6BV": {
+    "defaultMessage": "This link has been used as many times as it allows, and opens nothing now."
+  },
   "2jjdVzJX": {
     "defaultMessage": "Upload files"
   },
@@ -186,6 +189,9 @@
   },
   "9HUO3CrK": {
     "defaultMessage": "read its files"
+  },
+  "9Q4NboHp": {
+    "defaultMessage": "The upload of {name} stopped at {done} of {total}."
   },
   "9UaA8ufC": {
     "defaultMessage": "{colour} (#rrggbb)"
@@ -585,6 +591,9 @@
     "defaultMessage": "Send",
     "description": "button: send a console command"
   },
+  "T8qBobwN": {
+    "defaultMessage": "This link has expired, and opens nothing now."
+  },
   "TAhO4thL": {
     "defaultMessage": "the control plane sent no plan"
   },
@@ -596,6 +605,9 @@
   },
   "TVvaeAem": {
     "defaultMessage": "Reading its projects…"
+  },
+  "U8NwcEng": {
+    "defaultMessage": "a request could not be sent"
   },
   "Usf2nt81": {
     "defaultMessage": "Open to read.",
@@ -639,6 +651,9 @@
   },
   "YB8VbPji": {
     "defaultMessage": "the session did not open"
+  },
+  "YBUErdAk": {
+    "defaultMessage": "This link was revoked, and opens nothing now."
   },
   "YCjxvQQ4": {
     "defaultMessage": "No grant is anchored on this workload itself."
@@ -972,6 +987,12 @@
   },
   "oQ2tYHx3": {
     "defaultMessage": "{n, plural, one {# older line left the view} other {# older lines left the view}}; use Earlier to read them."
+  },
+  "oZyTX6w6": {
+    "defaultMessage": "The download of {name} stopped at {done} of {total}."
+  },
+  "ogPKfS8e": {
+    "defaultMessage": "This link is suspended, and opens nothing for now."
   },
   "oxCCI1AN": {
     "defaultMessage": "Opening…",

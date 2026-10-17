@@ -57,10 +57,11 @@ test("an upload moves a chunk per request, a few ahead, replacing only from its 
   );
   expect(file.data).toEqual(big);
   const writes = asked.flatMap((r) => (r.case === "write" ? [r.value] : []));
-  expect(writes.map((w) => [w.offset, w.data?.length, w.truncate])).toEqual([
-    [0n, CHUNK, true],
-    [BigInt(CHUNK), CHUNK, false],
-    [BigInt(CHUNK * 2), 5, false],
+  // Each at the end, so one lost leaves the rest refused rather than written past a hole.
+  expect(writes.map((w) => [w.offset, w.data?.length, w.truncate, w.atEnd])).toEqual([
+    [0n, CHUNK, true, true],
+    [BigInt(CHUNK), CHUNK, false, true],
+    [BigInt(CHUNK * 2), 5, false, true],
   ]);
   expect(most()).toBeGreaterThan(1);
   expect(seen.at(-1)).toBe(big.length);
