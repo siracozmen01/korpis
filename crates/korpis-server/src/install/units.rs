@@ -215,9 +215,10 @@ WantedBy=multi-user.target
 }
 
 fn backup(l: &Layout) -> String {
-    // Root, since the target is the operator's directory, which nothing makes writable to the
-    // control plane's own user; it may write there and nowhere else. It fails when the database is
-    // not archived, after writing the keys, so the failure is in the journal and the unit's state.
+    // The control plane's own user, which owns the data directory and is given the target by
+    // installation: never root, since the data directory a compromised control plane could change
+    // would then steer what root reads and where it writes. It fails when the database is not
+    // archived, after writing the keys, so the failure is in the journal and the unit's state.
     format!(
         "[Unit]
 Description=Korpis control-plane backup (§6 of docs/18-operations.md)
@@ -225,10 +226,12 @@ After=korpis-server.service
 
 [Service]
 Type=oneshot
+User=korpis
+Group=korpis
 EnvironmentFile={env}
 ExecStart={bin}/korpis-server backup
 ReadWritePaths={target}
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=
 {HARDENED}",
         env = l.env_file.display(),
         bin = l.bin.display(),
@@ -280,6 +283,7 @@ mod tests {
         assert!(text("korpis-helper.socket").contains("SocketGroup=korpis-agent"));
         assert!(text("korpis-relay.service").contains("relay run --dir /var/lib/korpis-relay"));
         assert!(text("korpis-backup.service").contains("ReadWritePaths=/mnt/backup"));
+        assert!(text("korpis-backup.service").contains("User=korpis\n"), "never root");
         assert!(text("korpis-backup.timer").contains("Persistent=true"));
     }
 }

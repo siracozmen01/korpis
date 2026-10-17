@@ -242,7 +242,13 @@ fn write_system(
     }
     system::write_environment(&args.env_file, &env)?;
     system::write_units(&args.units_dir, &units(layout))?;
-    system::give(&args.data_dir, lookup("korpis")?)?;
+    let korpis = lookup("korpis")?;
+    system::give(&args.data_dir, korpis)?;
+    // The daily backup runs as the control plane's user, so the directory it writes to is that
+    // user's, closed to others.
+    let target = target_dir(args);
+    std::os::unix::fs::chown(&target, Some(korpis.0), Some(korpis.1))?;
+    std::fs::set_permissions(&target, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
     std::fs::DirBuilder::new().recursive(true).mode(0o755).create(NODE_STATE)?;
     std::fs::create_dir_all(&args.agent_state)?;
     system::give(&args.agent_state, lookup("korpis-agent")?)?;

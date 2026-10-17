@@ -6,7 +6,9 @@
 //! the epoch watermark with its rate cap, written as one file to the target installation declared
 //! outside Korpis, sealed with the key installation printed once. The database is PostgreSQL's
 //! own to back up, by archiving its write-ahead log (§8 of docs/03-state.md); this says whether
-//! it does, and does not pretend a dump would be the same thing.
+//! it does, and does not pretend a dump would be the same thing. It runs as the control plane's
+//! own user, which owns the data directory and is given the target: what it reads and writes is
+//! no more than that user could already, whatever the data directory says.
 
 use crate::data::DataDir;
 use crate::vault::{open_bytes, seal_bytes};
@@ -70,10 +72,16 @@ fn walk(root: &Path, dir: &Path, files: &mut BTreeMap<String, String>) -> std::i
         return Ok(());
     }
     for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
-        if path.is_dir() {
+        let entry = entry?;
+        // The entry's own type, not its target's: a link is neither followed nor read, so the
+        // backup holds what the data directory holds and nothing a link could name.
+        let kind = entry.file_type()?;
+        let path = entry.path();
+        if kind.is_dir() {
             walk(root, &path, files)?;
-        } else if let Ok(beneath) = path.strip_prefix(root) {
+        } else if kind.is_file()
+            && let Ok(beneath) = path.strip_prefix(root)
+        {
             let bytes = std::fs::read(&path)?;
             let name = beneath.to_string_lossy().into_owned();
             files.insert(name, base64::engine::general_purpose::STANDARD.encode(bytes));
@@ -148,7 +156,8 @@ pub fn write(target: &Path, sealed: &[u8], taken_at: u64) -> std::io::Result<Pat
         at.second()
     );
     let (path, beside) = (target.join(&name), target.join(format!(".{name}.new")));
-    let mut f = std::fs::File::create(&beside)?;
+    let _ = std::fs::remove_file(&beside);
+    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&beside)?;
     f.write_all(sealed)?;
     f.sync_all()?;
     std::fs::rename(&beside, &path)?;
@@ -256,8 +265,9 @@ mod tests {
         std::fs::write(data.tls().join("ca.pem"), b"ca").unwrap();
         std::fs::create_dir_all(data.backup()).unwrap();
         std::fs::write(data.backup().join("key"), b"never").unwrap();
+        std::os::unix::fs::symlink("/etc/hostname", data.keys().join("planted.key")).unwrap();
         let files = collect(&data).unwrap();
-        assert_eq!(files.keys().collect::<Vec<_>>(), ["keys/token-1.key", "tls/ca.pem"]);
+        assert_eq!(files.keys().collect::<Vec<_>>(), ["keys/token-1.key", "tls/ca.pem"], "no link");
 
         let b = bundle(files);
         let sealed = seal(&b, &[1; 32]).unwrap();
