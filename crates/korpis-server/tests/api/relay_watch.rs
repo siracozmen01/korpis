@@ -89,3 +89,61 @@ async fn a_watched_session_takes_numbered_frames_in_order_and_once() {
     }
     assert_eq!(ended.as_deref(), Some("session.not_here"), "the session ends with its watch");
 }
+
+#[tokio::test]
+async fn each_send_is_judged_again_so_a_revoked_grant_stops_what_is_sent() {
+    use crate::support::mutation;
+    use korpis_core::authz::{Kind, ObjectRef, Scope};
+    use korpis_core::id::{Id, IdKind};
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-3", 1).await;
+    let (w, _) = workload(&h).await;
+    let mut attached = attach(&h, &a).await;
+    let (holder, secret) = h.bare_token().await;
+    let grant = h.issue_to(holder, "g", &[CONSOLE]).await;
+    let on = Id::parse(IdKind::Workload, &w).unwrap().uuid();
+    let scope = korpis_wire::scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Workload, on)));
+    let mint = pb::MintTokenRequest {
+        grant: grant.clone(),
+        actions: vec![CONSOLE.into()],
+        scope: scope.into(),
+        ..Default::default()
+    };
+    let token = h.grants(h.config(Some(secret.expose()))).mint_token(mint).await.unwrap();
+    let relay = pb::RelayServiceClient::new(h.http.clone(), h.config(None));
+    let open = pb::RelayOpen {
+        token: token.into_owned().token,
+        action: CONSOLE.into(),
+        workload: w.clone(),
+        node: a.node.clone(),
+        ..Default::default()
+    };
+    let watching = tokio::spawn({
+        let relay = relay.clone();
+        async move { relay.watch(open).await.unwrap() }
+    });
+    let asked = asked(&mut attached).await;
+    let data_path = agent::DataServiceClient::new(h.http.clone(), h.config(None));
+    let mut carry = data_path.carry().await.unwrap();
+    let session = CarryUp::Session(asked.session.clone());
+    carry.send(agent::CarryUp { message: Some(session), ..Default::default() }).await.unwrap();
+    let mut watch = watching.await.unwrap();
+    let first = watch.message().await.unwrap().unwrap().to_owned_message();
+    let Some(Reply::Opened(opened)) = first.message else { panic!("opened first") };
+    relay.send(send(&opened, 0, &[b"a"])).await.unwrap();
+
+    let revoke =
+        pb::RevokeGrantRequest { mutation: mutation("r").into(), grant, ..Default::default() };
+    h.grants(h.root()).revoke_grant(revoke).await.unwrap();
+    let mut refused = None;
+    for n in 1..=50u64 {
+        match relay.send(send(&opened, n, &[b"x"])).await {
+            Err(e) => {
+                refused = Some(reason(&e).clone());
+                break;
+            }
+            Ok(_) => tokio::time::sleep(Duration::from_millis(100)).await,
+        }
+    }
+    assert_eq!(refused.as_deref(), Some("session.refused"), "judged again, for each Send");
+}

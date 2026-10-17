@@ -8,12 +8,17 @@
 //!
 //! `Send` is authorized by the key the `opened` answer gave only the watcher. The session
 //! identifier is for logs and is no secret; the key is never logged, and a key that does not
-//! match is answered exactly as a session this process does not hold, `session.not_here`.
+//! match is answered exactly as a session this process does not hold, `session.not_here`. And
+//! each `Send` is a request of its own, from an address of its own, so the session's current
+//! token is judged again for it: a token whose grant limits the client's address
+//! (`source_cidr`) holds for every frame sent, as it holds for every frame of an `Open` stream,
+//! whose one connection has one address.
 
 use super::error;
 use super::relay::{Carried, Judge, RelayRole, end, refused, unavailable};
 use crate::relay::Verifier;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
+use korpis_core::authz::token::Client;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
@@ -51,11 +56,27 @@ struct Watched<V> {
     feed: tokio::sync::Mutex<Feed<V>>,
 }
 
-/// Where the client's frames go, how many have gone, and what judges a renewal.
+/// Where the client's frames go, how many have gone, the token the session holds now, and what
+/// judges it.
 struct Feed<V> {
     delivered: u64,
+    token: String,
     to_node: mpsc::Sender<agent::CarryDown>,
     judge: Judge<V>,
+}
+
+impl<V: Verifier> Feed<V> {
+    /// Takes the renewal `token`, sent by `client`, as the token judged from now on; one the
+    /// relay refuses ends the session with the reason, as `Open` ends it, before the node hears
+    /// of it.
+    async fn renew(&mut self, token: &str, client: Client) -> Result<(), String> {
+        if let Err(e) = self.judge.judge_from(token, client) {
+            let _ = self.to_node.send(end("refused", e.clone())).await;
+            return Err(e);
+        }
+        self.token = token.to_owned();
+        Ok(())
+    }
 }
 
 /// Forgets the session when the `Watch` stream holding it is dropped.
@@ -101,9 +122,10 @@ impl<V: Verifier> RelayRole<V> {
         open: pb::RelayOpen,
     ) -> ServiceResult<ServiceStream<pb::RelayResponse>> {
         let key = send_key()?;
+        let token = open.token.clone();
         let Carried { session, to_node, mut from_node, judge } =
             self.carry(&ctx, open, key.clone()).await?;
-        let feed = tokio::sync::Mutex::new(Feed { delivered: 0, to_node, judge });
+        let feed = tokio::sync::Mutex::new(Feed { delivered: 0, token, to_node, judge });
         self.watching.guard().insert(session.clone(), Arc::new(Watched { key, feed }));
         let forget = Forget { watching: Arc::clone(&self.watching), session };
         let out = futures_util::stream::poll_fn(move |cx| {
@@ -116,11 +138,17 @@ impl<V: Verifier> RelayRole<V> {
     /// `Send`: delivers the frames of `request` the session has not had yet, in order.
     pub(super) async fn deliver(
         &self,
+        ctx: &RequestContext,
         request: pb::SendRequest,
     ) -> Result<pb::SendResponse, ConnectError> {
         let watched = self.watching.guard().get(&request.session).cloned();
         let watched = watched.filter(|w| same(&w.key, &request.send_key)).ok_or_else(not_here)?;
+        let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
+        let client = Client::At(ip);
         let mut feed = watched.feed.lock().await;
+        if let Err(e) = feed.judge.judge_from(&feed.token, client) {
+            return Err(refused("refused", &e));
+        }
         if request.first > feed.delivered {
             let message = format!("frames from {} were never delivered", feed.delivered);
             return Err(error::invalid("first", message));
@@ -128,10 +156,8 @@ impl<V: Verifier> RelayRole<V> {
         let skip = usize::try_from(feed.delivered - request.first).unwrap_or(usize::MAX);
         for frame in request.frames.into_iter().skip(skip) {
             if let Some(Frame::Renew(token)) = &frame.frame
-                && let Err(e) = feed.judge.judge(token)
+                && let Err(e) = feed.renew(token, client).await
             {
-                // Refused here, as Open refuses it: the session ends with the reason.
-                let _ = feed.to_node.send(end("refused", e.clone())).await;
                 self.watching.forget(&request.session);
                 return Err(refused("refused", &e));
             }

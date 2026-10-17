@@ -97,8 +97,14 @@ pub(super) struct Judge<V> {
 
 impl<V: Verifier> Judge<V> {
     pub(super) fn judge(&self, token: &str) -> Result<Verified, String> {
+        self.judge_from(token, self.client)
+    }
+
+    /// [`Self::judge`], for a token presented by `client`: a session reached by more than one
+    /// request (`Send`) has its token's conditions on the client's address checked for each.
+    pub(super) fn judge_from(&self, token: &str, client: Client) -> Result<Verified, String> {
         let revoked = self.verifier.revoked();
-        let at = (SystemTime::now(), self.client);
+        let at = (SystemTime::now(), client);
         let verified = verify(token, &self.keys, &self.action, &self.on, &revoked, at)
             .map_err(|e| e.to_string())?;
         if self.subject.as_ref().is_some_and(|s| *s != verified.subject) {
@@ -239,9 +245,9 @@ impl<V: Verifier> pb::RelayService for RelayRole<V> {
 
     async fn send(
         &self,
-        _ctx: RequestContext,
+        ctx: RequestContext,
         request: connectrpc::ServiceRequest<'_, pb::SendRequest>,
     ) -> ServiceResult<pb::SendResponse> {
-        Response::ok(self.deliver(request.to_owned_message()).await?)
+        Response::ok(self.deliver(&ctx, request.to_owned_message()).await?)
     }
 }

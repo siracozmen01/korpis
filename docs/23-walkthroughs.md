@@ -1112,6 +1112,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 75 | An approval outlived the session that gave it | §38 | `08-identity.md` §9.4 |
 | 76 | A watch through a share link spent a use on every change it heard | §38 | `08-identity.md` §6.1 |
 | 77 | A provider stream registered while its replica confirmed the others was closed | §14 | `16-extensions.md` §3.3 |
+| 78 | A browser's session took frames from any address once it was open | §38 | `02-architecture.md` §3.1, `08-identity.md` §6.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2763,3 +2764,22 @@ before the question, so it is missing only if withdrawn, and one held since is j
 confirmation. → `16-extensions.md` §3.3, whose rule is unchanged; built in
 `crates/korpis-server/src/providers.rs` (`close_withdrawn`) and
 `crates/korpis-server/src/provider_calls.rs`; tested in the former.
+
+**FINDING 78: A browser's session took frames from any address once it was open. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that built `Watch` and `Send` (step 6 of
+this trace), and confirmed by reading `Send`. The relay judges a token against the client's
+address when a session opens, because a grant may limit where it is used from (`source_cidr`,
+§6.2 of `08-identity.md`). An `Open` session is one connection, so its address cannot change
+under it; a `Watch` session takes its client's frames through `Send`, each call a request of
+its own, and `Send` checked only the session's key. Whoever held the key could send from any
+address the grant excluded, and frames kept arriving after the grant was revoked, until the
+node's own check of the token caught up with the revocation.
+
+**Resolution.** The session keeps the token it holds now, the one it opened with or the latest
+renewal, and every `Send` judges it again from that call's address before delivering anything:
+outside the grant's range, or revoked, the call is refused and nothing reaches the node. A
+renewal is judged from the same address and becomes the token judged next. The test revokes the
+grant of a session opened through `Watch` and finds its next `Send` refused. →
+`02-architecture.md` §3.1; built in `crates/korpis-server/src/api/relay_watch.rs`; tested in
+`crates/korpis-server/tests/api/relay_watch.rs`.
