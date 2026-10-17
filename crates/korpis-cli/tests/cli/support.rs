@@ -102,6 +102,7 @@ impl ControlPlane {
                 origins: vec![PANEL.into()],
             }),
             session_limits: korpis_core::account::session::SessionLimits::default(),
+            web_root: None,
         })
         .await
         .expect("serve");

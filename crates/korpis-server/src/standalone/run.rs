@@ -68,7 +68,8 @@ pub async fn run(
     let fed = Arc::new(Fed::new(url(&dir)?));
     let addr = listener.local_addr()?;
     let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
-    let service = connectrpc::ConnectRpcService::new(router);
+    let service =
+        crate::front::Front::new(connectrpc::ConnectRpcService::new(router), None, Vec::new());
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
     let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
     let task = tokio::spawn(async move {

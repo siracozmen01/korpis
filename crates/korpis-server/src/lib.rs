@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+mod about;
 pub mod accept;
 pub mod acme;
 pub mod api;
@@ -12,11 +13,13 @@ pub mod authority;
 pub mod bodies;
 mod flags;
 pub use flags::{placement_policy, span};
+mod background;
 mod buckets;
 mod control_jobs;
 pub mod data;
 pub mod factor_vault;
 pub mod feasibility;
+pub mod front;
 pub mod install;
 pub mod issuer;
 pub mod keys;
@@ -39,6 +42,7 @@ pub mod testing;
 pub mod tls;
 pub mod tls_vault;
 pub mod vault;
+mod web;
 
 use api::Api;
 use korpis_app::App;
@@ -106,6 +110,9 @@ pub struct ServeConfig {
     pub relying_party: Option<korpis_core::webauthn::RelyingParty>,
     /// How long user sessions last (§9.4 of docs/08-identity.md).
     pub session_limits: korpis_core::account::session::SessionLimits,
+    /// The panel's static bundle, served on the API's address (§1 of docs/11-surface-web.md);
+    /// without one, the address serves the API alone.
+    pub web_root: Option<std::path::PathBuf>,
 }
 
 /// Why serving failed.
@@ -203,7 +210,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.listen();
     store.run_sequencer();
     store.ensure_partitions(3).await?;
-    tokio::spawn(prune_events(store.clone(), config.event_retention));
+    tokio::spawn(background::prune_events(store.clone(), config.event_retention));
     let keys = keys::Keys::load_or_create(&config.data)?;
     let app = application(&config, store, &keys)?;
     app.register_keys(&keys.public()).await?;
@@ -220,10 +227,10 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     };
     let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
     api.relay().trust(relay::token_ring(names));
-    background(&api, &config);
+    background::start(&api, &config);
     let charging = api::Charging::new(Arc::clone(&api));
     let service = connectrpc::ConnectRpcService::new(Arc::clone(&api).router());
-    let service = service.with_interceptor(charging);
+    let service = front(service.with_interceptor(charging), &config);
     let proxies: Arc<[ipnet::IpNet]> = config.proxy_protocol_from.clone().into();
     let task = tokio::spawn(async move {
         accept::serve_on(listener, tls, service, proxies).await.map_err(ServeError::Serve)
@@ -232,165 +239,12 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     Ok(Running { addr, task, api })
 }
 
-/// Starts the control plane's own work, each task ending with the process.
-fn background(api: &Arc<Api>, config: &ServeConfig) {
-    tokio::spawn(retry_placements(Arc::clone(api), config.placement_retry));
-    tokio::spawn(sweep_silent_nodes(Arc::clone(api), config.heartbeat_interval));
-    tokio::spawn(dispatch_changes(Arc::clone(api)));
-    tokio::spawn(track_conditions(Arc::clone(api)));
-    tokio::spawn(provider_calls::keep_registrations(Arc::clone(api)));
-    tokio::spawn(provider_calls::dispatch(Arc::clone(api)));
-    tokio::spawn(revocations::keep(Arc::clone(api)));
-    tokio::spawn(named_relays::keep(Arc::clone(api)));
-    tokio::spawn(alert_certificates(Arc::clone(api)));
-    tokio::spawn(reachability::keep(Arc::clone(api)));
-    tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
-    tokio::spawn(expire_offloaded(Arc::clone(api)));
-    tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
-    tokio::spawn(control_jobs::work(Arc::clone(api)));
-    tokio::spawn(issuer::keep(Arc::clone(api)));
-    tokio::spawn(records::keep(Arc::clone(api)));
-    tokio::spawn(buckets::forget(Arc::clone(api)));
-    tokio::spawn(buckets::forget_sessions(Arc::clone(api)));
-}
-
-/// Tries again, every `every`, each workload whose approved target no node could take: a node
-/// enrolled, uncordoned, or freed is found here rather than waiting for the next approval. The
-/// task ends with the process.
-async fn retry_placements(api: Arc<Api>, every: Duration) {
-    let mut tick = tokio::time::interval(every);
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().reconcile_placements().await {
-            Ok(0) => {}
-            Ok(n) => tracing::debug!(tried = n, "placement retry"),
-            Err(e) => tracing::warn!(error = %e, "placement retry failed"),
-        }
+/// The address's front: the API, the panel's files from `--web-root`, and cross-origin calls
+/// answered for the relying party's origins, the installation's own and each `--web-origin`.
+fn front(api: connectrpc::ConnectRpcService, config: &ServeConfig) -> front::Front {
+    if config.web_root.is_none() {
+        tracing::info!("no --web-root: this address serves the API alone, without the panel");
     }
-}
-
-/// Marks unreachable, every heartbeat interval, each connected node not heard for three. The
-/// task ends with the process.
-async fn sweep_silent_nodes(api: Arc<Api>, every: Duration) {
-    let mut tick = tokio::time::interval(every);
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().sweep_silent_nodes().await {
-            Ok(0) => {}
-            Ok(n) => tracing::info!(nodes = n, "nodes unreachable: three heartbeats missed"),
-            Err(e) => tracing::warn!(error = %e, "node sweep failed"),
-        }
-    }
-}
-
-/// Writes, four times a window, the repeats of every run of denials whose window has closed,
-/// so a run that stops repeating is in the log within about a window and a quarter of its last
-/// repeat. The task ends with the process.
-async fn close_denial_runs(api: Arc<Api>, window: Duration) {
-    let mut tick = tokio::time::interval((window / 4).max(Duration::from_millis(250)));
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().close_denial_runs().await {
-            Ok(0) => {}
-            Ok(n) => tracing::debug!(runs = n, "denial runs closed"),
-            Err(e) => tracing::warn!(error = %e, "closing denial runs failed"),
-        }
-    }
-}
-
-/// Decides workloads' convergence on every announced change and every resync, writing an event
-/// when it changed (§5 of docs/15-observability.md). The task ends with the process.
-async fn track_conditions(api: Arc<Api>) {
-    use korpis_app::ports::{Change, Changes as _, Store as _};
-    let mut changes = api.app().store().subscribe();
-    let mut next = Some(Change::Resync);
-    while let Some(change) = next {
-        let decided = match change {
-            Change::Workload(w) => api.app().track_convergence(w).await.map(u64::from),
-            Change::Resync => api.app().track_all_convergence().await,
-        };
-        if let Err(e) = decided {
-            tracing::warn!(error = %e, "deciding convergence failed");
-        }
-        next = changes.next().await;
-    }
-}
-
-/// Reports, hourly, each relay certificate and each ingress certificate that came a step closer to
-/// expiring (§7 of docs/18-operations.md, §3.2 of docs/07-networking.md). The task ends with the
-/// process.
-async fn alert_certificates(api: Arc<Api>) {
-    let mut tick = tokio::time::interval(Duration::from_secs(3600));
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().alert_relay_certificates().await {
-            Ok(0) => {}
-            Ok(n) => tracing::warn!(relays = n, "relay certificates nearing expiry"),
-            Err(e) => tracing::warn!(error = %e, "checking relay certificates failed"),
-        }
-        match api.app().alert_certificates().await {
-            Ok(0) => {}
-            Ok(n) => tracing::warn!(certificates = n, "ingress certificates nearing expiry"),
-            Err(e) => tracing::warn!(error = %e, "checking ingress certificates failed"),
-        }
-    }
-}
-
-/// Deletes, hourly, offloaded stream segments past their retention (§4 of docs/14-streams.md).
-/// The task ends with the process.
-async fn expire_offloaded(api: Arc<Api>) {
-    let mut tick = tokio::time::interval(Duration::from_secs(3600));
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match api.app().expire_offloaded().await {
-            Ok(pass) => {
-                if pass.deleted > 0 {
-                    tracing::info!(segments = pass.deleted, "offloaded segments past retention");
-                }
-                for (repository, workload, e) in pass.failed {
-                    tracing::warn!(%repository, %workload, error = %e,
-                        "offloaded segments past their retention were not deleted");
-                }
-            }
-            Err(e) => tracing::warn!(error = %e, "expiring offloaded segments failed"),
-        }
-    }
-}
-
-/// Prunes the event log hourly to its retention window. The task ends with the process.
-async fn prune_events(store: PgStore, retention: Duration) {
-    let mut tick = tokio::time::interval(Duration::from_secs(3600));
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    loop {
-        tick.tick().await;
-        match store.prune_events(retention).await {
-            Ok(0) => {}
-            Ok(n) => tracing::info!(events = n, "events past retention pruned"),
-            Err(e) => tracing::warn!(error = %e, "pruning the event log failed"),
-        }
-    }
-}
-
-/// Wakes the session of every node a workload change concerns, so its set is recomputed and,
-/// if it changed, sent; a resync wakes them all. The task ends with the process.
-async fn dispatch_changes(api: Arc<Api>) {
-    use korpis_app::ports::{Change, Changes as _, Store as _};
-    let mut changes = api.app().store().subscribe();
-    while let Some(change) = changes.next().await {
-        match change {
-            Change::Workload(w) => match api.app().nodes_concerned(w).await {
-                Ok(nodes) => nodes.into_iter().for_each(|n| api.sessions().wake(n)),
-                Err(e) => {
-                    tracing::warn!(error = %e, "change dispatch failed; waking every session");
-                    api.sessions().wake_all();
-                }
-            },
-            Change::Resync => api.sessions().wake_all(),
-        }
-    }
+    let origins = config.relying_party.as_ref().map(|rp| rp.origins.clone()).unwrap_or_default();
+    front::Front::new(api, config.web_root.clone(), origins)
 }

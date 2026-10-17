@@ -37,6 +37,21 @@ a web session with the control plane, and a host who wants one there serves it u
 own site instead; a panel that holds no session, one opened from a share link, works from anywhere
 listed.
 
+> As built, 2026-10-17 (`korpis-server serve --web-root`). A path of the form
+> `/package.Service/Method` is a procedure and goes to the API; `/about/source` is the source page
+> below; any other path names a file beneath the root or nothing, one that climbs out of it,
+> follows a link out of it, or reaches a hidden file being not found, and a path with no file and
+> no extension is a route of the panel's own and is answered with its `index.html`. Files under
+> `assets/`, whose names the build hashes, may be kept for a year; everything else is asked about
+> again before it is used; every file is sent with `nosniff`, no referrer, and a policy that no
+> other page may frame it. A cross-origin call is answered, with credentials, only for the
+> installation's own origin and each `--web-origin`, preflights included, and refused for any
+> other; the API's error, limit, and trailer headers are readable to the listed ones. Without
+> `--web-root` the address answers the API and the source page, and every other path says no
+> panel is served there. Serving files beside the API meant serving every connection through
+> the control plane's own accept loop, the one a PROXY header already needed, rather than
+> connectrpc's server, which serves nothing but procedures.
+
 ---
 
 ## 2. Nothing on screen is a lie
@@ -175,6 +190,13 @@ browser that loads it, and AGPL-3.0 attaches its source obligation to that (§2 
 built from and where that source is published, and themes cannot remove or restyle it. It is not in
 the branded chrome: a host's customers see the host's brand everywhere they look, and the notice is
 where the licence needs it to be rather than where a brand would notice it.
+
+> As built, 2026-10-17. The control plane answers `/about/source` on its address whether or not
+> it serves a panel, unstyled and under a policy that runs no script and loads no style, naming
+> its own version, revision, and source, and the panel's revision and source when the bundle in
+> `--web-root` says them in the `about/source.json` its build writes. The bundle also carries
+> `about/source/index.html`, the same said for itself, so a panel served from a CDN meets the
+> licence without a control plane in front of it.
 
 **What a theme is, designed 2026-10-16.** A `Theme` belongs to an organization and is inherited by
 everything beneath it unless a descendant sets its own, as a layout is (question 2): a product

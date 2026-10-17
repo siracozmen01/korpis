@@ -106,5 +106,6 @@ mod volume_attach;
 mod volume_delete;
 mod volumes;
 mod watch;
+mod web;
 mod workload;
 mod zone;

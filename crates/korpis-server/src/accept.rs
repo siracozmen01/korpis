@@ -4,12 +4,13 @@
 //! configured proxy addresses must open with a PROXY header, and the client it names is the
 //! peer every handler sees, as `source_cidr` is judged by; a connection from anywhere else is its
 //! own client, and a header it sends is not read as one, because a header anyone can send is not
-//! an address. connectrpc's own server reads no header, so these connections are accepted here
-//! and served by the same hyper, with the same bounds on a slow handshake.
+//! an address. connectrpc's own server reads no header and serves nothing but the API, so every
+//! connection is accepted here and served by the same hyper, with bounds on a slow handshake,
+//! through the front that answers the panel's files beside the API (`crate::front`).
 
 pub mod proxy;
 
-use connectrpc::ConnectRpcService;
+use crate::front::Front;
 use connectrpc::server::PeerAddr;
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder;
@@ -27,20 +28,14 @@ const HANDSHAKE: Duration = Duration::from_secs(10);
 /// How long a connection has to send its first request's headers.
 const HEADERS: Duration = Duration::from_secs(30);
 
-/// Serves `service` on `listener` with `tls`: with connectrpc's own server when no proxy is
-/// configured, and with [`serve`] when one is. Ends only on failure.
+/// Serves `service` on `listener` with `tls`, as [`serve`] does. Ends only on failure.
 pub async fn serve_on(
     listener: TcpListener,
     tls: Arc<rustls::ServerConfig>,
-    service: ConnectRpcService,
+    service: Front,
     proxies: Arc<[IpNet]>,
 ) -> Result<(), String> {
-    if proxies.is_empty() {
-        let bound = connectrpc::server::Server::from_listener(listener).with_tls(tls);
-        bound.serve_with_service(service).await.map_err(|e| e.to_string())
-    } else {
-        serve(listener, tls, service, proxies).await.map_err(|e| e.to_string())
-    }
+    serve(listener, tls, service, proxies).await.map_err(|e| e.to_string())
 }
 
 /// Serves `service` on `listener` with `tls`, reading a PROXY header from every connection whose
@@ -48,7 +43,7 @@ pub async fn serve_on(
 pub async fn serve(
     listener: TcpListener,
     tls: Arc<rustls::ServerConfig>,
-    service: ConnectRpcService,
+    service: Front,
     proxies: Arc<[IpNet]>,
 ) -> std::io::Result<()> {
     let acceptor = TlsAcceptor::from(tls);
@@ -87,7 +82,7 @@ async fn client(
 async fn connection(
     mut stream: TcpStream,
     peer: SocketAddr,
-    (acceptor, service): (&TlsAcceptor, ConnectRpcService),
+    (acceptor, service): (&TlsAcceptor, Front),
     proxies: &[IpNet],
 ) -> Result<(), String> {
     let client = client(&mut stream, peer, proxies).await?;
