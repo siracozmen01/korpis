@@ -14,7 +14,8 @@ use korpis_proto::korpis::v1::__buffa::oneof::subject::Kind;
 use korpis_server::api::wire::principal;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-fn in_an_hour() -> buffa_types::google::protobuf::Timestamp {
+/// An hour from now, as a link's expiry.
+pub fn in_an_hour() -> buffa_types::google::protobuf::Timestamp {
     let at = SystemTime::now() + Duration::from_secs(3600);
     let seconds = i64::try_from(at.duration_since(UNIX_EPOCH).unwrap().as_secs()).unwrap();
     buffa_types::google::protobuf::Timestamp { seconds, ..Default::default() }

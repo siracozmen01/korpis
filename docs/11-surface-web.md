@@ -155,6 +155,14 @@ admin view with holes cut in it.
 Existence follows read authority (§8 of `10-api.md`), so a workload the viewer cannot read is not
 rendered as locked. It is not rendered.
 
+> As built, 2026-10-17 (`web/src/views/Places.tsx`). The navigation starts from the caller's own
+> grants, every page of them, each working one opening the organization, project, or workload it
+> is anchored on (a selector grant, the object it selects within); a grant on anything else is
+> not a place and is not shown as one. An organization lists its organizations and projects and a
+> project its workloads, each list only what the API returns, a page at a time with the next
+> offered while one exists, never cut at the first page as if it were all. A place the caller
+> cannot read is left out; a read that failed for another reason is said, not hidden.
+
 ---
 
 ## 6. Sharing
@@ -182,6 +190,16 @@ grant. The dialog shows the use cap and its cost before the link exists, because
 `08-identity.md` makes caps a default and §6.2 makes them depend on the control plane; the first
 version of this screen showed neither (finding S29). A link can never be used to make further links
 (§3.2 of `08-identity.md`), and the screen does not offer it.
+
+> As built, 2026-10-17 (`web/src/views/LinkShell.tsx`). `/g/#korpislk_…` opens the link's screen:
+> every call carries the link and no cookie, the link's own grant says in words what it allows,
+> until when, and how many uses in all, and the object it is for is shown under `/g`. Reading
+> the grant spends nothing; a workload's screen is its watch, one call, so opening it spends one
+> use however long it stays open (Finding 76 of `23-walkthroughs.md`). A reload forgets the link,
+> which lives only in memory, and the screen asks for it to be opened again rather than failing.
+> A link for an organization or a project shows its lists empty, because a listing spends nothing
+> and so shows a use-limited grant nothing (§6.1 of `08-identity.md`); a link is for one object,
+> and the screen that issues links (P1.12e6) issues them for workloads.
 
 ---
 

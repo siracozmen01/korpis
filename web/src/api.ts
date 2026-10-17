@@ -16,6 +16,7 @@ import {
 } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { type Clients, clientsOver, linkTransport } from "./clients";
 import { AccountService } from "./gen/korpis/v1/account_pb";
 import { ProfileService } from "./gen/korpis/v1/profile_pb";
 import { SessionService } from "./gen/korpis/v1/session_pb";
@@ -80,3 +81,18 @@ export const sessions: Client<typeof SessionService> = createClient(SessionServi
 
 /** The profile service, called as the signed-in user: factors, and re-authenticating. */
 export const profiles: Client<typeof ProfileService> = createClient(ProfileService, signedIn);
+
+/** The navigation's clients, as the signed-in user. */
+export const signedInClients: Clients = clientsOver(signedIn);
+
+const linked = new Map<string, Clients>();
+
+/** The navigation's clients as the holder of the share link `link`, made once per link. */
+export function linkClients(link: string): Clients {
+  let clients = linked.get(link);
+  if (clients === undefined) {
+    clients = clientsOver(linkTransport(controlPlane(), link));
+    linked.set(link, clients);
+  }
+  return clients;
+}

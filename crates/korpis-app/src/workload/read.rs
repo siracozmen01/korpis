@@ -156,6 +156,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// One workload the caller may read, deleted or not.
     pub async fn get_workload(&self, caller: &Caller, id: Uuid) -> Result<WorkloadView, AppError> {
         self.authorize(caller, "workload.read", ObjectRef::new(Kind::Workload, id)).await?;
+        self.workload_view(caller, id).await
+    }
+
+    /// The view of a workload whose read has been authorized.
+    pub(crate) async fn workload_view(
+        &self,
+        caller: &Caller,
+        id: Uuid,
+    ) -> Result<WorkloadView, AppError> {
         let w = self.store.workload(id).await?.ok_or(AppError::NotFound { kind: "workload" })?;
         let mut views = self.views(caller, vec![w]).await?;
         views.pop().ok_or_else(|| AppError::Internal(format!("workload {id} rendered nothing")))

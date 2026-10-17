@@ -1110,6 +1110,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 73 | A device cookie outlived the password it was earned with | §38 | `08-identity.md` §9.6 |
 | 74 | A device authorization's approval began a session for an account that could no longer sign in | §38 | `08-identity.md` §9.4 |
 | 75 | An approval outlived the session that gave it | §38 | `08-identity.md` §9.4 |
+| 76 | A watch through a share link spent a use on every change it heard | §38 | `08-identity.md` §6.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2510,6 +2511,7 @@ drops, and shares the console with a moderator.
 | 9 | The machine's control plane stops; the friend's cached panel loads and shows every value unknown, with how long the control plane has been unreachable | `11-surface-web.md` §10, question 3 |
 | 10 | A month later the friend adds the laptop as a second passkey: signed in more than ten minutes ago, the panel is refused `session.not_recent`, re-authenticates with the phone's passkey, and registers the laptop's | `08-identity.md` §9.4, §9.6 |
 | 11 | The operator signs the CLI in on the machine: `korpis login` prints a user code and the panel's device page, the operator approves the code in the panel, shown that a command-line client on the machine's address asked, and the CLI's next poll receives a session of its own | `08-identity.md` §9.4; `13-surface-cli.md` §7 |
+| 12 | The moderator opens the link: the control plane answers `/g/` with the panel, which takes the link from the fragment and clears it, reads the link's own grant to say what it allows, and opens the workload's watch, which spends one of the three uses however long it stays open and however many changes it hears | `11-surface-web.md` §6; `08-identity.md` §6.1 |
 
 Each step was asked what evaluates it, where, and with what. Steps 1 and 3 are the control plane's:
 it holds the invitation's digest, verifies the attestation-free registration against its own site
@@ -2526,7 +2528,10 @@ the control plane's: the session row holds when it last signed in or re-authenti
 access token names the session, so the change reads the one beside the other. Step 11 is the
 control plane's twice: approving reads the panel session's last sign-in as step 10 does, and the
 poll finds the decision on the row its device code's digest names, which nothing but that CLI
-holds.
+holds. Step 12 is the gateway's: it verifies the link against the token key and finds its grant
+as it stands, reading a grant one holds spends nothing, and the watch's first read is the call
+it counts; each later read is evaluated through that same grant as a renewal is, which Finding
+76 found it was not.
 
 **FINDING 66: A reseller's address could not host its customers' sign-in. `CONFIRMED`**
 
@@ -2716,3 +2721,24 @@ begins nothing; the test signs the approving session out before the poll and fin
 begun. → `08-identity.md` §9.4; built in `crates/korpis-store/src/device_grant.rs` and
 `crates/korpis-app/src/account/device_grant.rs`; tested in
 `crates/korpis-app/tests/accounts/device_grant.rs`.
+
+**FINDING 76: A watch through a share link spent a use on every change it heard. `CONFIRMED`**
+
+Found 2026-10-17 while building step 12, asking what the link's screen costs, and confirmed by
+a test. §6.1 of `08-identity.md` makes a use a redemption, and the calls that keep what it opened
+alive renewals that spend nothing, which is what lets a three-use link open three consoles of any
+length. A workload's watch read the workload again on every change with the same authorization
+as a fresh read, so each re-read spent a use: a three-use link opened the moderator's screen and
+then went dark after two changes, and every screen it opened was one use short. The watch was
+built before links were, and Finding 46 made every authorized call spend without asking which
+calls continue one already paid for.
+
+**Resolution.** Opening the watch is the read that spends; the watch keeps the grant that
+authorized it, and each later read is evaluated through that grant alone, as it stands (revoked
+or expired, it ends the watch with the refusal a fresh read would get), and as a renewal, spending
+nothing and permitted even after the grant's last use was taken elsewhere. Only that grant is
+consulted, so a continuation is never paid for by another. → `08-identity.md` §6.1; built in
+`crates/korpis-app/src/workload/watch.rs` with `authorize_continued` in
+`crates/korpis-app/src/authz/gateway.rs`; tested in `crates/korpis-server/tests/api/watch.rs`,
+which opens a one-use link's watch, finds a fresh read refused, hears the next change anyway, and
+ends with the revocation.

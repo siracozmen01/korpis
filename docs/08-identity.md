@@ -836,7 +836,9 @@ else spent a use either way (Finding 46 of `23-walkthroughs.md`): minting refuse
 grant outright, so a link could not open a console at all, while list filtering, event delivery,
 and plan approval accepted one without spending it, so a link could be used without limit
 through them. Now a check that spends nothing permits nothing to a use-limited grant, and
-approval spends a use.
+approval spends a use. A workload's watch spends one when it opens and none for the reads that
+keep it current, which continue through the grant that paid, as a renewal does, until it is
+revoked or expires (Finding 76 of `23-walkthroughs.md`).
 
 What it costs: a link is unusable while the control plane is unreachable, which every link with a
 use cap already was (§6.2), and which every link now is. Rotating the token key ends every link

@@ -209,6 +209,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
+    /// Authorizes a call that continues one already authorized through the grant `through`, as
+    /// each later read of a watch does: the grant is evaluated as it stands, so revocation,
+    /// expiry, and its conditions still end it, but no use is spent and a grant whose last use
+    /// was taken still permits it, because the call it continues spent the one it costs (§6.1
+    /// of docs/08-identity.md). Only that grant is consulted, so the continuation is never paid
+    /// for by another.
+    pub(crate) async fn authorize_continued(
+        &self,
+        caller: &Caller,
+        action: &str,
+        object: ObjectRef,
+        through: Uuid,
+    ) -> Result<Permit, AppError> {
+        let action = core_action(action)?;
+        match self.decide_as(caller, (&action, object), Some(through), true).await? {
+            Decision::Permit(permit) => Ok(permit),
+            Decision::Propose { .. } | Decision::Deny(_) => {
+                Err(self.refuse(caller, &action, object).await)
+            }
+        }
+    }
+
     /// Spends one use of a use-limited grant that permitted a call, by compare-and-swap, before
     /// the call proceeds (§6.2 of docs/08-identity.md). A use is spent when the call is
     /// authorized, whether or not the call then succeeds, so a grant is never used more often
