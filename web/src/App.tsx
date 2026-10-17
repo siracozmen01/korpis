@@ -29,7 +29,7 @@ import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
 
 /** The signed-in user's clients, and links written from the panel's root. */
-const signedInReach = { clients: signedInClients, base: "" };
+const signedInReach = { clients: signedInClients, base: "", metered: false };
 
 /** Where signing in returns to: a path of this panel's own, never another site's. */
 export function returnTo(search: string): string {

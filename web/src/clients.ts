@@ -56,6 +56,9 @@ export function linkTransport(baseUrl: string, link: string): Transport {
 export interface Reach {
   readonly clients: Clients;
   readonly base: string;
+  /** Each call spends a use of a use-limited grant, as a share link's do: nothing is called
+   * again without being asked. */
+  readonly metered: boolean;
 }
 
 const ReachContext = createContext<Reach | undefined>(undefined);

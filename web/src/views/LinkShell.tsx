@@ -53,7 +53,7 @@ export function LinkShell(props: { readonly clients: Clients | undefined; readon
 }
 
 function Held({ clients, path }: { readonly clients: Clients; readonly path: string }) {
-  const reach = useMemo(() => ({ clients, base: LINK_BASE }), [clients]);
+  const reach = useMemo(() => ({ clients, base: LINK_BASE, metered: true }), [clients]);
   const own = useLoad(
     useCallback(async () => (await clients.grants.listGrants({})).grants[0], [clients]),
   );

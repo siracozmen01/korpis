@@ -48,7 +48,7 @@ function reach() {
           : { workloads: [{ workload: { id: "wl_2", name: "second" } }] },
     });
   });
-  return { clients: clientsOver(transport), base: "" };
+  return { clients: clientsOver(transport), base: "", metered: false };
 }
 
 test("the navigation starts at what every held grant opens, and leaves out what cannot be read", async () => {

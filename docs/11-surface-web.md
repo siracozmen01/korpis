@@ -86,6 +86,15 @@ Memory, disk, network, uptime, and player counts all carry an observation timest
 identical to one that flatlines because a process idled, unless the interface distinguishes them,
 and here it does.
 
+> As built, 2026-10-17 (`web/src/workload`). A workload's screen is its watch. Known is a current
+> observation, which the control plane decides (its node heard, §4.3 of `02-architecture.md`),
+> heard live; stale is the panel no longer hearing, the value dimmed with how long ago it was
+> heard; unknown is no observation, or one the control plane says is not current, shown as
+> "unknown" with the last one and its age beside it. A resource not reported is unknown, never
+> 0. Ages grow on screen each second. A signed-in screen opens a dropped watch again by itself,
+> waiting from one second up to thirty; a share link's screen asks, because each opening spends
+> a use. The lists of workloads show each one's convergence as the list was read.
+
 ---
 
 ## 3. Convergence is visible
@@ -108,6 +117,17 @@ diagnosis. A greyed-out button is not.
 A workload whose observed state disagrees with its declared state is not an error condition to be
 hidden; it is the normal, temporary state of a converging system, and it is displayed as such, with
 the reason if one is known, and with what Korpis is currently doing about it.
+
+> As built, 2026-10-17. The stage is the convergence the control plane computed, and the
+> sentence is built from what the status holds: applying names the step its node reported, or,
+> before any, how long ago the target was declared and that its node has not acknowledged;
+> failing says it crashed (with the exit code) or why its node cannot run it; not placed lists
+> the checks that ruled out nodes; awaiting approval and scheduled say so, scheduled with when;
+> unknown says how long the node has not been heard. The control plane keeps no record of when
+> a node acknowledged or converged beyond the effect log, so the panel times each moment as it
+> hears it, at the observation that first showed it, and a moment that passed before the
+> screen opened is shown as done, without a time it does not have. A node counts as having
+> acknowledged once it reports a step of the active plan or has converged.
 
 ---
 

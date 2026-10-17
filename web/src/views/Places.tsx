@@ -12,6 +12,7 @@ import { type Entry, entries, pathOf } from "./entries";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
+import { CONVERGENCE } from "../workload/words";
 
 /** The places the caller's grants open. */
 export function Home() {
@@ -150,7 +151,9 @@ export function ProjectPage({ id }: { readonly id: string }) {
         project: id,
         page: { pageSize: PAGE_SIZE, pageToken },
       });
-      const items = r.workloads.flatMap((s) => (s.workload === undefined ? [] : [s.workload]));
+      const items = r.workloads.flatMap((s) =>
+        s.workload === undefined ? [] : [{ workload: s.workload, convergence: s.convergence }],
+      );
       return { items, next: r.page?.nextPageToken ?? "" };
     },
     [workloads, id],
@@ -163,9 +166,10 @@ export function ProjectPage({ id }: { readonly id: string }) {
         what="its workloads"
         title="Workloads"
         empty="None you can read."
-        item={(w) => (
+        item={({ workload: w, convergence }) => (
           <li key={w.id}>
-            <Link href={pathOf(base, { kind: "workload", id: w.id })}>{w.name}</Link>
+            <Link href={pathOf(base, { kind: "workload", id: w.id })}>{w.name}</Link>{" "}
+            <small>{CONVERGENCE[convergence]}</small>
           </li>
         )}
       />

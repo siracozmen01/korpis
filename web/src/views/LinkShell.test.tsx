@@ -45,7 +45,7 @@ test("a share link's screen holds exactly its workload and says what the link al
   expect(
     screen.getByText(/lets you see its status, restart it\. It can be used 3 times/),
   ).toBeTruthy();
-  expect(screen.getByText("Declared: running")).toBeTruthy();
+  expect(screen.getByText(/Declared running/)).toBeTruthy();
   expect(watched).toEqual(["wl_b"]);
 });
 
