@@ -263,9 +263,20 @@ workload's volumes bind-mounted at their declared paths under an empty root, Lan
 every path resolved beneath that root (`openat2` with `RESOLVE_BENEATH`), no network, and only the
 capabilities a file owner needs. It sees the workload's volumes and nothing else, so the session
 can name only paths within them, and a symbolic link that points outside one resolves to nothing.
-Writing runs as the volume's owner inside the workload's user namespace, so what the session
+Writing runs as the workload's root inside the workload's user namespace, so what the session
 writes is the workload's and counts against the volume's quota in the write path (§3): a full
-volume refuses a write with `EDQUOT`, which the session reports as the volume being full.
+volume refuses a write with `EDQUOT`, which the session reports as the volume being full. What a
+session makes, a file or a directory, is given to the owner of the directory it is made in, so a
+workload that runs as a user other than its root can change what was uploaded for it.
+
+> Corrected 2026-10-17, while building the worker. This paragraph said the worker writes "as the
+> volume's owner". A workload's volume holds files of several of its users, and the worker serves
+> all of a workload's volumes at once, so no single owner exists to run as; running as one would
+> also make every file of another user unreadable to the session. The worker runs as the
+> workload's root, holding only `CAP_CHOWN`, `CAP_FOWNER`, and `CAP_DAC_OVERRIDE` in a session
+> that writes and `CAP_DAC_READ_SEARCH` in one that reads, each over the workload's ids alone,
+> and gives what it makes to the directory's owner, which is what "the owner's" was for: a server
+> running as uid 1000 owns the plugin uploaded into its directory.
 
 **What a session can do**: list a directory, page by page; read a file's metadata; read a file
 from an offset; write to a file at an offset, creating it or truncating it first if asked; make a
@@ -302,9 +313,16 @@ when it ends, so an auditor sees a long session's changes when it closes, not as
 > replaces what is there; reads and writes move at most a mebibyte and serve only a regular
 > file, never waiting on a FIFO the tenant made; a recursive remove goes at most 128 levels
 > down; a listing holds a page of names, however large the directory (Finding 79 of
-> `23-walkthroughs.md`). Not built yet: the worker
-> process and its confinement, the helper's verb that starts it, and the node's handler that
-> carries a session to it, which are what make this reachable.
+> `23-walkthroughs.md`). The worker is `korpis-fsworker`: the helper's `OpenFiles` verb checks
+> the workload's id range against its ledger and each volume path as an install's, starts the
+> worker with one end of a socket pair, and answers with the other, so a session's bytes never
+> pass through the helper. The worker builds the install worker's root (§4 of `09-recipes.md`),
+> confines itself with Landlock to its volumes (their reading alone in a session that reads),
+> drops every capability but those above, and serves one length-prefixed `FileRequest` after
+> another until the socket closes. Each path is served by the volume mounted at its longest
+> prefix, beneath that volume's own descriptor, so a volume inside another is reached as itself;
+> the root they are mounted in can be listed and nothing in it changed. Not built yet: the
+> node's handler that carries a session from a relay to the worker and records its effect.
 
 ## 4. Snapshots are not backups
 

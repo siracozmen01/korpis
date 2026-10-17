@@ -1138,8 +1138,11 @@ namespace.
 
 > As built, 2026-10-15, for installs: the helper's verb is `StartJob` with install work, and the
 > worker is `korpis-install-job`, running as the workload's own ids in a user namespace with its
-> volumes idmapped into it (§4 of `09-recipes.md`). The worker that serves the tenant's file API
-> is not yet built.
+> volumes idmapped into it (§4 of `09-recipes.md`). As built, 2026-10-17, for file sessions: the
+> verb is `OpenFiles`, and the worker is `korpis-fsworker`, built on the same root and the same
+> confinement (`korpis_confine::root`), started for one session and gone when the session's
+> socket closes rather than socket-activated and idle-timed, which is the same cost bound: a
+> process per workload whose files someone has open (§3.2 of `06-storage.md`).
 
 > Second external review, finding S79. Recorded in §17 of `23-walkthroughs.md`. The first version
 > ran one worker per **tenant**, inside "that tenant's mount namespace". A tenant has no single

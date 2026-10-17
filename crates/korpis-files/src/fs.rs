@@ -96,6 +96,33 @@ fn kind(t: FileType) -> Kind {
     }
 }
 
+/// `rel` beneath `at`, opened with `flags`, no link followed.
+fn open_in(at: &OwnedFd, rel: &str, flags: OFlags, mode: u32) -> Result<OwnedFd, Fault> {
+    let flags = flags | OFlags::CLOEXEC | OFlags::NOFOLLOW;
+    // A mode is given only with O_CREAT; openat2 refuses one otherwise.
+    let mode = if flags.contains(OFlags::CREATE) { mode } else { 0 };
+    Ok(openat2(at, rel, flags, Mode::from_raw_mode(mode), WALK)?)
+}
+
+/// `fd` if it is a regular file: a FIFO, a socket, or a device is neither read nor written by a
+/// file session.
+fn regular(fd: OwnedFd) -> Result<OwnedFd, Fault> {
+    match FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode) {
+        FileType::RegularFile => Ok(fd),
+        FileType::Directory => Err(Fault::IsADirectory),
+        _ => Err(Fault::Refused),
+    }
+}
+
+/// Gives `made` to the owner of `parent`, the directory it was made in: the session writes as
+/// the workload's root, and a workload running as another of its users could otherwise not
+/// change what was uploaded for it.
+fn owned_as(parent: &OwnedFd, made: &OwnedFd) -> Result<(), Fault> {
+    let s = rustix::fs::fstat(parent)?;
+    let (uid, gid) = (rustix::fs::Uid::from_raw(s.st_uid), rustix::fs::Gid::from_raw(s.st_gid));
+    Ok(rustix::fs::fchown(made, Some(uid), Some(gid))?)
+}
+
 /// The parent directory of `path` beneath `root`, and the last component.
 fn split(path: &str) -> Result<(&str, &str), Fault> {
     let p = relative(path);
@@ -114,10 +141,7 @@ impl Root {
     }
 
     fn open(&self, path: &str, flags: OFlags, mode: u32) -> Result<OwnedFd, Fault> {
-        let flags = flags | OFlags::CLOEXEC | OFlags::NOFOLLOW;
-        // A mode is given only with O_CREAT; openat2 refuses one otherwise.
-        let mode = if flags.contains(OFlags::CREATE) { mode } else { 0 };
-        Ok(openat2(&self.fd, relative(path), flags, Mode::from_raw_mode(mode), WALK)?)
+        open_in(&self.fd, relative(path), flags, mode)
     }
 
     fn dir(&self, path: &str) -> Result<OwnedFd, Fault> {
@@ -182,18 +206,29 @@ impl Root {
 
     /// `path` opened with `flags` as a regular file: never blocking on a FIFO a tenant made, and
     /// refusing a FIFO, a socket, or a device, which a file session neither reads nor writes.
-    fn file(&self, path: &str, flags: OFlags, mode: u32) -> Result<OwnedFd, Fault> {
-        let fd = self.open(path, flags | OFlags::NONBLOCK, mode)?;
-        match FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode) {
-            FileType::RegularFile => Ok(fd),
-            FileType::Directory => Err(Fault::IsADirectory),
-            _ => Err(Fault::Refused),
+    fn file(&self, path: &str, flags: OFlags) -> Result<OwnedFd, Fault> {
+        regular(self.open(path, flags | OFlags::NONBLOCK, 0)?)
+    }
+
+    /// As [`Self::file`], made first if it is not there, and then given to the owner of the
+    /// directory it is in.
+    fn created(&self, path: &str, flags: OFlags) -> Result<OwnedFd, Fault> {
+        let (dir, name) = split(path)?;
+        let at = self.dir(dir)?;
+        let flags = flags | OFlags::NONBLOCK;
+        match open_in(&at, name, flags | OFlags::CREATE | OFlags::EXCL, 0o644) {
+            Ok(fd) => {
+                owned_as(&at, &fd)?;
+                Ok(fd)
+            }
+            Err(Fault::Exists) => regular(open_in(&at, name, flags, 0)?),
+            Err(e) => Err(e),
         }
     }
 
     /// At most `length` bytes of `path` from `offset`, never more than a chunk.
     pub fn read(&self, path: &str, offset: u64, length: usize) -> Result<Vec<u8>, Fault> {
-        let fd = self.file(path, OFlags::RDONLY, 0)?;
+        let fd = self.file(path, OFlags::RDONLY)?;
         let mut buf = vec![0u8; length.min(CHUNK)];
         let n = rustix::io::pread(&fd, &mut buf, offset)?;
         buf.truncate(n);
@@ -213,14 +248,8 @@ impl Root {
         if data.len() > CHUNK || (truncate && offset != 0) {
             return Err(Fault::Refused);
         }
-        let mut flags = OFlags::WRONLY;
-        if create {
-            flags |= OFlags::CREATE;
-        }
-        if truncate {
-            flags |= OFlags::TRUNC;
-        }
-        let fd = self.file(path, flags, 0o644)?;
+        let flags = if truncate { OFlags::WRONLY | OFlags::TRUNC } else { OFlags::WRONLY };
+        let fd = if create { self.created(path, flags)? } else { self.file(path, flags)? };
         let mut done = 0;
         while let Some(rest) = data.get(done..).filter(|r| !r.is_empty()) {
             let at = offset + u64::try_from(done).unwrap_or(u64::MAX);
@@ -233,7 +262,9 @@ impl Root {
     pub fn mkdir(&self, path: &str) -> Result<(), Fault> {
         self.writable()?;
         let (dir, name) = split(path)?;
-        Ok(rustix::fs::mkdirat(&self.dir(dir)?, name, Mode::from_raw_mode(0o755))?)
+        let at = self.dir(dir)?;
+        rustix::fs::mkdirat(&at, name, Mode::from_raw_mode(0o755))?;
+        owned_as(&at, &open_in(&at, name, OFlags::RDONLY | OFlags::DIRECTORY, 0)?)
     }
 
     /// Renames `from` to `to`, refusing to replace anything; across volumes refused.

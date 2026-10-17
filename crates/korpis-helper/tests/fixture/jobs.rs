@@ -23,6 +23,11 @@ pub fn install_binary() -> PathBuf {
     built("korpis-install", "korpis-install-job")
 }
 
+/// The file session worker binary, built where this test was.
+pub fn files_binary() -> PathBuf {
+    built("korpis-files", "korpis-fsworker")
+}
+
 /// The binary `bin` of `package`, built where this test was.
 fn built(package: &str, bin: &str) -> PathBuf {
     let exe = std::env::current_exe().unwrap();

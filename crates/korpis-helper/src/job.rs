@@ -50,6 +50,33 @@ pub struct JobConfig {
     pub content: Option<PathBuf>,
 }
 
+/// The cgroup `name` beneath `base`, made with a job's limits, or none where none can be made.
+pub(crate) fn cgroup_in(base: &Path, name: &str) -> Option<PathBuf> {
+    if let Err(e) = std::fs::create_dir_all(base) {
+        tracing::warn!(error = %e, "no cgroup for jobs");
+        return None;
+    }
+    for controller in ["+cpu", "+io", "+memory", "+pids"] {
+        let _ = std::fs::write(base.join("cgroup.subtree_control"), controller);
+    }
+    let dir = base.join(name);
+    match std::fs::create_dir(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => {
+            tracing::warn!(error = %e, %name, "no cgroup");
+            return None;
+        }
+    }
+    for (file, value) in LIMITS {
+        // A controller the host has not enabled has no file; its limit is then not applied.
+        if let Err(e) = std::fs::write(dir.join(file), value) {
+            tracing::debug!(error = %e, %file, "a job limit not applied");
+        }
+    }
+    Some(dir)
+}
+
 /// The jobs this helper started, and how to start more.
 #[derive(Debug)]
 pub struct Jobs {
@@ -195,30 +222,7 @@ impl Jobs {
 
     /// The cgroup made for `job`, or none where none can be made, which the job then reports.
     fn cgroup(&self, job: &str) -> Option<PathBuf> {
-        let base = self.config.cgroups.as_ref()?;
-        if let Err(e) = std::fs::create_dir_all(base) {
-            tracing::warn!(error = %e, "no cgroup for jobs");
-            return None;
-        }
-        for controller in ["+cpu", "+io", "+memory", "+pids"] {
-            let _ = std::fs::write(base.join("cgroup.subtree_control"), controller);
-        }
-        let dir = base.join(format!("job-{job}"));
-        match std::fs::create_dir(&dir) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(e) => {
-                tracing::warn!(error = %e, %job, "no cgroup for the job");
-                return None;
-            }
-        }
-        for (file, value) in LIMITS {
-            // A controller the host has not enabled has no file; its limit is then not applied.
-            if let Err(e) = std::fs::write(dir.join(file), value) {
-                tracing::debug!(error = %e, %file, "a job limit not applied");
-            }
-        }
-        Some(dir)
+        cgroup_in(self.config.cgroups.as_ref()?, &format!("job-{job}"))
     }
 
     /// The pid of `job` if a process of its job binary has it.

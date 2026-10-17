@@ -83,6 +83,7 @@ message HelperRequest {
     OpenIngressRequest open_ingress = 19;
     StartIngressRequest start_ingress = 20;
     StopIngressRequest stop_ingress = 21;
+    OpenFilesRequest open_files = 22;
   }
 }
 
@@ -111,6 +112,7 @@ message HelperResponse {
     OpenIngressResponse open_ingress = 20;
     StartIngressResponse start_ingress = 21;
     StopIngressResponse stop_ingress = 22;
+    OpenFilesResponse open_files = 23;
   }
 }
 
@@ -203,6 +205,49 @@ message OpenResolverRequest {
 // is listening. Each belongs to the workload's namespace, wherever its holder runs.
 message OpenResolverResponse {
   uint32 attached = 1;
+}
+
+// Opens a file session on a workload's volumes (§3.2 of docs/06-storage.md): the helper starts a
+// filesystem worker that sees those volumes and nothing else, confined as an install's worker is,
+// and answers with the session's socket.
+message OpenFilesRequest {
+  // The workload, and the base of the id range it holds, which the worker runs as: the helper
+  // refuses a range its ledger does not record for that workload.
+  string workload = 1;
+  uint32 id_base = 2;
+  // Each volume by the absolute path the workload sees it at, as an install names them.
+  repeated FileVolume volumes = 3;
+  // Whether the session may change what it sees; it only reads otherwise.
+  bool write = 4;
+}
+
+// One volume of a file session.
+message FileVolume {
+  // The absolute path the workload sees it at: no '.' or '..' component, none beneath /.korpis,
+  // and no two the same.
+  string path = 1;
+  // The volume, by its identifier.
+  string volume = 2;
+  // Filled in by the helper for the worker: the directory it is.
+  string directory = 3;
+}
+
+// The session's socket is attached to this answer's frame as SCM_RIGHTS: a stream on which each
+// korpis.v1.FileRequest is written, and each korpis.v1.FileResponse read, as four bytes of
+// little-endian length and then the message. Closing it ends the worker.
+message OpenFilesResponse {
+  uint32 attached = 1;
+}
+
+// What the helper gives the filesystem worker on its standard input; the session is its output.
+message FileWorkerSpec {
+  // The empty directory its root is built on, in its own mount namespace.
+  string root = 1;
+  uint32 id_base = 2;
+  repeated FileVolume volumes = 3;
+  bool write = 4;
+  // The cgroup it joins first; empty to stay in the helper's.
+  string cgroup = 5;
 }
 
 // Opens ports 80 and 443 on each of the node's advertised addresses, for its ingress proxy (§3.2

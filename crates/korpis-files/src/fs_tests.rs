@@ -98,3 +98,27 @@ fn a_fifo_is_refused_not_waited_on_and_a_tree_too_deep_is_refused_not_walked() {
     assert_eq!(r.stat("/..").unwrap_err(), Fault::Refused, "never the root's metadata");
     assert_eq!(r.stat("/").unwrap().kind, Kind::Directory);
 }
+
+#[test]
+fn what_a_session_makes_is_its_directory_s_owner_s_and_what_was_there_keeps_its_owner() {
+    use std::os::unix::fs::MetadataExt as _;
+    if !rustix::process::geteuid().is_root() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path().join("home");
+    std::fs::create_dir(&home).unwrap();
+    std::os::unix::fs::chown(&home, Some(1000), Some(1001)).unwrap();
+    std::fs::write(home.join("kept"), b"x").unwrap();
+    let r = root(dir.path(), true);
+    r.write("/home/up.jar", 0, b"jar", true, true).unwrap();
+    r.mkdir("/home/plugins").unwrap();
+    r.write("/home/kept", 0, b"y", true, false).unwrap();
+    let owner = |n: &str| {
+        let m = std::fs::metadata(home.join(n)).unwrap();
+        (m.uid(), m.gid())
+    };
+    assert_eq!(owner("up.jar"), (1000, 1001));
+    assert_eq!(owner("plugins"), (1000, 1001));
+    assert_eq!(owner("kept"), (0, 0));
+}

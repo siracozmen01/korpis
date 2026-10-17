@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A file session's requests answered (`files.proto`): each `FileRequest` is one verb on the
-//! root, and its `FileResponse` carries what it returned or why it was not done. A refused
-//! request ends nothing; the session goes on to the next.
+//! workload's volumes, and its `FileResponse` carries what it returned or why it was not done. A
+//! refused request ends nothing; the session goes on to the next.
 
-use crate::fs::{CHUNK, Entry, Fault, Kind, Root};
+use crate::fs::{CHUNK, Entry, Fault, Kind};
+use crate::volumes::Volumes;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request;
 use korpis_proto::korpis::v1::__buffa::oneof::file_response::Response;
@@ -56,9 +57,9 @@ fn entry(e: Entry) -> pb::FileEntry {
     }
 }
 
-/// The answer to `request` on `root`.
+/// The answer to `request` on `volumes`.
 #[must_use]
-pub fn answer(root: &Root, request: pb::FileRequest) -> pb::FileResponse {
+pub fn answer(root: &Volumes, request: pb::FileRequest) -> pb::FileResponse {
     let response = match done(root, request.request) {
         Ok(r) => r,
         Err(f) => {
@@ -73,7 +74,7 @@ pub fn answer(root: &Root, request: pb::FileRequest) -> pb::FileResponse {
     pb::FileResponse { id: request.id, response: Some(response), ..Default::default() }
 }
 
-fn done(root: &Root, request: Option<Request>) -> Result<Response, Fault> {
+fn done(root: &Volumes, request: Option<Request>) -> Result<Response, Fault> {
     match request.ok_or(Fault::Refused)? {
         Request::List(l) => {
             let limit = usize::try_from(l.limit).unwrap_or(usize::MAX);
@@ -87,7 +88,7 @@ fn done(root: &Root, request: Option<Request>) -> Result<Response, Fault> {
             Ok(Response::Data(root.read(&r.path, r.offset, length)?))
         }
         Request::Write(w) => {
-            Ok(Response::Written(root.write(&w.path, w.offset, &w.data, w.create, w.truncate)?))
+            Ok(Response::Written(root.write(&w.path, w.offset, &w.data, (w.create, w.truncate))?))
         }
         Request::Mkdir(m) => root.mkdir(&m.path).map(|()| Response::Done(true)),
         Request::Rename(r) => root.rename(&r.from, &r.to).map(|()| Response::Done(true)),

@@ -34,6 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 korpis-agent = { path = "../korpis-agent" }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 korpis-core = { workspace = true }
+korpis-files = { path = "../korpis-files" }
 korpis-wire = { workspace = true }
 rustix = { version = "1", features = ["process"] }
 sha2 = "0.10"

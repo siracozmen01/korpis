@@ -26,7 +26,7 @@ const OUT: &str = "out";
 
 /// Checks a path a workload sees a volume at: absolute, each component plain, none beneath
 /// `/.korpis`, where the worker keeps the content.
-fn check_path(path: &str) -> HelperResult<()> {
+pub(crate) fn check_path(path: &str) -> HelperResult<()> {
     let refuse = |why: &str| Err(HelperError::Refused(format!("volume path {path:?} {why}")));
     let Some(rest) = path.strip_prefix('/') else { return refuse("is not absolute") };
     let parts: Vec<&str> = rest.split('/').collect();

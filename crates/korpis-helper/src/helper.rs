@@ -18,6 +18,9 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::helper::v1::helper_request::Verb;
 use korpis_proto::korpis::helper::v1::helper_response::Result as Answer;
 
+mod sessions;
+mod snapshots;
+
 /// The helper's state: its classes, the first of them the default, and its ledger.
 #[derive(Debug)]
 pub struct Helper {
@@ -26,6 +29,7 @@ pub struct Helper {
     jobs: Option<Jobs>,
     network: Option<Network>,
     ingress: Option<Ingress>,
+    files: Option<crate::files::Files>,
     /// The user and group of the connection being answered, as the kernel recorded them.
     peer: (u32, u32),
     /// Descriptors the last answer carries, sent with its frame and then closed here.
@@ -50,6 +54,7 @@ impl Helper {
             jobs: None,
             network: None,
             ingress: None,
+            files: None,
             peer: (u32::MAX, u32::MAX),
             attached: Vec::new(),
         }
@@ -144,6 +149,7 @@ impl Helper {
     pub fn busy(&mut self) -> bool {
         self.jobs.as_mut().is_some_and(Jobs::busy)
             || self.ingress.as_mut().is_some_and(Ingress::running)
+            || self.files.as_mut().is_some_and(crate::files::Files::running)
     }
 
     fn jobs(&mut self) -> HelperResult<&mut Jobs> {
@@ -332,27 +338,8 @@ impl Helper {
                     .ensure(&r.workload, IdRange { base: r.uid_base, count: r.uid_count })?;
                 Answer::EnsureIdRange(Box::default())
             }
-            Verb::SnapshotVolume(r) => {
-                let created = self.holding(&r.volume)?.snapshot(&r.volume, &r.snapshot)?;
-                Answer::SnapshotVolume(Box::new(helper::SnapshotVolumeResponse {
-                    created,
-                    ..Default::default()
-                }))
-            }
-            Verb::RollbackVolume(r) => {
-                self.holding(&r.volume)?.rollback(&r.volume, &r.snapshot)?;
-                Answer::RollbackVolume(Box::default())
-            }
-            Verb::DeleteSnapshot(r) => {
-                let deleted = match self.holding(&r.volume) {
-                    Ok(c) => c.delete_snapshot(&r.volume, &r.snapshot)?,
-                    Err(HelperError::NotFound(_)) => false,
-                    Err(e) => return Err(e),
-                };
-                Answer::DeleteSnapshot(Box::new(helper::DeleteSnapshotResponse {
-                    deleted,
-                    ..Default::default()
-                }))
+            v @ (Verb::SnapshotVolume(_) | Verb::RollbackVolume(_) | Verb::DeleteSnapshot(_)) => {
+                self.snapshot_verb(v)?
             }
             v @ (Verb::StartJob(_)
             | Verb::JobStatus(_)
@@ -368,6 +355,7 @@ impl Helper {
                 self.ingress_verb(v)?
             }
             Verb::DescribeStorage(_) => Answer::DescribeStorage(Box::new(self.storage())),
+            Verb::OpenFiles(r) => self.open_files(&r)?,
         })
     }
 

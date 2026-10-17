@@ -2873,10 +2873,15 @@ dependencies = [
 name = "korpis-files"
 version = "0.0.0"
 dependencies = [
+ "buffa",
  "buffa-types",
+ "korpis-confine",
  "korpis-proto",
+ "landlock",
  "rustix",
  "tempfile",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2887,6 +2892,7 @@ dependencies = [
  "korpis-agent",
  "korpis-backup",
  "korpis-core",
+ "korpis-files",
  "korpis-proto",
  "korpis-wire",
  "libc",

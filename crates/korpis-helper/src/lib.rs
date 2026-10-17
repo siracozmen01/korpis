@@ -13,6 +13,7 @@
 
 pub mod btrfs;
 pub mod error;
+pub mod files;
 pub mod frame;
 pub mod helper;
 pub mod ids;
