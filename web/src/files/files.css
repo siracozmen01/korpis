@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/* The file manager: a table that scrolls sideways on a narrow screen rather than the page. */
+
+.files {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  max-width: 100%;
+}
+
+.files th,
+.files td {
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.crumbs,
+.changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}

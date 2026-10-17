@@ -346,6 +346,21 @@ What a file session can do, how an upload resumes, and what is recorded were des
 2026-10-16 in §3.2 of `06-storage.md`; a browser carries the session with the relay's `Watch` and
 `Send` (§3.1 of `02-architecture.md`), since it cannot stream both ways.
 
+> As built, 2026-10-17 (`web/src/files`). The workload's screen shows the file manager to a caller
+> who may read its files, and offers changes only to one who may write them. It opens one session
+> for `workload.file.read` or `workload.file.write`, sends each request with `Send`, one call at
+> a time so the relay's numbering never repeats a frame, and matches each answer heard on the
+> `Watch` to its request by number; a lost session is opened again by itself for a signed-in
+> user and on request through a share link, at the directory last shown. A directory is listed
+> two hundred entries a page; a link is shown and never followed. A download asks a mebibyte at a
+> time, four ahead, and writes each to the file the browser lets the person pick as it arrives,
+> or, in a browser that offers none, keeps it as a Blob saved at the end, which the browser may
+> hold on disk; the whole file is never in the page's own memory either way. An upload sends a
+> mebibyte per request, four ahead, replacing what is there only from its first byte; onto a
+> smaller file of the same name it asks whether to resume from what is there, to replace it, or
+> to skip it, since only the person knows whether it is the same file. Removing asks first, and
+> says when a directory goes with everything in it.
+
 **Metering.** Numbers people will be billed on. Every figure names its source, its window, and its
 collection method, and disagreements between the instantaneous and the accounted value are shown
 rather than reconciled behind the scenes. `15-observability.md` defines what is measured; the

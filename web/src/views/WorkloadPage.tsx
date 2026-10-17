@@ -2,11 +2,13 @@
 
 // A workload's screen (§2 and §3 of docs/11-surface-web.md), live over its watch: what it is
 // converging to and how far it has come, the stage it is at when it has not converged, and what
-// its node observed, each value known, stale, or unknown.
+// its node observed, each value known, stale, or unknown; and its console and files (§8).
 
 import { Button } from "react-aria-components";
 import { useReach } from "../clients";
 import { Console } from "../console/Console";
+import { FileManager } from "../files/FileManager";
+import { READ, WRITE } from "../files/session";
 import { Actions } from "../workload/Actions";
 import { Grants } from "../workload/Grants";
 import { Share } from "../workload/Share";
@@ -59,6 +61,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
       {may("workload.console.read") && <Console id={id} typing={may("workload.console.write")} />}
+      {(may(READ) || may(WRITE)) && <FileManager id={id} writes={may(WRITE)} />}
       {!metered && (
         <>
           <Grants id={id} />
