@@ -12,12 +12,14 @@ use crate::node::{Node, live};
 use crate::recipes::push_sleeper;
 use crate::support::ControlPlane;
 use buffa::Message as _;
+use korpis_cli::cmd::files::FilesAction;
 use korpis_cli::cmd::session::{self, Session};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request as File;
 use korpis_proto::korpis::v1::__buffa::oneof::file_response::Response;
 use korpis_proto::korpis::v1::__buffa::oneof::relay_response::Message as Reply;
 use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
+use std::path::Path;
 use std::time::Duration;
 
 const WRITE: &str = "workload.file.write";
@@ -115,13 +117,7 @@ async fn a_workload_s_files_are_reached_through_the_relay_confined_resumed_and_r
     let agent = node.agent().await;
     let w = cp.declare(&project, "world", &push_sleeper().await).await;
     node.guard(&w);
-    let vol = node.volumes.join(format!("{w}.data"));
-    for _ in 0..300 {
-        if vol.is_dir() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
+    let vol = volume(&node, &w).await;
     std::os::unix::fs::symlink("/etc", vol.join("etc")).unwrap();
     let editor = cp.cli(Some(&cp.token_for(&[WRITE]).await));
 
@@ -157,5 +153,95 @@ async fn a_workload_s_files_are_reached_through_the_relay_confined_resumed_and_r
     drop(f);
 
     recorded(&cp, 2).await;
+    drop(agent);
+}
+
+/// The directory of `w`'s volume `data` on `node`, once the node made it.
+async fn volume(node: &Node, w: &str) -> std::path::PathBuf {
+    let vol = node.volumes.join(format!("{w}.data"));
+    for _ in 0..300 {
+        if vol.is_dir() {
+            return vol;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{} never made", vol.display());
+}
+
+/// `korpis files sync` of `local` into `remote`, as `c`.
+async fn sync(c: &korpis_cli::connect::Connection, local: &Path, remote: &str) -> String {
+    let a = FilesAction::Sync {
+        local: local.to_owned(),
+        remote: remote.to_owned(),
+        resume: false,
+        relay: None,
+    };
+    korpis_files(c, a).await
+}
+
+/// Runs `korpis files` `a` as `c`, answering with what it printed for a person.
+async fn korpis_files(c: &korpis_cli::connect::Connection, a: FilesAction) -> String {
+    korpis_cli::cmd::files::files(c, &a).await.unwrap().human
+}
+
+#[tokio::test]
+async fn korpis_files_puts_gets_and_syncs_a_world_through_the_relay() {
+    if !live() {
+        return;
+    }
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let node = Node::join(&cp, "fra-7").await;
+    let agent = node.agent().await;
+    let w = cp.declare(&project, "world", &push_sleeper().await).await;
+    node.guard(&w);
+    let vol = volume(&node, &w).await;
+    let editor = cp.cli(Some(&cp.token_for(&[WRITE, "workload.read"]).await));
+    let here = tempfile::tempdir().unwrap();
+    let world = here.path().join("world");
+    std::fs::create_dir_all(world.join("region")).unwrap();
+    std::fs::write(world.join("level.dat"), vec![7u8; 3 * MIB + 11]).unwrap();
+    std::fs::write(world.join("region/r.0.0.mca"), b"region").unwrap();
+    let remote = format!("w:{w}/data/world");
+
+    let first = sync(&editor, &world, &remote).await;
+    assert!(first.contains("2 files sent"), "{first}");
+    assert_eq!(std::fs::read(vol.join("world/region/r.0.0.mca")).unwrap(), b"region");
+    let again = sync(&editor, &world, &remote).await;
+    assert!(again.contains("0 files sent") && again.contains("2 already there"), "{again}");
+
+    let listed =
+        korpis_files(&editor, FilesAction::Ls { remote: remote.clone(), relay: None }).await;
+    assert!(listed.contains("level.dat") && listed.contains("region"), "{listed}");
+    let back = here.path().join("level.dat");
+    let file = format!("{remote}/level.dat");
+    korpis_files(
+        &editor,
+        FilesAction::Get {
+            remote: file.clone(),
+            local: Some(back.clone()),
+            resume: false,
+            relay: None,
+        },
+    )
+    .await;
+    assert_eq!(std::fs::read(&back).unwrap(), std::fs::read(world.join("level.dat")).unwrap());
+
+    // A partial upload of the same file continues from what the workload holds.
+    std::fs::write(vol.join("world/half.dat"), vec![7u8; MIB]).unwrap();
+    let put = korpis_files(
+        &editor,
+        FilesAction::Put {
+            local: world.join("level.dat"),
+            remote: format!("{remote}/half.dat"),
+            resume: true,
+            relay: None,
+        },
+    )
+    .await;
+    assert!(put.contains(&format!("{} bytes sent", 2 * MIB + 11)), "{put}");
+    korpis_files(&editor, FilesAction::Rm { remote: remote.clone(), recursive: true, relay: None })
+        .await;
+    assert!(!vol.join("world").exists());
     drop(agent);
 }

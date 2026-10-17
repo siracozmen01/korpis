@@ -490,6 +490,27 @@ should not traverse the control plane, and the control plane should not be a dat
 node advertises a direct endpoint the CLI uses it, because the CLI pins the Korpis CA; the relay
 path always works (§3.1 of `02-architecture.md`).
 
+**`files` as built** (Phase 1, 2026-10-17): `korpis files ls|get|put|sync|mkdir|mv|rm`, each over
+one file session (§3.2 of `06-storage.md`) at a relay, never the control plane. A remote path is
+`w:WORKLOAD/PATH`, the path absolute within the workload as its volumes are mounted
+(`w:mc-survival/data/world`), or `w:WORKLOAD:PATH` when the workload is written `project/name`,
+whose slash the first form would take for the path's. Reads and writes move a mebibyte per
+request with four sent ahead, and the token is renewed on the session while an answer is awaited.
+`put --resume` continues from the size the workload holds and `get --resume` from the size of the
+local file; without it each starts over, since only the caller knows the partial file is the same
+one. A caller who may write but holds no grant of reading reads through a writing session, which
+reads too. A download with no local name is written under the last component of the path asked
+for, never under a name the node answered with (Finding 80 of `23-walkthroughs.md`). A refusal is
+reported as the API's errors are, with its reason `file.full`,
+`file.outside`, and so on, and the path as the field.
+
+`sync` is the table's "delta transfer" only in part, and says so: it makes each directory and
+sends each file unless the workload holds it at the same size and at least as new, so a second run
+sends nothing; but a file changed in place without changing its size or time is not seen as
+changed, and a changed file is sent whole, not by block, because a file session carries no digest
+(question 6). It follows no symbolic link and removes nothing in the workload. Not built yet: the
+direct endpoint of the paragraph above, which waits on nodes advertising one.
+
 `event subscribe --kind workload.` keeps a position in the event log for you (§5 of
 `15-observability.md`); `event follow` prints what it is delivered as it comes, and with `--ack`
 records each line it printed as processed, so the next `follow` resumes after the last one, and
@@ -531,3 +552,9 @@ worse.
    would have a different identifier. The pull request links the plan identifier; the reviewer
    approves in Korpis, not by a comment Korpis cannot see. No separate signature adds anything the
    effect log does not already hold.
+6. **A digest in the file session.** `files sync` (§8) skips a file by its size and time, so it
+   misses a change that keeps both, and sends a changed file whole. A verb answering the SHA-256
+   of a range of a file would let it compare content, verify a resumed upload's prefix, and send
+   only the blocks that differ; it costs a read of the whole range on the node, in the worker,
+   charged to no one but the caller's session. Whether that verb belongs in the session, and how a
+   large file's digest is bounded, is a decision about the session's verbs. → `06-storage.md`

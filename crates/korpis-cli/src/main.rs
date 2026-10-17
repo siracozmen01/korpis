@@ -12,6 +12,7 @@ use korpis_cli::cmd::clone;
 use korpis_cli::cmd::domain::{self, DomainAction};
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
+use korpis_cli::cmd::files::files as remote_files;
 use korpis_cli::cmd::repository::{self, RepositoryAction};
 use korpis_cli::cmd::volume::{self, VolumeAction};
 use korpis_cli::cmd::{
@@ -135,6 +136,10 @@ enum Command {
     /// node and offloaded, the operator's floor, what is held only on the node, what is lost;
     /// `share` makes a link to read a range of it.
     Stream(stream_share::StreamArgs),
+    /// A workload's files through a relay: lists, downloads, uploads resuming a partial one,
+    /// syncs a directory into it, makes, renames, and removes.
+    #[command(subcommand)]
+    Files(korpis_cli::cmd::files::FilesAction),
     /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
     /// type, your keys; `Ctrl-]` detaches.
     Console(console::Console),
@@ -283,6 +288,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         }
         Command::Event(a) => answer(cli, event::event(&cli.required().await?, a).await),
         Command::Console(a) => console::console(&cli.required().await?, a).await,
+        Command::Files(a) => answer(cli, remote_files(&cli.required().await?, a).await),
         Command::Logs(a) => logs::logs(&cli.required().await?, a, &mut printer(cli.json)).await,
         Command::Stream(a) => answer(cli, stream_share::run(&cli.required().await?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required().await?, a).await),

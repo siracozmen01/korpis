@@ -13,6 +13,7 @@ pub mod console;
 pub mod domain;
 pub mod event;
 pub mod extension;
+pub mod files;
 pub mod get;
 pub mod grant;
 pub mod logs;

@@ -340,7 +340,9 @@ when it ends, so an auditor sees a long session's changes when it closes, not as
 > `/etc` is refused, an upload cut off after its first mebibyte is resumed in a new session from
 > the size a stat reports, a write past the volume's 64 MiB is refused as full by the btrfs
 > qgroup, and each session is on record as the token's act. The panel's file manager is built on
-> it (§8 of `11-surface-web.md`); `korpis files` (§8 of `13-surface-cli.md`) is next.
+> it (§8 of `11-surface-web.md`), and so is `korpis files` (§8 of `13-surface-cli.md`), whose
+> `sync` skips by size and time because the session carries no digest (question 6 of
+> `13-surface-cli.md` asks whether it should).
 
 ## 4. Snapshots are not backups
 
@@ -1251,3 +1253,8 @@ serves the rest. Korpis ships no object store and does not become one.
    `repository.custody_unavailable` rather than made with `operator` custody in its place. It
    needs a `key_management` provider type whose call unwraps one key for one job and whose
    answer the control plane passes to the node without keeping. → `16-extensions.md`
+10. **A digest verb in the file session.** Added 2026-10-17, when `korpis files sync` was built
+   (question 6 of `13-surface-cli.md`): without one, sync tells a changed file by its size and
+   time alone and sends it whole, and a resumed upload cannot check that the bytes already there
+   are the same file's. A verb answering the SHA-256 of a range would fix both, at the cost of the
+   worker reading that range. → here

@@ -1114,6 +1114,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 77 | A provider stream registered while its replica confirmed the others was closed | §14 | `16-extensions.md` §3.3 |
 | 78 | A browser's session took frames from any address once it was open | §38 | `02-architecture.md` §3.1, `08-identity.md` §6.2 |
 | 79 | A file session could be held by a FIFO, and exhausted by a deep tree or a vast directory | §38 | `06-storage.md` §3.2 |
+| 80 | A download's local name was the one the node answered with | §38 | `13-surface-cli.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2805,3 +2806,18 @@ smallest page and one names after the cursor, so a directory of millions of entr
 page of memory; a stat of something that is not a name is refused, and `/` alone is the root.
 → `06-storage.md` §3.2; built and tested in `crates/korpis-files/src/fs.rs` and
 `crates/korpis-files/src/fs_tests.rs`.
+
+**FINDING 80: A download's local name was the one the node answered with. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of `korpis files` (§8 of `13-surface-cli.md`) before it was
+committed, the uploaded world of step 7 of this trace read back from the other end. `files get`
+without a local name wrote the file under the name the node's stat answered with. The node is
+not the caller's to trust with the caller's own filesystem: a compromised node, or a worker it
+started, could answer `../../.bashrc`, and the download would land outside the directory it was
+run in, over a file the caller never named. The worker answers the last component of what it
+resolved, but the client cannot know that, and should not need to.
+
+**Resolution.** The local name is the last component of the path the caller asked for, never a
+name from the answer, and it must be a plain name: `..`, `.`, and a path ending in a slash are
+refused with a request to name the file. → `13-surface-cli.md` §8; built and tested in
+`crates/korpis-cli/src/cmd/files.rs`.
