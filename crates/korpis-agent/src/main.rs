@@ -10,6 +10,8 @@ use korpis_agent::host::node::NodeHost;
 use korpis_agent::host::privileged::HelperClient;
 use korpis_agent::host::{Host, InMemoryHost};
 use korpis_agent::join::{Join, join};
+use korpis_agent::preflight::probe::{Asking, probe};
+use korpis_agent::preflight::{Machine, Offer, checks};
 use korpis_agent::run::{Agent, Options, Reserve, facts_of};
 use korpis_agent::runtime::Runtime;
 use korpis_agent::runtime::memory::InMemory;
@@ -46,6 +48,26 @@ enum Command {
         /// What this machine calls itself; informational.
         #[arg(long, default_value = "")]
         hostname: String,
+    },
+    /// Report what this machine lacks of what the node is configured to offer, and how to fix
+    /// each; change nothing (§2 of docs/18-operations.md). Fails only when the node could offer
+    /// nothing at all.
+    Preflight {
+        /// The runtime driver the node will run: `oci` or `memory`.
+        #[arg(long, env = "KORPIS_AGENT_DRIVER", default_value = "oci")]
+        driver: String,
+        /// containerd's socket, which the oci driver runs workloads through.
+        #[arg(long, default_value = "/run/containerd/containerd.sock")]
+        containerd_socket: PathBuf,
+        /// The privileged helper's socket.
+        #[arg(long, default_value = "/run/korpis/helper.sock")]
+        helper_socket: PathBuf,
+        /// The helper's volume root.
+        #[arg(long, default_value = "/var/lib/korpis/volumes")]
+        volume_root: PathBuf,
+        /// Print the report as JSON.
+        #[arg(long)]
+        json: bool,
     },
     /// Run the node: hold the control stream, keep the journal, and reconcile.
     Run {
@@ -198,6 +220,32 @@ async fn run(state: &StateDir, node: Node) -> ExitCode {
     }
 }
 
+/// Enrolls this machine as `how` says.
+async fn enroll(state: &StateDir, how: &Join) -> ExitCode {
+    match join(state, how).await {
+        Ok(id) => {
+            tracing::info!(node = %id.node, "enrolled");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "join failed");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Prints what preflight found; fails only when the node could offer nothing.
+async fn preflight(asking: &Asking, json: bool) -> ExitCode {
+    let probes = probe(asking).await;
+    let report = checks(&Machine::this(), &probes, &asking.offer);
+    let printed = if json { format!("{}\n", report.json()) } else { report.text() };
+    let mut out = std::io::stdout().lock();
+    if std::io::Write::write_all(&mut out, printed.as_bytes()).is_err() {
+        return ExitCode::FAILURE;
+    }
+    if report.offers_anything() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -210,16 +258,17 @@ async fn main() -> ExitCode {
     let state = StateDir::new(cli.state_dir);
     match cli.command {
         Command::Join { server, token, ca_fingerprint, hostname } => {
-            match join(&state, &Join { server, token, ca_fingerprint, hostname }).await {
-                Ok(id) => {
-                    tracing::info!(node = %id.node, "enrolled");
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "join failed");
-                    ExitCode::FAILURE
-                }
-            }
+            enroll(&state, &Join { server, token, ca_fingerprint, hostname }).await
+        }
+        Command::Preflight { driver, containerd_socket, helper_socket, volume_root, json } => {
+            let asking = Asking {
+                offer: Offer { driver },
+                containerd: containerd_socket,
+                helper: helper_socket,
+                volume_root,
+                sys: "/sys".into(),
+            };
+            preflight(&asking, json).await
         }
         Command::Run {
             driver,

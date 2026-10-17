@@ -128,6 +128,24 @@ exactly what to run to fix each. **It does not silently modify the host.** An in
 kernel modules and rewrites `sysctl` on someone's machine is a configuration management system, and
 Korpis is not one.
 
+> As built, 2026-10-17 (`crates/korpis-agent/src/preflight`). `korpis-agent preflight` checks
+> each row of the table below that a node can see, against the driver it is configured with: the
+> kernel floor, cgroup v2 and the cpu, memory, pids, and io controllers, user namespaces, seccomp,
+> Landlock (by making rulesets it never applies, so it names the newest ABI whose file access
+> rights the kernel handles), KVM and, only inside a virtual machine, nested virtualization,
+> io.cost on the disk the volumes are on (a partition followed to its disk, which is where
+> io.cost is configured), containerd for the `oci` driver, the storage classes the helper
+> declares, nftables 1.0 or later with its JSON input, IP forwarding, and IPv6. Each is met, not
+> needed for this node's offer, lacking (with what the node offers less of and the command that
+> fixes it), or unchecked (with what would let it be checked). It reads, and asks `nft` to list
+> the ruleset; it writes nothing, and `--json` prints the same for a program. It fails only when
+> the node could offer nothing: the kernel floor, cgroup v2, user namespaces, seccomp, or, for the
+> `oci` driver, containerd; anything else lacking is a node that offers less. Storage is the
+> helper's to say, since the helper makes the volumes, so preflight asks it rather than judging
+> the filesystem a second time, and says so when it cannot reach it. What it does not check: the
+> `stable` exposure mode's edge failover group or routed pool, which is the control plane's
+> configuration rather than the node's, and KVM is reported but needed by no driver built yet.
+
 ### What a node actually requires
 
 Requirements are a function of the isolation tiers and storage classes a node offers, not a single

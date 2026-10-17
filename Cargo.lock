@@ -2622,6 +2622,7 @@ dependencies = [
  "korpis-stream",
  "korpis-tls",
  "korpis-wire",
+ "landlock",
  "oci-client",
  "reqwest",
  "rustix",

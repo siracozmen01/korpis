@@ -37,6 +37,8 @@ korpis-files = { path = "../korpis-files" }
 korpis-backup = { path = "../korpis-backup" }
 korpis-tls = { workspace = true }
 korpis-wire = { workspace = true }
+# Preflight asks which Landlock ABI the kernel speaks, by making rulesets it never applies.
+landlock = "0.4"
 oci-client = { version = "0.18", default-features = false, features = ["rustls-tls-no-provider"] }
 # An install's `fetch`, by URL and hash, into the content store (§4 of docs/09-recipes.md).
 # The recipe document's reader, without its registry client, as the driver uses it: the agent

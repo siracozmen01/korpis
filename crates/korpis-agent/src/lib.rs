@@ -23,6 +23,7 @@ pub mod journal;
 pub mod lease;
 pub mod network;
 pub mod offload;
+pub mod preflight;
 pub mod probe;
 pub mod reconcile;
 pub mod resolver;
