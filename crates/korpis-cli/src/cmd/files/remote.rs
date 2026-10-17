@@ -59,7 +59,7 @@ fn refused(path: &str, e: &pb::FileError) -> CliError {
         code,
         reason: format!("file.{reason}"),
         field: path.to_owned(),
-        message: e.message.clone(),
+        message: super::printable(&e.message),
     }
 }
 
@@ -140,7 +140,8 @@ impl Remote {
                         .map_err(|e| CliError::Transport(format!("an answer: {e}")))?;
                 }
                 Some(Frame::End(end)) => {
-                    return Err(CliError::Transport(format!("{}: {}", end.code, end.message)));
+                    let said = super::printable(&format!("{}: {}", end.code, end.message));
+                    return Err(CliError::Transport(said));
                 }
                 _ => {}
             }

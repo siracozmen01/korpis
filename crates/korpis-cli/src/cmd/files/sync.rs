@@ -4,7 +4,7 @@
 //! file uploaded unless the workload holds it at the same size and at least as new. That is the
 //! whole of its delta: a file session carries no digest, so a file changed in place without
 //! changing its size or time is not seen as changed, and what changed is sent whole, not by
-//! block. A symbolic link is not followed, and nothing in the workload is removed.
+//! block. A symbolic link is not followed, at any depth, and nothing in the workload is removed.
 
 use super::remote::Remote;
 use super::transfer;
@@ -12,9 +12,10 @@ use crate::cmd::Answer;
 use crate::error::CliError;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::file_request::Request;
+use rustix::fs::{AtFlags, Dir, FileType, Mode, OFlags};
 use serde_json::json;
+use std::os::fd::OwnedFd;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 /// What a sync did.
 #[derive(Debug, Default)]
@@ -43,53 +44,96 @@ async fn made(r: &mut Remote, path: &str) -> Result<(), CliError> {
     }
 }
 
-/// Whether the workload's `there` is the local file of `meta` already: the same size, and
-/// written no earlier.
-fn current(there: Option<&pb::FileEntry>, meta: &std::fs::Metadata) -> bool {
+/// What a local file is, as `fstat` on its open descriptor says.
+struct Local {
+    len: u64,
+    modified: i64,
+}
+
+/// Whether the workload's `there` is the local file `l` already: the same size, and written no
+/// earlier.
+fn current(there: Option<&pb::FileEntry>, l: &Local) -> bool {
     let Some(e) = there.filter(|e| e.kind.as_known() == Some(pb::FileKind::FILE_KIND_FILE)) else {
         return false;
     };
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map_or(i64::MAX, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
     let theirs = e.modified.as_option().map_or(i64::MIN, |t| t.seconds);
-    e.size == meta.len() && theirs >= modified
+    e.size == l.len && theirs >= l.modified
 }
 
-/// Writes the local directory `from` into the workload's `to`.
+fn os(path: &Path, e: rustix::io::Errno) -> CliError {
+    local(path, &std::io::Error::from(e))
+}
+
+/// The names in the open directory `dir`, `label`, in name order.
+fn names(dir: &OwnedFd, label: &Path) -> Result<Vec<String>, CliError> {
+    let mut names = Vec::new();
+    for entry in Dir::read_from(dir).map_err(|e| os(label, e))? {
+        let entry = entry.map_err(|e| os(label, e))?;
+        let name = entry.file_name().to_bytes();
+        if name == b"." || name == b".." {
+            continue;
+        }
+        let name = std::str::from_utf8(name).map_err(|_| {
+            CliError::Local(format!("{}: a name that is not UTF-8", label.display()))
+        })?;
+        names.push(name.to_owned());
+    }
+    names.sort();
+    Ok(names)
+}
+
+/// `name` in the open directory `dir`, opened with `flags` and no link followed, if it is still
+/// the entry `seen` described: a directory swapped for a link, or for another file, after it
+/// was looked at is refused rather than read (Finding 81 of docs/23-walkthroughs.md).
+fn reopen(
+    dir: &OwnedFd,
+    name: &str,
+    flags: OFlags,
+    (seen, label): (&rustix::fs::Stat, &Path),
+) -> Result<OwnedFd, CliError> {
+    let flags = flags | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let fd = rustix::fs::openat(dir, name, flags, Mode::empty()).map_err(|e| os(label, e))?;
+    let now = rustix::fs::fstat(&fd).map_err(|e| os(label, e))?;
+    if (now.st_dev, now.st_ino) != (seen.st_dev, seen.st_ino) {
+        return Err(CliError::Local(format!("{}: changed while it was read", label.display())));
+    }
+    Ok(fd)
+}
+
+/// Writes the local directory `from` into the workload's `to`. Every entry beneath `from` is
+/// reached through its directory's open descriptor, never by its path again, so no link is
+/// followed at any depth however the tree changes while it is read.
 ///
 /// # Errors
 /// A local entry could not be read, or the node refused.
 pub async fn sync(r: &mut Remote, from: &Path, to: &str, resume: bool) -> Result<Answer, CliError> {
     let mut s = Synced::default();
     made(r, to).await?;
-    // Breadth first, by name, so the order is the same every run.
-    let mut dirs: Vec<(PathBuf, String)> = vec![(from.to_owned(), to.to_owned())];
-    while let Some((dir, there)) = dirs.pop() {
-        let mut entries: Vec<_> = std::fs::read_dir(&dir)
-            .map_err(|e| local(&dir, &e))?
-            .collect::<Result<_, _>>()
-            .map_err(|e| local(&dir, &e))?;
-        entries.sort_by_key(std::fs::DirEntry::file_name);
-        for entry in entries {
-            let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
-                return Err(CliError::Local(format!(
-                    "{}: not a UTF-8 name",
-                    entry.path().display()
-                )));
-            };
+    let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
+    let top = rustix::fs::open(from, flags, Mode::empty()).map_err(|e| os(from, e))?;
+    let mut dirs: Vec<(OwnedFd, PathBuf, String)> = vec![(top, from.to_owned(), to.to_owned())];
+    while let Some((dir, label, there)) = dirs.pop() {
+        for name in names(&dir, &label)? {
             let target = if there == "/" { format!("/{name}") } else { format!("{there}/{name}") };
-            let meta =
-                std::fs::symlink_metadata(entry.path()).map_err(|e| local(&entry.path(), &e))?;
-            if meta.is_dir() {
-                made(r, &target).await?;
-                dirs.push((entry.path(), target));
-            } else if meta.is_file() {
-                file(r, (&entry.path(), &meta), &target, resume, &mut s).await?;
-            } else {
-                s.links += 1;
+            let path = label.join(&name);
+            let seen = rustix::fs::statat(&dir, name.as_str(), AtFlags::SYMLINK_NOFOLLOW)
+                .map_err(|e| os(&path, e))?;
+            match FileType::from_raw_mode(seen.st_mode) {
+                FileType::Directory => {
+                    let inner = reopen(&dir, &name, flags, (&seen, &path))?;
+                    made(r, &target).await?;
+                    dirs.push((inner, path, target));
+                }
+                FileType::RegularFile => {
+                    let fd =
+                        reopen(&dir, &name, OFlags::RDONLY | OFlags::NONBLOCK, (&seen, &path))?;
+                    let l = Local {
+                        len: u64::try_from(seen.st_size).unwrap_or(0),
+                        modified: seen.st_mtime,
+                    };
+                    file(r, (fd, &path, &l), &target, resume, &mut s).await?;
+                }
+                _ => s.links += 1,
             }
         }
     }
@@ -102,21 +146,52 @@ pub async fn sync(r: &mut Remote, from: &Path, to: &str, resume: bool) -> Result
     Ok(Answer { json, human })
 }
 
-/// Uploads one file unless the workload holds it already.
+/// Uploads one open file unless the workload holds it already.
 async fn file(
     r: &mut Remote,
-    (path, meta): (&Path, &std::fs::Metadata),
+    (fd, path, l): (OwnedFd, &Path, &Local),
     target: &str,
     resume: bool,
     s: &mut Synced,
 ) -> Result<(), CliError> {
     let there = r.stat(target).await?;
-    if current(there.as_ref(), meta) {
+    if current(there.as_ref(), l) {
         s.skipped += 1;
         return Ok(());
     }
-    let start = transfer::upload_from(r, target, meta.len(), resume).await?;
-    s.bytes += transfer::upload(r, path, target, start).await?;
+    let start = transfer::upload_from(r, target, l.len, resume).await?;
+    let file = tokio::fs::File::from_std(std::fs::File::from(fd));
+    s.bytes += transfer::upload(r, (file, path), target, start).await?;
     s.sent += 1;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
+
+    use super::{names, reopen};
+    use rustix::fs::{AtFlags, Mode, OFlags};
+
+    #[test]
+    fn an_entry_swapped_for_a_link_after_it_was_looked_at_is_refused_not_read() {
+        let t = tempfile::tempdir().unwrap();
+        std::fs::write(t.path().join("world.dat"), b"mine").unwrap();
+        std::fs::write(t.path().join("secret"), b"not to be sent").unwrap();
+        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC;
+        let dir = rustix::fs::open(t.path(), flags, Mode::empty()).unwrap();
+        assert_eq!(names(&dir, t.path()).unwrap(), ["secret", "world.dat"]);
+        let label = t.path().join("world.dat");
+        let seen = rustix::fs::statat(&dir, "world.dat", AtFlags::SYMLINK_NOFOLLOW).unwrap();
+        assert!(reopen(&dir, "world.dat", OFlags::RDONLY, (&seen, &label)).is_ok());
+
+        // Swapped for a link to another file after it was looked at.
+        std::fs::remove_file(&label).unwrap();
+        std::os::unix::fs::symlink(t.path().join("secret"), &label).unwrap();
+        assert!(reopen(&dir, "world.dat", OFlags::RDONLY, (&seen, &label)).is_err());
+        // Swapped for another file of its own, renamed over it, so it has an inode of its own.
+        std::fs::write(t.path().join("other"), b"other").unwrap();
+        std::fs::rename(t.path().join("other"), &label).unwrap();
+        assert!(reopen(&dir, "world.dat", OFlags::RDONLY, (&seen, &label)).is_err());
+    }
 }

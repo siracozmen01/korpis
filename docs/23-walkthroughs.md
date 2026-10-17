@@ -1115,6 +1115,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 78 | A browser's session took frames from any address once it was open | §38 | `02-architecture.md` §3.1, `08-identity.md` §6.2 |
 | 79 | A file session could be held by a FIFO, and exhausted by a deep tree or a vast directory | §38 | `06-storage.md` §3.2 |
 | 80 | A download's local name was the one the node answered with | §38 | `13-surface-cli.md` §8 |
+| 81 | A sync read a path again after looking at it, so a link swapped in was followed | §38 | `13-surface-cli.md` §8 |
+| 82 | A listing printed the tenant's file names to the operator's terminal as they were | §38 | `13-surface-cli.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2821,3 +2823,38 @@ resolved, but the client cannot know that, and should not need to.
 name from the answer, and it must be a plain name: `..`, `.`, and a path ending in a slash are
 refused with a request to name the file. → `13-surface-cli.md` §8; built and tested in
 `crates/korpis-cli/src/cmd/files.rs`.
+
+**FINDING 81: A sync read a path again after looking at it, so a link swapped in was followed.
+`CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that built `korpis files` (§8 of
+`13-surface-cli.md`). `files sync` looked at each entry without following links, skipped the
+links, and then opened the file and read the directory by their paths again. Between the look
+and the open, whoever else can write the directory being synced, another user of a shared
+machine or a process the caller runs, could swap a file or a directory for a link to the
+caller's own `~/.ssh` or a credentials file, and the sync would upload what the link named into
+the workload, where its tenant reads it.
+
+**Resolution.** The walk holds each directory open and reaches every entry through that
+descriptor: it looks at an entry without following it, opens it with `O_NOFOLLOW` relative to
+its directory, and reads it only if the opened file is the one it looked at, by device and
+inode; a link swapped in fails the open, and a file or directory swapped in fails the
+comparison, and either is refused rather than sent. The upload reads the descriptor it checked,
+never the path. The directory named on the command line is opened as named, link or not, since
+the caller chose it. → `13-surface-cli.md` §8; built and tested in
+`crates/korpis-cli/src/cmd/files/sync.rs`.
+
+**FINDING 82: A listing printed the tenant's file names to the operator's terminal as they were.
+`CONFIRMED`**
+
+Found 2026-10-17 by the same review. A file's name is the tenant's to choose, and `files ls`
+printed it verbatim, so a name holding an escape sequence could move the operator's cursor,
+rewrite what the terminal showed, retitle the window, or on some terminals write the clipboard,
+when a host listed a customer's files. The node's refusal messages and a session's end reason
+reached the terminal the same way.
+
+**Resolution.** Every control character in a name, a refusal's message, or an end reason is
+printed as its escape (`\u{1b}`) rather than sent to the terminal; `--json` carries the name as
+it is, escaped by JSON. The console is unchanged: it writes a workload's output as the workload
+wrote it, by design, because that is what a console is (§8 of `13-surface-cli.md`). →
+`13-surface-cli.md` §8; built and tested in `crates/korpis-cli/src/cmd/files.rs`.

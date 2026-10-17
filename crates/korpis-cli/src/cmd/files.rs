@@ -104,6 +104,17 @@ pub enum FilesAction {
     },
 }
 
+/// `text` from the workload, safe to print on a terminal: a name is the tenant's to choose, and a
+/// control character in it (an escape sequence that moves the cursor, retitles the window, or
+/// writes the clipboard) is shown as its escape instead of acted on (Finding 82 of
+/// docs/23-walkthroughs.md).
+#[must_use]
+pub fn printable(text: &str) -> String {
+    text.chars()
+        .map(|c| if c.is_control() { c.escape_default().to_string() } else { c.to_string() })
+        .collect()
+}
+
 /// The workload and the path a remote argument names.
 ///
 /// # Errors
@@ -169,7 +180,10 @@ pub async fn files(c: &Connection, a: &FilesAction) -> Result<Answer, CliError> 
                 .map_err(|e| CliError::Local(format!("{}: {e}", local.display())))?
                 .len();
             let start = transfer::upload_from(&mut r, &path, len, *resume).await?;
-            let sent = transfer::upload(&mut r, local, &path, start).await?;
+            let file = tokio::fs::File::open(local)
+                .await
+                .map_err(|e| CliError::Local(format!("{}: {e}", local.display())))?;
+            let sent = transfer::upload(&mut r, (file, local), &path, start).await?;
             Ok(done(format!("{path}: {} bytes sent, {} in all", sent, start + sent)))
         }
         FilesAction::Sync { local, remote, resume, relay } => {
@@ -222,7 +236,7 @@ async fn ls(r: &mut Remote, path: &str) -> Result<Answer, CliError> {
                 Some(pb::FileKind::FILE_KIND_FILE) => "file",
                 _ => "    ",
             };
-            format!("{kind} {:>12} {}", e.size, e.name)
+            format!("{kind} {:>12} {}", e.size, printable(&e.name))
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -268,7 +282,15 @@ async fn get(
 mod tests {
     #![allow(clippy::unwrap_used, reason = "a failing test should fail loudly")]
 
-    use super::{local_name, target};
+    use super::{local_name, printable, target};
+
+    #[test]
+    fn a_name_from_the_workload_prints_its_control_characters_as_escapes() {
+        assert_eq!(printable("level.dat"), "level.dat");
+        assert_eq!(printable("a\u{1b}]0;owned\u{7}b"), "a\\u{1b}]0;owned\\u{7}b");
+        assert_eq!(printable("x\ny"), "x\\ny");
+        assert!(!printable("\u{9b}2J").chars().any(char::is_control));
+    }
 
     #[test]
     fn a_download_is_named_by_the_path_asked_for_and_only_plainly() {

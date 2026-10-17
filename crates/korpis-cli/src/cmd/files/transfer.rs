@@ -54,13 +54,18 @@ pub async fn upload_from(
     Ok(file.map_or(0, |e| e.size).min(len))
 }
 
-/// Writes the local file `from` to `path` from byte `start`; how many bytes were sent. From 0,
-/// it replaces what is there.
+/// Writes the open local file `file`, named `from`, to `path` from byte `start`; how many bytes
+/// were sent. From 0, it replaces what is there. The file is given open, so what is read is the
+/// file that was checked, whatever its path names by then.
 ///
 /// # Errors
 /// The local file could not be read, the node refused a write, or the session ended.
-pub async fn upload(r: &mut Remote, from: &Path, path: &str, start: u64) -> Result<u64, CliError> {
-    let mut file = tokio::fs::File::open(from).await.map_err(|e| local(from, &e))?;
+pub async fn upload(
+    r: &mut Remote,
+    (mut file, from): (tokio::fs::File, &Path),
+    path: &str,
+    start: u64,
+) -> Result<u64, CliError> {
     let len = file.metadata().await.map_err(|e| local(from, &e))?.len();
     if len == 0 {
         let w =

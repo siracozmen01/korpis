@@ -508,7 +508,10 @@ reported as the API's errors are, with its reason `file.full`,
 sends each file unless the workload holds it at the same size and at least as new, so a second run
 sends nothing; but a file changed in place without changing its size or time is not seen as
 changed, and a changed file is sent whole, not by block, because a file session carries no digest
-(question 6). It follows no symbolic link and removes nothing in the workload. Not built yet: the
+(question 6). It follows no symbolic link at any depth, reaching every entry through its
+directory's open descriptor and reading a file only if it is still the one it looked at (Finding
+81), and it removes nothing in the workload. A name from the workload, a refusal's message, and a
+session's end reason are printed with their control characters escaped (Finding 82). Not built yet: the
 direct endpoint of the paragraph above, which waits on nodes advertising one.
 
 `event subscribe --kind workload.` keeps a position in the event log for you (§5 of
