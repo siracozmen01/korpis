@@ -559,6 +559,22 @@ rather than a reference the database resolves. This is the one place in the desi
 own primitives" is the wrong answer, and it is worth the exception because the alternative is
 discovering it during a disaster.
 
+> As built, 2026-10-18 (`crates/korpis-server/src/control_backup.rs`). `korpis-server backup`
+> writes every row of the table above but the database as one file in the target installation
+> declared: every file under the data directory's `keys` and `tls` (the grant signing key, the
+> assignment keys, the CA nodes pin, the backup, TLS, and factor keys, the ACME account), never
+> its `backup` directory, and the epoch watermark with its rate cap, read from the database. The
+> file is sealed with XChaCha20-Poly1305 under the key installation printed once, written beside
+> itself and renamed into place, read back and opened before the command returns, and the newest
+> 30 are kept (`--keep`). Installation writes a unit that runs it daily, as root confined to
+> reading and to writing the target, and a timer to start. The database is PostgreSQL's own to
+> back up: the command asks whether `archive_mode` is on and whether the last archiving attempt
+> failed, and when the database is not being archived it fails, after writing the keys and
+> saying it did, so the gap shows in the unit's state rather than in a disaster. Korpis does not
+> configure archiving itself, which is the database's own configuration (§2), and does not
+> check that a base backup exists, which PostgreSQL does not record. The only target is a
+> directory; restoring from the file is the procedure below, built as its steps are.
+
 **Which key is rotated, and which is not.**
 
 > Finding 16 of `23-walkthroughs.md`.

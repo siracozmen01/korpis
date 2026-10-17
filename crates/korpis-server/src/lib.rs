@@ -15,6 +15,7 @@ mod flags;
 pub use flags::{placement_policy, span};
 mod background;
 mod buckets;
+pub mod control_backup;
 mod control_jobs;
 pub mod data;
 pub mod factor_vault;

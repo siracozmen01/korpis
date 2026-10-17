@@ -110,3 +110,58 @@ pub async fn ensure_login(owner_url: &str, role: &str, password: &str) -> Result
     c.close().await?;
     Ok(())
 }
+
+/// What the first fence of a restore computes from (§8 of docs/03-state.md): the highest lease
+/// epoch issued, and the rate epochs are issued at, at most.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EpochWatermark {
+    /// `max_issued_epoch`.
+    pub max_issued: i64,
+    /// The issue-rate cap, per second.
+    pub issue_rate_per_sec: i64,
+}
+
+/// Reads the epoch watermark and rate cap of the database at `url`.
+///
+/// # Errors
+/// It cannot be reached or read.
+pub async fn epoch_watermark(url: &str) -> Result<EpochWatermark, Error> {
+    let mut c = PgConnection::connect(url).await?;
+    let (max_issued, issue_rate_per_sec): (i64, i64) =
+        sqlx::query_as("SELECT max_issued_epoch, issue_rate_per_sec FROM epoch_state")
+            .fetch_one(&mut c)
+            .await?;
+    c.close().await?;
+    Ok(EpochWatermark { max_issued, issue_rate_per_sec })
+}
+
+/// Whether the server archives its write-ahead log, which is how the database is backed up (§8 of
+/// docs/03-state.md): what `archive_mode` says and what `pg_stat_archiver` has seen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Archiving {
+    /// `archive_mode`: `off`, `on`, or `always`.
+    pub mode: String,
+    /// Segments archived since the statistics were last reset.
+    pub archived: i64,
+    /// Attempts that failed since then.
+    pub failed: i64,
+    /// Whether the last attempt failed: a failure later than the last success.
+    pub last_failed: bool,
+}
+
+/// Asks the server at `url` whether it archives its write-ahead log.
+///
+/// # Errors
+/// It cannot be reached or read.
+pub async fn archiving(url: &str) -> Result<Archiving, Error> {
+    let mut c = PgConnection::connect(url).await?;
+    let (mode, archived, failed, last_failed): (String, i64, i64, bool) = sqlx::query_as(
+        "SELECT current_setting('archive_mode'), archived_count, failed_count,
+                coalesce(last_failed_time > coalesce(last_archived_time, '-infinity'), false)
+           FROM pg_stat_archiver",
+    )
+    .fetch_one(&mut c)
+    .await?;
+    c.close().await?;
+    Ok(Archiving { mode, archived, failed, last_failed })
+}

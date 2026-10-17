@@ -157,6 +157,7 @@ async fn on_the_system(
         agent_state: args.agent_state.clone(),
         env_file: args.env_file.clone(),
         agent_uid: agent.0,
+        backup_target: target_dir(args),
     };
     let public_url = public_url(args);
     write_system(args, &done, &public_url, &layout)?;
@@ -189,6 +190,14 @@ fn config(args: &InstallArgs, owner_url: &str) -> Result<InstallConfig, Failure>
         backup_target: args.backup_target.clone(),
         database_url: args.database_url.clone(),
     })
+}
+
+/// The directory the daily backup writes to; preflight has refused an installation without one.
+fn target_dir(args: &InstallArgs) -> PathBuf {
+    match &args.backup_target {
+        Some(BackupTarget::Directory(dir)) => dir.clone(),
+        None => PathBuf::new(),
+    }
 }
 
 /// This machine's host name, as the kernel holds it.
@@ -261,6 +270,7 @@ fn dry_run(args: &InstallArgs, bin: PathBuf) -> String {
         agent_state: args.agent_state.clone(),
         env_file: args.env_file.clone(),
         agent_uid: uid,
+        backup_target: target_dir(args),
     };
     for (name, text) in units(&layout) {
         let _ = write!(out, "\nWould write {}:\n\n{text}", args.units_dir.join(name).display());
@@ -274,6 +284,7 @@ fn next_steps() -> String {
 
   systemctl daemon-reload
   systemctl enable --now korpis-server.service korpis-helper.socket korpis-driver-oci.service
+  systemctl enable --now korpis-backup.timer
   (the join command above)
   systemctl enable --now korpis-agent.service
 

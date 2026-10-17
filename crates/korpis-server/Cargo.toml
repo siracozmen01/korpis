@@ -57,6 +57,8 @@ rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem
 # Certificate validity, as rcgen states it.
 time = "0.3"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
+# The control plane's own backup, as a sealed document (src/control_backup.rs).
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 thiserror = { workspace = true }

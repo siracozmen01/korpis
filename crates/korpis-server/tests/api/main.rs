@@ -27,6 +27,7 @@ mod churn;
 mod classify;
 mod compromise;
 mod console;
+mod control_backup;
 mod denials;
 mod dependencies;
 mod device_grant;

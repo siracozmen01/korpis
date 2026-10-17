@@ -5,7 +5,8 @@
 # PostgreSQL installed by its package manager, the owner made, the users and units written, the
 # control plane started by its unit as its own user, and the panel's API answering. Then every
 # unit is checked by systemd-analyze, and the node's helper socket and oci driver are started
-# against the distribution's containerd; the agent is not, since it runs once joined.
+# against the distribution's containerd; the agent is not, since it runs once joined. The daily
+# backup is run once, as its timer would run it.
 #
 #   scripts/test-install-package.sh [debian:13|ubuntu:24.04|fedora:42 ...]   (default: all three)
 #
@@ -82,7 +83,8 @@ for distro in "${DISTROS[@]}"; do
     inside systemd-analyze verify /etc/systemd/system/korpis-server.service \
         /etc/systemd/system/korpis-helper.socket /etc/systemd/system/korpis-helper.service \
         /etc/systemd/system/korpis-driver-oci.service /etc/systemd/system/korpis-agent.service \
-        /etc/systemd/system/korpis-relay.service || fail "$distro: a unit does not verify"
+        /etc/systemd/system/korpis-relay.service /etc/systemd/system/korpis-backup.service \
+        /etc/systemd/system/korpis-backup.timer || fail "$distro: a unit does not verify"
     inside systemctl daemon-reload
     inside systemctl enable --now korpis-server.service korpis-helper.socket >/dev/null 2>&1 ||
         { inside journalctl -u korpis-server --no-pager | tail -30; fail "$distro: did not start"; }
@@ -105,6 +107,16 @@ for distro in "${DISTROS[@]}"; do
         { inside journalctl -u korpis-driver-oci --no-pager | tail -30; fail "$distro: no socket"; }
     [ "$(inside stat -c %G /run/korpis/driver-oci.sock)" = korpis-agent ] ||
         fail "$distro: the driver's socket is not the agent's group's"
+    # The distribution's PostgreSQL does not archive its WAL until it is told to, so the backup
+    # writes the keys and then fails, saying so: both are what the unit is for.
+    inside systemctl start korpis-backup.service >/dev/null 2>&1 &&
+        fail "$distro: the backup did not say the database is not archived"
+    inside journalctl -u korpis-backup --no-pager | grep -q 'archive_mode is off' ||
+        { inside journalctl -u korpis-backup --no-pager | tail -20; fail "$distro: no backup"; }
+    inside sh -c 'ls /mnt/backup/korpis-control-plane-*.kcpb' >/dev/null ||
+        fail "$distro: the backup wrote nothing to the target"
+    inside systemctl enable --now korpis-backup.timer >/dev/null 2>&1 ||
+        fail "$distro: the backup's timer did not start"
     printf '%s: ok (%s)\n' "$distro" \
         "$(grep -o 'PostgreSQL [0-9.]*' "$REPO/target/install-$distro.txt" | sed -n 2p)"
 done

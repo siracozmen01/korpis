@@ -8,6 +8,7 @@ use clap::{Parser, Subcommand};
 use korpis_server::data::DataDir;
 use korpis_server::install::{RecoverConfig, invitation_report, recover_root};
 use serving::{ServeArgs, serve};
+use std::fmt::Write as _;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -31,6 +32,20 @@ enum Command {
     /// Move the schema (§4 of docs/18-operations.md): apply the migrations this build carries,
     /// or, with --to, undo those after a version, so the binary that ran before can run again.
     Migrate(Box<migrating::MigrateArgs>),
+    /// Back up what the control plane holds outside its database, every key and the epoch
+    /// watermark, to the target installation declared, sealed with the key it printed; and say
+    /// whether PostgreSQL archives the database (§6 of docs/18-operations.md).
+    Backup {
+        /// The installation's data directory.
+        #[arg(long, env = "KORPIS_DATA_DIR", default_value = "/var/lib/korpis-server")]
+        data_dir: PathBuf,
+        /// The installation's database.
+        #[arg(long, env = "KORPIS_DATABASE_URL")]
+        database_url: String,
+        /// How many backups to keep in the target; older ones are removed.
+        #[arg(long, default_value_t = 30)]
+        keep: usize,
+    },
     /// Administration done at the machine, by its root user.
     Admin {
         #[command(subcommand)]
@@ -130,6 +145,9 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Install(args) => installing::run(*args).await,
         Command::Migrate(args) => migrating::run(*args).await,
+        Command::Backup { data_dir, database_url, keep } => {
+            backed_up(&DataDir::new(data_dir), &database_url, keep).await
+        }
         Command::Admin { command: AdminCommand::RecoverRoot { data_dir, database_url } } => {
             let config = RecoverConfig { data: DataDir::new(data_dir), database_url };
             let invitation = recover_root(&config, &operator()).await?;
@@ -152,6 +170,36 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 web_origins: web_origin,
             };
             relay_run(dir, listen, edge).await
+        }
+    }
+}
+
+/// Backs up the control plane and says what it did; fails when the database is not backed up by
+/// archiving, after saying what was backed up, so a timer that runs it reports the gap.
+async fn backed_up(
+    data: &DataDir,
+    database_url: &str,
+    keep: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let done = korpis_server::control_backup::backup(data, database_url, keep).await?;
+    let mut out = format!(
+        "Backed up {} files and the epoch watermark ({}, at most {} a second) to {}.\n",
+        done.files,
+        done.epoch.max_issued,
+        done.epoch.issue_rate_per_sec,
+        done.path.display()
+    );
+    for p in &done.pruned {
+        let _ = writeln!(out, "Removed {}.", p.display());
+    }
+    match done.archiving {
+        Ok(said) => {
+            say(&format!("{out}The database: {said}.\n"));
+            Ok(())
+        }
+        Err(why) => {
+            say(&out);
+            Err(why.into())
         }
     }
 }
