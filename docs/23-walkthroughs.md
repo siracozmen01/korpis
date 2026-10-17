@@ -1113,6 +1113,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 76 | A watch through a share link spent a use on every change it heard | §38 | `08-identity.md` §6.1 |
 | 77 | A provider stream registered while its replica confirmed the others was closed | §14 | `16-extensions.md` §3.3 |
 | 78 | A browser's session took frames from any address once it was open | §38 | `02-architecture.md` §3.1, `08-identity.md` §6.2 |
+| 79 | A file session could be held by a FIFO, and exhausted by a deep tree or a vast directory | §38 | `06-storage.md` §3.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2783,3 +2784,24 @@ renewal is judged from the same address and becomes the token judged next. The t
 grant of a session opened through `Watch` and finds its next `Send` refused. →
 `02-architecture.md` §3.1; built in `crates/korpis-server/src/api/relay_watch.rs`; tested in
 `crates/korpis-server/tests/api/relay_watch.rs`.
+
+**FINDING 79: A file session could be held by a FIFO, and exhausted by a deep tree or a vast
+directory. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that built the file verbs (step 7 of this
+trace), which named a logic defect in `crates/korpis-files/src/fs.rs` without detail; reading
+the file against what a tenant controls found four. The tenant writes its own volumes, and the
+verbs trusted what they found there. A read or write opened whatever the path named, so a FIFO
+the workload made blocked the worker on its open forever, holding the session. A recursive
+remove recursed once per level with a descriptor open at each, so a tree nested deeply enough
+exhausted the worker's stack or descriptors. A listing read every name of a directory into
+memory before taking a page of them. And a stat of a name that is not one (`..`) answered with
+the root's metadata instead of a refusal.
+
+**Resolution.** Reads and writes open without blocking and serve only a regular file, refusing a
+FIFO, a socket, or a device (a volume is mounted `nodev` too); a recursive remove goes at most
+128 levels down and refuses a deeper tree rather than walking it; a listing holds only the
+smallest page and one names after the cursor, so a directory of millions of entries costs a
+page of memory; a stat of something that is not a name is refused, and `/` alone is the root.
+→ `06-storage.md` §3.2; built and tested in `crates/korpis-files/src/fs.rs` and
+`crates/korpis-files/src/fs_tests.rs`.

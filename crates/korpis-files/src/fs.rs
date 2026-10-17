@@ -14,6 +14,8 @@ use std::os::fd::OwnedFd;
 pub const CHUNK: usize = 1 << 20;
 /// The most entries one listing answers.
 pub const PAGE: usize = 1000;
+/// The deepest a recursive remove goes; a tree deeper than this is refused, not walked.
+pub const DEPTH: usize = 128;
 
 const WALK: ResolveFlags = ResolveFlags::BENEATH
     .union(ResolveFlags::NO_SYMLINKS)
@@ -45,6 +47,9 @@ impl From<Errno> for Fault {
             Errno::NOTEMPTY => Self::NotEmpty,
             // A link refused by the walk, or a step out of the root or across a mount.
             Errno::LOOP | Errno::XDEV | Errno::PERM | Errno::ACCESS => Self::Outside,
+            // A FIFO with no reader, opened to write without waiting, or a device: neither is a
+            // file a session serves.
+            Errno::NXIO => Self::Refused,
             _ => Self::Io,
         }
     }
@@ -125,7 +130,7 @@ impl Root {
 
     /// The metadata of `path`.
     pub fn stat(&self, path: &str) -> Result<Entry, Fault> {
-        let (dir, name) = split(path).unwrap_or((".", "."));
+        let (dir, name) = if relative(path) == "." { (".", ".") } else { split(path)? };
         let at = self.dir(dir)?;
         let s = statat(&at, name, AtFlags::SYMLINK_NOFOLLOW)?;
         Ok(Entry {
@@ -145,15 +150,22 @@ impl Root {
         limit: usize,
     ) -> Result<(Vec<Entry>, String), Fault> {
         let at = self.dir(path)?;
-        let mut names: Vec<String> = Dir::read_from(&at)?
-            .filter_map(Result::ok)
-            .map(|e| e.file_name().to_string_lossy().into_owned())
-            .filter(|n| n != "." && n != ".." && n.as_str() > after)
-            .collect();
-        names.sort();
         let limit = limit.clamp(1, PAGE);
-        let more = names.len() > limit;
-        names.truncate(limit);
+        // The smallest names after `after`, never more than a page and one held at once, so a
+        // directory of millions of entries costs a page of memory.
+        let mut smallest = std::collections::BTreeSet::new();
+        for e in Dir::read_from(&at)?.filter_map(Result::ok) {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name == "." || name == ".." || name.as_str() <= after {
+                continue;
+            }
+            smallest.insert(name);
+            if smallest.len() > limit + 1 {
+                smallest.pop_last();
+            }
+        }
+        let more = smallest.len() > limit;
+        let names: Vec<String> = smallest.into_iter().take(limit).collect();
         let mut entries = Vec::with_capacity(names.len());
         for name in &names {
             let s = statat(&at, name.as_str(), AtFlags::SYMLINK_NOFOLLOW)?;
@@ -168,9 +180,20 @@ impl Root {
         Ok((entries, next))
     }
 
+    /// `path` opened with `flags` as a regular file: never blocking on a FIFO a tenant made, and
+    /// refusing a FIFO, a socket, or a device, which a file session neither reads nor writes.
+    fn file(&self, path: &str, flags: OFlags, mode: u32) -> Result<OwnedFd, Fault> {
+        let fd = self.open(path, flags | OFlags::NONBLOCK, mode)?;
+        match FileType::from_raw_mode(rustix::fs::fstat(&fd)?.st_mode) {
+            FileType::RegularFile => Ok(fd),
+            FileType::Directory => Err(Fault::IsADirectory),
+            _ => Err(Fault::Refused),
+        }
+    }
+
     /// At most `length` bytes of `path` from `offset`, never more than a chunk.
     pub fn read(&self, path: &str, offset: u64, length: usize) -> Result<Vec<u8>, Fault> {
-        let fd = self.open(path, OFlags::RDONLY, 0)?;
+        let fd = self.file(path, OFlags::RDONLY, 0)?;
         let mut buf = vec![0u8; length.min(CHUNK)];
         let n = rustix::io::pread(&fd, &mut buf, offset)?;
         buf.truncate(n);
@@ -197,7 +220,7 @@ impl Root {
         if truncate {
             flags |= OFlags::TRUNC;
         }
-        let fd = self.open(path, flags, 0o644)?;
+        let fd = self.file(path, flags, 0o644)?;
         let mut done = 0;
         while let Some(rest) = data.get(done..).filter(|r| !r.is_empty()) {
             let at = offset + u64::try_from(done).unwrap_or(u64::MAX);
@@ -226,19 +249,21 @@ impl Root {
         self.writable()?;
         let (dir, name) = split(path)?;
         let at = self.dir(dir)?;
-        remove_at(&at, name, recursive)
+        remove_at(&at, name, recursive.then_some(DEPTH))
     }
 }
 
-/// Removes `name` in `at`, counting what went; a directory's contents first when `recursive`.
-fn remove_at(at: &OwnedFd, name: &str, recursive: bool) -> Result<u64, Fault> {
+/// Removes `name` in `at`, counting what went; a directory's contents first while `depth` allows
+/// going down, refused below that rather than exhausting the worker's stack or descriptors.
+fn remove_at(at: &OwnedFd, name: &str, depth: Option<usize>) -> Result<u64, Fault> {
     let s = statat(at, name, AtFlags::SYMLINK_NOFOLLOW)?;
     if FileType::from_raw_mode(s.st_mode) != FileType::Directory {
         rustix::fs::unlinkat(at, name, AtFlags::empty())?;
         return Ok(1);
     }
     let mut removed = 0;
-    if recursive {
+    if let Some(depth) = depth {
+        let below = depth.checked_sub(1).ok_or(Fault::Refused)?;
         let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW;
         let inner = openat2(at, name, flags, Mode::empty(), WALK)?;
         let names: Vec<String> = Dir::read_from(&inner)?
@@ -247,7 +272,7 @@ fn remove_at(at: &OwnedFd, name: &str, recursive: bool) -> Result<u64, Fault> {
             .filter(|n| n != "." && n != "..")
             .collect();
         for n in names {
-            removed += remove_at(&inner, &n, true)?;
+            removed += remove_at(&inner, &n, Some(below))?;
         }
     }
     rustix::fs::unlinkat(at, name, AtFlags::REMOVEDIR)?;

@@ -74,3 +74,27 @@ fn a_session_to_read_changes_nothing_and_a_rename_never_replaces() {
     assert_eq!(r.remove("/d", true).unwrap(), 2);
     assert_eq!(r.stat("/d").unwrap_err(), Fault::NotFound);
 }
+
+#[test]
+fn a_fifo_is_refused_not_waited_on_and_a_tree_too_deep_is_refused_not_walked() {
+    let dir = tempfile::tempdir().unwrap();
+    rustix::fs::mknodat(
+        rustix::fs::CWD,
+        dir.path().join("pipe"),
+        rustix::fs::FileType::Fifo,
+        Mode::from_raw_mode(0o644),
+        0,
+    )
+    .unwrap();
+    let r = root(dir.path(), true);
+    assert_eq!(r.read("/pipe", 0, 10).unwrap_err(), Fault::Refused, "and it returned at once");
+    assert_eq!(r.write("/pipe", 0, b"x", false, false).unwrap_err(), Fault::Refused);
+    let mut deep = String::new();
+    for _ in 0..=super::fs::DEPTH {
+        deep.push_str("/d");
+        r.mkdir(&deep).unwrap();
+    }
+    assert_eq!(r.remove("/d", true).unwrap_err(), Fault::Refused);
+    assert_eq!(r.stat("/..").unwrap_err(), Fault::Refused, "never the root's metadata");
+    assert_eq!(r.stat("/").unwrap().kind, Kind::Directory);
+}

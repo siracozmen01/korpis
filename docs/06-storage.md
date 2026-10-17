@@ -299,7 +299,10 @@ when it ends, so an auditor sees a long session's changes when it closes, not as
 > root's descriptor with `openat2` and `RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS`,
 > `RESOLVE_NO_MAGICLINKS`, and `RESOLVE_NO_XDEV`, so a link a tenant planted, a `..`, or a step
 > onto another mount reaches nothing, and a link is listed and never followed; a rename never
-> replaces what is there; reads and writes move at most a mebibyte. Not built yet: the worker
+> replaces what is there; reads and writes move at most a mebibyte and serve only a regular
+> file, never waiting on a FIFO the tenant made; a recursive remove goes at most 128 levels
+> down; a listing holds a page of names, however large the directory (Finding 79 of
+> `23-walkthroughs.md`). Not built yet: the worker
 > process and its confinement, the helper's verb that starts it, and the node's handler that
 > carries a session to it, which are what make this reachable.
 
