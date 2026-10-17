@@ -25,6 +25,22 @@ fn leased_set(d: &Down) -> Option<Vec<agent::SignedAssignment>> {
     (a.lease_epoch > 0).then(|| s.assignments.clone())
 }
 
+/// Forgeries of `held`: the real bytes with a signature of zeros, and an assignment claiming a far
+/// higher epoch than `epoch` under the real signature, which no longer covers its bytes.
+fn forged(held: &[agent::SignedAssignment], epoch: u64) -> Vec<agent::SignedAssignment> {
+    let mut forged = held.to_vec();
+    for f in &mut forged {
+        f.signature = vec![0; 64];
+    }
+    let mut higher = held[0].clone();
+    let mut claimed =
+        <agent::Assignment as buffa::Message>::decode_from_slice(&higher.assignment).unwrap();
+    claimed.lease_epoch = epoch + 1_000;
+    higher.assignment = buffa::Message::encode_to_vec(&claimed);
+    forged.push(higher);
+    forged
+}
+
 async fn floor(h: &Harness) -> i64 {
     let store = h.db.store().await.unwrap();
     sqlx::query_scalar("SELECT floor FROM epoch_state").fetch_one(store.pool()).await.unwrap()
@@ -43,6 +59,21 @@ async fn a_settling_restore_issues_nothing_and_raises_its_floor_by_verified_epoc
     send(&mut sa, request(&workload, 1)).await;
     let epoch = until(&mut sa, grant).await.epoch;
     let held = until(&mut sa, leased_set).await;
+    let store = h.db.store().await.unwrap();
+    let uuid = korpis_core::id::Id::parse(korpis_core::id::IdKind::Node, &a.node).unwrap().uuid();
+    let node = format!("lease:{uuid}");
+    let charged: i64 = sqlx::query_scalar("SELECT count(*) FROM rate_bucket WHERE key = $1")
+        .bind(&node)
+        .fetch_one(store.pool())
+        .await
+        .unwrap();
+    assert_eq!(charged, 1, "the issue spent from the node's own bucket first");
+
+    // Presented with no restore settling: nothing asked for it, so it raises nothing.
+    let unasked = agent::Presented { assignments: held.clone(), ..Default::default() };
+    send(&mut sa, Up::Presented(Box::new(unasked))).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(floor(&h).await, 0, "ignored outside a restore");
     drop(sa);
 
     // Restored to a backup that knew no epoch, at a rate of none: the floor the arithmetic gives
@@ -54,18 +85,7 @@ async fn a_settling_restore_issues_nothing_and_raises_its_floor_by_verified_epoc
 
     let (mut sb, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[2; 16])).await;
     assert!(welcome(&first.unwrap()).present_assignments, "asked to present while settling");
-    // Forged: the real bytes with a signature of zeros, and an assignment claiming a far higher
-    // epoch under the real signature, which no longer covers its bytes.
-    let mut forged = held.clone();
-    for f in &mut forged {
-        f.signature = vec![0; 64];
-    }
-    let mut higher = held[0].clone();
-    let mut claimed =
-        <agent::Assignment as buffa::Message>::decode_from_slice(&higher.assignment).unwrap();
-    claimed.lease_epoch = epoch + 1_000;
-    higher.assignment = buffa::Message::encode_to_vec(&claimed);
-    forged.push(higher);
+    let forged = forged(&held, epoch);
     let presented = agent::Presented { assignments: [forged, held].concat(), ..Default::default() };
     send(&mut sb, Up::Presented(Box::new(presented))).await;
     for _ in 0..50 {

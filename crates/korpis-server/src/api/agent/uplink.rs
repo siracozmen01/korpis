@@ -170,6 +170,10 @@ impl Uplink {
             })
             .collect();
         let shown = self.app.present(self.node, &held).await.map_err(|e| e.to_string())?;
+        if !shown.settling {
+            tracing::warn!(node = %self.node, "assignments presented with no restore settling: ignored");
+            return Ok(());
+        }
         if shown.refused > 0 {
             tracing::warn!(node = %self.node, refused = shown.refused, "presented assignments refused");
         }

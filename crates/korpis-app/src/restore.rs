@@ -48,6 +48,8 @@ pub struct Presentation {
     pub refused: usize,
     /// The floor the node's epochs raised it to, if they raised it.
     pub raised_to: Option<u64>,
+    /// Whether a restore was settling: outside a window a presentation is believed in nothing.
+    pub settling: bool,
 }
 
 fn seconds(t: SystemTime) -> u64 {
@@ -95,15 +97,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(until)
     }
 
-    /// What `node` presented: every assignment it holds, as signed. The highest lease epoch of
-    /// those that verify and were issued to it raises the epoch floor.
+    /// What `node` presented: every assignment it holds, as signed. While a restore settles, the
+    /// highest lease epoch of those that verify and were issued to it raises the epoch floor;
+    /// outside a window nothing presented is believed, since nothing asked for it. The keyring
+    /// is every assignment key that ever signed, by design (§6 of docs/18-operations.md): a key's
+    /// end bounds what it signs from then on, not what it signed before, so it is not checked
+    /// against the time of presentation.
     pub async fn present(&self, node: Uuid, held: &[Sealed]) -> Result<Presentation, AppError> {
         let sealer = self
             .assignment_sealer
             .as_ref()
             .ok_or_else(|| AppError::Internal("no assignment sealer is configured".into()))?;
+        if self.settling().await?.is_none() {
+            return Ok(Presentation::default());
+        }
         let keys = self.store.verify_keys("assignment").await?;
-        let mut presentation = Presentation::default();
+        let mut presentation = Presentation { settling: true, ..Presentation::default() };
         let mut highest = 0;
         for sealed in held {
             match sealer.open(sealed, &keys) {

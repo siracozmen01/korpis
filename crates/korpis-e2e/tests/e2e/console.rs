@@ -56,7 +56,16 @@ async fn korpis_console_types_into_an_interactive_workload_as_whoever_typed() {
     assert!(printed.contains("got hello"), "the workload's answer: {printed:?}");
     let sql = "SELECT count(*) FROM effect WHERE action = 'workload.console.write' \
                AND actor::text LIKE '%token%' AND grant_id IS NOT NULL";
-    assert_eq!(cp.scalar::<i64>(sql).await, 1, "the input, as the typist's act");
+    // The input reaches the effect log through the node's journal, shipped on its own period.
+    let mut recorded = 0;
+    for _ in 0..50 {
+        recorded = cp.scalar::<i64>(sql).await;
+        if recorded > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    assert_eq!(recorded, 1, "the input, as the typist's act");
 
     let reader = cp.token_for(&["workload.read", "workload.console.read"]).await;
     let watched = attach(&cp, &reader, &w, b"ignored\n", 5).await;

@@ -7,11 +7,12 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, EffectWrite, EpochIssue, LeaseWrite, PlacementWrite, RecipeSource, Store, Tx,
+    Clock, EffectWrite, EpochIssue, LeaseWrite, PlacementWrite, RateWrite, RecipeSource, Store, Tx,
     WorkloadWrite,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
+use korpis_core::rate::{Bucket, Rate};
 use korpis_core::workload::lease::{Decision, Lease, Refusal, decide};
 use korpis_core::workload::spec::Continuity;
 use std::time::Duration;
@@ -53,6 +54,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 epoch
             }
             Decision::Issue => {
+                // Each node spends from its own bucket before the installation's, so no node,
+                // however it asks, takes the epochs every other node would be issued.
+                let charged = tx.charge_within(vec![node_issue(node)], now).await?;
+                if charged.iter().any(|s| !s.admitted) {
+                    return Ok(LeaseAnswer::Refused(Refusal::Unavailable));
+                }
                 let epoch = match tx.next_epoch(now).await? {
                     EpochIssue::Issued(epoch) => epoch,
                     // Nothing is issued while a restore settles (§8 of docs/03-state.md), nor
@@ -101,6 +108,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let released = tx.release_lease(workload, node, epoch, self.clock.now()).await?;
         tx.commit().await?;
         Ok(released)
+    }
+}
+
+/// What one node may spend of the epoch issue rate: fifty a second, a hundred at once, a
+/// twentieth of the installation's default cap (§8 of docs/03-state.md). Renewals spend nothing.
+fn node_issue(node: Uuid) -> Bucket {
+    Bucket {
+        policy: "lease-issue-node",
+        key: format!("lease:{node}"),
+        rate: Rate::per_second(50, 100),
     }
 }
 

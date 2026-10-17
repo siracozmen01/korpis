@@ -549,7 +549,13 @@ does.
 > and an assignment that does not verify is counted and believed in nothing. What mechanism 2 does
 > not see: a lease epoch an agent holds from a grant newer than its assignment, which is not
 > signed; mechanism 1's bound covers it. The restore command that fences is built with the rest of
-> the restore (§6 of `18-operations.md`).
+> the restore (§6 of `18-operations.md`). Each node spends from a bucket of its own before the
+> installation's, fifty issues a second and a hundred at once, so no node, by releasing and asking
+> again, takes the epochs every other node would be issued; renewals spend nothing. A presentation
+> is believed only while a window is open: outside one nothing asked for it. The keyring a
+> presented signature is checked against is every assignment key that ever signed, and a key's end
+> is not compared with the time of presentation, since it bounds what the key signs from then on,
+> not what it signed before. Both were added the same day, from a review of the first version.
 
 Agents reconnect, discover their epochs are stale, and **freeze mutations while leaving processes
 running**, then request reissue according to their `on_expiry` policy.
