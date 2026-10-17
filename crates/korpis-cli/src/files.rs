@@ -136,3 +136,33 @@ async fn prune(
     }
     Ok(())
 }
+
+/// What `plan` or `apply` over `paths` says of `out`, in the human form: each plan, each set
+/// left drifted, and the command that applies what waits.
+#[must_use]
+pub fn human(out: &Outcome, paths: &[PathBuf], set: &SetArgs) -> String {
+    let mut lines: Vec<String> =
+        out.plans.iter().map(|(workload, p)| crate::show::plan(p, workload)).collect();
+    for w in &out.left {
+        lines.push(format!("left as it is: {w} drifted, and --accept-drift was given"));
+    }
+    if !out.waiting.is_empty() {
+        let shown: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
+        lines.push(crate::show::apply_with(&shown, &out.waiting, &set_flags(set)));
+    }
+    lines.iter().fold(String::new(), |text, l| text + l + "\n")
+}
+
+/// The set flags `apply` must be given again to apply what `plan` showed.
+fn set_flags(set: &SetArgs) -> String {
+    let mut flags = Vec::new();
+    if let Some(name) = &set.set {
+        flags.push(format!("--set {name}"));
+    }
+    for (on, flag) in [(set.adopt, "--adopt"), (set.reconcile, "--reconcile")] {
+        if on {
+            flags.push(flag.to_owned());
+        }
+    }
+    flags.join(" ")
+}

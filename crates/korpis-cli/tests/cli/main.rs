@@ -18,5 +18,6 @@ mod declared;
 mod events;
 mod extensions;
 mod grants;
+mod login;
 mod sets;
 mod support;

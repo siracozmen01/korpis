@@ -1188,8 +1188,8 @@ tokens, and rotates as the panel does. Where no keychain is reachable, a server 
 session, it says so and keeps the credential in a file readable by its user alone, and
 `korpis login --no-store` holds it in memory for one command's life instead.
 
-> As built, 2026-10-17, the control plane's half; the CLI's is built next (§7 of
-> `13-surface-cli.md`). `SessionService.AuthorizeDevice`, called without a credential, answers a
+> As built, 2026-10-17, the control plane's half; the CLI's is the note of the same day in §7 of
+> `13-surface-cli.md`. `SessionService.AuthorizeDevice`, called without a credential, answers a
 > device code, `korpisdv_` and 256 random bits of which the control plane keeps the digest, and a
 > user code of eight characters from the twenty consonants RFC 8628 §6.1 recommends, shown as
 > `BCDF-GHJK`, with the panel's page to type it into, `--public-url` followed by `/device`, and

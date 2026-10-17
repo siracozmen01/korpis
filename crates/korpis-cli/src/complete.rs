@@ -7,12 +7,14 @@
 //! nothing.
 //!
 //! A completer sees the environment, not the command line being typed: it connects with
-//! `KORPIS_SERVER`, `KORPIS_CA`, and `KORPIS_TOKEN` or `KORPIS_TOKEN_FILE`. Anything that fails
+//! `KORPIS_SERVER`, `KORPIS_CA`, and `KORPIS_TOKEN` or `KORPIS_TOKEN_FILE`, or the session
+//! `korpis login` kept for that server. Anything that fails
 //! completes nothing, silently; a completion is never an error message in the middle of a line.
 
-use crate::connect::{Connection, Endpoint, token_from};
+use crate::connect::{Connection, token_from};
 use crate::error::CliError;
 use crate::resolve;
+use crate::session;
 use clap_complete::engine::CompletionCandidate;
 use korpis_proto::korpis::v1 as pb;
 use std::ffi::OsStr;
@@ -23,15 +25,16 @@ use std::path::PathBuf;
 const SCOPE_KINDS: [&str; 7] =
     ["org", "project", "workload", "node", "volume", "endpoint", "stream"];
 
-fn connection() -> Option<Connection> {
+/// The connection the environment describes: its token, or the session `korpis login` kept.
+async fn connection() -> Option<Connection> {
     let server = std::env::var("KORPIS_SERVER").ok()?;
     let ca = PathBuf::from(std::env::var_os("KORPIS_CA")?);
     let token = match std::env::var_os("KORPIS_TOKEN_FILE") {
-        Some(path) => token_from(&PathBuf::from(path)).ok()?,
-        None => std::env::var("KORPIS_TOKEN").ok()?,
+        Some(path) => Some(token_from(&PathBuf::from(path)).ok()?),
+        None => std::env::var("KORPIS_TOKEN").ok(),
     };
     let _ = rustls::crypto::ring::default_provider().install_default();
-    Connection::open(&Endpoint { server, ca, token }).ok()
+    session::connection(&server, ca, token, None).await.ok()
 }
 
 /// The candidates `list` finds that start with `current`, each a value and what it is.
@@ -40,10 +43,13 @@ where
     F: FnOnce(Connection) -> Fut,
     Fut: Future<Output = Result<Vec<(String, String)>, CliError>>,
 {
-    let (Some(prefix), Some(c)) = (current.to_str(), connection()) else { return Vec::new() };
+    let Some(prefix) = current.to_str() else { return Vec::new() };
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build();
-    let Ok(found) = runtime.map_err(|_| ()).and_then(|r| r.block_on(list(c)).map_err(|_| ()))
-    else {
+    let listed = async {
+        let c = connection().await.ok_or(())?;
+        list(c).await.map_err(|_| ())
+    };
+    let Ok(found) = runtime.map_err(|_| ()).and_then(|r| r.block_on(listed)) else {
         return Vec::new();
     };
     found
@@ -186,4 +192,40 @@ pub fn scopes(current: &OsStr) -> Vec<CompletionCandidate> {
             CompletionCandidate::new(value).help(c.get_help().cloned())
         })
         .collect()
+}
+
+/// The shells completion can be registered with.
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Shell {
+    /// Bash.
+    Bash,
+    /// Zsh.
+    Zsh,
+    /// Fish.
+    Fish,
+    /// Elvish.
+    Elvish,
+    /// PowerShell.
+    Powershell,
+}
+
+/// The environment variable that asks the binary for completions.
+pub const COMPLETE_VAR: &str = "KORPIS_COMPLETE";
+
+/// Writes the registration script for `shell`, pointing at this binary.
+pub fn registration(shell: Shell) -> Result<(), CliError> {
+    use clap_complete::env::{Bash, Elvish, EnvCompleter, Fish, Powershell, Zsh};
+    let completer: &dyn EnvCompleter = match shell {
+        Shell::Bash => &Bash,
+        Shell::Zsh => &Zsh,
+        Shell::Fish => &Fish,
+        Shell::Elvish => &Elvish,
+        Shell::Powershell => &Powershell,
+    };
+    let bin = std::env::current_exe().map_err(|e| CliError::Local(e.to_string()))?;
+    let bin = bin.to_string_lossy();
+    let mut out = std::io::stdout().lock();
+    completer
+        .write_registration(COMPLETE_VAR, "korpis", &bin, &bin, &mut out)
+        .map_err(|e| CliError::Local(e.to_string()))
 }

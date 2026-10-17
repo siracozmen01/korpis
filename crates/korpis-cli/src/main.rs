@@ -19,18 +19,19 @@ use korpis_cli::cmd::{
     sets,
 };
 use korpis_cli::cmd::{console, logs, stream_share};
-use korpis_cli::complete;
+use korpis_cli::complete::{self, COMPLETE_VAR, Shell, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
 use korpis_cli::files;
+use korpis_cli::session::{self, Held};
 use korpis_cli::sets::SetArgs;
-use korpis_cli::show;
+use korpis_cli::vault::Vault;
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::registry::Registry;
 use serde_json::Value;
-use std::io::Read as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[command(name = "korpis", version = korpis_core::build::version_line())]
@@ -53,6 +54,9 @@ struct Cli {
     plain_http: Vec<String>,
     #[command(subcommand)]
     command: Command,
+    /// The session a `korpis login --no-store` holds in memory for the command it runs.
+    #[arg(skip)]
+    held: Option<Held>,
 }
 
 #[derive(Subcommand)]
@@ -143,6 +147,19 @@ enum Command {
     },
     /// The client's version and source revision, and the server's when one is named.
     Version,
+    /// Signs in by approving a code in the panel, and keeps the session in the system keyring,
+    /// or where there is none in a file only you can read.
+    Login {
+        /// Keep nothing: sign in, run the command after `--` with the session in memory, and
+        /// sign out.
+        #[arg(long, requires = "command")]
+        no_store: bool,
+        /// With `--no-store`, the command to run, e.g. `-- get workloads`.
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
+    /// Ends the session `korpis login` began, and forgets it.
+    Logout,
     /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
     Call {
         /// The method, as `Service/Method` or `korpis.v1.Service/Method`.
@@ -157,39 +174,68 @@ enum Command {
 }
 
 impl Cli {
-    /// The connection the flags describe, if they name a server.
-    fn connection(&self) -> Result<Option<Connection>, CliError> {
+    /// The connection the flags describe, if they name a server: borne by the token given, or
+    /// by the session held or kept, or by nothing.
+    async fn connection(&self) -> Result<Option<Connection>, CliError> {
         let Some(server) = &self.server else { return Ok(None) };
-        let ca = self.ca.clone().ok_or_else(|| {
-            CliError::Local("--ca (or KORPIS_CA) names the installation's CA".into())
-        })?;
         let token = match &self.token_file {
-            Some(path) => token_from(path)?,
-            None => std::env::var("KORPIS_TOKEN").unwrap_or_default(),
+            Some(path) => Some(token_from(path)?),
+            None => std::env::var("KORPIS_TOKEN").ok(),
         };
-        Connection::open(&Endpoint { server: server.clone(), ca, token }).map(Some)
+        session::connection(server, self.ca()?, token, self.held.clone()).await.map(Some)
     }
 
-    fn required(&self) -> Result<Connection, CliError> {
-        self.connection()?.ok_or_else(|| {
+    async fn required(&self) -> Result<Connection, CliError> {
+        self.connection().await?.ok_or_else(|| {
             CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
         })
     }
+
+    /// The installation's CA, which every connection needs.
+    fn ca(&self) -> Result<PathBuf, CliError> {
+        self.ca.clone().ok_or_else(|| {
+            CliError::Local("--ca (or KORPIS_CA) names the installation's CA".into())
+        })
+    }
+
+    /// A connection to the server named, borne by nothing: what signing in and out begin with.
+    fn anonymous(&self) -> Result<Connection, CliError> {
+        let server = self.server.clone().ok_or_else(|| {
+            CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
+        })?;
+        Connection::open(&Endpoint { server, ca: self.ca()?, token: String::new() })
+    }
 }
 
-/// The request `data` names.
-fn request(data: &str) -> Result<Value, CliError> {
-    let text = match data {
-        "-" => {
-            let mut s = String::new();
-            std::io::stdin().read_to_string(&mut s).map_err(|e| CliError::Local(e.to_string()))?;
-            s
-        }
-        _ if data.starts_with('@') => std::fs::read_to_string(&data[1..])
-            .map_err(|e| CliError::Local(format!("{}: {e}", &data[1..])))?,
-        _ => data.to_owned(),
-    };
-    serde_json::from_str(&text).map_err(|e| CliError::Local(format!("the request: {e}")))
+/// `korpis login`: the device flow, then the session kept; or, with `--no-store`, `command`
+/// run with it held in memory, and the session ended after.
+#[expect(clippy::print_stderr, reason = "where to approve the code is said on standard error")]
+async fn login(cli: &Cli, no_store: bool, command: &[String]) -> Result<(), CliError> {
+    let c = cli.anonymous()?;
+    let record = session::device_flow(&c, &mut std::io::stderr().lock()).await?;
+    let server = c.server().to_owned();
+    if !no_store {
+        let vault = Vault::new(&server, Vault::default_dir()?).await;
+        eprintln!("{}", session::kept(&vault.save(&record).await?));
+        return Ok(());
+    }
+    let held = Held::Memory(Arc::new(tokio::sync::Mutex::new(record)));
+    let ca = cli.ca()?.display().to_string();
+    let argv = ["korpis", "--server", &server, "--ca", &ca].into_iter().map(str::to_owned);
+    let mut inner = Cli::try_parse_from(argv.chain(command.iter().cloned()))
+        .map_err(|e| CliError::Local(e.to_string()))?;
+    inner.json = cli.json;
+    inner.held = Some(held.clone());
+    let ran = Box::pin(run(&inner)).await;
+    let ended = session::sign_out(&c, &held).await;
+    ran.and(ended)
+}
+
+/// `korpis logout`.
+async fn logout(cli: &Cli) -> Result<(), CliError> {
+    let c = cli.anonymous()?;
+    let vault = Vault::new(c.server(), Vault::default_dir()?).await;
+    session::sign_out(&c, &Held::Kept(Arc::new(vault))).await
 }
 
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
@@ -203,26 +249,10 @@ fn printer(json: bool) -> impl FnMut(String, Value) {
     move |text, value| if json { print(&value) } else { println!("{text}") }
 }
 
-/// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output.
-async fn cat(
-    c: &korpis_cli::connect::Connection,
-    file: (&str, &str),
-    output: Option<&std::path::Path>,
-) -> Result<(), CliError> {
-    let local = |e: std::io::Error| CliError::Local(e.to_string());
-    match output {
-        Some(path) => {
-            let mut f = std::fs::File::create_new(path).map_err(local)?;
-            backup::cat(c, file, &mut f).await.map(|_| ())
-        }
-        None => backup::cat(c, file, &mut std::io::stdout().lock()).await.map(|_| ()),
-    }
-}
-
 /// `korpis version`: this binary's, and the server's when there is one to ask.
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 async fn version(cli: &Cli) -> Result<(), CliError> {
-    let v = korpis_cli::version::both(cli.connection()?.as_ref()).await?;
+    let v = korpis_cli::version::both(cli.connection().await?.as_ref()).await?;
     if cli.json {
         print(&v);
     } else {
@@ -231,57 +261,75 @@ async fn version(cli: &Cli) -> Result<(), CliError> {
     Ok(())
 }
 
-#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 async fn run(cli: &Cli) -> Result<(), CliError> {
     match &cli.command {
         Command::Completion { shell } => registration(*shell),
         Command::Version => version(cli).await,
-        Command::Plan { action: Some(a), .. } => answer(cli, act::plan(&cli.required()?, a).await),
-        Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
-        Command::Get(g) => answer(cli, get::get(&cli.required()?, g).await),
-        Command::Status { workload } => answer(cli, get::status(&cli.required()?, workload).await),
-        Command::Grant(a) => answer(cli, grant::grant(&cli.required()?, a).await),
-        Command::Set(a) => answer(cli, sets::set(&cli.required()?, a).await),
-        Command::Extension(a) => answer(cli, extension::extension(&cli.required()?, a).await),
-        Command::Event(EventAction::Follow { subscription, ack }) => {
-            event::follow(&cli.required()?, subscription, *ack, &mut printer(cli.json)).await
+        Command::Login { no_store, command } => login(cli, *no_store, command).await,
+        Command::Logout => logout(cli).await,
+        Command::Plan { action: Some(a), .. } => {
+            answer(cli, act::plan(&cli.required().await?, a).await)
         }
-        Command::Event(a) => answer(cli, event::event(&cli.required()?, a).await),
-        Command::Console(a) => console::console(&cli.required()?, a).await,
-        Command::Logs(a) => logs::logs(&cli.required()?, a, &mut printer(cli.json)).await,
-        Command::Stream(a) => answer(cli, stream_share::run(&cli.required()?, a).await),
-        Command::Workload(a) => answer(cli, act::workload(&cli.required()?, a).await),
-        Command::Volume(a) => answer(cli, volume::volume(&cli.required()?, a).await),
-        Command::Repository(a) => answer(cli, repository::repository(&cli.required()?, a).await),
-        Command::Certificate(a) => answer(cli, certificate::certificate(&cli.required()?, a).await),
-        Command::Domain(a) => answer(cli, domain::domain(&cli.required()?, a).await),
+        Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
+        Command::Get(g) => answer(cli, get::get(&cli.required().await?, g).await),
+        Command::Status { workload } => {
+            answer(cli, get::status(&cli.required().await?, workload).await)
+        }
+        Command::Grant(a) => answer(cli, grant::grant(&cli.required().await?, a).await),
+        Command::Set(a) => answer(cli, sets::set(&cli.required().await?, a).await),
+        Command::Extension(a) => answer(cli, extension::extension(&cli.required().await?, a).await),
+        Command::Event(EventAction::Follow { subscription, ack }) => {
+            event::follow(&cli.required().await?, subscription, *ack, &mut printer(cli.json)).await
+        }
+        Command::Event(a) => answer(cli, event::event(&cli.required().await?, a).await),
+        Command::Console(a) => console::console(&cli.required().await?, a).await,
+        Command::Logs(a) => logs::logs(&cli.required().await?, a, &mut printer(cli.json)).await,
+        Command::Stream(a) => answer(cli, stream_share::run(&cli.required().await?, a).await),
+        Command::Workload(a) => answer(cli, act::workload(&cli.required().await?, a).await),
+        Command::Volume(a) => answer(cli, volume::volume(&cli.required().await?, a).await),
+        Command::Repository(a) => {
+            answer(cli, repository::repository(&cli.required().await?, a).await)
+        }
+        Command::Certificate(a) => {
+            answer(cli, certificate::certificate(&cli.required().await?, a).await)
+        }
+        Command::Domain(a) => answer(cli, domain::domain(&cli.required().await?, a).await),
         Command::Backup(BackupAction::Clone { backup, name, project }) => {
-            let c = cli.required()?;
+            let c = cli.required().await?;
             answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
         }
         Command::Backup(BackupAction::Cat { backup, path, output }) => {
-            cat(&cli.required()?, (backup, path), output.as_deref()).await
+            backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
         }
-        Command::Backup(a) => answer(cli, backup::backup(&cli.required()?, a).await),
+        Command::Backup(a) => answer(cli, backup::backup(&cli.required().await?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
-            answer(cli, act::node(&cli.required()?, &server, a).await)
+            answer(cli, act::node(&cli.required().await?, &server, a).await)
         }
         Command::Apply { files, plans, set } => declared(cli, files, plans, false, set).await,
-        Command::Call { list: true, .. } => {
-            for m in METHODS {
-                println!("{m}");
-            }
-            Ok(())
-        }
-        Command::Call { method: None, .. } => {
-            Err(CliError::Local("name a method, or --list".into()))
-        }
-        Command::Call { method: Some(method), data, .. } => {
-            let c = cli.required()?;
-            call(&c, method, request(data)?, &mut |v| print(&v)).await
+        Command::Call { method, data, list } => {
+            call_method(cli, method.as_deref(), data, *list).await
         }
     }
+}
+
+/// `korpis call`: `method` with the request `data`, or every method's name for `list`.
+#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
+async fn call_method(
+    cli: &Cli,
+    method: Option<&str>,
+    data: &str,
+    list: bool,
+) -> Result<(), CliError> {
+    if list {
+        for m in METHODS {
+            println!("{m}");
+        }
+        return Ok(());
+    }
+    let method = method.ok_or_else(|| CliError::Local("name a method, or --list".into()))?;
+    let c = cli.required().await?;
+    call(&c, method, korpis_cli::call::request(data)?, &mut |v| print(&v)).await
 }
 
 /// Prints `a` in the form asked for.
@@ -305,7 +353,7 @@ async fn declared(
     propose: bool,
     set: &SetArgs,
 ) -> Result<(), CliError> {
-    let c = cli.required()?;
+    let c = cli.required().await?;
     let registry = Registry::client_side(cli.plain_http.clone());
     let out = files::run(&c, &registry, files::Run { paths, ids, propose, set }).await?;
     if cli.json {
@@ -313,62 +361,8 @@ async fn declared(
         print(&serde_json::to_value(plans).unwrap_or_default());
         return Ok(());
     }
-    for (workload, p) in &out.plans {
-        println!("{}", show::plan(p, workload));
-    }
-    for w in &out.left {
-        println!("left as it is: {w} drifted, and --accept-drift was given");
-    }
-    if !out.waiting.is_empty() {
-        let shown: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
-        println!("{}", show::apply_with(&shown, &out.waiting, &set_flags(set)));
-    }
+    print!("{}", files::human(&out, paths, set));
     Ok(())
-}
-
-/// The set flags `apply` must be given again to apply what `plan` showed.
-fn set_flags(set: &SetArgs) -> String {
-    let mut flags = Vec::new();
-    if let Some(name) = &set.set {
-        flags.push(format!("--set {name}"));
-    }
-    for (on, flag) in [(set.adopt, "--adopt"), (set.reconcile, "--reconcile")] {
-        if on {
-            flags.push(flag.to_owned());
-        }
-    }
-    flags.join(" ")
-}
-
-/// The shells completion can be registered with.
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-enum Shell {
-    Bash,
-    Zsh,
-    Fish,
-    Elvish,
-    Powershell,
-}
-
-/// The environment variable that asks the binary for completions.
-const COMPLETE_VAR: &str = "KORPIS_COMPLETE";
-
-/// Writes the registration script for `shell`, pointing at this binary.
-fn registration(shell: Shell) -> Result<(), CliError> {
-    use clap_complete::env::{Bash, Elvish, EnvCompleter, Fish, Powershell, Zsh};
-    let completer: &dyn EnvCompleter = match shell {
-        Shell::Bash => &Bash,
-        Shell::Zsh => &Zsh,
-        Shell::Fish => &Fish,
-        Shell::Elvish => &Elvish,
-        Shell::Powershell => &Powershell,
-    };
-    let bin = std::env::current_exe().map_err(|e| CliError::Local(e.to_string()))?;
-    let bin = bin.to_string_lossy();
-    let mut out = std::io::stdout().lock();
-    completer
-        .write_registration(COMPLETE_VAR, "korpis", &bin, &bin, &mut out)
-        .map_err(|e| CliError::Local(e.to_string()))
 }
 
 #[expect(clippy::print_stderr, reason = "a failure is reported on standard error")]

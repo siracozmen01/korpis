@@ -11,6 +11,7 @@ use crate::error::CliError;
 use buffa_descriptor::DescriptorPool;
 use korpis_proto::korpis::v1 as pb;
 use serde_json::Value;
+use std::io::Read as _;
 
 /// The package every client service is in.
 const PACKAGE: &str = "korpis.v1";
@@ -223,6 +224,21 @@ pub async fn call(
     let name = full_name(name);
     let request = with_idempotency(&name, request);
     dispatch(c, &name, &request, out).await
+}
+
+/// The request `data` names.
+pub fn request(data: &str) -> Result<Value, CliError> {
+    let text = match data {
+        "-" => {
+            let mut s = String::new();
+            std::io::stdin().read_to_string(&mut s).map_err(|e| CliError::Local(e.to_string()))?;
+            s
+        }
+        _ if data.starts_with('@') => std::fs::read_to_string(&data[1..])
+            .map_err(|e| CliError::Local(format!("{}: {e}", &data[1..])))?,
+        _ => data.to_owned(),
+    };
+    serde_json::from_str(&text).map_err(|e| CliError::Local(format!("the request: {e}")))
 }
 
 #[cfg(test)]

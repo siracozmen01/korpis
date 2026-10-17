@@ -341,6 +341,27 @@ file trusted alone for it, so no public authority can vouch for a Korpis control
 token comes from is the operator's decision and the operator's storage; the CLI writes nothing
 down.
 
+> As built, 2026-10-17: the flow exists, and the paragraph above now describes automation alone.
+> `korpis login` prints the panel's device page and a user code on standard error and polls until
+> the code is approved there (§9.4 of `08-identity.md`); the session it is given is kept in the
+> system keyring, the Secret Service on Linux or the login keychain on macOS, filed under
+> `korpis` and the control plane's URL, and where no keyring is reachable, or `KORPIS_KEYRING=off`
+> says not to use one, in a file under `$KORPIS_CONFIG_DIR` (by default `korpis` under the user's
+> configuration directory) that only its user can read, in a directory only its user can enter,
+> which `login` says it did and why. Every command after it, completion included, exchanges the
+> kept credential for an access token while holding a lock beside it, so commands run at once
+> take turns instead of presenting one credential twice, which would end the session, and writes
+> back the credential that replaces it; the access token is kept with it until thirty seconds
+> before it expires, so commands run one after another do not each rotate the credential, and a
+> long command, a console or a followed stream, renews its own as it runs. A token from
+> `KORPIS_TOKEN` or `--token-file` still takes precedence. `korpis login --no-store -- <command>`
+> keeps nothing: it signs in, runs the one command with the session in memory, and signs out.
+> `korpis logout` ends the session at the control plane and forgets it here. What it costs: a
+> session kept in a file is as safe as the user's account on the machine, which is the honest
+> limit of every credential a program keeps for its user without a keyring; and a credential
+> copied from that file and used elsewhere ends the session the first time both are exchanged,
+> which is how a copy is detected and also how a user who copies their own learns not to.
+
 For automation, §3 of `08-identity.md` does something RBAC systems cannot:
 
 ```

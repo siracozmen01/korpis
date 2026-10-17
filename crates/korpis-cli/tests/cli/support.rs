@@ -9,6 +9,9 @@ use korpis_store::testing::TestDb;
 use std::process::{Command, Output};
 use std::time::Duration;
 
+/// The panel the control plane serves passkeys for, and `korpis login` sends its user to.
+pub const PANEL: &str = "https://localhost:7443";
+
 /// The development registry (`scripts/dev-registry.sh up`).
 pub fn registry() -> String {
     std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned())
@@ -45,7 +48,7 @@ config:
 
 pub struct ControlPlane {
     _db: TestDb,
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
     pub data: DataDir,
     pub url: String,
     pub root_org: String,
@@ -94,7 +97,10 @@ impl ControlPlane {
             dns_resolver: None,
             acme: korpis_server::acme::AcmeConfig::default(),
             rates: korpis_core::rate::Rates::default(),
-            relying_party: None,
+            relying_party: Some(korpis_core::webauthn::RelyingParty {
+                id: "localhost".into(),
+                origins: vec![PANEL.into()],
+            }),
             session_limits: korpis_core::account::session::SessionLimits::default(),
         })
         .await
@@ -105,7 +111,7 @@ impl ControlPlane {
         );
         Self {
             _db: db,
-            _dir: dir,
+            dir,
             data,
             url: format!("https://localhost:{}", running.addr.port()),
             root_org,
@@ -138,6 +144,9 @@ impl ControlPlane {
             .env("KORPIS_SERVER", &self.url)
             .env("KORPIS_CA", self.data.tls().join("ca.pem"))
             .env("KORPIS_TOKEN", token)
+            // Never this machine's keyring or sessions: a test's client keeps nothing of its own.
+            .env("KORPIS_KEYRING", "off")
+            .env("KORPIS_CONFIG_DIR", self.dir.path().join("config"))
             .arg("--plain-http")
             .arg(registry());
         tokio::task::spawn_blocking(move || cmd.output().unwrap()).await.unwrap()

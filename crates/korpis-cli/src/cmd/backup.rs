@@ -288,3 +288,19 @@ pub async fn backup(c: &Connection, action: &BackupAction) -> Result<Answer, Cli
         }
     })
 }
+
+/// `korpis backup cat`: the file's bytes to `output`, made new, or to standard output.
+pub async fn cat_to(
+    c: &Connection,
+    file: (&str, &str),
+    output: Option<&std::path::Path>,
+) -> Result<(), CliError> {
+    let local = |e: std::io::Error| CliError::Local(e.to_string());
+    match output {
+        Some(path) => {
+            let mut f = std::fs::File::create_new(path).map_err(local)?;
+            cat(c, file, &mut f).await.map(|_| ())
+        }
+        None => cat(c, file, &mut std::io::stdout().lock()).await.map(|_| ()),
+    }
+}

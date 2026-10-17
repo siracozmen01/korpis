@@ -328,11 +328,13 @@ pub fn korpis() -> std::path::PathBuf {
 
 impl ControlPlane {
     /// What the CLI is told to reach this control plane as whoever `secret` authenticates.
-    pub fn cli_env(&self, secret: &str) -> [(&'static str, String); 3] {
+    /// Never this machine's keyring: the test's client keeps nothing of its own.
+    pub fn cli_env(&self, secret: &str) -> [(&'static str, String); 4] {
         [
             ("KORPIS_SERVER", self.url.clone()),
             ("KORPIS_CA", self.data.tls().join("ca.pem").to_string_lossy().into_owned()),
             ("KORPIS_TOKEN", secret.to_owned()),
+            ("KORPIS_KEYRING", "off".to_owned()),
         ]
     }
 }

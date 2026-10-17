@@ -14,6 +14,7 @@ async fn offered(cp: &ControlPlane, token: &str, words: &[&str]) -> String {
         .env("KORPIS_SERVER", &cp.url)
         .env("KORPIS_CA", cp.data.tls().join("ca.pem"))
         .env("KORPIS_TOKEN", token)
+        .env("KORPIS_KEYRING", "off")
         .arg("--")
         .arg("korpis")
         .args(words);
