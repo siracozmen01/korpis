@@ -2,7 +2,10 @@
 
 import { expect, test } from "vitest";
 import type { Asked, FileSession, Said } from "./session";
-import { CHUNK, bytes, download, parent, upload, within } from "./transfer";
+import { bytes, download, parent, upload, within } from "./transfer";
+
+/** A chunk small enough that the tests move bytes, not mebibytes. */
+const CHUNK = 8;
 
 /** A session over one file, answering each request after the ones before it. */
 function over(file: { data: Uint8Array }) {
@@ -37,13 +40,20 @@ function over(file: { data: Uint8Array }) {
 
 const big = new Uint8Array(CHUNK * 2 + 5).map((_, i) => i % 251);
 
-test("an upload moves a mebibyte per request, a few ahead, replacing only from its start", async () => {
+test("an upload moves a chunk per request, a few ahead, replacing only from its start", async () => {
   const file = { data: new Uint8Array([9, 9, 9]) };
   const { fs, asked, most } = over(file);
   const seen: number[] = [];
-  await upload(fs, new Blob([big]), "/data/world.zip", 0, (done) => {
-    seen.push(done);
-  });
+  await upload(
+    fs,
+    new Blob([big]),
+    "/data/world.zip",
+    0,
+    (done) => {
+      seen.push(done);
+    },
+    CHUNK,
+  );
   expect(file.data).toEqual(big);
   const writes = asked.flatMap((r) => (r.case === "write" ? [r.value] : []));
   expect(writes.map((w) => [w.offset, w.data?.length, w.truncate])).toEqual([
@@ -58,7 +68,7 @@ test("an upload moves a mebibyte per request, a few ahead, replacing only from i
 test("a resumed upload sends only what is not there", async () => {
   const file = { data: big.slice(0, CHUNK) };
   const { fs, asked } = over(file);
-  await upload(fs, new Blob([big]), "/w", CHUNK, () => undefined);
+  await upload(fs, new Blob([big]), "/w", CHUNK, () => undefined, CHUNK);
   expect(file.data).toEqual(big);
   const offsets = asked.flatMap((r) => (r.case === "write" ? [r.value.offset] : []));
   expect(offsets).toEqual([BigInt(CHUNK), BigInt(CHUNK * 2)]);
@@ -78,7 +88,7 @@ test("a download arrives in order, and a file that shrank ends where it ends", a
       return Promise.resolve();
     },
   };
-  await download(fs, "/w", big.length + CHUNK, sink, () => undefined);
+  await download(fs, "/w", big.length + CHUNK, sink, () => undefined, CHUNK);
   const joined = new Uint8Array(got.reduce((n, c) => n + c.length, 0));
   let at = 0;
   for (const c of got) {

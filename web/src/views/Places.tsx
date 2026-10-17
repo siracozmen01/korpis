@@ -13,6 +13,7 @@ import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
 import { CONVERGENCE } from "../workload/words";
+import { ThemeEditor } from "../theme/ThemeEditor";
 
 /** The places the caller's grants open. */
 export function Home() {
@@ -81,7 +82,7 @@ function EntryItem({ entry }: { readonly entry: Entry }) {
 
 /** An organization: its name, the organizations under it, and its projects. */
 export function OrganizationPage({ id }: { readonly id: string }) {
-  const { clients, base } = useReach();
+  const { clients, base, metered } = useReach();
   const { organizations, projects } = clients;
   const name = useLoad(
     useCallback(
@@ -134,6 +135,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
           </li>
         )}
       />
+      {!metered && <ThemeEditor id={id} />}
     </main>
   );
 }

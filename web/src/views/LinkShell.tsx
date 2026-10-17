@@ -16,6 +16,7 @@ import { entryOf } from "./entries";
 import { useLoad } from "./load";
 import { Place, placeAt } from "./place";
 import { Shown } from "./Shown";
+import { Themed } from "../theme/useTheme";
 
 /** The prefix every share link starts with (link.rs). */
 export const LINK_PREFIX = "korpislk_";
@@ -96,7 +97,11 @@ function Granted(props: {
           {uses !== undefined && ` It can be used ${uses.toString()} times in all.`}
         </p>
       </aside>
-      {entry !== undefined && <Place entry={entry} />}
+      {entry !== undefined && (
+        <Themed source={{ kind: "place", clients, entry }}>
+          <Place entry={entry} />
+        </Themed>
+      )}
     </ReachProvider>
   );
 }

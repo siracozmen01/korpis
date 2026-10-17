@@ -41,13 +41,15 @@ async function settle(pending: Promise<void>[], most: number): Promise<void> {
   while (pending.length > most) await pending.shift();
 }
 
-/** Writes `file` to `path` from byte `from`; from 0, it replaces what is there. */
+/** Writes `file` to `path` from byte `from`, `chunk` bytes a request; from 0, it replaces what is
+ * there. */
 export async function upload(
   fs: FileSession,
   file: Blob,
   path: string,
   from: number,
   progress: Progress,
+  chunk = CHUNK,
 ): Promise<void> {
   let done = from;
   progress(done, file.size);
@@ -57,8 +59,8 @@ export async function upload(
     return;
   }
   const pending: Promise<void>[] = [];
-  for (let at = from; at < file.size; at += CHUNK) {
-    const data = new Uint8Array(await file.slice(at, at + CHUNK).arrayBuffer());
+  for (let at = from; at < file.size; at += chunk) {
+    const data = new Uint8Array(await file.slice(at, at + chunk).arrayBuffer());
     const value = { path, offset: BigInt(at), data, create: true, truncate: at === 0 };
     const written = fs.ask({ case: "write", value }).then((said) => {
       if (said.case !== "written" || Number(said.value) !== data.length)
@@ -80,16 +82,17 @@ export interface Sink {
   close(): Promise<void>;
 }
 
-/** Reads `size` bytes of `path` into `sink`, in order. */
+/** Reads `size` bytes of `path` into `sink`, in order, `chunk` bytes a request. */
 export async function download(
   fs: FileSession,
   path: string,
   size: number,
   sink: Sink,
   progress: Progress,
+  chunk = CHUNK,
 ): Promise<void> {
   const read = (at: number) =>
-    fs.ask({ case: "read", value: { path, offset: BigInt(at), length: CHUNK } }).then((said) => {
+    fs.ask({ case: "read", value: { path, offset: BigInt(at), length: chunk } }).then((said) => {
       if (said.case !== "data") throw new Error("the node answered a read with no data");
       return said.value;
     });
@@ -102,15 +105,15 @@ export async function download(
       const r = read(asked);
       r.catch(() => undefined);
       ahead.push(r);
-      asked += CHUNK;
+      asked += chunk;
     }
     const next = ahead.shift();
     if (next === undefined) break;
-    const chunk = await next;
+    const data = await next;
     // A file that shrank while it was read ends where it now ends.
-    if (chunk.length === 0) break;
-    await sink.write(chunk);
-    done += chunk.length;
+    if (data.length === 0) break;
+    await sink.write(data);
+    done += data.length;
     progress(done, size);
   }
   await sink.close();

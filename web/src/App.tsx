@@ -12,6 +12,7 @@ import {
   linkClients,
   profiles,
   relay,
+  serverInfo,
   session as shared,
   sessions,
   signedInClients,
@@ -29,9 +30,13 @@ import { Place, placeAt } from "./views/place";
 import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
 import { Profile } from "./profile/Profile";
+import { Brand, type Source, Themed } from "./theme/useTheme";
 
 /** The signed-in user's clients, and links written from the panel's root. */
 const signedInReach = { clients: signedInClients, base: "", metered: false, relay };
+
+/** The theme the pages before signing in wear: the installation root's. */
+const signInTheme: Source = { kind: "sign-in", info: serverInfo };
 
 /** What the profile screens call. */
 const profileServices = { profiles, sessions, accounts, assert, create };
@@ -74,13 +79,15 @@ function Routes({ session }: { readonly session: Session }) {
   if (path === "/sign-in") {
     const to = returnTo(window.location.search);
     return (
-      <SignIn
-        accounts={accounts}
-        assert={assert}
-        signedIn={() => {
-          signedIn(to);
-        }}
-      />
+      <Themed source={signInTheme}>
+        <SignIn
+          accounts={accounts}
+          assert={assert}
+          signedIn={() => {
+            signedIn(to);
+          }}
+        />
+      </Themed>
     );
   }
   if (path === "/invitation") {
@@ -89,7 +96,11 @@ function Routes({ session }: { readonly session: Session }) {
       signedIn("/");
     };
     const held = takeFragment(INVITATION_PREFIX);
-    return <Invitation held={held} accounts={accounts} create={create} redeemed={redeemed} />;
+    return (
+      <Themed source={signInTheme}>
+        <Invitation held={held} accounts={accounts} create={create} redeemed={redeemed} />
+      </Themed>
+    );
   }
   if (path === LINK_BASE || path.startsWith(`${LINK_BASE}/`)) {
     const link = takeFragment(LINK_PREFIX);
@@ -118,39 +129,50 @@ function Routes({ session }: { readonly session: Session }) {
     );
   }
   const place = placeAt(path);
+  const source: Source =
+    place === undefined
+      ? { kind: "home", clients: signedInClients }
+      : { kind: "place", clients: signedInClients, entry: place };
   return (
     <ReachProvider value={signedInReach}>
-      <header>
-        <Link href="/">Korpis</Link> <Link href="/profile">Profile</Link>
-        <Button
-          onPress={() => {
-            void cookieSessions.signOut({}).finally(() => {
-              session.end();
-            });
-          }}
-        >
-          Sign out
-        </Button>
-      </header>
-      {path === "/profile" ? (
-        <Profile services={profileServices} />
-      ) : place !== undefined ? (
-        <Place entry={place} />
-      ) : path === "/" ? (
-        <main>
-          <h1>Korpis</h1>
-          <Home />
-        </main>
-      ) : (
-        <main>
-          <h1>Not found</h1>
-          <p>The panel has no page at this address.</p>
-        </main>
-      )}
-      <footer>
-        {/* The control plane's own page, not the panel's: loaded, not routed. */}
-        <a href="/about/source">Source</a>
-      </footer>
+      <Themed source={source}>
+        <header>
+          <Link href="/">
+            <Brand />
+          </Link>{" "}
+          <Link href="/profile">Profile</Link>
+          <Button
+            onPress={() => {
+              void cookieSessions.signOut({}).finally(() => {
+                session.end();
+              });
+            }}
+          >
+            Sign out
+          </Button>
+        </header>
+        {path === "/profile" ? (
+          <Profile services={profileServices} />
+        ) : place !== undefined ? (
+          <Place entry={place} />
+        ) : path === "/" ? (
+          <main>
+            <h1>
+              <Brand />
+            </h1>
+            <Home />
+          </main>
+        ) : (
+          <main>
+            <h1>Not found</h1>
+            <p>The panel has no page at this address.</p>
+          </main>
+        )}
+        <footer>
+          {/* The control plane's own page, not the panel's: loaded, not routed. */}
+          <a href="/about/source">Source</a>
+        </footer>
+      </Themed>
     </ReachProvider>
   );
 }

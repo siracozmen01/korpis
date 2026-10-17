@@ -36,6 +36,12 @@ const withCookies: typeof fetch = (input, init) =>
 
 const anonymous = createConnectTransport({ baseUrl: controlPlane(), fetch: withCookies });
 
+/** The server's description and the sign-in page's theme, asked with no credential. */
+export const serverInfo: Client<typeof ServerInfoService> = createClient(
+  ServerInfoService,
+  anonymous,
+);
+
 /** The account service: redemption and sign-in, called with no credential. */
 export const accounts: Client<typeof AccountService> = createClient(AccountService, anonymous);
 
@@ -107,7 +113,7 @@ let found: Promise<Relay> | undefined;
  * relay's transport sends no cookie and no bearer. */
 export function relay(): Promise<Relay> {
   found ??= (async () => {
-    const info = await createClient(ServerInfoService, anonymous).getServerInfo({});
+    const info = await serverInfo.getServerInfo({});
     const url = info.controlPlaneRelay ? controlPlane() : info.relays[0];
     if (url === undefined)
       throw new Error("no relay serves sessions: the control plane names none");

@@ -11,6 +11,7 @@ import type { AccountService } from "../gen/korpis/v1/account_pb";
 import type { Assertion } from "../session/webauthn";
 import { type Credentials, PasswordForm } from "./PasswordForm";
 import { refusal } from "./refusal";
+import { Brand, useWorn } from "../theme/useTheme";
 
 /** What signing in needs: the account service and the browser's passkey ceremony. */
 export interface SignInProps {
@@ -48,9 +49,16 @@ export function SignIn({ accounts, assert, signedIn }: SignInProps) {
 
   const withPassword = (c: Credentials) => attempt(() => accounts.signInWithPassword(c));
 
+  const worn = useWorn();
   return (
     <main>
-      <h1>Sign in</h1>
+      <h1>
+        <Brand />
+      </h1>
+      <h2>Sign in</h2>
+      {worn?.signInText !== undefined && worn.signInText !== "" && (
+        <p className="sign-in-text">{worn.signInText}</p>
+      )}
       <Button isDisabled={busy} onPress={() => void withPasskey()}>
         Sign in with a passkey
       </Button>

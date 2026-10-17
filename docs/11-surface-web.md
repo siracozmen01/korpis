@@ -301,7 +301,7 @@ own data instead. Email templates are part of a theme when Korpis sends email, w
 in Phase 1: there is no emailed reset (§9.3 of `08-identity.md`), and invitations are handed over
 by whoever issues them.
 
-> As built, 2026-10-17, the theme itself (the panel's use of it is next). `SetTheme` on the
+> As built, 2026-10-17. `SetTheme` on the
 > organization service, under `org.write`, sets or removes an organization's own theme against the
 > version `GetTheme` returned, and every change is an effect, `org.theme.set`. `GetTheme` answers
 > for an organization, a project, or a workload, under that object's read action, with the theme
@@ -316,6 +316,22 @@ by whoever issues them.
 > most 2,000 characters, and a stylesheet of at most 64 KiB with no `@import` and no backslash
 > escape, since an escape is how CSS spells `@import` past a check. `korpis theme
 > show|set|clear` is the command (§2 of `13-surface-cli.md`).
+>
+> The panel wears it (`web/src/theme`). A place wears the theme `GetTheme` answers for it; the
+> start page and the profile wear that of the first organization the viewer can read; the
+> sign-in and invitation pages, before anyone has signed in, the installation root's. Its colours
+> become the panel's custom properties, the light scheme on the root and the dark in its media
+> query, and only a `#rrggbb` value of one of the nine tokens is written, whatever the answer
+> held; its stylesheet follows. Both are stylesheets the page constructs and adopts rather than
+> loads or inlines, so the policy keeps `style-src 'self'` and admits no inline style, and a
+> constructed sheet ignores `@import` besides. Its name is the page's title and stands with its
+> logo in the chrome; the logo is shown as an image from a `data:` address, which the policy
+> admits for images alone and where an SVG runs nothing; the sign-in text is shown as text. A
+> test reads the policy out of the page and fails if it ever admits a script or a style from
+> anywhere else, or anything `unsafe`. The organization's page offers its theme for editing to
+> whoever opens it, the control plane deciding who may save: each field, a preview worn on the
+> page before saving, a save against the version it was read at, and removing the
+> organization's own theme so the nearest above applies again.
 
 As decided 2026-10-16: the page is generated when the bundle is built, from the revision it is
 built from and the repository the build names, and is a file of the bundle like any other, so it
