@@ -98,7 +98,7 @@ function Granted(props: {
         </p>
       </aside>
       {entry !== undefined && (
-        <Themed source={{ kind: "place", clients, entry }}>
+        <Themed source={{ kind: "link", clients, entry }} stylesheet={false}>
           <Place entry={entry} />
         </Themed>
       )}

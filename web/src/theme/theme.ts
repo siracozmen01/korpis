@@ -68,10 +68,16 @@ export function productName(theme: Theme | undefined): string {
 /** The sheets the page wears for the theme, kept so the next theme replaces them. */
 let worn: CSSStyleSheet[] = [];
 
-/** Wears `theme` on `doc`, replacing whatever theme it wore; none wears the panel's own. Where
- * the browser cannot construct a sheet, the colours and stylesheet are not applied and the
- * panel's own show, never an inline style the policy would refuse. */
-export function wear(doc: Document, theme: Theme | undefined): void {
+/** Wears `theme` on `doc`, replacing whatever theme it wore; none wears the panel's own. Its
+ * stylesheet is worn only where `stylesheet` is set: a rule can hide, move, or replace any text
+ * the panel shows, which a colour checked for contrast cannot. Where the browser cannot construct
+ * a sheet, the colours and stylesheet are not applied and the panel's own show, never an inline
+ * style the policy would refuse. */
+export function wear(
+  doc: Document,
+  theme: Theme | undefined,
+  { stylesheet }: { readonly stylesheet: boolean },
+): void {
   doc.title = productName(theme);
   const adopted = (doc as { adoptedStyleSheets?: CSSStyleSheet[] }).adoptedStyleSheets;
   const constructs =
@@ -79,7 +85,8 @@ export function wear(doc: Document, theme: Theme | undefined): void {
   if (adopted === undefined || !constructs) return;
   const kept = adopted.filter((s) => !worn.includes(s));
   worn = [];
-  for (const text of theme === undefined ? [] : [tokenSheet(theme), theme.stylesheet]) {
+  const texts = theme === undefined ? [] : [tokenSheet(theme), stylesheet ? theme.stylesheet : ""];
+  for (const text of texts) {
     if (text === "") continue;
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(text);

@@ -123,6 +123,13 @@ async fn what_a_theme_may_not_hold_is_refused_by_its_field() {
         ),
         (
             pb::Theme {
+                light: pb::ThemeColors { text: "#fafafa".into(), ..Default::default() }.into(),
+                ..acme()
+            },
+            "theme.light.text",
+        ),
+        (
+            pb::Theme {
                 logo: pb::Logo {
                     media_type: "image/png".into(),
                     data: b"<svg/>".to_vec(),

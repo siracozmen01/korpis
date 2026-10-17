@@ -151,7 +151,7 @@ export function ThemeEditor({ id }: { readonly id: string }) {
         </TextField>
         <Button
           onPress={() => {
-            wear(document, held.draft);
+            wear(document, held.draft, { stylesheet: true });
           }}
         >
           Preview

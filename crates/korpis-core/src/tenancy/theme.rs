@@ -20,6 +20,75 @@ pub const MAX_LOGO: usize = 256 << 10;
 pub const TOKENS: &[&str] =
     &["background", "text", "muted", "line", "accent", "accent_text", "danger", "surface", "focus"];
 
+/// The panel's own colours, as its stylesheet sets them (`web/src/styles.css`): what a token a
+/// theme leaves unset is, for the contrast a theme is checked by.
+const PANEL: [(&str, &str, &str); 9] = [
+    // token, light, dark
+    ("background", "#ffffff", "#15171b"),
+    ("text", "#1b1d21", "#e7e9ee"),
+    ("muted", "#5b6270", "#a3aab8"),
+    ("line", "#d5d9e0", "#343944"),
+    ("accent", "#1f5fbf", "#7aa7ff"),
+    ("accent_text", "#ffffff", "#0b1220"),
+    ("danger", "#b3261e", "#ff8a80"),
+    ("surface", "#f4f6f9", "#1f2228"),
+    ("focus", "#1f5fbf", "#7aa7ff"),
+];
+
+/// The pairs of tokens whose contrast is held: text on the background and on a surface, muted
+/// text and a danger notice on the background, and text on the accent.
+const READ_ON: [(&str, &str); 5] = [
+    ("text", "background"),
+    ("text", "surface"),
+    ("muted", "background"),
+    ("danger", "background"),
+    ("accent_text", "accent"),
+];
+
+/// The least contrast a pair may have: WCAG's for text (success criterion 1.4.3), so a theme
+/// cannot make what the panel says unreadable, a warning or a disclosure among it.
+pub const MIN_CONTRAST: f64 = 4.5;
+
+/// The relative luminance of `#rrggbb`, as WCAG defines it.
+fn luminance(hex: &str) -> f64 {
+    let channel = |i: usize| {
+        let v = hex.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok()).unwrap_or(0);
+        let c = f64::from(v) / 255.0;
+        if c <= 0.039_28 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5)
+}
+
+/// The contrast ratio of two colours, 1 to 21.
+#[must_use]
+pub fn contrast(a: &str, b: &str) -> f64 {
+    let (la, lb) = (luminance(a), luminance(b));
+    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
+}
+
+/// Checks that every pair of [`READ_ON`] in `scheme` keeps [`MIN_CONTRAST`], each token unset
+/// taken as the panel's own.
+fn readable(scheme: &str, set: &BTreeMap<String, Colour>) -> Result<(), ThemeError> {
+    let dark = scheme == "dark";
+    let colour = |token: &str| -> String {
+        let own = PANEL.iter().find(|(t, _, _)| *t == token);
+        let panel = own.map_or("#000000", |(_, l, d)| if dark { *d } else { *l });
+        set.get(token).map_or_else(|| panel.to_owned(), |c| c.0.clone())
+    };
+    for (fore, back) in READ_ON {
+        let ratio = contrast(&colour(fore), &colour(back));
+        if ratio < MIN_CONTRAST {
+            let field = format!("{scheme}.{fore}");
+            let message = format!(
+                "{fore} on {back} has a contrast of {ratio:.1}:1; at least {MIN_CONTRAST}:1 keeps \
+                 it readable"
+            );
+            return Err(refuse(field, message));
+        }
+    }
+    Ok(())
+}
+
 /// What a logo is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogoKind {
@@ -191,11 +260,14 @@ impl Asked {
                 Some(Logo { kind, data: data.clone() })
             }
         };
+        let (light, dark) = (colours("light", &self.light)?, colours("dark", &self.dark)?);
+        readable("light", &light)?;
+        readable("dark", &dark)?;
         Ok(Theme {
             product_name: self.product_name.clone(),
             logo,
-            light: colours("light", &self.light)?,
-            dark: colours("dark", &self.dark)?,
+            light,
+            dark,
             sign_in_text: self.sign_in_text.clone(),
             stylesheet: self.stylesheet.clone(),
         })
@@ -230,6 +302,42 @@ mod tests {
             Asked::default().checked().unwrap().logo.is_none(),
             "nothing set is the panel's own"
         );
+    }
+
+    #[test]
+    fn colours_that_would_hide_what_the_panel_says_are_refused() {
+        use super::{MIN_CONTRAST, contrast};
+        assert!((contrast("#000000", "#ffffff") - 21.0).abs() < 0.01);
+        let mut a = asked();
+        a.light = [("text".to_owned(), "#ffffff".to_owned())].into();
+        assert_eq!(a.checked().unwrap_err().field, "light.text", "white on the panel's white");
+        a.light.insert("background".into(), "#000000".into());
+        a.light.insert("surface".into(), "#111111".into());
+        a.light.insert("muted".into(), "#bbbbbb".into());
+        a.light.insert("danger".into(), "#ff8a80".into());
+        assert!(a.checked().is_ok(), "white on black, the rest readable too");
+        a.dark = [("accent_text".to_owned(), "#7aa7ff".to_owned())].into();
+        let e = a.checked().unwrap_err();
+        assert_eq!(e.field, "dark.accent_text", "the accent's own colour on the accent");
+        assert!(e.message.contains(&MIN_CONTRAST.to_string()));
+    }
+
+    #[test]
+    fn the_panels_own_colours_are_those_its_stylesheet_sets() {
+        use super::PANEL;
+        let css = include_str!("../../../../web/src/styles.css");
+        let (light, dark) = css.split_once("prefers-color-scheme: dark").unwrap();
+        for (token, l, d) in PANEL {
+            let p = match token {
+                "background" => "bg",
+                "text" => "fg",
+                "accent_text" => "accent-fg",
+                other => other,
+            };
+            assert!(light.contains(&format!("--{p}: {l};")), "{token} light");
+            assert!(dark.contains(&format!("--{p}: {d};")), "{token} dark");
+        }
+        assert!(Asked::default().checked().is_ok(), "the panel's own colours are readable");
     }
 
     #[test]

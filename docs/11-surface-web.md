@@ -281,8 +281,8 @@ where the licence needs it to be rather than where a brand would notice it.
 everything beneath it unless a descendant sets its own, as a layout is (question 2): a product
 name, a logo, a fixed set of colour tokens for the light and the dark scheme, the text of the
 sign-in page, and optionally a stylesheet of at most 64 KiB. The panel applies the theme of the
-organization the viewer is looking at; before anyone has signed in, it applies the root
-organization's. A reseller's sign-in page at the reseller's own address needs the control plane to
+viewer's provider, the top organization the viewer can read, whatever they are looking at;
+before anyone has signed in, it applies the root organization's. A reseller's sign-in page at the reseller's own address needs the control plane to
 answer there, which Phase 2 designs with the names organizations hold for their customers (Finding
 66 of `23-walkthroughs.md`); the theme of the organization holding the verified domain the panel
 was reached at, which the browser states in its `Origin`, is applied then. Setting one is
@@ -297,7 +297,12 @@ selector that matches a value on screen and loads a background image from elsewh
 the browser. What it can still do is restyle what the viewer sees, which a reseller styling its
 customers' panel is meant to; and it cannot reach `/about/source`, which is served unstyled. What
 it costs: a host who wants a font or an image from a CDN of its own serves it through the theme's
-own data instead. Email templates are part of a theme when Korpis sends email, which it does not
+own data instead. And because a rule can hide, move, or replace any text the panel shows, the
+stylesheet is never worn where what the page says is the viewer's own business rather than the
+brand's: the profile, with its passwords, passkeys, and sessions, and a share link's page, whose
+holder is told what the link allows, wear a theme's colours, name, and logo alone, and the device
+approval wears no theme at all. The colours are held to a contrast that keeps text readable. Email
+templates are part of a theme when Korpis sends email, which it does not
 in Phase 1: there is no emailed reset (§9.3 of `08-identity.md`), and invitations are handed over
 by whoever issues them.
 
@@ -317,9 +322,15 @@ by whoever issues them.
 > escape, since an escape is how CSS spells `@import` past a check. `korpis theme
 > show|set|clear` is the command (§2 of `13-surface-cli.md`).
 >
-> The panel wears it (`web/src/theme`). A place wears the theme `GetTheme` answers for it; the
-> start page and the profile wear that of the first organization the viewer can read; the
-> sign-in and invitation pages, before anyone has signed in, the installation root's. Its colours
+> The panel wears it (`web/src/theme`). A signed-in viewer wears, on every page, the theme of
+> the one organization they can read whose parent they cannot, the top of what their grants
+> reach; with no such organization, or more than one, the installation root's. A share link's
+> page wears the theme `GetTheme` answers for the place it opens, without its stylesheet, and so
+> does the profile; the sign-in and invitation pages, before anyone has signed in, the
+> installation root's. A colour is refused where it is set if text on the background or on a
+> surface, muted text or a danger notice on the background, or text on the accent would fall
+> below WCAG's 4.5:1 for text, each token a theme leaves unset taken as the panel's own (a test
+> holds that table to the panel's stylesheet). Its colours
 > become the panel's custom properties, the light scheme on the root and the dark in its media
 > query, and only a `#rrggbb` value of one of the nine tokens is written, whatever the answer
 > held; its stylesheet follows. Both are stylesheets the page constructs and adopts rather than
@@ -332,6 +343,17 @@ by whoever issues them.
 > whoever opens it, the control plane deciding who may save: each field, a preview worn on the
 > page before saving, a save against the version it was read at, and removing the
 > organization's own theme so the nearest above applies again.
+>
+> Corrected 2026-10-17 (Finding 83 of `23-walkthroughs.md`). As first built, a place wore the
+> theme of the organization it belonged to, and the start page the theme of whichever
+> organization the list answered first, with the stylesheet worn on every page. That let a
+> tenant dress its provider's screens: a host operator opening a customer's workload saw the
+> customer's stylesheet, which could hide a warning, restyle a destructive button, or move text
+> on the operator's own panel, and a share link's disclosure and the profile could be restyled
+> the same way. A theme is a provider's brand for the people it serves, so it follows the viewer,
+> not the object; the cost is that a host's operator never sees a customer's brand while working
+> inside the customer's organization, and a reseller previews a customer's theme only with the
+> editor's preview.
 
 As decided 2026-10-16: the page is generated when the bundle is built, from the revision it is
 built from and the repository the build names, and is a file of the bundle like any other, so it

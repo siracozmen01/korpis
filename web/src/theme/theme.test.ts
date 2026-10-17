@@ -2,9 +2,9 @@
 
 import { create } from "@bufbuild/protobuf";
 import html from "../../index.html?raw";
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { ThemeSchema } from "../gen/korpis/v1/tenancy_pb";
-import { logoSource, productName, tokenSheet } from "./theme";
+import { logoSource, productName, tokenSheet, wear } from "./theme";
 
 test("only a #rrggbb colour of a token the panel has reaches the sheet", () => {
   const theme = create(ThemeSchema, {
@@ -43,4 +43,32 @@ test("the page's policy runs only its own scripts and loads its own styles", () 
   expect(directives.get("img-src")).toBe("'self' data:");
   expect(directives.get("object-src")).toBe("'none'");
   expect(policy).not.toContain("unsafe");
+});
+
+/** A constructed sheet that remembers its text, where the test's browser has none. */
+class Sheet {
+  text = "";
+  replaceSync(text: string) {
+    this.text = text;
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+test("a theme's stylesheet is worn only where the page allows it; its colours always", () => {
+  vi.stubGlobal("CSSStyleSheet", Sheet);
+  const doc = { title: "", adoptedStyleSheets: [] as unknown as CSSStyleSheet[] };
+  const theme = create(ThemeSchema, {
+    productName: "Acme",
+    light: { accent: "#1f5fbf" },
+    stylesheet: "main { display: none }",
+  });
+  const texts = () => doc.adoptedStyleSheets.map((s) => (s as unknown as Sheet).text);
+  wear(doc as unknown as Document, theme, { stylesheet: true });
+  expect(texts()).toEqual([":root { --accent: #1f5fbf; }", "main { display: none }"]);
+  wear(doc as unknown as Document, theme, { stylesheet: false });
+  expect(texts(), "the last theme's sheets are replaced").toEqual([":root { --accent: #1f5fbf; }"]);
+  expect(doc.title).toBe("Acme");
 });

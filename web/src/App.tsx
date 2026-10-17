@@ -38,6 +38,9 @@ const signedInReach = { clients: signedInClients, base: "", metered: false, rela
 /** The theme the pages before signing in wear: the installation root's. */
 const signInTheme: Source = { kind: "sign-in", info: serverInfo };
 
+/** The theme a signed-in viewer wears on every page: their provider's, not the place's. */
+const viewerTheme: Source = { kind: "viewer", clients: signedInClients, info: serverInfo };
+
 /** What the profile screens call. */
 const profileServices = { profiles, sessions, accounts, assert, create };
 
@@ -79,7 +82,7 @@ function Routes({ session }: { readonly session: Session }) {
   if (path === "/sign-in") {
     const to = returnTo(window.location.search);
     return (
-      <Themed source={signInTheme}>
+      <Themed source={signInTheme} stylesheet>
         <SignIn
           accounts={accounts}
           assert={assert}
@@ -97,7 +100,7 @@ function Routes({ session }: { readonly session: Session }) {
     };
     const held = takeFragment(INVITATION_PREFIX);
     return (
-      <Themed source={signInTheme}>
+      <Themed source={signInTheme} stylesheet>
         <Invitation held={held} accounts={accounts} create={create} redeemed={redeemed} />
       </Themed>
     );
@@ -129,13 +132,9 @@ function Routes({ session }: { readonly session: Session }) {
     );
   }
   const place = placeAt(path);
-  const source: Source =
-    place === undefined
-      ? { kind: "home", clients: signedInClients }
-      : { kind: "place", clients: signedInClients, entry: place };
   return (
     <ReachProvider value={signedInReach}>
-      <Themed source={source}>
+      <Themed source={viewerTheme} stylesheet={path !== "/profile"}>
         <header>
           <Link href="/">
             <Brand />

@@ -1117,6 +1117,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 80 | A download's local name was the one the node answered with | §38 | `13-surface-cli.md` §8 |
 | 81 | A sync read a path again after looking at it, so a link swapped in was followed | §38 | `13-surface-cli.md` §8 |
 | 82 | A listing printed the tenant's file names to the operator's terminal as they were | §38 | `13-surface-cli.md` §8 |
+| 83 | A tenant's theme dressed its provider's screens, a share link's disclosure, and the profile | §38 | `11-surface-web.md` §7 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2858,3 +2859,29 @@ printed as its escape (`\u{1b}`) rather than sent to the terminal; `--json` carr
 it is, escaped by JSON. The console is unchanged: it writes a workload's output as the workload
 wrote it, by design, because that is what a console is (§8 of `13-surface-cli.md`). →
 `13-surface-cli.md` §8; built and tested in `crates/korpis-cli/src/cmd/files.rs`.
+
+**FINDING 83: A tenant's theme dressed its provider's screens, a share link's disclosure, and
+the profile. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that made the panel wear an organization's
+theme (§7 of `11-surface-web.md`), the customer of this trace signing in to a panel its host
+brands. A place wore the theme of the organization it belonged to, stylesheet and all, so a
+host's operator opening a customer's workload saw the customer's stylesheet on the operator's
+own screen: a rule could hide a warning, relabel a destructive button with `content`, or move
+the text of a confirmation, and the operator would act on what the tenant drew. A share link's
+page wore the theme of the place it opened, so the sentence telling its holder what the link
+allows could be hidden by the very tenant who sent it, and the profile, where passwords,
+passkeys, and sessions are managed, wore whichever theme the list of organizations answered
+first. Colours alone could do part of it too: text set to the colour of its background says
+nothing.
+
+**Resolution.** A theme follows the viewer, not the object viewed: a signed-in viewer wears,
+everywhere, the theme of the top organization they can read, the one whose parent they cannot,
+and the installation root's where there is no single such organization. A share link's page and
+the profile wear a theme's colours, name, and logo, never its stylesheet; the device approval
+wears no theme, and a page that leaves every theme takes off what the page before it wore. A
+colour is refused where it is set if text on the background or a surface, muted text or a
+danger notice on the background, or text on the accent would fall below WCAG's 4.5:1, a token
+left unset taken as the panel's own. → `11-surface-web.md` §7; built and tested in
+`web/src/theme/useTheme.tsx`, `web/src/theme/theme.ts`, and
+`crates/korpis-core/src/tenancy/theme.rs`.
