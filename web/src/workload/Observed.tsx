@@ -2,12 +2,10 @@
 
 // What the node observed, each value in its state (§2 of docs/11-surface-web.md): the value when
 // known; the value dimmed, with how long ago it was heard, when stale; and "unknown" when
-// unknown, with the last observation beside it and its age, never in its place. A resource the
-// node did not report is unknown too, never 0.
+// unknown, with the last observation beside it and its age, never in its place.
 
 import type { WorkloadStatus } from "../gen/korpis/v1/api_pb";
-import { bytes } from "../i18n/format";
-import { intl, t } from "../i18n/intl";
+import { t } from "../i18n/intl";
 import { type Freshness, age } from "./freshness";
 import { HEALTH, OBSERVED } from "./words";
 
@@ -56,14 +54,16 @@ export function Value(props: {
   }
 }
 
-/** The observed values of `status`. */
+/** The observed values of `status`: its state and its health. A resource figure is not among
+ * them: §8 of docs/11-surface-web.md shows no figure without its source, its window, and how it
+ * was collected, and nothing gives one those until metering is built (§2 and §3 of
+ * docs/15-observability.md), so the panel shows none rather than one it cannot account for. */
 export function Observed(props: {
   readonly status: WorkloadStatus;
   readonly freshness: Freshness;
   readonly now: number;
 }) {
   const o = props.status.observation;
-  const r = o?.resources;
   const rows: [string, string | undefined][] = [
     [
       t({ defaultMessage: "State", id: "MddyXGDM", description: "a workload's observed state" }),
@@ -72,28 +72,6 @@ export function Observed(props: {
     [
       t({ defaultMessage: "Health", id: "Iqf4wUcI", description: "a workload's health" }),
       o === undefined ? undefined : HEALTH[o.health],
-    ],
-    [
-      t({ defaultMessage: "CPU", id: "QgBuiVs5" }),
-      r === undefined
-        ? undefined
-        : t(
-            { defaultMessage: "{cores} cores", id: "99Xie+BN" },
-            {
-              cores: intl.formatNumber(Number(r.cpuMillis) / 1000, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }),
-            },
-          ),
-    ],
-    [
-      t({ defaultMessage: "Memory", id: "dVx3yznM" }),
-      r === undefined ? undefined : bytes(r.memoryBytes),
-    ],
-    [
-      t({ defaultMessage: "Disk", id: "OuCSDnvE" }),
-      r === undefined ? undefined : bytes(r.diskBytes),
     ],
   ];
   const heading = t({

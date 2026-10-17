@@ -180,9 +180,6 @@
     "defaultMessage": "not placed",
     "description": "where a workload stands against what was declared"
   },
-  "99Xie+BN": {
-    "defaultMessage": "{cores} cores"
-  },
   "9G511qz9": {
     "defaultMessage": "nothing declared",
     "description": "a workload's declared power state"
@@ -519,9 +516,6 @@
   "Od6W77Tm": {
     "defaultMessage": "{name} is there with {there} of {size}."
   },
-  "OuCSDnvE": {
-    "defaultMessage": "Disk"
-  },
   "OvK35h+3": {
     "defaultMessage": "Logo (PNG, WebP, or SVG, at most 256 KiB)"
   },
@@ -538,9 +532,6 @@
   "PwHgAn9a": {
     "defaultMessage": "Lines",
     "description": "a theme colour"
-  },
-  "QgBuiVs5": {
-    "defaultMessage": "CPU"
   },
   "R+2+cn8K": {
     "defaultMessage": "Reading the organization…"
@@ -779,9 +770,6 @@
   },
   "d2sELMI6": {
     "defaultMessage": "Set a password"
-  },
-  "dVx3yznM": {
-    "defaultMessage": "Memory"
   },
   "dXVcO4GV": {
     "defaultMessage": "{n, plural, =0 {No other session was open.} one {# session ended.} other {# sessions ended.}}"

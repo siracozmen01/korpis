@@ -97,10 +97,14 @@ and here it does.
 > observation, which the control plane decides (its node heard, §4.3 of `02-architecture.md`),
 > heard live; stale is the panel no longer hearing, the value dimmed with how long ago it was
 > heard; unknown is no observation, or one the control plane says is not current, shown as
-> "unknown" with the last one and its age beside it. A resource not reported is unknown, never
-> 0. Ages grow on screen each second. A signed-in screen opens a dropped watch again by itself,
+> "unknown" with the last one and its age beside it. Ages grow on screen each second. A signed-in screen opens a dropped watch again by itself,
 > waiting from one second up to thirty; a share link's screen asks, because each opening spends
 > a use. The lists of workloads show each one's convergence as the list was read.
+>
+> Corrected 2026-10-17. This note said a resource not reported is shown as unknown, never 0, and
+> the screen showed CPU, memory, and disk rows. Nothing in Phase 1 reports them, so the rows only
+> ever said "unknown", and a figure that did arrive would have carried none of what §8 requires of
+> it. The screen shows the observed state and health, and no resource figure until §8 can be met.
 
 ---
 
@@ -419,6 +423,17 @@ What a file session can do, how an upload resumes, and what is recorded were des
 collection method, and disagreements between the instantaneous and the accounted value are shown
 rather than reconciled behind the scenes. `15-observability.md` defines what is measured; the
 interface's rule is that a billable number is never rendered without provenance.
+
+> As built, 2026-10-17: by showing none. An audit of every figure the panel shows found two kinds.
+> A file's size in the file manager is the file's own, read from the volume when it is listed,
+> and is no meter. A workload's CPU, memory, and disk come from the observation's
+> `ResourceUsage`, which nothing in Phase 1 fills and which carries no window and no collection
+> method to show; the measurements are the node's metric stream and the meters of §2 and §3 of
+> `15-observability.md`, built in Phase 2. So the workload's screen shows no resource figure,
+> rather than a row that only ever says "unknown" or a number it cannot account for. What it
+> costs: an operator reads usage from the node until Phase 2, when each figure arrives with its
+> source, its window, and its method, and an accounted figure beside an instantaneous one shows
+> both rather than one reconciled to the other.
 
 ---
 

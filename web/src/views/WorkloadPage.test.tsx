@@ -54,9 +54,10 @@ test("the screen follows the workload live, and says when it no longer is", asyn
   expect(screen.getAllByText("unknown").length).toBeGreaterThan(0);
   converge();
   expect(await screen.findByText("Declared running, converged")).toBeTruthy();
-  expect(screen.getByText("512 MiB")).toBeTruthy();
+  expect(screen.queryByText(/512 MiB/), "a figure without its provenance is not shown").toBeNull();
+  expect(screen.getByText("running", { selector: "span" })).toBeTruthy();
   expect(await screen.findByText(/Not live: last heard/)).toBeTruthy();
-  expect(screen.getByText(/512 MiB/).className).toBe("stale");
+  expect(screen.getByText("running", { selector: "span.stale", exact: false })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /Open it again/ }));
   expect(await screen.findByText(/node fra-3 has not acknowledged/)).toBeTruthy();
   expect(opened).toBe(2);
