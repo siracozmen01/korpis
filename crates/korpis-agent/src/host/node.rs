@@ -186,6 +186,13 @@ impl Host for NodeHost {
         self.helper.stop_ingress()
     }
 
+    fn open_files(
+        &self,
+        request: &helper::OpenFilesRequest,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
+        self.helper.open_files(request)
+    }
+
     fn describe_network(
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {

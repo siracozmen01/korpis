@@ -61,6 +61,7 @@ pub(crate) fn place(
             path: v.path.clone(),
             volume: v.volume.clone(),
             directory: dir.to_string_lossy().into_owned(),
+            read_only: v.read_only,
             ..Default::default()
         });
     }

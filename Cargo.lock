@@ -2614,6 +2614,7 @@ dependencies = [
  "korpis-core",
  "korpis-egress",
  "korpis-extension",
+ "korpis-files",
  "korpis-proto",
  "korpis-recipe",
  "korpis-server",

@@ -230,6 +230,8 @@ message FileVolume {
   string volume = 2;
   // Filled in by the helper for the worker: the directory it is.
   string directory = 3;
+  // Mounted read-only in the workload: the session reads it, whatever else it may do.
+  bool read_only = 4;
 }
 
 // The session's socket is attached to this answer's frame as SCM_RIGHTS: a stream on which each

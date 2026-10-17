@@ -216,6 +216,22 @@ impl HelperClient {
         }
     }
 
+    /// The socket of the worker the helper started for the file session `request` asks for
+    /// (§3.2 of docs/06-storage.md).
+    pub async fn open_files(
+        &self,
+        request: &helper::OpenFilesRequest,
+    ) -> Result<OwnedFd, HostError> {
+        match self.call_attached(Verb::OpenFiles(Box::new(request.clone()))).await? {
+            (Answer::OpenFiles(a), mut fds) if a.attached == 1 && fds.len() == 1 => {
+                fds.pop().ok_or_else(|| failed("no socket"))
+            }
+            (other, fds) => {
+                Err(failed(format!("answered {other:?} with {} descriptors", fds.len())))
+            }
+        }
+    }
+
     /// Whether the node can give workloads networks, and what stands in the way.
     pub async fn describe_network(&self) -> Result<helper::DescribeNetworkResponse, HostError> {
         match self.call(Verb::DescribeNetwork(Box::default())).await? {

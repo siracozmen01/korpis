@@ -287,13 +287,14 @@ session reads the size of what it wrote and continues from there, so a 40 GB wor
 dropped connection, and since the worker writes nothing anywhere but the volume, an upload that is
 never finished is a partial file its owner can see and remove, not hidden state.
 
-**What it records.** Opening and ending a session are recorded by the node as console sessions
-are, under the chain of the token. Every change is recorded with the session's end, as one effect:
-how many files and bytes were written, and every path removed or renamed, up to a thousand, then
-their count; a session that ends uncleanly is recorded when the node notices. Reads are not
-recorded one by one, except that opening a session under a grant scoped above the workload's
-organization, a host reading a customer's files, is the operator access of §7 of
-`08-identity.md` and recorded as such.
+**What it records.** Opening and ending a session are recorded by the node as console input is
+(§6 of `14-streams.md`), as acts of the session's subject under the chain of the token. Every
+change is recorded with the session's end, as one effect: how many files and bytes were written,
+and every path removed or renamed, up to a thousand, then their count; a session that ends
+uncleanly is recorded when the node notices. Reads are not recorded one by one, but every opening
+is, on the workload, so a session under a grant scoped above the workload's organization, a host
+reading a customer's files, is on the tenant's own record as the operator access of §7 of
+`08-identity.md`.
 
 **What it does not do.** It does not compress or extract archives, set permissions, or follow a
 symbolic link out of the volumes; a recipe's install does what a recipe needs (§4 of
@@ -321,8 +322,19 @@ when it ends, so an auditor sees a long session's changes when it closes, not as
 > drops every capability but those above, and serves one length-prefixed `FileRequest` after
 > another until the socket closes. Each path is served by the volume mounted at its longest
 > prefix, beneath that volume's own descriptor, so a volume inside another is reached as itself;
-> the root they are mounted in can be listed and nothing in it changed. Not built yet: the
-> node's handler that carries a session from a relay to the worker and records its effect.
+> the root they are mounted in can be listed and nothing in it changed. A volume the workload
+> mounts read-only (`mode: ro`) is read and never written, in any session. The node's handler
+> (`crates/korpis-agent/src/data/files.rs`) names the volumes from the assignment it holds,
+> journals the session's opening before it asks the helper for a worker, carries frames both ways
+> unchanged with up to sixteen requests sent ahead, and journals the end with what changed:
+> `files`, `bytes`, `directories`, and the `removed` and `renamed` paths with their counts. Both
+> are effects of the session's action under the grant its token was minted from, and the control
+> plane believes them as it believes console input (§6 of `14-streams.md`): only if that grant
+> permitted its subject the action then. A session that ends because its worker or its client
+> failed is recorded as failed; a node that dies during one leaves its opening without an end,
+> which is the "when the node notices" above, honestly: it never notices, and the missing end is
+> the record. "What it records" said the opening and end are recorded "as console sessions are";
+> a console session's opening is recorded nowhere, its input is, so it now says that.
 
 ## 4. Snapshots are not backups
 

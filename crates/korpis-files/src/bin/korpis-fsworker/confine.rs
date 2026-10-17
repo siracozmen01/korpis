@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What the worker gives up once its root is built: every id but its user namespace's root, which
-//! is its workload's; everything Landlock can take but the volumes, all of them in a session that
-//! writes and their reading in one that reads, and listing the root they are mounted in; every
+//! is its workload's; everything Landlock can take but the volumes, all of each it writes and the
+//! reading of the rest, and listing the root they are mounted in; every
 //! connection; every capability but those a file's owner needs, which hold only over its
 //! workload's files; and any privilege something it executed could gain, though it executes
 //! nothing.
@@ -33,12 +33,11 @@ fn become_root() -> Result<(), ConfineError> {
     rustix::process::chdir("/").map_err(|e| err(format!("the root: {e}")))
 }
 
-/// Applies Landlock: each of `volumes`, all of it when `write` and its reading otherwise, the
-/// root's listing, and no connection; whether the kernel enforces it.
-fn landlock(volumes: &[&str], write: bool) -> Result<bool, ConfineError> {
+/// Applies Landlock: each of `volumes`, all of it when it is written and its reading otherwise,
+/// the root's listing, and no connection; whether the kernel enforces it.
+fn landlock(volumes: &[(&str, bool)]) -> Result<bool, ConfineError> {
     let abi = ABI::V5;
     let all = AccessFs::from_all(abi);
-    let given = if write { all } else { AccessFs::from_read(abi) };
     let mut created = Ruleset::default()
         .handle_access(all)
         .and_then(|r| r.handle_access(AccessNet::ConnectTcp | AccessNet::BindTcp))
@@ -46,7 +45,8 @@ fn landlock(volumes: &[&str], write: bool) -> Result<bool, ConfineError> {
         .map_err(err)?
         .add_rule(PathBeneath::new(dir("/")?, AccessFs::ReadDir))
         .map_err(err)?;
-    for v in volumes {
+    for (v, write) in volumes {
+        let given = if *write { all } else { AccessFs::from_read(abi) };
         created = created.add_rule(PathBeneath::new(dir(v)?, given)).map_err(err)?;
     }
     let status = created.restrict_self().map_err(err)?;
@@ -60,10 +60,11 @@ pub struct Held {
     pub capabilities: Vec<String>,
 }
 
-/// Confines the worker serving `volumes`, for writing when `write`.
-pub fn confine(volumes: &[&str], write: bool) -> Result<Held, ConfineError> {
+/// Confines the worker serving `volumes`, each for writing when its flag says so.
+pub fn confine(volumes: &[(&str, bool)]) -> Result<Held, ConfineError> {
     become_root()?;
-    let landlock = landlock(volumes, write)?;
+    let landlock = landlock(volumes)?;
+    let write = volumes.iter().any(|(_, w)| *w);
     let keep: &[_] = if write { &[CHOWN, FOWNER, DAC_OVERRIDE] } else { &[DAC_READ_SEARCH] };
     let capabilities = korpis_confine::keep_capabilities(keep)?;
     korpis_confine::no_new_privileges()?;

@@ -31,6 +31,8 @@ korpis-proto = { workspace = true, features = ["client"] }
 korpis-stream = { workspace = true }
 # Sealed data keys under tenant custody (§5.5 of docs/06-storage.md).
 korpis-extension = { workspace = true }
+# A file session's frames, and the verbs the in-memory host serves sessions with.
+korpis-files = { path = "../korpis-files" }
 # Offloading console streams: the repository format and its S3 client (§4 of docs/14-streams.md).
 korpis-backup = { path = "../korpis-backup" }
 korpis-tls = { workspace = true }

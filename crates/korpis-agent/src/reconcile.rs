@@ -10,6 +10,7 @@
 //! (§4.5): without one it changes nothing, and when another node holds the workload it stops it.
 
 mod act;
+pub(crate) use act::volume_id;
 mod backup;
 mod content;
 mod deps;

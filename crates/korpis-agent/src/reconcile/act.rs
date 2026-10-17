@@ -44,7 +44,7 @@ pub(super) fn running(s: &driver::RuntimeStatus) -> bool {
 /// The volume identifier the helper knows the volume `a`'s workload mounts as `name` by: an
 /// existing volume's, as the control plane resolved it from what its node reported, or one
 /// derived from the workload and the name for a volume created with it.
-pub(super) fn volume_id(a: &agent::Assignment, name: &str) -> String {
+pub(crate) fn volume_id(a: &agent::Assignment, name: &str) -> String {
     a.volume_ids.get(name).cloned().unwrap_or_else(|| format!("{}.{name}", a.workload))
 }
 

@@ -9,6 +9,7 @@
 use crate::advertise::Advertise;
 use crate::data::console::{self, ConsoleRead};
 use crate::data::console_write::{self, ConsoleWrite};
+use crate::data::files::{self, FileSessions};
 use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
@@ -308,6 +309,8 @@ impl Agent {
         let session = session.answering(answerer, link.outbound.clone());
         let (runtimes, _) = tokio::sync::watch::channel(std::collections::BTreeMap::new());
         let handlers = consoles(options.handlers, &streams, (&runtime, &runtimes), &journal);
+        let files = Arc::new(FileSessions::new(host.clone(), link.held.clone(), journal.clone()));
+        let handlers = handlers.with(files::READ, files.clone()).with(files::WRITE, files);
         let data = data_link(data, &link, handlers);
         let leases = Leases::new(journal.clone());
         let keeper =

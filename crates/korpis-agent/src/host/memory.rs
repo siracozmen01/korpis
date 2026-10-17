@@ -9,6 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::{Future, ready};
 use std::sync::{Arc, Mutex};
 
+mod files;
+
 #[derive(Debug, Default)]
 struct Kept {
     volumes: BTreeMap<String, String>,
@@ -28,6 +30,10 @@ struct Kept {
     ingress: Option<std::path::PathBuf>,
     /// How many times it was started.
     ingress_starts: u32,
+    /// Where each volume a file session names is served from, as a directory of its own.
+    file_root: Option<std::path::PathBuf>,
+    /// The file sessions opened.
+    opened_files: Vec<helper::OpenFilesRequest>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -321,6 +327,13 @@ impl Host for InMemoryHost {
 
     fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send {
         ready(self.with(|k| k.ingress.take().is_some()))
+    }
+
+    fn open_files(
+        &self,
+        request: &helper::OpenFilesRequest,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send {
+        ready(self.serve_files(request))
     }
 
     fn describe_network(

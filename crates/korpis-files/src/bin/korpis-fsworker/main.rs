@@ -154,18 +154,20 @@ fn worker_main() -> Result<(), String> {
     unshare(flags)?;
     signal(&mut control)?;
     awaited(&mut control)?;
-    let paths: Vec<&str> = spec.volumes.iter().map(|v| v.path.as_str()).collect();
-    let mut opened = Vec::with_capacity(paths.len());
-    for p in &paths {
-        opened.push(((*p).to_owned(), confine::dir(p).map_err(|e| e.to_string())?));
+    // A volume the workload mounts read-only is read in any session.
+    let volumes: Vec<(&str, bool)> =
+        spec.volumes.iter().map(|v| (v.path.as_str(), spec.write && !v.read_only)).collect();
+    let mut opened = Vec::with_capacity(volumes.len());
+    for (p, write) in &volumes {
+        opened.push(((*p).to_owned(), confine::dir(p).map_err(|e| e.to_string())?, *write));
     }
     let top = confine::dir("/").map_err(|e| e.to_string())?;
-    let held = confine::confine(&paths, spec.write).map_err(|e| e.to_string())?;
+    let held = confine::confine(&volumes).map_err(|e| e.to_string())?;
     if !held.landlock {
         tracing::warn!("Landlock is not enforced by this kernel: confined by the root alone");
     }
     tracing::info!(write = spec.write, capabilities = ?held.capabilities, "file session open");
-    serve_session(&Volumes::new(top, opened, spec.write))
+    serve_session(&Volumes::new(top, opened))
 }
 
 /// Answers the session's requests until its other end is closed.

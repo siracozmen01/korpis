@@ -10,6 +10,7 @@
 mod carry;
 pub mod console;
 pub mod console_write;
+pub mod files;
 pub mod handler;
 pub mod wake;
 

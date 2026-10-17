@@ -26,8 +26,10 @@ use uuid::Uuid;
 
 mod reports;
 
-/// The action a node reports console input under.
-const CONSOLE_WRITE: &str = "workload.console.write";
+/// The actions a node reports as the act of a session's subject: console input (§6 of
+/// docs/14-streams.md), and a file session's opening and end (§3.2 of docs/06-storage.md).
+const SESSION_ACTS: &[&str] =
+    &["workload.console.write", "workload.file.read", "workload.file.write"];
 
 fn system(action: &str, outcome: Outcome) -> Effect {
     Effect::new(Principal::System(SystemActor::Reconciler), action, outcome)
@@ -74,9 +76,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Applies one record; the effect that records it.
     async fn apply(&self, tx: &mut S::Tx, node: Uuid, r: &Record) -> Result<Effect, AppError> {
         Ok(match &r.body {
-            Body::Effect(e) if e.action == CONSOLE_WRITE => {
+            Body::Effect(e) if SESSION_ACTS.contains(&e.action.as_str()) => {
                 let at = r.occurred_at.unwrap_or_else(|| self.clock.now());
-                self.console_input(node, e, at).await?
+                self.session_act(node, e, at).await?
             }
             Body::Effect(e) => self.node_effect(tx, node, e).await?,
             Body::LeaseReleased { workload, epoch } => {
@@ -115,26 +117,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// Console input the node carried, recorded as the act of the subject it names, if that
-    /// subject could have given it (§6 of docs/14-streams.md): the node held the workload's
-    /// lease, and the grant named is the subject's and permitted the input when it happened.
-    async fn console_input(
+    /// What the node carried on a session, console input or a file session's opening or end,
+    /// recorded as the act of the subject it names, if that subject could have done it (§6 of
+    /// docs/14-streams.md): the node held the workload's lease, and the grant named is the
+    /// subject's and permitted the action when it happened.
+    async fn session_act(
         &self,
         node: Uuid,
         n: &NodeEffect,
         at: SystemTime,
     ) -> Result<Effect, AppError> {
         let (Some(w), Some(actor), Some(grant)) = (n.workload, &n.actor, n.grant) else {
-            let why = "console input names its workload, who sent it, and their grant";
+            let why = "a session's act names its workload, who did it, and their grant";
             return Ok(rejected(why, &n.action));
         };
         if !self.store.ever_leased(w, node).await? {
             return Ok(rejected("the node never held the workload's lease", &n.action));
         }
-        let action = Action::parse(CONSOLE_WRITE).map_err(|e| AppError::Internal(e.to_string()))?;
+        let action = Action::parse(&n.action).map_err(|e| AppError::Internal(e.to_string()))?;
         let on = (ObjectRef::new(Kind::Workload, w), grant);
         if !self.attest(actor, &action, on, at).await? {
-            let why = "the grant named did not permit its subject console input then";
+            let why = "the grant named did not permit its subject the action then";
             return Ok(rejected(why, &n.action));
         }
         let mut e = Effect::new(actor.clone(), &n.action, n.outcome);

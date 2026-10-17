@@ -40,13 +40,13 @@ fn normal(path: &str) -> Result<String, Fault> {
 }
 
 impl Volumes {
-    /// The root `top`, read-only, and each of `volumes` by the path it is mounted at; each volume
-    /// served for writing when `write`.
+    /// The root `top`, read-only, and each of `volumes` by the path it is mounted at, served for
+    /// writing when its flag says so.
     #[must_use]
-    pub fn new(top: OwnedFd, volumes: Vec<(String, OwnedFd)>, write: bool) -> Self {
+    pub fn new(top: OwnedFd, volumes: Vec<(String, OwnedFd, bool)>) -> Self {
         let mut volumes: Vec<(String, Root)> = volumes
             .into_iter()
-            .filter_map(|(p, fd)| Some((normal(&p).ok()?, Root::new(fd, write))))
+            .filter_map(|(p, fd, write)| Some((normal(&p).ok()?, Root::new(fd, write))))
             .collect();
         volumes.sort_by_key(|(p, _)| std::cmp::Reverse(p.len()));
         Self { top: Root::new(top, false), volumes }
@@ -171,10 +171,10 @@ mod tests {
         std::fs::write(t.path().join("data/level.dat"), b"world").unwrap();
         std::fs::write(t.path().join("plugins/a.jar"), b"jar").unwrap();
         let vols = vec![
-            ("/srv/data".to_owned(), dir(&t.path().join("data"))),
-            ("/srv/data/plugins/".to_owned(), dir(&t.path().join("plugins"))),
+            ("/srv/data".to_owned(), dir(&t.path().join("data")), write),
+            ("/srv/data/plugins/".to_owned(), dir(&t.path().join("plugins")), write),
         ];
-        let v = Volumes::new(dir(&t.path().join("top")), vols, write);
+        let v = Volumes::new(dir(&t.path().join("top")), vols);
         (t, v)
     }
 

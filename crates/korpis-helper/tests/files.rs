@@ -3,10 +3,10 @@
 //! File sessions through the helper's verb, with the real worker, on a real ext4 with project
 //! quota: the workload's volumes, one mounted inside the other, served at their paths and nothing
 //! else; what is written is the workload's, given to the owner of the directory it is made in; a
-//! link a tenant planted refused rather than followed out; a write past the volume's quota
-//! refused as the volume being full; a session opened to read changing nothing; and a request
-//! naming another workload's ids refused. It needs root and `mkfs.ext4`, and is skipped without
-//! them.
+//! link a tenant planted refused rather than followed out; a volume the workload mounts read-only
+//! only read; a write past the volume's quota refused as the volume being full; a session opened
+//! to read changing nothing; and a request naming another workload's ids refused. It needs root
+//! and `mkfs.ext4`, and is skipped without them.
 
 #![allow(
     clippy::unwrap_used,
@@ -77,7 +77,12 @@ fn open(h: &mut Helper, id_base: u32, write: bool) -> Result<Session, helper::He
     let r = helper::OpenFilesRequest {
         workload: "wl_1".into(),
         id_base,
-        volumes: vec![volume("/data", "wl_1.data"), volume("/data/plugins", "wl_1.plugins")],
+        volumes: vec![
+            volume("/data", "wl_1.data"),
+            volume("/data/plugins", "wl_1.plugins"),
+            // The same volume again where the workload mounts it read-only.
+            helper::FileVolume { read_only: true, ..volume("/conf", "wl_1.plugins") },
+        ],
         write,
         ..Default::default()
     };
@@ -139,6 +144,20 @@ fn refused(r: &Response) -> pb::FileErrorCode {
     }
 }
 
+/// Writes past the 1 MiB quota of `/data`, which refuses it as full.
+fn fills_the_volume(s: &mut Session) {
+    let full = s.write("/data/big", 0, &vec![7; 1 << 20]);
+    let more = s.write("/data/big", 1 << 20, &vec![7; 1 << 20]);
+    let code = |r: &Response| match r {
+        Response::Error(e) => e.code.as_known(),
+        _ => None,
+    };
+    assert!(
+        [code(&full), code(&more)].contains(&Some(pb::FileErrorCode::FILE_ERROR_CODE_FULL)),
+        "the volume's quota refuses: {full:?} {more:?}"
+    );
+}
+
 #[test]
 fn a_file_session_serves_the_workload_s_volumes_and_nothing_else() {
     let root = rustix::process::geteuid().is_root();
@@ -155,7 +174,11 @@ fn a_file_session_serves_the_workload_s_volumes_and_nothing_else() {
     std::os::unix::fs::symlink("/etc/hostname", data.join("hostname")).unwrap();
     let mut s = open(&mut h, range().base, true).unwrap();
 
-    assert_eq!(s.names("/"), ["data"], "the root holds the volumes' mount points alone");
+    assert_eq!(s.names("/"), ["conf", "data"], "the root holds the volumes' mount points alone");
+    assert_eq!(s.read("/conf/a.jar"), Response::Data(b"jar".to_vec()));
+    let ro = s.write("/conf/b.jar", 0, b"x");
+    assert_eq!(refused(&ro), pb::FileErrorCode::FILE_ERROR_CODE_REFUSED, "mounted read-only");
+    assert!(!plugins.join("b.jar").exists());
     assert_eq!(s.names("/data/plugins"), ["a.jar"], "the nested volume, as itself");
     assert_eq!(s.read("/data/plugins/a.jar"), Response::Data(b"jar".to_vec()));
     assert_eq!(s.write("/data/up.txt", 0, b"hello"), Response::Written(5));
@@ -181,16 +204,7 @@ fn a_file_session_serves_the_workload_s_volumes_and_nothing_else() {
         pb::FileErrorCode::FILE_ERROR_CODE_OUTSIDE
     );
 
-    let full = s.write("/data/big", 0, &vec![7; 1 << 20]);
-    let more = s.write("/data/big", 1 << 20, &vec![7; 1 << 20]);
-    let code = |r: &Response| match r {
-        Response::Error(e) => e.code.as_known(),
-        _ => None,
-    };
-    assert!(
-        [code(&full), code(&more)].contains(&Some(pb::FileErrorCode::FILE_ERROR_CODE_FULL)),
-        "the volume's quota refuses: {full:?} {more:?}"
-    );
+    fills_the_volume(&mut s);
     drop(s);
 
     let mut r = open(&mut h, range().base, false).unwrap();

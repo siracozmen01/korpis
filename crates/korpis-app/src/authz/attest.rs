@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Attesting what a node reports a subject did (§6 of docs/14-streams.md). A node that carried a
-//! session reports its input as the act of the session's subject, under the grant the session's
+//! session reports what was done on it, console input or a file session's opening and end (§3.2
+//! of docs/06-storage.md), as the act of the session's subject, under the grant the session's
 //! token was minted from. The control plane does not take the node's word for whose act it was:
 //! it believes the report only if that grant is the subject's and, as issued, permitted the
 //! action on the object at the moment the node says it happened. So a node can attribute input

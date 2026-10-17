@@ -157,6 +157,14 @@ pub trait Host: Send + Sync + 'static {
     /// Stops the ingress proxy; whether it ran.
     fn stop_ingress(&self) -> impl Future<Output = Result<bool, HostError>> + Send;
 
+    /// A file session on a workload's volumes (§3.2 of docs/06-storage.md): the socket of the
+    /// worker serving it, on which each `FileRequest` is written and each `FileResponse` read as
+    /// four bytes of little-endian length and the message.
+    fn open_files(
+        &self,
+        request: &helper::OpenFilesRequest,
+    ) -> impl Future<Output = Result<std::os::fd::OwnedFd, HostError>> + Send;
+
     /// Whether the node can give workloads networks, and what stands in the way.
     fn describe_network(
         &self,
