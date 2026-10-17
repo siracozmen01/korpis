@@ -413,6 +413,20 @@ re-declaring an earlier intent version, which produces a Plan and converges. Bet
 > starts; no binary undoes on its own. What is not built yet: a migration is not checked for
 > long-held locks, which "online" above asks of every migration, and is reviewed for it instead.
 
+> As built, 2026-10-18 (`crates/korpis-app/src/node/session.rs` and
+> `crates/korpis-agent/src/session`). A control plane refuses an agent whose protocol is outside
+> its window of §4 of `10-api.md` and says which side to upgrade: an agent newer than the window
+> means the control plane was not upgraded first; one older than it is from a release no longer
+> supported, and is the one to upgrade. The agent tells that refusal apart from every other end of
+> its session, by the refusal's reason rather than its words, logs it as an error with what the
+> control plane said, and dials again after five minutes rather than within seconds, since only an
+> upgrade mends it. `scripts/e2e-phase0.sh` upgrades a running node's agent as a package does, the
+> installed binary replaced by a rename and the agent restarted, and checks that the workload kept
+> its process and was adopted, not started again. The binary put back there is the same build, so
+> the test proves the replacement and the adoption, and the session test proves the window; two
+> releases whose protocols differ have not been run against each other, since there is one protocol
+> so far.
+
 ---
 
 ## 5. High availability, and what it actually covers

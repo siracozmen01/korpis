@@ -3,10 +3,11 @@
 # The Phase 0 done-when (§4 of docs/20-roadmap.md), end to end, the way an operator runs it: the
 # five binaries started as processes with their own flags, the recipe published with oras, and
 # every step taken through the `korpis` CLI. It installs a control plane into a fresh database,
-# enrolls this machine as a node, applies a thin recipe, waits for it to converge, restarts the
-# agent and checks the workload kept running in the same process, has a reader try a change it
-# may not make, and then checks the effect log: every permitted action names its grant, and the
-# denial is recorded with its subject and the action that was missing.
+# enrolls this machine as a node, applies a thin recipe, waits for it to converge, upgrades the
+# agent (its binary replaced, as a package does, and restarted) and checks the workload kept
+# running in the same process, has a reader try a change it may not make, and then checks the
+# effect log: every permitted action names its grant, and the denial is recorded with its
+# subject and the action that was missing.
 #
 # Needs root, containerd, docker (for scripts/dev-pg.sh and scripts/dev-registry.sh), psql, jq,
 # and oras from scripts/tools.sh. Leaves nothing behind: its containers, database, and files are
@@ -144,8 +145,13 @@ start driver "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
     --identity-root "$NODE/agent/identity" --state-dir "$NODE/driver"
 until_ok 10 test -S "$NODE/helper.sock"
 until_ok 10 test -S "$NODE/driver.sock"
+# The agent runs from a copy installed as a package installs it, so that its upgrade below can
+# replace the file under a running node.
+INSTALLED="$WORK/installed/korpis-agent"
+mkdir -p "$(dirname "$INSTALLED")"
+cp "$BIN/korpis-agent" "$INSTALLED"
 agent() {
-    start agent "$BIN/korpis-agent" --state-dir "$NODE/agent" run \
+    start agent "$INSTALLED" --state-dir "$NODE/agent" run \
         --driver-socket "$NODE/driver.sock" --helper-socket "$NODE/helper.sock" \
         --plain-http "$REGISTRY" --ingress false
     AGENT=$LAST
@@ -175,9 +181,13 @@ until_ok 10 test -s "$STARTS"
 grep -qx 'hello from e2e' "$(dirname "$STARTS")/greeting" || fail "the configured value"
 echo "running as pid $PID in $RUNTIME" >&2
 
-log "the agent restarts; the workload does not"
+log "the agent is upgraded: its binary replaced and restarted; the workload is not"
 kill "$AGENT"
 wait "$AGENT" 2>/dev/null || true
+BEFORE=$(stat -c %i "$INSTALLED")
+cp "$BIN/korpis-agent" "$INSTALLED.new"
+mv -f "$INSTALLED.new" "$INSTALLED"
+[ "$(stat -c %i "$INSTALLED")" != "$BEFORE" ] || fail "the binary was not replaced"
 agent
 adopted() { korpis --json get effects --workload sleeper | jq -e 'any(.[]; .action == "node.adopt")'; }
 until_ok 60 adopted || fail "the restarted agent never adopted the workload"

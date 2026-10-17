@@ -71,7 +71,10 @@ async fn a_forged_replayed_or_stale_hello_is_refused() {
         x.protocol = "korpis.agent.v9".into();
     }
     let (_s, newer) = TestAgent::open(&h, hello).await;
-    assert_eq!(reason(&newer.unwrap_err()), "protocol.unsupported");
+    let newer = newer.unwrap_err();
+    assert_eq!(reason(&newer), "protocol.unsupported");
+    let said = newer.message.unwrap_or_default();
+    assert!(said.contains("upgrade the control plane first"), "says which side: {said}");
 }
 
 #[tokio::test]

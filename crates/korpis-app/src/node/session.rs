@@ -126,14 +126,41 @@ pub(crate) fn fresh(
     Ok(())
 }
 
+/// The version of an agent protocol named `korpis.agent.v<n>`.
+fn version(protocol: &str) -> Option<u32> {
+    protocol.strip_prefix("korpis.agent.v")?.parse().ok()
+}
+
+/// What a refusal of `theirs` tells the operator: which side to upgrade (§4 of
+/// docs/18-operations.md). The window covers every protocol a supported release ships (§4 of
+/// docs/10-api.md), so an agent newer than it means the control plane was not upgraded first, and
+/// one older than it is an agent from a release no longer supported.
+fn unsupported(theirs: &str) -> String {
+    let ours = AGENT_PROTOCOLS.join(", ");
+    let window: Vec<u32> = AGENT_PROTOCOLS.iter().filter_map(|p| version(p)).collect();
+    match (version(theirs), window.iter().min(), window.iter().max()) {
+        (Some(v), _, Some(&newest)) if v > newest => format!(
+            "this agent speaks {theirs}, newer than this control plane, which speaks {ours}: \
+             upgrade the control plane first, then the agents (§4 of docs/18-operations.md)"
+        ),
+        (Some(v), Some(&oldest), _) if v < oldest => format!(
+            "this agent speaks {theirs}, which this control plane no longer speaks ({ours}): \
+             upgrade the agent to a supported release (§4 of docs/10-api.md)"
+        ),
+        _ => format!(
+            "this agent speaks {theirs}, which is not a protocol of this control plane: \
+                      it speaks {ours}"
+        ),
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Opens a session for the node a Hello names, if the Hello proves it holds the node's key.
     /// Every refusal of the proof is `Unauthenticated`, except a timestamp outside the window,
     /// which says so: it is the one an honest agent can fix, by its clock.
     pub async fn open_session(&self, mut hello: Hello) -> Result<Session, AppError> {
         if !AGENT_PROTOCOLS.contains(&hello.protocol.as_str()) {
-            let message = format!("this control plane speaks {}", AGENT_PROTOCOLS.join(", "));
-            return Err(AppError::conflict("protocol.unsupported", message));
+            return Err(AppError::conflict("protocol.unsupported", unsupported(&hello.protocol)));
         }
         let now = self.clock.now();
         let skew = self.session_terms.auth_skew;
@@ -210,5 +237,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let n = tx.forget_connections().await?;
         tx.commit().await?;
         Ok(n)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_refused_agent_is_told_which_side_to_upgrade() {
+        assert!(unsupported("korpis.agent.v9").contains("upgrade the control plane first"));
+        assert!(unsupported("korpis.agent.v0").contains("upgrade the agent to a supported"));
+        assert!(unsupported("other.v1").contains("is not a protocol of this control plane"));
+        assert_eq!(version("korpis.agent.v12"), Some(12));
     }
 }

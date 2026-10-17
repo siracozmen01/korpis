@@ -25,8 +25,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Semaphore, broadcast, mpsc, watch};
 
 mod answer;
+mod ended;
 mod link;
 mod receive;
+
+use ended::Ended;
 
 pub use link::{Event, Facts, Link};
 
@@ -34,6 +37,9 @@ pub use link::{Event, Facts, Link};
 pub const PROTOCOL: &str = "korpis.agent.v1";
 /// The longest wait between dialling attempts.
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
+/// The wait after the control plane refuses this agent's protocol: only an upgrade mends it, so
+/// dialling every few seconds would only fill both sides' logs.
+const REFUSED_BACKOFF: Duration = Duration::from_secs(300);
 
 type Recv = BidiRecvHalf<
     <HttpClient as ClientTransport>::ResponseBody,
@@ -91,12 +97,12 @@ fn shipped(r: std::io::Result<Vec<agent::AgentMessage>>) -> Vec<agent::AgentMess
 }
 
 /// Reads the stream into a channel, so the session's loop never cancels a read half done.
-async fn read(mut recv: Recv, out: mpsc::Sender<Result<agent::ControlMessage, String>>) {
+async fn read(mut recv: Recv, out: mpsc::Sender<Result<agent::ControlMessage, Ended>>) {
     loop {
         let next = match recv.message::<agent::ControlMessage>().await {
             Ok(Some(m)) => Ok(m.to_owned_message()),
-            Ok(None) => Err("the control plane closed the stream".to_owned()),
-            Err(e) => Err(e.to_string()),
+            Ok(None) => Err(Ended::from("the control plane closed the stream")),
+            Err(e) => Err(Ended::from(e)),
         };
         let ended = next.is_err();
         if out.send(next).await.is_err() || ended {
@@ -174,13 +180,20 @@ impl Session {
     pub async fn run(mut self) {
         let mut backoff = Duration::from_secs(1);
         loop {
-            let reason = match self.once().await {
-                Ok(()) => "ended".to_owned(),
-                Err(e) => e,
+            let (reason, wait) = match self.once().await {
+                Ok(()) => ("ended".to_owned(), backoff),
+                Err(Ended::Refused(why)) => {
+                    tracing::error!(%why, "the control plane refuses this agent's protocol; \
+                                           dialling again in {REFUSED_BACKOFF:?}");
+                    (why, REFUSED_BACKOFF)
+                }
+                Err(Ended::Other(why)) => {
+                    tracing::warn!(%why, "control stream down; dialling again in {backoff:?}");
+                    (why, backoff)
+                }
             };
-            tracing::warn!(%reason, "control stream down; dialling again in {backoff:?}");
             let _ = self.events.send(Event::Disconnected(reason));
-            tokio::time::sleep(backoff).await;
+            tokio::time::sleep(wait).await;
             backoff = (backoff * 2).min(MAX_BACKOFF);
         }
     }
@@ -238,7 +251,7 @@ impl Session {
     }
 
     /// One connection, until it drops.
-    async fn once(&mut self) -> Result<(), String> {
+    async fn once(&mut self) -> Result<(), Ended> {
         let config = tls::trusting(&self.identity.ca_pem).map_err(|e| e.to_string())?;
         let uri: http::Uri =
             self.identity.server.parse().map_err(|e: http::uri::InvalidUri| e.to_string())?;
@@ -246,7 +259,7 @@ impl Session {
             HttpClient::with_tls(Arc::new(config)),
             ClientConfig::new(uri),
         );
-        let stream = client.session().await.map_err(|e| e.to_string())?;
+        let stream = client.session().await?;
         let (mut send, recv) = stream.into_split();
         let marks = self.journal.marks().await.map_err(|e| e.to_string())?;
         send.send(self.hello(marks)?).await.map_err(|e| e.to_string())?;
@@ -261,11 +274,11 @@ impl Session {
     async fn serve(
         &mut self,
         send: &mut connectrpc::client::BidiSendHalf<agent::AgentMessage>,
-        rx: &mut mpsc::Receiver<Result<agent::ControlMessage, String>>,
-    ) -> Result<(), String> {
+        rx: &mut mpsc::Receiver<Result<agent::ControlMessage, Ended>>,
+    ) -> Result<(), Ended> {
         let first = rx.recv().await.ok_or("the stream ended before the Welcome")??;
         let Some(Down::Welcome(welcome)) = first.message else {
-            return Err("the first answer was not a Welcome".to_owned());
+            return Err("the first answer was not a Welcome".into());
         };
         let interval = welcome
             .heartbeat_interval
