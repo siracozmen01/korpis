@@ -26,7 +26,7 @@ echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
 # vendored with its own headers.
 spdx=$(git ls-files --cached --others --exclude-standard \
         'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'scripts/*.mjs' \
-        'conformance/*.rs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' \
+        'conformance/*.rs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' 'web/*.css' \
     | grep -v '^crates/korpis-containerd/proto/' \
     | while read -r f; do
         case "$f" in

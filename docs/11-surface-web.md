@@ -52,8 +52,9 @@ listed.
 > the control plane's own accept loop, the one a PROXY header already needed, rather than
 > connectrpc's server, which serves nothing but procedures.
 >
-> As built, 2026-10-17 (`web/src`). The panel's own routes so far are `/sign-in`, `/invitation`,
-> and `/device`; the first two are open signed out, and any other route, signed out, leads to
+> As built, 2026-10-17 (`web/src`). The panel's own routes are `/sign-in`, `/invitation`, `/g`
+> (a share link's screen, §6), `/device`, `/profile`, and the places `/o/<id>`, `/p/<id>`, and
+> `/w/<id>` (§5); the first three are open signed out, and any other route, signed out, leads to
 > `/sign-in` with the path it was going to, which signing in returns to only if it is a path of
 > the panel's own. An invitation arrives as `/invitation#korpisiv_…`, taken from the address bar
 > at once and held in memory (§6), or is pasted. `/device?code=…` is the page `korpis login`
@@ -61,7 +62,13 @@ listed.
 > asked from, and when, and approving it re-authenticates first when the last sign-in is older
 > than ten minutes, while denying never does. One tab at a time exchanges the cookie, under a Web
 > Lock, and the access token it gets is shared with the other tabs over a `BroadcastChannel`, so
-> a rotated cookie is never presented twice. A browser without Web Locks (no current one lacks
+> a rotated cookie is never presented twice. `/profile` shows the account's factors and its
+> sessions: passkeys added and removed, a password set, changed, or removed, an authenticator app
+> enrolled (its address as text and as a QR code drawn in the page) or removed, recovery codes
+> renewed and shown once, and each session with where it began and when it was last used, ended
+> one at a time or all but this one. A change refused `session.not_recent` asks the user to
+> confirm it is them and is then made, so none is lost to the ten-minute rule (§9.4 of
+> `08-identity.md`). A browser without Web Locks (no current one lacks
 > them) falls back to a lock per tab, and there two tabs exchanging at once end the session.
 
 ---
@@ -234,6 +241,14 @@ version of this screen showed neither (finding S29). A link can never be used to
 > A link for an organization or a project shows its lists empty, because a listing spends nothing
 > and so shows a use-limited grant nothing (§6.1 of `08-identity.md`); a link is for one object,
 > and the screen that issues links (P1.12e6) issues them for workloads.
+>
+> The share screen is on a workload's screen, never on a share link's. It offers the actions in
+> words, an expiry of an hour, a day (the default), or a week, and a use cap (three by default),
+> and says before the link exists that opening its screen and each action is one use and that
+> using it needs the control plane. The link, `/g/#korpislk_…` on the panel's own address, is
+> shown once with a button to copy it. Beside it, the grants anchored on the workload are
+> listed for a caller who may read them, each with its holder, actions, state, and expiry, and
+> revoking one says how many grants attenuated from it went with it.
 
 ---
 
@@ -333,6 +348,16 @@ which would be a second surface with a second set of gaps, but because the layou
 Keyboard navigation is complete. The console is the genuinely hard accessibility problem, a live
 region that streams thousands of lines is hostile to a screen reader, and is solved with an
 explicit paused-and-buffered reading mode rather than by leaving it unsolved.
+
+> As built, 2026-10-17 (`web/src/styles.css`). One stylesheet, loaded as a file so the page's
+> policy keeps `style-src 'self'`: a handful of tokens with a dark set chosen by the system's
+> preference, one column of at most 60 rem with 16 px gutters, a header that wraps, forms one
+> field wide, long values (links, addresses, identifiers) broken anywhere rather than pushing
+> the page sideways, and a focus ring on whatever the keyboard reaches. Every control is a React
+> Aria component, which carries the keyboard behaviour and roles. Branding (§7) will replace the
+> tokens, not the rules. The page's policy also names the control plane's origin when the build
+> puts it elsewhere (`VITE_KORPIS_API`): the policy's own comment promised that and the policy
+> did not say it, so a panel built that way could not have reached its control plane.
 
 ---
 

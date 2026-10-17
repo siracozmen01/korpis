@@ -4,7 +4,7 @@
 
 import react from "@vitejs/plugin-react";
 import { execFileSync } from "node:child_process";
-import type { Plugin } from "vite";
+import { loadEnv, type Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
 /** Where the panel's source is published, as the control plane's build says of its own. */
@@ -15,7 +15,10 @@ function revision(): string {
   const named = process.env.KORPIS_SOURCE_REVISION;
   if (named !== undefined && named !== "") return named;
   try {
-    return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     return "unknown";
   }
@@ -49,8 +52,31 @@ function sourceNotice(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), sourceNotice()],
+/**
+ * The control plane in the panel's own policy: `index.html` lets the page connect to its own
+ * origin, and, when the build names the control plane elsewhere (`VITE_KORPIS_API`), to that
+ * origin too and nothing else, so a panel served apart from its control plane can reach it.
+ */
+function controlPlanePolicy(named: string | undefined): Plugin {
+  const origin = named === undefined || named === "" ? undefined : new URL(named).origin;
+  return {
+    name: "korpis-control-plane-policy",
+    transformIndexHtml(html) {
+      if (origin === undefined) return html;
+      if (!html.includes("connect-src 'self';")) {
+        throw new Error("index.html's policy has no connect-src 'self' to extend");
+      }
+      return html.replace("connect-src 'self';", `connect-src 'self' ${origin};`);
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    sourceNotice(),
+    controlPlanePolicy(loadEnv(mode, process.cwd(), "VITE_").VITE_KORPIS_API),
+  ],
   build: {
     outDir: "dist",
     assetsDir: "assets",
@@ -61,4 +87,4 @@ export default defineConfig({
     globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
   },
-});
+}));

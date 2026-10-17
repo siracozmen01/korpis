@@ -7,10 +7,10 @@
 import type { Client } from "@connectrpc/connect";
 import { useEffect, useState } from "react";
 import { Button, Form, Input, Label, TextField } from "react-aria-components";
-import { renderSVG } from "uqr";
 import type { AccountService, GetInvitationResponse } from "../gen/korpis/v1/account_pb";
 import type { Creation, Registered } from "../session/webauthn";
 import { field } from "./PasswordForm";
+import { Qr } from "./Qr";
 import { refusal } from "./refusal";
 
 /** What redeeming needs. */
@@ -142,13 +142,7 @@ function Password(props: {
     <main>
       <h1>Set a password</h1>
       <p>Add this account to your authenticator app, by its QR code or by this address:</p>
-      <img
-        alt="QR code of the authenticator address"
-        src={`data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(props.uri))}`}
-      />
-      <p>
-        <code>{props.uri}</code>
-      </p>
+      <Qr uri={props.uri} />
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -178,7 +172,13 @@ function Password(props: {
 }
 
 /** The recovery codes, shown once. */
-function Codes({ codes, done }: { readonly codes: readonly string[]; readonly done: () => void }) {
+export function Codes({
+  codes,
+  done,
+}: {
+  readonly codes: readonly string[];
+  readonly done: () => void;
+}) {
   return (
     <main>
       <h1>Your recovery codes</h1>

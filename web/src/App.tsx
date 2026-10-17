@@ -27,9 +27,13 @@ import { LINK_BASE, LINK_PREFIX, LinkShell } from "./views/LinkShell";
 import { Place, placeAt } from "./views/place";
 import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
+import { Profile } from "./profile/Profile";
 
 /** The signed-in user's clients, and links written from the panel's root. */
 const signedInReach = { clients: signedInClients, base: "", metered: false };
+
+/** What the profile screens call. */
+const profileServices = { profiles, sessions, accounts, assert, create };
 
 /** Where signing in returns to: a path of this panel's own, never another site's. */
 export function returnTo(search: string): string {
@@ -116,7 +120,7 @@ function Routes({ session }: { readonly session: Session }) {
   return (
     <ReachProvider value={signedInReach}>
       <header>
-        <Link href="/">Korpis</Link>
+        <Link href="/">Korpis</Link> <Link href="/profile">Profile</Link>
         <Button
           onPress={() => {
             void cookieSessions.signOut({}).finally(() => {
@@ -127,7 +131,9 @@ function Routes({ session }: { readonly session: Session }) {
           Sign out
         </Button>
       </header>
-      {place !== undefined ? (
+      {path === "/profile" ? (
+        <Profile services={profileServices} />
+      ) : place !== undefined ? (
         <Place entry={place} />
       ) : path === "/" ? (
         <main>
