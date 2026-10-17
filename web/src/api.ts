@@ -17,7 +17,10 @@ import {
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { type Clients, clientsOver, linkTransport } from "./clients";
+import type { Relay } from "./console/relay";
 import { AccountService } from "./gen/korpis/v1/account_pb";
+import { ServerInfoService } from "./gen/korpis/v1/api_pb";
+import { RelayService } from "./gen/korpis/v1/relay_pb";
 import { ProfileService } from "./gen/korpis/v1/profile_pb";
 import { SessionService } from "./gen/korpis/v1/session_pb";
 import { type Access, Session, browserShared } from "./session/session";
@@ -95,4 +98,24 @@ export function linkClients(link: string): Clients {
     linked.set(link, clients);
   }
   return clients;
+}
+
+let found: Promise<Relay> | undefined;
+
+/** The relay this panel opens sessions at: the control plane, when it serves the role, or the
+ * first relay it names; asked once and remembered. A session carries its own token, so the
+ * relay's transport sends no cookie and no bearer. */
+export function relay(): Promise<Relay> {
+  found ??= (async () => {
+    const info = await createClient(ServerInfoService, anonymous).getServerInfo({});
+    const url = info.controlPlaneRelay ? controlPlane() : info.relays[0];
+    if (url === undefined)
+      throw new Error("no relay serves sessions: the control plane names none");
+    const plain: typeof fetch = (input, init) => fetch(input, { ...init, credentials: "omit" });
+    return createClient(RelayService, createConnectTransport({ baseUrl: url, fetch: plain }));
+  })().catch((e: unknown) => {
+    found = undefined;
+    throw e;
+  });
+  return found;
 }

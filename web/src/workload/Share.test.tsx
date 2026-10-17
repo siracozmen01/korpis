@@ -9,6 +9,8 @@ import { GrantState } from "../gen/korpis/v1/authority_pb";
 import { Grants } from "./Grants";
 import { Share } from "./Share";
 
+const noRelay = () => Promise.reject(new Error("no relay in this test"));
+
 function reach(seen: { issued?: IssueGrantRequest; revoked?: string }) {
   const transport = createRouterTransport(({ service }) => {
     service(GrantService, {
@@ -33,7 +35,7 @@ function reach(seen: { issued?: IssueGrantRequest; revoked?: string }) {
       },
     });
   });
-  return { clients: clientsOver(transport), base: "", metered: false };
+  return { clients: clientsOver(transport), base: "", metered: false, relay: noRelay };
 }
 
 test("a link is issued for one workload, with an expiry and a use cap, and shown once", async () => {

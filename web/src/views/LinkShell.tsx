@@ -9,6 +9,7 @@
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useCallback, useMemo } from "react";
+import { relay } from "../api";
 import { type Clients, ReachProvider } from "../clients";
 import type { Grant } from "../gen/korpis/v1/authority_pb";
 import { entryOf } from "./entries";
@@ -79,7 +80,7 @@ function Granted(props: {
 }) {
   const { clients, grant, path } = props;
   const reach = useMemo(
-    () => ({ clients, base: LINK_BASE, metered: true, allowed: new Set(grant.actions) }),
+    () => ({ clients, base: LINK_BASE, metered: true, allowed: new Set(grant.actions), relay }),
     [clients, grant],
   );
   const within = path.slice(LINK_BASE.length).replace(/^\/$/, "");

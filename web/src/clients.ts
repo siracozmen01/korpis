@@ -8,11 +8,13 @@
 import { createClient, type Client, type Interceptor, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, useContext } from "react";
+import type { Relay } from "./console/relay";
 import {
   GrantService,
   OrganizationService,
   PlanService,
   ProjectService,
+  StreamService,
   WorkloadService,
 } from "./gen/korpis/v1/api_pb";
 
@@ -22,6 +24,7 @@ export interface Clients {
   readonly organizations: Client<typeof OrganizationService>;
   readonly plans: Client<typeof PlanService>;
   readonly projects: Client<typeof ProjectService>;
+  readonly streams: Client<typeof StreamService>;
   readonly workloads: Client<typeof WorkloadService>;
 }
 
@@ -32,6 +35,7 @@ export function clientsOver(transport: Transport): Clients {
     organizations: createClient(OrganizationService, transport),
     plans: createClient(PlanService, transport),
     projects: createClient(ProjectService, transport),
+    streams: createClient(StreamService, transport),
     workloads: createClient(WorkloadService, transport),
   };
 }
@@ -65,6 +69,8 @@ export interface Reach {
   /** The actions the credential holds, where the panel knows them (a share link's); otherwise
    * every action is offered and the control plane decides (§5 of docs/11-surface-web.md). */
   readonly allowed?: ReadonlySet<string>;
+  /** The relay sessions with a workload are opened at (§3.1 of docs/02-architecture.md). */
+  readonly relay: () => Promise<Relay>;
 }
 
 const ReachContext = createContext<Reach | undefined>(undefined);

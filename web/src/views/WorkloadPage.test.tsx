@@ -8,6 +8,8 @@ import { Convergence, WorkloadService } from "../gen/korpis/v1/api_pb";
 import { ObservedState, PowerState } from "../gen/korpis/v1/workload_pb";
 import { WorkloadPage } from "./WorkloadPage";
 
+const noRelay = () => Promise.reject(new Error("no relay in this test"));
+
 test("the screen follows the workload live, and says when it no longer is", async () => {
   const now = Date.now();
   let opened = 0;
@@ -35,7 +37,15 @@ test("the screen follows the workload live, and says when it no longer is", asyn
     });
   });
   render(
-    <ReachProvider value={{ clients: clientsOver(transport), base: "/g", metered: true }}>
+    <ReachProvider
+      value={{
+        clients: clientsOver(transport),
+        base: "/g",
+        metered: true,
+        relay: noRelay,
+        allowed: new Set(["workload.read"]),
+      }}
+    >
       <WorkloadPage id="wl_1" />
     </ReachProvider>,
   );

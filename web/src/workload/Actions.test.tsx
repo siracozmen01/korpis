@@ -13,6 +13,8 @@ import {
 } from "../gen/korpis/v1/workload_pb";
 import { Actions } from "./Actions";
 
+const noRelay = () => Promise.reject(new Error("no relay in this test"));
+
 type PlanInit = MessageInitShape<typeof PlanSchema>;
 const safe = { disruptive: false, dataAtRisk: [], dataAtRiskUnknown: false };
 const proposed = (init: PlanInit): PlanInit => ({
@@ -57,6 +59,7 @@ function setup(desired: PowerState, allowed?: ReadonlySet<string>) {
         clients: clientsOver(transport),
         base: "",
         metered: false,
+        relay: noRelay,
         ...(allowed && { allowed }),
       }}
     >

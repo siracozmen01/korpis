@@ -12,6 +12,8 @@ import {
 import { GrantState } from "../gen/korpis/v1/authority_pb";
 import { Home, ProjectPage } from "./Places";
 
+const noRelay = () => Promise.reject(new Error("no relay in this test"));
+
 const issued = GrantState.ISSUED;
 
 function reach() {
@@ -48,7 +50,7 @@ function reach() {
           : { workloads: [{ workload: { id: "wl_2", name: "second" } }] },
     });
   });
-  return { clients: clientsOver(transport), base: "", metered: false };
+  return { clients: clientsOver(transport), base: "", metered: false, relay: noRelay };
 }
 
 test("the navigation starts at what every held grant opens, and leaves out what cannot be read", async () => {

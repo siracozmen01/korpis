@@ -6,6 +6,7 @@
 
 import { Button } from "react-aria-components";
 import { useReach } from "../clients";
+import { Console } from "../console/Console";
 import { Actions } from "../workload/Actions";
 import { Grants } from "../workload/Grants";
 import { Share } from "../workload/Share";
@@ -21,7 +22,8 @@ import { useLive } from "./watch";
 
 /** The workload `id`. */
 export function WorkloadPage({ id }: { readonly id: string }) {
-  const { clients, metered } = useReach();
+  const { clients, metered, allowed } = useReach();
+  const may = (action: string) => allowed === undefined || allowed.has(action);
   const live = useLive(clients, id, !metered);
   const now = useNow();
   const { status, ended } = live;
@@ -56,6 +58,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       <Actions status={status} />
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
+      {may("workload.console.read") && <Console id={id} typing={may("workload.console.write")} />}
       {!metered && (
         <>
           <Grants id={id} />

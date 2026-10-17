@@ -318,6 +318,20 @@ and renders ANSI without letting a workload's output execute anything. A workloa
 thousand lines a second must not take the browser tab down with it, the client renders a windowed
 view and drops with a visible marker, never silently.
 
+> As built, 2026-10-17 (`web/src/console`). The console mints a token for
+> `workload.console.read`, opens the session at the relay with `Watch` (§3.1 of
+> `02-architecture.md`) asking for the last 200 records and to follow, and renews the token
+> through `Send` thirty seconds before it expires. A dropped session reopens from the offset the
+> node said to read next, by itself for a signed-in user and on request through a share link,
+> since each opening is a use. Missing offsets and gap records are drawn as gaps with what was
+> lost and why. Only SGR colours and weights are kept, as classes from a fixed set; every other
+> escape sequence (a title, a hyperlink, a clipboard write, a cursor move) and every control
+> character but a tab and a line break is dropped. The view keeps the newest 2,000 lines and says
+> how many left it; Earlier reads the 200 before the oldest shown, from the offloaded segments
+> through the control plane and from the node for what is not offloaded yet. Reading mode holds
+> the view still, turns its live region off, and says how many lines arrived meanwhile. A line
+> typed goes through a `workload.console.write` session of its own, offered where the caller may.
+
 **Files.** The web file manager is a client of the volume API and holds no privilege of its own.
 Large files stream rather than buffer; a workload's directory is not something a browser tab should
 try to hold. Upload goes through a relay with a scoped, short-lived token (§3.1 of

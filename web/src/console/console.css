@@ -1,0 +1,141 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/* The console (§8): a scrolling box of fixed width text, its gaps set apart, and the sixteen
+   colours a workload may ask for, as classes from a fixed set (src/console/ansi.ts). */
+.console {
+  max-height: 60vh;
+  overflow: auto;
+  margin: var(--gap) 0;
+  padding: var(--gap);
+  border-radius: var(--radius);
+  background: #0f1115;
+  color: #d7dae0;
+  font:
+    0.85rem/1.4 ui-monospace,
+    "SFMono-Regular",
+    Menlo,
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.console-gap {
+  color: #f0b45a;
+  font-style: italic;
+}
+
+.console-stderr {
+  color: #ff9b94;
+}
+
+.ansi-bold {
+  font-weight: bold;
+}
+.ansi-dim {
+  opacity: 0.7;
+}
+.ansi-italic {
+  font-style: italic;
+}
+.ansi-underline {
+  text-decoration: underline;
+}
+.ansi-fg-0 {
+  color: #4d4d4d;
+}
+.ansi-fg-1 {
+  color: #e05561;
+}
+.ansi-fg-2 {
+  color: #8cc265;
+}
+.ansi-fg-3 {
+  color: #d18f52;
+}
+.ansi-fg-4 {
+  color: #4aa5f0;
+}
+.ansi-fg-5 {
+  color: #c162de;
+}
+.ansi-fg-6 {
+  color: #42b3c2;
+}
+.ansi-fg-7 {
+  color: #d7dae0;
+}
+.ansi-fg-8 {
+  color: #7f848e;
+}
+.ansi-fg-9 {
+  color: #ff616e;
+}
+.ansi-fg-10 {
+  color: #a5e075;
+}
+.ansi-fg-11 {
+  color: #f0a45d;
+}
+.ansi-fg-12 {
+  color: #4dc4ff;
+}
+.ansi-fg-13 {
+  color: #de73ff;
+}
+.ansi-fg-14 {
+  color: #4cd1e0;
+}
+.ansi-fg-15 {
+  color: #ffffff;
+}
+.ansi-bg-0 {
+  background: #4d4d4d;
+}
+.ansi-bg-1 {
+  background: #e05561;
+}
+.ansi-bg-2 {
+  background: #8cc265;
+}
+.ansi-bg-3 {
+  background: #d18f52;
+}
+.ansi-bg-4 {
+  background: #4aa5f0;
+}
+.ansi-bg-5 {
+  background: #c162de;
+}
+.ansi-bg-6 {
+  background: #42b3c2;
+}
+.ansi-bg-7 {
+  background: #d7dae0;
+}
+.ansi-bg-8 {
+  background: #7f848e;
+}
+.ansi-bg-9 {
+  background: #ff616e;
+}
+.ansi-bg-10 {
+  background: #a5e075;
+}
+.ansi-bg-11 {
+  background: #f0a45d;
+}
+.ansi-bg-12 {
+  background: #4dc4ff;
+}
+.ansi-bg-13 {
+  background: #de73ff;
+}
+.ansi-bg-14 {
+  background: #4cd1e0;
+}
+.ansi-bg-15 {
+  background: #ffffff;
+}

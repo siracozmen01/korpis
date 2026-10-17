@@ -11,6 +11,7 @@ import {
   cookieSessions,
   linkClients,
   profiles,
+  relay,
   session as shared,
   sessions,
   signedInClients,
@@ -30,7 +31,7 @@ import { SignIn } from "./views/SignIn";
 import { Profile } from "./profile/Profile";
 
 /** The signed-in user's clients, and links written from the panel's root. */
-const signedInReach = { clients: signedInClients, base: "", metered: false };
+const signedInReach = { clients: signedInClients, base: "", metered: false, relay };
 
 /** What the profile screens call. */
 const profileServices = { profiles, sessions, accounts, assert, create };
