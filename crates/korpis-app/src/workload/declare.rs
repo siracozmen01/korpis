@@ -250,7 +250,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let recipe_ref = (cmd.recipe_name.as_str(), cmd.recipe_version.as_str());
         let (body, recipe, changes) =
             self.complete_declaration(caller, &base, recipe_ref, declaration).await?;
-        self.check_kept(caller, &base, &cmd.keep, &recipe).await?;
+        self.check_kept(caller, &base, &cmd.keep, &body).await?;
         let owner = (base.workload.id, base.workload.project);
         self.check_existing(caller, owner, &body).await?;
         self.check_routes((base.workload.organization, base.workload.id), &body).await?;

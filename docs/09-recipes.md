@@ -590,10 +590,11 @@ effects (they record that it changed, not what to), and readable back only with
 > in the intent's `withheld`, so a client knows a value is set without learning it; a recipe
 > that cannot be read withholds every value. Such a caller changes everything else by declaring
 > with `keep`, which carries the named values from the head as they are, so it never has to
-> know a secret to leave it alone. A kept value stays out of sight only while the recipe it is
-> declared with marks it secret, so keeping one that the recipe declared with does not mark
-> secret, as a change of recipe could, needs `workload.secret.read` as reading it would. What it
-> costs: one more authorization check and a recipe read
+> know a secret to leave it alone. A kept value goes wherever the recipe it is declared with
+> sends it, and only the recipe it was set under is known to keep it out of the caller's sight:
+> another, even one that marks the field secret, could hand it to a command that prints it to a
+> console the caller reads, encoded past redaction. So keeping a value into any recipe but the
+> head's, by digest, needs `workload.secret.read`, as reading it would. What it costs: one more authorization check and a recipe read
 > per workload a read returns, both kept per call; and a clone made by a caller who may not
 > read the source's secrets starts with the recipe's defaults for them, since a value it was
 > never shown is not one it can copy.

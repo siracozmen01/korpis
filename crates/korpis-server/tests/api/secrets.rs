@@ -94,7 +94,7 @@ async fn a_caller_that_may_not_read_a_secret_keeps_it_across_a_change() {
 }
 
 #[tokio::test]
-async fn a_kept_secret_cannot_be_carried_into_a_recipe_that_does_not_keep_it_secret() {
+async fn a_kept_secret_is_carried_into_another_recipe_only_by_who_may_read_it() {
     let h = Harness::new().await;
     let (_, w) = guarded(&h).await;
     let open = PAPER.replace(
@@ -114,6 +114,14 @@ async fn a_kept_secret_cannot_be_carried_into_a_recipe_that_does_not_keep_it_sec
     assert!(matches!(e.code, ErrorCode::PermissionDenied | ErrorCode::NotFound), "{e:?}");
     let shown = head(&writes, &w).await;
     assert_eq!(shown.version, version, "nothing was declared");
+
+    // A recipe that still marks it secret is no safer: it could deliver it anywhere.
+    let other =
+        push_paper_like(&PAPER.replace("description: PaperMC server", "description: Paper")).await;
+    let mut still = change("c3", &w, version, body(&other, &[]));
+    still.keep = vec!["rcon_password".to_owned()];
+    let e = writes.declare_intent(still).await.unwrap_err();
+    assert!(matches!(e.code, ErrorCode::PermissionDenied | ErrorCode::NotFound), "{e:?}");
 
     let root = h.workloads(h.root());
     let mut allowed = change("c2", &w, version, body(&open, &[]));

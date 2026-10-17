@@ -2910,8 +2910,9 @@ intent's `withheld`, from `GetWorkload`, `ListWorkloads`, `WatchWorkload`, `List
 the answer to `DeclareIntent`, whose copy kept for a replay is withheld the same way; a recipe
 that cannot be read withholds every value. `DeclareIntent` takes `keep`, keys whose values are
 carried from the head as they are, so such a caller declares a change to everything else
-without a secret it was never shown; a kept key that the recipe it is declared with does not
-mark secret needs `workload.secret.read`, or a change of recipe would carry the value somewhere
-it could be read (found by a security review of this fix before it was committed). → `09-recipes.md` §5.2; built and tested in
+without a secret it was never shown. Keeping into any recipe but the head's, by digest, needs
+`workload.secret.read`: a recipe that drops the mark, or keeps it and hands the value to a
+command that prints it encoded to a console the caller reads, would carry it somewhere it could
+be read (found by two security reviews of this fix, the first before it was committed). → `09-recipes.md` §5.2; built and tested in
 `crates/korpis-app/src/workload/withhold.rs`, `crates/korpis-app/src/workload/declare/shown.rs`,
 and `crates/korpis-server/tests/api/secrets.rs`.

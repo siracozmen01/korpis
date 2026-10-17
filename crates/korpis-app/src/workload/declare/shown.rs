@@ -9,8 +9,8 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::{Kind, ObjectRef};
-use korpis_core::recipe::Recipe;
 use korpis_core::workload::declare::Declaration;
+use korpis_core::workload::spec::IntentBody;
 
 /// `declaration` with each of `keep` carried from `base`'s head as it is. A kept key is one the
 /// caller leaves out because it may not read it, so naming it in the declaration too is a
@@ -39,19 +39,22 @@ pub(super) fn kept(
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Checks that keeping `keep` reveals nothing to `caller`: a kept value stays out of its
-    /// sight only while the recipe it is declared with still marks it secret, so keeping one the
-    /// new recipe does not, as a change of recipe could, needs `workload.secret.read` on the
-    /// workload, as reading it would.
+    /// Checks that keeping `keep` reveals nothing to `caller`. A kept value goes where the recipe
+    /// it is declared with sends it, and only the recipe the value was set under is known to keep
+    /// it out of the caller's sight: another, even one that marks the field secret, could deliver
+    /// it to a command that prints it to a console the caller reads, encoded past redaction. So
+    /// keeping a value into any recipe but the head's, by digest, needs `workload.secret.read` on
+    /// the workload, as reading it would.
     pub(super) async fn check_kept(
         &self,
         caller: &Caller,
         base: &Base,
         keep: &[String],
-        recipe: &Recipe,
+        declared: &IntentBody,
     ) -> Result<(), AppError> {
-        let secret = |k: &String| recipe.config.field(k).is_some_and(|f| f.secret);
-        if keep.iter().all(secret) {
+        let same =
+            base.head.as_ref().is_some_and(|h| h.body.recipe.digest == declared.recipe.digest);
+        if keep.is_empty() || same {
             return Ok(());
         }
         let workload = ObjectRef::new(Kind::Workload, base.workload.id);
