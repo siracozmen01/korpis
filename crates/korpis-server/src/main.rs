@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 mod installing;
+mod migrating;
 mod serving;
 
 use clap::{Parser, Subcommand};
@@ -27,6 +28,9 @@ enum Command {
     /// that account's invitation once, to redeem by registering a passkey within the hour, and
     /// the first node's join command.
     Install(Box<installing::InstallArgs>),
+    /// Move the schema (§4 of docs/18-operations.md): apply the migrations this build carries,
+    /// or, with --to, undo those after a version, so the binary that ran before can run again.
+    Migrate(Box<migrating::MigrateArgs>),
     /// Administration done at the machine, by its root user.
     Admin {
         #[command(subcommand)]
@@ -125,6 +129,7 @@ fn fail(e: &dyn std::error::Error) {
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Install(args) => installing::run(*args).await,
+        Command::Migrate(args) => migrating::run(*args).await,
         Command::Admin { command: AdminCommand::RecoverRoot { data_dir, database_url } } => {
             let config = RecoverConfig { data: DataDir::new(data_dir), database_url };
             let invitation = recover_root(&config, &operator()).await?;

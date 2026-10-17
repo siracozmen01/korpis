@@ -30,6 +30,13 @@ pub struct TestDb {
 impl TestDb {
     /// Creates and migrates a fresh database.
     pub async fn new() -> Result<Self, Error> {
+        let db = Self::empty().await?;
+        migrate(&db.owner_url).await?;
+        Ok(db)
+    }
+
+    /// Creates a fresh database with no migration applied.
+    pub async fn empty() -> Result<Self, Error> {
         let admin_url =
             std::env::var("KORPIS_TEST_PG_URL").unwrap_or_else(|_| DEFAULT_ADMIN_URL.to_owned());
         let name = format!("korpis_test_{}", uuid::Uuid::now_v7().simple());
@@ -41,7 +48,6 @@ impl TestDb {
         admin.close().await?;
         let base = admin_url.rsplit_once('/').map_or(admin_url.as_str(), |(base, _)| base);
         let owner_url = format!("{base}/{name}");
-        migrate(&owner_url).await?;
         Ok(Self { admin_url, name, owner_url })
     }
 

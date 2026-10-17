@@ -139,6 +139,9 @@ pub enum ServeError {
     /// The configuration does not parse.
     #[error("configuration: {0}")]
     Config(String),
+    /// The database's schema is not the one this build was made for.
+    #[error("{0}")]
+    Schema(String),
 }
 
 /// A bound, running control plane.
@@ -197,9 +200,32 @@ fn application(
     Ok(app)
 }
 
+/// Refuses a schema this build was not made for, saying what makes them meet (§4 of
+/// docs/18-operations.md): an older schema is migrated forward by this binary, and a newer one is
+/// undone by the binary that applied it, or served by that binary.
+async fn schema_fits(url: &str) -> Result<(), ServeError> {
+    use korpis_store::schema::{self, Fit};
+    let list = |v: &[i64]| v.iter().map(i64::to_string).collect::<Vec<_>>().join(", ");
+    match schema::fit(&schema::applied(url).await?) {
+        Fit::Current => Ok(()),
+        Fit::Behind(pending) => Err(ServeError::Schema(format!(
+            "the database is older than this build: migrations {} are not applied; run \
+             `korpis-server migrate` as the schema's owner",
+            list(&pending)
+        ))),
+        Fit::Ahead(unknown) => Err(ServeError::Schema(format!(
+            "the database is newer than this build: migrations {} were applied by a newer \
+             korpis-server; serve with that one, or roll back with its `migrate --to {}` first",
+            list(&unknown),
+            schema::latest()
+        ))),
+    }
+}
+
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can
 /// connect immediately.
 pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
+    schema_fits(&config.database_url).await?;
     let store = PgStore::connect(
         &config.database_url,
         config.max_connections,

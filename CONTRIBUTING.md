@@ -91,7 +91,9 @@ scripts/test-tools.sh     the servers some tests run against (MinIO, built from 
                           with a pinned Go), into .tools/; a test whose server is missing says
                           so and does not run
 scripts/sqlx-prepare.sh   after changing a migration or a query: rebuilds the development
-                          database and regenerates .sqlx/, which builds use offline
+                          database and regenerates .sqlx/, which builds use offline; every
+                          migration after 0074 is a .up.sql with its .down.sql, whose inverse
+                          is tested (§4 of docs/18-operations.md)
 scripts/check.sh          every check a commit must pass: the text rules, file length, the
                           licence lines, the layer rule, the schema, the web client
                           (scripts/check-web.sh), rustfmt, clippy with warnings denied, the
@@ -100,6 +102,10 @@ scripts/e2e-phase0.sh     the Phase 0 done-when (§4 of docs/20-roadmap.md) as a
                           it: the five binaries as processes, the recipe published with oras,
                           every step through the CLI; needs root and containerd, and leaves
                           nothing behind
+scripts/test-install-package.sh
+                          `korpis-server install --postgres package` in systemd containers of
+                          Debian, Ubuntu, and Fedora, units started (§2 of
+                          docs/18-operations.md); needs docker and the network
 ```
 
 Building needs only a Rust toolchain: the wire types are generated at build time from the

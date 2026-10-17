@@ -393,6 +393,26 @@ roll the binary back within the support window. The `Intent` chain is immutable 
 (§3.1 of `03-state.md`), so rolling *configuration* back is a different and easier operation: it is
 re-declaring an earlier intent version, which produces a Plan and converges. Bet 3's payoff.
 
+> As built, 2026-10-17 (`crates/korpis-store/src/schema.rs`, `korpis-server migrate`). Every
+> migration after 0074, the baseline every installation starts from, is a pair: what it applies
+> and its inverse, and the check refuses one that comes without the other. Each inverse is tested
+> to leave exactly the schema the migrations before it made (columns, constraints, indexes,
+> views, functions, triggers, privileges, and the owner's memberships, compared with a database
+> migrated only that far), and undoing to the baseline and applying again on a populated store is
+> tested to keep every row. `korpis-server migrate` applies what its build carries; `--to <n>`
+> undoes, newest first, what was applied after `n`, so the binary that ran before can run again;
+> `--dry-run` says which without doing it. It runs as the schema's owner, named by
+> `--database-owner-url` or read from `/etc/korpis/owner.env`, where installation keeps it. It
+> refuses, before changing anything, to undo past the baseline, a migration its build has no
+> inverse of, or one its build does not carry, which only the build that applied it can undo:
+> sqlx's own undo passes over such a migration silently and would leave a schema the older binary
+> was not built for. `serve` reads which migrations are applied before it does anything else and
+> refuses a schema it was not built for: an older one, to be migrated by this binary, or a newer
+> one, to be served by the binary that applied it or undone by that binary's `migrate --to`.
+> Rolling back is the operator's to order: the newer binary undoes, then the older binary
+> starts; no binary undoes on its own. What is not built yet: a migration is not checked for
+> long-held locks, which "online" above asks of every migration, and is reviewed for it instead.
+
 ---
 
 ## 5. High availability, and what it actually covers

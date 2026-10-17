@@ -41,6 +41,7 @@ mod quota;
 mod rate;
 mod recipe;
 mod relay;
+pub mod schema;
 pub mod server;
 mod session;
 mod set;
@@ -77,6 +78,9 @@ pub enum Error {
     /// A migration failed.
     #[error("migration: {0}")]
     Migration(#[from] sqlx::migrate::MigrateError),
+    /// The schema cannot be moved where it was asked to go.
+    #[error("{0}")]
+    Irreversible(String),
 }
 
 /// A pool of connections acting as [`APP_ROLE`].
@@ -142,7 +146,7 @@ impl PgStore {
 /// Applies every pending migration, connecting with `owner_url` as the schema owner.
 pub async fn migrate(owner_url: &str) -> Result<(), Error> {
     let pool = PgPoolOptions::new().max_connections(1).connect(owner_url).await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    schema::MIGRATOR.run(&pool).await?;
     pool.close().await;
     Ok(())
 }

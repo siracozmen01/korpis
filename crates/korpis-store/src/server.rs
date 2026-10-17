@@ -68,7 +68,8 @@ pub async fn server_facts(owner_url: &str) -> Result<ServerFacts, Error> {
             .fetch_one(&mut c)
             .await?;
     c.close().await?;
-    let bundled = i64::try_from(sqlx::migrate!("./migrations").iter().count()).unwrap_or(i64::MAX);
+    let bundled = crate::schema::MIGRATOR.iter().filter(|m| !m.migration_type.is_down_migration());
+    let bundled = i64::try_from(bundled.count()).unwrap_or(i64::MAX);
     Ok(ServerFacts {
         version_num: version_num.parse().unwrap_or(0),
         version,

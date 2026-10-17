@@ -22,6 +22,8 @@ use uuid::Uuid;
 pub struct Fixture {
     /// Held so the database outlives the test.
     _db: TestDb,
+    /// The database's owner, which migrates it.
+    pub owner_url: String,
     pub store: PgStore,
     pub organization: Uuid,
     pub project: Uuid,
@@ -62,7 +64,8 @@ pub async fn fixture() -> Fixture {
     .execute(store.pool())
     .await
     .unwrap();
-    Fixture { _db: db, store, organization, project, grant }
+    let owner_url = db.owner_url.clone();
+    Fixture { _db: db, owner_url, store, organization, project, grant }
 }
 
 pub fn alice() -> Principal {
