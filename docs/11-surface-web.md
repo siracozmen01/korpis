@@ -51,6 +51,18 @@ listed.
 > panel is served there. Serving files beside the API meant serving every connection through
 > the control plane's own accept loop, the one a PROXY header already needed, rather than
 > connectrpc's server, which serves nothing but procedures.
+>
+> As built, 2026-10-17 (`web/src`). The panel's own routes so far are `/sign-in`, `/invitation`,
+> and `/device`; the first two are open signed out, and any other route, signed out, leads to
+> `/sign-in` with the path it was going to, which signing in returns to only if it is a path of
+> the panel's own. An invitation arrives as `/invitation#korpisiv_…`, taken from the address bar
+> at once and held in memory (§6), or is pasted. `/device?code=…` is the page `korpis login`
+> names (§9.4 of `08-identity.md`): it shows the code, what the client says it is, the address it
+> asked from, and when, and approving it re-authenticates first when the last sign-in is older
+> than ten minutes, while denying never does. One tab at a time exchanges the cookie, under a Web
+> Lock, and the access token it gets is shared with the other tabs over a `BroadcastChannel`, so
+> a rotated cookie is never presented twice. A browser without Web Locks (no current one lacks
+> them) falls back to a lock per tab, and there two tabs exchanging at once end the session.
 
 ---
 

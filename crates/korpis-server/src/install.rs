@@ -125,7 +125,8 @@ pub fn invitation_report(invitation: &RootInvitation) -> String {
     let expires = utc(invitation.expires_at);
     let mut out = String::from("The root account's invitation is shown once:\n\n");
     let _ = writeln!(out, "  {}\n", invitation.secret.expose());
-    let _ = writeln!(out, "Redeem it in the panel by registering a passkey before {expires}.");
+    let _ = writeln!(out, "Redeem it at the panel's /invitation page, pasted there, or opened as");
+    let _ = writeln!(out, "/invitation#<invitation>, by registering a passkey before {expires}.");
     out.push_str("The account it creates holds the root grant; every other grant descends from\n");
     out.push_str(
         "it. Unredeemed, it expires, and `korpis-server admin recover-root` makes another.\n",

@@ -76,6 +76,14 @@ record, are kept regardless (§4 of `15-observability.md`). `--stream-retention-
 by default) is the operator's floor on how long offloaded console segments are kept, disclosed to
 every tenant with the stream (§8 of `17-security.md`).
 
+The panel is a directory of static files, built from `web/` and named by `--web-root`
+(`KORPIS_WEB_ROOT`) of `korpis-server serve`; the control plane serves it on the API's own address
+and origin (§1 of `11-surface-web.md`). Without it the address serves the API alone and says so at
+start. `--web-origin`, repeatable, names each other origin allowed to call the API with
+credentials, which a relying party's own page needs. `/about/source` is served either way, because
+the source offer of §2 of `19-governance.md` is owed to every network user, not only to panel
+users.
+
 ### The binary is its own installer
 
 > Resolves open question 1 of §10.

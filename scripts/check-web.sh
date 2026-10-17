@@ -16,6 +16,7 @@ if ! diff -r "$fresh/src/gen" src/gen >/dev/null; then
 fi
 pnpm --silent typecheck
 pnpm --silent lint
+pnpm --silent format:check
 pnpm --silent test
 pnpm --silent exec vite build --logLevel warn
 pnpm licenses list --json | node ../scripts/web-licences.mjs
