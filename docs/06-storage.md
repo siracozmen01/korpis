@@ -334,7 +334,13 @@ when it ends, so an auditor sees a long session's changes when it closes, not as
 > failed is recorded as failed; a node that dies during one leaves its opening without an end,
 > which is the "when the node notices" above, honestly: it never notices, and the missing end is
 > the record. "What it records" said the opening and end are recorded "as console sessions are";
-> a console session's opening is recorded nowhere, its input is, so it now says that.
+> a console session's opening is recorded nowhere, its input is, so it now says that. End to end
+> on a real node (`crates/korpis-e2e/tests/e2e/files.rs`): through the control plane's relay, the
+> root lists the volume's mount point and nothing of the host, a link the tenant planted to
+> `/etc` is refused, an upload cut off after its first mebibyte is resumed in a new session from
+> the size a stat reports, a write past the volume's 64 MiB is refused as full by the btrfs
+> qgroup, and each session is on record as the token's act. The panel's file manager is next
+> (§8 of `11-surface-web.md`); `korpis files` (§8 of `13-surface-cli.md`) after it.
 
 ## 4. Snapshots are not backups
 

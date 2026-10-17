@@ -85,7 +85,7 @@ fn registries() -> Vec<String> {
 
 /// The helper, serving on `socket` from its own thread for the rest of the process, running
 /// backup and restore jobs with the job binary as a node's helper does, which read recipe content
-/// from `content`, the agent's content store.
+/// from `content`, the agent's content store, and file sessions with the file worker.
 fn helper(socket: &Path, volumes: &Path, (state, content, netns): (&Path, &Path, &Path)) {
     let class = korpis_helper::storage::Class::open("local", volumes).unwrap();
     let ledger = korpis_helper::ids::Ledger::open(state).unwrap();
@@ -104,7 +104,12 @@ fn helper(socket: &Path, volumes: &Path, (state, content, netns): (&Path, &Path,
     let mut h = korpis_helper::helper::Helper::new(vec![class], ledger)
         .with_jobs(jobs)
         .with_network(network)
-        .with_ingress(korpis_helper::ingress::Ingress::new(ingress));
+        .with_ingress(korpis_helper::ingress::Ingress::new(ingress))
+        .with_files(korpis_helper::files::Files::new(korpis_helper::files::FilesConfig {
+            binary: built("korpis-files", "korpis-fsworker"),
+            state: state.to_owned(),
+            cgroups: None,
+        }));
     let listener = korpis_helper::serve::bound(socket).unwrap();
     std::thread::spawn(move || korpis_helper::serve::serve(&listener, &[0].into(), &mut h, None));
 }
