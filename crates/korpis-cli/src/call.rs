@@ -61,6 +61,7 @@ macro_rules! table {
 
 table! {
     "korpis.v1.ServerInfoService/GetServerInfo" => ServerInfoServiceClient::get_server_info(GetServerInfoRequest);
+    "korpis.v1.ServerInfoService/GetSignInTheme" => ServerInfoServiceClient::get_sign_in_theme(GetSignInThemeRequest);
     "korpis.v1.AccountService/GetInvitation" => AccountServiceClient::get_invitation(GetInvitationRequest);
     "korpis.v1.AccountService/BeginRedemption" => AccountServiceClient::begin_redemption(BeginRedemptionRequest);
     "korpis.v1.AccountService/RedeemWithPasskey" => AccountServiceClient::redeem_with_passkey(RedeemWithPasskeyRequest);
@@ -98,6 +99,8 @@ table! {
     "korpis.v1.OrganizationService/ResumeOrganization" => OrganizationServiceClient::resume_organization(ResumeOrganizationRequest);
     "korpis.v1.OrganizationService/GetTrustPolicy" => OrganizationServiceClient::get_trust_policy(GetTrustPolicyRequest);
     "korpis.v1.OrganizationService/SetTrustPolicy" => OrganizationServiceClient::set_trust_policy(SetTrustPolicyRequest);
+    "korpis.v1.OrganizationService/GetTheme" => OrganizationServiceClient::get_theme(GetThemeRequest);
+    "korpis.v1.OrganizationService/SetTheme" => OrganizationServiceClient::set_theme(SetThemeRequest);
     "korpis.v1.ProjectService/CreateProject" => ProjectServiceClient::create_project(CreateProjectRequest);
     "korpis.v1.ProjectService/GetProject" => ProjectServiceClient::get_project(GetProjectRequest);
     "korpis.v1.ProjectService/ListProjects" => ProjectServiceClient::list_projects(ListProjectsRequest);

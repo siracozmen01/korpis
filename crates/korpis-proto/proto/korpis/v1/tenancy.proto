@@ -132,3 +132,52 @@ enum SystemActor {
   // The installation's authority, renewing the certificate of a relay it admitted.
   SYSTEM_ACTOR_AUTHORITY = 4;
 }
+
+// An organization's brand (§7 of docs/11-surface-web.md): data, applied by the panel to whatever
+// it shows of the organization and everything beneath it that sets none of its own. Every field
+// is optional; an unset one keeps the panel's own.
+message Theme {
+  // The name the panel shows for itself: at most 64 characters, one line.
+  string product_name = 1;
+  Logo logo = 2;
+  // The colours for the light scheme, and for the dark.
+  ThemeColors light = 3;
+  ThemeColors dark = 4;
+  // What the sign-in page says above its form: at most 2,000 characters, shown as text.
+  string sign_in_text = 5;
+  // A stylesheet applied after the panel's own, at most 64 KiB, without @import; the panel's
+  // content security policy fences what it may load (§7 of docs/11-surface-web.md).
+  string stylesheet = 6;
+}
+
+// A logo, carried in the theme so the panel fetches nothing a theme names: PNG, WebP, or SVG,
+// at most 256 KiB, shown as an image and never as a document.
+message Logo {
+  // image/png, image/webp, or image/svg+xml.
+  string media_type = 1;
+  bytes data = 2;
+}
+
+// The panel's colour tokens, each #rrggbb.
+message ThemeColors {
+  string background = 1;
+  string text = 2;
+  string muted = 3;
+  string line = 4;
+  string accent = 5;
+  string accent_text = 6;
+  string danger = 7;
+  string surface = 8;
+  string focus = 9;
+}
+
+// The theme that applies to an object, and the organization it comes from.
+message GoverningTheme {
+  // Empty when no organization from the object's up to its root set one: the panel's own.
+  Theme theme = 1;
+  // The organization that set it. Absent when the panel's own applies.
+  optional string set_on = 2;
+  // For an organization asked about, the version of its own theme, zero when it has none: what
+  // a change must expect.
+  uint64 own_version = 3;
+}

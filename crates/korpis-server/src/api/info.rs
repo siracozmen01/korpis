@@ -3,7 +3,8 @@
 //! `ServerInfoService`: what this control plane is, the source it was built from (§2 of
 //! docs/19-governance.md), and where sessions open (§3.1 of docs/02-architecture.md).
 //! Unauthenticated: it reveals nothing a client could not learn by connecting, since relays serve
-//! the clients that reach them, and a client needs it before it has credentials.
+//! the clients that reach them, and a client needs it before it has credentials. The sign-in
+//! page's theme is what that page shows anyone who loads it (§7 of docs/11-surface-web.md).
 
 use super::Api;
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
@@ -32,5 +33,13 @@ impl pb::ServerInfoService for Api {
             control_plane_relay: self.serves_relay,
             ..Default::default()
         })
+    }
+
+    async fn get_sign_in_theme(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::GetSignInThemeRequest>,
+    ) -> ServiceResult<pb::GetSignInThemeResponse> {
+        super::theme::sign_in(self).await
     }
 }

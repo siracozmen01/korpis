@@ -44,6 +44,7 @@ mod set;
 mod stream;
 mod subscription;
 mod tenancy;
+mod theme;
 mod trust;
 mod user_session;
 mod volume;
@@ -101,6 +102,7 @@ pub use set::{SetRead, SetWrite};
 pub use stream::{Expired, Reported, StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
+pub use theme::{SetTheme, ThemeChange, ThemeRead, ThemeWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use user_session::{Presented, UserSessionRead, UserSessionWrite};
 pub use volume::{SnapshotRead, SnapshotWrite, VolumeRead, VolumeWrite};
@@ -186,6 +188,7 @@ pub trait Store:
     + NodeRead
     + PlacementRead
     + TrustRead
+    + ThemeRead
     + EnrollmentRead
     + AssignmentRead
     + JournalRead
@@ -262,6 +265,7 @@ pub trait Tx:
     + PlacementWrite
     + RetirementWrite
     + TrustWrite
+    + ThemeWrite
     + EnrollmentWrite
     + SessionWrite
     + AssignmentWrite

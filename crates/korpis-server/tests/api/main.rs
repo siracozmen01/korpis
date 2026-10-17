@@ -99,6 +99,7 @@ mod streams;
 mod support;
 mod tenancy;
 mod tenant_keys;
+mod theme;
 mod tokens;
 mod told;
 mod trust;

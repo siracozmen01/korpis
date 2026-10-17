@@ -47,6 +47,18 @@ service ServerInfoService {
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // The theme the sign-in page wears before anyone has signed in: the installation's root
+  // organization's (§7 of docs/11-surface-web.md). Answered to anyone, as the page it styles is.
+  rpc GetSignInTheme(GetSignInThemeRequest) returns (GetSignInThemeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetSignInThemeRequest {}
+
+message GetSignInThemeResponse {
+  // Its own_version is always zero: this is the theme as shown, not a handle to change it.
+  GoverningTheme governing = 1;
 }
 
 message GetServerInfoRequest {}
@@ -92,6 +104,15 @@ service OrganizationService {
   // org.write. Sets or removes the organization's own policy. mutation.expected_version is
   // the own_version GetTrustPolicy returned, absent when the organization has none.
   rpc SetTrustPolicy(SetTrustPolicyRequest) returns (SetTrustPolicyResponse);
+  // The theme that applies to an organization, a project, or a workload (§7 of
+  // docs/11-surface-web.md): its organization's own, else its nearest ancestor's. Under the read
+  // action of the object asked about.
+  rpc GetTheme(GetThemeRequest) returns (GetThemeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.write. Sets or removes the organization's own theme. mutation.expected_version is the
+  // own_version GetTheme returned for the organization, absent when it has none.
+  rpc SetTheme(SetThemeRequest) returns (SetThemeResponse);
 }
 
 message CreateOrganizationRequest {
@@ -191,6 +212,28 @@ message SetTrustPolicyRequest {
 
 message SetTrustPolicyResponse {
   GoverningTrustPolicy governing = 1;
+  Consistency consistency = 2;
+}
+
+message GetThemeRequest {
+  // An organization, a project, or a workload.
+  Scope of = 1;
+  Consistency consistency = 2;
+}
+
+message GetThemeResponse {
+  GoverningTheme governing = 1;
+}
+
+message SetThemeRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // Absent removes the organization's own theme, so its nearest ancestor's applies again.
+  Theme theme = 3;
+}
+
+message SetThemeResponse {
+  GoverningTheme governing = 1;
   Consistency consistency = 2;
 }
 

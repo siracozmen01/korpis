@@ -23,15 +23,16 @@ const UNCHARGED: [&str; 4] = [
     "/korpis.agent.",
     "/korpis.relay.",
     "/korpis.v1.RelayService/",
-    "/korpis.v1.ServerInfoService/",
+    "/korpis.v1.ServerInfoService/GetServerInfo",
 ];
 
 /// The procedures anyone may call without a credential, whose every request is charged to its
 /// source instead: each sign-in or redemption the account service begins writes a challenge,
 /// a refresh credential is presented without another, and a CLI begins and polls its device
-/// authorization before it has one.
-const ANONYMOUS: [&str; 5] = [
+/// authorization before it has one; and the sign-in page's theme, which reads the store.
+const ANONYMOUS: [&str; 6] = [
     "/korpis.v1.AccountService/",
+    "/korpis.v1.ServerInfoService/GetSignInTheme",
     "/korpis.v1.SessionService/Exchange",
     "/korpis.v1.SessionService/SignOut",
     "/korpis.v1.SessionService/AuthorizeDevice",

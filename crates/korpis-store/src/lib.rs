@@ -50,6 +50,7 @@ mod subscription;
 mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;
+mod theme;
 mod trust;
 mod user_session;
 mod volume;

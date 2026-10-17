@@ -132,3 +132,41 @@ async fn a_certificate_is_uploaded_from_its_files_and_shown_without_its_key() {
     let missing = cp.korpis(&s, &["certificate", "create", "--chain", "/none", "--key", key]).await;
     assert_ne!(missing.status.code(), Some(0), "a file that is not there");
 }
+
+#[tokio::test]
+async fn a_theme_is_set_from_files_and_flags_shown_and_cleared() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (logo, css) = (dir.path().join("logo.svg"), dir.path().join("brand.css"));
+    std::fs::write(&logo, "<svg xmlns='http://www.w3.org/2000/svg'/>").unwrap();
+    std::fs::write(&css, ".brand { font-weight: 600 }").unwrap();
+    let s = cp.secret.clone();
+    let set = json(
+        &cp.korpis(
+            &s,
+            &[
+                "--json",
+                "theme",
+                "set",
+                "--product-name",
+                "Acme Hosting",
+                "--logo",
+                logo.to_str().unwrap(),
+                "--stylesheet",
+                css.to_str().unwrap(),
+                "--light",
+                "accent=#1F5FBF",
+            ],
+        )
+        .await,
+    );
+    assert_eq!(set["theme"]["productName"], "Acme Hosting", "{set}");
+    assert_eq!(set["theme"]["light"]["accent"], "#1f5fbf", "{set}");
+    assert_eq!(set["ownVersion"], "1", "{set}");
+    let shown = ok(&cp.korpis(&s, &["theme", "show"]).await);
+    assert!(shown.contains("Acme Hosting") && shown.contains("image/svg+xml"), "{shown}");
+    let bad = cp.korpis(&s, &["theme", "set", "--dark", "text=red"]).await;
+    assert!(!bad.status.success() && String::from_utf8_lossy(&bad.stderr).contains("dark.text"));
+    let cleared = ok(&cp.korpis(&s, &["theme", "clear"]).await);
+    assert!(cleared.contains("the panel's own theme"), "{cleared}");
+}

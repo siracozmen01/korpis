@@ -301,6 +301,22 @@ own data instead. Email templates are part of a theme when Korpis sends email, w
 in Phase 1: there is no emailed reset (§9.3 of `08-identity.md`), and invitations are handed over
 by whoever issues them.
 
+> As built, 2026-10-17, the theme itself (the panel's use of it is next). `SetTheme` on the
+> organization service, under `org.write`, sets or removes an organization's own theme against the
+> version `GetTheme` returned, and every change is an effect, `org.theme.set`. `GetTheme` answers
+> for an organization, a project, or a workload, under that object's read action, with the theme
+> of its organization or of the nearest ancestor that set one and the organization it came from;
+> reading it spends no use of a share link's grant, since the page it styles spent the one it
+> costs. `ServerInfoService.GetSignInTheme` answers anyone with the installation's root
+> organization's theme, the first organization made with no parent, charged to the caller's
+> address like every other call made without a credential (§10 of `10-api.md`). Every field is
+> checked where it is set and again where it is read back: a product name of at most 64
+> characters on one line, a logo that is the PNG, WebP, or SVG its media type says and at most
+> 256 KiB, colours only from the panel's nine tokens and only as `#rrggbb`, sign-in text of at
+> most 2,000 characters, and a stylesheet of at most 64 KiB with no `@import` and no backslash
+> escape, since an escape is how CSS spells `@import` past a check. `korpis theme
+> show|set|clear` is the command (§2 of `13-surface-cli.md`).
+
 As decided 2026-10-16: the page is generated when the bundle is built, from the revision it is
 built from and the repository the build names, and is a file of the bundle like any other, so it
 is served wherever the bundle is; a host that modifies the panel and builds it names its own

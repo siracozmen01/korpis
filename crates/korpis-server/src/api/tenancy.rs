@@ -129,6 +129,22 @@ impl pb::OrganizationService for Api {
     ) -> ServiceResult<pb::SetTrustPolicyResponse> {
         super::trust::set(self, &ctx, request).await
     }
+
+    async fn get_theme(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetThemeRequest>,
+    ) -> ServiceResult<pb::GetThemeResponse> {
+        super::theme::get(self, &ctx, request).await
+    }
+
+    async fn set_theme(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetThemeRequest>,
+    ) -> ServiceResult<pb::SetThemeResponse> {
+        super::theme::set(self, &ctx, request).await
+    }
 }
 
 impl pb::ProjectService for Api {

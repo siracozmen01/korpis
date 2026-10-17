@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/tenancy.proto.
  */
 export const file_korpis_v1_tenancy: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEi0gEKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIqCgxyZXNlcnZhdGlvbnMYAiABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEiQKBmxpbWl0cxgDIAEoCzIULmtvcnBpcy52MS5SZXNvdXJjZXMSDwoHdmVyc2lvbhgEIAEoBBI1ChBlZ3Jlc3NfZXhoYXVzdGVkGAUgASgLMhsua29ycGlzLnYxLkVncmVzc0V4aGF1c3Rpb24iPwoQRWdyZXNzRXhoYXVzdGlvbhIaChJmbG9vcl9iaXRzX3Blcl9zZWMYASABKAQSDwoHY3V0X29mZhgCIAEoCCLbAQoHU3ViamVjdBIOCgR1c2VyGAEgASgJSAASDwoFdG9rZW4YAiABKAlIABIvCghleHRlcm5hbBgDIAEoCzIbLmtvcnBpcy52MS5FeHRlcm5hbElkZW50aXR5SAASEgoId29ya2xvYWQYBCABKAlIABITCglleHRlbnNpb24YBSABKAlIABIoCgZzeXN0ZW0YBiABKA4yFi5rb3JwaXMudjEuU3lzdGVtQWN0b3JIABIOCgRsaW5rGAcgASgJSAASEwoJYW5vbnltb3VzGAggASgISABCBgoEa2luZCJnChBFeHRlcm5hbElkZW50aXR5EhAKCHByb3ZpZGVyGAEgASgJEg4KBHVzZXIYAiABKAlIABIlCgNzZXQYAyABKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXRIAEIKCghzZWxlY3RvciIvCgtFeHRlcm5hbFNldBINCgVyZWFsbRgBIAEoCRIRCgltZW1iZXJfb2YYAiABKAkqfAoST3JnYW5pemF0aW9uU3RhdHVzEiMKH09SR0FOSVpBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIeChpPUkdBTklaQVRJT05fU1RBVFVTX0FDVElWRRABEiEKHU9SR0FOSVpBVElPTl9TVEFUVVNfU1VTUEVOREVEEAIqWQoJT25TdXNwZW5kEhoKFk9OX1NVU1BFTkRfVU5TUEVDSUZJRUQQABIbChdPTl9TVVNQRU5EX0tFRVBfUlVOTklORxABEhMKD09OX1NVU1BFTkRfU1RPUBACKpwBCgtTeXN0ZW1BY3RvchIcChhTWVNURU1fQUNUT1JfVU5TUEVDSUZJRUQQABIbChdTWVNURU1fQUNUT1JfUkVDT05DSUxFUhABEhoKFlNZU1RFTV9BQ1RPUl9TQ0hFRFVMRVIQAhIaChZTWVNURU1fQUNUT1JfQk9PVFNUUkFQEAMSGgoWU1lTVEVNX0FDVE9SX0FVVEhPUklUWRAEYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_common]);
+  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEi0gEKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIqCgxyZXNlcnZhdGlvbnMYAiABKAsyFC5rb3JwaXMudjEuUmVzb3VyY2VzEiQKBmxpbWl0cxgDIAEoCzIULmtvcnBpcy52MS5SZXNvdXJjZXMSDwoHdmVyc2lvbhgEIAEoBBI1ChBlZ3Jlc3NfZXhoYXVzdGVkGAUgASgLMhsua29ycGlzLnYxLkVncmVzc0V4aGF1c3Rpb24iPwoQRWdyZXNzRXhoYXVzdGlvbhIaChJmbG9vcl9iaXRzX3Blcl9zZWMYASABKAQSDwoHY3V0X29mZhgCIAEoCCLbAQoHU3ViamVjdBIOCgR1c2VyGAEgASgJSAASDwoFdG9rZW4YAiABKAlIABIvCghleHRlcm5hbBgDIAEoCzIbLmtvcnBpcy52MS5FeHRlcm5hbElkZW50aXR5SAASEgoId29ya2xvYWQYBCABKAlIABITCglleHRlbnNpb24YBSABKAlIABIoCgZzeXN0ZW0YBiABKA4yFi5rb3JwaXMudjEuU3lzdGVtQWN0b3JIABIOCgRsaW5rGAcgASgJSAASEwoJYW5vbnltb3VzGAggASgISABCBgoEa2luZCJnChBFeHRlcm5hbElkZW50aXR5EhAKCHByb3ZpZGVyGAEgASgJEg4KBHVzZXIYAiABKAlIABIlCgNzZXQYAyABKAsyFi5rb3JwaXMudjEuRXh0ZXJuYWxTZXRIAEIKCghzZWxlY3RvciIvCgtFeHRlcm5hbFNldBINCgVyZWFsbRgBIAEoCRIRCgltZW1iZXJfb2YYAiABKAkiswEKBVRoZW1lEhQKDHByb2R1Y3RfbmFtZRgBIAEoCRIdCgRsb2dvGAIgASgLMg8ua29ycGlzLnYxLkxvZ28SJQoFbGlnaHQYAyABKAsyFi5rb3JwaXMudjEuVGhlbWVDb2xvcnMSJAoEZGFyaxgEIAEoCzIWLmtvcnBpcy52MS5UaGVtZUNvbG9ycxIUCgxzaWduX2luX3RleHQYBSABKAkSEgoKc3R5bGVzaGVldBgGIAEoCSIoCgRMb2dvEhIKCm1lZGlhX3R5cGUYASABKAkSDAoEZGF0YRgCIAEoDCKhAQoLVGhlbWVDb2xvcnMSEgoKYmFja2dyb3VuZBgBIAEoCRIMCgR0ZXh0GAIgASgJEg0KBW11dGVkGAMgASgJEgwKBGxpbmUYBCABKAkSDgoGYWNjZW50GAUgASgJEhMKC2FjY2VudF90ZXh0GAYgASgJEg4KBmRhbmdlchgHIAEoCRIPCgdzdXJmYWNlGAggASgJEg0KBWZvY3VzGAkgASgJImYKDkdvdmVybmluZ1RoZW1lEh8KBXRoZW1lGAEgASgLMhAua29ycGlzLnYxLlRoZW1lEhMKBnNldF9vbhgCIAEoCUgAiAEBEhMKC293bl92ZXJzaW9uGAMgASgEQgkKB19zZXRfb24qfAoST3JnYW5pemF0aW9uU3RhdHVzEiMKH09SR0FOSVpBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIeChpPUkdBTklaQVRJT05fU1RBVFVTX0FDVElWRRABEiEKHU9SR0FOSVpBVElPTl9TVEFUVVNfU1VTUEVOREVEEAIqWQoJT25TdXNwZW5kEhoKFk9OX1NVU1BFTkRfVU5TUEVDSUZJRUQQABIbChdPTl9TVVNQRU5EX0tFRVBfUlVOTklORxABEhMKD09OX1NVU1BFTkRfU1RPUBACKpwBCgtTeXN0ZW1BY3RvchIcChhTWVNURU1fQUNUT1JfVU5TUEVDSUZJRUQQABIbChdTWVNURU1fQUNUT1JfUkVDT05DSUxFUhABEhoKFlNZU1RFTV9BQ1RPUl9TQ0hFRFVMRVIQAhIaChZTWVNURU1fQUNUT1JfQk9PVFNUUkFQEAMSGgoWU1lTVEVNX0FDVE9SX0FVVEhPUklUWRAEYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_common]);
 
 /**
  * The root of a tenancy tree. Recursive: a child organization is how reselling exists.
@@ -407,6 +407,183 @@ export type ExternalSet = Message<"korpis.v1.ExternalSet"> & {
  */
 export const ExternalSetSchema: GenMessage<ExternalSet> = /*@__PURE__*/
   messageDesc(file_korpis_v1_tenancy, 8);
+
+/**
+ * An organization's brand (§7 of docs/11-surface-web.md): data, applied by the panel to whatever
+ * it shows of the organization and everything beneath it that sets none of its own. Every field
+ * is optional; an unset one keeps the panel's own.
+ *
+ * @generated from message korpis.v1.Theme
+ */
+export type Theme = Message<"korpis.v1.Theme"> & {
+  /**
+   * The name the panel shows for itself: at most 64 characters, one line.
+   *
+   * @generated from field: string product_name = 1;
+   */
+  productName: string;
+
+  /**
+   * @generated from field: korpis.v1.Logo logo = 2;
+   */
+  logo?: Logo | undefined;
+
+  /**
+   * The colours for the light scheme, and for the dark.
+   *
+   * @generated from field: korpis.v1.ThemeColors light = 3;
+   */
+  light?: ThemeColors | undefined;
+
+  /**
+   * @generated from field: korpis.v1.ThemeColors dark = 4;
+   */
+  dark?: ThemeColors | undefined;
+
+  /**
+   * What the sign-in page says above its form: at most 2,000 characters, shown as text.
+   *
+   * @generated from field: string sign_in_text = 5;
+   */
+  signInText: string;
+
+  /**
+   * A stylesheet applied after the panel's own, at most 64 KiB, without @import; the panel's
+   * content security policy fences what it may load (§7 of docs/11-surface-web.md).
+   *
+   * @generated from field: string stylesheet = 6;
+   */
+  stylesheet: string;
+};
+
+/**
+ * Describes the message korpis.v1.Theme.
+ * Use `create(ThemeSchema)` to create a new message.
+ */
+export const ThemeSchema: GenMessage<Theme> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 9);
+
+/**
+ * A logo, carried in the theme so the panel fetches nothing a theme names: PNG, WebP, or SVG,
+ * at most 256 KiB, shown as an image and never as a document.
+ *
+ * @generated from message korpis.v1.Logo
+ */
+export type Logo = Message<"korpis.v1.Logo"> & {
+  /**
+   * image/png, image/webp, or image/svg+xml.
+   *
+   * @generated from field: string media_type = 1;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: bytes data = 2;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message korpis.v1.Logo.
+ * Use `create(LogoSchema)` to create a new message.
+ */
+export const LogoSchema: GenMessage<Logo> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 10);
+
+/**
+ * The panel's colour tokens, each #rrggbb.
+ *
+ * @generated from message korpis.v1.ThemeColors
+ */
+export type ThemeColors = Message<"korpis.v1.ThemeColors"> & {
+  /**
+   * @generated from field: string background = 1;
+   */
+  background: string;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+
+  /**
+   * @generated from field: string muted = 3;
+   */
+  muted: string;
+
+  /**
+   * @generated from field: string line = 4;
+   */
+  line: string;
+
+  /**
+   * @generated from field: string accent = 5;
+   */
+  accent: string;
+
+  /**
+   * @generated from field: string accent_text = 6;
+   */
+  accentText: string;
+
+  /**
+   * @generated from field: string danger = 7;
+   */
+  danger: string;
+
+  /**
+   * @generated from field: string surface = 8;
+   */
+  surface: string;
+
+  /**
+   * @generated from field: string focus = 9;
+   */
+  focus: string;
+};
+
+/**
+ * Describes the message korpis.v1.ThemeColors.
+ * Use `create(ThemeColorsSchema)` to create a new message.
+ */
+export const ThemeColorsSchema: GenMessage<ThemeColors> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 11);
+
+/**
+ * The theme that applies to an object, and the organization it comes from.
+ *
+ * @generated from message korpis.v1.GoverningTheme
+ */
+export type GoverningTheme = Message<"korpis.v1.GoverningTheme"> & {
+  /**
+   * Empty when no organization from the object's up to its root set one: the panel's own.
+   *
+   * @generated from field: korpis.v1.Theme theme = 1;
+   */
+  theme?: Theme | undefined;
+
+  /**
+   * The organization that set it. Absent when the panel's own applies.
+   *
+   * @generated from field: optional string set_on = 2;
+   */
+  setOn?: string | undefined;
+
+  /**
+   * For an organization asked about, the version of its own theme, zero when it has none: what
+   * a change must expect.
+   *
+   * @generated from field: uint64 own_version = 3;
+   */
+  ownVersion: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.GoverningTheme.
+ * Use `create(GoverningThemeSchema)` to create a new message.
+ */
+export const GoverningThemeSchema: GenMessage<GoverningTheme> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 12);
 
 /**
  * @generated from enum korpis.v1.OrganizationStatus

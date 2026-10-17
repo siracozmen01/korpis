@@ -25,6 +25,7 @@ pub mod sets;
 pub mod share;
 pub mod stream;
 pub mod stream_share;
+pub mod theme;
 pub mod upgrade;
 pub mod volume;
 

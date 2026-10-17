@@ -19,7 +19,7 @@ use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
     sets,
 };
-use korpis_cli::cmd::{console, logs, stream_share};
+use korpis_cli::cmd::{console, logs, stream_share, theme};
 use korpis_cli::complete::{self, COMPLETE_VAR, Shell, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
@@ -114,6 +114,9 @@ enum Command {
     /// Asks for, verifies, lists, shows, and deletes the domains an organization holds.
     #[command(subcommand)]
     Domain(DomainAction),
+    /// Shows, sets, and clears an organization's theme in the panel.
+    #[command(subcommand)]
+    Theme(theme::ThemeAction),
     /// Takes, lists, and shows backups.
     #[command(subcommand)]
     Backup(BackupAction),
@@ -136,8 +139,7 @@ enum Command {
     /// node and offloaded, the operator's floor, what is held only on the node, what is lost;
     /// `share` makes a link to read a range of it.
     Stream(stream_share::StreamArgs),
-    /// A workload's files through a relay: lists, downloads, uploads resuming a partial one,
-    /// syncs a directory into it, makes, renames, and removes.
+    /// A workload's files through a relay: ls, get, put, sync, mkdir, mv, and rm.
     #[command(subcommand)]
     Files(korpis_cli::cmd::files::FilesAction),
     /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
@@ -300,6 +302,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             answer(cli, certificate::certificate(&cli.required().await?, a).await)
         }
         Command::Domain(a) => answer(cli, domain::domain(&cli.required().await?, a).await),
+        Command::Theme(a) => answer(cli, theme::theme(&cli.required().await?, a).await),
         Command::Backup(BackupAction::Clone { backup, name, project }) => {
             let c = cli.required().await?;
             answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
