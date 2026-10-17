@@ -26,8 +26,6 @@ korpis-core = { workspace = true }
 korpis-proto = { workspace = true }
 korpis-wire = { workspace = true }
 landlock = "0.4"
-# mount_setattr, which rustix does not bind, for the worker's idmapped mounts.
-libc = "0.2"
 lzma-rs = "0.3"
 rustix = { version = "1", features = ["fs", "mount", "process", "thread"] }
 tar = "0.4"

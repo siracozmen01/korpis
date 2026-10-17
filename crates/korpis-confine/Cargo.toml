@@ -12,4 +12,6 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-rustix = { version = "1", features = ["process", "thread"] }
+# mount_setattr, which rustix does not bind, for a worker's idmapped mounts.
+libc = "0.2"
+rustix = { version = "1", features = ["fs", "mount", "process", "thread"] }

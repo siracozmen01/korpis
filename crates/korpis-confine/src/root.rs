@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+//! The root a worker beside a workload's volumes is confined to, shared by the install worker (§4
+//! of docs/09-recipes.md) and the filesystem worker (§3.2 of docs/06-storage.md).
+//!
 //! What the first process, still root, builds for the worker once the worker has made its own
 //! user, mount, network, and IPC namespaces: the worker's ids mapped to its workload's, and its
 //! root. The root is an empty, read-only tmpfs holding each of the workload's volumes at the path
@@ -11,7 +14,6 @@
 //! tenant writes, so that directory is made and reached with no link followed, and mounted on
 //! through the descriptor it was reached by rather than by its path.
 
-use korpis_proto::korpis::install::v1 as pb;
 use rustix::fs::{Mode, OFlags, ResolveFlags, mkdirat, openat2};
 use rustix::io::Errno;
 use rustix::mount::{
@@ -19,6 +21,28 @@ use rustix::mount::{
 };
 use rustix::thread::LinkNameSpaceType;
 use std::os::fd::{AsRawFd as _, OwnedFd};
+
+/// One of a workload's volumes, as its worker's root holds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Volume {
+    /// The absolute path the workload sees it at.
+    pub path: String,
+    /// The directory it is on the host.
+    pub directory: String,
+}
+
+/// What a worker's root is built from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Spec {
+    /// The empty directory the root is built on.
+    pub root: String,
+    /// The host id the worker's root is mapped to: its workload's first.
+    pub id_base: u32,
+    /// The workload's volumes.
+    pub volumes: Vec<Volume>,
+    /// The node's content store, read-only at [`CONTENT`]; empty for none.
+    pub content: String,
+}
 
 /// Where the content store is, in the worker's root.
 pub const CONTENT: &str = "/.korpis/content";
@@ -104,7 +128,7 @@ fn map_ids(pid: u32, base: u32) -> Result<(), String> {
 
 /// The volume each volume of `spec` is mounted inside, if any: the one at the longest path that
 /// is a proper prefix of its own.
-fn outer<'s>(spec: &'s pb::InstallSpec, v: &pb::InstallVolume) -> Option<&'s pb::InstallVolume> {
+fn outer<'s>(spec: &'s Spec, v: &Volume) -> Option<&'s Volume> {
     spec.volumes
         .iter()
         .filter(|o| o.path != v.path && v.path.starts_with(&format!("{}/", o.path)))
@@ -115,7 +139,7 @@ fn outer<'s>(spec: &'s pb::InstallSpec, v: &pb::InstallVolume) -> Option<&'s pb:
 ///
 /// # Errors
 /// A map, a mount, or the move into the root failed.
-pub fn build(spec: &pb::InstallSpec, pid: u32) -> Result<(), String> {
+pub fn build(spec: &Spec, pid: u32) -> Result<(), String> {
     map_ids(pid, spec.id_base)?;
     let ns = |kind: &str| {
         let path = format!("/proc/{pid}/ns/{kind}");
@@ -151,8 +175,8 @@ pub fn build(spec: &pb::InstallSpec, pid: u32) -> Result<(), String> {
 
 /// In the worker's mount namespace: its root made, and both processes moved into it.
 fn root(
-    spec: &pb::InstallSpec,
-    trees: &mut [(&pb::InstallVolume, OwnedFd)],
+    spec: &Spec,
+    trees: &mut [(&Volume, OwnedFd)],
     content: Option<&OwnedFd>,
 ) -> Result<(), String> {
     let private = MountPropagationFlags::REC | MountPropagationFlags::PRIVATE;

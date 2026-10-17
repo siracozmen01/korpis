@@ -18,7 +18,6 @@
 //! comment.
 
 mod confine;
-mod setup;
 mod work;
 
 use buffa::Message as _;
@@ -127,9 +126,23 @@ fn spawn(spec: &[u8]) -> Result<Child, String> {
 }
 
 /// Once the worker has its namespaces: its ids and root built, and the worker told.
+/// The root `spec` asks for, as the confinement builds it.
+fn root_of(spec: &pb::InstallSpec) -> korpis_confine::root::Spec {
+    let volumes = spec.volumes.iter().map(|v| korpis_confine::root::Volume {
+        path: v.path.clone(),
+        directory: v.directory.clone(),
+    });
+    korpis_confine::root::Spec {
+        root: spec.root.clone(),
+        id_base: spec.id_base,
+        volumes: volumes.collect(),
+        content: spec.content.clone(),
+    }
+}
+
 fn prepare(spec: &pb::InstallSpec, child: &mut Child) -> Result<(), String> {
     awaited(child.stdout.as_mut().ok_or("the worker's output")?)?;
-    setup::build(spec, child.id())?;
+    korpis_confine::root::build(&root_of(spec), child.id())?;
     signal(child.stdin.as_mut().ok_or("the worker's input")?).map_err(|e| e.to_string())
 }
 

@@ -4,7 +4,7 @@
 //! says, and each one's completion recorded in the output directory before the next begins, so
 //! a worker that is killed part way is resumed at the action it did not finish.
 
-use super::setup::CONTENT;
+use korpis_confine::root::CONTENT;
 use korpis_core::recipe::installing::{InstallAction, detail};
 use korpis_install::{Content, Volumes, run};
 use korpis_proto::korpis::install::v1 as pb;

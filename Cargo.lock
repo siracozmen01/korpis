@@ -2722,6 +2722,7 @@ dependencies = [
 name = "korpis-confine"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "rustix",
 ]
 
@@ -2939,7 +2940,6 @@ dependencies = [
  "korpis-proto",
  "korpis-wire",
  "landlock",
- "libc",
  "lzma-rs",
  "rustix",
  "sha2 0.10.9",

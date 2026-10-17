@@ -6,8 +6,8 @@
 //! what it writes, which hold only over its workload's files; and any privilege something it
 //! executed could gain.
 
-use super::setup::CONTENT;
 use super::work;
+use korpis_confine::root::CONTENT;
 use korpis_confine::{CHOWN, ConfineError, DAC_OVERRIDE, FOWNER, FSETID};
 use korpis_proto::korpis::install::v1 as pb;
 use landlock::{

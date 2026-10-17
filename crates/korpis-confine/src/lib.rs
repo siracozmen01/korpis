@@ -7,6 +7,8 @@
 //! the same way. Each applies to the calling thread and to every thread or process it starts
 //! afterwards, so a job applies them while it is still one thread.
 
+pub mod root;
+
 use rustix::thread::{CapabilitySet, CapabilitySets};
 use std::path::Path;
 

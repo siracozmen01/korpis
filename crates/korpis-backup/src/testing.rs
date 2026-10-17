@@ -112,7 +112,11 @@ impl Minio {
                     .map_err(failed)?;
             let creds = rusty_s3::Credentials::new(USER, SECRET);
             let url = bucket.delete_bucket(&creds).sign(Duration::from_secs(60));
-            reqwest::Client::new().delete(url).send().await.map_err(failed)?;
+            // A server that made the probe and then stopped answering is not one to test
+            // against: another is started, as for one that is not ours.
+            if reqwest::Client::new().delete(url).send().await.is_err() {
+                return Ok(false);
+            }
         }
         Ok(ours)
     }
