@@ -6,6 +6,8 @@
 // browser's, and shares the token it gets with the other tabs, which then need not exchange at
 // all. A token is renewed half a minute before it expires.
 
+import { heard } from "../offline/heard";
+
 /** An access token, and when it expires, in milliseconds since the epoch. */
 export interface Access {
   readonly token: string;
@@ -71,6 +73,8 @@ export class Session {
     return this.locks.request(LOCK, async () => {
       if (this.usable()) return this.access;
       const got = await this.exchange();
+      // Answered, whatever it said: how long it has been silent is measured from here.
+      heard();
       if (got === undefined) {
         this.clear();
         this.channel.post({ kind: "ended" });

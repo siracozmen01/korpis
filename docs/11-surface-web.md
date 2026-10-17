@@ -503,6 +503,24 @@ next load once it is served, so an upgrade never leaves a browser on an old pane
 What it costs: a service worker, which a browser keeps until the panel removes it, and a panel that
 loads while it can do nothing, which is what the incident case asked for. Built in Phase 1 with
 the panel.
+
+> As built, 2026-10-17 (`web/src/sw`, `web/src/offline`). The worker is built from
+> `src/sw/worker.ts` as `sw.js` beside the page, with the names of the bundle's files, each named
+> by its content's hash, written into it by the build and its cache named for them, so a new bundle
+> is a new worker: the browser installs it at the next load, it takes over at once, and it deletes
+> the old bundle's cache. A file of the bundle is answered from that cache; a page is asked of the
+> network first, so a reachable control plane always serves the current panel and its current
+> policy, and the cached page answers only when the network cannot; every other request, every
+> API call, a relay, the source notice, is never answered by the worker and never kept. Which is
+> which is one function with its own tests, and the build fails if the worker would import or
+> export anything, since it is loaded as a classic script. A built panel registers it, a panel in
+> development never does. The panel keeps one thing of its own: when the control plane last
+> answered this browser, a time and nothing it said, so the page it shows while the control plane
+> cannot be reached says every value is unknown and how long it has been, and asks again every
+> 15 seconds. The libraries the panel is built on are chunks of their own, so a release that
+> changes only the panel's code leaves a browser's copy of them valid. What it costs: a browser
+> that refuses the worker loads the panel from the network every time, and the worker's source
+> map is offset where the build wrote the file names in.
 4. **Internationalization. Resolved here.** Community translation is one of the reasons Pterodactyl
    spread. The decision is whether recipe-supplied strings (§5 of `09-recipes.md`) participate in
    the same translation pipeline as core strings, which is not obvious. It was routed to

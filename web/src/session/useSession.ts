@@ -3,7 +3,7 @@
 // The session as a component sees it: signed in, signed out, not yet known, or not knowable
 // because the control plane cannot be reached, rendered again whenever any tab changes it.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Session } from "./session";
 
 /** What is known of the session. */
@@ -24,8 +24,8 @@ export function useSession(session: Session): { standing: Standing; retry: () =>
       setUnreachable(true);
     });
   }, [session, known, unreachable]);
-  const retry = () => {
+  const retry = useCallback(() => {
     setUnreachable(false);
-  };
+  }, []);
   return { standing: unreachable && known === "unknown" ? "unreachable" : known, retry };
 }

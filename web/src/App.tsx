@@ -32,6 +32,7 @@ import { SignIn } from "./views/SignIn";
 import { Profile } from "./profile/Profile";
 import { Brand, type Source, Themed } from "./theme/useTheme";
 import { t } from "./i18n/intl";
+import { Unreachable } from "./offline/Unreachable";
 
 /** The signed-in user's clients, and links written from the panel's root. */
 const signedInReach = { clients: signedInClients, base: "", metered: false, relay };
@@ -112,16 +113,7 @@ function Routes({ session }: { readonly session: Session }) {
   }
   if (standing === "unknown")
     return <p>{t({ defaultMessage: "Signing in\u2026", id: "s4yZXgis" })}</p>;
-  if (standing === "unreachable") {
-    return (
-      <main>
-        <p role="alert">
-          {t({ defaultMessage: "The control plane cannot be reached.", id: "YVga+2AS" })}
-        </p>
-        <Button onPress={retry}>{t({ defaultMessage: "Try again", id: "FazwRldA" })}</Button>
-      </main>
-    );
-  }
+  if (standing === "unreachable") return <Unreachable retry={retry} />;
   if (standing === "signed-out") return <Redirect to={signInFor(path, window.location.search)} />;
   if (path === "/device") {
     const code = new URLSearchParams(window.location.search).get("code") ?? undefined;

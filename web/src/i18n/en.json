@@ -477,6 +477,9 @@
   "N2IrpMDH": {
     "defaultMessage": "Confirm"
   },
+  "NM6+o6pb": {
+    "defaultMessage": "Every value it holds is unknown until it answers: nothing it said was kept in this browser."
+  },
   "NZmMEEju": {
     "defaultMessage": "Rename {name}"
   },
@@ -783,6 +786,9 @@
   "dXVcO4GV": {
     "defaultMessage": "{n, plural, =0 {No other session was open.} one {# session ended.} other {# sessions ended.}}"
   },
+  "dastCq+7": {
+    "defaultMessage": "This browser last heard from it {ago} ago."
+  },
   "e/zsRyEz": {
     "defaultMessage": "the session was closed"
   },
@@ -991,6 +997,9 @@
   },
   "pSEaRCSm": {
     "defaultMessage": "Use a password and an authenticator app"
+  },
+  "pSiQGWZY": {
+    "defaultMessage": "This browser has not heard from it before."
   },
   "pl9W7HkD": {
     "defaultMessage": "Source",
