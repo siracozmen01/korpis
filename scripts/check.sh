@@ -5,26 +5,32 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "== em dash (CLAUDE.md rule 2)"
-if grep -rnPI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools '\x{2014}' .; then exit 1; fi
+if grep -rnPI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --exclude-dir=node_modules \
+    --exclude-dir=dist '\x{2014}' .; then exit 1; fi
 
 echo "== removed material"
-if grep -rnI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --exclude=CLAUDE.md --exclude=check.sh \
+if grep -rnI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --exclude-dir=node_modules \
+    --exclude-dir=dist --exclude=CLAUDE.md --exclude=check.sh \
     -e '01-landscape' -e 'prior-art' .; then exit 1; fi
 
 echo "== file length (400 lines, CONTRIBUTING.md \"Code rules\")"
-long=$(find crates scripts conformance -name '*.rs' -not -path '*/target/*' \
-    -exec awk 'END { if (NR > 400) print FILENAME ": " NR " lines" }' {} \;)
+long=$( (find crates scripts conformance -name '*.rs' -not -path '*/target/*'
+          find web/src -name '*.ts' -o -name '*.tsx' | grep -v '^web/src/gen/') \
+    | xargs awk 'FNR == 1 && prev && n > 400 { print prev ": " n " lines" }
+                 { prev = FILENAME; n = FNR }
+                 END { if (n > 400) print prev ": " n " lines" }')
 if [ -n "$long" ]; then echo "$long"; exit 1; fi
 
 echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
 # Untracked files too, so a new file is checked before it is committed. The containerd API is
 # vendored with its own headers.
 spdx=$(git ls-files --cached --others --exclude-standard \
-        'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'conformance/*.rs' \
+        'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'scripts/*.mjs' \
+        'conformance/*.rs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' \
     | grep -v '^crates/korpis-containerd/proto/' \
     | while read -r f; do
         case "$f" in
-            crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*)
+            crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*|web/src/gen/*)
                 want=Apache-2.0 ;;
             *) want=AGPL-3.0-or-later ;;
         esac
@@ -55,6 +61,9 @@ if [ -x .tools/bin/buf ]; then
 else
     echo "buf not installed (scripts/tools.sh), schema lint skipped"
 fi
+
+echo "== web client"
+./scripts/check-web.sh
 
 echo "== query metadata (sqlx offline data matches the schema)"
 if [ -x .tools/bin/sqlx ] && [ -z "${KORPIS_TEST_PG_URL:-}" ]; then

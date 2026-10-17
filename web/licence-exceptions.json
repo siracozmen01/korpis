@@ -1,0 +1,6 @@
+{
+  "caniuse-lite": {
+    "licence": "CC-BY-4.0",
+    "reason": "Browser-support data read by the build's Babel when it compiles the panel, never shipped in the bundle; attribution is its own LICENSE, which the package carries."
+  }
+}

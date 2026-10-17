@@ -316,6 +316,23 @@ from the lockfile; versions move only in a reviewed commit; and `scripts/check.s
 lockfile, refuses an install script, type-checks, lints, and runs the component tests, so a commit
 that breaks the panel fails like one that breaks the server.
 
+> As built, 2026-10-17 (`web/`, `scripts/check-web.sh`). pnpm is pinned in `package.json` at an
+> exact version and digest, which corepack verifies before running it; `.npmrc` refuses install
+> scripts and saves exact versions, and the one package with a script, esbuild, is denied it by
+> name in `pnpm-workspace.yaml`, since its script only checks a binary the build runs anyway. The
+> check installs from the frozen lockfile, regenerates the API client from the schema into a
+> scratch directory and fails on any difference from the committed `web/src/gen`, then
+> type-checks, lints with typescript-eslint's strict type-checked rules, runs the component
+> tests, builds, and reads every package's licence from the lockfile against the allow list of
+> `deny.toml`, the one list for both. Two decisions were forced on the way. Vite is 7, not 8:
+> Vite 8 bundles CSS through `lightningcss`, which is MPL-2.0, outside the list, and nothing in
+> the panel needs what 8 adds. And the list gained four licences that ask less than MIT does,
+> 0BSD, MIT-0, CC0-1.0, and BlueOak-1.0.0, which small packages in the build carry; one package
+> is excepted by name with its reason in `web/licence-exceptions.json`, `caniuse-lite`, whose
+> CC-BY-4.0 covers browser-support data the build reads and never ships. TypeScript is 6, the
+> newest the lint rules support. What it costs: a newer Vite, or a dependency that moves to a
+> licence outside the list, waits for a commit that argues it.
+
 The control plane's side of a passkey sign-in, the WebAuthn relying party (§9.6 of
 `08-identity.md`), is Korpis's own: CBOR and COSE decoded by `ciborium` and `coset`, signatures
 verified by `ring`, which the TLS stack already brings. It is tested against an independent

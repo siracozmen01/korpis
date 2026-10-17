@@ -1,0 +1,5 @@
+# No package runs code when it is installed (§9 of docs/21-stack.md). esbuild's install script
+# only checks that its platform binary, which arrives as an optional dependency, runs; the build
+# runs it anyway, so refusing the script loses nothing.
+allowBuilds:
+  esbuild: false
