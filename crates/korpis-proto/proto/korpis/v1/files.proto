@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// A workload's files over the data path (§3.2 of docs/06-storage.md), a session opened at a relay
+// (relay.proto) for `workload.file.read` or `workload.file.write`, which implies it, and served
+// on the node by a filesystem worker that sees the workload's volumes and nothing else. The
+// session takes no params. Every data frame the client sends is one FileRequest, and every one the
+// node sends is one FileResponse answering the request of the same number, in the order asked.
+// Paths are absolute within the workload, as its volumes are mounted: `/data/world/level.dat`.
+// A path that is in no volume, or resolves outside one through a symbolic link, is refused.
+
+syntax = "proto3";
+
+package korpis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the client asks.
+message FileRequest {
+  // Chosen by the client, echoed by the answer; requests are answered in order.
+  uint64 id = 1;
+  oneof request {
+    FileList list = 2;
+    FileStat stat = 3;
+    FileRead read = 4;
+    FileWrite write = 5;
+    FileMkdir mkdir = 6;
+    FileRename rename = 7;
+    FileRemove remove = 8;
+  }
+}
+
+// A directory's entries, a page at a time, in name order.
+message FileList {
+  string path = 1;
+  // The name the previous page ended after; empty for the first.
+  string after = 2;
+  // At most this many; the node caps it.
+  uint32 limit = 3;
+}
+
+message FileStat {
+  string path = 1;
+}
+
+// Bytes of a file from an offset: at most a mebibyte per request, so a large file streams.
+message FileRead {
+  string path = 1;
+  uint64 offset = 2;
+  uint32 length = 3;
+}
+
+// Bytes written to a file at an offset: at most a mebibyte per request. Needs a session opened
+// for `workload.file.write`. An upload resumes from the size a stat reports.
+message FileWrite {
+  string path = 1;
+  uint64 offset = 2;
+  bytes data = 3;
+  // Make the file if it is not there.
+  bool create = 4;
+  // Empty it first; only with offset 0.
+  bool truncate = 5;
+}
+
+message FileMkdir {
+  string path = 1;
+}
+
+// Within the workload's volumes; refused across two of them.
+message FileRename {
+  string from = 1;
+  string to = 2;
+}
+
+message FileRemove {
+  string path = 1;
+  // A directory, and everything in it.
+  bool recursive = 2;
+}
+
+// What the node answers.
+message FileResponse {
+  uint64 id = 1;
+  oneof response {
+    FileEntries entries = 2;
+    FileEntry entry = 3;
+    bytes data = 4;
+    // How many bytes the write wrote.
+    uint64 written = 5;
+    // A mkdir, rename, or remove that was done.
+    bool done = 6;
+    FileError error = 7;
+  }
+}
+
+message FileEntries {
+  repeated FileEntry entries = 1;
+  // Where the next page starts; empty after the last.
+  string next = 2;
+}
+
+message FileEntry {
+  string name = 1;
+  FileKind kind = 2;
+  uint64 size = 3;
+  google.protobuf.Timestamp modified = 4;
+}
+
+enum FileKind {
+  FILE_KIND_UNSPECIFIED = 0;
+  FILE_KIND_FILE = 1;
+  FILE_KIND_DIRECTORY = 2;
+  // Shown, never followed out of the volumes.
+  FILE_KIND_SYMLINK = 3;
+  FILE_KIND_OTHER = 4;
+}
+
+// Why a request was not done; the session goes on.
+message FileError {
+  FileErrorCode code = 1;
+  string message = 2;
+}
+
+enum FileErrorCode {
+  FILE_ERROR_CODE_UNSPECIFIED = 0;
+  FILE_ERROR_CODE_NOT_FOUND = 1;
+  FILE_ERROR_CODE_EXISTS = 2;
+  // The volume's quota is used up (EDQUOT, §3 of docs/06-storage.md).
+  FILE_ERROR_CODE_FULL = 3;
+  FILE_ERROR_CODE_NOT_A_DIRECTORY = 4;
+  FILE_ERROR_CODE_IS_A_DIRECTORY = 5;
+  FILE_ERROR_CODE_NOT_EMPTY = 6;
+  // Outside the workload's volumes, or across two of them.
+  FILE_ERROR_CODE_OUTSIDE = 7;
+  // A write in a session opened only to read, or a request too large.
+  FILE_ERROR_CODE_REFUSED = 8;
+  FILE_ERROR_CODE_IO = 9;
+}

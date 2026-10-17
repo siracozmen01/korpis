@@ -1,0 +1,20 @@
+[package]
+name = "korpis-files"
+description = "A workload's files as their owner reaches them: the verbs of a file session, served beneath the worker's root"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+buffa-types = { version = "=0.9.2" }
+korpis-proto = { workspace = true }
+rustix = { version = "1", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3"

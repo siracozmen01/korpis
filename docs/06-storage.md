@@ -292,6 +292,17 @@ symbolic link out of the volumes; a recipe's install does what a recipe needs (Â
 session, started in a few milliseconds and gone at its end; and a session's writes are recorded
 when it ends, so an auditor sees a long session's changes when it closes, not as they happen.
 
+> As built so far, 2026-10-17. The session's messages are `files.proto`: one `FileRequest` per
+> data frame up, one `FileResponse` per data frame down answering it by its number, and a refusal
+> carried as a code (`not_found`, `exists`, `full` for `EDQUOT`, `outside`, `refused`, and the
+> rest) that ends nothing. The verbs are `crates/korpis-files`: every path is resolved from the
+> root's descriptor with `openat2` and `RESOLVE_BENEATH`, `RESOLVE_NO_SYMLINKS`,
+> `RESOLVE_NO_MAGICLINKS`, and `RESOLVE_NO_XDEV`, so a link a tenant planted, a `..`, or a step
+> onto another mount reaches nothing, and a link is listed and never followed; a rename never
+> replaces what is there; reads and writes move at most a mebibyte. Not built yet: the worker
+> process and its confinement, the helper's verb that starts it, and the node's handler that
+> carries a session to it, which are what make this reachable.
+
 ## 4. Snapshots are not backups
 
 Conflating these is common and dangerous, so the model separates them.

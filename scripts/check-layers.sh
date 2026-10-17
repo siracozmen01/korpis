@@ -36,6 +36,9 @@ rules=(
     # The ingress proxy parses requests from anyone on the internet: its messages, its own
     # confinement, and nothing of the agent's, the control plane's, or a store's.
     "korpis-ingress||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-recipe connectrpc sqlx"
+    # The file worker serves one workload's volumes to whoever holds a file session: its
+    # messages, and nothing else of ours, no RPC stack, runtime, network client, or store.
+    "korpis-files||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper connectrpc tokio sqlx hyper reqwest"
     # The install worker runs beside one workload's volumes: the domain's install vocabulary and
     # templates, and no RPC stack, runtime, network client, or store.
     "korpis-install||korpis-app korpis-store korpis-server korpis-agent connectrpc tokio sqlx hyper reqwest"

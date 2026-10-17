@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "korpis/v1/provider.proto",
         "korpis/v1/relay.proto",
         "korpis/v1/console.proto",
+        "korpis/v1/files.proto",
         "korpis/v1/account.proto",
         "korpis/v1/session.proto",
         "korpis/v1/profile.proto",

@@ -2869,6 +2869,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "korpis-files"
+version = "0.0.0"
+dependencies = [
+ "buffa-types",
+ "korpis-proto",
+ "rustix",
+ "tempfile",
+]
+
+[[package]]
 name = "korpis-helper"
 version = "0.0.0"
 dependencies = [
