@@ -59,7 +59,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 korpis-recipe = { workspace = true }
-korpis-server = { workspace = true }
+korpis-server = { workspace = true, features = ["testing"] }
 korpis-store = { workspace = true, features = ["testing"] }
 sqlx = { workspace = true }
 korpis-app = { workspace = true }

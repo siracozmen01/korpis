@@ -71,7 +71,7 @@ fn a_machine_with_everything_offers_everything_and_says_kvm_is_not_needed_yet() 
     }
     assert!(matches!(outcome(&r, "KVM"), Outcome::NotNeeded(_)));
     assert!(r.offers_anything());
-    assert!(r.text().contains("Nothing on this machine was changed."));
+    assert!(r.text("This node").contains("Nothing on this machine was changed."));
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn an_old_kernel_or_no_cgroup_v2_leaves_the_node_nothing_to_offer() {
     let r = checks(&m, &probes(), &oci());
     assert!(matches!(outcome(&r, "Linux 6.1+"), Outcome::Lacking { .. }));
     assert!(!r.offers_anything());
-    assert!(r.text().contains("[NO] Linux 6.1+"));
+    assert!(r.text("This node").contains("[NO] Linux 6.1+"));
 
     let files: Vec<_> = GOOD.iter().copied().filter(|(p, _)| !p.starts_with("sys/fs")).collect();
     let (_dir, m) = machine(&files);

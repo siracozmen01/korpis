@@ -17,9 +17,9 @@ use crate::ports::{
     RecipeSource, Store, StoreError, Tx, Unique, VerifyKey,
 };
 use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::authz::Scope;
 use korpis_core::authz::credential::{ApiToken, Secret};
 use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Kind, ObjectRef};
-use korpis_core::authz::{Permit, Scope};
 use korpis_core::labels::Labels;
 use korpis_core::node::identity::valid_public_key;
 use korpis_core::node::{Connectivity, Node, NodeAdmin, Reachability};
@@ -101,7 +101,7 @@ pub(crate) struct OneUse {
     pub(crate) label: String,
 }
 
-pub(crate) fn enrollment_grant(permit: &Permit, one: OneUse) -> Result<GrantRecord, AppError> {
+pub(crate) fn enrollment_grant(parent: Uuid, one: OneUse) -> Result<GrantRecord, AppError> {
     let enroll = Action::parse("node.enroll").map_err(|e| AppError::Internal(e.to_string()))?;
     let holder = Principal::Token(one.token);
     Ok(GrantRecord {
@@ -115,7 +115,7 @@ pub(crate) fn enrollment_grant(permit: &Permit, one: OneUse) -> Result<GrantReco
                 max_uses: Some(1),
                 ..Conditions::default()
             },
-            parent: Some(permit.grant),
+            parent: Some(parent),
             delegation: Delegation::default(),
             link_form: false,
             uses: 0,
@@ -206,7 +206,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at: enrollment.expires_at,
             label: format!("enrollment of node {}", enrollment.node_name.as_str()),
         };
-        let record = enrollment_grant(&permit, one)?;
+        let record = enrollment_grant(permit.grant, one)?;
         let parent = self.check_issue(caller, &record.grant).await?;
         let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
         let token = ApiToken {
@@ -223,7 +223,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.insert_token(&token, &secret.digest(), &caller.principal).await?;
         tx.insert_grant(&record).await?;
         tx.insert_enrollment(&enrollment).await?;
-        for effect in creation_effects(caller, &permit, &enrollment) {
+        for effect in creation_effects(&caller.principal, permit.grant, &enrollment) {
             tx.append_effect(&effect).await?;
         }
         finish(tx, caller, idem, OPERATION, EnrollmentToken { enrollment, secret }).await
@@ -293,17 +293,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-fn creation_effects(caller: &Caller, permit: &Permit, e: &Enrollment) -> [Effect; 2] {
-    let actor = caller.principal.clone();
+fn creation_effects(actor: &Principal, parent: Uuid, e: &Enrollment) -> [Effect; 2] {
+    let actor = actor.clone();
     [
-        Effect::new(actor.clone(), "grant.issued", Outcome::Succeeded).under(permit.grant).after(
+        Effect::new(actor.clone(), "grant.issued", Outcome::Succeeded).under(parent).after(
             details([
                 ("grant", e.grant.to_string().into()),
-                ("parent", permit.grant.to_string().into()),
+                ("parent", parent.to_string().into()),
                 ("holder", Principal::Token(e.token).key().into()),
             ]),
         ),
-        Effect::new(actor, "node.enrollment.create", Outcome::Succeeded).under(permit.grant).after(
+        Effect::new(actor, "node.enrollment.create", Outcome::Succeeded).under(parent).after(
             details([
                 ("organization", e.organization.to_string().into()),
                 ("node_name", e.node_name.as_str().into()),
@@ -312,4 +312,48 @@ fn creation_effects(caller: &Caller, permit: &Permit, e: &Enrollment) -> [Effect
             ]),
         ),
     ]
+}
+
+/// The first node's enrollment, made by installation in its own transaction (§2 of
+/// docs/18-operations.md): attenuated from the root grant `parent`, which no one has exercised
+/// yet, and recorded as the bootstrap actor, as the root itself is. It lasts the longest an
+/// enrollment may, a day, since whoever installs joins the first node next.
+pub(crate) async fn first_enrollment<T: Tx>(
+    tx: &mut T,
+    (organization, parent): (Uuid, Uuid),
+    node_name: Name,
+    now: std::time::SystemTime,
+) -> Result<EnrollmentToken, AppError> {
+    let bootstrap = Principal::System(korpis_core::principal::SystemActor::Bootstrap);
+    let enrollment = Enrollment {
+        token: Uuid::now_v7(),
+        grant: Uuid::now_v7(),
+        organization,
+        node_name,
+        labels: Labels::default(),
+        created_by: bootstrap.clone(),
+        created_at: now,
+        expires_at: now + MAX_ENROLLMENT_TTL,
+        node: None,
+    };
+    let label = format!("enrollment of node {}", enrollment.node_name.as_str());
+    let one = OneUse {
+        token: enrollment.token,
+        grant: enrollment.grant,
+        organization,
+        created: (bootstrap.clone(), now),
+        expires_at: enrollment.expires_at,
+        label: label.clone(),
+    };
+    let record = enrollment_grant(parent, one)?;
+    let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
+    let token =
+        ApiToken { id: enrollment.token, name: label, expires_at: Some(enrollment.expires_at) };
+    tx.insert_token(&token, &secret.digest(), &bootstrap).await?;
+    tx.insert_grant(&record).await?;
+    tx.insert_enrollment(&enrollment).await?;
+    for effect in creation_effects(&bootstrap, parent, &enrollment) {
+        tx.append_effect(&effect).await?;
+    }
+    Ok(EnrollmentToken { enrollment, secret })
 }

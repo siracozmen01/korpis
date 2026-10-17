@@ -22,6 +22,7 @@ mod placement;
 mod plans;
 mod revocation;
 mod routes;
+mod server;
 mod support;
 mod trust;
 mod volumes;

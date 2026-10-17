@@ -427,6 +427,13 @@ honestly.
 
 ‡ Added 2026-10-13, when the agent's journal was built; it found Finding 26.
 § Added 2026-10-14, when relays ran as their own process; it found Finding 27.
+¶ Noted 2026-10-17, when installation was built (§2 of `18-operations.md`): step 1 has a backup
+to restore only because installation refused to proceed without a target outside Korpis, and
+its key, printed once, is what opens it. Asked what evaluates "outside": the installer, on the
+machine, by the device the directory is on, so a network mount or another disk passes, a bind
+mount of the data directory's own filesystem does not, and another partition of the same disk
+does, which §2 of `18-operations.md` says. The control plane that starts at step 3 connects as a
+login of its own that owns nothing (§3.1 of `03-state.md`).
 
 **FINDING 27: A relay removed after the backup returns with it. `CONFIRMED`**
 

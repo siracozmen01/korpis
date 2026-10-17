@@ -70,6 +70,9 @@ zeroize = "1"
 
 # Only for `testing`.
 tempfile = { version = "3", optional = true }
+# The control plane's own login, written into the database URL installation makes.
+url = "2"
+
 [dev-dependencies]
 korpis-server = { path = ".", features = ["testing"] }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls"] }
@@ -84,7 +87,6 @@ korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 # The first-party S3 target, against MinIO, behind the control plane end to end.
 korpis-target-s3 = { path = "../korpis-target-s3" }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
-url = "2"
 # A DNS server answering from memory, for verifying domains (tests/api/zone.rs).
 hickory-proto = { version = "0.26", default-features = false, features = ["std"] }
 

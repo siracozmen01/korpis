@@ -23,6 +23,7 @@ pub mod labels;
 pub mod node;
 pub mod object;
 pub mod placement;
+pub mod preflight;
 pub mod principal;
 pub mod quantity;
 pub mod rate;

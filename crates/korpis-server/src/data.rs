@@ -9,6 +9,7 @@
 //! <data>/keys/assignment-<n>.key   assignment signing key, 32 raw bytes
 //! <data>/tls/ca.pem, ca.key        the installation's own certificate authority
 //! <data>/tls/server.pem, server.key
+//! <data>/backup/target, key         where Korpis's own backup goes, and what seals it
 //! ```
 
 use std::fs;
@@ -46,6 +47,12 @@ impl DataDir {
     #[must_use]
     pub fn tls(&self) -> PathBuf {
         self.root.join("tls")
+    }
+
+    /// Where the control plane's own backup target is declared, with its sealing key.
+    #[must_use]
+    pub fn backup(&self) -> PathBuf {
+        self.root.join("backup")
     }
 
     /// Creates the directory tree, readable by its owner only.

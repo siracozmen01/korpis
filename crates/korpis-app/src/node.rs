@@ -20,6 +20,7 @@ mod told;
 
 pub use assign::AssignmentSet;
 pub use attach::check_data_hello;
+pub(crate) use enroll::first_enrollment;
 pub use enroll::{
     CreateEnrollment, DEFAULT_ENROLLMENT_TTL, Enroll, Enrolled, EnrollmentToken, MAX_ENROLLMENT_TTL,
 };

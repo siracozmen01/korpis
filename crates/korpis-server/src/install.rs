@@ -3,19 +3,29 @@
 //! `korpis-server install`: everything installation needs outside the store (the data
 //! directory, the signing keys, the installation's CA) and then the install use case, which
 //! creates the root organization and the first grant (§9.1 of docs/08-identity.md); and
-//! `korpis-server admin recover-root`, which issues another at the machine (§9.2).
+//! `korpis-server admin recover-root`, which issues another at the machine (§9.2). Before any
+//! of it, the command runs the preflight of §2 of docs/18-operations.md; after it, the control
+//! plane is given a login of its own, its backup target is declared, and the systemd units are
+//! written.
+
+pub mod preflight;
+pub mod system;
+pub mod target;
+pub mod units;
 
 use crate::data::DataDir;
 use crate::keys::{KeyError, Keys};
 use crate::tls::{self, TlsError};
 pub use korpis_app::install::RootHolder;
 use korpis_app::install::{Installation, RootCredential, RootInvitation};
+use korpis_app::node::EnrollmentToken;
 use korpis_app::ports::SystemClock;
 use korpis_app::{App, AppError, NoRecipes};
 use korpis_core::id::{Id, IdKind};
 use korpis_core::tenancy::Name;
 use korpis_store::PgStore;
 use std::fmt::Write as _;
+use target::BackupTarget;
 
 /// Why installation failed.
 #[derive(Debug, thiserror::Error)]
@@ -53,10 +63,66 @@ pub struct InstallConfig {
     pub tls_names: Vec<String>,
     /// What holds the root grant: an account invited to register a passkey, or an API token.
     pub root: RootHolder,
+    /// The first node's name, whose enrollment installation makes; none makes none.
+    pub first_node: Option<Name>,
+    /// Where the control plane's own backup goes, outside Korpis; none declares none.
+    pub backup_target: Option<BackupTarget>,
+    /// The control plane's login, made by the operator; none has installation make one.
+    pub database_url: Option<String>,
 }
 
+/// What installation made, besides the installation itself, to say once.
+#[derive(Debug)]
+pub struct Installed {
+    /// The root organization, the root credential, and the first node's enrollment.
+    pub installation: Installation,
+    /// The URL the control plane connects with.
+    pub database_url: String,
+    /// The key the control plane's backup is sealed with, when it was made now.
+    pub backup_key: Option<String>,
+    /// The fingerprint of the installation's CA, which a node checks when it joins.
+    pub ca_fingerprint: String,
+}
+
+/// The control plane's own login.
+const SERVER_ROLE: &str = "korpis_server";
+
 /// Installs Korpis into an empty database.
-pub async fn install(config: &InstallConfig) -> Result<Installation, InstallError> {
+pub async fn install(config: &InstallConfig) -> Result<Installed, InstallError> {
+    let installation = install_store(config).await?;
+    let database_url = match &config.database_url {
+        Some(url) => url.clone(),
+        None => server_login(&config.owner_url).await?,
+    };
+    let backup_key = match &config.backup_target {
+        Some(t) => target::declare(&config.data, t)?,
+        None => None,
+    };
+    let ca_fingerprint = tls::ca_fingerprint(&config.data)?;
+    Ok(Installed { installation, database_url, backup_key, ca_fingerprint })
+}
+
+/// Makes the control plane's own login with a new password; the URL it connects with, the
+/// owner's with the login and password in place of the owner's.
+async fn server_login(owner_url: &str) -> Result<String, InstallError> {
+    let mut bytes = [0u8; 24];
+    getrandom::fill(&mut bytes).map_err(|e| std::io::Error::other(e.to_string()))?;
+    let password = bytes.iter().fold(String::new(), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    });
+    korpis_store::server::ensure_login(owner_url, SERVER_ROLE, &password).await?;
+    let mut url = url::Url::parse(owner_url)
+        .map_err(|e| std::io::Error::other(format!("the owner URL: {e}")))?;
+    let set = url.set_username(SERVER_ROLE).is_ok() && url.set_password(Some(&password)).is_ok();
+    if !set {
+        return Err(std::io::Error::other("the owner URL names no server to log in to").into());
+    }
+    Ok(url.to_string())
+}
+
+/// The data directory, the keys, the CA, the schema, and the installation in the store.
+async fn install_store(config: &InstallConfig) -> Result<Installation, InstallError> {
     config.data.create()?;
     korpis_store::migrate(&config.owner_url).await?;
     let keys = Keys::load_or_create(&config.data)?;
@@ -69,7 +135,7 @@ pub async fn install(config: &InstallConfig) -> Result<Installation, InstallErro
     store.ensure_partitions(3).await?;
     let app = App::new(store, SystemClock, keys.token.clone(), NoRecipes);
     app.register_keys(&keys.public()).await?;
-    Ok(app.install(config.organization.clone(), config.root).await?)
+    Ok(app.install(config.organization.clone(), config.root, config.first_node.clone()).await?)
 }
 
 /// What `korpis-server admin recover-root` needs: the machine's data directory, whose keys the
@@ -98,14 +164,16 @@ pub async fn recover_root(
     Ok(app.recover_root(operator).await?)
 }
 
-/// What installation tells the operator: where its CA is, and the root credential, once.
+/// What installation tells the operator, once: where its CA is, the root credential, the backup
+/// key when it was made now, and the command that joins the first node to `server`.
 #[must_use]
-pub fn installed_report(config: &InstallConfig, done: &Installation) -> String {
-    let org = Id::from_uuid(IdKind::Organization, done.organization.id);
+pub fn installed_report(config: &InstallConfig, done: &Installed, server: &str) -> String {
+    let installation = &done.installation;
+    let org = Id::from_uuid(IdKind::Organization, installation.organization.id);
     let mut out = String::from("Korpis is installed.\n\n");
     let _ = writeln!(out, "  root organization  {org}");
     let _ = writeln!(out, "  CA certificate     {}\n", config.data.tls().join("ca.pem").display());
-    match &done.root {
+    match &installation.root {
         RootCredential::Invitation(invitation) => out.push_str(&invitation_report(invitation)),
         RootCredential::Token(_, secret) => {
             out.push_str("The root API token is shown once. Store it somewhere safe:\n\n");
@@ -116,6 +184,36 @@ pub fn installed_report(config: &InstallConfig, done: &Installation) -> String {
             out.push_str("bearer secret with no second factor (§9.1 of docs/08-identity.md).\n");
         }
     }
+    if let Some(key) = &done.backup_key {
+        out.push_str("\nThe key the control plane's own backup is sealed with is shown once:\n\n");
+        let _ = writeln!(out, "  {key}\n");
+        let _ = writeln!(
+            out,
+            "Keep a copy away from this machine: a restore needs it, and the copy in"
+        );
+        let _ = writeln!(out, "{} is lost with the machine.", config.data.backup().display());
+    }
+    if let Some(first) = &installation.first_node {
+        out.push_str(&join_report(first, server, &done.ca_fingerprint));
+    }
+    out
+}
+
+/// The command that joins the first node, once the units run.
+fn join_report(first: &EnrollmentToken, server: &str, fingerprint: &str) -> String {
+    let name = first.enrollment.node_name.as_str();
+    let mut out = String::from("\nJoin the first node, as root on it, as its agent's user:\n\n");
+    let _ = writeln!(
+        out,
+        "  runuser -u korpis-agent -- korpis-agent join --server {server} \\\n      --token {} \
+         --ca-fingerprint {fingerprint} --hostname {name}\n",
+        first.secret.expose()
+    );
+    let _ = writeln!(
+        out,
+        "The token enrolls one node named {name}, until {}.",
+        utc(first.enrollment.expires_at)
+    );
     out
 }
 

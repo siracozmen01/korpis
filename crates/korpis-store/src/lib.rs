@@ -41,6 +41,7 @@ mod quota;
 mod rate;
 mod recipe;
 mod relay;
+pub mod server;
 mod session;
 mod set;
 mod snapshot;

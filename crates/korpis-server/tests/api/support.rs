@@ -10,12 +10,10 @@ use korpis_core::authz::{Kind, ObjectRef, Scope};
 use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::Principal;
 use korpis_core::rate::{Rate, Rates};
-use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
 use korpis_server::acme::AcmeConfig;
 use korpis_server::api::wire::{principal, scope, wire_id};
 use korpis_server::data::DataDir;
-use korpis_server::install::{InstallConfig, install};
 use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
@@ -143,18 +141,12 @@ impl Harness {
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
-        let installed = install(&InstallConfig {
-            data: data.clone(),
-            owner_url: db.owner_url.clone(),
-            organization: Name::parse("acme").unwrap(),
-            tls_names: vec!["localhost".to_owned()],
-            root: korpis_server::install::RootHolder::Token,
-        })
-        .await
-        .expect("install");
+        // Served as installation serves it: by a login that owns nothing.
+        let login = db.login().await.expect("login");
+        let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
         let config = korpis_server::ServeConfig {
             data: data.clone(),
-            database_url: db.owner_url.clone(),
+            database_url: login,
             listen: "127.0.0.1:0".parse().unwrap(),
             max_connections: 4,
             fetch_allow: Vec::new(),

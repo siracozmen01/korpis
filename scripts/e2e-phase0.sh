@@ -51,7 +51,7 @@ cleanup() {
         done
     fi
     psql "$PG" -qc "DROP DATABASE IF EXISTS $DB WITH (FORCE)" >/dev/null 2>&1
-    rm -rf "$WORK"
+    rm -rf "$WORK" "${BACKUP:-}"
 }
 trap cleanup EXIT
 
@@ -76,12 +76,17 @@ start() {
 log "installing the control plane"
 psql "$PG" -qc "CREATE DATABASE $DB TEMPLATE template0" >/dev/null
 DB_URL="${PG%/*}/$DB"
+# The processes are started here rather than by systemd, so installation writes no units; the
+# control plane's backup target is a directory on a tmpfs, another device than $WORK's disk.
+BACKUP=$(mktemp -d /dev/shm/korpis-e2e-backup.XXXXXX)
 "$BIN/korpis-server" install --data-dir "$WORK/server" --database-owner-url "$DB_URL" \
-    --organization acme >"$WORK/install.txt"
-ROOT_TOKEN=$(grep -o 'korpis_[A-Za-z0-9_-]*' "$WORK/install.txt" | head -n1)
+    --organization acme --root-token --backup-target "$BACKUP" --no-system >"$WORK/install.txt"
+ROOT_TOKEN=$(sed -n '/root API token is shown once/{n;n;s/^ *//p;q}' "$WORK/install.txt")
 [ -n "$ROOT_TOKEN" ] || fail "install printed no root token"
+SERVER_DB_URL=$(sed -n 's/^  --database-url //p' "$WORK/install.txt")
+[ -n "$SERVER_DB_URL" ] || fail "install printed no login for the control plane"
 PORT=$((20000 + $$ % 20000))
-start server "$BIN/korpis-server" serve --data-dir "$WORK/server" --database-url "$DB_URL" \
+start server "$BIN/korpis-server" serve --data-dir "$WORK/server" --database-url "$SERVER_DB_URL" \
     --listen "127.0.0.1:$PORT" --plain-http-registry "$REGISTRY"
 export KORPIS_SERVER="https://127.0.0.1:$PORT" KORPIS_CA="$WORK/server/tls/ca.pem"
 export KORPIS_TOKEN=$ROOT_TOKEN

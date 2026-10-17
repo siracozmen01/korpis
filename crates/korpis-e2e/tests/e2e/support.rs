@@ -4,11 +4,9 @@
 //! free port, as the agent's own tests make one.
 
 use connectrpc::client::{ClientConfig, HttpClient};
-use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use korpis_server::data::DataDir;
-use korpis_server::install::{InstallConfig, install};
 use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
@@ -62,16 +60,10 @@ impl ControlPlane {
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
-        let installed = install(&InstallConfig {
-            data: data.clone(),
-            owner_url: db.owner_url.clone(),
-            organization: Name::parse("acme").unwrap(),
-            tls_names: vec!["localhost".to_owned()],
-            root: korpis_server::install::RootHolder::Token,
-        })
-        .await
-        .expect("install");
-        let running = korpis_server::serve(serve_config(&db, &data, port, acme, web_root))
+        // Served as installation serves it: by a login that owns nothing.
+        let login = db.login().await.expect("login");
+        let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
+        let running = korpis_server::serve(serve_config(login, &data, port, acme, web_root))
             .await
             .expect("serve");
         let root_org = korpis_server::api::wire::wire_id(
@@ -306,10 +298,10 @@ impl ControlPlane {
     }
 }
 
-/// How the tests' control plane serves: on `port` of the loopback address, a panel from
+/// How the tests' control plane serves: as `login`, on `port` of the loopback address, a panel from
 /// `web_root` with its passkeys bound to `localhost` when one is given.
 fn serve_config(
-    db: &TestDb,
+    login: String,
     data: &DataDir,
     port: u16,
     acme: korpis_server::acme::AcmeConfig,
@@ -321,7 +313,7 @@ fn serve_config(
     });
     korpis_server::ServeConfig {
         data: data.clone(),
-        database_url: db.owner_url.clone(),
+        database_url: login,
         listen: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
         max_connections: 4,
         fetch_allow: Vec::new(),

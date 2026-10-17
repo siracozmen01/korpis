@@ -238,7 +238,7 @@ async fn enroll(state: &StateDir, how: &Join) -> ExitCode {
 async fn preflight(asking: &Asking, json: bool) -> ExitCode {
     let probes = probe(asking).await;
     let report = checks(&Machine::this(), &probes, &asking.offer);
-    let printed = if json { format!("{}\n", report.json()) } else { report.text() };
+    let printed = if json { format!("{}\n", report.json()) } else { report.text("This node") };
     let mut out = std::io::stdout().lock();
     if std::io::Write::write_all(&mut out, printed.as_bytes()).is_err() {
         return ExitCode::FAILURE;

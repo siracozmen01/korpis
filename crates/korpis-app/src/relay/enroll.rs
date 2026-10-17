@@ -84,7 +84,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at: enrollment.expires_at,
             label: label.clone(),
         };
-        let record = enrollment_grant(&permit, one)?;
+        let record = enrollment_grant(permit.grant, one)?;
         let parent = self.check_issue(caller, &record.grant).await?;
         let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
         let token =

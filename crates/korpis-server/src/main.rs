@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+mod installing;
 mod serving;
 
 use clap::{Parser, Subcommand};
-use korpis_app::install::RootHolder;
-use korpis_core::tenancy::Name;
 use korpis_server::data::DataDir;
-use korpis_server::install::{
-    InstallConfig, RecoverConfig, install, installed_report, invitation_report, recover_root,
-};
+use korpis_server::install::{RecoverConfig, invitation_report, recover_root};
 use serving::{ServeArgs, serve};
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -24,27 +21,12 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Install into an empty database: migrate, create keys and TLS, create the root
-    /// organization and the account holding its root grant, and print that account's
-    /// invitation once, to redeem by registering a passkey within the hour.
-    Install {
-        /// The data directory for keys and TLS material. Back it up outside Korpis.
-        #[arg(long, env = "KORPIS_DATA_DIR")]
-        data_dir: PathBuf,
-        /// A database URL with schema-owner rights, for migrations.
-        #[arg(long, env = "KORPIS_DATABASE_OWNER_URL")]
-        database_owner_url: String,
-        /// The root organization's name.
-        #[arg(long)]
-        organization: String,
-        /// Names and addresses the server certificate is valid for.
-        #[arg(long = "tls-name", default_values = ["localhost", "127.0.0.1"])]
-        tls_names: Vec<String>,
-        /// Issue the root grant to an API token instead, printed once: a bearer secret with no
-        /// second factor, for an unattended install or a test (§9.1 of docs/08-identity.md).
-        #[arg(long)]
-        root_token: bool,
-    },
+    /// Install into an empty database, once preflight finds nothing essential lacking: migrate,
+    /// create keys and TLS, the root organization and the account holding its root grant, the
+    /// control plane's own login, its backup declaration, its users and systemd units; print
+    /// that account's invitation once, to redeem by registering a passkey within the hour, and
+    /// the first node's join command.
+    Install(Box<installing::InstallArgs>),
     /// Administration done at the machine, by its root user.
     Admin {
         #[command(subcommand)]
@@ -142,18 +124,7 @@ fn fail(e: &dyn std::error::Error) {
 
 async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
-        Command::Install { data_dir, database_owner_url, organization, tls_names, root_token } => {
-            let config = InstallConfig {
-                data: DataDir::new(data_dir),
-                owner_url: database_owner_url,
-                organization: Name::parse(organization)?,
-                tls_names,
-                root: if root_token { RootHolder::Token } else { RootHolder::Passkey },
-            };
-            let done = install(&config).await?;
-            say(&installed_report(&config, &done));
-            Ok(())
-        }
+        Command::Install(args) => installing::run(*args).await,
         Command::Admin { command: AdminCommand::RecoverRoot { data_dir, database_url } } => {
             let config = RecoverConfig { data: DataDir::new(data_dir), database_url };
             let invitation = recover_root(&config, &operator()).await?;

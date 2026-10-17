@@ -45,6 +45,18 @@ impl TestDb {
         Ok(Self { admin_url, name, owner_url })
     }
 
+    /// A login of this database's own, as installation makes the control plane's (§2 of
+    /// docs/18-operations.md): a member of the application role that owns nothing. Its URL; it
+    /// is dropped with the database.
+    pub async fn login(&self) -> Result<String, Error> {
+        let password = uuid::Uuid::now_v7().simple().to_string();
+        let role = format!("{}_server", self.name);
+        crate::server::ensure_login(&self.owner_url, &role, &password).await?;
+        let (base, _) = self.owner_url.rsplit_once('/').unwrap_or((&self.owner_url, ""));
+        let host = base.rsplit_once('@').map_or(base, |(_, host)| host);
+        Ok(format!("postgres://{role}:{password}@{host}/{}", self.name))
+    }
+
     /// A store acting as the application role, as the control plane does, with intent bodies
     /// stored as the control plane stores them.
     pub async fn store(&self) -> Result<PgStore, Error> {
@@ -74,6 +86,8 @@ async fn drop_database(admin_url: &str, name: &str) {
     // The name was generated from a UUID, never from input.
     let drop = format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)");
     let _ = sqlx::query(sqlx::AssertSqlSafe(drop)).execute(&mut admin).await;
+    let role = format!("DROP ROLE IF EXISTS {name}_server");
+    let _ = sqlx::query(sqlx::AssertSqlSafe(role)).execute(&mut admin).await;
     let _ = admin.close().await;
 }
 

@@ -18,8 +18,8 @@ pub mod probe;
 #[cfg(test)]
 mod tests;
 
+pub use korpis_core::preflight::{Check, Outcome, Report};
 use korpis_proto::korpis::v1 as pb;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// Where the machine's kernel interfaces are: the real ones, or a test's copy.
@@ -57,39 +57,6 @@ fn read(under: &Path, rel: &str) -> Option<String> {
     std::fs::read_to_string(under.join(rel)).ok().map(|s| s.trim().to_owned())
 }
 
-/// What a check found of what it is about.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Outcome {
-    /// Present as needed.
-    Met,
-    /// Not needed for what this node is configured to offer, and why.
-    NotNeeded(String),
-    /// Missing: what the node offers less of without it, and the command that fixes it.
-    Lacking {
-        /// What is not offered, or not enforced, without it.
-        costs: String,
-        /// What to run, or do, to have it.
-        fix: String,
-    },
-    /// Not known: why it could not be checked, and what would let it be.
-    Unchecked(String),
-}
-
-/// One requirement, as found on this machine.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Check {
-    /// What it is.
-    pub name: &'static str,
-    /// What needs it.
-    pub needed_for: &'static str,
-    /// What was found, in words.
-    pub found: String,
-    /// Whether it is there.
-    pub outcome: Outcome,
-    /// Whether the node can offer anything without it.
-    pub essential: bool,
-}
-
 /// What a node is configured to offer, which is what preflight checks against.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
@@ -119,74 +86,4 @@ pub fn checks(m: &Machine, p: &Probes, offer: &Offer) -> Report {
     all.extend(node::checks(m, p, offer));
     all.extend(network::checks(m, p));
     Report(all)
-}
-
-/// What preflight found.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Report(pub Vec<Check>);
-
-impl Report {
-    /// Whether the node has anything to offer: nothing essential is lacking.
-    #[must_use]
-    pub fn offers_anything(&self) -> bool {
-        !self.0.iter().any(|c| c.essential && matches!(c.outcome, Outcome::Lacking { .. }))
-    }
-
-    /// The report for a person: each check, what was found, and what to run where it lacks.
-    #[must_use]
-    pub fn text(&self) -> String {
-        let mut out = String::new();
-        for c in &self.0 {
-            let mark = match &c.outcome {
-                Outcome::Met => "ok",
-                Outcome::NotNeeded(_) => "--",
-                Outcome::Lacking { .. } if c.essential => "NO",
-                Outcome::Lacking { .. } => "no",
-                Outcome::Unchecked(_) => "??",
-            };
-            let _ = writeln!(out, "[{mark}] {}: {} (for {})", c.name, c.found, c.needed_for);
-            match &c.outcome {
-                Outcome::Met => {}
-                Outcome::NotNeeded(why) | Outcome::Unchecked(why) => {
-                    let _ = writeln!(out, "     {why}");
-                }
-                Outcome::Lacking { costs, fix } => {
-                    let _ = writeln!(out, "     without it: {costs}\n     to fix: {fix}");
-                }
-            }
-        }
-        let verdict = if self.offers_anything() {
-            "This node can run; it offers what is not marked no."
-        } else {
-            "This node cannot run anything until what is marked NO is fixed."
-        };
-        let _ = writeln!(out, "\n{verdict} Nothing on this machine was changed.");
-        out
-    }
-
-    /// The report for a program.
-    #[must_use]
-    pub fn json(&self) -> serde_json::Value {
-        let checks: Vec<_> = self.0.iter().map(check_json).collect();
-        serde_json::json!({ "offers_anything": self.offers_anything(), "checks": checks })
-    }
-}
-
-fn check_json(c: &Check) -> serde_json::Value {
-    let (status, detail) = match &c.outcome {
-        Outcome::Met => ("met", serde_json::json!({})),
-        Outcome::NotNeeded(why) => ("not_needed", serde_json::json!({ "why": why })),
-        Outcome::Lacking { costs, fix } => {
-            ("lacking", serde_json::json!({ "costs": costs, "fix": fix }))
-        }
-        Outcome::Unchecked(why) => ("unchecked", serde_json::json!({ "why": why })),
-    };
-    serde_json::json!({
-        "name": c.name,
-        "needed_for": c.needed_for,
-        "found": c.found,
-        "essential": c.essential,
-        "status": status,
-        "detail": detail,
-    })
 }

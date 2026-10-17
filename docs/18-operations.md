@@ -104,6 +104,38 @@ token, for an unattended install). Then it is the same binary that runs
 the control plane, there is no separate installer artifact to drift out of sync with what it
 installs.
 
+> As built, 2026-10-17 (`crates/korpis-server/src/install`). `korpis-server install` runs
+> preflight before it changes anything, and stops, having changed nothing, when an essential check
+> lacks: PostgreSQL 13 or later (17 is the version it is tested against; another that has every
+> feature the schema uses is reported unchecked, not met), an empty database, the right to create
+> the schema, the right to create roles (not needed when `--database-url` names a login the
+> operator made), the data directory (absolute, not on a tmpfs, and not open to other users), and
+> the control plane's backup target of §6. A server holding other databases is reported and not
+> refused, with the timeout the paragraph above names. It then makes the users the units run as,
+> `korpis` and `korpis-agent`, from a `sysusers.d` file through `systemd-sysusers`; installs into
+> the database; and gives the control plane a login of its own, `korpis_server`, a member of
+> `korpis_app` that owns nothing, so the credential a running control plane holds cannot undo the
+> revocations of §3.1 of `03-state.md`. The owner's credential is the installer's and the
+> migrations', never the running service's. The login's URL goes into `/etc/korpis/server.env`,
+> readable by root alone. The units it writes are the control plane; the helper's socket and
+> service, root and socket-activated, admitting the agent's uid; the `oci` driver, root with every
+> capability dropped (§6 of `02-architecture.md` says what that does not stop); the agent, as
+> `korpis-agent`, with `KillMode=process` so workloads outlive its restart; and a relay unit for a
+> machine that is a relay alone, never enabled on this one, where the control plane is the relay.
+> Last it prints the root credential, the backup key once, the first node's join command with a
+> one-time enrollment token valid for a day, and the `systemctl` commands to run, which it does
+> not run itself. `--dry-run` prints the report and every file it would write; `--no-system`
+> installs into the database and the data directory alone, for a container or a test whose
+> processes something else starts, and prints the login it made once, since no file keeps it.
+> Not built yet:
+> asking where PostgreSQL should come from, and provisioning it through the package manager or a
+> container; today the operator names an existing server with `--database-owner-url`. The backup
+> target is a directory, checked to be writable and on another device than the data directory,
+> which a bind mount of the same filesystem is not and another partition of the same disk is, so
+> that one passes; an S3 target is refused as not built. Declaring a target records it beside the
+> data directory and makes the key its backup is sealed with; writing the backup there is the
+> control-plane backup of §6, not built yet.
+
 **There is no `curl | sh`.** It is what everyone in this market ships and it is inconsistent with
 being a project whose recipes reject a `fetch` without a hash (§4 of `09-recipes.md`), whose
 releases are reproducible and signed (§11 of `17-security.md`), and which tells operators to verify

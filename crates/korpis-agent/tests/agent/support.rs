@@ -3,13 +3,11 @@
 //! A control plane for the agent to join.
 
 use connectrpc::client::{ClientConfig, HttpClient};
-use korpis_core::tenancy::Name;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use korpis_recipe::artifact::{Artifact, File};
 use korpis_recipe::registry::Registry;
 use korpis_server::data::DataDir;
-use korpis_server::install::{InstallConfig, install};
 use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
 use std::sync::Arc;
@@ -45,18 +43,12 @@ impl ControlPlane {
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
-        let installed = install(&InstallConfig {
-            data: data.clone(),
-            owner_url: db.owner_url.clone(),
-            organization: Name::parse("acme").unwrap(),
-            tls_names: vec!["localhost".to_owned()],
-            root: korpis_server::install::RootHolder::Token,
-        })
-        .await
-        .expect("install");
+        // Served as installation serves it: by a login that owns nothing.
+        let login = db.login().await.expect("login");
+        let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
         let running = korpis_server::serve(korpis_server::ServeConfig {
             data: data.clone(),
-            database_url: db.owner_url.clone(),
+            database_url: login,
             listen: "127.0.0.1:0".parse().unwrap(),
             max_connections: 4,
             fetch_allow: Vec::new(),

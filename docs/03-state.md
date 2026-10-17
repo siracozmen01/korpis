@@ -102,6 +102,12 @@ The privilege revocation is deliberate. Immutability enforced by the database ca
 accidentally violated by application code, and application code is where every such invariant
 eventually gets violated.
 
+A revocation binds only a credential that cannot take it back. The schema's owner can, and so can
+any login that is a member of the owner, so the running control plane connects as a login of its
+own that is a member of `korpis_app` alone; the owner's credential is used to migrate and nothing
+else. As built, 2026-10-17: installation makes that login, `korpis_server` (§2 of
+`18-operations.md`).
+
 `body` is `jsonb` rather than fifty columns because the intent body evolves with every new runtime
 driver, endpoint type, and health probe kind, and because it is validated against a schema before
 insertion (Rule K-17) rather than by column types. Indexed expressions cover the fields that are

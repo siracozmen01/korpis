@@ -10,6 +10,7 @@ mod recover;
 
 use crate::App;
 use crate::error::AppError;
+use crate::node::{EnrollmentToken, first_enrollment};
 use crate::ports::{Clock, RecipeSource, Store, TenancyWrite, Tx};
 use korpis_core::account::record::{Account, BOOTSTRAP_LIFETIME, Invitation};
 use korpis_core::audit::{Effect, Outcome, details};
@@ -64,6 +65,8 @@ pub struct Installation {
     pub root_grant: Uuid,
     /// What holds it.
     pub root: RootCredential,
+    /// The first node's enrollment, when installation was asked for one.
+    pub first_node: Option<EnrollmentToken>,
 }
 
 impl Installation {
@@ -89,12 +92,14 @@ pub struct PublicKey {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Installs into an empty store, the root grant held as `holder` says. Refused if an
-    /// organization already exists.
+    /// Installs into an empty store, the root grant held as `holder` says, and, when a name is
+    /// given, makes the enrollment the first node joins with. Refused if an organization already
+    /// exists.
     pub async fn install(
         &self,
         organization: Name,
         holder: RootHolder,
+        first_node: Option<Name>,
     ) -> Result<Installation, AppError> {
         let bootstrap = Principal::System(SystemActor::Bootstrap);
         let now = self.clock.now();
@@ -126,8 +131,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 (grant, RootCredential::Token(token, secret))
             }
         };
+        let first_node = match first_node {
+            Some(name) => Some(first_enrollment(&mut tx, (org.id, root_grant), name, now).await?),
+            None => None,
+        };
         tx.commit().await?;
-        Ok(Installation { organization: org, root_grant, root })
+        Ok(Installation { organization: org, root_grant, root, first_node })
     }
 
     /// Records the public halves of the signing keys, so verifiers can be given them.

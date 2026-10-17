@@ -88,7 +88,8 @@ pub async fn fixture_with(limits: SessionLimits) -> Fixture {
         .with_relying_party(RelyingParty { id: RP.into(), origins: vec![ORIGIN.into()] })
         .with_factor_vault(Arc::new(Bound))
         .with_session_limits(limits);
-    let installed = app.install(Name::parse("acme").unwrap(), RootHolder::Token).await.unwrap();
+    let installed =
+        app.install(Name::parse("acme").unwrap(), RootHolder::Token, None).await.unwrap();
     let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
     Fixture { _db: db, app, clock, root, organization: installed.organization.id }
 }
