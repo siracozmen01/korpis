@@ -1476,6 +1476,14 @@ established WebAuthn libraries for Rust are either licensed on terms this projec
 into its dependencies or maintained by one person on a release cadence it cannot depend on; it is
 tested against a software authenticator and a browser's virtual one (§9 of `21-stack.md`).
 
+> As built, 2026-10-17 (`web/e2e`). The browser's half of every ceremony above runs in Chromium
+> against a real control plane, with the browser's virtual authenticator holding the passkeys:
+> an invitation redeemed with a passkey and its recovery codes shown once, a sign-out and a
+> sign-in with the passkey alone, a `korpis login` approved on the device page (§9.4), a change
+> to the factors refused as not recent once the sign-in is more than ten minutes old, the holder
+> confirming it is them, and a second passkey added on another authenticator that then signs
+> them in with the first one gone.
+
 ---
 
 ## 10. Open questions

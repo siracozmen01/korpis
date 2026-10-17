@@ -431,6 +431,9 @@
   "KMcIYorx": {
     "defaultMessage": "A password, at least 12 characters"
   },
+  "KTRrirwq": {
+    "defaultMessage": "Open the files"
+  },
   "KU6egau4": {
     "defaultMessage": "directory",
     "description": "a listing entry's kind"
@@ -773,6 +776,9 @@
   },
   "c8yWpaVr": {
     "defaultMessage": "Removed; the nearest theme above applies."
+  },
+  "cLNad6D5": {
+    "defaultMessage": "Open the console"
   },
   "cbCaFOB4": {
     "defaultMessage": "{n, plural, =0 {Revoked.} one {Revoked, with # grant attenuated from it.} other {Revoked, with # grants attenuated from it.}}"
@@ -1160,6 +1166,9 @@
   "z03iN+NR": {
     "defaultMessage": "link, not followed",
     "description": "a listing entry's kind"
+  },
+  "zHB1mRzN": {
+    "defaultMessage": "{what} (uses one of the link's uses)"
   },
   "zQpbwSBJ": {
     "defaultMessage": "An invitation starts {prefix}"

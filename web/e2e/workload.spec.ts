@@ -4,7 +4,7 @@
 // and is shown the plan after, types into its console and reads the answer, changes its
 // configuration through the form its recipe generates, whose labels are the recipe's own Turkish
 // ones (§5.3 of docs/09-recipes.md), previews a deletion and cancels it, uploads a file the
-// network cuts off and resumes it, and shares it by a link whose uses run out. The panel itself
+// network cuts off and resumes it, and shares its console by a link whose uses run out. The panel itself
 // has no Turkish catalogue yet, so its own words stay English.
 
 import { type Browser, expect, test, type Page } from "@playwright/test";
@@ -62,33 +62,36 @@ async function uploadResumed(page: Page): Promise<void> {
   await expect(files.getByText("Uploaded world.bin.")).toBeVisible({ timeout: 30_000 });
 }
 
-/** A share link that may only see the workload's status, twice, opened by someone with no
- * account in a browser of their own until its uses run out (§6 of docs/11-surface-web.md). */
-async function sharedTwice(page: Page, browser: Browser): Promise<void> {
+/** The console shared by a link, for a day and three uses, as step 8 of §38 shares it, opened by a
+ * moderator with no account in a browser of their own (step 12): the screen is one use, the
+ * console another, asked for, and once the three are spent the link says so (§6 of
+ * docs/11-surface-web.md). */
+async function sharedConsole(page: Page, browser: Browser): Promise<void> {
   const share = page.getByRole("region", { name: "Share as a link" });
-  const console_ = share.getByRole("checkbox", { name: "read its console" });
-  await share.getByText("read its console", { exact: true }).click();
-  await expect(console_).not.toBeChecked();
-  await share.getByLabel("Uses").fill("2");
+  await expect(share.getByRole("checkbox", { name: "read its console" })).toBeChecked();
+  await expect(share.getByLabel("Uses")).toHaveValue("3");
   await share.getByRole("button", { name: "Make the link" }).click();
   const link = await page.getByRole("region", { name: "The link" }).locator("code").innerText();
   const elsewhere = await browser.newContext({ ignoreHTTPSErrors: true });
-  const holder = await elsewhere.newPage();
-  for (const use of [1, 2]) {
-    await holder.goto("about:blank");
-    await holder.goto(link);
-    await expect(
-      holder.getByRole("heading", { name: "talker", level: 1 }),
-      `use ${use.toString()} shows the workload`,
-    ).toBeVisible();
-    await expect(holder.getByRole("button", { name: "Restart" })).toHaveCount(0);
-  }
-  await holder.goto("about:blank");
-  await holder.goto(link);
-  await expect(holder.getByRole("alert")).toHaveText(
+  const moderator = await elsewhere.newPage();
+  const opened = async () => {
+    await moderator.goto("about:blank");
+    await moderator.goto(link);
+    await expect(moderator.getByRole("heading", { name: "talker", level: 1 })).toBeVisible();
+    await expect(moderator.getByRole("button", { name: "Restart" })).toHaveCount(0);
+  };
+  await opened();
+  await moderator
+    .getByRole("button", { name: "Open the console (uses one of the link's uses)" })
+    .click();
+  await expect(moderator.getByText("ready merhaba")).toBeVisible();
+  await expect(moderator.getByLabel("Send a command"), "reading is not typing").toHaveCount(0);
+  await opened();
+  await moderator.goto("about:blank");
+  await moderator.goto(link);
+  await expect(moderator.getByRole("alert")).toHaveText(
     "This link has been used as many times as it allows, and opens nothing now.",
   );
-  await expect(holder.getByRole("heading", { name: "talker", level: 1 })).toHaveCount(0);
   await elsewhere.close();
   await page.reload();
   const grants = page.getByRole("region", { name: "Who can act on it" });
@@ -154,5 +157,5 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
   await expect(page.getByText("Declared running, converged")).toBeVisible();
 
   await uploadResumed(page);
-  await sharedTwice(page, browser);
+  await sharedConsole(page, browser);
 });

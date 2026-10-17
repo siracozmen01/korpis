@@ -159,7 +159,8 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     }
     let cp = Arc::new(ControlPlane::start_panel(dist).await);
     let invitation = cp.invite("Friend", FRIEND, &[]).await;
-    let operator = cp.invite("Operator", OPERATOR, &["workload.read"]).await;
+    let operator =
+        cp.invite("Operator", OPERATOR, &["workload.read", "workload.console.read"]).await;
     let keeper = cp.invite("Keeper", &["org.read", "org.write"], &[]).await;
     let talking = talking(&cp).await;
     let config = tempfile::tempdir().unwrap();

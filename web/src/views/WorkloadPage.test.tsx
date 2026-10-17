@@ -62,3 +62,39 @@ test("the screen follows the workload live, and says when it no longer is", asyn
   expect(await screen.findByText(/node fra-3 has not acknowledged/)).toBeTruthy();
   expect(opened).toBe(2);
 });
+
+test("a share link's screen opens its console only when asked, each opening being a use", async () => {
+  let relays = 0;
+  const relay = () => {
+    relays += 1;
+    return Promise.reject(new Error("no relay in this test"));
+  };
+  const transport = createRouterTransport(({ service }) => {
+    service(WorkloadService, {
+      async *watchWorkload() {
+        yield { status: { workload: { id: "wl_1", name: "mc" } } };
+        await new Promise(() => undefined);
+      },
+    });
+  });
+  render(
+    <ReachProvider
+      value={{
+        clients: clientsOver(transport),
+        base: "/g",
+        metered: true,
+        relay,
+        allowed: new Set(["workload.read", "workload.console.read"]),
+      }}
+    >
+      <WorkloadPage id="wl_1" />
+    </ReachProvider>,
+  );
+  const open = await screen.findByRole("button", {
+    name: "Open the console (uses one of the link's uses)",
+  });
+  expect(relays, "nothing opened unasked").toBe(0);
+  fireEvent.click(open);
+  expect(await screen.findByRole("heading", { name: "Console" })).toBeTruthy();
+  expect(relays).toBe(1);
+});

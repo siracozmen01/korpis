@@ -333,6 +333,28 @@ that breaks the panel fails like one that breaks the server.
 > newest the lint rules support. What it costs: a newer Vite, or a dependency that moves to a
 > licence outside the list, waits for a commit that argues it.
 
+> As built, 2026-10-17 (`web/e2e`, `crates/korpis-e2e/tests/browser`). The browser tests are
+> Playwright 1.63.0, pinned exactly like every package, driving the Chromium build it names,
+> which `scripts/test-tools.sh` installs into `.tools/ms-playwright` with Playwright's own
+> installer and checks against no digest pinned here, the one download in the test tools that is
+> not verified, and so the trust placed in the Playwright release. They live in `web/e2e`, with
+> their own TypeScript project and lint, and are run by a test of `korpis-e2e` that stands up
+> the stack: a control plane serving the built panel on a free port, its passkeys bound to
+> `localhost`; where a node can run here (root, beside containerd), a node with a workload on
+> it; the invitations, the device code of a waiting `korpis login`, and the addresses, passed in
+> the environment; and, after the browser is done, what only the machine can see, the file the
+> browser uploaded compared with the node's copy and the CLI's sign-in confirmed. That test is a
+> binary of its own, which cargo runs alone, because the node tests change the machine's network
+> interfaces and Chromium abandons what is in flight when they do (Finding 88 of
+> `23-walkthroughs.md`). Two fixtures stand in for time and trust: the harness moves a session's
+> sign-in back eleven minutes when a test asks, rather than the ten-minute rule becoming
+> configurable, and Chromium is told to ignore the control plane's certificate error, without
+> which it registers no service worker (question 3 of §10 of `11-surface-web.md`).
+> `scripts/check.sh` runs them with the rest of the tests, and says so when no browser is
+> installed and they are skipped. What it costs: about forty seconds of a check, and one
+> download trusted on its publisher's word. Written over one day, they found eight defects that
+> the component tests and the API tests had not (Findings 85 to 92 of `23-walkthroughs.md`).
+
 The control plane's side of a passkey sign-in, the WebAuthn relying party (§9.6 of
 `08-identity.md`), is Korpis's own: CBOR and COSE decoded by `ciborium` and `coset`, signatures
 verified by `ring`, which the TLS stack already brings. It is tested against an independent

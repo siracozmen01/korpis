@@ -2,8 +2,10 @@
 
 // A workload's screen (§2 and §3 of docs/11-surface-web.md), live over its watch: what it is
 // converging to and how far it has come, the stage it is at when it has not converged, and what
-// its node observed, each value known, stale, or unknown; and its console and files (§8).
+// its node observed, each value known, stale, or unknown; and its console and files (§8), which
+// a share link's screen opens only when asked, since each is a use of the link.
 
+import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
 import { useReach } from "../clients";
 import { Console } from "../console/Console";
@@ -74,8 +76,16 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       <Actions status={status} />
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
-      {may("workload.console.read") && <Console id={id} typing={may("workload.console.write")} />}
-      {(may(READ) || may(WRITE)) && <FileManager id={id} writes={may(WRITE)} />}
+      {may("workload.console.read") && (
+        <Asked metered={metered} what={t({ defaultMessage: "Open the console", id: "cLNad6D5" })}>
+          <Console id={id} typing={may("workload.console.write")} />
+        </Asked>
+      )}
+      {(may(READ) || may(WRITE)) && (
+        <Asked metered={metered} what={t({ defaultMessage: "Open the files", id: "KTRrirwq" })}>
+          <FileManager id={id} writes={may(WRITE)} />
+        </Asked>
+      )}
       {!metered && (
         <>
           {status.head !== undefined && <Configuration id={id} head={status.head} />}
@@ -84,6 +94,32 @@ export function WorkloadPage({ id }: { readonly id: string }) {
         </>
       )}
     </main>
+  );
+}
+
+/** What opens a session of its own, at once on a signed-in screen and only when asked on a share
+ * link's, where each opening spends a use: the screen's own opening is the one use the link's
+ * holder was told it costs (§6 of docs/11-surface-web.md). */
+function Asked(props: {
+  readonly metered: boolean;
+  readonly what: string;
+  readonly children: ReactNode;
+}) {
+  const [asked, setAsked] = useState(!props.metered);
+  if (asked) return props.children;
+  return (
+    <p>
+      <Button
+        onPress={() => {
+          setAsked(true);
+        }}
+      >
+        {t(
+          { defaultMessage: "{what} (uses one of the link's uses)", id: "zHB1mRzN" },
+          { what: props.what },
+        )}
+      </Button>
+    </p>
   );
 }
 

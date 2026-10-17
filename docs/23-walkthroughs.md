@@ -1126,6 +1126,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 89 | A resumed upload could finish a file with a hole of zeros in it | §38 | `06-storage.md` §3.2 |
 | 90 | A file session went on sending after a request it could not tell was delivered | §38 | `11-surface-web.md` §8 |
 | 91 | A used-up link showed an empty screen, and a stopped transfer its progress | §38 | `11-surface-web.md` §6, §8 |
+| 92 | A console link spent two uses on every opening of its screen | §38 | `11-surface-web.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3011,3 +3012,16 @@ in force says which, from its own grant, which reading spends nothing; an upload
 that stops says where it stopped. → `11-surface-web.md` §6 and §8; built in
 `web/src/views/LinkShell.tsx` and `web/src/files/parts.tsx`, and tested by
 `web/src/views/LinkShell.test.tsx` and `web/e2e/workload.spec.ts`.
+
+**FINDING 92: A console link spent two uses on every opening of its screen. `CONFIRMED`**
+
+Found 2026-10-17 by the browser test of steps 8 and 12 of this trace. Step 12 has the moderator's
+opening of the link spend one of its three uses, the watch, and the share screen tells the friend
+"opening its screen is one use, and so is each action". But a link that may read the console
+opened the console on its screen by itself, a session of its own whose token is a use, so every
+opening spent two, and the moderator's three uses opened the screen once and a half. A link that
+may read files spent a third. **Resolution.** On a share link's screen the console and the files
+open only when asked, by a button that says it costs a use, so the screen's opening is the one
+use it is said to be and each session is an action of its own. → `11-surface-web.md` §6; built
+in `web/src/views/WorkloadPage.tsx` and tested by `web/src/views/WorkloadPage.test.tsx` and
+`web/e2e/workload.spec.ts`.

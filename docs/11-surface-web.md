@@ -244,7 +244,10 @@ version of this screen showed neither (finding S29). A link can never be used to
 > which lives only in memory, and the screen asks for it to be opened again rather than failing.
 > A link no longer in force (used up, expired, revoked, or suspended) says which, from its own
 > grant, and asks nothing of the object it can no longer read; until the browser test opened a
-> link a third time it showed an empty screen (Finding 91 of `23-walkthroughs.md`).
+> link a third time it showed an empty screen (Finding 91 of `23-walkthroughs.md`). The console
+> and the files open on a link's screen only when asked, by a button that says it is a use:
+> each is a session of its own, and opening one by itself spent a second use on every opening of
+> the screen, so a console link with three uses opened one and a half times (Finding 92).
 > A link for an organization or a project shows its lists empty, because a listing spends nothing
 > and so shows a use-limited grant nothing (§6.1 of `08-identity.md`); a link is for one object,
 > and the screen that issues links (P1.12e6) issues them for workloads.
@@ -384,10 +387,11 @@ view and drops with a visible marker, never silently.
 > `02-architecture.md`) asking for the last 200 records and to follow, and renews the token
 > through `Send` thirty seconds before it expires. A dropped session reopens from the offset the
 > node said to read next, by itself for a signed-in user and on request through a share link,
-> since each opening is a use. Missing offsets and gap records are drawn as gaps with what was
-> lost and why. Only SGR colours and weights are kept, as classes from a fixed set; every other
-> escape sequence (a title, a hyperlink, a clipboard write, a cursor move) and every control
-> character but a tab and a line break is dropped. The view keeps the newest 2,000 lines and says
+> since each opening is a use; on a share link's screen the first opening is asked for too
+> (§6). Missing offsets and gap records are drawn as gaps with what was lost and why. Only SGR
+> colours and weights are kept, as classes from a fixed set; every other escape sequence (a
+> title, a hyperlink, a clipboard write, a cursor move) and every control character but a tab
+> and a line break is dropped. The view keeps the newest 2,000 lines and says
 > how many left it; Earlier reads the 200 before the oldest shown, from the offloaded segments
 > through the control plane and from the node for what is not offloaded yet. Reading mode holds
 > the view still, turns its live region off, and says how many lines arrived meanwhile. A line
@@ -510,7 +514,9 @@ which is also what keeps it from reading the viewer's session.
 The rest of the toolchain follows from it and is fixed in §9 of `21-stack.md`: Connect-ES with
 clients generated from the same `.proto` as the server (§3 of `10-api.md`), FormatJS for the ICU
 MessageFormat catalogues of question 4, Vitest and Testing Library for components, and
-Playwright for the browser tests that run the panel against a real control plane.
+Playwright for the browser tests that run the panel against a real control plane. As built,
+2026-10-17, they take every step of the trace in §38 of `23-walkthroughs.md` that happens in a
+browser, against a control plane and a node, as §9 of `21-stack.md` describes.
 2. **Custom dashboards. Resolved here: a saved layout object over declared slots.** Hosts want a
    landing screen composed for their customers. Whether that is an extension slot, a saved layout
    object, or both determines whether it can be per-organization. It was routed to

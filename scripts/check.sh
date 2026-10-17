@@ -99,6 +99,11 @@ cargo clippy $conformance $conformance_target --all-targets --locked -- -D warni
 echo "== tests (database: scripts/dev-pg.sh, registry: scripts/dev-registry.sh)"
 if [ -z "${KORPIS_TEST_PG_URL:-}" ]; then ./scripts/dev-pg.sh up >/dev/null; fi
 if [ -z "${KORPIS_TEST_REGISTRY:-}" ]; then ./scripts/dev-registry.sh up >/dev/null; fi
+# The panel's browser tests run with the rest when Chromium is installed; without it they are
+# skipped, and said to be here, where a reader of the check sees it.
+if [ ! -d .tools/ms-playwright ]; then
+    echo "Chromium not installed (scripts/test-tools.sh), the panel's browser tests are skipped"
+fi
 cargo test --workspace --all-features --locked
 cargo test $conformance $conformance_target --locked
 
