@@ -91,13 +91,16 @@ fn hello_from_pb(h: &agent::Hello) -> Result<Hello, ConnectError> {
     })
 }
 
-fn welcome(app: &ServerApp, s: &Session) -> agent::ControlMessage {
+/// The Welcome; `present` asks the agent to present what it holds, while a restore settles (§8 of
+/// docs/03-state.md).
+fn welcome(app: &ServerApp, s: &Session, present: bool) -> agent::ControlMessage {
     agent::ControlMessage {
         message: Some(Down::Welcome(Box::new(agent::Welcome {
             protocol: s.protocol.clone(),
             heartbeat_interval: duration(s.terms.heartbeat_interval).into(),
             server_time: timestamp(app.now()).into(),
             auth_skew: duration(s.terms.auth_skew).into(),
+            present_assignments: present,
             ..Default::default()
         }))),
         ..Default::default()
@@ -124,7 +127,8 @@ pub(super) async fn open(
         Err(e) => return Err(api.failed(e, (Attempt::Hello, ip, named)).await),
     };
     let (tx, rx) = mpsc::channel(OUTBOUND);
-    tx.send(welcome(app, &session)).await.map_err(|e| error::internal(&e))?;
+    let present = app.settling().await.map_err(error::from_app)?.is_some();
+    tx.send(welcome(app, &session, present)).await.map_err(|e| error::internal(&e))?;
     let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;
     tx.send(journal_ack(ingested)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;

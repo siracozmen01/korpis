@@ -7,8 +7,10 @@
 
 use buffa::Message as _;
 use ed25519_dalek::{Signer as _, SigningKey};
-use korpis_app::ports::{AssignmentSealer, SealError, Sealed};
+use korpis_app::ports::{AssignmentSealer, Opened, SealError, Sealed, VerifyKey};
+use korpis_core::id::{Id, IdKind};
 use korpis_core::workload::assignment::Assignment;
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_wire::assignment::assignment_to_pb;
 use sha2::{Digest, Sha256};
 
@@ -43,5 +45,27 @@ impl AssignmentSealer for Ed25519Sealer {
         let body = assignment_to_pb(assignment).encode_to_vec();
         let signature = self.key.sign(&body).to_bytes().to_vec();
         Ok(Sealed { body, signature, key_id: self.key_id.clone() })
+    }
+
+    fn open(&self, sealed: &Sealed, keys: &[VerifyKey]) -> Result<Opened, SealError> {
+        let refused = |why: &str| SealError(format!("{why} ({})", sealed.key_id));
+        let key = keys
+            .iter()
+            .find(|k| k.key_id == sealed.key_id)
+            .ok_or_else(|| refused("no assignment key of that name"))?;
+        if !korpis_core::node::identity::verify(&key.public, &sealed.body, &sealed.signature) {
+            return Err(refused("the signature does not verify"));
+        }
+        let pb = agent::Assignment::decode_from_slice(&sealed.body)
+            .map_err(|_| refused("not an assignment"))?;
+        let id = |kind, field: &str, value: &str| {
+            Id::parse(kind, value).map(|i| i.uuid()).map_err(|_| refused(field))
+        };
+        Ok(Opened {
+            workload: id(IdKind::Workload, "its workload", &pb.workload)?,
+            node: id(IdKind::Node, "its node", &pb.node)?,
+            generation: pb.generation,
+            lease_epoch: pb.lease_epoch,
+        })
     }
 }

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE epoch_state SET floor = $1 WHERE singleton AND floor < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fbd75c599ec951c8a4691d613ed4ff47b48b2e7530846485e00221775a6aafbd"
+}

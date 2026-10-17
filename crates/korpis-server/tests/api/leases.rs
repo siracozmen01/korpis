@@ -13,18 +13,18 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
-async fn connect(h: &Harness, a: &TestAgent, n: u8) -> Stream {
+pub async fn connect(h: &Harness, a: &TestAgent, n: u8) -> Stream {
     let (stream, first) = TestAgent::open(h, a.hello_at(SystemTime::now(), &[n; 16])).await;
     welcome(&first.unwrap());
     stream
 }
 
-async fn send(stream: &mut Stream, message: Up) {
+pub async fn send(stream: &mut Stream, message: Up) {
     let m = agent::AgentMessage { message: Some(message), ..Default::default() };
     stream.send(m).await.unwrap();
 }
 
-fn request(workload: &str, nonce: u8) -> Up {
+pub fn request(workload: &str, nonce: u8) -> Up {
     Up::LeaseRequest(Box::new(agent::LeaseRequest {
         workload: workload.to_owned(),
         nonce: vec![nonce; 8],
@@ -33,7 +33,7 @@ fn request(workload: &str, nonce: u8) -> Up {
 }
 
 /// The next message `pick` accepts, skipping the others.
-async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
+pub async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     for _ in 0..20 {
         if let Some(found) = next(stream).await.message.as_ref().and_then(&pick) {
             return found;
@@ -42,11 +42,11 @@ async fn until<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     panic!("not received within twenty messages");
 }
 
-fn grant(d: &Down) -> Option<agent::LeaseGrant> {
+pub fn grant(d: &Down) -> Option<agent::LeaseGrant> {
     if let Down::LeaseGrant(g) = d { Some((**g).clone()) } else { None }
 }
 
-fn refusal(d: &Down) -> Option<agent::LeaseRefusal> {
+pub fn refusal(d: &Down) -> Option<agent::LeaseRefusal> {
     if let Down::LeaseRefusal(r) = d { Some((**r).clone()) } else { None }
 }
 

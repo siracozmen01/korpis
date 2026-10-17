@@ -286,6 +286,19 @@ impl Session {
             .and_then(|d| korpis_wire::duration_from("heartbeat_interval", d).ok())
             .unwrap_or(Duration::from_secs(30));
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
+        if welcome.present_assignments {
+            // A restored control plane settles: it is shown what this node was told, as signed,
+            // so its epoch floor passes every epoch issued here (§8 of docs/03-state.md).
+            let assignments = self.held.borrow().raw.assignments.clone();
+            let presented = agent::Presented { assignments, ..Default::default() };
+            let up = agent::AgentMessage {
+                message: Some(agent::__buffa::oneof::agent_message::Message::Presented(Box::new(
+                    presented,
+                ))),
+                ..Default::default()
+            };
+            send.send(up).await.map_err(|e| e.to_string())?;
+        }
         let mut tick = tokio::time::interval(interval);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let (journal, mut shipper) = (self.journal.clone(), Shipper::new(self.journal.clone()));

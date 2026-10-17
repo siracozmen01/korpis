@@ -55,7 +55,7 @@ pub use account::{
 };
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
 pub use assignment::{
-    AssignmentRead, AssignmentSealer, AssignmentWrite, SealError, Sealed, StoredAssignment,
+    AssignmentRead, AssignmentSealer, AssignmentWrite, Opened, SealError, Sealed, StoredAssignment,
 };
 pub use audit::{
     DenialKey, DenialRead, DenialWrite, EffectCursor, EffectFilter, EffectRead, EffectWrite,
@@ -82,7 +82,7 @@ pub use feasibility::{Answers, Feasibility, Feasible};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
 pub use journal::{JournalRead, JournalWrite};
-pub use lease::LeaseWrite;
+pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};

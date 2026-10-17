@@ -7,7 +7,8 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, EffectWrite, LeaseWrite, PlacementWrite, RecipeSource, Store, Tx, WorkloadWrite,
+    Clock, EffectWrite, EpochIssue, LeaseWrite, PlacementWrite, RecipeSource, Store, Tx,
+    WorkloadWrite,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
@@ -52,7 +53,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 epoch
             }
             Decision::Issue => {
-                let epoch = tx.next_epoch().await?;
+                let epoch = match tx.next_epoch(now).await? {
+                    EpochIssue::Issued(epoch) => epoch,
+                    // Nothing is issued while a restore settles (§8 of docs/03-state.md), nor
+                    // beyond the issue rate; the node asks again, as for any transient refusal.
+                    EpochIssue::Settling | EpochIssue::RateSpent => {
+                        return Ok(LeaseAnswer::Refused(Refusal::Unavailable));
+                    }
+                };
                 let lease = Lease {
                     workload,
                     node,

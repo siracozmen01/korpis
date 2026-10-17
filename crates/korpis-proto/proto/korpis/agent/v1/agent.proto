@@ -74,6 +74,7 @@ message AgentMessage {
     JobAccessRequest job_access_request = 13;
     StepRequest step_request = 14;
     CertificateRequest certificate_request = 15;
+    Presented presented = 16;
   }
 }
 
@@ -285,6 +286,17 @@ message Welcome {
   // names them instead.
   reserved 5;
   reserved "relays";
+  // Set while a restored control plane is settling (§8 of docs/03-state.md): the agent answers
+  // with Presented, every assignment it holds, signed as it received them. Added 2026-10-18.
+  bool present_assignments = 6;
+}
+
+// The assignments an agent holds, as the control plane that issued them signed them, presented
+// to a restored control plane while it settles: their lease epochs raise its epoch floor, and
+// what they declare is what it recovers (§8 of docs/03-state.md). An assignment whose signature
+// does not verify against the assignment keyring is counted and believed in nothing.
+message Presented {
+  repeated SignedAssignment assignments = 1;
 }
 
 message Hello {

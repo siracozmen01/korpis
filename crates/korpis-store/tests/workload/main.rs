@@ -14,6 +14,7 @@
 mod accounts;
 mod buckets;
 mod chain;
+mod epochs;
 mod events;
 mod ids;
 mod jobs;

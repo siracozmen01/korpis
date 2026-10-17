@@ -30,6 +30,7 @@ pub mod ports;
 pub mod rate;
 pub mod recipe;
 pub mod relay;
+pub mod restore;
 pub mod step;
 pub mod tenancy;
 pub mod volume;

@@ -38,6 +38,7 @@ mod effects;
 mod egress;
 mod endpoints;
 mod enroll;
+mod epoch_fence;
 mod events;
 mod extensions;
 mod failures;

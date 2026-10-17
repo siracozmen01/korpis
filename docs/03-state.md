@@ -536,6 +536,21 @@ Mechanism 1 alone is safe but conservative. Mechanism 2 alone is exact but depen
 appearing. Together the fence is correct when every agent reconnects and still correct when none
 does.
 
+> As built, 2026-10-18 (`crates/korpis-app/src/restore.rs`, `crates/korpis-store/src/lease.rs`).
+> The issue-rate cap was recorded and enforced by nothing, so mechanism 1 had no ceiling; it is now
+> a bucket that holds a second's worth of epochs and refills at the rate, so in any `t` seconds at
+> most `rate × (t + 1)` epochs are issued, and the fence is `W_backup + rate × (age + 1)`, the age
+> rounded up to the second. Fencing raises the floor to that and opens the settling window, in
+> which a lease request that would issue an epoch is refused as unavailable, to be asked again; a
+> renewal issues nothing and is answered. While the window is open each agent's `Welcome` asks it
+> to present, and it answers with `Presented`, every assignment it holds as it was signed; the
+> highest lease epoch among those whose signature verifies against the assignment keyring and that
+> were issued to the node presenting them raises the floor, recorded as an effect naming the node,
+> and an assignment that does not verify is counted and believed in nothing. What mechanism 2 does
+> not see: a lease epoch an agent holds from a grant newer than its assignment, which is not
+> signed; mechanism 1's bound covers it. The restore command that fences is built with the rest of
+> the restore (§6 of `18-operations.md`).
+
 Agents reconnect, discover their epochs are stale, and **freeze mutations while leaving processes
 running**, then request reissue according to their `on_expiry` policy.
 

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE epoch_state SET\n                 bucket_tokens = LEAST(issue_rate_per_sec::double precision, bucket_tokens\n                     + issue_rate_per_sec * GREATEST(0, EXTRACT(EPOCH FROM $1 - bucket_at)))\n                     - 1,\n                 bucket_at = GREATEST(bucket_at, $1),\n                 max_issued_epoch = GREATEST(max_issued_epoch, floor) + 1\n              WHERE singleton\n                AND (settling_until IS NULL OR settling_until <= $1)\n                AND LEAST(issue_rate_per_sec::double precision, bucket_tokens\n                     + issue_rate_per_sec * GREATEST(0, EXTRACT(EPOCH FROM $1 - bucket_at))) >= 1\n              RETURNING max_issued_epoch",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max_issued_epoch",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "epoch_state",
+            "name": "max_issued_epoch"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9c03c03ddd5d6c9023c13651a99e34db1b4bd38574c56a5123de55c841cfc6bb"
+}

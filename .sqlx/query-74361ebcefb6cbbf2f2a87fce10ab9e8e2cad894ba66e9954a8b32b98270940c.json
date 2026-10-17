@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT settling_until FROM epoch_state WHERE singleton AND settling_until > $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "settling_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "epoch_state",
+            "name": "settling_until"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "74361ebcefb6cbbf2f2a87fce10ab9e8e2cad894ba66e9954a8b32b98270940c"
+}

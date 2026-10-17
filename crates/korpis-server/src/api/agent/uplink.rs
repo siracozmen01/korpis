@@ -12,6 +12,7 @@ use crate::sessions::Sessions;
 use connectrpc::{InboundStream, StreamMessage};
 use futures_util::StreamExt as _;
 use korpis_app::node::LeaseAnswer;
+use korpis_app::ports::Sealed;
 use korpis_core::id::IdKind;
 use korpis_core::workload::lease::Refusal;
 use korpis_proto::korpis::agent::v1 as agent;
@@ -149,11 +150,32 @@ impl Uplink {
             Some(Up::ContentStatus(c)) => {
                 app.record_content(node, &c.present).await.map_err(|e| e.to_string())
             }
+            Some(Up::Presented(p)) => self.presented(p).await,
             _ => Ok(()),
         };
         if let Err(e) = result {
             tracing::warn!(%node, error = %e, "agent message refused");
         }
+    }
+
+    /// The assignments the node holds, presented to a restored control plane that settles.
+    async fn presented(&self, p: &agent::Presented) -> Result<(), String> {
+        let held: Vec<Sealed> = p
+            .assignments
+            .iter()
+            .map(|a| Sealed {
+                body: a.assignment.clone(),
+                signature: a.signature.clone(),
+                key_id: a.key_id.clone(),
+            })
+            .collect();
+        let shown = self.app.present(self.node, &held).await.map_err(|e| e.to_string())?;
+        if shown.refused > 0 {
+            tracing::warn!(node = %self.node, refused = shown.refused, "presented assignments refused");
+        }
+        tracing::info!(node = %self.node, verified = shown.verified, floor = ?shown.raised_to,
+                       "presented its assignments");
+        Ok(())
     }
 
     async fn lease(&self, r: &agent::LeaseRequest) -> Result<(), String> {

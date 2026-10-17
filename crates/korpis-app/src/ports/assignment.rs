@@ -34,6 +34,26 @@ pub trait AssignmentSealer: Send + Sync + std::fmt::Debug {
 
     /// The assignment's bytes and signature.
     fn seal(&self, assignment: &Assignment) -> Result<Sealed, SealError>;
+
+    /// What a sealed assignment says, if `keys` holds the key it names and its signature over
+    /// its exact bytes verifies with it (§8 of docs/03-state.md): believed in nothing otherwise.
+    ///
+    /// # Errors
+    /// No such key, a signature that does not verify, or bytes that are not an assignment.
+    fn open(&self, sealed: &Sealed, keys: &[super::VerifyKey]) -> Result<Opened, SealError>;
+}
+
+/// What an assignment a node presented says, its signature verified.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Opened {
+    /// The workload.
+    pub workload: Uuid,
+    /// The node it was issued to.
+    pub node: Uuid,
+    /// Its generation.
+    pub generation: u64,
+    /// The lease epoch it names.
+    pub lease_epoch: u64,
 }
 
 /// An assignment as the store keeps it.

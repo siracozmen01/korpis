@@ -5,7 +5,7 @@
 use crate::PgTx;
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_time, to_count, to_time};
-use korpis_app::ports::{LeaseWrite, StoreError, StoreResult};
+use korpis_app::ports::{EpochIssue, LeaseWrite, StoreError, StoreResult};
 use korpis_core::workload::lease::Lease;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -37,17 +37,67 @@ impl LeaseWrite for PgTx {
         .transpose()
     }
 
-    async fn next_epoch(&mut self) -> StoreResult<u64> {
+    async fn next_epoch(&mut self, now: SystemTime) -> StoreResult<EpochIssue> {
         // The singleton row is created with the schema; the update locks it, so two issuers
-        // cannot take the same epoch.
-        let next = sqlx::query_scalar!(
-            "UPDATE epoch_state SET max_issued_epoch = GREATEST(max_issued_epoch, floor) + 1
-              WHERE singleton RETURNING max_issued_epoch"
+        // cannot take the same epoch. The bucket refills at the rate and holds at most a second's
+        // worth (§8 of docs/03-state.md).
+        let issued = sqlx::query_scalar!(
+            "UPDATE epoch_state SET
+                 bucket_tokens = LEAST(issue_rate_per_sec::double precision, bucket_tokens
+                     + issue_rate_per_sec * GREATEST(0, EXTRACT(EPOCH FROM $1 - bucket_at)))
+                     - 1,
+                 bucket_at = GREATEST(bucket_at, $1),
+                 max_issued_epoch = GREATEST(max_issued_epoch, floor) + 1
+              WHERE singleton
+                AND (settling_until IS NULL OR settling_until <= $1)
+                AND LEAST(issue_rate_per_sec::double precision, bucket_tokens
+                     + issue_rate_per_sec * GREATEST(0, EXTRACT(EPOCH FROM $1 - bucket_at))) >= 1
+              RETURNING max_issued_epoch",
+            from_time(now)
         )
-        .fetch_one(&mut *self.tx)
+        .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        count("epoch", next)
+        if let Some(next) = issued {
+            return Ok(EpochIssue::Issued(count("epoch", next)?));
+        }
+        let settling = self.settling(now).await?;
+        Ok(if settling.is_some() { EpochIssue::Settling } else { EpochIssue::RateSpent })
+    }
+
+    async fn fence_epochs(&mut self, floor: u64, settling_until: SystemTime) -> StoreResult<()> {
+        sqlx::query!(
+            "UPDATE epoch_state SET floor = GREATEST(floor, $1), settling_until = $2
+              WHERE singleton",
+            to_count("epoch floor", floor)?,
+            from_time(settling_until)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn raise_epoch_floor(&mut self, epoch: u64) -> StoreResult<bool> {
+        let raised = sqlx::query!(
+            "UPDATE epoch_state SET floor = $1 WHERE singleton AND floor < $1",
+            to_count("epoch floor", epoch)?
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(raised.rows_affected() > 0)
+    }
+
+    async fn settling(&mut self, now: SystemTime) -> StoreResult<Option<SystemTime>> {
+        let until = sqlx::query_scalar!(
+            "SELECT settling_until FROM epoch_state WHERE singleton AND settling_until > $1",
+            from_time(now)
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(until.flatten().map(to_time))
     }
 
     async fn put_lease(&mut self, l: &Lease) -> StoreResult<()> {

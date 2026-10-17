@@ -100,9 +100,27 @@ pub fn decide(
     }
 }
 
+/// A restore's first fence (§8 of docs/03-state.md): the highest epoch that can have been issued
+/// since a backup holding `max_issued`, `backup_age` ago, by a control plane issuing at most
+/// `rate_per_sec`. Issuance spends from a bucket holding a second's worth, so in `t` seconds at
+/// most `rate_per_sec × (t + 1)` epochs are issued; the age is rounded up to the second.
+#[must_use]
+pub fn fence_floor(max_issued: u64, rate_per_sec: u64, backup_age: std::time::Duration) -> u64 {
+    let seconds = backup_age.as_secs().saturating_add(u64::from(backup_age.subsec_nanos() > 0));
+    max_issued.saturating_add(rate_per_sec.saturating_mul(seconds.saturating_add(1)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fence_is_past_every_epoch_the_rate_allowed_since_the_backup() {
+        let age = std::time::Duration::from_millis(2_500);
+        assert_eq!(fence_floor(40, 1000, age), 40 + 1000 * 4, "3 s rounded up, plus the bucket");
+        assert_eq!(fence_floor(40, 1000, std::time::Duration::ZERO), 1040);
+        assert_eq!(fence_floor(u64::MAX - 1, 1000, age), u64::MAX, "saturates, never wraps");
+    }
 
     fn lease(node: u128, epoch: u64, received: SystemTime) -> Lease {
         Lease {

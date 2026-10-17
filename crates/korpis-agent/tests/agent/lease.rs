@@ -69,3 +69,50 @@ async fn a_held_workload_is_leased_renewed_under_one_epoch_and_released_through_
     }
     panic!("the release never reached the control plane");
 }
+
+#[tokio::test]
+async fn an_agent_asked_while_a_restore_settles_presents_its_signed_epochs_and_raises_the_floor() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let (token, ca) = cp.token("fra-7").await;
+    let dir = tempfile::tempdir().unwrap();
+    let state = StateDir::new(dir.path().join("agent"));
+    let request =
+        Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
+    let identity = join(&state, &request).await.unwrap();
+    let journal = JournalHandle::open(&state.root().join("journal"), Bounds::default()).unwrap();
+    let (session, link) =
+        Session::new(identity.clone(), state.clone(), Arc::new(facts), journal.clone());
+    let leases = Leases::new(journal.clone());
+    let keeper = Keeper::new(leases.clone(), link.held.clone(), link.inbound, link.outbound);
+    let first = tokio::spawn(session.run());
+    let _keeper = tokio::spawn(keeper.run());
+    let workload = cp.declare(&project, "mc").await;
+    let Standing::Held { epoch } =
+        standing(&leases, &workload, |s| matches!(s, Standing::Held { .. })).await
+    else {
+        unreachable!()
+    };
+    let mut held = link.held.clone();
+    let signed = |h: &korpis_agent::held::HeldSet| {
+        h.assignments.get(&workload).is_some_and(|a| a.lease_epoch == epoch)
+    };
+    tokio::time::timeout(Duration::from_secs(10), held.wait_for(signed)).await.unwrap().unwrap();
+    first.abort();
+
+    // A restore that knew no epoch settles; the agent, reconnecting, is asked to present.
+    cp.execute("UPDATE epoch_state SET floor = 0, settling_until = now() + interval '1 minute'")
+        .await;
+    let (session, link) = Session::new(identity, state, Arc::new(facts), journal);
+    let mut events = link.events.subscribe();
+    let _second = tokio::spawn(session.run());
+    until(&mut events, |e| matches!(e, Event::Welcomed { .. })).await;
+    for _ in 0..100 {
+        let floor: i64 = cp.scalar("SELECT floor FROM epoch_state").await;
+        if floor == i64::try_from(epoch).unwrap() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the presented epoch {epoch} never raised the floor");
+}
