@@ -167,6 +167,9 @@ operator never read. A plan reviewed in a pull request is therefore the plan tha
 > the model has them, so a directory of files gives one plan each, and `--plan` is given once per
 > workload. Planning again supersedes the plan before it, so only the newest plan for a workload
 > can be applied. Without `--plan`, `apply` declares and default policy approves what it may.
+>
+> `Start`, `Stop`, and `Restart` gained the same `propose` on 2026-10-17, for the panel's
+> preview of a power change (§4 of `11-surface-web.md`); the CLI's power commands do not use it.
 
 ---
 

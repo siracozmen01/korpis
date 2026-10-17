@@ -170,3 +170,26 @@ async fn a_proposed_declaration_waits_to_be_confirmed_even_when_it_could_apply_a
     let e = workloads.declare_intent(both).await.unwrap_err();
     assert_eq!(reason(&e), "request.invalid");
 }
+
+#[tokio::test]
+async fn a_proposed_power_change_waits_to_be_confirmed_even_when_it_could_apply_at_once() {
+    let h = Harness::new().await;
+    let (w, _) = workload(&h).await;
+    let workloads = h.workloads(h.root());
+    let stopped = workloads.stop(power("s1", &w, 1)).await.unwrap().into_owned();
+    let stop = stopped.plan.as_option().unwrap().id.clone();
+    h.plans(h.root()).approve_plan(approve("a1", &stop)).await.unwrap();
+    let start = pb::StartRequest {
+        mutation: power("s2", &w, 2).mutation,
+        workload: w.clone(),
+        propose: true,
+        ..Default::default()
+    };
+    let proposed = workloads.start(start).await.unwrap().into_owned();
+    let plan = proposed.plan.as_option().unwrap();
+    assert_eq!(status(plan), Some(pb::PlanStatus::PLAN_STATUS_PROPOSED), "a start would not wait");
+    assert_eq!(plan.approval.as_known(), Some(pb::PlanApproval::PLAN_APPROVAL_CONFIRMATION));
+    assert_eq!(pointers(&h, &w).await, (true, 3, 2), "declared, not yet what nodes are told");
+    h.plans(h.root()).approve_plan(approve("a2", &plan.id)).await.unwrap();
+    assert_eq!(pointers(&h, &w).await, (true, 3, 3), "confirmed, it applies");
+}

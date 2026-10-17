@@ -4,7 +4,10 @@
 //!
 //! A plan that needs **confirmation** was proposed under a grant that permits its action; it
 //! waits only so that a human sees it. Its proposer may confirm it, re-checked now, and so may
-//! anyone else who may perform its action or holds `plan.approve` over the workload. A plan that
+//! anyone else who may perform its action or holds `plan.approve` over the workload. The
+//! proposer deciding it through the grant it was proposed under continues the call that
+//! proposed it, which spent the one use the action costs, so the decision spends none: a share
+//! link's restart, proposed and confirmed, is one use (§6.1 of docs/08-identity.md). A plan that
 //! needs **authority** was proposed under a grant that may only propose: approving it is
 //! `may_approve`, which no subject can satisfy for their own plan.
 
@@ -15,7 +18,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::evaluate::{Approval as Request, may_approve};
-use korpis_core::authz::{Decision, Grant, Kind, ObjectRef, Permit, Scope};
+use korpis_core::authz::{Action, Decision, Grant, Kind, ObjectRef, Permit, Scope};
 use korpis_core::workload::Plan;
 use korpis_core::workload::plan::{Approval, StepAction};
 
@@ -50,11 +53,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Approval::Authority { scope } => self.authorize_authority(caller, plan, scope).await,
             Approval::Auto | Approval::Confirmation => {
                 let action = core_action(plan_action(plan))?;
+                if let Some(p) = self.proposer_continues(caller, plan, &action).await? {
+                    return Ok(p);
+                }
                 if let Decision::Permit(p) = self.decide(caller, &action, workload, None).await? {
                     return self.redeem(caller, &action, workload, p).await;
                 }
                 self.authorize(caller, "plan.approve", workload).await
             }
+        }
+    }
+
+    /// The permit of the proposer deciding its own plan through the grant it was proposed
+    /// under, which continues the proposing call and spends nothing; none for anyone else, or
+    /// when that grant no longer permits it.
+    async fn proposer_continues(
+        &self,
+        caller: &Caller,
+        plan: &Plan,
+        action: &Action,
+    ) -> Result<Option<Permit>, AppError> {
+        if plan.computed_by != caller.principal {
+            return Ok(None);
+        }
+        let workload = ObjectRef::new(Kind::Workload, plan.workload);
+        let through = Some(plan.proposed_under);
+        match self.decide_as(caller, (action, workload), through, true).await? {
+            Decision::Permit(p) => Ok(Some(p)),
+            Decision::Propose { .. } | Decision::Deny(_) => Ok(None),
         }
     }
 

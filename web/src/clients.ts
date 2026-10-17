@@ -11,6 +11,7 @@ import { createContext, useContext } from "react";
 import {
   GrantService,
   OrganizationService,
+  PlanService,
   ProjectService,
   WorkloadService,
 } from "./gen/korpis/v1/api_pb";
@@ -19,6 +20,7 @@ import {
 export interface Clients {
   readonly grants: Client<typeof GrantService>;
   readonly organizations: Client<typeof OrganizationService>;
+  readonly plans: Client<typeof PlanService>;
   readonly projects: Client<typeof ProjectService>;
   readonly workloads: Client<typeof WorkloadService>;
 }
@@ -28,6 +30,7 @@ export function clientsOver(transport: Transport): Clients {
   return {
     grants: createClient(GrantService, transport),
     organizations: createClient(OrganizationService, transport),
+    plans: createClient(PlanService, transport),
     projects: createClient(ProjectService, transport),
     workloads: createClient(WorkloadService, transport),
   };
@@ -59,6 +62,9 @@ export interface Reach {
   /** Each call spends a use of a use-limited grant, as a share link's do: nothing is called
    * again without being asked. */
   readonly metered: boolean;
+  /** The actions the credential holds, where the panel knows them (a share link's); otherwise
+   * every action is offered and the control plane decides (§5 of docs/11-surface-web.md). */
+  readonly allowed?: ReadonlySet<string>;
 }
 
 const ReachContext = createContext<Reach | undefined>(undefined);

@@ -838,7 +838,10 @@ and plan approval accepted one without spending it, so a link could be used with
 through them. Now a check that spends nothing permits nothing to a use-limited grant, and
 approval spends a use. A workload's watch spends one when it opens and none for the reads that
 keep it current, which continue through the grant that paid, as a renewal does, until it is
-revoked or expires (Finding 76 of `23-walkthroughs.md`).
+revoked or expires (Finding 76 of `23-walkthroughs.md`). Likewise the proposer confirming or
+rejecting its own plan, through the grant it was proposed under, continues the call that
+proposed it and spends nothing, so an action proposed and then confirmed, as the panel does
+every action (§4 of `11-surface-web.md`), is one use.
 
 What it costs: a link is unusable while the control plane is unreachable, which every link with a
 use cap already was (§6.2), and which every link now is. Rotating the token key ends every link

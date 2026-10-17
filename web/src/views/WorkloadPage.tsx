@@ -6,6 +6,7 @@
 
 import { Button } from "react-aria-components";
 import { useReach } from "../clients";
+import { Actions } from "../workload/Actions";
 import { diagnosis } from "../workload/diagnosis";
 import { age, freshness } from "../workload/freshness";
 import { Observed } from "../workload/Observed";
@@ -50,6 +51,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
           {metered && <Reopen reopen={live.reopen} />}
         </div>
       )}
+      <Actions status={status} />
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
     </main>

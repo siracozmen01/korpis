@@ -53,35 +53,41 @@ export function LinkShell(props: { readonly clients: Clients | undefined; readon
 }
 
 function Held({ clients, path }: { readonly clients: Clients; readonly path: string }) {
-  const reach = useMemo(() => ({ clients, base: LINK_BASE, metered: true }), [clients]);
   const own = useLoad(
     useCallback(async () => (await clients.grants.listGrants({})).grants[0], [clients]),
   );
   return (
-    <ReachProvider value={reach}>
-      <Shown
-        loaded={own}
-        what="what the link allows"
-        done={(grant) =>
-          grant === undefined ? (
-            <p role="alert">This link opens nothing.</p>
-          ) : (
-            <Granted grant={grant} path={path} />
-          )
-        }
-      />
-    </ReachProvider>
+    <Shown
+      loaded={own}
+      what="what the link allows"
+      done={(grant) =>
+        grant === undefined ? (
+          <p role="alert">This link opens nothing.</p>
+        ) : (
+          <Granted clients={clients} grant={grant} path={path} />
+        )
+      }
+    />
   );
 }
 
-/** What the link allows, and the object it is for. */
-function Granted({ grant, path }: { readonly grant: Grant; readonly path: string }) {
+/** What the link allows, and the object it is for, offering only the actions it holds. */
+function Granted(props: {
+  readonly clients: Clients;
+  readonly grant: Grant;
+  readonly path: string;
+}) {
+  const { clients, grant, path } = props;
+  const reach = useMemo(
+    () => ({ clients, base: LINK_BASE, metered: true, allowed: new Set(grant.actions) }),
+    [clients, grant],
+  );
   const within = path.slice(LINK_BASE.length).replace(/^\/$/, "");
   const entry = within === "" ? entryOf(grant.scope) : placeAt(within);
   const expires = grant.conditions?.expiresAt;
   const uses = grant.conditions?.maxUses;
   return (
-    <>
+    <ReachProvider value={reach}>
       <aside aria-label="What this link allows">
         <p>
           This link lets you {grant.actions.map((a) => ALLOWS[a] ?? a).join(", ")}.
@@ -90,6 +96,6 @@ function Granted({ grant, path }: { readonly grant: Grant; readonly path: string
         </p>
       </aside>
       {entry !== undefined && <Place entry={entry} />}
-    </>
+    </ReachProvider>
   );
 }

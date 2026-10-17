@@ -156,3 +156,29 @@ async fn a_session_opened_through_a_link_spends_one_use_and_its_renewals_none() 
     let after = as_link.mint_token(mint(&h, &token, &["org.read"])).await.unwrap_err();
     assert_eq!(after.code, ErrorCode::Unauthenticated, "revoked: no renewal");
 }
+
+#[tokio::test]
+async fn a_restart_proposed_and_confirmed_through_a_link_is_one_use() {
+    use korpis_proto::korpis::v1::__buffa::oneof::scope::Kind as ScopeKind;
+    let h = Harness::new().await;
+    let (w, _) = crate::lifecycle::workload(&h).await;
+    let mut request = link(&h, "share", &["workload.restart"], 1);
+    request.scope =
+        pb::Scope { kind: Some(ScopeKind::Workload(w.clone())), ..Default::default() }.into();
+    let issued = h.grants(h.root()).issue_grant(request).await.unwrap().into_owned();
+    let as_link = h.config(Some(&issued.link_token));
+    let restart = |key: &str| pb::RestartRequest {
+        mutation: crate::lifecycle::power(key, &w, 1).mutation,
+        workload: w.clone(),
+        propose: true,
+        ..Default::default()
+    };
+    let proposed = h.workloads(as_link.clone()).restart(restart("r1")).await.unwrap().into_owned();
+    let plan = proposed.plan.as_option().unwrap().id.clone();
+    let confirm = crate::lifecycle::approve("a1", &plan);
+    let confirmed = h.plans(as_link.clone()).approve_plan(confirm).await.unwrap().into_owned();
+    let status = confirmed.plan.as_option().unwrap().status.as_known();
+    assert_eq!(status, Some(pb::PlanStatus::PLAN_STATUS_APPROVED), "confirmed, spending nothing");
+    let again = h.workloads(as_link).restart(restart("r2")).await.unwrap_err();
+    assert_eq!(again.code, ErrorCode::NotFound, "and the one use is gone");
+}

@@ -317,16 +317,28 @@ message DeclareIntentResponse {
 message StartRequest {
   Mutation mutation = 1;
   string workload = 2;
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
+  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
+  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  bool propose = 3;
 }
 
 message StopRequest {
   Mutation mutation = 1;
   string workload = 2;
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
+  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
+  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  bool propose = 3;
 }
 
 message RestartRequest {
   Mutation mutation = 1;
   string workload = 2;
+  // Persist the power declaration and its plan, and leave the plan waiting for confirmation
+  // even when default policy would approve it at once, as DeclareIntentRequest.propose does: the
+  // panel previews a plan and confirms that one (§4 of docs/11-surface-web.md).
+  bool propose = 3;
 }
 
 message PowerResponse {

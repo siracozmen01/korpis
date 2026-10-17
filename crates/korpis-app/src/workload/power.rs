@@ -14,7 +14,7 @@ use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef, Permit};
 use korpis_core::recipe::Disruption;
 use korpis_core::workload::plan::compute::power_steps;
-use korpis_core::workload::plan::{DriverClass, Proposing, ResourceDelta};
+use korpis_core::workload::plan::{Approval, DriverClass, Proposing, ResourceDelta};
 use korpis_core::workload::{
     Plan, PlanTarget, Power, PowerChange, PowerRecord, PowerState, Workload,
 };
@@ -31,6 +31,9 @@ pub struct ChangePower {
     pub change: PowerChange,
     /// The power head's version the change was made against (§6 of docs/10-api.md).
     pub expected_version: u64,
+    /// Persist everything and approve nothing: the plan waits for its proposer to confirm it
+    /// even when default policy would approve it at once (§3.3 of docs/01-model.md).
+    pub propose: bool,
 }
 
 /// What a power change produced.
@@ -87,6 +90,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             set_at: self.clock.now(),
         };
         let mut plan = self.power_plan(caller, &w, &power, &proposing, &permit).await?;
+        if cmd.propose && plan.approval == Approval::Auto {
+            plan.approval = Approval::Confirmation;
+            plan.approval_reason = "its proposer asked to confirm it".into();
+        }
         let mut tx = self.store.begin().await?;
         let locked =
             tx.lock_workload(w.id).await?.ok_or(AppError::NotFound { kind: "workload" })?;

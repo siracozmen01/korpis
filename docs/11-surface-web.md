@@ -154,6 +154,20 @@ Because the Plan is a real object, "show me what this would do" and "schedule th
 "send this to someone for approval" are the same feature seen from three angles, rather than three
 features.
 
+> As built, 2026-10-17 (`web/src/workload/Actions.tsx`). Every action is proposed: a power change
+> with `propose` (`StartRequest`, `StopRequest`, and `RestartRequest` gained it as
+> `DeclareIntentRequest` has it), a deletion always. The plan the control plane computed and kept
+> is then classified from what it says, never from the action's name, since a recipe can
+> reclassify a step: every step reversible, nothing disruptive, no data at risk, and one workload
+> is confirmed at once and shown after; anything disruptive or touching several workloads is
+> previewed in place with Confirm and Cancel; data at risk or of unknown risk, or an
+> irreversible step, takes the screen, lists every step and the object it acts on, and confirms
+> only after a box saying so is ticked. Confirming approves that plan by its identifier, so the
+> plan shown is the plan that runs; cancelling rejects it. A plan that needs someone else's
+> authority is left waiting and the screen says so. A share link's screen offers only the
+> actions the link holds, and a proposal it confirms costs it one use, not two (§6.1 of
+> `08-identity.md`); a signed-in screen offers every action and the control plane decides (§5).
+
 ---
 
 ## 5. The interface is not the authorization boundary

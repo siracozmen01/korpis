@@ -104,7 +104,7 @@ impl Api {
         &self,
         ctx: &RequestContext,
         mutation: Option<&pb::Mutation>,
-        workload: &str,
+        (workload, propose): (&str, bool),
         change: PowerChange,
     ) -> ServiceResult<pb::PowerResponse> {
         let caller = self.caller(ctx).await?;
@@ -115,6 +115,7 @@ impl Api {
             expected_version: mutation.and_then(|m| m.expected_version).ok_or_else(|| {
                 error::invalid("mutation.expected_version", "the power version changed against")
             })?,
+            propose,
         };
         let encoder = |c: &PowerChanged| encode(&power_response(c));
         let idem = Idempotent { key, encode: &encoder };
@@ -155,7 +156,8 @@ impl pb::WorkloadService for Api {
         request: ServiceRequest<'_, pb::StartRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
         let req = request.to_owned_message();
-        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Start).await
+        let target = (req.workload.as_str(), req.propose);
+        self.power(&ctx, req.mutation.as_option(), target, PowerChange::Start).await
     }
 
     async fn stop(
@@ -164,7 +166,8 @@ impl pb::WorkloadService for Api {
         request: ServiceRequest<'_, pb::StopRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
         let req = request.to_owned_message();
-        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Stop).await
+        let target = (req.workload.as_str(), req.propose);
+        self.power(&ctx, req.mutation.as_option(), target, PowerChange::Stop).await
     }
 
     async fn restart(
@@ -173,7 +176,8 @@ impl pb::WorkloadService for Api {
         request: ServiceRequest<'_, pb::RestartRequest>,
     ) -> ServiceResult<pb::PowerResponse> {
         let req = request.to_owned_message();
-        self.power(&ctx, req.mutation.as_option(), &req.workload, PowerChange::Restart).await
+        let target = (req.workload.as_str(), req.propose);
+        self.power(&ctx, req.mutation.as_option(), target, PowerChange::Restart).await
     }
 
     async fn place_workload(
