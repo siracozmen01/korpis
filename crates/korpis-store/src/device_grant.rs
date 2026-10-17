@@ -112,10 +112,17 @@ impl DeviceGrantWrite for PgTx {
 
     async fn poll_device(&mut self, digest: &[u8; 32], at: SystemTime) -> StoreResult<Polled> {
         let found = sqlx::query!(
-            "SELECT id, user_code, created_at, expires_at, interval_secs, user_agent, source,
-                    decided_by, decided_at, approved, last_polled_at
-               FROM device_authorization WHERE device_hash = $1 FOR UPDATE",
-            digest.as_slice()
+            r#"SELECT d.id, d.user_code, d.created_at, d.expires_at, d.interval_secs, d.user_agent,
+                      d.source, d.decided_by, d.decided_at, d.approved, d.last_polled_at,
+                      (d.approved IS NOT TRUE
+                       OR (EXISTS (SELECT 1 FROM account a
+                                    WHERE a.id = d.decided_by AND a.disabled_at IS NULL)
+                           AND EXISTS (SELECT 1 FROM user_session s
+                                        WHERE s.id = d.decided_session AND s.expires_at > $2)))
+                      AS "honoured!"
+                 FROM device_authorization d WHERE d.device_hash = $1 FOR UPDATE OF d"#,
+            digest.as_slice(),
+            from_time(at)
         )
         .fetch_optional(&mut *self.tx)
         .await
@@ -142,7 +149,8 @@ impl DeviceGrantWrite for PgTx {
             decided_at: r.decided_at,
             approved: r.approved,
         };
-        Ok(Polled::Found { authorization: DeviceAuthorization::try_from(row)?, polled_before })
+        let authorization = DeviceAuthorization::try_from(row)?;
+        Ok(Polled::Found { authorization, polled_before, honoured: r.honoured })
     }
 
     async fn slow_device(&mut self, id: Uuid, seconds: u32) -> StoreResult<()> {
@@ -161,17 +169,19 @@ impl DeviceGrantWrite for PgTx {
     async fn decide_device(
         &mut self,
         code: &str,
-        account: Uuid,
+        (account, session): (Uuid, Option<Uuid>),
         approved: bool,
         at: SystemTime,
     ) -> StoreResult<bool> {
         let done = sqlx::query!(
-            "UPDATE device_authorization SET decided_by = $2, decided_at = $3, approved = $4
+            "UPDATE device_authorization
+                SET decided_by = $2, decided_at = $3, approved = $4, decided_session = $5
               WHERE user_code = $1 AND decided_by IS NULL AND expires_at > $3",
             code,
             account,
             from_time(at),
-            approved
+            approved,
+            session
         )
         .execute(&mut *self.tx)
         .await

@@ -1210,6 +1210,17 @@ session, it says so and keeps the credential in a file readable by its user alon
 > stranger in. A user code is guessed only by a signed-in user, inside their own rate limit, and
 > must name one of the few authorizations pending at the time, among 20^8.
 
+> Corrected the same day (Findings 74 and 75 of `23-walkthroughs.md`, from a security review of
+> the commit that built it). An approval was a fact about the account alone: the poll that
+> collected it began the CLI's session whether or not the account could still sign in, and
+> whether or not the session that approved it had since been signed out or ended, so a holder who
+> found a stolen panel session and ended every other session could not withdraw an approval that
+> session had given and its thief had not yet collected. An approval now names the session it
+> was given from, and is honoured only while that session lasts and its account may sign in;
+> otherwise the poll is answered `device.denied` and nothing is begun. What it costs: a user who
+> approves a code and signs out of the panel before the CLI's next poll, five seconds at most,
+> has approved nothing.
+
 ### 9.5 A running workload's identity
 
 > Added 2026-10-13, while designing the extension contract of Phase 1. `Workload` and

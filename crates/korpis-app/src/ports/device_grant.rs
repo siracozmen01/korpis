@@ -22,6 +22,10 @@ pub enum Polled {
         authorization: DeviceAuthorization,
         /// When it was polled before this, if it was.
         polled_before: Option<SystemTime>,
+        /// Whether an approval may still be collected: the account that gave it may sign in,
+        /// and the session it was given from has not ended (Findings 74 and 75 of
+        /// docs/23-walkthroughs.md). True for one not approved.
+        honoured: bool,
     },
 }
 
@@ -67,11 +71,12 @@ pub trait DeviceGrantWrite {
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Decides the undecided device authorization whose user code is `code`, not expired at
-    /// `at`, as `account` `approved` it; false if there is none such.
+    /// `at`, as the account `decider` names `approved` it, from the session it names; false if
+    /// there is none such.
     fn decide_device(
         &mut self,
         code: &str,
-        account: Uuid,
+        decider: (Uuid, Option<Uuid>),
         approved: bool,
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;

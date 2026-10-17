@@ -1108,6 +1108,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 71 | Guesses at many names passed the source's failures at once, and failures recorded at once could stall the database pool | §38 | `10-api.md` §10, `08-identity.md` §9.6 |
 | 72 | A workload under a sibling name could plant the session cookie | §38 | `08-identity.md` §9.4, §9.6 |
 | 73 | A device cookie outlived the password it was earned with | §38 | `08-identity.md` §9.6 |
+| 74 | A device authorization's approval began a session for an account that could no longer sign in | §38 | `08-identity.md` §9.4 |
+| 75 | An approval outlived the session that gave it | §38 | `08-identity.md` §9.4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2684,3 +2686,33 @@ holder is a stranger again. The browser that made the change gets a new cookie i
 it; the holder's other browsers are trusted again when they next sign in. → `08-identity.md`
 §9.6; built in `crates/korpis-app/src/account/device.rs`, migration 0070, and
 `crates/korpis-server/src/api/profile.rs`; tested in `crates/korpis-app/tests/accounts/devices.rs`.
+
+**FINDING 74: A device authorization's approval began a session for an account that could no
+longer sign in. `CONFIRMED`**
+
+Found 2026-10-17 by a security review of the commit that built the control plane's half of the
+CLI's sign-in (step 11 of this trace), and confirmed by reading the poll. Every other way a
+session begins checks that its account may sign in, a sign-in by reading the account and an
+exchange by the join in the statement that finds the credential; the poll that collected an
+approval checked nothing, so an account disabled between the approval and the poll was given a
+session. Its exchange would have been refused, so the session could not have been used, but a
+session that exists for an account that may not sign in is one the next change to exchange could
+make usable.
+
+**FINDING 75: An approval outlived the session that gave it. `CONFIRMED`**
+
+Found with Finding 74, and confirmed by a test. An approval named an account and nothing else.
+A holder who found a panel session stolen and ended every session but their own ended the
+thief's session, but not an approval the thief had given from it to a CLI of their own and not
+yet collected, which the next poll turned into a session of seven days. Ending sessions is how
+a holder takes an account back (§9.4 of `08-identity.md`), and it missed exactly the credential
+the thief had just asked for.
+
+**Resolution of both.** An approval now names the session it was given from (migration 0072,
+`ON DELETE SET NULL`, since ending a session deletes it), and the statement that finds a polled
+authorization says whether its approval is honoured: its account may sign in, and the session it
+names still exists and has not expired. One not honoured is answered `device.denied`, spent, and
+begins nothing; the test signs the approving session out before the poll and finds no session
+begun. → `08-identity.md` §9.4; built in `crates/korpis-store/src/device_grant.rs` and
+`crates/korpis-app/src/account/device_grant.rs`; tested in
+`crates/korpis-app/tests/accounts/device_grant.rs`.

@@ -93,7 +93,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::Unauthenticated)?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        let Polled::Found { authorization: a, polled_before } =
+        let Polled::Found { authorization: a, polled_before, honoured } =
             tx.poll_device(&secret.digest(), now).await?
         else {
             return Err(AppError::Unauthenticated);
@@ -121,6 +121,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.commit().await?;
             return Err(AppError::conflict("device.denied", "the authorization was denied"));
         }
+        if !honoured {
+            tx.commit().await?;
+            return Err(AppError::conflict(
+                "device.denied",
+                "the approval was withdrawn: the session that gave it has ended, or its account \
+                 may no longer sign in",
+            ));
+        }
         let cli = Client { kind: SessionKind::Cli, ..client.clone() };
         let session = self.begin_session(&mut tx, decision.account, &cli).await?;
         tx.commit().await?;
@@ -146,7 +154,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Approves, or denies, the pending device authorization whose user code is `typed`, for
     /// the caller's account. Approving begins a session for whoever holds the device code, so
-    /// it needs a recent sign-in, as a change of factors does; denying needs none.
+    /// it needs a recent sign-in, as a change of factors does, and is honoured only while the
+    /// session it was given from lasts and its account may sign in (Findings 74 and 75 of
+    /// docs/23-walkthroughs.md); denying needs none.
     pub async fn decide_device(
         &self,
         caller: &Caller,
@@ -158,7 +168,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let a = self.device_authorization(caller, typed).await?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        if !tx.decide_device(&a.user_code, account, approved, now).await? {
+        let from = if approved { caller.session } else { None };
+        if !tx.decide_device(&a.user_code, (account, from), approved, now).await? {
             return Err(AppError::NotFound { kind: "device authorization" });
         }
         let effect = if approved { "device.approved" } else { "device.denied" };

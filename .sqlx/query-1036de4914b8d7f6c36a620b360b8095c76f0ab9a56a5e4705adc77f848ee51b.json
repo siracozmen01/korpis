@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, user_code, created_at, expires_at, interval_secs, user_agent, source,\n                    decided_by, decided_at, approved, last_polled_at\n               FROM device_authorization WHERE device_hash = $1 FOR UPDATE",
+  "query": "SELECT d.id, d.user_code, d.created_at, d.expires_at, d.interval_secs, d.user_agent,\n                      d.source, d.decided_by, d.decided_at, d.approved, d.last_polled_at,\n                      (d.approved IS NOT TRUE\n                       OR (EXISTS (SELECT 1 FROM account a\n                                    WHERE a.id = d.decided_by AND a.disabled_at IS NULL)\n                           AND EXISTS (SELECT 1 FROM user_session s\n                                        WHERE s.id = d.decided_session AND s.expires_at > $2)))\n                      AS \"honoured!\"\n                 FROM device_authorization d WHERE d.device_hash = $1 FOR UPDATE OF d",
   "describe": {
     "columns": [
       {
@@ -123,11 +123,18 @@
             "name": "last_polled_at"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "honoured!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
-        "Bytea"
+        "Bytea",
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -141,8 +148,9 @@
       true,
       true,
       true,
-      true
+      true,
+      null
     ]
   },
-  "hash": "b362622689bff9ba87d0788518022444a72fa0383d08c39a1426c60d5bc05fa0"
+  "hash": "1036de4914b8d7f6c36a620b360b8095c76f0ab9a56a5e4705adc77f848ee51b"
 }

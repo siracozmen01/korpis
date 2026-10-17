@@ -68,3 +68,18 @@ async fn a_denied_or_expired_authorization_is_over_and_approving_needs_a_recent_
     assert!(conflict(&poll(&f, &expired).await.unwrap_err(), "device.expired"));
     assert_eq!(poll(&f, &expired).await.unwrap_err(), AppError::Unauthenticated, "forgotten");
 }
+
+#[tokio::test]
+async fn an_approval_is_withdrawn_when_the_session_that_gave_it_ends() {
+    let f = fixture().await;
+    let redeemed = redeem(&f, &invite(&f, "A Friend").await, "friend", &browser()).await.unwrap();
+    let me = in_session(&redeemed);
+    let a = f.app.authorize_device(&client()).await.unwrap();
+    f.app.decide_device(&me, &a.user_code, true).await.unwrap();
+    f.app.sign_out(redeemed.session.refresh.expose()).await.unwrap();
+
+    let withdrawn = poll(&f, &a).await.unwrap_err();
+    assert!(conflict(&withdrawn, "device.denied"), "{withdrawn:?}");
+    let sessions = f.app.sessions(&signed_in(redeemed.account)).await.unwrap();
+    assert!(sessions.is_empty(), "no session was begun: {sessions:?}");
+}
