@@ -13,6 +13,7 @@
 )]
 
 mod backups;
+mod browser;
 mod console;
 mod dependencies;
 mod extension;

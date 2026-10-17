@@ -1,2 +1,5 @@
 node_modules/
 dist/
+# What a failed browser test leaves for whoever reads why.
+test-results/
+playwright-report/

@@ -9,7 +9,11 @@
 # checksums list published. MinIO publishes its community edition as source only, and Pebble is
 # built from source too, so both are built here from their release tags with a pinned Go toolchain,
 # the toolchain checked against its published digest and every module against the Go checksum
-# database. A test whose server is not installed says so and does not run.
+# database. Chromium, for the panel's browser tests, is the build the pinned @playwright/test names,
+# installed by Playwright's own installer into ./.tools/ms-playwright: that installer fetches it
+# from Playwright's download host and checks nothing against a digest pinned here, which is the
+# trust the browser tests place in the Playwright release itself. A test whose server is not
+# installed says so and does not run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TOOLS="$PWD/.tools"
@@ -69,4 +73,10 @@ if [ "$(cat "$TOOLS/openbao.version" 2>/dev/null)" != "$OPENBAO_VERSION" ]; then
     rm -rf "$tmp"
     echo "$OPENBAO_VERSION" > "$TOOLS/openbao.version"
 fi
-echo "test servers ready in $TOOLS/bin"
+PLAYWRIGHT_VERSION=$(node -p 'require("./web/package.json").devDependencies["@playwright/test"]')
+if [ "$(cat "$TOOLS/playwright.version" 2>/dev/null)" != "$PLAYWRIGHT_VERSION" ]; then
+    (cd web && pnpm install --frozen-lockfile --ignore-scripts --reporter=silent \
+        && PLAYWRIGHT_BROWSERS_PATH="$TOOLS/ms-playwright" pnpm exec playwright install chromium)
+    echo "$PLAYWRIGHT_VERSION" > "$TOOLS/playwright.version"
+fi
+echo "test servers ready in $TOOLS/bin, browsers in $TOOLS/ms-playwright"

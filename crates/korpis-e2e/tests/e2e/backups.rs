@@ -115,6 +115,10 @@ pub async fn nightly(operator: &korpis_cli::connect::Connection, provider: &str)
     repository(operator, &made).await.unwrap().json["id"].as_str().unwrap().to_owned()
 }
 
+/// Every backup recorded, with its status and when it was forgotten, for a failure to show.
+const EVERY_BACKUP: &str = "SELECT string_agg(id || ' ' || status || ' ' || \
+                            coalesce(deleted_at::text, 'kept'), ', ' ORDER BY id) FROM backup";
+
 /// A uuid column's value as the API names it.
 pub fn wire(kind: IdKind, id: uuid::Uuid) -> String {
     korpis_wire::wire_id(kind, id)
@@ -163,10 +167,13 @@ async fn a_running_world_is_backed_up_read_cloned_and_pruned() {
     let prune = BackupAction::Prune { workload: w.clone(), repository: repo };
     cp.approve(&plan_in(&backup(&operator, &prune).await.unwrap().human)).await;
     counted(&cp, "SELECT count(*) FROM backup WHERE deleted_at IS NOT NULL", 1).await;
-    let kept: uuid::Uuid = cp.scalar("SELECT id FROM backup WHERE deleted_at IS NULL").await;
+    // Of the two that succeeded: a backup that failed on a loaded machine is kept a while too.
+    let kept: uuid::Uuid =
+        cp.scalar("SELECT id FROM backup WHERE deleted_at IS NULL AND status = 'succeeded'").await;
     let forgotten: uuid::Uuid =
         cp.scalar("SELECT id FROM backup WHERE deleted_at IS NOT NULL").await;
-    assert!(forgotten < kept, "the older one is forgotten");
+    let every: String = cp.scalar(EVERY_BACKUP).await;
+    assert!(forgotten < kept, "the older one is forgotten: {every}");
     let b2 = wire(IdKind::Backup, kept);
 
     // One directory listed, one file read: from the repository, not from the node.

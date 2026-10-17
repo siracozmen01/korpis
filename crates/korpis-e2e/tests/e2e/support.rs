@@ -37,7 +37,27 @@ impl ControlPlane {
 
     /// A control plane ordering certificates from the ACME directory `acme` names.
     pub async fn start_with(acme: korpis_server::acme::AcmeConfig) -> Self {
+        Self::start_serving(acme, None).await
+    }
+
+    /// A control plane serving the built panel in `web_root` beside its API, its passkeys bound
+    /// to `localhost` and to its own origin, as a browser reaches it.
+    pub async fn start_panel(web_root: std::path::PathBuf) -> Self {
+        Self::start_serving(korpis_server::acme::AcmeConfig::default(), Some(web_root)).await
+    }
+
+    async fn start_serving(
+        acme: korpis_server::acme::AcmeConfig,
+        web_root: Option<std::path::PathBuf>,
+    ) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
+        // A panel's origin names its port before the server holds it, so a free one is taken.
+        let port = match &web_root {
+            Some(_) => {
+                std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
+            }
+            None => 0,
+        };
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));
@@ -50,35 +70,9 @@ impl ControlPlane {
         })
         .await
         .expect("install");
-        let running = korpis_server::serve(korpis_server::ServeConfig {
-            data: data.clone(),
-            database_url: db.owner_url.clone(),
-            listen: "127.0.0.1:0".parse().unwrap(),
-            max_connections: 4,
-            fetch_allow: Vec::new(),
-            plain_http_registries: vec![
-                std::env::var("KORPIS_TEST_REGISTRY")
-                    .unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
-            ],
-            placement_policy: korpis_core::schedule::PlacementPolicy::default(),
-            placement_retry: Duration::from_millis(200),
-            watch_resync: Duration::from_secs(1),
-            heartbeat_interval: Duration::from_secs(30),
-            lease_term: Duration::from_secs(2),
-            denial_window: Duration::from_secs(60),
-            event_retention: Duration::from_secs(30 * 86_400),
-            stream_retention_floor: std::time::Duration::ZERO,
-            relay_role: true,
-            proxy_protocol_from: Vec::new(),
-            dns_resolver: None,
-            acme,
-            rates: korpis_core::rate::Rates::default(),
-            relying_party: None,
-            session_limits: korpis_core::account::session::SessionLimits::default(),
-            web_root: None,
-        })
-        .await
-        .expect("serve");
+        let running = korpis_server::serve(serve_config(&db, &data, port, acme, web_root))
+            .await
+            .expect("serve");
         let root_org = korpis_server::api::wire::wire_id(
             korpis_core::id::IdKind::Organization,
             installed.organization.id,
@@ -301,6 +295,47 @@ impl ControlPlane {
             .unwrap()
             .into_owned();
         (created.token, created.ca_fingerprint)
+    }
+}
+
+/// How the tests' control plane serves: on `port` of the loopback address, a panel from
+/// `web_root` with its passkeys bound to `localhost` when one is given.
+fn serve_config(
+    db: &TestDb,
+    data: &DataDir,
+    port: u16,
+    acme: korpis_server::acme::AcmeConfig,
+    web_root: Option<std::path::PathBuf>,
+) -> korpis_server::ServeConfig {
+    let relying_party = web_root.as_ref().map(|_| korpis_core::webauthn::RelyingParty {
+        id: "localhost".into(),
+        origins: vec![format!("https://localhost:{port}")],
+    });
+    korpis_server::ServeConfig {
+        data: data.clone(),
+        database_url: db.owner_url.clone(),
+        listen: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+        max_connections: 4,
+        fetch_allow: Vec::new(),
+        plain_http_registries: vec![
+            std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
+        ],
+        placement_policy: korpis_core::schedule::PlacementPolicy::default(),
+        placement_retry: Duration::from_millis(200),
+        watch_resync: Duration::from_secs(1),
+        heartbeat_interval: Duration::from_secs(30),
+        lease_term: Duration::from_secs(2),
+        denial_window: Duration::from_secs(60),
+        event_retention: Duration::from_secs(30 * 86_400),
+        stream_retention_floor: std::time::Duration::ZERO,
+        relay_role: true,
+        proxy_protocol_from: Vec::new(),
+        dns_resolver: None,
+        acme,
+        rates: korpis_core::rate::Rates::default(),
+        relying_party,
+        session_limits: korpis_core::account::session::SessionLimits::default(),
+        web_root,
     }
 }
 

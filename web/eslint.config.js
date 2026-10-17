@@ -19,7 +19,12 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        project: ["./tsconfig.json", "./tsconfig.node.json", "./tsconfig.sw.json"],
+        project: [
+          "./tsconfig.json",
+          "./tsconfig.node.json",
+          "./tsconfig.sw.json",
+          "./tsconfig.e2e.json",
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -40,7 +45,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts", "**/*.test.tsx"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "e2e/**"],
     rules: { "formatjs/no-literal-string-in-jsx": "off", "formatjs/enforce-id": "off" },
   },
   {

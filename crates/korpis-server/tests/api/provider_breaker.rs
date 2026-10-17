@@ -76,13 +76,12 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     assert!(shown.median_deadline_permille >= 800, "{shown:?}");
 }
 
-/// The next call down `stream` within half a second of the last message, past cancellations.
-async fn next_call(stream: &mut Serve) -> Option<Box<pb::ProviderCall>> {
+/// The next call down `stream`, past cancellations.
+async fn next_call(stream: &mut Serve) -> Box<pb::ProviderCall> {
     loop {
-        match next(stream, Duration::from_millis(500)).await {
-            Some(Down::Call(c)) => return Some(c),
+        match next(stream, Duration::from_secs(10)).await {
+            Some(Down::Call(c)) => return c,
             Some(Down::Cancel(_)) => {}
-            None => return None,
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -119,14 +118,18 @@ async fn a_failing_provider_trips_then_a_probe_that_succeeds_closes_it() {
     // is recorded as the last deadline is, so the backoff is waited out by asking until a call
     // is let through rather than by a sleep that a loaded machine can outrun.
     tokio::time::sleep(FIRST_BACKOFF).await;
+    // Each ask is either refused or let through, and whichever comes first tells which: its
+    // refusal, or its call down the stream (after any late cancellation of one of the ten). No
+    // fixed wait decides it, so a probe a loaded machine sends late is not read as a refusal.
     let (probe, probing) = loop {
-        let probing = ping(&h, "cloudflare", Duration::from_secs(5));
-        // A late cancellation of one of the ten may still come first.
-        let call = next_call(&mut stream).await;
-        if let Some(c) = call {
-            break (c, probing);
+        let mut probing = ping(&h, "cloudflare", Duration::from_secs(5));
+        tokio::select! {
+            biased;
+            c = next_call(&mut stream) => break (c, probing),
+            r = &mut probing => {
+                assert_eq!(reason(&r.unwrap()), "provider.circuit_open", "refused, not lost");
+            }
         }
-        assert_eq!(reason(&probing.await.unwrap()), "provider.circuit_open", "refused, not lost");
     };
     pong(&mut stream, &probe).await;
     assert_eq!(reason(&probing.await.unwrap()), "");
