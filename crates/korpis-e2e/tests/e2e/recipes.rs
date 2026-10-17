@@ -3,7 +3,7 @@
 //! The recipes the node tests run: a thin one that records its starts in its volume, and an
 //! interactive one that answers its console.
 
-use korpis_recipe::artifact::Artifact;
+use korpis_recipe::artifact::{Artifact, File};
 use korpis_recipe::registry::Registry;
 
 /// The test registry: the development one unless `KORPIS_TEST_REGISTRY` names another.
@@ -146,10 +146,15 @@ pub async fn push_target() -> String {
 
 /// Pushes `document` to a repository no other test uses, named for `name`; the repository.
 pub async fn push(name: &str, document: String) -> String {
-    let registry =
-        std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
+    push_with(name, document, Vec::new()).await
+}
+
+/// Pushes `document` with `files` to a repository no other test uses, named for `name`; the
+/// repository.
+pub async fn push_with(name: &str, document: String, files: Vec<File>) -> String {
+    let registry = test_registry();
     let repo = format!("{registry}/test/{name}-{}", uuid::Uuid::now_v7().simple());
-    let artifact = Artifact { document: document.into_bytes(), files: Vec::new() };
+    let artifact = Artifact { document: document.into_bytes(), files };
     Registry::new(vec![registry]).unwrap().push(&repo, VERSION, &artifact).await.unwrap();
     repo
 }

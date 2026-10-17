@@ -32,7 +32,11 @@ test("missing offsets and gap records are drawn as gaps, never closed up", () =>
   );
   expect(
     view.lines.map((l) =>
-      l.kind === "gap" ? `gap: ${l.says}` : l.runs.map((r) => r.text).join(""),
+      l.kind === "text"
+        ? l.runs.map((r) => r.text).join("")
+        : l.kind === "gap"
+          ? `gap: ${l.says}`
+          : "",
     ),
   ).toEqual([
     "gap: 40 records are not held",
@@ -62,4 +66,25 @@ test("older records read on request go before what is held, once", () => {
   );
   expect(older.lines.map((l) => l.offset)).toEqual([8n, 9n, 10n, 11n]);
   expect(older.first).toBe(8n);
+});
+
+test("what someone typed is shown with who typed it, never as the record's JSON", () => {
+  const typed = (offset: number, body: string) => ({
+    offset: BigInt(offset),
+    kind: StreamRecordKind.STRUCTURED,
+    source: "input",
+    body: new TextEncoder().encode(body),
+  });
+  const view = append(
+    EMPTY,
+    chunk({
+      records: [
+        typed(0, '{"by":"user:alex","session":"s1","text":"stop\\n"}'),
+        typed(1, "not json"),
+      ],
+      nextOffset: 2n,
+    }),
+  );
+  expect(view.lines[0]).toEqual({ kind: "input", offset: 0n, by: "user:alex", text: "stop" });
+  expect(view.lines[1]?.kind).toBe("text");
 });

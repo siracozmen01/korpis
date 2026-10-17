@@ -389,6 +389,9 @@ view and drops with a visible marker, never silently.
 > through the control plane and from the node for what is not offloaded yet. Reading mode holds
 > the view still, turns its live region off, and says how many lines arrived meanwhile. A line
 > typed goes through a `workload.console.write` session of its own, offered where the caller may.
+> An input record is drawn as who typed what, set apart from the workload's output (§6 of
+> `14-streams.md`), not as the JSON body the stream writer recorded; until the browser test (§9 of
+> `21-stack.md`) found it on 2026-10-17, the body was shown as it was.
 
 **Files.** The web file manager is a client of the volume API and holds no privilege of its own.
 Large files stream rather than buffer; a workload's directory is not something a browser tab should
@@ -456,6 +459,16 @@ explicit paused-and-buffered reading mode rather than by leaving it unsolved.
 > tokens, not the rules. The page's policy also names the control plane's origin when the build
 > puts it elsewhere (`VITE_KORPIS_API`): the policy's own comment promised that and the policy
 > did not say it, so a panel built that way could not have reached its control plane.
+>
+> A phone that moves between networks has its browser abandon every request in flight, and so
+> does a machine whose interfaces change: until 2026-10-17 every screen that was loading then said
+> "Failed to fetch" until the page was loaded again (Finding 88 of `23-walkthroughs.md`). The
+> panel now sends a call the network failed with no answer again, twice, after a quarter of a
+> second and after a second (`web/src/retrying.ts`), which is safe because a mutation carries its
+> idempotency key and a ceremony spends a single-use proof (§6 of `10-api.md`). A share link's
+> calls are the exception and are sent once, since a call whose answer was lost may have spent a
+> use; its screen offers to try again instead. What it costs: a control plane that is truly
+> unreachable is said so a second and a quarter later.
 
 ---
 

@@ -13,6 +13,16 @@ ignore = [
     # does not build without that feature). It runs in the compiler, never in a Korpis binary.
     # Revisit when biscuit-auth releases a version without it.
     { id = "RUSTSEC-2026-0173", reason = "build-time only, via biscuit-auth's required proc-macro" },
+    # zvariant, zvariant_derive, and zbus_names are unmaintained as crates of their own because
+    # zbus 6.0.0 took them in as modules; their code goes on there. They reach Korpis through
+    # zbus 5, which secret-service 5.2.0 uses and which the CLI's Linux keyring store
+    # (zbus-secret-service-keyring-store 1.0.1) needs, and no release of either uses zbus 6 yet.
+    # What they parse is D-Bus messages from the user's own Secret Service, a peer with the
+    # user's authority; a flaw found now is fixed in zbus 6, not here. Revisit when
+    # secret-service releases a version on zbus 6. Found by cargo-deny on 2026-10-17.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; reached via secret-service" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; reached via secret-service" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; via secret-service" },
 ]
 
 [licenses]

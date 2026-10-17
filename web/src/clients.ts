@@ -48,7 +48,8 @@ function presenting(credential: string): Interceptor {
   };
 }
 
-/** A transport to `baseUrl` whose calls carry a share link and no cookie. */
+/** A transport to `baseUrl` whose calls carry a share link and no cookie. A call the network
+ * failed is not sent again, as the panel's own are (retrying.ts): it may have spent a use. */
 export function linkTransport(baseUrl: string, link: string): Transport {
   const withoutCookies: typeof fetch = (input, init) =>
     fetch(input, { ...init, credentials: "omit" });

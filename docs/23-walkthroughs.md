@@ -1119,6 +1119,10 @@ the same mechanism", and that is the price of having made core and extensions th
 | 82 | A listing printed the tenant's file names to the operator's terminal as they were | §38 | `13-surface-cli.md` §8 |
 | 83 | A tenant's theme dressed its provider's screens, a share link's disclosure, and the profile | §38 | `11-surface-web.md` §7 |
 | 84 | A secret field's value was read back by anyone who could read the workload | §38 | `09-recipes.md` §5.2 |
+| 85 | A console showed what someone typed as the record's JSON, not as who typed what | §38 | `14-streams.md` §6 |
+| 86 | Saving a configuration showed nothing of the plan it applied | §38 | `11-surface-web.md` §4 |
+| 87 | A recipe's `pre_stop` hook was checked and never run | §38 | `09-recipes.md` §3 |
+| 88 | Every screen that was loading failed when the device's network changed | §38 | `11-surface-web.md` §9 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2913,6 +2917,53 @@ carried from the head as they are, so such a caller declares a change to everyth
 without a secret it was never shown. Keeping into any recipe but the head's, by digest, needs
 `workload.secret.read`: a recipe that drops the mark, or keeps it and hands the value to a
 command that prints it encoded to a console the caller reads, would carry it somewhere it could
-be read (found by two security reviews of this fix, the first before it was committed). → `09-recipes.md` §5.2; built and tested in
+be read (found by two security reviews of this fix, the first before it was committed).
+→ `09-recipes.md` §5.2; built and tested in
 `crates/korpis-app/src/workload/withhold.rs`, `crates/korpis-app/src/workload/declare/shown.rs`,
 and `crates/korpis-server/tests/api/secrets.rs`.
+
+**FINDING 85: A console showed what someone typed as the record's JSON, not as who typed what.
+`CONFIRMED`**
+
+Found 2026-10-17 by the panel's browser test of steps 5 and 6 of this trace: a line typed into a
+server's console came back as `{"by":"user:…","session":"…","text":"ping\n"}`. §6 of
+`14-streams.md` shows an input record as who typed what, and the stream writer records exactly
+that, but neither client read it: the panel drew every record's body as text, and `korpis
+console` wrote it out as it was. **Resolution.** Both read an input record's source and body:
+the panel draws it as a line of its own, set apart, and the CLI as a notice; a body that is not
+the writer's JSON is shown as it is. → `14-streams.md` §6; built and tested in
+`web/src/console/view.ts` and `crates/korpis-cli/src/cmd/console.rs`.
+
+**FINDING 86: Saving a configuration showed nothing of the plan it applied. `CONFIRMED`**
+
+Found 2026-10-17 by the same test. A configuration change that §4 of `11-surface-web.md` applies
+at once is to be shown after, its plan inspectable. The form is drawn afresh from each new head
+intent, so the values shown are the ones in force, and the plan flow lived inside the form: the
+save made the new head, the form was drawn again, and what the save did went with it.
+**Resolution.** The flow is held above the form and outlives it. → `11-surface-web.md` §4; built
+in `web/src/config/Configuration.tsx` and tested by `web/e2e/workload.spec.ts`.
+
+**FINDING 87: A recipe's `pre_stop` hook was checked and never run. `CONFIRMED`**
+
+Found 2026-10-17 by the same test, when a restart of a shell that ignores `SIGTERM` as a
+container's first process waited out the whole thirty-second grace. §3 of `09-recipes.md`
+declares `pre_stop` (write `stop` to the console, wait for the process to exit) as what keeps a
+game server's world from being corrupted by a stop. Asked what evaluates it, where, and with what
+information: the recipe parser checks it, and nothing else holds it; no assignment carries it to
+a node, and no node runs it, so every stop is `SIGTERM` and a kill after thirty seconds.
+**Resolution, in part.** §3 of `09-recipes.md` now says so; running it on the node is task P1.13c
+of the build plan, before Phase 1 is declared done. The test's own recipe ends on `SIGTERM`, as a
+container's first process must say for itself. → `09-recipes.md` §3.
+
+**FINDING 88: Every screen that was loading failed when the device's network changed.
+`CONFIRMED`**
+
+Found 2026-10-17 by the panel's browser test, which failed under the full suite and passed alone:
+its trace showed every request in flight ending in `net::ERR_NETWORK_CHANGED`, because the node
+tests beside it were adding and removing network interfaces, and Chromium abandons what is in
+flight when the machine's addresses change. A phone moving from Wi-Fi to a mobile network does
+the same, and §9 of `11-surface-web.md` puts a host's customer on a phone. The screens loading at
+that moment said "Failed to fetch" until the page was loaded again. **Resolution.** The panel's
+own calls, and its relay sessions', are sent again when the network failed them with no answer,
+twice; a share link's are not, since each may have spent a use. → `11-surface-web.md` §9; built
+and tested in `web/src/retrying.ts`.

@@ -23,6 +23,7 @@ import { ServerInfoService } from "./gen/korpis/v1/api_pb";
 import { RelayService } from "./gen/korpis/v1/relay_pb";
 import { ProfileService } from "./gen/korpis/v1/profile_pb";
 import { SessionService } from "./gen/korpis/v1/session_pb";
+import { retrying } from "./retrying";
 import { type Access, Session, browserShared } from "./session/session";
 
 /** The control plane: the build's `VITE_KORPIS_API`, or the origin the panel was served from. */
@@ -31,8 +32,9 @@ export function controlPlane(): string {
   return named !== undefined && named !== "" ? named : window.location.origin;
 }
 
-const withCookies: typeof fetch = (input, init) =>
-  fetch(input, { ...init, credentials: "include" });
+const withCookies: typeof fetch = retrying((input, init) =>
+  fetch(input, { ...init, credentials: "include" }),
+);
 
 const anonymous = createConnectTransport({ baseUrl: controlPlane(), fetch: withCookies });
 
@@ -117,7 +119,7 @@ export function relay(): Promise<Relay> {
     const url = info.controlPlaneRelay ? controlPlane() : info.relays[0];
     if (url === undefined)
       throw new Error("no relay serves sessions: the control plane names none");
-    const plain: typeof fetch = (input, init) => fetch(input, { ...init, credentials: "omit" });
+    const plain = retrying((input, init) => fetch(input, { ...init, credentials: "omit" }));
     return createClient(RelayService, createConnectTransport({ baseUrl: url, fetch: plain }));
   })().catch((e: unknown) => {
     found = undefined;

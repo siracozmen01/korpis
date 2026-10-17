@@ -318,7 +318,10 @@ feeds the workload's stdin, which it holds open for the task's whole life (§4.2
 `04-runtimes.md`). A resize is recorded as a control record and applied to the terminal. The
 stream says what was typed and the effect log says who typed it under which authority, which is
 the row the paragraph above promises, with the secret a person types at a prompt kept out of the
-effect log, which holds only how many bytes were sent.
+effect log, which holds only how many bytes were sent. A client shows an input record as the
+example above does, never as its body: `korpis console` as a notice, `input "stop" by
+user:…`, and the panel as a line of its own, `user:… typed: stop` (§8 of `11-surface-web.md`).
+Corrected 2026-10-17: both printed the record's JSON body until the panel's browser test found it.
 
 **The control plane does not take the node's word for whose input it was.** It records the
 effect as the act of the subject the node names only if the grant named is that subject's and, as

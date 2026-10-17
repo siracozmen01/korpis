@@ -19,7 +19,7 @@ import { type Intent, IntentBodySchema } from "../gen/korpis/v1/workload_pb";
 import { t } from "../i18n/intl";
 import { useLoad } from "../views/load";
 import { Shown } from "../views/Shown";
-import { usePlanned } from "../workload/planned";
+import { type Planned, usePlanned } from "../workload/planned";
 import { Field, ReadOnly } from "./Field";
 import { plain, read, shown } from "./values";
 
@@ -36,11 +36,17 @@ export function Configuration({ id, head }: { readonly id: string; readonly head
     [clients, id],
   );
   const loaded = useLoad(load);
+  // The flow outlives the form: saving makes a new head, which renders the form afresh from it,
+  // and what the save did is still to be shown.
+  const flow = usePlanned();
+  if (flow.review) return flow.review;
   return (
     <Shown
       loaded={loaded}
       reading={t({ defaultMessage: "Reading its configuration…", id: "lWYMAj0Y" })}
-      done={(r) => <Form_ key={head.version.toString()} id={id} head={head} recipe={r} />}
+      done={(r) => (
+        <Form_ key={head.version.toString()} id={id} head={head} recipe={r} flow={flow} />
+      )}
     />
   );
 }
@@ -55,10 +61,10 @@ function Form_(props: {
   readonly id: string;
   readonly head: Intent;
   readonly recipe: GetWorkloadRecipeResponse;
+  readonly flow: Planned;
 }) {
-  const { id, head, recipe } = props;
+  const { id, head, recipe, flow } = props;
   const { clients } = useReach();
-  const flow = usePlanned();
   const config = head.body?.config ?? {};
   const fields = (recipe.config?.fields ?? []).filter((f) => !f.hidden);
   const [texts, setTexts] = useState<Record<string, string>>(() =>
@@ -101,7 +107,6 @@ function Form_(props: {
       }
     });
   };
-  if (flow.review) return flow.review;
   const description = recipe.messages["metadata.description"];
   return (
     <section aria-labelledby="configuration">

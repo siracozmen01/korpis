@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-/* The console (§8): a scrolling box of fixed width text, its gaps set apart, and the sixteen
-   colours a workload may ask for, as classes from a fixed set (src/console/ansi.ts). */
+/* The console (§8): a scrolling box of fixed width text, its gaps and its input set apart, and
+   the sixteen colours a workload may ask for, as classes from a fixed set (src/console/ansi.ts). */
 .console {
   max-height: 60vh;
   overflow: auto;
@@ -25,6 +25,11 @@
 .console-gap {
   color: #f0b45a;
   font-style: italic;
+}
+
+/* What someone typed, set apart from what the workload wrote, with who typed it. */
+.console-input {
+  color: #8ab4f8;
 }
 
 .console-stderr {

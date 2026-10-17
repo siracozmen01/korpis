@@ -196,6 +196,13 @@ disruption:                                 # §5.1: what this software costs to
 `stop` to the console and waiting is the difference between a clean shutdown and a corrupted save,
 and it is declared by the recipe rather than special-cased in core.
 
+> Not yet as built, found 2026-10-17. A recipe's `pre_stop` is read and checked (it writes
+> something, and waits at most ten minutes) but no node runs it: every stop, a restart's
+> included, sends `SIGTERM` and kills after thirty seconds. The panel's browser test found it,
+> when a restart of a shell that ignores `SIGTERM` as a container's first process took the whole
+> grace. Until the agent runs the hook, a recipe whose software needs it gets the unclean stop
+> this section warns of. It is task P1.13c of the build plan, before Phase 1 is declared done.
+
 ### 3.1 A declaration is completed by its recipe, once, and the intent stores the result
 
 > Added 2026-10-13, from the implementation (`crates/korpis-core/src/workload/declare.rs`). The

@@ -13,7 +13,8 @@ use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
-async fn converged(cp: &ControlPlane, w: &str) {
+/// Waits until workload `w` has converged.
+pub(crate) async fn converged(cp: &ControlPlane, w: &str) {
     for _ in 0..900 {
         let s = cp.status(w).await;
         if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {

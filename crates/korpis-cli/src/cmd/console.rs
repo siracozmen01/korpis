@@ -7,8 +7,9 @@
 //!
 //! On a terminal the command puts it in raw mode, so every key reaches the workload as typed,
 //! sends the terminal's size and every change of it, and detaches on `Ctrl-]`, as telnet does.
-//! Output is written as the workload wrote it, its line ends included. With input from a pipe,
-//! the command sends what the pipe holds, shows two more seconds of output, and ends.
+//! Output is written as the workload wrote it, its line ends included; what someone typed is
+//! shown as a notice naming who typed it, as §6 of docs/14-streams.md shows it. With input from
+//! a pipe, the command sends what the pipe holds, shows two more seconds of output, and ends.
 
 use super::session::{Minted, Session, frame, mint, open, relay, renew};
 use crate::connect::Connection;
@@ -120,6 +121,19 @@ fn notice(raw: bool, text: &str) {
     out(format!("{end}\u{2500}\u{2500} {text} \u{2500}\u{2500}{end}").as_bytes());
 }
 
+/// Who typed an input record and what, its line end left off (§6 of docs/14-streams.md): the
+/// stream writer records each input as `{"by", "session", "text"}`. `None` for any other record.
+fn typed(r: &pb::StreamRecord) -> Option<(String, String)> {
+    if r.source != "input" {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
+    let text = v.get("text")?.as_str()?;
+    let text = text.strip_suffix('\n').unwrap_or(text);
+    let text = text.strip_suffix('\r').unwrap_or(text);
+    Some((v.get("by")?.as_str()?.to_owned(), text.to_owned()))
+}
+
 /// Writes what a chunk holds; the offset to read from next.
 fn show(bytes: &[u8], raw: bool) -> Result<u64, CliError> {
     let chunk = pb::ConsoleChunk::decode_from_slice(bytes)
@@ -129,9 +143,10 @@ fn show(bytes: &[u8], raw: bool) -> Result<u64, CliError> {
         notice(raw, &format!("offsets {} to {last} are no longer held on the node", m.first));
     }
     for r in &chunk.records {
-        match r.gap.as_option() {
-            Some(g) => notice(raw, &format!("{} records dropped: {}", g.records, g.reason)),
-            None => out(&r.body),
+        match (r.gap.as_option(), typed(r)) {
+            (Some(g), _) => notice(raw, &format!("{} records dropped: {}", g.records, g.reason)),
+            (None, Some((by, text))) => notice(raw, &format!("input {text:?} by {by}")),
+            (None, None) => out(&r.body),
         }
     }
     Ok(chunk.next_offset)
@@ -339,5 +354,26 @@ impl Attached<'_> {
         };
         notice(self.raw, &format!("input ended, {why}; now read-only"));
         *w = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(source: &str, body: &str) -> pb::StreamRecord {
+        pb::StreamRecord {
+            source: source.to_owned(),
+            body: body.as_bytes().to_vec(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn what_someone_typed_is_told_with_who_typed_it_and_nothing_else_is() {
+        let typed_stop = record("input", r#"{"by":"user:alex","session":"s1","text":"stop\r\n"}"#);
+        assert_eq!(typed(&typed_stop), Some(("user:alex".to_owned(), "stop".to_owned())));
+        assert_eq!(typed(&record("stdout", r#"{"by":"x","text":"y"}"#)), None, "written");
+        assert_eq!(typed(&record("input", "not json")), None, "shown as it is");
     }
 }

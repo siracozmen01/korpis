@@ -113,6 +113,20 @@ function LineView({ line }: { readonly line: Line }) {
       </div>
     );
   }
+  if (line.kind === "input") {
+    return (
+      <div className="console-input">
+        {t(
+          {
+            defaultMessage: "{by} typed: {text}",
+            id: "FtiVEVDY",
+            description: "a line typed into a console, and by whom",
+          },
+          { by: line.by, text: line.text },
+        )}
+      </div>
+    );
+  }
   return (
     <div className={line.source === "stderr" ? "console-stderr" : undefined}>
       {line.runs.map((r, i) => (

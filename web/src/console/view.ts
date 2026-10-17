@@ -15,7 +15,7 @@ import {
 import { type Run, type Style, runs } from "./ansi";
 import { t } from "../i18n/intl";
 
-/** A line of the console: text, or a gap. */
+/** A line of the console: text, a gap, or what someone typed and who. */
 export type Line =
   | {
       readonly kind: "text";
@@ -23,7 +23,8 @@ export type Line =
       readonly source: string;
       readonly runs: readonly Run[];
     }
-  | { readonly kind: "gap"; readonly offset: bigint; readonly says: string };
+  | { readonly kind: "gap"; readonly offset: bigint; readonly says: string }
+  | { readonly kind: "input"; readonly offset: bigint; readonly by: string; readonly text: string };
 
 /** The console as shown. */
 export interface View {
@@ -57,6 +58,20 @@ function gapSays(r: StreamRecord): string {
 }
 
 /** The lines of the records of `chunk`, from `style`. */
+/** Who typed an input record and what (§6 of docs/14-streams.md): its body is the JSON the
+ * stream writer wrote, `{"by", "session", "text"}`; `undefined` for anything else. */
+function inputOf(r: StreamRecord): { by: string; text: string } | undefined {
+  try {
+    const v: unknown = JSON.parse(decoder.decode(r.body));
+    if (typeof v !== "object" || v === null) return undefined;
+    const { by, text } = v as Record<string, unknown>;
+    if (typeof by !== "string" || typeof text !== "string") return undefined;
+    return { by, text: text.replace(/\r?\n$/, "") };
+  } catch {
+    return undefined;
+  }
+}
+
 function linesOf(chunk: ConsoleChunk, style: Style): { lines: Line[]; style: Style } {
   const lines: Line[] = [];
   const missing = chunk.missing;
@@ -75,6 +90,11 @@ function linesOf(chunk: ConsoleChunk, style: Style): { lines: Line[]; style: Sty
       continue;
     }
     if (r.kind === StreamRecordKind.CONTROL) continue;
+    const typed = r.source === "input" ? inputOf(r) : undefined;
+    if (typed !== undefined) {
+      lines.push({ kind: "input", offset: r.offset, ...typed });
+      continue;
+    }
     const parsed = runs(decoder.decode(r.body), current);
     current = parsed.style;
     lines.push({ kind: "text", offset: r.offset, source: r.source, runs: parsed.runs });

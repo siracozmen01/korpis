@@ -343,6 +343,10 @@
   "FpysbNB0": {
     "defaultMessage": "It says it is"
   },
+  "FtiVEVDY": {
+    "defaultMessage": "{by} typed: {text}",
+    "description": "a line typed into a console, and by whom"
+  },
   "G3xFadAQ": {
     "defaultMessage": "Preview",
     "description": "a plan previewed"
