@@ -83,6 +83,10 @@ start. `--web-origin`, repeatable, names each other origin allowed to call the A
 credentials, which a relying party's own page needs. `/about/source` is served either way, because
 the source offer of §2 of `19-governance.md` is owed to every network user, not only to panel
 users.
+A relay that is its own process takes the same `--web-origin` (`korpis-server relay run`), so the
+panel can open console and file sessions at it; the control plane names its relays in the panel
+page's policy as it serves it, and a panel built to be served elsewhere names them at build
+time with `VITE_KORPIS_RELAYS` beside `VITE_KORPIS_API`.
 
 ### The binary is its own installer
 

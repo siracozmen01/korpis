@@ -53,20 +53,26 @@ function sourceNotice(): Plugin {
 }
 
 /**
- * The control plane in the panel's own policy: `index.html` lets the page connect to its own
- * origin, and, when the build names the control plane elsewhere (`VITE_KORPIS_API`), to that
- * origin too and nothing else, so a panel served apart from its control plane can reach it.
+ * The control plane and its relays in the panel's own policy: `index.html` lets the page connect
+ * to its own origin. When the build names the control plane elsewhere (`VITE_KORPIS_API`) and the
+ * relays a console or a file session is opened at (`VITE_KORPIS_RELAYS`, comma-separated), their
+ * origins are added and nothing else. A control plane serving the bundle itself writes the relays
+ * it names into the policy as it serves the page (§3.1 of docs/02-architecture.md).
  */
-function controlPlanePolicy(named: string | undefined): Plugin {
-  const origin = named === undefined || named === "" ? undefined : new URL(named).origin;
+function connectPolicy(named: readonly (string | undefined)[]): Plugin {
+  const origins = named
+    .flatMap((n) => (n ?? "").split(","))
+    .map((n) => n.trim())
+    .filter((n) => n !== "")
+    .map((n) => new URL(n).origin);
   return {
-    name: "korpis-control-plane-policy",
+    name: "korpis-connect-policy",
     transformIndexHtml(html) {
-      if (origin === undefined) return html;
+      if (origins.length === 0) return html;
       if (!html.includes("connect-src 'self';")) {
         throw new Error("index.html's policy has no connect-src 'self' to extend");
       }
-      return html.replace("connect-src 'self';", `connect-src 'self' ${origin};`);
+      return html.replace("connect-src 'self';", `connect-src 'self' ${origins.join(" ")};`);
     },
   };
 }
@@ -75,7 +81,11 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     sourceNotice(),
-    controlPlanePolicy(loadEnv(mode, process.cwd(), "VITE_").VITE_KORPIS_API),
+    connectPolicy(
+      ((env) => [env.VITE_KORPIS_API, env.VITE_KORPIS_RELAYS])(
+        loadEnv(mode, process.cwd(), "VITE_"),
+      ),
+    ),
   ],
   build: {
     outDir: "dist",

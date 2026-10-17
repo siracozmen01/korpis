@@ -16,6 +16,16 @@ service RelayService {
   // A session: the first message opens it, then data flows both ways until either side ends it.
   // A session the relay or the node refuses fails with the reason, and nothing is opened.
   rpc Open(stream RelayRequest) returns (stream RelayResponse);
+  // The same session for a client that cannot stream both ways, a browser above all ("From a
+  // browser" in §3.1 of docs/02-architecture.md): opened as Open's first message opens it, its
+  // frames streamed back, the first answer `opened` with the key that Send names it by. The
+  // session ends when this stream does.
+  rpc Watch(RelayOpen) returns (stream RelayResponse);
+  // Delivers the client's frames to a session opened with Watch, in order and once: a frame
+  // already delivered, sent again by a retried call, is acknowledged and not delivered again.
+  // Refused `session.not_here` by a process that does not hold the session; the client opens it
+  // again.
+  rpc Send(SendRequest) returns (SendResponse);
 }
 
 message RelayRequest {
@@ -56,6 +66,25 @@ message RelayOpened {
   string session = 1;
   // When the token stops carrying the session unless renewed.
   google.protobuf.Timestamp expires_at = 2;
+  // For a session opened with Watch: what Send must present with the session, which only the
+  // watcher is told and nothing logs. Holding it is sending into the session.
+  string send_key = 3;
+}
+
+message SendRequest {
+  string session = 1;
+  // RelayOpened.send_key.
+  string send_key = 2;
+  // The number of the first of `frames` among every frame the client has sent the session,
+  // counted from zero. Frames below what was delivered are skipped; a gap is refused.
+  uint64 first = 3;
+  repeated SessionFrame frames = 4;
+}
+
+message SendResponse {
+  // How many of the client's frames the session has delivered, which is the number the next
+  // call starts at.
+  uint64 delivered = 1;
 }
 
 // What a session carries, in either direction, between client, relay, and node.

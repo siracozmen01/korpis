@@ -9,6 +9,7 @@
 //! [`Verifier`] that is the control plane's state in one and the feed's in the other.
 
 use super::error;
+use super::relay_watch::Watching;
 use super::wire::{Refuse as _, id, timestamp};
 use crate::relay::{Answer, Relay, Verifier};
 use connectrpc::{ConnectError, InboundStream, RequestContext, Response, ServiceResult};
@@ -31,7 +32,7 @@ pub(crate) const FRAMES: usize = 64;
 /// How long a node has to carry or refuse a session it was asked to open.
 const ANSWER: Duration = Duration::from_secs(10);
 
-fn refused(code: &str, message: &str) -> ConnectError {
+pub(super) fn refused(code: &str, message: &str) -> ConnectError {
     match code {
         "refused" => error::session_refused(C::ERROR_CODE_DENIED, "session.refused", message),
         "not_here" => {
@@ -44,7 +45,7 @@ fn refused(code: &str, message: &str) -> ConnectError {
     }
 }
 
-fn unavailable(message: &str) -> ConnectError {
+pub(super) fn unavailable(message: &str) -> ConnectError {
     error::session_refused(C::ERROR_CODE_UNAVAILABLE, "session.unavailable", message)
 }
 
@@ -52,6 +53,8 @@ fn unavailable(message: &str) -> ConnectError {
 pub struct RelayRole<V> {
     pub(super) relay: Arc<Relay>,
     pub(super) verifier: Arc<V>,
+    /// The sessions opened with `Watch`, which `Send` delivers to.
+    pub(super) watching: Arc<Watching<V>>,
 }
 
 impl<V> std::fmt::Debug for RelayRole<V> {
@@ -64,7 +67,7 @@ impl<V: Verifier> RelayRole<V> {
     /// The role, verifying by `verifier`.
     #[must_use]
     pub fn new(verifier: Arc<V>) -> Self {
-        Self { relay: Arc::new(Relay::default()), verifier }
+        Self { relay: Arc::new(Relay::default()), verifier, watching: Arc::default() }
     }
 
     /// What it verifies by.
@@ -82,7 +85,7 @@ impl<V: Verifier> RelayRole<V> {
 }
 
 /// What the relay judges a session's tokens by: the one it opened with, and every renewal.
-struct Judge<V> {
+pub(super) struct Judge<V> {
     keys: KeyRing,
     verifier: Arc<V>,
     action: String,
@@ -93,7 +96,7 @@ struct Judge<V> {
 }
 
 impl<V: Verifier> Judge<V> {
-    fn judge(&self, token: &str) -> Result<Verified, String> {
+    pub(super) fn judge(&self, token: &str) -> Result<Verified, String> {
         let revoked = self.verifier.revoked();
         let at = (SystemTime::now(), self.client);
         let verified = verify(token, &self.keys, &self.action, &self.on, &revoked, at)
@@ -105,7 +108,7 @@ impl<V: Verifier> Judge<V> {
     }
 }
 
-fn end(code: &str, message: String) -> agent::CarryDown {
+pub(super) fn end(code: &str, message: String) -> agent::CarryDown {
     let end = pb::SessionEnd { code: code.to_owned(), message, ..Default::default() };
     let frame = pb::SessionFrame { frame: Some(Frame::End(Box::new(end))), ..Default::default() };
     agent::CarryDown { frame: frame.into(), ..Default::default() }
@@ -137,16 +140,25 @@ async fn client_to_node<V: Verifier>(
     }
 }
 
-impl<V: Verifier> pb::RelayService for RelayRole<V> {
-    async fn open(
+/// A session the node agreed to carry: where the client's frames go, where the node's come
+/// from, and what judges the session's renewals.
+pub(super) struct Carried<V> {
+    pub(super) session: String,
+    pub(super) to_node: mpsc::Sender<agent::CarryDown>,
+    pub(super) from_node: mpsc::Receiver<pb::RelayResponse>,
+    pub(super) judge: Judge<V>,
+}
+
+impl<V: Verifier> RelayRole<V> {
+    /// Opens `open` for the client of `ctx`: the token verified offline against its address,
+    /// the node found, asked, and its answer awaited. `send_key` goes to the client in the
+    /// `opened` answer; empty for a session opened with `Open`.
+    pub(super) async fn carry(
         &self,
-        ctx: RequestContext,
-        mut requests: InboundStream<pb::RelayRequest>,
-    ) -> ServiceResult<ServiceStream<pb::RelayResponse>> {
-        let first = requests.next().await.ok_or_else(|| error::invalid("open", "required"))??;
-        let Some(Request::Open(open)) = first.to_owned_message().message else {
-            return Err(error::invalid("open", "the first message of a session opens it"));
-        };
+        ctx: &RequestContext,
+        open: pb::RelayOpen,
+        send_key: String,
+    ) -> Result<Carried<V>, ConnectError> {
         let workload = id(IdKind::Workload, "open.workload", &open.workload).refuse()?;
         let ip = ctx.peer_addr().map(|a| a.ip()).ok_or_else(|| unavailable("no client address"))?;
         let mut judge = Judge {
@@ -176,9 +188,10 @@ impl<V: Verifier> pb::RelayService for RelayRole<V> {
             params: open.params,
             ..Default::default()
         };
-        let (to_client, mut rx) = mpsc::channel(FRAMES);
+        let (to_client, from_node) = mpsc::channel(FRAMES);
         let opened = pb::RelayOpened {
             expires_at: timestamp(verified.expires_at).into(),
+            send_key,
             ..Default::default()
         };
         let (session, answered) = self
@@ -195,8 +208,40 @@ impl<V: Verifier> pb::RelayService for RelayRole<V> {
             }
         };
         tracing::debug!(%session, %node, "session opened");
-        tokio::spawn(client_to_node(requests, to_node, judge));
+        Ok(Carried { session, to_node, from_node, judge })
+    }
+}
+
+impl<V: Verifier> pb::RelayService for RelayRole<V> {
+    async fn open(
+        &self,
+        ctx: RequestContext,
+        mut requests: InboundStream<pb::RelayRequest>,
+    ) -> ServiceResult<ServiceStream<pb::RelayResponse>> {
+        let first = requests.next().await.ok_or_else(|| error::invalid("open", "required"))??;
+        let Some(Request::Open(open)) = first.to_owned_message().message else {
+            return Err(error::invalid("open", "the first message of a session opens it"));
+        };
+        let carried = self.carry(&ctx, *open, String::new()).await?;
+        tokio::spawn(client_to_node(requests, carried.to_node, carried.judge));
+        let mut rx = carried.from_node;
         let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));
         Response::stream_ok(out)
+    }
+
+    async fn watch(
+        &self,
+        ctx: RequestContext,
+        request: connectrpc::ServiceRequest<'_, pb::RelayOpen>,
+    ) -> ServiceResult<ServiceStream<pb::RelayResponse>> {
+        self.watch_session(ctx, request.to_owned_message()).await
+    }
+
+    async fn send(
+        &self,
+        _ctx: RequestContext,
+        request: connectrpc::ServiceRequest<'_, pb::SendRequest>,
+    ) -> ServiceResult<pb::SendResponse> {
+        Response::ok(self.deliver(request.to_owned_message()).await?)
     }
 }

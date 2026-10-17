@@ -72,6 +72,7 @@ mod reads;
 mod recipes;
 mod refusal;
 mod relay;
+mod relay_watch;
 mod relays;
 mod removal;
 mod renewal;

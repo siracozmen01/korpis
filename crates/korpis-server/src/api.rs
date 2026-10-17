@@ -46,6 +46,7 @@ mod rate;
 mod relay;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod relay_control;
+mod relay_watch;
 mod relays;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod repository;

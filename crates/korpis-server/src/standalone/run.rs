@@ -54,12 +54,22 @@ pub fn url(dir: &RelayDir) -> Result<String, RunError> {
     Ok(std::fs::read_to_string(dir.file("url"))?.trim().to_owned())
 }
 
-/// Runs the relay kept in `dir` on `listener`, reading a PROXY header from connections whose peer
-/// is in `proxies`. Returns once it is serving.
+/// How a relay meets its clients beyond TLS.
+#[derive(Debug, Clone, Default)]
+pub struct Edge {
+    /// The load balancers whose connections open with a PROXY header naming the client.
+    pub proxies: Vec<ipnet::IpNet>,
+    /// The panel's origins, whose calls are answered cross-origin (§3.1 of
+    /// docs/02-architecture.md): a browser opens its sessions here.
+    pub web_origins: Vec<String>,
+}
+
+/// Runs the relay kept in `dir` on `listener`, meeting clients as `edge` says. Returns once it is
+/// serving.
 pub async fn run(
     dir: RelayDir,
     listener: TcpListener,
-    proxies: Vec<ipnet::IpNet>,
+    edge: Edge,
 ) -> Result<RunningRelay, RunError> {
     let Some(relay) = dir.joined()? else { return Err(RunError::NotJoined) };
     let served = Arc::new(Served::new(load(&dir.tls_files(dir.tls_generation()?))?));
@@ -68,13 +78,13 @@ pub async fn run(
     let fed = Arc::new(Fed::new(url(&dir)?));
     let addr = listener.local_addr()?;
     let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
-    let service =
-        crate::front::Front::new(connectrpc::ConnectRpcService::new(router), None, Vec::new());
+    let service = connectrpc::ConnectRpcService::new(router);
+    let service = crate::front::Front::new(service, None, edge.web_origins);
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
     let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
     let task = tokio::spawn(async move {
         let ended = tokio::select! {
-            served = crate::accept::serve_on(listener, tls, service, proxies.into()) => {
+            served = crate::accept::serve_on(listener, tls, service, edge.proxies.into()) => {
                 served.map_err(RunError::Serve)
             }
             refused = following => match refused {

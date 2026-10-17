@@ -11,8 +11,8 @@ use connectrpc::ErrorCode;
 use korpis_proto::korpis::relay::v1 as relay;
 use korpis_server::standalone::feed::signed_renewal;
 use korpis_server::standalone::renew::renew_once;
-use korpis_server::standalone::run;
 use korpis_server::standalone::served::{Served, load};
+use korpis_server::standalone::{Edge, run};
 use std::time::{Duration, SystemTime};
 
 #[tokio::test]
@@ -20,7 +20,7 @@ async fn a_relay_renews_its_certificate_and_serves_the_new_one_at_once() {
     let h = Harness::new().await;
     let (_dir, relay_dir, url, listener) = joined(&h).await;
     let id = relay_dir.joined().unwrap().unwrap();
-    let running = run(relay_dir.clone(), listener, Vec::new()).await.unwrap();
+    let running = run(relay_dir.clone(), listener, Edge::default()).await.unwrap();
     let before = running.served.chain();
     let expires = renew_once(&relay_dir, &id, &running.served).await.unwrap();
     assert_ne!(running.served.chain()[0], before[0], "a new certificate, served");

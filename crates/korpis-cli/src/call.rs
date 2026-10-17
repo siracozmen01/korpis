@@ -149,6 +149,8 @@ table! {
     "korpis.v1.GrantService/MintToken" => GrantServiceClient::mint_token(MintTokenRequest);
     "korpis.v1.StreamService/GetStream" => StreamServiceClient::get_stream(GetStreamRequest);
     "korpis.v1.StreamService/ReadOffloaded" => StreamServiceClient::read_offloaded(ReadOffloadedRequest) stream ConsoleChunk;
+    "korpis.v1.RelayService/Watch" => RelayServiceClient::watch(RelayOpen) stream RelayResponse;
+    "korpis.v1.RelayService/Send" => RelayServiceClient::send(SendRequest);
     "korpis.v1.VolumeService/GetVolume" => VolumeServiceClient::get_volume(GetVolumeRequest);
     "korpis.v1.VolumeService/ListVolumes" => VolumeServiceClient::list_volumes(ListVolumesRequest);
     "korpis.v1.VolumeService/DeleteVolume" => VolumeServiceClient::delete_volume(DeleteVolumeRequest);

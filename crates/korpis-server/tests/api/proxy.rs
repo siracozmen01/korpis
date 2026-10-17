@@ -16,7 +16,7 @@ use korpis_core::id::{Id, IdKind};
 use korpis_core::principal::Principal;
 use korpis_proto::korpis::v1 as pb;
 use korpis_server::api::wire::{principal, scope};
-use korpis_server::standalone::run;
+use korpis_server::standalone::{Edge, run};
 use std::net::SocketAddr;
 
 /// A load balancer in front of `upstream`: each connection it accepts is passed on behind a
@@ -83,7 +83,8 @@ async fn behind_a_balancer_the_relay_judges_the_client_its_header_names() {
     let (_dir, relay_dir, url, listener) = joined(&h).await;
     let relay_addr = listener.local_addr().unwrap();
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
-    let running = run(relay_dir, listener, vec!["127.0.0.1/32".parse().unwrap()]).await.unwrap();
+    let edge = Edge { proxies: vec!["127.0.0.1/32".parse().unwrap()], ..Default::default() };
+    let running = run(relay_dir, listener, edge).await.unwrap();
     let near = format!("https://localhost:{}", balancer(relay_addr, "203.0.113.7").await);
     let far = format!("https://localhost:{}", balancer(relay_addr, "198.51.100.9").await);
     let (mut attached, _) = admitted_at(&h, &a, &url, &far).await;

@@ -20,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/relay.proto.
  */
 export const file_korpis_v1_relay: GenFile = /*@__PURE__*/
-  fileDesc("ChVrb3JwaXMvdjEvcmVsYXkucHJvdG8SCWtvcnBpcy52MSJpCgxSZWxheVJlcXVlc3QSJAoEb3BlbhgBIAEoCzIULmtvcnBpcy52MS5SZWxheU9wZW5IABIoCgVmcmFtZRgCIAEoCzIXLmtvcnBpcy52MS5TZXNzaW9uRnJhbWVIAEIJCgdtZXNzYWdlIm4KDVJlbGF5UmVzcG9uc2USKAoGb3BlbmVkGAEgASgLMhYua29ycGlzLnYxLlJlbGF5T3BlbmVkSAASKAoFZnJhbWUYAiABKAsyFy5rb3JwaXMudjEuU2Vzc2lvbkZyYW1lSABCCQoHbWVzc2FnZSJpCglSZWxheU9wZW4SDQoFdG9rZW4YASABKAkSDgoGYWN0aW9uGAIgASgJEhAKCHdvcmtsb2FkGAMgASgJEgwKBG5vZGUYBCABKAkSDgoGcGFyYW1zGAUgASgMEg0KBXJvdXRlGAYgASgJIk4KC1JlbGF5T3BlbmVkEg8KB3Nlc3Npb24YASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKDFNlc3Npb25GcmFtZRIOCgRkYXRhGAEgASgMSAASJAoDZW5kGAIgASgLMhUua29ycGlzLnYxLlNlc3Npb25FbmRIABIPCgVyZW5ldxgDIAEoCUgAEi0KB3JlbmV3ZWQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSABCBwoFZnJhbWUiKwoKU2Vzc2lvbkVuZBIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkyTQoMUmVsYXlTZXJ2aWNlEj0KBE9wZW4SFy5rb3JwaXMudjEuUmVsYXlSZXF1ZXN0Ghgua29ycGlzLnYxLlJlbGF5UmVzcG9uc2UoATABYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChVrb3JwaXMvdjEvcmVsYXkucHJvdG8SCWtvcnBpcy52MSJpCgxSZWxheVJlcXVlc3QSJAoEb3BlbhgBIAEoCzIULmtvcnBpcy52MS5SZWxheU9wZW5IABIoCgVmcmFtZRgCIAEoCzIXLmtvcnBpcy52MS5TZXNzaW9uRnJhbWVIAEIJCgdtZXNzYWdlIm4KDVJlbGF5UmVzcG9uc2USKAoGb3BlbmVkGAEgASgLMhYua29ycGlzLnYxLlJlbGF5T3BlbmVkSAASKAoFZnJhbWUYAiABKAsyFy5rb3JwaXMudjEuU2Vzc2lvbkZyYW1lSABCCQoHbWVzc2FnZSJpCglSZWxheU9wZW4SDQoFdG9rZW4YASABKAkSDgoGYWN0aW9uGAIgASgJEhAKCHdvcmtsb2FkGAMgASgJEgwKBG5vZGUYBCABKAkSDgoGcGFyYW1zGAUgASgMEg0KBXJvdXRlGAYgASgJImAKC1JlbGF5T3BlbmVkEg8KB3Nlc3Npb24YASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIc2VuZF9rZXkYAyABKAkiaAoLU2VuZFJlcXVlc3QSDwoHc2Vzc2lvbhgBIAEoCRIQCghzZW5kX2tleRgCIAEoCRINCgVmaXJzdBgDIAEoBBInCgZmcmFtZXMYBCADKAsyFy5rb3JwaXMudjEuU2Vzc2lvbkZyYW1lIiEKDFNlbmRSZXNwb25zZRIRCglkZWxpdmVyZWQYASABKAQijQEKDFNlc3Npb25GcmFtZRIOCgRkYXRhGAEgASgMSAASJAoDZW5kGAIgASgLMhUua29ycGlzLnYxLlNlc3Npb25FbmRIABIPCgVyZW5ldxgDIAEoCUgAEi0KB3JlbmV3ZWQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSABCBwoFZnJhbWUiKwoKU2Vzc2lvbkVuZBIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkywQEKDFJlbGF5U2VydmljZRI9CgRPcGVuEhcua29ycGlzLnYxLlJlbGF5UmVxdWVzdBoYLmtvcnBpcy52MS5SZWxheVJlc3BvbnNlKAEwARI5CgVXYXRjaBIULmtvcnBpcy52MS5SZWxheU9wZW4aGC5rb3JwaXMudjEuUmVsYXlSZXNwb25zZTABEjcKBFNlbmQSFi5rb3JwaXMudjEuU2VuZFJlcXVlc3QaFy5rb3JwaXMudjEuU2VuZFJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message korpis.v1.RelayRequest
@@ -156,6 +156,14 @@ export type RelayOpened = Message<"korpis.v1.RelayOpened"> & {
    * @generated from field: google.protobuf.Timestamp expires_at = 2;
    */
   expiresAt?: Timestamp | undefined;
+
+  /**
+   * For a session opened with Watch: what Send must present with the session, which only the
+   * watcher is told and nothing logs. Holding it is sending into the session.
+   *
+   * @generated from field: string send_key = 3;
+   */
+  sendKey: string;
 };
 
 /**
@@ -164,6 +172,63 @@ export type RelayOpened = Message<"korpis.v1.RelayOpened"> & {
  */
 export const RelayOpenedSchema: GenMessage<RelayOpened> = /*@__PURE__*/
   messageDesc(file_korpis_v1_relay, 3);
+
+/**
+ * @generated from message korpis.v1.SendRequest
+ */
+export type SendRequest = Message<"korpis.v1.SendRequest"> & {
+  /**
+   * @generated from field: string session = 1;
+   */
+  session: string;
+
+  /**
+   * RelayOpened.send_key.
+   *
+   * @generated from field: string send_key = 2;
+   */
+  sendKey: string;
+
+  /**
+   * The number of the first of `frames` among every frame the client has sent the session,
+   * counted from zero. Frames below what was delivered are skipped; a gap is refused.
+   *
+   * @generated from field: uint64 first = 3;
+   */
+  first: bigint;
+
+  /**
+   * @generated from field: repeated korpis.v1.SessionFrame frames = 4;
+   */
+  frames: SessionFrame[];
+};
+
+/**
+ * Describes the message korpis.v1.SendRequest.
+ * Use `create(SendRequestSchema)` to create a new message.
+ */
+export const SendRequestSchema: GenMessage<SendRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_relay, 4);
+
+/**
+ * @generated from message korpis.v1.SendResponse
+ */
+export type SendResponse = Message<"korpis.v1.SendResponse"> & {
+  /**
+   * How many of the client's frames the session has delivered, which is the number the next
+   * call starts at.
+   *
+   * @generated from field: uint64 delivered = 1;
+   */
+  delivered: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.SendResponse.
+ * Use `create(SendResponseSchema)` to create a new message.
+ */
+export const SendResponseSchema: GenMessage<SendResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_relay, 5);
 
 /**
  * What a session carries, in either direction, between client, relay, and node.
@@ -216,7 +281,7 @@ export type SessionFrame = Message<"korpis.v1.SessionFrame"> & {
  * Use `create(SessionFrameSchema)` to create a new message.
  */
 export const SessionFrameSchema: GenMessage<SessionFrame> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_relay, 4);
+  messageDesc(file_korpis_v1_relay, 6);
 
 /**
  * @generated from message korpis.v1.SessionEnd
@@ -241,7 +306,7 @@ export type SessionEnd = Message<"korpis.v1.SessionEnd"> & {
  * Use `create(SessionEndSchema)` to create a new message.
  */
 export const SessionEndSchema: GenMessage<SessionEnd> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_relay, 5);
+  messageDesc(file_korpis_v1_relay, 7);
 
 /**
  * @generated from service korpis.v1.RelayService
@@ -257,6 +322,32 @@ export const RelayService: GenService<{
     methodKind: "bidi_streaming";
     input: typeof RelayRequestSchema;
     output: typeof RelayResponseSchema;
+  },
+  /**
+   * The same session for a client that cannot stream both ways, a browser above all ("From a
+   * browser" in §3.1 of docs/02-architecture.md): opened as Open's first message opens it, its
+   * frames streamed back, the first answer `opened` with the key that Send names it by. The
+   * session ends when this stream does.
+   *
+   * @generated from rpc korpis.v1.RelayService.Watch
+   */
+  watch: {
+    methodKind: "server_streaming";
+    input: typeof RelayOpenSchema;
+    output: typeof RelayResponseSchema;
+  },
+  /**
+   * Delivers the client's frames to a session opened with Watch, in order and once: a frame
+   * already delivered, sent again by a retried call, is acknowledged and not delivered again.
+   * Refused `session.not_here` by a process that does not hold the session; the client opens it
+   * again.
+   *
+   * @generated from rpc korpis.v1.RelayService.Send
+   */
+  send: {
+    methodKind: "unary";
+    input: typeof SendRequestSchema;
+    output: typeof SendResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_korpis_v1_relay, 0);

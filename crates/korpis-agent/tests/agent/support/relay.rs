@@ -7,7 +7,7 @@
 use super::{ControlPlane, mutation};
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_proto::korpis::v1 as pb;
-use korpis_server::standalone::{RelayDir, RunningRelay, join, run};
+use korpis_server::standalone::{Edge, RelayDir, RunningRelay, join, run};
 
 /// A joined, running relay; it stops when dropped.
 pub struct Relay {
@@ -43,7 +43,7 @@ impl ControlPlane {
         let dir = tempfile::tempdir().unwrap();
         let relay_dir = RelayDir::new(dir.path().join("relay"));
         join(&relay_dir, &self.url, &created.token, &created.ca_fingerprint).await.unwrap();
-        let running = run(relay_dir, listener, Vec::new()).await.unwrap();
+        let running = run(relay_dir, listener, Edge::default()).await.unwrap();
         Relay { url, running, _dir: dir }
     }
 

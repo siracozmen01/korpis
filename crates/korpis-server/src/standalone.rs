@@ -18,4 +18,4 @@ pub mod served;
 pub use dir::{RelayDir, TlsFiles};
 pub use follow::FollowError;
 pub use join::{JoinError, join};
-pub use run::{RunError, RunningRelay, run, url};
+pub use run::{Edge, RunError, RunningRelay, run, url};

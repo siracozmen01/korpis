@@ -242,6 +242,19 @@ What it costs: one call per batch of input instead of one stream, which a keystr
 does not notice and an upload amortizes over chunks of a mebibyte; and a third shape of session
 for the relay to keep, though the frames and the node's side are the same as `Open`'s.
 
+> As built, 2026-10-17 (`crates/korpis-server/src/api/relay_watch.rs`). `Watch` opens the
+> session exactly as `Open`'s first message does, and its first answer, `opened`, carries a
+> `send_key` of 32 random bytes that only the watcher is told. `Send` names the session and that
+> key, and the number of its first frame among all the client has sent; frames below what was
+> delivered are skipped, a gap is refused, and the answer says how many are delivered, which is
+> where the next call starts. A key that does not match is answered exactly as a session this
+> process does not hold, so the session identifier, which the node and the logs see, is no
+> handle on it. A renewal sent through `Send` is judged as one sent through `Open` is. The
+> session lives as long as its `Watch` stream. A relay that is its own process answers
+> cross-origin calls for the panel's origins it is given (`korpis-server relay run
+> --web-origin`), and the control plane writes the relays it names into the policy of the panel
+> page it serves, so the page may connect to them (§7 of `11-surface-web.md`).
+
 **A direct path is an optimization, never a dependency.** A node that is reachable and holds a
 certificate the client trusts may advertise a direct endpoint in `NodeStatus`. The CLI and SDKs,
 which pin the Korpis CA, use it when present; browsers use it only when the node's certificate is

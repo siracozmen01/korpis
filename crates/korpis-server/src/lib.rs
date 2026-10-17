@@ -230,7 +230,8 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     background::start(&api, &config);
     let charging = api::Charging::new(Arc::clone(&api));
     let service = connectrpc::ConnectRpcService::new(Arc::clone(&api).router());
-    let service = front(service.with_interceptor(charging), &config);
+    let service = front(service.with_interceptor(charging), &config)
+        .with_relays(api.named_relays().subscribe());
     let proxies: Arc<[ipnet::IpNet]> = config.proxy_protocol_from.clone().into();
     let task = tokio::spawn(async move {
         accept::serve_on(listener, tls, service, proxies).await.map_err(ServeError::Serve)

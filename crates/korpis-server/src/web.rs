@@ -27,8 +27,9 @@ const IMMUTABLE: &str = "public, max-age=31536000, immutable";
 /// Everything else: kept, but asked about again before it is used.
 const REVALIDATE: &str = "no-cache";
 
-/// The file under `root` that `path` names, read for `method`.
-pub async fn serve(root: &Path, method: &Method, path: &str) -> Served {
+/// The file under `root` that `path` names, read for `method`; `index.html`'s policy lets the
+/// page connect to `connect` too.
+pub async fn serve(root: &Path, method: &Method, path: &str, connect: &[String]) -> Served {
     if method != Method::GET && method != Method::HEAD {
         return text(StatusCode::METHOD_NOT_ALLOWED, "only GET and HEAD are served here");
     }
@@ -46,8 +47,25 @@ pub async fn serve(root: &Path, method: &Method, path: &str) -> Served {
         return text(StatusCode::NOT_FOUND, "not found");
     }
     let cache = if relative.starts_with("assets") { IMMUTABLE } else { REVALIDATE };
+    let bytes = if file.ends_with("index.html") { connecting(bytes, connect) } else { bytes };
     let body = if method == Method::HEAD { Bytes::new() } else { Bytes::from(bytes) };
     Served { status: StatusCode::OK, body, content_type: content_type(&file), cache }
+}
+
+/// The page `html` with `connect` added to its policy's `connect-src 'self'`; as it was when
+/// there is nothing to add or no such policy.
+fn connecting(html: Vec<u8>, connect: &[String]) -> Vec<u8> {
+    const SELF: &str = "connect-src 'self'";
+    if connect.is_empty() {
+        return html;
+    }
+    match String::from_utf8(html) {
+        Ok(text) if text.contains(SELF) => {
+            text.replacen(SELF, &format!("{SELF} {}", connect.join(" ")), 1).into_bytes()
+        }
+        Ok(text) => text.into_bytes(),
+        Err(e) => e.into_bytes(),
+    }
 }
 
 /// `path` as a relative path beneath the root, `index.html` for the root itself; none if any
@@ -141,17 +159,33 @@ mod tests {
         std::fs::write(root.path().join("index.html"), "<p>panel</p>").unwrap();
         std::fs::create_dir(root.path().join("assets")).unwrap();
         std::fs::write(root.path().join("assets/a-1.js"), "x").unwrap();
-        let route = serve(root.path(), &Method::GET, "/organizations/acme").await;
+        let route = serve(root.path(), &Method::GET, "/organizations/acme", &[]).await;
         assert_eq!(
             (route.status, route.content_type),
             (StatusCode::OK, "text/html; charset=utf-8")
         );
         assert_eq!(route.cache, REVALIDATE);
-        let asset = serve(root.path(), &Method::GET, "/assets/a-1.js").await;
+        let asset = serve(root.path(), &Method::GET, "/assets/a-1.js", &[]).await;
         assert_eq!(asset.cache, IMMUTABLE);
-        let missing = serve(root.path(), &Method::GET, "/assets/gone.js").await;
+        let missing = serve(root.path(), &Method::GET, "/assets/gone.js", &[]).await;
         assert_eq!(missing.status, StatusCode::NOT_FOUND);
-        let post = serve(root.path(), &Method::POST, "/").await;
+        let post = serve(root.path(), &Method::POST, "/", &[]).await;
         assert_eq!(post.status, StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[tokio::test]
+    async fn the_page_s_policy_names_the_relays_and_nothing_else_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let page = "<meta content=\"default-src 'self'; connect-src 'self'; object-src 'none'\">";
+        std::fs::write(root.path().join("index.html"), page).unwrap();
+        std::fs::write(root.path().join("other.html"), page).unwrap();
+        let relays = ["https://r1.example:7444".to_owned()];
+        let index = serve(root.path(), &Method::GET, "/", &relays).await;
+        let text = String::from_utf8(index.body.to_vec()).unwrap();
+        assert!(text.contains("connect-src 'self' https://r1.example:7444; object-src"), "{text}");
+        let other = serve(root.path(), &Method::GET, "/other.html", &relays).await;
+        assert_eq!(other.body, page.as_bytes(), "only the page carries the policy it serves by");
+        let none = serve(root.path(), &Method::GET, "/", &[]).await;
+        assert_eq!(none.body, page.as_bytes());
     }
 }

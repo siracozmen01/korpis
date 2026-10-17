@@ -16,7 +16,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::attach_down::Message as Dow
 use korpis_proto::korpis::agent::v1::__buffa::oneof::carry_up::Message as CarryUp;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::relay_response::Message as Reply;
-use korpis_server::standalone::{RelayDir, join, run};
+use korpis_server::standalone::{Edge, RelayDir, join, run};
 use std::time::Duration;
 
 /// Attaches with `hello` to the relay `config` reaches; the attachment, or why it was refused.
@@ -101,7 +101,7 @@ async fn a_relay_of_its_own_admits_nodes_by_its_feed_and_carries_their_sessions(
     let h = Harness::new().await;
     let (_dir, relay_dir, url, listener) = joined(&h).await;
     let a = TestAgent::enroll(&h, "fra-3", 1).await;
-    let running = run(relay_dir, listener, Vec::new()).await.unwrap();
+    let running = run(relay_dir, listener, Edge::default()).await.unwrap();
     let at_relay = || ClientConfig::new(url.parse().unwrap());
 
     let (mut session, _) =

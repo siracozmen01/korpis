@@ -109,6 +109,10 @@ enum RelayCommand {
             value_delimiter = ','
         )]
         proxy_protocol_from: Vec<ipnet::IpNet>,
+        /// An origin the panel is served from, whose calls are answered cross-origin so a
+        /// browser can open sessions here; repeatable.
+        #[arg(long = "web-origin", env = "KORPIS_WEB_ORIGIN", value_delimiter = ',')]
+        web_origin: Vec<String>,
     },
 }
 
@@ -164,8 +168,14 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!(relay = %id, "joined");
             Ok(())
         }
-        Command::Relay { command: RelayCommand::Run { dir, listen, proxy_protocol_from } } => {
-            relay_run(dir, listen, proxy_protocol_from).await
+        Command::Relay {
+            command: RelayCommand::Run { dir, listen, proxy_protocol_from, web_origin },
+        } => {
+            let edge = korpis_server::standalone::Edge {
+                proxies: proxy_protocol_from,
+                web_origins: web_origin,
+            };
+            relay_run(dir, listen, edge).await
         }
     }
 }
@@ -175,12 +185,12 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 async fn relay_run(
     dir: PathBuf,
     listen: Option<SocketAddr>,
-    proxies: Vec<ipnet::IpNet>,
+    edge: korpis_server::standalone::Edge,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = korpis_server::standalone::RelayDir::new(dir);
     let listen = listen.map_or_else(|| default_listen(&dir), Ok)?;
     let listener = tokio::net::TcpListener::bind(listen).await?;
-    let running = korpis_server::standalone::run(dir, listener, proxies).await?;
+    let running = korpis_server::standalone::run(dir, listener, edge).await?;
     tokio::select! {
         r = running.task => r??,
         _ = tokio::signal::ctrl_c() => tracing::info!("shutting down"),
