@@ -751,6 +751,19 @@ so a translation cannot add a string the recipe never showed.
 > lacks is given in the recipe's own words, so a client is never handed a key without its text.
 > The schema keeps the document's own words; the messages are what a client shows. `korpis
 > workload recipe` prints them (§2 of `13-surface-cli.md`).
+>
+> The panel's form, built 2026-10-17 (`web/src/config`), is property 1 of §5: the workload's page
+> asks for the recipe with the browser's languages and shows every field that is not `hidden`,
+> labelled in the recipe's words, its quoting read and nothing else; a boolean as a checkbox, an
+> enum as its choices, the rest as text the control plane reads as the field's type, and a number
+> that is not one refused before anything is sent. A derived, fixed, or `system` field is shown and
+> not offered. A secret is typed where it cannot be read over a shoulder, and one withheld from the
+> viewer (§5.2) starts empty: left so, it is kept as it is. Saving declares a new intent from the
+> head with the changed values, against the head's version, proposed so that its plan interrupts as
+> much as its risk calls for (§4 of `11-surface-web.md`); a refusal that names a field marks it,
+> beside the refusal's words. Which fields the viewer may change is the control plane's to decide,
+> field by field. It is not shown through a share link, since each read there spends one of its
+> uses.
 
 ---
 

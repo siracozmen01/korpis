@@ -163,8 +163,14 @@
   "7L9bcZ1z": {
     "defaultMessage": "Share as a link"
   },
+  "7OW8BTDz": {
+    "defaultMessage": "Configuration"
+  },
   "8RMoim+k": {
     "defaultMessage": "Declared {declared}, {convergence}"
+  },
+  "8jocOM4G": {
+    "defaultMessage": "A number"
   },
   "8syzz/1K": {
     "defaultMessage": "{kind, select, user {user {id}} token {token {id}} workload {workload {id}} other {extension {id}}}",
@@ -203,6 +209,9 @@
   },
   "9lS0MI/F": {
     "defaultMessage": "Not allowed here."
+  },
+  "9r6qVdFD": {
+    "defaultMessage": "Set, and not shown to you. Left empty, it is kept as it is."
   },
   "9u4qdqD4": {
     "defaultMessage": "the control plane sent no challenge"
@@ -360,6 +369,9 @@
   "HnsZRsrg": {
     "defaultMessage": "It crashed on {where, select, node {node {node}} region {its node in {region}} other {its node}}{coded, select, yes {, exit code {code}} other {}}."
   },
+  "ICZqeoPt": {
+    "defaultMessage": "Save the configuration"
+  },
   "IfkE03As": {
     "defaultMessage": "Reading its workloads…"
   },
@@ -429,6 +441,9 @@
   },
   "LTNNkoPm": {
     "defaultMessage": "the console refused input"
+  },
+  "LW9qzGlz": {
+    "defaultMessage": "Configuration change"
   },
   "LkssjtoZ": {
     "defaultMessage": "Preview",
@@ -630,6 +645,10 @@
   "YCjxvQQ4": {
     "defaultMessage": "No grant is anchored on this workload itself."
   },
+  "YEehhHKX": {
+    "defaultMessage": "{label}: {value}",
+    "description": "a configuration field set by Korpis"
+  },
   "YOjHY4hC": {
     "defaultMessage": "Declared",
     "description": "the moment a declaration was made"
@@ -678,6 +697,9 @@
   },
   "Zs6s57kx": {
     "defaultMessage": "Data at risk: {volumes}."
+  },
+  "ZwP0zyqP": {
+    "defaultMessage": "not set yet"
   },
   "a0PUqsnM": {
     "defaultMessage": "Recovery codes"
@@ -785,6 +807,9 @@
   },
   "ecniKn1Y": {
     "defaultMessage": "whoever holds a share link"
+  },
+  "esOevyqJ": {
+    "defaultMessage": "A whole number"
   },
   "fKWNsalK": {
     "defaultMessage": "not yet",
@@ -904,6 +929,9 @@
   },
   "kvFHVWDb": {
     "defaultMessage": "A share link is held only while its page is open, so it is not left in the browser. Open it again from where it was sent to you."
+  },
+  "lWYMAj0Y": {
+    "defaultMessage": "Reading its configuration…"
   },
   "lfun+oaM": {
     "defaultMessage": "It is shown this once. Send it only to the person it is for, not to a group."
