@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT name, version, document FROM recipe WHERE digest = $1",
+  "query": "SELECT name, version, document, catalogues FROM recipe WHERE digest = $1",
   "describe": {
     "columns": [
       {
@@ -35,6 +35,17 @@
             "name": "document"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "catalogues",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "recipe",
+            "name": "catalogues"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,8 +56,9 @@
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "0e21ae1a96de7809b9be1d92986fa200e56e8a9cfb177be2a6ebe07ca951eff8"
+  "hash": "a2e23241fbe109673852f92f615e10ef3f8c7dbf7e098a40f8a525ad59f7b7cb"
 }

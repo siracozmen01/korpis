@@ -9,6 +9,7 @@
 #![warn(missing_docs)]
 
 pub mod artifact;
+pub mod catalogue;
 pub mod document;
 #[cfg(feature = "source")]
 pub mod registry;

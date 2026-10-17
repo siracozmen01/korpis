@@ -40,9 +40,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         name: &str,
         version: &str,
     ) -> Result<(RecipeRef, Recipe), AppError> {
-        let digest = self.digest_of(name, version).await?;
-        let (reference, described) = self.pinned(name, version, digest).await?;
+        let (reference, described) = self.described_recipe(name, version).await?;
         Ok((reference, described.recipe))
+    }
+
+    /// [`Self::resolve_recipe`], with everything the artifact describes: its extension block
+    /// and its catalogues (§5.3 of docs/09-recipes.md).
+    pub async fn described_recipe(
+        &self,
+        name: &str,
+        version: &str,
+    ) -> Result<(RecipeRef, Described), AppError> {
+        let digest = self.digest_of(name, version).await?;
+        self.pinned(name, version, digest).await
     }
 
     /// What the document with `digest` describes, from the store or else fetched and kept.
@@ -61,12 +71,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         reference.validate().map_err(|e| AppError::invalid("recipe", e.to_string()))?;
         if let Some(cached) = self.store.cached_recipe(&reference.digest).await? {
-            let described = self.recipes.parse(&cached.document).map_err(source_error)?;
+            let described =
+                self.recipes.parse(&cached.document, &cached.catalogues).map_err(source_error)?;
             return Ok((reference, described));
         }
         let Fetched { document, described } =
             self.recipes.fetch(name, &reference.digest).await.map_err(source_error)?;
-        let kept = CachedRecipe { name: name.to_owned(), version: version.to_owned(), document };
+        let kept = CachedRecipe {
+            name: name.to_owned(),
+            version: version.to_owned(),
+            document,
+            catalogues: described.catalogues.clone(),
+        };
         self.store.cache_recipe(&reference.digest, &kept).await?;
         Ok((reference, described))
     }
@@ -151,7 +167,11 @@ impl RecipeSource for NoRecipes {
         std::future::ready(Err(SourceError::Unavailable("no recipe source is configured".into())))
     }
 
-    fn parse(&self, _: &[u8]) -> Result<Described, SourceError> {
+    fn parse(
+        &self,
+        _: &[u8],
+        _: &std::collections::BTreeMap<String, korpis_core::recipe::messages::Catalogue>,
+    ) -> Result<Described, SourceError> {
         Err(SourceError::Unavailable("no recipe source is configured".into()))
     }
 }

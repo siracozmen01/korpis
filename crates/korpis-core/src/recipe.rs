@@ -12,6 +12,7 @@ pub mod document;
 pub mod install;
 pub mod installing;
 pub mod managed;
+pub mod messages;
 pub mod reference;
 pub mod resolve;
 pub mod runtime;

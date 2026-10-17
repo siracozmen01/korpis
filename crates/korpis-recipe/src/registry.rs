@@ -7,6 +7,7 @@
 use crate::artifact::{
     Artifact, EMPTY_CONFIG_MEDIA_TYPE, File, Kind, LayoutError, TITLE, check_files,
 };
+use crate::catalogue;
 use crate::document::MAX_DOCUMENT;
 use korpis_egress::{Proxy, Reach};
 use oci_client::client::{ClientConfig, ClientProtocol, Config, ImageLayer};
@@ -84,6 +85,8 @@ pub struct Pulled {
     pub document: Vec<u8>,
     /// The paths of the files the artifact carries.
     pub files: Vec<String>,
+    /// The catalogues among them, by locale, as published (§5.3 of docs/09-recipes.md).
+    pub catalogues: BTreeMap<String, Vec<u8>>,
 }
 
 /// Access to OCI registries.
@@ -224,17 +227,47 @@ impl Registry {
             )));
         };
         let document = self.blob(&r, doc, MAX_DOCUMENT).await?;
-        let files = manifest
+        let files: Vec<(String, &OciDescriptor)> = manifest
             .layers
             .iter()
             .filter(|l| l.media_type != document_type)
             .map(|l| {
-                l.annotations.as_ref().and_then(|a| a.get(TITLE)).cloned().ok_or_else(|| {
+                let title = l.annotations.as_ref().and_then(|a| a.get(TITLE)).cloned();
+                let title = title.ok_or_else(|| {
                     RegistryError::Invalid(format!("layer {} has no {TITLE}", l.digest))
-                })
+                })?;
+                Ok((title, l))
             })
-            .collect::<Result<_, _>>()?;
-        Ok(Pulled { kind, document, files })
+            .collect::<Result<_, RegistryError>>()?;
+        let catalogues = self.catalogues(&r, &files).await?;
+        Ok(Pulled {
+            kind,
+            document,
+            files: files.into_iter().map(|(t, _)| t).collect(),
+            catalogues,
+        })
+    }
+
+    /// The catalogues among an artifact's `files`, read whole, at most as many and as large as
+    /// a recipe may carry; the rest of the files are read by whatever installs the recipe.
+    async fn catalogues(
+        &self,
+        r: &Reference,
+        files: &[(String, &OciDescriptor)],
+    ) -> Result<BTreeMap<String, Vec<u8>>, RegistryError> {
+        let found: Vec<(&str, &OciDescriptor)> = files
+            .iter()
+            .filter_map(|(t, l)| catalogue::locale_of(t).map(|loc| (loc, *l)))
+            .collect();
+        if found.len() > catalogue::MAX_CATALOGUES {
+            let why = format!("at most {} catalogues", catalogue::MAX_CATALOGUES);
+            return Err(RegistryError::Invalid(why));
+        }
+        let mut out = BTreeMap::new();
+        for (locale, layer) in found {
+            out.insert(locale.to_owned(), self.blob(r, layer, catalogue::MAX_CATALOGUE).await?);
+        }
+        Ok(out)
     }
 
     /// Pushes `artifact` as `name:version`, as the kind its document is; returns the manifest's
@@ -252,6 +285,13 @@ impl Registry {
         let kind = parsed.kind();
         let titles: Vec<String> = artifact.files.iter().map(|f| f.path.clone()).collect();
         check_files(&parsed.recipe, &titles).map_err(|e| RegistryError::Invalid(e.to_string()))?;
+        let catalogues = artifact
+            .files
+            .iter()
+            .filter_map(|f| catalogue::locale_of(&f.path).map(|l| (l.to_owned(), f.data.clone())))
+            .collect();
+        catalogue::read(&parsed.recipe, &catalogues)
+            .map_err(|e| RegistryError::Invalid(e.to_string()))?;
         let document_type = kind.document_media_type().to_owned();
         let mut layers = vec![ImageLayer::new(artifact.document.clone(), document_type, None)];
         for File { path, media_type, data } in &artifact.files {

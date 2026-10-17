@@ -46,6 +46,8 @@ pub struct Metadata {
     #[serde(default)]
     pub description: String,
     #[serde(default)]
+    pub locale: Option<String>,
+    #[serde(default)]
     pub maintainers: Vec<String>,
     #[serde(default)]
     pub license: String,

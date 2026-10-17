@@ -14,20 +14,39 @@ use crate::workload::spec::health::HealthSpec;
 use std::collections::BTreeMap;
 
 /// Who made it and what it is.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Metadata {
     /// Its name.
     pub name: String,
     /// Its version.
     pub version: String,
-    /// For humans.
+    /// For humans: a message in `locale` (§5.3 of docs/09-recipes.md).
     pub description: String,
+    /// The locale its own messages are written in, a BCP 47 tag; `en` unless it says.
+    pub locale: String,
     /// Who maintains it.
     pub maintainers: Vec<String>,
     /// The SPDX expression for the software it runs.
     pub license: String,
     /// Free-form annotations.
     pub annotations: BTreeMap<String, String>,
+}
+
+/// The locale a recipe's messages are in when it names none.
+pub const DEFAULT_LOCALE: &str = "en";
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            version: String::new(),
+            description: String::new(),
+            locale: DEFAULT_LOCALE.to_owned(),
+            maintainers: Vec::new(),
+            license: String::new(),
+            annotations: BTreeMap::new(),
+        }
+    }
 }
 
 /// A recipe.
@@ -63,6 +82,7 @@ impl Recipe {
         if self.metadata.name.is_empty() || self.metadata.version.is_empty() {
             return Err(RecipeError::new("metadata", "a name and a version"));
         }
+        self.check_messages()?;
         self.runtime.validate()?;
         self.preset.validate()?;
         for (i, step) in self.install.iter().enumerate() {

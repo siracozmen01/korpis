@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO recipe (digest, name, version, document, catalogues)\n             VALUES ($1, $2, $3, $4, $5)\n             ON CONFLICT (digest) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Bytea",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c5bb08e08ca84d5ce89e7999281ba9910f570f5389426514cba4f260a269d8bc"
+}

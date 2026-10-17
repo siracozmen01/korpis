@@ -6,7 +6,9 @@
 use super::StoreResult;
 use korpis_core::extension::ExtensionManifest;
 use korpis_core::recipe::Recipe;
+use korpis_core::recipe::messages::Catalogue;
 use korpis_core::recipe::trust::Signature;
+use std::collections::BTreeMap;
 use std::future::Future;
 
 /// Why a recipe could not be had.
@@ -31,6 +33,8 @@ pub struct Described {
     pub recipe: Recipe,
     /// The validated `extension` block, exactly when the document is an extension's.
     pub extension: Option<ExtensionManifest>,
+    /// Its catalogues by locale, each checked against it (§5.3 of docs/09-recipes.md).
+    pub catalogues: BTreeMap<String, Catalogue>,
 }
 
 /// A recipe fetched by digest: the document as published, and what it describes.
@@ -66,8 +70,13 @@ pub trait RecipeSource: Send + Sync + 'static {
         digest: &str,
     ) -> impl Future<Output = Result<Vec<Signature>, SourceError>> + Send;
 
-    /// A document read back from the store. Validation runs again: the rules may have grown.
-    fn parse(&self, document: &[u8]) -> Result<Described, SourceError>;
+    /// A document and its catalogues read back from the store. Validation runs again: the rules
+    /// may have grown.
+    fn parse(
+        &self,
+        document: &[u8],
+        catalogues: &BTreeMap<String, Catalogue>,
+    ) -> Result<Described, SourceError>;
 }
 
 /// A recipe as the store keeps it.
@@ -79,6 +88,8 @@ pub struct CachedRecipe {
     pub version: String,
     /// The document.
     pub document: Vec<u8>,
+    /// The catalogues it came with, by locale (§5.3 of docs/09-recipes.md).
+    pub catalogues: BTreeMap<String, Catalogue>,
 }
 
 /// The store's copy of resolved recipes, by digest. Kept forever: an intent names a digest, and

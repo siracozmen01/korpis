@@ -72,11 +72,19 @@ A file's title is its path inside the artifact, relative, with no `..` component
 names files by those paths (a template's `from`, an install step's `from`, a target's `rootfs` or
 `disk_image`). The document is at most 1 MiB.
 
-Resolving a recipe reads the manifest and the document and nothing else. The control plane checks
-the manifest's digest against the one it asked for, the document's digest against its descriptor,
-the artifact type, that there is exactly one document layer, and that every path the document
-names is a file the manifest carries. A recipe that fails any of these does not load. The files
-themselves are read by whatever installs the recipe, against the digests the manifest gives.
+Resolving a recipe reads the manifest, the document, and the recipe's catalogues (§5.3), and
+nothing else. The control plane checks the manifest's digest against the one it asked for, each
+layer it reads against its descriptor, the artifact type, that there is exactly one document
+layer, and that every path the document names is a file the manifest carries. A recipe that fails
+any of these does not load. The other files are read by whatever installs the recipe, against the
+digests the manifest gives.
+
+> Corrected 2026-10-17, when the catalogues were built. This paragraph said resolving reads the
+> manifest and the document and nothing else, which §5.3 contradicted: a catalogue checked "when
+> it resolves the recipe" has to be read then. The catalogues are read at resolve, bounded (at most
+> 200 of them, each at most 256 KiB), because a translation that breaks a message must keep the
+> recipe from loading where someone can still fix it, not fail on a screen later; every other
+> file is still left to the installer.
 
 An extension's artifact has this layout under types of its own, and its document's `kind` is
 `Extension` (§3.1 of `16-extensions.md`). The artifact type and the document must agree: a
@@ -698,6 +706,23 @@ translation; a key is the path of the message in the document, `config.fields.<k
 artifact, signed and versioned with it. The control plane reads them when it resolves the recipe
 and refuses a catalogue that is not valid MessageFormat or names a key the document does not have,
 so a translation cannot add a string the recipe never showed.
+
+> As built, 2026-10-17 (`korpis-core` `recipe/messages.rs`, `korpis-recipe` `catalogue.rs`). A
+> recipe's messages, its own and its catalogues', hold **no argument**: the panel formats them with
+> no values, so `{players}` would reach a screen as a formatting failure rather than as anything
+> the recipe meant, and is refused where the recipe loads instead. What is left of ICU
+> MessageFormat is its quoting, read the way the panel's formatter reads it: `''` is an
+> apostrophe, an apostrophe before a brace quotes up to the next lone apostrophe, and a brace
+> outside a quotation is refused; a message is at most 4 KiB. `metadata.locale` is a BCP 47 tag
+> of the plain form (`en`, `pt-BR`, `zh-Hant-TW`), and so is the name of each catalogue's file. A
+> catalogue for the recipe's own locale is refused, since that locale's messages are the
+> document's and two would disagree. Each value is a string, each key one the document shows, and
+> a catalogue is a JSON object and nothing else. `oras` or `korpis` pushes them as files like any
+> other; `korpis` refuses to push a recipe whose catalogues would not load. The store keeps them
+> beside the document, and they are checked again against it whenever it is read back. A recipe
+> resolved before catalogues were read keeps none, and shows its own messages. What it costs: a
+> recipe that wants a count or a name inside a label cannot have one until the panel has values
+> to give it, which is the first thing to change when a recipe string needs one.
 
 ---
 

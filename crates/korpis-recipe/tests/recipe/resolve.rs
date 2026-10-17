@@ -60,3 +60,41 @@ async fn a_registry_on_the_control_plane_s_own_network_is_reached_only_when_allo
     assert!(allowed.resolve(&repo, "1").await.is_err(), "it is no registry");
     assert!(connections.load(Ordering::SeqCst) > 0, "but it was reached");
 }
+
+#[tokio::test]
+async fn a_recipe_s_catalogues_are_read_with_it_and_kept_with_it() {
+    let repo = repository();
+    let mut published = artifact(PAPER);
+    published.files.push(korpis_recipe::artifact::File {
+        path: "i18n/tr.json".to_owned(),
+        media_type: "application/json".to_owned(),
+        data: br#"{"config.fields.max_players.label": "En fazla oyuncu"}"#.to_vec(),
+    });
+    let digest = registry().push(&repo, "1.21.4", &published).await.unwrap();
+    let db = TestDb::new().await.unwrap();
+    let key = Arc::new(SigningKey::generate(1));
+    let app = App::new(
+        db.store().await.unwrap(),
+        SystemClock,
+        key.clone(),
+        RegistrySource::new(registry()),
+    );
+    let (_, described) = app.described_recipe(&repo, "1.21.4").await.unwrap();
+    assert_eq!(described.catalogues["tr"]["config.fields.max_players.label"], "En fazla oyuncu");
+
+    // Read back from the store, with the registry gone, it still speaks Turkish.
+    let gone = RegistrySource::new(Registry::new(vec!["127.0.0.1:1".to_owned()]).unwrap());
+    let offline = App::new(db.store().await.unwrap(), SystemClock, key, gone);
+    let (_, kept) = offline.described_recipe(&repo, &digest).await.unwrap();
+    assert_eq!(kept.catalogues["tr"].len(), 1);
+
+    // A catalogue naming a message the recipe does not show is not pushed, nor would it load.
+    let mut wrong = artifact(PAPER);
+    wrong.files.push(korpis_recipe::artifact::File {
+        path: "i18n/tr.json".to_owned(),
+        media_type: "application/json".to_owned(),
+        data: br#"{"config.fields.nothing.label": "x"}"#.to_vec(),
+    });
+    let e = registry().push(&repo, "bad", &wrong).await.unwrap_err();
+    assert!(e.to_string().contains("not a message the recipe shows"), "{e}");
+}

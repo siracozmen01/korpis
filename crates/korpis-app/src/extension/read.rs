@@ -94,8 +94,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let missing =
             |what: &str| AppError::Internal(format!("extension {}: {what}", installation.id));
         let cached = self.store.cached_recipe(&installation.artifact_digest).await?;
-        let document = cached.ok_or_else(|| missing("its artifact is not kept"))?.document;
-        let described = self.recipes.parse(&document).map_err(|e| missing(&e.to_string()))?;
+        let cached = cached.ok_or_else(|| missing("its artifact is not kept"))?;
+        let described = self
+            .recipes
+            .parse(&cached.document, &cached.catalogues)
+            .map_err(|e| missing(&e.to_string()))?;
         described.extension.ok_or_else(|| missing("its artifact is a recipe"))
     }
 

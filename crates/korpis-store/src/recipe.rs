@@ -4,27 +4,37 @@
 
 use crate::PgStore;
 use crate::errors::from_sqlx;
-use korpis_app::ports::{CachedRecipe, RecipeCache, StoreResult};
+use korpis_app::ports::{CachedRecipe, RecipeCache, StoreError, StoreResult};
 use korpis_core::recipe::trust::Signature;
 
 impl RecipeCache for PgStore {
     async fn cached_recipe(&self, digest: &str) -> StoreResult<Option<CachedRecipe>> {
-        let row =
-            sqlx::query!("SELECT name, version, document FROM recipe WHERE digest = $1", digest)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(from_sqlx)?;
-        Ok(row.map(|r| CachedRecipe { name: r.name, version: r.version, document: r.document }))
+        let row = sqlx::query!(
+            "SELECT name, version, document, catalogues FROM recipe WHERE digest = $1",
+            digest
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(|r| {
+            let catalogues = serde_json::from_value(r.catalogues)
+                .map_err(|e| StoreError::Corrupt(format!("recipe {digest} catalogues: {e}")))?;
+            Ok(CachedRecipe { name: r.name, version: r.version, document: r.document, catalogues })
+        })
+        .transpose()
     }
 
     async fn cache_recipe(&self, digest: &str, r: &CachedRecipe) -> StoreResult<()> {
         sqlx::query!(
-            "INSERT INTO recipe (digest, name, version, document) VALUES ($1, $2, $3, $4)
+            "INSERT INTO recipe (digest, name, version, document, catalogues)
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (digest) DO NOTHING",
             digest,
             r.name,
             r.version,
-            r.document
+            r.document,
+            serde_json::to_value(&r.catalogues)
+                .map_err(|e| StoreError::Corrupt(format!("recipe {digest} catalogues: {e}")))?
         )
         .execute(&self.pool)
         .await

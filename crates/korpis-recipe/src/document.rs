@@ -16,6 +16,7 @@ mod steps;
 use crate::artifact::Kind;
 use korpis_core::extension::ExtensionManifest;
 use korpis_core::recipe::behaviour::{Hook, Level, LifecycleHooks, LogEventRule};
+use korpis_core::recipe::document::DEFAULT_LOCALE;
 use korpis_core::recipe::managed::ManagedFile;
 use korpis_core::recipe::runtime::{
     Entry, Preset, PresetEndpoint, PresetResources, PresetVolume, RecipeRuntime, RuntimeTarget,
@@ -124,6 +125,7 @@ fn metadata(m: dto::Metadata) -> Metadata {
         name: m.name,
         version: m.version,
         description: m.description,
+        locale: m.locale.unwrap_or_else(|| DEFAULT_LOCALE.to_owned()),
         maintainers: m.maintainers,
         license: m.license,
         annotations: m.annotations,
