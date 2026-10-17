@@ -42,6 +42,7 @@ impl ControlPlane {
 
     /// A control plane serving the built panel in `web_root` beside its API, its passkeys bound
     /// to `localhost` and to its own origin, as a browser reaches it.
+    #[allow(dead_code, reason = "used by the browser test, a binary of its own")]
     pub async fn start_panel(web_root: std::path::PathBuf) -> Self {
         Self::start_serving(korpis_server::acme::AcmeConfig::default(), Some(web_root)).await
     }
@@ -277,6 +278,13 @@ impl ControlPlane {
         sqlx::query_scalar(sql).fetch_one(store.pool()).await.unwrap()
     }
 
+    /// Runs one statement against the control plane's database, as a test's fixture.
+    #[allow(dead_code, reason = "used by the browser test, a binary of its own")]
+    pub async fn execute(&self, sql: &'static str) {
+        let store = self.db.store().await.unwrap();
+        sqlx::query(sql).execute(store.pool()).await.unwrap();
+    }
+
     /// A one-time token for a node named `name`; the token and the CA fingerprint.
     pub async fn token(&self, name: &str) -> (String, String) {
         let created = self
@@ -373,4 +381,16 @@ impl ControlPlane {
             ("KORPIS_KEYRING", "off".to_owned()),
         ]
     }
+}
+
+/// Waits until workload `w` has converged.
+pub async fn converged(cp: &ControlPlane, w: &str) {
+    for _ in 0..900 {
+        let s = cp.status(w).await;
+        if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("{w} never converged: {:?}", cp.status(w).await);
 }

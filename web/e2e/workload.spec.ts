@@ -107,19 +107,24 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
     "no node runs workloads here: the harness needs root beside containerd",
   );
   await signedIn(page);
-  await page.getByRole("link", { name: "acme" }).click();
-  await page.getByRole("link", { name: "games" }).click();
-  await page.getByRole("link", { name: "talker" }).click();
+  await page.getByRole("link", { name: "acme", exact: true }).click();
+  await page.getByRole("link", { name: "games", exact: true }).click();
+  await page.getByRole("link", { name: "talker", exact: true }).click();
   await expect(page.getByRole("heading", { name: "talker", level: 1 })).toBeVisible();
 
   const console_ = page.getByRole("region", { name: "Console" });
   await expect(console_.getByText("ready hello")).toBeVisible();
 
-  // A restart is reversible, loses nothing, and touches one workload: applied at once, its plan
-  // shown after rather than a confirmation asked for (§4 of docs/11-surface-web.md).
+  // The recipe says a restart costs something: its plan is previewed in place and confirmed once
+  // (§4 of docs/11-surface-web.md), and its convergence shown as it happens (step 5 of §38).
   await page.getByRole("button", { name: "Restart" }).click();
+  const restarting = page.getByLabel("Preview");
+  await expect(restarting.getByText("Restart will do this:")).toBeVisible();
+  await expect(
+    restarting.getByText("drops whoever is attached to its console").first(),
+  ).toBeVisible();
+  await restarting.getByRole("button", { name: "Confirm" }).click();
   await page.getByText("Restart: done. What it did").click();
-  await expect(page.getByRole("region", { name: "Actions" }).getByRole("list")).toBeVisible();
   await expect(page.getByRole("row", { name: /^Converged \+/ })).toBeVisible({ timeout: 30_000 });
   await expect(console_.getByText("ready hello")).toHaveCount(2, { timeout: 30_000 });
 
@@ -133,6 +138,8 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
   await expect(configuration.getByText("Cevap veren konsol")).toBeVisible();
   await configuration.getByLabel("Selamlama").fill("merhaba");
   await configuration.getByRole("button", { name: "Save the configuration" }).click();
+  // The greeting is delivered at start, so the change restarts it, which costs something.
+  await page.getByLabel("Preview").getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText("Configuration change: done. What it did")).toBeVisible();
   await expect(console_.getByText("ready merhaba")).toBeVisible({ timeout: 30_000 });
 

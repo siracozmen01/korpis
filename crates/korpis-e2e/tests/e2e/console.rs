@@ -7,23 +7,10 @@
 
 use crate::node::{Node, live};
 use crate::recipes::push_answerer;
-use crate::support::{ControlPlane, korpis};
-use korpis_proto::korpis::v1 as pb;
+use crate::support::{ControlPlane, converged, korpis};
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-
-/// Waits until workload `w` has converged.
-pub(crate) async fn converged(cp: &ControlPlane, w: &str) {
-    for _ in 0..900 {
-        let s = cp.status(w).await;
-        if s.convergence.as_known() == Some(pb::Convergence::CONVERGENCE_CONVERGED) {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(200)).await;
-    }
-    panic!("{w} never converged: {:?}", cp.status(w).await);
-}
 
 /// What `korpis console <w>` prints, as `secret`, with `typed` piped in, within `secs` seconds.
 async fn attach(cp: &ControlPlane, secret: &str, w: &str, typed: &[u8], secs: u64) -> String {

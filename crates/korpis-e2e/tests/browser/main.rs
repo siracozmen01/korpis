@@ -7,17 +7,40 @@
 //! those flows say why they were skipped. It needs the panel built (`web/dist`, which
 //! scripts/check-web.sh builds) and the browser installed (`scripts/test-tools.sh`); without
 //! either it says so and does not run.
+//!
+//! It is a test binary of its own, which cargo runs alone: the node tests beside it in `e2e` add
+//! and remove network interfaces, and Chromium abandons every request in flight when the
+//! machine's addresses change (Finding 88 of docs/23-walkthroughs.md), faster than a person's
+//! network ever changes. The modules it shares with `e2e` are that binary's own files.
 
-use crate::console::converged;
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "a failing test should fail loudly"
+)]
+#![allow(dead_code, reason = "the shared modules hold what the other e2e tests use as well")]
+
+#[path = "../e2e/image.rs"]
+mod image;
+#[path = "../e2e/node.rs"]
+mod node;
+#[path = "../e2e/recipes.rs"]
+mod recipes;
+#[path = "../e2e/support.rs"]
+mod support;
+
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push_with};
 use crate::support::korpis;
-use crate::support::{ControlPlane, mutation};
+use crate::support::{ControlPlane, converged, mutation};
 use korpis_agent::run::Agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::artifact::File;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt as _, BufReader};
 
@@ -27,7 +50,8 @@ const TR: &str = r#"{"config.fields.greeting.label": "Selamlama",
 
 /// A recipe whose console greets with its configured greeting and answers every line typed into
 /// it, in English and, through its catalogue, Turkish. It ends when asked to, as a program
-/// running as a container's first process must say for itself.
+/// running as a container's first process must say for itself, and says that restarting it
+/// costs something (§5.1 of docs/09-recipes.md), as a server with people on it does.
 fn talker() -> String {
     let busybox = busybox();
     format!(
@@ -50,6 +74,8 @@ preset:
   resources:
     memory: {{min: 64Mi, recommended: 128Mi}}
     cpu:    {{min: 100m, recommended: 250m}}
+disruption:
+  restart: {{disruptive: true, reason: "drops whoever is attached to its console"}}
 config:
   fields:
     - {{key: greeting, label: Greeting, type: string, default: hello, deliver: env,
@@ -131,9 +157,10 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         );
         return;
     }
-    let cp = ControlPlane::start_panel(dist).await;
+    let cp = Arc::new(ControlPlane::start_panel(dist).await);
     let invitation = cp.invite("Friend", FRIEND, &[]).await;
     let operator = cp.invite("Operator", OPERATOR, &["workload.read"]).await;
+    let keeper = cp.invite("Keeper", &["org.read", "org.write"], &[]).await;
     let talking = talking(&cp).await;
     let config = tempfile::tempdir().unwrap();
     let (login, approve_at) = logging_in(&cp, config.path()).await;
@@ -145,21 +172,44 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         .env("KORPIS_E2E_URL", &cp.url)
         .env("KORPIS_E2E_INVITATION", invitation)
         .env("KORPIS_E2E_OPERATOR_INVITATION", operator)
-        .env("KORPIS_E2E_DEVICE_URL", approve_at);
+        .env("KORPIS_E2E_DEVICE_URL", approve_at)
+        .env("KORPIS_E2E_KEEPER_INVITATION", keeper)
+        .env("KORPIS_E2E_AGE", config.path().join("age"));
     if let Some((_, _, w)) = &talking {
         playwright.env("KORPIS_E2E_WORKLOAD", w);
     }
+    let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().join("age")));
     let ran = playwright.status().await.unwrap();
+    ageing.abort();
     assert!(ran.success(), "the browser tests failed: {ran}");
     let logged = tokio::time::timeout(Duration::from_secs(30), login.wait_with_output());
     let logged = logged.await.expect("korpis login ended once approved").unwrap();
     let said = String::from_utf8_lossy(&logged.stdout);
-    assert!(logged.status.success(), "korpis login: {said}");
+    let told = String::from_utf8_lossy(&logged.stderr);
+    assert!(logged.status.success(), "korpis login: {said} {told}");
     assert!(said.contains("friend"), "signed in as the friend who approved it: {said}");
     if let Some((node, agent, w)) = talking {
         let uploaded = std::fs::read(node.volumes.join(format!("{w}.data/world.bin"))).unwrap();
         assert!(uploaded == world(), "the resumed upload is the file, whole and in order");
         agent.stop().await;
+    }
+}
+
+/// The keeper's browser sessions, signed in eleven minutes earlier than they were.
+const AGE_THE_KEEPER: &str = "UPDATE user_session \
+    SET authenticated_at = authenticated_at - interval '11 minutes' \
+    WHERE kind = 'web' AND account_id = (SELECT id FROM account WHERE name = 'keeper')";
+
+/// Ages the keeper's browser sessions by eleven minutes whenever a browser test asks, by writing
+/// the file `asked`, and says it is done by removing it: a session is recent for ten (§9.4 of
+/// docs/08-identity.md), and a test that waited that long for it would be a slow test.
+async fn ager(cp: Arc<ControlPlane>, asked: PathBuf) {
+    loop {
+        if asked.exists() {
+            cp.execute(AGE_THE_KEEPER).await;
+            std::fs::remove_file(&asked).unwrap();
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 }
 

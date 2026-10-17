@@ -22,13 +22,15 @@ long=$( (find crates scripts conformance -name '*.rs' -not -path '*/target/*'
 if [ -n "$long" ]; then echo "$long"; exit 1; fi
 
 echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
-# Untracked files too, so a new file is checked before it is committed. The containerd API is
-# vendored with its own headers.
+# Untracked files too, so a new file is checked before it is committed; a file deleted and not
+# yet staged is still listed, and is not there to check. The containerd API is vendored with its
+# own headers.
 spdx=$(git ls-files --cached --others --exclude-standard \
         'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'scripts/*.mjs' \
         'conformance/*.rs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' 'web/*.css' \
     | grep -v '^crates/korpis-containerd/proto/' \
     | while read -r f; do
+        [ -e "$f" ] || continue
         case "$f" in
             crates/korpis-proto/*|crates/korpis-containerd/*|crates/korpis-extension/*|web/src/gen/*)
                 want=Apache-2.0 ;;

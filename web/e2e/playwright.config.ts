@@ -21,8 +21,11 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL: url,
-    // The control plane's own CA signed its certificate; the browser is not told of it.
+    // The control plane's own CA signed its certificate; the browser is not told of it. A page
+    // is let past that by `ignoreHTTPSErrors`, but Chromium registers no service worker from an
+    // origin whose certificate it did not trust unless told to ignore the error itself.
     ignoreHTTPSErrors: true,
+    launchOptions: { args: ["--ignore-certificate-errors"] },
     trace: "retain-on-failure",
   },
 });

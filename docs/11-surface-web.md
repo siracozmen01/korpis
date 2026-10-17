@@ -556,7 +556,12 @@ the panel.
 > 15 seconds. The libraries the panel is built on are chunks of their own, so a release that
 > changes only the panel's code leaves a browser's copy of them valid. What it costs: a browser
 > that refuses the worker loads the panel from the network every time, and the worker's source
-> map is offset where the build wrote the file names in.
+> map is offset where the build wrote the file names in. A browser refuses it, among other
+> reasons, on an origin whose certificate it does not trust: a person who reaches an
+> installation's own CA (§7 of `18-operations.md`) by clicking past the warning, rather than by
+> trusting the CA, gets no copy of the panel to load when the control plane cannot be reached,
+> and nothing tells them. Found 2026-10-17 by the browser test, which tells Chromium to ignore
+> the error so the offline load can be tested at all.
 4. **Internationalization. Resolved here.** Community translation is one of the reasons Pterodactyl
    spread. The decision is whether recipe-supplied strings (§5 of `09-recipes.md`) participate in
    the same translation pipeline as core strings, which is not obvious. It was routed to
