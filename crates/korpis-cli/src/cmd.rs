@@ -21,6 +21,7 @@ pub mod logs_offloaded;
 pub mod provider;
 pub mod recipe;
 pub mod repository;
+pub mod run;
 pub mod session;
 pub mod sets;
 pub mod share;

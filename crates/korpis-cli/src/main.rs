@@ -14,6 +14,7 @@ use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension::{self, ExtensionAction};
 use korpis_cli::cmd::files::files as remote_files;
 use korpis_cli::cmd::repository::{self, RepositoryAction};
+use korpis_cli::cmd::run::{self as runs, RunAction};
 use korpis_cli::cmd::volume::{self, VolumeAction};
 use korpis_cli::cmd::{
     Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
@@ -120,6 +121,9 @@ enum Command {
     /// Takes, lists, and shows backups.
     #[command(subcommand)]
     Backup(BackupAction),
+    /// Lists and shows a task or scheduled workload's runs, and cancels one.
+    #[command(subcommand)]
+    Run(RunAction),
     /// Issues, revokes, lists, and shows grants.
     #[command(subcommand)]
     Grant(GrantAction),
@@ -256,22 +260,12 @@ fn printer(json: bool) -> impl FnMut(String, Value) {
     move |text, value| if json { print(&value) } else { println!("{text}") }
 }
 
-/// `korpis version`: this binary's, and the server's when there is one to ask.
-#[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
-async fn version(cli: &Cli) -> Result<(), CliError> {
-    let v = korpis_cli::version::both(cli.connection().await?.as_ref()).await?;
-    if cli.json {
-        print(&v);
-    } else {
-        println!("{}", korpis_cli::version::human(&v));
-    }
-    Ok(())
-}
-
 async fn run(cli: &Cli) -> Result<(), CliError> {
     match &cli.command {
         Command::Completion { shell } => registration(*shell),
-        Command::Version => version(cli).await,
+        Command::Version => {
+            answer(cli, korpis_cli::version::answer(cli.connection().await?.as_ref()).await)
+        }
         Command::Login { no_store, command } => login(cli, *no_store, command).await,
         Command::Logout => logout(cli).await,
         Command::Plan { action: Some(a), .. } => {
@@ -311,6 +305,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
         }
         Command::Backup(a) => answer(cli, backup::backup(&cli.required().await?, a).await),
+        Command::Run(a) => answer(cli, runs::run(&cli.required().await?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();
             answer(cli, act::node(&cli.required().await?, &server, a).await)

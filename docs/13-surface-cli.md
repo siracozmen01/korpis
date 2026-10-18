@@ -243,6 +243,13 @@ repository's retention policy no longer keeps, listing each backup it forgets an
 one stays; it waits for approval, and what only the forgotten backups held is deleted after a
 grace period (§5.5 there).
 
+A `task` or `scheduled` workload's runs (§4 of `05-scheduling.md`) are read with `korpis run list
+<workload>`, newest first, each with what made it, how it ended and why, the occurrence it was
+for and how many more a missed one stands for, and its attempt; `korpis run get run_…` shows one,
+and `korpis run cancel run_…` cancels one that is active, under `workload.stop`. No command makes
+a run: `korpis workload restart <workload>` requests one, since a higher power cycle is what
+requests one (§4.1 there). Added 2026-10-18, when runs were built.
+
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The
 > other half is built now; the flag's bare names became `member/volume`, because a set deletes
@@ -496,16 +503,16 @@ path always works (§3.1 of `02-architecture.md`).
 one file session (§3.2 of `06-storage.md`) at a relay, never the control plane. A remote path is
 `w:WORKLOAD/PATH`, the path absolute within the workload as its volumes are mounted
 (`w:mc-survival/data/world`), or `w:WORKLOAD:PATH` when the workload is written `project/name`,
-whose slash the first form would take for the path's. Reads and writes move a mebibyte per
-request with four sent ahead, and the token is renewed on the session while an answer is awaited.
-`put --resume` continues from the size the workload holds and `get --resume` from the size of the
-local file; without it each starts over, since only the caller knows the partial file is the same
-one. Every chunk `put` sends asks to land where the file ends, so the size the workload holds is
-only ever what arrived in order (§3.2 of `06-storage.md`). A caller who may write but holds no
-grant of reading reads through a writing session, which reads too. A download with no local name is written under the last component of the path asked
-for, never under a name the node answered with (Finding 80 of `23-walkthroughs.md`). A refusal is
-reported as the API's errors are, with its reason `file.full`,
-`file.outside`, and so on, and the path as the field.
+whose slash the first form would take for the path's. Reads and writes move a mebibyte per request
+with four sent ahead, and the token is renewed on the session while an answer is awaited. `put
+--resume` continues from the size the workload holds and `get --resume` from the size of the local
+file; without it each starts over, since only the caller knows the partial file is the same one.
+Every chunk `put` sends asks to land where the file ends, so the size the workload holds is only
+ever what arrived in order (§3.2 of `06-storage.md`). A caller who may write but holds no grant of
+reading reads through a writing session, which reads too. A download with no local name is written
+under the last component of the path asked for, never under a name the node answered with (Finding
+80 of `23-walkthroughs.md`). A refusal is reported as the API's errors are, with its reason
+`file.full`, `file.outside`, and so on, and the path as the field.
 
 `sync` is the table's "delta transfer" only in part, and says so: it makes each directory and
 sends each file unless the workload holds it at the same size and at least as new, so a second run

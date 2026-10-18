@@ -67,6 +67,8 @@ pub enum IdKind {
     Certificate,
     /// A user's session (`ses_`).
     Session,
+    /// A run of a task or scheduled workload (`run_`).
+    Run,
 }
 
 impl IdKind {
@@ -101,6 +103,7 @@ impl IdKind {
             Self::Domain => "dom",
             Self::Certificate => "crt",
             Self::Session => "ses",
+            Self::Run => "run",
         }
     }
 }

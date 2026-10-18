@@ -274,6 +274,10 @@ impl Harness {
         pb::BackupServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn runs(&self, config: ClientConfig) -> pb::RunServiceClient<HttpClient> {
+        pb::RunServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn sets(&self, config: ClientConfig) -> pb::DeclaredSetServiceClient<HttpClient> {
         pb::DeclaredSetServiceClient::new(self.http.clone(), config)
     }

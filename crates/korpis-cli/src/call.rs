@@ -184,6 +184,9 @@ table! {
     "korpis.v1.BackupService/BrowseBackup" => BackupServiceClient::browse_backup(BrowseBackupRequest);
     "korpis.v1.BackupService/PruneBackups" => BackupServiceClient::prune_backups(PruneBackupsRequest);
     "korpis.v1.BackupService/ReadBackupFile" => BackupServiceClient::read_backup_file(ReadBackupFileRequest) stream ReadBackupFileResponse;
+    "korpis.v1.RunService/GetRun" => RunServiceClient::get_run(GetRunRequest);
+    "korpis.v1.RunService/ListRuns" => RunServiceClient::list_runs(ListRunsRequest);
+    "korpis.v1.RunService/CancelRun" => RunServiceClient::cancel_run(CancelRunRequest);
 }
 
 /// `name` in full: `Service/Method` is read in the client package.

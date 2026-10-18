@@ -48,3 +48,12 @@ pub fn human(v: &Value) -> String {
     }
     out
 }
+
+/// [`both`], as a command answers it.
+///
+/// # Errors
+/// The server could not be asked.
+pub async fn answer(c: Option<&Connection>) -> Result<crate::cmd::Answer, CliError> {
+    let v = both(c).await?;
+    Ok(crate::cmd::Answer { human: format!("{}\n", human(&v)), json: v })
+}
