@@ -54,6 +54,13 @@ impl EnrollmentRead for PgStore {
         Ok(rows.into_iter().map(|r| (r.id, r.public_key)).collect())
     }
 
+    async fn signing_key_ids(&self, purpose: &str) -> StoreResult<Vec<String>> {
+        sqlx::query_scalar!("SELECT key_id FROM signing_key WHERE purpose = $1", purpose)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)
+    }
+
     async fn verify_keys(&self, purpose: &str) -> StoreResult<Vec<VerifyKey>> {
         let rows = sqlx::query!(
             "SELECT key_id, public_key, not_before, not_after FROM signing_key
@@ -77,6 +84,34 @@ impl EnrollmentRead for PgStore {
 }
 
 impl EnrollmentWrite for PgTx {
+    async fn record_signing_key(
+        &mut self,
+        key_id: &str,
+        purpose: &str,
+        public: &[u8],
+    ) -> StoreResult<bool> {
+        sqlx::query!(
+            "INSERT INTO signing_key (key_id, purpose, public_key) VALUES ($1, $2, $3)
+             ON CONFLICT (key_id) DO NOTHING",
+            key_id,
+            purpose,
+            public
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let same = sqlx::query_scalar!(
+            "SELECT public_key = $2 AND purpose = $3 AS \"same!\" FROM signing_key WHERE key_id = $1",
+            key_id,
+            public,
+            purpose
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(same)
+    }
+
     async fn retire_signing_keys(
         &mut self,
         purpose: &str,

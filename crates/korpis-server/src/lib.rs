@@ -224,6 +224,29 @@ async fn schema_fits(url: &str) -> Result<(), ServeError> {
     }
 }
 
+/// Refuses to serve when the store trusts a token key other than the one this data directory signs
+/// with: a rotation stopped between the two, or a data directory from before one (§8 of
+/// docs/03-state.md). Serving then would sign what no verifier accepts while tokens of a key the
+/// restore meant to void went on verifying.
+async fn signs_with_the_trusted_key(
+    app: &api::ServerApp,
+    keys: &keys::Keys,
+) -> Result<(), ServeError> {
+    use korpis_app::ports::EnrollmentRead as _;
+    let ours = keys.token_key_id();
+    let trusted = app.store().verify_keys("token").await.map_err(korpis_app::AppError::from)?;
+    let others: Vec<&str> =
+        trusted.iter().map(|k| k.key_id.as_str()).filter(|k| *k != ours).collect();
+    if others.is_empty() {
+        return Ok(());
+    }
+    Err(ServeError::Config(format!(
+        "the store trusts token keys {} beside {ours}, which this data directory signs with: a \
+         rotation was interrupted, or the data directory is older than the store; rotate again",
+        others.join(", ")
+    )))
+}
+
 /// Binds and starts serving. Returns once the listener is bound, so callers (and tests) can
 /// connect immediately.
 pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
@@ -242,6 +265,7 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let keys = keys::Keys::load_or_create(&config.data)?;
     let app = application(&config, store, &keys)?;
     app.register_keys(&keys.public()).await?;
+    signs_with_the_trusted_key(&app, &keys).await?;
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
     let tls = tls::server_config(&config.data)?;

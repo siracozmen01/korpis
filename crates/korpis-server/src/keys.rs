@@ -67,18 +67,58 @@ pub fn token_epoch(data: &DataDir) -> Result<u32, KeyError> {
     Ok(epochs.max().unwrap_or(FIRST_EPOCH))
 }
 
-/// Makes the token key of the next epoch, which every later load signs with; its epoch. The keys
-/// before it stay in the data directory, and the store retires them.
+/// A token key made and not yet in force: written beside where it goes, under a name no load
+/// reads, until [`Staged::commit`] puts it in place. A rotation commits it only once the store
+/// has recorded it and retired the rest, so a rotation that fails leaves the data directory
+/// signing with the key the store still trusts.
+#[derive(Debug)]
+pub struct Staged {
+    /// Its epoch.
+    pub epoch: u32,
+    /// The key.
+    pub key: TokenKey,
+    pending: PathBuf,
+    path: PathBuf,
+}
+
+impl Staged {
+    /// Puts the key in force: every later load signs with it.
+    ///
+    /// # Errors
+    /// It could not be renamed into place.
+    pub fn commit(self) -> Result<u32, KeyError> {
+        std::fs::rename(&self.pending, &self.path)
+            .map_err(|source| KeyError::Io { path: self.path, source })?;
+        Ok(self.epoch)
+    }
+}
+
+/// Makes the token key of the next epoch past both the data directory's and `recorded`, the
+/// highest epoch the store holds, so that no two keys ever share a name, and stages it.
+///
+/// # Errors
+/// The directory could not be read, or the key written.
+pub fn stage_token(data: &DataDir, recorded: u32) -> Result<Staged, KeyError> {
+    let epoch = token_epoch(data)?
+        .max(recorded)
+        .checked_add(1)
+        .ok_or_else(|| KeyError::Token("the token key's epochs are exhausted".into()))?;
+    let path = data.keys().join(format!("token-{epoch}.key"));
+    let pending = data.keys().join(format!("token-{epoch}.key.pending"));
+    let _ = std::fs::remove_file(&pending);
+    let bytes = random32()?;
+    write_secret(&pending, &bytes)
+        .map_err(|source| KeyError::Io { path: pending.clone(), source })?;
+    let key = TokenKey::from_bytes(epoch, &bytes).map_err(|e| KeyError::Token(e.to_string()))?;
+    Ok(Staged { epoch, key, pending, path })
+}
+
+/// Makes the token key of the next epoch and puts it in force at once; its epoch.
 ///
 /// # Errors
 /// The directory could not be read, or the key written.
 pub fn rotate_token(data: &DataDir) -> Result<u32, KeyError> {
-    let next = token_epoch(data)?
-        .checked_add(1)
-        .ok_or_else(|| KeyError::Token("the token key's epochs are exhausted".into()))?;
-    let path = data.keys().join(format!("token-{next}.key"));
-    write_secret(&path, &random32()?).map_err(|source| KeyError::Io { path, source })?;
-    Ok(next)
+    stage_token(data, 0)?.commit()
 }
 
 fn random32() -> Result<[u8; 32], KeyError> {
@@ -158,5 +198,10 @@ mod tests {
         assert_ne!(second.token.public_bytes(), first.token.public_bytes());
         assert_eq!(second.assignment_key_id, first.assignment_key_id, "never rotated");
         assert!(data.keys().join("token-1.key").exists(), "kept, and retired in the store");
+        let staged = stage_token(&data, 7).unwrap();
+        assert_eq!(staged.epoch, 8, "past what the store recorded");
+        assert_eq!(token_epoch(&data).unwrap(), 2, "a staged key is read by no load");
+        assert_eq!(staged.commit().unwrap(), 8);
+        assert_eq!(Keys::load_or_create(&data).unwrap().token.key_id, 8);
     }
 }

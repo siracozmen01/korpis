@@ -167,8 +167,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if token.purpose != "token" {
             return Err(AppError::Internal(format!("{} is not a token key", token.key_id)));
         }
-        self.store.register_key(&token.key_id, token.purpose, &token.public).await?;
         let mut tx = self.store.begin().await?;
+        // In the transaction that retires the rest, and refused if the name is taken by other
+        // bytes: a retirement that kept a stale key of the new key's name would leave the store
+        // trusting a key nothing signs with, and refusing the one that does.
+        if !tx.record_signing_key(&token.key_id, token.purpose, &token.public).await? {
+            return Err(AppError::conflict(
+                "restore.token_key.taken",
+                format!("a token key named {} is recorded with other bytes", token.key_id),
+            ));
+        }
         let retired = tx.retire_signing_keys("token", &token.key_id, self.clock.now()).await?;
         let sessions_ended = tx.end_every_session().await?;
         let effect = Effect::new(

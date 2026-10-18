@@ -68,10 +68,26 @@ pub trait EnrollmentRead {
         &self,
         purpose: &str,
     ) -> impl Future<Output = StoreResult<Vec<VerifyKey>>> + Send;
+
+    /// The identifier of every key of `purpose` ever recorded, retired ones included: what a
+    /// new key's epoch must pass, so no two keys ever share a name.
+    fn signing_key_ids(
+        &self,
+        purpose: &str,
+    ) -> impl Future<Output = StoreResult<Vec<String>>> + Send;
 }
 
 /// Recording enrollments.
 pub trait EnrollmentWrite {
+    /// Records the public key `key_id` of `purpose`; false when a key of that name is recorded
+    /// with other bytes, which nothing may then sign as.
+    fn record_signing_key(
+        &mut self,
+        key_id: &str,
+        purpose: &str,
+        public: &[u8],
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
     /// Retires every key of `purpose` but `keep` at `at`: what it signed stops verifying, and no
     /// verifier is given it again; how many it retired.
     fn retire_signing_keys(
