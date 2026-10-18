@@ -15,10 +15,14 @@
 //! from the first record written at its start, sends only records written within it, and ends at
 //! the first record written at or after its end, or, following, once the node's clock passes it
 //! with nothing left to read. Its bounds are the node's clock, as each record states its time.
+//!
+//! A task or scheduled workload's runs each write their own console (§4 of docs/14-streams.md):
+//! the params name the run, and the node looks for its stream only beneath the session's
+//! workload.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use super::wake::Wake;
-use crate::reconcile::streams::Located;
+use crate::reconcile::streams::{Located, stream_name};
 use buffa::Message as _;
 use buffa_types::google::protobuf::Timestamp;
 use korpis_core::authz::StreamRange;
@@ -57,8 +61,7 @@ impl ConsoleRead {
 
 impl Handler for ConsoleRead {
     fn serve(&self, opened: Opened, io: Io) -> Serving {
-        let dir = self.located.borrow().get(&opened.workload).cloned();
-        Box::pin(serve(dir, opened, io))
+        Box::pin(serve(self.located.clone(), opened, io))
     }
 }
 
@@ -177,13 +180,18 @@ async fn put(io: &Io, chunk: pb::ConsoleChunk) -> bool {
     io.outgoing.send(chunk.encode_to_vec()).await.is_ok()
 }
 
-async fn serve(dir: Option<PathBuf>, opened: Opened, mut io: Io) -> Result<(), Ended> {
+async fn serve(located: Located, opened: Opened, mut io: Io) -> Result<(), Ended> {
     let asked = pb::ConsoleRead::decode_from_slice(&opened.params)
         .map_err(|e| ended("invalid", format!("the params are not a ConsoleRead: {e}")))?;
     let matcher = Matcher::new(&asked.pattern, asked.regex)
         .map_err(|e| ended("invalid", format!("pattern: {e}")))?;
-    let dir =
-        dir.ok_or_else(|| ended("no_stream", "the workload writes no console stream here"))?;
+    if asked.run.contains('/') {
+        return Err(ended("invalid", "run: not a run"));
+    }
+    // A run's stream is found only beneath the session's workload, which is what it grants.
+    let name = stream_name(&opened.workload, &asked.run);
+    let dir = located.borrow().get(&name).cloned();
+    let dir = dir.ok_or_else(|| ended("no_stream", "no such console stream is written here"))?;
     let at = dir.clone();
     let next = match (asked.last, asked.since.as_option().map(nanos)) {
         (last, _) if last > 0 => {

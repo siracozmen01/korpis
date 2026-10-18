@@ -35,6 +35,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.store.ever_leased(workload, node).await? {
             return Ok(rejected("the node never held the workload's lease", event.action()));
         }
+        // A run's segment is believed only for a run of the workload that this node started,
+        // as a report of the run itself is (§4.2 of docs/05-scheduling.md).
+        if let Some(run) = key.run
+            && self
+                .store
+                .run(run)
+                .await?
+                .is_none_or(|r| r.workload != workload || r.node != Some(node))
+        {
+            return Ok(rejected("not a run of the workload this node started", event.action()));
+        }
         // Where an offloaded segment went is believed only from a node that was given write
         // access to the workload's streams there; any other event says nothing of it.
         let mut segment = segment.clone();

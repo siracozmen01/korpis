@@ -184,16 +184,27 @@ the offloaded ones. What it costs: a stream directory on the node for each run k
 > As built, 2026-10-18, the index's half (`crates/korpis-store/migrations/0084_stream_run.up.sql`,
 > `crates/korpis-agent/src/reconcile/tail.rs`). A stream is one workload's of one kind and, for a
 > run's console, one run's; there is one stream of no run per workload and kind, as before. The
-> node watches each run's stream under its workload and run while it holds the run's object,
-> journals each seal and prune with the run, and stops once the object is gone and the stream is
-> read through. An offloaded segment of a run's stream goes beneath the workload's stream prefix,
-> under `segments/runs/` and the run's identifier, with the workload's access; the run is part of
-> the object's name, which sealing binds, so a segment opens only as the run it was offloaded
-> for, and two runs' segments with the same offsets are two objects. `StreamService.GetStream`
-> reads a run's stream by naming the run, under `workload.console.read` on its workload: a run
-> of another workload is not found, and nor, before its first segment, is a console of no run
-> for a workload whose runs write their own. Reading a run's records over the data path is built
-> next, and deleting a run's stream with the run after it.
+> node watches each run's stream under its workload and run, and journals each seal and prune with
+> the run. It first stopped once the run's object was gone; corrected the same day, since a stream
+> is located for reading by being watched, and a finished run's console is what a reader names the
+> run for: a run's stream is watched as long as its workload is held. An offloaded segment of a
+> run's stream goes beneath the workload's stream prefix, under `segments/runs/` and the run's
+> identifier, with the workload's access; the run is part of the object's name, which sealing
+> binds, so a segment opens only as the run it was offloaded for, and two runs' segments with the
+> same offsets are two objects. A segment of a run's stream is believed only for a run of the
+> workload that the reporting node started, as the run's own reports are (§4.2 of
+> `05-scheduling.md`); tightened the same day, from a review that found any node that once held the
+> lease could index segments under any run. `StreamService.GetStream` reads a run's stream by
+> naming the run, under `workload.console.read` on its workload: a run of another workload is not
+> found, and nor, before its first segment, is a console of no run for a workload whose runs write
+> their own. A run's records are read the same way: a `workload.console.read` session's
+> `ConsoleRead.run` names the run, and the node looks for its stream only beneath the session's
+> workload, which is what the session grants, so the authority to read a workload's console reads
+> each of its runs'; `ReadOffloaded` takes the run likewise. Reading a finished run's console on a
+> real node found that the OCI driver checked a stream directory against the workload's own stream
+> volume only, so it refused to create every run's object, and every run failed before it started:
+> it now takes, for an object labelled with a run, that run's stream volume and no other, the
+> workload's included. Deleting a run's stream with the run is built after it.
 
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so

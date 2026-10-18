@@ -23,7 +23,7 @@ fn text(s: &str) -> pb::Value {
 }
 
 /// A node's report of `run`, journaled at `seq`, with `after` beside the run.
-fn reported(
+pub(crate) fn reported(
     seq: u64,
     workload: &str,
     action: &str,

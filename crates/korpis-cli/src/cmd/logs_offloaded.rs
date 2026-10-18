@@ -7,7 +7,7 @@
 //! yet is not here, and the last line says where offloaded records end.
 
 use super::json;
-use super::logs::{Logs, Out, line};
+use super::logs::{Out, Reading, line};
 use crate::connect::Connection;
 use crate::error::CliError;
 use korpis_proto::korpis::v1 as pb;
@@ -20,10 +20,11 @@ fn missing(range: &pb::OffsetRange) -> String {
     )
 }
 
-/// Prints `workload`'s offloaded console as `a` asks, handing each line to `out`.
+/// Prints the offloaded console of `workload`, or of its run `run`, as `a` asks, handing each
+/// line to `out`.
 pub async fn logs(
     c: &Connection,
-    (workload, a): (&str, &Logs),
+    (workload, run, a): (&str, Option<&str>, &Reading),
     out: Out<'_>,
 ) -> Result<(), CliError> {
     let client = pb::StreamServiceClient::new(c.http(), c.config());
@@ -32,6 +33,7 @@ pub async fn logs(
         workload: workload.to_owned(),
         from_offset: from,
         limit: a.limit.unwrap_or(0),
+        run: run.unwrap_or_default().to_owned(),
         ..Default::default()
     };
     let mut stream = client.read_offloaded(r).await?;

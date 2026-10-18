@@ -621,6 +621,9 @@ message ReadOffloadedRequest {
   uint64 from_offset = 3;
   // Stop once this many records are sent; zero is no limit.
   uint64 limit = 4;
+  // A run of the workload, for a task or scheduled workload's console, which each run writes
+  // its own of; empty for a persistent workload's.
+  string run = 5;
 }
 
 message GetStreamRequest {

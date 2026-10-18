@@ -25,5 +25,6 @@ mod network;
 mod node;
 mod oci;
 mod recipes;
+mod runs;
 mod snapshots;
 mod support;

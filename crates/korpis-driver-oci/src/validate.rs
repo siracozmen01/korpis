@@ -145,12 +145,18 @@ fn network(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation
     Ok(())
 }
 
-/// The stream directory, if any, is the workload's own stream volume under the helper's root.
+/// The stream directory, if any, is the workload's own stream volume under the helper's root,
+/// or, for an object that executes one of its runs, that run's (§4 of docs/14-streams.md): a
+/// run writes its own console, and never another run's or the workload's.
 fn stream(spec: &driver::PreparedSpec, policy: &Policy) -> Result<(), Violation> {
     let Some(s) = spec.stream.as_option() else { return Ok(()) };
     let path = Path::new(&s.dir);
-    let own =
-        path.file_name().is_some_and(|n| n == StreamKind::Console.volume(&spec.workload).as_str());
+    let run = spec.labels.as_option().map_or("", |l| l.run.as_str());
+    let volume = match run {
+        "" => StreamKind::Console.volume(&spec.workload),
+        run => StreamKind::Console.run_volume(&spec.workload, run),
+    };
+    let own = path.file_name().is_some_and(|n| n == volume.as_str());
     let under_root = path.strip_prefix(&policy.volume_root).is_ok();
     if !clean_absolute(&s.dir) || !own || !under_root {
         return refuse("stream.dir", "only the workload's own stream volume is written to");
@@ -351,6 +357,23 @@ mod tests {
             .into();
         };
         assert_eq!(refused(world), "stream.dir", "a volume of its own that is not its stream");
+    }
+
+    #[test]
+    fn a_run_s_object_writes_its_own_run_s_stream_and_no_other() {
+        let at = |dir: &str| driver::StreamCapture { dir: dir.into(), ..Default::default() };
+        let mut run = honest();
+        if let Some(l) = run.labels.as_option_mut() {
+            l.run = "run_9".into();
+        }
+        run.stream = at("/var/lib/korpis/volumes/wl_1.stream_console.run_9").into();
+        assert!(validate(run.clone(), &policy()).is_ok());
+        let mut another = run.clone();
+        another.stream = at("/var/lib/korpis/volumes/wl_1.stream_console.run_8").into();
+        assert!(validate(another, &policy()).is_err(), "another run's stream");
+        let mut workload_s = run;
+        workload_s.stream = at("/var/lib/korpis/volumes/wl_1.stream_console").into();
+        assert!(validate(workload_s, &policy()).is_err(), "the workload's, from a run's object");
     }
 
     #[test]

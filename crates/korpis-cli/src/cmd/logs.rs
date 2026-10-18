@@ -31,10 +31,19 @@ const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
 /// `korpis logs`.
 #[derive(Debug, Clone, Args)]
-#[expect(clippy::struct_excessive_bools, reason = "each is a command-line flag")]
 pub struct Logs {
     /// The workload: an identifier, `project/name`, or a name.
     pub workload: String,
+    /// How to read it.
+    #[command(flatten)]
+    pub reading: Reading,
+}
+
+/// How a console is read: by `korpis logs` for a workload's, and by `korpis run logs` for a
+/// run's.
+#[derive(Debug, Clone, Args)]
+#[expect(clippy::struct_excessive_bools, reason = "each is a command-line flag")]
+pub struct Reading {
     /// Keep printing records as they are written.
     #[arg(long, short)]
     pub follow: bool,
@@ -72,7 +81,7 @@ pub struct Logs {
 /// What is printed: a line for a person, and the API's JSON.
 pub type Out<'a> = &'a mut dyn FnMut(String, Value);
 
-fn params(a: &Logs, from: Option<u64>) -> Result<pb::ConsoleRead, CliError> {
+fn params(a: &Reading, run: Option<&str>, from: Option<u64>) -> Result<pb::ConsoleRead, CliError> {
     let since = match (&a.since, from) {
         (Some(ago), None) => {
             let ago = korpis_core::quantity::parse_duration(ago)
@@ -92,6 +101,7 @@ fn params(a: &Logs, from: Option<u64>) -> Result<pb::ConsoleRead, CliError> {
         limit: a.limit.unwrap_or(0),
         pattern: a.grep.clone().unwrap_or_default(),
         regex: a.regex,
+        run: run.unwrap_or_default().to_owned(),
         ..Default::default()
     })
 }
@@ -133,7 +143,7 @@ async fn print(
     c: &Connection,
     workload: &str,
     (session, mut minted): (&mut Session, Minted),
-    (a, next): (&Logs, &mut Option<u64>),
+    (a, next): (&Reading, &mut Option<u64>),
     out: Out<'_>,
 ) -> Result<Ended, CliError> {
     loop {
@@ -181,19 +191,29 @@ fn ended(end: &pb::SessionEnd) -> Result<Ended, CliError> {
 /// Prints the workload's console as `a` asks, handing each line to `out`.
 pub async fn logs(c: &Connection, a: &Logs, out: Out<'_>) -> Result<(), CliError> {
     let workload = resolve::workload(c, &a.workload).await?;
+    read(c, (&workload, None), &a.reading, out).await
+}
+
+/// Prints the console of `workload`, or of its run `run`, as `a` asks, handing each line to
+/// `out`. A run's console is a stream of its own, read through the session's workload.
+pub async fn read(
+    c: &Connection,
+    (workload, run): (&str, Option<&str>),
+    a: &Reading,
+    out: Out<'_>,
+) -> Result<(), CliError> {
     if a.offloaded {
-        return super::logs_offloaded::logs(c, (&workload, a), out).await;
+        return super::logs_offloaded::logs(c, (workload, run, a), out).await;
     }
     let at = relay(c, a.relay.as_deref()).await?;
     let mut next: Option<u64> = None;
     let mut backoff = Duration::from_secs(1);
     loop {
-        let minted = mint(c, &workload, ACTION).await?;
-        let read = params(a, next)?;
-        let lost = match open(&at, &workload, &minted, read.encode_to_vec()).await {
+        let minted = mint(c, workload, ACTION).await?;
+        let asked = params(a, run, next)?;
+        let lost = match open(&at, workload, &minted, asked.encode_to_vec()).await {
             Ok(mut session) => {
-                let ended =
-                    print(c, &workload, (&mut session, minted), (a, &mut next), out).await?;
+                let ended = print(c, workload, (&mut session, minted), (a, &mut next), out).await?;
                 match ended {
                     Ended::Done => return Ok(()),
                     Ended::Lost(why) => why,

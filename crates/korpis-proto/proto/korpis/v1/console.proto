@@ -37,6 +37,11 @@ message ConsoleRead {
   // Start at the last this many records the node holds, as a console attaching shows its
   // scrollback; from_offset and since are then ignored.
   uint64 last = 7;
+  // A run of the session's workload, `run_…`, whose console to read: a task or scheduled
+  // workload's runs each write their own (§4 of docs/14-streams.md). Empty reads the workload's
+  // own. The node finds a run's stream only beneath the session's workload, so a run of another
+  // workload is not found.
+  string run = 8;
 }
 
 // A run of records, in offset order, and where to read from next.

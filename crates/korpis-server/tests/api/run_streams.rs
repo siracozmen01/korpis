@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! A run's console is a stream of its own (§4 of docs/14-streams.md): the segments a node
-//! reports for a run are indexed under it, with its own offsets from zero, and read by naming the
-//! run; a task has no console of no run, and a run is read only through its own workload.
+//! reports for a run it started are indexed under it, with its own offsets from zero, and read by
+//! naming the run; a task has no console of no run, and a run is read only through its own
+//! workload.
 
 use crate::agent::{TestAgent, welcome};
 use crate::journal::{ack, assignment, send, until};
@@ -56,8 +57,13 @@ async fn a_run_s_segments_are_indexed_under_it_and_read_by_naming_it() {
 
     let sealed =
         |seq, range| of_run(segment_record(seq, &workload, E::SEGMENT_EVENT_SEALED, range), &run);
-    send(&mut s, vec![sealed(1, (0, 100)), sealed(2, (100, 180))]).await;
-    assert_eq!(until(&mut s, ack).await, 2);
+    // A run's segment is believed once the node reports starting it, as the run's own reports.
+    let started = crate::run_reports::reported(3, &workload, "run.started", &[("run", &run)]);
+    send(&mut s, vec![sealed(1, (0, 50)), sealed(2, (0, 50)), started]).await;
+    assert_eq!(until(&mut s, ack).await, 3);
+    assert_eq!(h.effects("journal.rejected").await.len(), 2, "not yet a run it started");
+    send(&mut s, vec![sealed(4, (0, 100)), sealed(5, (100, 180))]).await;
+    assert_eq!(until(&mut s, ack).await, 5);
     let got = streams.get_stream(get(&workload, &run)).await.unwrap().into_owned();
     let indexed = got.stream.as_option().unwrap();
     assert_eq!(indexed.run, run);

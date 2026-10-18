@@ -90,6 +90,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 .under(permit.grant)
                 .after(details([
                     ("stream", key.kind.as_str().into()),
+                    (
+                        "run",
+                        key.run.map_or(serde_json::Value::Null, |r| {
+                            korpis_core::id::Id::from_uuid(korpis_core::id::IdKind::Run, r)
+                                .to_string()
+                                .into()
+                        }),
+                    ),
                     ("from_offset", from.into()),
                     ("offloaded", true.into()),
                     ("ranged", stream_range.is_some().into()),

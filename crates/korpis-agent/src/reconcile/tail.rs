@@ -71,9 +71,9 @@ pub(crate) fn segment_record(
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Journals what every watched stream's writer recorded since the last pass, and stops
-    /// watching a stream once it is read through: a workload's when `held` no longer claims the
-    /// workload, a run's when the node no longer holds the run's object, after which nothing
-    /// writes it.
+    /// watching a stream whose workload `held` no longer claims once it is read through. A run's
+    /// stream is watched as long as its workload is, after its object is gone too: it is located
+    /// by being watched, and a finished run's console is read by naming the run.
     pub(super) async fn tail(&mut self, held: &HeldSet) {
         for (name, watched) in self.streams.watched() {
             let read = self.journal_changes(&name, &watched.dir, watched.next).await;
@@ -84,12 +84,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                     continue;
                 }
             };
-            let (workload, run) = name_parts(&name);
-            let gone = if run.is_empty() {
-                !held.assignments.contains_key(workload)
-            } else {
-                self.tracked.get(workload).is_none_or(|t| !t.runs.contains_key(run))
-            };
+            let gone = !held.assignments.contains_key(name_parts(&name).0);
             if let Err(e) =
                 kept.and_then(|()| if gone { self.streams.unwatch(&name) } else { Ok(()) })
             {

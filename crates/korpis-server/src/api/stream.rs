@@ -21,11 +21,7 @@ impl pb::StreamService for Api {
         let caller = self.caller(&ctx).await?;
         let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
         let kind = kind("kind", request.kind)?;
-        let run = (!request.run.is_empty())
-            .then(|| wire::id(IdKind::Run, "run", request.run))
-            .transpose()
-            .refuse()?;
-        let key = StreamKey { workload, kind, run };
+        let key = StreamKey { workload, kind, run: optional_run(request.run)? };
         let view = self.app.get_stream(&caller, key).await.map_err(error::from_app)?;
         let mut stream = korpis_wire::stream::stream_to_pb(&view.stream);
         stream.retention = Some(match view.limits.retention {
@@ -55,11 +51,17 @@ impl pb::StreamService for Api {
         let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
         let kind = kind("kind", request.kind)?;
         let from = request.from_offset;
-        let read = self.app.read_offloaded(&caller, StreamKey::of(workload, kind), from).await;
+        let run = optional_run(request.run)?;
+        let read = self.app.read_offloaded(&caller, StreamKey { workload, kind, run }, from).await;
         let read = read.map_err(error::from_app)?;
         let repos = stream_offloaded::opened(&read)?;
         Response::stream_ok(stream_offloaded::chunks(read, repos, (from, request.limit)))
     }
+}
+
+/// The run named in `run`, if one is: a run's console is a stream of its own.
+fn optional_run(run: &str) -> Result<Option<uuid::Uuid>, connectrpc::ConnectError> {
+    (!run.is_empty()).then(|| wire::id(IdKind::Run, "run", run)).transpose().refuse()
 }
 
 /// The stream kind asked for in `field`: the console when unspecified.

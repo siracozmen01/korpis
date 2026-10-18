@@ -159,6 +159,34 @@ pub async fn push_with(name: &str, document: String, files: Vec<File>) -> String
     repo
 }
 
+/// A task (§4 of docs/05-scheduling.md): it prints three lines to its console and exits, so
+/// each of its runs ends by itself and writes a console of its own.
+fn printer() -> String {
+    let busybox = busybox();
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: printer, version: "{VERSION}", description: prints, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
+  entry:
+    command: [/bin/sh, -c, "echo backing up; echo 3 files; echo done"]
+preset:
+  lifecycle: task
+  console: logs
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu:    {{min: 100m, recommended: 100m}}
+"#
+    )
+}
+
+/// Pushes the task that prints and exits to a repository no other test uses; the repository.
+pub async fn push_printer() -> String {
+    push("printer", printer()).await
+}
+
 /// Pushes the thin recipe to a repository no other test uses; returns the repository.
 pub async fn push_sleeper() -> String {
     push("sleeper", sleeper()).await

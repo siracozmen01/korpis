@@ -305,6 +305,9 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
         }
         Command::Backup(a) => answer(cli, backup::backup(&cli.required().await?, a).await),
+        Command::Run(RunAction::Logs { run, reading }) => {
+            runs::logs(&cli.required().await?, run, reading, &mut printer(cli.json)).await
+        }
         Command::Run(a) => answer(cli, runs::run(&cli.required().await?, a).await),
         Command::Node(a) => {
             let server = cli.server.clone().unwrap_or_default();

@@ -248,7 +248,12 @@ A `task` or `scheduled` workload's runs (§4 of `05-scheduling.md`) are read wit
 for and how many more a missed one stands for, and its attempt; `korpis run get run_…` shows one,
 and `korpis run cancel run_…` cancels one that is active, under `workload.stop`. No command makes
 a run: `korpis workload restart <workload>` requests one, since a higher power cycle is what
-requests one (§4.1 there). Added 2026-10-18, when runs were built.
+requests one (§4.1 there). Added 2026-10-18, when runs were built. Each run writes a console of
+its own (§4 of `14-streams.md`), and `korpis run logs run_…` reads it as `korpis logs` reads a
+workload's, with the same flags (`--follow`, `--tail`, `--since`, `--grep`, `--offloaded`, and
+the rest), under `workload.console.read` on the run's workload; added the same day, when a run's
+console became readable. `korpis logs` on a task or scheduled workload finds no console, since
+its runs write theirs.
 
 > Corrected 2026-10-14, when volume deletion was built. This paragraph said `--delete-volumes`
 > was refused in Phase 0 and kept a deleted workload's volumes, the safe half of the rule. The
