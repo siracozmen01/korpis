@@ -37,7 +37,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(id) = field("run").and_then(|s| Id::parse(IdKind::Run, s).ok()) else {
             return Ok(Some("the report names no run"));
         };
-        let Some(run) = self.store.run(id.uuid()).await?.filter(|r| r.workload == workload) else {
+        // Read within the transaction, which a run's start reported earlier in the batch is in.
+        let Some(run) = tx.run_within(id.uuid()).await?.filter(|r| r.workload == workload) else {
             return Ok(Some("the run is not the workload's"));
         };
         if run.node.is_some_and(|by| by != node) {

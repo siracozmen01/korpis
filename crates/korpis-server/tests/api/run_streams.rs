@@ -81,3 +81,48 @@ async fn a_run_s_segments_are_indexed_under_it_and_read_by_naming_it() {
     let malformed = streams.get_stream(get(&workload, "wl_1")).await.unwrap_err();
     assert_eq!(malformed.code, ErrorCode::InvalidArgument, "{}", reason(&malformed));
 }
+
+#[tokio::test]
+async fn a_run_retention_deletes_ends_its_stream_so_its_offload_expires() {
+    use agent::SegmentEvent as E;
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-3", 1).await;
+    let (mut s, first) = TestAgent::open(&h, a.hello_at(SystemTime::now(), &[1; 16])).await;
+    welcome(&first.unwrap());
+    let repo = push_paper().await;
+    let jobs = project(&h, &h.root_org(), "jobs").await;
+    let kept_none = pb::RunPolicy { keep_successful: Some(0), ..Default::default() };
+    let task = pb::IntentBody {
+        lifecycle: pb::Lifecycle::LIFECYCLE_TASK.into(),
+        runs: kept_none.into(),
+        ..body(&repo, &[])
+    };
+    let declared = h.workloads(h.root()).declare_intent(create("t", &jobs, "build", task)).await;
+    let workload = declared.unwrap().into_owned().workload.into_option().unwrap().id;
+    until(&mut s, assignment(|a| a.plan.is_set())).await;
+    let run = crate::runs::made(&h, &workload).await.remove(0).id;
+    // Held throughout: a run whose node gives the lease back is lost, and kept as failed.
+    crate::streams::held(&mut s, &workload).await;
+    let started = crate::run_reports::reported(1, &workload, "run.started", &[("run", &run)]);
+    let sealed = of_run(segment_record(2, &workload, E::SEGMENT_EVENT_SEALED, (0, 10)), &run);
+    let ended = [("run", run.as_str()), ("cause", "exit"), ("exit_status", "0")];
+    let ended = crate::run_reports::reported(3, &workload, "run.ended", &ended);
+    send(&mut s, vec![started, sealed, ended]).await;
+    assert_eq!(until(&mut s, ack).await, 3);
+
+    // Succeeded and kept by none, it is pruned within a pass, and its stream ends with it.
+    let store = h.db.store().await.unwrap();
+    let ended = "SELECT count(*) FROM stream WHERE run_id IS NOT NULL AND deleted_at IS NOT NULL";
+    let mut count = 0;
+    for _ in 0..150 {
+        count = sqlx::query_scalar::<_, i64>(ended).fetch_one(store.pool()).await.unwrap();
+        if count == 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    assert_eq!(count, 1, "the pruned run's stream is ended");
+    let left: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM run").fetch_one(store.pool()).await.unwrap();
+    assert_eq!(left, 0, "the run is pruned");
+}

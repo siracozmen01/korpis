@@ -51,6 +51,7 @@ fn runs_digest(
         plan: None,
         challenges: Vec::new(),
         runs: Vec::new(),
+        kept_runs: Vec::new(),
         labels: korpis_core::labels::Labels::default(),
         ..assignment.clone()
     };
@@ -100,6 +101,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         a.challenges = tx.challenges_for(a.workload).await?;
         let active = tx.active_runs_within(a.workload).await?;
         a.runs = named(&active, &a.target.body.run_policy());
+        a.kept_runs = tx.kept_runs_within(a.workload).await?;
         Ok(())
     }
 
@@ -245,6 +247,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 dependencies,
                 challenges: Vec::new(),
                 runs: Vec::new(),
+                kept_runs: Vec::new(),
             },
             plan,
         )))
@@ -301,6 +304,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 dependencies: Vec::new(),
                 challenges: Vec::new(),
                 runs: Vec::new(),
+                kept_runs: Vec::new(),
             },
             Some(plan),
         )))

@@ -9,9 +9,12 @@
 //! it twice, and is removed once it is not.
 
 use super::act::{Failure, running};
+use super::streams::name_parts;
+use super::volume::Why;
 use super::{Reconciler, Tracked, effect, text};
 use crate::host::Host;
 use crate::runtime::{Runtime, RuntimeError};
+use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::BTreeMap;
@@ -77,12 +80,49 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             let still = named.get(run.as_str()).copied();
             self.tend_run(&a.workload, t, &run, still).await?;
         }
-        for (run, r) in named.into_iter().filter(|_| start) {
-            if !t.runs.contains_key(run) {
+        for (run, r) in named.iter().filter(|_| start) {
+            if !t.runs.contains_key(*run) {
                 self.start_run(a, t, r).await;
             }
         }
+        self.drop_unkept(a, t, &named).await;
         Ok(())
+    }
+
+    /// Deletes the console stream volume of every run of `a`'s workload that is neither named,
+    /// kept, nor held: retention deleted the run, and its stream goes with it (§4 of
+    /// docs/14-streams.md). What the stream wrote is journaled first. A deletion that fails is
+    /// tried again on the next pass.
+    pub(super) async fn drop_unkept(
+        &mut self,
+        a: &agent::Assignment,
+        t: &Tracked,
+        named: &BTreeMap<&str, &agent::RunRef>,
+    ) {
+        let gone: Vec<String> = self
+            .streams
+            .watched()
+            .into_iter()
+            .filter_map(|(name, _)| {
+                let (workload, run) = name_parts(&name);
+                let kept = a.kept_runs.iter().any(|k| k == run);
+                let unkept = workload == a.workload
+                    && !run.is_empty()
+                    && !kept
+                    && !named.contains_key(run)
+                    && !t.runs.contains_key(run);
+                unkept.then(|| run.to_owned())
+            })
+            .collect();
+        for run in gone {
+            let volume = StreamKind::Console.run_volume(&a.workload, &run);
+            let name = StreamKind::Console.run_volume_name(&run);
+            if let Err(Failure(why)) =
+                self.delete_volume(&a.workload, (&name, Why::Stream), &volume).await
+            {
+                tracing::warn!(workload = %a.workload, %run, error = %why, "a run's stream was not deleted");
+            }
+        }
     }
 
     /// Stops every run held: the workload is stopped or retired.

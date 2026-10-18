@@ -53,19 +53,24 @@ async fn up(s: &mut Stream, message: Up) {
     s.send(m).await.unwrap();
 }
 
-/// Takes `workload`'s lease and gives it back, as a node that ran it and was then retired.
-pub(crate) async fn held_and_released(s: &mut Stream, workload: &str) {
+/// Takes `workload`'s lease; its epoch.
+pub(crate) async fn held(s: &mut Stream, workload: &str) -> u64 {
     let request = agent::LeaseRequest {
         workload: workload.to_owned(),
         nonce: vec![7; 8],
         ..Default::default()
     };
     up(s, Up::LeaseRequest(Box::new(request))).await;
-    let epoch = loop {
+    loop {
         if let Some(Down::LeaseGrant(g)) = next(s).await.message {
             break g.epoch;
         }
-    };
+    }
+}
+
+/// Takes `workload`'s lease and gives it back, as a node that ran it and was then retired.
+pub(crate) async fn held_and_released(s: &mut Stream, workload: &str) {
+    let epoch = held(s, workload).await;
     let released =
         agent::LeaseReleased { workload: workload.to_owned(), epoch, ..Default::default() };
     up(s, Up::LeaseReleased(Box::new(released))).await;

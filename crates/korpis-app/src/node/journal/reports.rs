@@ -10,8 +10,8 @@ use super::{rejected, system};
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    BackupWrite as _, Clock, RecipeSource, Reported, SnapshotWrite as _, Store, StreamWrite as _,
-    VolumeWrite as _,
+    BackupWrite as _, Clock, RecipeSource, Reported, RunWrite as _, SnapshotWrite as _, Store,
+    StreamWrite as _, VolumeWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::backup::{BackupStatus, ReportedBackup};
@@ -37,10 +37,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         // A run's segment is believed only for a run of the workload that this node started,
         // as a report of the run itself is (§4.2 of docs/05-scheduling.md).
+        // Read within the transaction: a batch reports a run's start before its segments.
         if let Some(run) = key.run
-            && self
-                .store
-                .run(run)
+            && tx
+                .run_within(run)
                 .await?
                 .is_none_or(|r| r.workload != workload || r.node != Some(node))
         {

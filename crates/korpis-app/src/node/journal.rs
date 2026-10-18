@@ -247,9 +247,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("plan.moved", "the plan changed meanwhile"));
         }
         if outcome == Outcome::Succeeded
-            && let Some(kind) = deletes_stream(&plan, step)
+            && let Some(key) = deletes_stream(&plan, step)
         {
-            tx.end_stream((plan.workload, kind), self.clock.now()).await?;
+            tx.end_stream(key, self.clock.now()).await?;
         }
         if plan.status == PlanStatus::Applied && retires(&plan) {
             self.finish_retirement(tx, &plan).await?;
@@ -296,18 +296,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-/// The kind of stream step `step` of `plan` deletes, if it is the deletion of a stream's volume
-/// (§4 of docs/14-streams.md): the tenant's approved decision, not the node's report, ends the
-/// stream, so a node cannot have a stream's offloaded evidence deleted by saying it deleted it.
-fn deletes_stream(plan: &Plan, step: u32) -> Option<korpis_core::workload::stream::StreamKind> {
+/// The stream step `step` of `plan` deletes, if it is the deletion of a stream's volume, the
+/// workload's or one of its runs' (§4 of docs/14-streams.md): the tenant's approved decision,
+/// not the node's report, ends the stream, so a node cannot have a stream's offloaded evidence
+/// deleted by saying it deleted it.
+fn deletes_stream(plan: &Plan, step: u32) -> Option<StreamKey> {
+    use korpis_core::workload::stream::StreamKind;
     let s = plan.steps.iter().find(|s| s.index == step)?;
     if s.action != korpis_core::workload::plan::step::StepAction::DeleteVolume {
         return None;
     }
-    match s.detail.get("volume")? {
-        korpis_core::value::Value::String(name) => {
-            korpis_core::workload::stream::StreamKind::of_volume(name)
-        }
-        _ => None,
+    let korpis_core::value::Value::String(name) = s.detail.get("volume")? else { return None };
+    if let Some(kind) = StreamKind::of_volume(name) {
+        return Some(StreamKey::of(plan.workload, kind));
     }
+    let (kind, run) = StreamKind::of_run_volume(name)?;
+    let run = korpis_core::id::Id::parse(korpis_core::id::IdKind::Run, run).ok()?.uuid();
+    Some(StreamKey { workload: plan.workload, kind, run: Some(run) })
 }

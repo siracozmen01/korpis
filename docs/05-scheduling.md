@@ -695,9 +695,15 @@ Runs are read under `workload.read`, and each run's streams under `workload.cons
 > same minute make one run. A retry is made when the newest run failed with attempts left and its
 > backoff has passed, so a failure the node reports and a node lost are retried alike; the
 > retry's `scheduled_for` is when it came due. Under `catch_up: true` with `replace`, the caught-up
-> occurrences but the newest are one missed run with cause `replaced`. Retention runs after every
-> change. A workload retired with an active run has it cancelled, cause `stopped`, as one whose
-> power is stopped. Each change announces the workload, so its node and its watchers hear of it.
+> occurrences but the newest are one missed run with cause `replaced`. Retention runs on every
+> pass (corrected 2026-10-18: it ran only after a change the pass made, so a run its node reported
+> ended, or one cancelled, was kept past retention until something else changed). A workload
+> retired with an active run has it cancelled, cause `stopped`, as one whose power is stopped.
+> Each change announces the workload, so its node and its watchers hear of it. A run retention
+> deletes takes its stream with it: the control plane ends the stream, whose offloaded segments
+> are then kept no longer than the operator's floor, and the node deletes the stream's volume
+> once the assignment neither names the run nor lists it among those kept (§4 of
+> `14-streams.md`).
 
 ### 4.5 What a node is told of a run
 

@@ -115,7 +115,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             size_bytes: limits.disk_bound(),
             ..Default::default()
         };
-        let name = StreamKind::Console.volume_name();
+        // Each run's is reported under its run, so the control plane tells them apart.
+        let name = match run {
+            "" => StreamKind::Console.volume_name(),
+            run => StreamKind::Console.run_volume_name(run),
+        };
         capture.dir = self.ensure_volume(&name, Why::Stream, &request).await?.host_path;
         self.streams
             .watch(&super::streams::stream_name(&a.workload, run), Path::new(&capture.dir))

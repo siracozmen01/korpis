@@ -698,6 +698,8 @@ Assignment
                                endpoints' certificates are ordered (§3.2 of 07-networking.md)
   runs          []RunRef       the active runs of a task or scheduled workload, which the node
                                executes; none for a persistent one (§4.5 of 05-scheduling.md)
+  kept_runs     []RunID        its ended runs retention keeps, whose streams the node keeps;
+                               any other run's it deletes (§4 of 14-streams.md)
   signature     the control plane's signature over all of the above
 
 NodePlan
@@ -736,7 +738,9 @@ MigrationRole
 > runs, so a run made or ended sends the node a new generation. `intent` and `cycle` were added
 > the same day, when a restore was built to recover runs (§8 of `03-state.md`): the run table
 > cannot hold a manual run without its cycle, and a run recovered under any intent but its own
-> would be judged by another exit probe.
+> would be judged by another exit probe. `kept_runs` was added the same day, when retention was
+> built to take a run's stream with it: the node holds each run's stream, and nothing else tells
+> it when retention has deleted the run.
 
 The assignment is still level-triggered. It describes what should be true, and the node makes it
 true; nothing in it is an instruction that is lost if a message is lost. Each part answers one of

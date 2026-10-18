@@ -158,17 +158,15 @@ impl StreamWrite for PgTx {
         Ok(())
     }
 
-    async fn end_stream(
-        &mut self,
-        (workload, kind): (Uuid, StreamKind),
-        at: SystemTime,
-    ) -> StoreResult<()> {
+    async fn end_stream(&mut self, key: StreamKey, at: SystemTime) -> StoreResult<()> {
         sqlx::query!(
             "UPDATE stream SET deleted_at = $3
-              WHERE workload_id = $1 AND kind = $2 AND run_id IS NULL AND deleted_at IS NULL",
-            workload,
-            kind.as_str(),
-            from_time(at)
+              WHERE workload_id = $1 AND kind = $2 AND run_id IS NOT DISTINCT FROM $4
+                AND deleted_at IS NULL",
+            key.workload,
+            key.kind.as_str(),
+            from_time(at),
+            key.run
         )
         .execute(&mut *self.tx)
         .await

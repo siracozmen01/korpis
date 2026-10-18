@@ -7,6 +7,8 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::page::Page;
 use korpis_app::ports::{StoreError, StoreResult, VolumeRead, VolumeWrite};
+use korpis_core::id::{Id, IdKind};
+use korpis_core::workload::stream::StreamKind;
 use korpis_core::workload::volume::{ReportedVolume, Volume, VolumeEvent, VolumeKind};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -135,7 +137,7 @@ impl VolumeWrite for PgTx {
             VolumeEvent::Ensured => ensured(self, node, v, now).await,
             VolumeEvent::Deleted => {
                 if v.kind == VolumeKind::Stream {
-                    stream_gone(self, node, v.workload).await?;
+                    stream_gone(self, node, v.workload, run_of(&v.name)).await?;
                 }
                 // Its snapshots were deleted with it.
                 sqlx::query!(
@@ -168,16 +170,29 @@ impl VolumeWrite for PgTx {
     }
 }
 
-/// A console stream's volume deleted on `node`: no segment of the stream is held there any more,
-/// so what was not offloaded is lost, as its index now says.
-async fn stream_gone(tx: &mut PgTx, node: Uuid, workload: Uuid) -> StoreResult<()> {
+/// The run whose stream the volume named `name` holds, for a run's stream volume.
+fn run_of(name: &str) -> Option<Uuid> {
+    let (_, run) = StreamKind::of_run_volume(name)?;
+    Id::parse(IdKind::Run, run).ok().map(|id| id.uuid())
+}
+
+/// A console stream's volume deleted on `node`, the workload's or one run's: no segment of the
+/// stream is held there any more, so what was not offloaded is lost, as its index now says.
+async fn stream_gone(
+    tx: &mut PgTx,
+    node: Uuid,
+    workload: Uuid,
+    run: Option<Uuid>,
+) -> StoreResult<()> {
     sqlx::query!(
         "UPDATE stream_segment SET node_id = NULL
           WHERE node_id = $1
             AND stream_id IN (SELECT id FROM stream
-                               WHERE workload_id = $2 AND kind = 'console' AND run_id IS NULL)",
+                               WHERE workload_id = $2 AND kind = 'console'
+                                 AND run_id IS NOT DISTINCT FROM $3)",
         node,
-        workload
+        workload,
+        run
     )
     .execute(&mut *tx.tx)
     .await

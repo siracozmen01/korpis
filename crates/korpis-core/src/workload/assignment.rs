@@ -70,6 +70,10 @@ pub struct Assignment {
     /// The runs of a task or scheduled workload the node is to execute (§4.5 of
     /// docs/05-scheduling.md).
     pub runs: Vec<super::run::RunRef>,
+    /// The runs of it that ended and are kept, whose streams the node keeps beside them; any
+    /// other run's stream it deletes, as retention deleted the run (§4.4 of
+    /// docs/05-scheduling.md, §4 of docs/14-streams.md).
+    pub kept_runs: Vec<Uuid>,
 }
 
 /// How many ids a workload's user namespace maps: the workload sees 0 to 65535.

@@ -8,9 +8,11 @@
 
 use super::act::{Failure, volume_id};
 use super::step::{After, detail, flag, number};
+use super::streams::stream_name;
 use super::{Reconciler, text};
 use crate::host::{Host, SnapshotOp};
 use crate::runtime::Runtime;
+use korpis_core::workload::stream::StreamKind;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::helper::v1 as helper;
@@ -64,7 +66,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         helper_id: &str,
     ) -> Result<(), Failure> {
         if why == Why::Stream {
-            self.finish_stream(workload).await.map_err(|e| {
+            // A run's stream volume is named for its run, and so is the stream it holds.
+            let run = StreamKind::of_run_volume(name).map_or("", |(_, run)| run);
+            self.finish_stream(&stream_name(workload, run)).await.map_err(|e| {
                 Failure(format!("the stream's last changes could not be journaled: {e}"))
             })?;
         }

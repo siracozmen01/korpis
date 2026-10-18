@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE stream SET deleted_at = $3\n              WHERE workload_id = $1 AND kind = $2 AND run_id IS NOT DISTINCT FROM $4\n                AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6023ff8502309eea755925cb96d591d6a015cf671989e73c12778fc6fa2209c9"
+}

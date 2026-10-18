@@ -204,7 +204,15 @@ the offloaded ones. What it costs: a stream directory on the node for each run k
 > real node found that the OCI driver checked a stream directory against the workload's own stream
 > volume only, so it refused to create every run's object, and every run failed before it started:
 > it now takes, for an object labelled with a run, that run's stream volume and no other, the
-> workload's included. Deleting a run's stream with the run is built after it.
+> workload's included. A run's stream goes with the run, as built the same day: the node reports
+> each run's stream volume under the run (`stream_console.run_…`), so the control plane's volume
+> objects tell them apart; the assignment lists the ended runs retention keeps; and the node
+> deletes, after journaling what is left of it, the stream volume of every run that is neither
+> named, kept, nor still held, which it also does while the workload's power is stopped. The
+> control plane ends a run's stream when retention deletes the run, or when an approved plan
+> deletes the run's stream volume by name, and its offloaded segments are then kept no longer than
+> the operator's floor. A retired workload's runs' streams stay on its node as its own console
+> stream does, each a volume of its own, deleted by name.
 
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so

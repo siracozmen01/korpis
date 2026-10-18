@@ -229,3 +229,28 @@ async fn an_agent_restarted_mid_run_takes_the_run_over_and_never_starts_it_again
     runtime.exit(object, 7);
     counted(&cp, ENDED, 1).await;
 }
+
+#[tokio::test]
+async fn a_run_retention_deletes_takes_its_stream_from_its_node() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    runtime.capture_consoles(true);
+    let _agent = node(&cp, &dir, &runtime).await;
+    let kept_none = pb::RunPolicy { keep_successful: Some(0), ..Default::default() };
+    let w = task(&cp, &project, "build", kept_none).await;
+    counted(&cp, STARTED, 1).await;
+    let sql =
+        "SELECT count(*) FROM volume WHERE name LIKE 'stream_console.run_%' AND deleted_at IS NULL";
+    counted(&cp, sql, 1).await;
+    runtime.exit(&running_object(&runtime, &w), 0);
+
+    // Succeeded and kept by none, the run is pruned, and its node deletes its stream.
+    let deleted = "SELECT count(*) FROM volume
+                    WHERE name LIKE 'stream_console.run_%' AND deleted_at IS NOT NULL";
+    counted(&cp, deleted, 1).await;
+    assert_eq!(cp.scalar::<i64>("SELECT count(*) FROM run").await, 0, "pruned");
+    let kept = std::fs::read_to_string(dir.path().join("agent").join("streams")).unwrap();
+    assert!(!kept.contains(&format!("{w}/run_")), "no longer watched: {kept}");
+}

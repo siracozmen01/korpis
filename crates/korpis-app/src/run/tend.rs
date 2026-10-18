@@ -8,12 +8,13 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, EffectWrite as _, LeaseWrite as _, RecipeSource, RunWrite as _, Store, Tx,
-    WorkloadWrite as _,
+    Clock, EffectWrite as _, LeaseWrite as _, RecipeSource, RunWrite as _, Store, StreamWrite as _,
+    Tx, WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::run::{Run, RunEnd, RunStatus, Tended, Tending, tend};
+use korpis_core::workload::stream::{StreamKey, StreamKind};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -107,14 +108,39 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             newest,
             lease,
         });
-        if !decided.changes(&state) {
+        let changed = decided.changes(&state);
+        if changed {
+            self.write_tended(&mut tx, id, &decided).await?;
+        }
+        // Retention is applied on every pass, not only one that made or ended a run here: a run
+        // its node reports ended, or one cancelled, is otherwise kept until something else
+        // changes.
+        let policy = target.as_ref().map(|i| i.body.run_policy()).unwrap_or_default();
+        let pruned = self.prune(&mut tx, id, policy).await?;
+        if !changed && !pruned {
             return Ok(false);
         }
-        let policy = target.as_ref().map(|i| i.body.run_policy()).unwrap_or_default();
-        self.write_tended(&mut tx, id, &decided).await?;
-        tx.prune_runs(id, policy.keep_successful, policy.keep_failed).await?;
         tx.commit().await?;
         Ok(true)
+    }
+
+    /// Deletes the runs of `workload` that `policy` no longer keeps; whether it deleted any. A
+    /// run retention deletes takes its console stream with it (§4 of docs/14-streams.md): its
+    /// node deletes the volume once the run is neither named nor kept, and the stream's
+    /// offloaded segments are kept no longer than the operator's floor.
+    async fn prune(
+        &self,
+        tx: &mut S::Tx,
+        workload: Uuid,
+        policy: korpis_core::workload::spec::RunPolicy,
+    ) -> Result<bool, AppError> {
+        let now = self.clock.now();
+        let pruned = tx.prune_runs(workload, policy.keep_successful, policy.keep_failed).await?;
+        for run in &pruned {
+            let key = StreamKey { workload, kind: StreamKind::Console, run: Some(*run) };
+            tx.end_stream(key, now).await?;
+        }
+        Ok(!pruned.is_empty())
     }
 
     async fn write_tended(

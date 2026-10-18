@@ -4,7 +4,7 @@
 //! where a stream's records are and what is held only on a node.
 
 use super::StoreResult;
-use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKey, StreamKind};
+use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKey};
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -62,12 +62,12 @@ pub trait StreamWrite {
         reported: Reported<'_>,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Records that the workload's stream of a kind, of no run, was deleted at `at`, by the step
-    /// of an approved plan that deleted its volume: its offloaded segments are kept no longer
-    /// than the operator's floor.
+    /// Records that `stream` was deleted at `at`: a workload's, by the step of an approved plan
+    /// that deleted its volume, or a run's, by that or by retention deleting the run. Its
+    /// offloaded segments are kept no longer than the operator's floor.
     fn end_stream(
         &mut self,
-        stream: (Uuid, StreamKind),
+        stream: StreamKey,
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 

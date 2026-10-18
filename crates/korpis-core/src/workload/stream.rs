@@ -67,6 +67,21 @@ impl StreamKind {
     pub fn of_volume(name: &str) -> Option<Self> {
         Self::parse(name.strip_prefix("stream_")?)
     }
+
+    /// The name the node reports the volume holding a stream of this kind of `run` under: the
+    /// workload's stream's, `.`, and the run, so the control plane tells each run's apart.
+    #[must_use]
+    pub fn run_volume_name(self, run: &str) -> String {
+        format!("{}.{run}", self.volume_name())
+    }
+
+    /// The kind of stream and the run, `run_…`, that the volume named `name` holds, if it holds
+    /// a run's stream.
+    #[must_use]
+    pub fn of_run_volume(name: &str) -> Option<(Self, &str)> {
+        let (kind, run) = name.split_once('.')?;
+        Some((Self::of_volume(kind)?, run))
+    }
 }
 
 /// A contiguous run of a stream's records.
@@ -218,6 +233,16 @@ mod tests {
             node: node.then(Uuid::now_v7),
             repository: offloaded.then(Uuid::now_v7),
         }
+    }
+
+    #[test]
+    fn a_run_s_stream_volume_is_named_for_its_run_and_no_workload_s_is_taken_for_one() {
+        let name = StreamKind::Console.run_volume_name("run_9");
+        assert_eq!(name, "stream_console.run_9");
+        assert_eq!(StreamKind::of_run_volume(&name), Some((StreamKind::Console, "run_9")));
+        assert_eq!(StreamKind::of_volume(&name), None, "not the workload's own");
+        assert_eq!(StreamKind::of_run_volume("stream_console"), None);
+        assert_eq!(StreamKind::of_run_volume("world.run_9"), None);
     }
 
     #[test]

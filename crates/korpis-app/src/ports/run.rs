@@ -57,6 +57,17 @@ pub trait RunWrite {
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Run>>> + Send;
 
+    /// Run `id`, as this transaction sees it: with what it changed earlier, which a journal
+    /// batch reporting a run's start and then its segments relies on.
+    fn run_within(&mut self, id: Uuid) -> impl Future<Output = StoreResult<Option<Run>>> + Send;
+
+    /// The workload's runs that ended after they started, and so wrote a console of their own,
+    /// that retention keeps: every one the store still holds, oldest first.
+    fn kept_runs_within(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
     /// Keeps `state`.
     fn set_run_state(&mut self, state: &RunState) -> impl Future<Output = StoreResult<()>> + Send;
 

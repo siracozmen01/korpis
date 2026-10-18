@@ -84,6 +84,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
             })
             .collect(),
         runs: a.runs.iter().map(crate::run::ref_to_pb).collect(),
+        kept_runs: a.kept_runs.iter().map(|r| wire_id(IdKind::Run, *r)).collect(),
         ..Default::default()
     }
 }

@@ -123,7 +123,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t: &mut Tracked,
     ) -> Result<(), super::act::Failure> {
         if has_runs(a) && !wants_running(a) {
-            return self.stop_runs(&a.workload, t).await;
+            self.stop_runs(&a.workload, t).await?;
+            // Retention deletes runs while power is stopped too, and their streams with them.
+            self.drop_unkept(a, t, &std::collections::BTreeMap::new()).await;
+            return Ok(());
         }
         if has_runs(a) {
             // Its own object is never started: each run is (§4.2 of docs/05-scheduling.md).

@@ -93,17 +93,16 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Journals what is left of `workload`'s console stream's changes log and stops watching
-    /// it: its volume is about to be deleted, and a change journaled after the deletion would
-    /// name a segment that is gone as held here.
-    pub(super) async fn finish_stream(&mut self, workload: &str) -> std::io::Result<()> {
-        let Some((_, watched)) = self.streams.watched().into_iter().find(|(w, _)| w == workload)
-        else {
+    /// Journals what is left of the changes log of the console stream named `name`, a
+    /// workload's or a run's, and stops watching it: its volume is about to be deleted, and a
+    /// change journaled after the deletion would name a segment that is gone as held here.
+    pub(super) async fn finish_stream(&mut self, name: &str) -> std::io::Result<()> {
+        let Some((_, watched)) = self.streams.watched().into_iter().find(|(w, _)| w == name) else {
             return Ok(());
         };
-        let next = self.journal_changes(workload, &watched.dir, watched.next).await?;
-        self.streams.read_to(workload, next)?;
-        self.streams.unwatch(workload)
+        let next = self.journal_changes(name, &watched.dir, watched.next).await?;
+        self.streams.read_to(name, next)?;
+        self.streams.unwatch(name)
     }
 
     /// Journals the changes in the log in `dir` from byte `from`; the byte past the last one
