@@ -11,6 +11,7 @@ pub mod lease;
 pub mod network;
 pub mod observation;
 pub mod plan;
+pub mod run;
 pub mod set;
 pub mod spec;
 pub mod status;

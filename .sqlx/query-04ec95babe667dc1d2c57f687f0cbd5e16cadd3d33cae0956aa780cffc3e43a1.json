@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT next_due, evaluated_from, made_cycle FROM run_state\n              WHERE workload_id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "next_due",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "run_state",
+            "name": "next_due"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "evaluated_from",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "run_state",
+            "name": "evaluated_from"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "made_cycle",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "run_state",
+            "name": "made_cycle"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "04ec95babe667dc1d2c57f687f0cbd5e16cadd3d33cae0956aa780cffc3e43a1"
+}

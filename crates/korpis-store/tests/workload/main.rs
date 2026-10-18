@@ -24,6 +24,7 @@ mod plans;
 mod recovered;
 mod revocation;
 mod routes;
+mod runs;
 mod schema;
 mod server;
 mod support;

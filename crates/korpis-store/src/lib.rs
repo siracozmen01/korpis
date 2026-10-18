@@ -42,6 +42,7 @@ mod rate;
 mod recipe;
 mod recovery;
 mod relay;
+mod run;
 pub mod schema;
 pub mod server;
 mod session;

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE run SET status = $2, cause = $3, exit_status = $4, ended_at = $5\n              WHERE id = $1 AND status IN ('pending', 'running')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42eb6a035e9d1645308a8a5c0025e449d0679ffcce293d86358ac438c82cad68"
+}

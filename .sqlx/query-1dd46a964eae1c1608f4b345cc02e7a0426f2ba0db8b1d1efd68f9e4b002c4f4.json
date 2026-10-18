@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO run_state (workload_id, next_due, evaluated_from, made_cycle)\n             VALUES ($1, $2, $3, $4)\n             ON CONFLICT (workload_id) DO UPDATE\n                SET next_due = $2, evaluated_from = $3, made_cycle = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1dd46a964eae1c1608f4b345cc02e7a0426f2ba0db8b1d1efd68f9e4b002c4f4"
+}

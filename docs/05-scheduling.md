@@ -479,7 +479,7 @@ Run
   scheduled_for  Timestamp
   started_at     Timestamp?
   ended_at       Timestamp?
-  placement      PlacementID
+  node           NodeID?          the node it ran on: its workload's when it started
   status         pending | running | succeeded | failed | cancelled | missed
   exit_status    int?
   attempt        int
@@ -488,14 +488,17 @@ Run
   occurrences    int              how many occurrences it stands for; above one only for a
                                   missed run recording an interval skipped (§4.3)
   cause          string?          why it ended as it did: exit, timeout, cancelled, stopped,
-                                  replaced, concurrency, not_started, node_lost (§4.2 to §4.4)
+                                  replaced, concurrency, not_started, skipped, node_lost (§4.2
+                                  to §4.4)
 ```
 
-> Completed 2026-10-18, when runs were designed for building (Finding 98 of
-> `23-walkthroughs.md`). `cycle`, `occurrences`, and `cause` are added: without the first a
-> control plane cannot make a requested run exactly once, without the second a night skipped
-> while it was down is either invisible or a thousand rows, and without the third `failed` and
-> `missed` do not say what anyone should do about them.
+> Completed 2026-10-18, when runs were designed for building (Finding 98 of `23-walkthroughs.md`).
+> `cycle`, `occurrences`, and `cause` are added: without the first a control plane cannot make a
+> requested run exactly once, without the second a night skipped while it was down is either
+> invisible or a thousand rows, and without the third `failed` and `missed` do not say what anyone
+> should do about them. `placement PlacementID` is replaced by `node`, as built: a placement has no
+> identifier of its own, being a workload's binding to a node that the next migration replaces, and
+> the node is what someone reading Tuesday's run asks.
 
 ```
 RunPolicy
@@ -608,8 +611,9 @@ already running is recorded, not lost.
 **An occurrence is on time when its run is made within a minute of it.** When the control plane
 was down past occurrences, `catch_up` decides what they become:
 
-- **`false`** (skip to now): one run is recorded `missed` for all of them, `scheduled_for` the
-  first, `occurrences` how many, and the next occurrence is evaluated from now.
+- **`false`** (skip to now): one run is recorded `missed` for all of them, cause `skipped`,
+  `scheduled_for` the first, `occurrences` how many, and the next occurrence is evaluated from
+  now.
 - **`true`**: each becomes a run with its own `scheduled_for`, oldest first. **Catching up is not
   a concurrency conflict**: under `forbid` they run one after another, each made when the one
   before it ends; under `replace` only the newest runs, since each would replace the one before
