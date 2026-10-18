@@ -164,7 +164,7 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let keeper = cp.invite("Keeper", &["org.read", "org.write"], &[]).await;
     let talking = talking(&cp).await;
     let config = tempfile::tempdir().unwrap();
-    let (login, approve_at) = logging_in(&cp, config.path()).await;
+    let (login, approve_at, login_stderr) = logging_in(&cp, config.path()).await;
     let mut playwright = tokio::process::Command::new("pnpm");
     playwright
         .args(["exec", "playwright", "test", "--config", "e2e/playwright.config.ts"])
@@ -186,8 +186,8 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let logged = tokio::time::timeout(Duration::from_secs(30), login.wait_with_output());
     let logged = logged.await.expect("korpis login ended once approved").unwrap();
     let said = String::from_utf8_lossy(&logged.stdout);
-    let told = String::from_utf8_lossy(&logged.stderr);
-    assert!(logged.status.success(), "korpis login: {said} {told}");
+    let told = login_stderr.await.unwrap();
+    assert!(logged.status.success(), "korpis login, {}: {said} {told}", logged.status);
     assert!(said.contains("friend"), "signed in as the friend who approved it: {said}");
     if let Some((node, agent, w)) = talking {
         let uploaded = std::fs::read(node.volumes.join(format!("{w}.data/world.bin"))).unwrap();
@@ -222,7 +222,13 @@ fn world() -> Vec<u8> {
 
 /// `korpis login`, keeping nothing, run to read the caller's profile once signed in, its
 /// sessions under `config`; the process, and the address its user code is approved at.
-async fn logging_in(cp: &ControlPlane, config: &Path) -> (tokio::process::Child, String) {
+/// `korpis login` started, the address it says to approve it at, and the rest of what it writes
+/// to its standard error. That is read to the end as it is written: a pipe closed under it would
+/// fail its next write, and with it the command.
+async fn logging_in(
+    cp: &ControlPlane,
+    config: &Path,
+) -> (tokio::process::Child, String, tokio::task::JoinHandle<String>) {
     let mut child = tokio::process::Command::new(korpis())
         .args(["login", "--no-store", "--", "call", "ProfileService/GetProfile"])
         .env("KORPIS_SERVER", &cp.url)
@@ -246,7 +252,15 @@ async fn logging_in(cp: &ControlPlane, config: &Path) -> (tokio::process::Child,
         panic!("korpis login named no address to approve it at");
     };
     let at = tokio::time::timeout(Duration::from_secs(30), read).await.unwrap();
-    (child, at)
+    let rest = tokio::spawn(async move {
+        let mut rest = String::new();
+        while let Ok(Some(line)) = told.next_line().await {
+            rest.push_str(&line);
+            rest.push('\n');
+        }
+        rest
+    });
+    (child, at, rest)
 }
 
 /// What the friend of the account flows may do, on the root organization.

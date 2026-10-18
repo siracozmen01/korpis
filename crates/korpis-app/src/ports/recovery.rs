@@ -69,9 +69,33 @@ pub enum PlacementRecovery {
         /// The node its authoritative placement was on.
         replaced: Option<Uuid>,
     },
-    /// It stays where it is: on the presenting node already, or recovered to a node whose
-    /// assignment named a lease epoch at least as high.
-    Kept,
+    /// It was on the presenting node already.
+    Held,
+    /// It stays on another node: the epoch presented is not above both the store's lease epoch
+    /// for the workload and the highest one presented for that node.
+    Elsewhere {
+        /// The node it stays on.
+        node: Uuid,
+    },
+}
+
+/// What recovering an id slot did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotRecovery {
+    /// The workload holds the slot on the node now, and held nothing else there; `taken` names
+    /// a workload the store gave the slot to that is not placed on the node.
+    Given {
+        /// The workload it was taken from.
+        taken: Option<Uuid>,
+    },
+    /// The store held exactly that.
+    Held,
+    /// The store gives the slot to `holder`, which it places on the node: nothing was changed,
+    /// since taking it could give two workloads one range of host ids.
+    Conflict {
+        /// The workload holding it.
+        holder: Uuid,
+    },
 }
 
 /// Writing what a restore recovers.
@@ -107,10 +131,12 @@ pub trait RecoveryWrite {
     ) -> impl Future<Output = StoreResult<Advanced>> + Send;
 
     /// Binds the workload's authoritative placement to `placement`'s node, bound by recovery at
-    /// `epoch`, the lease epoch the presented assignment names, unless it is on that node
-    /// already or a recovery bound it elsewhere at an epoch at least as high. Replacing it
-    /// removes every placement of the workload, the record of it being unplaced, and its id
-    /// slots on other nodes.
+    /// `epoch`, the lease epoch the presented assignment names. A workload with no placement is
+    /// bound there; one placed on that node keeps its placement, with `epoch` kept beside it;
+    /// one placed on another node is moved only if `epoch` is above both the store's lease
+    /// epoch for it and the epoch presented for the node it is on, so a replayed older
+    /// assignment moves nothing. Moving it removes every placement of the workload, the record
+    /// of it being unplaced, and its id slots on other nodes.
     fn recover_placement(
         &mut self,
         placement: &Placement,
@@ -118,12 +144,11 @@ pub trait RecoveryWrite {
     ) -> impl Future<Output = StoreResult<PlacementRecovery>> + Send;
 
     /// Gives `workload` id slot `slot` on `node`, the one the node presented it running under,
-    /// taking it from any other workload the store says holds it there, since two cannot; true
-    /// unless the store held exactly that.
+    /// unless another workload the store places on that node holds it there.
     fn recover_id_slot(
         &mut self,
         node: Uuid,
         workload: Uuid,
         slot: u32,
-    ) -> impl Future<Output = StoreResult<bool>> + Send;
+    ) -> impl Future<Output = StoreResult<SlotRecovery>> + Send;
 }

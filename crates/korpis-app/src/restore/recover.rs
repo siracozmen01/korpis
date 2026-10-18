@@ -12,8 +12,8 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{
     Advance, Clock, EffectWrite as _, IntentRecovery, Opened, PlacementRecovery,
-    PlacementWrite as _, RecipeSource, RecoveredFrom, RecoveryWrite as _, Sealed, Store, Tx as _,
-    WorkloadWrite as _,
+    PlacementWrite as _, RecipeSource, RecoveredFrom, RecoveryWrite as _, Sealed, SlotRecovery,
+    Store, Tx as _, WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::placement::{BoundBy, Placement};
@@ -29,7 +29,7 @@ use std::fmt::Write as _;
 pub enum Recovery {
     /// Something the store lacked or held older was recorded.
     Recovered,
-    /// The store held all of it already.
+    /// The store held all of it already, or nothing presented could move what it holds.
     Held,
     /// It could not be recovered, and an effect says why.
     Refused,
@@ -66,6 +66,28 @@ fn effect(action: &str, outcome: Outcome, opened: &Opened, sealed: &Sealed) -> E
         ("intent_version", opened.target.version.into()),
         ("power_version", opened.power.power.version.into()),
     ]))
+}
+
+/// The placement of `opened`'s workload on the node that presented it, at `now`.
+fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement {
+    Placement {
+        workload: opened.workload,
+        node: opened.node,
+        intent: opened.target.id,
+        reserved: reservation(&opened.target.body),
+        bound_at: now,
+        bound_by: BoundBy::Recovery,
+        reason: "recovered from the assignment its node presented after a restore".into(),
+        explanation: Explanation {
+            candidates: 1,
+            filtered: Vec::new(),
+            scored: Vec::new(),
+            chosen: Some(opened.node),
+            runner_up: None,
+            policy: PlacementPolicy::default(),
+        },
+        authoritative: true,
+    }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -130,13 +152,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.append_effect(e).await?;
         }
         tx.commit().await?;
-        Ok(Recovery::Recovered)
+        let recovered = effects.iter().any(|e| e.outcome == Outcome::Succeeded);
+        Ok(if recovered { Recovery::Recovered } else { Recovery::Held })
     }
 
     /// Where `opened`'s workload runs, recovered (Finding 96 of docs/23-walkthroughs.md): its
-    /// placement bound to the presenting node unless it is there or a node that presented a
-    /// higher lease epoch holds it, and its id slot there the one the node runs it under. Takes
-    /// the placement lock, after the workload's, as every placement does.
+    /// placement bound to the presenting node unless it is placed elsewhere under a lease epoch
+    /// at least as high, and, where it is placed on that node, the id slot the node runs it
+    /// under, unless a workload placed there holds it. Takes the placement lock, after the
+    /// workload's, as every placement does.
     async fn recover_where(
         &self,
         tx: &mut S::Tx,
@@ -145,38 +169,46 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Vec<Effect>, AppError> {
         tx.lock_placement().await?;
         let mut effects = Vec::new();
-        let placement = Placement {
-            workload: opened.workload,
-            node: opened.node,
-            intent: opened.target.id,
-            reserved: reservation(&opened.target.body),
-            bound_at: self.clock.now(),
-            bound_by: BoundBy::Recovery,
-            reason: "recovered from the assignment its node presented after a restore".into(),
-            explanation: Explanation {
-                candidates: 1,
-                filtered: Vec::new(),
-                scored: Vec::new(),
-                chosen: Some(opened.node),
-                runner_up: None,
-                policy: PlacementPolicy::default(),
-            },
-            authoritative: true,
-        };
+        let placement = recovered_placement(opened, self.clock.now());
         let epoch = opened.lease_epoch;
-        if let PlacementRecovery::Bound { replaced } =
-            tx.recover_placement(&placement, epoch).await?
-        {
-            let replaced = replaced.map_or(Value::Null, |n| n.to_string().into());
-            let more = details([("lease_epoch", epoch.into()), ("replaced", replaced)]);
-            let done = effect("restore.placement.recovered", Outcome::Succeeded, opened, sealed);
-            effects.push(with(done, more));
-        }
-        if let Some(slot) = opened.ids.slot()
-            && tx.recover_id_slot(opened.node, opened.workload, slot).await?
-        {
-            let done = effect("restore.id_slot.recovered", Outcome::Succeeded, opened, sealed);
-            effects.push(with(done, details([("slot", slot.into())])));
+        let here = match tx.recover_placement(&placement, epoch).await? {
+            PlacementRecovery::Bound { replaced } => {
+                let replaced = replaced.map_or(Value::Null, |n| n.to_string().into());
+                let more = details([("lease_epoch", epoch.into()), ("replaced", replaced)]);
+                let done =
+                    effect("restore.placement.recovered", Outcome::Succeeded, opened, sealed);
+                effects.push(with(done, more));
+                true
+            }
+            PlacementRecovery::Held => true,
+            PlacementRecovery::Elsewhere { node } => {
+                // A node that presents a lower epoch than the store or another node holds, as a
+                // replayed older assignment does, moves nothing.
+                let more =
+                    details([("lease_epoch", epoch.into()), ("stays_on", node.to_string().into())]);
+                let kept = effect("restore.placement.kept", Outcome::Skipped, opened, sealed);
+                effects.push(with(kept, more));
+                false
+            }
+        };
+        if let Some(slot) = opened.ids.slot().filter(|_| here) {
+            match tx.recover_id_slot(opened.node, opened.workload, slot).await? {
+                SlotRecovery::Given { taken } => {
+                    let taken = taken.map_or(Value::Null, |w| w.to_string().into());
+                    let more = details([("slot", slot.into()), ("taken_from", taken)]);
+                    let done =
+                        effect("restore.id_slot.recovered", Outcome::Succeeded, opened, sealed);
+                    effects.push(with(done, more));
+                }
+                SlotRecovery::Held => {}
+                SlotRecovery::Conflict { holder } => {
+                    let more =
+                        details([("slot", slot.into()), ("holder", holder.to_string().into())]);
+                    let refused =
+                        effect("restore.id_slot.conflict", Outcome::Failed, opened, sealed);
+                    effects.push(with(refused, more));
+                }
+            }
         }
         Ok(effects)
     }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT node_id, recovered_epoch FROM placement\n              WHERE workload_id = $1 AND authoritative",
+  "query": "SELECT p.node_id, p.recovered_epoch,\n                      (SELECT l.epoch FROM lease l WHERE l.workload_id = p.workload_id)\n                          AS \"lease_epoch?\"\n                 FROM placement p WHERE p.workload_id = $1 AND p.authoritative",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,12 @@
             "name": "recovered_epoch"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "lease_epoch?",
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -33,8 +39,9 @@
     },
     "nullable": [
       false,
-      true
+      true,
+      null
     ]
   },
-  "hash": "33d72aa517122e1f151f375774aaf30abe4f27a8a778ad67b0a7aba753919c70"
+  "hash": "a56281f247375bddc863941ce61a61919a30cdcf503786d229be8fd41ceb1cd0"
 }

@@ -1138,6 +1138,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 94 | The oci driver's unit could not start on a machine with no volumes yet | §39 | `18-operations.md` §2 |
 | 95 | A workload lost by a restore could not be recovered: its name was not in what the node held | §40 | `03-state.md` §8 |
 | 96 | A recovered workload had no placement, so it would be placed a second time | §40 | `03-state.md` §8 |
+| 97 | A workload retired after the backup would be run again on the node that had removed it | §40 | `03-state.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3164,3 +3165,19 @@ epoch, and gives it the id slot the node runs it under. → `03-state.md` §8, `
 built in `crates/korpis-app/src/restore/recover.rs` and `crates/korpis-store/src/recovery.rs`,
 and tested by `crates/korpis-store/tests/workload/recovered.rs` and
 `crates/korpis-server/tests/api/recovery.rs`.
+
+**FINDING 97: A workload retired after the backup would be run again on the node that had removed
+it. `CONFIRMED`**
+
+Found 2026-10-18 by a review of Finding 96's resolution, asking step 8 what each node is sent.
+Recovery moves the store forward to what nodes present, and never back: it adds what the store
+lacks. A workload retired on Wednesday is, in Tuesday's store, live and placed on the node that
+ran it; that node no longer holds its assignment and so presents nothing for it, and when the
+window ends the node is sent the assignment again, and creates the workload anew. The tenant's
+deletion is undone by the recovery procedure, which is the rollback §8 of `03-state.md` exists to
+prevent, from the other side. A node not presenting a workload is not proof that it was retired:
+an assignment made just before the backup and never delivered is also absent. **Resolution.** A
+workload the restored store places on a node that presented its assignments, and that the node
+did not present, is held when the window ends: it is not sent to that node, and an effect names
+it, until an operator confirms it, which sends it, or retires it. → `03-state.md` §8; built with
+the rest of step 3.

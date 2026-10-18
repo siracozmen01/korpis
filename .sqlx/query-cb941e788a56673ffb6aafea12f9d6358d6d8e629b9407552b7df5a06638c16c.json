@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.workload_id, s.slot,\n                      EXISTS (SELECT 1 FROM placement p\n                               WHERE p.workload_id = s.workload_id AND p.node_id = s.node_id\n                                 AND p.authoritative) AS \"placed_here!\"\n                 FROM node_id_slot s\n                WHERE s.node_id = $1 AND (s.slot = $3 OR s.workload_id = $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "node_id_slot",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "slot",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "node_id_slot",
+            "name": "slot"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "placed_here!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "cb941e788a56673ffb6aafea12f9d6358d6d8e629b9407552b7df5a06638c16c"
+}

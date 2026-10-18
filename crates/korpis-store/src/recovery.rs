@@ -9,8 +9,8 @@ use crate::errors::from_sqlx;
 use crate::stored::{ExplanationDoc, bounds_doc, from_time, to_count, to_json};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{
-    Advance, Advanced, IntentRecovery, PlacementRecovery, RecoveredFrom, RecoveryWrite, StoreError,
-    StoreResult,
+    Advance, Advanced, IntentRecovery, PlacementRecovery, RecoveredFrom, RecoveryWrite,
+    SlotRecovery, StoreError, StoreResult,
 };
 use korpis_core::placement::Placement;
 use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
@@ -178,15 +178,17 @@ impl RecoveryWrite for PgTx {
     ) -> StoreResult<PlacementRecovery> {
         let epoch = to_count("lease epoch", epoch)?;
         let current = sqlx::query!(
-            "SELECT node_id, recovered_epoch FROM placement
-              WHERE workload_id = $1 AND authoritative",
+            r#"SELECT p.node_id, p.recovered_epoch,
+                      (SELECT l.epoch FROM lease l WHERE l.workload_id = p.workload_id)
+                          AS "lease_epoch?"
+                 FROM placement p WHERE p.workload_id = $1 AND p.authoritative"#,
             p.workload
         )
         .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        if let Some(c) = &current {
-            if c.node_id == p.node {
+        match current {
+            Some(c) if c.node_id == p.node => {
                 sqlx::query!(
                     "UPDATE placement SET recovered_epoch = greatest(recovered_epoch, $3)
                       WHERE workload_id = $1 AND node_id = $2",
@@ -197,14 +199,16 @@ impl RecoveryWrite for PgTx {
                 .execute(&mut *self.tx)
                 .await
                 .map_err(from_sqlx)?;
-                return Ok(PlacementRecovery::Kept);
+                Ok(PlacementRecovery::Held)
             }
-            if c.recovered_epoch.is_some_and(|held| held >= epoch) {
-                return Ok(PlacementRecovery::Kept);
+            Some(c) if epoch <= c.recovered_epoch.unwrap_or(0).max(c.lease_epoch.unwrap_or(0)) => {
+                Ok(PlacementRecovery::Elsewhere { node: c.node_id })
+            }
+            current => {
+                self.replace_placement(p, epoch).await?;
+                Ok(PlacementRecovery::Bound { replaced: current.map(|c| c.node_id) })
             }
         }
-        self.replace_placement(p, epoch).await?;
-        Ok(PlacementRecovery::Bound { replaced: current.map(|c| c.node_id) })
     }
 
     async fn recover_id_slot(
@@ -212,9 +216,33 @@ impl RecoveryWrite for PgTx {
         node: Uuid,
         workload: Uuid,
         slot: u32,
-    ) -> StoreResult<bool> {
+    ) -> StoreResult<SlotRecovery> {
         let slot = i32::try_from(slot).map_err(|_| StoreError::Failed(format!("slot {slot}")))?;
-        let taken = sqlx::query!(
+        let held = sqlx::query!(
+            r#"SELECT s.workload_id, s.slot,
+                      EXISTS (SELECT 1 FROM placement p
+                               WHERE p.workload_id = s.workload_id AND p.node_id = s.node_id
+                                 AND p.authoritative) AS "placed_here!"
+                 FROM node_id_slot s
+                WHERE s.node_id = $1 AND (s.slot = $3 OR s.workload_id = $2)"#,
+            node,
+            workload,
+            slot
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if let [only] = held.as_slice()
+            && only.workload_id == workload
+            && only.slot == slot
+        {
+            return Ok(SlotRecovery::Held);
+        }
+        let holder = held.iter().find(|h| h.slot == slot && h.workload_id != workload);
+        if let Some(h) = holder.filter(|h| h.placed_here) {
+            return Ok(SlotRecovery::Conflict { holder: h.workload_id });
+        }
+        sqlx::query!(
             "DELETE FROM node_id_slot
               WHERE node_id = $1
                 AND ((slot = $3 AND workload_id <> $2) OR (workload_id = $2 AND slot <> $3))",
@@ -225,7 +253,7 @@ impl RecoveryWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        let given = sqlx::query!(
+        sqlx::query!(
             "INSERT INTO node_id_slot (node_id, workload_id, slot) VALUES ($1, $2, $3)
              ON CONFLICT (node_id, workload_id) DO NOTHING",
             node,
@@ -235,7 +263,7 @@ impl RecoveryWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(taken.rows_affected() + given.rows_affected() > 0)
+        Ok(SlotRecovery::Given { taken: holder.map(|h| h.workload_id) })
     }
 }
 
