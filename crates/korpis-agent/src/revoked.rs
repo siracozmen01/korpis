@@ -41,18 +41,22 @@ pub fn verify(raw: &agent::RevocationList, ring: &KeyRing) -> Result<RevocationL
 /// The list as the node holds it, and where it keeps it.
 #[derive(Debug)]
 pub struct Revoked {
-    ring: KeyRing,
+    ring: watch::Receiver<Arc<KeyRing>>,
     path: PathBuf,
     tx: watch::Sender<Arc<RevocationList>>,
 }
 
 impl Revoked {
-    /// The list kept at `path`, verified again against `ring`: what is on disk is believed no
-    /// more than what arrives, and a kept list that no longer verifies is no list. Also what
-    /// verifiers watch.
+    /// The list kept at `path`, verified again against the token keys `ring` holds: what is on
+    /// disk is believed no more than what arrives, and a kept list that no longer verifies is no
+    /// list. Also what verifiers watch.
     #[must_use]
-    pub fn load(path: PathBuf, ring: KeyRing) -> (Self, watch::Receiver<Arc<RevocationList>>) {
-        let kept = match read(&path, &ring) {
+    pub fn load(
+        path: PathBuf,
+        ring: watch::Receiver<Arc<KeyRing>>,
+    ) -> (Self, watch::Receiver<Arc<RevocationList>>) {
+        let held = Arc::clone(&ring.borrow());
+        let kept = match read(&path, &held) {
             Ok(list) => list,
             Err(e) => {
                 tracing::warn!(error = %e, "the kept revocation list is unusable; holding none");
@@ -65,7 +69,8 @@ impl Revoked {
 
     /// Believes and keeps `raw`; its version and size, or why it was refused.
     pub fn receive(&self, raw: &agent::RevocationList) -> Result<(u64, usize), String> {
-        let list = verify(raw, &self.ring)?;
+        let ring = Arc::clone(&self.ring.borrow());
+        let list = verify(raw, &ring)?;
         // Kept before it is used, so a restart never holds an older list than one acted on.
         crate::durable::replace(&self.path, &raw.encode_to_vec()).map_err(|e| e.to_string())?;
         let shape = (list.version, list.grants.len());
@@ -94,6 +99,10 @@ mod tests {
     use std::time::SystemTime;
     use uuid::Uuid;
 
+    fn ring(key: &SigningKey) -> watch::Receiver<Arc<KeyRing>> {
+        watch::channel(Arc::new(token_ring(&enrolled(key)))).1
+    }
+
     fn enrolled(key: &SigningKey) -> Vec<agent::SigningKey> {
         vec![agent::SigningKey {
             key_id: key_name(key.key_id),
@@ -111,15 +120,15 @@ mod tests {
         let list = RevocationList::new(SystemTime::now(), vec![grant]);
         let raw = revocation_to_pb(&list.clone().sign(&key));
 
-        let (held, rx) = Revoked::load(path.clone(), token_ring(&enrolled(&key)));
+        let (held, rx) = Revoked::load(path.clone(), ring(&key));
         assert!(rx.borrow().grants.is_empty(), "nothing kept is an empty list");
         assert_eq!(held.receive(&raw), Ok((list.version, 1)));
         assert_eq!(rx.borrow().refuses(&[grant]), Some(grant));
 
-        let (_, again) = Revoked::load(path.clone(), token_ring(&enrolled(&key)));
+        let (_, again) = Revoked::load(path.clone(), ring(&key));
         assert_eq!(**again.borrow(), list, "kept across a restart");
         let stranger = SigningKey::generate(1);
-        let (_, other) = Revoked::load(path, token_ring(&enrolled(&stranger)));
+        let (_, other) = Revoked::load(path, ring(&stranger));
         assert!(other.borrow().grants.is_empty(), "a kept list is verified again");
     }
 
@@ -127,7 +136,7 @@ mod tests {
     fn a_forged_list_is_refused_and_the_held_one_kept() {
         let dir = tempfile::tempdir().unwrap();
         let key = SigningKey::generate(1);
-        let (held, rx) = Revoked::load(dir.path().join("r"), token_ring(&enrolled(&key)));
+        let (held, rx) = Revoked::load(dir.path().join("r"), ring(&key));
         let list = RevocationList::new(SystemTime::now(), vec![Uuid::now_v7()]);
         held.receive(&revocation_to_pb(&list.clone().sign(&key))).unwrap();
         let forged = revocation_to_pb(&RevocationList::default().sign(&SigningKey::generate(1)));

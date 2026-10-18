@@ -118,7 +118,10 @@ pub async fn node_with(cp: &ControlPlane, name: &str, handlers: Handlers) -> Nod
         until(&mut events, |e| matches!(e, Event::Held { .. })).await;
     }
     let judged = Judged {
-        keys: token_ring(&identity.keys.token_keys),
+        keys: tokio::sync::watch::channel(std::sync::Arc::new(token_ring(
+            &identity.keys.token_keys,
+        )))
+        .1,
         revoked: link.revoked.clone(),
         held: link.held.clone(),
         handlers,

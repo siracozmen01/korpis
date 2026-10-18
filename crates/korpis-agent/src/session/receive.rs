@@ -12,6 +12,26 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as U
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 
 impl Session {
+    /// Believes and keeps a revocation list, or refuses it.
+    fn revocations(&self, list: &agent::RevocationList) {
+        match self.revoked.receive(list) {
+            Ok((version, entries)) => {
+                let _ = self.events.send(Event::Revocations { version, entries });
+            }
+            // The list held stays; the control plane sends the next one within seconds.
+            Err(e) => tracing::error!(error = %e, "revocation list refused: a security event"),
+        }
+    }
+
+    /// Holds the token keys in force in place of those held, or refuses them.
+    fn keys_in_force(&self, keys: &agent::TokenKeys) {
+        match self.token_keys.receive(keys) {
+            Ok(n) => tracing::info!(keys = n, "token keys in force"),
+            // The keys held stay; the next session sends them again.
+            Err(e) => tracing::error!(error = %e, "token keys refused"),
+        }
+    }
+
     /// Handles one message; what to send in answer.
     pub(super) async fn receive(
         &self,
@@ -26,19 +46,15 @@ impl Session {
             }
             Some(Down::JournalAck(ack)) => shipped(shipper.acknowledged(ack.seq).await),
             Some(Down::RevocationList(list)) => {
-                match self.revoked.receive(&list) {
-                    Ok((version, entries)) => {
-                        let _ = self.events.send(Event::Revocations { version, entries });
-                    }
-                    // The list held stays; the control plane sends the next one within seconds.
-                    Err(e) => {
-                        tracing::error!(error = %e, "revocation list refused: a security event");
-                    }
-                }
+                self.revocations(&list);
                 Vec::new()
             }
             Some(Down::Relays(r)) => {
                 self.name_relays(&r);
+                Vec::new()
+            }
+            Some(Down::TokenKeys(keys)) => {
+                self.keys_in_force(&keys);
                 Vec::new()
             }
             Some(Down::ReachabilityProbe(p)) => {

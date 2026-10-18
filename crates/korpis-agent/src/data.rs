@@ -45,8 +45,8 @@ type Recv = BidiRecvHalf<
 /// What the data connections judge sessions by.
 #[derive(Debug, Clone)]
 pub struct Judged {
-    /// The token keys enrollment returned.
-    pub keys: KeyRing,
+    /// The token keys in force, as the control plane last sent them (§8 of docs/03-state.md).
+    pub keys: watch::Receiver<Arc<KeyRing>>,
     /// The revocation list held.
     pub revoked: watch::Receiver<Arc<RevocationList>>,
     /// The assignment set held.
@@ -82,7 +82,8 @@ impl Judged {
         let on = Resource::alone(ObjectRef::new(Kind::Workload, id));
         let revoked: HashSet<_> = self.revoked.borrow().grants.iter().copied().collect();
         let at = (SystemTime::now(), Client::Unseen);
-        verify(token, &self.keys, action, &on, &revoked, at).map_err(|e| e.to_string())
+        let keys = Arc::clone(&self.keys.borrow());
+        verify(token, &keys, action, &on, &revoked, at).map_err(|e| e.to_string())
     }
 
     /// A renewal of `opened`: the same action on the same workload, for the same subject.

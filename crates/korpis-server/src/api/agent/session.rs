@@ -107,6 +107,21 @@ fn welcome(app: &ServerApp, s: &Session, present: bool) -> agent::ControlMessage
     }
 }
 
+/// The token keys in force, sent before anything signed with them: a restore's rotation retired
+/// the ones the agent was given at enrollment (§8 of docs/03-state.md).
+async fn token_keys(app: &ServerApp) -> Result<agent::ControlMessage, ConnectError> {
+    use korpis_app::ports::EnrollmentRead as _;
+    let keys = app.store().verify_keys("token").await.map_err(|e| error::from_app(e.into()))?;
+    let keys = agent::TokenKeys {
+        keys: keys.iter().map(super::key_to_pb).collect(),
+        ..Default::default()
+    };
+    Ok(agent::ControlMessage {
+        message: Some(Down::TokenKeys(Box::new(keys))),
+        ..Default::default()
+    })
+}
+
 /// Reads the Hello, from `ip`, opens the session, and returns where the control plane's messages
 /// go out. A Hello that does not prove its node is a failed attempt naming that node.
 pub(super) async fn open(
@@ -129,6 +144,7 @@ pub(super) async fn open(
     let (tx, rx) = mpsc::channel(OUTBOUND);
     let present = app.settling().await.map_err(error::from_app)?.is_some();
     tx.send(welcome(app, &session, present)).await.map_err(|e| error::internal(&e))?;
+    tx.send(token_keys(app).await?).await.map_err(|e| error::internal(&e))?;
     let ingested = app.journal_ingested(session.node.id).await.map_err(error::from_app)?;
     tx.send(journal_ack(ingested)).await.map_err(|e| error::internal(&e))?;
     let node = session.node.id;

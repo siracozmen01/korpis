@@ -62,6 +62,9 @@ pub enum Event {
 pub struct Link {
     /// The set held, as it changes.
     pub held: watch::Receiver<HeldSet>,
+    /// The token keys in force, as the control plane last sent them: what capability tokens
+    /// and revocation lists are verified with (§8 of docs/03-state.md).
+    pub token_ring: watch::Receiver<Arc<korpis_core::authz::token::KeyRing>>,
     /// The revocation list held, as it changes: what token verification refuses (§6.3 of
     /// docs/08-identity.md).
     pub revoked: watch::Receiver<Arc<RevocationList>>,

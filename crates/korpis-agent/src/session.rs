@@ -11,9 +11,10 @@ use crate::held::HeldSet;
 use crate::identity::Credentials;
 use crate::jobs::JobAccesses;
 use crate::journal::{JournalHandle, Shipper};
-use crate::revoked::{Revoked, token_ring};
+use crate::revoked::Revoked;
 use crate::state::{Identity, StateDir};
 use crate::tls;
+use crate::token_keys::TokenKeys;
 use buffa_types::google::protobuf::Timestamp;
 use connectrpc::client::{BidiRecvHalf, ClientConfig, ClientTransport, HttpClient};
 use korpis_core::node::identity::{hello_message, sign};
@@ -53,6 +54,7 @@ pub struct Session {
     facts: Arc<dyn Fn() -> Facts + Send + Sync>,
     journal: JournalHandle,
     held: watch::Sender<HeldSet>,
+    token_keys: TokenKeys,
     revoked: Revoked,
     relays: watch::Sender<Vec<String>>,
     inbound: mpsc::Sender<Down>,
@@ -128,8 +130,9 @@ impl Session {
                 HeldSet::default()
             });
         let (held, held_rx) = watch::channel(initial);
-        let ring = token_ring(&identity.keys.token_keys);
-        let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring);
+        let kept_keys = state.root().join("token_keys.binpb");
+        let (token_keys, ring) = TokenKeys::load(kept_keys, &identity.keys.token_keys);
+        let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring.clone());
         let (relays, relays_rx) = watch::channel(Vec::new());
         let (inbound, inbound_rx) = mpsc::channel(256);
         let (outbound_tx, outbound) = mpsc::channel(1024);
@@ -144,6 +147,7 @@ impl Session {
         );
         let link = Link {
             held: held_rx,
+            token_ring: ring,
             revoked: revoked_rx,
             relays: relays_rx,
             inbound: inbound_rx,
@@ -161,6 +165,7 @@ impl Session {
             facts,
             journal,
             held,
+            token_keys,
             revoked,
             relays,
             inbound,

@@ -54,6 +54,12 @@ async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
     }
     let (mut stream, first) = TestAgent::open(h, hello).await;
     welcome(&first.unwrap());
+    // The token keys in force come first, before anything signed with them.
+    let Some(Down::TokenKeys(keys)) = crate::agent::any(&mut stream).await.message else {
+        panic!("the token keys were not sent first");
+    };
+    let named: Vec<_> = keys.keys.iter().map(|k| k.key_id.as_str()).collect();
+    assert_eq!(named, [korpis_core::authz::token::key_name(1)]);
     let ack = next(&mut stream).await;
     assert!(matches!(ack.message, Some(Down::JournalAck(_))), "where to resend from");
     stream

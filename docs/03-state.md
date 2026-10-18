@@ -652,16 +652,20 @@ system hands out.
 > token key in the store, so no verifier is given a retired key again and every token signed before
 > the rotation, the backup's and any issued after it alike, stops verifying against the control
 > plane; every session is ended in the same transaction, recorded as an effect naming the operator.
-> The assignment key is never rotated, since nodes present what it signed (§8 above). Agents and
-> relays that are already running hold the keys they were given when they joined; telling them of a
-> rotation is built next, and until it is, an agent keeps accepting what the retired key signed. A
-> rotation that fails part way must not leave both kinds of trust standing, so the new key is
-> written under a name no load reads, recorded in the transaction that retires the rest, and put in
-> place only after that commits; its epoch passes every epoch the data directory or the store
-> holds, so no key ever takes the name of another, and a name recorded with other bytes is refused.
-> And `serve` refuses to start when the store trusts a token key other than the one its data
-> directory signs with, which is what an interrupted rotation, or a data directory older than its
-> store, leaves. These were added the same day, from a review of the first version.
+> The assignment key is never rotated, since nodes present what it signed (§8 above). Every agent
+> session now opens with the token keys in force, before anything signed with them, and the agent
+> replaces the set it holds with them, never adding to it, keeps them for its next start, and
+> verifies capability tokens and revocation lists with them from then on; a relay is told by its
+> feed, which gives the same set. So an agent that reconnects to a restored control plane stops
+> accepting what a retired key signed. Until it reconnects it accepts it still, which is the window
+> a control plane that is down leaves anyway. A rotation that fails part way must not leave both
+> kinds of trust standing, so the new key is written under a name no load reads, recorded in the
+> transaction that retires the rest, and put in place only after that commits; its epoch passes
+> every epoch the data directory or the store holds, so no key ever takes the name of another, and
+> a name recorded with other bytes is refused. And `serve` refuses to start when the store trusts a
+> token key other than the one its data directory signs with, which is what an interrupted
+> rotation, or a data directory older than its store, leaves. These were added the same day, from a
+> review of the first version.
 
 The cost is a bounded, visible interruption during a disaster the operator is already handling. The
 alternative is authority in circulation with no record of it, which is the worse outcome by a wide

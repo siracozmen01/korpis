@@ -22,7 +22,6 @@ use crate::offload::Offloader;
 use crate::reconcile::progress::Progress;
 use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
-use crate::revoked::token_ring;
 use crate::runtime::{Runtime, RuntimeError};
 use crate::session::{Event, Facts, Link, Session};
 use crate::state::{StateDir, StateError};
@@ -218,7 +217,7 @@ fn offloader(
 /// `handlers`.
 fn data_link(identity: crate::state::Identity, link: &Link, handlers: Handlers) -> DataLink {
     let judged = Judged {
-        keys: token_ring(&identity.keys.token_keys),
+        keys: link.token_ring.clone(),
         revoked: link.revoked.clone(),
         held: link.held.clone(),
         handlers,

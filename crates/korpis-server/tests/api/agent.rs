@@ -205,7 +205,10 @@ pub fn welcome(m: &agent::ControlMessage) -> agent::Welcome {
 pub async fn next(stream: &mut Stream) -> agent::ControlMessage {
     loop {
         let m = any(stream).await;
-        if !matches!(m.message, Some(Down::RevocationList(_) | Down::Relays(_))) {
+        if !matches!(
+            m.message,
+            Some(Down::RevocationList(_) | Down::Relays(_) | Down::TokenKeys(_))
+        ) {
             return m;
         }
     }
@@ -229,7 +232,7 @@ pub async fn next_list(stream: &mut Stream) -> agent::RevocationList {
     }
 }
 
-async fn any(stream: &mut Stream) -> agent::ControlMessage {
+pub async fn any(stream: &mut Stream) -> agent::ControlMessage {
     let received = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         stream.message::<agent::ControlMessage>(),

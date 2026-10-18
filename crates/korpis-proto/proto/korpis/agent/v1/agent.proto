@@ -48,6 +48,15 @@ message EnrollResponse {
   repeated SigningKey token_keys = 3;
 }
 
+// The token keys in force, sent once every session opens, before anything signed with them:
+// what the agent verifies capability tokens and revocation lists with, replacing the set it
+// held, which a restore's rotation retired (§8 of docs/03-state.md). It arrives over the session
+// the agent pinned to the installation's authority at enrollment, as Enrolled.token_keys did.
+// Added 2026-10-18.
+message TokenKeys {
+  repeated SigningKey keys = 1;
+}
+
 message SigningKey {
   string key_id = 1;
   // Ed25519 public key, raw 32 bytes.
@@ -100,6 +109,7 @@ message ControlMessage {
     JobAccess job_access = 16;
     StepResolution step_resolution = 17;
     CertificateKey certificate_key = 18;
+    TokenKeys token_keys = 19;
   }
 }
 
