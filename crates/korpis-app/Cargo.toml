@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 korpis-core = { workspace = true, features = ["accounts", "authz", "identity", "trust"] }
+# Schedules are read in the zone their intent names, handed over by the Zones port.
+jiff = { version = "0.2", default-features = false, features = ["std"] }
 serde_json = "1"
 thiserror = { workspace = true }
 # An opened data key is wiped when the job that needed it has it.

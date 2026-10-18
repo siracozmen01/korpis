@@ -45,6 +45,7 @@ pub mod tls;
 pub mod tls_vault;
 pub mod vault;
 mod web;
+mod zones;
 
 use api::Api;
 use korpis_app::App;
@@ -194,6 +195,7 @@ fn application(
         ))
         .with_factor_vault(Arc::new(factor_vault::FactorKeys::load_or_create(&config.data)?))
         .with_passwords(Arc::new(passwords::Bounded::per_core()))
+        .with_zones(Arc::new(zones::SystemZones))
         .with_session_limits(config.session_limits);
     if let Some(rp) = &config.relying_party {
         return Ok(app.with_relying_party(rp.clone()));

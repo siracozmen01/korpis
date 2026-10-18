@@ -106,6 +106,8 @@ pub fn declaration_from_pb(
             lifecycle_from_pb(&f("lifecycle"), b.lifecycle)
         })?,
         schedule: (!b.schedule.is_empty()).then(|| b.schedule.clone()),
+        timezone: (!b.timezone.is_empty()).then(|| b.timezone.clone()),
+        runs: b.runs.as_option().map(|r| super::runs::policy_from_pb(&f("runs"), r)).transpose()?,
         console: unless(b.console, pb::ConsoleMode::CONSOLE_MODE_UNSPECIFIED, || {
             console_from_pb(&f("console"), b.console)
         })?,

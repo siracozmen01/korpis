@@ -21,6 +21,8 @@ fn body() -> IntentBody {
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
+        timezone: None,
+        runs: None,
         console: ConsoleMode::None,
         runtime: RuntimeSpec {
             driver: "oci".into(),

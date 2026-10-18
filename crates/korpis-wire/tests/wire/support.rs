@@ -169,6 +169,8 @@ pub fn body() -> IntentBody {
         recipe: recipe(),
         lifecycle: Lifecycle::Persistent,
         schedule: None,
+        timezone: None,
+        runs: None,
         console: ConsoleMode::Interactive,
         runtime: RuntimeSpec {
             driver: "oci".into(),

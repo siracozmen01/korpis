@@ -71,6 +71,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     factor_vault: Option<Arc<dyn ports::FactorVault>>,
     passwords: Arc<dyn ports::Passwords>,
     session_limits: korpis_core::account::session::SessionLimits,
+    zones: Arc<dyn ports::Zones>,
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -99,6 +100,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             relying_party: None,
             factor_vault: None,
             passwords: Arc::new(ports::InPlace),
+            zones: Arc::new(ports::UtcOnly),
             session_limits: korpis_core::account::session::SessionLimits::default(),
         }
     }
@@ -216,6 +218,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub fn with_factor_vault(mut self, vault: Arc<dyn ports::FactorVault>) -> Self {
         self.factor_vault = Some(vault);
+        self
+    }
+
+    /// Reads schedules in the zones `zones` knows instead of UTC alone (§4.1 of
+    /// docs/05-scheduling.md).
+    #[must_use]
+    pub fn with_zones(mut self, zones: Arc<dyn ports::Zones>) -> Self {
+        self.zones = zones;
         self
     }
 

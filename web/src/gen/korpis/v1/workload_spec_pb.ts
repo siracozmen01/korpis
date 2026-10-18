@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/workload_spec.proto.
  */
 export const file_korpis_v1_workload_spec: GenFile = /*@__PURE__*/
-  fileDesc("Ch1rb3JwaXMvdjEvd29ya2xvYWRfc3BlYy5wcm90bxIJa29ycGlzLnYxItQBCgpTdHJlYW1TcGVjEhoKEnJhdGVfYnl0ZXNfcGVyX3NlYxgBIAEoBBITCgtidXJzdF9ieXRlcxgCIAEoBBI3ChJyZXRlbnRpb25fZHVyYXRpb24YAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IABIZCg9yZXRlbnRpb25fYnl0ZXMYBCABKARIABI0ChFvZmZsb2FkX3JldGVudGlvbhgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkILCglyZXRlbnRpb24iugEKC1J1bnRpbWVTcGVjEg4KBmRyaXZlchgBIAEoCRImCgR0aWVyGAIgASgOMhgua29ycGlzLnYxLklzb2xhdGlvblRpZXISMgoGY29uZmlnGAMgAygLMiIua29ycGlzLnYxLlJ1bnRpbWVTcGVjLkNvbmZpZ0VudHJ5Gj8KC0NvbmZpZ0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmtvcnBpcy52MS5WYWx1ZToCOAEi8AEKDFJlc291cmNlU3BlYxIfCgNjcHUYASABKAsyEi5rb3JwaXMudjEuQ3B1U3BlYxIoCgZtZW1vcnkYAiABKAsyGC5rb3JwaXMudjEuUmVzZXJ2ZWRMaW1pdBImCgRkaXNrGAMgASgLMhgua29ycGlzLnYxLlJlc2VydmVkTGltaXQSHQoCaW8YBCABKAsyES5rb3JwaXMudjEuSW9TcGVjEisKCWJhbmR3aWR0aBgFIAEoCzIYLmtvcnBpcy52MS5CYW5kd2lkdGhTcGVjEiEKBHBpZHMYBiABKAsyEy5rb3JwaXMudjEuUGlkc1NwZWMiZwoHQ3B1U3BlYxIaChJyZXNlcnZhdGlvbl9taWxsaXMYASABKAQSFAoMbGltaXRfbWlsbGlzGAIgASgEEioKCWlzb2xhdGlvbhgDIAEoDjIXLmtvcnBpcy52MS5DcHVJc29sYXRpb24iMwoNUmVzZXJ2ZWRMaW1pdBITCgtyZXNlcnZhdGlvbhgBIAEoBBINCgVsaW1pdBgCIAEoBCKFAQoGSW9TcGVjEhoKEnJlYWRfYnl0ZXNfcGVyX3NlYxgBIAEoBBIbChN3cml0ZV9ieXRlc19wZXJfc2VjGAIgASgEEhgKEHJlYWRfb3BzX3Blcl9zZWMYAyABKAQSGQoRd3JpdGVfb3BzX3Blcl9zZWMYBCABKAQSDQoFc2hhcmUYBSABKA0iUAoNQmFuZHdpZHRoU3BlYxIoCgZlZ3Jlc3MYASABKAsyGC5rb3JwaXMudjEuUmVzZXJ2ZWRMaW1pdBIVCg1pbmdyZXNzX2xpbWl0GAIgASgEIhkKCFBpZHNTcGVjEg0KBWxpbWl0GAEgASgEIsYBCgpWb2x1bWVTcGVjEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgEEhUKDXN0b3JhZ2VfY2xhc3MYBCABKAkSIwoEbW9kZRgFIAEoDjIVLmtvcnBpcy52MS5Wb2x1bWVNb2RlEhUKCGV4aXN0aW5nGAYgASgJSACIAQESGAoLZnJvbV9iYWNrdXAYByABKAlIAYgBAUILCglfZXhpc3RpbmdCDgoMX2Zyb21fYmFja3VwIqMCCgxFbmRwb2ludFNwZWMSDAoEbmFtZRgBIAEoCRItCghwcm90b2NvbBgCIAEoDjIbLmtvcnBpcy52MS5FbmRwb2ludFByb3RvY29sEhYKDmNvbnRhaW5lcl9wb3J0GAMgASgNEiUKCGV4cG9zdXJlGAQgASgOMhMua29ycGlzLnYxLkV4cG9zdXJlEg8KB2RvbWFpbnMYBSADKAkSHwoDdGxzGAYgASgLMhIua29ycGlzLnYxLlRsc1NwZWMSKAoGcG9saWN5GAcgASgLMhgua29ycGlzLnYxLk5ldHdvcmtQb2xpY3kSEgoKYWNjb3VudGluZxgIIAEoCBInCgdzaGFwaW5nGAkgASgLMhYua29ycGlzLnYxLlNoYXBpbmdTcGVjIj8KB1Rsc1NwZWMSJAoGc291cmNlGAEgASgOMhQua29ycGlzLnYxLlRsc1NvdXJjZRIOCgZzZWNyZXQYAiABKAkijwEKDU5ldHdvcmtQb2xpY3kSJwoHaW5ncmVzcxgBIAMoCzIWLmtvcnBpcy52MS5OZXR3b3JrUnVsZRImCgZlZ3Jlc3MYAiADKAsyFi5rb3JwaXMudjEuTmV0d29ya1J1bGUSLQoJY29ubnRyYWNrGAMgASgLMhoua29ycGlzLnYxLkNvbm50cmFja0xpbWl0cyJhCgxFZ3Jlc3NQb2xpY3kSJQoFcnVsZXMYASADKAsyFi5rb3JwaXMudjEuTmV0d29ya1J1bGUSKgoGbGltaXRzGAIgASgLMhoua29ycGlzLnYxLkNvbm50cmFja0xpbWl0cyLkAQoLTmV0d29ya1J1bGUSKAoGYWN0aW9uGAEgASgOMhgua29ycGlzLnYxLk5ldHdvcmtBY3Rpb24SDgoEY2lkchgCIAEoCUgAEi0KCXdvcmtsb2FkcxgDIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9ySAASEAoGZG9tYWluGAQgASgJSAASIwoFcG9ydHMYBSADKAsyFC5rb3JwaXMudjEuUG9ydFJhbmdlEi0KCHByb3RvY29sGAYgASgOMhsua29ycGlzLnYxLkVuZHBvaW50UHJvdG9jb2xCBgoEcGVlciIoCglQb3J0UmFuZ2USDQoFZmlyc3QYASABKA0SDAoEbGFzdBgCIAEoDSJWCg9Db25udHJhY2tMaW1pdHMSFwoPbWF4X2Nvbm5lY3Rpb25zGAEgASgNEhMKC25ld19wZXJfc2VjGAIgASgNEhUKDW1heF9oYWxmX29wZW4YAyABKA0iSAoLU2hhcGluZ1NwZWMSGwoTZWdyZXNzX2JpdHNfcGVyX3NlYxgBIAEoBBIcChRpbmdyZXNzX2JpdHNfcGVyX3NlYxgCIAEoBCJVCgpIZWFsdGhTcGVjEiMKCXJlYWRpbmVzcxgBIAEoCzIQLmtvcnBpcy52MS5Qcm9iZRIiCghsaXZlbmVzcxgCIAEoCzIQLmtvcnBpcy52MS5Qcm9iZSLLAwoFUHJvYmUSIgoDdGNwGAEgASgLMhMua29ycGlzLnYxLlRjcFByb2JlSAASJAoEaHR0cBgCIAEoCzIULmtvcnBpcy52MS5IdHRwUHJvYmVIABImCgVxdWVyeRgDIAEoCzIVLmtvcnBpcy52MS5RdWVyeVByb2JlSAASJAoEZXhlYxgEIAEoCzIULmtvcnBpcy52MS5FeGVjUHJvYmVIABIxCgtndWVzdF9hZ2VudBgFIAEoCzIaLmtvcnBpcy52MS5HdWVzdEFnZW50UHJvYmVIABIkCgRleGl0GAYgASgLMhQua29ycGlzLnYxLkV4aXRQcm9iZUgAEi4KCWhlYXJ0YmVhdBgHIAEoCzIZLmtvcnBpcy52MS5IZWFydGJlYXRQcm9iZUgAEikKBnBlcmlvZBgIIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAkgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhAKCGZhaWx1cmVzGAogASgNEjAKDWluaXRpYWxfZGVsYXkYCyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEa2luZCIcCghUY3BQcm9iZRIQCghlbmRwb2ludBgBIAEoCSJCCglIdHRwUHJvYmUSEAoIZW5kcG9pbnQYASABKAkSDAoEcGF0aBgCIAEoCRIVCg1leHBlY3Rfc3RhdHVzGAMgASgNIjAKClF1ZXJ5UHJvYmUSEAoIcHJvdG9jb2wYASABKAkSEAoIZW5kcG9pbnQYAiABKAkiHAoJRXhlY1Byb2JlEg8KB2NvbW1hbmQYASADKAkiEQoPR3Vlc3RBZ2VudFByb2JlIiIKCUV4aXRQcm9iZRIVCg1zdWNjZXNzX2NvZGVzGAEgAygFIkEKDkhlYXJ0YmVhdFByb2JlEi8KDG1heF9pbnRlcnZhbBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKxAQoNUGxhY2VtZW50U3BlYxIvCg1ub2RlX3NlbGVjdG9yGAEgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISKgoLdG9sZXJhdGlvbnMYAiADKAsyFS5rb3JwaXMudjEuVG9sZXJhdGlvbhIpCghhZmZpbml0eRgDIAMoCzIXLmtvcnBpcy52MS5BZmZpbml0eVJ1bGUSGAoQcHJlZmVycmVkX3JlZ2lvbhgEIAEoCSIoCgpUb2xlcmF0aW9uEgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCSJxCgxBZmZpbml0eVJ1bGUSDAoEYW50aRgBIAEoCBIQCghyZXF1aXJlZBgCIAEoCBIrCgl3b3JrbG9hZHMYAyABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIUCgx0b3BvbG9neV9rZXkYBCABKAkivAEKCkRlcGVuZGVuY3kSDAoEbmFtZRgBIAEoCRISCgh3b3JrbG9hZBgCIAEoCUgAEhIKCGVuZHBvaW50GAMgASgJSAASLAoIc2VsZWN0b3IYBCABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvckgAEi4KBmluamVjdBgFIAEoDjIeLmtvcnBpcy52MS5EZXBlbmRlbmN5SW5qZWN0aW9uEhAKCHJlcXVpcmVkGAYgASgIQggKBnRhcmdldCJDCg5Db250aW51aXR5U3BlYxIxCg9vbl9sZWFzZV9leHBpcnkYASABKA4yGC5rb3JwaXMudjEuT25MZWFzZUV4cGlyeSptCglMaWZlY3ljbGUSGQoVTElGRUNZQ0xFX1VOU1BFQ0lGSUVEEAASGAoUTElGRUNZQ0xFX1BFUlNJU1RFTlQQARISCg5MSUZFQ1lDTEVfVEFTSxACEhcKE0xJRkVDWUNMRV9TQ0hFRFVMRUQQAyqQAQoLQ29uc29sZU1vZGUSHAoYQ09OU09MRV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRQ09OU09MRV9NT0RFX05PTkUQARIVChFDT05TT0xFX01PREVfTE9HUxACEhwKGENPTlNPTEVfTU9ERV9JTlRFUkFDVElWRRADEhcKE0NPTlNPTEVfTU9ERV9TRVJJQUwQBCqcAQoNSXNvbGF0aW9uVGllchIeChpJU09MQVRJT05fVElFUl9VTlNQRUNJRklFRBAAEhoKFklTT0xBVElPTl9USUVSX1BST0NFU1MQARIcChhJU09MQVRJT05fVElFUl9DT05UQUlORVIQAhIaChZJU09MQVRJT05fVElFUl9NSUNST1ZNEAMSFQoRSVNPTEFUSU9OX1RJRVJfVk0QBCpqCgxDcHVJc29sYXRpb24SHQoZQ1BVX0lTT0xBVElPTl9VTlNQRUNJRklFRBAAEhgKFENQVV9JU09MQVRJT05fU0hBUkVEEAESIQodQ1BVX0lTT0xBVElPTl9ERURJQ0FURURfQ09SRVMQAippCgpWb2x1bWVNb2RlEhsKF1ZPTFVNRV9NT0RFX1VOU1BFQ0lGSUVEEAASEgoOVk9MVU1FX01PREVfUlcQARISCg5WT0xVTUVfTU9ERV9STxACEhYKElZPTFVNRV9NT0RFX1NIQVJFRBADKsABChBFbmRwb2ludFByb3RvY29sEiEKHUVORFBPSU5UX1BST1RPQ09MX1VOU1BFQ0lGSUVEEAASGQoVRU5EUE9JTlRfUFJPVE9DT0xfVENQEAESGQoVRU5EUE9JTlRfUFJPVE9DT0xfVURQEAISGgoWRU5EUE9JTlRfUFJPVE9DT0xfSFRUUBADEhsKF0VORFBPSU5UX1BST1RPQ09MX0hUVFBTEAQSGgoWRU5EUE9JTlRfUFJPVE9DT0xfUVVJQxAFKskBCghFeHBvc3VyZRIYChRFWFBPU1VSRV9VTlNQRUNJRklFRBAAEhYKEkVYUE9TVVJFX05PREVfUE9SVBABEhcKE0VYUE9TVVJFX05PREVfQk9VTkQQAhITCg9FWFBPU1VSRV9TVEFCTEUQAxIUChBFWFBPU1VSRV9JTkdSRVNTEAQSGQoVRVhQT1NVUkVfREVESUNBVEVEX0lQEAUSGQoVRVhQT1NVUkVfT1ZFUkxBWV9PTkxZEAYSEQoNRVhQT1NVUkVfTk9ORRAHKnEKCVRsc1NvdXJjZRIaChZUTFNfU09VUkNFX1VOU1BFQ0lGSUVEEAASEwoPVExTX1NPVVJDRV9BQ01FEAESFwoTVExTX1NPVVJDRV9QUk9WSURFRBACEhoKFlRMU19TT1VSQ0VfUEFTU1RIUk9VR0gQAypiCg1OZXR3b3JrQWN0aW9uEh4KGk5FVFdPUktfQUNUSU9OX1VOU1BFQ0lGSUVEEAASGAoUTkVUV09SS19BQ1RJT05fQUxMT1cQARIXChNORVRXT1JLX0FDVElPTl9ERU5ZEAIqlwEKE0RlcGVuZGVuY3lJbmplY3Rpb24SJAogREVQRU5ERU5DWV9JTkpFQ1RJT05fVU5TUEVDSUZJRUQQABIcChhERVBFTkRFTkNZX0lOSkVDVElPTl9FTlYQARIdChlERVBFTkRFTkNZX0lOSkVDVElPTl9GSUxFEAISHQoZREVQRU5ERU5DWV9JTkpFQ1RJT05fQk9USBADKmwKDU9uTGVhc2VFeHBpcnkSHwobT05fTEVBU0VfRVhQSVJZX1VOU1BFQ0lGSUVEEAASIAocT05fTEVBU0VfRVhQSVJZX0tFRVBfUlVOTklORxABEhgKFE9OX0xFQVNFX0VYUElSWV9TVE9QEAJiBnByb3RvMw", [file_google_protobuf_duration, file_korpis_v1_common]);
+  fileDesc("Ch1rb3JwaXMvdjEvd29ya2xvYWRfc3BlYy5wcm90bxIJa29ycGlzLnYxItQBCgpTdHJlYW1TcGVjEhoKEnJhdGVfYnl0ZXNfcGVyX3NlYxgBIAEoBBITCgtidXJzdF9ieXRlcxgCIAEoBBI3ChJyZXRlbnRpb25fZHVyYXRpb24YAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25IABIZCg9yZXRlbnRpb25fYnl0ZXMYBCABKARIABI0ChFvZmZsb2FkX3JldGVudGlvbhgFIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkILCglyZXRlbnRpb24ioAIKCVJ1blBvbGljeRIrCgtjb25jdXJyZW5jeRgBIAEoDjIWLmtvcnBpcy52MS5Db25jdXJyZW5jeRIUCgdyZXRyaWVzGAIgASgNSACIAQESKgoHYmFja29mZhgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhwKD2tlZXBfc3VjY2Vzc2Z1bBgFIAEoDUgBiAEBEhgKC2tlZXBfZmFpbGVkGAYgASgNSAKIAQESEAoIY2F0Y2hfdXAYByABKAhCCgoIX3JldHJpZXNCEgoQX2tlZXBfc3VjY2Vzc2Z1bEIOCgxfa2VlcF9mYWlsZWQiugEKC1J1bnRpbWVTcGVjEg4KBmRyaXZlchgBIAEoCRImCgR0aWVyGAIgASgOMhgua29ycGlzLnYxLklzb2xhdGlvblRpZXISMgoGY29uZmlnGAMgAygLMiIua29ycGlzLnYxLlJ1bnRpbWVTcGVjLkNvbmZpZ0VudHJ5Gj8KC0NvbmZpZ0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmtvcnBpcy52MS5WYWx1ZToCOAEi8AEKDFJlc291cmNlU3BlYxIfCgNjcHUYASABKAsyEi5rb3JwaXMudjEuQ3B1U3BlYxIoCgZtZW1vcnkYAiABKAsyGC5rb3JwaXMudjEuUmVzZXJ2ZWRMaW1pdBImCgRkaXNrGAMgASgLMhgua29ycGlzLnYxLlJlc2VydmVkTGltaXQSHQoCaW8YBCABKAsyES5rb3JwaXMudjEuSW9TcGVjEisKCWJhbmR3aWR0aBgFIAEoCzIYLmtvcnBpcy52MS5CYW5kd2lkdGhTcGVjEiEKBHBpZHMYBiABKAsyEy5rb3JwaXMudjEuUGlkc1NwZWMiZwoHQ3B1U3BlYxIaChJyZXNlcnZhdGlvbl9taWxsaXMYASABKAQSFAoMbGltaXRfbWlsbGlzGAIgASgEEioKCWlzb2xhdGlvbhgDIAEoDjIXLmtvcnBpcy52MS5DcHVJc29sYXRpb24iMwoNUmVzZXJ2ZWRMaW1pdBITCgtyZXNlcnZhdGlvbhgBIAEoBBINCgVsaW1pdBgCIAEoBCKFAQoGSW9TcGVjEhoKEnJlYWRfYnl0ZXNfcGVyX3NlYxgBIAEoBBIbChN3cml0ZV9ieXRlc19wZXJfc2VjGAIgASgEEhgKEHJlYWRfb3BzX3Blcl9zZWMYAyABKAQSGQoRd3JpdGVfb3BzX3Blcl9zZWMYBCABKAQSDQoFc2hhcmUYBSABKA0iUAoNQmFuZHdpZHRoU3BlYxIoCgZlZ3Jlc3MYASABKAsyGC5rb3JwaXMudjEuUmVzZXJ2ZWRMaW1pdBIVCg1pbmdyZXNzX2xpbWl0GAIgASgEIhkKCFBpZHNTcGVjEg0KBWxpbWl0GAEgASgEIsYBCgpWb2x1bWVTcGVjEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgEEhUKDXN0b3JhZ2VfY2xhc3MYBCABKAkSIwoEbW9kZRgFIAEoDjIVLmtvcnBpcy52MS5Wb2x1bWVNb2RlEhUKCGV4aXN0aW5nGAYgASgJSACIAQESGAoLZnJvbV9iYWNrdXAYByABKAlIAYgBAUILCglfZXhpc3RpbmdCDgoMX2Zyb21fYmFja3VwIqMCCgxFbmRwb2ludFNwZWMSDAoEbmFtZRgBIAEoCRItCghwcm90b2NvbBgCIAEoDjIbLmtvcnBpcy52MS5FbmRwb2ludFByb3RvY29sEhYKDmNvbnRhaW5lcl9wb3J0GAMgASgNEiUKCGV4cG9zdXJlGAQgASgOMhMua29ycGlzLnYxLkV4cG9zdXJlEg8KB2RvbWFpbnMYBSADKAkSHwoDdGxzGAYgASgLMhIua29ycGlzLnYxLlRsc1NwZWMSKAoGcG9saWN5GAcgASgLMhgua29ycGlzLnYxLk5ldHdvcmtQb2xpY3kSEgoKYWNjb3VudGluZxgIIAEoCBInCgdzaGFwaW5nGAkgASgLMhYua29ycGlzLnYxLlNoYXBpbmdTcGVjIj8KB1Rsc1NwZWMSJAoGc291cmNlGAEgASgOMhQua29ycGlzLnYxLlRsc1NvdXJjZRIOCgZzZWNyZXQYAiABKAkijwEKDU5ldHdvcmtQb2xpY3kSJwoHaW5ncmVzcxgBIAMoCzIWLmtvcnBpcy52MS5OZXR3b3JrUnVsZRImCgZlZ3Jlc3MYAiADKAsyFi5rb3JwaXMudjEuTmV0d29ya1J1bGUSLQoJY29ubnRyYWNrGAMgASgLMhoua29ycGlzLnYxLkNvbm50cmFja0xpbWl0cyJhCgxFZ3Jlc3NQb2xpY3kSJQoFcnVsZXMYASADKAsyFi5rb3JwaXMudjEuTmV0d29ya1J1bGUSKgoGbGltaXRzGAIgASgLMhoua29ycGlzLnYxLkNvbm50cmFja0xpbWl0cyLkAQoLTmV0d29ya1J1bGUSKAoGYWN0aW9uGAEgASgOMhgua29ycGlzLnYxLk5ldHdvcmtBY3Rpb24SDgoEY2lkchgCIAEoCUgAEi0KCXdvcmtsb2FkcxgDIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9ySAASEAoGZG9tYWluGAQgASgJSAASIwoFcG9ydHMYBSADKAsyFC5rb3JwaXMudjEuUG9ydFJhbmdlEi0KCHByb3RvY29sGAYgASgOMhsua29ycGlzLnYxLkVuZHBvaW50UHJvdG9jb2xCBgoEcGVlciIoCglQb3J0UmFuZ2USDQoFZmlyc3QYASABKA0SDAoEbGFzdBgCIAEoDSJWCg9Db25udHJhY2tMaW1pdHMSFwoPbWF4X2Nvbm5lY3Rpb25zGAEgASgNEhMKC25ld19wZXJfc2VjGAIgASgNEhUKDW1heF9oYWxmX29wZW4YAyABKA0iSAoLU2hhcGluZ1NwZWMSGwoTZWdyZXNzX2JpdHNfcGVyX3NlYxgBIAEoBBIcChRpbmdyZXNzX2JpdHNfcGVyX3NlYxgCIAEoBCJVCgpIZWFsdGhTcGVjEiMKCXJlYWRpbmVzcxgBIAEoCzIQLmtvcnBpcy52MS5Qcm9iZRIiCghsaXZlbmVzcxgCIAEoCzIQLmtvcnBpcy52MS5Qcm9iZSLLAwoFUHJvYmUSIgoDdGNwGAEgASgLMhMua29ycGlzLnYxLlRjcFByb2JlSAASJAoEaHR0cBgCIAEoCzIULmtvcnBpcy52MS5IdHRwUHJvYmVIABImCgVxdWVyeRgDIAEoCzIVLmtvcnBpcy52MS5RdWVyeVByb2JlSAASJAoEZXhlYxgEIAEoCzIULmtvcnBpcy52MS5FeGVjUHJvYmVIABIxCgtndWVzdF9hZ2VudBgFIAEoCzIaLmtvcnBpcy52MS5HdWVzdEFnZW50UHJvYmVIABIkCgRleGl0GAYgASgLMhQua29ycGlzLnYxLkV4aXRQcm9iZUgAEi4KCWhlYXJ0YmVhdBgHIAEoCzIZLmtvcnBpcy52MS5IZWFydGJlYXRQcm9iZUgAEikKBnBlcmlvZBgIIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAkgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhAKCGZhaWx1cmVzGAogASgNEjAKDWluaXRpYWxfZGVsYXkYCyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CBgoEa2luZCIcCghUY3BQcm9iZRIQCghlbmRwb2ludBgBIAEoCSJCCglIdHRwUHJvYmUSEAoIZW5kcG9pbnQYASABKAkSDAoEcGF0aBgCIAEoCRIVCg1leHBlY3Rfc3RhdHVzGAMgASgNIjAKClF1ZXJ5UHJvYmUSEAoIcHJvdG9jb2wYASABKAkSEAoIZW5kcG9pbnQYAiABKAkiHAoJRXhlY1Byb2JlEg8KB2NvbW1hbmQYASADKAkiEQoPR3Vlc3RBZ2VudFByb2JlIiIKCUV4aXRQcm9iZRIVCg1zdWNjZXNzX2NvZGVzGAEgAygFIkEKDkhlYXJ0YmVhdFByb2JlEi8KDG1heF9pbnRlcnZhbBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKxAQoNUGxhY2VtZW50U3BlYxIvCg1ub2RlX3NlbGVjdG9yGAEgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISKgoLdG9sZXJhdGlvbnMYAiADKAsyFS5rb3JwaXMudjEuVG9sZXJhdGlvbhIpCghhZmZpbml0eRgDIAMoCzIXLmtvcnBpcy52MS5BZmZpbml0eVJ1bGUSGAoQcHJlZmVycmVkX3JlZ2lvbhgEIAEoCSIoCgpUb2xlcmF0aW9uEgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCSJxCgxBZmZpbml0eVJ1bGUSDAoEYW50aRgBIAEoCBIQCghyZXF1aXJlZBgCIAEoCBIrCgl3b3JrbG9hZHMYAyABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIUCgx0b3BvbG9neV9rZXkYBCABKAkivAEKCkRlcGVuZGVuY3kSDAoEbmFtZRgBIAEoCRISCgh3b3JrbG9hZBgCIAEoCUgAEhIKCGVuZHBvaW50GAMgASgJSAASLAoIc2VsZWN0b3IYBCABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvckgAEi4KBmluamVjdBgFIAEoDjIeLmtvcnBpcy52MS5EZXBlbmRlbmN5SW5qZWN0aW9uEhAKCHJlcXVpcmVkGAYgASgIQggKBnRhcmdldCJDCg5Db250aW51aXR5U3BlYxIxCg9vbl9sZWFzZV9leHBpcnkYASABKA4yGC5rb3JwaXMudjEuT25MZWFzZUV4cGlyeSptCglMaWZlY3ljbGUSGQoVTElGRUNZQ0xFX1VOU1BFQ0lGSUVEEAASGAoUTElGRUNZQ0xFX1BFUlNJU1RFTlQQARISCg5MSUZFQ1lDTEVfVEFTSxACEhcKE0xJRkVDWUNMRV9TQ0hFRFVMRUQQAyqQAQoLQ29uc29sZU1vZGUSHAoYQ09OU09MRV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRQ09OU09MRV9NT0RFX05PTkUQARIVChFDT05TT0xFX01PREVfTE9HUxACEhwKGENPTlNPTEVfTU9ERV9JTlRFUkFDVElWRRADEhcKE0NPTlNPTEVfTU9ERV9TRVJJQUwQBCqcAQoNSXNvbGF0aW9uVGllchIeChpJU09MQVRJT05fVElFUl9VTlNQRUNJRklFRBAAEhoKFklTT0xBVElPTl9USUVSX1BST0NFU1MQARIcChhJU09MQVRJT05fVElFUl9DT05UQUlORVIQAhIaChZJU09MQVRJT05fVElFUl9NSUNST1ZNEAMSFQoRSVNPTEFUSU9OX1RJRVJfVk0QBCpyCgtDb25jdXJyZW5jeRIbChdDT05DVVJSRU5DWV9VTlNQRUNJRklFRBAAEhYKEkNPTkNVUlJFTkNZX0ZPUkJJRBABEhcKE0NPTkNVUlJFTkNZX1JFUExBQ0UQAhIVChFDT05DVVJSRU5DWV9BTExPVxADKmoKDENwdUlzb2xhdGlvbhIdChlDUFVfSVNPTEFUSU9OX1VOU1BFQ0lGSUVEEAASGAoUQ1BVX0lTT0xBVElPTl9TSEFSRUQQARIhCh1DUFVfSVNPTEFUSU9OX0RFRElDQVRFRF9DT1JFUxACKmkKClZvbHVtZU1vZGUSGwoXVk9MVU1FX01PREVfVU5TUEVDSUZJRUQQABISCg5WT0xVTUVfTU9ERV9SVxABEhIKDlZPTFVNRV9NT0RFX1JPEAISFgoSVk9MVU1FX01PREVfU0hBUkVEEAMqwAEKEEVuZHBvaW50UHJvdG9jb2wSIQodRU5EUE9JTlRfUFJPVE9DT0xfVU5TUEVDSUZJRUQQABIZChVFTkRQT0lOVF9QUk9UT0NPTF9UQ1AQARIZChVFTkRQT0lOVF9QUk9UT0NPTF9VRFAQAhIaChZFTkRQT0lOVF9QUk9UT0NPTF9IVFRQEAMSGwoXRU5EUE9JTlRfUFJPVE9DT0xfSFRUUFMQBBIaChZFTkRQT0lOVF9QUk9UT0NPTF9RVUlDEAUqyQEKCEV4cG9zdXJlEhgKFEVYUE9TVVJFX1VOU1BFQ0lGSUVEEAASFgoSRVhQT1NVUkVfTk9ERV9QT1JUEAESFwoTRVhQT1NVUkVfTk9ERV9CT1VORBACEhMKD0VYUE9TVVJFX1NUQUJMRRADEhQKEEVYUE9TVVJFX0lOR1JFU1MQBBIZChVFWFBPU1VSRV9ERURJQ0FURURfSVAQBRIZChVFWFBPU1VSRV9PVkVSTEFZX09OTFkQBhIRCg1FWFBPU1VSRV9OT05FEAcqcQoJVGxzU291cmNlEhoKFlRMU19TT1VSQ0VfVU5TUEVDSUZJRUQQABITCg9UTFNfU09VUkNFX0FDTUUQARIXChNUTFNfU09VUkNFX1BST1ZJREVEEAISGgoWVExTX1NPVVJDRV9QQVNTVEhST1VHSBADKmIKDU5ldHdvcmtBY3Rpb24SHgoaTkVUV09SS19BQ1RJT05fVU5TUEVDSUZJRUQQABIYChRORVRXT1JLX0FDVElPTl9BTExPVxABEhcKE05FVFdPUktfQUNUSU9OX0RFTlkQAiqXAQoTRGVwZW5kZW5jeUluamVjdGlvbhIkCiBERVBFTkRFTkNZX0lOSkVDVElPTl9VTlNQRUNJRklFRBAAEhwKGERFUEVOREVOQ1lfSU5KRUNUSU9OX0VOVhABEh0KGURFUEVOREVOQ1lfSU5KRUNUSU9OX0ZJTEUQAhIdChlERVBFTkRFTkNZX0lOSkVDVElPTl9CT1RIEAMqbAoNT25MZWFzZUV4cGlyeRIfChtPTl9MRUFTRV9FWFBJUllfVU5TUEVDSUZJRUQQABIgChxPTl9MRUFTRV9FWFBJUllfS0VFUF9SVU5OSU5HEAESGAoUT05fTEVBU0VfRVhQSVJZX1NUT1AQAmIGcHJvdG8z", [file_google_protobuf_duration, file_korpis_v1_common]);
 
 /**
  * Driver, tier, and driver-specific configuration validated against the driver's own schema.
@@ -82,6 +82,68 @@ export const StreamSpecSchema: GenMessage<StreamSpec> = /*@__PURE__*/
   messageDesc(file_korpis_v1_workload_spec, 0);
 
 /**
+ * How a task or scheduled workload's runs are made, ended, and kept (§4 of
+ * docs/05-scheduling.md). A field left unset is its default.
+ *
+ * @generated from message korpis.v1.RunPolicy
+ */
+export type RunPolicy = Message<"korpis.v1.RunPolicy"> & {
+  /**
+   * @generated from field: korpis.v1.Concurrency concurrency = 1;
+   */
+  concurrency: Concurrency;
+
+  /**
+   * How many times a failed run is tried again; none when unset, at most 100.
+   *
+   * @generated from field: optional uint32 retries = 2;
+   */
+  retries?: number | undefined;
+
+  /**
+   * Before the first retry, each later one twice the one before; ten seconds when unset.
+   *
+   * @generated from field: google.protobuf.Duration backoff = 3;
+   */
+  backoff?: Duration | undefined;
+
+  /**
+   * How long a run may take before its node stops it; unbounded when unset.
+   *
+   * @generated from field: google.protobuf.Duration timeout = 4;
+   */
+  timeout?: Duration | undefined;
+
+  /**
+   * How many succeeded runs are kept; three when unset, at most 1000.
+   *
+   * @generated from field: optional uint32 keep_successful = 5;
+   */
+  keepSuccessful?: number | undefined;
+
+  /**
+   * How many runs that ended any other way are kept; ten when unset, at most 1000.
+   *
+   * @generated from field: optional uint32 keep_failed = 6;
+   */
+  keepFailed?: number | undefined;
+
+  /**
+   * Whether occurrences missed while the control plane was down are run, oldest first.
+   *
+   * @generated from field: bool catch_up = 7;
+   */
+  catchUp: boolean;
+};
+
+/**
+ * Describes the message korpis.v1.RunPolicy.
+ * Use `create(RunPolicySchema)` to create a new message.
+ */
+export const RunPolicySchema: GenMessage<RunPolicy> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_workload_spec, 1);
+
+/**
  * @generated from message korpis.v1.RuntimeSpec
  */
 export type RuntimeSpec = Message<"korpis.v1.RuntimeSpec"> & {
@@ -108,7 +170,7 @@ export type RuntimeSpec = Message<"korpis.v1.RuntimeSpec"> & {
  * Use `create(RuntimeSpecSchema)` to create a new message.
  */
 export const RuntimeSpecSchema: GenMessage<RuntimeSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 1);
+  messageDesc(file_korpis_v1_workload_spec, 2);
 
 /**
  * Reservation and limit are different numbers (§5.2 of docs/05-scheduling.md).
@@ -152,7 +214,7 @@ export type ResourceSpec = Message<"korpis.v1.ResourceSpec"> & {
  * Use `create(ResourceSpecSchema)` to create a new message.
  */
 export const ResourceSpecSchema: GenMessage<ResourceSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 2);
+  messageDesc(file_korpis_v1_workload_spec, 3);
 
 /**
  * @generated from message korpis.v1.CpuSpec
@@ -181,7 +243,7 @@ export type CpuSpec = Message<"korpis.v1.CpuSpec"> & {
  * Use `create(CpuSpecSchema)` to create a new message.
  */
 export const CpuSpecSchema: GenMessage<CpuSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 3);
+  messageDesc(file_korpis_v1_workload_spec, 4);
 
 /**
  * @generated from message korpis.v1.ReservedLimit
@@ -203,7 +265,7 @@ export type ReservedLimit = Message<"korpis.v1.ReservedLimit"> & {
  * Use `create(ReservedLimitSchema)` to create a new message.
  */
 export const ReservedLimitSchema: GenMessage<ReservedLimit> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 4);
+  messageDesc(file_korpis_v1_workload_spec, 5);
 
 /**
  * Ceilings and a proportional share; IO has no reservation (§5.2 of docs/05-scheduling.md).
@@ -244,7 +306,7 @@ export type IoSpec = Message<"korpis.v1.IoSpec"> & {
  * Use `create(IoSpecSchema)` to create a new message.
  */
 export const IoSpecSchema: GenMessage<IoSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 5);
+  messageDesc(file_korpis_v1_workload_spec, 6);
 
 /**
  * @generated from message korpis.v1.BandwidthSpec
@@ -270,7 +332,7 @@ export type BandwidthSpec = Message<"korpis.v1.BandwidthSpec"> & {
  * Use `create(BandwidthSpecSchema)` to create a new message.
  */
 export const BandwidthSpecSchema: GenMessage<BandwidthSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 6);
+  messageDesc(file_korpis_v1_workload_spec, 7);
 
 /**
  * @generated from message korpis.v1.PidsSpec
@@ -287,7 +349,7 @@ export type PidsSpec = Message<"korpis.v1.PidsSpec"> & {
  * Use `create(PidsSpecSchema)` to create a new message.
  */
 export const PidsSpecSchema: GenMessage<PidsSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 7);
+  messageDesc(file_korpis_v1_workload_spec, 8);
 
 /**
  * @generated from message korpis.v1.VolumeSpec
@@ -341,7 +403,7 @@ export type VolumeSpec = Message<"korpis.v1.VolumeSpec"> & {
  * Use `create(VolumeSpecSchema)` to create a new message.
  */
 export const VolumeSpecSchema: GenMessage<VolumeSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 8);
+  messageDesc(file_korpis_v1_workload_spec, 9);
 
 /**
  * @generated from message korpis.v1.EndpointSpec
@@ -398,7 +460,7 @@ export type EndpointSpec = Message<"korpis.v1.EndpointSpec"> & {
  * Use `create(EndpointSpecSchema)` to create a new message.
  */
 export const EndpointSpecSchema: GenMessage<EndpointSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 9);
+  messageDesc(file_korpis_v1_workload_spec, 10);
 
 /**
  * @generated from message korpis.v1.TlsSpec
@@ -422,7 +484,7 @@ export type TlsSpec = Message<"korpis.v1.TlsSpec"> & {
  * Use `create(TlsSpecSchema)` to create a new message.
  */
 export const TlsSpecSchema: GenMessage<TlsSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 10);
+  messageDesc(file_korpis_v1_workload_spec, 11);
 
 /**
  * An endpoint's network policy: who may connect to it, and how many at once.
@@ -460,7 +522,7 @@ export type NetworkPolicy = Message<"korpis.v1.NetworkPolicy"> & {
  * Use `create(NetworkPolicySchema)` to create a new message.
  */
 export const NetworkPolicySchema: GenMessage<NetworkPolicy> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 11);
+  messageDesc(file_korpis_v1_workload_spec, 12);
 
 /**
  * Where a workload may connect out, beyond the egress default (§6 of docs/07-networking.md).
@@ -489,7 +551,7 @@ export type EgressPolicy = Message<"korpis.v1.EgressPolicy"> & {
  * Use `create(EgressPolicySchema)` to create a new message.
  */
 export const EgressPolicySchema: GenMessage<EgressPolicy> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 12);
+  messageDesc(file_korpis_v1_workload_spec, 13);
 
 /**
  * @generated from message korpis.v1.NetworkRule
@@ -539,7 +601,7 @@ export type NetworkRule = Message<"korpis.v1.NetworkRule"> & {
  * Use `create(NetworkRuleSchema)` to create a new message.
  */
 export const NetworkRuleSchema: GenMessage<NetworkRule> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 13);
+  messageDesc(file_korpis_v1_workload_spec, 14);
 
 /**
  * @generated from message korpis.v1.PortRange
@@ -561,7 +623,7 @@ export type PortRange = Message<"korpis.v1.PortRange"> & {
  * Use `create(PortRangeSchema)` to create a new message.
  */
 export const PortRangeSchema: GenMessage<PortRange> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 14);
+  messageDesc(file_korpis_v1_workload_spec, 15);
 
 /**
  * @generated from message korpis.v1.ConntrackLimits
@@ -588,7 +650,7 @@ export type ConntrackLimits = Message<"korpis.v1.ConntrackLimits"> & {
  * Use `create(ConntrackLimitsSchema)` to create a new message.
  */
 export const ConntrackLimitsSchema: GenMessage<ConntrackLimits> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 15);
+  messageDesc(file_korpis_v1_workload_spec, 16);
 
 /**
  * @generated from message korpis.v1.ShapingSpec
@@ -610,7 +672,7 @@ export type ShapingSpec = Message<"korpis.v1.ShapingSpec"> & {
  * Use `create(ShapingSpecSchema)` to create a new message.
  */
 export const ShapingSpecSchema: GenMessage<ShapingSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 16);
+  messageDesc(file_korpis_v1_workload_spec, 17);
 
 /**
  * Health is application-level (Rule K-16, §5 of docs/04-runtimes.md).
@@ -634,7 +696,7 @@ export type HealthSpec = Message<"korpis.v1.HealthSpec"> & {
  * Use `create(HealthSpecSchema)` to create a new message.
  */
 export const HealthSpecSchema: GenMessage<HealthSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 17);
+  messageDesc(file_korpis_v1_workload_spec, 18);
 
 /**
  * @generated from message korpis.v1.Probe
@@ -713,7 +775,7 @@ export type Probe = Message<"korpis.v1.Probe"> & {
  * Use `create(ProbeSchema)` to create a new message.
  */
 export const ProbeSchema: GenMessage<Probe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 18);
+  messageDesc(file_korpis_v1_workload_spec, 19);
 
 /**
  * @generated from message korpis.v1.TcpProbe
@@ -730,7 +792,7 @@ export type TcpProbe = Message<"korpis.v1.TcpProbe"> & {
  * Use `create(TcpProbeSchema)` to create a new message.
  */
 export const TcpProbeSchema: GenMessage<TcpProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 19);
+  messageDesc(file_korpis_v1_workload_spec, 20);
 
 /**
  * @generated from message korpis.v1.HttpProbe
@@ -757,7 +819,7 @@ export type HttpProbe = Message<"korpis.v1.HttpProbe"> & {
  * Use `create(HttpProbeSchema)` to create a new message.
  */
 export const HttpProbeSchema: GenMessage<HttpProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 20);
+  messageDesc(file_korpis_v1_workload_spec, 21);
 
 /**
  * @generated from message korpis.v1.QueryProbe
@@ -781,7 +843,7 @@ export type QueryProbe = Message<"korpis.v1.QueryProbe"> & {
  * Use `create(QueryProbeSchema)` to create a new message.
  */
 export const QueryProbeSchema: GenMessage<QueryProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 21);
+  messageDesc(file_korpis_v1_workload_spec, 22);
 
 /**
  * @generated from message korpis.v1.ExecProbe
@@ -798,7 +860,7 @@ export type ExecProbe = Message<"korpis.v1.ExecProbe"> & {
  * Use `create(ExecProbeSchema)` to create a new message.
  */
 export const ExecProbeSchema: GenMessage<ExecProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 22);
+  messageDesc(file_korpis_v1_workload_spec, 23);
 
 /**
  * @generated from message korpis.v1.GuestAgentProbe
@@ -811,7 +873,7 @@ export type GuestAgentProbe = Message<"korpis.v1.GuestAgentProbe"> & {
  * Use `create(GuestAgentProbeSchema)` to create a new message.
  */
 export const GuestAgentProbeSchema: GenMessage<GuestAgentProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 23);
+  messageDesc(file_korpis_v1_workload_spec, 24);
 
 /**
  * @generated from message korpis.v1.ExitProbe
@@ -828,7 +890,7 @@ export type ExitProbe = Message<"korpis.v1.ExitProbe"> & {
  * Use `create(ExitProbeSchema)` to create a new message.
  */
 export const ExitProbeSchema: GenMessage<ExitProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 24);
+  messageDesc(file_korpis_v1_workload_spec, 25);
 
 /**
  * @generated from message korpis.v1.HeartbeatProbe
@@ -845,7 +907,7 @@ export type HeartbeatProbe = Message<"korpis.v1.HeartbeatProbe"> & {
  * Use `create(HeartbeatProbeSchema)` to create a new message.
  */
 export const HeartbeatProbeSchema: GenMessage<HeartbeatProbe> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 25);
+  messageDesc(file_korpis_v1_workload_spec, 26);
 
 /**
  * Constraints and preferences for placement (§2 of docs/05-scheduling.md).
@@ -879,7 +941,7 @@ export type PlacementSpec = Message<"korpis.v1.PlacementSpec"> & {
  * Use `create(PlacementSpecSchema)` to create a new message.
  */
 export const PlacementSpecSchema: GenMessage<PlacementSpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 26);
+  messageDesc(file_korpis_v1_workload_spec, 27);
 
 /**
  * @generated from message korpis.v1.Toleration
@@ -901,7 +963,7 @@ export type Toleration = Message<"korpis.v1.Toleration"> & {
  * Use `create(TolerationSchema)` to create a new message.
  */
 export const TolerationSchema: GenMessage<Toleration> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 27);
+  messageDesc(file_korpis_v1_workload_spec, 28);
 
 /**
  * @generated from message korpis.v1.AffinityRule
@@ -935,7 +997,7 @@ export type AffinityRule = Message<"korpis.v1.AffinityRule"> & {
  * Use `create(AffinityRuleSchema)` to create a new message.
  */
 export const AffinityRuleSchema: GenMessage<AffinityRule> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 28);
+  messageDesc(file_korpis_v1_workload_spec, 29);
 
 /**
  * A dependency declared explicitly, so the graph is visible to the scheduler and to plans (§5
@@ -997,7 +1059,7 @@ export type Dependency = Message<"korpis.v1.Dependency"> & {
  * Use `create(DependencySchema)` to create a new message.
  */
 export const DependencySchema: GenMessage<Dependency> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 29);
+  messageDesc(file_korpis_v1_workload_spec, 30);
 
 /**
  * What a workload does when its lease ends and cannot be renewed (§4.5 of
@@ -1017,7 +1079,7 @@ export type ContinuitySpec = Message<"korpis.v1.ContinuitySpec"> & {
  * Use `create(ContinuitySpecSchema)` to create a new message.
  */
 export const ContinuitySpecSchema: GenMessage<ContinuitySpec> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_workload_spec, 30);
+  messageDesc(file_korpis_v1_workload_spec, 31);
 
 /**
  * @generated from enum korpis.v1.Lifecycle
@@ -1123,6 +1185,46 @@ export const IsolationTierSchema: GenEnum<IsolationTier> = /*@__PURE__*/
   enumDesc(file_korpis_v1_workload_spec, 2);
 
 /**
+ * What a run due while another of the workload's is active does (§4.3 of
+ * docs/05-scheduling.md). Unspecified is forbid.
+ *
+ * @generated from enum korpis.v1.Concurrency
+ */
+export enum Concurrency {
+  /**
+   * @generated from enum value: CONCURRENCY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * It is recorded missed, and the active one goes on.
+   *
+   * @generated from enum value: CONCURRENCY_FORBID = 1;
+   */
+  FORBID = 1,
+
+  /**
+   * The active one is cancelled, and it is made.
+   *
+   * @generated from enum value: CONCURRENCY_REPLACE = 2;
+   */
+  REPLACE = 2,
+
+  /**
+   * It is made beside the active one.
+   *
+   * @generated from enum value: CONCURRENCY_ALLOW = 3;
+   */
+  ALLOW = 3,
+}
+
+/**
+ * Describes the enum korpis.v1.Concurrency.
+ */
+export const ConcurrencySchema: GenEnum<Concurrency> = /*@__PURE__*/
+  enumDesc(file_korpis_v1_workload_spec, 3);
+
+/**
  * @generated from enum korpis.v1.CpuIsolation
  */
 export enum CpuIsolation {
@@ -1148,7 +1250,7 @@ export enum CpuIsolation {
  * Describes the enum korpis.v1.CpuIsolation.
  */
 export const CpuIsolationSchema: GenEnum<CpuIsolation> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 3);
+  enumDesc(file_korpis_v1_workload_spec, 4);
 
 /**
  * @generated from enum korpis.v1.VolumeMode
@@ -1179,7 +1281,7 @@ export enum VolumeMode {
  * Describes the enum korpis.v1.VolumeMode.
  */
 export const VolumeModeSchema: GenEnum<VolumeMode> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 4);
+  enumDesc(file_korpis_v1_workload_spec, 5);
 
 /**
  * @generated from enum korpis.v1.EndpointProtocol
@@ -1220,7 +1322,7 @@ export enum EndpointProtocol {
  * Describes the enum korpis.v1.EndpointProtocol.
  */
 export const EndpointProtocolSchema: GenEnum<EndpointProtocol> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 5);
+  enumDesc(file_korpis_v1_workload_spec, 6);
 
 /**
  * How the network reaches a workload (§3 of docs/07-networking.md).
@@ -1273,7 +1375,7 @@ export enum Exposure {
  * Describes the enum korpis.v1.Exposure.
  */
 export const ExposureSchema: GenEnum<Exposure> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 6);
+  enumDesc(file_korpis_v1_workload_spec, 7);
 
 /**
  * @generated from enum korpis.v1.TlsSource
@@ -1304,7 +1406,7 @@ export enum TlsSource {
  * Describes the enum korpis.v1.TlsSource.
  */
 export const TlsSourceSchema: GenEnum<TlsSource> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 7);
+  enumDesc(file_korpis_v1_workload_spec, 8);
 
 /**
  * @generated from enum korpis.v1.NetworkAction
@@ -1330,7 +1432,7 @@ export enum NetworkAction {
  * Describes the enum korpis.v1.NetworkAction.
  */
 export const NetworkActionSchema: GenEnum<NetworkAction> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 8);
+  enumDesc(file_korpis_v1_workload_spec, 9);
 
 /**
  * @generated from enum korpis.v1.DependencyInjection
@@ -1363,7 +1465,7 @@ export enum DependencyInjection {
  * Describes the enum korpis.v1.DependencyInjection.
  */
 export const DependencyInjectionSchema: GenEnum<DependencyInjection> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 9);
+  enumDesc(file_korpis_v1_workload_spec, 10);
 
 /**
  * @generated from enum korpis.v1.OnLeaseExpiry
@@ -1391,5 +1493,5 @@ export enum OnLeaseExpiry {
  * Describes the enum korpis.v1.OnLeaseExpiry.
  */
 export const OnLeaseExpirySchema: GenEnum<OnLeaseExpiry> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_workload_spec, 10);
+  enumDesc(file_korpis_v1_workload_spec, 11);
 

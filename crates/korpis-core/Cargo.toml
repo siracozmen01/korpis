@@ -47,6 +47,9 @@ ed25519-dalek = { version = "2.2", optional = true }
 getrandom = { version = "0.4", optional = true }
 hkdf = { version = "0.12", optional = true }
 ipnet = "2"
+# Schedules are read in a time zone (§4.1 of docs/05-scheduling.md). No zone database: the
+# application is handed zones by name through its port, so the domain reads no files.
+jiff = { version = "0.2", default-features = false, features = ["std"] }
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pem", "pkcs8", "std"], optional = true }
 regex = "1"
 serde = { version = "1", features = ["derive"], optional = true }

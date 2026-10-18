@@ -50,6 +50,7 @@ mod trust;
 mod user_session;
 mod volume;
 mod workload;
+mod zones;
 
 pub use account::{
     AccountRead, AccountWrite, FactorVault, InPlace, PasswordFuture, Passwords, TotpFactor,
@@ -112,6 +113,7 @@ pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
 pub use user_session::{Presented, UserSessionRead, UserSessionWrite};
 pub use volume::{SnapshotRead, SnapshotWrite, VolumeRead, VolumeWrite};
 pub use workload::{CodecError, IntentCodec, WorkloadFilter, WorkloadRead, WorkloadWrite};
+pub use zones::{UtcOnly, Zones};
 
 use std::future::Future;
 

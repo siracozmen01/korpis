@@ -143,6 +143,12 @@ message IntentBody {
   StreamSpec streams = 14;
   // Where it may connect out, beyond the egress default (§6 of docs/07-networking.md).
   EgressPolicy egress = 15;
+  // The IANA zone the schedule is read in, e.g. "Europe/Berlin"; UTC when empty; only with a
+  // schedule (§4.1 of docs/05-scheduling.md).
+  string timezone = 16;
+  // How a task or scheduled workload's runs are made and kept; the defaults when absent, and
+  // refused for a persistent workload (§4 of docs/05-scheduling.md).
+  RunPolicy runs = 17;
 }
 
 // Power is declared separately from configuration (finding R7, §3.3 of docs/01-model.md).

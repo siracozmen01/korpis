@@ -14,7 +14,7 @@ use korpis_core::workload::declare::{
 use korpis_core::workload::spec::endpoints::{Exposure, Protocol};
 use korpis_core::workload::spec::health::{HealthSpec, Probe, ProbeKind};
 use korpis_core::workload::spec::resources::ReservedLimit;
-use korpis_core::workload::spec::{ConsoleMode, IsolationTier, Lifecycle};
+use korpis_core::workload::spec::{Concurrency, ConsoleMode, IsolationTier, Lifecycle, RunPolicy};
 
 const GIB: u64 = 1 << 30;
 
@@ -161,4 +161,25 @@ fn a_declaration_the_recipe_cannot_run_is_refused() {
         ..Declaration::default()
     };
     assert_eq!(unnamed.complete(reference(), &paper()).unwrap_err().field, "endpoints[0].protocol");
+}
+
+#[test]
+fn a_workload_with_runs_stores_its_policy_and_zone_as_they_apply() {
+    let scheduled = Declaration {
+        lifecycle: Some(Lifecycle::Scheduled),
+        schedule: Some("0 3 * * *".into()),
+        ..Declaration::default()
+    };
+    let body = scheduled.complete(reference(), &paper()).unwrap();
+    assert_eq!(body.runs, Some(RunPolicy::default()), "the defaults, written out");
+    assert_eq!(body.timezone.as_deref(), Some("UTC"));
+    let persistent = Declaration::default().complete(reference(), &paper()).unwrap();
+    assert_eq!((persistent.runs, persistent.timezone), (None, None));
+    let task = Declaration {
+        lifecycle: Some(Lifecycle::Task),
+        runs: Some(RunPolicy { concurrency: Concurrency::Allow, ..RunPolicy::default() }),
+        ..Declaration::default()
+    };
+    let body = task.complete(reference(), &paper()).unwrap();
+    assert_eq!(body.runs.map(|r| r.concurrency), Some(Concurrency::Allow));
 }

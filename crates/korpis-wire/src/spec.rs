@@ -7,6 +7,7 @@ pub mod dependencies;
 pub mod endpoints;
 pub mod health;
 pub mod resources;
+pub mod runs;
 
 use crate::recipe::{ref_from_pb, ref_to_pb};
 use crate::value::{map_from_pb, map_to_pb};
@@ -85,6 +86,8 @@ pub fn body_to_pb(b: &IntentBody) -> pb::IntentBody {
         dependencies: b.dependencies.iter().map(dependencies::dependency_to_pb).collect(),
         streams: crate::stream::spec_to_pb(&b.streams).into(),
         egress: endpoints::egress_to_pb(&b.egress).into(),
+        timezone: b.timezone.clone().unwrap_or_default(),
+        runs: b.runs.as_ref().map(runs::policy_to_pb).into(),
         ..Default::default()
     }
 }
@@ -107,6 +110,8 @@ pub fn body_from_pb(field: &str, b: &pb::IntentBody) -> Result<IntentBody> {
         recipe: ref_from_pb(recipe),
         lifecycle: lifecycle_from_pb(&f("lifecycle"), b.lifecycle)?,
         schedule: (!b.schedule.is_empty()).then(|| b.schedule.clone()),
+        timezone: (!b.timezone.is_empty()).then(|| b.timezone.clone()),
+        runs: b.runs.as_option().map(|r| runs::policy_from_pb(&f("runs"), r)).transpose()?,
         console: console_from_pb(&f("console"), b.console)?,
         runtime: runtime_from_pb(&f("runtime"), b.runtime.as_option())?,
         resources: resources::resources_from_pb(&f("resources"), b.resources.as_option())?,

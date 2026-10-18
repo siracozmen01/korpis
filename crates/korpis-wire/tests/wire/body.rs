@@ -48,3 +48,26 @@ fn a_body_from_another_schema_is_refused_not_guessed() {
     let e = decode(r#"{"lifecycle":"LIFECYCLE_PERSISTENT"}"#, SCHEMA_VERSION).unwrap_err();
     assert_eq!(e.field, "body.recipe");
 }
+
+#[test]
+fn a_run_policy_and_its_zone_read_back_exactly_and_unset_parts_are_the_defaults() {
+    use korpis_core::workload::spec::{Concurrency, Lifecycle, RunPolicy};
+    use std::time::Duration;
+    let mut b = body();
+    b.lifecycle = Lifecycle::Scheduled;
+    b.schedule = Some("0 3 * * *".into());
+    b.timezone = Some("Europe/Berlin".into());
+    b.runs = Some(RunPolicy {
+        concurrency: Concurrency::Replace,
+        retries: 2,
+        backoff: Duration::from_secs(30),
+        timeout: Some(Duration::from_secs(3600)),
+        keep_successful: 0,
+        keep_failed: 5,
+        catch_up: true,
+    });
+    assert_eq!(decode(&encode(&b).unwrap(), SCHEMA_VERSION).unwrap(), b, "zero kept is kept");
+    let empty = korpis_proto::korpis::v1::RunPolicy::default();
+    let read = korpis_wire::spec::runs::policy_from_pb("runs", &empty).unwrap();
+    assert_eq!(read, RunPolicy::default());
+}

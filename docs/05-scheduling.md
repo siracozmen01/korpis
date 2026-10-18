@@ -555,6 +555,17 @@ until the database is updated. The alternative, cron in UTC, puts a backup meant
 Istanbul at 03:00 the whole year and one meant for 03:00 in Berlin at 04:00 or 05:00 by season,
 which is the defect the field exists to remove (Finding 100).
 
+> As built, 2026-10-18 (`crates/korpis-core/src/workload/spec/cron.rs`, `spec/runs.rs`,
+> `crates/korpis-server/src/zones.rs`). The zone database is the machine's, `/usr/share/zoneinfo`
+> or wherever `TZDIR` names, read through a port so the domain reads no files; a control plane
+> handed none knows UTC alone. A schedule is five fields as Vixie cron reads them: `n/k` runs from
+> `n` to the field's end, Sunday is 0 or 7, and when the day of the month and the day of the week
+> are both restricted, neither beginning with `*`, a day matching either is due. One that names
+> only days its months never reach, such as the 31st of April, is refused at declaration. A
+> completed intent stores its policy as it applies, the defaults written out, and `UTC` for a
+> schedule declared without a zone, so that a later default cannot change what a stored intent
+> means; a policy or a zone on a workload that cannot use it is refused rather than ignored.
+
 ### 4.2 Where a run runs, and what ends it
 
 **A run executes on the node its workload is placed on, as a container instance of its own**,

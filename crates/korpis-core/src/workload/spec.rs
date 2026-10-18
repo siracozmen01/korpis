@@ -5,22 +5,25 @@
 //! recipe is the recipe's question (`crate::recipe`), and whether the caller may declare it is
 //! the application's.
 
-mod cron;
+pub mod cron;
 pub mod dependencies;
 pub mod egress;
 pub mod endpoints;
 pub mod health;
 pub mod placement;
 pub mod resources;
+pub mod runs;
 pub mod streams;
 pub mod volumes;
 
+pub use cron::Schedule;
 pub use dependencies::Dependency;
 pub use egress::EgressPolicy;
 pub use endpoints::EndpointSpec;
 pub use health::HealthSpec;
 pub use placement::PlacementSpec;
 pub use resources::ResourceSpec;
+pub use runs::{Concurrency, RunPolicy};
 pub use streams::StreamSpec;
 pub use volumes::VolumeSpec;
 
@@ -125,6 +128,11 @@ pub struct IntentBody {
     pub lifecycle: Lifecycle,
     /// The cron schedule; present exactly when `lifecycle` is scheduled.
     pub schedule: Option<String>,
+    /// The IANA zone the schedule is read in; UTC when absent; only with a schedule.
+    pub timezone: Option<String>,
+    /// How its runs are made and kept; only for task and scheduled workloads, the defaults when
+    /// absent (§4 of docs/05-scheduling.md).
+    pub runs: Option<RunPolicy>,
     /// Its console.
     pub console: ConsoleMode,
     /// Its runtime.
@@ -155,12 +163,7 @@ impl IntentBody {
     /// Checks the declaration's own consistency.
     pub fn validate(&self) -> Result<(), SpecError> {
         self.recipe.validate().map_err(|e| SpecError::new("recipe", e.to_string()))?;
-        match (self.lifecycle, &self.schedule) {
-            (Lifecycle::Scheduled, None) => Err(SpecError::new("schedule", "required to schedule")),
-            (Lifecycle::Scheduled, Some(s)) => cron::validate(s),
-            (_, Some(_)) => Err(SpecError::new("schedule", "only for scheduled workloads")),
-            (_, None) => Ok(()),
-        }?;
+        self.validate_timing()?;
         if self.runtime.driver.is_empty() {
             return Err(SpecError::new("runtime.driver", "required"));
         }
@@ -178,6 +181,37 @@ impl IntentBody {
     }
 }
 
+impl IntentBody {
+    /// Its run policy, the defaults where it declares none.
+    #[must_use]
+    pub fn run_policy(&self) -> RunPolicy {
+        self.runs.unwrap_or_default()
+    }
+
+    /// When it runs: a schedule exactly when scheduled, a zone only with a schedule, and a run
+    /// policy only for a workload that has runs.
+    fn validate_timing(&self) -> Result<(), SpecError> {
+        match (self.lifecycle, &self.schedule) {
+            (Lifecycle::Scheduled, None) => Err(SpecError::new("schedule", "required to schedule")),
+            (Lifecycle::Scheduled, Some(s)) => cron::validate(s),
+            (_, Some(_)) => Err(SpecError::new("schedule", "only for scheduled workloads")),
+            (_, None) => Ok(()),
+        }?;
+        match (&self.timezone, &self.schedule) {
+            (Some(_), None) => return Err(SpecError::new("timezone", "only with a schedule")),
+            (Some(zone), Some(_)) => runs::validate_zone(zone)?,
+            (None, _) => {}
+        }
+        match (&self.runs, self.lifecycle) {
+            (Some(_), Lifecycle::Persistent) => {
+                Err(SpecError::new("runs", "only for task and scheduled workloads"))
+            }
+            (Some(policy), _) => policy.validate(),
+            (None, _) => Ok(()),
+        }
+    }
+}
+
 /// A body for the crate's own tests: a container under the OCI driver, with nothing declared.
 #[cfg(test)]
 pub(crate) fn fixture() -> IntentBody {
@@ -191,6 +225,8 @@ pub(crate) fn fixture() -> IntentBody {
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
+        timezone: None,
+        runs: None,
         console: ConsoleMode::None,
         runtime: RuntimeSpec {
             driver: "oci".into(),

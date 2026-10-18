@@ -2644,6 +2644,7 @@ name = "korpis-app"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "jiff",
  "korpis-core",
  "korpis-store",
  "serde_json",
@@ -2757,6 +2758,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf 0.12.4",
  "ipnet",
+ "jiff",
  "p256",
  "regex",
  "ring",
@@ -3036,6 +3038,7 @@ dependencies = [
  "hyper-util",
  "instant-acme",
  "ipnet",
+ "jiff",
  "korpis-app",
  "korpis-backup",
  "korpis-core",

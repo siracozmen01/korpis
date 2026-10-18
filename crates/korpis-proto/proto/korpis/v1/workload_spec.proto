@@ -53,6 +53,36 @@ message StreamSpec {
   google.protobuf.Duration offload_retention = 5;
 }
 
+// What a run due while another of the workload's is active does (§4.3 of
+// docs/05-scheduling.md). Unspecified is forbid.
+enum Concurrency {
+  CONCURRENCY_UNSPECIFIED = 0;
+  // It is recorded missed, and the active one goes on.
+  CONCURRENCY_FORBID = 1;
+  // The active one is cancelled, and it is made.
+  CONCURRENCY_REPLACE = 2;
+  // It is made beside the active one.
+  CONCURRENCY_ALLOW = 3;
+}
+
+// How a task or scheduled workload's runs are made, ended, and kept (§4 of
+// docs/05-scheduling.md). A field left unset is its default.
+message RunPolicy {
+  Concurrency concurrency = 1;
+  // How many times a failed run is tried again; none when unset, at most 100.
+  optional uint32 retries = 2;
+  // Before the first retry, each later one twice the one before; ten seconds when unset.
+  google.protobuf.Duration backoff = 3;
+  // How long a run may take before its node stops it; unbounded when unset.
+  google.protobuf.Duration timeout = 4;
+  // How many succeeded runs are kept; three when unset, at most 1000.
+  optional uint32 keep_successful = 5;
+  // How many runs that ended any other way are kept; ten when unset, at most 1000.
+  optional uint32 keep_failed = 6;
+  // Whether occurrences missed while the control plane was down are run, oldest first.
+  bool catch_up = 7;
+}
+
 message RuntimeSpec {
   // e.g. "oci", "firecracker".
   string driver = 1;

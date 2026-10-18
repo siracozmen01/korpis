@@ -123,3 +123,34 @@ fn outbound_rules_are_the_workload_s_and_not_an_endpoint_s() {
     ok.egress.rules = vec![rule(vec![PortRange { first: 25, last: 25 }])];
     ok.validate().unwrap();
 }
+
+#[test]
+fn a_schedule_its_zone_and_a_run_policy_belong_to_workloads_that_have_runs() {
+    use korpis_core::workload::spec::RunPolicy;
+    let runs = Some(RunPolicy::default());
+    assert_eq!(refused(|b| b.runs = runs), "runs", "a persistent workload has no runs");
+    assert_eq!(refused(|b| b.timezone = Some("Europe/Berlin".into())), "timezone");
+    let scheduled = |b: &mut korpis_core::workload::IntentBody| {
+        b.lifecycle = Lifecycle::Scheduled;
+        b.schedule = Some("0 3 * * *".into());
+    };
+    let mut b = body();
+    scheduled(&mut b);
+    (b.timezone, b.runs) = (Some("Europe/Berlin".into()), runs);
+    assert!(b.validate().is_ok());
+    let bad_zone = refused(|b| {
+        scheduled(b);
+        b.timezone = Some("../etc/localtime".into());
+    });
+    assert_eq!(bad_zone, "timezone");
+    let never = refused(|b| {
+        scheduled(b);
+        b.schedule = Some("0 3 31 4 *".into());
+    });
+    assert_eq!(never, "schedule");
+    let retries = refused(|b| {
+        b.lifecycle = Lifecycle::Task;
+        b.runs = Some(RunPolicy { retries: 1000, ..RunPolicy::default() });
+    });
+    assert_eq!(retries, "runs.retries");
+}

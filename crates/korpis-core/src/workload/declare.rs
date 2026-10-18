@@ -15,7 +15,7 @@ pub use parts::{DeclaredEndpoint, DeclaredRuntime, DeclaredVolume, default_drive
 
 use super::spec::{
     ConsoleMode, Continuity, Dependency, EgressPolicy, HealthSpec, IntentBody, Lifecycle,
-    PlacementSpec, ResourceSpec, SpecError, StreamSpec,
+    PlacementSpec, ResourceSpec, RunPolicy, SpecError, StreamSpec,
 };
 use crate::recipe::{Recipe, RecipeRef};
 use crate::value::ValueMap;
@@ -27,6 +27,10 @@ pub struct Declaration {
     pub lifecycle: Option<Lifecycle>,
     /// The cron schedule, for scheduled workloads.
     pub schedule: Option<String>,
+    /// The zone the schedule is read in.
+    pub timezone: Option<String>,
+    /// How its runs are made and kept, for task and scheduled workloads.
+    pub runs: Option<RunPolicy>,
     /// Its console; the preset's when absent.
     pub console: Option<ConsoleMode>,
     /// Its runtime; the recipe's first target when absent.
@@ -60,10 +64,23 @@ impl Declaration {
     /// (§4 of docs/09-recipes.md).
     pub fn complete(self, recipe_ref: RecipeRef, recipe: &Recipe) -> Result<IntentBody, SpecError> {
         let preset = &recipe.preset;
+        let lifecycle = self.lifecycle.unwrap_or(preset.lifecycle);
+        // The policy and the zone are stored as they apply, the defaults written out, so that a
+        // later default cannot change what a stored intent means.
+        let runs = match lifecycle {
+            Lifecycle::Persistent => self.runs,
+            Lifecycle::Task | Lifecycle::Scheduled => Some(self.runs.unwrap_or_default()),
+        };
+        let timezone = match &self.schedule {
+            Some(_) => Some(self.timezone.unwrap_or_else(|| "UTC".to_owned())),
+            None => self.timezone,
+        };
         let body = IntentBody {
             recipe: recipe_ref,
-            lifecycle: self.lifecycle.unwrap_or(preset.lifecycle),
+            lifecycle,
             schedule: self.schedule,
+            timezone,
+            runs,
             console: self.console.unwrap_or(preset.console),
             runtime: self.runtime.complete(&recipe.runtime)?,
             resources: parts::resources(self.resources, preset.resources)?,

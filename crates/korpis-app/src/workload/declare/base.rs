@@ -48,6 +48,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .complete(reference, &recipe)
             .map_err(|e| AppError::invalid(format!("body.{}", e.field), e.message))?;
         super::enforced::refuse_unenforced(&body)?;
+        if let Some(zone) = &body.timezone
+            && self.zones.zone(zone).is_none()
+        {
+            return Err(AppError::invalid(
+                "body.timezone",
+                "a zone the control plane does not know",
+            ));
+        }
         body.recipe.providers = self.pin_providers(&recipe, organization).await?;
         self.check_dependencies((base.workload.project, base.workload.id), &body).await?;
         let previous = base.head.as_ref().map(|h| &h.body.config);

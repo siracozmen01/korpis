@@ -76,6 +76,8 @@ tempfile = { version = "3", optional = true }
 url = "2"
 # Writing a restored key without following a link (O_NOFOLLOW).
 rustix = { version = "1", features = ["fs"] }
+# The zone database schedules are read in: the system's, as the operating system updates it.
+jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
 
 [dev-dependencies]
 korpis-server = { path = ".", features = ["testing"] }

@@ -83,6 +83,8 @@ pub fn body(motd: &str) -> IntentBody {
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
+        timezone: None,
+        runs: None,
         console: ConsoleMode::Interactive,
         runtime: RuntimeSpec {
             driver: "oci".into(),

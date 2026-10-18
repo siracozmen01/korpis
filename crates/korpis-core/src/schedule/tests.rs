@@ -106,6 +106,8 @@ fn body(memory: u64) -> IntentBody {
         },
         lifecycle: Lifecycle::Persistent,
         schedule: None,
+        timezone: None,
+        runs: None,
         // No stream, so these cases reserve only what they set: a stream reserves node disk.
         console: ConsoleMode::None,
         runtime: RuntimeSpec {
