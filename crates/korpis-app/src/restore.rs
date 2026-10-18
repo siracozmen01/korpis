@@ -262,4 +262,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.commit().await?;
         Ok(held)
     }
+
+    /// The gap record of a restore (§8 of docs/03-state.md): control-plane effects with no node
+    /// counterpart between the backup, taken at `taken_at`, and now are lost, and the log says
+    /// what it does not know rather than nothing. Recorded as asked at the machine by `operator`.
+    pub async fn record_restore_gap(
+        &self,
+        taken_at: SystemTime,
+        operator: &str,
+    ) -> Result<(), AppError> {
+        let now = self.clock.now();
+        let mut tx = self.store.begin().await?;
+        let effect =
+            Effect::new(Principal::System(SystemActor::Bootstrap), "restore.gap", Outcome::Failed)
+                .error(details([
+                    ("from", seconds(taken_at).into()),
+                    ("through", seconds(now).into()),
+                    (
+                        "cause",
+                        "effects of the control plane after the backup that no node holds are lost"
+                            .into(),
+                    ),
+                    ("operator", operator.into()),
+                ]));
+        tx.append_effect(&effect).await?;
+        tx.commit().await?;
+        Ok(())
+    }
 }

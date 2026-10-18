@@ -19,7 +19,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::agent_message::Message as Up;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as Down;
 use sqlx::Connection as _;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 fn decoded(a: &agent::SignedAssignment) -> agent::Assignment {
@@ -285,6 +285,25 @@ async fn a_workload_its_node_did_not_present_is_held_until_an_operator_confirms_
     let again = workloads.confirm_placement(confirm("c2")).await.unwrap_err();
     assert_eq!(again.code, connectrpc::ErrorCode::Aborted, "not held any more");
     assert_eq!(h.effects("workload.placement.confirm").await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_restore_records_the_interval_whose_control_plane_effects_it_lost() {
+    let h = Harness::new().await;
+    let app = App::new(h.db.store().await.unwrap(), SystemClock, test_key(), NoRecipes);
+    let taken_at = SystemTime::now() - Duration::from_secs(3600);
+    app.record_restore_gap(taken_at, "uid 0 (root)").await.unwrap();
+    let store = h.db.store().await.unwrap();
+    let (outcome, from, through): (String, i64, i64) = sqlx::query_as(
+        "SELECT outcome, (error->>'from')::bigint, (error->>'through')::bigint
+           FROM effect WHERE action = 'restore.gap'",
+    )
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    let since = |t: SystemTime| i64::try_from(t.duration_since(UNIX_EPOCH).unwrap().as_secs());
+    assert_eq!((outcome.as_str(), from), ("failed", since(taken_at).unwrap()));
+    assert!(through - from >= 3600, "through the restore: {from}..{through}");
 }
 
 fn test_key() -> std::sync::Arc<korpis_core::authz::token::SigningKey> {

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT target_id, power_target_version FROM workload WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "target_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "target_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "power_target_version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "power_target_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "09c5ab6577d6abc4bb4671f29b2388267da3e0b94bfd92bf8f6836285c772567"
+}

@@ -113,10 +113,13 @@ pub enum PlanRecovery {
     },
     /// The store holds it as applying, or as ended.
     Held,
-    /// It names something the store does not hold and cannot recover: nothing was written.
+    /// It cannot be recovered, and nothing was written: it names something the store does not
+    /// hold, or it is older than what the store holds, as a replayed assignment's plan is.
     Refused {
-        /// What.
-        missing: &'static str,
+        /// Why, as a word: `intent`, `volume`, or `repository` for what is missing; `newer` when
+        /// a plan of the workload computed after it has started; `target` when it does not reach
+        /// the workload's target or power target.
+        why: &'static str,
     },
 }
 
@@ -195,7 +198,10 @@ pub trait RecoveryWrite {
     /// applying and recovered, its grant and its starting intent left out where the store does
     /// not hold them; one the store holds as approved or queued becomes applying. Either way,
     /// every other plan of the workload the store holds as applying is cancelled first, since
-    /// plans of a workload apply one at a time and the node has moved past it.
+    /// plans of a workload apply one at a time and the node has moved past it. A plan older than
+    /// one of the workload that started, or one of intent or power that does not reach the
+    /// workload's target or power target, is refused: a node replaying an older assignment it
+    /// still holds the signature of starts nothing and stops nothing.
     fn recover_plan(
         &mut self,
         plan: &Plan,

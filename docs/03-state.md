@@ -669,6 +669,11 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > one at a time and the node has moved past it; a completion the node's journal resends for it is
 > still counted, as for any cancelled plan (§7 above). A plan naming an intent, volume, or
 > repository the store does not hold is not recovered, and `restore.plan.refused` says which.
+> Neither is a plan older than what the store holds: one computed before a plan of the workload
+> that has started, or an intent or power plan that does not reach the target or power target
+> recovery has moved forward to, so a node replaying an older assignment it still holds the
+> signature of starts nothing and cancels nothing. That was added the same day, from a review
+> of the first version.
 
 > As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
 > live and placed in the restored store, and the node that removed it presents nothing for it. So
@@ -701,6 +706,14 @@ lost, and the restore writes a single gap record covering that interval so the a
 it does not know. Grants issued in that interval are already void, because the signing key rotates
 (below). The interval is as long as the backup is old, which is why continuous WAL archiving is the
 documented configuration rather than nightly dumps.
+
+> As built, 2026-10-18 (`crates/korpis-agent/src/journal/read.rs`,
+> `crates/korpis-app/src/restore.rs`). The re-ingestion needs nothing of the restore: the restored cursor is what the control plane
+> acknowledges when the agent reconnects, and the agent sends everything after it that it
+> retains, which the control plane ingests exactly once, by origin; what it no longer retains it
+> answers with a gap record. Both are tested end to end against a cursor and an effect log put back
+> to an older state. The restore's own gap record is `restore.gap`, from the backup's time through
+> the restore's, naming the operator, written by the restore command with its other steps.
 
 **And restore rotates the signing key, for the same reason.**
 

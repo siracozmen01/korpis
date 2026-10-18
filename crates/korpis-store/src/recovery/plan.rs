@@ -7,6 +7,7 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
+use crate::stored::from_time;
 use korpis_app::ports::{PlanRecovery, StoreResult, WorkloadWrite as _};
 use korpis_core::workload::plan::PlanStatus;
 use korpis_core::workload::{Plan, PlanTarget};
@@ -19,6 +20,11 @@ impl PgTx {
             .fetch_optional(&mut *self.tx)
             .await
             .map_err(from_sqlx)?;
+        if matches!(held.as_deref(), None | Some("approved" | "queued"))
+            && let Some(why) = self.stale(plan).await?
+        {
+            return Ok(PlanRecovery::Refused { why });
+        }
         match held.as_deref() {
             Some("approved" | "queued") => {
                 let closed = self.close_applying(plan).await?;
@@ -30,8 +36,8 @@ impl PgTx {
             }
             Some(_) => Ok(PlanRecovery::Held),
             None => {
-                if let Some(missing) = self.unrecoverable(plan).await? {
-                    return Ok(PlanRecovery::Refused { missing });
+                if let Some(why) = self.unrecoverable(plan).await? {
+                    return Ok(PlanRecovery::Refused { why });
                 }
                 let proposed_under = match plan.proposed_under {
                     Some(g) => self.held("grants", g).await?.then_some(g),
@@ -71,6 +77,41 @@ impl PgTx {
         .fetch_all(&mut *self.tx)
         .await
         .map_err(from_sqlx)
+    }
+
+    /// Why `plan` is older than what the store holds, if it is: a plan of its workload computed
+    /// after it has started, or it does not reach the workload's target or power target, which
+    /// recovery has already moved forward to what was presented.
+    async fn stale(&mut self, plan: &Plan) -> StoreResult<Option<&'static str>> {
+        let newer = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM plan
+                               WHERE workload_id = $1 AND id <> $2 AND computed_at > $3
+                                 AND status IN ('applying', 'applied', 'failed')) AS "newer!""#,
+            plan.workload,
+            plan.id,
+            from_time(plan.computed_at)
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if newer {
+            return Ok(Some("newer"));
+        }
+        let w = sqlx::query!(
+            "SELECT target_id, power_target_version FROM workload WHERE id = $1",
+            plan.workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let reaches = match (plan.target, &w) {
+            (PlanTarget::Intent(i), Some(w)) => w.target_id == Some(i),
+            (PlanTarget::Power(v), Some(w)) => {
+                u64::try_from(w.power_target_version).is_ok_and(|held| held == v)
+            }
+            (_, w) => w.is_some(),
+        };
+        Ok((!reaches).then_some("target"))
     }
 
     /// What `plan` names that a plan row cannot be written without and the store does not hold.

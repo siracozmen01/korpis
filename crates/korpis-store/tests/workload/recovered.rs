@@ -136,7 +136,7 @@ async fn a_presented_plan_is_recorded_applying_and_the_one_it_followed_is_closed
     use korpis_app::ports::{PlanRecovery, WorkloadRead, WorkloadWrite as _};
     use korpis_core::workload::plan::{Approval, PlanStatus};
     let f = fixture().await;
-    let (_, first) = create(&f, "mc").await;
+    let (w, first) = create(&f, "mc").await;
     let older =
         Plan { status: PlanStatus::Applying, ..crate::plans::plan(&f, &first, Approval::Auto) };
     let presented = Plan {
@@ -146,6 +146,7 @@ async fn a_presented_plan_is_recorded_applying_and_the_one_it_followed_is_closed
     let queued =
         Plan { status: PlanStatus::Queued, ..crate::plans::plan(&f, &first, Approval::Auto) };
     let mut tx = f.store.begin().await.unwrap();
+    tx.move_target(w.id, first.id, 0).await.unwrap();
     tx.insert_plan(&older).await.unwrap();
     let recorded = tx.recover_plan(&presented).await.unwrap();
     assert_eq!(recorded, PlanRecovery::Recorded { closed: vec![older.id] });
@@ -153,6 +154,13 @@ async fn a_presented_plan_is_recorded_applying_and_the_one_it_followed_is_closed
     tx.insert_plan(&queued).await.unwrap();
     let started = tx.recover_plan(&queued).await.unwrap();
     assert_eq!(started, PlanRecovery::Started { closed: vec![presented.id] });
+    // A replayed assignment's plan, computed before the one that has started: refused.
+    let replayed = Plan {
+        computed_at: queued.computed_at - std::time::Duration::from_secs(3600),
+        ..crate::plans::plan(&f, &first, Approval::Auto)
+    };
+    let refused = tx.recover_plan(&replayed).await.unwrap();
+    assert_eq!(refused, PlanRecovery::Refused { why: "newer" }, "older than what started");
     tx.commit().await.unwrap();
     let read = f.store.plan(presented.id).await.unwrap().unwrap();
     assert_eq!(read.proposed_under, None, "a grant the store does not hold is left out");

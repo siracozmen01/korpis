@@ -144,3 +144,32 @@ async fn a_control_plane_restored_from_an_older_backup_is_sent_a_gap_for_what_wa
         .await;
     assert_eq!(first, 11);
 }
+
+#[tokio::test]
+async fn a_control_plane_restored_within_retention_ingests_what_it_lost_again_exactly_once() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (identity, state) = joined(&cp, &dir).await;
+    let journal = JournalHandle::open(&state.root().join("journal"), Bounds::default()).unwrap();
+    let running = connect(&identity, &state, &journal).await;
+    for n in 1..=20 {
+        journal.append(glass(n)).await.unwrap();
+    }
+    ingested(&cp, 20).await;
+    journal.maintain().await.unwrap();
+    running.abort();
+
+    // Restored from a backup taken after the tenth record: the cursor, and the effects after it,
+    // are the backup's. The node retains what it acknowledged, and sends it again.
+    cp.execute("UPDATE node_journal_cursor SET ingested_through = 10").await;
+    cp.execute_as_owner("DELETE FROM effect WHERE origin_seq > 10").await;
+    let _running = connect(&identity, &state, &journal).await;
+    ingested(&cp, 20).await;
+    let rows: i64 = cp.scalar("SELECT count(*) FROM effect WHERE origin_seq IS NOT NULL").await;
+    let distinct: i64 = cp
+        .scalar("SELECT count(DISTINCT origin_seq) FROM effect WHERE origin_seq IS NOT NULL")
+        .await;
+    assert_eq!((rows, distinct), (20, 20), "the log refilled, exactly once, from the cursor");
+    let gaps: i64 = cp.scalar("SELECT count(*) FROM effect WHERE action = 'journal.gap'").await;
+    assert_eq!(gaps, 0, "nothing was discarded within retention");
+}

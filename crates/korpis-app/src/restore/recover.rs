@@ -132,10 +132,14 @@ async fn recover_plan<T: RecoveryWrite>(
         e.plan = Some(plan.id);
         e
     };
+    if plan.workload != opened.workload {
+        let more = details([("why", "workload".into())]);
+        return Ok(vec![with(about("restore.plan.refused", Outcome::Failed), more)]);
+    }
     let (mut effects, closed) = match tx.recover_plan(plan).await? {
         PlanRecovery::Held => return Ok(Vec::new()),
-        PlanRecovery::Refused { missing } => {
-            let more = details([("missing", missing.into())]);
+        PlanRecovery::Refused { why } => {
+            let more = details([("why", why.into())]);
             return Ok(vec![with(about("restore.plan.refused", Outcome::Failed), more)]);
         }
         PlanRecovery::Recorded { closed } => {

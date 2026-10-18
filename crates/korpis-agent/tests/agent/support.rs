@@ -309,6 +309,14 @@ impl ControlPlane {
         sqlx::query(sql).execute(store.pool()).await.unwrap();
     }
 
+    /// One statement as the database's owner, as a restore writes it: what the application role
+    /// may not do, such as removing effects.
+    pub async fn execute_as_owner(&self, sql: &'static str) {
+        use sqlx::Connection as _;
+        let mut owner = sqlx::PgConnection::connect(&self.db.owner_url).await.unwrap();
+        sqlx::query(sql).execute(&mut owner).await.unwrap();
+    }
+
     /// A one-time token for a node named `name`; the token and the CA fingerprint.
     pub async fn token(&self, name: &str) -> (String, String) {
         let created = self
