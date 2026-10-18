@@ -160,12 +160,23 @@ fn a_night_due_while_one_runs_follows_concurrency() {
     assert_eq!((t.ended[0].1.status, t.ended[0].1.cause), (RunStatus::Cancelled, Cause::Replaced));
     assert_eq!(statuses(&t), [(RunStatus::Pending, None, 1)]);
 
-    let allow = RunPolicy { concurrency: Concurrency::Allow, ..RunPolicy::default() };
+    let allow = |max_active| RunPolicy {
+        concurrency: Concurrency::Allow,
+        max_active,
+        ..RunPolicy::default()
+    };
     let case =
-        Case::new(nightly(allow)).due("2026-01-12T03:00:00Z").running("2026-01-11T03:00:00Z");
+        Case::new(nightly(allow(2))).due("2026-01-12T03:00:00Z").running("2026-01-11T03:00:00Z");
     let t = case.at("2026-01-12T03:00:10Z");
     assert!(t.ended.is_empty());
-    assert_eq!(statuses(&t), [(RunStatus::Pending, None, 1)]);
+    assert_eq!(statuses(&t), [(RunStatus::Pending, None, 1)], "beside it, with room");
+
+    // `allow` keeps no more running than its `max_active`: past it, as `forbid` does.
+    let full =
+        Case::new(nightly(allow(1))).due("2026-01-12T03:00:00Z").running("2026-01-11T03:00:00Z");
+    let t = full.at("2026-01-12T03:00:10Z");
+    assert!(t.ended.is_empty());
+    assert_eq!(statuses(&t), [(RunStatus::Missed, Some(Cause::Concurrency), 1)]);
 }
 
 #[test]

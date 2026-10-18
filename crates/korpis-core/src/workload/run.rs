@@ -270,12 +270,12 @@ pub struct RunRef {
     pub cycle: Option<u64>,
 }
 
-/// The active runs a node is to execute, from `active` under `policy`: every one under `allow`;
-/// otherwise the running ones, or else the oldest pending, so that runs queued behind one another
-/// (caught up, or waiting behind one its node has not started) go one at a time.
+/// The active runs a node is to execute, from `active` under `policy`: every one running, and
+/// the oldest pending ones while fewer than `max_active` are named, one under `forbid` and
+/// `replace`, so that runs queued behind one another (caught up, or waiting behind one its node
+/// has not started) go as many at a time as the policy allows and no more.
 #[must_use]
 pub fn named(active: &[Run], policy: &crate::workload::spec::RunPolicy) -> Vec<RunRef> {
-    use crate::workload::spec::Concurrency;
     let refer = |r: &Run| RunRef {
         run: r.id,
         attempt: r.attempt,
@@ -285,16 +285,14 @@ pub fn named(active: &[Run], policy: &crate::workload::spec::RunPolicy) -> Vec<R
         intent: r.intent,
         cycle: r.cycle,
     };
-    let live = active.iter().filter(|r| r.status.is_active());
-    if policy.concurrency == Concurrency::Allow {
-        return live.map(refer).collect();
-    }
-    let running: Vec<RunRef> =
-        live.clone().filter(|r| r.status == RunStatus::Running).map(refer).collect();
-    if !running.is_empty() {
-        return running;
-    }
-    live.min_by_key(|r| (r.scheduled_for, r.id)).map(refer).into_iter().collect()
+    let mut named: Vec<RunRef> =
+        active.iter().filter(|r| r.status == RunStatus::Running).map(refer).collect();
+    let mut pending: Vec<&Run> = active.iter().filter(|r| r.status == RunStatus::Pending).collect();
+    pending.sort_by_key(|r| (r.scheduled_for, r.id));
+    let room = usize::try_from(policy.max_active).unwrap_or(usize::MAX);
+    let wanted = room.saturating_sub(named.len());
+    named.extend(pending.into_iter().take(wanted).map(refer));
+    named
 }
 
 /// What the control plane keeps of a workload's runs beside the runs themselves: the next
@@ -351,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn a_node_runs_every_active_run_only_under_allow_and_otherwise_one_at_a_time() {
+    fn a_node_runs_as_many_runs_at_once_as_the_policy_keeps_active_and_no_more() {
         use crate::workload::spec::{Concurrency, RunPolicy};
         let (w, i) = (Uuid::now_v7(), Uuid::now_v7());
         let at = |s: u64| SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(s);
@@ -363,7 +361,11 @@ mod tests {
         assert_eq!(ids(named(&queued, &forbid)), [earlier.id], "the oldest pending");
         let running = Run { status: RunStatus::Running, ..later.clone() };
         assert_eq!(ids(named(&[running.clone(), earlier.clone()], &forbid)), [running.id]);
-        let allow = RunPolicy { concurrency: Concurrency::Allow, ..forbid };
-        assert_eq!(named(&queued, &allow).len(), 2);
+        let allow =
+            |max_active| RunPolicy { concurrency: Concurrency::Allow, max_active, ..forbid };
+        assert_eq!(named(&queued, &allow(2)).len(), 2);
+        assert_eq!(ids(named(&queued, &allow(1))), [earlier.id], "no more than it keeps active");
+        let both_running = [running.clone(), Run { status: RunStatus::Running, ..earlier }];
+        assert_eq!(named(&both_running, &allow(1)).len(), 2, "what runs is never stopped by it");
     }
 }

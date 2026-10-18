@@ -483,9 +483,10 @@ message Assignment {
   // The node starts each it has not started and stops each it started that is no longer named
   // (§4.5 of docs/05-scheduling.md).
   repeated RunRef runs = 25;
-  // The runs of it that ended and are kept (§4.4 of docs/05-scheduling.md): the node keeps
-  // each one's console stream, and deletes that of every run neither named nor kept, as
-  // retention deleted the run (§4 of docs/14-streams.md).
+  // Every run of it the control plane still holds, in any status (§4.4 of
+  // docs/05-scheduling.md): the node keeps each one's console stream, and deletes a run's only
+  // once the run is not here, which is the control plane saying retention deleted it (§4 of
+  // docs/14-streams.md).
   repeated string kept_runs = 26;
 }
 

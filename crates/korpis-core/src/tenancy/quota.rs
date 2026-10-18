@@ -145,11 +145,15 @@ impl Held {
         let r = &body.resources;
         let created: Vec<_> = body.volumes.iter().filter(|v| v.existing.is_none()).collect();
         let volume_bytes = created.iter().fold(0u64, |a, v| a.saturating_add(v.size_bytes));
-        // A console stream holds disk like a volume it creates (§4 of docs/14-streams.md).
-        let stream_bytes = match body.console {
-            ConsoleMode::None => 0,
-            _ => body.streams.disk_bound(),
+        // A console stream holds disk like a volume it creates (§4 of docs/14-streams.md), and
+        // a workload whose runs write their own holds one for each run its node keeps at once:
+        // those retention keeps and those active, which its policy bounds.
+        let streams = match (body.console, body.lifecycle.has_runs()) {
+            (ConsoleMode::None, _) => 0,
+            (_, false) => 1,
+            (_, true) => u64::from(body.run_policy().streams_held()),
         };
+        let stream_bytes = body.streams.disk_bound().saturating_mul(streams);
         let created_bytes = volume_bytes.saturating_add(stream_bytes);
         let dedicated = body.endpoints.iter().filter(|e| e.exposure == Exposure::DedicatedIp);
         let counts = [

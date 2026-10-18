@@ -205,10 +205,7 @@ impl RunWrite for PgTx {
 
     async fn kept_runs_within(&mut self, workload: Uuid) -> StoreResult<Vec<Uuid>> {
         sqlx::query_scalar!(
-            "SELECT id FROM run
-              WHERE workload_id = $1 AND status NOT IN ('pending', 'running')
-                AND started_at IS NOT NULL
-              ORDER BY created_at, id",
+            "SELECT id FROM run WHERE workload_id = $1 ORDER BY created_at, id",
             workload
         )
         .fetch_all(&mut *self.tx)

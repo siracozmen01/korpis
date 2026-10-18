@@ -65,9 +65,17 @@ fn a_run_policy_and_its_zone_read_back_exactly_and_unset_parts_are_the_defaults(
         keep_successful: 0,
         keep_failed: 5,
         catch_up: true,
+        max_active: 1,
     });
     assert_eq!(decode(&encode(&b).unwrap(), SCHEMA_VERSION).unwrap(), b, "zero kept is kept");
     let empty = korpis_proto::korpis::v1::RunPolicy::default();
     let read = korpis_wire::spec::runs::policy_from_pb("runs", &empty).unwrap();
     assert_eq!(read, RunPolicy::default());
+    // `allow` with nothing said keeps its default active, written out.
+    let allow = korpis_proto::korpis::v1::RunPolicy {
+        concurrency: korpis_proto::korpis::v1::Concurrency::CONCURRENCY_ALLOW.into(),
+        ..Default::default()
+    };
+    let read = korpis_wire::spec::runs::policy_from_pb("runs", &allow).unwrap();
+    assert_eq!(read.max_active, korpis_core::workload::spec::runs::ALLOW_ACTIVE);
 }

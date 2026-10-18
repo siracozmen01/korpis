@@ -426,9 +426,9 @@ Intent
   schedule      CronExpr?      required iff lifecycle = scheduled
   timezone      string?        the IANA zone `schedule` is read in; UTC when unset; only with
                                a schedule (§4.1 of 05-scheduling.md); added 2026-10-18
-  runs          RunPolicy?     concurrency, retries, backoff, timeout, retention, catch_up;
-                               only for task and scheduled, defaults when unset (§4 of
-                               05-scheduling.md); added 2026-10-18
+  runs          RunPolicy?     concurrency, max_active, retries, backoff, timeout, retention,
+                               catch_up; only for task and scheduled, defaults when unset (§4
+                               of 05-scheduling.md); added 2026-10-18
   console       none | logs | interactive
   runtime       RuntimeSpec    driver + isolation tier + driver-specific config
   resources     ResourceSpec   cpu, memory, disk, io, bandwidth (§5.2 of 05-scheduling.md)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id FROM run\n              WHERE workload_id = $1 AND status NOT IN ('pending', 'running')\n                AND started_at IS NOT NULL\n              ORDER BY created_at, id",
+  "query": "SELECT id FROM run WHERE workload_id = $1 ORDER BY created_at, id",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "35257416f37f90d2f1f665544e693439c6a19133bd9d114dcafddf5565aa6910"
+  "hash": "af11f58ba4dc3a74ccd447a6242aa3a9d1f55c26e6429b5f13c5ae4c22fb8e06"
 }

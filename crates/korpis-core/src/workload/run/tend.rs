@@ -241,9 +241,18 @@ impl Work {
                 self.end(id, RunStatus::Missed, Cause::NotStarted);
             }
         }
-        let running = self.active.iter().any(|r| r.status == RunStatus::Running);
+        let running = self.active.iter().filter(|r| r.status == RunStatus::Running).count();
+        let room = usize::try_from(self.policy.max_active).unwrap_or(usize::MAX);
         match self.policy.concurrency {
-            Concurrency::Forbid if running => {
+            Concurrency::Replace => {
+                for id in self.active.iter().map(|r| r.id).collect::<Vec<_>>() {
+                    self.end(id, RunStatus::Cancelled, Cause::Replaced);
+                }
+                self.make(run);
+            }
+            // `forbid` keeps one running and `allow` at most `max_active` (§4.3 of
+            // docs/05-scheduling.md): a run due past it is missed.
+            Concurrency::Forbid | Concurrency::Allow if running >= room => {
                 let missed = Run {
                     status: RunStatus::Missed,
                     cause: Some(Cause::Concurrency),
@@ -252,14 +261,8 @@ impl Work {
                 };
                 self.out.made.push(missed);
             }
-            Concurrency::Replace => {
-                for id in self.active.iter().map(|r| r.id).collect::<Vec<_>>() {
-                    self.end(id, RunStatus::Cancelled, Cause::Replaced);
-                }
-                self.make(run);
-            }
-            // Allowed beside the active ones, or forbidden with none running: made, and a
-            // pending one ahead of it is started first (§4.5 of docs/05-scheduling.md).
+            // With room: made, and a pending one ahead of it is started first (§4.5 of
+            // docs/05-scheduling.md).
             Concurrency::Allow | Concurrency::Forbid => self.make(run),
         }
     }

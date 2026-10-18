@@ -36,6 +36,19 @@ fn a_workload_holds_its_reservations_its_volumes_and_itself() {
         ..body()
     };
     assert_eq!(Held::of(&quiet).reservations[&D::Disk], 40 * GIB, "no console, no stream");
+    // A task's runs each write a console of their own: one stream for each run its node can
+    // keep at once, the kept and the active.
+    let policy = korpis_core::workload::spec::RunPolicy {
+        keep_successful: 2,
+        keep_failed: 3,
+        ..Default::default()
+    };
+    let task = korpis_core::workload::IntentBody {
+        lifecycle: korpis_core::workload::spec::Lifecycle::Task,
+        runs: Some(policy),
+        ..body()
+    };
+    assert_eq!(Held::of(&task).reservations[&D::Disk], 40 * GIB + (2 + 3 + 1) * stream);
     assert_eq!(held.reservations[&D::Workloads], 1);
     assert_eq!(held.reservations[&D::Endpoints], 1);
     assert_eq!(held.limits[&D::DiskReadBytes], None, "no I/O ceiling declared is unbounded");

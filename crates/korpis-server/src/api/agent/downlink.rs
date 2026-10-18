@@ -105,7 +105,8 @@ impl Downlink {
 
     /// One recomputation; false once the session's stream is gone.
     async fn pass(&self, last: &mut Option<String>) -> bool {
-        let computed = match self.app.sync_assignments(self.node).await {
+        // Boxed: computing a node's set is a large future, held across every assignment.
+        let computed = match Box::pin(self.app.sync_assignments(self.node)).await {
             Ok(s) => s,
             Err(e) => {
                 // Retried on the next wake: every change and every resync wakes it.

@@ -70,9 +70,10 @@ pub struct Assignment {
     /// The runs of a task or scheduled workload the node is to execute (§4.5 of
     /// docs/05-scheduling.md).
     pub runs: Vec<super::run::RunRef>,
-    /// The runs of it that ended and are kept, whose streams the node keeps beside them; any
-    /// other run's stream it deletes, as retention deleted the run (§4.4 of
-    /// docs/05-scheduling.md, §4 of docs/14-streams.md).
+    /// Every run of it the control plane still holds, in any status: the node keeps their
+    /// streams, and deletes another run's only because it is not here, which is the control
+    /// plane saying retention deleted it (§4.4 of docs/05-scheduling.md, §4 of
+    /// docs/14-streams.md).
     pub kept_runs: Vec<Uuid>,
 }
 

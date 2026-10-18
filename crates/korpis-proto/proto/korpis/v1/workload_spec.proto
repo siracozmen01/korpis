@@ -81,6 +81,10 @@ message RunPolicy {
   optional uint32 keep_failed = 6;
   // Whether occurrences missed while the control plane was down are run, oldest first.
   bool catch_up = 7;
+  // The most runs active at once under `allow`, 10 when unset, at most 100; one under `forbid`
+  // and `replace`. A run due past it is recorded missed, cause `concurrency` (§4.3 of
+  // docs/05-scheduling.md).
+  optional uint32 max_active = 8;
 }
 
 message RuntimeSpec {

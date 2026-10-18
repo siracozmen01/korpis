@@ -14,6 +14,11 @@ pub const MAX_CATCH_UP: u32 = 100;
 pub const MAX_RETRIES: u32 = 100;
 /// The most runs of either kind a policy may keep: each kept run is a stream on its node.
 pub const MAX_KEPT: u32 = 1000;
+/// The most runs `allow` may keep active at once: each active run is a stream on its node, as
+/// each kept one is, so the disk quota can count them (§4.3 of docs/05-scheduling.md).
+pub const MAX_ACTIVE: u32 = 100;
+/// How many runs `allow` keeps active at once when its policy says nothing.
+pub const ALLOW_ACTIVE: u32 = 10;
 /// The longest backoff a policy may ask for.
 pub const MAX_BACKOFF: Duration = Duration::from_secs(86_400);
 
@@ -46,6 +51,9 @@ pub struct RunPolicy {
     pub keep_failed: u32,
     /// Whether occurrences missed while the control plane was down are run, oldest first.
     pub catch_up: bool,
+    /// The most runs active at once: one under `forbid` and `replace`, and under `allow` what
+    /// the policy says, [`ALLOW_ACTIVE`] when it says nothing. A run due past it is missed.
+    pub max_active: u32,
 }
 
 impl Default for RunPolicy {
@@ -58,6 +66,7 @@ impl Default for RunPolicy {
             keep_successful: 3,
             keep_failed: 10,
             catch_up: false,
+            max_active: 1,
         }
     }
 }
@@ -84,7 +93,23 @@ impl RunPolicy {
                 return Err(SpecError::new(field, format!("at most {MAX_KEPT}")));
             }
         }
-        Ok(())
+        match self.concurrency {
+            Concurrency::Allow if !(1..=MAX_ACTIVE).contains(&self.max_active) => {
+                Err(SpecError::new("runs.max_active", format!("between 1 and {MAX_ACTIVE}")))
+            }
+            Concurrency::Forbid | Concurrency::Replace if self.max_active != 1 => {
+                Err(SpecError::new("runs.max_active", "only with concurrency allow"))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// The most runs whose console streams the node holds at once: those kept of either kind
+    /// and those active (§4 of docs/14-streams.md). What the disk quota counts a workload's
+    /// streams by.
+    #[must_use]
+    pub const fn streams_held(&self) -> u32 {
+        self.keep_successful.saturating_add(self.keep_failed).saturating_add(self.max_active)
     }
 
     /// How long the `n`-th retry waits after the failure it follows: the backoff, doubled for
@@ -119,6 +144,22 @@ mod tests {
         assert_eq!(instant.validate().unwrap_err().field, "runs.timeout");
         let kept = RunPolicy { keep_failed: MAX_KEPT + 1, ..RunPolicy::default() };
         assert_eq!(kept.validate().unwrap_err().field, "runs.keep_failed");
+    }
+
+    #[test]
+    fn only_allow_keeps_more_than_one_run_active_and_never_past_the_bound() {
+        let allow = |max_active| RunPolicy {
+            concurrency: Concurrency::Allow,
+            max_active,
+            ..RunPolicy::default()
+        };
+        assert!(allow(ALLOW_ACTIVE).validate().is_ok());
+        assert_eq!(allow(0).validate().unwrap_err().field, "runs.max_active");
+        assert_eq!(allow(MAX_ACTIVE + 1).validate().unwrap_err().field, "runs.max_active");
+        let forbid = RunPolicy { max_active: 2, ..RunPolicy::default() };
+        assert_eq!(forbid.validate().unwrap_err().field, "runs.max_active");
+        assert_eq!(RunPolicy::default().streams_held(), 3 + 10 + 1);
+        assert_eq!(allow(4).streams_held(), 3 + 10 + 4);
     }
 
     #[test]

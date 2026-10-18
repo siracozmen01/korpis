@@ -125,7 +125,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         if has_runs(a) && !wants_running(a) {
             self.stop_runs(&a.workload, t).await?;
             // Retention deletes runs while power is stopped too, and their streams with them.
-            self.drop_unkept(a, t, &std::collections::BTreeMap::new()).await;
+            let named = a.runs.iter().map(|r| (r.run.as_str(), r)).collect();
+            self.drop_unkept(a, t, &named).await;
             return Ok(());
         }
         if has_runs(a) {

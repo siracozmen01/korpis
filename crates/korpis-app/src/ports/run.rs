@@ -61,8 +61,9 @@ pub trait RunWrite {
     /// batch reporting a run's start and then its segments relies on.
     fn run_within(&mut self, id: Uuid) -> impl Future<Output = StoreResult<Option<Run>>> + Send;
 
-    /// The workload's runs that ended after they started, and so wrote a console of their own,
-    /// that retention keeps: every one the store still holds, oldest first.
+    /// Every run of the workload the store still holds, in any status, oldest first: what a
+    /// node keeps the streams of, since a run retention has not deleted may still be read, and
+    /// one the node has not yet heard ended may still be running.
     fn kept_runs_within(
         &mut self,
         workload: Uuid,

@@ -509,6 +509,9 @@ RunPolicy
   keep_successful  int      how many succeeded runs to retain
   keep_failed      int      failures are retained longer; they are the ones anyone reads
   catch_up         bool     run missed occurrences after downtime, or skip to now
+  max_active       int      the most runs active at once: 10 under `allow` unless declared,
+                            at most 100; one under `forbid` and `replace` (§4.3, added
+                            2026-10-18)
 ```
 
 `concurrency` and `catch_up` are the two that cause incidents when they are implicit. If last
@@ -637,7 +640,22 @@ active one, `concurrency` decides:
 - **`forbid`**: the new run is recorded `missed`, cause `concurrency`, and the active one goes on.
 - **`replace`**: the active run is cancelled, cause `replaced`, and the node stops it when its
   assignment no longer names it; the new run is made.
-- **`allow`**: the new run is made beside it, and the node runs both.
+- **`allow`**: the new run is made beside it, and the node runs both, up to `max_active`
+  running at once: a run due while that many run is recorded `missed`, cause `concurrency`, as
+  under `forbid`.
+
+**`allow` is bounded by `max_active`**, ten unless the policy declares another, at most a
+hundred, decided 2026-10-18 when the disk quota came to count each run's stream (§4 of
+`14-streams.md`). Each run that runs writes a console stream of its own on its node, and a disk
+quota is a limit its tenant is shown, so it must hold what the workload can actually use (Rule
+K-3 of `00-overview.md`); without a bound on how many run at once, `allow` held a number of
+streams nothing bounded, and no quota could count it. It is
+counted the same way for every policy: one stream for each run retention keeps and each that
+can be active, `keep_successful` plus `keep_failed` plus `max_active`. What it costs: a
+workload whose runs must overlap past a hundred is refused, and one that overlaps past its
+declared bound misses a run, recorded where anyone reading the runs sees it; and the quota
+counts the bound, not what the workload happens to use. `forbid` and `replace` are
+`max_active: 1`, and declaring another value with either is refused.
 
 The same rule applies to manual and retry runs, so a restart into a `forbid` workload that is
 already running is recorded, not lost.
@@ -651,7 +669,8 @@ was down past occurrences, `catch_up` decides what they become:
 - **`true`**: each becomes a run with its own `scheduled_for`, oldest first. **Catching up is not
   a concurrency conflict**: under `forbid` they run one after another, each made when the one
   before it ends; under `replace` only the newest runs, since each would replace the one before
-  it; under `allow` they start together, which is the herd §4 warns of and what `allow` asks for.
+  it; under `allow` up to `max_active` start together, which is the herd §4 warns of and what
+  `allow` asks for, and the rest wait their turn as under `forbid`.
   At most a hundred are caught up; any older are recorded as one missed run, as under `false`.
 
 **A pending run that never starts** (its node is offline, or it is not placed) is still active.
@@ -702,7 +721,7 @@ Runs are read under `workload.read`, and each run's streams under `workload.cons
 > Each change announces the workload, so its node and its watchers hear of it. A run retention
 > deletes takes its stream with it: the control plane ends the stream, whose offloaded segments
 > are then kept no longer than the operator's floor, and the node deletes the stream's volume
-> once the assignment neither names the run nor lists it among those kept (§4 of
+> once the assignment no longer lists the run among those the control plane holds (§4 of
 > `14-streams.md`).
 
 ### 4.5 What a node is told of a run

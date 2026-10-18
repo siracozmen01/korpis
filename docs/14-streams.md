@@ -179,7 +179,9 @@ failure is read by naming Tuesday's run rather than by searching one stream that
 night. Each run's stream has the limits and retention the workload declares, separately. A run
 deleted by retention (§4.4 of `05-scheduling.md`) takes its stream with it, the node's segments and
 the offloaded ones. What it costs: a stream directory on the node for each run kept, at most
-`keep_successful` plus `keep_failed` plus the active runs per workload.
+`keep_successful` plus `keep_failed` plus the active runs per workload, and the disk quota counts
+that many streams, each at its limits, since the active runs are bounded by `max_active` (§4.3 of
+`05-scheduling.md`; counted so, and the bound added, 2026-10-18).
 
 > As built, 2026-10-18, the index's half (`crates/korpis-store/migrations/0084_stream_run.up.sql`,
 > `crates/korpis-agent/src/reconcile/tail.rs`). A stream is one workload's of one kind and, for a
@@ -206,13 +208,17 @@ the offloaded ones. What it costs: a stream directory on the node for each run k
 > it now takes, for an object labelled with a run, that run's stream volume and no other, the
 > workload's included. A run's stream goes with the run, as built the same day: the node reports
 > each run's stream volume under the run (`stream_console.run_…`), so the control plane's volume
-> objects tell them apart; the assignment lists the ended runs retention keeps; and the node
-> deletes, after journaling what is left of it, the stream volume of every run that is neither
-> named, kept, nor still held, which it also does while the workload's power is stopped. The
-> control plane ends a run's stream when retention deletes the run, or when an approved plan
-> deletes the run's stream volume by name, and its offloaded segments are then kept no longer than
-> the operator's floor. A retired workload's runs' streams stay on its node as its own console
-> stream does, each a volume of its own, deleted by name.
+> objects tell them apart; the assignment lists every run the control plane still holds, in any
+> status; and the node deletes, after journaling what is left of it, the stream volume of a run
+> only once the run is absent from that list and the node no longer holds it, which it also does
+> while the workload's power is stopped. The list first held only the ended runs retention kept;
+> corrected the same day, from a review that found the node deleted the stream of a run it had just
+> stopped, before the control plane had heard it ended: only a run the control plane no longer
+> holds at all has been deleted by retention. The control plane ends a run's stream when retention
+> deletes the run, or when an approved plan deletes the run's stream volume by name, and its
+> offloaded segments are then kept no longer than the operator's floor. A retired workload's runs'
+> streams stay on its node as its own console stream does, each a volume of its own, deleted by
+> name.
 
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so

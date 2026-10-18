@@ -89,10 +89,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         Ok(())
     }
 
-    /// Deletes the console stream volume of every run of `a`'s workload that is neither named,
-    /// kept, nor held: retention deleted the run, and its stream goes with it (§4 of
-    /// docs/14-streams.md). What the stream wrote is journaled first. A deletion that fails is
-    /// tried again on the next pass.
+    /// Deletes the console stream volume of every run of `a`'s workload that the control plane
+    /// no longer holds, nor names, nor this node holds: retention deleted the run, and its
+    /// stream goes with it (§4 of docs/14-streams.md). Only a run absent from what the control
+    /// plane holds is deleted, never one this node has just stopped or ended, which the control
+    /// plane keeps until it hears. What the stream wrote is journaled first. A deletion that
+    /// fails is tried again on the next pass.
     pub(super) async fn drop_unkept(
         &mut self,
         a: &agent::Assignment,

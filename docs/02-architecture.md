@@ -698,8 +698,9 @@ Assignment
                                endpoints' certificates are ordered (§3.2 of 07-networking.md)
   runs          []RunRef       the active runs of a task or scheduled workload, which the node
                                executes; none for a persistent one (§4.5 of 05-scheduling.md)
-  kept_runs     []RunID        its ended runs retention keeps, whose streams the node keeps;
-                               any other run's it deletes (§4 of 14-streams.md)
+  kept_runs     []RunID        every run of it the control plane still holds, in any status;
+                               the node deletes a run's stream only once the run is not here
+                               (§4 of 14-streams.md)
   signature     the control plane's signature over all of the above
 
 NodePlan
