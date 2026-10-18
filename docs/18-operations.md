@@ -576,8 +576,7 @@ discovering it during a disaster.
 > is not being archived it fails, after writing the keys and saying it did, so the gap shows in the
 > unit's state rather than in a disaster. Korpis does not configure archiving itself, which is the
 > database's own configuration (§2), and does not check that a base backup exists, which PostgreSQL
-> does not record. The only target is a directory; restoring from the file is the procedure below,
-> built as its steps are.
+> does not record. The only target is a directory; restoring from the file is the procedure below.
 
 **Which key is rotated, and which is not.**
 
@@ -659,6 +658,28 @@ agents still retain are re-ingested, refilling the effect log from the backup's 
 
 Skipping any step converts a recovery into an incident. None is a procedure someone can forget; all
 three run before the restored control plane serves a request.
+
+> As built, 2026-10-18 (`crates/korpis-server/src/restore.rs`). `korpis-server restore` runs at
+> the machine while the control plane is stopped, after PostgreSQL has restored the database by
+> its own means, with `--from` the backup file and `--key` (or `--key-file`) the key installation
+> printed. It opens the file, which another key does not, and puts its keys and certificates back
+> into the data directory: a file missing is written as installation wrote it, owned as the data
+> directory is; a file present with the same bytes is kept; a file present with other bytes
+> stops the restore before anything is written, since only the operator knows whether the backup's
+> or the one present is right. A data directory with no backup declaration, as a machine restored
+> from nothing has, is given one: the file's directory as the target and the key it was opened
+> with. It refuses a schema this binary was not built for, as `serve` does. Then the three steps
+> that run without the agents: the epochs fenced from the file's watermark and rate, with the
+> settling window (`--settle-secs`, ten minutes by default) left pending, since a window opened
+> while the control plane is stopped could run out before it starts; the token key rotated; the
+> relays held; and `restore.gap` written. Each is safe to run again, so a restore stopped part way
+> is finished by running it again. The control plane's first start opens the pending window, and
+> while it is open every request that needs a caller is answered `UNAVAILABLE`, so no one acts on
+> the backup's state or declares a version a node is running before what the agents present is
+> recovered; the agents' sessions, the relays' feeds, and what needs no caller (`ServerInfo`,
+> signing in) are served. What it does not check: that the control plane is stopped, which a second
+> replica left running would undo by issuing epochs before the fence; and that the database is the
+> one the file was taken with, which only the operator knows.
 
 What is genuinely lost is stated rather than implied away: declarations made after the backup and
 never approved reached no node, and control-plane effects with no node counterpart in that interval

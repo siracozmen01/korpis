@@ -43,6 +43,20 @@ pub trait LeaseWrite {
         settling_until: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
+    /// Raises the epoch floor to at least `floor`, and records a settling window of `settle` that
+    /// the control plane's next start opens: a restore run while it is stopped.
+    fn fence_epochs_pending(
+        &mut self,
+        floor: u64,
+        settle: std::time::Duration,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Opens a pending settling window at `now`; until when it settles, if one was pending.
+    fn open_pending_settle(
+        &mut self,
+        now: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<SystemTime>>> + Send;
+
     /// Raises the epoch floor to at least `epoch`, past an epoch a node proved was issued;
     /// whether it rose.
     fn raise_epoch_floor(&mut self, epoch: u64) -> impl Future<Output = StoreResult<bool>> + Send;

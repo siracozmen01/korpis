@@ -205,7 +205,7 @@ fn application(
 /// Refuses a schema this build was not made for, saying what makes them meet (§4 of
 /// docs/18-operations.md): an older schema is migrated forward by this binary, and a newer one is
 /// undone by the binary that applied it, or served by that binary.
-async fn schema_fits(url: &str) -> Result<(), ServeError> {
+pub(crate) async fn schema_fits(url: &str) -> Result<(), ServeError> {
     use korpis_store::schema::{self, Fit};
     let list = |v: &[i64]| v.iter().map(i64::to_string).collect::<Vec<_>>().join(", ");
     match schema::fit(&schema::applied(url).await?) {
@@ -266,6 +266,12 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let app = application(&config, store, &keys)?;
     app.register_keys(&keys.public()).await?;
     signs_with_the_trusted_key(&app, &keys).await?;
+    if let Some(until) = app.open_pending_settle().await? {
+        tracing::warn!(
+            ?until,
+            "a restore settles: agents present what they hold, and nothing else is served until then"
+        );
+    }
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
     let tls = tls::server_config(&config.data)?;

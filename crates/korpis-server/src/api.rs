@@ -109,6 +109,8 @@ pub struct Api {
     serves_relay: bool,
     /// The relays this process names to the nodes it holds sessions with.
     named_relays: Arc<crate::named_relays::NamedRelays>,
+    /// Until when a restore settles, as last asked of the store, and when that was.
+    settling: std::sync::Mutex<Option<(std::time::Instant, Option<std::time::SystemTime>)>>,
 }
 
 impl Api {
@@ -129,6 +131,7 @@ impl Api {
             relay: Arc::new(RelayRole::new(Arc::new(in_process))),
             serves_relay: true,
             named_relays: Arc::default(),
+            settling: std::sync::Mutex::new(None),
         }
     }
 
@@ -226,10 +229,39 @@ impl Api {
     /// The caller of a request: as the rate limit interceptor authenticated it, or else the bearer
     /// API token, from the peer address.
     async fn caller(&self, ctx: &RequestContext) -> Result<Caller, ConnectError> {
+        self.not_settling().await?;
         if let Some(caller) = ctx.extensions().get::<Caller>() {
             return Ok(caller.clone());
         }
         self.authenticated(ctx).await
+    }
+
+    /// Refused while a restore settles (§8 of docs/03-state.md): until what the agents present
+    /// is recovered, a caller would act on the backup's state, and a declaration could take a
+    /// version a node is running. Agents and relays are served, and so is what needs no caller.
+    /// Asked of the store at most once a second.
+    async fn not_settling(&self) -> Result<(), ConnectError> {
+        let fresh = |at: &std::time::Instant| at.elapsed() < std::time::Duration::from_secs(1);
+        let known = *self.settling.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let until = match known {
+            Some((at, until)) if fresh(&at) => until,
+            _ => {
+                let until = self.app.settling().await.map_err(error::from_app)?;
+                let mut held =
+                    self.settling.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                *held = Some((std::time::Instant::now(), until));
+                until
+            }
+        };
+        match until {
+            Some(until) if until > self.app.now() => {
+                Err(error::from_app(korpis_app::AppError::Unavailable {
+                    what: "the control plane, settling after a restore,",
+                    detail: format!("settling until {until:?}"),
+                }))
+            }
+            _ => Ok(()),
+        }
     }
 
     /// The bearer API token's caller, from the peer address.

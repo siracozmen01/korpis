@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE epoch_state SET floor = GREATEST(floor, $1), settle_pending_ms = $2\n              WHERE singleton",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1ccecbc0229a576d459a0641d64350458ec24267b4863c5622a4fb96fe003683"
+}

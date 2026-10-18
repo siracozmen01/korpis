@@ -77,25 +77,60 @@ pub struct Rotated {
     pub sessions_ended: u64,
 }
 
+/// When a fence's settling window opens.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Opens {
+    /// Now.
+    Now,
+    /// At the control plane's next start.
+    AtStart,
+}
+
 fn seconds(t: SystemTime) -> u64 {
     t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// A restore's first fence: the floor past every epoch issued since `backup`, and a window of
-    /// `settle` in which nothing is issued, recorded as asked at the machine by `operator`.
+    /// `settle` in which nothing is issued, open from now; recorded as asked at the machine by
+    /// `operator`.
     pub async fn fence_epochs(
         &self,
         backup: BackupEpochs,
         settle: Duration,
         operator: &str,
     ) -> Result<Fenced, AppError> {
+        self.fence(backup, settle, operator, Opens::Now).await
+    }
+
+    /// The same fence, with the window opened by the control plane's next start rather than now:
+    /// the restore command runs while it is stopped, and a window opened then could run out
+    /// before it starts. [`Fenced::settling_until`] is when it would end if it opened now.
+    pub async fn fence_epochs_at_start(
+        &self,
+        backup: BackupEpochs,
+        settle: Duration,
+        operator: &str,
+    ) -> Result<Fenced, AppError> {
+        self.fence(backup, settle, operator, Opens::AtStart).await
+    }
+
+    async fn fence(
+        &self,
+        backup: BackupEpochs,
+        settle: Duration,
+        operator: &str,
+        opens: Opens,
+    ) -> Result<Fenced, AppError> {
         let now = self.clock.now();
         let age = now.duration_since(backup.taken_at).unwrap_or(Duration::ZERO);
         let floor = fence_floor(backup.max_issued, backup.rate_per_sec, age);
         let settling_until = now + settle;
         let mut tx = self.store.begin().await?;
-        tx.fence_epochs(floor, settling_until).await?;
+        match opens {
+            Opens::Now => tx.fence_epochs(floor, settling_until).await?,
+            Opens::AtStart => tx.fence_epochs_pending(floor, settle).await?,
+        }
         let effect = Effect::new(
             Principal::System(SystemActor::Bootstrap),
             "restore.epochs.fenced",
@@ -103,7 +138,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         )
         .after(details([
             ("floor", floor.into()),
-            ("settling_until", seconds(settling_until).into()),
+            ("settle_seconds", settle.as_secs().into()),
+            ("opens", matches!(opens, Opens::Now).then_some("now").unwrap_or("at start").into()),
             ("backup_max_issued", backup.max_issued.into()),
             ("backup_rate_per_sec", backup.rate_per_sec.into()),
             ("backup_age_seconds", age.as_secs().into()),
@@ -112,6 +148,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.append_effect(&effect).await?;
         tx.commit().await?;
         Ok(Fenced { floor, settling_until })
+    }
+
+    /// Opens a settling window a restore left pending, as the control plane starts; until when
+    /// it settles, if one was.
+    pub async fn open_pending_settle(&self) -> Result<Option<SystemTime>, AppError> {
+        let mut tx = self.store.begin().await?;
+        let Some(until) = tx.open_pending_settle(self.clock.now()).await? else {
+            return Ok(None);
+        };
+        let effect = Effect::new(
+            Principal::System(SystemActor::Bootstrap),
+            "restore.settling.opened",
+            Outcome::Succeeded,
+        )
+        .after(details([("settling_until", seconds(until).into())]));
+        tx.append_effect(&effect).await?;
+        tx.commit().await?;
+        Ok(Some(until))
     }
 
     /// Until when a restore settles, if it does: a node is asked to present while it does.

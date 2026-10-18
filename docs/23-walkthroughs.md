@@ -3131,8 +3131,10 @@ evaluated by the scheduler from the store, which after step 7 holds a workload w
 no placement, and a node already running it.
 
 ‡ The steps marked were where the findings below were found. Plans in flight, the effects the
-nodes resend, the gap record, and the restore command that runs the steps in order are traced
-here as they are built.
+nodes resend, and the gap record were built after this trace was written, as were Findings 96
+and 97's resolutions; `korpis-server restore` runs steps 1 to 3 in order while the control plane
+is stopped, and its first start opens the window of steps 4 to 8, in which nothing that needs a
+caller is served.
 
 **FINDING 95: A workload lost by a restore could not be recovered: its name was not in what the
 node held. `CONFIRMED`**

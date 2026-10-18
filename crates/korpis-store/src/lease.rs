@@ -78,6 +78,40 @@ impl LeaseWrite for PgTx {
         Ok(())
     }
 
+    async fn fence_epochs_pending(
+        &mut self,
+        floor: u64,
+        settle: std::time::Duration,
+    ) -> StoreResult<()> {
+        let ms = i64::try_from(settle.as_millis().max(1))
+            .map_err(|_| StoreError::Failed("the settling window is too long".into()))?;
+        sqlx::query!(
+            "UPDATE epoch_state SET floor = GREATEST(floor, $1), settle_pending_ms = $2
+              WHERE singleton",
+            to_count("epoch floor", floor)?,
+            ms
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn open_pending_settle(&mut self, now: SystemTime) -> StoreResult<Option<SystemTime>> {
+        let until = sqlx::query_scalar!(
+            "UPDATE epoch_state
+                SET settling_until = $1::timestamptz + settle_pending_ms * interval '1 millisecond',
+                    settle_pending_ms = NULL
+              WHERE singleton AND settle_pending_ms IS NOT NULL
+             RETURNING settling_until",
+            from_time(now)
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(until.flatten().map(to_time))
+    }
+
     async fn raise_epoch_floor(&mut self, epoch: u64) -> StoreResult<bool> {
         let raised = sqlx::query!(
             "UPDATE epoch_state SET floor = $1 WHERE singleton AND floor < $1",

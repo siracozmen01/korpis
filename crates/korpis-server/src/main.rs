@@ -2,6 +2,7 @@
 
 mod installing;
 mod migrating;
+mod restoring;
 mod serving;
 
 use clap::{Parser, Subcommand};
@@ -46,6 +47,11 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         keep: usize,
     },
+    /// Restore the control plane from its backup (§6 of docs/18-operations.md), while it is
+    /// stopped and after PostgreSQL has restored the database: put the backup's keys back, fence
+    /// the epochs, rotate the token key, hold the relays, and record the gap; the next start
+    /// opens the window in which the agents present what they hold.
+    Restore(Box<restoring::RestoreArgs>),
     /// Administration done at the machine, by its root user.
     Admin {
         #[command(subcommand)]
@@ -148,6 +154,7 @@ async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Command::Backup { data_dir, database_url, keep } => {
             backed_up(&DataDir::new(data_dir), &database_url, keep).await
         }
+        Command::Restore(args) => restoring::run(*args, &operator()).await,
         Command::Admin { command: AdminCommand::RecoverRoot { data_dir, database_url } } => {
             let config = RecoverConfig { data: DataDir::new(data_dir), database_url };
             let invitation = recover_root(&config, &operator()).await?;

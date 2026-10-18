@@ -76,6 +76,9 @@ async fn a_settling_restore_issues_nothing_and_raises_its_floor_by_verified_epoc
     assert_eq!(floor(&h).await, 0, "ignored outside a restore");
     drop(sa);
 
+    let other = h.workloads(h.root()).declare_intent(declare("v")).await.unwrap().into_owned();
+    let other = other.workload.as_option().unwrap().id.clone();
+
     // Restored to a backup that knew no epoch, at a rate of none: the floor the arithmetic gives
     // is the watermark itself, so only what the node presents can raise it.
     let app = App::new(h.db.store().await.unwrap(), SystemClock, test_key(), NoRecipes);
@@ -97,8 +100,10 @@ async fn a_settling_restore_issues_nothing_and_raises_its_floor_by_verified_epoc
     assert_eq!(floor(&h).await, i64::try_from(epoch).unwrap(), "raised to the signed epoch");
     assert_eq!(h.effects("restore.epoch_floor.raised").await.len(), 1);
 
-    let other = h.workloads(h.root()).declare_intent(declare("v")).await.unwrap().into_owned();
-    let other = other.workload.as_option().unwrap().id.clone();
+    // What the API last asked of the store is kept for a second; the fence came within it.
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    let refused_call = h.workloads(h.root()).declare_intent(declare("u")).await.unwrap_err();
+    assert_eq!(refused_call.code, connectrpc::ErrorCode::Unavailable, "no caller while it settles");
     send(&mut sb, request(&other, 2)).await;
     let refused = until(&mut sb, refusal).await;
     assert_eq!(
@@ -111,6 +116,7 @@ async fn a_settling_restore_issues_nothing_and_raises_its_floor_by_verified_epoc
     send(&mut sb, request(&other, 3)).await;
     let after = until(&mut sb, grant).await;
     assert!(after.epoch > epoch, "past every epoch a node proved: {} > {epoch}", after.epoch);
+    h.workloads(h.root()).declare_intent(declare("u")).await.expect("served once it settled");
 }
 
 fn test_key() -> std::sync::Arc<korpis_core::authz::token::SigningKey> {

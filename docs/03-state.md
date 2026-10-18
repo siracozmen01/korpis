@@ -548,8 +548,9 @@ does.
 > were issued to the node presenting them raises the floor, recorded as an effect naming the node,
 > and an assignment that does not verify is counted and believed in nothing. What mechanism 2 does
 > not see: a lease epoch an agent holds from a grant newer than its assignment, which is not
-> signed; mechanism 1's bound covers it. The restore command that fences is built with the rest of
-> the restore (§6 of `18-operations.md`). Each node spends from a bucket of its own before the
+> signed; mechanism 1's bound covers it. The restore command fences from the backup's watermark
+> and rate, with the window left for the control plane's next start to open (§6 of
+> `18-operations.md`). Each node spends from a bucket of its own before the
 > installation's, fifty issues a second and a hundred at once, so no node, by releasing and asking
 > again, takes the epochs every other node would be issued; renewals spend nothing. A presentation
 > is believed only while a window is open: outside one nothing asked for it. The keyring a

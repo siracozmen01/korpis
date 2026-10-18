@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE epoch_state\n                SET settling_until = $1::timestamptz + settle_pending_ms * interval '1 millisecond',\n                    settle_pending_ms = NULL\n              WHERE singleton AND settle_pending_ms IS NOT NULL\n             RETURNING settling_until",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "settling_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "epoch_state",
+            "name": "settling_until"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "b3fe4607ca79a81275eca10d4c034fd2cdadaa01a9a2a706018891022a4b6ed3"
+}

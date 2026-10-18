@@ -84,6 +84,7 @@ mod removal;
 mod renewal;
 mod replace;
 mod repositories;
+mod restore_command;
 mod restores;
 mod resume;
 mod retire;
