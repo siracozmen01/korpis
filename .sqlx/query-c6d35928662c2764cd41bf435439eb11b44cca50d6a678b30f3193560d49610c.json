@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT s.workload_id, s.kind, g.first_offset, g.digest,\n                      g.repository_id AS \"repository_id!\"\n                 FROM stream_segment g JOIN stream s ON s.id = g.stream_id\n                WHERE g.repository_id IS NOT NULL\n                  AND g.offloaded_at < $1::timestamptz - make_interval(secs => GREATEST(\n                          CASE WHEN s.deleted_at IS NULL THEN s.offload_retention_s ELSE 0 END,\n                          $2)::double precision)\n                ORDER BY g.offloaded_at LIMIT $3",
+  "query": "SELECT s.workload_id, s.kind, s.run_id, g.first_offset, g.digest,\n                      g.repository_id AS \"repository_id!\"\n                 FROM stream_segment g JOIN stream s ON s.id = g.stream_id\n                WHERE g.repository_id IS NOT NULL\n                  AND g.offloaded_at < $1::timestamptz - make_interval(secs => GREATEST(\n                          CASE WHEN s.deleted_at IS NULL THEN s.offload_retention_s ELSE 0 END,\n                          $2)::double precision)\n                ORDER BY g.offloaded_at LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -27,6 +27,17 @@
       },
       {
         "ordinal": 2,
+        "name": "run_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "stream",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "first_offset",
         "type_info": "Int8",
         "origin": {
@@ -37,7 +48,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "digest",
         "type_info": "Text",
         "origin": {
@@ -48,7 +59,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "repository_id!",
         "type_info": "Uuid",
         "origin": {
@@ -69,10 +80,11 @@
     "nullable": [
       false,
       false,
+      true,
       false,
       false,
       true
     ]
   },
-  "hash": "a40e61886b951822a45ca41f0b2622c467c5425e8eb0560dc4c00afbb8970f41"
+  "hash": "c6d35928662c2764cd41bf435439eb11b44cca50d6a678b30f3193560d49610c"
 }

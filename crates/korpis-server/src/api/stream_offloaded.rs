@@ -23,6 +23,8 @@ use uuid::Uuid;
 
 /// What is left to send.
 struct Reading {
+    /// The run whose stream it is, as its segments are named: `run_…`.
+    run: Option<String>,
     segments: std::vec::IntoIter<(Segment, Uuid)>,
     repos: BTreeMap<Uuid, Repo<S3Store>>,
     next: u64,
@@ -50,11 +52,11 @@ fn unavailable(e: &dyn std::fmt::Display) -> ConnectError {
 /// The records of segment `s` in `repo` from `from`, at most `left` of them, checked against the
 /// digest the index holds.
 async fn fetched(
-    repo: &Repo<S3Store>,
+    (repo, run): (&Repo<S3Store>, Option<&str>),
     s: &Segment,
     (from, left): (u64, u64),
 ) -> Result<Vec<Record>, ConnectError> {
-    let id = segment_id(s.first_offset, &s.digest).ok_or_else(|| {
+    let id = segment_id(run, s.first_offset, &s.digest).ok_or_else(|| {
         error::altered("stream.segment_altered", "a segment's digest is malformed")
     })?;
     let bytes = repo.segment(&id).await.map_err(|e| match e {
@@ -100,13 +102,14 @@ impl Reading {
             end: s.first_offset,
             ..Default::default()
         });
-        let mut records = match fetched(repo, &s, (self.next, self.left)).await {
-            Ok(records) => records,
-            Err(e) => {
-                self.left = 0;
-                return Some(Err(e));
-            }
-        };
+        let mut records =
+            match fetched((repo, self.run.as_deref()), &s, (self.next, self.left)).await {
+                Ok(records) => records,
+                Err(e) => {
+                    self.left = 0;
+                    return Some(Err(e));
+                }
+            };
         if let Some(r) = range {
             if let Some(past) = records.iter().position(|rec| rec.time_nanos >= r.nanos().1) {
                 records.truncate(past);
@@ -138,7 +141,15 @@ pub(super) fn chunks(
 ) -> impl futures_util::Stream<Item = Result<pb::ConsoleChunk, ConnectError>> + Send {
     let left = if limit == 0 { u64::MAX } else { limit };
     let range = read.stream_range;
-    let state = Reading { segments: read.segments.into_iter(), repos, next: from, left, range };
+    let run = read.run.map(|r| korpis_core::id::Id::from_uuid(korpis_core::id::IdKind::Run, r));
+    let state = Reading {
+        run: run.map(|r| r.to_string()),
+        segments: read.segments.into_iter(),
+        repos,
+        next: from,
+        left,
+        range,
+    };
     futures_util::stream::unfold(state, |mut state| async move {
         let item = state.chunk().await?;
         Some((item, state))

@@ -86,6 +86,8 @@ pub enum Body {
     Segment {
         /// The workload.
         workload: Uuid,
+        /// The run whose stream it is, for a task or scheduled workload.
+        run: Option<Uuid>,
         /// Which of its streams.
         kind: StreamKind,
         /// What happened.

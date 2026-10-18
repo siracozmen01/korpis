@@ -181,6 +181,20 @@ deleted by retention (§4.4 of `05-scheduling.md`) takes its stream with it, the
 the offloaded ones. What it costs: a stream directory on the node for each run kept, at most
 `keep_successful` plus `keep_failed` plus the active runs per workload.
 
+> As built, 2026-10-18, the index's half (`crates/korpis-store/migrations/0084_stream_run.up.sql`,
+> `crates/korpis-agent/src/reconcile/tail.rs`). A stream is one workload's of one kind and, for a
+> run's console, one run's; there is one stream of no run per workload and kind, as before. The
+> node watches each run's stream under its workload and run while it holds the run's object,
+> journals each seal and prune with the run, and stops once the object is gone and the stream is
+> read through. An offloaded segment of a run's stream goes beneath the workload's stream prefix,
+> under `segments/runs/` and the run's identifier, with the workload's access; the run is part of
+> the object's name, which sealing binds, so a segment opens only as the run it was offloaded
+> for, and two runs' segments with the same offsets are two objects. `StreamService.GetStream`
+> reads a run's stream by naming the run, under `workload.console.read` on its workload: a run
+> of another workload is not found, and nor, before its first segment, is a console of no run
+> for a workload whose runs write their own. Reading a run's records over the data path is built
+> next, and deleting a run's stream with the run after it.
+
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
 the control plane knows every segment's offsets, digest, and where it is held: the `segments` of

@@ -655,6 +655,8 @@ message StreamSegmentEvent {
   // The segment as it stands after the event; the node field is ignored, since the record's
   // node is the one that holds it.
   korpis.v1.StreamSegment segment = 4;
+  // The run whose console stream it is, for a task or scheduled workload; empty otherwise.
+  string run = 5;
 }
 
 // A volume of a workload was ensured or deleted on this node (§7 of docs/06-storage.md): what

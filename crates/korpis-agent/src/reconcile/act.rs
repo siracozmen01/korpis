@@ -117,11 +117,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         };
         let name = StreamKind::Console.volume_name();
         capture.dir = self.ensure_volume(&name, Why::Stream, &request).await?.host_path;
-        if !run.is_empty() {
-            return Ok(());
-        }
         self.streams
-            .watch(&a.workload, Path::new(&capture.dir))
+            .watch(&super::streams::stream_name(&a.workload, run), Path::new(&capture.dir))
             .map_err(|e| Failure(format!("the stream could not be watched: {e}")))
     }
 

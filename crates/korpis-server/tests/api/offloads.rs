@@ -204,7 +204,7 @@ async fn an_offloaded_stream_is_read_back_through_the_control_plane_only_as_it_w
     let (first, mut one) = sealed(scratch.path(), 0, &["Starting server", "Done"]);
     let (second, mut two) = sealed(scratch.path(), 4, &["Player Alex joined", "Saved"]);
     for (bytes, segment) in [(first, &one), (second.clone(), &two)] {
-        let at = (segment.first_offset, segment.digest.as_str());
+        let at = (None, segment.first_offset, segment.digest.as_str());
         korpis_backup::offload::put_segment(&repo, at, bytes).await.unwrap();
     }
     // The node names a repository it was given for the first; for the second, none it was.
@@ -228,13 +228,13 @@ async fn an_offloaded_stream_is_read_back_through_the_control_plane_only_as_it_w
     assert_eq!(bodies(&from_one), ["Done"]);
 
     // Replaced by the node with another segment, sealed under the same key: refused, not read.
-    let at = korpis_backup::offload::segment_id(0, &one.digest).unwrap();
+    let at = korpis_backup::offload::segment_id(None, 0, &one.digest).unwrap();
     repo.put(korpis_backup::seal::Kind::Segment, &at, second).await.unwrap();
     let e = read(&h, &workload, (0, 0)).await.unwrap_err();
     assert_eq!(reason(&e), "stream.segment_altered");
     // Or moved there in the store from another name: it does not open.
     let theirs =
-        format!("segments/{}", korpis_backup::offload::segment_id(4, &two.digest).unwrap());
+        format!("segments/{}", korpis_backup::offload::segment_id(None, 4, &two.digest).unwrap());
     let store = repo.store();
     let moved = korpis_backup::store::ObjectStore::get(&**store, &theirs).await.unwrap().unwrap();
     korpis_backup::store::ObjectStore::put(&**store, &format!("segments/{at}"), moved)

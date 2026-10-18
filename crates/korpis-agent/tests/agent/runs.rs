@@ -125,10 +125,18 @@ async fn a_task_s_run_starts_once_its_end_is_believed_and_its_object_goes() {
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
     let runtime = InMemory::new();
+    runtime.capture_consoles(true);
     let _agent = node(&cp, &dir, &runtime).await;
     let w = task(&cp, &project, "build", pb::RunPolicy::default()).await;
 
     counted(&cp, STARTED, 1).await;
+    // Its console is a stream of its own, watched under its run while its object is held.
+    let watched = || {
+        let kept =
+            std::fs::read_to_string(dir.path().join("agent").join("streams")).unwrap_or_default();
+        kept.lines().filter(|l| l.starts_with(&format!("{w}/run_"))).count()
+    };
+    assert_eq!(watched(), 1, "the run's stream is watched");
     runtime.exit(&running_object(&runtime, &w), 0);
     counted(&cp, ENDED, 1).await;
     let exit: Option<(String,)> = cp
@@ -141,6 +149,13 @@ async fn a_task_s_run_starts_once_its_end_is_believed_and_its_object_goes() {
     // never run again.
     counted(&cp, SUCCEEDED, 1).await;
     removed(&runtime, &w).await;
+    for _ in 0..50 {
+        if watched() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(watched(), 0, "and no longer once its object is gone");
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(cp.scalar::<i64>(STARTED).await, 1);
 }

@@ -41,7 +41,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let expired = self.store.expired_offloaded(now, self.stream_floor, PASS).await?;
         let mut by_place: BTreeMap<(Uuid, Uuid), Vec<Expired>> = BTreeMap::new();
         for e in expired {
-            by_place.entry((e.repository, e.stream.0)).or_default().push(e);
+            by_place.entry((e.repository, e.stream.workload)).or_default().push(e);
         }
         let mut pass = Expiry::default();
         for ((repository, workload), segments) in by_place {
@@ -65,7 +65,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let place = repo.stream_prefix(workload);
         let names: Vec<String> = segments
             .iter()
-            .filter_map(|e| segment_object(e.first_offset, &e.digest))
+            .filter_map(|e| segment_object(e.stream.run, e.first_offset, &e.digest))
             .map(|name| format!("{place}{name}"))
             .collect();
         let target = CallTarget {

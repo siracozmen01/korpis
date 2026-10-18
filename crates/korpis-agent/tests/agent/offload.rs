@@ -161,7 +161,7 @@ async fn a_stream_is_offloaded_once_a_repository_takes_it_and_from_where_it_was(
     let store = S3Store::new(minio.access("backups", &format!("korpis/streams/{w}/"))).unwrap();
     let repo = Repo::new(Arc::new(store), Arc::new(Keys::derive(&KEY)));
     for s in &sealed {
-        let id = segment_id(s.first_offset, &s.digest).unwrap();
+        let id = segment_id(None, s.first_offset, &s.digest).unwrap();
         let held = std::fs::read(StreamDir::new(&dir).sealed_path(s.first_offset)).unwrap();
         assert_eq!(repo.segment(&id).await.unwrap(), held, "the segment, whole");
     }
@@ -179,4 +179,49 @@ async fn a_stream_is_offloaded_once_a_repository_takes_it_and_from_where_it_was(
     located.send_replace(BTreeMap::new());
     third.pass().await;
     assert_eq!(std::fs::read_to_string(&positions).unwrap(), "");
+}
+
+#[tokio::test]
+async fn a_run_s_stream_is_offloaded_beneath_its_run_with_its_workload_s_access() {
+    let scratch = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let Some(minio) = Minio::start(scratch.path()).await.unwrap() else { return };
+    minio.bucket("backups").await.unwrap();
+    let state = scratch.path().join("state");
+    std::fs::create_dir_all(&state).unwrap();
+    let (w, run) = ("wl_0192a5b4000070008000000000000001", "run_0192a5b4000070008000000000000009");
+    let dir = scratch.path().join("run-console");
+    let sealed = written(&dir, [&["backing up"], &["done"]]);
+    let name = korpis_agent::reconcile::streams::stream_name(w, run);
+    let (_located, watching) = watch::channel(BTreeMap::from([(name, dir.clone())]));
+    let journal = JournalHandle::open(&state.join("journal"), Bounds::default()).unwrap();
+    let (tx, mut rx) = mpsc::channel(8);
+    let jobs = JobAccesses::new(tx);
+    let wiring = (journal.clone(), Arc::clone(&jobs));
+    let positions = state.join("offloaded");
+    let mut offloader =
+        Offloader::new(&positions, watching, wiring, Duration::from_millis(10)).unwrap();
+    offloader.pass().await;
+    // The access asked for is the workload's: a run's segments go beneath its stream prefix.
+    answer(&mut rx, &jobs, w, grant(&minio, &format!("korpis/streams/{w}/"))).await;
+    offloader.pass().await;
+    assert_eq!(offloaded(&journal).await, [0, 1]);
+    let records = journal.read_after(0, 1 << 20).await.unwrap();
+    let runs: Vec<String> = records
+        .into_iter()
+        .filter_map(|r| match r.body {
+            Some(Body::StreamSegment(e)) => Some(e.run),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(runs, [run, run], "journaled as the run's");
+    let store = S3Store::new(minio.access("backups", &format!("korpis/streams/{w}/"))).unwrap();
+    let repo = Repo::new(Arc::new(store), Arc::new(Keys::derive(&KEY)));
+    for s in &sealed {
+        let id = segment_id(Some(run), s.first_offset, &s.digest).unwrap();
+        assert!(id.starts_with(&format!("runs/{run}/")), "{id}");
+        let held = std::fs::read(StreamDir::new(&dir).sealed_path(s.first_offset)).unwrap();
+        assert_eq!(repo.segment(&id).await.unwrap(), held, "beneath its run, whole");
+        let elsewhere = segment_id(None, s.first_offset, &s.digest).unwrap();
+        assert!(repo.segment(&elsewhere).await.is_err(), "and nowhere a workload's would be");
+    }
 }

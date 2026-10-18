@@ -112,7 +112,11 @@ async fn the_index_follows_what_the_node_seals_and_prunes() {
     assert_eq!(until(&mut s, ack).await, 4);
     let store = h.db.store().await.unwrap();
     let w = Id::parse(IdKind::Workload, &workload).unwrap().uuid();
-    let stream = store.stream(w, StreamKind::Console).await.unwrap().expect("indexed");
+    let stream = store
+        .stream(korpis_core::workload::stream::StreamKey::of(w, StreamKind::Console))
+        .await
+        .unwrap()
+        .expect("indexed");
     assert_eq!(stream.segments.len(), 2);
     assert_eq!(stream.node_only_bytes(), 4096, "the pruned segment is no longer on the node");
     assert_eq!(stream.lost(), [(0, 100)], "and its records, never offloaded, are gone");

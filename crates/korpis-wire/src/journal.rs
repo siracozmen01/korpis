@@ -85,6 +85,9 @@ fn segment(field: &str, e: &agent::StreamSegmentEvent) -> Result<Body> {
         e.segment.as_option().ok_or_else(|| invalid(&format!("{field}.segment"), "required"))?;
     Ok(Body::Segment {
         workload: id(IdKind::Workload, &format!("{field}.workload"), &e.workload)?,
+        run: (!e.run.is_empty())
+            .then(|| id(IdKind::Run, &format!("{field}.run"), &e.run))
+            .transpose()?,
         kind: crate::stream::kind_from_pb(&format!("{field}.kind"), e.kind)?,
         event: crate::stream::event_from_pb(&format!("{field}.event"), e.event)?,
         segment: crate::stream::segment_from_pb(&format!("{field}.segment"), s)?,

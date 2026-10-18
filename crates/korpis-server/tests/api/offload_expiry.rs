@@ -34,8 +34,10 @@ async fn an_offloaded_segment_past_its_retention_is_deleted_and_one_inside_it_ke
         [(0, ["old", "older"]), (2, ["new", "newer"])].into_iter().enumerate()
     {
         let (bytes, mut segment) = sealed(scratch.path(), first, &lines);
-        let id = korpis_backup::offload::segment_id(first, &segment.digest).unwrap();
-        korpis_backup::offload::put_segment(&repo, (first, &segment.digest), bytes).await.unwrap();
+        let id = korpis_backup::offload::segment_id(None, first, &segment.digest).unwrap();
+        korpis_backup::offload::put_segment(&repo, (None, first, &segment.digest), bytes)
+            .await
+            .unwrap();
         let at = seq + 2 * u64::try_from(n).unwrap();
         records.push(journaled(at, &workload, E::SEGMENT_EVENT_SEALED, &segment));
         segment.offloaded = true;
@@ -78,8 +80,8 @@ async fn an_offloaded_segment_past_its_retention_is_deleted_and_one_inside_it_ke
 fn the_control_plane_names_a_segment_object_as_the_node_writes_it() {
     let good = format!("sha256:{}", "0a".repeat(32));
     for (first, digest) in [(0, good.as_str()), (u64::MAX, good.as_str()), (7, "sha256:../x")] {
-        let node = korpis_backup::offload::segment_id(first, digest);
-        let control_plane = korpis_core::workload::stream::segment_object(first, digest);
+        let node = korpis_backup::offload::segment_id(None, first, digest);
+        let control_plane = korpis_core::workload::stream::segment_object(None, first, digest);
         assert_eq!(control_plane, node.map(|id| format!("segments/{id}")), "{first} {digest}");
     }
     assert_eq!(korpis_backup::seal::Kind::Segment.prefix(), "segments/");
@@ -100,8 +102,8 @@ async fn deleting_a_stream_deletes_its_offloaded_segments_at_the_next_pass() {
     let Outcome::Grant(g) = offload(&mut s, "o1", &workload).await else { panic!() };
     let repo = repo_of(&g);
     let (bytes, mut segment) = sealed(scratch.path(), 0, &["last words"]);
-    let id = korpis_backup::offload::segment_id(0, &segment.digest).unwrap();
-    korpis_backup::offload::put_segment(&repo, (0, &segment.digest), bytes).await.unwrap();
+    let id = korpis_backup::offload::segment_id(None, 0, &segment.digest).unwrap();
+    korpis_backup::offload::put_segment(&repo, (None, 0, &segment.digest), bytes).await.unwrap();
     segment.offloaded = true;
     segment.repository.clone_from(&g.repository);
     let records = vec![

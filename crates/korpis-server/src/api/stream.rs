@@ -8,7 +8,7 @@ use super::{Api, error, stream_offloaded};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_core::id::IdKind;
 use korpis_core::workload::spec::streams::Retention;
-use korpis_core::workload::stream::StreamKind;
+use korpis_core::workload::stream::{StreamKey, StreamKind};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::stream::Retention as R;
 
@@ -21,7 +21,12 @@ impl pb::StreamService for Api {
         let caller = self.caller(&ctx).await?;
         let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
         let kind = kind("kind", request.kind)?;
-        let view = self.app.get_stream(&caller, workload, kind).await.map_err(error::from_app)?;
+        let run = (!request.run.is_empty())
+            .then(|| wire::id(IdKind::Run, "run", request.run))
+            .transpose()
+            .refuse()?;
+        let key = StreamKey { workload, kind, run };
+        let view = self.app.get_stream(&caller, key).await.map_err(error::from_app)?;
         let mut stream = korpis_wire::stream::stream_to_pb(&view.stream);
         stream.retention = Some(match view.limits.retention {
             Retention::Bytes(b) => R::RetentionBytes(b),
@@ -50,7 +55,7 @@ impl pb::StreamService for Api {
         let workload = wire::id(IdKind::Workload, "workload", request.workload).refuse()?;
         let kind = kind("kind", request.kind)?;
         let from = request.from_offset;
-        let read = self.app.read_offloaded(&caller, (workload, kind), from).await;
+        let read = self.app.read_offloaded(&caller, StreamKey::of(workload, kind), from).await;
         let read = read.map_err(error::from_app)?;
         let repos = stream_offloaded::opened(&read)?;
         Response::stream_ok(stream_offloaded::chunks(read, repos, (from, request.limit)))

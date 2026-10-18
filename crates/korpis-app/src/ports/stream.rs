@@ -4,7 +4,7 @@
 //! where a stream's records are and what is held only on a node.
 
 use super::StoreResult;
-use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKind};
+use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKey, StreamKind};
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -12,8 +12,8 @@ use uuid::Uuid;
 /// An offloaded segment past its retention, as the pass that deletes it reads it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expired {
-    /// Its workload and the stream's kind.
-    pub stream: (Uuid, StreamKind),
+    /// Its stream.
+    pub stream: StreamKey,
     /// Its first offset, which with its digest names its object.
     pub first_offset: u64,
     /// Its digest.
@@ -37,12 +37,8 @@ pub struct Reported<'a> {
 
 /// Reading streams.
 pub trait StreamRead {
-    /// The workload's stream of `kind`, with its index; none before its first segment.
-    fn stream(
-        &self,
-        workload: Uuid,
-        kind: StreamKind,
-    ) -> impl Future<Output = StoreResult<Option<Stream>>> + Send;
+    /// The stream `key` names, with its index; none before its first segment.
+    fn stream(&self, key: StreamKey) -> impl Future<Output = StoreResult<Option<Stream>>> + Send;
 
     /// Offloaded segments, the oldest offloaded first, at most `limit`, past their stream's
     /// offload retention at `now`, or past `floor` where that is longer; a deleted stream's are
@@ -57,19 +53,18 @@ pub trait StreamRead {
 
 /// Writing streams.
 pub trait StreamWrite {
-    /// Records that `event` happened on `node` to `segment` of `stream`, a workload's stream of
-    /// a kind, creating the stream at its first segment.
-    /// `offload_retention` is how long the stream's offloaded segments are kept, as the intent
-    /// its workload runs declares.
+    /// Records that `event` happened on `node` to `segment` of `stream`, creating the stream at
+    /// its first segment. `offload_retention` is how long the stream's offloaded segments are
+    /// kept, as the intent its workload runs declares.
     fn record_segment(
         &mut self,
-        stream: (Uuid, StreamKind, Duration),
+        stream: (StreamKey, Duration),
         reported: Reported<'_>,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Records that the workload's stream of a kind was deleted at `at`, by the step of an
-    /// approved plan that deleted its volume: its offloaded segments are kept no longer than the
-    /// operator's floor.
+    /// Records that the workload's stream of a kind, of no run, was deleted at `at`, by the step
+    /// of an approved plan that deleted its volume: its offloaded segments are kept no longer
+    /// than the operator's floor.
     fn end_stream(
         &mut self,
         stream: (Uuid, StreamKind),

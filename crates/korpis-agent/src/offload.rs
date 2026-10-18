@@ -14,6 +14,7 @@ mod positions;
 use crate::jobs::{JobAccesses, NoAccess};
 use crate::journal::JournalHandle;
 use crate::reconcile::streams::Located;
+use crate::reconcile::streams::name_parts;
 use crate::reconcile::tail::segment_record;
 use korpis_backup::Repo;
 use korpis_backup::keys::{KEY_LEN, Keys};
@@ -166,10 +167,11 @@ impl Offloader {
         Ok(true)
     }
 
-    /// Sends segment `s` of `workload`'s stream in `dir` and journals it as offloaded; whether
-    /// it is done with, which a segment pruned before it could go also is. False while no access
-    /// can be had.
-    async fn send(&mut self, workload: &str, dir: &StreamDir, s: &Sealed) -> Result<bool, String> {
+    /// Sends segment `s` of the stream named `name` in `dir` and journals it as offloaded;
+    /// whether it is done with, which a segment pruned before it could go also is. False while
+    /// no access can be had. A run's segment goes beneath its run, with its workload's access.
+    async fn send(&mut self, name: &str, dir: &StreamDir, s: &Sealed) -> Result<bool, String> {
+        let (workload, run) = name_parts(name);
         let bytes = match tokio::fs::read(dir.sealed_path(s.first_offset)).await {
             Ok(bytes) => bytes,
             // Pruned before it could go: the index says it was held only here.
@@ -177,12 +179,13 @@ impl Offloader {
             Err(e) => return Err(failed(e)),
         };
         let Some((repo, repository)) = self.repo_for(workload) else { return Ok(false) };
-        if let Err(e) = put_segment(&repo, (s.first_offset, &s.digest), bytes).await {
+        let run = (!run.is_empty()).then_some(run);
+        if let Err(e) = put_segment(&repo, (run, s.first_offset, &s.digest), bytes).await {
             self.granted.remove(workload);
             return Err(failed(e));
         }
         let offloaded = agent::SegmentEvent::SEGMENT_EVENT_OFFLOADED;
-        let record = segment_record(workload, offloaded, s, &repository);
+        let record = segment_record(name, offloaded, s, &repository);
         self.journal.append(record).await.map_err(failed)?;
         Ok(true)
     }

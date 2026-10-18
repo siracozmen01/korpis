@@ -174,7 +174,8 @@ async fn stream_gone(tx: &mut PgTx, node: Uuid, workload: Uuid) -> StoreResult<(
     sqlx::query!(
         "UPDATE stream_segment SET node_id = NULL
           WHERE node_id = $1
-            AND stream_id IN (SELECT id FROM stream WHERE workload_id = $2 AND kind = 'console')",
+            AND stream_id IN (SELECT id FROM stream
+                               WHERE workload_id = $2 AND kind = 'console' AND run_id IS NULL)",
         node,
         workload
     )

@@ -20,7 +20,7 @@ use crate::ports::{Area, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef, StreamRange};
 use korpis_core::extension::{AccessMode, CallOutcome, ProviderType};
-use korpis_core::workload::stream::{Segment, StreamKind};
+use korpis_core::workload::stream::{Segment, StreamKey};
 use std::collections::BTreeMap;
 use std::time::Duration;
 use uuid::Uuid;
@@ -35,6 +35,8 @@ const READ_ACCESS: Duration = Duration::from_secs(15 * 60);
 /// The offloaded segments of a stream from an offset, and what reads them.
 #[derive(Debug)]
 pub struct Offloaded {
+    /// The run whose stream it is, whose segments are named beneath it.
+    pub run: Option<Uuid>,
     /// The segments holding offsets from the one asked for, in offset order, each with the
     /// repository holding it.
     pub segments: Vec<(Segment, Uuid)>,
@@ -48,18 +50,19 @@ pub struct Offloaded {
 type Judged<T> = Result<Result<T, JobRefusal>, AppError>;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The offloaded segments of `workload`'s stream of `kind` holding offsets from `from`, and
+    /// The offloaded segments of the stream `key` names holding offsets from `from`, and
     /// what reads them, for `caller`, who must hold `workload.console.read`. The read is recorded
     /// before any access is asked for. A segment whose repository is deleted is not read.
     pub async fn read_offloaded(
         &self,
         caller: &Caller,
-        (workload, kind): (Uuid, StreamKind),
+        key: StreamKey,
         from: u64,
     ) -> Result<Offloaded, AppError> {
+        let workload = key.workload;
         let on = ObjectRef::new(Kind::Workload, workload);
         let permit = self.authorize(caller, "workload.console.read", on).await?;
-        let stream = self.store.stream(workload, kind).await?;
+        let stream = self.store.stream(key).await?;
         let stream = stream.ok_or(AppError::NotFound { kind: "stream" })?;
         let wanted: Vec<_> = stream.segments.into_iter().filter(|s| s.end_offset > from).collect();
         let mut held = BTreeMap::new();
@@ -80,13 +83,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut grants = BTreeMap::new();
         let stream_range = permit.stream_range;
         if segments.is_empty() {
-            return Ok(Offloaded { segments, grants, stream_range });
+            return Ok(Offloaded { run: key.run, segments, grants, stream_range });
         }
         let mut e =
             Effect::new(caller.principal.clone(), "workload.console.read", Outcome::Succeeded)
                 .under(permit.grant)
                 .after(details([
-                    ("stream", kind.as_str().into()),
+                    ("stream", key.kind.as_str().into()),
                     ("from_offset", from.into()),
                     ("offloaded", true.into()),
                     ("ranged", stream_range.is_some().into()),
@@ -102,7 +105,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.control_plane_access((&repo, Area::Streams), workload, READ_ACCESS).await?;
             grants.insert(repo.id, grant);
         }
-        Ok(Offloaded { segments, grants, stream_range })
+        Ok(Offloaded { run: key.run, segments, grants, stream_range })
     }
 
     /// The key and access `node` offloads `workload`'s console stream with.

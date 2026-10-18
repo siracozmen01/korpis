@@ -92,14 +92,18 @@ pub struct Segment {
 
 /// The name of the object an offloaded segment is kept as, beneath its workload's stream prefix
 /// (§4 of docs/14-streams.md): its first offset and the hexadecimal digits of its digest, so the
-/// same segment offloaded twice is one object and a listing reads in offset order. `None` for a
-/// digest that is not `sha256:` and 64 lowercase hexadecimal digits. `korpis-backup` writes by the
-/// same rule, which it cannot take from here, and a test holds the two to it.
+/// same segment offloaded twice is one object and a listing reads in offset order, beneath
+/// `runs/` and its run's identifier for a run's stream, whose offsets start from zero again.
+/// `None` for a digest that is not `sha256:` and 64 lowercase hexadecimal digits.
+/// `korpis-backup` writes by the same rule, which it cannot take from here, and a test holds the
+/// two to it.
 #[must_use]
-pub fn segment_object(first_offset: u64, digest: &str) -> Option<String> {
+pub fn segment_object(run: Option<Uuid>, first_offset: u64, digest: &str) -> Option<String> {
     let hex = digest.strip_prefix("sha256:")?;
     let plain = hex.len() == 64 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
-    plain.then(|| format!("segments/{first_offset:020}-{hex}"))
+    let runs =
+        run.map(|r| format!("runs/{}/", crate::id::Id::from_uuid(crate::id::IdKind::Run, r)));
+    plain.then(|| format!("segments/{}{first_offset:020}-{hex}", runs.unwrap_or_default()))
 }
 
 impl Segment {
@@ -107,6 +111,26 @@ impl Segment {
     #[must_use]
     pub const fn offloaded(&self) -> bool {
         self.repository.is_some()
+    }
+}
+
+/// Which stream: a workload's of a kind, and for a task or scheduled workload's console one
+/// run's, each run's its own (§4 of docs/14-streams.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StreamKey {
+    /// The workload.
+    pub workload: Uuid,
+    /// What it carries.
+    pub kind: StreamKind,
+    /// The run, for a run's console.
+    pub run: Option<Uuid>,
+}
+
+impl StreamKey {
+    /// `workload`'s stream of `kind`, of no run.
+    #[must_use]
+    pub const fn of(workload: Uuid, kind: StreamKind) -> Self {
+        Self { workload, kind, run: None }
     }
 }
 
@@ -140,6 +164,9 @@ pub struct Stream {
     pub id: Uuid,
     /// The workload it belongs to.
     pub workload: Uuid,
+    /// The run whose console it is, for a task or scheduled workload, each run's its own (§4 of
+    /// docs/14-streams.md).
+    pub run: Option<Uuid>,
     /// What it carries.
     pub kind: StreamKind,
     /// Its segments, oldest first.
@@ -194,8 +221,20 @@ mod tests {
     }
 
     #[test]
+    fn a_run_s_segments_are_named_beneath_its_run_and_a_workload_s_are_not() {
+        let digest = format!("sha256:{}", "0a".repeat(32));
+        let run = Uuid::from_u128(7);
+        let named = segment_object(Some(run), 3, &digest).unwrap();
+        let id = crate::id::Id::from_uuid(crate::id::IdKind::Run, run);
+        assert_eq!(named, format!("segments/runs/{id}/00000000000000000003-{}", "0a".repeat(32)));
+        assert!(segment_object(None, 3, &digest).unwrap().starts_with("segments/0000"));
+        assert!(segment_object(Some(run), 3, "sha256:../x").is_none());
+    }
+
+    #[test]
     fn the_index_says_what_a_node_holds_alone_and_what_is_gone() {
         let stream = Stream {
+            run: None,
             id: Uuid::now_v7(),
             workload: Uuid::now_v7(),
             kind: StreamKind::Console,
@@ -213,6 +252,7 @@ mod tests {
     #[test]
     fn what_is_gone_after_the_last_segment_held_is_lost_too() {
         let mut stream = Stream {
+            run: None,
             id: Uuid::now_v7(),
             workload: Uuid::now_v7(),
             kind: StreamKind::Console,

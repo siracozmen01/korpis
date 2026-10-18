@@ -7,6 +7,7 @@
 //! longer watched; what it wrote stays on the node, as a volume does (§4 of docs/14-streams.md).
 
 use super::Reconciler;
+use super::streams::name_parts;
 use crate::held::HeldSet;
 use crate::host::Host;
 use crate::runtime::Runtime;
@@ -24,19 +25,20 @@ fn at(nanos: i64) -> SystemTime {
     UNIX_EPOCH + Duration::from_nanos(u64::try_from(nanos).unwrap_or(0))
 }
 
-/// The journal record of `change` to `workload`'s console stream.
-fn record(workload: &str, change: &Change) -> Body {
+/// The journal record of `change` to the console stream named `name`.
+fn record(name: &str, change: &Change) -> Body {
     let (event, s) = match change {
         Change::Sealed(s) => (agent::SegmentEvent::SEGMENT_EVENT_SEALED, s),
         Change::Pruned(s) => (agent::SegmentEvent::SEGMENT_EVENT_PRUNED, s),
     };
-    segment_record(workload, event, s, "")
+    segment_record(name, event, s, "")
 }
 
-/// The journal record of `event` to segment `s` of `workload`'s console stream; `repository`
-/// is where an offloaded one went, `rep_…`, and empty for any other event.
+/// The journal record of `event` to segment `s` of the console stream named `name`, a
+/// workload's or one of its runs'; `repository` is where an offloaded one went, `rep_…`, and
+/// empty for any other event.
 pub(crate) fn segment_record(
-    workload: &str,
+    name: &str,
     event: agent::SegmentEvent,
     s: &Sealed,
     repository: &str,
@@ -56,8 +58,10 @@ pub(crate) fn segment_record(
         segment.offloaded = true;
         repository.clone_into(&mut segment.repository);
     }
+    let (workload, run) = name_parts(name);
     Body::StreamSegment(Box::new(agent::StreamSegmentEvent {
         workload: workload.to_owned(),
+        run: run.to_owned(),
         kind: pb::StreamKind::STREAM_KIND_CONSOLE.into(),
         event: event.into(),
         segment: segment.into(),
@@ -67,22 +71,29 @@ pub(crate) fn segment_record(
 
 impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Journals what every watched stream's writer recorded since the last pass, and stops
-    /// watching a stream whose workload `held` no longer claims once it is read through.
+    /// watching a stream once it is read through: a workload's when `held` no longer claims the
+    /// workload, a run's when the node no longer holds the run's object, after which nothing
+    /// writes it.
     pub(super) async fn tail(&mut self, held: &HeldSet) {
-        for (workload, watched) in self.streams.watched() {
-            let read = self.journal_changes(&workload, &watched.dir, watched.next).await;
+        for (name, watched) in self.streams.watched() {
+            let read = self.journal_changes(&name, &watched.dir, watched.next).await;
             let kept = match read {
-                Ok(next) => self.streams.read_to(&workload, next),
+                Ok(next) => self.streams.read_to(&name, next),
                 Err(e) => {
-                    tracing::warn!(%workload, error = %e, "a stream's changes were not journaled");
+                    tracing::warn!(stream = %name, error = %e, "a stream's changes were not journaled");
                     continue;
                 }
             };
-            let gone = !held.assignments.contains_key(&workload);
+            let (workload, run) = name_parts(&name);
+            let gone = if run.is_empty() {
+                !held.assignments.contains_key(workload)
+            } else {
+                self.tracked.get(workload).is_none_or(|t| !t.runs.contains_key(run))
+            };
             if let Err(e) =
-                kept.and_then(|()| if gone { self.streams.unwatch(&workload) } else { Ok(()) })
+                kept.and_then(|()| if gone { self.streams.unwatch(&name) } else { Ok(()) })
             {
-                tracing::error!(%workload, error = %e, "the streams watched could not be kept");
+                tracing::error!(stream = %name, error = %e, "the streams watched could not be kept");
             }
         }
     }
@@ -103,10 +114,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// Journals the changes in the log in `dir` from byte `from`; the byte past the last one
     /// journaled. A record the journal refuses ends the pass, and the log is read again from
     /// `from` the next time: a change journaled twice is the same segment to the index.
-    async fn journal_changes(&self, workload: &str, dir: &Path, from: u64) -> std::io::Result<u64> {
+    async fn journal_changes(&self, name: &str, dir: &Path, from: u64) -> std::io::Result<u64> {
         let mut done = from;
         for (change, next) in changes::read_from(dir, from)? {
-            self.wiring.journal.append(record(workload, &change)).await?;
+            self.wiring.journal.append(record(name, &change)).await?;
             done = next;
         }
         Ok(done)

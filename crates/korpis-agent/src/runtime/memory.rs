@@ -32,6 +32,7 @@ struct State {
     failing: BTreeSet<String>,
     rejecting: Option<driver::Rejection>,
     holding: BTreeSet<String>,
+    capturing: bool,
 }
 
 /// The in-memory runtime; clones share it.
@@ -135,6 +136,15 @@ impl InMemory {
         }
     }
 
+    /// Whether a workload whose console mode is not `none` has its console captured into a
+    /// stream, as a real driver's prepare asks for: off by default, so a test that does not look
+    /// at streams gets no stream volumes.
+    pub fn capture_consoles(&self, capturing: bool) {
+        if let Ok(mut s) = self.lock() {
+            s.capturing = capturing;
+        }
+    }
+
     /// Makes every later `prepare` reject with `rejection`, or accept again.
     pub fn reject(&self, rejection: Option<driver::Rejection>) {
         if let Ok(mut s) = self.lock() {
@@ -184,11 +194,14 @@ impl InMemory {
             return Ok(Prepared::Rejected(r));
         }
         let body = intent.body.as_option();
+        let console = body.and_then(|b| b.console.as_known());
+        let captured = s.capturing && console != Some(pb::ConsoleMode::CONSOLE_MODE_NONE);
         Ok(Prepared::Spec(Box::new(driver::PreparedSpec {
             workload: workload.to_owned(),
             intent: intent.id.clone(),
             rootfs: body.map(|b| b.recipe.digest.clone()).unwrap_or_default(),
             resources: body.and_then(|b| b.resources.as_option().cloned()).into(),
+            stream: captured.then(driver::StreamCapture::default).into(),
             ..Default::default()
         })))
     }

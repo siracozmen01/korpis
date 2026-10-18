@@ -119,7 +119,9 @@ async fn a_shared_range_of_an_offloaded_stream_is_all_that_is_sent() {
     ];
     for (i, (first, lines)) in parts.into_iter().enumerate() {
         let (bytes, mut segment) = sealed(scratch.path(), first, &lines);
-        korpis_backup::offload::put_segment(&repo, (first, &segment.digest), bytes).await.unwrap();
+        korpis_backup::offload::put_segment(&repo, (None, first, &segment.digest), bytes)
+            .await
+            .unwrap();
         segment.offloaded = true;
         segment.repository.clone_from(&g.repository);
         let n = seq + 2 * u64::try_from(i).unwrap();

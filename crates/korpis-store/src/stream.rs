@@ -6,7 +6,7 @@ use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{Expired, Reported, StoreError, StoreResult, StreamRead, StreamWrite};
-use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKind};
+use korpis_core::workload::stream::{Segment, SegmentEvent, Stream, StreamKey, StreamKind};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -19,11 +19,13 @@ fn unsigned(n: i64) -> StoreResult<u64> {
 }
 
 impl StreamRead for PgStore {
-    async fn stream(&self, workload: Uuid, kind: StreamKind) -> StoreResult<Option<Stream>> {
+    async fn stream(&self, key: StreamKey) -> StoreResult<Option<Stream>> {
         let Some(id) = sqlx::query_scalar!(
-            "SELECT id FROM stream WHERE workload_id = $1 AND kind = $2",
-            workload,
-            kind.as_str()
+            "SELECT id FROM stream
+              WHERE workload_id = $1 AND kind = $2 AND run_id IS NOT DISTINCT FROM $3",
+            key.workload,
+            key.kind.as_str(),
+            key.run
         )
         .fetch_optional(&self.pool)
         .await
@@ -55,7 +57,7 @@ impl StreamRead for PgStore {
                 })
             })
             .collect::<StoreResult<_>>()?;
-        Ok(Some(Stream { id, workload, kind, segments }))
+        Ok(Some(Stream { id, workload: key.workload, run: key.run, kind: key.kind, segments }))
     }
 
     async fn expired_offloaded(
@@ -65,7 +67,7 @@ impl StreamRead for PgStore {
         limit: u32,
     ) -> StoreResult<Vec<Expired>> {
         let rows = sqlx::query!(
-            r#"SELECT s.workload_id, s.kind, g.first_offset, g.digest,
+            r#"SELECT s.workload_id, s.kind, s.run_id, g.first_offset, g.digest,
                       g.repository_id AS "repository_id!"
                  FROM stream_segment g JOIN stream s ON s.id = g.stream_id
                 WHERE g.repository_id IS NOT NULL
@@ -85,7 +87,7 @@ impl StreamRead for PgStore {
                 let kind = StreamKind::parse(&r.kind)
                     .ok_or_else(|| StoreError::Corrupt(format!("stream kind {}", r.kind)))?;
                 Ok(Expired {
-                    stream: (r.workload_id, kind),
+                    stream: StreamKey { workload: r.workload_id, kind, run: r.run_id },
                     first_offset: unsigned(r.first_offset)?,
                     digest: r.digest,
                     repository: r.repository_id,
@@ -102,18 +104,19 @@ fn seconds(d: Duration) -> i64 {
 impl StreamWrite for PgTx {
     async fn record_segment(
         &mut self,
-        (workload, kind, offload_retention): (Uuid, StreamKind, Duration),
+        (key, offload_retention): (StreamKey, Duration),
         r: Reported<'_>,
     ) -> StoreResult<()> {
         let stream = sqlx::query_scalar!(
-            "INSERT INTO stream (id, workload_id, kind, created_at, offload_retention_s)
-             VALUES ($1, $2, $3, now(), $4)
-             ON CONFLICT (workload_id, kind) DO UPDATE
+            "INSERT INTO stream (id, workload_id, kind, run_id, created_at, offload_retention_s)
+             VALUES ($1, $2, $3, $4, now(), $5)
+             ON CONFLICT (workload_id, kind, run_id) DO UPDATE
                 SET offload_retention_s = EXCLUDED.offload_retention_s
              RETURNING id",
             Uuid::now_v7(),
-            workload,
-            kind.as_str(),
+            key.workload,
+            key.kind.as_str(),
+            key.run,
             seconds(offload_retention).max(1)
         )
         .fetch_one(&mut *self.tx)
@@ -162,7 +165,7 @@ impl StreamWrite for PgTx {
     ) -> StoreResult<()> {
         sqlx::query!(
             "UPDATE stream SET deleted_at = $3
-              WHERE workload_id = $1 AND kind = $2 AND deleted_at IS NULL",
+              WHERE workload_id = $1 AND kind = $2 AND run_id IS NULL AND deleted_at IS NULL",
             workload,
             kind.as_str(),
             from_time(at)
@@ -178,11 +181,13 @@ impl StreamWrite for PgTx {
             "UPDATE stream_segment g SET repository_id = NULL, offloaded_at = NULL
                FROM stream s
               WHERE s.id = g.stream_id AND s.workload_id = $1 AND s.kind = $2
+                AND s.run_id IS NOT DISTINCT FROM $5
                 AND g.first_offset = $3 AND g.repository_id = $4",
-            e.stream.0,
-            e.stream.1.as_str(),
+            e.stream.workload,
+            e.stream.kind.as_str(),
             offset(e.first_offset)?,
-            e.repository
+            e.repository,
+            e.stream.run
         )
         .execute(&mut *self.tx)
         .await

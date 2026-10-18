@@ -119,6 +119,9 @@ message Stream {
   google.protobuf.Duration offload_retention = 9;
   // The operator's floor, disclosed (§8 of docs/17-security.md); zero when there is none.
   google.protobuf.Duration retention_floor = 10;
+  // The run whose console it is, for a task or scheduled workload, each run's its own (§4 of
+  // docs/14-streams.md); empty for a persistent workload's.
+  string run = 11;
 }
 
 // A contiguous run of a stream's records, the unit a node seals, offloads, and migrates (§4 of

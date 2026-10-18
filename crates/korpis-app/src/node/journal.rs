@@ -21,6 +21,7 @@ use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::retires;
 use korpis_core::workload::plan::{PlanStatus, StepExecutor};
+use korpis_core::workload::stream::StreamKey;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -104,8 +105,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     ("cause", cause.clone().into()),
                 ]))
             }
-            Body::Segment { workload, kind, event, segment } => {
-                self.segment(tx, node, (*workload, *kind), *event, segment).await?
+            Body::Segment { workload, run, kind, event, segment } => {
+                let key = StreamKey { workload: *workload, kind: *kind, run: *run };
+                self.segment(tx, node, key, *event, segment).await?
             }
             Body::Volume(v) => self.volume(tx, node, v).await?,
             Body::Snapshot(snap) => self.snapshot(tx, node, snap).await?,

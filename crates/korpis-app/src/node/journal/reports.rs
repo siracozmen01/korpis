@@ -15,7 +15,7 @@ use crate::ports::{
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::backup::{BackupStatus, ReportedBackup};
-use korpis_core::workload::stream::{Segment, SegmentEvent, StreamKind};
+use korpis_core::workload::stream::{Segment, SegmentEvent, StreamKey};
 use korpis_core::workload::volume::{ReportedSnapshot, ReportedVolume, VolumeEvent};
 use uuid::Uuid;
 
@@ -25,10 +25,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         tx: &mut S::Tx,
         node: Uuid,
-        (workload, kind): (Uuid, StreamKind),
+        key: StreamKey,
         event: SegmentEvent,
         segment: &Segment,
     ) -> Result<Effect, AppError> {
+        let workload = key.workload;
         // A segment is sealed as its container goes and pruned long after, so the test is that
         // the node once ran the workload, not that it still does.
         if !self.store.ever_leased(workload, node).await? {
@@ -46,9 +47,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let segment = &segment;
         let kept = self.offload_retention(workload).await?;
         let reported = Reported { event, segment, node, at: self.clock.now() };
-        tx.record_segment((workload, kind, kept), reported).await?;
+        tx.record_segment((key, kept), reported).await?;
+        let run = key.run.map_or(serde_json::Value::Null, |r| {
+            korpis_core::id::Id::from_uuid(korpis_core::id::IdKind::Run, r).to_string().into()
+        });
         let mut e = system(event.action(), Outcome::Succeeded).after(details([
-            ("stream", kind.as_str().into()),
+            ("stream", key.kind.as_str().into()),
+            ("run", run),
             ("first_offset", segment.first_offset.into()),
             ("end_offset", segment.end_offset.into()),
             ("bytes", segment.bytes.into()),

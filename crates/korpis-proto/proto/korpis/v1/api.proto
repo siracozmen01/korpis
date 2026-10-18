@@ -627,6 +627,9 @@ message GetStreamRequest {
   string workload = 1;
   // The console when unspecified.
   StreamKind kind = 2;
+  // A run of the workload, for a task or scheduled workload's console, which each run writes
+  // its own of; empty for a persistent workload's.
+  string run = 3;
 }
 
 message GetStreamResponse {

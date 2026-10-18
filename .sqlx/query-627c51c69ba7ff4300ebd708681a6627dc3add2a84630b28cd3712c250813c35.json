@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE stream_segment g SET repository_id = NULL, offloaded_at = NULL\n               FROM stream s\n              WHERE s.id = g.stream_id AND s.workload_id = $1 AND s.kind = $2\n                AND s.run_id IS NOT DISTINCT FROM $5\n                AND g.first_offset = $3 AND g.repository_id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "627c51c69ba7ff4300ebd708681a6627dc3add2a84630b28cd3712c250813c35"
+}

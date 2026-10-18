@@ -141,6 +141,7 @@ pub fn stream_to_pb(s: &Stream) -> pb::Stream {
         id: if s.id.is_nil() { String::new() } else { wire_id(IdKind::Stream, s.id) },
         workload: wire_id(IdKind::Workload, s.workload),
         kind: kind_to_pb(s.kind).into(),
+        run: s.run.map(|r| wire_id(IdKind::Run, r)).unwrap_or_default(),
         node_only_bytes: s.node_only_bytes(),
         segments: s.segments.iter().map(segment_to_pb).collect(),
         ..Default::default()
