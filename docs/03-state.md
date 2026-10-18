@@ -591,9 +591,9 @@ Wednesday:
 
 So the settling window that raises the epoch floor does a second job. Every assignment a node holds
 is signed by the control plane that issued it (§4.8 of `02-architecture.md`) and carries the full
-target intent, its owner, and its power state. During the window, each reconnecting agent presents
-its assignments, and for every one whose signature verifies against the control plane's
-assignment-signing keyring:
+target intent, its owner, its name and labels, and its power state. During the window, each
+reconnecting agent presents its assignments, and for every one whose signature verifies against
+the control plane's assignment-signing keyring:
 
 | The restored store lacks | It records |
 |---|---|
@@ -608,6 +608,36 @@ node presented, so no version number is ever issued twice. Runtime objects are l
 **identifiers**, never versions (§4.4 of `02-architecture.md`), so even a collision that slipped
 through could not make a new declaration look already applied. An assignment whose signature does
 not verify is not recovered; its workload is fenced like any other unaccounted-for authority.
+
+> Corrected 2026-10-18, Findings 95 and 96 of `23-walkthroughs.md`. The assignment carried the
+> owner and not the workload's name, which a workload row cannot be written without, so the second
+> row of the table could not be recorded from what was signed; the name and labels are now in
+> every assignment. And the table recovered declarations and nothing that says where a workload
+> runs, so a recovered workload, or one moved after the backup, would be placed again by the
+> scheduler while its node still ran it: two runtimes for one workload, which is what the fence
+> exists to prevent. Recovery also binds the workload's placement to the node that presented it,
+> and where two nodes present one workload, to the one whose assignment names the higher lease
+> epoch.
+
+> As built, 2026-10-18 (`crates/korpis-app/src/restore/recover.rs`,
+> `crates/korpis-store/src/recovery.rs`). Each verified assignment is recovered in a transaction
+> of its own, in which every row it writes is recorded with an effect naming the node, the key,
+> and the signature: a missing workload under its signed owner and name, or, when a workload the
+> restored store holds took that name, under the name followed by the first eight hex digits of
+> its identifier; a missing intent with its identifier, version, body, and declarer, a parent or
+> declared set the store does not hold left out, and `recovered_from` on the row; a missing power
+> declaration likewise; and the head, target, power head, and power target moved forward to what
+> was presented, each only if what the store holds is older, with the version floor past both. An
+> intent whose version the store holds under another identifier, or a workload whose project the
+> store does not hold, is not recovered, and `restore.recovery.refused` says why. A workload the
+> store holds as deleted, or a residual assignment, has no declaration to recover. A second
+> presentation of the same assignment changes nothing. Nothing goes down an agent's session while
+> the window is open, so no node is sent the backup's configuration; its set goes out when the
+> window ends. What a recovered workload does not get back: its membership in a declared set, the
+> operator's classification overrides, and whether it was marked unreproducible, none of which an
+> assignment carries; and recovery is not admission, so a recovered workload counts against quota
+> from then on even where that is past it. The placement half of the correction above, and plans
+> in flight, are built next.
 
 **Lost effects are re-ingested from the nodes, within a stated horizon.** Agents keep acknowledged
 journal records for a retention window after acknowledgement (default seven days, §4.10 of

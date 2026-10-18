@@ -39,13 +39,19 @@ fn seal_error(SealError(why): SealError) -> AppError {
 }
 
 /// The digest of what `assignment` has its node run: all of it but its plan, which is measured by
-/// its own progress, and its ACME challenges, which the proxy answers for a minute and which
-/// change nothing the workload runs (§4.3 of docs/02-architecture.md).
+/// its own progress, its ACME challenges, which the proxy answers for a minute and which change
+/// nothing the workload runs (§4.3 of docs/02-architecture.md), and its labels, which the node
+/// does not use. Its name is kept, since a name always has a value; nothing renames a workload.
 fn runs_digest(
     sealer: &dyn crate::ports::AssignmentSealer,
     assignment: &Assignment,
 ) -> Result<Vec<u8>, AppError> {
-    let runs = Assignment { plan: None, challenges: Vec::new(), ..assignment.clone() };
+    let runs = Assignment {
+        plan: None,
+        challenges: Vec::new(),
+        labels: korpis_core::labels::Labels::default(),
+        ..assignment.clone()
+    };
     sealer.content_digest(&runs).map_err(seal_error)
 }
 
@@ -205,6 +211,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 workload,
                 project: w.project,
                 organization: w.organization,
+                name: w.name.clone(),
+                labels: w.labels.clone(),
                 generation: 0,
                 target,
                 power,
@@ -258,6 +266,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 workload,
                 project: w.project,
                 organization: w.organization,
+                name: w.name.clone(),
+                labels: w.labels.clone(),
                 generation: 0,
                 target,
                 power,

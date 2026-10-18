@@ -43,8 +43,9 @@ pub trait AssignmentSealer: Send + Sync + std::fmt::Debug {
     fn open(&self, sealed: &Sealed, keys: &[super::VerifyKey]) -> Result<Opened, SealError>;
 }
 
-/// What an assignment a node presented says, its signature verified.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What an assignment a node presented says, its signature verified: what a restored control
+/// plane recovers from it (§8 of docs/03-state.md).
+#[derive(Debug, Clone, PartialEq)]
 pub struct Opened {
     /// The workload.
     pub workload: Uuid,
@@ -54,6 +55,20 @@ pub struct Opened {
     pub generation: u64,
     /// The lease epoch it names.
     pub lease_epoch: u64,
+    /// The workload's project.
+    pub project: Uuid,
+    /// The project's organization.
+    pub organization: Uuid,
+    /// The workload's name; `None` if the assignment carries none.
+    pub name: Option<korpis_core::tenancy::Name>,
+    /// The workload's labels.
+    pub labels: korpis_core::labels::Labels,
+    /// The intent its plans reached, in full.
+    pub target: korpis_core::workload::Intent,
+    /// The power declaration its plans reached.
+    pub power: korpis_core::workload::PowerRecord,
+    /// Whether it is a retired workload's residual assignment.
+    pub residual: bool,
 }
 
 /// An assignment as the store keeps it.

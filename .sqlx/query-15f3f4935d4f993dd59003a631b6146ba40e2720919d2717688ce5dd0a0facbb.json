@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO power (workload_id, version, desired, cycle, set_by, set_at,\n                                recovered_from)\n             VALUES ($1, $2, $3, $4, $5, $6, $7)\n             ON CONFLICT (workload_id, version) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "15f3f4935d4f993dd59003a631b6146ba40e2720919d2717688ce5dd0a0facbb"
+}

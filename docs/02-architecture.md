@@ -665,6 +665,8 @@ described elsewhere as a message the protocol did not contain.
 Assignment
   workload      WorkloadID
   owner         {project, organization}
+  name, labels  the workload's, which the node does not use: what a restore that lost the
+                               workload recovers it under (§8 of 03-state.md; Finding 95)
   generation    int            monotonic per workload; any change below increments it
   target        Intent         the configuration in full that the workload's plans reached, or
                                that the plan in `plan` is reaching; never the head, and the

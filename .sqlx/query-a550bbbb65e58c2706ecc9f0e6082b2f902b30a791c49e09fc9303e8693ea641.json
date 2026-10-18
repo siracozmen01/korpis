@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workload\n                SET intent_id = CASE WHEN $4 THEN $2 ELSE intent_id END,\n                    intent_version = CASE WHEN $4 THEN $3 ELSE intent_version END,\n                    target_id = CASE WHEN $5 THEN $2 ELSE target_id END,\n                    target_version = CASE WHEN $5 THEN target_version + 1 ELSE target_version END,\n                    power_version = greatest(power_version, $6),\n                    power_target_version = greatest(power_target_version, $6),\n                    version_floor = greatest(version_floor, $3, $6)\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Bool",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a550bbbb65e58c2706ecc9f0e6082b2f902b30a791c49e09fc9303e8693ea641"
+}

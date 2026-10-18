@@ -1136,6 +1136,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 92 | A console link spent two uses on every opening of its screen | §38 | `11-surface-web.md` §6 |
 | 93 | An owner that is not a superuser could not act as the application role | §39 | `03-state.md` §3.1 |
 | 94 | The oci driver's unit could not start on a machine with no volumes yet | §39 | `18-operations.md` §2 |
+| 95 | A workload lost by a restore could not be recovered: its name was not in what the node held | §40 | `03-state.md` §8 |
+| 96 | A recovered workload had no placement, so it would be placed a second time | §40 | `03-state.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3096,3 +3098,66 @@ the agent's state directory by its default rather than by the one installation w
 and the driver's unit names the agent's state directory installation was given. →
 `18-operations.md` §2; built in `crates/korpis-server/src/install/units.rs` and
 `crates/korpis-server/src/installing.rs`, and tested by `scripts/test-install-package.sh`.
+
+## 40. A control plane restored to Tuesday's backup, its agents running
+
+Written 2026-10-18, as the restore's steps were built (§8 of `03-state.md`, §6 of
+`18-operations.md`). The control plane's disk failed on Thursday. The newest backup is Tuesday's.
+On Wednesday a tenant changed a server's configuration, which was approved and reached its node,
+and created a second server; an operator removed a relay they no longer trusted. Every node is
+still running. The operator restores Tuesday's state and starts the control plane.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The epoch floor is raised past every epoch the issue rate allowed since the backup, and a settling window opens in which no epoch is issued | `03-state.md` §8 |
+| 2 | The token key is rotated: Wednesday's tokens and the backup's stop verifying, and every session signs in again | `03-state.md` §8; `08-identity.md` §6 |
+| 3 | Every relay the backup records as joined is held, the removed one among them, until an operator readmits or removes it | `18-operations.md` §6 |
+| 4 | Each agent reconnects, is given the token keys in force, and is asked to present the assignments it holds | `02-architecture.md` §4.2; `03-state.md` §8 |
+| 5 | Each assignment whose signature verifies raises the floor by its lease epoch | `03-state.md` §8 |
+| 6 | The server changed on Wednesday gets its second intent back, as head and target, with the identifier and declarer it was signed with | `03-state.md` §8 |
+| 7 | The server created on Wednesday gets its workload row back, under its owner and its name ‡ | `03-state.md` §8; `01-model.md` §3.3 |
+| 8 | Nothing is sent to a node while the window is open; when it ends, each node is sent its set, which names what it runs | `02-architecture.md` §4.8; `03-state.md` §8 |
+| 9 | The scheduler finds every workload with an approved target and no placement, and places it ‡ | `05-scheduling.md` §2 |
+
+Each step was asked what evaluates it, where, and with what. Steps 1 to 3 are evaluated by the
+restore command on the control plane's machine, from the backup's record and the data
+directory's keys. Steps 5 to 7 are evaluated by the control plane from the presented bytes and
+the assignment keyring alone, since the store is what was lost. Step 7 needs a name, which the
+workload row cannot be written without, and the presented bytes did not hold one. Step 9 is
+evaluated by the scheduler from the store, which after step 7 holds a workload with a target and
+no placement, and a node already running it.
+
+‡ The steps marked were where the findings below were found. Plans in flight, the effects the
+nodes resend, the gap record, and the restore command that runs the steps in order are traced
+here as they are built.
+
+**FINDING 95: A workload lost by a restore could not be recovered: its name was not in what the
+node held. `CONFIRMED`**
+
+Found 2026-10-18 while building step 7. §8 of `03-state.md` said a workload the restored store
+lacks is recorded "under the signed owner", and the assignment carried its project and
+organization; but a workload has a name, unique in its project, and its row cannot be written
+without one, and no assignment carried it. The table promised a row its inputs could not make.
+**Resolution.** Every assignment carries the workload's name and labels, which the node does not
+use, and a recovered workload is written under them, or under the name followed by the first
+eight hex digits of its identifier where a workload the restored store holds took the name. The
+labels are left out of the digest that says whether a node runs what it was told, since they
+change nothing it runs. → `03-state.md` §8, `02-architecture.md` §4.8; built in
+`crates/korpis-server/src/sealer.rs` and `crates/korpis-app/src/restore/recover.rs`, and tested
+by `crates/korpis-server/tests/api/recovery.rs`.
+
+**FINDING 96: A recovered workload had no placement, so it would be placed a second time.
+`CONFIRMED`**
+
+Found 2026-10-18 while building step 7, by asking step 9 what it evaluates. The table of §8 of
+`03-state.md` recovered the intent, the workload, the power declaration, and the plan, which are
+what a workload should be, and nothing of where it is. The scheduler places every workload with an
+approved target and no authoritative placement, so a workload recovered from its node would be
+placed again, possibly on another node, while the first still ran it; and a workload the backup
+places on a node it left on Wednesday would be told to run there again. That is two authorities
+for one workload, which the epoch fence exists to prevent, reintroduced by recovering its
+declaration. **Resolution.** Recovery binds the workload's placement to the node that presented
+it, and where two nodes present one workload, to the one whose assignment names the higher lease
+epoch. → `03-state.md` §8.

@@ -177,8 +177,12 @@ impl Uplink {
         if shown.refused > 0 {
             tracing::warn!(node = %self.node, refused = shown.refused, "presented assignments refused");
         }
+        if shown.unrecovered > 0 {
+            tracing::warn!(node = %self.node, unrecovered = shown.unrecovered,
+                           "presented assignments not recovered; the effects say why");
+        }
         tracing::info!(node = %self.node, verified = shown.verified, floor = ?shown.raised_to,
-                       "presented its assignments");
+                       recovered = shown.recovered, "presented its assignments");
         Ok(())
     }
 

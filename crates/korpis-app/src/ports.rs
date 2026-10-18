@@ -37,6 +37,7 @@ mod prune;
 mod quota;
 mod rate;
 mod recipe;
+mod recovery;
 mod relay;
 mod retire;
 mod session;
@@ -93,6 +94,7 @@ pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
 pub use quota::{Holder, QuotaWrite};
 pub use rate::{RateBuckets, RateWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
+pub use recovery::{Advance, Advanced, IntentRecovery, RecoveredFrom, RecoveryWrite};
 pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
 };
@@ -281,6 +283,7 @@ pub trait Tx:
     + ProviderCallWrite
     + BreakerWrite
     + RelayWrite
+    + RecoveryWrite
     + StreamWrite
     + VolumeWrite
     + SnapshotWrite

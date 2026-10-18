@@ -8,6 +8,10 @@
 //! floor further. A presented epoch is believed only when its signature verifies against the
 //! assignment keyring, since an epoch is authority.
 
+mod recover;
+
+pub use recover::Recovery;
+
 use crate::App;
 use crate::error::AppError;
 use crate::install::PublicKey;
@@ -54,6 +58,10 @@ pub struct Presentation {
     pub raised_to: Option<u64>,
     /// Whether a restore was settling: outside a window a presentation is believed in nothing.
     pub settling: bool,
+    /// Verified assignments that recovered something the store lacked or held older.
+    pub recovered: usize,
+    /// Verified assignments that could not be recovered, each recorded with why.
+    pub unrecovered: usize,
 }
 
 /// What rotating the token key did.
@@ -126,33 +134,44 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let keys = self.store.verify_keys("assignment").await?;
         let mut presentation = Presentation { settling: true, ..Presentation::default() };
-        let mut highest = 0;
+        let mut opened = Vec::new();
         for sealed in held {
             match sealer.open(sealed, &keys) {
-                Ok(opened) if opened.node == node => {
-                    presentation.verified += 1;
-                    highest = highest.max(opened.lease_epoch);
-                }
+                Ok(o) if o.node == node => opened.push((o, sealed)),
                 Ok(_) | Err(_) => presentation.refused += 1,
             }
         }
-        if highest == 0 {
-            return Ok(presentation);
+        presentation.verified = opened.len();
+        let highest = opened.iter().map(|(o, _)| o.lease_epoch).max().unwrap_or(0);
+        if highest > 0 {
+            presentation.raised_to = self.raise_floor(node, highest).await?;
         }
-        let mut tx = self.store.begin().await?;
-        if tx.raise_epoch_floor(highest).await? {
-            presentation.raised_to = Some(highest);
-            let mut effect = Effect::new(
-                Principal::System(SystemActor::Bootstrap),
-                "restore.epoch_floor.raised",
-                Outcome::Succeeded,
-            )
-            .after(details([("floor", highest.into()), ("node", node.to_string().into())]));
-            effect.node = Some(node);
-            tx.append_effect(&effect).await?;
+        for (o, sealed) in &opened {
+            match self.recover(o, sealed).await? {
+                Recovery::Recovered => presentation.recovered += 1,
+                Recovery::Refused => presentation.unrecovered += 1,
+                Recovery::Held | Recovery::Skipped => {}
+            }
         }
-        tx.commit().await?;
         Ok(presentation)
+    }
+
+    /// Raises the epoch floor to `highest`, an epoch `node` proved, recording it if it did.
+    async fn raise_floor(&self, node: Uuid, highest: u64) -> Result<Option<u64>, AppError> {
+        let mut tx = self.store.begin().await?;
+        if !tx.raise_epoch_floor(highest).await? {
+            return Ok(None);
+        }
+        let mut effect = Effect::new(
+            Principal::System(SystemActor::Bootstrap),
+            "restore.epoch_floor.raised",
+            Outcome::Succeeded,
+        )
+        .after(details([("floor", highest.into()), ("node", node.to_string().into())]));
+        effect.node = Some(node);
+        tx.append_effect(&effect).await?;
+        tx.commit().await?;
+        Ok(Some(highest))
     }
 
     /// A restore's second step (§8 of docs/03-state.md): `token`, the new token key, recorded,

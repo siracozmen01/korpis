@@ -74,6 +74,7 @@ mod rate_grants;
 mod rates;
 mod reads;
 mod recipes;
+mod recovery;
 mod refusal;
 mod relay;
 mod relay_hold;

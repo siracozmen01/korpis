@@ -475,6 +475,10 @@ message Assignment {
   // The HTTP-01 challenges the node's proxy answers on port 80 for the names of this
   // workload's endpoints while their certificates are ordered (§3.2 of docs/07-networking.md).
   repeated AcmeChallenge challenges = 22;
+  // The workload's name and labels, which the node does not use: a restored control plane that
+  // lost the workload recovers it from them (§8 of docs/03-state.md).
+  string workload_name = 23;
+  map<string, string> workload_labels = 24;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

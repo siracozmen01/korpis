@@ -40,6 +40,7 @@ mod prune;
 mod quota;
 mod rate;
 mod recipe;
+mod recovery;
 mod relay;
 pub mod schema;
 pub mod server;

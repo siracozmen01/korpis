@@ -2,12 +2,12 @@
 
 //! Workloads, intents, and power declarations.
 
-use crate::spec::body_to_pb;
-use crate::{Result, invalid, principal, timestamp, wire_id};
+use crate::spec::{body_from_pb, body_to_pb};
+use crate::{Result, id, invalid, principal, time, timestamp, wire_id};
 use korpis_core::id::IdKind;
 use korpis_core::workload::plan::{Override, StepAction};
 use korpis_core::workload::set::{DeclaredSet, DriftMode};
-use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
+use korpis_core::workload::{Intent, Power, PowerRecord, PowerState, Workload};
 use korpis_proto::korpis::v1 as pb;
 
 /// The wire form of a power declaration.
@@ -26,6 +26,24 @@ pub fn power_to_pb(p: &PowerRecord) -> pb::Power {
         set_at: timestamp(p.set_at).into(),
         ..Default::default()
     }
+}
+
+/// A power declaration from the field `field`, as a node presents the one it was assigned (§8 of
+/// docs/03-state.md).
+pub fn power_from_pb(field: &str, p: &pb::Power) -> Result<PowerRecord> {
+    let f = |name: &str| format!("{field}.{name}");
+    let set_by = p.set_by.as_option().ok_or_else(|| invalid(&f("set_by"), "required"))?;
+    let set_at = p.set_at.as_option().ok_or_else(|| invalid(&f("set_at"), "required"))?;
+    Ok(PowerRecord {
+        workload: id(IdKind::Workload, &f("workload"), &p.workload)?,
+        power: Power {
+            desired: power_state_from_pb(&f("desired"), p.desired)?,
+            cycle: p.cycle,
+            version: p.version,
+        },
+        set_by: principal::from_pb(&f("set_by"), set_by)?,
+        set_at: time(&f("set_at"), set_at)?,
+    })
 }
 
 /// A requested power state from the field `field`; unspecified means running.
@@ -117,6 +135,32 @@ pub fn intent_to_pb(i: &Intent) -> pb::Intent {
         managed_by: i.managed_by.map(|s| wire_id(IdKind::Set, s)),
         ..Default::default()
     }
+}
+
+/// An intent from the field `field`, as a node presents the target it was assigned (§8 of
+/// docs/03-state.md): the inverse of [`intent_to_pb`].
+pub fn intent_from_pb(field: &str, i: &pb::Intent) -> Result<Intent> {
+    let f = |name: &str| format!("{field}.{name}");
+    let by = i.declared_by.as_option().ok_or_else(|| invalid(&f("declared_by"), "required"))?;
+    let at = i.declared_at.as_option().ok_or_else(|| invalid(&f("declared_at"), "required"))?;
+    let body = i.body.as_option().ok_or_else(|| invalid(&f("body"), "required"))?;
+    if i.version == 0 {
+        return Err(invalid(&f("version"), "versions start at 1"));
+    }
+    Ok(Intent {
+        id: id(IdKind::Intent, &f("id"), &i.id)?,
+        workload: id(IdKind::Workload, &f("workload"), &i.workload)?,
+        version: i.version,
+        parent: i.parent.as_deref().map(|p| id(IdKind::Intent, &f("parent"), p)).transpose()?,
+        declared_by: principal::from_pb(&f("declared_by"), by)?,
+        declared_at: time(&f("declared_at"), at)?,
+        body: body_from_pb(&f("body"), body)?,
+        managed_by: i
+            .managed_by
+            .as_deref()
+            .map(|s| id(IdKind::Set, &f("managed_by"), s))
+            .transpose()?,
+    })
 }
 
 /// The wire form of a drift mode.

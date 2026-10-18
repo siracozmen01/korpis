@@ -42,6 +42,8 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         workload: wire_id(IdKind::Workload, a.workload),
         project: wire_id(IdKind::Project, a.project),
         organization: wire_id(IdKind::Organization, a.organization),
+        workload_name: a.name.as_str().to_owned(),
+        workload_labels: a.labels.as_map().clone().into_iter().collect(),
         generation: a.generation,
         target: intent_to_pb(&a.target).into(),
         power: power_to_pb(&a.power).into(),

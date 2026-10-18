@@ -20,6 +20,11 @@ pub struct Assignment {
     pub project: Uuid,
     /// Its organization.
     pub organization: Uuid,
+    /// Its name, which the node does not use: what a restore that lost the workload recovers it
+    /// under (§8 of docs/03-state.md).
+    pub name: crate::tenancy::Name,
+    /// Its labels, for the same reason.
+    pub labels: crate::labels::Labels,
     /// Monotonic per workload and node; any change below increments it.
     pub generation: u64,
     /// The intent in full that the workload's plans reached, or that `plan` is reaching: never

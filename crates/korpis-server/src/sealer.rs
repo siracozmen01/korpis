@@ -9,9 +9,11 @@ use buffa::Message as _;
 use ed25519_dalek::{Signer as _, SigningKey};
 use korpis_app::ports::{AssignmentSealer, Opened, SealError, Sealed, VerifyKey};
 use korpis_core::id::{Id, IdKind};
+use korpis_core::labels::Labels;
 use korpis_core::workload::assignment::Assignment;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_wire::assignment::assignment_to_pb;
+use korpis_wire::workload::{intent_from_pb, power_from_pb};
 use sha2::{Digest, Sha256};
 
 /// The sealer.
@@ -61,11 +63,24 @@ impl AssignmentSealer for Ed25519Sealer {
         let id = |kind, field: &str, value: &str| {
             Id::parse(kind, value).map(|i| i.uuid()).map_err(|_| refused(field))
         };
+        let target = pb.target.as_option().ok_or_else(|| refused("no target"))?;
+        let power = pb.power.as_option().ok_or_else(|| refused("no power"))?;
+        let labels = pb.workload_labels.iter().map(|(k, v)| (k.clone(), v.clone()));
         Ok(Opened {
             workload: id(IdKind::Workload, "its workload", &pb.workload)?,
             node: id(IdKind::Node, "its node", &pb.node)?,
             generation: pb.generation,
             lease_epoch: pb.lease_epoch,
+            project: id(IdKind::Project, "its project", &pb.project)?,
+            organization: id(IdKind::Organization, "its organization", &pb.organization)?,
+            name: (!pb.workload_name.is_empty())
+                .then(|| korpis_wire::name("workload_name", &pb.workload_name))
+                .transpose()
+                .map_err(|e| refused(&e.to_string()))?,
+            labels: Labels::new(labels).map_err(|e| refused(&e.to_string()))?,
+            target: intent_from_pb("target", target).map_err(|e| refused(&e.to_string()))?,
+            power: power_from_pb("power", power).map_err(|e| refused(&e.to_string()))?,
+            residual: pb.residual,
         })
     }
 }
