@@ -662,11 +662,13 @@ three run before the restored control plane serves a request.
 > As built, 2026-10-18 (`crates/korpis-server/src/restore.rs`). `korpis-server restore` runs at
 > the machine while the control plane is stopped, after PostgreSQL has restored the database by
 > its own means, with `--from` the backup file and `--key` (or `--key-file`) the key installation
-> printed. It opens the file, which another key does not, and puts its keys and certificates back
-> into the data directory: a file missing is written as installation wrote it, owned as the data
-> directory is; a file present with the same bytes is kept; a file present with other bytes
-> stops the restore before anything is written, since only the operator knows whether the backup's
-> or the one present is right. A data directory with no backup declaration, as a machine restored
+> printed. It runs as the data directory's owner, the control plane's own user, and refuses to run
+> as anyone else, as the backup does, so that nothing a compromised control plane could put in its
+> data directory steers what a more privileged user writes; and it writes through no link. It
+> opens the file, which another key does not, and puts its keys and certificates back into the
+> data directory: a file missing is written as installation wrote it; a file present with the
+> same bytes is kept; a file present with other bytes stops the restore before anything is
+> written, since only the operator knows whether the backup's or the one present is right. A data directory with no backup declaration, as a machine restored
 > from nothing has, is given one: the file's directory as the target and the key it was opened
 > with. It refuses a schema this binary was not built for, as `serve` does. Then the three steps
 > that run without the agents: the epochs fenced from the file's watermark and rate, with the
@@ -679,7 +681,8 @@ three run before the restored control plane serves a request.
 > recovered; the agents' sessions, the relays' feeds, and what needs no caller (`ServerInfo`,
 > signing in) are served. What it does not check: that the control plane is stopped, which a second
 > replica left running would undo by issuing epochs before the fence; and that the database is the
-> one the file was taken with, which only the operator knows.
+> one the file was taken with, which only the operator knows. Running it as the owner rather than
+> as root was decided the same day, from a review of the first version.
 
 What is genuinely lost is stated rather than implied away: declarations made after the backup and
 never approved reached no node, and control-plane effects with no node counterpart in that interval

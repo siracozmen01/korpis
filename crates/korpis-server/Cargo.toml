@@ -74,6 +74,8 @@ zeroize = "1"
 tempfile = { version = "3", optional = true }
 # The control plane's own login, written into the database URL installation makes.
 url = "2"
+# Writing a restored key without following a link (O_NOFOLLOW).
+rustix = { version = "1", features = ["fs"] }
 
 [dev-dependencies]
 korpis-server = { path = ".", features = ["testing"] }

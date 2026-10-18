@@ -3052,6 +3052,7 @@ dependencies = [
  "p256",
  "rcgen",
  "reqwest",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",
