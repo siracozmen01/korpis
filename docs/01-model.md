@@ -424,6 +424,11 @@ Intent
   recipe        RecipeRef      name + version + digest (see 09-recipes.md)
   lifecycle     persistent | task | scheduled
   schedule      CronExpr?      required iff lifecycle = scheduled
+  timezone      string?        the IANA zone `schedule` is read in; UTC when unset; only with
+                               a schedule (§4.1 of 05-scheduling.md); added 2026-10-18
+  runs          RunPolicy?     concurrency, retries, backoff, timeout, retention, catch_up;
+                               only for task and scheduled, defaults when unset (§4 of
+                               05-scheduling.md); added 2026-10-18
   console       none | logs | interactive
   runtime       RuntimeSpec    driver + isolation tier + driver-specific config
   resources     ResourceSpec   cpu, memory, disk, io, bandwidth (§5.2 of 05-scheduling.md)
@@ -450,6 +455,13 @@ Intent
 > `20-roadmap.md` meant to freeze the schema in Phase 0; this field was missed there, and adding
 > it is recorded rather than passed over. An intent stored before it reads as one with the
 > defaults.
+
+> Corrected 2026-10-18, when runs were designed for building (Findings 98 and 100 of
+> `23-walkthroughs.md`). §4 of `05-scheduling.md` defined `RunPolicy` and the intent had no field
+> to declare it in, and `schedule` was a cron expression in no stated time zone, so a nightly job
+> meant for 03:00 local time ran at an hour that moved with the seasons. Both fields are added
+> under rule E of `20-roadmap.md` as `streams` and `egress` were; an intent stored before them
+> reads as one with the default policy, in UTC.
 
 > Corrected 2026-10-15, when a workload's own network policy was built (Finding 55 of
 > `23-walkthroughs.md`). Outbound rules were declared on each endpoint, where no node could
@@ -1268,6 +1280,8 @@ certificate an endpoint serves with is not deleted: the endpoint's routes name i
 Stream
   id            StreamID
   workload      WorkloadID
+  run           RunID?           the run whose output it is, for a task or scheduled workload's
+                                 console (§4.5 of 05-scheduling.md); added 2026-10-18
   kind          console | log | event | metric
   retention     Duration | bytes
   segments      []Segment        content-addressed, offloadable to object storage

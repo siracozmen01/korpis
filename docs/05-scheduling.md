@@ -484,7 +484,18 @@ Run
   exit_status    int?
   attempt        int
   streams        []StreamID       this run's own output
+  cycle          int?             the power cycle that requested it (§4.1); null otherwise
+  occurrences    int              how many occurrences it stands for; above one only for a
+                                  missed run recording an interval skipped (§4.3)
+  cause          string?          why it ended as it did: exit, timeout, cancelled, stopped,
+                                  replaced, concurrency, not_started, node_lost (§4.2 to §4.4)
 ```
+
+> Completed 2026-10-18, when runs were designed for building (Finding 98 of
+> `23-walkthroughs.md`). `cycle`, `occurrences`, and `cause` are added: without the first a
+> control plane cannot make a requested run exactly once, without the second a night skipped
+> while it was down is either invisible or a thousand rows, and without the third `failed` and
+> `missed` do not say what anyone should do about them.
 
 ```
 RunPolicy
@@ -505,6 +516,136 @@ runs at once, which is occasionally right and usually a thundering herd.
 
 Each run holds its own streams (§3.6 of `01-model.md`), so "why did Tuesday's job fail" is
 answerable after Wednesday's succeeded.
+
+### 4.1 What makes a run
+
+> Added 2026-10-18, when runs were designed for building (Findings 98 to 100 of
+> `23-walkthroughs.md`). The objects above said what a run records, and nothing said who makes
+> one, where it runs, what ends it, or in which time zone 03:00 is.
+
+**The control plane makes every run; a node executes only the runs its assignment names.** A run
+is made in one of four ways, which is its `trigger`:
+
+- **`schedule`.** The control plane evaluates the target intent's `schedule` in its `timezone`
+  (§3.3 of `01-model.md`) for every `scheduled` workload whose power target is `running`, and
+  keeps each one's next occurrence. When the time comes it makes the run. The store holds at most
+  one scheduled run per workload and occurrence, so two control-plane replicas evaluating the
+  same minute make one run and not two.
+- **`manual`.** A higher power `cycle` (`workload.restart`, §3.3 of `01-model.md`) on a `task` or
+  `scheduled` workload requests one run, made once for that cycle value when the power target
+  reaches it. A `task`'s first run is made this way: the plan that creates it brings its power to
+  `running` at cycle zero, and cycle zero has no run yet. So a task runs once when it is created
+  and once each time someone restarts it, and a restart means the same thing for every
+  lifecycle: do it again. For a `scheduled` workload cycle zero requests nothing; its runs come
+  from its schedule, and each later cycle is one run now.
+- **`retry`.** A failed run with attempts left makes the next attempt, the n-th retry waiting
+  `backoff` × 2^(n−1) after the failure ended.
+- **`event`.** Nothing makes one yet. It names the runs a later trigger source will make, and it
+  stays in the type, because removing a value from a frozen schema costs more than an unused one.
+
+A run is made whether or not the workload is placed. It is pending until a node starts it, and it
+reaches a node only in the assignment of the node the workload is placed on (§4.5).
+
+**`timezone` is an IANA zone name, UTC when unset**, checked at declaration against the control
+plane's zone database, since the control plane is the component that evaluates it. A local time a
+daylight-saving change skips runs at the first instant after the gap; a local time it repeats runs
+once, at its first occurrence. What it costs: the control plane carries a zone database, updated
+with its machine's, and a zone whose rules changed after that database was built runs an hour off
+until the database is updated. The alternative, cron in UTC, puts a backup meant for 03:00 in
+Istanbul at 03:00 the whole year and one meant for 03:00 in Berlin at 04:00 or 05:00 by season,
+which is the defect the field exists to remove (Finding 100).
+
+### 4.2 Where a run runs, and what ends it
+
+**A run executes on the node its workload is placed on, as a container instance of its own**,
+named for the run, with the workload's volumes, endpoints, and identity (§9.5 of
+`08-identity.md`). The workload is placed like any other (§2), **and its reservation is held while
+it is placed, not only while a run is running.** That is what guarantees the 03:00 run room on a
+node that filled up during the day. What it costs: an idle nightly job holds its reservation all
+day. A workload that would rather not declares a limit and no reservation, and its run then starts
+on whatever its node has free at that moment, under the overcommit of §5.3.
+
+The node never brings a run's process back the way it revives a crashed persistent workload (§4.6
+of `02-architecture.md`): a run ends when its process exits. The node journals `run.started` and
+`run.ended` with the exit status, and the control plane believes them only from the node the
+workload is placed on. The control plane judges the exit status against the `exit` probe (§5 of
+`04-runtimes.md`) of the intent the run was made under (§3.3 of `01-model.md`), zero alone when it
+declares none: `succeeded` or `failed`, cause `exit`. The workload's observation reports its newest
+run, and a `task` or `scheduled` workload has converged when its power target is reached, whether
+or not a run is active.
+
+**The node enforces `timeout`**, holding the run's start and the timeout from its assignment, so a
+run stops at its timeout while the control plane is unreachable: the stop signal, the grace, then
+a kill, and `failed` with cause `timeout`. When the workload's lease expires (§4.5 of
+`02-architecture.md`), the node does with the process what `on_lease_expiry` says, as for any
+workload, and the control plane records the runs it held `failed` with cause `node_lost` and makes
+a retry where attempts remain.
+
+### 4.3 Concurrency, catching up, and missed runs
+
+A run is **active** while it is pending or running. When a run is due and the workload has an
+active one, `concurrency` decides:
+
+- **`forbid`**: the new run is recorded `missed`, cause `concurrency`, and the active one goes on.
+- **`replace`**: the active run is cancelled, cause `replaced`, and the node stops it when its
+  assignment no longer names it; the new run is made.
+- **`allow`**: the new run is made beside it, and the node runs both.
+
+The same rule applies to manual and retry runs, so a restart into a `forbid` workload that is
+already running is recorded, not lost.
+
+**An occurrence is on time when its run is made within a minute of it.** When the control plane
+was down past occurrences, `catch_up` decides what they become:
+
+- **`false`** (skip to now): one run is recorded `missed` for all of them, `scheduled_for` the
+  first, `occurrences` how many, and the next occurrence is evaluated from now.
+- **`true`**: each becomes a run with its own `scheduled_for`, oldest first. **Catching up is not
+  a concurrency conflict**: under `forbid` they run one after another, each made when the one
+  before it ends; under `replace` only the newest runs, since each would replace the one before
+  it; under `allow` they start together, which is the herd §4 warns of and what `allow` asks for.
+  At most a hundred are caught up; any older are recorded as one missed run, as under `false`.
+
+**A pending run that never starts** (its node is offline, or it is not placed) is still active.
+When its next occurrence comes due, `catch_up: false` records it `missed`, cause `not_started`,
+and makes the new one in its place, so a node back after three nights runs tonight's backup and
+not the first night's. Under `catch_up: true` it stays pending and the new occurrence waits
+behind it, so the same node runs all three, oldest first (Finding 99). `not_started` is the
+control plane's account, not the node's: a node that started the run while out of touch journals
+that it did when it returns, and the run is then recorded as it ran and ended.
+
+### 4.4 Power, cancellation, and retention
+
+**Power `stopped` suspends the schedule.** No run is made, active runs are cancelled with cause
+`stopped`, and the node stops them. Nothing that passes while the workload is stopped is missed,
+because nobody wanted it to run; the schedule resumes at the first occurrence after its power is
+`running` again. **One run is cancelled** with `CancelRun`, under `workload.stop`, cause
+`cancelled`; the node stops it when its assignment no longer names it.
+
+**When a run ends, the control plane keeps the newest `keep_successful` succeeded runs and the
+newest `keep_failed` of every other ending** (failed, cancelled, missed), and deletes the rest with
+their streams.
+
+The defaults are `concurrency: forbid`, `catch_up: false`, no retries, a `backoff` of ten
+seconds, no `timeout`, `keep_successful: 3`, and `keep_failed: 10`. The two §4 says cause
+incidents when implicit default to the values that can neither run two backups against one volume
+nor fire a herd; an implicit `forbid` at worst skips a night, and the skip is a missed run in the
+list anyone reading the runs sees. There is no default timeout because a timeout that kills a
+legitimately long first backup is worse than none: a run that hangs under `forbid` makes every
+later night a missed run with cause `concurrency`, which is how it is noticed.
+
+Runs are read under `workload.read`, and each run's streams under `workload.console.read`
+(§5 of `10-api.md`).
+
+### 4.5 What a node is told of a run
+
+**The assignment carries the runs the node is to execute** (§4.8 of `02-architecture.md`): each
+one's identifier, attempt, trigger, `scheduled_for`, and timeout. The node starts each named run it
+has not started, stops each one it started that is no longer named, and starts nothing for a
+`task` or `scheduled` workload that names none, which is how a workload with no active run sits
+on its node holding its volumes and nothing else. Each run's console is a stream of its own
+(§3.6 of `01-model.md`, §4 of `14-streams.md`). A run a node presents after a restore that the
+restored store lacks is recorded as recovered, with what the assignment named, like the rest of
+the assignment (§8 of `03-state.md`).
 
 ---
 

@@ -1139,6 +1139,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 95 | A workload lost by a restore could not be recovered: its name was not in what the node held | §40 | `03-state.md` §8 |
 | 96 | A recovered workload had no placement, so it would be placed a second time | §40 | `03-state.md` §8 |
 | 97 | A workload retired after the backup would be run again on the node that had removed it | §40 | `03-state.md` §8 |
+| 98 | A run had nothing to make it | §41 | `05-scheduling.md` §4.1, §4.5 |
+| 99 | A pending run on a node offline for three nights would run the first night's backup on the fourth morning | §41 | `05-scheduling.md` §4.3 |
+| 100 | 03:00 was in no time zone | §41 | `01-model.md` §3.3, `05-scheduling.md` §4.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3185,3 +3188,65 @@ it, until an operator confirms it, which sends it, or retires it. → `03-state.
 `01-model.md` §3.4; built in `crates/korpis-app/src/restore.rs`,
 `crates/korpis-app/src/restore/held.rs`, and `crates/korpis-store/src/recovery.rs`, and tested
 by `crates/korpis-server/tests/api/recovery.rs`.
+
+## 41. A nightly backup, through a clock change, a down control plane, and an offline node
+
+Written 2026-10-18, as runs were designed for building (§4 of `05-scheduling.md`). A tenant in
+Berlin wants `mc-survival` backed up at 03:00 local time every night. Their backup job is a
+`scheduled` workload with `concurrency: forbid`, whose run calls `korpis backup create` with its
+own credential, as in §20. In late March the clocks move forward; one night the control plane is
+down from 01:00 to 07:00; later the job's node is offline for three nights.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The job is declared with `schedule: "0 3 * * *"`, `timezone: Europe/Berlin`, and no `runs`, so the policy's defaults; the zone is checked against the control plane's database ‡ | `01-model.md` §3.3; `05-scheduling.md` §4.1, §4.4 |
+| 2 | The creation plan places it on `fra-3` and holds its reservation; its power reaches `running` at cycle zero, which for a `scheduled` workload makes no run | `05-scheduling.md` §2, §4.1, §4.2 |
+| 3 | At 03:00 Berlin time the control plane makes a run, trigger `schedule`; the assignment names it, and `fra-3` starts a container instance for it ‡ | `05-scheduling.md` §4.1, §4.5; `02-architecture.md` §4.8 |
+| 4 | The run's console is its own stream; the run's process exits zero, `fra-3` journals `run.ended`, and the control plane, judging it by the intent's `exit` probe, records it succeeded | `05-scheduling.md` §4.2; `14-streams.md` §4 |
+| 5 | The night the clocks move forward, 03:00 exists and the run is made at it; a schedule for 02:30 would run at 03:00, the first instant after the gap | `05-scheduling.md` §4.1 |
+| 6 | The control plane, down over 03:00, starts at 07:00 and finds the occurrence passed; with `catch_up: false` it records one missed run, `occurrences` one, and evaluates the next from now ‡ | `05-scheduling.md` §4.3 |
+| 7 | `fra-3` is offline at 03:00: the run is made and stays pending; the next night it is recorded missed, cause `not_started`, and the new one waits in its place, so `fra-3`, back on the fourth morning, runs that night's backup and not the first night's | `05-scheduling.md` §4.3 |
+| 8 | Older runs beyond three succeeded and ten others are deleted with their streams | `05-scheduling.md` §4.4; `14-streams.md` §4 |
+
+Each step was asked what evaluates it, where, and with what. Steps 1, 3, and 5 to 8 are evaluated
+by the control plane, which holds the target intent's schedule, zone, and policy, the clock, and
+every run's record. Steps 3 and 4 on the node are evaluated by the agent from its assignment and
+the process it started. Step 4's judgement is the control plane's, from the exit status the node
+journaled and the intent the run was made under.
+
+‡ The steps marked were where the findings below were found.
+
+**FINDING 98: A run had nothing to make it. `CONFIRMED`**
+
+Found 2026-10-18 at step 3, asking what makes the run. §4 of `05-scheduling.md` defined `Run` and
+`RunPolicy` and said nothing of who makes a run, what a `task`'s single run waits for, what a
+restart means for a workload that exits, or how the node learns which runs to start: the
+assignment carried the target intent, which says how to run a workload and not when, and the
+intent had no field to declare the policy in. **Resolution.** The control plane makes every run,
+by schedule, by a higher power cycle (a `task`'s first run is cycle zero's), or as a retry; the
+assignment names the active runs, which the node starts and stops; `runs` is a field of the
+intent. → `05-scheduling.md` §4.1, §4.5; `02-architecture.md` §4.8; `01-model.md` §3.3
+
+**FINDING 99: A pending run on a node offline for three nights would run the first night's backup
+on the fourth morning. `CONFIRMED`**
+
+Found 2026-10-18 at steps 6 and 7, asking what `catch_up` and `concurrency` evaluate together. As
+written, `catch_up: true` under `forbid` would make the missed occurrences at once and record all
+but the first missed, which is neither catching up nor skipping, and nothing said what became of
+a run made for a node that never started it: under `forbid` it would block every later night and
+then run days late. **Resolution.** Catching up is not a concurrency conflict: missed occurrences
+run oldest first, as concurrency allows. Under `catch_up: false` a pending run is recorded missed,
+cause `not_started`, when its next occurrence comes due, and the new run takes its place. A missed
+interval is one run with an occurrence count, not a row per occurrence. → `05-scheduling.md` §4.3
+
+**FINDING 100: 03:00 was in no time zone. `CONFIRMED`**
+
+Found 2026-10-18 at step 1, asking what evaluates `schedule` and with what. The control plane
+evaluates it, with a cron expression and its clock, and neither says whose 03:00 it is. Read in
+UTC, a Berlin backup runs at 04:00 in winter and 05:00 in summer, and one placed to run after a
+nightly maintenance window runs inside it for half the year. **Resolution.** The intent declares
+an IANA `timezone`, UTC when unset, checked at declaration against the control plane's zone
+database; a skipped local time runs at the first instant after the gap, and a repeated one runs
+once. → `01-model.md` §3.3, `05-scheduling.md` §4.1

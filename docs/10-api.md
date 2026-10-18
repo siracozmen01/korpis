@@ -197,6 +197,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
 - **`workload.write` declares intents**: configuration, resources, runtime, endpoints. It is what
   `korpis apply` exercises (§7 of `13-surface-cli.md`). It does not imply power actions, so "may
   edit the config" and "may stop the server" stay separately delegable.
+- **A run needs no action of its own.** Added 2026-10-18, when runs were designed (§4 of
+  `05-scheduling.md`). A `task` or `scheduled` workload's run is requested by `workload.restart`,
+  since a higher power cycle is what requests one, and one run is cancelled with `CancelRun` under
+  `workload.stop`; its record is read under `workload.read` and its streams under
+  `workload.console.read`. A new action would have left every grant that may restart a server
+  unable to run its backup now, which is the same power.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

@@ -172,6 +172,15 @@ just before the pass deleted it is told the segment was altered, not that it exp
 segment past its retention and no longer on its node is counted among the offsets lost, which they
 are, without saying that retention, not a failure, lost them.
 
+**A run's console is a stream of its own**, designed 2026-10-18 (§4.5 of `05-scheduling.md`). A
+`task` or `scheduled` workload writes no console stream of the workload's: each run writes one,
+with the stream's `run` set (§3.6 of `01-model.md`) and its own offsets from zero, so Tuesday's
+failure is read by naming Tuesday's run rather than by searching one stream that interleaves every
+night. Each run's stream has the limits and retention the workload declares, separately. A run
+deleted by retention (§4.4 of `05-scheduling.md`) takes its stream with it, the node's segments and
+the offloaded ones. What it costs: a stream directory on the node for each run kept, at most
+`keep_successful` plus `keep_failed` plus the active runs per workload.
+
 **The control plane holds the index of segments, never their bytes.** Each seal and each offload
 is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
 the control plane knows every segment's offsets, digest, and where it is held: the `segments` of

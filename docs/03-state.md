@@ -676,6 +676,12 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > signature of starts nothing and cancels nothing. That was added the same day, from a review
 > of the first version.
 
+> Designed 2026-10-18, when runs were (§4.5 of `05-scheduling.md`): an assignment's `runs` name
+> each active run with its attempt, trigger, and `scheduled_for`, so a run a node presents that the
+> restored store lacks is recorded as recovered under those, running, and the schedule's next
+> occurrence is evaluated past it; a run the store holds as active that no node presents is left
+> for its pending or lost rules to settle.
+
 > As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
 > live and placed in the restored store, and the node that removed it presents nothing for it. So
 > when a node presents, every placement the store holds on it whose workload it did not present,
@@ -709,12 +715,13 @@ it does not know. Grants issued in that interval are already void, because the s
 documented configuration rather than nightly dumps.
 
 > As built, 2026-10-18 (`crates/korpis-agent/src/journal/read.rs`,
-> `crates/korpis-app/src/restore.rs`). The re-ingestion needs nothing of the restore: the restored cursor is what the control plane
-> acknowledges when the agent reconnects, and the agent sends everything after it that it
-> retains, which the control plane ingests exactly once, by origin; what it no longer retains it
-> answers with a gap record. Both are tested end to end against a cursor and an effect log put back
-> to an older state. The restore's own gap record is `restore.gap`, from the backup's time through
-> the restore's, naming the operator, written by the restore command with its other steps.
+> `crates/korpis-app/src/restore.rs`). The re-ingestion needs nothing of the restore: the restored
+> cursor is what the control plane acknowledges when the agent reconnects, and the agent sends
+> everything after it that it retains, which the control plane ingests exactly once, by origin;
+> what it no longer retains it answers with a gap record. Both are tested end to end against a
+> cursor and an effect log put back to an older state. The restore's own gap record is
+> `restore.gap`, from the backup's time through the restore's, naming the operator, written by the
+> restore command with its other steps.
 
 **And restore rotates the signing key, for the same reason.**
 

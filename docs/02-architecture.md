@@ -696,6 +696,8 @@ Assignment
   reaches_api   bool           whether the node relays the API to it (§9.5 of 08-identity.md)
   challenges    []AcmeChallenge  the HTTP-01 challenges its node's proxy answers while its
                                endpoints' certificates are ordered (§3.2 of 07-networking.md)
+  runs          []RunRef       the active runs of a task or scheduled workload, which the node
+                               executes; none for a persistent one (§4.5 of 05-scheduling.md)
   signature     the control plane's signature over all of the above
 
 NodePlan
@@ -705,6 +707,13 @@ NodePlan
   whole         Plan           the plan in full, its status and progress left out, which the
                                node does not use: what a restore that lost it recovers it from
                                (§8 of 03-state.md)
+
+RunRef
+  run           RunID
+  attempt       int
+  trigger       schedule | manual | retry | event
+  scheduled_for Timestamp      also what a restore that lost the run records it under
+  timeout       Duration?      enforced by the node (§4.2 of 05-scheduling.md)
 
 MigrationRole
   role          source | destination
@@ -717,6 +726,10 @@ MigrationRole
 > endpoints, dependencies, and the API relay were built were each documented where they were
 > built and never added here. They are listed now; `migration` and `shaping` are still designed,
 > not built.
+
+> Added 2026-10-18, when runs were designed (Finding 98 of `23-walkthroughs.md`): `runs` and
+> `RunRef`, designed and not yet built, are how a node learns which runs to start and which to
+> stop, since the target intent says how to run the workload and not when.
 
 The assignment is still level-triggered. It describes what should be true, and the node makes it
 true; nothing in it is an instruction that is lost if a message is lost. Each part answers one of

@@ -63,7 +63,7 @@ Then whichever of these you actually care about:
 |---|---|
 | Does the model hold together? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
 | Is it safe? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): thirty-seven scenarios traced end to end, the defects they found, and two external reviews |
+| **Does it survive contact with reality?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): thirty-eight scenarios traced end to end, the defects they found, and two external reviews |
 | Could I run it? | [`18-operations.md`](./docs/18-operations.md) |
 | Could I build on it? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
 | What gets built first? | [`20-roadmap.md`](./docs/20-roadmap.md) |
@@ -105,9 +105,9 @@ actually done to make it worth reading:
   where no document is holding the ball. It found twenty-three defects, including a quota race,
   revoked authority that could resurrect after a restore, an edge that could stop forwarding while
   every observation reported healthy, and a chat role whose removal cascaded to nothing. All are
-  fixed, and the walkthrough documents them rather than quietly patching them. Eleven more traces,
-  written from the implementation as it is built, have found more, and each is recorded the same
-  way.
+  fixed, and the walkthrough documents them rather than quietly patching them. Twenty-four more
+  traces, written from the implementation as it is built, have found more, and each is recorded
+  the same way.
 - **A second reading attacked the definitions rather than the seams.** An independent review by a
   different model went after the algebra inside each document: what evaluates this condition, with
   what information, and can it. It found nineteen things, seventeen of them real, including a limit
