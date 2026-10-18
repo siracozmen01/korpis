@@ -32,7 +32,7 @@ mod recipes;
 mod support;
 
 use crate::node::{Node, live};
-use crate::recipes::{VERSION, busybox, push, push_printer, push_with};
+use crate::recipes::{VERSION, busybox, push_printer, push_waiter, push_with};
 use crate::support::korpis;
 use crate::support::{ControlPlane, converged, mutation};
 use korpis_agent::run::Agent;
@@ -84,29 +84,6 @@ config:
     )
 }
 
-/// A task that waits until it is stopped (§4 of docs/05-scheduling.md), so its run is still
-/// active, pending or running, when the browser cancels it.
-fn waiter() -> String {
-    let busybox = busybox();
-    format!(
-        r#"apiVersion: korpis.dev/v1
-kind: Recipe
-metadata: {{name: waiter, version: "{VERSION}", description: waits, license: MIT}}
-runtime:
-  targets:
-    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
-  entry:
-    command: [/bin/sh, -c, "trap 'exit 0' TERM; echo waiting; while true; do sleep 1; done"]
-preset:
-  lifecycle: task
-  console: logs
-  resources:
-    memory: {{min: 32Mi, recommended: 64Mi}}
-    cpu:    {{min: 100m, recommended: 100m}}
-"#
-    )
-}
-
 /// A node running the talker in `project`, converged; the node, its agent, and the workload.
 /// `None` where no node can run here.
 async fn talking(cp: &ControlPlane, project: &str) -> Option<(Node, Agent, String)> {
@@ -129,13 +106,25 @@ async fn talking(cp: &ControlPlane, project: &str) -> Option<(Node, Agent, Strin
 
 /// The tasks of the runs flow, in `project`: the waiter, whose run waits to be cancelled, and,
 /// where `node` runs them, the printer, whose run ends by itself having written its console.
+/// Where they run, they are waited for, the waiter running and the printer's run ended: each
+/// workload's network is made as its first run starts, and Chromium abandons every request in
+/// flight while the machine's interfaces change (Finding 88 of docs/23-walkthroughs.md).
 async fn tasks(cp: &ControlPlane, project: &str, node: Option<&Node>) -> (String, Option<String>) {
-    let waiter = cp.declare(project, "waiter", &push("waiter", waiter()).await).await;
+    let waiter = cp.declare(project, "waiter", &push_waiter().await).await;
     let Some(node) = node else { return (waiter, None) };
     node.guard(&waiter);
     let printer = cp.declare(project, "printer", &push_printer().await).await;
     node.guard(&printer);
-    (waiter, Some(printer))
+    let settled = "SELECT count(*) FROM run r JOIN workload w ON w.id = r.workload_id
+                    WHERE (w.name = 'waiter' AND r.status = 'running')
+                       OR (w.name = 'printer' AND r.ended_at IS NOT NULL)";
+    for _ in 0..900 {
+        if cp.scalar::<i64>(settled).await == 2 {
+            return (waiter, Some(printer));
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    panic!("the waiter never ran, or the printer's run never ended");
 }
 
 fn web() -> PathBuf {
@@ -223,6 +212,9 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().join("age")));
     let ran = playwright.status().await.unwrap();
     ageing.abort();
+    if !ran.success() {
+        eprintln!("what the store held: {:?}", cp.scalar::<Option<String>>(HELD).await);
+    }
     assert!(ran.success(), "the browser tests failed: {ran}");
     let logged = tokio::time::timeout(Duration::from_secs(30), login.wait_with_output());
     let logged = logged.await.expect("korpis login ended once approved").unwrap();
@@ -236,6 +228,24 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         agent.stop().await;
     }
 }
+
+/// The runs, leases, and their effects, said when the browser tests fail.
+const HELD: &str = "SELECT (SELECT string_agg(w.name || ' ' || r.status || ' '
+                                   || coalesce(r.cause, '-') || ' started '
+                                   || coalesce(r.started_at::text, '-') || ' ended '
+                                   || coalesce(r.ended_at::text, '-'), '; ')
+                      FROM run r JOIN workload w ON w.id = r.workload_id)
+               || ' | leases ' || coalesce(
+                      (SELECT string_agg(w.name || ' until ' || l.grantor_expiry::text
+                                         || ' released ' || coalesce(l.released_at::text, '-'),
+                                         '; ')
+                         FROM lease l JOIN workload w ON w.id = l.workload_id), 'none')
+               || ' | effects ' || coalesce(
+                      (SELECT string_agg(e.action || ' ' || e.at::text || ' '
+                                         || coalesce(e.after::text, '') || ' '
+                                         || coalesce(e.error::text, ''), '; ' ORDER BY e.at)
+                         FROM effect e
+                        WHERE e.action LIKE 'lease.%' OR e.action LIKE 'run.%'), 'none')";
 
 /// The keeper's browser sessions, signed in eleven minutes earlier than they were.
 const AGE_THE_KEEPER: &str = "UPDATE user_session \

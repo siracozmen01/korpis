@@ -18,6 +18,8 @@ use crate::ports::{
     AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, RunWrite as _, SealError, Sealed,
     Store, StoredAssignment, Tx, WorkloadWrite,
 };
+use korpis_core::authz::record::in_force;
+use korpis_core::principal::Principal;
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
@@ -103,6 +105,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         a.runs = named(&active, &a.target.body.run_policy());
         a.kept_runs = tx.kept_runs_within(a.workload).await?;
         Ok(())
+    }
+
+    /// Whether `workload`'s node relays the control plane's API to it (§9.5 of
+    /// docs/08-identity.md): it runs a live installation, or holds a grant in force, whose
+    /// authority it has no other way to use. Read from the store at every computation, so an
+    /// installation removed, or a grant revoked, expired, or suspended, closes the relay with the
+    /// next assignment.
+    async fn reaches_api(&self, workload: Uuid) -> Result<bool, AppError> {
+        let installation = self.store.extension_of_workload(workload).await?;
+        if installation.is_some_and(|i| i.uninstalled_at.is_none()) {
+            return Ok(true);
+        }
+        let held = self.store.chains_held_by(&Principal::Workload(workload).key()).await?;
+        let now = self.clock.now();
+        Ok(held.iter().any(|chain| in_force(chain, now)))
     }
 
     /// Computes `node`'s set, seals what changed, and returns the set to send.
@@ -220,8 +237,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let on_lease_expiry = target.body.continuity.resolved(false);
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(&target.body).await?;
-        let installation = self.store.extension_of_workload(workload).await?;
-        let reaches_api = installation.is_some_and(|i| i.uninstalled_at.is_none());
+        let reaches_api = self.reaches_api(workload).await?;
         let dependencies = self.resolve_dependencies((w.project, w.id), &target.body).await?;
         Ok(Some((
             Assignment {

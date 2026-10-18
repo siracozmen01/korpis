@@ -49,7 +49,7 @@ async fn node(cp: &ControlPlane, dir: &tempfile::TempDir, runtime: &InMemory) ->
 }
 
 /// Declares task `name` with `policy`; its wire identifier.
-async fn task(cp: &ControlPlane, project: &str, name: &str, policy: pb::RunPolicy) -> String {
+pub async fn task(cp: &ControlPlane, project: &str, name: &str, policy: pb::RunPolicy) -> String {
     cp.measured().await;
     let body = pb::IntentBody {
         recipe: pb::RecipeRef {

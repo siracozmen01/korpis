@@ -163,14 +163,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Serves the API's relay to every workload the set marks as an installed extension's and
-    /// that has a runtime object here, and withdraws it from every other: an installation can
-    /// begin or end while its workload runs, and a restarted agent serves it again (§9.5 of
+    /// Serves the API's relay to every workload the set marks as reaching it (an installed
+    /// extension's, or one holding a grant in force) and that has a runtime object here, its own
+    /// or a run's, and withdraws it from every other: an installation or a grant can begin or end
+    /// while its workload runs, and a restarted agent serves it again (§9.5 of
     /// docs/08-identity.md).
     pub(super) fn serve_relays(&self, held: &HeldSet) {
         let Some(identity) = &self.wiring.identity else { return };
         for a in held.assignments.values().filter(|a| !a.residual) {
-            let built = self.tracked.get(&a.workload).is_some_and(|t| t.runtime.is_some());
+            let built = self.tracked.get(&a.workload).is_some_and(|t| {
+                t.runtime.is_some() || t.runs.values().any(|r| !r.runtime.is_empty())
+            });
             if let Err(e) = identity.relay(&a.workload, a.reaches_api && built) {
                 tracing::warn!(workload = %a.workload, error = %e, "the API's relay could not be served");
             }

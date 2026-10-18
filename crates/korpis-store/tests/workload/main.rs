@@ -16,6 +16,7 @@ mod buckets;
 mod chain;
 mod epochs;
 mod events;
+mod grant_notify;
 mod ids;
 mod jobs;
 mod nodes;

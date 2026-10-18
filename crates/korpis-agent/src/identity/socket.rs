@@ -33,7 +33,7 @@ pub struct IdentitySockets {
     credentials: Arc<Credentials>,
     control_plane: Arc<ControlPlane>,
     served: Mutex<HashMap<String, JoinHandle<()>>>,
-    /// The relays of the API served to installed extensions' workloads (§9.5 of
+    /// The relays of the API served to the workloads marked as reaching it (§9.5 of
     /// docs/08-identity.md).
     relays: Mutex<HashMap<String, JoinHandle<()>>>,
 }

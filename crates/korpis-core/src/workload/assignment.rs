@@ -58,8 +58,8 @@ pub struct Assignment {
     /// The target's endpoints as placed on this node, each with the port of the node it holds
     /// where it holds one (§3 of docs/07-networking.md); sorted by name.
     pub endpoints: Vec<super::endpoint::Endpoint>,
-    /// Whether the workload runs an installed extension, whose node relays the control plane's
-    /// API to it (§9.5 of docs/08-identity.md).
+    /// Whether the node relays the control plane's API to the workload: it runs an installed
+    /// extension, or holds a grant in force (§9.5 of docs/08-identity.md).
     pub reaches_api: bool,
     /// Its dependencies, resolved to the endpoints they reach now (§5 of
     /// docs/07-networking.md).

@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The egress default's one exception (§6 of docs/07-networking.md): the control plane marks the
-//! assignment of an installed extension's workload, and no other, as reaching its API; the node
-//! opens the API's address to it and nothing else of the control plane's. And what a
+//! The control plane's API reached through the node (§9.5 of docs/08-identity.md): the control
+//! plane marks the assignment of an installed extension's workload, and of a workload holding a
+//! grant in force, and no other, as reaching its API, which the node relays to it. And what a
 //! declaration may ask of the network: what no node enforces is refused (Rule K-3).
 
 use crate::providers::installed;
 use crate::recipes::{body, create, project, push_paper};
-use crate::support::{Harness, detail};
+use crate::support::{Harness, detail, mutation, org_scope};
 use buffa::Message as _;
 use connectrpc::ErrorCode;
+use korpis_core::principal::Principal;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
+use korpis_server::api::wire::principal;
 use std::time::Duration;
 
 /// The latest assignment of the workload with wire id `workload`, once it has one.
@@ -51,6 +53,52 @@ async fn an_installed_extension_s_workload_reaches_the_api_and_no_other_does() {
     let out = h.workloads(h.root()).declare_intent(declare).await.unwrap().into_owned();
     let plain = out.workload.as_option().unwrap().id.clone();
     assert!(!reaches_api(&h, &plain).await, "a workload that is no extension");
+}
+
+/// Waits until the assignment of `workload` says `want` of reaching the API.
+async fn turns(h: &Harness, workload: &str, want: bool) {
+    for _ in 0..100 {
+        if reaches_api(h, workload).await == want {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("{workload} never came to reach the API: {want}");
+}
+
+#[tokio::test]
+async fn a_workload_holding_a_grant_in_force_reaches_the_api_until_it_is_revoked() {
+    let h = Harness::new().await;
+    // An installation, so a node is connected and assignments are computed.
+    let _connected = installed(&h, 41, "dns").await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "jobs").await;
+    let declare = create("b1", &project, "nightly", body(&repo, &[]));
+    let out = h.workloads(h.root()).declare_intent(declare).await.unwrap().into_owned();
+    let nightly = out.workload.as_option().unwrap().id.clone();
+    assert!(!reaches_api(&h, &nightly).await, "it holds nothing yet");
+
+    let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, &nightly).unwrap();
+    let issued = h
+        .grants(h.root())
+        .issue_grant(pb::IssueGrantRequest {
+            mutation: mutation("to-nightly").into(),
+            parent: h.root_grant(),
+            subject: principal::to_pb(&Principal::Workload(id.uuid())).into(),
+            actions: vec!["backup.create".into(), "repository.read".into()],
+            scope: org_scope(&h.root_org()).into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_owned();
+    turns(&h, &nightly, true).await;
+
+    let grant = issued.grant.as_option().unwrap().id.clone();
+    let revoke =
+        pb::RevokeGrantRequest { mutation: mutation("r").into(), grant, ..Default::default() };
+    h.grants(h.root()).revoke_grant(revoke).await.unwrap();
+    turns(&h, &nightly, false).await;
 }
 
 #[tokio::test]

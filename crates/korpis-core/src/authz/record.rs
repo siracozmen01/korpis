@@ -61,3 +61,11 @@ impl GrantRecord {
         }
     }
 }
+
+/// Whether a chain, root first, is in force at `now`: every record in it issued, none revoked,
+/// suspended, expired, or exhausted, which is the cascade of §3.5 of docs/08-identity.md derived
+/// for its leaf. It says nothing of what the chain permits.
+#[must_use]
+pub fn in_force(chain: &[GrantRecord], now: SystemTime) -> bool {
+    !chain.is_empty() && chain.iter().all(|r| r.state(now) == GrantState::Issued)
+}

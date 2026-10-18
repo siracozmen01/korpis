@@ -465,9 +465,10 @@ message Assignment {
   // The target's endpoints as placed on this node, by name, each with the port of the node it
   // holds where its exposure holds one (§3 of docs/07-networking.md): what the node forwards.
   repeated korpis.v1.Endpoint endpoints = 19;
-  // The workload runs an installed extension: the node relays the control plane's API to it on
-  // a socket in its own directory, and opens nothing past the egress default for it (§9.5 of
-  // docs/08-identity.md). Decided by the control plane, which knows the installations.
+  // The workload runs an installed extension, or holds a grant in force: the node relays the
+  // control plane's API to it on a socket in its own directory, and opens nothing past the
+  // egress default for it (§9.5 of docs/08-identity.md). Decided by the control plane, which
+  // knows the installations and the grants.
   bool reaches_api = 20;
   // Its dependencies, each resolved to the endpoints it reaches now; where each endpoint's
   // workload is, the node knows (§5 of docs/07-networking.md).

@@ -1144,6 +1144,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 100 | 03:00 was in no time zone | §41 | `01-model.md` §3.3, `05-scheduling.md` §4.1 |
 | 101 | Two runs under `allow` would both listen on the workload's one endpoint | §41 | `05-scheduling.md` §4.2 |
 | 102 | A restore could not record the runs its nodes presented, from what the assignment named | §41 | `03-state.md` §8, `02-architecture.md` §4.8 |
+| 103 | A workload granted authority had no way to reach the API to use it | §20 | `08-identity.md` §9.5, `07-networking.md` §6, `02-architecture.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1576,7 +1577,32 @@ schedule is the control plane, which holds the intent's policy and the time; wha
 backup is the run, under its own grants, so a nightly backup is authority someone granted rather
 than a feature of the backup subsystem. → patched into `20-roadmap.md` Phase 1
 
-‡ Step 1 is where the trace found Finding 32. † Step 2 is where it found Finding 33.
+**FINDING 103: A workload granted authority had no way to reach the API to use it. `CONFIRMED`**
+
+Found 2026-10-19, when step 2 was about to be built and the algebra question was asked of it: the
+run "calls `korpis backup create` with its own workload credential", and what carries the call?
+The run obtains the credential from its identity socket (§9.5 of `08-identity.md`), and the
+credential holds the grants issued to the workload. But the socket that carries calls to the
+control plane, `api.sock`, was served to installed extensions alone, and §6 of
+`07-networking.md` denied the API's address to every workload, leaving "any other workload that
+is granted something" to open it in its own policy, which on one machine, where the control plane
+is on the node's loopback, nothing can. A grant issued to a workload was authority with no path to
+its use, and the nightly backup of step 2, the example §2 of `01-model.md` gives for a scheduled
+workload, could not be taken.
+
+**Resolution.** The control plane marks the assignment of every workload that runs a live
+installation or holds a grant in force as reaching the API, from the chains held by
+`workload:<id>`, at every computation of it; the agent serves the relay to such a workload while
+it has a runtime object, its own or a run's, and withdraws it when the mark goes. Issuing a grant
+to a workload, and revoking or suspending any grant above one, announces the workload, so its
+node's assignment follows at once; an expiry is found at the next resync, while calls through the
+socket are already refused. The building of it found a second defect: the agent counted only the
+workload's own object as built, so a scheduled workload's relay, served as its run's object was
+made, was withdrawn on the next pass. → patched into `08-identity.md` §9.5, `07-networking.md`
+§6, and `02-architecture.md` §6
+
+‡ Step 1 is where the trace found Finding 32. † Step 2 is where it found Finding 33, and, when it
+was built, Finding 103.
 
 ## 21. Last night's world, over tonight's
 

@@ -187,6 +187,35 @@ pub async fn push_printer() -> String {
     push("printer", printer()).await
 }
 
+/// A task that waits until it is stopped (§4 of docs/05-scheduling.md), so its run is still
+/// active, pending or running, when the browser cancels it.
+fn waiter() -> String {
+    let busybox = busybox();
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: waiter, version: "{VERSION}", description: waits, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
+  entry:
+    command: [/bin/sh, -c, "trap 'exit 0' TERM; echo waiting; while true; do sleep 1; done"]
+preset:
+  lifecycle: task
+  console: logs
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu:    {{min: 100m, recommended: 100m}}
+"#
+    )
+}
+
+/// Pushes the task that waits until it is stopped to a repository no other test uses; the
+/// repository.
+pub async fn push_waiter() -> String {
+    push("waiter", waiter()).await
+}
+
 /// Pushes the thin recipe to a repository no other test uses; returns the repository.
 pub async fn push_sleeper() -> String {
     push("sleeper", sleeper()).await

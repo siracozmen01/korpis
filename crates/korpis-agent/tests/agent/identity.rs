@@ -3,10 +3,11 @@
 //! A workload's identity socket against a real control plane (§9.5 of docs/08-identity.md):
 //! the agent serves one per workload it runs, a request on it comes back with a credential
 //! that authenticates as that workload, over HTTP/2 and plain HTTP/1.1 alike, and the socket
-//! goes when the workload does.
+//! goes when the workload does. A workload holding a grant is relayed the API beside it, a
+//! task's while its run's object is its only one, until the grant is revoked.
 
 use crate::session::until;
-use crate::support::{ControlPlane, facts};
+use crate::support::{ControlPlane, facts, mutation};
 use connectrpc::ErrorCode;
 use connectrpc::client::{ClientConfig, Http2Connection};
 use korpis_agent::host::InMemoryHost;
@@ -115,5 +116,54 @@ async fn a_running_workload_gets_its_credential_from_its_socket_and_loses_it_on_
 
     cp.retire(&w).await;
     exists(&root.join(&w), false).await;
+    drop(agent);
+}
+
+/// Issues `actions` on the root organization to workload `w`; the grant.
+async fn granted(cp: &ControlPlane, w: &str, actions: &[&str]) -> String {
+    let subject = pb::Subject {
+        kind: Some(pb::__buffa::oneof::subject::Kind::Workload(w.to_owned())),
+        ..Default::default()
+    };
+    let scope = pb::Scope {
+        kind: Some(pb::__buffa::oneof::scope::Kind::Organization(cp.root_org.clone())),
+        ..Default::default()
+    };
+    let issued = cp
+        .client(pb::GrantServiceClient::new)
+        .issue_grant(pb::IssueGrantRequest {
+            mutation: mutation("to-the-workload").into(),
+            subject: subject.into(),
+            actions: actions.iter().map(|a| (*a).to_owned()).collect(),
+            scope: scope.into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_owned();
+    issued.grant.as_option().unwrap().id.clone()
+}
+
+#[tokio::test]
+async fn a_run_of_a_workload_holding_a_grant_is_relayed_the_api_until_it_is_revoked() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let (agent, root) = start(&cp, dir.path(), &runtime).await;
+    let w = crate::runs::task(&cp, &project, "nightly", pb::RunPolicy::default()).await;
+    let grant = granted(&cp, &w, &["backup.create", "repository.read"]).await;
+
+    // Its run is its only runtime object, and the relay stays while it runs, pass after pass.
+    let relay = root.join(&w).join("api.sock");
+    exists(&relay, true).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert!(relay.exists(), "a run's object counts as the workload's being built");
+
+    let revoke =
+        pb::RevokeGrantRequest { mutation: mutation("r").into(), grant, ..Default::default() };
+    cp.client(pb::GrantServiceClient::new).revoke_grant(revoke).await.unwrap();
+    exists(&relay, false).await;
+    assert!(root.join(&w).join("identity.sock").exists(), "its identity is still served");
     drop(agent);
 }

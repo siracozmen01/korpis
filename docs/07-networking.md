@@ -884,7 +884,7 @@ the public internet (finding S44):
 |---|---|---|
 | Other tenants' workloads | **deny** | lateral movement between customers |
 | Node management interfaces, SSH, the agent socket | **deny** | privilege escalation path |
-| The Korpis control plane's API | **deny** | a workload has no business reaching it; an installed extension reaches it through its node, not the network (§9.5 of `08-identity.md`) |
+| The Korpis control plane's API | **deny** | a workload holding no authority has no business reaching it; an installed extension, and a workload holding a grant in force, reach it through their node, not the network (§9.5 of `08-identity.md`) |
 | Link-local metadata (`169.254.169.254`, `fd00:ec2::254`) | **deny** | classic cloud-credential theft |
 | RFC1918 / ULA generally | **deny** | the operator's own infrastructure |
 | Public internet | **allow**, rate-limited | mod downloads, auth servers, updates |
@@ -911,6 +911,15 @@ the public internet (finding S44):
 > (§9.5 of `08-identity.md`). Nothing is opened past the default for it, and the row is a deny for
 > every workload again.
 
+> Corrected again 2026-10-19, when a scheduled run was first to take a backup (Finding 103 of
+> `23-walkthroughs.md`). The first correction above left "any other workload that is granted
+> something" to open the API's address in its own policy, and the second showed that address
+> unreachable on the installation Phase 1 is for, so a workload issued a grant, a nightly
+> backup's above all, held authority it could not use. The relay is now served to every workload
+> holding a grant in force as well as to an installed extension's, decided by the control plane
+> from the grants it holds (§9.5 of `08-identity.md`), and the row stays a deny: nothing is
+> opened past the default for either.
+
 The metadata endpoint deny is small and specific and closes a real, repeatedly-exploited hole: a
 workload that can reach `169.254.169.254` on a cloud node can often read the instance's IAM
 credentials and take over the operator's entire cloud account.
@@ -927,7 +936,7 @@ host (§4.1), evaluated by the helper's nftables for every packet the workload s
 |---|---|
 | other workloads | anything the node would forward to another workload's link, whatever pool its address is in; on one node this is every other tenant's workload, and later dependencies open single addresses in it (§5) |
 | node management | anything addressed to the host itself, on any of its addresses, except ICMP to the gateway; the resolver is in the workload's own namespace (§5.1), so it needs no exception |
-| the control plane's API | nothing is opened for it: an installed extension's workload reaches it through its node (§9.5 of `08-identity.md`); on one machine its address is the node's own, which the node-management row denies, and where it is a public address a workload reaches it as any public address, which its authentication alone bounds |
+| the control plane's API | nothing is opened for it: an installed extension's workload, and a workload holding a grant in force, reach it through their node (§9.5 of `08-identity.md`); on one machine its address is the node's own, which the node-management row denies, and where it is a public address a workload reaches it as any public address, which its authentication alone bounds |
 | link-local metadata | `169.254.0.0/16` and `fe80::/10` beyond the gateway, `fd00:ec2::254` among them |
 | RFC 1918 and unique local | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, `fc00::/7`, and loopback |
 | SMTP | TCP 25, 465, and 587, to anywhere |

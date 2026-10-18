@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's API, relayed to an installed extension's workload (§9.5 of
-//! docs/08-identity.md). The agent serves `api.sock` in the workload's own directory and copies
-//! each connection on it, byte for byte, to the API at the address the node enrolled with, over
-//! the host's network. The extension speaks TLS through it to the control plane itself, so the
-//! relay carries what it cannot read. A workload's connections are bounded, so it cannot spend
+//! The control plane's API, relayed to a workload its assignment marks as reaching it: an
+//! installed extension's, or one holding a grant in force (§9.5 of docs/08-identity.md). The
+//! agent serves `api.sock` in the workload's own directory and copies each connection on it, byte
+//! for byte, to the API at the address the node enrolled with, over the host's network. The
+//! workload speaks TLS through it to the control plane itself, so the relay carries what it
+//! cannot read. A workload's connections are bounded, so it cannot spend
 //! the agent's descriptors.
 
 use std::path::Path;

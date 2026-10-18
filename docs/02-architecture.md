@@ -1190,11 +1190,13 @@ workload and nowhere else; the socket is `/run/korpis/identity.sock`. A request 
 as a `CredentialRequest` naming the workload the socket was created for; the request carries
 nothing the workload chose about who it is. The control plane decides whether to answer (§9.5 of
 `08-identity.md`). The supervisor holds no credential afterwards: it passes the answer back,
-together with the control plane's address and the CA it pinned, and keeps nothing. An installed
-extension's directory also holds `api.sock`, which the supervisor relays to the control plane's API
-(§9.5 of `08-identity.md`). The same directory carries the workload's managed files in `config/`,
-rendered by the supervisor (§5.2 of `09-recipes.md`), so `/run/korpis` is everything the node gives
-a workload that the workload may read and not write.
+together with the control plane's address and the CA it pinned, and keeps nothing. The directory of
+an installed extension, or of a workload holding a grant in force, also holds `api.sock`, which the
+supervisor relays to the control plane's API (§9.5 of `08-identity.md`; corrected 2026-10-19,
+Finding 103 of `23-walkthroughs.md`, when it was an installed extension's alone). The same
+directory carries the workload's managed files in `config/`, rendered by the supervisor (§5.2 of
+`09-recipes.md`), so `/run/korpis` is everything the node gives a workload that the workload may
+read and not write.
 
 The directory is mounted rather than the socket because a supervisor that restarts binds the
 socket again, as a new file, and a mount of the old file would keep pointing at nothing; the
