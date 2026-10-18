@@ -85,6 +85,7 @@ pub use feasibility::{Answers, Feasibility, Feasible};
 pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
 pub use journal::{JournalRead, JournalWrite};
+pub use korpis_core::workload::run::RunEnd;
 pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
 pub use node::{NodeRead, NodeWrite};
@@ -104,7 +105,7 @@ pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
 };
 pub use retire::RetirementWrite;
-pub use run::{RunEnd, RunRead, RunWrite};
+pub use run::{RunRead, RunWrite};
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
 pub use stream::{Expired, Reported, StreamRead, StreamWrite};

@@ -651,6 +651,20 @@ later night a missed run with cause `concurrency`, which is how it is noticed.
 Runs are read under `workload.read`, and each run's streams under `workload.console.read`
 (§5 of `10-api.md`).
 
+> As built, 2026-10-18 (`crates/korpis-core/src/workload/run/tend.rs`,
+> `crates/korpis-app/src/run.rs`). Every ten seconds the control plane takes each workload that
+> has runs, or has an active one, in a transaction that holds the workload and its run state, and
+> decides from them, the time, and the zone what §4.1 to §4.4 say: one function of what the store
+> holds, tested at chosen moments. What it decides is written with an effect for each run:
+> `run.made`, `run.missed` with its cause, `run.cancelled`. Two control planes take a workload in
+> turn, and the store makes one run per occurrence and per cycle besides, so two passes over the
+> same minute make one run. A retry is made when the newest run failed with attempts left and its
+> backoff has passed, so a failure the node reports and a node lost are retried alike; the
+> retry's `scheduled_for` is when it came due. Under `catch_up: true` with `replace`, the caught-up
+> occurrences but the newest are one missed run with cause `replaced`. Retention runs after every
+> change. A workload retired with an active run has it cancelled, cause `stopped`, as one whose
+> power is stopped. Each change announces the workload, so its node and its watchers hear of it.
+
 ### 4.5 What a node is told of a run
 
 **The assignment carries the runs the node is to execute** (§4.8 of `02-architecture.md`): each

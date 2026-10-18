@@ -212,9 +212,11 @@ impl IntentBody {
     }
 }
 
-/// A body for the crate's own tests: a container under the OCI driver, with nothing declared.
-#[cfg(test)]
-pub(crate) fn fixture() -> IntentBody {
+/// A body for tests, the crate's own and those of the crates above it: a container under the
+/// OCI driver, with nothing declared.
+#[cfg(any(test, feature = "testing"))]
+#[must_use]
+pub fn fixture() -> IntentBody {
     IntentBody {
         recipe: RecipeRef {
             name: "r".into(),

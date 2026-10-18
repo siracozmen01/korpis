@@ -3,6 +3,10 @@
 //! Runs: the executions of a `task` or `scheduled` workload (§4 of docs/05-scheduling.md). The
 //! control plane makes every run; a node starts and ends only the runs its assignment names.
 
+mod tend;
+
+pub use tend::{ON_TIME, Tended, Tending, tend};
+
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -197,6 +201,19 @@ impl Run {
             ..Self::pending(workload, intent, Trigger::Schedule, scheduled_for, now)
         }
     }
+}
+
+/// How a run ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunEnd {
+    /// Its status: any but pending or running.
+    pub status: RunStatus,
+    /// Why.
+    pub cause: Cause,
+    /// Its process's exit status, when it exited.
+    pub exit_status: Option<i32>,
+    /// When.
+    pub at: SystemTime,
 }
 
 /// What the control plane keeps of a workload's runs beside the runs themselves: the next

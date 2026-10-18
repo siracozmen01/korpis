@@ -5,23 +5,10 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::workload::run::{Cause, Run, RunState, RunStatus};
+use korpis_core::workload::run::{Run, RunEnd, RunState};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
-
-/// How a run ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RunEnd {
-    /// Its status: any but pending or running.
-    pub status: RunStatus,
-    /// Why.
-    pub cause: Cause,
-    /// Its process's exit status, when it exited.
-    pub exit_status: Option<i32>,
-    /// When.
-    pub at: SystemTime,
-}
 
 /// Reading runs.
 pub trait RunRead {
@@ -57,6 +44,18 @@ pub trait RunWrite {
         &mut self,
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<RunState>> + Send;
+
+    /// A workload's active runs, oldest first, as the transaction sees them.
+    fn active_runs_within(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<Run>>> + Send;
+
+    /// A workload's newest run of any status, as the transaction sees it.
+    fn newest_run_within(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Run>>> + Send;
 
     /// Keeps `state`.
     fn set_run_state(&mut self, state: &RunState) -> impl Future<Output = StoreResult<()>> + Send;

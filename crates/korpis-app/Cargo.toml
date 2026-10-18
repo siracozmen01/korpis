@@ -23,6 +23,8 @@ uuid = { workspace = true }
 korpis-core = { workspace = true, features = ["testing"] }
 korpis-store = { path = "../korpis-store", features = ["testing"] }
 tokio = { workspace = true }
+# The tests of making runs set up what the use case reads with plain statements.
+sqlx = { workspace = true }
 # Guesses sent at once, in the tests of sign-in's limits.
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 

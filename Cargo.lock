@@ -2648,6 +2648,7 @@ dependencies = [
  "korpis-core",
  "korpis-store",
  "serde_json",
+ "sqlx",
  "thiserror 2.0.21",
  "tokio",
  "uuid",

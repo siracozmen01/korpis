@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! The control plane's own work, beside answering requests: placements retried, silent nodes
-//! swept, changes dispatched, conditions tracked, certificates watched, offloads expired, events
-//! pruned, and the rest, each a task that ends with the process.
+//! The control plane's own work, beside answering requests: placements retried, runs made,
+//! silent nodes swept, changes dispatched, conditions tracked, certificates watched, offloads
+//! expired, events pruned, and the rest, each a task that ends with the process.
 
 use crate::ServeConfig;
 use crate::api::Api;
@@ -16,6 +16,7 @@ use std::time::Duration;
 /// Starts the control plane's own work, each task ending with the process.
 pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(retry_placements(Arc::clone(api), config.placement_retry));
+    tokio::spawn(make_runs(Arc::clone(api)));
     tokio::spawn(sweep_silent_nodes(Arc::clone(api), config.heartbeat_interval));
     tokio::spawn(dispatch_changes(Arc::clone(api)));
     tokio::spawn(track_conditions(Arc::clone(api)));
@@ -47,6 +48,25 @@ async fn retry_placements(api: Arc<Api>, every: Duration) {
             Ok(0) => {}
             Ok(n) => tracing::debug!(tried = n, "placement retry"),
             Err(e) => tracing::warn!(error = %e, "placement retry failed"),
+        }
+    }
+}
+
+/// How often the runs of task and scheduled workloads are made: well within the minute an
+/// occurrence's run may be late and still be on time (§4.3 of docs/05-scheduling.md).
+const RUN_EVERY: Duration = Duration::from_secs(10);
+
+/// Makes and ends the runs of task and scheduled workloads, every few seconds, as their
+/// schedules, policies, and power say. The task ends with the process.
+async fn make_runs(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(RUN_EVERY);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().tend_runs().await {
+            Ok(0) => {}
+            Ok(n) => tracing::debug!(workloads = n, "runs made or ended"),
+            Err(e) => tracing::warn!(error = %e, "making runs failed"),
         }
     }
 }

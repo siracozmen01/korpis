@@ -170,6 +170,31 @@ impl RunWrite for PgTx {
         state(workload, r.next_due, r.evaluated_from, r.made_cycle)
     }
 
+    async fn active_runs_within(&mut self, workload: Uuid) -> StoreResult<Vec<Run>> {
+        let found = sqlx::query_as!(
+            RunRow,
+            "SELECT * FROM run WHERE workload_id = $1 AND status IN ('pending', 'running')
+              ORDER BY id",
+            workload
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        rows(found)
+    }
+
+    async fn newest_run_within(&mut self, workload: Uuid) -> StoreResult<Option<Run>> {
+        let row = sqlx::query_as!(
+            RunRow,
+            "SELECT * FROM run WHERE workload_id = $1 ORDER BY id DESC LIMIT 1",
+            workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(RunRow::into_domain).transpose()
+    }
+
     async fn set_run_state(&mut self, s: &RunState) -> StoreResult<()> {
         let made = s.made_cycle.map(|c| to_count("a made cycle", c)).transpose()?;
         sqlx::query!(
