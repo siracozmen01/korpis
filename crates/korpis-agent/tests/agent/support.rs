@@ -15,6 +15,7 @@ use std::time::Duration;
 
 mod authority;
 mod relay;
+mod served;
 
 pub struct ControlPlane {
     db: TestDb,
@@ -23,13 +24,9 @@ pub struct ControlPlane {
     pub url: String,
     pub root_org: String,
     secret: String,
-    server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
-}
-
-impl Drop for ControlPlane {
-    fn drop(&mut self) {
-        self.server.abort();
-    }
+    login: String,
+    relay_role: bool,
+    served: served::Served,
 }
 
 impl ControlPlane {
@@ -46,35 +43,8 @@ impl ControlPlane {
         // Served as installation serves it: by a login that owns nothing.
         let login = db.login().await.expect("login");
         let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
-        let running = korpis_server::serve(korpis_server::ServeConfig {
-            data: data.clone(),
-            database_url: login,
-            listen: "127.0.0.1:0".parse().unwrap(),
-            max_connections: 4,
-            fetch_allow: Vec::new(),
-            plain_http_registries: vec![
-                std::env::var("KORPIS_TEST_REGISTRY")
-                    .unwrap_or_else(|_| "127.0.0.1:55000".to_owned()),
-            ],
-            placement_policy: korpis_core::schedule::PlacementPolicy::default(),
-            placement_retry: Duration::from_millis(200),
-            watch_resync: Duration::from_secs(1),
-            heartbeat_interval: Duration::from_secs(30),
-            lease_term: Duration::from_secs(2),
-            denial_window: Duration::from_secs(60),
-            event_retention: Duration::from_secs(30 * 86_400),
-            stream_retention_floor: std::time::Duration::ZERO,
-            relay_role,
-            proxy_protocol_from: Vec::new(),
-            dns_resolver: None,
-            acme: korpis_server::acme::AcmeConfig::default(),
-            rates: korpis_core::rate::Rates::default(),
-            relying_party: None,
-            session_limits: korpis_core::account::session::SessionLimits::default(),
-            web_root: None,
-        })
-        .await
-        .expect("serve");
+        let listen = "127.0.0.1:0".parse().unwrap();
+        let served = served::Served::start(served::config(&data, &login, listen, relay_role)).await;
         let root_org = korpis_server::api::wire::wire_id(
             korpis_core::id::IdKind::Organization,
             installed.organization.id,
@@ -83,11 +53,44 @@ impl ControlPlane {
             db,
             _dir: dir,
             data,
-            url: format!("https://localhost:{}", running.addr.port()),
+            url: format!("https://localhost:{}", served.addr.port()),
             root_org,
             secret: installed.token().unwrap().1.expose().to_owned(),
-            server: running.task,
+            login,
+            relay_role,
+            served,
         }
+    }
+
+    /// Stops serving, as stopping the process does: every task it started ends.
+    pub fn stop(&mut self) {
+        self.served.stop();
+    }
+
+    /// The database as it is now, copied, as a backup of it would restore; serving must have
+    /// stopped. Its login.
+    pub async fn snapshot(&self) -> (TestDb, String) {
+        let copy = self.db.copy().await.expect("copy");
+        let login = copy.login().await.expect("login");
+        (copy, login)
+    }
+
+    /// The login the control plane serves its database by.
+    pub fn login(&self) -> &str {
+        &self.login
+    }
+
+    /// Serves again, on the same address, from `db` by `login`: the same database, or a copy of
+    /// an older state of it.
+    pub async fn serve_on(&mut self, db: Option<(TestDb, String)>) {
+        self.served.stop();
+        if let Some((db, login)) = db {
+            self.db = db;
+            self.login = login;
+        }
+        let listen = self.served.addr;
+        let config = served::config(&self.data, &self.login, listen, self.relay_role);
+        self.served = served::Served::start(config).await;
     }
 
     pub(crate) fn http(&self) -> HttpClient {

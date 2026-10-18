@@ -26,6 +26,7 @@ mod offload;
 mod reachability;
 mod reconcile;
 mod refused;
+mod restore;
 mod revocation;
 mod session;
 mod support;

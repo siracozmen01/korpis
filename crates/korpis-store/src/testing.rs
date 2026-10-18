@@ -51,6 +51,39 @@ impl TestDb {
         Ok(Self { admin_url, name, owner_url })
     }
 
+    /// A copy of this database as it is now, as a backup of it would restore: made from it as a
+    /// template, after every other connection to it is ended, which PostgreSQL requires. Whoever
+    /// served it must have stopped; a connection still opening is retried past.
+    pub async fn copy(&self) -> Result<Self, Error> {
+        let name = format!("korpis_test_{}", uuid::Uuid::now_v7().simple());
+        let mut admin = PgConnection::connect(&self.admin_url).await?;
+        let mut tries = 0;
+        loop {
+            sqlx::query(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+                  WHERE datname = $1 AND pid <> pg_backend_pid()",
+            )
+            .bind(&self.name)
+            .execute(&mut admin)
+            .await?;
+            // Both names were generated from a UUID, never from input.
+            let create = format!("CREATE DATABASE {name} TEMPLATE {}", self.name);
+            match sqlx::query(sqlx::AssertSqlSafe(create)).execute(&mut admin).await {
+                Ok(_) => break,
+                Err(e) if tries < 20 => {
+                    tries += 1;
+                    tracing::debug!(error = %e, "the database is still in use; again");
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+        admin.close().await?;
+        let base = self.admin_url.rsplit_once('/').map_or(self.admin_url.as_str(), |(b, _)| b);
+        let owner_url = format!("{base}/{name}");
+        Ok(Self { admin_url: self.admin_url.clone(), name, owner_url })
+    }
+
     /// A login of this database's own, as installation makes the control plane's (§2 of
     /// docs/18-operations.md): a member of the application role that owns nothing. Its URL; it
     /// is dropped with the database.
