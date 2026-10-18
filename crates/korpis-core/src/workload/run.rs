@@ -6,7 +6,7 @@
 mod recovered;
 mod tend;
 
-pub use recovered::{past, recovered};
+pub use recovered::{past, recovered, settled};
 pub use tend::{ON_TIME, Tended, Tending, tend};
 
 use std::time::SystemTime;

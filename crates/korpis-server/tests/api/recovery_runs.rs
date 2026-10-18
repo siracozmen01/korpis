@@ -118,3 +118,18 @@ async fn a_run_the_backup_holds_pending_is_started_where_it_runs() {
     assert_eq!(runs_of(&h, workload).await, [(run, "running".to_owned(), Some(on), Some(0))]);
     assert_eq!(h.effects("restore.run.recovered").await.len(), 0);
 }
+
+#[tokio::test]
+async fn a_run_the_store_already_went_past_is_not_recorded_again() {
+    let h = Harness::new().await;
+    let node = TestAgent::enroll(&h, "fra-3", 1).await;
+    let (workload, _, held) = named_run(&h, &node).await;
+    // Ended and pruned before the backup, whose run state still says its cycle was made: what
+    // the node presents is an older assignment than what the store holds.
+    rewind(&h, &["DELETE FROM run WHERE workload_id = $1"], workload).await;
+    let _session = restore_and_present(&h, &node, held).await;
+
+    assert_eq!(effects(&h, "restore.run.refused", 1).await, 1);
+    assert!(runs_of(&h, workload).await.is_empty(), "nothing recorded running");
+    assert_eq!(h.effects("restore.run.recovered").await.len(), 0);
+}

@@ -703,7 +703,14 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > occurrence that came due after the backup and whose run has ended is, to the restored store,
 > due and not yet run, so a workload with `catch_up` runs it again once the window ends, and one
 > without records it missed. A job that must not run twice has to make that safe itself, as the
-> retry of a run lost with its node already requires (§4.2 of `05-scheduling.md`).
+> retry of a run lost with its node already requires (§4.2 of `05-scheduling.md`). Tightened the
+> same day, from a review of the first version, which recorded what any verified assignment
+> named: runs are recovered only where recovery leaves the workload placed on the presenting
+> node, as its id slot is; a presented run the store holds under another workload is refused;
+> and a run the store lacks but has already gone past (a manual run for a cycle no higher than
+> the highest made, a scheduled run for an occurrence before the next one due, a retry due
+> before the newest run held) is refused as `settled`, since it comes from an assignment older
+> than what the store holds, not from after the backup.
 
 > As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
 > live and placed in the restored store, and the node that removed it presents nothing for it. So

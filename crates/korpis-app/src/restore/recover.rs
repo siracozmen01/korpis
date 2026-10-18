@@ -204,8 +204,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(plan) = &opened.plan {
             effects.extend(recover_plan(&mut tx, plan, opened, sealed).await?);
         }
-        effects.extend(self.recover_where(&mut tx, opened, sealed).await?);
-        effects.extend(self.recover_runs(&mut tx, opened, sealed).await?);
+        let (placed, here) = self.recover_where(&mut tx, opened, sealed).await?;
+        effects.extend(placed);
+        // Runs are recovered only where the workload is placed, as its id slot is: a node whose
+        // presented epoch moved nothing does not get runs recorded as running on it.
+        if here {
+            effects.extend(self.recover_runs(&mut tx, opened, sealed).await?);
+        }
         if effects.is_empty() {
             return Ok(Recovery::Held);
         }
@@ -221,13 +226,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// placement bound to the presenting node unless it is placed elsewhere under a lease epoch
     /// at least as high, and, where it is placed on that node, the id slot the node runs it
     /// under, unless a workload placed there holds it. Takes the placement lock, after the
-    /// workload's, as every placement does.
+    /// workload's, as every placement does. Whether the workload is placed on the presenting
+    /// node after it.
     async fn recover_where(
         &self,
         tx: &mut S::Tx,
         opened: &Opened,
         sealed: &Sealed,
-    ) -> Result<Vec<Effect>, AppError> {
+    ) -> Result<(Vec<Effect>, bool), AppError> {
         tx.lock_placement().await?;
         let mut effects = Vec::new();
         let placement = recovered_placement(opened, self.clock.now());
@@ -271,7 +277,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
             }
         }
-        Ok(effects)
+        Ok((effects, here))
     }
 
     /// Records the workload `opened` names, which the store lacks, under its signed owner and

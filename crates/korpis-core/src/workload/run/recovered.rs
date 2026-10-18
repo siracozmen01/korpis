@@ -36,6 +36,20 @@ pub fn recovered(r: &RunRef, workload: Uuid, intent: Uuid, node: Uuid, now: Syst
     }
 }
 
+/// Whether the store already went past `r`, a run it lacks, so that `r` is from an assignment
+/// older than what the store holds and not a run made after the backup: a manual run for a cycle
+/// no higher than the highest made, a scheduled run for an occurrence before the next one due,
+/// or a retry or event run due before the newest run the store holds (`newest`, its
+/// `scheduled_for`). A run made after the backup is past every one of these.
+#[must_use]
+pub fn settled(state: &RunState, r: &RunRef, newest: Option<SystemTime>) -> bool {
+    match r.trigger {
+        Trigger::Manual => state.made_cycle.is_some_and(|made| r.cycle.unwrap_or(0) <= made),
+        Trigger::Schedule => state.next_due.is_some_and(|due| due > r.scheduled_for),
+        Trigger::Retry | Trigger::Event => newest.is_some_and(|n| n > r.scheduled_for),
+    }
+}
+
 /// `state` moved past each of `runs`: the highest power cycle made at least a manual run's, and
 /// the next occurrence of the target's schedule, read in `zone`, after a scheduled run's, unless
 /// it was evaluated from the target and is later already. A retry moves nothing: the run it
@@ -119,6 +133,26 @@ mod tests {
         let later = RunState { next_due: Some(at("2026-10-20T03:00:00Z")), ..stale };
         let kept = past(later.clone(), &[running], (target, &body), Some(&TimeZone::UTC));
         assert_eq!(kept, later, "a later evaluation stands");
+    }
+
+    #[test]
+    fn a_run_the_store_went_past_is_settled_and_one_made_after_the_backup_is_not() {
+        let state = RunState {
+            next_due: Some(at("2026-10-16T03:00:00Z")),
+            made_cycle: Some(2),
+            ..RunState::default()
+        };
+        let old = named(Trigger::Schedule, at("2026-10-15T03:00:00Z"), None);
+        let new = named(Trigger::Schedule, at("2026-10-16T03:00:00Z"), None);
+        assert!(settled(&state, &old, None));
+        assert!(!settled(&state, &new, None));
+        let restarted = |cycle| named(Trigger::Manual, at("2026-10-15T03:00:00Z"), Some(cycle));
+        assert!(settled(&state, &restarted(2), None));
+        assert!(!settled(&state, &restarted(3), None));
+        let retry = named(Trigger::Retry, at("2026-10-15T04:00:00Z"), None);
+        assert!(settled(&state, &retry, Some(at("2026-10-16T03:00:00Z"))));
+        assert!(!settled(&state, &retry, Some(at("2026-10-15T03:00:00Z"))));
+        assert!(!settled(&RunState::default(), &old, None), "a store that never evaluated it");
     }
 
     #[test]
