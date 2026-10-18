@@ -17,6 +17,7 @@ import {
   StreamService,
   WorkloadService,
 } from "./gen/korpis/v1/api_pb";
+import { RunService } from "./gen/korpis/v1/run_pb";
 
 /** The services the navigation reads. */
 export interface Clients {
@@ -24,6 +25,7 @@ export interface Clients {
   readonly organizations: Client<typeof OrganizationService>;
   readonly plans: Client<typeof PlanService>;
   readonly projects: Client<typeof ProjectService>;
+  readonly runs: Client<typeof RunService>;
   readonly streams: Client<typeof StreamService>;
   readonly workloads: Client<typeof WorkloadService>;
 }
@@ -35,6 +37,7 @@ export function clientsOver(transport: Transport): Clients {
     organizations: createClient(OrganizationService, transport),
     plans: createClient(PlanService, transport),
     projects: createClient(ProjectService, transport),
+    runs: createClient(RunService, transport),
     streams: createClient(StreamService, transport),
     workloads: createClient(WorkloadService, transport),
   };

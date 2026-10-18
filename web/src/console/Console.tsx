@@ -15,11 +15,15 @@ import { useConsole } from "./useConsole";
 import type { Line, View } from "./view";
 import { t } from "../i18n/intl";
 
-/** The console of workload `id`; typing is offered when `typing`. */
-export function Console(props: { readonly id: string; readonly typing: boolean }) {
+/** The console of workload `id`, or of its run `run`; typing is offered when `typing`. */
+export function Console(props: {
+  readonly id: string;
+  readonly run?: string | undefined;
+  readonly typing: boolean;
+}) {
   const { clients, metered, relay } = useReach();
-  const { id } = props;
-  const c = useConsole({ clients, relay, workload: id, automatic: !metered });
+  const { id, run } = props;
+  const c = useConsole({ clients, relay, workload: id, run, automatic: !metered });
   const [held, setHeld] = useState<View>();
   const [error, setError] = useState<string>();
   const shown = held ?? c.view;

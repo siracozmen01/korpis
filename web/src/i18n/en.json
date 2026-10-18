@@ -31,6 +31,10 @@
     "defaultMessage": "file",
     "description": "a listing entry's kind"
   },
+  "/SF8inMU": {
+    "defaultMessage": "missed while the control plane was down",
+    "description": "why a run ended"
+  },
   "/Sh00btp": {
     "defaultMessage": "Choose a sign-in name"
   },
@@ -53,6 +57,14 @@
   "0bWtzCgd": {
     "defaultMessage": "{action}: done. What it did"
   },
+  "0gv3uCa8": {
+    "defaultMessage": "event",
+    "description": "what made a run"
+  },
+  "0hHdDnYS": {
+    "defaultMessage": "Made by",
+    "description": "a run's column"
+  },
   "1BDY1a0A": {
     "defaultMessage": "({marks})",
     "description": "a step's marks"
@@ -70,6 +82,10 @@
   "1YKny+jf": {
     "defaultMessage": "Reading its organizations…"
   },
+  "1eh18tF2": {
+    "defaultMessage": "failed",
+    "description": "a run's status"
+  },
   "1gwFNojj": {
     "defaultMessage": "The link"
   },
@@ -83,6 +99,10 @@
   "2NWVup5w": {
     "defaultMessage": "Each code signs you in once beside your password, if you lose your other factors. They are shown here once: keep them somewhere safe now."
   },
+  "2RtZOa79": {
+    "defaultMessage": "its node never started it",
+    "description": "why a run ended"
+  },
   "2YHAe6BV": {
     "defaultMessage": "This link has been used as many times as it allows, and opens nothing now."
   },
@@ -92,6 +112,10 @@
   "2ku0j3Lw": {
     "defaultMessage": "awaiting approval",
     "description": "where a workload stands against what was declared"
+  },
+  "2tn23Y+t": {
+    "defaultMessage": "cancelled",
+    "description": "a run's status"
   },
   "3AVtR6Oy": {
     "defaultMessage": "Reading your profile…"
@@ -137,6 +161,10 @@
     "defaultMessage": "{check} ({nodes, plural, one {# node} other {# nodes}})",
     "description": "a placement check that refused, and how many nodes it refused"
   },
+  "5RQmDSnU": {
+    "defaultMessage": "requested",
+    "description": "what made a run"
+  },
   "5ot6y0in": {
     "defaultMessage": "no passkey was made"
   },
@@ -168,6 +196,14 @@
   },
   "7OW8BTDz": {
     "defaultMessage": "Configuration"
+  },
+  "7gPpqPv6": {
+    "defaultMessage": "its timeout",
+    "description": "why a run ended"
+  },
+  "88JBbyvf": {
+    "defaultMessage": "Console",
+    "description": "a run's console"
   },
   "8RMoim+k": {
     "defaultMessage": "Declared {declared}, {convergence}"
@@ -279,6 +315,18 @@
     "defaultMessage": "Convergence",
     "description": "the convergence timeline"
   },
+  "CQMn8XYy": {
+    "defaultMessage": "it exited",
+    "description": "why a run ended"
+  },
+  "Cc3ziaQW": {
+    "defaultMessage": "succeeded",
+    "description": "a run's status"
+  },
+  "Ck0eQc3Q": {
+    "defaultMessage": "its node was lost",
+    "description": "why a run ended"
+  },
   "Ck5euHVk": {
     "defaultMessage": "Add a passkey"
   },
@@ -376,6 +424,13 @@
   "HnsZRsrg": {
     "defaultMessage": "It crashed on {where, select, node {node {node}} region {its node in {region}} other {its node}}{coded, select, yes {, exit code {code}} other {}}."
   },
+  "Hy1yFnf+": {
+    "defaultMessage": "cancelled",
+    "description": "why a run ended"
+  },
+  "I8T1oMgK": {
+    "defaultMessage": "Reading the runs…"
+  },
   "ICZqeoPt": {
     "defaultMessage": "Save the configuration"
   },
@@ -428,6 +483,10 @@
   "KLW42pdD": {
     "defaultMessage": "I have kept them"
   },
+  "KMVdwwFd": {
+    "defaultMessage": "running",
+    "description": "a run's status"
+  },
   "KMcIYorx": {
     "defaultMessage": "A password, at least 12 characters"
   },
@@ -445,6 +504,10 @@
   "L/Pkbpdp": {
     "defaultMessage": "no passkey answered"
   },
+  "L0/tjXb5": {
+    "defaultMessage": "its workload was stopped",
+    "description": "why a run ended"
+  },
   "LMQ8/0ve": {
     "defaultMessage": "suspended",
     "description": "a grant's state"
@@ -458,6 +521,10 @@
   "LkssjtoZ": {
     "defaultMessage": "Preview",
     "description": "button: preview a theme"
+  },
+  "Lmq3qotl": {
+    "defaultMessage": "Runs",
+    "description": "a workload's runs"
   },
   "Lr/1fpfn": {
     "defaultMessage": "Deny",
@@ -492,6 +559,10 @@
   },
   "NZmMEEju": {
     "defaultMessage": "Rename {name}"
+  },
+  "NcvMwAcJ": {
+    "defaultMessage": "Started",
+    "description": "a run's column"
   },
   "Nf2GrGr0": {
     "defaultMessage": "Remove",
@@ -546,6 +617,13 @@
     "defaultMessage": "Lines",
     "description": "a theme colour"
   },
+  "QPyR2U3r": {
+    "defaultMessage": "Due",
+    "description": "a run's column"
+  },
+  "QUNOzzQJ": {
+    "defaultMessage": "Show the runs"
+  },
   "R+2+cn8K": {
     "defaultMessage": "Reading the organization…"
   },
@@ -562,6 +640,13 @@
   "RMzLxhOc": {
     "defaultMessage": "The code your app shows now"
   },
+  "RYkMKXPj": {
+    "defaultMessage": "No run yet."
+  },
+  "ReUrntUi": {
+    "defaultMessage": "Ended",
+    "description": "a run's column"
+  },
   "RimURWP3": {
     "defaultMessage": "Resume",
     "description": "button: resume an upload"
@@ -576,6 +661,10 @@
   "SsdT0IyI": {
     "defaultMessage": "used up",
     "description": "a grant's state"
+  },
+  "Sys9byfL": {
+    "defaultMessage": "schedule",
+    "description": "what made a run"
   },
   "SzKCJJnE": {
     "defaultMessage": "Replace",
@@ -606,11 +695,22 @@
   "TThIOMeM": {
     "defaultMessage": "Not found"
   },
+  "TTrkJX0h": {
+    "defaultMessage": "{cause}, status {code}"
+  },
   "TVvaeAem": {
     "defaultMessage": "Reading its projects…"
   },
+  "Tj+uaRpH": {
+    "defaultMessage": "another run was active",
+    "description": "why a run ended"
+  },
   "U8NwcEng": {
     "defaultMessage": "a request could not be sent"
+  },
+  "UMB/jFLh": {
+    "defaultMessage": "Status",
+    "description": "a run's column"
   },
   "Usf2nt81": {
     "defaultMessage": "Open to read.",
@@ -645,6 +745,9 @@
   "XKxxNWbL": {
     "defaultMessage": "{holder}: {actions}{labelled, select, yes { ({label})} other {}}, {state}{expiring, select, yes {, until {until}} other {}}",
     "description": "one grant: who holds it, its actions, its label, state, and expiry"
+  },
+  "XdEmcxs6": {
+    "defaultMessage": "Cancel the run"
   },
   "XiPLZivE": {
     "defaultMessage": "the control plane sent no registration"
@@ -761,6 +864,10 @@
     "defaultMessage": "Size",
     "description": "column: a file's size"
   },
+  "bfi2hPPn": {
+    "defaultMessage": "a newer run replaced it",
+    "description": "why a run ended"
+  },
   "bvrOBBs/": {
     "defaultMessage": "Use a passkey"
   },
@@ -801,6 +908,10 @@
   },
   "dastCq+7": {
     "defaultMessage": "This browser last heard from it {ago} ago."
+  },
+  "du4X8Qzs": {
+    "defaultMessage": "pending",
+    "description": "a run's status"
   },
   "e/zsRyEz": {
     "defaultMessage": "the session was closed"
@@ -855,6 +966,9 @@
   },
   "gaANAXFU": {
     "defaultMessage": "This organization's own theme, worn here and beneath unless an organization sets its own."
+  },
+  "gmwG2Vqq": {
+    "defaultMessage": "{trigger}, attempt {attempt}"
   },
   "gyWfsTF2": {
     "defaultMessage": "{n, plural, one {# unused code} other {# unused codes}}."
@@ -1070,6 +1184,10 @@
   "sYQQIZsv": {
     "defaultMessage": "start it"
   },
+  "slJc0FW2": {
+    "defaultMessage": "unknown",
+    "description": "what made a run"
+  },
   "smLX0ybU": {
     "defaultMessage": "Remove this organization's theme"
   },
@@ -1108,6 +1226,10 @@
   "v8oIEeoT": {
     "defaultMessage": "Name for a new passkey"
   },
+  "vAYViqnE": {
+    "defaultMessage": "missed",
+    "description": "a run's status"
+  },
   "vcc/+oBE": {
     "defaultMessage": "IRREVERSIBLE"
   },
@@ -1132,6 +1254,9 @@
   "wHbkqfPX": {
     "defaultMessage": "intent v{version}",
     "description": "the version of a workload's intent"
+  },
+  "x+99iEjx": {
+    "defaultMessage": "{cause}, {count, plural, one {# occurrence} other {# occurrences}}"
   },
   "xIksTt1G": {
     "defaultMessage": "Not live: last heard {ago} ago.{reconnecting, select, yes { Reconnecting…} other {}}"
@@ -1167,6 +1292,10 @@
     "defaultMessage": "link, not followed",
     "description": "a listing entry's kind"
   },
+  "zEu3E6rp": {
+    "defaultMessage": "unknown",
+    "description": "a run's status"
+  },
   "zHB1mRzN": {
     "defaultMessage": "{what} (uses one of the link's uses)"
   },
@@ -1181,6 +1310,10 @@
   },
   "zb3eS1/R": {
     "defaultMessage": "someone must approve it"
+  },
+  "zm+/6FZh": {
+    "defaultMessage": "retry",
+    "description": "what made a run"
   },
   "zuF+uaw8": {
     "defaultMessage": "Password",

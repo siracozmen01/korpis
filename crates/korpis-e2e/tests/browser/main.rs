@@ -32,7 +32,7 @@ mod recipes;
 mod support;
 
 use crate::node::{Node, live};
-use crate::recipes::{VERSION, busybox, push_with};
+use crate::recipes::{VERSION, busybox, push, push_printer, push_with};
 use crate::support::korpis;
 use crate::support::{ControlPlane, converged, mutation};
 use korpis_agent::run::Agent;
@@ -84,9 +84,32 @@ config:
     )
 }
 
-/// A node running the talker in the project `games`, converged; the node, its agent, and the
-/// workload. `None` where no node can run here.
-async fn talking(cp: &ControlPlane) -> Option<(Node, Agent, String)> {
+/// A task that waits until it is stopped (§4 of docs/05-scheduling.md), so its run is still
+/// active, pending or running, when the browser cancels it.
+fn waiter() -> String {
+    let busybox = busybox();
+    format!(
+        r#"apiVersion: korpis.dev/v1
+kind: Recipe
+metadata: {{name: waiter, version: "{VERSION}", description: waits, license: MIT}}
+runtime:
+  targets:
+    - {{tier: container, arch: [amd64, arm64], image: "{busybox}"}}
+  entry:
+    command: [/bin/sh, -c, "trap 'exit 0' TERM; echo waiting; while true; do sleep 1; done"]
+preset:
+  lifecycle: task
+  console: logs
+  resources:
+    memory: {{min: 32Mi, recommended: 64Mi}}
+    cpu:    {{min: 100m, recommended: 100m}}
+"#
+    )
+}
+
+/// A node running the talker in `project`, converged; the node, its agent, and the workload.
+/// `None` where no node can run here.
+async fn talking(cp: &ControlPlane, project: &str) -> Option<(Node, Agent, String)> {
     if !live() {
         return None;
     }
@@ -96,13 +119,23 @@ async fn talking(cp: &ControlPlane) -> Option<(Node, Agent, String)> {
         data: TR.as_bytes().to_vec(),
     };
     let repo = push_with("talker", talker(), vec![catalogue]).await;
-    let project = cp.project().await;
     let node = Node::join(cp, "fra-3").await;
     let agent = node.agent().await;
-    let w = cp.declare(&project, "talker", &repo).await;
+    let w = cp.declare(project, "talker", &repo).await;
     node.guard(&w);
     converged(cp, &w).await;
     Some((node, agent, w))
+}
+
+/// The tasks of the runs flow, in `project`: the waiter, whose run waits to be cancelled, and,
+/// where `node` runs them, the printer, whose run ends by itself having written its console.
+async fn tasks(cp: &ControlPlane, project: &str, node: Option<&Node>) -> (String, Option<String>) {
+    let waiter = cp.declare(project, "waiter", &push("waiter", waiter()).await).await;
+    let Some(node) = node else { return (waiter, None) };
+    node.guard(&waiter);
+    let printer = cp.declare(project, "printer", &push_printer().await).await;
+    node.guard(&printer);
+    (waiter, Some(printer))
 }
 
 fn web() -> PathBuf {
@@ -162,7 +195,10 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let operator =
         cp.invite("Operator", OPERATOR, &["workload.read", "workload.console.read"]).await;
     let keeper = cp.invite("Keeper", &["org.read", "org.write"], &[]).await;
-    let talking = talking(&cp).await;
+    let runner = cp.invite("Runner", RUNNER, &[]).await;
+    let project = cp.project().await;
+    let talking = talking(&cp, &project).await;
+    let (waiter, printer) = tasks(&cp, &project, talking.as_ref().map(|(n, _, _)| n)).await;
     let config = tempfile::tempdir().unwrap();
     let (login, approve_at, login_stderr) = logging_in(&cp, config.path()).await;
     let mut playwright = tokio::process::Command::new("pnpm");
@@ -175,9 +211,14 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         .env("KORPIS_E2E_OPERATOR_INVITATION", operator)
         .env("KORPIS_E2E_DEVICE_URL", approve_at)
         .env("KORPIS_E2E_KEEPER_INVITATION", keeper)
+        .env("KORPIS_E2E_RUNNER_INVITATION", runner)
+        .env("KORPIS_E2E_WAITER", waiter)
         .env("KORPIS_E2E_AGE", config.path().join("age"));
     if let Some((_, _, w)) = &talking {
         playwright.env("KORPIS_E2E_WORKLOAD", w);
+    }
+    if let Some(p) = &printer {
+        playwright.env("KORPIS_E2E_PRINTER", p);
     }
     let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().join("age")));
     let ran = playwright.status().await.unwrap();
@@ -280,3 +321,8 @@ const OPERATOR: &[&str] = &[
     "workload.file.write",
     "grant.read",
 ];
+
+/// What the runner of the runs flow may do, on the root organization: read the tasks' runs and
+/// their consoles, and cancel one.
+const RUNNER: &[&str] =
+    &["org.read", "project.read", "workload.read", "workload.stop", "workload.console.read"];

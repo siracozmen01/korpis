@@ -3,7 +3,8 @@
 // A workload's screen (§2 and §3 of docs/11-surface-web.md), live over its watch: what it is
 // converging to and how far it has come, the stage it is at when it has not converged, and what
 // its node observed, each value known, stale, or unknown; and its console and files (§8), which
-// a share link's screen opens only when asked, since each is a use of the link.
+// a share link's screen opens only when asked, since each is a use of the link. A task or
+// scheduled workload shows its runs in place of a console, each run's opened from the list.
 
 import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
@@ -17,9 +18,11 @@ import { Share } from "../workload/Share";
 import { diagnosis } from "../workload/diagnosis";
 import { age, freshness } from "../workload/freshness";
 import { Observed } from "../workload/Observed";
+import { Runs } from "../workload/Runs";
 import { TimelineView } from "../workload/TimelineView";
 import { useNow } from "../workload/useNow";
 import { PowerState } from "../gen/korpis/v1/workload_pb";
+import { Lifecycle } from "../gen/korpis/v1/workload_spec_pb";
 import { CONVERGENCE, DECLARED } from "../workload/words";
 import { refusal } from "./refusal";
 import { useLive } from "./watch";
@@ -45,6 +48,11 @@ export function WorkloadPage({ id }: { readonly id: string }) {
     );
   }
   const said = diagnosis(status, now);
+  // A task or scheduled workload's runs each write their own console, and it has none of its
+  // own (§4 of docs/14-streams.md).
+  const lifecycle = (status.target ?? status.head)?.body?.lifecycle;
+  const runs = lifecycle === Lifecycle.TASK || lifecycle === Lifecycle.SCHEDULED;
+  const newest = `${status.newestRun?.id ?? ""} ${String(status.newestRun?.status ?? 0)}`;
   return (
     <main>
       <h1>{status.workload?.name ?? id}</h1>
@@ -76,7 +84,12 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       <Actions status={status} />
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
-      {may("workload.console.read") && (
+      {runs && may("workload.read") && (
+        <Asked metered={metered} what={t({ defaultMessage: "Show the runs", id: "QUNOzzQJ" })}>
+          <Runs id={id} newest={newest} />
+        </Asked>
+      )}
+      {!runs && may("workload.console.read") && (
         <Asked metered={metered} what={t({ defaultMessage: "Open the console", id: "cLNad6D5" })}>
           <Console id={id} typing={may("workload.console.write")} />
         </Asked>

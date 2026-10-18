@@ -140,6 +140,18 @@ the reason if one is known, and with what Korpis is currently doing about it.
 > screen opened is shown as done, without a time it does not have. A node counts as having
 > acknowledged once it reports a step of the active plan or has converged.
 
+> As built, 2026-10-18. A `task` or `scheduled` workload's page lists its runs (§4 of
+> `05-scheduling.md`) in place of a console, since each run writes its own and the workload has
+> none (§4 of `14-streams.md`): each with what made it (and its attempt, past the first), its
+> status, how it ended (the cause, with the exit status when there is one, or how many occurrences
+> a missed run stands for), when it was due, and when it started. The list is read again whenever
+> the watched status names another newest run or that run's status changes, which the run table
+> announces like the rest of a workload's status, so a run ending on its node shows without a
+> reload. A run that started has its console opened from its row, read as the workload's console
+> is, under `workload.console.read`; an active run is cancelled from its row under `workload.stop`,
+> the same `CancelRun` the CLI's `korpis run cancel` calls. What it does not show: a run's console
+> is not followed into the next run; the next is opened from its own row.
+
 ---
 
 ## 4. The Plan, without making everything a two-step

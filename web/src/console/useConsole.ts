@@ -52,13 +52,17 @@ export interface Reaching {
   readonly clients: Clients;
   readonly relay: () => Promise<Relay>;
   readonly workload: string;
+  /** A run of the workload, `run_…`, whose console it is: each run writes its own (§4 of
+   * docs/14-streams.md). Absent for the workload's own. */
+  readonly run?: string | undefined;
   /** Reopen by itself after a failure; a share link asks first, since each opening is a use. */
   readonly automatic: boolean;
 }
 
-/** The console of `reaching.workload`. */
+/** The console of `reaching.workload`, or of its run `reaching.run`. */
 export function useConsole(reaching: Reaching) {
   const { clients, relay, workload, automatic } = reaching;
+  const run = reaching.run ?? "";
   const [state, dispatch] = useReducer(reduce, {
     view: EMPTY,
     live: false,
@@ -78,8 +82,8 @@ export function useConsole(reaching: Reaching) {
         const from = next.current;
         const params = reading(
           from === undefined
-            ? { last: BigInt(BACK), follow: true }
-            : { fromOffset: from, follow: true },
+            ? { last: BigInt(BACK), follow: true, run }
+            : { fromOffset: from, follow: true, run },
         );
         const opening = {
           clients,
@@ -106,7 +110,7 @@ export function useConsole(reaching: Reaching) {
     return () => {
       stop.abort();
     };
-  }, [clients, relay, workload, attempt]);
+  }, [clients, relay, workload, run, attempt]);
   const waiting = ended !== undefined && automatic;
   useEffect(() => {
     if (!waiting) return;
@@ -131,6 +135,7 @@ export function useConsole(reaching: Reaching) {
     let found = 0;
     for await (const chunk of clients.streams.readOffloaded({
       workload,
+      run,
       fromOffset: from,
       limit,
     })) {
@@ -138,7 +143,7 @@ export function useConsole(reaching: Reaching) {
       dispatch({ kind: "older", chunk });
     }
     if (found > 0) return;
-    const params = reading({ fromOffset: from, limit, follow: false });
+    const params = reading({ fromOffset: from, limit, follow: false, run });
     const stop = new AbortController();
     const opening = {
       clients,

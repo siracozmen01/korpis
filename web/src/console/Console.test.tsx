@@ -16,9 +16,10 @@ import { Console } from "./Console";
 
 const encode = (s: string) => new TextEncoder().encode(s);
 
-function setup() {
-  const seen: { reads: bigint[]; typed: string[]; minted: string[] } = {
+function setup(run?: string) {
+  const seen: { reads: bigint[]; runs: string[]; typed: string[]; minted: string[] } = {
     reads: [],
+    runs: [],
     typed: [],
     minted: [],
   };
@@ -37,7 +38,9 @@ function setup() {
           await new Promise(() => undefined);
           return;
         }
-        seen.reads.push(fromBinary(ConsoleReadSchema, r.params).last);
+        const asked = fromBinary(ConsoleReadSchema, r.params);
+        seen.reads.push(asked.last);
+        seen.runs.push(asked.run);
         const chunk = create(ConsoleChunkSchema, {
           records: [
             {
@@ -94,7 +97,7 @@ function setup() {
         relay: () => Promise.resolve(relay),
       }}
     >
-      <Console id="wl_1" typing />
+      <Console id="wl_1" run={run} typing={run === undefined} />
     </ReachProvider>,
   );
   return { seen, more: () => more?.() };
@@ -107,6 +110,14 @@ test("the console streams styled lines and draws a gap where records were lost",
   expect(screen.getByRole("status").textContent).toContain("Live.");
   expect(seen.reads).toEqual([200n]);
   expect(seen.minted).toEqual(["workload.console.read"]);
+});
+
+test("a run's console reads the run's stream through its workload's session", async () => {
+  const { seen } = setup("run_9");
+  expect(await screen.findByText("ready")).toBeTruthy();
+  expect(seen.runs).toEqual(["run_9"]);
+  expect(seen.minted).toEqual(["workload.console.read"]);
+  expect(screen.queryByRole("textbox")).toBeNull();
 });
 
 test("reading mode holds the view still and says how much arrived meanwhile", async () => {
