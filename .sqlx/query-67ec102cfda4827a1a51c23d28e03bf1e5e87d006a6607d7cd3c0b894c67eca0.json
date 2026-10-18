@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO node_id_slot (node_id, workload_id, slot) VALUES ($1, $2, $3)\n             ON CONFLICT (node_id, workload_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67ec102cfda4827a1a51c23d28e03bf1e5e87d006a6607d7cd3c0b894c67eca0"
+}

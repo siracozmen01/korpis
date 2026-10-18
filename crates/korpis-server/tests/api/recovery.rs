@@ -195,12 +195,23 @@ async fn a_restore_recovers_what_the_nodes_run_and_tells_them_nothing_older() {
     assert_eq!(effects(&h, "restore.recovery.refused", 1).await, 1, "z's project is gone");
     assert_eq!(effects(&h, "restore.power.recovered", 1).await, 1, "x's");
     assert_eq!(effects(&h, "restore.targets.recovered", 2).await, 2, "w's and x's");
+    assert_eq!(effects(&h, "restore.placement.recovered", 1).await, 1, "x's; w's held");
+    assert_eq!(effects(&h, "restore.id_slot.recovered", 1).await, 1, "x's");
     let state = "SELECT intent_id, intent_version, target_id FROM workload WHERE id = $1";
     let lost = ran.lost;
     let w = uuid(IdKind::Workload, &ran.workload);
     assert_eq!(row(&h, state, w).await, (lost, 2, Some(lost)), "w runs its second intent again");
     let (intent, version, target_id) = row(&h, state, ran.created).await;
     assert_eq!((version, target_id), (1, Some(intent)), "x is back, at what it runs");
+    let store = h.db.store().await.unwrap();
+    let (on, by): (Uuid, String) = sqlx::query_as(
+        "SELECT node_id, bound_by FROM placement WHERE workload_id = $1 AND authoritative",
+    )
+    .bind(ran.created)
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    assert_eq!((on, by.as_str()), (uuid(IdKind::Node, &node.node), "recovery"), "not placed again");
     let from = recovered_from(&h, lost).await;
     assert_eq!(from["node"], uuid(IdKind::Node, &node.node).to_string(), "{from}");
 

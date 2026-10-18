@@ -17,6 +17,9 @@ pub enum BoundBy {
     Operator,
     /// A migration, during cutover.
     Migration,
+    /// A restore, to the node that presented the workload's assignment (§8 of
+    /// docs/03-state.md).
+    Recovery,
 }
 
 impl BoundBy {
@@ -27,13 +30,16 @@ impl BoundBy {
             Self::Scheduler => "scheduler",
             Self::Operator => "operator",
             Self::Migration => "migration",
+            Self::Recovery => "recovery",
         }
     }
 
     /// The value a stored name names.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        [Self::Scheduler, Self::Operator, Self::Migration].into_iter().find(|b| b.as_str() == s)
+        [Self::Scheduler, Self::Operator, Self::Migration, Self::Recovery]
+            .into_iter()
+            .find(|b| b.as_str() == s)
     }
 }
 

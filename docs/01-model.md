@@ -959,7 +959,10 @@ Placement
                                 sees though not every reader may see the node (§8 of
                                 08-identity.md)
   bound_at      Timestamp
-  bound_by      scheduler | operator | migration
+  bound_by      scheduler | operator | migration | recovery
+                                recovery: a restore, to the node that presented the workload's
+                                assignment (§8 of 03-state.md)
+  recovered_epoch  int?         the highest lease epoch a node holding it presented to a restore
   reason        string          human-readable explanation of why this node
   explanation   Explanation     the full derivation (§2.3 of `05-scheduling.md`)
   authoritative bool

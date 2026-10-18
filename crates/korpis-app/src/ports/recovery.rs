@@ -5,6 +5,7 @@
 //! signature vouched for it, and the workload's counters moved forward past what was presented.
 
 use super::StoreResult;
+use korpis_core::placement::Placement;
 use korpis_core::workload::{Intent, PowerRecord, Workload};
 use std::future::Future;
 use std::time::SystemTime;
@@ -60,6 +61,19 @@ pub struct Advanced {
     pub power: bool,
 }
 
+/// What recovering a placement did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlacementRecovery {
+    /// The workload is now placed on the presenting node; on `replaced` before, if anywhere.
+    Bound {
+        /// The node its authoritative placement was on.
+        replaced: Option<Uuid>,
+    },
+    /// It stays where it is: on the presenting node already, or recovered to a node whose
+    /// assignment named a lease epoch at least as high.
+    Kept,
+}
+
 /// Writing what a restore recovers.
 pub trait RecoveryWrite {
     /// Records a workload the store lacks, with no intent yet; false if its name is taken in its
@@ -91,4 +105,25 @@ pub trait RecoveryWrite {
         &mut self,
         advance: Advance,
     ) -> impl Future<Output = StoreResult<Advanced>> + Send;
+
+    /// Binds the workload's authoritative placement to `placement`'s node, bound by recovery at
+    /// `epoch`, the lease epoch the presented assignment names, unless it is on that node
+    /// already or a recovery bound it elsewhere at an epoch at least as high. Replacing it
+    /// removes every placement of the workload, the record of it being unplaced, and its id
+    /// slots on other nodes.
+    fn recover_placement(
+        &mut self,
+        placement: &Placement,
+        epoch: u64,
+    ) -> impl Future<Output = StoreResult<PlacementRecovery>> + Send;
+
+    /// Gives `workload` id slot `slot` on `node`, the one the node presented it running under,
+    /// taking it from any other workload the store says holds it there, since two cannot; true
+    /// unless the store held exactly that.
+    fn recover_id_slot(
+        &mut self,
+        node: Uuid,
+        workload: Uuid,
+        slot: u32,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
 }

@@ -3160,4 +3160,7 @@ places on a node it left on Wednesday would be told to run there again. That is 
 for one workload, which the epoch fence exists to prevent, reintroduced by recovering its
 declaration. **Resolution.** Recovery binds the workload's placement to the node that presented
 it, and where two nodes present one workload, to the one whose assignment names the higher lease
-epoch. → `03-state.md` §8.
+epoch, and gives it the id slot the node runs it under. → `03-state.md` §8, `01-model.md` §3.4;
+built in `crates/korpis-app/src/restore/recover.rs` and `crates/korpis-store/src/recovery.rs`,
+and tested by `crates/korpis-store/tests/workload/recovered.rs` and
+`crates/korpis-server/tests/api/recovery.rs`.

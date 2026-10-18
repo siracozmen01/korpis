@@ -6,11 +6,13 @@
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{from_time, to_count, to_json};
+use crate::stored::{ExplanationDoc, bounds_doc, from_time, to_count, to_json};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{
-    Advance, Advanced, IntentRecovery, RecoveredFrom, RecoveryWrite, StoreError, StoreResult,
+    Advance, Advanced, IntentRecovery, PlacementRecovery, RecoveredFrom, RecoveryWrite, StoreError,
+    StoreResult,
 };
+use korpis_core::placement::Placement;
 use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
 use std::fmt::Write as _;
 use uuid::Uuid;
@@ -167,5 +169,111 @@ impl RecoveryWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(moved)
+    }
+
+    async fn recover_placement(
+        &mut self,
+        p: &Placement,
+        epoch: u64,
+    ) -> StoreResult<PlacementRecovery> {
+        let epoch = to_count("lease epoch", epoch)?;
+        let current = sqlx::query!(
+            "SELECT node_id, recovered_epoch FROM placement
+              WHERE workload_id = $1 AND authoritative",
+            p.workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        if let Some(c) = &current {
+            if c.node_id == p.node {
+                sqlx::query!(
+                    "UPDATE placement SET recovered_epoch = greatest(recovered_epoch, $3)
+                      WHERE workload_id = $1 AND node_id = $2",
+                    p.workload,
+                    p.node,
+                    epoch
+                )
+                .execute(&mut *self.tx)
+                .await
+                .map_err(from_sqlx)?;
+                return Ok(PlacementRecovery::Kept);
+            }
+            if c.recovered_epoch.is_some_and(|held| held >= epoch) {
+                return Ok(PlacementRecovery::Kept);
+            }
+        }
+        self.replace_placement(p, epoch).await?;
+        Ok(PlacementRecovery::Bound { replaced: current.map(|c| c.node_id) })
+    }
+
+    async fn recover_id_slot(
+        &mut self,
+        node: Uuid,
+        workload: Uuid,
+        slot: u32,
+    ) -> StoreResult<bool> {
+        let slot = i32::try_from(slot).map_err(|_| StoreError::Failed(format!("slot {slot}")))?;
+        let taken = sqlx::query!(
+            "DELETE FROM node_id_slot
+              WHERE node_id = $1
+                AND ((slot = $3 AND workload_id <> $2) OR (workload_id = $2 AND slot <> $3))",
+            node,
+            workload,
+            slot
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let given = sqlx::query!(
+            "INSERT INTO node_id_slot (node_id, workload_id, slot) VALUES ($1, $2, $3)
+             ON CONFLICT (node_id, workload_id) DO NOTHING",
+            node,
+            workload,
+            slot
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(taken.rows_affected() + given.rows_affected() > 0)
+    }
+}
+
+impl PgTx {
+    /// Removes every placement of `p`'s workload, its record of being unplaced, and its id slots
+    /// on other nodes, and binds `p` by recovery at `epoch`.
+    async fn replace_placement(&mut self, p: &Placement, epoch: i64) -> StoreResult<()> {
+        for sql in [
+            "DELETE FROM placement WHERE workload_id = $1",
+            "DELETE FROM placement_failure WHERE workload_id = $1",
+        ] {
+            sqlx::query(sql).bind(p.workload).execute(&mut *self.tx).await.map_err(from_sqlx)?;
+        }
+        sqlx::query!(
+            "DELETE FROM node_id_slot WHERE workload_id = $1 AND node_id <> $2",
+            p.workload,
+            p.node
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        let explanation = to_json("explanation", &ExplanationDoc::from_domain(&p.explanation))?;
+        sqlx::query!(
+            "INSERT INTO placement (workload_id, node_id, intent_id, reserved, bound_at, bound_by,
+                                    reason, explanation, authoritative, recovered_epoch)
+             VALUES ($1, $2, $3, $4, $5, 'recovery', $6, $7, true, $8)",
+            p.workload,
+            p.node,
+            p.intent,
+            bounds_doc(&p.reserved),
+            from_time(p.bound_at),
+            p.reason,
+            explanation,
+            epoch
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
     }
 }

@@ -69,6 +69,8 @@ pub struct Opened {
     pub power: korpis_core::workload::PowerRecord,
     /// Whether it is a retired workload's residual assignment.
     pub residual: bool,
+    /// The host ids the node runs it under.
+    pub ids: korpis_core::workload::assignment::IdRange,
 }
 
 /// An assignment as the store keeps it.

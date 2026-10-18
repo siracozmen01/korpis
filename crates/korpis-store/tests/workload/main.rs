@@ -21,6 +21,7 @@ mod jobs;
 mod nodes;
 mod placement;
 mod plans;
+mod recovered;
 mod revocation;
 mod routes;
 mod schema;

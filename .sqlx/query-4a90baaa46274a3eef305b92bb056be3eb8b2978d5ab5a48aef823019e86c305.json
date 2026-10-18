@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO placement (workload_id, node_id, intent_id, reserved, bound_at, bound_by,\n                                    reason, explanation, authoritative, recovered_epoch)\n             VALUES ($1, $2, $3, $4, $5, 'recovery', $6, $7, true, $8)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Jsonb",
+        "Timestamptz",
+        "Text",
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a90baaa46274a3eef305b92bb056be3eb8b2978d5ab5a48aef823019e86c305"
+}

@@ -294,6 +294,8 @@ enum BoundBy {
   BOUND_BY_SCHEDULER = 1;
   BOUND_BY_OPERATOR = 2;
   BOUND_BY_MIGRATION = 3;
+  // A restore, to the node that presented the workload's assignment (§8 of docs/03-state.md).
+  BOUND_BY_RECOVERY = 4;
 }
 
 // Every rejection with its reason, every score with its weight (§2.3 of

@@ -636,8 +636,17 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > window ends. What a recovered workload does not get back: its membership in a declared set, the
 > operator's classification overrides, and whether it was marked unreproducible, none of which an
 > assignment carries; and recovery is not admission, so a recovered workload counts against quota
-> from then on even where that is past it. The placement half of the correction above, and plans
-> in flight, are built next.
+> from then on even where that is past it. Plans in flight are built next.
+
+> As built, 2026-10-18, the placement half of the correction above. In the same transaction, the
+> workload's authoritative placement is bound to the presenting node, `bound_by: recovery`, unless
+> it is there already or a node that presented a lease epoch at least as high holds it; the epoch
+> is kept with the placement, whoever bound it, so a node that presents later at a lower one does
+> not take it. Moving it removes every other placement of the workload and its id slots on other
+> nodes. The id slot the node runs it under is given to it there, taken from any other workload
+> the store says holds it, since a node cannot run two workloads under one range. Each is an
+> effect. Recovery does not ask whether the node has room: the workload already runs there, and
+> its reservation counts against the node from then on, even past what the node can allocate.
 
 **Lost effects are re-ingested from the nodes, within a stated horizon.** Agents keep acknowledged
 journal records for a retention window after acknowledgement (default seven days, §4.10 of

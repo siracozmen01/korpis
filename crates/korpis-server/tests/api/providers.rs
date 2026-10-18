@@ -50,24 +50,33 @@ pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String
     };
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
-    let lease = wire_agent::LeaseRequest {
-        workload: extension.workload.clone(),
-        nonce: vec![n; 8],
-        ..Default::default()
-    };
-    send(&mut session, AgentUp::LeaseRequest(Box::new(lease))).await;
-    // The credential is asked once the lease is held, as an agent asks for it.
-    for _ in 0..30 {
-        let down = crate::agent::next(&mut session).await;
-        if matches!(down.message, Some(AgentDown::LeaseGrant(g)) if g.workload == extension.workload)
-        {
-            break;
-        }
-    }
+    held(&mut session, &extension.workload, n).await;
     let Outcome::Credential(issued) = ask(&mut session, &extension.workload, "c").await else {
         panic!("an installed extension's workload obtains its credential");
     };
     Installed { extension, secret: issued.secret.clone(), _session: session }
+}
+
+/// Asks for `workload`'s lease until it is granted, as an agent does: the credential is asked
+/// once the lease is held, and a request that arrives before the workload is placed is refused.
+async fn held(session: &mut agent::Stream, workload: &str, n: u8) {
+    for attempt in 0..20u8 {
+        let lease = wire_agent::LeaseRequest {
+            workload: workload.to_owned(),
+            nonce: vec![n, attempt, 0, 0, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        send(session, AgentUp::LeaseRequest(Box::new(lease))).await;
+        loop {
+            match crate::agent::next(session).await.message {
+                Some(AgentDown::LeaseGrant(g)) if g.workload == workload => return,
+                Some(AgentDown::LeaseRefusal(r)) if r.workload == workload => break,
+                _ => {}
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+    panic!("the lease was never granted");
 }
 
 pub fn register(name: &str, version: &str, concurrency: u32) -> pb::ProviderMessage {

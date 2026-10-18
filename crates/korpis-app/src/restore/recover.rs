@@ -4,19 +4,24 @@
 //! workload the store lacks, under its signed owner; its target intent with the identifier,
 //! version, body, and declarer it was signed with; its power declaration; and its head, target,
 //! and power target moved forward to them, so a node is never sent back to the backup's
-//! configuration without a plan and no version is issued twice. Each recovered row is recorded
-//! with an effect naming the node and the signature, in the transaction that writes it.
+//! configuration without a plan and no version is issued twice; and where it runs, so it is not
+//! placed a second time. Each recovered row is recorded with an effect naming the node and the
+//! signature, in the transaction that writes it.
 
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Advance, Clock, EffectWrite as _, IntentRecovery, Opened, RecipeSource, RecoveredFrom,
-    RecoveryWrite as _, Sealed, Store, Tx as _, WorkloadWrite as _,
+    Advance, Clock, EffectWrite as _, IntentRecovery, Opened, PlacementRecovery,
+    PlacementWrite as _, RecipeSource, RecoveredFrom, RecoveryWrite as _, Sealed, Store, Tx as _,
+    WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::principal::{Principal, SystemActor};
+use korpis_core::schedule::{Explanation, PlacementPolicy, reservation};
 use korpis_core::tenancy::Name;
 use korpis_core::workload::Workload;
+use serde_json::{Map, Value};
 use std::fmt::Write as _;
 
 /// What one presented assignment recovered.
@@ -39,6 +44,12 @@ fn hex(bytes: &[u8]) -> String {
         let _ = write!(out, "{b:02x}");
     }
     out
+}
+
+/// `e` with `more` among what it records.
+fn with(mut e: Effect, more: Map<String, Value>) -> Effect {
+    e.after.get_or_insert_with(Map::new).extend(more);
+    e
 }
 
 /// An effect of the restore about `opened`'s workload, naming the node and the signature.
@@ -68,12 +79,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(Recovery::Skipped);
         }
         let mut tx = self.store.begin().await?;
+        let done = |action| effect(action, Outcome::Succeeded, opened, sealed);
         let mut effects = Vec::new();
         match tx.lock_workload(opened.workload).await? {
             Some(w) if w.deleted_at.is_some() => return Ok(Recovery::Skipped),
             Some(_) => {}
             None => match self.recover_workload(&mut tx, opened).await? {
-                Ok(()) => effects.push("restore.workload.recovered"),
+                Ok(()) => effects.push(done("restore.workload.recovered")),
                 Err(reason) => return self.unrecovered(tx, opened, sealed, reason).await,
             },
         }
@@ -85,7 +97,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             at: self.clock.now(),
         };
         match tx.recover_intent(&opened.target, &from).await? {
-            IntentRecovery::Recorded => effects.push("restore.intent.recovered"),
+            IntentRecovery::Recorded => effects.push(done("restore.intent.recovered")),
             IntentRecovery::Held => {}
             IntentRecovery::VersionTaken => {
                 drop(tx);
@@ -95,31 +107,78 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let power = opened.power.power.version;
         if power > 0 && tx.recover_power(&opened.power, &from).await? {
-            effects.push("restore.power.recovered");
+            effects.push(done("restore.power.recovered"));
         }
         let target = (opened.target.id, opened.target.version);
         let moved =
             tx.advance_recovered(Advance { workload: opened.workload, target, power }).await?;
         if moved.head || moved.target || moved.power {
-            effects.push("restore.targets.recovered");
-        }
-        if effects.is_empty() {
-            return Ok(Recovery::Held);
-        }
-        for action in effects {
-            let mut e = effect(action, Outcome::Succeeded, opened, sealed);
-            if action == "restore.targets.recovered" {
-                let moved = details([
+            effects.push(with(
+                done("restore.targets.recovered"),
+                details([
                     ("head", moved.head.into()),
                     ("target", moved.target.into()),
                     ("power_target", moved.power.into()),
-                ]);
-                e.after.get_or_insert_with(Default::default).extend(moved);
-            }
-            tx.append_effect(&e).await?;
+                ]),
+            ));
+        }
+        effects.extend(self.recover_where(&mut tx, opened, sealed).await?);
+        if effects.is_empty() {
+            return Ok(Recovery::Held);
+        }
+        for e in &effects {
+            tx.append_effect(e).await?;
         }
         tx.commit().await?;
         Ok(Recovery::Recovered)
+    }
+
+    /// Where `opened`'s workload runs, recovered (Finding 96 of docs/23-walkthroughs.md): its
+    /// placement bound to the presenting node unless it is there or a node that presented a
+    /// higher lease epoch holds it, and its id slot there the one the node runs it under. Takes
+    /// the placement lock, after the workload's, as every placement does.
+    async fn recover_where(
+        &self,
+        tx: &mut S::Tx,
+        opened: &Opened,
+        sealed: &Sealed,
+    ) -> Result<Vec<Effect>, AppError> {
+        tx.lock_placement().await?;
+        let mut effects = Vec::new();
+        let placement = Placement {
+            workload: opened.workload,
+            node: opened.node,
+            intent: opened.target.id,
+            reserved: reservation(&opened.target.body),
+            bound_at: self.clock.now(),
+            bound_by: BoundBy::Recovery,
+            reason: "recovered from the assignment its node presented after a restore".into(),
+            explanation: Explanation {
+                candidates: 1,
+                filtered: Vec::new(),
+                scored: Vec::new(),
+                chosen: Some(opened.node),
+                runner_up: None,
+                policy: PlacementPolicy::default(),
+            },
+            authoritative: true,
+        };
+        let epoch = opened.lease_epoch;
+        if let PlacementRecovery::Bound { replaced } =
+            tx.recover_placement(&placement, epoch).await?
+        {
+            let replaced = replaced.map_or(Value::Null, |n| n.to_string().into());
+            let more = details([("lease_epoch", epoch.into()), ("replaced", replaced)]);
+            let done = effect("restore.placement.recovered", Outcome::Succeeded, opened, sealed);
+            effects.push(with(done, more));
+        }
+        if let Some(slot) = opened.ids.slot()
+            && tx.recover_id_slot(opened.node, opened.workload, slot).await?
+        {
+            let done = effect("restore.id_slot.recovered", Outcome::Succeeded, opened, sealed);
+            effects.push(with(done, details([("slot", slot.into())])));
+        }
+        Ok(effects)
     }
 
     /// Records the workload `opened` names, which the store lacks, under its signed owner and

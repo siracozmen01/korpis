@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM node_id_slot\n              WHERE node_id = $1\n                AND ((slot = $3 AND workload_id <> $2) OR (workload_id = $2 AND slot <> $3))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "17a5536a7b8755211d7e443c070587ca9544a401507f96966d0cf8e00c95dea2"
+}
