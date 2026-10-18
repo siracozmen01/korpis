@@ -44,9 +44,42 @@ pub struct Keys {
     pub assignment_key_id: String,
 }
 
-/// The key epoch used until rotation exists: rotation is the restore procedure's, and arrives
-/// with it.
+/// The first epoch of each key. The token key's epoch rises each time a restore rotates it (§8
+/// of docs/03-state.md); the assignment key's never does, since nodes present what it signed.
 pub const FIRST_EPOCH: u32 = 1;
+
+/// The token key's current epoch: the highest `token-<n>.key` in the data directory, or the
+/// first when there is none yet.
+///
+/// # Errors
+/// The directory could not be read.
+pub fn token_epoch(data: &DataDir) -> Result<u32, KeyError> {
+    let dir = data.keys();
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(FIRST_EPOCH),
+        Err(source) => return Err(KeyError::Io { path: dir, source }),
+    };
+    let epochs = entries.filter_map(Result::ok).filter_map(|e| {
+        let name = e.file_name();
+        name.to_str()?.strip_prefix("token-")?.strip_suffix(".key")?.parse::<u32>().ok()
+    });
+    Ok(epochs.max().unwrap_or(FIRST_EPOCH))
+}
+
+/// Makes the token key of the next epoch, which every later load signs with; its epoch. The keys
+/// before it stay in the data directory, and the store retires them.
+///
+/// # Errors
+/// The directory could not be read, or the key written.
+pub fn rotate_token(data: &DataDir) -> Result<u32, KeyError> {
+    let next = token_epoch(data)?
+        .checked_add(1)
+        .ok_or_else(|| KeyError::Token("the token key's epochs are exhausted".into()))?;
+    let path = data.keys().join(format!("token-{next}.key"));
+    write_secret(&path, &random32()?).map_err(|source| KeyError::Io { path, source })?;
+    Ok(next)
+}
 
 fn random32() -> Result<[u8; 32], KeyError> {
     let mut b = [0u8; 32];
@@ -68,10 +101,11 @@ pub(crate) fn load_or_create(path: PathBuf) -> Result<[u8; 32], KeyError> {
 }
 
 impl Keys {
-    /// Loads the keys of the current epoch, generating any that do not exist yet.
+    /// Loads the keys of the current epochs, generating any that do not exist yet.
     pub fn load_or_create(data: &DataDir) -> Result<Self, KeyError> {
-        let token_bytes = load_or_create(data.keys().join(format!("token-{FIRST_EPOCH}.key")))?;
-        let token = TokenKey::from_bytes(FIRST_EPOCH, &token_bytes)
+        let epoch = token_epoch(data)?;
+        let token_bytes = load_or_create(data.keys().join(format!("token-{epoch}.key")))?;
+        let token = TokenKey::from_bytes(epoch, &token_bytes)
             .map_err(|e| KeyError::Token(e.to_string()))?;
         let assignment_bytes =
             load_or_create(data.keys().join(format!("assignment-{FIRST_EPOCH}.key")))?;
@@ -103,5 +137,26 @@ impl Keys {
                 public: self.assignment.verifying_key().as_bytes().to_vec(),
             },
         ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_newest_token_key_is_the_one_signed_with_and_rotation_makes_the_next() {
+        let dir = tempfile::tempdir().unwrap();
+        let data = DataDir::new(dir.path().join("data"));
+        data.create().unwrap();
+        assert_eq!(token_epoch(&data).unwrap(), FIRST_EPOCH);
+        let first = Keys::load_or_create(&data).unwrap();
+        assert_eq!(first.token_key_id(), korpis_core::authz::token::key_name(1));
+        assert_eq!(rotate_token(&data).unwrap(), 2);
+        let second = Keys::load_or_create(&data).unwrap();
+        assert_eq!(second.token.key_id, 2);
+        assert_ne!(second.token.public_bytes(), first.token.public_bytes());
+        assert_eq!(second.assignment_key_id, first.assignment_key_id, "never rotated");
+        assert!(data.keys().join("token-1.key").exists(), "kept, and retired in the store");
     }
 }

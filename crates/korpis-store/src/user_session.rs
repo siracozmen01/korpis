@@ -216,6 +216,14 @@ impl UserSessionWrite for PgTx {
         Ok(done.rows_affected() == 1)
     }
 
+    async fn end_every_session(&mut self) -> StoreResult<u64> {
+        let done = sqlx::query!("DELETE FROM user_session")
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
+    }
+
     async fn end_other_sessions(&mut self, account: Uuid, keep: Option<Uuid>) -> StoreResult<u64> {
         let done = sqlx::query!(
             "DELETE FROM user_session WHERE account_id = $1 AND id IS DISTINCT FROM $2",

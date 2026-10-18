@@ -57,7 +57,8 @@ impl EnrollmentRead for PgStore {
     async fn verify_keys(&self, purpose: &str) -> StoreResult<Vec<VerifyKey>> {
         let rows = sqlx::query!(
             "SELECT key_id, public_key, not_before, not_after FROM signing_key
-              WHERE purpose = $1 ORDER BY not_before, key_id",
+              WHERE purpose = $1 AND retired_at IS NULL
+              ORDER BY not_before, key_id",
             purpose
         )
         .fetch_all(&self.pool)
@@ -76,6 +77,25 @@ impl EnrollmentRead for PgStore {
 }
 
 impl EnrollmentWrite for PgTx {
+    async fn retire_signing_keys(
+        &mut self,
+        purpose: &str,
+        keep: &str,
+        at: SystemTime,
+    ) -> StoreResult<u64> {
+        let done = sqlx::query!(
+            "UPDATE signing_key SET retired_at = $3
+              WHERE purpose = $1 AND key_id <> $2 AND retired_at IS NULL",
+            purpose,
+            keep,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected())
+    }
+
     async fn insert_enrollment(&mut self, e: &Enrollment) -> StoreResult<()> {
         sqlx::query!(
             "INSERT INTO node_enrollment (token_id, grant_id, organization_id, node_name, labels,

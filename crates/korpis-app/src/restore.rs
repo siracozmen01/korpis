@@ -10,7 +10,11 @@
 
 use crate::App;
 use crate::error::AppError;
-use crate::ports::{Clock, EffectWrite, LeaseWrite, RecipeSource, Sealed, Store, Tx};
+use crate::install::PublicKey;
+use crate::ports::{
+    Clock, EffectWrite, EnrollmentWrite, LeaseWrite, RecipeSource, Sealed, Store, Tx,
+    UserSessionWrite,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::workload::lease::fence_floor;
@@ -50,6 +54,15 @@ pub struct Presentation {
     pub raised_to: Option<u64>,
     /// Whether a restore was settling: outside a window a presentation is believed in nothing.
     pub settling: bool,
+}
+
+/// What rotating the token key did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rotated {
+    /// Token keys retired: every one but the new.
+    pub retired: u64,
+    /// Sessions ended: every one.
+    pub sessions_ended: u64,
 }
 
 fn seconds(t: SystemTime) -> u64 {
@@ -140,5 +153,37 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         tx.commit().await?;
         Ok(presentation)
+    }
+
+    /// A restore's second step (§8 of docs/03-state.md): `token`, the new token key, recorded,
+    /// and every other token key retired, so that every token signed before, the backup's and
+    /// any issued after it alike, stops verifying; and every session ended, so that whoever
+    /// signed in signs in again. Recorded as asked at the machine by `operator`.
+    pub async fn rotate_token_key(
+        &self,
+        token: &PublicKey,
+        operator: &str,
+    ) -> Result<Rotated, AppError> {
+        if token.purpose != "token" {
+            return Err(AppError::Internal(format!("{} is not a token key", token.key_id)));
+        }
+        self.store.register_key(&token.key_id, token.purpose, &token.public).await?;
+        let mut tx = self.store.begin().await?;
+        let retired = tx.retire_signing_keys("token", &token.key_id, self.clock.now()).await?;
+        let sessions_ended = tx.end_every_session().await?;
+        let effect = Effect::new(
+            Principal::System(SystemActor::Bootstrap),
+            "restore.token_key.rotated",
+            Outcome::Succeeded,
+        )
+        .after(details([
+            ("key", token.key_id.clone().into()),
+            ("retired", retired.into()),
+            ("sessions_ended", sessions_ended.into()),
+            ("operator", operator.into()),
+        ]));
+        tx.append_effect(&effect).await?;
+        tx.commit().await?;
+        Ok(Rotated { retired, sessions_ended })
     }
 }

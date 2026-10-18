@@ -101,4 +101,8 @@ pub trait UserSessionWrite {
         account: Uuid,
         keep: Option<Uuid>,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Ends every session of every account, as a restore does once its token key is rotated
+    /// (§8 of docs/03-state.md); how many it ended.
+    fn end_every_session(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 }

@@ -86,6 +86,7 @@ mod restores;
 mod resume;
 mod retire;
 mod revocation;
+mod rotation;
 mod routes;
 mod sdk;
 mod secrets;

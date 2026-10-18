@@ -34,6 +34,7 @@ pub mod records;
 pub mod relay;
 pub mod relying_party;
 mod repos;
+pub mod restore;
 pub mod revocations;
 pub mod sealer;
 pub mod sessions;

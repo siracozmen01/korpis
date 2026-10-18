@@ -646,6 +646,17 @@ session re-authenticates. **A restored control plane must invalidate authority i
 account for**, the same principle as the epoch fence, applied to the other kind of authority the
 system hands out.
 
+> As built, 2026-10-18 (`crates/korpis-server/src/restore.rs`, `crates/korpis-app/src/restore.rs`).
+> The token key has epochs: the data directory holds `token-<n>.key`, and the control plane signs
+> with the highest. Rotating makes the next, records its public half, and retires every earlier
+> token key in the store, so no verifier is given a retired key again and every token signed
+> before the rotation, the backup's and any issued after it alike, stops verifying against the
+> control plane; every session is ended in the same transaction, recorded as an effect naming the
+> operator. The assignment key is never rotated, since nodes present what it signed (§8 above).
+> Agents and relays that are already running hold the keys they were given when they joined;
+> telling them of a rotation is built next, and until it is, an agent keeps accepting what the
+> retired key signed.
+
 The cost is a bounded, visible interruption during a disaster the operator is already handling. The
 alternative is authority in circulation with no record of it, which is the worse outcome by a wide
 margin, and the token lifetimes of §6 of `08-identity.md` bound how long the disruption lasts.

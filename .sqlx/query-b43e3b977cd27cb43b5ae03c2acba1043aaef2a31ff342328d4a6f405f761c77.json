@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT key_id, public_key, not_before, not_after FROM signing_key\n              WHERE purpose = $1 ORDER BY not_before, key_id",
+  "query": "SELECT key_id, public_key, not_before, not_after FROM signing_key\n              WHERE purpose = $1 AND retired_at IS NULL\n              ORDER BY not_before, key_id",
   "describe": {
     "columns": [
       {
@@ -60,5 +60,5 @@
       true
     ]
   },
-  "hash": "d6121177e5d6e0fc654f65e7d9b355afda5d66834e1f60ae61e0c12591cd4dc8"
+  "hash": "b43e3b977cd27cb43b5ae03c2acba1043aaef2a31ff342328d4a6f405f761c77"
 }

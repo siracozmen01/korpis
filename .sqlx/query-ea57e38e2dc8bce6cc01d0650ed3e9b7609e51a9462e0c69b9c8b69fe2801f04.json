@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE signing_key SET retired_at = $3\n              WHERE purpose = $1 AND key_id <> $2 AND retired_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ea57e38e2dc8bce6cc01d0650ed3e9b7609e51a9462e0c69b9c8b69fe2801f04"
+}
