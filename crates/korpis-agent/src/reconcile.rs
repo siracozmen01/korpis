@@ -22,6 +22,7 @@ mod observe;
 mod policy;
 pub mod progress;
 mod restore;
+mod runs;
 mod step;
 pub mod streams;
 pub(crate) mod tail;
@@ -76,6 +77,9 @@ struct Tracked {
     since: Option<SystemTime>,
     /// The required dependency it waits for before it is created, by name.
     waiting: Option<String>,
+    /// A task or scheduled workload's runs, by run, each its own object (§4.2 of
+    /// docs/05-scheduling.md).
+    runs: BTreeMap<String, runs::RunTracked>,
 }
 
 /// Where the reconciler reads and writes.
@@ -234,6 +238,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         for o in objects {
             let workload = o.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();
             let claimed = held.assignments.contains_key(&workload);
+            let run = o.labels.as_option().map(|l| l.run.clone()).unwrap_or_default();
+            if claimed && !run.is_empty() {
+                self.adopt_run(&workload, &run, &o);
+                continue;
+            }
             if !claimed || self.tracked.contains_key(&workload) {
                 self.orphan(&o.runtime_id, &workload).await;
                 continue;
@@ -257,6 +266,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             e.after.insert("running".into(), text(if running { "true" } else { "false" }));
             self.record(e).await;
         }
+    }
+
+    /// Takes over the object of `run` of `workload`, as it is: one running is tended from now,
+    /// its timeout counted from when it started, and one that ended is reported once more,
+    /// which the control plane takes once.
+    fn adopt_run(&mut self, workload: &str, run: &str, o: &driver::RuntimeObject) {
+        let t = self.tracked.entry(workload.to_owned()).or_default();
+        let held = runs::RunTracked { runtime: o.runtime_id.clone(), ..Default::default() };
+        t.runs.insert(run.to_owned(), held);
     }
 
     /// Forgets a workload that left the set with nothing left of it on the node.

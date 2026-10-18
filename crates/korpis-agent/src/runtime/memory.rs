@@ -195,7 +195,12 @@ impl InMemory {
 
     fn create_now(&self, spec: &driver::PreparedSpec) -> RuntimeResult<String> {
         let mut s = self.call("create", &spec.workload)?;
-        let same = |o: &Object| o.spec.workload == spec.workload && o.spec.intent == spec.intent;
+        let run = |s: &driver::PreparedSpec| s.labels.as_option().map(|l| l.run.clone());
+        let same = |o: &Object| {
+            o.spec.workload == spec.workload
+                && o.spec.intent == spec.intent
+                && run(&o.spec) == run(spec)
+        };
         if let Some((id, _)) = s.objects.iter().find(|(_, o)| same(o)) {
             return Ok(id.clone());
         }

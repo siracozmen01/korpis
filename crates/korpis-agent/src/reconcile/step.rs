@@ -149,6 +149,15 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             | "snapshot_volume" | "rollback_volume" | "delete_snapshot" => {
                 after.extend(self.volume_step(a, s).await?);
             }
+            // A workload that has runs is never started itself: each run is, as its assignment
+            // names it, and a restart's run is made by the control plane (§4.2 of
+            // docs/05-scheduling.md). Its target is still prepared, so a target no driver can
+            // run fails here and not at its first run.
+            "create" | "start" | "restart" if super::runs::has_runs(a) => {
+                self.prepare(a, t).await?;
+                after.insert("runs".into(), text("each run is started as it is named"));
+            }
+            "stop" if super::runs::has_runs(a) => self.stop_runs(&a.workload, t).await?,
             "create" => {
                 let id = self.current(a, t).await?;
                 after.insert("runtime_id".into(), text(&id));
@@ -170,7 +179,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             "reconfigure_network" => {
                 after.insert("applies_at".into(), text("the next start"));
             }
-            "retire" => self.destroy(t).await?,
+            "retire" => {
+                self.stop_runs(&a.workload, t).await?;
+                self.destroy(t).await?;
+            }
             other => return Err(Failure(format!("a node does not execute {other:?}"))),
         }
         Ok(Some(after))

@@ -177,9 +177,9 @@ fn a_workload_with_runs_stores_its_policy_and_zone_as_they_apply() {
     assert_eq!((persistent.runs, persistent.timezone), (None, None));
     let task = Declaration {
         lifecycle: Some(Lifecycle::Task),
-        runs: Some(RunPolicy { concurrency: Concurrency::Allow, ..RunPolicy::default() }),
+        runs: Some(RunPolicy { concurrency: Concurrency::Replace, ..RunPolicy::default() }),
         ..Declaration::default()
     };
     let body = task.complete(reference(), &paper()).unwrap();
-    assert_eq!(body.runs.map(|r| r.concurrency), Some(Concurrency::Allow));
+    assert_eq!(body.runs.map(|r| r.concurrency), Some(Concurrency::Replace));
 }

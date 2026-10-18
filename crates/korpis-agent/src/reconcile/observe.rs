@@ -37,6 +37,15 @@ fn state(a: &agent::Assignment, t: &Tracked) -> pb::ObservedState {
     if t.rejected.is_some() {
         return pb::ObservedState::OBSERVED_STATE_UNSATISFIABLE;
     }
+    if super::runs::has_runs(a) {
+        // Its own object never runs; it is running while one of its runs is (§4.2 of
+        // docs/05-scheduling.md), and otherwise waits for the next, stopped.
+        return if t.runs.values().any(|r| r.running) {
+            pb::ObservedState::OBSERVED_STATE_RUNNING
+        } else {
+            pb::ObservedState::OBSERVED_STATE_STOPPED
+        };
+    }
     let wanted = wants_running(a);
     match t.status.as_ref().and_then(|s| s.state.as_known()) {
         Some(driver::RuntimeState::RUNTIME_STATE_RUNNING) => {

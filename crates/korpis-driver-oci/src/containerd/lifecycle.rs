@@ -26,15 +26,23 @@ pub(crate) const LABEL_INTENT: &str = "korpis.intent";
 const LABEL_GENERATION: &str = "korpis.assignment_generation";
 const LABEL_CYCLE: &str = "korpis.power_cycle";
 const LABEL_EPOCH: &str = "korpis.lease_epoch";
+pub(crate) const LABEL_RUN: &str = "korpis.run";
 /// How long a killed task is given to be reaped.
 const KILL_WAIT: Duration = Duration::from_secs(10);
 
-/// The container identifier of `workload` built from `intent`: one per intent, so a create is
-/// idempotent and a rebuild never collides with the object it replaces. A digest of the two, so
-/// it is always within containerd's 76 characters and its alphabet, whatever it is given; the
-/// labels carry them readably.
-pub(crate) fn container_id(workload: &str, intent: &str) -> String {
-    let digest = korpis_core::content::digest_of(format!("{workload}\n{intent}").as_bytes());
+/// The container identifier of `workload` built from `intent`, for `run` when it executes one:
+/// one per intent and run, so a create is idempotent, a rebuild never collides with the object
+/// it replaces, and two runs never share one. A digest of them, so it is always within
+/// containerd's 76 characters and its alphabet, whatever it is given; the labels carry them
+/// readably. A persistent workload's object, which executes no run, keeps the digest it had
+/// before runs, so an upgraded driver finds it again.
+pub(crate) fn container_id(workload: &str, intent: &str, run: &str) -> String {
+    let named = if run.is_empty() {
+        format!("{workload}\n{intent}")
+    } else {
+        format!("{workload}\n{intent}\n{run}")
+    };
+    let digest = korpis_core::content::digest_of(named.as_bytes());
     let hex = digest.trim_start_matches("sha256:");
     format!("korpis-{}", hex.get(..40).unwrap_or(hex))
 }
@@ -95,6 +103,7 @@ fn labels(valid: &Valid) -> BTreeMap<String, String> {
         (LABEL_GENERATION.to_owned(), l.assignment_generation.to_string()),
         (LABEL_CYCLE.to_owned(), l.power_cycle.to_string()),
         (LABEL_EPOCH.to_owned(), l.lease_epoch.to_string()),
+        (LABEL_RUN.to_owned(), l.run),
     ])
 }
 
@@ -136,7 +145,8 @@ impl Containerd {
     /// Creates the container `valid` describes; its identifier. Nothing runs yet.
     pub async fn create(&self, valid: &Valid, policy: &Policy) -> DriverResult<String> {
         let s = valid.spec();
-        let id = container_id(&s.workload, &s.intent);
+        let run = s.labels.as_option().map(|l| l.run.as_str()).unwrap_or_default();
+        let id = container_id(&s.workload, &s.intent, run);
         if self.container_exists(&id).await? {
             return Ok(id);
         }

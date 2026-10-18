@@ -153,4 +153,12 @@ fn a_schedule_its_zone_and_a_run_policy_belong_to_workloads_that_have_runs() {
         b.runs = Some(RunPolicy { retries: 1000, ..RunPolicy::default() });
     });
     assert_eq!(retries, "runs.retries");
+    let overlapping = refused(|b| {
+        b.lifecycle = Lifecycle::Task;
+        b.runs = Some(RunPolicy {
+            concurrency: korpis_core::workload::spec::Concurrency::Allow,
+            ..RunPolicy::default()
+        });
+    });
+    assert_eq!(overlapping, "runs.concurrency", "the example declares endpoints");
 }

@@ -8,6 +8,7 @@
 //! waits. A retired workload's lease is released once its runtime object is gone.
 
 use super::act::running;
+use super::runs::has_runs;
 use super::{Reconciler, Tracked, effect, text};
 use crate::host::Host;
 use crate::lease::{OnExpiry, Refusal, Standing};
@@ -41,7 +42,12 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         let outcome = match &standing {
             Standing::Held { .. } => self.act(a, &mut t).await,
             Standing::Refused(Refusal::Superseded { by }) => self.superseded(a, &mut t, by).await,
-            Standing::Expired { on_expiry: OnExpiry::Stop, .. } => self.stop(&mut t).await,
+            Standing::Expired { on_expiry: OnExpiry::Stop, .. } => {
+                self.stop_runs(&a.workload, &mut t).await.and(self.stop(&mut t).await)
+            }
+            Standing::Expired { on_expiry: OnExpiry::KeepRunning, .. } if has_runs(a) => {
+                self.runs(a, &mut t, false).await
+            }
             Standing::Expired { on_expiry: OnExpiry::KeepRunning, .. } => {
                 self.revive(a, &mut t).await;
                 Ok(())
@@ -96,6 +102,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return Ok(());
         }
         if a.retire.is_set() {
+            self.stop_runs(&a.workload, t).await?;
             self.destroy(t).await?;
             if !t.released {
                 match self.wiring.leases.release(&a.workload).await {
@@ -115,6 +122,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         a: &agent::Assignment,
         t: &mut Tracked,
     ) -> Result<(), super::act::Failure> {
+        if has_runs(a) && !wants_running(a) {
+            return self.stop_runs(&a.workload, t).await;
+        }
+        if has_runs(a) {
+            // Its own object is never started: each run is (§4.2 of docs/05-scheduling.md).
+            return self.runs(a, t, true).await;
+        }
         if !wants_running(a) {
             return self.stop(t).await;
         }
@@ -170,6 +184,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t: &mut Tracked,
         by: &str,
     ) -> Result<(), super::act::Failure> {
+        self.stop_runs(&a.workload, t).await?;
         self.stop(t).await?;
         if !t.superseded {
             t.superseded = true;

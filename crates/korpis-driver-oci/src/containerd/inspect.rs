@@ -6,7 +6,7 @@
 //! is measured between two readings.
 
 use super::Containerd;
-use super::lifecycle::{LABEL_INTENT, LABEL_WORKLOAD};
+use super::lifecycle::{LABEL_INTENT, LABEL_RUN, LABEL_WORKLOAD};
 use crate::error::DriverResult;
 use korpis_containerd::containerd::v1::types::Status;
 use korpis_proto::korpis::driver::v1 as driver;
@@ -77,6 +77,7 @@ impl Containerd {
                 assignment_generation: number("korpis.assignment_generation"),
                 power_cycle: number("korpis.power_cycle"),
                 lease_epoch: number("korpis.lease_epoch"),
+                run: label(LABEL_RUN),
                 ..Default::default()
             };
             out.push(driver::RuntimeObject {

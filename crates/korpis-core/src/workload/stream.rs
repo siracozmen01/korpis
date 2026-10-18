@@ -48,6 +48,13 @@ impl StreamKind {
         format!("{workload}.{}", self.volume_name())
     }
 
+    /// The node's volume holding a stream of this kind of `run` of `workload`: a run's console
+    /// is a stream of its own (§4 of docs/14-streams.md).
+    #[must_use]
+    pub fn run_volume(self, workload: &str, run: &str) -> String {
+        format!("{workload}.{}.{run}", self.volume_name())
+    }
+
     /// The name the workload's plans give the volume holding a stream of this kind: what a
     /// deletion names to delete the stream (§4 of docs/14-streams.md).
     #[must_use]

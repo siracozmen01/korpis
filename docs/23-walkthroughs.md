@@ -1142,6 +1142,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 98 | A run had nothing to make it | §41 | `05-scheduling.md` §4.1, §4.5 |
 | 99 | A pending run on a node offline for three nights would run the first night's backup on the fourth morning | §41 | `05-scheduling.md` §4.3 |
 | 100 | 03:00 was in no time zone | §41 | `01-model.md` §3.3, `05-scheduling.md` §4.1 |
+| 101 | Two runs under `allow` would both listen on the workload's one endpoint | §41 | `05-scheduling.md` §4.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3250,3 +3251,17 @@ nightly maintenance window runs inside it for half the year. **Resolution.** The
 an IANA `timezone`, UTC when unset, checked at declaration against the control plane's zone
 database; a skipped local time runs at the first instant after the gap, and a repeated one runs
 once. → `01-model.md` §3.3, `05-scheduling.md` §4.1
+
+**FINDING 101: Two runs under `allow` would both listen on the workload's one endpoint.
+`CONFIRMED`**
+
+Found 2026-10-18 while building step 3, asking what a node does with two runs a workload's
+assignment names at once. Each run is an object of its own, and both join the workload's
+network, which the node makes once per workload with its address and the endpoints' ports
+forwarded to it (§4.1 of `07-networking.md`). One namespace holds one listener per port: the
+second run's server would fail to bind, or, with a port reused, the node would forward each
+connection to whichever accepted it. §4.3 offered `allow` to any workload, and nothing stood
+between it and an endpoint. **Resolution.** A workload declaring endpoints with `concurrency:
+allow` is refused at declaration, where the control plane holds both; `forbid` and `replace` run
+one at a time and keep their endpoints. A workload whose runs must overlap and be reached is two
+workloads. → `05-scheduling.md` §4.2; built in `crates/korpis-core/src/workload/spec.rs`.

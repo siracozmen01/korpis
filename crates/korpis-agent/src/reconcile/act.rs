@@ -91,25 +91,35 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// Ensures the console stream's volume, sized to what its limits let it hold, and watches
-    /// its changes from then on; nothing if the driver captures no stream.
+    /// its changes from then on; nothing if the driver captures no stream. A run's console is a
+    /// stream of its own, in a volume of its own, so runs never share a writer (§4 of
+    /// docs/14-streams.md).
     async fn stream(
         &mut self,
         a: &agent::Assignment,
         spec: &mut driver::PreparedSpec,
+        run: &str,
     ) -> Result<(), Failure> {
         let Some(capture) = spec.stream.as_option_mut() else { return Ok(()) };
         let body = a.target.as_option().and_then(|t| t.body.as_option());
         let streams = body.and_then(|b| b.streams.as_option());
         let limits = korpis_wire::stream::spec_from_pb("streams", streams)
             .map_err(|e| Failure(format!("the stream's limits: {e}")))?;
+        let volume = match run {
+            "" => StreamKind::Console.volume(&a.workload),
+            run => StreamKind::Console.run_volume(&a.workload, run),
+        };
         let request = helper::EnsureVolumeRequest {
-            volume: StreamKind::Console.volume(&a.workload),
+            volume,
             workload: a.workload.clone(),
             size_bytes: limits.disk_bound(),
             ..Default::default()
         };
         let name = StreamKind::Console.volume_name();
         capture.dir = self.ensure_volume(&name, Why::Stream, &request).await?.host_path;
+        if !run.is_empty() {
+            return Ok(());
+        }
         self.streams
             .watch(&a.workload, Path::new(&capture.dir))
             .map_err(|e| Failure(format!("the stream could not be watched: {e}")))
@@ -117,9 +127,20 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// Builds the runtime object for the approved target, labelled.
     async fn build(&mut self, a: &agent::Assignment, t: &mut Tracked) -> Result<String, Failure> {
+        self.build_for(a, t, "").await
+    }
+
+    /// Builds the runtime object for the approved target, executing `run` when it names one,
+    /// labelled.
+    pub(super) async fn build_for(
+        &mut self,
+        a: &agent::Assignment,
+        t: &mut Tracked,
+        run: &str,
+    ) -> Result<String, Failure> {
         let mut spec = self.prepare(a, t).await?;
         self.mount(a, &mut spec).await?;
-        self.stream(a, &mut spec).await?;
+        self.stream(a, &mut spec, run).await?;
         let mut dir = None;
         if let Some(identity) = &self.wiring.identity {
             let served = identity.ensure(&a.workload).map_err(|e| {
@@ -139,6 +160,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             assignment_generation: a.generation,
             power_cycle: power.map_or(0, |p| p.cycle),
             lease_epoch: a.lease_epoch,
+            run: run.to_owned(),
             ..Default::default()
         }
         .into();

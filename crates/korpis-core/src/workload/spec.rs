@@ -206,6 +206,16 @@ impl IntentBody {
             (Some(_), Lifecycle::Persistent) => {
                 Err(SpecError::new("runs", "only for task and scheduled workloads"))
             }
+            // Concurrent runs share the workload's network, where two cannot hold one endpoint
+            // (§4.2 of docs/05-scheduling.md, Finding 101).
+            (Some(policy), _)
+                if policy.concurrency == Concurrency::Allow && !self.endpoints.is_empty() =>
+            {
+                Err(SpecError::new(
+                    "runs.concurrency",
+                    "runs that overlap share the workload's endpoints, which only one can hold",
+                ))
+            }
             (Some(policy), _) => policy.validate(),
             (None, _) => Ok(()),
         }

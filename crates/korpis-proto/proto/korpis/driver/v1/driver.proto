@@ -149,6 +149,9 @@ message RuntimeLabels {
   uint64 assignment_generation = 3;
   uint64 power_cycle = 4;
   uint64 lease_epoch = 5;
+  // The run this object executes, for a task or scheduled workload, each run its own object
+  // (§4.2 of docs/05-scheduling.md); empty for a persistent workload's one object.
+  string run = 6;
 }
 
 message Rejection {

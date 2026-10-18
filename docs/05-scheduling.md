@@ -595,6 +595,21 @@ a kill, and `failed` with cause `timeout`. When the workload's lease expires (§
 workload, and the control plane records the runs it held `failed` with cause `node_lost` and makes
 a retry where attempts remain.
 
+> As built, 2026-10-18, the node's half (`crates/korpis-agent/src/reconcile/runs.rs`). The
+> workload's own object is never started; a plan's `create`, `start`, and `restart` steps prepare
+> its target and start nothing, and `stop` stops its runs, since a run is started as its
+> assignment names it and a restart's run is made by the control plane. Each run's object is
+> labelled with the run, which the driver folds into the object's identifier, so two runs never
+> share one; it is started once and never brought back, and journaled as `run.started` and
+> `run.ended` with its exit status and cause (`exit`, `timeout`, or `cancelled`). An object
+> that ended is kept while the run is still named, so a node not yet told the run ended never
+> runs it twice, and removed once it is not. An agent that restarts takes over each run's object
+> by its label and counts its timeout from when its process started, as the driver says. Each
+> run's console is written into a stream volume of its own on its node, which §4 of
+> `14-streams.md` makes readable. Concurrent runs share the workload's network namespace, which
+> holds one listener per port, so a workload declaring endpoints with `concurrency: allow` is
+> refused at declaration (Finding 101).
+
 ### 4.3 Concurrency, catching up, and missed runs
 
 A run is **active** while it is pending or running. When a run is due and the workload has an
