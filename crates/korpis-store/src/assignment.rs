@@ -21,7 +21,13 @@ const ASSIGNMENT_LOCKS: i32 = 0x6b6f_7271;
 impl AssignmentRead for PgStore {
     async fn placed_on(&self, node: Uuid) -> StoreResult<Vec<Uuid>> {
         sqlx::query_scalar!(
-            "SELECT workload_id FROM placement WHERE node_id = $1 ORDER BY workload_id",
+            "SELECT p.workload_id FROM placement p
+              WHERE p.node_id = $1
+                AND (p.held_at IS NULL
+                     OR EXISTS (SELECT 1 FROM plan r
+                                 WHERE r.workload_id = p.workload_id AND r.kind = 'retire'
+                                   AND r.status IN ('approved', 'queued', 'applying')))
+              ORDER BY p.workload_id",
             node
         )
         .fetch_all(&self.pool)

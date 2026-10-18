@@ -96,7 +96,9 @@ pub struct StoredAssignment {
 
 /// Reading what assignments are computed from.
 pub trait AssignmentRead {
-    /// The workloads placed on `node`.
+    /// The workloads placed on `node` that it is told to run: a placement a restore holds is left
+    /// out, unless its workload is being retired, which its node has to be told to do (§8 of
+    /// docs/03-state.md).
     fn placed_on(&self, node: Uuid) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
 
     /// The digest of the set `node` last acknowledged holding, if it acknowledged one.

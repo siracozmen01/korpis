@@ -42,6 +42,8 @@ pub struct PlacementView {
     pub reserved: Bounds,
     /// The derivation, filtered.
     pub explanation: ExplanationView,
+    /// When a restore held it, until an operator confirms it (§8 of docs/03-state.md).
+    pub held_at: Option<SystemTime>,
 }
 
 /// Why no node took a workload's target, as the caller may see it.
@@ -149,6 +151,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 authoritative: p.authoritative,
                 reserved: p.reserved,
                 explanation: render(&p.explanation, &sight),
+                held_at: p.held_at,
             });
             v.unplaced = f.unplaced.map(|u| UnplacedView {
                 intent: u.intent,

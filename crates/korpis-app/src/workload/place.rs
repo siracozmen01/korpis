@@ -213,6 +213,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             reason: reason(followed),
             explanation,
             authoritative: true,
+            held_at: None,
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;

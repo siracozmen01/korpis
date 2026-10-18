@@ -109,6 +109,7 @@ table! {
     "korpis.v1.WorkloadService/Stop" => WorkloadServiceClient::stop(StopRequest);
     "korpis.v1.WorkloadService/Restart" => WorkloadServiceClient::restart(RestartRequest);
     "korpis.v1.WorkloadService/PlaceWorkload" => WorkloadServiceClient::place_workload(PlaceWorkloadRequest);
+    "korpis.v1.WorkloadService/ConfirmPlacement" => WorkloadServiceClient::confirm_placement(ConfirmPlacementRequest);
     "korpis.v1.WorkloadService/SetClassification" => WorkloadServiceClient::set_classification(SetClassificationRequest);
     "korpis.v1.WorkloadService/DeleteWorkload" => WorkloadServiceClient::delete_workload(DeleteWorkloadRequest);
     "korpis.v1.WorkloadService/GetWorkload" => WorkloadServiceClient::get_workload(GetWorkloadRequest);

@@ -229,6 +229,63 @@ async fn a_restore_recovers_what_the_nodes_run_and_tells_them_nothing_older() {
     }
 }
 
+/// The workloads of the next set sent, waiting past any `InSync`.
+async fn next_set(stream: &mut Stream) -> Vec<String> {
+    let set = |d: &Down| match d {
+        Down::AssignmentSet(s) => {
+            Some(s.assignments.iter().map(decoded).map(|a| a.workload).collect())
+        }
+        _ => None,
+    };
+    within(stream, set).await
+}
+
+#[tokio::test]
+async fn a_workload_its_node_did_not_present_is_held_until_an_operator_confirms_it() {
+    let h = Harness::new().await;
+    let node = TestAgent::enroll(&h, "fra-3", 1).await;
+    let mut stream = connect(&h, &node, 1).await;
+    let repo = push_paper().await;
+    let games = project(&h, &h.root_org(), "games").await;
+    let workloads = h.workloads(h.root());
+    let mut ids = Vec::new();
+    for key in ["w", "y"] {
+        let r = workloads.declare_intent(create(key, &games, key, body(&repo, &[]))).await.unwrap();
+        ids.push(r.into_owned().workload.as_option().unwrap().id.clone());
+    }
+    let only_w = within(&mut stream, set_at(&[(ids[0].clone(), 1)])).await;
+    let only_w: Vec<_> = only_w.into_iter().filter(|a| decoded(a).workload == ids[0]).collect();
+    within(&mut stream, set_at(&[(ids[0].clone(), 1), (ids[1].clone(), 1)])).await;
+    drop(stream);
+
+    // The node presents a set without y, as a node that retired it after the backup would.
+    let app = App::new(h.db.store().await.unwrap(), SystemClock, test_key(), NoRecipes);
+    let backup = BackupEpochs { max_issued: 0, rate_per_sec: 0, taken_at: SystemTime::now() };
+    app.fence_epochs(backup, Duration::from_secs(3), "uid 0 (root)").await.unwrap();
+    let (mut stream, _) = TestAgent::open(&h, node.hello_at(SystemTime::now(), &[2; 16])).await;
+    let presented = agent::Presented { assignments: only_w, ..Default::default() };
+    send(&mut stream, Up::Presented(Box::new(presented))).await;
+    assert_eq!(effects(&h, "restore.placement.held", 1).await, 1, "y, and not w");
+    assert_eq!(next_set(&mut stream).await, [ids[0].clone()], "y is not sent");
+
+    let confirm = |key: &str| korpis_proto::korpis::v1::ConfirmPlacementRequest {
+        mutation: crate::support::mutation(key).into(),
+        workload: ids[1].clone(),
+        reason: "it was never retired".into(),
+        ..Default::default()
+    };
+    let confirmed = workloads.confirm_placement(confirm("c1")).await.unwrap().into_owned();
+    assert!(confirmed.placement.as_option().unwrap().held_at.as_option().is_none());
+    let mut sent = next_set(&mut stream).await;
+    sent.sort();
+    let mut both = ids.clone();
+    both.sort();
+    assert_eq!(sent, both, "y is sent once confirmed");
+    let again = workloads.confirm_placement(confirm("c2")).await.unwrap_err();
+    assert_eq!(again.code, connectrpc::ErrorCode::Aborted, "not held any more");
+    assert_eq!(h.effects("workload.placement.confirm").await.len(), 1);
+}
+
 fn test_key() -> std::sync::Arc<korpis_core::authz::token::SigningKey> {
     std::sync::Arc::new(korpis_core::authz::token::SigningKey::generate(9))
 }

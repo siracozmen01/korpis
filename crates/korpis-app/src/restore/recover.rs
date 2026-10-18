@@ -87,6 +87,7 @@ fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement
             policy: PlacementPolicy::default(),
         },
         authoritative: true,
+        held_at: None,
     }
 }
 

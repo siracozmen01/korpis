@@ -36,6 +36,7 @@ fn on(workload: Uuid, node: Uuid, intent: Uuid, bound_by: BoundBy) -> Placement 
             policy: PlacementPolicy::default(),
         },
         authoritative: true,
+        held_at: None,
     }
 }
 

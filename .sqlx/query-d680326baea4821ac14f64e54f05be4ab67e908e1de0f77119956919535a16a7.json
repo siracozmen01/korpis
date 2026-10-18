@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE placement SET held_at = NULL\n              WHERE workload_id = $1 AND authoritative AND held_at IS NOT NULL\n             RETURNING node_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "node_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d680326baea4821ac14f64e54f05be4ab67e908e1de0f77119956919535a16a7"
+}

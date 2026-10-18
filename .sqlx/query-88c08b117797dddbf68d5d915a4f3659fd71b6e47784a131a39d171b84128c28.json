@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE placement p SET held_at = $3\n               FROM workload w\n              WHERE w.id = p.workload_id AND w.deleted_at IS NULL\n                AND p.node_id = $1 AND p.authoritative AND p.held_at IS NULL\n                AND p.workload_id <> ALL ($2)\n             RETURNING p.workload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "workload_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "88c08b117797dddbf68d5d915a4f3659fd71b6e47784a131a39d171b84128c28"
+}

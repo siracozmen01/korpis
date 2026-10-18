@@ -16,6 +16,7 @@ use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
 use korpis_app::Idempotent;
+use korpis_app::restore::ConfirmPlacement;
 use korpis_app::workload::{
     ChangePower, Classified, DeclareIntent, DeclareTarget, Declared, DeleteWorkload, ListWorkloads,
     NewWorkload, PlaceWorkload, PowerChanged, SetClassification, Watch, WorkloadView,
@@ -26,7 +27,7 @@ use korpis_core::workload::{Plan, PowerChange};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use std::sync::Arc;
-use view::{classified, placed, set_name, status, through_set};
+use view::{classified, confirmed, placed, set_name, status, through_set};
 
 mod view;
 
@@ -198,6 +199,25 @@ impl pb::WorkloadService for Api {
         let idem = Idempotent { key, encode: &encoder };
         let reply = self.app.place_workload(&caller, &idem, cmd).await.map_err(error::from_app)?;
         respond(reply, placed)
+    }
+
+    async fn confirm_placement(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ConfirmPlacementRequest>,
+    ) -> ServiceResult<pb::ConfirmPlacementResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let key = mutation_key(req.mutation.as_option())?;
+        let cmd = ConfirmPlacement {
+            workload: wire::id(IdKind::Workload, "workload", &req.workload).refuse()?,
+            reason: req.reason.clone(),
+        };
+        let encoder = |p: &Placement| encode(&confirmed(p));
+        let idem = Idempotent { key, encode: &encoder };
+        let reply =
+            self.app.confirm_placement(&caller, &idem, cmd).await.map_err(error::from_app)?;
+        respond(reply, confirmed)
     }
 
     async fn set_classification(

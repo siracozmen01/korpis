@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.workload_id FROM placement p\n              WHERE p.node_id = $1\n                AND (p.held_at IS NULL\n                     OR EXISTS (SELECT 1 FROM plan r\n                                 WHERE r.workload_id = p.workload_id AND r.kind = 'retire'\n                                   AND r.status IN ('approved', 'queued', 'applying')))\n              ORDER BY p.workload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "workload_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1f376489e3bc7dd72b7c39883113799f27ff3fde7769da4b44e6ce8fa7e7a1ee"
+}

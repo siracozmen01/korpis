@@ -8,16 +8,18 @@
 //! floor further. A presented epoch is believed only when its signature verifies against the
 //! assignment keyring, since an epoch is authority.
 
+mod held;
 mod recover;
 
+pub use held::ConfirmPlacement;
 pub use recover::Recovery;
 
 use crate::App;
 use crate::error::AppError;
 use crate::install::PublicKey;
 use crate::ports::{
-    Clock, EffectWrite, EnrollmentWrite, LeaseWrite, RecipeSource, RelayWrite, Sealed, Store, Tx,
-    UserSessionWrite,
+    Clock, EffectWrite, EnrollmentWrite, LeaseWrite, RecipeSource, RecoveryWrite, RelayWrite,
+    Sealed, Store, Tx, UserSessionWrite,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
@@ -62,6 +64,8 @@ pub struct Presentation {
     pub recovered: usize,
     /// Verified assignments that could not be recovered, each recorded with why.
     pub unrecovered: usize,
+    /// Workloads the store places on the node that it did not present, now held.
+    pub held: usize,
 }
 
 /// What rotating the token key did.
@@ -153,7 +157,29 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 Recovery::Held | Recovery::Skipped => {}
             }
         }
+        let presented: Vec<Uuid> = opened.iter().map(|(o, _)| o.workload).collect();
+        presentation.held = self.hold_unpresented(node, &presented).await?;
         Ok(presentation)
+    }
+
+    /// Holds every workload the store places on `node` that it did not present (Finding 97 of
+    /// docs/23-walkthroughs.md): one retired after the backup would otherwise be run again.
+    async fn hold_unpresented(&self, node: Uuid, presented: &[Uuid]) -> Result<usize, AppError> {
+        let mut tx = self.store.begin().await?;
+        let held = tx.hold_unpresented(node, presented, self.clock.now()).await?;
+        for workload in &held {
+            let mut effect = Effect::new(
+                Principal::System(SystemActor::Bootstrap),
+                "restore.placement.held",
+                Outcome::Succeeded,
+            )
+            .after(details([("node", node.to_string().into())]));
+            effect.workload = Some(*workload);
+            effect.node = Some(node);
+            tx.append_effect(&effect).await?;
+        }
+        tx.commit().await?;
+        Ok(held.len())
     }
 
     /// Raises the epoch floor to `highest`, an epoch `node` proved, recording it if it did.

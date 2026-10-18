@@ -34,6 +34,7 @@ struct PlacementRow {
     reason: String,
     explanation: Value,
     authoritative: bool,
+    held_at: Option<DateTime<Utc>>,
 }
 
 impl PlacementRow {
@@ -51,6 +52,7 @@ impl PlacementRow {
             reason: self.reason,
             explanation: doc.into_domain()?,
             authoritative: self.authoritative,
+            held_at: self.held_at.map(to_time),
         })
     }
 }

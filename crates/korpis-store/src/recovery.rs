@@ -15,6 +15,7 @@ use korpis_app::ports::{
 use korpis_core::placement::Placement;
 use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
 use std::fmt::Write as _;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 /// `recovered_from`, as the store keeps it.
@@ -190,7 +191,8 @@ impl RecoveryWrite for PgTx {
         match current {
             Some(c) if c.node_id == p.node => {
                 sqlx::query!(
-                    "UPDATE placement SET recovered_epoch = greatest(recovered_epoch, $3)
+                    "UPDATE placement
+                        SET recovered_epoch = greatest(recovered_epoch, $3), held_at = NULL
                       WHERE workload_id = $1 AND node_id = $2",
                     p.workload,
                     p.node,
@@ -264,6 +266,40 @@ impl RecoveryWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(SlotRecovery::Given { taken: holder.map(|h| h.workload_id) })
+    }
+
+    async fn hold_unpresented(
+        &mut self,
+        node: Uuid,
+        presented: &[Uuid],
+        at: SystemTime,
+    ) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_scalar!(
+            "UPDATE placement p SET held_at = $3
+               FROM workload w
+              WHERE w.id = p.workload_id AND w.deleted_at IS NULL
+                AND p.node_id = $1 AND p.authoritative AND p.held_at IS NULL
+                AND p.workload_id <> ALL ($2)
+             RETURNING p.workload_id",
+            node,
+            presented,
+            from_time(at)
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)
+    }
+
+    async fn confirm_held(&mut self, workload: Uuid) -> StoreResult<Option<Uuid>> {
+        sqlx::query_scalar!(
+            "UPDATE placement SET held_at = NULL
+              WHERE workload_id = $1 AND authoritative AND held_at IS NOT NULL
+             RETURNING node_id",
+            workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)
     }
 }
 

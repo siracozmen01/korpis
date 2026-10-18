@@ -3179,5 +3179,7 @@ prevent, from the other side. A node not presenting a workload is not proof that
 an assignment made just before the backup and never delivered is also absent. **Resolution.** A
 workload the restored store places on a node that presented its assignments, and that the node
 did not present, is held when the window ends: it is not sent to that node, and an effect names
-it, until an operator confirms it, which sends it, or retires it. → `03-state.md` §8; built with
-the rest of step 3.
+it, until an operator confirms it, which sends it, or retires it. → `03-state.md` §8,
+`01-model.md` §3.4; built in `crates/korpis-app/src/restore.rs`,
+`crates/korpis-app/src/restore/held.rs`, and `crates/korpis-store/src/recovery.rs`, and tested
+by `crates/korpis-server/tests/api/recovery.rs`.

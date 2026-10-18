@@ -653,9 +653,22 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > room: the workload already runs there, and its reservation counts against the node from then
 > on, even past what the node can allocate. These rules were tightened the same day, from a
 > review of the first version, which let any presented epoch move a placement the scheduler had
-> made and took a slot from whichever workload held it. What recovery does not yet do is Finding
-> 97 of `23-walkthroughs.md`: a workload retired after the backup is still placed in the restored
-> store, and its node would be told to run it again.
+> made and took a slot from whichever workload held it.
+
+> As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
+> live and placed in the restored store, and the node that removed it presents nothing for it. So
+> when a node presents, every placement the store holds on it whose workload it did not present,
+> and which is not deleted, is held (`held_at`, with `restore.placement.held` naming the workload
+> and the node), and a held placement is left out of what that node is sent, and of the
+> certificates it is served, until an operator confirms it with
+> `WorkloadService.ConfirmPlacement` (`node.place` on the node and `workload.write` on the
+> workload, as placing by hand needs, with a reason), or the workload is retired, whose plan goes
+> to the node so it can remove what is left. A later presentation by the same node that includes
+> the workload releases the hold, and so does recovery moving the workload to another node. What
+> this does not cover: a node that does not reconnect while the window is open presents nothing,
+> so nothing on it is held, and it is sent what the store says when it does reconnect; and the
+> hold cannot tell a retirement after the backup from an assignment made just before it and never
+> delivered, which is why it waits for an operator rather than retiring anything itself.
 
 **Lost effects are re-ingested from the nodes, within a stated horizon.** Agents keep acknowledged
 journal records for a retention window after acknowledgement (default seven days, §4.10 of

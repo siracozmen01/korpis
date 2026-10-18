@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE placement\n                        SET recovered_epoch = greatest(recovered_epoch, $3), held_at = NULL\n                      WHERE workload_id = $1 AND node_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "08c0da06e688d4b136394ebdb9425bfe8ad8673c75776a50588ed010738c4afe"
+}

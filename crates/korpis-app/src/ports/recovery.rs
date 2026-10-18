@@ -132,7 +132,8 @@ pub trait RecoveryWrite {
 
     /// Binds the workload's authoritative placement to `placement`'s node, bound by recovery at
     /// `epoch`, the lease epoch the presented assignment names. A workload with no placement is
-    /// bound there; one placed on that node keeps its placement, with `epoch` kept beside it;
+    /// bound there; one placed on that node keeps its placement, with `epoch` kept beside it and
+    /// any hold released, since its node presented it;
     /// one placed on another node is moved only if `epoch` is above both the store's lease
     /// epoch for it and the epoch presented for the node it is on, so a replayed older
     /// assignment moves nothing. Moving it removes every placement of the workload, the record
@@ -151,4 +152,20 @@ pub trait RecoveryWrite {
         workload: Uuid,
         slot: u32,
     ) -> impl Future<Output = StoreResult<SlotRecovery>> + Send;
+
+    /// Holds, at `at`, every authoritative placement on `node` whose workload is not deleted, not
+    /// held already, and not among `presented`: the node presented its assignments without it.
+    /// The workloads it held.
+    fn hold_unpresented(
+        &mut self,
+        node: Uuid,
+        presented: &[Uuid],
+        at: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// Releases `workload`'s held placement; the node it is on, if it was held.
+    fn confirm_held(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
 }

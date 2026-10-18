@@ -300,6 +300,11 @@ service WorkloadService {
   // and taints, the operator's own decisions about it, and nothing else. node.place on the
   // node, and workload.write on the workload. A placed workload moves only by migration.
   rpc PlaceWorkload(PlaceWorkloadRequest) returns (PlaceWorkloadResponse);
+  // Releases a placement a restore held, whose node presented its assignments without it, with
+  // the operator's reason (§8 of docs/03-state.md): it is sent to its node again. node.place on
+  // the node, and workload.write on the workload. Refused for a placement not held; retiring the
+  // workload is the other answer.
+  rpc ConfirmPlacement(ConfirmPlacementRequest) returns (ConfirmPlacementResponse);
   // Replaces the operator's classification overrides of a workload, under its version, with
   // the operator's reason (§3.3 of docs/01-model.md). workload.classify on the workload. Plans
   // computed after it read the new set; a plan already proposed keeps the classification its
@@ -419,6 +424,17 @@ message PlaceWorkloadRequest {
 }
 
 message PlaceWorkloadResponse {
+  Placement placement = 1;
+}
+
+message ConfirmPlacementRequest {
+  Mutation mutation = 1;
+  string workload = 2;
+  // Why, for the record; required.
+  string reason = 3;
+}
+
+message ConfirmPlacementResponse {
   Placement placement = 1;
 }
 

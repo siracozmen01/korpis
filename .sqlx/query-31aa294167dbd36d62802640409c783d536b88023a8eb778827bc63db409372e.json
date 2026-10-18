@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The authoritative placement of workload $1.\nSELECT workload_id, node_id, intent_id, reserved, bound_at, bound_by, reason, explanation,\n       authoritative, held_at\n  FROM placement WHERE workload_id = $1 AND authoritative\n",
   "describe": {
     "columns": [
       {
@@ -101,6 +101,17 @@
             "name": "authoritative"
           }
         }
+      },
+      {
+        "ordinal": 9,
+        "name": "held_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "placement",
+            "name": "held_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -117,8 +128,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "f30cbbb04400a68d60c98c9348627225f6afd8421f7a8ec2a0aab33970e46488"
+  "hash": "31aa294167dbd36d62802640409c783d536b88023a8eb778827bc63db409372e"
 }

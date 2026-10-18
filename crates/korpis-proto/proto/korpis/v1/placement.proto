@@ -278,6 +278,9 @@ message Placement {
   // What it holds on the node: that intent's reservations (§5.2 of docs/05-scheduling.md). A
   // node's allocated is the sum of these over its placements, authoritative or not.
   Resources reserved = 11;
+  // When a restore held it: its node presented its assignments without it, so nothing is sent
+  // for it until an operator confirms it or it is retired (§8 of docs/03-state.md).
+  google.protobuf.Timestamp held_at = 12;
 }
 
 // Why no node took a workload's approved target, from the newest attempt.

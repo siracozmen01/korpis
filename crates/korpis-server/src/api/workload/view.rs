@@ -148,7 +148,16 @@ pub(super) fn through_set(
 /// A placement made by hand, as its maker sees it: the node they named, when, and why. The
 /// derivation is read with the workload, filtered for whoever reads it.
 pub(super) fn placed(p: &Placement) -> pb::PlaceWorkloadResponse {
-    let placement = pb::Placement {
+    pb::PlaceWorkloadResponse { placement: placement_pb(p).into(), ..Default::default() }
+}
+
+/// The answer to confirming a held placement.
+pub(super) fn confirmed(p: &Placement) -> pb::ConfirmPlacementResponse {
+    pb::ConfirmPlacementResponse { placement: placement_pb(p).into(), ..Default::default() }
+}
+
+fn placement_pb(p: &Placement) -> pb::Placement {
+    pb::Placement {
         workload: wire_id(IdKind::Workload, p.workload),
         node: wire_id(IdKind::Node, p.node),
         bound_at: timestamp(p.bound_at).into(),
@@ -157,9 +166,9 @@ pub(super) fn placed(p: &Placement) -> pb::PlaceWorkloadResponse {
         authoritative: p.authoritative,
         intent: wire_id(IdKind::Intent, p.intent),
         reserved: resources_to_pb(&p.reserved).into(),
+        held_at: p.held_at.map(timestamp).into(),
         ..Default::default()
-    };
-    pb::PlaceWorkloadResponse { placement: placement.into(), ..Default::default() }
+    }
 }
 
 pub(super) fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Placement {
@@ -175,6 +184,7 @@ pub(super) fn placement_to_pb(workload: uuid::Uuid, p: &PlacementView) -> pb::Pl
         tier: tier_to_pb(p.tier).into(),
         intent: wire_id(IdKind::Intent, p.intent),
         reserved: resources_to_pb(&p.reserved).into(),
+        held_at: p.held_at.map(timestamp).into(),
         ..Default::default()
     }
 }

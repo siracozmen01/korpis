@@ -963,6 +963,9 @@ Placement
                                 recovery: a restore, to the node that presented the workload's
                                 assignment (§8 of 03-state.md)
   recovered_epoch  int?         the highest lease epoch a node holding it presented to a restore
+  held_at       Timestamp?      a restore held it: its node presented its assignments without it,
+                                so nothing is sent for it until an operator confirms it or it is
+                                retired (§8 of 03-state.md)
   reason        string          human-readable explanation of why this node
   explanation   Explanation     the full derivation (§2.3 of `05-scheduling.md`)
   authoritative bool
