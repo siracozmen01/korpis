@@ -8,7 +8,8 @@
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    Clock, EffectWrite as _, RecipeSource, RunWrite as _, Store, Tx, WorkloadWrite as _,
+    Clock, EffectWrite as _, LeaseWrite as _, RecipeSource, RunWrite as _, Store, Tx,
+    WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
@@ -84,6 +85,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .and_then(|name| self.zones.zone(name));
         let active = tx.active_runs_within(id).await?;
         let newest = tx.newest_run_within(id).await?;
+        let lease = tx
+            .lease_for_update(id)
+            .await?
+            .filter(|l| l.released_at.is_none())
+            .map(|l| (l.node, l.grantor_expiry()));
         let decided = tend(Tending {
             now: self.clock.now(),
             workload: id,
@@ -93,6 +99,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             state: state.clone(),
             active,
             newest,
+            lease,
         });
         if !decided.changes(&state) {
             return Ok(false);

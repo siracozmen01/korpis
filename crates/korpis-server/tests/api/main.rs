@@ -91,6 +91,7 @@ mod retire;
 mod revocation;
 mod rotation;
 mod routes;
+mod run_reports;
 mod runs;
 mod sdk;
 mod secrets;

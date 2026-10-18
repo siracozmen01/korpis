@@ -584,9 +584,10 @@ of `02-architecture.md`): a run ends when its process exits. The node journals `
 `run.ended` with the exit status, and the control plane believes them only from the node the
 workload is placed on. The control plane judges the exit status against the `exit` probe (§5 of
 `04-runtimes.md`) of the intent the run was made under (§3.3 of `01-model.md`), zero alone when it
-declares none: `succeeded` or `failed`, cause `exit`. The workload's observation reports its newest
-run, and a `task` or `scheduled` workload has converged when its power target is reached, whether
-or not a run is active.
+declares none: `succeeded` or `failed`, cause `exit`. The workload's status shows its newest run
+(corrected 2026-10-18: this said its observation, but the observation is the node's, and how a
+run was judged is the control plane's), and a `task` or `scheduled` workload has converged when
+its power target is reached, whether or not a run is active.
 
 **The node enforces `timeout`**, holding the run's start and the timeout from its assignment, so a
 run stops at its timeout while the control plane is unreachable: the stop signal, the grace, then
@@ -609,6 +610,24 @@ a retry where attempts remain.
 > `14-streams.md` makes readable. Concurrent runs share the workload's network namespace, which
 > holds one listener per port, so a workload declaring endpoints with `concurrency: allow` is
 > refused at declaration (Finding 101).
+
+> As built, 2026-10-18, the control plane's half (`crates/korpis-app/src/node/journal/runs.rs`,
+> `reported_end` in `crates/korpis-core/src/workload/run.rs`). A report is believed from a node
+> the workload is assigned to, for a run of that workload no other node started; any other is
+> kept as `journal.rejected` and moves nothing. The node says why it stopped a run, never how the
+> run ended: `timeout` is `failed`, `cancelled` is `cancelled`, and anything else is judged by its
+> exit status as above, a run with no exit status (one whose object could not be made or started)
+> `failed`. A report the run has moved past, a start arriving after a cancel or an end reported
+> twice, is believed and changes nothing, so the control plane's own cause stands. The times
+> recorded are the node's clock, which is informational, held between when the run could have
+> happened (made, or started) and when the report arrived: what that costs is a run reported
+> late by a node whose clock runs fast is recorded as ending when the report arrived, not
+> earlier. A run is lost when its node no longer holds a current lease on the workload, checked
+> on every pass of the run maker, so `node_lost` is recorded within one pass of the lease's
+> expiry by the grantor's clock (§4.5 of `02-architecture.md`). The newest run is shown on the
+> workload's status (`WorkloadStatus.newest_run`) rather than in the node's observation, since
+> the control plane, not the node, holds how it was judged; and a workload that has runs counts
+> as converged with its own object stopped while its power target is running.
 
 ### 4.3 Concurrency, catching up, and missed runs
 

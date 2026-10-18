@@ -25,6 +25,7 @@ use std::time::SystemTime;
 use uuid::Uuid;
 
 mod reports;
+mod runs;
 
 /// The actions a node reports as the act of a session's subject: console input (§6 of
 /// docs/14-streams.md), and a file session's opening and end (§3.2 of docs/06-storage.md).
@@ -80,7 +81,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let at = r.occurred_at.unwrap_or_else(|| self.clock.now());
                 self.session_act(node, e, at).await?
             }
-            Body::Effect(e) => self.node_effect(tx, node, e).await?,
+            Body::Effect(e) => self.node_effect(tx, node, e, r.occurred_at).await?,
             Body::LeaseReleased { workload, epoch } => {
                 let released = tx.release_lease(*workload, node, *epoch, self.clock.now()).await?;
                 let mut e = system("lease.release", Outcome::Succeeded)
@@ -154,6 +155,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx: &mut S::Tx,
         node: Uuid,
         n: &NodeEffect,
+        occurred: Option<SystemTime>,
     ) -> Result<Effect, AppError> {
         if !valid_action(&n.action) {
             return Ok(rejected("the action is not a valid name", "invalid"));
@@ -162,6 +164,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             && !self.store.nodes_of(w).await?.contains(&node)
         {
             return Ok(rejected("the workload is not assigned to this node", &n.action));
+        }
+        // A run is reported outside any plan: it is the node keeping the runs it was named.
+        if let (None, Some(w)) = (n.plan, n.workload)
+            && let Some(why) = self.run_reported(tx, (node, w), n, occurred).await?
+        {
+            return Ok(rejected(why, &n.action));
         }
         let mut e = system(&n.action, n.outcome);
         e.workload = n.workload;

@@ -46,7 +46,7 @@ async fn a_scheduled_workload_is_read_in_a_known_zone_and_stores_its_policy_as_i
 }
 
 /// The workload's runs, once the run maker has made at least one.
-async fn made(h: &Harness, workload: &str) -> Vec<pb::Run> {
+pub async fn made(h: &Harness, workload: &str) -> Vec<pb::Run> {
     for _ in 0..150 {
         let list = pb::ListRunsRequest { workload: workload.to_owned(), ..Default::default() };
         let runs = h.runs(h.root()).list_runs(list).await.unwrap().into_owned().runs;

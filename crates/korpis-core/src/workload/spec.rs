@@ -69,6 +69,15 @@ pub enum Lifecycle {
     Scheduled,
 }
 
+impl Lifecycle {
+    /// Whether a workload of it has runs, each executed in an object of its own, rather than
+    /// running its own object (§4 of docs/05-scheduling.md).
+    #[must_use]
+    pub fn has_runs(self) -> bool {
+        matches!(self, Self::Task | Self::Scheduled)
+    }
+}
+
 /// What console the workload offers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConsoleMode {

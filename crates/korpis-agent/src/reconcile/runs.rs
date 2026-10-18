@@ -112,17 +112,19 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             r.deadline = deadline(named, status.as_ref());
         }
         let named = named.is_some();
-        if status.as_ref().is_some_and(running) {
-            let why = if named {
-                r.deadline.filter(|d| SystemTime::now() >= *d).map(|_| "timeout")
-            } else {
-                Some("cancelled")
-            };
-            if let Some(why) = why {
-                r.stopped_for.get_or_insert(why);
-                self.runtime.stop(&r.runtime, "", GRACE).await?;
-                status = self.status_of(&r.runtime).await;
+        let why = match (status.as_ref().is_some_and(running), named) {
+            (false, _) => None,
+            (true, true) => r.deadline.filter(|d| SystemTime::now() >= *d).map(|_| "timeout"),
+            (true, false) => Some("cancelled"),
+        };
+        if let Some(why) = why {
+            r.stopped_for.get_or_insert(why);
+            if let Err(e) = self.runtime.stop(&r.runtime, "", GRACE).await {
+                // Kept, so the next pass stops it again: a failed stop never forgets a run.
+                t.runs.insert(run.to_owned(), r);
+                return Err(e.into());
             }
+            status = self.status_of(&r.runtime).await;
         }
         r.running = status.as_ref().is_some_and(running);
         if r.running {
@@ -160,9 +162,14 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     /// made or started is journaled as ended, failed, and never tried again while it is named.
     async fn start_run(&mut self, a: &agent::Assignment, t: &mut Tracked, r: &agent::RunRef) {
         let mut scratch = Tracked::default();
+        // An object made but not started is kept with the failure, so it is removed with the
+        // run's and never left behind untracked.
         let made = match self.build_for(a, &mut scratch, &r.run).await {
-            Ok(id) => self.runtime.start(&id).await.map(|()| id).map_err(Failure::from),
-            Err(e) => Err(e),
+            Ok(id) => match self.runtime.start(&id).await {
+                Ok(()) => Ok(id),
+                Err(e) => Err((Some(id), Failure::from(e))),
+            },
+            Err(e) => Err((None, e)),
         };
         match made {
             Ok(runtime) => {
@@ -176,7 +183,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 let held = RunTracked { runtime, deadline, running, ..RunTracked::default() };
                 t.runs.insert(r.run.clone(), held);
             }
-            Err(Failure(why)) => {
+            Err((runtime, Failure(why))) => {
                 tracing::warn!(workload = %a.workload, run = %r.run, error = %why, "a run did not start");
                 let mut e = effect(Some(&a.workload), "run.ended", false);
                 e.after.insert("run".into(), text(&r.run));
@@ -184,7 +191,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 e.error =
                     korpis_proto::korpis::v1::Error { message: why, ..Default::default() }.into();
                 let ended = self.record(e).await;
-                t.runs.insert(r.run.clone(), RunTracked { ended, ..RunTracked::default() });
+                let runtime = runtime.unwrap_or_default();
+                t.runs
+                    .insert(r.run.clone(), RunTracked { runtime, ended, ..RunTracked::default() });
             }
         }
     }

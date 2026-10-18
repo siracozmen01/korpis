@@ -40,6 +40,9 @@ pub struct Tending<'a> {
     pub active: Vec<Run>,
     /// Its newest run, of any status.
     pub newest: Option<Run>,
+    /// Its lease as the control plane holds it: the node holding it, and when it ends; none
+    /// when no node holds it.
+    pub lease: Option<(Uuid, SystemTime)>,
 }
 
 /// What to do.
@@ -79,6 +82,7 @@ pub fn tend(t: Tending<'_>) -> Tended {
         active: t.active,
         out: Tended { state: t.state, ..Tended::default() },
     };
+    w.lost(t.lease);
     let target = t.target.filter(|(_, b)| b.lifecycle != Lifecycle::Persistent);
     let (Some((intent, body)), Some((PowerState::Running, cycle))) = (target, t.power) else {
         w.stop_all();
@@ -99,6 +103,22 @@ fn instant(t: SystemTime) -> Timestamp {
 }
 
 impl Work {
+    /// Every running run whose node no longer holds the workload's lease has failed, its node
+    /// lost (§4.2 of docs/05-scheduling.md); a retry is made from it like any failure.
+    fn lost(&mut self, lease: Option<(Uuid, SystemTime)>) {
+        let held =
+            |r: &Run| lease.is_some_and(|(node, until)| r.node == Some(node) && until > self.now);
+        let lost: Vec<Uuid> = self
+            .active
+            .iter()
+            .filter(|r| r.status == RunStatus::Running && !held(r))
+            .map(|r| r.id)
+            .collect();
+        for id in lost {
+            self.end(id, RunStatus::Failed, Cause::NodeLost);
+        }
+    }
+
     /// No run is wanted: power is stopped, or the workload has none to run. Every active run is
     /// cancelled, and the schedule resumes from the first occurrence once runs are wanted again.
     fn stop_all(&mut self) {

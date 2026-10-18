@@ -2,8 +2,9 @@
 
 //! A task's runs on a node, against a real control plane with the in-memory runtime standing in
 //! for a driver (§4.2 and §4.5 of docs/05-scheduling.md): the run its assignment names is started
-//! once in an object of its own, its end reported with its exit status and never run again while
-//! it is still named, removed once it is cancelled, and stopped at its timeout.
+//! once in an object of its own, its end reported with its exit status and believed, after which
+//! it is named no more, its object removed, and never run again; a run cancelled is stopped by
+//! its node and removed; and a run is stopped at its timeout.
 
 use crate::session::until;
 use crate::support::{ControlPlane, facts, mutation, push_paper};
@@ -95,8 +96,31 @@ fn objects_of(runtime: &InMemory, workload: &str) -> Vec<(String, bool)> {
 const STARTED: &str = "SELECT count(*) FROM effect WHERE action = 'run.started'";
 const ENDED: &str = "SELECT count(*) FROM effect WHERE action = 'run.ended'";
 
+/// The object of `workload`'s one run, once it runs.
+fn running_object(runtime: &InMemory, workload: &str) -> String {
+    let held = objects_of(runtime, workload);
+    let [(object, true)] = held.as_slice() else {
+        panic!("one running object for the run: {:?}", runtime.objects());
+    };
+    object.clone()
+}
+
+/// Waits until `workload` holds no object.
+async fn removed(runtime: &InMemory, workload: &str) {
+    for _ in 0..100 {
+        if objects_of(runtime, workload).is_empty() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the object of a run named no more was kept: {:?}", runtime.objects());
+}
+
+const SUCCEEDED: &str =
+    "SELECT count(*) FROM run WHERE status = 'succeeded' AND cause = 'exit' AND exit_status = 0";
+
 #[tokio::test]
-async fn a_task_s_run_starts_once_ends_once_and_its_object_goes_when_it_is_named_no_more() {
+async fn a_task_s_run_starts_once_its_end_is_believed_and_its_object_goes() {
     let cp = ControlPlane::start().await;
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();
@@ -105,12 +129,7 @@ async fn a_task_s_run_starts_once_ends_once_and_its_object_goes_when_it_is_named
     let w = task(&cp, &project, "build", pb::RunPolicy::default()).await;
 
     counted(&cp, STARTED, 1).await;
-    let held = objects_of(&runtime, &w);
-    let [(object, true)] = held.as_slice() else {
-        panic!("one running object for the run: {:?}", runtime.objects());
-    };
-    let object = object.clone();
-    runtime.exit(&object, 0);
+    runtime.exit(&running_object(&runtime, &w), 0);
     counted(&cp, ENDED, 1).await;
     let exit: Option<(String,)> = cp
         .query_one("SELECT after::text FROM effect WHERE action = 'run.ended' AND $1 <> ''", "x")
@@ -118,10 +137,24 @@ async fn a_task_s_run_starts_once_ends_once_and_its_object_goes_when_it_is_named
     let exit = exit.unwrap().0;
     assert!(exit.contains("exit_status") && exit.contains("\"exit\""), "{exit}");
 
-    // Still named, since nothing has told the control plane it ended: never run again.
+    // The control plane believes it, so the run is named no more: its object goes, and it is
+    // never run again.
+    counted(&cp, SUCCEEDED, 1).await;
+    removed(&runtime, &w).await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(cp.scalar::<i64>(STARTED).await, 1);
-    assert_eq!(objects_of(&runtime, &w), [(object, false)], "kept while it is named");
+}
+
+#[tokio::test]
+async fn a_cancelled_run_is_stopped_by_its_node_and_its_object_goes() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime).await;
+    let w = task(&cp, &project, "build", pb::RunPolicy::default()).await;
+    counted(&cp, STARTED, 1).await;
+    running_object(&runtime, &w);
 
     let run: Option<(uuid::Uuid,)> =
         cp.query_one("SELECT id FROM run WHERE workload_id::text <> $1", "").await;
@@ -132,13 +165,16 @@ async fn a_task_s_run_starts_once_ends_once_and_its_object_goes_when_it_is_named
         ..Default::default()
     };
     cp.client(pb::RunServiceClient::new).cancel_run(cancel).await.unwrap();
-    for _ in 0..100 {
-        if objects_of(&runtime, &w).is_empty() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    panic!("the object of a run named no more was kept: {:?}", runtime.objects());
+    removed(&runtime, &w).await;
+    counted(&cp, ENDED, 1).await;
+    let ended: Option<(String,)> = cp
+        .query_one("SELECT after::text FROM effect WHERE action = 'run.ended' AND $1 <> ''", "x")
+        .await;
+    assert!(ended.unwrap().0.contains("cancelled"), "the node says why it stopped it");
+    // The control plane's own end stands.
+    let cause: Option<(String,)> =
+        cp.query_one("SELECT cause FROM run WHERE status = $1", "cancelled").await;
+    assert_eq!(cause.unwrap().0, "cancelled");
 }
 
 #[tokio::test]

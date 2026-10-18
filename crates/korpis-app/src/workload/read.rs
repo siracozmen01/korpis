@@ -54,6 +54,8 @@ pub struct WorkloadView {
     /// The configuration keys whose values were left out of its head and target, as secrets the
     /// caller may not read (§5.2 of docs/09-recipes.md).
     pub withheld: Withheld,
+    /// Its newest run, for a workload that has runs (§4 of docs/05-scheduling.md).
+    pub newest_run: Option<korpis_core::workload::run::Run>,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -90,6 +92,21 @@ pub struct ListWorkloads {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// Each name the workload's ingress `endpoints` route, by endpoint name.
+    async fn endpoint_names(
+        &self,
+        id: Uuid,
+        endpoints: &[(korpis_core::workload::endpoint::Endpoint, Vec<std::net::IpAddr>)],
+    ) -> Result<Vec<(String, korpis_core::dns::published::EndpointRecord)>, AppError> {
+        let mut names = Vec::new();
+        for r in self.store.endpoint_records(id).await? {
+            if let Some((e, _)) = endpoints.iter().find(|(e, _)| e.id == r.endpoint) {
+                names.push((e.name.clone(), r));
+            }
+        }
+        Ok(names)
+    }
+
     async fn unrendered(&self, workload: Workload) -> Result<(WorkloadView, Found), AppError> {
         let id = workload.id;
         let missing = |what: &str| AppError::Internal(format!("workload {id} has no {what}"));
@@ -125,14 +142,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 certificates.push((endpoint, found));
             }
         }
-        let mut names = Vec::new();
-        for r in self.store.endpoint_records(id).await? {
-            let endpoint = endpoints.iter().find(|(e, _)| e.id == r.endpoint);
-            if let Some((e, _)) = endpoint {
-                names.push((e.name.clone(), r));
-            }
-        }
+        let names = self.endpoint_names(id, &endpoints).await?;
+        let newest = crate::page::Page { after: None, size: 1 };
+        let newest_run = self.store.runs(id, newest).await?.into_iter().next();
         let view = WorkloadView {
+            newest_run,
             names,
             certificates,
             endpoints,

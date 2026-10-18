@@ -17,7 +17,6 @@ import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/provider.proto";
-import "korpis/v1/run.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";

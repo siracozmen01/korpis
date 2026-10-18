@@ -216,6 +216,39 @@ pub struct RunEnd {
     pub at: SystemTime,
 }
 
+/// How a run ended, as its node reported it at `at` (§4.2 of docs/05-scheduling.md): stopped at
+/// its timeout, failed; stopped because it was no longer named, cancelled; and otherwise judged
+/// by its exit status against the `exit` probe of the intent it was made under, zero alone when
+/// that declares none. A run whose process never started, or whose exit status is unknown, has
+/// failed.
+#[must_use]
+pub fn reported_end(
+    body: &crate::workload::spec::IntentBody,
+    cause: &str,
+    exit_status: Option<i32>,
+    at: SystemTime,
+) -> RunEnd {
+    use crate::workload::spec::health::ProbeKind;
+    let end = |status, cause| RunEnd { status, cause, exit_status, at };
+    match cause {
+        "timeout" => return end(RunStatus::Failed, Cause::Timeout),
+        "cancelled" => return end(RunStatus::Cancelled, Cause::Cancelled),
+        _ => {}
+    }
+    let probes = [&body.health.readiness, &body.health.liveness];
+    let codes = probes.into_iter().flatten().find_map(|p| match &p.kind {
+        ProbeKind::Exit { success_codes } => Some(success_codes.clone()),
+        _ => None,
+    });
+    let success = match (exit_status, codes) {
+        (None, _) => false,
+        (Some(code), Some(codes)) if !codes.is_empty() => codes.contains(&code),
+        (Some(code), _) => code == 0,
+    };
+    let status = if success { RunStatus::Succeeded } else { RunStatus::Failed };
+    end(status, Cause::Exit)
+}
+
 /// One run a node is to execute, as its assignment names it (§4.5 of docs/05-scheduling.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunRef {
@@ -284,6 +317,29 @@ mod tests {
         assert_eq!(Trigger::parse("cron"), None);
         assert!(RunStatus::Pending.is_active() && RunStatus::Running.is_active());
         assert!(!RunStatus::Missed.is_active() && !RunStatus::Cancelled.is_active());
+    }
+
+    #[test]
+    fn a_reported_end_is_judged_by_the_exit_probe_and_zero_alone_without_one() {
+        use crate::workload::spec::health::{Probe, ProbeKind};
+        use crate::workload::spec::{IntentBody, fixture};
+        let at = SystemTime::UNIX_EPOCH;
+        let plain = fixture();
+        assert_eq!(reported_end(&plain, "exit", Some(0), at).status, RunStatus::Succeeded);
+        assert_eq!(reported_end(&plain, "exit", Some(1), at).status, RunStatus::Failed);
+        assert_eq!(reported_end(&plain, "exit", None, at).status, RunStatus::Failed);
+        let timed = reported_end(&plain, "timeout", Some(143), at);
+        assert_eq!((timed.status, timed.cause), (RunStatus::Failed, Cause::Timeout));
+        let probe = Probe {
+            kind: ProbeKind::Exit { success_codes: vec![0, 3] },
+            period: None,
+            timeout: None,
+            failures: 0,
+            initial_delay: None,
+        };
+        let mut lenient = IntentBody { ..plain };
+        lenient.health.liveness = Some(probe);
+        assert_eq!(reported_end(&lenient, "exit", Some(3), at).status, RunStatus::Succeeded);
     }
 
     #[test]

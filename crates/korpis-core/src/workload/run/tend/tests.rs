@@ -30,6 +30,7 @@ struct Case {
     state: RunState,
     active: Vec<Run>,
     newest: Option<Run>,
+    lease: Option<(Uuid, SystemTime)>,
 }
 
 impl Case {
@@ -44,6 +45,7 @@ impl Case {
             state,
             active: Vec::new(),
             newest: None,
+            lease: None,
         }
     }
 
@@ -55,7 +57,14 @@ impl Case {
     fn running(mut self, scheduled_for: &str) -> Self {
         let at = at(scheduled_for);
         let run = Run::pending(self.workload, self.intent, Trigger::Schedule, at, at);
-        self.active.push(Run { status: RunStatus::Running, started_at: Some(at), ..run });
+        let node = Uuid::now_v7();
+        self.active.push(Run {
+            status: RunStatus::Running,
+            started_at: Some(at),
+            node: Some(node),
+            ..run
+        });
+        self.lease = Some((node, at + Duration::from_secs(400 * 86_400)));
         self
     }
 
@@ -75,6 +84,7 @@ impl Case {
             state: self.state.clone(),
             active: self.active.clone(),
             newest: self.newest.clone(),
+            lease: self.lease,
         })
     }
 }
@@ -239,4 +249,31 @@ fn an_occurrence_more_than_a_minute_late_is_missed_not_run() {
     let now = jiff::Timestamp::try_from(late).unwrap().to_string();
     let t = case.at(&now);
     assert_eq!(statuses(&t), [(RunStatus::Missed, Some(Cause::Skipped), 1)]);
+}
+
+#[test]
+fn a_running_run_whose_node_lost_the_lease_has_failed_and_is_retried() {
+    let policy = RunPolicy { retries: 1, ..RunPolicy::default() };
+    let mut case =
+        Case::new(nightly(policy)).due("2026-01-12T03:00:00Z").running("2026-01-11T03:00:00Z");
+    let held = case.at("2026-01-11T12:00:00Z");
+    assert!(held.ended.is_empty(), "its node holds the lease");
+    case.lease = case.lease.map(|(node, _)| (node, at("2026-01-11T06:00:00Z")));
+    let t = case.at("2026-01-11T12:00:00Z");
+    assert_eq!(t.ended.len(), 1);
+    assert_eq!((t.ended[0].1.status, t.ended[0].1.cause), (RunStatus::Failed, Cause::NodeLost));
+    case.lease = None;
+    assert_eq!(case.at("2026-01-11T12:00:00Z").ended.len(), 1, "no lease at all is lost too");
+    // The next pass finds it failed, the newest run, and tries it again after its backoff.
+    let (id, end) = t.ended[0];
+    let failed = Run {
+        status: end.status,
+        cause: Some(end.cause),
+        ended_at: Some(end.at),
+        ..case.active.remove(0)
+    };
+    assert_eq!(failed.id, id);
+    case.newest = Some(failed);
+    let retried = case.at("2026-01-11T12:00:10Z");
+    assert_eq!((retried.made[0].trigger, retried.made[0].attempt), (Trigger::Retry, 2));
 }

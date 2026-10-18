@@ -44,12 +44,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let current = heard && placed_on == Some(observation.node);
         let generation = self.store.assignment_generation(w.id, observation.node).await?;
         let power = self.store.power_at(w.id, w.power_target_version).await?;
+        let runs = match w.target {
+            Some(t) => self.store.intent(t).await?.is_some_and(|i| i.body.lifecycle.has_runs()),
+            None => false,
+        };
         let reported = match (generation, &power) {
             (Some(generation), Some(p)) => Some(Reported {
                 observation: &observation,
                 fresh: current,
                 generation,
                 power: &p.power,
+                runs,
             }),
             _ => None,
         };

@@ -514,6 +514,9 @@ message WorkloadStatus {
   // whether a DNS provider of its organization publishes them, or its holder must (§3.5 of
   // docs/07-networking.md).
   repeated EndpointName names = 12;
+  // Its newest run, for a task or scheduled workload (§4 of docs/05-scheduling.md); absent
+  // before its first.
+  Run newest_run = 13;
 }
 
 // A name an ingress endpoint routes, in DNS.

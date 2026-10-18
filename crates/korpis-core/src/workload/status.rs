@@ -106,6 +106,9 @@ pub struct Reported<'a> {
     pub generation: u64,
     /// The approved power declaration.
     pub power: &'a Power,
+    /// Whether the workload has runs (§4 of docs/05-scheduling.md): its own object never runs,
+    /// so running, it is where it should be between its runs as much as during one.
+    pub runs: bool,
 }
 
 /// How far a workload is from what was approved (§4.3 of docs/02-architecture.md). A
@@ -150,6 +153,9 @@ pub fn convergence(
     match o.state {
         ObservedState::Unsatisfiable | ObservedState::Crashed => Convergence::Failing,
         state if at_target && state == desired => Convergence::Converged,
+        ObservedState::Stopped if at_target && r.runs && desired == ObservedState::Running => {
+            Convergence::Converged
+        }
         ObservedState::Starting | ObservedState::Stopping => Convergence::Applying,
         // The node holds the assignment, nothing is outstanding, and it still disagrees.
         _ => Convergence::Failing,

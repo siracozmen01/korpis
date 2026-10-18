@@ -474,3 +474,69 @@ enum EffectOutcome {
   // docs/15-observability.md).
   EFFECT_OUTCOME_DENIED = 5;
 }
+
+// A run of a task or scheduled workload (§4 of docs/05-scheduling.md), served by RunService and
+// shown as a workload's newest on its status.
+enum RunTrigger {
+  RUN_TRIGGER_UNSPECIFIED = 0;
+  // An occurrence of the schedule.
+  RUN_TRIGGER_SCHEDULE = 1;
+  // A higher power cycle.
+  RUN_TRIGGER_MANUAL = 2;
+  // The next attempt of a failed run.
+  RUN_TRIGGER_RETRY = 3;
+  // An event; nothing makes one yet.
+  RUN_TRIGGER_EVENT = 4;
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  // Made, and not yet started by a node.
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_RUNNING = 2;
+  // Ended with an exit status the intent's exit probe calls success.
+  RUN_STATUS_SUCCEEDED = 3;
+  RUN_STATUS_FAILED = 4;
+  // Ended by the control plane before its process did.
+  RUN_STATUS_CANCELLED = 5;
+  // Never made into an execution: an occurrence skipped, or a run its node never started.
+  RUN_STATUS_MISSED = 6;
+}
+
+// Why a run ended as it did (§4.2 to §4.4 of docs/05-scheduling.md).
+enum RunCause {
+  RUN_CAUSE_UNSPECIFIED = 0;
+  RUN_CAUSE_EXIT = 1;
+  RUN_CAUSE_TIMEOUT = 2;
+  RUN_CAUSE_CANCELLED = 3;
+  RUN_CAUSE_STOPPED = 4;
+  RUN_CAUSE_REPLACED = 5;
+  RUN_CAUSE_CONCURRENCY = 6;
+  RUN_CAUSE_NOT_STARTED = 7;
+  RUN_CAUSE_SKIPPED = 8;
+  RUN_CAUSE_NODE_LOST = 9;
+}
+
+message Run {
+  string id = 1;
+  string workload = 2;
+  // The intent it was made under, whose exit probe judges it.
+  string intent = 3;
+  RunTrigger trigger = 4;
+  // The occurrence it is for, or when it came due.
+  google.protobuf.Timestamp scheduled_for = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp ended_at = 7;
+  // The node it ran on; empty before it started.
+  string node = 8;
+  RunStatus status = 9;
+  optional int32 exit_status = 10;
+  // From one.
+  uint32 attempt = 11;
+  // The power cycle that requested it, for a manual run.
+  optional uint64 cycle = 12;
+  // How many occurrences it stands for; above one only for a missed run recording an interval.
+  uint32 occurrences = 13;
+  RunCause cause = 14;
+  google.protobuf.Timestamp created_at = 15;
+}

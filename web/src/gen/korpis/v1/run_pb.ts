@@ -10,118 +10,19 @@
 // @generated from file korpis/v1/run.proto (package korpis.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Mutation, PageRequest, PageResponse } from "./api_pb";
 import { file_korpis_v1_api } from "./api_pb";
+import type { Run } from "./workload_pb";
+import { file_korpis_v1_workload } from "./workload_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file korpis/v1/run.proto.
  */
 export const file_korpis_v1_run: GenFile = /*@__PURE__*/
-  fileDesc("ChNrb3JwaXMvdjEvcnVuLnByb3RvEglrb3JwaXMudjEi4gMKA1J1bhIKCgJpZBgBIAEoCRIQCgh3b3JrbG9hZBgCIAEoCRIOCgZpbnRlbnQYAyABKAkSJgoHdHJpZ2dlchgEIAEoDjIVLmtvcnBpcy52MS5SdW5UcmlnZ2VyEjEKDXNjaGVkdWxlZF9mb3IYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRub2RlGAggASgJEiQKBnN0YXR1cxgJIAEoDjIULmtvcnBpcy52MS5SdW5TdGF0dXMSGAoLZXhpdF9zdGF0dXMYCiABKAVIAIgBARIPCgdhdHRlbXB0GAsgASgNEhIKBWN5Y2xlGAwgASgESAGIAQESEwoLb2NjdXJyZW5jZXMYDSABKA0SIgoFY2F1c2UYDiABKA4yEy5rb3JwaXMudjEuUnVuQ2F1c2USLgoKY3JlYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCDgoMX2V4aXRfc3RhdHVzQggKBl9jeWNsZSIbCg1HZXRSdW5SZXF1ZXN0EgoKAmlkGAEgASgJIi0KDkdldFJ1blJlc3BvbnNlEhsKA3J1bhgBIAEoCzIOLmtvcnBpcy52MS5SdW4iSQoPTGlzdFJ1bnNSZXF1ZXN0EhAKCHdvcmtsb2FkGAEgASgJEiQKBHBhZ2UYAiABKAsyFi5rb3JwaXMudjEuUGFnZVJlcXVlc3QiVwoQTGlzdFJ1bnNSZXNwb25zZRIcCgRydW5zGAEgAygLMg4ua29ycGlzLnYxLlJ1bhIlCgRwYWdlGAIgASgLMhcua29ycGlzLnYxLlBhZ2VSZXNwb25zZSJGChBDYW5jZWxSdW5SZXF1ZXN0EiUKCG11dGF0aW9uGAEgASgLMhMua29ycGlzLnYxLk11dGF0aW9uEgsKA3J1bhgCIAEoCSIwChFDYW5jZWxSdW5SZXNwb25zZRIbCgNydW4YASABKAsyDi5rb3JwaXMudjEuUnVuKokBCgpSdW5UcmlnZ2VyEhsKF1JVTl9UUklHR0VSX1VOU1BFQ0lGSUVEEAASGAoUUlVOX1RSSUdHRVJfU0NIRURVTEUQARIWChJSVU5fVFJJR0dFUl9NQU5VQUwQAhIVChFSVU5fVFJJR0dFUl9SRVRSWRADEhUKEVJVTl9UUklHR0VSX0VWRU5UEAQquQEKCVJ1blN0YXR1cxIaChZSVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSUlVOX1NUQVRVU19QRU5ESU5HEAESFgoSUlVOX1NUQVRVU19SVU5OSU5HEAISGAoUUlVOX1NUQVRVU19TVUNDRUVERUQQAxIVChFSVU5fU1RBVFVTX0ZBSUxFRBAEEhgKFFJVTl9TVEFUVVNfQ0FOQ0VMTEVEEAUSFQoRUlVOX1NUQVRVU19NSVNTRUQQBir+AQoIUnVuQ2F1c2USGQoVUlVOX0NBVVNFX1VOU1BFQ0lGSUVEEAASEgoOUlVOX0NBVVNFX0VYSVQQARIVChFSVU5fQ0FVU0VfVElNRU9VVBACEhcKE1JVTl9DQVVTRV9DQU5DRUxMRUQQAxIVChFSVU5fQ0FVU0VfU1RPUFBFRBAEEhYKElJVTl9DQVVTRV9SRVBMQUNFRBAFEhkKFVJVTl9DQVVTRV9DT05DVVJSRU5DWRAGEhkKFVJVTl9DQVVTRV9OT1RfU1RBUlRFRBAHEhUKEVJVTl9DQVVTRV9TS0lQUEVEEAgSFwoTUlVOX0NBVVNFX05PREVfTE9TVBAJMuIBCgpSdW5TZXJ2aWNlEkIKBkdldFJ1bhIYLmtvcnBpcy52MS5HZXRSdW5SZXF1ZXN0Ghkua29ycGlzLnYxLkdldFJ1blJlc3BvbnNlIgOQAgESSAoITGlzdFJ1bnMSGi5rb3JwaXMudjEuTGlzdFJ1bnNSZXF1ZXN0Ghsua29ycGlzLnYxLkxpc3RSdW5zUmVzcG9uc2UiA5ACARJGCglDYW5jZWxSdW4SGy5rb3JwaXMudjEuQ2FuY2VsUnVuUmVxdWVzdBocLmtvcnBpcy52MS5DYW5jZWxSdW5SZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_api]);
-
-/**
- * @generated from message korpis.v1.Run
- */
-export type Run = Message<"korpis.v1.Run"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string workload = 2;
-   */
-  workload: string;
-
-  /**
-   * The intent it was made under, whose exit probe judges it.
-   *
-   * @generated from field: string intent = 3;
-   */
-  intent: string;
-
-  /**
-   * @generated from field: korpis.v1.RunTrigger trigger = 4;
-   */
-  trigger: RunTrigger;
-
-  /**
-   * The occurrence it is for, or when it came due.
-   *
-   * @generated from field: google.protobuf.Timestamp scheduled_for = 5;
-   */
-  scheduledFor?: Timestamp | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp started_at = 6;
-   */
-  startedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp ended_at = 7;
-   */
-  endedAt?: Timestamp | undefined;
-
-  /**
-   * The node it ran on; empty before it started.
-   *
-   * @generated from field: string node = 8;
-   */
-  node: string;
-
-  /**
-   * @generated from field: korpis.v1.RunStatus status = 9;
-   */
-  status: RunStatus;
-
-  /**
-   * @generated from field: optional int32 exit_status = 10;
-   */
-  exitStatus?: number | undefined;
-
-  /**
-   * From one.
-   *
-   * @generated from field: uint32 attempt = 11;
-   */
-  attempt: number;
-
-  /**
-   * The power cycle that requested it, for a manual run.
-   *
-   * @generated from field: optional uint64 cycle = 12;
-   */
-  cycle?: bigint | undefined;
-
-  /**
-   * How many occurrences it stands for; above one only for a missed run recording an interval.
-   *
-   * @generated from field: uint32 occurrences = 13;
-   */
-  occurrences: number;
-
-  /**
-   * @generated from field: korpis.v1.RunCause cause = 14;
-   */
-  cause: RunCause;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 15;
-   */
-  createdAt?: Timestamp | undefined;
-};
-
-/**
- * Describes the message korpis.v1.Run.
- * Use `create(RunSchema)` to create a new message.
- */
-export const RunSchema: GenMessage<Run> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 0);
+  fileDesc("ChNrb3JwaXMvdjEvcnVuLnByb3RvEglrb3JwaXMudjEiGwoNR2V0UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSItCg5HZXRSdW5SZXNwb25zZRIbCgNydW4YASABKAsyDi5rb3JwaXMudjEuUnVuIkkKD0xpc3RSdW5zUmVxdWVzdBIQCgh3b3JrbG9hZBgBIAEoCRIkCgRwYWdlGAIgASgLMhYua29ycGlzLnYxLlBhZ2VSZXF1ZXN0IlcKEExpc3RSdW5zUmVzcG9uc2USHAoEcnVucxgBIAMoCzIOLmtvcnBpcy52MS5SdW4SJQoEcGFnZRgCIAEoCzIXLmtvcnBpcy52MS5QYWdlUmVzcG9uc2UiRgoQQ2FuY2VsUnVuUmVxdWVzdBIlCghtdXRhdGlvbhgBIAEoCzITLmtvcnBpcy52MS5NdXRhdGlvbhILCgNydW4YAiABKAkiMAoRQ2FuY2VsUnVuUmVzcG9uc2USGwoDcnVuGAEgASgLMg4ua29ycGlzLnYxLlJ1bjLiAQoKUnVuU2VydmljZRJCCgZHZXRSdW4SGC5rb3JwaXMudjEuR2V0UnVuUmVxdWVzdBoZLmtvcnBpcy52MS5HZXRSdW5SZXNwb25zZSIDkAIBEkgKCExpc3RSdW5zEhoua29ycGlzLnYxLkxpc3RSdW5zUmVxdWVzdBobLmtvcnBpcy52MS5MaXN0UnVuc1Jlc3BvbnNlIgOQAgESRgoJQ2FuY2VsUnVuEhsua29ycGlzLnYxLkNhbmNlbFJ1blJlcXVlc3QaHC5rb3JwaXMudjEuQ2FuY2VsUnVuUmVzcG9uc2ViBnByb3RvMw", [file_korpis_v1_api, file_korpis_v1_workload]);
 
 /**
  * @generated from message korpis.v1.GetRunRequest
@@ -138,7 +39,7 @@ export type GetRunRequest = Message<"korpis.v1.GetRunRequest"> & {
  * Use `create(GetRunRequestSchema)` to create a new message.
  */
 export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 1);
+  messageDesc(file_korpis_v1_run, 0);
 
 /**
  * @generated from message korpis.v1.GetRunResponse
@@ -155,7 +56,7 @@ export type GetRunResponse = Message<"korpis.v1.GetRunResponse"> & {
  * Use `create(GetRunResponseSchema)` to create a new message.
  */
 export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 2);
+  messageDesc(file_korpis_v1_run, 1);
 
 /**
  * @generated from message korpis.v1.ListRunsRequest
@@ -177,7 +78,7 @@ export type ListRunsRequest = Message<"korpis.v1.ListRunsRequest"> & {
  * Use `create(ListRunsRequestSchema)` to create a new message.
  */
 export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 3);
+  messageDesc(file_korpis_v1_run, 2);
 
 /**
  * @generated from message korpis.v1.ListRunsResponse
@@ -199,7 +100,7 @@ export type ListRunsResponse = Message<"korpis.v1.ListRunsResponse"> & {
  * Use `create(ListRunsResponseSchema)` to create a new message.
  */
 export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 4);
+  messageDesc(file_korpis_v1_run, 3);
 
 /**
  * @generated from message korpis.v1.CancelRunRequest
@@ -221,7 +122,7 @@ export type CancelRunRequest = Message<"korpis.v1.CancelRunRequest"> & {
  * Use `create(CancelRunRequestSchema)` to create a new message.
  */
 export const CancelRunRequestSchema: GenMessage<CancelRunRequest> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 5);
+  messageDesc(file_korpis_v1_run, 4);
 
 /**
  * @generated from message korpis.v1.CancelRunResponse
@@ -238,168 +139,7 @@ export type CancelRunResponse = Message<"korpis.v1.CancelRunResponse"> & {
  * Use `create(CancelRunResponseSchema)` to create a new message.
  */
 export const CancelRunResponseSchema: GenMessage<CancelRunResponse> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_run, 6);
-
-/**
- * @generated from enum korpis.v1.RunTrigger
- */
-export enum RunTrigger {
-  /**
-   * @generated from enum value: RUN_TRIGGER_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * An occurrence of the schedule.
-   *
-   * @generated from enum value: RUN_TRIGGER_SCHEDULE = 1;
-   */
-  SCHEDULE = 1,
-
-  /**
-   * A higher power cycle.
-   *
-   * @generated from enum value: RUN_TRIGGER_MANUAL = 2;
-   */
-  MANUAL = 2,
-
-  /**
-   * The next attempt of a failed run.
-   *
-   * @generated from enum value: RUN_TRIGGER_RETRY = 3;
-   */
-  RETRY = 3,
-
-  /**
-   * An event; nothing makes one yet.
-   *
-   * @generated from enum value: RUN_TRIGGER_EVENT = 4;
-   */
-  EVENT = 4,
-}
-
-/**
- * Describes the enum korpis.v1.RunTrigger.
- */
-export const RunTriggerSchema: GenEnum<RunTrigger> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_run, 0);
-
-/**
- * @generated from enum korpis.v1.RunStatus
- */
-export enum RunStatus {
-  /**
-   * @generated from enum value: RUN_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Made, and not yet started by a node.
-   *
-   * @generated from enum value: RUN_STATUS_PENDING = 1;
-   */
-  PENDING = 1,
-
-  /**
-   * @generated from enum value: RUN_STATUS_RUNNING = 2;
-   */
-  RUNNING = 2,
-
-  /**
-   * Ended with an exit status the intent's exit probe calls success.
-   *
-   * @generated from enum value: RUN_STATUS_SUCCEEDED = 3;
-   */
-  SUCCEEDED = 3,
-
-  /**
-   * @generated from enum value: RUN_STATUS_FAILED = 4;
-   */
-  FAILED = 4,
-
-  /**
-   * Ended by the control plane before its process did.
-   *
-   * @generated from enum value: RUN_STATUS_CANCELLED = 5;
-   */
-  CANCELLED = 5,
-
-  /**
-   * Never made into an execution: an occurrence skipped, or a run its node never started.
-   *
-   * @generated from enum value: RUN_STATUS_MISSED = 6;
-   */
-  MISSED = 6,
-}
-
-/**
- * Describes the enum korpis.v1.RunStatus.
- */
-export const RunStatusSchema: GenEnum<RunStatus> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_run, 1);
-
-/**
- * Why a run ended as it did (§4.2 to §4.4 of docs/05-scheduling.md).
- *
- * @generated from enum korpis.v1.RunCause
- */
-export enum RunCause {
-  /**
-   * @generated from enum value: RUN_CAUSE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_EXIT = 1;
-   */
-  EXIT = 1,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_TIMEOUT = 2;
-   */
-  TIMEOUT = 2,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_CANCELLED = 3;
-   */
-  CANCELLED = 3,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_STOPPED = 4;
-   */
-  STOPPED = 4,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_REPLACED = 5;
-   */
-  REPLACED = 5,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_CONCURRENCY = 6;
-   */
-  CONCURRENCY = 6,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_NOT_STARTED = 7;
-   */
-  NOT_STARTED = 7,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_SKIPPED = 8;
-   */
-  SKIPPED = 8,
-
-  /**
-   * @generated from enum value: RUN_CAUSE_NODE_LOST = 9;
-   */
-  NODE_LOST = 9,
-}
-
-/**
- * Describes the enum korpis.v1.RunCause.
- */
-export const RunCauseSchema: GenEnum<RunCause> = /*@__PURE__*/
-  enumDesc(file_korpis_v1_run, 2);
+  messageDesc(file_korpis_v1_run, 5);
 
 /**
  * @generated from service korpis.v1.RunService
