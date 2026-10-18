@@ -2,9 +2,10 @@
 
 //! Runs: `korpis.v1.Run` (§4 of docs/05-scheduling.md).
 
-use crate::{timestamp, wire_id};
+use crate::{duration, timestamp, wire_id};
 use korpis_core::id::IdKind;
-use korpis_core::workload::run::{Cause, Run, RunStatus, Trigger};
+use korpis_core::workload::run::{Cause, Run, RunRef, RunStatus, Trigger};
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::v1 as pb;
 
 /// The wire form of a trigger.
@@ -66,6 +67,19 @@ pub fn run_to_pb(r: &Run) -> pb::Run {
         occurrences: r.occurrences,
         cause: r.cause.map_or(pb::RunCause::RUN_CAUSE_UNSPECIFIED, cause_to_pb).into(),
         created_at: timestamp(r.created_at).into(),
+        ..Default::default()
+    }
+}
+
+/// The wire form of a run as an assignment names it.
+#[must_use]
+pub fn ref_to_pb(r: &RunRef) -> agent::RunRef {
+    agent::RunRef {
+        run: wire_id(IdKind::Run, r.run),
+        attempt: r.attempt,
+        trigger: trigger_to_pb(r.trigger).into(),
+        scheduled_for: timestamp(r.scheduled_for).into(),
+        timeout: r.timeout.map(duration).into(),
         ..Default::default()
     }
 }

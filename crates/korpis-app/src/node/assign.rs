@@ -15,12 +15,13 @@ use super::endpoints;
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{
-    AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, SealError, Sealed, Store,
-    StoredAssignment, Tx, WorkloadWrite,
+    AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, RunWrite as _, SealError, Sealed,
+    Store, StoredAssignment, Tx, WorkloadWrite,
 };
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
+use korpis_core::workload::run::named;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -49,6 +50,7 @@ fn runs_digest(
     let runs = Assignment {
         plan: None,
         challenges: Vec::new(),
+        runs: Vec::new(),
         labels: korpis_core::labels::Labels::default(),
         ..assignment.clone()
     };
@@ -83,6 +85,24 @@ async fn ids<T: Tx>(tx: &mut T, node: Uuid, workload: Uuid) -> Result<IdRange, A
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// What a live assignment holds of its node: the ids it keeps there, its endpoints as placed
+    /// there, the challenges its node's proxy answers, and the runs it executes.
+    async fn place_here(
+        &self,
+        tx: &mut S::Tx,
+        a: &mut Assignment,
+        range: Option<korpis_core::node::advertised::PortRange>,
+    ) -> Result<(), AppError> {
+        a.ids = ids(tx, a.node, a.workload).await?;
+        let now = self.clock.now();
+        a.endpoints =
+            endpoints::placed(tx, (a.node, a.workload), &a.target.body, range, now).await?;
+        a.challenges = tx.challenges_for(a.workload).await?;
+        let active = tx.active_runs_within(a.workload).await?;
+        a.runs = named(&active, &a.target.body.run_policy());
+        Ok(())
+    }
+
     /// Computes `node`'s set, seals what changed, and returns the set to send.
     pub async fn sync_assignments(&self, node: Uuid) -> Result<AssignmentSet, AppError> {
         let sealer = self
@@ -98,12 +118,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut out = Vec::with_capacity(desired.len());
         for (mut assignment, plan) in desired {
             if !assignment.residual {
-                assignment.ids = ids(&mut tx, node, assignment.workload).await?;
-                let at = (node, assignment.workload);
-                let now = self.clock.now();
-                assignment.endpoints =
-                    endpoints::placed(&mut tx, at, &assignment.target.body, range, now).await?;
-                assignment.challenges = tx.challenges_for(assignment.workload).await?;
+                self.place_here(&mut tx, &mut assignment, range).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let runs = runs_digest(sealer.as_ref(), &assignment)?;
@@ -229,6 +244,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 reaches_api,
                 dependencies,
                 challenges: Vec::new(),
+                runs: Vec::new(),
             },
             plan,
         )))
@@ -284,6 +300,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 reaches_api: false,
                 dependencies: Vec::new(),
                 challenges: Vec::new(),
+                runs: Vec::new(),
             },
             Some(plan),
         )))

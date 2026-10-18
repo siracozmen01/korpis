@@ -17,6 +17,7 @@ import "korpis/v1/attached.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/placement.proto";
 import "korpis/v1/provider.proto";
+import "korpis/v1/run.proto";
 import "korpis/v1/tenancy.proto";
 import "korpis/v1/workload.proto";
 import "korpis/v1/workload_spec.proto";
@@ -479,6 +480,21 @@ message Assignment {
   // lost the workload recovers it from them (§8 of docs/03-state.md).
   string workload_name = 23;
   map<string, string> workload_labels = 24;
+  // The runs of a task or scheduled workload the node is to execute; none for a persistent one.
+  // The node starts each it has not started and stops each it started that is no longer named
+  // (§4.5 of docs/05-scheduling.md).
+  repeated RunRef runs = 25;
+}
+
+// One run a node is to execute: what it is, and what the node enforces of it. Also what a
+// restore that lost the run records it under (§8 of docs/03-state.md).
+message RunRef {
+  string run = 1;
+  uint32 attempt = 2;
+  korpis.v1.RunTrigger trigger = 3;
+  google.protobuf.Timestamp scheduled_for = 4;
+  // How long it may take before the node stops it; unbounded when unset.
+  google.protobuf.Duration timeout = 5;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

@@ -83,6 +83,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
                 ..Default::default()
             })
             .collect(),
+        runs: a.runs.iter().map(crate::run::ref_to_pb).collect(),
         ..Default::default()
     }
 }

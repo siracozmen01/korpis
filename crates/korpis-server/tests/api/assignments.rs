@@ -16,7 +16,7 @@ use korpis_proto::korpis::agent::v1::__buffa::oneof::control_message::Message as
 use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
-fn set(m: &agent::ControlMessage) -> agent::AssignmentSet {
+pub fn set(m: &agent::ControlMessage) -> agent::AssignmentSet {
     match m.message.as_ref() {
         Some(Down::AssignmentSet(s)) => (**s).clone(),
         other => panic!("expected an assignment set, got {other:?}"),
@@ -24,7 +24,7 @@ fn set(m: &agent::ControlMessage) -> agent::AssignmentSet {
 }
 
 /// Verifies the one assignment of `set` against the agent's keys and decodes it.
-fn only(a: &TestAgent, set: &agent::AssignmentSet) -> agent::Assignment {
+pub fn only(a: &TestAgent, set: &agent::AssignmentSet) -> agent::Assignment {
     let [signed] = set.assignments.as_slice() else { panic!("one assignment, got {set:?}") };
     let key = a.assignment_keys.iter().find(|k| k.key_id == signed.key_id).expect("a known key");
     let public: [u8; 32] = key.public_key.as_slice().try_into().unwrap();
@@ -47,7 +47,7 @@ async fn stopped_set(a: &TestAgent, s: &mut Stream) -> (agent::AssignmentSet, ag
     panic!("never told to stop");
 }
 
-async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
+pub async fn connect(h: &Harness, a: &TestAgent, n: u8, held: &str) -> Stream {
     let mut hello = a.hello_at(SystemTime::now(), &[n; 16]);
     if let Some(Up::Hello(x)) = hello.message.as_mut() {
         held.clone_into(&mut x.set_digest);

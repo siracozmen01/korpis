@@ -216,6 +216,46 @@ pub struct RunEnd {
     pub at: SystemTime,
 }
 
+/// One run a node is to execute, as its assignment names it (§4.5 of docs/05-scheduling.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunRef {
+    /// The run.
+    pub run: Uuid,
+    /// Which attempt it is.
+    pub attempt: u32,
+    /// What made it.
+    pub trigger: Trigger,
+    /// The occurrence it is for.
+    pub scheduled_for: SystemTime,
+    /// How long it may take before the node stops it.
+    pub timeout: Option<std::time::Duration>,
+}
+
+/// The active runs a node is to execute, from `active` under `policy`: every one under `allow`;
+/// otherwise the running ones, or else the oldest pending, so that runs queued behind one another
+/// (caught up, or waiting behind one its node has not started) go one at a time.
+#[must_use]
+pub fn named(active: &[Run], policy: &crate::workload::spec::RunPolicy) -> Vec<RunRef> {
+    use crate::workload::spec::Concurrency;
+    let refer = |r: &Run| RunRef {
+        run: r.id,
+        attempt: r.attempt,
+        trigger: r.trigger,
+        scheduled_for: r.scheduled_for,
+        timeout: policy.timeout,
+    };
+    let live = active.iter().filter(|r| r.status.is_active());
+    if policy.concurrency == Concurrency::Allow {
+        return live.map(refer).collect();
+    }
+    let running: Vec<RunRef> =
+        live.clone().filter(|r| r.status == RunStatus::Running).map(refer).collect();
+    if !running.is_empty() {
+        return running;
+    }
+    live.min_by_key(|r| (r.scheduled_for, r.id)).map(refer).into_iter().collect()
+}
+
 /// What the control plane keeps of a workload's runs beside the runs themselves: the next
 /// occurrence of its schedule and the intent it was evaluated from, and the highest power cycle
 /// a run was made for, so that pruning a run never makes it again.
@@ -244,5 +284,22 @@ mod tests {
         assert_eq!(Trigger::parse("cron"), None);
         assert!(RunStatus::Pending.is_active() && RunStatus::Running.is_active());
         assert!(!RunStatus::Missed.is_active() && !RunStatus::Cancelled.is_active());
+    }
+
+    #[test]
+    fn a_node_runs_every_active_run_only_under_allow_and_otherwise_one_at_a_time() {
+        use crate::workload::spec::{Concurrency, RunPolicy};
+        let (w, i) = (Uuid::now_v7(), Uuid::now_v7());
+        let at = |s: u64| SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(s);
+        let later = Run::pending(w, i, Trigger::Schedule, at(20), at(20));
+        let earlier = Run::pending(w, i, Trigger::Schedule, at(10), at(30));
+        let queued = [later.clone(), earlier.clone()];
+        let forbid = RunPolicy::default();
+        let ids = |refs: Vec<RunRef>| refs.into_iter().map(|r| r.run).collect::<Vec<_>>();
+        assert_eq!(ids(named(&queued, &forbid)), [earlier.id], "the oldest pending");
+        let running = Run { status: RunStatus::Running, ..later.clone() };
+        assert_eq!(ids(named(&[running.clone(), earlier.clone()], &forbid)), [running.id]);
+        let allow = RunPolicy { concurrency: Concurrency::Allow, ..forbid };
+        assert_eq!(named(&queued, &allow).len(), 2);
     }
 }

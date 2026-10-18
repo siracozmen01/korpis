@@ -102,3 +102,44 @@ async fn a_task_s_run_is_made_read_by_its_readers_and_cancelled_once_by_who_may_
     assert_eq!(reason(&again), "run.ended", "{again:?}");
     assert_eq!(h.effects("run.cancelled").await.len(), 1);
 }
+
+#[tokio::test]
+async fn the_node_a_task_is_placed_on_is_told_its_run_with_what_it_enforces() {
+    use crate::agent::{TestAgent, next};
+    use crate::assignments::{connect, only, set};
+    let h = Harness::new().await;
+    let a = TestAgent::enroll(&h, "fra-3", 1).await;
+    let repo = push_paper().await;
+    let project = project(&h, &h.root_org(), "jobs").await;
+    let timeout = pb::RunPolicy {
+        timeout: korpis_wire::duration(std::time::Duration::from_secs(600)).into(),
+        ..Default::default()
+    };
+    let task = pb::IntentBody {
+        lifecycle: pb::Lifecycle::LIFECYCLE_TASK.into(),
+        runs: timeout.into(),
+        ..body(&repo, &[])
+    };
+    let mut stream = connect(&h, &a, 1, "").await;
+    assert!(set(&next(&mut stream).await).assignments.is_empty());
+    let declared = create("task", &project, "build", task);
+    let declared = h.workloads(h.root()).declare_intent(declared).await.unwrap().into_owned();
+    let workload = declared.workload.into_option().unwrap().id;
+    // The sets sent meanwhile wait on the stream, in order.
+    let run = made(&h, &workload).await.remove(0);
+    let mut told = only(&a, &set(&next(&mut stream).await));
+    while told.runs.is_empty() {
+        told = only(&a, &set(&next(&mut stream).await));
+    }
+    let [named] = told.runs.as_slice() else { panic!("one run named, got {:?}", told.runs) };
+    assert_eq!((named.run.as_str(), named.attempt), (run.id.as_str(), 1));
+    assert_eq!(named.trigger.as_known(), Some(pb::RunTrigger::RUN_TRIGGER_MANUAL));
+    let enforced = named.timeout.as_option().map(|d| d.seconds);
+    assert_eq!(enforced, Some(600), "the node enforces the timeout");
+
+    // Cancelled, it is named no more: the node stops it.
+    let cancelled = h.runs(h.root()).cancel_run(cancel("c", &run.id)).await.unwrap();
+    assert!(cancelled.into_owned().run.is_set());
+    let told = only(&a, &set(&next(&mut stream).await));
+    assert!(told.runs.is_empty(), "{:?}", told.runs);
+}

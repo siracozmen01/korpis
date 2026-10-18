@@ -676,6 +676,13 @@ on its node holding its volumes and nothing else. Each run's console is a stream
 restored store lacks is recorded as recovered, with what the assignment named, like the rest of
 the assignment (§8 of `03-state.md`).
 
+> As built, 2026-10-18, the assignment's half (`crates/korpis-core/src/workload/run.rs`,
+> `named`). Under `allow` the assignment names every active run. Under `forbid` or `replace` it
+> names the running one, or else the oldest pending one by its occurrence, so runs queued behind
+> one another, caught up or waiting behind one never started, reach the node one at a time and
+> the node needs no policy of its own to keep them apart. The timeout named is the target's
+> policy's, which is what the node runs.
+
 ---
 
 ## 5. Quota, overcommit, and honesty

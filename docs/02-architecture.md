@@ -729,7 +729,9 @@ MigrationRole
 
 > Added 2026-10-18, when runs were designed (Finding 98 of `23-walkthroughs.md`): `runs` and
 > `RunRef`, designed and not yet built, are how a node learns which runs to start and which to
-> stop, since the target intent says how to run the workload and not when.
+> stop, since the target intent says how to run the workload and not when. Built the same day
+> (`crates/korpis-app/src/node/assign.rs`): signed with the rest, and counted in what the node
+> runs, so a run made or ended sends the node a new generation.
 
 The assignment is still level-triggered. It describes what should be true, and the node makes it
 true; nothing in it is an instruction that is lost if a message is lost. Each part answers one of
