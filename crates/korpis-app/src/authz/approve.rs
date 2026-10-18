@@ -77,7 +77,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(None);
         }
         let workload = ObjectRef::new(Kind::Workload, plan.workload);
-        let through = Some(plan.proposed_under);
+        let through = plan.proposed_under;
         match self.decide_as(caller, (action, workload), through, true).await? {
             Decision::Permit(p) => Ok(Some(p)),
             Decision::Propose { .. } | Decision::Deny(_) => Ok(None),
@@ -92,13 +92,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Permit, AppError> {
         let mut snapshot = Snapshot::default();
         snapshot.load(&self.store, scope.anchor()).await?;
-        let proposing: Vec<Grant> = self
-            .store
-            .grant_chain(plan.proposed_under)
-            .await?
-            .into_iter()
-            .map(|r| r.grant)
-            .collect();
+        let chain = match plan.proposed_under {
+            Some(grant) => self.store.grant_chain(grant).await?,
+            None => Vec::new(),
+        };
+        let proposing: Vec<Grant> = chain.into_iter().map(|r| r.grant).collect();
         let mut chains = Vec::new();
         for records in self.store.chains_held_by(&caller.subject.key).await? {
             let chain: Vec<Grant> = records.into_iter().map(|r| r.grant).collect();

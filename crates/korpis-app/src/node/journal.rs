@@ -187,7 +187,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         e.plan = Some(plan.id);
         e.step = Some(step);
-        e.grant = Some(plan.proposed_under);
+        e.grant = plan.proposed_under;
         if let Some(why) = crate::workload::refused_before_anything(n)
             && self.replace_refused(tx, node, &plan, &why).await?
         {
@@ -280,7 +280,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.workload = Some(w.id);
         e.plan = Some(plan.id);
         e.step = plan.completed;
-        e.grant = Some(plan.proposed_under);
+        e.grant = plan.proposed_under;
         tx.append_effect(&e).await?;
         Ok(())
     }

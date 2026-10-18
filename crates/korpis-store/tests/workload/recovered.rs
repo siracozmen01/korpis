@@ -13,6 +13,7 @@ use korpis_app::ports::{
 use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::schedule::{Explanation, PlacementPolicy};
 use korpis_core::tenancy::quota::Bounds;
+use korpis_core::workload::Plan;
 use korpis_store::PgStore;
 use korpis_store::testing::{enroll, ready_node};
 use sqlx::Connection as _;
@@ -128,4 +129,43 @@ async fn a_presented_slot_is_taken_only_from_a_workload_not_placed_on_the_node()
             .unwrap();
     held.sort_by_key(|(_, slot)| *slot);
     assert_eq!(held, [(w.id, 3), (here.id, 4)], "nothing changed by the conflict");
+}
+
+#[tokio::test]
+async fn a_presented_plan_is_recorded_applying_and_the_one_it_followed_is_closed() {
+    use korpis_app::ports::{PlanRecovery, WorkloadRead, WorkloadWrite as _};
+    use korpis_core::workload::plan::{Approval, PlanStatus};
+    let f = fixture().await;
+    let (_, first) = create(&f, "mc").await;
+    let older =
+        Plan { status: PlanStatus::Applying, ..crate::plans::plan(&f, &first, Approval::Auto) };
+    let presented = Plan {
+        proposed_under: Some(Uuid::now_v7()),
+        ..crate::plans::plan(&f, &first, Approval::Auto)
+    };
+    let queued =
+        Plan { status: PlanStatus::Queued, ..crate::plans::plan(&f, &first, Approval::Auto) };
+    let mut tx = f.store.begin().await.unwrap();
+    tx.insert_plan(&older).await.unwrap();
+    let recorded = tx.recover_plan(&presented).await.unwrap();
+    assert_eq!(recorded, PlanRecovery::Recorded { closed: vec![older.id] });
+    assert_eq!(tx.recover_plan(&presented).await.unwrap(), PlanRecovery::Held, "once");
+    tx.insert_plan(&queued).await.unwrap();
+    let started = tx.recover_plan(&queued).await.unwrap();
+    assert_eq!(started, PlanRecovery::Started { closed: vec![presented.id] });
+    tx.commit().await.unwrap();
+    let read = f.store.plan(presented.id).await.unwrap().unwrap();
+    assert_eq!(read.proposed_under, None, "a grant the store does not hold is left out");
+    assert_eq!(read.approved_by, presented.approved_by);
+    let store = &f.store;
+    let status = |id| async move { store.plan(id).await.unwrap().unwrap().status };
+    assert_eq!(status(older.id).await, PlanStatus::Cancelled);
+    assert_eq!(status(presented.id).await, PlanStatus::Cancelled, "the queued one followed it");
+    assert_eq!(status(queued.id).await, PlanStatus::Applying);
+    let recovered: bool = sqlx::query_scalar("SELECT recovered FROM plan WHERE id = $1")
+        .bind(presented.id)
+        .fetch_one(f.store.pool())
+        .await
+        .unwrap();
+    assert!(recovered);
 }

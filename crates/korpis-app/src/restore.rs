@@ -157,7 +157,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 Recovery::Held | Recovery::Skipped => {}
             }
         }
-        let presented: Vec<Uuid> = opened.iter().map(|(o, _)| o.workload).collect();
+        // A residual assignment is what a node keeps of a workload it retired: evidence the
+        // workload is gone from it, not that it runs there.
+        let presented: Vec<Uuid> =
+            opened.iter().filter(|(o, _)| !o.residual).map(|(o, _)| o.workload).collect();
         presentation.held = self.hold_unpresented(node, &presented).await?;
         Ok(presentation)
     }

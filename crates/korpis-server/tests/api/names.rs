@@ -154,7 +154,7 @@ async fn an_endpoints_names_are_published_where_a_provider_serves_them_and_withd
     let h = Harness::new().await;
     let zone = Zone::default();
     let _provider = serving(&h, zone.clone()).await;
-    let (mut s, shop, created, seq) = shop(&h).await;
+    let (mut s, shop, created, seq) = Box::pin(shop(&h)).await;
 
     let settled = |n: &[pb::EndpointName]| {
         n.len() == 2 && n.iter().all(|n| state(n) != Some(S::ENDPOINT_NAME_STATE_PENDING))

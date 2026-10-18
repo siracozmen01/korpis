@@ -6,7 +6,7 @@
 
 use super::StoreResult;
 use korpis_core::placement::Placement;
-use korpis_core::workload::{Intent, PowerRecord, Workload};
+use korpis_core::workload::{Intent, Plan, PowerRecord, Workload};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -98,6 +98,28 @@ pub enum SlotRecovery {
     },
 }
 
+/// What recovering a plan did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlanRecovery {
+    /// The store lacked it: it is recorded as applying, and recovered.
+    Recorded {
+        /// Other plans of the workload the store held as applying, now cancelled.
+        closed: Vec<Uuid>,
+    },
+    /// The store held it as approved or queued: it is applying now.
+    Started {
+        /// Other plans of the workload the store held as applying, now cancelled.
+        closed: Vec<Uuid>,
+    },
+    /// The store holds it as applying, or as ended.
+    Held,
+    /// It names something the store does not hold and cannot recover: nothing was written.
+    Refused {
+        /// What.
+        missing: &'static str,
+    },
+}
+
 /// Writing what a restore recovers.
 pub trait RecoveryWrite {
     /// Records a workload the store lacks, with no intent yet; false if its name is taken in its
@@ -168,4 +190,14 @@ pub trait RecoveryWrite {
         &mut self,
         workload: Uuid,
     ) -> impl Future<Output = StoreResult<Option<Uuid>>> + Send;
+
+    /// Recovers `plan`, which a node presented applying. A plan the store lacks is recorded as
+    /// applying and recovered, its grant and its starting intent left out where the store does
+    /// not hold them; one the store holds as approved or queued becomes applying. Either way,
+    /// every other plan of the workload the store holds as applying is cancelled first, since
+    /// plans of a workload apply one at a time and the node has moved past it.
+    fn recover_plan(
+        &mut self,
+        plan: &Plan,
+    ) -> impl Future<Output = StoreResult<PlanRecovery>> + Send;
 }

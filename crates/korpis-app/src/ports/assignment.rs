@@ -71,6 +71,8 @@ pub struct Opened {
     pub residual: bool,
     /// The host ids the node runs it under.
     pub ids: korpis_core::workload::assignment::IdRange,
+    /// The plan it is applying, in full, its status and progress left out.
+    pub plan: Option<korpis_core::workload::Plan>,
 }
 
 /// An assignment as the store keeps it.

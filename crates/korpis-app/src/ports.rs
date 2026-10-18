@@ -95,8 +95,8 @@ pub use quota::{Holder, QuotaWrite};
 pub use rate::{RateBuckets, RateWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use recovery::{
-    Advance, Advanced, IntentRecovery, PlacementRecovery, RecoveredFrom, RecoveryWrite,
-    SlotRecovery,
+    Advance, Advanced, IntentRecovery, PlacementRecovery, PlanRecovery, RecoveredFrom,
+    RecoveryWrite, SlotRecovery,
 };
 pub use relay::{
     CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,

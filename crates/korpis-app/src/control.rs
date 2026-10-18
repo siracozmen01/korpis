@@ -137,7 +137,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         e.workload = Some(locked.workload);
         e.plan = Some(plan);
         e.step = Some(step.index);
-        e.grant = Some(locked.proposed_under);
+        e.grant = locked.proposed_under;
         e = if outcome == Outcome::Failed { e.error(after) } else { e.after(after) };
         tx.append_effect(&e).await?;
         self.progress(tx, locked, step.index, outcome).await

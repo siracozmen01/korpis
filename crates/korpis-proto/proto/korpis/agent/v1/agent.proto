@@ -494,6 +494,9 @@ message NodePlan {
   repeated korpis.v1.Step steps = 2;
   // The last step index the node may execute. Cancelling a plan is lowering this.
   uint32 through = 3;
+  // The plan in full, its status and progress left out, which the node does not use: what a
+  // restored control plane that lost it recovers it from (§8 of docs/03-state.md).
+  korpis.v1.Plan whole = 4;
 }
 
 message Retire {

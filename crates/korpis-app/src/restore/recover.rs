@@ -12,15 +12,15 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{
     Advance, Clock, EffectWrite as _, IntentRecovery, Opened, PlacementRecovery,
-    PlacementWrite as _, RecipeSource, RecoveredFrom, RecoveryWrite as _, Sealed, SlotRecovery,
-    Store, Tx as _, WorkloadWrite as _,
+    PlacementWrite as _, PlanRecovery, RecipeSource, RecoveredFrom, RecoveryWrite, Sealed,
+    SlotRecovery, Store, Tx, WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::placement::{BoundBy, Placement};
 use korpis_core::principal::{Principal, SystemActor};
 use korpis_core::schedule::{Explanation, PlacementPolicy, reservation};
 use korpis_core::tenancy::Name;
-use korpis_core::workload::Workload;
+use korpis_core::workload::{Plan, Workload};
 use serde_json::{Map, Value};
 use std::fmt::Write as _;
 
@@ -91,6 +91,74 @@ fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement
     }
 }
 
+/// `opened`'s power declaration recovered, and its workload's head, target, power head, and
+/// power target moved forward to what it presents.
+async fn recover_forward<T: RecoveryWrite>(
+    tx: &mut T,
+    from: &RecoveredFrom,
+    opened: &Opened,
+    sealed: &Sealed,
+) -> Result<Vec<Effect>, AppError> {
+    let done = |action| effect(action, Outcome::Succeeded, opened, sealed);
+    let mut effects = Vec::new();
+    let power = opened.power.power.version;
+    if power > 0 && tx.recover_power(&opened.power, from).await? {
+        effects.push(done("restore.power.recovered"));
+    }
+    let target = (opened.target.id, opened.target.version);
+    let moved = tx.advance_recovered(Advance { workload: opened.workload, target, power }).await?;
+    if moved.head || moved.target || moved.power {
+        let more = details([
+            ("head", moved.head.into()),
+            ("target", moved.target.into()),
+            ("power_target", moved.power.into()),
+        ]);
+        effects.push(with(done("restore.targets.recovered"), more));
+    }
+    Ok(effects)
+}
+
+/// The plan `opened` was applying, recovered: recorded as applying where the store lacks it,
+/// started where the store held it approved or queued, and every other plan of the workload the
+/// store held as applying cancelled.
+async fn recover_plan<T: RecoveryWrite>(
+    tx: &mut T,
+    plan: &Plan,
+    opened: &Opened,
+    sealed: &Sealed,
+) -> Result<Vec<Effect>, AppError> {
+    let about = |action, outcome| {
+        let mut e = effect(action, outcome, opened, sealed);
+        e.plan = Some(plan.id);
+        e
+    };
+    let (mut effects, closed) = match tx.recover_plan(plan).await? {
+        PlanRecovery::Held => return Ok(Vec::new()),
+        PlanRecovery::Refused { missing } => {
+            let more = details([("missing", missing.into())]);
+            return Ok(vec![with(about("restore.plan.refused", Outcome::Failed), more)]);
+        }
+        PlanRecovery::Recorded { closed } => {
+            let approved_by = plan.approved_by.as_ref().map_or(Value::Null, |p| p.key().into());
+            let more = details([("kind", plan.target.kind().into()), ("approved_by", approved_by)]);
+            (vec![with(about("restore.plan.recovered", Outcome::Succeeded), more)], closed)
+        }
+        PlanRecovery::Started { closed } => {
+            (vec![about("restore.plan.started", Outcome::Succeeded)], closed)
+        }
+    };
+    for id in closed {
+        let mut e = effect("restore.plan.closed", Outcome::Succeeded, opened, sealed);
+        e.plan = Some(id);
+        let why = "its node presented a later plan of the workload as applying";
+        effects.push(with(
+            e,
+            details([("superseded_by", plan.id.to_string().into()), ("why", why.into())]),
+        ));
+    }
+    Ok(effects)
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Recovers what `opened`, verified from `sealed`, says that the store lacks or holds older.
     pub(super) async fn recover(
@@ -128,22 +196,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return self.unrecovered(tx, opened, sealed, "version").await;
             }
         }
-        let power = opened.power.power.version;
-        if power > 0 && tx.recover_power(&opened.power, &from).await? {
-            effects.push(done("restore.power.recovered"));
-        }
-        let target = (opened.target.id, opened.target.version);
-        let moved =
-            tx.advance_recovered(Advance { workload: opened.workload, target, power }).await?;
-        if moved.head || moved.target || moved.power {
-            effects.push(with(
-                done("restore.targets.recovered"),
-                details([
-                    ("head", moved.head.into()),
-                    ("target", moved.target.into()),
-                    ("power_target", moved.power.into()),
-                ]),
-            ));
+        effects.extend(recover_forward(&mut tx, &from, opened, sealed).await?);
+        if let Some(plan) = &opened.plan {
+            effects.extend(recover_plan(&mut tx, plan, opened, sealed).await?);
         }
         effects.extend(self.recover_where(&mut tx, opened, sealed).await?);
         if effects.is_empty() {

@@ -238,7 +238,7 @@ impl PlanRow {
             from_power: count("from_power", self.from_power)?,
             computed_at: to_time(self.computed_at),
             computed_by: principal(&self.computed_by)?,
-            proposed_under: self.proposed_under.ok_or_else(|| corrupt("plan", "no grant"))?,
+            proposed_under: self.proposed_under,
             steps: steps.into_iter().map(StepDoc::into_domain).collect::<Result<_, _>>()?,
             impact: impact.into_domain()?,
             approval: approval(&self.approval, self.approval_scope)?,

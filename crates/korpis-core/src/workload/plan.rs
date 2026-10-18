@@ -148,8 +148,9 @@ pub struct Plan {
     pub computed_at: SystemTime,
     /// Who it was computed for.
     pub computed_by: Principal,
-    /// The grant it was proposed under.
-    pub proposed_under: Uuid,
+    /// The grant it was proposed under; `None` for a plan a restore recovered whose grant the
+    /// restored store does not hold (§8 of docs/03-state.md).
+    pub proposed_under: Option<Uuid>,
     /// The steps, in order.
     pub steps: Vec<Step>,
     /// What it costs.

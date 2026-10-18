@@ -702,6 +702,9 @@ NodePlan
   plan_id       PlanID
   steps         []NodeStep     the steps this node executes, in order, each with its index
   through       int            the last step index the node may execute
+  whole         Plan           the plan in full, its status and progress left out, which the
+                               node does not use: what a restore that lost it recovers it from
+                               (§8 of 03-state.md)
 
 MigrationRole
   role          source | destination

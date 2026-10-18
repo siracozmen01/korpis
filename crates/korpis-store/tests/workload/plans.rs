@@ -16,7 +16,7 @@ use korpis_core::workload::plan::{
 use korpis_core::workload::{Intent, Plan, PlanTarget, PowerState};
 use uuid::Uuid;
 
-fn plan(f: &Fixture, to: &Intent, approval: Approval) -> Plan {
+pub fn plan(f: &Fixture, to: &Intent, approval: Approval) -> Plan {
     let (driver, recipe) = (DriverClass::default(), Disruption::default());
     let classifier = Classifier { driver: &driver, recipe: &recipe, overrides: &[] };
     let steps =
@@ -32,7 +32,7 @@ fn plan(f: &Fixture, to: &Intent, approval: Approval) -> Plan {
         from_power: 0,
         computed_at: now,
         computed_by: alice(),
-        proposed_under: f.grant,
+        proposed_under: Some(f.grant),
         steps,
         impact,
         approval,

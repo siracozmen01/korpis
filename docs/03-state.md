@@ -600,7 +600,7 @@ the control plane's assignment-signing keyring:
 | the target intent | a **recovered** intent with its original identifier, version, body, and declarer, as signed |
 | the workload | a recovered workload under the signed owner, with that intent as head and target |
 | the power version | the recovered power declaration |
-| the plan the node is executing | a plan in `applying`, marked recovered, whose approval record is lost and says so |
+| the plan the node is executing | a plan in `applying`, marked recovered, with the approval it was signed with; the effect recording the approval is lost, and the gap record says so |
 
 Every recovered row is written with an effect naming the node that presented it and the signature
 that vouched for it, and each workload's version counter is advanced past the highest version any
@@ -655,9 +655,25 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > review of the first version, which let any presented epoch move a placement the scheduler had
 > made and took a slot from whichever workload held it.
 
+> As built, 2026-10-18, the last row of the table. The table said a recovered plan's approval
+> record is lost, which was true of what an assignment carried: the node's own steps and how far
+> it may go, not the plan's kind, its control-plane steps, nor who approved it. A plan recovered
+> from that would have run the node past a control-plane step it was waiting for, since the step
+> was not known to be there. So every assignment's node plan now carries the whole plan, its status
+> and progress left out so that neither changes what the node is told, and the plan is recovered
+> as it was signed: its kind, every step, its approval and approver, and the grant it was proposed
+> under where the restored store holds that grant (absent otherwise, which a plan's grant may now
+> be), with `recovered` set, as `applying`. A plan the store holds as approved or queued becomes
+> `applying`. Every other plan of the workload the store holds as `applying` is cancelled first,
+> with `restore.plan.closed` naming the plan that superseded it, since plans of a workload apply
+> one at a time and the node has moved past it; a completion the node's journal resends for it is
+> still counted, as for any cancelled plan (§7 above). A plan naming an intent, volume, or
+> repository the store does not hold is not recovered, and `restore.plan.refused` says which.
+
 > As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
 > live and placed in the restored store, and the node that removed it presents nothing for it. So
 > when a node presents, every placement the store holds on it whose workload it did not present,
+> or presented only as a residual assignment, which is what a node keeps of a workload it retired,
 > and which is not deleted, is held (`held_at`, with `restore.placement.held` naming the workload
 > and the node), and a held placement is left out of what that node is sent, and of the
 > certificates it is served, until an operator confirms it with

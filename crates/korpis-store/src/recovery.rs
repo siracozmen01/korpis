@@ -9,14 +9,16 @@ use crate::errors::from_sqlx;
 use crate::stored::{ExplanationDoc, bounds_doc, from_time, to_count, to_json};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{
-    Advance, Advanced, IntentRecovery, PlacementRecovery, RecoveredFrom, RecoveryWrite,
-    SlotRecovery, StoreError, StoreResult,
+    Advance, Advanced, IntentRecovery, PlacementRecovery, PlanRecovery, RecoveredFrom,
+    RecoveryWrite, SlotRecovery, StoreError, StoreResult,
 };
 use korpis_core::placement::Placement;
-use korpis_core::workload::{Intent, PowerRecord, PowerState, Workload};
+use korpis_core::workload::{Intent, Plan, PowerRecord, PowerState, Workload};
 use std::fmt::Write as _;
 use std::time::SystemTime;
 use uuid::Uuid;
+
+mod plan;
 
 /// `recovered_from`, as the store keeps it.
 #[derive(serde::Serialize)]
@@ -300,6 +302,10 @@ impl RecoveryWrite for PgTx {
         .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)
+    }
+
+    async fn recover_plan(&mut self, plan: &Plan) -> StoreResult<PlanRecovery> {
+        self.recover_plan_row(plan).await
     }
 }
 

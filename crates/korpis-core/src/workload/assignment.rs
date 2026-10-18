@@ -5,7 +5,7 @@
 //! a lost message is repaired by the next set, which carries the whole truth again.
 
 use super::plan::step::{Step, StepExecutor};
-use super::plan::{Plan, PlanTarget};
+use super::plan::{Plan, PlanStatus, PlanTarget};
 use super::spec::Continuity;
 use super::{Intent, PowerRecord};
 use std::collections::BTreeMap;
@@ -120,6 +120,10 @@ pub struct NodePlan {
     pub steps: Vec<Step>,
     /// The last step index the node may execute; cancelling lowers it.
     pub through: u32,
+    /// The plan in full, which the node does not use: what a restore that lost it recovers it
+    /// from (§8 of docs/03-state.md). Its status is applying and its progress none whatever
+    /// they are, so that neither changes what the node is told.
+    pub whole: Plan,
 }
 
 impl NodePlan {
@@ -139,7 +143,8 @@ impl NodePlan {
         let steps: Vec<Step> =
             plan.steps.iter().filter(|s| s.executor == StepExecutor::Node).cloned().collect();
         let through = steps.iter().rfind(|s| waits_at.is_none_or(|w| s.index < w))?.index;
-        Some(Self { plan: plan.id, steps, through })
+        let whole = Plan { status: PlanStatus::Applying, completed: None, ..plan.clone() };
+        Some(Self { plan: plan.id, steps, through, whole })
     }
 }
 
@@ -237,7 +242,7 @@ mod tests {
             from_power: 0,
             computed_at: now,
             computed_by: Principal::User(Uuid::nil()),
-            proposed_under: Uuid::nil(),
+            proposed_under: None,
             steps: executors.iter().enumerate().map(step).collect(),
             impact: Impact {
                 disruptive: false,

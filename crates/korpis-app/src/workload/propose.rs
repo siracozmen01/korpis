@@ -74,7 +74,7 @@ pub(super) fn plan(caller: &Caller, p: Proposal<'_>, now: SystemTime) -> Plan {
         from_power: p.from_power,
         computed_at: now,
         computed_by: caller.principal.clone(),
-        proposed_under: p.grant,
+        proposed_under: Some(p.grant),
         steps: p.steps,
         impact,
         approval,

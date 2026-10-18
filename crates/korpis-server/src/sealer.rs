@@ -13,6 +13,7 @@ use korpis_core::labels::Labels;
 use korpis_core::workload::assignment::{Assignment, IdRange};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_wire::assignment::assignment_to_pb;
+use korpis_wire::plan::plan_from_pb;
 use korpis_wire::workload::{intent_from_pb, power_from_pb};
 use sha2::{Digest, Sha256};
 
@@ -82,6 +83,13 @@ impl AssignmentSealer for Ed25519Sealer {
             power: power_from_pb("power", power).map_err(|e| refused(&e.to_string()))?,
             residual: pb.residual,
             ids: IdRange { base: pb.uid_base, count: pb.uid_count },
+            plan: pb
+                .plan
+                .as_option()
+                .and_then(|p| p.whole.as_option())
+                .map(plan_from_pb)
+                .transpose()
+                .map_err(|e| refused(&e.to_string()))?,
         })
     }
 }

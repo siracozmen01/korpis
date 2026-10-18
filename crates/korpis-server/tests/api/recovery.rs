@@ -196,6 +196,7 @@ async fn a_restore_recovers_what_the_nodes_run_and_tells_them_nothing_older() {
     assert_eq!(effects(&h, "restore.power.recovered", 1).await, 1, "x's");
     assert_eq!(effects(&h, "restore.targets.recovered", 2).await, 2, "w's and x's");
     assert_eq!(effects(&h, "restore.placement.recovered", 1).await, 1, "x's; w's held");
+    assert_eq!(effects(&h, "restore.plan.recovered", 2).await, 2, "w's change and x's creation");
     assert_eq!(effects(&h, "restore.id_slot.recovered", 1).await, 1, "x's");
     let state = "SELECT intent_id, intent_version, target_id FROM workload WHERE id = $1";
     let lost = ran.lost;

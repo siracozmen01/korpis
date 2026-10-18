@@ -276,7 +276,8 @@ message Plan {
   google.protobuf.Timestamp expires_at = 15;
   Subject approved_by = 16;
   google.protobuf.Timestamp approved_at = 17;
-  // The grant under which the plan was proposed.
+  // The grant under which the plan was proposed; empty for a plan a restore recovered whose grant
+  // the restored store does not hold (§8 of docs/03-state.md).
   string proposed_under = 18;
   // What the plan needs before it applies (§3.3 of docs/01-model.md), and why.
   PlanApproval approval = 19;

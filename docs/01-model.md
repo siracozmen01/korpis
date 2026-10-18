@@ -610,8 +610,10 @@ Plan
                                it, retired or not, when none does (§7 of 06-storage.md)
   computed_at   Timestamp
   computed_by   Subject
-  proposed_under GrantID       the grant that permitted the declaration; confirmation
-                               re-evaluates it, and requires_approval_by is read from it
+  proposed_under GrantID?      the grant that permitted the declaration; confirmation
+                               re-evaluates it, and requires_approval_by is read from it; absent
+                               only on a plan a restore recovered whose grant the restored store
+                               does not hold (§8 of 03-state.md)
 
   steps         []Step
   impact        Impact         disruptive?, downtime estimate, data at risk, cost delta, the

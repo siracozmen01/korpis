@@ -885,7 +885,8 @@ export type Plan = Message<"korpis.v1.Plan"> & {
   approvedAt?: Timestamp | undefined;
 
   /**
-   * The grant under which the plan was proposed.
+   * The grant under which the plan was proposed; empty for a plan a restore recovered whose grant
+   * the restored store does not hold (§8 of docs/03-state.md).
    *
    * @generated from field: string proposed_under = 18;
    */

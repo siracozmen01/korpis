@@ -5,7 +5,7 @@
 //! in the schema is ordered.
 
 use crate::endpoint::endpoint_to_pb;
-use crate::plan::step_to_pb;
+use crate::plan::{plan_to_pb, step_to_pb};
 use crate::spec::continuity_to_pb;
 use crate::wire_id;
 use crate::workload::{intent_to_pb, power_to_pb};
@@ -56,6 +56,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
                 plan: wire_id(IdKind::Plan, p.plan),
                 steps: p.steps.iter().map(step_to_pb).collect(),
                 through: p.through,
+                whole: plan_to_pb(&p.whole).into(),
                 ..Default::default()
             })
             .into(),

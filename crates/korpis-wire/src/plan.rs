@@ -1,44 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Plans, their steps, and their impact. Plans are computed by the control plane and only ever
-//! leave it, so there is no reading direction.
+//! Plans, their steps, and their impact. Plans are computed by the control plane and leave it;
+//! the one way back in is a restore recovering a plan a node presents (§8 of docs/03-state.md),
+//! which [`read`] serves.
+
+mod read;
+
+use read::{executor_to_pb, layer_to_pb, status_to_pb, survival_to_pb};
+pub use read::{plan_from_pb, step_from_pb};
 
 use crate::spec::endpoints::exposure_to_pb;
 use crate::value::map_to_pb;
 use crate::{duration, principal, scope, timestamp, wire_id};
 use korpis_core::id::IdKind;
-use korpis_core::workload::endpoint::{ExposureImpact, Survival};
+use korpis_core::workload::endpoint::ExposureImpact;
 use korpis_core::workload::plan::VolumeOp;
-use korpis_core::workload::plan::{
-    Approval, Estimate, Impact, Layer, PlanStatus, ResourceDelta, Step, StepExecutor,
-};
+use korpis_core::workload::plan::{Approval, Estimate, Impact, ResourceDelta, Step};
 use korpis_core::workload::{Plan, PlanTarget};
 use korpis_proto::korpis::v1 as pb;
-
-fn status(s: PlanStatus) -> pb::PlanStatus {
-    use pb::PlanStatus as P;
-    match s {
-        PlanStatus::Proposed => P::PLAN_STATUS_PROPOSED,
-        PlanStatus::Approved => P::PLAN_STATUS_APPROVED,
-        PlanStatus::Queued => P::PLAN_STATUS_QUEUED,
-        PlanStatus::Applying => P::PLAN_STATUS_APPLYING,
-        PlanStatus::Applied => P::PLAN_STATUS_APPLIED,
-        PlanStatus::Failed => P::PLAN_STATUS_FAILED,
-        PlanStatus::Cancelled => P::PLAN_STATUS_CANCELLED,
-        PlanStatus::Rejected => P::PLAN_STATUS_REJECTED,
-        PlanStatus::Expired => P::PLAN_STATUS_EXPIRED,
-        PlanStatus::Superseded => P::PLAN_STATUS_SUPERSEDED,
-    }
-}
-
-fn layer(l: Layer) -> pb::StepLayer {
-    match l {
-        Layer::Vocabulary => pb::StepLayer::STEP_LAYER_VOCABULARY,
-        Layer::Driver => pb::StepLayer::STEP_LAYER_DRIVER,
-        Layer::Recipe => pb::StepLayer::STEP_LAYER_RECIPE,
-        Layer::Operator => pb::StepLayer::STEP_LAYER_OPERATOR,
-    }
-}
 
 /// The wire form of a step.
 #[must_use]
@@ -46,12 +25,7 @@ pub fn step_to_pb(s: &Step) -> pb::Step {
     pb::Step {
         index: s.index,
         action: s.action.as_str().to_owned(),
-        executor: match s.executor {
-            StepExecutor::ControlPlane => pb::StepExecutor::STEP_EXECUTOR_CONTROL_PLANE,
-            StepExecutor::Node => pb::StepExecutor::STEP_EXECUTOR_NODE,
-            StepExecutor::Extension => pb::StepExecutor::STEP_EXECUTOR_EXTENSION,
-        }
-        .into(),
+        executor: executor_to_pb(s.executor).into(),
         target: pb::ObjectRef {
             kind: crate::scope::object_kind_to_pb(s.target.kind).into(),
             id: wire_id(crate::id_kind(s.target.kind), s.target.id),
@@ -62,7 +36,7 @@ pub fn step_to_pb(s: &Step) -> pb::Step {
         disruptive: s.disruptive,
         detail: map_to_pb(&s.detail),
         timeout: s.timeout.map(duration).into(),
-        classified_by: layer(s.classified_by).into(),
+        classified_by: layer_to_pb(s.classified_by).into(),
         reason: s.reason.clone(),
         ..Default::default()
     }
@@ -104,19 +78,11 @@ pub fn impact_to_pb(i: &Impact, approval_reason: &str) -> pb::Impact {
 }
 
 fn exposure_impact_to_pb(e: &ExposureImpact) -> pb::ExposureImpact {
-    let survives = match e.survives {
-        Survival::NoMove => pb::ExposureSurvival::EXPOSURE_SURVIVAL_NO_MOVE,
-        Survival::WhileItsNodeExists => {
-            pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS
-        }
-        Survival::Moves => pb::ExposureSurvival::EXPOSURE_SURVIVAL_MOVES,
-        Survival::Unreachable => pb::ExposureSurvival::EXPOSURE_SURVIVAL_UNREACHABLE,
-    };
     pb::ExposureImpact {
         endpoint: e.endpoint.clone(),
         declared: exposure_to_pb(e.declared).into(),
         resolved: exposure_to_pb(e.resolved).into(),
-        survives: survives.into(),
+        survives: survival_to_pb(e.survives).into(),
         measured_inside: e.measured_inside,
         ..Default::default()
     }
@@ -170,13 +136,13 @@ pub fn plan_to_pb(p: &Plan) -> pb::Plan {
         computed_by: principal::to_pb(&p.computed_by).into(),
         steps: p.steps.iter().map(step_to_pb).collect(),
         impact: impact_to_pb(&p.impact, &p.approval_reason).into(),
-        status: status(p.status).into(),
+        status: status_to_pb(p.status).into(),
         completed: p.completed,
         apply_after: p.apply_after.map(timestamp).into(),
         expires_at: timestamp(p.expires_at).into(),
         approved_by: p.approved_by.as_ref().map(principal::to_pb).into(),
         approved_at: p.approved_at.map(timestamp).into(),
-        proposed_under: wire_id(IdKind::Grant, p.proposed_under),
+        proposed_under: p.proposed_under.map(|g| wire_id(IdKind::Grant, g)).unwrap_or_default(),
         approval: approval.into(),
         approval_scope: approval_scope.into(),
         to_volume,
