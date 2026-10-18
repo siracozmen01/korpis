@@ -3,8 +3,10 @@
 //! Runs: the executions of a `task` or `scheduled` workload (§4 of docs/05-scheduling.md). The
 //! control plane makes every run; a node starts and ends only the runs its assignment names.
 
+mod recovered;
 mod tend;
 
+pub use recovered::{past, recovered};
 pub use tend::{ON_TIME, Tended, Tending, tend};
 
 use std::time::SystemTime;
@@ -262,6 +264,10 @@ pub struct RunRef {
     pub scheduled_for: SystemTime,
     /// How long it may take before the node stops it.
     pub timeout: Option<std::time::Duration>,
+    /// The intent it was made under.
+    pub intent: Uuid,
+    /// The power cycle that requested it, for a manual run.
+    pub cycle: Option<u64>,
 }
 
 /// The active runs a node is to execute, from `active` under `policy`: every one under `allow`;
@@ -276,6 +282,8 @@ pub fn named(active: &[Run], policy: &crate::workload::spec::RunPolicy) -> Vec<R
         trigger: r.trigger,
         scheduled_for: r.scheduled_for,
         timeout: policy.timeout,
+        intent: r.intent,
+        cycle: r.cycle,
     };
     let live = active.iter().filter(|r| r.status.is_active());
     if policy.concurrency == Concurrency::Allow {

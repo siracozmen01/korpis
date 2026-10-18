@@ -80,6 +80,58 @@ pub fn ref_to_pb(r: &RunRef) -> agent::RunRef {
         trigger: trigger_to_pb(r.trigger).into(),
         scheduled_for: timestamp(r.scheduled_for).into(),
         timeout: r.timeout.map(duration).into(),
+        intent: wire_id(IdKind::Intent, r.intent),
+        cycle: r.cycle,
         ..Default::default()
+    }
+}
+
+/// A run as an assignment names it, from its wire form.
+///
+/// # Errors
+/// A field that does not translate, named.
+pub fn ref_from_pb(r: &agent::RunRef) -> crate::Result<RunRef> {
+    let trigger = match r.trigger.as_known() {
+        Some(pb::RunTrigger::RUN_TRIGGER_SCHEDULE) => Trigger::Schedule,
+        Some(pb::RunTrigger::RUN_TRIGGER_MANUAL) => Trigger::Manual,
+        Some(pb::RunTrigger::RUN_TRIGGER_RETRY) => Trigger::Retry,
+        Some(pb::RunTrigger::RUN_TRIGGER_EVENT) => Trigger::Event,
+        _ => return Err(crate::invalid("trigger", "unknown")),
+    };
+    if r.cycle.is_some() != (trigger == Trigger::Manual) {
+        return Err(crate::invalid("cycle", "exactly for a manual run"));
+    }
+    let scheduled_for =
+        r.scheduled_for.as_option().ok_or_else(|| crate::invalid("scheduled_for", "required"))?;
+    Ok(RunRef {
+        run: crate::id(IdKind::Run, "run", &r.run)?,
+        attempt: r.attempt,
+        trigger,
+        scheduled_for: crate::time("scheduled_for", scheduled_for)?,
+        timeout: r.timeout.as_option().map(|d| crate::duration_from("timeout", d)).transpose()?,
+        intent: crate::id(IdKind::Intent, "intent", &r.intent)?,
+        cycle: r.cycle,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn a_run_reference_round_trips_and_a_manual_one_needs_its_cycle() {
+        let r = RunRef {
+            run: uuid::Uuid::now_v7(),
+            attempt: 2,
+            trigger: Trigger::Manual,
+            scheduled_for: SystemTime::UNIX_EPOCH + Duration::from_secs(1_800_000_000),
+            timeout: Some(Duration::from_secs(600)),
+            intent: uuid::Uuid::now_v7(),
+            cycle: Some(3),
+        };
+        assert_eq!(ref_from_pb(&ref_to_pb(&r)), Ok(r.clone()));
+        let uncycled = agent::RunRef { cycle: None, ..ref_to_pb(&r) };
+        assert_eq!(ref_from_pb(&uncycled).map_err(|e| e.field), Err("cycle".to_owned()));
     }
 }

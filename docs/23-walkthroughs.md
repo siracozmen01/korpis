@@ -1143,6 +1143,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 99 | A pending run on a node offline for three nights would run the first night's backup on the fourth morning | §41 | `05-scheduling.md` §4.3 |
 | 100 | 03:00 was in no time zone | §41 | `01-model.md` §3.3, `05-scheduling.md` §4.1 |
 | 101 | Two runs under `allow` would both listen on the workload's one endpoint | §41 | `05-scheduling.md` §4.2 |
+| 102 | A restore could not record the runs its nodes presented, from what the assignment named | §41 | `03-state.md` §8, `02-architecture.md` §4.8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3265,3 +3266,22 @@ between it and an endpoint. **Resolution.** A workload declaring endpoints with 
 allow` is refused at declaration, where the control plane holds both; `forbid` and `replace` run
 one at a time and keep their endpoints. A workload whose runs must overlap and be reached is two
 workloads. → `05-scheduling.md` §4.2; built in `crates/korpis-core/src/workload/spec.rs`.
+
+**FINDING 102: A restore could not record the runs its nodes presented, from what the assignment
+named. `CONFIRMED`**
+
+Found 2026-10-18 while building the recovery §8 of `03-state.md` designed for runs, asking what
+writes a recovered run and with what information. The design recorded a presented run the
+restored store lacks "under its attempt, trigger, and `scheduled_for`". The run table requires a
+manual run's power cycle, which keeps two control planes from making two runs for one restart,
+and the reference carried none, so a recovered manual run could not be written; and a run is
+judged by the exit probe of the intent it was made under, which the reference did not name
+either, so a recovered run would have been judged by the target's. Separately, the run maker
+would have kept working while the restore settled, from the backup's leases and runs: ending as
+lost a run a node was still running, and making a second run for an occurrence a node was
+running, before that node had presented it. **Resolution.** Every run reference carries its
+intent and, for a manual run, its cycle, signed with the rest; a presented run the store lacks
+is recorded running on its node under those, one it holds pending is started there, and the
+store's schedule and cycle state move past it; and the run maker does nothing while a restore
+settles. → `03-state.md` §8, `02-architecture.md` §4.8; built in
+`crates/korpis-app/src/restore/runs.rs`.

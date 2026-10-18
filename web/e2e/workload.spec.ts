@@ -153,7 +153,8 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
   await expect(preview.getByText("Delete will do this:")).toBeVisible();
   await expect(preview.getByText("(interrupts service)")).toBeVisible();
   await preview.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("button", { name: "Delete" })).toBeEnabled();
+  // Cancelling withdraws the plan at the control plane, a round trip like the others here.
+  await expect(page.getByRole("button", { name: "Delete" })).toBeEnabled({ timeout: 15_000 });
   await expect(page.getByText("Declared running, converged")).toBeVisible();
 
   await uploadResumed(page);

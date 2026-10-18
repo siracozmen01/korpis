@@ -682,6 +682,29 @@ not verify is not recovered; its workload is fenced like any other unaccounted-f
 > occurrence is evaluated past it; a run the store holds as active that no node presents is left
 > for its pending or lost rules to settle.
 
+> As built, 2026-10-18 (`crates/korpis-app/src/restore/runs.rs`,
+> `crates/korpis-core/src/workload/run/recovered.rs`). The design above did not hold as written:
+> a run's reference carried no cycle, which the run table requires of a manual run, and no
+> intent, so a recovered run would have been judged by the target's exit probe rather than its
+> own. Both are now in every reference, signed with the rest (§4.8 of `02-architecture.md`). In
+> the presenting assignment's transaction, a run the store holds as pending is started on the
+> presenting node (`restore.run.started`); a run it lacks is recorded running there, under the
+> intent it names when the store holds it and the target otherwise, which the effect
+> `restore.run.recovered` says (`intent_substituted`); and a run whose occurrence or cycle
+> another run of the workload holds is not recorded, and `restore.run.refused` says so. When a
+> recovered run started is not in what was signed, so it is recorded as when it was recovered.
+> What the store keeps of the workload's runs then moves past them: the highest cycle made to at
+> least a manual run's, and the next occurrence, read in the target's zone, to after a scheduled
+> run's unless it was evaluated from the target and is later already. And the run maker makes
+> and ends nothing while a restore settles, since the store's runs and leases are the backup's
+> until the nodes have presented: a run it made would be a second run of an occurrence a node is
+> running, and a run it ended as lost may still be running. What this does not recover: a run
+> that ended after the backup is in no assignment, so it is lost, as its effects are; and an
+> occurrence that came due after the backup and whose run has ended is, to the restored store,
+> due and not yet run, so a workload with `catch_up` runs it again once the window ends, and one
+> without records it missed. A job that must not run twice has to make that safe itself, as the
+> retry of a run lost with its node already requires (§4.2 of `05-scheduling.md`).
+
 > As built, 2026-10-18, Finding 97 of `23-walkthroughs.md`. A workload retired after the backup is
 > live and placed in the restored store, and the node that removed it presents nothing for it. So
 > when a node presents, every placement the store holds on it whose workload it did not present,

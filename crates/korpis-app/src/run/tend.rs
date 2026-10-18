@@ -62,6 +62,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// # Errors
     /// The store failed.
     pub async fn tend_runs(&self) -> Result<u64, AppError> {
+        // While a restore settles, the store's leases and runs are the backup's, and the nodes
+        // are presenting what they run (§8 of docs/03-state.md): a run made or lost now could
+        // be the second of an occurrence, or a run still running, so none is until it ends.
+        if self.settling().await?.is_some() {
+            return Ok(0);
+        }
         let mut changed = 0;
         for workload in self.store.workloads_with_runs().await? {
             changed += u64::from(self.tend_workload_runs(workload).await?);

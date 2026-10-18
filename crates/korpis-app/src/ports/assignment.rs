@@ -73,6 +73,8 @@ pub struct Opened {
     pub ids: korpis_core::workload::assignment::IdRange,
     /// The plan it is applying, in full, its status and progress left out.
     pub plan: Option<korpis_core::workload::Plan>,
+    /// The runs it named (§4.5 of docs/05-scheduling.md).
+    pub runs: Vec<korpis_core::workload::run::RunRef>,
 }
 
 /// An assignment as the store keeps it.

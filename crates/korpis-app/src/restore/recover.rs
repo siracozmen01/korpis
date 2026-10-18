@@ -47,13 +47,13 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 /// `e` with `more` among what it records.
-fn with(mut e: Effect, more: Map<String, Value>) -> Effect {
+pub(super) fn with(mut e: Effect, more: Map<String, Value>) -> Effect {
     e.after.get_or_insert_with(Map::new).extend(more);
     e
 }
 
 /// An effect of the restore about `opened`'s workload, naming the node and the signature.
-fn effect(action: &str, outcome: Outcome, opened: &Opened, sealed: &Sealed) -> Effect {
+pub(super) fn effect(action: &str, outcome: Outcome, opened: &Opened, sealed: &Sealed) -> Effect {
     let mut e = Effect::new(Principal::System(SystemActor::Bootstrap), action, outcome);
     e.workload = Some(opened.workload);
     e.node = Some(opened.node);
@@ -205,6 +205,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             effects.extend(recover_plan(&mut tx, plan, opened, sealed).await?);
         }
         effects.extend(self.recover_where(&mut tx, opened, sealed).await?);
+        effects.extend(self.recover_runs(&mut tx, opened, sealed).await?);
         if effects.is_empty() {
             return Ok(Recovery::Held);
         }

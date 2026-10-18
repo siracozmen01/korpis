@@ -2,7 +2,7 @@
 
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { createRouterTransport } from "@connectrpc/connect";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { clientsOver, ReachProvider } from "../clients";
 import { PlanService, WorkloadService, WorkloadStatusSchema } from "../gen/korpis/v1/api_pb";
 import {
@@ -82,7 +82,10 @@ test("a plan that interrupts service is previewed in place, and cancelling withd
   expect(await screen.findByText("Restart will do this:")).toBeTruthy();
   expect(screen.getByText(/interrupts service/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(await screen.findByRole("button", { name: "Restart" })).toHaveProperty("disabled", false);
+  // The action is back at once and stays disabled until the plan is withdrawn.
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Restart" })).toHaveProperty("disabled", false);
+  });
   expect(seen).toEqual(["restart propose=true", "reject pln_1"]);
 });
 

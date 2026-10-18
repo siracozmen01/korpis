@@ -22,7 +22,7 @@ use sqlx::Connection as _;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-fn decoded(a: &agent::SignedAssignment) -> agent::Assignment {
+pub fn decoded(a: &agent::SignedAssignment) -> agent::Assignment {
     <agent::Assignment as buffa::Message>::decode_from_slice(&a.assignment).unwrap()
 }
 
@@ -39,7 +39,7 @@ fn set_at(wanted: &[(String, u64)]) -> impl Fn(&Down) -> Option<Vec<agent::Signe
 
 /// The first message `pick` accepts within thirty seconds: placing three workloads may leave
 /// longer than `until` waits between two messages.
-async fn within<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
+pub async fn within<T>(stream: &mut Stream, pick: impl Fn(&Down) -> Option<T>) -> T {
     let wait = async {
         loop {
             let m = stream.message::<agent::ControlMessage>().await.unwrap().unwrap();
@@ -103,7 +103,7 @@ async fn forget(h: &Harness, workload: Uuid, (kept, lost): (Uuid, Uuid), gone: &
     }
 }
 
-async fn effects(h: &Harness, action: &str, at_least: usize) -> usize {
+pub async fn effects(h: &Harness, action: &str, at_least: usize) -> usize {
     for _ in 0..50 {
         if h.effects(action).await.len() >= at_least {
             break;
@@ -306,6 +306,6 @@ async fn a_restore_records_the_interval_whose_control_plane_effects_it_lost() {
     assert!(through - from >= 3600, "through the restore: {from}..{through}");
 }
 
-fn test_key() -> std::sync::Arc<korpis_core::authz::token::SigningKey> {
+pub fn test_key() -> std::sync::Arc<korpis_core::authz::token::SigningKey> {
     std::sync::Arc::new(korpis_core::authz::token::SigningKey::generate(9))
 }

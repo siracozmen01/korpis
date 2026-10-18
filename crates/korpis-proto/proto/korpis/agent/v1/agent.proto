@@ -494,6 +494,11 @@ message RunRef {
   google.protobuf.Timestamp scheduled_for = 4;
   // How long it may take before the node stops it; unbounded when unset.
   google.protobuf.Duration timeout = 5;
+  // The intent it was made under, whose exit probe judges it, and for a manual run the power
+  // cycle that requested it: signed with the rest, so a restored control plane that lost the run
+  // records it as it was made (§8 of docs/03-state.md).
+  string intent = 6;
+  optional uint64 cycle = 7;
 }
 
 // Quota-imposed state, decided centrally and applied locally (§3.1 of docs/01-model.md).

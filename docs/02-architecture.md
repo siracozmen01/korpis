@@ -714,6 +714,8 @@ RunRef
   trigger       schedule | manual | retry | event
   scheduled_for Timestamp      also what a restore that lost the run records it under
   timeout       Duration?      enforced by the node (§4.2 of 05-scheduling.md)
+  intent        IntentID       the intent it was made under, whose exit probe judges it
+  cycle         int?           the power cycle that requested it; exactly for a manual run
 
 MigrationRole
   role          source | destination
@@ -731,7 +733,10 @@ MigrationRole
 > `RunRef`, designed and not yet built, are how a node learns which runs to start and which to
 > stop, since the target intent says how to run the workload and not when. Built the same day
 > (`crates/korpis-app/src/node/assign.rs`): signed with the rest, and counted in what the node
-> runs, so a run made or ended sends the node a new generation.
+> runs, so a run made or ended sends the node a new generation. `intent` and `cycle` were added
+> the same day, when a restore was built to recover runs (§8 of `03-state.md`): the run table
+> cannot hold a manual run without its cycle, and a run recovered under any intent but its own
+> would be judged by another exit probe.
 
 The assignment is still level-triggered. It describes what should be true, and the node makes it
 true; nothing in it is an instruction that is lost if a message is lost. Each part answers one of
