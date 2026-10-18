@@ -176,4 +176,12 @@ impl pb::NodeService for Api {
     ) -> ServiceResult<pb::RemoveRelayResponse> {
         super::relays::remove(self, ctx, request).await
     }
+
+    async fn readmit_relay(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ReadmitRelayRequest>,
+    ) -> ServiceResult<pb::ReadmitRelayResponse> {
+        super::relays::readmit(self, ctx, request).await
+    }
 }

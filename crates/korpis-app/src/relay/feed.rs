@@ -32,7 +32,7 @@ pub struct RelayFeed {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The relay `proof` was signed for, if it is that relay's fresh signature over a feed
-    /// request and the relay is not removed.
+    /// request, the relay is not removed, and no restore holds it.
     pub async fn authenticate_relay(
         &self,
         relay: Uuid,
@@ -42,7 +42,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The relay `proof` was signed for, if it is that relay's fresh signature over `message`'s
-    /// form, with a nonce never seen from it, and the relay is not removed.
+    /// form, with a nonce never seen from it, and the relay is not removed. A relay a restore
+    /// holds is refused as unavailable once it has proved itself, so that it asks again, backing
+    /// off, until an operator readmits it (§8 of docs/03-state.md); an unknown or removed relay
+    /// is refused as unauthenticated and stops asking.
     pub(super) async fn check_relay(
         &self,
         relay: Uuid,
@@ -65,6 +68,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::Unauthenticated);
         }
         tx.commit().await?;
+        if found.held_at.is_some() {
+            return Err(AppError::Unavailable {
+                what: "this relay's feed",
+                detail: "held by a restore until an operator readmits or removes it".into(),
+            });
+        }
         Ok(found)
     }
 
@@ -91,8 +100,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// Whether `relay` is still joined: not removed.
+    /// Whether `relay` is still joined and admitted: neither removed nor held.
     pub async fn relay_joined(&self, relay: Uuid) -> Result<bool, AppError> {
-        Ok(self.store.relay(relay).await?.is_some_and(|r| r.removed_at.is_none()))
+        Ok(self.store.relay(relay).await?.is_some_and(|r| r.admitted()))
     }
 }

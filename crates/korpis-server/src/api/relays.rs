@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Relays, as operators manage them through `NodeService` (§3.1 of docs/02-architecture.md):
-//! enrollment tokens, the list, and removal. All of it is over the root organization.
+//! enrollment tokens, the list, readmission after a restore, and removal. All of it is over the root organization.
 
 use super::wire::relay::relay_to_pb;
 use super::wire::{self, Refuse};
@@ -81,5 +81,26 @@ pub(super) async fn remove(
     let idem = Idempotent { key, encode: &encoder };
     let reply =
         api.app.remove_relay(&caller, &idem, (org, relay)).await.map_err(error::from_app)?;
+    respond(reply, response)
+}
+
+pub(super) async fn readmit(
+    api: &Api,
+    ctx: RequestContext,
+    request: ServiceRequest<'_, pb::ReadmitRelayRequest>,
+) -> ServiceResult<pb::ReadmitRelayResponse> {
+    let caller = api.caller(&ctx).await?;
+    let req = request.to_owned_message();
+    let key = mutation_key(req.mutation.as_option())?;
+    let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
+    let relay = wire::id(IdKind::Relay, "relay", &req.relay).refuse()?;
+    let response = |r: &Relay| pb::ReadmitRelayResponse {
+        relay: relay_to_pb(r, api.app.now()).into(),
+        ..Default::default()
+    };
+    let encoder = |r: &Relay| encode(&response(r));
+    let idem = Idempotent { key, encode: &encoder };
+    let reply =
+        api.app.readmit_relay(&caller, &idem, (org, relay)).await.map_err(error::from_app)?;
     respond(reply, response)
 }

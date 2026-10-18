@@ -12,6 +12,7 @@ use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, SessionWrite as _, Store, Tx as _};
 use korpis_core::node::NodeAdmin;
 use korpis_core::node::identity::{data_hello_message, verify};
+use korpis_core::relay::Relay;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -60,11 +61,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(())
     }
 
-    /// The URLs of the relays enrolled to run as their own process and not removed, which every
-    /// node keeps a data connection to (§3.1 of docs/02-architecture.md).
+    /// The URLs of the relays enrolled to run as their own process and admitted, neither removed
+    /// nor held by a restore, which every node keeps a data connection to (§3.1 of
+    /// docs/02-architecture.md).
     pub async fn relay_urls(&self) -> Result<Vec<String>, AppError> {
         let relays = self.store.relays().await?;
-        let live = relays.into_iter().filter(|r| r.removed_at.is_none());
+        let live = relays.into_iter().filter(Relay::admitted);
         Ok(live.map(|r| r.url.as_str().to_owned()).collect())
     }
 

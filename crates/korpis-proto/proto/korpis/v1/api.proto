@@ -1189,6 +1189,9 @@ service NodeService {
   // node.enroll over the root organization. A removed relay is named to no node and told
   // nothing more.
   rpc RemoveRelay(RemoveRelayRequest) returns (RemoveRelayResponse);
+  // node.enroll over the root organization: a relay a restore held is fed and named to nodes
+  // again (§6 of docs/18-operations.md). Refused unless it is held and not removed.
+  rpc ReadmitRelay(ReadmitRelayRequest) returns (ReadmitRelayResponse);
 }
 
 message CreateRelayEnrollmentTokenRequest {
@@ -1229,6 +1232,16 @@ message RemoveRelayResponse {
   Relay relay = 1;
 }
 
+message ReadmitRelayRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string relay = 3;
+}
+
+message ReadmitRelayResponse {
+  Relay relay = 1;
+}
+
 // A relay running as its own process (§3.1 of docs/02-architecture.md).
 message Relay {
   string id = 1;
@@ -1243,6 +1256,9 @@ message Relay {
   // Whether its feed was served within the last ninety seconds: the relay is running and
   // verifying by what it is sent.
   bool connected = 8;
+  // When a restore held it: its feed is answered as unavailable and it is named to no node until
+  // it is readmitted or removed (§6 of docs/18-operations.md).
+  google.protobuf.Timestamp held_at = 9;
 }
 
 message CreateEnrollmentTokenRequest {

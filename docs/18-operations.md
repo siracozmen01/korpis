@@ -636,6 +636,18 @@ re-enrolling every relay during the incident lengthens it, while readmitting one
 cost is that until a relay is readmitted, sessions open only through the control plane's own relay
 role, and not at all where `--relay-role false` turned that off.
 
+> As built, 2026-10-18 (`crates/korpis-app/src/restore.rs`, `crates/korpis-app/src/relay.rs`).
+> Holding marks every relay not removed with `held_at`, recorded as an effect naming the operator.
+> A held relay that proves itself is answered `UNAVAILABLE`, which it retries at most thirty
+> seconds apart, so a readmitted relay is fed again without a visit to it; a feed already open
+> when it is held ends. Its certificate is not renewed while it is held, by the same check. It is
+> left out of the relays nodes are named, and `ListRelays` shows when it was held. `ReadmitRelay`
+> clears the mark and is refused for a relay that is not held, or removed; removing a held relay
+> works as for any other. A relay the restored store does not know is refused as unauthenticated,
+> and stops. What a held relay does not lose is what it was fed before the restore: it still
+> verifies data connections by the token keys it last held, so it is isolated by being named to no
+> node and to no client, not by anything it is told.
+
 > **3. Recover the assignments the store no longer has, from the agents running them.**
 
 During the same settling window, agents present their signed assignments. Intents, workloads,

@@ -125,6 +125,12 @@ pub trait RelayWrite {
         relay: Uuid,
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Holds, at `at`, every relay not removed and not held already; how many it held.
+    fn hold_relays(&mut self, at: SystemTime) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Readmits `relay`; false unless it is held and not removed.
+    fn readmit_relay(&mut self, relay: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;
 }
 
 /// A certificate issued under the installation's authority.

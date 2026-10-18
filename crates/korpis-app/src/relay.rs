@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Relays that run as their own process (§3.1 of docs/02-architecture.md). A relay carries every
-//! organization's sessions, so it is enrolled, listed, and removed with authority over the root
-//! organization: `node.enroll` to enroll or remove one, `node.read` to list them. The control
+//! organization's sessions, so it is enrolled, listed, readmitted, and removed with authority over
+//! the root organization: `node.enroll` to enroll, readmit, or remove one, `node.read` to list
+//! them. The control
 //! plane's own relay role is not a relay here; it needs no enrollment.
 
 mod enroll;
@@ -79,6 +80,43 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .after(details([
                 ("relay", id.to_string().into()),
                 ("name", relay.name.as_str().into()),
+            ]));
+        tx.append_effect(&effect).await?;
+        finish(tx, caller, idem, OPERATION, relay).await
+    }
+
+    /// Readmits a relay a restore held (§8 of docs/03-state.md): `node.enroll` over the root
+    /// organization. Its feed is served again, and nodes are told of it with the next relays they
+    /// are named. Readmitting says the operator knows the relay to be the one that joined; a
+    /// relay they do not know is removed instead.
+    pub async fn readmit_relay(
+        &self,
+        caller: &Caller,
+        idem: &Idempotent<'_, Relay>,
+        (organization, id): (Uuid, Uuid),
+    ) -> Result<Reply<Relay>, AppError> {
+        const OPERATION: &str = "relay.readmit";
+        if let Some(r) = self.replay(caller, idem, OPERATION).await? {
+            return Ok(Reply::Replayed(r));
+        }
+        let root = self.root(organization).await?;
+        let permit = self.authorize(caller, "node.enroll", root).await?;
+        let mut relay = self.store.relay(id).await?.ok_or(AppError::NotFound { kind: "relay" })?;
+        let mut tx = self.store.begin().await?;
+        if !tx.readmit_relay(id).await? {
+            return Err(AppError::conflict(
+                "relay.not_held",
+                "only a relay a restore holds, and not removed, is readmitted",
+            ));
+        }
+        let held_at = relay.held_at.take();
+        let held_at = held_at.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
+        let effect = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
+            .under(permit.grant)
+            .after(details([
+                ("relay", id.to_string().into()),
+                ("name", relay.name.as_str().into()),
+                ("held_at", held_at.map_or(0, |d| d.as_secs()).into()),
             ]));
         tx.append_effect(&effect).await?;
         finish(tx, caller, idem, OPERATION, relay).await

@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::install::PublicKey;
 use crate::ports::{
-    Clock, EffectWrite, EnrollmentWrite, LeaseWrite, RecipeSource, Sealed, Store, Tx,
+    Clock, EffectWrite, EnrollmentWrite, LeaseWrite, RecipeSource, RelayWrite, Sealed, Store, Tx,
     UserSessionWrite,
 };
 use korpis_core::audit::{Effect, Outcome, details};
@@ -193,5 +193,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.append_effect(&effect).await?;
         tx.commit().await?;
         Ok(Rotated { retired, sessions_ended })
+    }
+
+    /// The rest of a restore's second step (§8 of docs/03-state.md): every relay the backup
+    /// records as joined, held, since what it was fed since the backup, and whether its identity
+    /// is still the one that joined, are not known here. A held relay's feed is answered as
+    /// unavailable and it is named to no node, until an operator readmits it or removes it; a
+    /// relay that joined after the backup is not in it, is refused as unknown, and joins again.
+    /// Recorded as asked at the machine by `operator`; how many it held.
+    pub async fn hold_relays(&self, operator: &str) -> Result<u64, AppError> {
+        let mut tx = self.store.begin().await?;
+        let held = tx.hold_relays(self.clock.now()).await?;
+        let effect = Effect::new(
+            Principal::System(SystemActor::Bootstrap),
+            "restore.relays.held",
+            Outcome::Succeeded,
+        )
+        .after(details([("held", held.into()), ("operator", operator.into())]));
+        tx.append_effect(&effect).await?;
+        tx.commit().await?;
+        Ok(held)
     }
 }

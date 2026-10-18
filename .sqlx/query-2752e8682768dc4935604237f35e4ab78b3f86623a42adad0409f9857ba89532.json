@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, url, joined_at, certificate_expires_at, removed_at, last_seen_at\n               FROM relay WHERE id = $1",
+  "query": "SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS \"expires_at!\",\n                      r.certificate_alert, r.held_at, r.last_seen_at, e.organization_id\n                 FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id\n                WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL\n                ORDER BY r.name",
   "describe": {
     "columns": [
       {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "certificate_expires_at",
+        "name": "expires_at!",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -60,17 +60,28 @@
       },
       {
         "ordinal": 5,
-        "name": "removed_at",
-        "type_info": "Timestamptz",
+        "name": "certificate_alert",
+        "type_info": "Text",
         "origin": {
           "Table": {
             "table": "relay",
-            "name": "removed_at"
+            "name": "certificate_alert"
           }
         }
       },
       {
         "ordinal": 6,
+        "name": "held_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay",
+            "name": "held_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "last_seen_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -79,12 +90,21 @@
             "name": "last_seen_at"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_enrollment",
+            "name": "organization_id"
+          }
+        }
       }
     ],
     "parameters": {
-      "Left": [
-        "Uuid"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -93,8 +113,10 @@
       false,
       true,
       true,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "8d64c2b88cbc1e273fca81d313fd44391c125cd9a6387ddb4800446efbaae1d3"
+  "hash": "2752e8682768dc4935604237f35e4ab78b3f86623a42adad0409f9857ba89532"
 }

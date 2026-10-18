@@ -17,6 +17,7 @@ pub fn relay_to_pb(r: &Relay, now: std::time::SystemTime) -> pb::Relay {
         joined_at: timestamp(r.joined_at).into(),
         certificate_expires_at: r.certificate_expires_at.map(timestamp).into(),
         removed_at: r.removed_at.map(timestamp).into(),
+        held_at: r.held_at.map(timestamp).into(),
         last_seen_at: r.last_seen_at.map(timestamp).into(),
         connected: r.connected(now),
         ..Default::default()

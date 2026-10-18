@@ -16,7 +16,7 @@ use rustls::pki_types::pem::PemObject as _;
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use std::sync::Arc;
 
-async fn token(
+pub async fn token(
     h: &Harness,
     org: &str,
     name: &str,
@@ -113,13 +113,13 @@ async fn relays_belong_to_the_root_organization() {
     assert_eq!(e.code, ErrorCode::InvalidArgument, "{e:?}");
 }
 
-type Feed = connectrpc::client::ServerStream<
+pub type Feed = connectrpc::client::ServerStream<
     <connectrpc::client::HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
     relay::__buffa::view::FeedUpdateView<'static>,
 >;
 
 /// The next update of `feed` that `pick` accepts, within ten seconds.
-async fn next<T>(feed: &mut Feed, pick: impl Fn(relay::FeedUpdate) -> Option<T>) -> T {
+pub async fn next<T>(feed: &mut Feed, pick: impl Fn(relay::FeedUpdate) -> Option<T>) -> T {
     let wait = async {
         loop {
             let m = feed.message::<relay::FeedUpdate>().await.unwrap().expect("the feed is open");

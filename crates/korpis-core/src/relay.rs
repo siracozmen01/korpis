@@ -26,6 +26,9 @@ pub struct Relay {
     pub certificate_expires_at: Option<SystemTime>,
     /// When it was removed; a removed relay is told nothing more and named to no node.
     pub removed_at: Option<SystemTime>,
+    /// When a restore held it (§8 of docs/03-state.md): a held relay's feed is answered as
+    /// unavailable and it is named to no node, until an operator readmits it or removes it.
+    pub held_at: Option<SystemTime>,
     /// When its feed was last served, to within [`SEEN_EVERY`].
     pub last_seen_at: Option<SystemTime>,
 }
@@ -34,10 +37,16 @@ pub struct Relay {
 pub const SEEN_EVERY: Duration = Duration::from_secs(30);
 
 impl Relay {
-    /// Whether its feed was served within three [`SEEN_EVERY`] of `now`.
+    /// Whether it is fed and named to nodes: neither removed nor held.
+    #[must_use]
+    pub fn admitted(&self) -> bool {
+        self.removed_at.is_none() && self.held_at.is_none()
+    }
+
+    /// Whether it is admitted and its feed was served within three [`SEEN_EVERY`] of `now`.
     #[must_use]
     pub fn connected(&self, now: SystemTime) -> bool {
-        self.removed_at.is_none()
+        self.admitted()
             && self.last_seen_at.is_some_and(|seen| {
                 now.duration_since(seen).unwrap_or_default() <= SEEN_EVERY.saturating_mul(3)
             })

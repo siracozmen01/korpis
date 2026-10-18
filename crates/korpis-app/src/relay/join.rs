@@ -136,6 +136,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             joined_at: now,
             certificate_expires_at: None,
             removed_at: None,
+            held_at: None,
             last_seen_at: None,
         };
         let mut tx = self.store.begin().await?;

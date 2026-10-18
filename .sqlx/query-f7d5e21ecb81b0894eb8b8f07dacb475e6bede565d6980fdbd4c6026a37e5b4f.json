@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT r.id, r.name, r.url, r.joined_at, r.certificate_expires_at AS \"expires_at!\",\n                      r.certificate_alert, r.last_seen_at, e.organization_id\n                 FROM relay r JOIN relay_enrollment e ON e.relay_id = r.id\n                WHERE r.removed_at IS NULL AND r.certificate_expires_at IS NOT NULL\n                ORDER BY r.name",
+  "query": "SELECT id, name, url, joined_at, certificate_expires_at, removed_at, held_at,\n                    last_seen_at\n               FROM relay ORDER BY name",
   "describe": {
     "columns": [
       {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "expires_at!",
+        "name": "certificate_expires_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -60,34 +60,34 @@
       },
       {
         "ordinal": 5,
-        "name": "certificate_alert",
-        "type_info": "Text",
+        "name": "removed_at",
+        "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "relay",
-            "name": "certificate_alert"
+            "name": "removed_at"
           }
         }
       },
       {
         "ordinal": 6,
+        "name": "held_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay",
+            "name": "held_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "last_seen_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "relay",
             "name": "last_seen_at"
-          }
-        }
-      },
-      {
-        "ordinal": 7,
-        "name": "organization_id",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "relay_enrollment",
-            "name": "organization_id"
           }
         }
       }
@@ -103,8 +103,8 @@
       true,
       true,
       true,
-      false
+      true
     ]
   },
-  "hash": "d9c38df6346db863168b0e54b4c0af4457fe025416022b81ae0d6f0d4f91fa19"
+  "hash": "f7d5e21ecb81b0894eb8b8f07dacb475e6bede565d6980fdbd4c6026a37e5b4f"
 }

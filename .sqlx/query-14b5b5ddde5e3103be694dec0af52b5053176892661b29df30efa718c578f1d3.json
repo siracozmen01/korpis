@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE relay SET held_at = NULL\n              WHERE id = $1 AND held_at IS NOT NULL AND removed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "14b5b5ddde5e3103be694dec0af52b5053176892661b29df30efa718c578f1d3"
+}
