@@ -1278,19 +1278,20 @@ extensions' calls with it, which a provider's reconnection then recovers (§3.3 
 > extensions alone, so any other workload issued a grant could obtain a credential holding it and
 > had no way to present it: on one machine the control plane's address is the node's loopback,
 > which no workload's namespace reaches. A nightly backup, the example of §2 of `01-model.md`, is
-> exactly such a workload. **The relay is served to a workload's node for every workload that
-> runs a live installation or holds a grant in force**, a chain issued to `workload:<id>` none of
-> whose grants is revoked, suspended, expired, or used up. What evaluates it: the control plane,
-> each time it computes the workload's assignment, from its installations and the chains held by
-> the workload's subject, which it holds; it marks the assignment, and the agent serves or
-> removes the socket as the mark says. Issuing a grant to a workload, and revoking or suspending
-> any grant above one a workload holds, announces the workload, so its node's assignment follows
-> at once; a grant's own expiry is found at the next resync, so the socket can outlive the
-> authority by up to that interval, during which every call through it is refused, since the
-> credential holds nothing. What it costs: one read of the workload's chains per assignment
-> computed, and the relay for every workload someone has granted authority to, so such a
-> workload also reaches the API's unauthenticated operations, as anyone who reaches its address
-> does. A workload holding no grant is relayed nothing, as before.
+> exactly such a workload. **The relay is served to a workload's node for every workload that runs
+> a live installation or holds a grant in force**, a chain issued to `workload:<id>` none of whose
+> grants is revoked, suspended, expired, or used up. What evaluates it: the control plane, each
+> time it computes the workload's assignment, from its installations and the chains held by the
+> workload's subject, which it holds; it marks the assignment, and the agent serves or removes the
+> socket as the mark says. Issuing a grant to a workload, and revoking or suspending any grant
+> above one a workload holds, announces the workload, so its node's assignment follows at once; a
+> grant's own expiry is found at the next resync, so the socket can outlive the authority by up to
+> that interval, during which every call through it is refused, since the credential holds nothing.
+> What it costs: one read of the workload's chains per assignment computed, and the relay for every
+> workload someone has granted authority to, so such a workload also reaches the API's
+> unauthenticated operations, as anyone who reaches its address does. A workload holding no grant
+> is relayed nothing, as before. The `korpis` command run inside a workload presents the credential
+> this way, through the relay (§7 of `13-surface-cli.md`).
 
 **What evaluates this, where, and with what information.** The control plane, at issue, from its
 own placement and lease records and from the identity of the node session the request arrived on

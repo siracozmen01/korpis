@@ -104,6 +104,11 @@ if [ -z "${KORPIS_TEST_REGISTRY:-}" ]; then ./scripts/dev-registry.sh up >/dev/n
 if [ ! -d .tools/ms-playwright ]; then
     echo "Chromium not installed (scripts/test-tools.sh), the panel's browser tests are skipped"
 fi
+# The end-to-end tests run the `korpis` binary as a user would, built as its own package and so
+# with its own features, not the workspace's; built here first, a test's build of it is a link
+# rather than minutes of compiling under the nodes the tests are running, which a node starved
+# past its lease's term would lose its runs to.
+cargo build -q -p korpis-cli --bin korpis --locked
 cargo test --workspace --all-features --locked
 cargo test $conformance $conformance_target --locked
 

@@ -16,7 +16,8 @@ use tokio::sync::Mutex;
 /// Where a workload's identity socket is, inside the workload.
 pub const SOCKET: &str = "/run/korpis/identity.sock";
 
-/// The relay to the control plane, beside the socket, for an installed extension's workload.
+/// The relay to the control plane, beside the socket, for a workload its node relays the API to:
+/// an installed extension's, or one holding a grant (§9.5 of docs/08-identity.md).
 pub const RELAY: &str = "api.sock";
 
 /// How long before its expiry a credential is renewed.
@@ -33,8 +34,8 @@ pub struct Credential {
     pub control_plane: String,
     /// The CA its certificate is verified under, PEM.
     pub ca_pem: Vec<u8>,
-    /// The relay its node serves it to the control plane, where it runs as an installed
-    /// extension's workload; the network otherwise.
+    /// The relay its node serves it to the control plane, where the node relays the API to it;
+    /// the network otherwise.
     pub relay: Option<PathBuf>,
 }
 

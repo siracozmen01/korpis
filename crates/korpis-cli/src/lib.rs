@@ -14,6 +14,7 @@ pub mod connect;
 pub mod declared;
 pub mod error;
 pub mod files;
+pub mod inside;
 pub mod resolve;
 pub mod session;
 pub mod sets;

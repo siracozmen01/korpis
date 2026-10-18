@@ -68,12 +68,12 @@ fn tls(ca_pem: &[u8]) -> Result<rustls::ClientConfig, Error> {
 }
 
 /// The transport to the control plane at `address` under `ca_pem`: through `relay` where the
-/// node serves one, and over the network otherwise.
-pub(crate) fn transport(
-    address: &str,
-    ca_pem: &[u8],
-    relay: Option<&Path>,
-) -> Result<Transport, Error> {
+/// node serves one, and over the network otherwise. For a client that keeps its own bearer, such
+/// as the `korpis` command run inside a workload; [`crate::Connection`] does both.
+///
+/// # Errors
+/// The CA or the address is malformed.
+pub fn transport(address: &str, ca_pem: &[u8], relay: Option<&Path>) -> Result<Transport, Error> {
     let config = tls(ca_pem)?;
     let Some(relay) = relay else {
         return Ok(Transport::Direct(Box::new(HttpClient::with_tls(Arc::new(config)))));

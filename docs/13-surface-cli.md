@@ -411,6 +411,22 @@ permits, on what, how many times, for how long, and that using it needs the cont
 `--expires` defaults to `24h` and `--uses` to `3`; neither can be removed. Whoever receives it
 uses it as the credential: `KORPIS_TOKEN` takes the link or the whole URL, as it was pasted.
 
+**Inside a workload, the command is borne by the workload's own credential.** Added 2026-10-19,
+when a scheduled run was first to call the API (Finding 103 of `23-walkthroughs.md`). With no
+server named and `/run/korpis/identity.sock` present, or with `--identity` (`KORPIS_IDENTITY`)
+naming a socket, the command asks the socket for the workload's credential (§9.5 of
+`08-identity.md`), asking again for up to a minute while the socket says to, as it does until the
+node holds the workload's lease, and saying a refusal at once. It trusts the CA the socket names,
+reaches the control plane at the address the socket names, through the relay the node serves
+beside the socket where it serves one and over the network otherwise, and renews the credential
+five minutes before it expires for as long as it runs. So `korpis backup create vol_…
+--repository rep_…` in a nightly backup's run holds exactly the grants issued to the workload,
+and nothing is written into the workload's configuration. A server named, with no socket named, is
+the operator's choice and is used as before. What it does not do: through the relay it reaches the
+control plane alone, so a relay at another address, a console's or a file session's, is refused
+with a message saying why; and a relay the node starts serving after the command began, for a
+grant issued while it runs, is not taken up by that command, which keeps the path it began with.
+
 Installing an extension is issuing grants, so it is two steps, as `plan` and `apply` are. `korpis
 extension install ARTIFACT --version 1.0.0` changes nothing: it prints what the extension needs,
 over what, and why, what it reaches, provides, and subscribes to, and then the command that

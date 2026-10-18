@@ -18,7 +18,7 @@ pub const RENEW_BEFORE: Duration = Duration::from_secs(30);
 
 /// An open session.
 pub type Session = connectrpc::client::BidiStream<
-    <connectrpc::client::HttpClient as connectrpc::client::ClientTransport>::ResponseBody,
+    <korpis_extension::Transport as connectrpc::client::ClientTransport>::ResponseBody,
     pb::RelayRequest,
     pb::__buffa::view::RelayResponseView<'static>,
 >;

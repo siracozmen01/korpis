@@ -26,6 +26,9 @@ http = "1"
 # Reading the times a stream range is given in, a time of day in the local zone among them.
 jiff = "0.2"
 korpis-core.workspace = true
+# Inside a workload, its identity socket and the node's relay to the control plane (§9.5 of
+# docs/08-identity.md), spoken as the SDK speaks them.
+korpis-extension.workspace = true
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-recipe = { workspace = true }
 korpis-wire = { workspace = true }
@@ -60,4 +63,9 @@ korpis-recipe = { workspace = true }
 korpis-server = { workspace = true, features = ["testing"] }
 korpis-store = { workspace = true, features = ["testing"] }
 tempfile = "3"
+# A workload's identity socket, faked for the command inside a workload.
+connectrpc = { version = "=0.9.1", default-features = false, features = ["json", "client", "client-tls", "server"] }
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http1", "http2"] }
+tower-service = "0.3"
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }

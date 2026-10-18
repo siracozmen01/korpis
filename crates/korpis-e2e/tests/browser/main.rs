@@ -179,6 +179,9 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
         );
         return;
     }
+    // Built before any node runs: a build starves the machine, and a node starved past its
+    // lease's term loses its runs, as it should (§4.2 of docs/05-scheduling.md).
+    let cli = tokio::task::spawn_blocking(korpis).await.unwrap();
     let cp = Arc::new(ControlPlane::start_panel(dist).await);
     let invitation = cp.invite("Friend", FRIEND, &[]).await;
     let operator =
@@ -189,7 +192,7 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let talking = talking(&cp, &project).await;
     let (waiter, printer) = tasks(&cp, &project, talking.as_ref().map(|(n, _, _)| n)).await;
     let config = tempfile::tempdir().unwrap();
-    let (login, approve_at, login_stderr) = logging_in(&cp, config.path()).await;
+    let (login, approve_at, login_stderr) = logging_in(&cp, &cli, config.path()).await;
     let mut playwright = tokio::process::Command::new("pnpm");
     playwright
         .args(["exec", "playwright", "test", "--config", "e2e/playwright.config.ts"])
@@ -271,16 +274,16 @@ fn world() -> Vec<u8> {
     (0..5u32 << 20).map(|i| u8::try_from((i * 7 + i / 1_048_576) % 251).unwrap_or(0)).collect()
 }
 
-/// `korpis login`, keeping nothing, run to read the caller's profile once signed in, its
-/// sessions under `config`; the process, and the address its user code is approved at.
-/// `korpis login` started, the address it says to approve it at, and the rest of what it writes
-/// to its standard error. That is read to the end as it is written: a pipe closed under it would
-/// fail its next write, and with it the command.
+/// `korpis login` from the binary `korpis`, keeping nothing, run to read the caller's profile
+/// once signed in, its sessions under `config`: the process, the address it says to approve it
+/// at, and the rest of what it writes to its standard error. That is read to the end as it is
+/// written: a pipe closed under it would fail its next write, and with it the command.
 async fn logging_in(
     cp: &ControlPlane,
+    korpis: &Path,
     config: &Path,
 ) -> (tokio::process::Child, String, tokio::task::JoinHandle<String>) {
-    let mut child = tokio::process::Command::new(korpis())
+    let mut child = tokio::process::Command::new(korpis)
         .args(["login", "--no-store", "--", "call", "ProfileService/GetProfile"])
         .env("KORPIS_SERVER", &cp.url)
         .env("KORPIS_CA", cp.data.tls().join("ca.pem"))

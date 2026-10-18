@@ -25,6 +25,7 @@ use korpis_cli::complete::{self, COMPLETE_VAR, Shell, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
 use korpis_cli::files;
+use korpis_cli::inside;
 use korpis_cli::session::{self, Held};
 use korpis_cli::sets::SetArgs;
 use korpis_cli::vault::Vault;
@@ -47,6 +48,10 @@ struct Cli {
     /// A file holding the capability token; otherwise `KORPIS_TOKEN`.
     #[arg(long, env = "KORPIS_TOKEN_FILE", global = true)]
     token_file: Option<PathBuf>,
+    /// Inside a workload, its identity socket, whose credential bears the calls; by default
+    /// `/run/korpis/identity.sock` when it exists and no server is named.
+    #[arg(long, env = "KORPIS_IDENTITY", global = true)]
+    identity: Option<PathBuf>,
     /// Print the API's own JSON instead of the human form.
     #[arg(long, global = true)]
     json: bool,
@@ -185,9 +190,12 @@ enum Command {
 }
 
 impl Cli {
-    /// The connection the flags describe, if they name a server: borne by the token given, or
-    /// by the session held or kept, or by nothing.
+    /// The connection the flags describe: inside a workload, borne by its credential; to a
+    /// server named, by the token given, or by the session held or kept, or by nothing.
     async fn connection(&self) -> Result<Option<Connection>, CliError> {
+        if let Some(socket) = inside::socket(self.identity.clone(), self.server.is_some()) {
+            return inside::connection(&socket).await.map(Some);
+        }
         let Some(server) = &self.server else { return Ok(None) };
         let token = match &self.token_file {
             Some(path) => Some(token_from(path)?),
@@ -197,9 +205,7 @@ impl Cli {
     }
 
     async fn required(&self) -> Result<Connection, CliError> {
-        self.connection().await?.ok_or_else(|| {
-            CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
-        })
+        self.connection().await?.ok_or_else(no_server)
     }
 
     /// The installation's CA, which every connection needs.
@@ -211,11 +217,13 @@ impl Cli {
 
     /// A connection to the server named, borne by nothing: what signing in and out begin with.
     fn anonymous(&self) -> Result<Connection, CliError> {
-        let server = self.server.clone().ok_or_else(|| {
-            CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
-        })?;
+        let server = self.server.clone().ok_or_else(no_server)?;
         Connection::open(&Endpoint { server, ca: self.ca()?, token: String::new() })
     }
+}
+
+fn no_server() -> CliError {
+    CliError::Local("--server (or KORPIS_SERVER) names the control plane".into())
 }
 
 /// `korpis login`: the device flow, then the session kept; or, with `--no-store`, `command`
@@ -242,13 +250,6 @@ async fn login(cli: &Cli, no_store: bool, command: &[String]) -> Result<(), CliE
     ran.and(ended)
 }
 
-/// `korpis logout`.
-async fn logout(cli: &Cli) -> Result<(), CliError> {
-    let c = cli.anonymous()?;
-    let vault = Vault::new(c.server(), Vault::default_dir()?).await;
-    session::sign_out(&c, &Held::Kept(Arc::new(vault))).await
-}
-
 #[expect(clippy::print_stdout, reason = "a command's answer is the binary's output")]
 fn print(v: &Value) {
     println!("{}", serde_json::to_string_pretty(v).unwrap_or_default());
@@ -267,7 +268,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
             answer(cli, korpis_cli::version::answer(cli.connection().await?.as_ref()).await)
         }
         Command::Login { no_store, command } => login(cli, *no_store, command).await,
-        Command::Logout => logout(cli).await,
+        Command::Logout => session::log_out(&cli.anonymous()?).await,
         Command::Plan { action: Some(a), .. } => {
             answer(cli, act::plan(&cli.required().await?, a).await)
         }

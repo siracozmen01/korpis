@@ -4,11 +4,13 @@
 //! the CLI trusts alone for it (the system's roots are never consulted, so a public CA cannot
 //! vouch for a Korpis control plane), and the bearer of its calls: a capability token read from
 //! the environment or a file the operator names, or the access token of the session `korpis
-//! login` began, renewed while the command runs (§7 of docs/13-surface-cli.md).
+//! login` began, renewed while the command runs (§7 of docs/13-surface-cli.md). Inside a
+//! workload, the workload's own credential, carried through its node's relay ([`crate::inside`]).
 
 use crate::error::CliError;
 use crate::session::{self, Access, Held, MARGIN};
 use connectrpc::client::{ClientConfig, HttpClient};
+use korpis_extension::Transport;
 use rustls::pki_types::CertificateDer;
 use rustls::pki_types::pem::PemObject as _;
 use std::path::{Path, PathBuf};
@@ -39,7 +41,7 @@ pub fn credential(text: &str) -> &str {
 /// An open way to the control plane.
 #[derive(Clone)]
 pub struct Connection {
-    http: HttpClient,
+    http: Transport,
     config: ClientConfig,
     server: String,
     /// A session's access token, which a task renews while the command runs.
@@ -81,7 +83,20 @@ impl Connection {
             config = config.with_default_header("authorization", format!("Bearer {presented}"));
         }
         let server = e.server.trim_end_matches('/').to_owned();
-        Ok(Self { http: HttpClient::with_tls(Arc::new(tls)), config, server, bearer: None })
+        let http = Transport::Direct(Box::new(HttpClient::with_tls(Arc::new(tls))));
+        Ok(Self { http, config, server, bearer: None })
+    }
+
+    /// A connection to `server` over `http`, its calls borne by whatever `bearer` holds when
+    /// each is made, which its holder keeps current.
+    pub fn borne(
+        http: Transport,
+        server: &str,
+        bearer: Arc<RwLock<String>>,
+    ) -> Result<Self, CliError> {
+        let uri: http::Uri = server.parse().map_err(|err| local("the server", err))?;
+        let server = server.trim_end_matches('/').to_owned();
+        Ok(Self { http, config: ClientConfig::new(uri), server, bearer: Some(bearer) })
     }
 
     /// The same connection, its calls borne by the session `held` holds: an access token now,
@@ -94,9 +109,18 @@ impl Connection {
     }
 
     /// The same trust, at `url` and anonymous: a relay, where a session is authorized by its
-    /// capability token alone and the operator's token is not sent.
+    /// capability token alone and the operator's token is not sent. Through a node's relay, which
+    /// reaches the control plane alone, only a relay the control plane serves itself.
     pub fn at(&self, url: &str) -> Result<Self, CliError> {
         let uri: http::Uri = url.parse().map_err(|err| local("the relay", err))?;
+        let own: Option<http::Uri> = self.server.parse().ok();
+        let elsewhere = own.and_then(|o| o.authority().cloned()) != uri.authority().cloned();
+        if matches!(self.http, Transport::Relayed(_)) && elsewhere {
+            return Err(CliError::Local(format!(
+                "{url} is not the control plane, and inside a workload the command reaches the \
+                 control plane alone"
+            )));
+        }
         Ok(Self {
             http: self.http.clone(),
             config: ClientConfig::new(uri),
@@ -113,7 +137,7 @@ impl Connection {
 
     /// The transport, for a generated client.
     #[must_use]
-    pub fn http(&self) -> HttpClient {
+    pub fn http(&self) -> Transport {
         self.http.clone()
     }
 

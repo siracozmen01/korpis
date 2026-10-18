@@ -46,7 +46,7 @@ impl Access {
     }
 }
 
-fn sessions(c: &Connection) -> pb::SessionServiceClient<connectrpc::client::HttpClient> {
+fn sessions(c: &Connection) -> pb::SessionServiceClient<korpis_extension::Transport> {
     pb::SessionServiceClient::new(c.http(), c.config())
 }
 
@@ -163,6 +163,12 @@ fn ended(e: &CliError) -> bool {
 
 fn signed_out() -> CliError {
     CliError::Local("not signed in: run `korpis login`".into())
+}
+
+/// `korpis logout`: ends the session kept for `c`'s server, through `c`, anonymous.
+pub async fn log_out(c: &Connection) -> Result<(), CliError> {
+    let vault = Vault::new(c.server(), Vault::default_dir()?).await;
+    sign_out(c, &Held::Kept(Arc::new(vault))).await
 }
 
 /// Ends the session `held` holds through `c`, anonymous, and forgets a kept one.
