@@ -230,8 +230,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 uses: 0,
                 revoked: false,
                 suspended: false,
-                // Identity bindings arrive with external identity (Phase 2); until then no
-                // binding can override the irreversible-action default, so nothing claims it.
+                // Set by the binding of an external subject, never by the request.
                 irreversible_override: false,
                 root: false,
             },
@@ -243,6 +242,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             label: cmd.label,
             from_template,
         };
+        self.vouched(&mut record).await?;
         let parent = self.parent_for(caller, &mut record.grant).await?;
         self.record_issue(caller, idem, record, &parent, created).await
     }
@@ -382,7 +382,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for g in chain.iter().chain(std::iter::once(child)) {
             snapshot.load_grant(&self.store, g).await?;
         }
-        issue(&caller.subject, &chain, child, false, &snapshot, self.clock.now())
+        let allows = self.binding_allows_irreversible(child).await?;
+        issue(&caller.subject, &chain, child, allows, &snapshot, self.clock.now())
             .map_err(|e| issue_error(&e))?;
         Ok(parent)
     }

@@ -937,6 +937,32 @@ them, which is the point: the record is of who typed, under the authority they t
 the check cannot do is stop a compromised node from putting words in the mouth of a moderator
 whose session it carried; it bounds whom a node can implicate, not what it claims.
 
+**FINDING 111: Two identity providers could vouch for one subject. `CONFIRMED`**
+
+Found 2026-10-19, when identity bindings were built for step 1. A subject's provider part was a
+name, `discord`, which any installation of an identity provider could serve, and nothing said
+whose word a grant to *the `@moderator` role in guild 456* took. An organization that installed
+its own identity provider under that name could assert the role, and act under grants another
+organization had given it: a provider installed by one tenant vouching for authority in another's.
+
+**Resolution.** The provider part of a subject is the provider's organization and its name there,
+`org_…/discord`, and names are unique per type within an organization, so no two providers vouch
+for one subject. A grant names an external identity only through a live binding, declared in the
+provider's organization, and only at or beneath that organization, which the control plane checks
+at issue holding the scope's ancestry. The cost is that the same person at two organizations'
+providers is two subjects. → patched into `08-identity.md` §5
+
+**FINDING 112: An OIDC issuer could not be the realm of a set. `CONFIRMED`**
+
+Found building the same test, with an OIDC group as the set. §5 of `08-identity.md` and §3.2 of
+`01-model.md` gave a binding's selector as "oidc issuer+claim", and the wire named the issuer as an
+example of a set's realm, while a principal key keeps its parts apart with colons and refuses one in
+a realm; every issuer is an `https://` URL. No OIDC group could have been bound.
+
+**Resolution.** The issuer is the provider's, since a provider is installed for an identity
+service, and is not repeated in the subject; a set's realm is the claim or attribute that names
+groups, and the set its value. → patched into `08-identity.md` §5, `01-model.md` §3.2
+
 ---
 
 ## 12. A recipe install fails at step four of six
@@ -1234,6 +1260,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 108 | A template's scope pattern named cases nothing could evaluate | §26 | `08-identity.md` §4, `01-model.md` §3.2 |
 | 109 | A restarted agent whose driver did not answer started a second copy | §7 | `02-architecture.md` §4.4 |
 | 110 | A list's page token named what its reader could not read | §26 | `10-api.md` §8 |
+| 111 | Two identity providers could vouch for one subject | §11 | `08-identity.md` §5 |
+| 112 | An OIDC issuer could not be the realm of a set | §11 | `08-identity.md` §5, `01-model.md` §3.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

@@ -34,6 +34,7 @@ pub mod assignment;
 pub mod audit;
 pub mod authz;
 pub mod backup;
+pub mod binding;
 pub mod body;
 pub mod certificate;
 pub mod dns;

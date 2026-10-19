@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE identity_binding SET retired_at = $2 WHERE id = $1 AND retired_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "414c635826282c2b5b4db1b717f2cf7ae656bb0a66ab2b46bcdb7152eea54759"
+}

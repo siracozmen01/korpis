@@ -6,6 +6,7 @@
 mod apply;
 mod approve;
 mod attest;
+mod binding;
 mod denial;
 mod failure;
 pub(crate) mod gateway;
@@ -16,8 +17,10 @@ mod revocation;
 mod revoke;
 mod snapshot;
 mod template;
+mod vouch;
 
 pub use apply::FromTemplate;
+pub use binding::BindingAsked;
 pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};
 pub use mint::{MintToken, Minted};
 pub use query::{GrantWithChain, GrantsFilter};

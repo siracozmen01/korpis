@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/authority.proto.
  */
 export const file_korpis_v1_authority: GenFile = /*@__PURE__*/
-  fileDesc("Chlrb3JwaXMvdjEvYXV0aG9yaXR5LnByb3RvEglrb3JwaXMudjEiogQKBUdyYW50EgoKAmlkGAEgASgJEiMKB3N1YmplY3QYAiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIPCgdhY3Rpb25zGAMgAygJEh8KBXNjb3BlGAQgASgLMhAua29ycGlzLnYxLlNjb3BlEikKCmNvbmRpdGlvbnMYBSABKAsyFS5rb3JwaXMudjEuQ29uZGl0aW9ucxITCgZwYXJlbnQYBiABKAlIAIgBARIvCgpkZWxlZ2F0aW9uGAcgASgLMhsua29ycGlzLnYxLkRlbGVnYXRpb25Qb2xpY3kSJQoJaXNzdWVkX2J5GAggASgLMhIua29ycGlzLnYxLlN1YmplY3QSJgoDdmlhGAkgASgLMhkua29ycGlzLnYxLlNldE1lbWJlcklzc3VlEjIKDWZyb21fdGVtcGxhdGUYCiABKAsyFi5rb3JwaXMudjEuVGVtcGxhdGVSZWZIAYgBARItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWxpbmtfZm9ybRgNIAEoCBIkCgVzdGF0ZRgOIAEoDjIVLmtvcnBpcy52MS5HcmFudFN0YXRlEg0KBWxhYmVsGA8gASgJQgkKB19wYXJlbnRCEAoOX2Zyb21fdGVtcGxhdGUiZwoOU2V0TWVtYmVySXNzdWUSKAoDc2V0GAEgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkSKwoGbWVtYmVyGAIgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkiMAoLVGVtcGxhdGVSZWYSEAoIdGVtcGxhdGUYASABKAkSDwoHdmVyc2lvbhgCIAEoBCKDAgoFU2NvcGUSFgoMb3JnYW5pemF0aW9uGAEgASgJSAASEQoHcHJvamVjdBgCIAEoCUgAEhIKCHdvcmtsb2FkGAMgASgJSAASEAoGdm9sdW1lGAQgASgJSAASEgoIZW5kcG9pbnQYBSABKAlIABIQCgZzdHJlYW0YBiABKAlIABIOCgRub2RlGAcgASgJSAASLAoIc2VsZWN0b3IYCCABKAsyGC5rb3JwaXMudjEuU2VsZWN0b3JTY29wZUgAEhQKCnJlcG9zaXRvcnkYCSABKAlIABIQCgZkb21haW4YCiABKAlIABIVCgtjZXJ0aWZpY2F0ZRgLIAEoCUgAQgYKBGtpbmQiXQoNU2VsZWN0b3JTY29wZRIgCgZ3aXRoaW4YASABKAsyEC5rb3JwaXMudjEuU2NvcGUSKgoIc2VsZWN0b3IYAiABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvciKXAgoKQ29uZGl0aW9ucxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpub3RfYmVmb3JlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtzb3VyY2VfY2lkchgDIAMoCRIUCgxyZXF1aXJlc19tZmEYBCABKAgSLgoUcmVxdWlyZXNfYXBwcm92YWxfYnkYBSABKAsyEC5rb3JwaXMudjEuU2NvcGUSFQoIbWF4X3VzZXMYBiABKARIAIgBARIqCgxzdHJlYW1fcmFuZ2UYByABKAsyFC5rb3JwaXMudjEuVGltZVJhbmdlQgsKCV9tYXhfdXNlcyJdCglUaW1lUmFuZ2USKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIloKEERlbGVnYXRpb25Qb2xpY3kSDwoHYWxsb3dlZBgBIAEoCBIWCgltYXhfZGVwdGgYAiABKA1IAIgBARIPCgdhY3Rpb25zGAMgAygJQgwKCl9tYXhfZGVwdGgigwMKDUdyYW50VGVtcGxhdGUSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoBBIPCgdhY3Rpb25zGAUgAygJEi4KDXNjb3BlX3BhdHRlcm4YBiABKAsyFy5rb3JwaXMudjEuU2NvcGVQYXR0ZXJuEi8KCmRlbGVnYXRpb24YCCABKAsyGy5rb3JwaXMudjEuRGVsZWdhdGlvblBvbGljeRIxCgpjb25kaXRpb25zGAkgASgLMh0ua29ycGlzLnYxLlRlbXBsYXRlQ29uZGl0aW9ucxImCgp1cGRhdGVkX2J5GAogASgLMhIua29ycGlzLnYxLlN1YmplY3QSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmV0aXJlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBKBAgHEAgicQoMU2NvcGVQYXR0ZXJuEiMKBGtpbmQYBCABKA4yFS5rb3JwaXMudjEuT2JqZWN0S2luZBIqCghzZWxlY3RvchgFIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9ySgQIARACSgQIAhADSgQIAxAEIpABChJUZW1wbGF0ZUNvbmRpdGlvbnMSKwoIbGlmZXRpbWUYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLc291cmNlX2NpZHIYAiADKAkSFAoMcmVxdWlyZXNfbWZhGAMgASgIEhUKCG1heF91c2VzGAQgASgESACIAQFCCwoJX21heF91c2VzIrUDCg9JZGVudGl0eUJpbmRpbmcSCgoCaWQYASABKAkSEAoIcHJvdmlkZXIYAiABKAkSLAoHc3ViamVjdBgDIAEoCzIbLmtvcnBpcy52MS5FeHRlcm5hbElkZW50aXR5EiQKBGtpbmQYBCABKA4yFi5rb3JwaXMudjEuQmluZGluZ0tpbmQSLAoKY3JlYXRlZF9ieRgFIAEoDjIYLmtvcnBpcy52MS5CaW5kaW5nT3JpZ2luEi0KCHRlbXBsYXRlGAYgASgLMhYua29ycGlzLnYxLlRlbXBsYXRlUmVmSACIAQESMgoLY29uc3RyYWludHMYByABKAsyHS5rb3JwaXMudjEuQmluZGluZ0NvbnN0cmFpbnRzEjQKEXJldmVyaWZ5X2ludGVydmFsGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiYKBXN0YXRlGAkgASgOMhcua29ycGlzLnYxLkJpbmRpbmdTdGF0ZRI0ChBsYXN0X3ZlcmlmaWVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEILCglfdGVtcGxhdGUicgoSQmluZGluZ0NvbnN0cmFpbnRzEjIKEnJlcXVpcmVfbWVtYmVyc2hpcBgBIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIoCgVncmFjZRgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiqpAQoKR3JhbnRTdGF0ZRIbChdHUkFOVF9TVEFURV9VTlNQRUNJRklFRBAAEhYKEkdSQU5UX1NUQVRFX0lTU1VFRBABEhcKE0dSQU5UX1NUQVRFX0VYUElSRUQQAhIZChVHUkFOVF9TVEFURV9FWEhBVVNURUQQAxIXChNHUkFOVF9TVEFURV9SRVZPS0VEEAQSGQoVR1JBTlRfU1RBVEVfU1VTUEVOREVEEAUqXgoLQmluZGluZ0tpbmQSHAoYQklORElOR19LSU5EX1VOU1BFQ0lGSUVEEAASGwoXQklORElOR19LSU5EX0lORElWSURVQUwQARIUChBCSU5ESU5HX0tJTkRfU0VUEAIqagoNQmluZGluZ09yaWdpbhIeChpCSU5ESU5HX09SSUdJTl9VTlNQRUNJRklFRBAAEhsKF0JJTkRJTkdfT1JJR0lOX09QRVJBVE9SEAESHAoYQklORElOR19PUklHSU5fRklSU1RfVVNFEAIqZwoMQmluZGluZ1N0YXRlEh0KGUJJTkRJTkdfU1RBVEVfVU5TUEVDSUZJRUQQABIaChZCSU5ESU5HX1NUQVRFX1ZFUklGSUVEEAESHAoYQklORElOR19TVEFURV9VTlZFUklGSUVEEAJiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
+  fileDesc("Chlrb3JwaXMvdjEvYXV0aG9yaXR5LnByb3RvEglrb3JwaXMudjEiogQKBUdyYW50EgoKAmlkGAEgASgJEiMKB3N1YmplY3QYAiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIPCgdhY3Rpb25zGAMgAygJEh8KBXNjb3BlGAQgASgLMhAua29ycGlzLnYxLlNjb3BlEikKCmNvbmRpdGlvbnMYBSABKAsyFS5rb3JwaXMudjEuQ29uZGl0aW9ucxITCgZwYXJlbnQYBiABKAlIAIgBARIvCgpkZWxlZ2F0aW9uGAcgASgLMhsua29ycGlzLnYxLkRlbGVnYXRpb25Qb2xpY3kSJQoJaXNzdWVkX2J5GAggASgLMhIua29ycGlzLnYxLlN1YmplY3QSJgoDdmlhGAkgASgLMhkua29ycGlzLnYxLlNldE1lbWJlcklzc3VlEjIKDWZyb21fdGVtcGxhdGUYCiABKAsyFi5rb3JwaXMudjEuVGVtcGxhdGVSZWZIAYgBARItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWxpbmtfZm9ybRgNIAEoCBIkCgVzdGF0ZRgOIAEoDjIVLmtvcnBpcy52MS5HcmFudFN0YXRlEg0KBWxhYmVsGA8gASgJQgkKB19wYXJlbnRCEAoOX2Zyb21fdGVtcGxhdGUiZwoOU2V0TWVtYmVySXNzdWUSKAoDc2V0GAEgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkSKwoGbWVtYmVyGAIgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkiMAoLVGVtcGxhdGVSZWYSEAoIdGVtcGxhdGUYASABKAkSDwoHdmVyc2lvbhgCIAEoBCKDAgoFU2NvcGUSFgoMb3JnYW5pemF0aW9uGAEgASgJSAASEQoHcHJvamVjdBgCIAEoCUgAEhIKCHdvcmtsb2FkGAMgASgJSAASEAoGdm9sdW1lGAQgASgJSAASEgoIZW5kcG9pbnQYBSABKAlIABIQCgZzdHJlYW0YBiABKAlIABIOCgRub2RlGAcgASgJSAASLAoIc2VsZWN0b3IYCCABKAsyGC5rb3JwaXMudjEuU2VsZWN0b3JTY29wZUgAEhQKCnJlcG9zaXRvcnkYCSABKAlIABIQCgZkb21haW4YCiABKAlIABIVCgtjZXJ0aWZpY2F0ZRgLIAEoCUgAQgYKBGtpbmQiXQoNU2VsZWN0b3JTY29wZRIgCgZ3aXRoaW4YASABKAsyEC5rb3JwaXMudjEuU2NvcGUSKgoIc2VsZWN0b3IYAiABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvciKXAgoKQ29uZGl0aW9ucxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpub3RfYmVmb3JlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtzb3VyY2VfY2lkchgDIAMoCRIUCgxyZXF1aXJlc19tZmEYBCABKAgSLgoUcmVxdWlyZXNfYXBwcm92YWxfYnkYBSABKAsyEC5rb3JwaXMudjEuU2NvcGUSFQoIbWF4X3VzZXMYBiABKARIAIgBARIqCgxzdHJlYW1fcmFuZ2UYByABKAsyFC5rb3JwaXMudjEuVGltZVJhbmdlQgsKCV9tYXhfdXNlcyJdCglUaW1lUmFuZ2USKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIloKEERlbGVnYXRpb25Qb2xpY3kSDwoHYWxsb3dlZBgBIAEoCBIWCgltYXhfZGVwdGgYAiABKA1IAIgBARIPCgdhY3Rpb25zGAMgAygJQgwKCl9tYXhfZGVwdGgigwMKDUdyYW50VGVtcGxhdGUSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoBBIPCgdhY3Rpb25zGAUgAygJEi4KDXNjb3BlX3BhdHRlcm4YBiABKAsyFy5rb3JwaXMudjEuU2NvcGVQYXR0ZXJuEi8KCmRlbGVnYXRpb24YCCABKAsyGy5rb3JwaXMudjEuRGVsZWdhdGlvblBvbGljeRIxCgpjb25kaXRpb25zGAkgASgLMh0ua29ycGlzLnYxLlRlbXBsYXRlQ29uZGl0aW9ucxImCgp1cGRhdGVkX2J5GAogASgLMhIua29ycGlzLnYxLlN1YmplY3QSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmV0aXJlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBKBAgHEAgicQoMU2NvcGVQYXR0ZXJuEiMKBGtpbmQYBCABKA4yFS5rb3JwaXMudjEuT2JqZWN0S2luZBIqCghzZWxlY3RvchgFIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9ySgQIARACSgQIAhADSgQIAxAEIpABChJUZW1wbGF0ZUNvbmRpdGlvbnMSKwoIbGlmZXRpbWUYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLc291cmNlX2NpZHIYAiADKAkSFAoMcmVxdWlyZXNfbWZhGAMgASgIEhUKCG1heF91c2VzGAQgASgESACIAQFCCwoJX21heF91c2VzIvsECg9JZGVudGl0eUJpbmRpbmcSCgoCaWQYASABKAkSEAoIcHJvdmlkZXIYAiABKAkSLAoHc3ViamVjdBgDIAEoCzIbLmtvcnBpcy52MS5FeHRlcm5hbElkZW50aXR5EiQKBGtpbmQYBCABKA4yFi5rb3JwaXMudjEuQmluZGluZ0tpbmQSLAoKY3JlYXRlZF9ieRgFIAEoDjIYLmtvcnBpcy52MS5CaW5kaW5nT3JpZ2luEi0KCHRlbXBsYXRlGAYgASgLMhYua29ycGlzLnYxLlRlbXBsYXRlUmVmSACIAQESMgoLY29uc3RyYWludHMYByABKAsyHS5rb3JwaXMudjEuQmluZGluZ0NvbnN0cmFpbnRzEjQKEXJldmVyaWZ5X2ludGVydmFsGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiYKBXN0YXRlGAkgASgOMhcua29ycGlzLnYxLkJpbmRpbmdTdGF0ZRI0ChBsYXN0X3ZlcmlmaWVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxvcmdhbml6YXRpb24YCyABKAkSGwoTYWxsb3dzX2lycmV2ZXJzaWJsZRgMIAEoCBIPCgd2ZXJzaW9uGA0gASgEEiMKB21hZGVfYnkYDiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIrCgdtYWRlX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZXRpcmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEILCglfdGVtcGxhdGUicgoSQmluZGluZ0NvbnN0cmFpbnRzEjIKEnJlcXVpcmVfbWVtYmVyc2hpcBgBIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIoCgVncmFjZRgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiqpAQoKR3JhbnRTdGF0ZRIbChdHUkFOVF9TVEFURV9VTlNQRUNJRklFRBAAEhYKEkdSQU5UX1NUQVRFX0lTU1VFRBABEhcKE0dSQU5UX1NUQVRFX0VYUElSRUQQAhIZChVHUkFOVF9TVEFURV9FWEhBVVNURUQQAxIXChNHUkFOVF9TVEFURV9SRVZPS0VEEAQSGQoVR1JBTlRfU1RBVEVfU1VTUEVOREVEEAUqXgoLQmluZGluZ0tpbmQSHAoYQklORElOR19LSU5EX1VOU1BFQ0lGSUVEEAASGwoXQklORElOR19LSU5EX0lORElWSURVQUwQARIUChBCSU5ESU5HX0tJTkRfU0VUEAIqagoNQmluZGluZ09yaWdpbhIeChpCSU5ESU5HX09SSUdJTl9VTlNQRUNJRklFRBAAEhsKF0JJTkRJTkdfT1JJR0lOX09QRVJBVE9SEAESHAoYQklORElOR19PUklHSU5fRklSU1RfVVNFEAIqZwoMQmluZGluZ1N0YXRlEh0KGUJJTkRJTkdfU1RBVEVfVU5TUEVDSUZJRUQQABIaChZCSU5ESU5HX1NUQVRFX1ZFUklGSUVEEAESHAoYQklORElOR19TVEFURV9VTlZFUklGSUVEEAJiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
 
 /**
  * The only authority primitive. A grant can never exceed its parent (§3.2 of
@@ -558,6 +558,8 @@ export const TemplateConditionsSchema: GenMessage<TemplateConditions> = /*@__PUR
 
 /**
  * How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).
+ * A binding grants nothing: it says which provider vouches for its subject, how often that is
+ * re-checked, and, for a set, what its members receive.
  *
  * @generated from message korpis.v1.IdentityBinding
  */
@@ -568,7 +570,8 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   id: string;
 
   /**
-   * The identity provider extension that verifies it.
+   * The identity provider that verifies it: its name among the identity providers installed
+   * into `organization`. The subject's provider is `org_…/<name>`, the two together.
    *
    * @generated from field: string provider = 2;
    */
@@ -580,6 +583,8 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   subject?: ExternalIdentity | undefined;
 
   /**
+   * A person or a set, as the subject says.
+   *
    * @generated from field: korpis.v1.BindingKind kind = 4;
    */
   kind: BindingKind;
@@ -590,7 +595,8 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   createdBy: BindingOrigin;
 
   /**
-   * For set bindings: what the set's members receive.
+   * For a set: the template every grant to it is issued from, at this version (§3.4 of
+   * docs/08-identity.md). Without one, a grant to the set may not delegate.
    *
    * @generated from field: optional korpis.v1.TemplateRef template = 6;
    */
@@ -602,6 +608,8 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   constraints?: BindingConstraints | undefined;
 
   /**
+   * Between one minute and one day; fifteen minutes when not said.
+   *
    * @generated from field: google.protobuf.Duration reverify_interval = 8;
    */
   reverifyInterval?: Duration | undefined;
@@ -612,9 +620,51 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   state: BindingState;
 
   /**
+   * Absent until its provider first confirms it.
+   *
    * @generated from field: google.protobuf.Timestamp last_verified_at = 10;
    */
   lastVerifiedAt?: Timestamp | undefined;
+
+  /**
+   * The organization its provider is installed into, where it is declared; it vouches only
+   * there and beneath.
+   *
+   * @generated from field: string organization = 11;
+   */
+  organization: string;
+
+  /**
+   * For a set: an operator deliberately let grants to it carry irreversible actions (§5.2 of
+   * docs/08-identity.md).
+   *
+   * @generated from field: bool allows_irreversible = 12;
+   */
+  allowsIrreversible: boolean;
+
+  /**
+   * 1 when made, one more at every change; an edit names the version it was made against.
+   *
+   * @generated from field: uint64 version = 13;
+   */
+  version: bigint;
+
+  /**
+   * @generated from field: korpis.v1.Subject made_by = 14;
+   */
+  madeBy?: Subject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp made_at = 15;
+   */
+  madeAt?: Timestamp | undefined;
+
+  /**
+   * It vouches for nothing since, and its subject may be bound again.
+   *
+   * @generated from field: google.protobuf.Timestamp retired_at = 16;
+   */
+  retiredAt?: Timestamp | undefined;
 };
 
 /**
@@ -629,15 +679,17 @@ export const IdentityBindingSchema: GenMessage<IdentityBinding> = /*@__PURE__*/
  */
 export type BindingConstraints = Message<"korpis.v1.BindingConstraints"> & {
   /**
-   * Members must also satisfy these, checked at every re-verification.
+   * For a set: other sets at the same provider its members must also be in, checked at every
+   * re-verification.
    *
    * @generated from field: repeated korpis.v1.ExternalSet require_membership = 1;
    */
   requireMembership: ExternalSet[];
 
   /**
-   * Grace before an unverifiable binding suspends its grants; bounded by §5.1 of
-   * docs/08-identity.md.
+   * How long an unreachable provider extends the binding past its interval before its grants
+   * are suspended (§5.1 of docs/08-identity.md): at most one hour; fifteen minutes when not
+   * said.
    *
    * @generated from field: google.protobuf.Duration grace = 2;
    */

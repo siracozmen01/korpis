@@ -567,13 +567,14 @@ Subject = User | Token | ExternalIdentity | Workload | Extension
 ```
 IdentityBinding
   provider            ProviderRef      the identity provider extension that verifies it (§5.3)
-  selector            guild+role · guild+user · oidc issuer+claim · saml issuer+attribute
+  selector            guild+role · guild+user · oidc claim+value · saml attribute+value
   subject             ExternalIdentity
   kind                individual | set
   created_by          operator | first_use      sets are always operator-declared
   template            TemplateRef?     for set bindings: what the set's members receive
   constraints         BindingConstraints
   reverify_interval   Duration
+  allows_irreversible bool             for set bindings: the operator's override of §5.2
   state               verified | unverified
   last_verified_at    Timestamp
 ```
@@ -589,6 +590,36 @@ binding (a role, a group) is declared by an operator, because it decides who rec
 individual binding (one Discord user, one OIDC subject) is created on that person's first
 authenticated use, because it decides nothing; it only gives a stable subject identifier to
 someone whose authority comes from a set or from a grant issued to them later.
+
+**Bindings, as built.** Added 2026-10-19, when bindings were built (Findings 111 and 112 of
+`23-walkthroughs.md`). A provider is an installed extension serving the `identity` type under a
+name unique among its organization's identity providers (§3.3 of `16-extensions.md`), and the
+provider part of every subject it vouches for is that organization and that name, `org_…/corp`. No
+two providers therefore vouch for one subject, and a subject says where its provider may vouch: a
+grant names an external identity only at or beneath the organization its provider is installed
+into, which the control plane checks at issue, holding the scope's ancestry. A set's realm is where
+the set lives at its provider and never contains a colon: a Discord guild, or the OIDC claim or SAML
+attribute that names groups. The issuer belongs to the provider and is not repeated in the subject.
+
+A binding is declared under `identity.binding.write` on the provider's organization (§5 of
+`10-api.md`) and read there under `org.read`; a subject has one live binding, and a grant names an
+external identity only through it. It is made `unverified` with no `last_verified_at`, because
+nothing has confirmed it until its provider does (§5.1), so a grant to it waits for that. A set
+binding's template is exact: every grant to the set is issued from that template at the version the
+binding names, so an edit of the template reaches the set only through an edit of the binding, and
+without a template a grant to the set may not delegate (§3.4). The irreversible override is the
+binding's field, set by whoever declares it, and copied onto each grant to the set as it is issued,
+never taken from a request (§5.2). The interval is between one minute and one day, fifteen minutes
+when not said, and the grace at most an hour. Retiring a binding suspends what is rooted in it and
+frees its subject to be bound again.
+
+What this costs. A customer who wants to give its own project to a group at its reseller's provider
+asks the reseller to declare the binding, because bindings live where the provider is installed.
+The same person at two organizations' providers is two subjects. An edit of a binding, its override
+or its template, reaches grants issued after it, as an edit of a template does (§4); grants already
+issued keep what they were issued with, and changing them is revoking and issuing again. And until
+re-verification is built (§5.1, Phase 2 of `20-roadmap.md` §4), a binding stays `unverified`, so
+nothing rooted in one is usable yet: the order fails closed.
 
 ### 5.1 Losing a role removes authority only if something notices
 
@@ -625,9 +656,11 @@ dated, and reversible, and it fails closed for authority while failing loudly fo
 | answers, and the membership has ended | `unverified` immediately |
 | cannot be reached | stays `verified` until `last_verified_at + reverify_interval + grace`, then `unverified` |
 
-`grace` is declared per provider (default fifteen minutes) and reported beside the interval, so the
-longest an unreachable provider can extend a membership is a stated number rather than "until it
-comes back". `12-surface-discord.md` §9 had said role-derived grants stay valid until their own
+`grace` is declared per binding (default fifteen minutes, at most an hour) and reported beside the
+interval, so the longest an unreachable provider can extend a membership is a stated number rather
+than "until it comes back". (Corrected 2026-10-19, when bindings were built: this said per provider,
+while the binding carries both the interval and the grace, and a bound read off two objects is one
+nobody reports together.) `12-surface-discord.md` §9 had said role-derived grants stay valid until their own
 expiry while Discord is unreachable, which is the opposite of this section's fail-closed rule; both
 now say this.
 
@@ -734,7 +767,7 @@ granting a chat role real authority defensible.
 
 ### 5.3 OIDC and SAML
 
-Standard, and the same shape: an issuer plus a claim maps to an `ExternalIdentity`, grants are
+Standard, and the same shape: a claim's value maps to an `ExternalIdentity`, grants are
 issued to it, group claims work exactly like chat roles including the same trust boundary. SSO is a
 paid-tier feature in the commercial products and absent from the open ones. Here the machinery is
 core (external identities, bindings, templates, assertions, `InvokeAs`), because it is the same

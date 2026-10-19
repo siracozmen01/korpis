@@ -20,6 +20,7 @@ mod authz;
 mod backup_read;
 mod backup_target;
 mod backups;
+mod bindings;
 mod bootstrap;
 mod cancel;
 mod certificates;

@@ -168,19 +168,38 @@ message TemplateConditions {
 }
 
 // How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).
+// A binding grants nothing: it says which provider vouches for its subject, how often that is
+// re-checked, and, for a set, what its members receive.
 message IdentityBinding {
   string id = 1;
-  // The identity provider extension that verifies it.
+  // The identity provider that verifies it: its name among the identity providers installed
+  // into `organization`. The subject's provider is `org_…/<name>`, the two together.
   string provider = 2;
   ExternalIdentity subject = 3;
+  // A person or a set, as the subject says.
   BindingKind kind = 4;
   BindingOrigin created_by = 5;
-  // For set bindings: what the set's members receive.
+  // For a set: the template every grant to it is issued from, at this version (§3.4 of
+  // docs/08-identity.md). Without one, a grant to the set may not delegate.
   optional TemplateRef template = 6;
   BindingConstraints constraints = 7;
+  // Between one minute and one day; fifteen minutes when not said.
   google.protobuf.Duration reverify_interval = 8;
   BindingState state = 9;
+  // Absent until its provider first confirms it.
   google.protobuf.Timestamp last_verified_at = 10;
+  // The organization its provider is installed into, where it is declared; it vouches only
+  // there and beneath.
+  string organization = 11;
+  // For a set: an operator deliberately let grants to it carry irreversible actions (§5.2 of
+  // docs/08-identity.md).
+  bool allows_irreversible = 12;
+  // 1 when made, one more at every change; an edit names the version it was made against.
+  uint64 version = 13;
+  Subject made_by = 14;
+  google.protobuf.Timestamp made_at = 15;
+  // It vouches for nothing since, and its subject may be bound again.
+  google.protobuf.Timestamp retired_at = 16;
 }
 
 enum BindingKind {
@@ -202,9 +221,11 @@ enum BindingState {
 }
 
 message BindingConstraints {
-  // Members must also satisfy these, checked at every re-verification.
+  // For a set: other sets at the same provider its members must also be in, checked at every
+  // re-verification.
   repeated ExternalSet require_membership = 1;
-  // Grace before an unverifiable binding suspends its grants; bounded by §5.1 of
-  // docs/08-identity.md.
+  // How long an unreachable provider extends the binding past its interval before its grants
+  // are suspended (§5.1 of docs/08-identity.md): at most one hour; fifteen minutes when not
+  // said.
   google.protobuf.Duration grace = 2;
 }

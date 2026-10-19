@@ -150,7 +150,9 @@ message Subject {
 }
 
 message ExternalIdentity {
-  // The identity provider extension that verifies it, e.g. "discord".
+  // The identity provider that verifies it: `org_…/<name>`, the organization it is installed
+  // into and its name there, so two providers never vouch for one subject and a provider
+  // vouches only at and beneath its organization (§5 of docs/08-identity.md).
   string provider = 1;
   oneof selector {
     // One person.
@@ -161,7 +163,9 @@ message ExternalIdentity {
 }
 
 message ExternalSet {
-  // e.g. guild id, OIDC issuer.
+  // Where the set lives at its provider, never containing ':': a Discord guild id, the OIDC claim
+  // or SAML attribute naming the groups. An issuer is the provider's own, so it is not repeated
+  // here (§5 of docs/08-identity.md).
   string realm = 1;
   // e.g. role id, claim value.
   string member_of = 2;

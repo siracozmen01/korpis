@@ -298,14 +298,19 @@ mod tests {
 
     #[test]
     fn a_subject_is_read_back_as_written() {
-        for text in
-            ["usr_1", "tok_1", "wl_1", "ext_1", "ext:discord:user:42", "ext:discord:set:456:mod"]
-        {
+        for text in [
+            "usr_1",
+            "tok_1",
+            "wl_1",
+            "ext_1",
+            "ext:org_1/corp:user:42",
+            "ext:org_1/corp:set:groups:mod",
+        ] {
             let s = subject(text).unwrap_or_default();
             assert_eq!(who(Some(&s)), text);
         }
         assert!(subject("prj_1").is_err());
         assert!(subject("extension:backup").is_err(), "an installation is named by its id");
-        assert!(subject("ext:discord:role:1").is_err());
+        assert!(subject("ext:org_1/corp:role:1").is_err());
     }
 }

@@ -189,6 +189,7 @@ certificate.read · certificate.write                 TLS certificates an organi
 stream.share
 grant.read · grant.revoke
 template.write                                       make, edit, retire an org's grant templates
+identity.binding.write                               declare, edit, retire an org's identity bindings
 org.read · org.create · org.write · org.suspend · org.resume · org.quota.write
 project.read · project.create · project.write · project.delete
 node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place · node.remove
@@ -215,6 +216,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   owns, held on that organization. It is not an authority from above, unlike `org.quota.write`,
   because a template grants nothing: applying one is attenuating a grant the issuer already
   holds. Reading the templates offered at an object takes reading the object.
+- **`identity.binding.write` is a new action implied by nothing.** Added 2026-10-19, when identity
+  bindings were built (§5 of `08-identity.md`). It declares, edits, and retires the bindings of the
+  identity providers installed into an organization, held on that organization. A binding grants
+  nothing, but it decides which provider's word makes someone a subject, which is why it is held
+  over the whole organization the provider serves rather than over a project; reading the bindings
+  takes `org.read` there.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

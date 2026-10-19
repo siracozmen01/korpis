@@ -1,0 +1,220 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, version, made_by, made_at, retired_at\n               FROM identity_binding WHERE subject = $1 AND retired_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "provider"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "origin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "origin"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "template_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "template_version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "template_version"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "require_membership",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "require_membership"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "grace_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "grace_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "reverify_ms",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "reverify_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "allows_irreversible",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "allows_irreversible"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "last_verified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "last_verified_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "made_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "made_by"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "made_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "made_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "retired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "retired_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "a0f3ac88f8615d04642abaf78a7d1fe36f6ecd11318b2eecbed16f1a987d95af"
+}

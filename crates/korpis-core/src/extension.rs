@@ -29,6 +29,8 @@ pub use contract::{CAPABILITIES, CONTRACT_VERSIONS, Incompatible};
 pub use installation::Installation;
 pub use registration::{MAX_CONCURRENCY, MAX_VERSION, Registration};
 pub use step::{MAX_ARTIFACTS, Platform, StepArtifact, StepResult, check_arguments};
+#[cfg(feature = "authz")]
+pub(crate) use validate::slug;
 
 use crate::authz::action::Action;
 use crate::event::EventFilter;

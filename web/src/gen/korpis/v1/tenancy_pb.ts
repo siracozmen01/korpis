@@ -483,7 +483,9 @@ export const SubjectSchema: GenMessage<Subject> = /*@__PURE__*/
  */
 export type ExternalIdentity = Message<"korpis.v1.ExternalIdentity"> & {
   /**
-   * The identity provider extension that verifies it, e.g. "discord".
+   * The identity provider that verifies it: `org_…/<name>`, the organization it is installed
+   * into and its name there, so two providers never vouch for one subject and a provider
+   * vouches only at and beneath its organization (§5 of docs/08-identity.md).
    *
    * @generated from field: string provider = 1;
    */
@@ -523,7 +525,9 @@ export const ExternalIdentitySchema: GenMessage<ExternalIdentity> = /*@__PURE__*
  */
 export type ExternalSet = Message<"korpis.v1.ExternalSet"> & {
   /**
-   * e.g. guild id, OIDC issuer.
+   * Where the set lives at its provider, never containing ':': a Discord guild id, the OIDC claim
+   * or SAML attribute naming the groups. An issuer is the provider's own, so it is not repeated
+   * here (§5 of docs/08-identity.md).
    *
    * @generated from field: string realm = 1;
    */

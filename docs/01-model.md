@@ -335,13 +335,14 @@ Templates are convenience at the edge. The model stays pure; the interface stays
 ```
 IdentityBinding
   provider            ProviderRef     the identity provider extension that verifies it
-  selector            guild+role · guild+user · oidc issuer+claim · saml issuer+attribute
+  selector            guild+role · guild+user · oidc claim+value · saml attribute+value
   subject             ExternalIdentity
   kind                individual | set
   created_by          operator | first_use
   template            TemplateRef?    for set bindings
   constraints         BindingConstraints
   reverify_interval   Duration
+  allows_irreversible bool            for set bindings
   state               verified | unverified
   last_verified_at    Timestamp
 ```

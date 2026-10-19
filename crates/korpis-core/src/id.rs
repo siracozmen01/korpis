@@ -71,6 +71,8 @@ pub enum IdKind {
     Run,
     /// A grant template (`tpl_`).
     Template,
+    /// An identity binding (`idb_`).
+    Binding,
 }
 
 impl IdKind {
@@ -107,6 +109,7 @@ impl IdKind {
             Self::Session => "ses",
             Self::Run => "run",
             Self::Template => "tpl",
+            Self::Binding => "idb",
         }
     }
 }

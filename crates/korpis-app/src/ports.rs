@@ -12,6 +12,7 @@ mod assignment;
 mod audit;
 mod authz;
 mod backup;
+mod binding;
 mod breaker;
 mod certificate;
 mod changes;
@@ -69,6 +70,7 @@ pub use authz::{
     CredentialRead, CredentialWrite, GrantRead, GrantWrite, HierarchyRead, KeyRegistry,
 };
 pub use backup::{BackupRead, BackupWrite, DataKey, KeyRecipient, KeyVault, SealedKey, VaultError};
+pub use binding::{BindingRead, BindingWrite};
 pub use breaker::{BreakerWrite, ProviderKey};
 pub use certificate::{
     CertificateRead, CertificateWrite, Expiry, Exposure, PendingRevocation, ReadError,
@@ -163,6 +165,8 @@ pub enum Unique {
     Passkey,
     /// A live grant template's name is unique in its organization.
     TemplateName,
+    /// A subject is bound by one live identity binding.
+    BindingSubject,
     /// Any other.
     Other,
 }
@@ -228,6 +232,7 @@ pub trait Store:
     + DomainRead
     + CertificateRead
     + TemplateRead
+    + BindingRead
     + Send
     + Sync
     + 'static
@@ -313,6 +318,7 @@ pub trait Tx:
     + DomainWrite
     + CertificateWrite
     + TemplateWrite
+    + BindingWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

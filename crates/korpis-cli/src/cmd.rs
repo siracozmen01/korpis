@@ -287,7 +287,8 @@ pub struct Issue {
     #[arg(long, default_value = "")]
     pub label: String,
     /// Who holds it: `usr_…`, `tok_…`, `wl_…`, `ext_…` (an installed extension),
-    /// `ext:PROVIDER:user:ID`, or `ext:PROVIDER:set:REALM:MEMBER`. A new token when absent.
+    /// `ext:org_…/PROVIDER:user:ID`, or `ext:org_…/PROVIDER:set:REALM:MEMBER` (an identity
+    /// provider's subject, bound in its organization). A new token when absent.
     #[arg(long)]
     pub to: Option<String>,
     /// The grant to attenuate; the one you hold that it is valid from when absent.

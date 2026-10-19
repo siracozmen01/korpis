@@ -15,6 +15,8 @@
 pub mod access;
 pub mod action;
 #[cfg(feature = "authz")]
+pub mod binding;
+#[cfg(feature = "authz")]
 pub mod credential;
 #[cfg(feature = "authz")]
 pub mod device;

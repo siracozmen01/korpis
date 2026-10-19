@@ -1579,3 +1579,91 @@ message ListGrantTemplatesResponse {
   repeated GrantTemplate templates = 1;
   PageResponse page = 2;
 }
+
+// Identity bindings (§5 of docs/08-identity.md): which identity provider vouches for an external
+// person or set, how often that is re-checked, and what a set's members receive. A binding
+// grants nothing; a grant to its subject is issued like any other, by attenuation.
+service IdentityService {
+  // identity.binding.write on the organization its provider is installed into.
+  rpc CreateIdentityBinding(CreateIdentityBindingRequest) returns (CreateIdentityBindingResponse);
+  // identity.binding.write on its organization, against the version read.
+  rpc UpdateIdentityBinding(UpdateIdentityBindingRequest) returns (UpdateIdentityBindingResponse);
+  // identity.binding.write on its organization: it vouches for nothing since, and every grant
+  // rooted in it is suspended.
+  rpc RetireIdentityBinding(RetireIdentityBindingRequest) returns (RetireIdentityBindingResponse);
+  // org.read on its organization.
+  rpc GetIdentityBinding(GetIdentityBindingRequest) returns (GetIdentityBindingResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.read on the organization: the bindings declared there.
+  rpc ListIdentityBindings(ListIdentityBindingsRequest) returns (ListIdentityBindingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// What a binding's declarer says and may change.
+message IdentityBindingTerms {
+  // For a set: the template every grant to it is issued from.
+  optional TemplateRef template = 1;
+  BindingConstraints constraints = 2;
+  // Fifteen minutes when absent.
+  google.protobuf.Duration reverify_interval = 3;
+  // For a set: let its grants carry irreversible actions, deliberately (§5.2 of
+  // docs/08-identity.md).
+  bool allows_irreversible = 4;
+}
+
+message CreateIdentityBindingRequest {
+  Mutation mutation = 1;
+  // Where its provider is installed.
+  string organization = 2;
+  // The provider's name there.
+  string provider = 3;
+  // An external identity whose provider is `org_…/<provider>`.
+  ExternalIdentity subject = 4;
+  IdentityBindingTerms terms = 5;
+}
+
+message CreateIdentityBindingResponse {
+  IdentityBinding binding = 1;
+}
+
+message UpdateIdentityBindingRequest {
+  // `expected_version` is required: the version the edit was made against.
+  Mutation mutation = 1;
+  string id = 2;
+  IdentityBindingTerms terms = 3;
+}
+
+message UpdateIdentityBindingResponse {
+  IdentityBinding binding = 1;
+}
+
+message RetireIdentityBindingRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message RetireIdentityBindingResponse {
+  IdentityBinding binding = 1;
+}
+
+message GetIdentityBindingRequest {
+  string id = 1;
+}
+
+message GetIdentityBindingResponse {
+  IdentityBinding binding = 1;
+}
+
+message ListIdentityBindingsRequest {
+  string organization = 1;
+  // Retired bindings too.
+  bool retired = 2;
+  PageRequest page = 3;
+}
+
+message ListIdentityBindingsResponse {
+  repeated IdentityBinding bindings = 1;
+  PageResponse page = 2;
+}

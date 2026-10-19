@@ -163,6 +163,16 @@ table! {
         GrantServiceClient::get_grant_template(GetGrantTemplateRequest);
     "korpis.v1.GrantService/ListGrantTemplates" =>
         GrantServiceClient::list_grant_templates(ListGrantTemplatesRequest);
+    "korpis.v1.IdentityService/CreateIdentityBinding" =>
+        IdentityServiceClient::create_identity_binding(CreateIdentityBindingRequest);
+    "korpis.v1.IdentityService/UpdateIdentityBinding" =>
+        IdentityServiceClient::update_identity_binding(UpdateIdentityBindingRequest);
+    "korpis.v1.IdentityService/RetireIdentityBinding" =>
+        IdentityServiceClient::retire_identity_binding(RetireIdentityBindingRequest);
+    "korpis.v1.IdentityService/GetIdentityBinding" =>
+        IdentityServiceClient::get_identity_binding(GetIdentityBindingRequest);
+    "korpis.v1.IdentityService/ListIdentityBindings" =>
+        IdentityServiceClient::list_identity_bindings(ListIdentityBindingsRequest);
     "korpis.v1.StreamService/GetStream" => StreamServiceClient::get_stream(GetStreamRequest);
     "korpis.v1.StreamService/ReadOffloaded" => StreamServiceClient::read_offloaded(ReadOffloadedRequest) stream ConsoleChunk;
     "korpis.v1.RelayService/Watch" => RelayServiceClient::watch(RelayOpen) stream RelayResponse;
