@@ -43,22 +43,25 @@ omission is the difference between a default and a trap (P4).
 
 **What the `oci` driver makes of it** (2026-10-13, from the implementation, and checked against
 runc on a 6.8 kernel). The process runs in its own user, mount, PID, IPC, UTS, cgroup, and network
-namespaces, mapped onto the workload's id range (§4.5), with `no-new-privileges`, a read-only
-root, and `/tmp`, `/run`, and `/dev/shm` as small tmpfs mounts so a read-only root is livable. It
-keeps nine capabilities, all namespaced: `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `FSETID`, `KILL`,
+namespaces, mapped onto the workload's id range (§4.5), with `no-new-privileges`, a read-only root,
+and `/tmp`, `/run`, and `/dev/shm` as small tmpfs mounts so a read-only root is livable. It keeps
+nine capabilities, all namespaced: `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `FSETID`, `KILL`,
 `NET_BIND_SERVICE`, `SETGID`, `SETUID`, `SETPCAP`; never `SYS_ADMIN`, `NET_ADMIN`, `NET_RAW`,
-`MKNOD`, or `SYS_PTRACE`. The seccomp profile is an allowlist, narrower than containerd's
-default: no `io_uring`, no `ptrace`, no keyrings, no mounting, and no creating or joining a
-namespace, which inside a user namespace would otherwise be open to the workload. The kernel's
-sensitive `/proc` and `/sys` entries are masked or read-only. Three limits are honest rather than
-hidden: until the networking of Phase 1 the network namespace holds only loopback, so a spec that
-publishes a port is refused rather than accepted and left unreachable; an image whose user is a
-name rather than a number is refused, because resolving it means reading the image's own
-`/etc/passwd`, which the driver does not do; and a volume is bind-mounted with an idmapped mount,
-so its files keep workload-relative ids on disk. The workload's identity directory is the one
-mount that is not idmapped: it is bound read-only, `nosuid`, `nodev`, and `noexec` at
-`/run/korpis`, keeps the supervisor's ownership, and is reached through the socket's mode, so the
-workload can connect and cannot replace or remove the socket (§6 of `02-architecture.md`).
+`MKNOD`, or `SYS_PTRACE`. The seccomp profile is an allowlist, narrower than containerd's default:
+no `io_uring`, no `ptrace`, no keyrings, no mounting, and no creating or joining a namespace, which
+inside a user namespace would otherwise be open to the workload. The kernel's sensitive `/proc` and
+`/sys` entries are masked or read-only. Three limits are honest rather than hidden: until the
+networking of Phase 1 the network namespace held only loopback, so a spec that published a port was
+refused rather than accepted and left unreachable (since that networking was built, a container
+joins the namespace the helper made for its workload, with its routed link and its endpoints' ports
+forwarded by the node, §4.1 of `07-networking.md`, and has only loopback when it is given no
+network); an image whose user is a name rather than a number is refused, because resolving it means
+reading the image's own `/etc/passwd`, which the driver does not do; and a volume is bind-mounted
+with an idmapped mount, so its files keep workload-relative ids on disk. The workload's identity
+directory is the one mount that is not idmapped: it is bound read-only, `nosuid`, `nodev`, and
+`noexec` at `/run/korpis`, keeps the supervisor's ownership, and is reached through the socket's
+mode, so the workload can connect and cannot replace or remove the socket (§6 of
+`02-architecture.md`).
 
 > Added 2026-10-15, from the implementation: on a node that gives workloads a network (§4.1 of
 > `07-networking.md`), the user and network namespaces are not made by the runtime but joined:
@@ -259,9 +262,12 @@ refuses, naming why, a tier other than `container`, an intent that names another
 driver configuration (its declared schema admits none), and a recipe with no image for this
 architecture. It first also refused a configuration that needed a managed file; since 2026-10-15
 the agent renders managed files into the directory it hands the driver as `/run/korpis` (§5.2 of
-`09-recipes.md`), and the driver sets nothing for them. It maps no ports: the container's
-network holds only loopback until the networking of Phase 1, the driver declares
-`network_modes: none`, and an endpoint stays without an address rather than claiming one.
+`09-recipes.md`), and the driver sets nothing for them. It maps no ports: the container's network
+held only loopback until the networking of Phase 1, the driver declared `network_modes: none`, and
+an endpoint stayed without an address rather than claiming one. It declares `veth` and `none` since
+that networking was built: a container joins the network namespace the helper made for its
+workload, and the node, not the driver, forwards its endpoints' ports (§4.1 of `07-networking.md`).
+Corrected 2026-10-19, as Phase 1 closed; both passages still described the Phase 0 driver.
 
 **The `oci` driver declares the console modes `none`, `logs`, and `interactive`** (Phase 1). For
 any console mode with a stream, `Prepare` returns the stream's limits and the secret values it

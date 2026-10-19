@@ -1,8 +1,8 @@
 # Korpis
 
 A general-purpose workload platform: its specification in `docs/`, and its implementation in
-`crates/`, a Rust workspace built in the order of §4 of `docs/20-roadmap.md` (Phase 0 is built;
-Phase 1 is next).
+`crates/`, a Rust workspace built in the order of §4 of `docs/20-roadmap.md` (Phases 0 and 1 are
+built; Phase 2 is next).
 **The documents are the specification and the code implements them.** When the two disagree, one of
 them is wrong, and the fix lands in the same commit as the discovery: the code is corrected, or the
 document is corrected in place with its reasoning.

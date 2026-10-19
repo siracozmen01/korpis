@@ -1083,6 +1083,9 @@ Every other grant in the installation descends from that one.
 > it prints the token and says it has no second factor. Until the panel of `11-surface-web.md`
 > is built, later in Phase 1, redeeming the invitation needs a client of the account service of
 > its own, so an installation that must be usable before then is installed with `--root-token`.
+> The panel was built later in Phase 1, and redeems the invitation at the installation's own
+> address by registering a passkey (§1 of `11-surface-web.md`); noted 2026-10-19, as Phase 1
+> closed.
 
 ### 9.2 When the last administrator is locked out
 

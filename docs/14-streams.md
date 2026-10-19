@@ -220,21 +220,20 @@ that many streams, each at its limits, since the active runs are bounded by `max
 > streams stay on its node as its own console stream does, each a volume of its own, deleted by
 > name.
 
-**The control plane holds the index of segments, never their bytes.** Each seal and each offload
-is a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so
-the control plane knows every segment's offsets, digest, and where it is held: the `segments` of
-the `Stream` in §3.6 of `01-model.md`. That index is what answers the question offload exists
-for. When a node is gone, its offloaded segments are found from the index rather than by listing
-the offload target, and a reader is told which offsets were held only on the node and are lost,
-as a gap (§3). What it costs is two journal records per segment, one at its seal and one at its
-offload, so the index grows with the number of segments and never with the number of records.
-The index arrives with streams in Phase 1, and is in
-the schema from Phase 0 by rule E of `20-roadmap.md`. A client reads it with `StreamService`: the
-segments, the bytes held only on the node, the offsets lost, and the retention the stream is kept
-to, under `workload.console.read`, because how much a workload wrote, and when, is part of what it
-wrote. Before its first seal a stream is reported with no segments and no identifier yet, since
-the index first hears of it then; a workload whose console mode is `none` has none, and is not
-found.
+**The control plane holds the index of segments, never their bytes.** Each seal and each offload is
+a record in the agent's journal (§4.10 of `02-architecture.md`), ingested like any other, so the
+control plane knows every segment's offsets, digest, and where it is held: the `segments` of the
+`Stream` in §3.6 of `01-model.md`. That index is what answers the question offload exists for. When
+a node is gone, its offloaded segments are found from the index rather than by listing the offload
+target, and a reader is told which offsets were held only on the node and are lost, as a gap (§3).
+What it costs is two journal records per segment, one at its seal and one at its offload, so the
+index grows with the number of segments and never with the number of records. The index was built
+with streams in Phase 1, and was in the schema from Phase 0 by rule E of `20-roadmap.md`. A client
+reads it with `StreamService`: the segments, the bytes held only on the node, the offsets lost, and
+the retention the stream is kept to, under `workload.console.read`, because how much a workload
+wrote, and when, is part of what it wrote. Before its first seal a stream is reported with no
+segments and no identifier yet, since the index first hears of it then; a workload whose console
+mode is `none` has none, and is not found.
 
 **A stream is part of the workload's durable state, so it migrates with it.**
 
@@ -486,10 +485,13 @@ has to say where it could not look.
 What it costs, and what it does not do. A follower reads again when inotify says the stream's
 directory changed, and at least every second whatever it hears, and each read lists the directory;
 a push from the writer would save that, and would put a second consumer on the one process that
-must never stop draining the workload (§4). The node reads only what it holds: until offload is
-built (Phase 1, with backup), a segment pruned from the node is gone, and the reader is told so.
-And a workload the node no longer holds, a retired one included, is refused on the data path, so a
-retired workload's kept stream (§4) cannot yet be read at all (§9, question 6).
+must never stop draining the workload (§4). The node reads only what it holds: a segment pruned
+from the node is read from where it was offloaded, through the control plane, and one that was
+never offloaded is gone, and the reader is told so. A workload the node no longer holds, a retired
+one included, is refused on the data path, and its kept stream (§4) is read the same way, from its
+offloaded segments (§9, question 6, resolved). Corrected 2026-10-19, as Phase 1 closed: this said
+offload was unbuilt and a retired workload's stream unreadable, which stopped being true when
+offload was built.
 
 ---
 

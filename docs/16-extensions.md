@@ -342,6 +342,13 @@ itself, never one of its projects. When those resources become objects with owne
 repositories, §5.3 of `06-storage.md`; the edge, §3.1 of `07-networking.md`; DNS zones, which no
 document models yet), the check narrows to their owner; it never widens past the organization.
 
+> Noted 2026-10-19, as Phase 1 closed. Backup repositories became objects with owners in Phase 1,
+> an organization or one of its projects (§5.3 of `06-storage.md`), but a repository names its
+> backup target by the provider's name in its organization rather than being what the provider
+> serves: the target holds every repository of the organization that names it. So the check
+> stays at the organization for a backup target too, and the paragraph above is right in what it
+> requires while wrong to list repositories among the objects that do not exist yet.
+
 Tenant-direction extensions need nothing new. Authority is bounded structurally, consumption is
 metered against the installer, and egress obeys the tenant's egress policy, so an operator who
 forbids arbitrary egress has already stopped the extension from reaching Cloudflare. The lever

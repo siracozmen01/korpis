@@ -132,7 +132,8 @@ installs.
 > which a bind mount of the same filesystem is not and another partition of the same disk is, so
 > that one passes; an S3 target is refused as not built. Declaring a target records it beside the
 > data directory and makes the key its backup is sealed with; writing the backup there is the
-> control-plane backup of §6, not built yet.
+> control-plane backup of §6, `korpis-server backup`, which said "not built yet" here until
+> 2026-10-19 though it was built on 2026-10-18 (the as-built note in §6).
 
 > As built, 2026-10-17 (`crates/korpis-server/src/install/postgres`). Where PostgreSQL comes
 > from is decided first: `--postgres existing`, implied by `--database-owner-url`, names a server

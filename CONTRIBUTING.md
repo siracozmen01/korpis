@@ -34,7 +34,7 @@ correction takes precedence over our reading.
 know that no design document can supply is which of these decisions will hurt at 3am. That is the
 review this most needs.
 
-**Take an open question.** Fifty-nine are open across the documents, each filed where it will be
+**Take an open question.** Fifty-seven are open across the documents, each filed where it will be
 settled. Several are genuine forks in the road rather than details, and are marked as such.
 
 ## What to expect

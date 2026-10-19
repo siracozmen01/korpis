@@ -82,12 +82,14 @@ the only protection, and the class says so.
 | **Network (NFS/iSCSI/Ceph)** | backend-dependent | backend-dependent | backend-dependent | none | none | required for `shared_access` |
 | **Directory** | ✗ | ✗ | ✗ | ✗ | ✗ | a trial, or a machine without project quota |
 
-**As built, 2026-10-14.** The helper offers `directory`, `ext4_project`, `xfs_project`, and
-`btrfs` classes, each detected from the filesystem when it starts (§3). ZFS is built when it can be
-tested on a host that runs it, which the machine this phase was built on cannot without loading a
-kernel module the operator did not ask for; LVM-thin and network classes are not built yet (§4 of
-`20-roadmap.md`). A node never offers a backend that is not built: a ZFS dataset under a class
-root is a `directory`, enforcing nothing and saying so.
+**As built, 2026-10-14.** The helper offers `directory`, `ext4_project`, `xfs_project`, and `btrfs`
+classes, each detected from the filesystem when it starts (§3). ZFS is built when it can be tested
+on a host that runs it, which the machine this phase was built on cannot without loading a kernel
+module the operator did not ask for; LVM-thin and network classes are not built yet. ZFS and
+LVM-thin are built before the first release and network classes in Phase 3 (§9 and §4 of
+`20-roadmap.md`, which named neither until 2026-10-19, though this paragraph pointed there). A node
+never offers a backend that is not built: a ZFS dataset under a class root is a `directory`,
+enforcing nothing and saying so.
 
 The scheduler reads these. A workload whose backup policy requires incremental backup will not be
 placed on an `ext4_project` node, because the class cannot deliver it, surfaced at scheduling time

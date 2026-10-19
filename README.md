@@ -9,11 +9,13 @@ job, a virtual machine) on hardware you own. It places the workload on a node, i
 strongly as you ask, gives it storage and network, keeps it in the state you declared, and lets you
 and the people you delegate to operate it from a panel, a terminal, chat, or the API.
 
-> **The design comes first, and the code has finished its first phase.** Phase 0 of the build
-> order is built in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)): a workload
-> declared through the CLI is placed, run, and audited end to end, which
-> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) checks. It is not yet usable as a panel; the
-> web client, backups, and public endpoints arrive in Phase 1.
+> **The design comes first, and the code has finished its first two phases.** Phases 0 and 1 of
+> the build order are built in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)) and
+> `web/`: one operator on one machine installs it, runs workloads, backs them up and restores
+> them, and reads an honest console, from the panel or the CLI, with every limit it shows
+> enforced by the kernel. [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) and
+> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) check it as an operator would. It is not yet
+> for hosting other people: their organizations, delegation, and metering arrive in Phase 2.
 >
 > Twenty-four documents, and they are the specification the code is held to. Some decisions in a
 > system like this cannot be retrofitted: how state is stored, how authority is delegated, where the
@@ -81,7 +83,7 @@ crates/                                         the implementation, a Rust works
 ARCHITECTURE.md                                 how the code is layered, and why
 ```
 
-**The open questions are the point, not the gaps.** Fifty-nine are open across the documents, each
+**The open questions are the point, not the gaps.** Fifty-seven are open across the documents, each
 one filed in the document that will settle it. A deferred decision with a name on it is
 honest. An undeclared one is a trap someone walks into later.
 

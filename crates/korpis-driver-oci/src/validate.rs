@@ -221,7 +221,7 @@ pub fn validate(spec: driver::PreparedSpec, policy: &Policy) -> Result<Valid, Vi
         return refuse("labels", "every runtime object is labelled for adoption");
     }
     if !spec.ports.is_empty() {
-        return refuse("ports", "the container tier publishes no port before Phase 1's networking");
+        return refuse("ports", "the node forwards a workload's ports, so a spec names none");
     }
     ids(&spec)?;
     mounts(&spec, policy)?;

@@ -253,11 +253,12 @@ which is what lets `korpis plan` show the body that will run. Why merge entries 
 replace the lists: a recipe's probes name its endpoints, and a declaration that adjusts one
 endpoint's exposure should not have to restate the others to keep its readiness probe valid.
 
-A console is a capability the node's driver must declare (§4.1 of `04-runtimes.md`), so the
-default is not free: the `oci` driver declares none until the durable streams of Phase 1 (§4 of
-`20-roadmap.md`), and a workload asking for `logs` is placed on no Phase 0 node. A recipe meant
-to run there says `console: none`, and the scheduler's explanation names the console when one
-does not.
+A console is a capability the node's driver must declare (§4.1 of `04-runtimes.md`), so the default
+is not free: the `oci` driver declared none until the durable streams of Phase 1 (§4 of
+`20-roadmap.md`), and a workload asking for `logs` was placed on no Phase 0 node. A recipe meant to
+run there said `console: none`, and the scheduler's explanation names the console when a node lacks
+the one asked for. Since those streams were built the `oci` driver declares `none`, `logs`, and
+`interactive` (§4.2 of `04-runtimes.md`); corrected 2026-10-19, as Phase 1 closed.
 
 What it costs: a declared list cannot remove a preset entry. A workload that must not expose a
 preset endpoint declares it with exposure `none`; a preset volume cannot be dropped at all, because

@@ -12,11 +12,14 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Önce tasarım geldi, kod ilk aşamasını tamamladı.** Yapım sırasının Phase 0'ı `crates/`
-> altında kuruldu (Rust, [`21-stack.md`](./docs/21-stack.md) §3): CLI ile beyan edilen bir iş yükü
-> uçtan uca yerleştirilir, çalıştırılır ve denetim kaydına geçer; bunu
-> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) doğrular. Henüz bir panel olarak
-> kullanılamaz; web istemcisi, yedekler ve dışa açık uç noktalar Phase 1'de gelir.
+> **Önce tasarım geldi, kod ilk iki aşamasını tamamladı.** Yapım sırasının Phase 0 ve Phase 1'i
+> `crates/` (Rust, [`21-stack.md`](./docs/21-stack.md) §3) ve `web/` altında kuruldu: tek bir
+> makinedeki tek bir operatör onu kurar, iş yüklerini çalıştırır, yedekler ve geri yükler, dürüst
+> bir konsol okur; panelden ya da CLI'dan, gösterdiği her sınır çekirdek tarafından uygulanarak.
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) ve
+> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) bunu bir operatörün yapacağı gibi doğrular.
+> Henüz başkalarına barındırma için değil: onların organizasyonları, yetki devri ve ölçümleme
+> Phase 2'de gelir.
 >
 > Yirmi dört doküman var ve kod onlara göre yazılıyor. Böyle bir sistemde bazı kararlar sonradan
 > takılamaz: durumun nasıl saklandığı, yetkinin nasıl devredildiği, güvenlik sınırının nerede
@@ -87,7 +90,7 @@ crates/                                         uygulama, bir Rust workspace'i
 ARCHITECTURE.md                                 kodun katmanları ve gerekçesi
 ```
 
-**Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli dokuz açık soru var; her
+**Açık sorular eksiklik değil, asıl mesele.** Dokümanlara dağılmış elli yedi açık soru var; her
 biri onu karara bağlayacak dokümanın içine yazıldı. Üzerinde adı olan ertelenmiş bir karar
 dürüsttür. Beyan edilmemiş olan ise birinin sonradan içine düşeceği bir tuzaktır.
 

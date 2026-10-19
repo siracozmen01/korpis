@@ -257,17 +257,20 @@ created anywhere.
 ### Phase 3: Isolation as a choice, and workloads that move
 
 The `firecracker` driver. Rule D's validation of the driver interface. Migration, all seven phases,
-resumable and reversible (K-4). Replicated storage classes. Edges in failover groups, which is what
-`stable` exposure requires to exist at all and what lets it survive the move (§3.1 of
-`07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can cross nodes.
-Dedicated addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at the ingress,
-on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6 there), which
-only reaching workloads on other nodes makes necessary. Devices, including GPU. `AssignmentDelta`
-(§9 of `10-api.md`), once nodes hold enough workloads for the difference to be measured. Drain and
-evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since draining a node is
-migrating its workloads off it. With edges, the count of a node's ports learns them: until then
-every `stable` endpoint reserves a port of its node, which one an edge serves does not use (§3 of
-`07-networking.md`).
+resumable and reversible (K-4). Replicated storage classes, and the network classes (Ceph, NFS,
+iSCSI) of §2 of `06-storage.md`, whose question 3 decides whether one class covers them, since
+`shared_access` is what live migration and failover need; homed here 2026-10-19, when Phase 1
+closed and §2 there was found pointing at this section for them while no phase named them. Edges in
+failover groups, which is what `stable` exposure requires to exist at all and what lets it survive
+the move (§3.1 of `07-networking.md`). The overlay (§9 of `07-networking.md`), so a dependency can
+cross nodes. Dedicated addresses (§3 there), routed to whichever node a workload runs on. HTTP/3 at
+the ingress, on the UDP path edges bring (§3.2 there). Network rules naming workloads by label (§6
+there), which only reaching workloads on other nodes makes necessary. Devices, including GPU.
+`AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads for the difference to be
+measured. Drain and evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since
+draining a node is migrating its workloads off it. With edges, the count of a node's ports learns
+them: until then every `stable` endpoint reserves a port of its node, which one an edge serves does
+not use (§3 of `07-networking.md`).
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a
@@ -427,40 +430,51 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fifteen traces and their findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: thirty-eight traces and their 104 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
-| succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not Phase 0 |
+| succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
-| `ARCHITECTURE.md`, `crates/` | Phase 0 built: thirteen crates, about 53,000 lines of Rust, 276 tests, twenty migrations, and the 41 calls of the public API |
+| `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 and 1 built: twenty-five crates and the panel, about 170,000 lines of Rust and 10,700 of TypeScript, 1,008 Rust tests and 85 of the panel's, 85 migrations, and the 129 calls of the public API |
 
-Sixty-nine numbered open questions remain open, of 126 recorded. Ten of them carry a question
-into the document that will settle it, so fifty-nine decisions are open, each assigned to the one
-that will settle it. They are the design's honest edges, not omissions: an open question with an
-owner is a decision deferred deliberately, and every one of them was recorded where the person who
-hits it will find it.
+Seventy-three numbered open questions remain open, of 141 recorded. Sixteen of them are a
+question restated in a second document, carried there by name or pointing on to the one that will
+settle it, so fifty-seven decisions are open, each assigned to the one that will settle it. They
+are the design's honest edges, not omissions: an open question with an owner is a decision
+deferred deliberately, and every one of them was recorded where the person who hits it will find
+it.
 
-**Phase 0 is built, and its done-when holds.** `scripts/e2e-phase0.sh` runs it as an operator
-would: the five programs as processes, the recipe published with `oras`, and every step through
-the `korpis` CLI. A workload is applied, placed, and converged; the agent restarts and the
-workload keeps running in the same process; a reader's refused change is recorded with its
-subject and the action that was missing; and every permitted action in the log names its grant.
-Building it found the specification wrong or silent in more places than the reviews did, and each
-is corrected in place where it was found, with the trace that crosses it noting the correction.
-The one question owed during Phase 0, whether the protocol freeze waits for a 1.0 of the Rust
-Connect implementation, is resolved in question 7 of `21-stack.md`: it does not.
+> Recounted 2026-10-19, as Phase 1 closed, by one rule written down so the next count can repeat
+> it: a question is a numbered item of a document's final open-questions section, it is open
+> unless it says it is resolved, settled, answered, or withdrawn, and it is restated when its
+> heading says it is carried by another document or its last arrow names another document. By that
+> rule the count of Phase 0 would have been 70 open of 126 and 55 distinct, not 69 and 59: the
+> earlier count had no rule written down, and no one count can be made to agree with it.
 
-**What Phase 0 does not do is homed.** Every refusal the code answers with "arrives in Phase N"
-names a phase that names it in §4, and every part of a specified behaviour Phase 0 left unbuilt
-says so where it is specified: the shortlist query and re-placement (§2.1 of
-`05-scheduling.md`), the reachability probe (§9 of `07-networking.md`), rate limits (§10 of
-`10-api.md`), and the assignment delta (§9 there). The succession document still blocks the first
-release.
+**Phase 1 is built, and its done-when holds.** `scripts/e2e-phase1.sh` runs it as an operator
+would, on one machine, every step through the `korpis` CLI: the control plane installed into a
+fresh database and the machine enrolled as its node, its volumes on a btrfs with qgroups on; the
+backup target for a disk installed as an extension from its image; a workload's console read and
+typed into; a write past its volume's 64 MiB refused by the kernel, and its cgroup's `memory.max`
+the limit its status shows (K-3); its volume backed up, a file read back out of the backup, and the
+backup restored into a clone whose volume holds it; and then all of it deleted, and the node
+checked to have removed what it made. `scripts/e2e-phase0.sh` still holds beside it. The panel is
+checked in a browser against a real control plane by the end-to-end suite `scripts/check.sh` runs.
+Building Phase 1 found the specification wrong or silent in more places, as building Phase 0 did,
+and each is corrected in place where it was found; the twenty-three traces written while it was
+built (§19 to §41 of `23-walkthroughs.md`) record what each found.
 
-> Corrected 2026-10-13, as Phase 0 closed. This section said that nothing blocked the start of
-> Phase 0 and that what remained was to build the model. Both were true when written, and
-> neither describes a repository whose Phase 0 is built. The counts were also behind: the open
-> questions had grown to 126 as building raised new ones, and a trace (§18 of
-> `23-walkthroughs.md`) had been added to the fourteen.
+**What Phase 1 does not do is homed.** Every refusal the code answers with "arrives in Phase N"
+names a phase that names it in §4: dedicated addresses and rules naming workloads in Phase 3, an
+endpoint's shaping and accounting in Phase 2. Two local volume backends of §2 of `06-storage.md`
+are not built: ZFS, which the machine Phase 1 was built on could not run without loading a kernel
+module its operator did not ask for, and LVM-thin. Both are built before the first release, beside
+the succession document, which still blocks it; until then a ZFS dataset is offered as a
+`directory` class that says it enforces nothing, and XFS on a thin volume as the XFS project class
+it is, without a thin volume of its own per Korpis volume. The network classes are Phase 3's (§4).
+Drain is Phase 3's too, since draining is migrating (§4, Phase 3).
 
-The model is drawn, and its first phase is built. What remains is Phase 1.
+> Corrected 2026-10-19, as Phase 1 closed. This section said Phase 0 was built and that what
+> remained was Phase 1, and its counts were Phase 0's.
+
+The model is drawn, and its first two phases are built. What remains is Phase 2.
