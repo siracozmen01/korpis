@@ -102,8 +102,19 @@ Korpis provides the reversible state; deciding when to apply it is the billing s
 > file, a backup's contents, and every change are refused. A grant scoped above the suspended
 > organization, the host's or the reseller's, acts on it as before. A workload holding a grant
 > scoped in it loses the API relay of §9.5 with its next assignment, announced at once. Not yet
-> built: `on_suspend: stop`, refused until it is rather than accepted and ignored, and the
-> offline side, question 7 of §10.
+> built: the offline side, question 7 of §10.
+>
+> `on_suspend: stop` as built, 2026-10-19. A stop is a change to the tenant's workloads, so the
+> suspender needs `workload.stop` over the organization as well as `org.suspend` above it: a
+> billing system let suspend is not thereby let take servers down. Each workload beneath that is
+> declared running gets a stop declaration and its plan, recorded as the suspender's act and
+> visible to the tenant; the suspension is the decision a plan needing only confirmation would
+> ask for, so such a plan is approved by it, and one needing an approver's authority still
+> waits for that approver. What was already stopped is left alone. Resuming starts again exactly
+> the workloads the suspension stopped whose power no one has changed since, which needs
+> `workload.start` over the organization for the same reason; a workload the tenant had stopped
+> itself, or that anyone started or stopped in between, is left as it is. That makes the whole
+> suspension reversible, which §2.1 asks and a host restoring a customer who paid expects.
 
 ---
 

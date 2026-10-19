@@ -42,6 +42,7 @@ pub use explain::{PlacementView, UnplacedView};
 pub use observed::Observed;
 pub use pin::PlaceWorkload;
 pub use power::{ChangePower, PowerChanged};
+pub(crate) use power::{Prepared, Written, power_effect};
 pub use read::{Drift, ListWorkloads, Withheld, WorkloadView};
 pub use recipe::{MAX_LOCALES, WorkloadRecipe};
 pub(crate) use replace::refused_before_anything;

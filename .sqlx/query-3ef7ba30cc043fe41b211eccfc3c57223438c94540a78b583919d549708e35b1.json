@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id, classification, unreproducible_at,\n                    unreproducible_reason\n               FROM workload\n              WHERE deleted_at IS NULL\n                AND ($1::uuid IS NULL OR project_id = $1)\n                AND ($2::uuid IS NULL OR organization_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n                AND ($5::uuid IS NULL OR set_id = $5)\n              ORDER BY id LIMIT $4",
+  "query": "SELECT id, project_id, organization_id, name, labels, intent_id, intent_version,\n                    target_id, target_version, power_version, power_target_version, version,\n                    created, deleted_at, set_id, classification, unreproducible_at,\n                    unreproducible_reason\n               FROM workload\n              WHERE deleted_at IS NULL\n                AND ($1::uuid IS NULL OR project_id = $1)\n                AND ($2::uuid IS NULL OR organization_id = $2)\n                AND ($3::uuid IS NULL OR id > $3)\n                AND ($5::uuid IS NULL OR set_id = $5)\n                AND ($6::uuid IS NULL OR organization_id IN (\n                    WITH RECURSIVE tree AS (\n                        SELECT $6::uuid AS id\n                        UNION\n                        SELECT o.id FROM organization o JOIN tree ON o.parent_id = tree.id\n                    )\n                    SELECT id FROM tree))\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -208,6 +208,7 @@
         "Uuid",
         "Uuid",
         "Int8",
+        "Uuid",
         "Uuid"
       ]
     },
@@ -232,5 +233,5 @@
       true
     ]
   },
-  "hash": "991055c16922dd27206ea3c5bfd39abd032c15283af52dad6ec4b7411fb81f0a"
+  "hash": "3ef7ba30cc043fe41b211eccfc3c57223438c94540a78b583919d549708e35b1"
 }

@@ -224,7 +224,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 None => return Ok(Paged { items: Vec::new(), next: None }),
             },
         };
-        let filter = WorkloadFilter { project: q.project, organization: q.organization, set };
+        let filter =
+            WorkloadFilter { project: q.project, organization: q.organization, set, beneath: None };
         let read = self.store.workloads(&filter, page).await?;
         let next = page.next(&read, |w| w.id);
         let matching = read.into_iter().filter(|w| q.selector.matches(w.labels.as_map())).collect();

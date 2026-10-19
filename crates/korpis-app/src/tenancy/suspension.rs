@@ -7,15 +7,20 @@
 //! organization itself never covers: a tenant cannot resume itself, and a root organization,
 //! which has nothing above it, is suspended by no one.
 
+mod workloads;
+
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, TenancyWrite};
+use crate::workload::{Written, power_effect};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::{OnSuspend, Organization, OrganizationStatus, Suspension};
+use korpis_core::workload::PowerChange;
 use uuid::Uuid;
+use workloads::Changes;
 
 const SUSPEND: &str = "tenancy.suspend_organization";
 const RESUME: &str = "tenancy.resume_organization";
@@ -69,11 +74,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 format!("say why, in at most {REASON_MAX} characters; the tenant is shown it");
             return Err(AppError::invalid("reason", why));
         }
-        if cmd.on_suspend == OnSuspend::Stop {
-            let why = "stopping a suspended organization's workloads is not built yet: suspend \
-                       it keeping them running";
-            return Err(AppError::invalid("on_suspend", why));
-        }
+        let stops = match cmd.on_suspend {
+            OnSuspend::Stop => Some(self.stops(caller, cmd.organization).await?),
+            OnSuspend::KeepRunning => None,
+        };
         let suspension = Suspension {
             by: caller.principal.clone(),
             at: self.clock.now(),
@@ -91,9 +95,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .after(details([
                 ("organization", cmd.organization.to_string().into()),
                 ("reason", reason.into()),
-                ("on_suspend", "keep_running".into()),
+                ("on_suspend", if stops.is_some() { "stop" } else { "keep_running" }.into()),
             ]));
         tx.append_effect(&effect).await?;
+        if let Some(changes) = stops {
+            let stopped = self.apply_powers(&mut tx, caller, PowerChange::Stop, changes).await?;
+            for (workload, version) in stopped {
+                tx.record_suspension_stop(cmd.organization, workload, version).await?;
+            }
+        }
         finish(tx, caller, idem, SUSPEND, suspended).await
     }
 
@@ -110,6 +120,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let parent = self.above(caller, organization, "org.resume").await?;
         let permit = self.authorize(caller, "org.resume", org(parent)).await?;
+        let restarts = self.restarts(caller, organization).await?;
         let mut tx = self.store.begin().await?;
         let changed =
             tx.change_organization_status(organization, true, &OrganizationStatus::Active).await?;
@@ -120,6 +131,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .under(permit.grant)
             .after(details([("organization", organization.to_string().into())]));
         tx.append_effect(&effect).await?;
+        if let Some(changes) = restarts {
+            self.apply_powers(&mut tx, caller, PowerChange::Start, changes).await?;
+            tx.clear_suspension_stops(organization).await?;
+        }
         finish(tx, caller, idem, RESUME, resumed).await
+    }
+
+    /// Writes `changes` in `tx`, each recorded as the caller's act; the workloads changed, with
+    /// the power version each was given. A workload whose power moved since its change was
+    /// prepared, or which is being retired, is left as it is: its power is someone else's now.
+    async fn apply_powers(
+        &self,
+        tx: &mut S::Tx,
+        caller: &Caller,
+        change: PowerChange,
+        changes: Changes,
+    ) -> Result<Vec<(Uuid, u64)>, AppError> {
+        let mut done = Vec::new();
+        for mut p in changes.prepared {
+            match self.write_power(tx, caller, &mut p).await? {
+                Written::Done { approved } => {
+                    let effect = power_effect(caller, change, &p, (changes.grant, approved));
+                    tx.append_effect(&effect).await?;
+                    done.push((p.power.workload, p.power.power.version));
+                }
+                Written::Moved(_) | Written::Retiring => {}
+            }
+        }
+        Ok(done)
     }
 }
