@@ -2,26 +2,23 @@
 
 //! `korpis`: the reference client.
 
-use clap::{CommandFactory as _, Parser, Subcommand};
+use clap::{CommandFactory as _, Parser};
 use clap_complete::CompleteEnv;
-use clap_complete::engine::ArgValueCompleter;
 use korpis_cli::call::{METHODS, call};
 use korpis_cli::cmd::backup::{self, BackupAction};
-use korpis_cli::cmd::certificate::{self, CertificateAction};
+use korpis_cli::cmd::certificate;
 use korpis_cli::cmd::clone;
-use korpis_cli::cmd::domain::{self, DomainAction};
+use korpis_cli::cmd::domain;
 use korpis_cli::cmd::event::{self, EventAction};
-use korpis_cli::cmd::extension::{self, ExtensionAction};
+use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
-use korpis_cli::cmd::repository::{self, RepositoryAction};
+use korpis_cli::cmd::repository;
 use korpis_cli::cmd::run::{self as runs, RunAction};
-use korpis_cli::cmd::volume::{self, VolumeAction};
-use korpis_cli::cmd::{
-    Answer, Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction, act, get, grant,
-    sets,
-};
-use korpis_cli::cmd::{console, logs, stream_share, theme};
-use korpis_cli::complete::{self, COMPLETE_VAR, Shell, registration};
+use korpis_cli::cmd::volume;
+use korpis_cli::cmd::{Answer, act, get, grant, sets};
+use korpis_cli::cmd::{console, logs, stream_share, tenancy, theme};
+use korpis_cli::command::Command;
+use korpis_cli::complete::{COMPLETE_VAR, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
 use korpis_cli::error::CliError;
 use korpis_cli::files;
@@ -64,129 +61,6 @@ struct Cli {
     /// The session a `korpis login --no-store` holds in memory for the command it runs.
     #[arg(skip)]
     held: Option<Held>,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Declares the files and shows the real plan, persisted and waiting to be applied; or
-    /// approves, rejects, or cancels a plan.
-    #[command(args_conflicts_with_subcommands = true)]
-    Plan {
-        /// A declared file, or a directory of them; repeatable.
-        #[arg(short = 'f', long = "file")]
-        files: Vec<PathBuf>,
-        #[command(flatten)]
-        set: SetArgs,
-        #[command(subcommand)]
-        action: Option<PlanAction>,
-    },
-    /// Declares the files and applies what default policy approves; with `--plan`, applies
-    /// exactly the plans named, if the files still declare what they planned.
-    Apply {
-        /// A declared file, or a directory of them; repeatable.
-        #[arg(short = 'f', long = "file", required = true)]
-        files: Vec<PathBuf>,
-        /// A plan `korpis plan` showed; repeatable, one per workload.
-        #[arg(long = "plan")]
-        plans: Vec<String>,
-        #[command(flatten)]
-        set: SetArgs,
-    },
-    /// Lists what you can read.
-    #[command(subcommand)]
-    Get(Get),
-    /// A workload in detail: where it runs, what it is doing, and what it waits for.
-    Status {
-        /// The workload: an identifier, `project/name`, or a name.
-        #[arg(add = ArgValueCompleter::new(complete::workloads))]
-        workload: String,
-    },
-    /// Starts, stops, restarts, or deletes a workload.
-    #[command(subcommand)]
-    Workload(WorkloadAction),
-    /// Enrolls, cordons, or uncordons a node.
-    #[command(subcommand)]
-    Node(NodeAction),
-    /// Deletes a retained volume; takes, lists, rolls back to, and deletes snapshots.
-    #[command(subcommand)]
-    Volume(VolumeAction),
-    /// Makes, lists, and shows backup repositories.
-    #[command(subcommand)]
-    Repository(RepositoryAction),
-    /// Uploads, replaces, lists, shows, and deletes the certificates an organization's endpoints
-    /// serve with.
-    #[command(subcommand)]
-    Certificate(CertificateAction),
-    /// Asks for, verifies, lists, shows, and deletes the domains an organization holds.
-    #[command(subcommand)]
-    Domain(DomainAction),
-    /// Shows, sets, and clears an organization's theme in the panel.
-    #[command(subcommand)]
-    Theme(theme::ThemeAction),
-    /// Takes, lists, and shows backups.
-    #[command(subcommand)]
-    Backup(BackupAction),
-    /// Lists and shows a task or scheduled workload's runs, and cancels one.
-    #[command(subcommand)]
-    Run(RunAction),
-    /// Issues, revokes, lists, and shows grants.
-    #[command(subcommand)]
-    Grant(GrantAction),
-    /// Lists a project's declared sets, or changes what one does with drift.
-    #[command(subcommand)]
-    Set(SetAction),
-    /// Installs, lists, shows, and uninstalls extensions.
-    #[command(subcommand)]
-    Extension(ExtensionAction),
-    /// Subscribes to the event log, and follows a subscription.
-    #[command(subcommand)]
-    Event(EventAction),
-    /// A workload's console, read without attaching: from the oldest record its node holds,
-    /// an offset, or a time ago; searched; followed as it is written.
-    Logs(logs::Logs),
-    /// A workload's console stream as the control plane indexes it: how long it is kept, on the
-    /// node and offloaded, the operator's floor, what is held only on the node, what is lost;
-    /// `share` makes a link to read a range of it.
-    Stream(stream_share::StreamArgs),
-    /// A workload's files through a relay: ls, get, put, sync, mkdir, mv, and rm.
-    #[command(subcommand)]
-    Files(korpis_cli::cmd::files::FilesAction),
-    /// Attaches to a workload's console: its scrollback, then what it writes, and, where you may
-    /// type, your keys; `Ctrl-]` detaches.
-    Console(console::Console),
-    /// Prints the script that registers completion with a shell, e.g.
-    /// `source <(korpis completion bash)`; completion then asks this binary on every key, so it
-    /// offers only what the token in the environment can read.
-    Completion {
-        /// The shell.
-        shell: Shell,
-    },
-    /// The client's version and source revision, and the server's when one is named.
-    Version,
-    /// Signs in by approving a code in the panel, and keeps the session in the system keyring,
-    /// or where there is none in a file only you can read.
-    Login {
-        /// Keep nothing: sign in, run the command after `--` with the session in memory, and
-        /// sign out.
-        #[arg(long, requires = "command")]
-        no_store: bool,
-        /// With `--no-store`, the command to run, e.g. `-- get workloads`.
-        #[arg(last = true)]
-        command: Vec<String>,
-    },
-    /// Ends the session `korpis login` began, and forgets it.
-    Logout,
-    /// Calls any method of the API by name, e.g. `WorkloadService/GetWorkload`.
-    Call {
-        /// The method, as `Service/Method` or `korpis.v1.Service/Method`.
-        method: Option<String>,
-        /// The request as JSON, `@FILE` to read it from a file, or `-` for standard input.
-        #[arg(long, short, default_value = "{}")]
-        data: String,
-        /// List every method instead.
-        #[arg(long)]
-        list: bool,
-    },
 }
 
 impl Cli {
@@ -274,12 +148,19 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         }
         Command::Plan { files, set, action: None } => declared(cli, files, &[], true, set).await,
         Command::Get(g) => answer(cli, get::get(&cli.required().await?, g).await),
+        Command::Organization(_)
+        | Command::Project(_)
+        | Command::Grant(_)
+        | Command::Set(_)
+        | Command::Extension(_)
+        | Command::Volume(_)
+        | Command::Repository(_)
+        | Command::Certificate(_)
+        | Command::Domain(_)
+        | Command::Theme(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
             answer(cli, get::status(&cli.required().await?, workload).await)
         }
-        Command::Grant(a) => answer(cli, grant::grant(&cli.required().await?, a).await),
-        Command::Set(a) => answer(cli, sets::set(&cli.required().await?, a).await),
-        Command::Extension(a) => answer(cli, extension::extension(&cli.required().await?, a).await),
         Command::Event(EventAction::Follow { subscription, ack }) => {
             event::follow(&cli.required().await?, subscription, *ack, &mut printer(cli.json)).await
         }
@@ -289,15 +170,6 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Logs(a) => logs::logs(&cli.required().await?, a, &mut printer(cli.json)).await,
         Command::Stream(a) => answer(cli, stream_share::run(&cli.required().await?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required().await?, a).await),
-        Command::Volume(a) => answer(cli, volume::volume(&cli.required().await?, a).await),
-        Command::Repository(a) => {
-            answer(cli, repository::repository(&cli.required().await?, a).await)
-        }
-        Command::Certificate(a) => {
-            answer(cli, certificate::certificate(&cli.required().await?, a).await)
-        }
-        Command::Domain(a) => answer(cli, domain::domain(&cli.required().await?, a).await),
-        Command::Theme(a) => answer(cli, theme::theme(&cli.required().await?, a).await),
         Command::Backup(BackupAction::Clone { backup, name, project }) => {
             let c = cli.required().await?;
             answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
@@ -318,6 +190,23 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Call { method, data, list } => {
             call_method(cli, method.as_deref(), data, *list).await
         }
+    }
+}
+
+/// The commands that make, change, or show one kind of object, and answer with it.
+async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
+    match command {
+        Command::Organization(a) => tenancy::organization(c, a).await,
+        Command::Project(a) => tenancy::project(c, a).await,
+        Command::Grant(a) => grant::grant(c, a).await,
+        Command::Set(a) => sets::set(c, a).await,
+        Command::Extension(a) => extension::extension(c, a).await,
+        Command::Volume(a) => volume::volume(c, a).await,
+        Command::Repository(a) => repository::repository(c, a).await,
+        Command::Certificate(a) => certificate::certificate(c, a).await,
+        Command::Domain(a) => domain::domain(c, a).await,
+        Command::Theme(a) => theme::theme(c, a).await,
+        _ => Err(CliError::Local("not a command about one kind of object".into())),
     }
 }
 

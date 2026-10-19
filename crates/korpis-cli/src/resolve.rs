@@ -11,14 +11,74 @@
 
 use crate::connect::Connection;
 use crate::error::CliError;
+use korpis_extension::Transport;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::scope::Kind as K;
 
-/// Every organization the caller may read.
+/// The most a page may hold, so a long list takes as few calls as the control plane allows.
+const PAGE: u32 = 1000;
+
+/// Every item of a list, asking `ask` for each page with the token the last one gave, until a
+/// page gives none.
+async fn every<T, F, Fut>(mut ask: F) -> Result<Vec<T>, CliError>
+where
+    F: FnMut(pb::PageRequest) -> Fut,
+    Fut: Future<Output = Result<(Vec<T>, Option<pb::PageResponse>), CliError>>,
+{
+    let mut all = Vec::new();
+    let mut token = String::new();
+    loop {
+        let page = pb::PageRequest { page_size: PAGE, page_token: token, ..Default::default() };
+        let (items, next) = ask(page).await?;
+        all.extend(items);
+        token = next.map(|p| p.next_page_token).unwrap_or_default();
+        if token.is_empty() {
+            return Ok(all);
+        }
+    }
+}
+
+/// Every organization directly beneath `parent`, or every root the caller may read.
+async fn children(
+    client: &pb::OrganizationServiceClient<Transport>,
+    parent: Option<&str>,
+) -> Result<Vec<pb::Organization>, CliError> {
+    every(|page| async move {
+        let request = pb::ListOrganizationsRequest {
+            parent: parent.map(str::to_owned),
+            page: page.into(),
+            ..Default::default()
+        };
+        let r = client.list_organizations(request).await?.into_owned();
+        Ok((r.organizations, r.page.into_option()))
+    })
+    .await
+}
+
+/// Every organization the caller may read: the roots it may read and those its grants are
+/// anchored at, and everything beneath them, walked one organization at a time, so a reseller
+/// names its customers' customers as the host names its own.
 pub async fn organizations(c: &Connection) -> Result<Vec<pb::Organization>, CliError> {
     let client = pb::OrganizationServiceClient::new(c.http(), c.config());
-    let request = pb::ListOrganizationsRequest::default();
-    Ok(client.list_organizations(request).await?.into_owned().organizations)
+    let mut found = children(&client, None).await?;
+    for id in anchors(c).await?.organizations {
+        if !found.iter().any(|o| o.id == id) {
+            let request = pb::GetOrganizationRequest { id, ..Default::default() };
+            let got = readable(client.get_organization(request).await.map_err(CliError::from))?;
+            found.extend(got.and_then(|r| r.into_owned().organization.into_option()));
+        }
+    }
+    let mut next = 0;
+    while let Some(o) = found.get(next) {
+        let beneath = readable(children(&client, Some(&o.id.clone())).await)?.unwrap_or_default();
+        for b in beneath {
+            if !found.iter().any(|f| f.id == b.id) {
+                found.push(b);
+            }
+        }
+        next += 1;
+    }
+    Ok(found)
 }
 
 /// `Some` of what was read, `None` where the caller may not read it.
@@ -57,8 +117,13 @@ fn anchor(scope: Option<&pb::Scope>, into: &mut Anchors) {
 }
 
 async fn anchors(c: &Connection) -> Result<Anchors, CliError> {
-    let client = pb::GrantServiceClient::new(c.http(), c.config());
-    let grants = client.list_grants(pb::ListGrantsRequest::default()).await?.into_owned().grants;
+    let client = &pb::GrantServiceClient::new(c.http(), c.config());
+    let grants = every(|page| async move {
+        let request = pb::ListGrantsRequest { page: page.into(), ..Default::default() };
+        let r = client.list_grants(request).await?.into_owned();
+        Ok((r.grants, r.page.into_option()))
+    })
+    .await?;
     let mut out = Anchors::default();
     let live =
         grants.iter().filter(|g| g.state.as_known() == Some(pb::GrantState::GRANT_STATE_ISSUED));
@@ -110,9 +175,17 @@ pub async fn organization(c: &Connection, named: Option<&str>) -> Result<String,
 
 /// Every project in organization `org`.
 pub async fn projects(c: &Connection, org: &str) -> Result<Vec<pb::Project>, CliError> {
-    let client = pb::ProjectServiceClient::new(c.http(), c.config());
-    let request = pb::ListProjectsRequest { organization: org.to_owned(), ..Default::default() };
-    Ok(client.list_projects(request).await?.into_owned().projects)
+    let client = &pb::ProjectServiceClient::new(c.http(), c.config());
+    every(|page| async move {
+        let request = pb::ListProjectsRequest {
+            organization: org.to_owned(),
+            page: page.into(),
+            ..Default::default()
+        };
+        let r = client.list_projects(request).await?.into_owned();
+        Ok((r.projects, r.page.into_option()))
+    })
+    .await
 }
 
 /// Every project the caller may read: listed from its organizations, and those its grants are
@@ -147,10 +220,17 @@ pub async fn project(c: &Connection, named: &str) -> Result<String, CliError> {
 
 /// Every workload in project `project`.
 pub async fn workloads(c: &Connection, project: &str) -> Result<Vec<pb::WorkloadStatus>, CliError> {
-    let client = pb::WorkloadServiceClient::new(c.http(), c.config());
-    let request =
-        pb::ListWorkloadsRequest { project: Some(project.to_owned()), ..Default::default() };
-    Ok(client.list_workloads(request).await?.into_owned().workloads)
+    let client = &pb::WorkloadServiceClient::new(c.http(), c.config());
+    every(|page| async move {
+        let request = pb::ListWorkloadsRequest {
+            project: Some(project.to_owned()),
+            page: page.into(),
+            ..Default::default()
+        };
+        let r = client.list_workloads(request).await?.into_owned();
+        Ok((r.workloads, r.page.into_option()))
+    })
+    .await
 }
 
 /// The workloads the caller's grants are anchored at.
@@ -225,9 +305,21 @@ pub async fn readable_nodes(c: &Connection) -> Result<Vec<pb::Node>, CliError> {
     let client = pb::NodeServiceClient::new(c.http(), c.config());
     let mut found: Vec<pb::Node> = Vec::new();
     for o in organization_ids(c).await? {
-        let request = pb::ListNodesRequest { organization: o, ..Default::default() };
-        let listed = readable(client.list_nodes(request).await.map_err(CliError::from))?;
-        found.extend(listed.map(|r| r.into_owned().nodes).unwrap_or_default());
+        let client = &client;
+        let listed = every(|page| {
+            let o = o.clone();
+            async move {
+                let request = pb::ListNodesRequest {
+                    organization: o,
+                    page: page.into(),
+                    ..Default::default()
+                };
+                let r = client.list_nodes(request).await?.into_owned();
+                Ok((r.nodes, r.page.into_option()))
+            }
+        })
+        .await;
+        found.extend(readable(listed)?.unwrap_or_default());
     }
     for id in anchors(c).await?.nodes {
         if !found.iter().any(|n| n.id == id) {

@@ -315,6 +315,28 @@ are protected from those workloads by their isolation tier, not by a signature; 
 may still pin a floor is question 7 of §10 of `09-recipes.md`. Extensions differ, and FINDING 7
 below is why: an extension acts with grants and egress, so the node owner's allow-list gates it.
 
+> Steps 1 to 3 as built, 2026-10-19 (`crates/korpis-server/tests/api/delegation.rs`,
+> `crates/korpis-cli/tests/cli/tenancy.rs`). The host makes a reseller's organization and
+> delegates to it; the reseller, holding nothing above its own organization, makes a sub-tenant
+> and delegates to it; the sub-tenant makes its customer, gives the customer one project, and
+> passes on nothing it was not allowed to pass on. Every widening is refused at the hop that tries
+> it, and each organization's creation is recorded under the grant of the level above it, never
+> the host's. Driving the same steps through the CLI found Finding 105.
+
+**FINDING 105: The CLI could not name a reseller's customers. `CONFIRMED`**
+
+Found 2026-10-19, at step 2 through the CLI. The CLI resolves a name by listing what the caller
+may read (§2 of `13-surface-cli.md`), and it listed organizations by asking for them with no
+parent, which answers the roots the caller may read: nothing beneath a root was ever a name, so a
+host could not name its reseller and a reseller could not name its customer. And it read one page
+of every list, a hundred items by default, so a host's hundred-and-first customer was not a name
+either, nor a project or workload past the first hundred in its parent.
+
+**Resolution.** The CLI walks the tree from the organizations the caller may read and those its
+grants are anchored at, one listing per organization beneath them, and reads every list to its
+last page. The cost is calls, one per organization the caller may read, stated where the cost of
+resolving a name already is. → patched into `13-surface-cli.md` §2
+
 **FINDING 25: An organization without its own trust policy had no policy at all. `CONFIRMED`**
 
 §7 of `09-recipes.md` defined the policy per organization and said nothing of an organization that
@@ -1146,6 +1168,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 102 | A restore could not record the runs its nodes presented, from what the assignment named | §41 | `03-state.md` §8, `02-architecture.md` §4.8 |
 | 103 | A workload granted authority had no way to reach the API to use it | §20 | `08-identity.md` §9.5, `07-networking.md` §6, `02-architecture.md` §6 |
 | 104 | A machine kept every workload's network once its node had stopped without destroying them | §35 | `18-operations.md` §3 |
+| 105 | The CLI could not name a reseller's customers | §4 | `13-surface-cli.md` §2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

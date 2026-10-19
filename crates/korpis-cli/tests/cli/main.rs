@@ -22,3 +22,4 @@ mod login;
 mod recipe;
 mod sets;
 mod support;
+mod tenancy;
