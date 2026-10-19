@@ -2,7 +2,8 @@
 
 //! Programs of the workspace, built static and pushed to the test registry as OCI images of one
 //! file each, so a real node runs them in containers: the test extension (`korpis-extension`'s
-//! example), the test web program (this crate's), and the first-party extensions.
+//! example), the test web program (this crate's), the first-party extensions, and the `korpis`
+//! command, which a scheduled workload's run calls with its own credential.
 
 use sha2::{Digest as _, Sha256};
 use std::collections::HashMap;
@@ -30,6 +31,11 @@ pub const TEST_WEB: Program = Program { package: "korpis-e2e", example: true, na
 pub const FS_TARGET: Program =
     Program { package: "korpis-target-fs", example: false, name: "korpis-target-fs" };
 
+/// The `korpis` command.
+pub const KORPIS: Program = Program { package: "korpis-cli", example: false, name: "korpis" };
+/// Every program a test may build, which `scripts/check.sh` has built before any test runs.
+pub const EVERY: [Program; 4] = [TEST_EXTENSION, TEST_WEB, FS_TARGET, KORPIS];
+
 impl Program {
     /// Where it is in its image.
     pub fn entry(self) -> String {
@@ -43,7 +49,7 @@ fn digest(bytes: &[u8]) -> String {
 
 /// Builds `p` once per run, linked static so its image needs nothing beside it, into a target
 /// directory of its own, since its flags are not the workspace's.
-fn build(p: Program) -> PathBuf {
+pub fn build(p: Program) -> PathBuf {
     static BUILT: Mutex<Option<HashMap<&'static str, PathBuf>>> = Mutex::new(None);
     let mut built = BUILT.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(path) = built.as_ref().and_then(|b| b.get(p.name)) {

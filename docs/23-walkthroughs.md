@@ -1604,6 +1604,22 @@ made, was withdrawn on the next pass. → patched into `08-identity.md` §9.5, `
 ‡ Step 1 is where the trace found Finding 32. † Step 2 is where it found Finding 33, and, when it
 was built, Finding 103.
 
+> Step 2 as built, 2026-10-19 (`crates/korpis-e2e/tests/e2e/nightly.rs`, on a real node). A
+> `scheduled` workload whose recipe is the static `korpis` binary alone, its command `backup
+> create` with the volume and the repository delivered as arguments (§5.2 of `09-recipes.md`),
+> is issued `backup.create` on the world and `repository.read` on the repository and nothing
+> else, with `concurrency: forbid`. At the minute its schedule comes due its run is made and
+> started, the command finds the identity socket in the run's container, obtains the workload's
+> credential, and reaches the control plane through the relay its node serves it (§9.5 of
+> `08-identity.md`, §7 of `13-surface-cli.md`); the backup's plan is the workload's, applied at
+> once, and the backup is taken whole through the disk target, steps 3 to 7 as above. The run
+> ends with exit status zero and is judged succeeded. What the test had to declare: one kept
+> run of each outcome and an 8 MiB console, because every kept run's console counts against the
+> disk quota at its stream's bound (§4.3 of `05-scheduling.md`), and with the defaults (three
+> succeeded, ten failed, one active, each at the default bound) a scheduled workload reserves
+> about a gibibyte, more than the test node's disk held, so it was refused placement, as K-3
+> requires. A real nightly job is declared the same way.
+
 ## 21. Last night's world, over tonight's
 
 Written 2026-10-14, from the implementation, when restores were built. The morning after §20's

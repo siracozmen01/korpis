@@ -654,8 +654,13 @@ counted the same way for every policy: one stream for each run retention keeps a
 can be active, `keep_successful` plus `keep_failed` plus `max_active`. What it costs: a
 workload whose runs must overlap past a hundred is refused, and one that overlaps past its
 declared bound misses a run, recorded where anyone reading the runs sees it; and the quota
-counts the bound, not what the workload happens to use. `forbid` and `replace` are
-`max_active: 1`, and declaring another value with either is refused.
+counts the bound, not what the workload happens to use. With the defaults, three succeeded, ten
+failed, and one active, that is fourteen streams at the default bound of 72 MiB each (64 MiB
+retained and the segment being written), 1008 MiB of the workload's disk quota for consoles; a
+job that needs less declares fewer kept runs and a smaller console, as the nightly backup of §20
+of `23-walkthroughs.md` does (figure added 2026-10-19, when that test's node had less disk free
+and the workload was refused placement). `forbid` and `replace` are `max_active: 1`, and
+declaring another value with either is refused.
 
 The same rule applies to manual and retry runs, so a restart into a `forbid` workload that is
 already running is recorded, not lost.

@@ -52,7 +52,7 @@ extension:
 }
 
 /// Installs the target into `project`; its workload.
-async fn installed(cp: &ControlPlane, project: &str) -> String {
+pub(crate) async fn installed(cp: &ControlPlane, project: &str) -> String {
     let image = push_image(&test_registry(), FS_TARGET).await;
     let request = pb::InstallExtensionRequest {
         mutation: mutation("install-fs").into(),
@@ -71,7 +71,7 @@ async fn installed(cp: &ControlPlane, project: &str) -> String {
 }
 
 /// Waits until the target answers a ping.
-async fn registered(cp: &ControlPlane) {
+pub(crate) async fn registered(cp: &ControlPlane) {
     let client = pb::ProviderServiceClient::new(cp.http(), cp.config());
     let ping = pb::PingProviderRequest {
         organization: cp.root_org.clone(),

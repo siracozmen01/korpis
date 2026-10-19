@@ -109,6 +109,9 @@ fi
 # rather than minutes of compiling under the nodes the tests are running, which a node starved
 # past its lease's term would lose its runs to.
 cargo build -q -p korpis-cli --bin korpis --locked
+# So are the programs they run in containers, built static by the test that names them all.
+cargo test -q --workspace --all-features --locked --test e2e -- \
+    programs::every_program_is_built_static --exact
 cargo test --workspace --all-features --locked
 cargo test $conformance $conformance_target --locked
 
