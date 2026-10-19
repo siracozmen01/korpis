@@ -20,10 +20,6 @@ use korpis_proto::korpis::driver::v1 as driver;
 use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime};
 
-/// How long a run is given to stop before it is killed, at its timeout or when it is no longer
-/// named.
-const GRACE: Duration = Duration::from_secs(30);
-
 /// What the reconciler knows of one run's runtime object.
 #[derive(Debug, Clone, Default)]
 pub(super) struct RunTracked {
@@ -37,6 +33,8 @@ pub(super) struct RunTracked {
     pub(super) ended: bool,
     /// Whether its process ran when last looked at.
     pub(super) running: bool,
+    /// Where its stop is, while one is under way.
+    pub(super) halting: super::halt::Halting,
 }
 
 /// Whether `a`'s target is a workload that has runs.
@@ -127,16 +125,17 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
-    /// Stops every run held: the workload is stopped or retired.
+    /// Moves the stop of every run held on: the workload is stopped or retired. Whether none
+    /// runs any more; a later pass carries on the stops still under way.
     pub(super) async fn stop_runs(
         &mut self,
         workload: &str,
         t: &mut Tracked,
-    ) -> Result<(), Failure> {
+    ) -> Result<bool, Failure> {
         for run in t.runs.keys().cloned().collect::<Vec<_>>() {
             self.tend_run(workload, t, &run, None).await?;
         }
-        Ok(())
+        Ok(t.runs.values().all(|r| !r.running))
     }
 
     /// One held run: stopped at its timeout or once it is not named, its end journaled once,
@@ -161,10 +160,11 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         };
         if let Some(why) = why {
             r.stopped_for.get_or_insert(why);
-            if let Err(e) = self.runtime.stop(&r.runtime, "", GRACE).await {
-                // Kept, so the next pass stops it again: a failed stop never forgets a run.
+            // Moved on by one pass, as every stop is (§6 of docs/02-architecture.md); a run still
+            // stopping is kept, and so is one whose stop failed, so no run is ever forgotten.
+            if let Err(e) = self.halt(&r.runtime, &mut r.halting).await {
                 t.runs.insert(run.to_owned(), r);
-                return Err(e.into());
+                return Err(e);
             }
             status = self.status_of(&r.runtime).await;
         }

@@ -15,10 +15,7 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::driver::v1 as driver;
 use korpis_proto::korpis::helper::v1 as helper;
 use std::path::Path;
-use std::time::{Duration, Instant};
-
-/// How long a workload is given to stop before it is killed.
-const GRACE: Duration = Duration::from_secs(30);
+use std::time::Instant;
 
 /// Why an action did not happen.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,55 +186,63 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     }
 
     /// The runtime object for the approved target: the one held if it was built from it,
-    /// otherwise a new one, the old one destroyed first.
+    /// otherwise a new one, the old one destroyed first; `None` while the old one is still
+    /// stopping, which a later pass carries on.
     pub(super) async fn current(
         &mut self,
         a: &agent::Assignment,
         t: &mut Tracked,
-    ) -> Result<String, Failure> {
+    ) -> Result<Option<String>, Failure> {
         let target = a.target.as_option().map(|t| t.id.as_str()).unwrap_or_default();
         let built_from = t.labels.as_ref().map(|l| l.intent.as_str());
         if let Some(id) = t.runtime.clone() {
             if built_from == Some(target) {
-                return Ok(id);
+                return Ok(Some(id));
             }
-            self.destroy(t).await?;
+            if !self.destroy(t).await? {
+                return Ok(None);
+            }
         }
-        self.build(a, t).await
+        self.build(a, t).await.map(Some)
     }
 
-    /// Starts the runtime object for the approved target.
+    /// Starts the runtime object for the approved target; `None` while an older one is still
+    /// stopping.
     pub(super) async fn start(
         &mut self,
         a: &agent::Assignment,
         t: &mut Tracked,
-    ) -> Result<String, Failure> {
-        let id = self.current(a, t).await?;
+    ) -> Result<Option<String>, Failure> {
+        let Some(id) = self.current(a, t).await? else { return Ok(None) };
         if !t.status.as_ref().is_some_and(running) {
             self.runtime.start(&id).await?;
             t.running_since = Some(Instant::now());
         }
         t.stopped_by_us = false;
         t.status = self.runtime.inspect(&id).await.ok();
-        Ok(id)
+        Ok(Some(id))
     }
 
-    /// Stops the runtime object, if it is running.
-    pub(super) async fn stop(&mut self, t: &mut Tracked) -> Result<(), Failure> {
-        let Some(id) = t.runtime.clone() else { return Ok(()) };
+    /// Moves the stop of the runtime object on (§6 of docs/02-architecture.md); whether it has
+    /// stopped, as it has when there is none.
+    pub(super) async fn stop(&mut self, t: &mut Tracked) -> Result<bool, Failure> {
+        let Some(id) = t.runtime.clone() else { return Ok(true) };
         t.stopped_by_us = true;
-        if t.status.as_ref().is_some_and(running) {
-            self.runtime.stop(&id, "", GRACE).await?;
+        let stopped = self.halt(&id, &mut t.halting).await?;
+        if stopped {
+            t.running_since = None;
         }
-        t.running_since = None;
         t.status = self.runtime.inspect(&id).await.ok();
-        Ok(())
+        Ok(stopped)
     }
 
     /// Stops and destroys the runtime object; volumes, and the stream's, are not touched.
-    pub(super) async fn destroy(&mut self, t: &mut Tracked) -> Result<(), Failure> {
-        let Some(id) = t.runtime.clone() else { return Ok(()) };
-        self.stop(t).await?;
+    /// Whether it is gone: not while it is still stopping.
+    pub(super) async fn destroy(&mut self, t: &mut Tracked) -> Result<bool, Failure> {
+        let Some(id) = t.runtime.clone() else { return Ok(true) };
+        if !self.stop(t).await? {
+            return Ok(false);
+        }
         match self.runtime.destroy(&id).await {
             Ok(()) | Err(RuntimeError::NotFound(_)) => {}
             Err(e) => return Err(e.into()),
@@ -245,21 +250,24 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         t.runtime = None;
         t.labels = None;
         t.status = None;
-        Ok(())
+        Ok(true)
     }
 
-    /// Restarts it once, rebuilt if its target changed, and keeps that the cycle was done.
+    /// Restarts it once, rebuilt if its target changed, and keeps that the cycle was done;
+    /// `None` while it is still stopping.
     pub(super) async fn restart(
         &mut self,
         a: &agent::Assignment,
         t: &mut Tracked,
-    ) -> Result<String, Failure> {
-        self.stop(t).await?;
-        let id = self.start(a, t).await?;
+    ) -> Result<Option<String>, Failure> {
+        if !self.stop(t).await? {
+            return Ok(None);
+        }
+        let Some(id) = self.start(a, t).await? else { return Ok(None) };
         let cycle = a.power.as_option().map_or(0, |p| p.cycle);
         if let Err(e) = self.progress.cycled(&a.workload, cycle) {
             tracing::error!(error = %e, "progress could not be kept");
         }
-        Ok(id)
+        Ok(Some(id))
     }
 }

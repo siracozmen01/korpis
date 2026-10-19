@@ -157,18 +157,28 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 self.prepare(a, t).await?;
                 after.insert("runs".into(), text("each run is started as it is named"));
             }
-            "stop" if super::runs::has_runs(a) => self.stop_runs(&a.workload, t).await?,
+            // A stop still under way leaves the step for a later pass to finish (§6 of
+            // docs/02-architecture.md), so no step holds up the node's other workloads.
+            "stop" if super::runs::has_runs(a) => {
+                if !self.stop_runs(&a.workload, t).await? {
+                    return Ok(None);
+                }
+            }
             "create" => {
-                let id = self.current(a, t).await?;
+                let Some(id) = self.current(a, t).await? else { return Ok(None) };
                 after.insert("runtime_id".into(), text(&id));
             }
             "start" => {
-                let id = self.start(a, t).await?;
+                let Some(id) = self.start(a, t).await? else { return Ok(None) };
                 after.insert("runtime_id".into(), text(&id));
             }
-            "stop" => self.stop(t).await?,
+            "stop" => {
+                if !self.stop(t).await? {
+                    return Ok(None);
+                }
+            }
             "restart" => {
-                let id = self.restart(a, t).await?;
+                let Some(id) = self.restart(a, t).await? else { return Ok(None) };
                 after.insert("runtime_id".into(), text(&id));
             }
             // Validated now, applied at the next start: the object is rebuilt from the target.
@@ -180,8 +190,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
                 after.insert("applies_at".into(), text("the next start"));
             }
             "retire" => {
-                self.stop_runs(&a.workload, t).await?;
-                self.destroy(t).await?;
+                if !self.stop_runs(&a.workload, t).await? || !self.destroy(t).await? {
+                    return Ok(None);
+                }
             }
             other => return Err(Failure(format!("a node does not execute {other:?}"))),
         }

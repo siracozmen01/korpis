@@ -1150,6 +1150,21 @@ through a workload's link (§3.2 of `07-networking.md`), hands it the sockets th
 ports 80 and 443 and its routes and certificates over a Unix socket (§3.2 of `07-networking.md`),
 and restarts it if it exits.
 
+**The reconciler never waits in a stop.** Added 2026-10-19, before the recipe's `pre_stop` hook
+was built (§3 of `09-recipes.md`). The supervisor's reconciler moves through the node's workloads
+one after another, and a stop it waited in held up every other workload on the node for as long:
+thirty seconds for an object that ignores its terminating signal, and a hook allowed ten minutes
+would have made it ten. A stop, of a workload's object or a run's, is instead a state kept with
+the object: each pass moves it on (the object is signalled, then killed once its grace is over,
+thirty seconds) and says whether it has stopped, and whatever needed it stopped, a power stop, a
+restart, a rebuild, a retirement and the lease's release after it, a supersession, a run's cancel,
+replacement, or timeout, carries on in the pass that finds it so; a plan step still stopping is
+left for a later pass, as a backup's is. The process's exit is a change the driver reports, which
+wakes the reconciler at once; the kill comes in the first pass after the grace, at most one
+period late (two seconds by default). What it costs: a stop is no longer one call to the driver
+but a signal, a kill, and a look on each pass, and an agent that restarts in the middle of one
+forgets how far it was and signals the object again, which starts its grace again.
+
 Three properties follow from this structure:
 
 **No component both holds privilege and accepts tenant input.** The supervisor accepts

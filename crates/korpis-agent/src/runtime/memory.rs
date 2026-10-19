@@ -15,6 +15,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+mod knobs;
+
 /// The driver name it declares.
 pub const NAME: &str = "memory";
 
@@ -33,6 +35,8 @@ struct State {
     rejecting: Option<driver::Rejection>,
     holding: BTreeSet<String>,
     capturing: bool,
+    /// Whether the terminating signal is ignored, so only a kill stops an object.
+    deaf: bool,
 }
 
 /// The in-memory runtime; clones share it.
@@ -79,100 +83,6 @@ impl InMemory {
         let object = s.objects.get_mut(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
         object.status = to;
         Ok(())
-    }
-
-    /// Every call so far, as `verb id`.
-    #[must_use]
-    pub fn calls(&self) -> Vec<String> {
-        self.lock().map(|s| s.calls.clone()).unwrap_or_default()
-    }
-
-    /// Makes every later call of `verb` fail, or succeed again.
-    pub fn fail(&self, verb: &str, failing: bool) {
-        if let Ok(mut s) = self.lock() {
-            if failing {
-                s.failing.insert(verb.to_owned());
-            } else {
-                s.failing.remove(verb);
-            }
-        }
-    }
-
-    /// Makes every later call of `verb` wait until it is released, as a slow step would; a
-    /// held call is recorded as `held verb` when it begins waiting.
-    pub fn hold(&self, verb: &str, holding: bool) {
-        if let Ok(mut s) = self.lock() {
-            if holding {
-                s.holding.insert(verb.to_owned());
-            } else {
-                s.holding.remove(verb);
-            }
-        }
-        self.released.notify_waiters();
-    }
-
-    /// Whether `verb` is held, noting the call as held the first time it is.
-    fn holds(&self, verb: &str, noted: &mut bool) -> bool {
-        let Ok(mut s) = self.lock() else { return false };
-        if !s.holding.contains(verb) {
-            return false;
-        }
-        if !*noted {
-            s.calls.push(format!("held {verb}"));
-            *noted = true;
-        }
-        true
-    }
-
-    /// Waits while `verb` is held.
-    async fn held(&self, verb: &str) {
-        let mut noted = false;
-        loop {
-            let released = self.released.notified();
-            if !self.holds(verb, &mut noted) {
-                return;
-            }
-            released.await;
-        }
-    }
-
-    /// Whether a workload whose console mode is not `none` has its console captured into a
-    /// stream, as a real driver's prepare asks for: off by default, so a test that does not look
-    /// at streams gets no stream volumes.
-    pub fn capture_consoles(&self, capturing: bool) {
-        if let Ok(mut s) = self.lock() {
-            s.capturing = capturing;
-        }
-    }
-
-    /// Makes every later `prepare` reject with `rejection`, or accept again.
-    pub fn reject(&self, rejection: Option<driver::Rejection>) {
-        if let Ok(mut s) = self.lock() {
-            s.rejecting = rejection;
-        }
-    }
-
-    /// The object `id` exits by itself with `code`, as a crash would, and says so.
-    pub fn exit(&self, id: &str, code: i32) {
-        if let Ok(mut s) = self.lock()
-            && let Some(o) = s.objects.get_mut(id)
-        {
-            o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(code));
-        }
-        let _ = self.changes.send(id.to_owned());
-    }
-
-    /// The objects, by identifier: their workload, and whether they are running.
-    #[must_use]
-    pub fn objects(&self) -> BTreeMap<String, (String, bool)> {
-        let Ok(s) = self.lock() else { return BTreeMap::new() };
-        let running = |o: &Object| {
-            o.status.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING)
-        };
-        s.objects
-            .iter()
-            .map(|(id, o)| (id.clone(), (o.spec.workload.clone(), running(o))))
-            .collect()
     }
 }
 
@@ -273,9 +183,21 @@ impl InMemory {
         s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
 
-    fn signal_now(&self, id: &str) -> RuntimeResult<()> {
-        let s = self.call("signal", id)?;
-        s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
+    /// A terminating signal stops a running object, as a process that handles it by exiting
+    /// does, unless the runtime was made to ignore it; any other is only recorded.
+    fn signal_now(&self, id: &str, signal: &str) -> RuntimeResult<()> {
+        let mut s = self.call("signal", id)?;
+        let deaf = s.deaf;
+        let o = s.objects.get_mut(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
+        let running =
+            o.status.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING);
+        if !matches!(signal, "" | "SIGTERM" | "SIGINT") || deaf || !running {
+            return Ok(());
+        }
+        o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(0));
+        drop(s);
+        let _ = self.changes.send(id.to_owned());
+        Ok(())
     }
 }
 
@@ -308,13 +230,23 @@ impl Runtime for InMemory {
         ready(self.start_now(id))
     }
 
+    /// As a driver does: an object that ignores the terminating signal is killed once `grace`
+    /// is over, and the call returns only then.
     fn stop(
         &self,
         id: &str,
         _signal: &str,
-        _grace: Duration,
+        grace: Duration,
     ) -> impl Future<Output = RuntimeResult<()>> + Send {
-        ready(self.stop_now(id))
+        let deaf = self.lock().is_ok_and(|s| s.deaf);
+        let (this, id) = (self.clone(), id.to_owned());
+        async move {
+            if !deaf {
+                return this.stop_now(&id);
+            }
+            tokio::time::sleep(grace).await;
+            this.kill_now(&id)
+        }
     }
 
     fn kill(&self, id: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
@@ -340,8 +272,8 @@ impl Runtime for InMemory {
         ready(self.stats_now(id))
     }
 
-    fn signal(&self, id: &str, _signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
-        ready(self.signal_now(id))
+    fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send {
+        ready(self.signal_now(id, signal))
     }
 
     fn console_input(
@@ -373,27 +305,4 @@ impl Runtime for InMemory {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn objects_are_created_once_per_intent_and_outlive_whoever_holds_a_clone() {
-        let runtime = InMemory::new();
-        let intent = pb::Intent { id: "in_1".into(), ..Default::default() };
-        let Prepared::Spec(spec) = runtime.prepare("wl_1", &intent, b"").await.unwrap() else {
-            panic!("the memory runtime accepts everything unless told otherwise");
-        };
-        let id = runtime.create(&spec).await.unwrap();
-        assert_eq!(runtime.create(&spec).await.unwrap(), id, "idempotent by workload and intent");
-        runtime.start(&id).await.unwrap();
-        let other = runtime.clone();
-        assert_eq!(other.recover().await.unwrap().len(), 1);
-        other.exit(&id, 1);
-        let status = runtime.inspect(&id).await.unwrap();
-        assert_eq!(status.exit_code, Some(1));
-        runtime.fail("start", true);
-        assert!(runtime.start(&id).await.is_err());
-        runtime.destroy(&id).await.unwrap();
-        assert!(runtime.objects().is_empty());
-    }
-}
+mod tests;

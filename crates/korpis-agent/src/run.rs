@@ -72,6 +72,8 @@ impl Default for Reserve {
 pub struct Options {
     /// How often the reconciler looks without being told to.
     pub period: Duration,
+    /// How long a runtime object is given to stop once signalled, before it is killed.
+    pub stop_grace: Duration,
     /// How often the journal is maintained.
     pub maintain_every: Duration,
     /// The journal's bound.
@@ -96,6 +98,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             period: Duration::from_secs(2),
+            stop_grace: Duration::from_secs(30),
             maintain_every: Duration::from_secs(5),
             journal: Bounds::default(),
             identity_root: None,
@@ -322,6 +325,7 @@ impl Agent {
             outbound: link.outbound.clone(),
             events: link.events.subscribe(),
             period: options.period,
+            grace: options.stop_grace,
             runtimes,
             jobs: link.jobs.clone(),
             steps: link.steps.clone(),

@@ -43,7 +43,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             Standing::Held { .. } => self.act(a, &mut t).await,
             Standing::Refused(Refusal::Superseded { by }) => self.superseded(a, &mut t, by).await,
             Standing::Expired { on_expiry: OnExpiry::Stop, .. } => {
-                self.stop_runs(&a.workload, &mut t).await.and(self.stop(&mut t).await)
+                let runs = self.stop_runs(&a.workload, &mut t).await;
+                runs.and(self.stop(&mut t).await).map(drop)
             }
             Standing::Expired { on_expiry: OnExpiry::KeepRunning, .. } if has_runs(a) => {
                 self.runs(a, &mut t, false).await
@@ -102,8 +103,10 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return Ok(());
         }
         if a.retire.is_set() {
-            self.stop_runs(&a.workload, t).await?;
-            self.destroy(t).await?;
+            // Released only once nothing of it runs here any more.
+            if !self.stop_runs(&a.workload, t).await? || !self.destroy(t).await? {
+                return Ok(());
+            }
             if !t.released {
                 match self.wiring.leases.release(&a.workload).await {
                     Ok(_) => t.released = true,
@@ -134,7 +137,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return self.runs(a, t, true).await;
         }
         if !wants_running(a) {
-            return self.stop(t).await;
+            return self.stop(t).await.map(drop);
         }
         if t.runtime.is_none() {
             // A required dependency not yet running here holds its dependent back (§5 of

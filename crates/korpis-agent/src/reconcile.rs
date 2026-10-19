@@ -14,6 +14,7 @@ pub(crate) use act::volume_id;
 mod backup;
 mod content;
 mod deps;
+mod halt;
 mod install;
 mod jobs;
 mod managed;
@@ -80,6 +81,8 @@ struct Tracked {
     /// A task or scheduled workload's runs, by run, each its own object (§4.2 of
     /// docs/05-scheduling.md).
     runs: BTreeMap<String, runs::RunTracked>,
+    /// Where the stop of its object is, while one is under way.
+    halting: halt::Halting,
 }
 
 /// Where the reconciler reads and writes.
@@ -99,6 +102,8 @@ pub struct Wiring {
     pub events: broadcast::Receiver<Event>,
     /// How often it looks without being told to.
     pub period: Duration,
+    /// How long a runtime object is given to stop once signalled, before it is killed.
+    pub grace: Duration,
     /// The workloads' identity sockets (§9.5 of docs/08-identity.md); none where the node
     /// gives its workloads no identity, as in tests of other things.
     pub identity: Option<Arc<IdentitySockets>>,
