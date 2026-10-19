@@ -576,17 +576,30 @@ lifetimes of §6 of `08-identity.md` bound how long the disruption lasts. → pa
 | 4 | Extensions declaring an incompatible API version are refused at load, with a message | `16-extensions.md` §6 |
 | 5 | Mixed-version fleet is a supported steady state, not a window | `18-operations.md` §4 |
 
-**Nothing new found**, and one behaviour worth naming because it is easy to get wrong: an extension
-refused at load in step 4 that happens to be a *provider* (a DNS provider, say), leaves its
-dependents in `unsatisfiable` with the provider named, which is the same treatment
-`16-extensions.md` §5 gives a provider that is merely down. A refused-at-load provider and a
-crashed provider produce the same observable state, and that is correct: from a workload's
-perspective they are the same event. (Corrected 2026-10-16: for a DNS provider, its dependents are
-the names it publishes, each `failed` in its workload's status with the provider named, not an
-observation, which is what a node reports; §3.5 of `07-networking.md`.)
+**Nothing new found when it was written** (step 3 later found Finding 109, below), and one
+behaviour worth naming because it is easy to get wrong: an extension refused at load in step 4 that
+happens to be a *provider* (a DNS provider, say), leaves its dependents in `unsatisfiable` with the
+provider named, which is the same treatment `16-extensions.md` §5 gives a provider that is merely
+down. A refused-at-load provider and a crashed provider produce the same observable state, and that
+is correct: from a workload's perspective they are the same event. (Corrected 2026-10-16: for a DNS
+provider, its dependents are the names it publishes, each `failed` in its workload's status with
+the provider named, not an observation, which is what a node reports; §3.5 of `07-networking.md`.)
 
 `18-operations.md` §10.5 already proposes `korpis upgrade --plan` to surface step 4 *before*
 anything moves. This trace is the argument that it is not optional.
+
+**FINDING 109: A restarted agent whose driver did not answer started a second copy. `CONFIRMED`**
+
+Found 2026-10-19 by an end-to-end test that failed twice beside a loaded containerd, the restart
+this trace's upgrade is made of. §4.4 of `02-architecture.md` has the agent enumerate its driver's
+objects and adopt them before it reconciles, and said nothing of an enumeration that fails. The
+agent logged the failure and reconciled anyway, with nothing adopted: every workload already
+running had an assignment and no tracked object, so the agent prepared and created it again. A
+mutation of the test shows the second `create` beside the running first.
+
+**Resolution.** Nothing is reconciled before adoption: the agent asks the driver again, waiting
+half a second and then twice as long each time up to fifteen seconds, and acts on no assignment
+until the driver answers. → patched into `02-architecture.md` §4.4
 
 ---
 
@@ -1218,6 +1231,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 105 | The CLI could not name a reseller's customers | §4 | `13-surface-cli.md` §2 |
 | 106 | A suspension that stopped the workloads did it one workload at a time | §4 | `08-identity.md` §2.1 |
 | 107 | Two customers could each be given the reseller's last reservations | §4 | `05-scheduling.md` §5.1 |
+| 108 | A template's scope pattern named cases nothing could evaluate | §26 | `08-identity.md` §4, `01-model.md` §3.2 |
+| 109 | A restarted agent whose driver did not answer started a second copy | §7 | `02-architecture.md` §4.4 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -1991,6 +2006,24 @@ so a link with `event.read` could watch a workload's events without limit.
 **Resolution.** Minting spends one use per token and none for a renewal, which names the live token
 it continues (step 5); a check that spends nothing permits nothing to a use-limited grant; and
 approval spends a use. → patched into `08-identity.md` §6.1
+
+**FINDING 108: A template's scope pattern named cases nothing could evaluate. `CONFIRMED`**
+
+Found 2026-10-19, when templates were built for the moderator this trace starts from. §4 of
+`08-identity.md` gave a template a `scope_pattern` and no definition of one; the schema's three
+cases were "the applied object", "any project in this organization", and "a fixed scope", and no
+document said what checked a pattern, when, or against what, nor whether a template owned by a
+reseller could be applied beneath it. Its conditions held absolute times, so a template's expiry
+was an instant that had passed the day after it was written. And §3.2 of `01-model.md` still said
+an issued grant carries no back-reference to its template, the claim finding S34 had replaced with
+provenance in `08-identity.md` a review earlier.
+
+**Resolution.** A pattern is the kind of object a template is applied to and, below an organization
+or a project, a label selector; the control plane evaluates it at issue, holding the template's
+version and the ancestry of the object, and nothing evaluates it after. A template is offered to
+its owner's subtree, its conditions are relative, and its versions are kept whole so provenance
+names what was issued. `01-model.md` §3.2 now copies the one definition. → patched into
+`08-identity.md` §4, `01-model.md` §3.2
 
 † Step 4 is where the trace found Finding 45, and step 5 Finding 46.
 

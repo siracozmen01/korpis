@@ -61,6 +61,7 @@ mod set;
 mod stream;
 mod stream_offloaded;
 mod suspension;
+mod template;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod tenancy;
 mod theme;

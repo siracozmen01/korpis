@@ -189,4 +189,44 @@ impl pb::GrantService for Api {
             ..Default::default()
         })
     }
+
+    async fn create_grant_template(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::CreateGrantTemplateRequest>,
+    ) -> ServiceResult<pb::CreateGrantTemplateResponse> {
+        self.create_template(ctx, request).await
+    }
+
+    async fn update_grant_template(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::UpdateGrantTemplateRequest>,
+    ) -> ServiceResult<pb::UpdateGrantTemplateResponse> {
+        self.update_template(ctx, request).await
+    }
+
+    async fn retire_grant_template(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::RetireGrantTemplateRequest>,
+    ) -> ServiceResult<pb::RetireGrantTemplateResponse> {
+        self.retire_template(ctx, request).await
+    }
+
+    async fn get_grant_template(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetGrantTemplateRequest>,
+    ) -> ServiceResult<pb::GetGrantTemplateResponse> {
+        self.get_template(ctx, request).await
+    }
+
+    async fn list_grant_templates(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ListGrantTemplatesRequest>,
+    ) -> ServiceResult<pb::ListGrantTemplatesResponse> {
+        self.list_templates(ctx, request).await
+    }
 }

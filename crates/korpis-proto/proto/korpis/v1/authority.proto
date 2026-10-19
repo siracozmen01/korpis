@@ -124,31 +124,47 @@ message DelegationPolicy {
   repeated string actions = 3;
 }
 
-// A named, reusable bundle that expands into ordinary grants. A role in the interface, not in
-// the model (§4 of docs/08-identity.md).
+// A named, versioned request for a grant, owned by an organization and offered to its subtree.
+// A role in the interface, not in the model (§4 of docs/08-identity.md): applying one attenuates
+// a grant the issuer holds, and no authorization decision reads it.
 message GrantTemplate {
+  reserved 7;
   string id = 1;
+  // The owner, to whose subtree it is offered.
   string organization = 2;
   string name = 3;
-  // Incremented on every edit. Issued grants carry no back-reference that widens with it.
+  // 1 when made, one more at every edit; each version is kept, and a grant issued from the
+  // template names the version it came from as provenance, which authorization never reads.
   uint64 version = 4;
   repeated string actions = 5;
   ScopePattern scope_pattern = 6;
-  // Defaults, overridable at issue.
-  Conditions conditions = 7;
   // Required: a template must say whether its grants may delegate.
   DelegationPolicy delegation = 8;
+  // Defaults, overridable at issue.
+  TemplateConditions conditions = 9;
+  // Who made this version, and when.
+  Subject updated_by = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  // Set once retired: offered nowhere, kept for provenance.
+  google.protobuf.Timestamp retired_at = 12;
 }
 
+// Where a grant from a template applies, given the object it is applied to.
 message ScopePattern {
-  oneof kind {
-    // The object the template is applied to.
-    bool applied_object = 1;
-    // Any project in the template's organization.
-    bool any_project = 2;
-    // A fixed scope.
-    Scope fixed = 3;
-  }
+  reserved 1, 2, 3;
+  // ORGANIZATION, PROJECT, or WORKLOAD; unspecified for any of the three.
+  ObjectKind kind = 4;
+  // With an organization or a project: the workloads below it carrying these labels.
+  LabelSelector selector = 5;
+}
+
+// A template's default conditions, relative because a template outlives any instant.
+message TemplateConditions {
+  // A grant from it expires this long after it is issued.
+  google.protobuf.Duration lifetime = 1;
+  repeated string source_cidr = 2;
+  bool requires_mfa = 3;
+  optional uint64 max_uses = 4;
 }
 
 // How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).

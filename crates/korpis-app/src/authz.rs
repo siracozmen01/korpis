@@ -14,9 +14,11 @@ mod query;
 mod revocation;
 mod revoke;
 mod snapshot;
+mod template;
 
 pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};
 pub use mint::{MintToken, Minted};
 pub use query::{GrantWithChain, GrantsFilter};
 pub use revoke::Revoked;
 pub(crate) use snapshot::Snapshot;
+pub use template::{TemplateAsked, TemplatesOf};

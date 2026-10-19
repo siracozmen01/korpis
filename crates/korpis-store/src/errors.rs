@@ -20,6 +20,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("node_name_key") => Unique::NodeName,
         Some("account_name_key") => Unique::AccountName,
         Some("passkey_pkey") => Unique::Passkey,
+        Some("grant_template_name") => Unique::TemplateName,
         Some("node_public_key_key") => Unique::NodeKey,
         Some("relay_name_key" | "relay_url_key" | "relay_public_key_key") => Unique::Relay,
         _ => Unique::Other,

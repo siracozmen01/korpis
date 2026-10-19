@@ -446,12 +446,26 @@ holding nothing.
 
 ```
 GrantTemplate
-  name           "Moderator" · "Billing integration" · "Read-only auditor" · "Support, 4 hours"
-  version        int             incremented on every edit
+  id             TemplateID
+  organization   OrgID           the owner; offered to its whole subtree
+  name           string          "Moderator" · "Billing integration" · "Read-only auditor"
+  version        int             1 when made, incremented on every edit; each version kept
   actions        []Action
-  scope_pattern  ScopePattern
-  conditions     Conditions      defaults, overridable at issue
-  delegation     DelegationPolicy   required: a template must say whether its grants may delegate
+  scope_pattern  ScopePattern    where a grant from it applies, given the object it is applied to
+  conditions     TemplateConditions   defaults, overridable at issue
+  delegation     DelegationPolicy     required: a template must say whether its grants may delegate
+  retired_at     Timestamp?      retired templates are offered nowhere and kept for provenance
+
+ScopePattern
+  kind           organization | project | workload | any of the three
+  selector       LabelSelector?  only with organization or project: the workloads below it
+                                 carrying these labels, a selector scope (§3.4)
+
+TemplateConditions
+  lifetime       Duration?       a grant from it expires this long after it is issued
+  source_cidr    []CIDR
+  requires_mfa   bool
+  max_uses       int?
 ```
 
 Applying a template **issues ordinary grants** and then plays no further part in authorization.
@@ -464,6 +478,54 @@ Three properties follow, and the second is the one RBAC cannot offer:
    accidents. A grant records the template and version it came from as provenance, which tooling
    uses to find it and authorization ignores (§3.5).
 3. Authorization code never sees a template. There is exactly one evaluation path (P6).
+
+**Applying a template is attenuating a grant one holds, with the template filling in the
+request.** The issuer names the template, the version they read, the holder, and the object it is
+applied to; the control plane expands the pattern at that object into a scope, takes the actions
+and the delegation policy from the version, takes the conditions from the version unless the issuer
+overrides them, and then runs the ordinary issue of §3.2 against the issuer's own grant. So a
+template grants nobody anything: a template naming `workload.exec` is applied only by someone who
+holds `workload.exec` there with delegation that permits passing it on, and the issue is refused
+otherwise exactly as a hand-written request would be. The version is named so the issuer issues
+what they reviewed; a template edited since is a conflict, not a silent substitution.
+
+**What evaluates the pattern, where, and with what information.** The control plane, at issue,
+holding the template's version and the ancestry of the object it is applied to. The object must lie
+in the owning organization's subtree (the owner included), since a template is offered to that
+subtree and nowhere else; its kind must be the pattern's kind; and a selector makes the scope "the
+workloads below this object carrying these labels", which is why a selector needs an organization
+or a project to look below. Nothing after the issue evaluates the pattern again: the grant holds a
+scope, and the scope is what §3.3 and §3.4 check at every use.
+
+**Its conditions are relative, because a template outlives any instant.** A lifetime rather than an
+expiry, and no `not_before`, `requires_approval_by`, or `stream_range`: those name an instant or an
+object, and the issuer gives them at issue when they apply. An override at issue may loosen a
+template's default as well as tighten it, since the template is a convenience and the issuer's own
+grant is the bound; what an issue may never change is a version's actions, its delegation policy,
+or the shape of its scope, because those are what makes a grant "a Moderator's".
+
+**Who manages and who reads them.** Making, editing, and retiring a template takes
+`template.write` on its organization (§5 of `10-api.md`). That is not an authority from above,
+unlike a quota's, because a template carries no authority to raise: an organization's own
+administrator may define its roles. Reading the templates offered at an object takes reading that
+object, and returns those owned by every organization at or above it, so a reseller's customer
+sees the reseller's templates without being able to read the reseller. A template is retired,
+never deleted, because grants name its versions; a retired one is offered nowhere and cannot be
+applied, and its name is free to reuse.
+
+The cost is that a template is not a role anyone can edit into effect. Changing what every
+Moderator holds is a second issue to each of them, which §3.5 makes findable and an Operation makes
+reviewable, rather than one edit. And the names of a reseller's templates are visible to every
+organization beneath it: a template is meant to be offered, so its name and contents are not
+treated as secret, and a name that should not be seen below is defined lower down.
+
+> As built, 2026-10-19 (P2.3a). The first schema had a `ScopePattern` of three cases, the applied
+> object, "any project in the organization", and a fixed scope, and conditions with absolute
+> times. No case said what evaluated it or with what, and an absolute expiry in a reusable
+> template is wrong the day after it is written. The pattern above subsumes the three cases (the
+> applied object of a kind, a project applied at, an organization applied at) and says what checks
+> it; the conditions became relative. Versions are kept whole so `from_template: id@version` names
+> exactly what was issued.
 
 > Second external review, finding S34. "No back-reference" made the most common operator request,
 > changing what every Moderator can do, impossible even to locate. Provenance makes it locatable

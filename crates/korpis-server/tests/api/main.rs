@@ -115,6 +115,7 @@ mod streams;
 mod support;
 mod suspension;
 mod suspension_stop;
+mod templates;
 mod tenancy;
 mod tenant_keys;
 mod theme;

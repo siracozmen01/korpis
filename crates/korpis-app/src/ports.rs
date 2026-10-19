@@ -45,6 +45,7 @@ mod session;
 mod set;
 mod stream;
 mod subscription;
+mod template;
 mod tenancy;
 mod theme;
 mod trust;
@@ -112,6 +113,7 @@ pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
 pub use stream::{Expired, Reported, StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
+pub use template::{TemplateRead, TemplateWrite};
 pub use tenancy::{TenancyRead, TenancyWrite};
 pub use theme::{SetTheme, ThemeChange, ThemeRead, ThemeWrite};
 pub use trust::{PolicyChange, SetPolicy, TrustRead, TrustWrite};
@@ -159,6 +161,8 @@ pub enum Unique {
     AccountName,
     /// A passkey's credential is registered once.
     Passkey,
+    /// A live grant template's name is unique in its organization.
+    TemplateName,
     /// Any other.
     Other,
 }
@@ -223,6 +227,7 @@ pub trait Store:
     + PruneRead
     + DomainRead
     + CertificateRead
+    + TemplateRead
     + Send
     + Sync
     + 'static
@@ -307,6 +312,7 @@ pub trait Tx:
     + PruneWrite
     + DomainWrite
     + CertificateWrite
+    + TemplateWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

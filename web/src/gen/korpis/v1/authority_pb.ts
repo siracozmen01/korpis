@@ -11,7 +11,7 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Duration, Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { LabelSelector } from "./common_pb";
+import type { LabelSelector, ObjectKind } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
 import type { ExternalIdentity, ExternalSet, Subject } from "./tenancy_pb";
 import { file_korpis_v1_tenancy } from "./tenancy_pb";
@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/authority.proto.
  */
 export const file_korpis_v1_authority: GenFile = /*@__PURE__*/
-  fileDesc("Chlrb3JwaXMvdjEvYXV0aG9yaXR5LnByb3RvEglrb3JwaXMudjEiogQKBUdyYW50EgoKAmlkGAEgASgJEiMKB3N1YmplY3QYAiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIPCgdhY3Rpb25zGAMgAygJEh8KBXNjb3BlGAQgASgLMhAua29ycGlzLnYxLlNjb3BlEikKCmNvbmRpdGlvbnMYBSABKAsyFS5rb3JwaXMudjEuQ29uZGl0aW9ucxITCgZwYXJlbnQYBiABKAlIAIgBARIvCgpkZWxlZ2F0aW9uGAcgASgLMhsua29ycGlzLnYxLkRlbGVnYXRpb25Qb2xpY3kSJQoJaXNzdWVkX2J5GAggASgLMhIua29ycGlzLnYxLlN1YmplY3QSJgoDdmlhGAkgASgLMhkua29ycGlzLnYxLlNldE1lbWJlcklzc3VlEjIKDWZyb21fdGVtcGxhdGUYCiABKAsyFi5rb3JwaXMudjEuVGVtcGxhdGVSZWZIAYgBARItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWxpbmtfZm9ybRgNIAEoCBIkCgVzdGF0ZRgOIAEoDjIVLmtvcnBpcy52MS5HcmFudFN0YXRlEg0KBWxhYmVsGA8gASgJQgkKB19wYXJlbnRCEAoOX2Zyb21fdGVtcGxhdGUiZwoOU2V0TWVtYmVySXNzdWUSKAoDc2V0GAEgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkSKwoGbWVtYmVyGAIgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkiMAoLVGVtcGxhdGVSZWYSEAoIdGVtcGxhdGUYASABKAkSDwoHdmVyc2lvbhgCIAEoBCKDAgoFU2NvcGUSFgoMb3JnYW5pemF0aW9uGAEgASgJSAASEQoHcHJvamVjdBgCIAEoCUgAEhIKCHdvcmtsb2FkGAMgASgJSAASEAoGdm9sdW1lGAQgASgJSAASEgoIZW5kcG9pbnQYBSABKAlIABIQCgZzdHJlYW0YBiABKAlIABIOCgRub2RlGAcgASgJSAASLAoIc2VsZWN0b3IYCCABKAsyGC5rb3JwaXMudjEuU2VsZWN0b3JTY29wZUgAEhQKCnJlcG9zaXRvcnkYCSABKAlIABIQCgZkb21haW4YCiABKAlIABIVCgtjZXJ0aWZpY2F0ZRgLIAEoCUgAQgYKBGtpbmQiXQoNU2VsZWN0b3JTY29wZRIgCgZ3aXRoaW4YASABKAsyEC5rb3JwaXMudjEuU2NvcGUSKgoIc2VsZWN0b3IYAiABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvciKXAgoKQ29uZGl0aW9ucxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpub3RfYmVmb3JlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtzb3VyY2VfY2lkchgDIAMoCRIUCgxyZXF1aXJlc19tZmEYBCABKAgSLgoUcmVxdWlyZXNfYXBwcm92YWxfYnkYBSABKAsyEC5rb3JwaXMudjEuU2NvcGUSFQoIbWF4X3VzZXMYBiABKARIAIgBARIqCgxzdHJlYW1fcmFuZ2UYByABKAsyFC5rb3JwaXMudjEuVGltZVJhbmdlQgsKCV9tYXhfdXNlcyJdCglUaW1lUmFuZ2USKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIloKEERlbGVnYXRpb25Qb2xpY3kSDwoHYWxsb3dlZBgBIAEoCBIWCgltYXhfZGVwdGgYAiABKA1IAIgBARIPCgdhY3Rpb25zGAMgAygJQgwKCl9tYXhfZGVwdGgi7QEKDUdyYW50VGVtcGxhdGUSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoBBIPCgdhY3Rpb25zGAUgAygJEi4KDXNjb3BlX3BhdHRlcm4YBiABKAsyFy5rb3JwaXMudjEuU2NvcGVQYXR0ZXJuEikKCmNvbmRpdGlvbnMYByABKAsyFS5rb3JwaXMudjEuQ29uZGl0aW9ucxIvCgpkZWxlZ2F0aW9uGAggASgLMhsua29ycGlzLnYxLkRlbGVnYXRpb25Qb2xpY3kiagoMU2NvcGVQYXR0ZXJuEhgKDmFwcGxpZWRfb2JqZWN0GAEgASgISAASFQoLYW55X3Byb2plY3QYAiABKAhIABIhCgVmaXhlZBgDIAEoCzIQLmtvcnBpcy52MS5TY29wZUgAQgYKBGtpbmQitQMKD0lkZW50aXR5QmluZGluZxIKCgJpZBgBIAEoCRIQCghwcm92aWRlchgCIAEoCRIsCgdzdWJqZWN0GAMgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkSJAoEa2luZBgEIAEoDjIWLmtvcnBpcy52MS5CaW5kaW5nS2luZBIsCgpjcmVhdGVkX2J5GAUgASgOMhgua29ycGlzLnYxLkJpbmRpbmdPcmlnaW4SLQoIdGVtcGxhdGUYBiABKAsyFi5rb3JwaXMudjEuVGVtcGxhdGVSZWZIAIgBARIyCgtjb25zdHJhaW50cxgHIAEoCzIdLmtvcnBpcy52MS5CaW5kaW5nQ29uc3RyYWludHMSNAoRcmV2ZXJpZnlfaW50ZXJ2YWwYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SJgoFc3RhdGUYCSABKA4yFy5rb3JwaXMudjEuQmluZGluZ1N0YXRlEjQKEGxhc3RfdmVyaWZpZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgsKCV90ZW1wbGF0ZSJyChJCaW5kaW5nQ29uc3RyYWludHMSMgoScmVxdWlyZV9tZW1iZXJzaGlwGAEgAygLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0EigKBWdyYWNlGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uKqkBCgpHcmFudFN0YXRlEhsKF0dSQU5UX1NUQVRFX1VOU1BFQ0lGSUVEEAASFgoSR1JBTlRfU1RBVEVfSVNTVUVEEAESFwoTR1JBTlRfU1RBVEVfRVhQSVJFRBACEhkKFUdSQU5UX1NUQVRFX0VYSEFVU1RFRBADEhcKE0dSQU5UX1NUQVRFX1JFVk9LRUQQBBIZChVHUkFOVF9TVEFURV9TVVNQRU5ERUQQBSpeCgtCaW5kaW5nS2luZBIcChhCSU5ESU5HX0tJTkRfVU5TUEVDSUZJRUQQABIbChdCSU5ESU5HX0tJTkRfSU5ESVZJRFVBTBABEhQKEEJJTkRJTkdfS0lORF9TRVQQAipqCg1CaW5kaW5nT3JpZ2luEh4KGkJJTkRJTkdfT1JJR0lOX1VOU1BFQ0lGSUVEEAASGwoXQklORElOR19PUklHSU5fT1BFUkFUT1IQARIcChhCSU5ESU5HX09SSUdJTl9GSVJTVF9VU0UQAipnCgxCaW5kaW5nU3RhdGUSHQoZQklORElOR19TVEFURV9VTlNQRUNJRklFRBAAEhoKFkJJTkRJTkdfU1RBVEVfVkVSSUZJRUQQARIcChhCSU5ESU5HX1NUQVRFX1VOVkVSSUZJRUQQAmIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
+  fileDesc("Chlrb3JwaXMvdjEvYXV0aG9yaXR5LnByb3RvEglrb3JwaXMudjEiogQKBUdyYW50EgoKAmlkGAEgASgJEiMKB3N1YmplY3QYAiABKAsyEi5rb3JwaXMudjEuU3ViamVjdBIPCgdhY3Rpb25zGAMgAygJEh8KBXNjb3BlGAQgASgLMhAua29ycGlzLnYxLlNjb3BlEikKCmNvbmRpdGlvbnMYBSABKAsyFS5rb3JwaXMudjEuQ29uZGl0aW9ucxITCgZwYXJlbnQYBiABKAlIAIgBARIvCgpkZWxlZ2F0aW9uGAcgASgLMhsua29ycGlzLnYxLkRlbGVnYXRpb25Qb2xpY3kSJQoJaXNzdWVkX2J5GAggASgLMhIua29ycGlzLnYxLlN1YmplY3QSJgoDdmlhGAkgASgLMhkua29ycGlzLnYxLlNldE1lbWJlcklzc3VlEjIKDWZyb21fdGVtcGxhdGUYCiABKAsyFi5rb3JwaXMudjEuVGVtcGxhdGVSZWZIAYgBARItCglpc3N1ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWxpbmtfZm9ybRgNIAEoCBIkCgVzdGF0ZRgOIAEoDjIVLmtvcnBpcy52MS5HcmFudFN0YXRlEg0KBWxhYmVsGA8gASgJQgkKB19wYXJlbnRCEAoOX2Zyb21fdGVtcGxhdGUiZwoOU2V0TWVtYmVySXNzdWUSKAoDc2V0GAEgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkSKwoGbWVtYmVyGAIgASgLMhsua29ycGlzLnYxLkV4dGVybmFsSWRlbnRpdHkiMAoLVGVtcGxhdGVSZWYSEAoIdGVtcGxhdGUYASABKAkSDwoHdmVyc2lvbhgCIAEoBCKDAgoFU2NvcGUSFgoMb3JnYW5pemF0aW9uGAEgASgJSAASEQoHcHJvamVjdBgCIAEoCUgAEhIKCHdvcmtsb2FkGAMgASgJSAASEAoGdm9sdW1lGAQgASgJSAASEgoIZW5kcG9pbnQYBSABKAlIABIQCgZzdHJlYW0YBiABKAlIABIOCgRub2RlGAcgASgJSAASLAoIc2VsZWN0b3IYCCABKAsyGC5rb3JwaXMudjEuU2VsZWN0b3JTY29wZUgAEhQKCnJlcG9zaXRvcnkYCSABKAlIABIQCgZkb21haW4YCiABKAlIABIVCgtjZXJ0aWZpY2F0ZRgLIAEoCUgAQgYKBGtpbmQiXQoNU2VsZWN0b3JTY29wZRIgCgZ3aXRoaW4YASABKAsyEC5rb3JwaXMudjEuU2NvcGUSKgoIc2VsZWN0b3IYAiABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvciKXAgoKQ29uZGl0aW9ucxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpub3RfYmVmb3JlGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtzb3VyY2VfY2lkchgDIAMoCRIUCgxyZXF1aXJlc19tZmEYBCABKAgSLgoUcmVxdWlyZXNfYXBwcm92YWxfYnkYBSABKAsyEC5rb3JwaXMudjEuU2NvcGUSFQoIbWF4X3VzZXMYBiABKARIAIgBARIqCgxzdHJlYW1fcmFuZ2UYByABKAsyFC5rb3JwaXMudjEuVGltZVJhbmdlQgsKCV9tYXhfdXNlcyJdCglUaW1lUmFuZ2USKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIloKEERlbGVnYXRpb25Qb2xpY3kSDwoHYWxsb3dlZBgBIAEoCBIWCgltYXhfZGVwdGgYAiABKA1IAIgBARIPCgdhY3Rpb25zGAMgAygJQgwKCl9tYXhfZGVwdGgigwMKDUdyYW50VGVtcGxhdGUSCgoCaWQYASABKAkSFAoMb3JnYW5pemF0aW9uGAIgASgJEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoBBIPCgdhY3Rpb25zGAUgAygJEi4KDXNjb3BlX3BhdHRlcm4YBiABKAsyFy5rb3JwaXMudjEuU2NvcGVQYXR0ZXJuEi8KCmRlbGVnYXRpb24YCCABKAsyGy5rb3JwaXMudjEuRGVsZWdhdGlvblBvbGljeRIxCgpjb25kaXRpb25zGAkgASgLMh0ua29ycGlzLnYxLlRlbXBsYXRlQ29uZGl0aW9ucxImCgp1cGRhdGVkX2J5GAogASgLMhIua29ycGlzLnYxLlN1YmplY3QSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKcmV0aXJlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBKBAgHEAgicQoMU2NvcGVQYXR0ZXJuEiMKBGtpbmQYBCABKA4yFS5rb3JwaXMudjEuT2JqZWN0S2luZBIqCghzZWxlY3RvchgFIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9ySgQIARACSgQIAhADSgQIAxAEIpABChJUZW1wbGF0ZUNvbmRpdGlvbnMSKwoIbGlmZXRpbWUYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLc291cmNlX2NpZHIYAiADKAkSFAoMcmVxdWlyZXNfbWZhGAMgASgIEhUKCG1heF91c2VzGAQgASgESACIAQFCCwoJX21heF91c2VzIrUDCg9JZGVudGl0eUJpbmRpbmcSCgoCaWQYASABKAkSEAoIcHJvdmlkZXIYAiABKAkSLAoHc3ViamVjdBgDIAEoCzIbLmtvcnBpcy52MS5FeHRlcm5hbElkZW50aXR5EiQKBGtpbmQYBCABKA4yFi5rb3JwaXMudjEuQmluZGluZ0tpbmQSLAoKY3JlYXRlZF9ieRgFIAEoDjIYLmtvcnBpcy52MS5CaW5kaW5nT3JpZ2luEi0KCHRlbXBsYXRlGAYgASgLMhYua29ycGlzLnYxLlRlbXBsYXRlUmVmSACIAQESMgoLY29uc3RyYWludHMYByABKAsyHS5rb3JwaXMudjEuQmluZGluZ0NvbnN0cmFpbnRzEjQKEXJldmVyaWZ5X2ludGVydmFsGAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiYKBXN0YXRlGAkgASgOMhcua29ycGlzLnYxLkJpbmRpbmdTdGF0ZRI0ChBsYXN0X3ZlcmlmaWVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEILCglfdGVtcGxhdGUicgoSQmluZGluZ0NvbnN0cmFpbnRzEjIKEnJlcXVpcmVfbWVtYmVyc2hpcBgBIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIoCgVncmFjZRgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiqpAQoKR3JhbnRTdGF0ZRIbChdHUkFOVF9TVEFURV9VTlNQRUNJRklFRBAAEhYKEkdSQU5UX1NUQVRFX0lTU1VFRBABEhcKE0dSQU5UX1NUQVRFX0VYUElSRUQQAhIZChVHUkFOVF9TVEFURV9FWEhBVVNURUQQAxIXChNHUkFOVF9TVEFURV9SRVZPS0VEEAQSGQoVR1JBTlRfU1RBVEVfU1VTUEVOREVEEAUqXgoLQmluZGluZ0tpbmQSHAoYQklORElOR19LSU5EX1VOU1BFQ0lGSUVEEAASGwoXQklORElOR19LSU5EX0lORElWSURVQUwQARIUChBCSU5ESU5HX0tJTkRfU0VUEAIqagoNQmluZGluZ09yaWdpbhIeChpCSU5ESU5HX09SSUdJTl9VTlNQRUNJRklFRBAAEhsKF0JJTkRJTkdfT1JJR0lOX09QRVJBVE9SEAESHAoYQklORElOR19PUklHSU5fRklSU1RfVVNFEAIqZwoMQmluZGluZ1N0YXRlEh0KGUJJTkRJTkdfU1RBVEVfVU5TUEVDSUZJRUQQABIaChZCSU5ESU5HX1NUQVRFX1ZFUklGSUVEEAESHAoYQklORElOR19TVEFURV9VTlZFUklGSUVEEAJiBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_tenancy]);
 
 /**
  * The only authority primitive. A grant can never exceed its parent (§3.2 of
@@ -409,8 +409,9 @@ export const DelegationPolicySchema: GenMessage<DelegationPolicy> = /*@__PURE__*
   messageDesc(file_korpis_v1_authority, 7);
 
 /**
- * A named, reusable bundle that expands into ordinary grants. A role in the interface, not in
- * the model (§4 of docs/08-identity.md).
+ * A named, versioned request for a grant, owned by an organization and offered to its subtree.
+ * A role in the interface, not in the model (§4 of docs/08-identity.md): applying one attenuates
+ * a grant the issuer holds, and no authorization decision reads it.
  *
  * @generated from message korpis.v1.GrantTemplate
  */
@@ -421,6 +422,8 @@ export type GrantTemplate = Message<"korpis.v1.GrantTemplate"> & {
   id: string;
 
   /**
+   * The owner, to whose subtree it is offered.
+   *
    * @generated from field: string organization = 2;
    */
   organization: string;
@@ -431,7 +434,8 @@ export type GrantTemplate = Message<"korpis.v1.GrantTemplate"> & {
   name: string;
 
   /**
-   * Incremented on every edit. Issued grants carry no back-reference that widens with it.
+   * 1 when made, one more at every edit; each version is kept, and a grant issued from the
+   * template names the version it came from as provenance, which authorization never reads.
    *
    * @generated from field: uint64 version = 4;
    */
@@ -448,18 +452,37 @@ export type GrantTemplate = Message<"korpis.v1.GrantTemplate"> & {
   scopePattern?: ScopePattern | undefined;
 
   /**
-   * Defaults, overridable at issue.
-   *
-   * @generated from field: korpis.v1.Conditions conditions = 7;
-   */
-  conditions?: Conditions | undefined;
-
-  /**
    * Required: a template must say whether its grants may delegate.
    *
    * @generated from field: korpis.v1.DelegationPolicy delegation = 8;
    */
   delegation?: DelegationPolicy | undefined;
+
+  /**
+   * Defaults, overridable at issue.
+   *
+   * @generated from field: korpis.v1.TemplateConditions conditions = 9;
+   */
+  conditions?: TemplateConditions | undefined;
+
+  /**
+   * Who made this version, and when.
+   *
+   * @generated from field: korpis.v1.Subject updated_by = 10;
+   */
+  updatedBy?: Subject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 11;
+   */
+  updatedAt?: Timestamp | undefined;
+
+  /**
+   * Set once retired: offered nowhere, kept for provenance.
+   *
+   * @generated from field: google.protobuf.Timestamp retired_at = 12;
+   */
+  retiredAt?: Timestamp | undefined;
 };
 
 /**
@@ -470,37 +493,24 @@ export const GrantTemplateSchema: GenMessage<GrantTemplate> = /*@__PURE__*/
   messageDesc(file_korpis_v1_authority, 8);
 
 /**
+ * Where a grant from a template applies, given the object it is applied to.
+ *
  * @generated from message korpis.v1.ScopePattern
  */
 export type ScopePattern = Message<"korpis.v1.ScopePattern"> & {
   /**
-   * @generated from oneof korpis.v1.ScopePattern.kind
+   * ORGANIZATION, PROJECT, or WORKLOAD; unspecified for any of the three.
+   *
+   * @generated from field: korpis.v1.ObjectKind kind = 4;
    */
-  kind: {
-    /**
-     * The object the template is applied to.
-     *
-     * @generated from field: bool applied_object = 1;
-     */
-    value: boolean;
-    case: "appliedObject";
-  } | {
-    /**
-     * Any project in the template's organization.
-     *
-     * @generated from field: bool any_project = 2;
-     */
-    value: boolean;
-    case: "anyProject";
-  } | {
-    /**
-     * A fixed scope.
-     *
-     * @generated from field: korpis.v1.Scope fixed = 3;
-     */
-    value: Scope;
-    case: "fixed";
-  } | { case: undefined; value?: undefined };
+  kind: ObjectKind;
+
+  /**
+   * With an organization or a project: the workloads below it carrying these labels.
+   *
+   * @generated from field: korpis.v1.LabelSelector selector = 5;
+   */
+  selector?: LabelSelector | undefined;
 };
 
 /**
@@ -509,6 +519,42 @@ export type ScopePattern = Message<"korpis.v1.ScopePattern"> & {
  */
 export const ScopePatternSchema: GenMessage<ScopePattern> = /*@__PURE__*/
   messageDesc(file_korpis_v1_authority, 9);
+
+/**
+ * A template's default conditions, relative because a template outlives any instant.
+ *
+ * @generated from message korpis.v1.TemplateConditions
+ */
+export type TemplateConditions = Message<"korpis.v1.TemplateConditions"> & {
+  /**
+   * A grant from it expires this long after it is issued.
+   *
+   * @generated from field: google.protobuf.Duration lifetime = 1;
+   */
+  lifetime?: Duration | undefined;
+
+  /**
+   * @generated from field: repeated string source_cidr = 2;
+   */
+  sourceCidr: string[];
+
+  /**
+   * @generated from field: bool requires_mfa = 3;
+   */
+  requiresMfa: boolean;
+
+  /**
+   * @generated from field: optional uint64 max_uses = 4;
+   */
+  maxUses?: bigint | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.TemplateConditions.
+ * Use `create(TemplateConditionsSchema)` to create a new message.
+ */
+export const TemplateConditionsSchema: GenMessage<TemplateConditions> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_authority, 10);
 
 /**
  * How an external identity maps to a subject (§5 of docs/08-identity.md, the one definition).
@@ -576,7 +622,7 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
  * Use `create(IdentityBindingSchema)` to create a new message.
  */
 export const IdentityBindingSchema: GenMessage<IdentityBinding> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_authority, 10);
+  messageDesc(file_korpis_v1_authority, 11);
 
 /**
  * @generated from message korpis.v1.BindingConstraints
@@ -603,7 +649,7 @@ export type BindingConstraints = Message<"korpis.v1.BindingConstraints"> & {
  * Use `create(BindingConstraintsSchema)` to create a new message.
  */
 export const BindingConstraintsSchema: GenMessage<BindingConstraints> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_authority, 11);
+  messageDesc(file_korpis_v1_authority, 12);
 
 /**
  * @generated from enum korpis.v1.GrantState

@@ -236,3 +236,34 @@ async fn a_cancelled_plan_finishes_the_step_in_flight_and_begins_no_other() {
     assert_eq!(now.completed, Some(create), "the step in flight counts");
     drop(agent);
 }
+
+/// A driver that cannot say what it holds when the agent starts, as a containerd too busy to
+/// answer within its deadline: the agent reconciles nothing until it can, so it starts no second
+/// copy of what runs, and once the driver answers it adopts the object it had and touches it no
+/// more (§4.4 of docs/02-architecture.md).
+#[tokio::test]
+async fn an_agent_whose_driver_cannot_enumerate_waits_and_then_adopts() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    let (state, orphan) = node(&cp, &dir, &runtime).await;
+    let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
+    let w = cp.declare(&project, "mc").await;
+    converges(&cp, &w, &runtime, &orphan).await;
+    agent.stop().await;
+
+    runtime.fail("recover", true);
+    let before = runtime.calls().len();
+    let agent = start(&state, &runtime, &host, Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let tried: Vec<String> = runtime.calls().split_off(before);
+    assert!(tried.len() >= 2, "it asked again: {tried:?}");
+    assert!(tried.iter().all(|c| c == "recover "), "and did nothing else: {tried:?}");
+    assert_eq!(runtime.objects().len(), 2, "no second copy beside the one that runs");
+
+    runtime.fail("recover", false);
+    let before = runtime.calls().len();
+    adopted(&cp, &w, &runtime, before).await;
+    drop(agent);
+}

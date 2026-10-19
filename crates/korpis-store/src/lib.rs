@@ -51,6 +51,7 @@ mod snapshot;
 mod stored;
 mod stream;
 mod subscription;
+mod template;
 mod tenancy;
 #[cfg(feature = "testing")]
 pub mod testing;

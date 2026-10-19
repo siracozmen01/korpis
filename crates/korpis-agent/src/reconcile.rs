@@ -48,6 +48,13 @@ use std::time::{Duration, Instant, SystemTime};
 use streams::Streams;
 use tokio::sync::{broadcast, mpsc, watch};
 
+/// How long a failed enumeration of the driver's objects waits before the first retry; each
+/// retry waits twice as long, up to [`RECOVER_LONGEST_WAIT`].
+const RECOVER_FIRST_WAIT: Duration = Duration::from_millis(500);
+
+/// The longest wait between enumerations of a driver that keeps failing.
+const RECOVER_LONGEST_WAIT: Duration = Duration::from_secs(15);
+
 /// What the reconciler knows of one workload's runtime object, and of what it did to it.
 #[derive(Debug, Clone, Default)]
 struct Tracked {
@@ -197,7 +204,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
 
     /// Adopts every object the driver created, then reconciles until the session ends.
     pub async fn run(mut self) {
-        self.adopt().await;
+        let Some(objects) = self.recovered().await else { return };
+        self.adopt(objects).await;
         let mut tick = tokio::time::interval(self.wiring.period);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let mut reports = Some(self.runtime.changes());
@@ -232,16 +240,32 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
     }
 
+    /// Every runtime object the driver created, enumerated as often as it takes: nothing is
+    /// reconciled before adoption, because acting without knowing what exists would start a
+    /// second copy of what already runs (§4.4 of docs/02-architecture.md). `None` once the
+    /// session has ended.
+    async fn recovered(&mut self) -> Option<Vec<driver::RuntimeObject>> {
+        let mut wait = RECOVER_FIRST_WAIT;
+        loop {
+            match self.runtime.recover().await {
+                Ok(objects) => return Some(objects),
+                Err(e) => tracing::error!(
+                    error = %e,
+                    retry_in = ?wait,
+                    "the driver could not enumerate its objects; nothing is reconciled until it can"
+                ),
+            }
+            tokio::select! {
+                () = tokio::time::sleep(wait) => {}
+                e = self.wiring.events.recv() => if !self.heard(&e) { return None },
+            }
+            wait = (wait * 2).min(RECOVER_LONGEST_WAIT);
+        }
+    }
+
     /// Takes over every runtime object the driver created, touching none (§4.4 of
     /// docs/02-architecture.md); what no assignment claims is an orphan.
-    async fn adopt(&mut self) {
-        let objects = match self.runtime.recover().await {
-            Ok(o) => o,
-            Err(e) => {
-                tracing::error!(error = %e, "the driver could not enumerate its objects");
-                return;
-            }
-        };
+    async fn adopt(&mut self, objects: Vec<driver::RuntimeObject>) {
         let held = self.wiring.held.borrow().clone();
         for o in objects {
             let workload = o.labels.as_option().map(|l| l.workload.clone()).unwrap_or_default();

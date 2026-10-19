@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE grant_template SET retired_at = $2 WHERE id = $1 AND retired_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a9c74bea6b938bc9dda16fde231b12ea0f599a80a8cfb883a516a2956de31f50"
+}

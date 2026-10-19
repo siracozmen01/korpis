@@ -160,3 +160,30 @@ pub fn object_kind_to_pb(k: Kind) -> pb::ObjectKind {
         Kind::Certificate => pb::ObjectKind::OBJECT_KIND_CERTIFICATE,
     }
 }
+
+/// An object kind from the field `field`.
+pub fn object_kind_from_pb(
+    field: &str,
+    k: buffa::EnumValue<pb::ObjectKind>,
+) -> Result<Kind, crate::WireError> {
+    use pb::ObjectKind as K;
+    Ok(match k.as_known() {
+        Some(K::OBJECT_KIND_ORGANIZATION) => Kind::Organization,
+        Some(K::OBJECT_KIND_PROJECT) => Kind::Project,
+        Some(K::OBJECT_KIND_WORKLOAD) => Kind::Workload,
+        Some(K::OBJECT_KIND_VOLUME) => Kind::Volume,
+        Some(K::OBJECT_KIND_ENDPOINT) => Kind::Endpoint,
+        Some(K::OBJECT_KIND_STREAM) => Kind::Stream,
+        Some(K::OBJECT_KIND_NODE) => Kind::Node,
+        Some(K::OBJECT_KIND_REPOSITORY) => Kind::Repository,
+        Some(K::OBJECT_KIND_DOMAIN) => Kind::Domain,
+        Some(K::OBJECT_KIND_CERTIFICATE) => Kind::Certificate,
+        _ => return Err(invalid(field, "expected an object kind")),
+    })
+}
+
+/// An object from the field `field`, its identifier of its kind.
+pub fn object_ref_from_pb(field: &str, o: &pb::ObjectRef) -> Result<ObjectRef, crate::WireError> {
+    let kind = object_kind_from_pb(&format!("{field}.kind"), o.kind)?;
+    Ok(ObjectRef::new(kind, crate::id(crate::id_kind(kind), &format!("{field}.id"), &o.id)?))
+}

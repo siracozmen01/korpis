@@ -188,6 +188,7 @@ domain.read · domain.write · domain.attest           names an org holds (07-ne
 certificate.read · certificate.write                 TLS certificates an organization uploads
 stream.share
 grant.read · grant.revoke
+template.write                                       make, edit, retire an org's grant templates
 org.read · org.create · org.write · org.suspend · org.resume · org.quota.write
 project.read · project.create · project.write · project.delete
 node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place · node.remove
@@ -209,6 +210,11 @@ ext.<extension>.<action>              extensions define their own, namespaced
   cannot lift its own suspension or raise its own quota. A project's quota, a sub-limit within its
   organization's, is set under `org.quota.write` over the organization (§5.1 of
   `05-scheduling.md`, §2.1 of `08-identity.md`).
+- **`template.write` is a new action implied by nothing.** Added 2026-10-19, when grant templates
+  were built (§4 of `08-identity.md`). It makes, edits, and retires the templates an organization
+  owns, held on that organization. It is not an authority from above, unlike `org.quota.write`,
+  because a template grants nothing: applying one is attenuating a grant the issuer already
+  holds. Reading the templates offered at an object takes reading the object.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

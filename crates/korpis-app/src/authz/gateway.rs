@@ -304,7 +304,7 @@ pub(crate) fn core_action(name: &str) -> Result<Action, AppError> {
 }
 
 /// The action namespace whose `.read` gates visibility of an object of `kind`.
-fn read_namespace(kind: Kind) -> &'static str {
+pub(crate) fn read_namespace(kind: Kind) -> &'static str {
     match kind {
         Kind::Organization => "org",
         Kind::Project => "project",

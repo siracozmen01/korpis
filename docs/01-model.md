@@ -298,12 +298,18 @@ The operation RBAC cannot express, which this makes trivial:
 ```
 GrantTemplate
   id            TemplateID
-  org           OrgID
+  organization  OrgID           the owner; offered to its whole subtree
   name          string          "Moderator", "Billing integration", "Read-only auditor"
+  version       int             incremented on every edit; each version kept
   actions       []Action
-  scope_pattern ScopePattern    e.g. "any project in this org", "the workload it is applied to"
-  conditions    Conditions      defaults, overridable at issue time
+  scope_pattern ScopePattern    the kind it is applied to, and optionally a label selector below
+  conditions    TemplateConditions   relative defaults, overridable at issue time
+  delegation    DelegationPolicy     required
+  retired_at    Timestamp?
 ```
+
+§4 of `08-identity.md` is the one definition and this is a copy of it, kept so the catalogue is
+complete.
 
 The `Grant`-only model in §3.2 is correct and it is unusable on its own. Nobody wants to assemble
 an action list by hand every time someone joins a moderation team, and the first thing every
@@ -313,9 +319,12 @@ A template answers that without reintroducing roles. Applying a template **issue
 and then disappears from the picture:
 
 - The issued grants are normal grants. They attenuate, expire, revoke, and audit like any other.
-- They carry no back-reference to the template. Editing a template later does not silently widen
-  authority that has already been handed out, a property RBAC does not have, and the source of a
-  whole class of production accidents.
+- They carry the template and version they came from as provenance, which authorization never
+  reads. Editing a template later does not silently widen authority that has already been handed
+  out, a property RBAC does not have, and the source of a whole class of production accidents.
+  Corrected 2026-10-19: this said they carry no back-reference, which finding S34 of the second
+  external review had already replaced in §3.5 and §4 of `08-identity.md`; the catalogue was left
+  saying the opposite.
 - Authorization code never sees a template. It sees grants. There is exactly one authorization path
   (P6).
 

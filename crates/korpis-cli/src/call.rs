@@ -153,6 +153,16 @@ table! {
     "korpis.v1.GrantService/ListGrants" => GrantServiceClient::list_grants(ListGrantsRequest);
     "korpis.v1.GrantService/RevokeGrant" => GrantServiceClient::revoke_grant(RevokeGrantRequest);
     "korpis.v1.GrantService/MintToken" => GrantServiceClient::mint_token(MintTokenRequest);
+    "korpis.v1.GrantService/CreateGrantTemplate" =>
+        GrantServiceClient::create_grant_template(CreateGrantTemplateRequest);
+    "korpis.v1.GrantService/UpdateGrantTemplate" =>
+        GrantServiceClient::update_grant_template(UpdateGrantTemplateRequest);
+    "korpis.v1.GrantService/RetireGrantTemplate" =>
+        GrantServiceClient::retire_grant_template(RetireGrantTemplateRequest);
+    "korpis.v1.GrantService/GetGrantTemplate" =>
+        GrantServiceClient::get_grant_template(GetGrantTemplateRequest);
+    "korpis.v1.GrantService/ListGrantTemplates" =>
+        GrantServiceClient::list_grant_templates(ListGrantTemplatesRequest);
     "korpis.v1.StreamService/GetStream" => StreamServiceClient::get_stream(GetStreamRequest);
     "korpis.v1.StreamService/ReadOffloaded" => StreamServiceClient::read_offloaded(ReadOffloadedRequest) stream ConsoleChunk;
     "korpis.v1.RelayService/Watch" => RelayServiceClient::watch(RelayOpen) stream RelayResponse;

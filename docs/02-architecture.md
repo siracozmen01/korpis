@@ -464,6 +464,15 @@ workload running is visible in the effect log rather than inferred from the abse
 restart. Each orphan is a `node.orphan` effect naming the runtime object and the workload its
 label claims, reported once per agent start. A second object labelled with a workload that
 already has one is an orphan too: the agent keeps supervising the first and touches neither.
+
+**Adoption comes first, however long the driver takes to answer.** Corrected 2026-10-19 (Finding
+109 of `23-walkthroughs.md`). An agent whose driver cannot enumerate its objects at start, a
+containerd too loaded to answer within its deadline, reconciles nothing until the driver can: it
+asks again after half a second, then twice as long each time up to fifteen seconds, and acts on no
+assignment meanwhile. The first build logged the failure and went on reconciling with nothing
+adopted, so each workload already running was prepared and created a second time beside itself.
+The cost is that a node whose driver stays unable to answer runs what it ran, unsupervised and
+unreported, until it answers; its lease expiring is what tells the control plane (§4.5).
 Effects a node originates are named in two namespaces, `step.<action>` for a plan step's
 completion and `node.<event>` for what the node did on its own (`node.adopt`, `node.restart`,
 `node.superseded`, `node.orphan`), so that none can be mistaken for the control plane's own

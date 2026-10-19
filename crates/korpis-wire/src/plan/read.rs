@@ -7,7 +7,6 @@
 use crate::spec::endpoints::exposure_from_pb;
 use crate::value::map_from_pb;
 use crate::{Result, duration_from, id, id_kind, invalid, principal, scope, time};
-use korpis_core::authz::Kind;
 use korpis_core::id::IdKind;
 use korpis_core::object::ObjectRef;
 use korpis_core::workload::endpoint::{ExposureImpact, Survival};
@@ -44,23 +43,6 @@ enum_map!(executor_to_pb, executor_from_pb, StepExecutor, pb::StepExecutor, "a s
     StepExecutor::Extension => pb::StepExecutor::STEP_EXECUTOR_EXTENSION,
 });
 
-fn kind_from_pb(field: &str, k: buffa::EnumValue<pb::ObjectKind>) -> Result<Kind> {
-    use pb::ObjectKind as K;
-    Ok(match k.as_known() {
-        Some(K::OBJECT_KIND_ORGANIZATION) => Kind::Organization,
-        Some(K::OBJECT_KIND_PROJECT) => Kind::Project,
-        Some(K::OBJECT_KIND_WORKLOAD) => Kind::Workload,
-        Some(K::OBJECT_KIND_VOLUME) => Kind::Volume,
-        Some(K::OBJECT_KIND_ENDPOINT) => Kind::Endpoint,
-        Some(K::OBJECT_KIND_STREAM) => Kind::Stream,
-        Some(K::OBJECT_KIND_NODE) => Kind::Node,
-        Some(K::OBJECT_KIND_REPOSITORY) => Kind::Repository,
-        Some(K::OBJECT_KIND_DOMAIN) => Kind::Domain,
-        Some(K::OBJECT_KIND_CERTIFICATE) => Kind::Certificate,
-        _ => return Err(invalid(field, "expected an object kind")),
-    })
-}
-
 enum_map!(survival_to_pb, survival_from_pb, Survival, pb::ExposureSurvival, "a survival", {
     Survival::NoMove => pb::ExposureSurvival::EXPOSURE_SURVIVAL_NO_MOVE,
     Survival::WhileItsNodeExists => pb::ExposureSurvival::EXPOSURE_SURVIVAL_WHILE_ITS_NODE_EXISTS,
@@ -72,7 +54,7 @@ enum_map!(survival_to_pb, survival_from_pb, Survival, pb::ExposureSurvival, "a s
 pub fn step_from_pb(field: &str, s: &pb::Step) -> Result<Step> {
     let f = |name: &str| format!("{field}.{name}");
     let target = s.target.as_option().ok_or_else(|| invalid(&f("target"), "required"))?;
-    let kind = kind_from_pb(&f("target.kind"), target.kind)?;
+    let kind = crate::scope::object_kind_from_pb(&f("target.kind"), target.kind)?;
     Ok(Step {
         index: s.index,
         action: StepAction::parse(&s.action)

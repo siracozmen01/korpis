@@ -1386,6 +1386,22 @@ service GrantService {
   rpc RevokeGrant(RevokeGrantRequest) returns (RevokeGrantResponse);
   // A capability token for a grant the caller holds, attenuated to what the call needs.
   rpc MintToken(MintTokenRequest) returns (MintTokenResponse);
+  // template.write on its organization (§4 of docs/08-identity.md).
+  rpc CreateGrantTemplate(CreateGrantTemplateRequest) returns (CreateGrantTemplateResponse);
+  // template.write on its organization, against the version read: a new version.
+  rpc UpdateGrantTemplate(UpdateGrantTemplateRequest) returns (UpdateGrantTemplateResponse);
+  // template.write on its organization: offered nowhere since, kept for provenance.
+  rpc RetireGrantTemplate(RetireGrantTemplateRequest) returns (RetireGrantTemplateResponse);
+  // A template, or one of its versions: org.read on its owner, or, with `at`, reading an object
+  // it is offered at.
+  rpc GetGrantTemplate(GetGrantTemplateRequest) returns (GetGrantTemplateResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // The templates offered at an object, owned by it or any organization above it: reading the
+  // object. With `owned`, the templates of one organization, retired ones too: org.read on it.
+  rpc ListGrantTemplates(ListGrantTemplatesRequest) returns (ListGrantTemplatesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message IssueGrantRequest {
@@ -1487,4 +1503,71 @@ message MintTokenResponse {
   // so the holder cannot read it. Passed to RelayService.Open as it is (§3.1 of
   // docs/02-architecture.md).
   string route = 3;
+}
+
+// What a template asks for; every field of a version but its identity and history.
+message GrantTemplateBody {
+  string name = 1;
+  repeated string actions = 2;
+  ScopePattern scope_pattern = 3;
+  // Required.
+  DelegationPolicy delegation = 4;
+  TemplateConditions conditions = 5;
+}
+
+message CreateGrantTemplateRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  GrantTemplateBody template = 3;
+}
+
+message CreateGrantTemplateResponse {
+  GrantTemplate template = 1;
+}
+
+message UpdateGrantTemplateRequest {
+  // `expected_version` is required: the version the edit was made against.
+  Mutation mutation = 1;
+  string id = 2;
+  GrantTemplateBody template = 3;
+}
+
+message UpdateGrantTemplateResponse {
+  GrantTemplate template = 1;
+}
+
+message RetireGrantTemplateRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message RetireGrantTemplateResponse {
+  GrantTemplate template = 1;
+}
+
+message GetGrantTemplateRequest {
+  string id = 1;
+  // A version it had; the current one when absent.
+  optional uint64 version = 2;
+  // An object it is offered at, which the caller may read.
+  ObjectRef at = 3;
+}
+
+message GetGrantTemplateResponse {
+  GrantTemplate template = 1;
+}
+
+message ListGrantTemplatesRequest {
+  oneof of {
+    // The live templates offered at this object.
+    ObjectRef at = 1;
+    // The templates this organization owns, retired ones included.
+    string owned = 2;
+  }
+  PageRequest page = 3;
+}
+
+message ListGrantTemplatesResponse {
+  repeated GrantTemplate templates = 1;
+  PageResponse page = 2;
 }

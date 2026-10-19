@@ -20,4 +20,5 @@ mod issuing;
 mod private;
 mod support;
 mod suspension;
+mod templates;
 mod tokens;

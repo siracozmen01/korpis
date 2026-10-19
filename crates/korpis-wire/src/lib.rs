@@ -61,6 +61,7 @@ pub mod scope;
 pub mod spec;
 pub mod step;
 pub mod stream;
+pub mod template;
 pub mod tenancy;
 pub mod value;
 pub mod volume;

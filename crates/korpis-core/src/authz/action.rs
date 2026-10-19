@@ -54,6 +54,7 @@ pub const CORE: &[&str] = &[
     "stream.share",
     "grant.read",
     "grant.revoke",
+    "template.write",
     "org.read",
     "org.create",
     "org.write",

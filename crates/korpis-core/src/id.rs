@@ -69,6 +69,8 @@ pub enum IdKind {
     Session,
     /// A run of a task or scheduled workload (`run_`).
     Run,
+    /// A grant template (`tpl_`).
+    Template,
 }
 
 impl IdKind {
@@ -104,6 +106,7 @@ impl IdKind {
             Self::Certificate => "crt",
             Self::Session => "ses",
             Self::Run => "run",
+            Self::Template => "tpl",
         }
     }
 }
