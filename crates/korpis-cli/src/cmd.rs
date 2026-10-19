@@ -28,6 +28,7 @@ pub mod sets;
 pub mod share;
 pub mod stream;
 pub mod stream_share;
+pub mod template;
 pub mod tenancy;
 pub mod theme;
 pub mod upgrade;
@@ -259,8 +260,17 @@ pub enum GrantAction {
 #[derive(Debug, Clone, clap::Args)]
 pub struct Issue {
     /// What it permits, comma-separated, e.g. `workload.read,workload.write`.
-    #[arg(long, value_delimiter = ',', required = true)]
+    #[arg(long, value_delimiter = ',', required_unless_present = "template")]
     pub actions: Vec<String>,
+    /// Issues from a grant template, `tpl_…` or a name offered at `--scope`, which says the
+    /// actions and the delegation and is applied at the object `--scope` names (§4 of
+    /// docs/08-identity.md); `--expires`, `--source-cidr`, and `--requires-approval-by` then
+    /// replace its defaults.
+    #[arg(long, conflicts_with_all = ["actions", "delegate", "select"])]
+    pub template: Option<String>,
+    /// The template's version to issue; the one it has now by default.
+    #[arg(long = "template-version", requires = "template")]
+    pub template_version: Option<u64>,
     /// Where: `org:`, `project:`, `workload:`, or `node:` followed by a name or identifier, or
     /// `volume:`, `endpoint:`, or `stream:` followed by an identifier.
     #[arg(add = ArgValueCompleter::new(complete::scopes))]

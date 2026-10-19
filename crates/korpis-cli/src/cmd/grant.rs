@@ -87,7 +87,7 @@ fn subject(text: &str) -> Result<pb::Subject, CliError> {
 }
 
 /// A subject as a person reads it.
-fn who(s: Option<&pb::Subject>) -> String {
+pub(super) fn who(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
         Some(S::Link(grant)) => format!("link {grant}"),
@@ -105,7 +105,7 @@ fn who(s: Option<&pb::Subject>) -> String {
 }
 
 /// A scope as a person reads it.
-fn place(s: Option<&pb::Scope>) -> String {
+pub(super) fn place(s: Option<&pb::Scope>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(
             scope::Kind::Organization(id)
@@ -172,6 +172,12 @@ async fn issue_request(c: &Connection, i: &Issue) -> Result<pb::IssueGrantReques
         requires_approval_by: requires_approval_by.into(),
         ..Default::default()
     };
+    if let Some(named) = &i.template {
+        let given =
+            i.expires.is_some() || !i.source_cidr.is_empty() || i.requires_approval_by.is_some();
+        let scope = object_scope(c, &i.scope).await?;
+        return from_template(c, i, (named, scope), given.then_some(conditions)).await;
+    }
     let delegation = pb::DelegationPolicy {
         allowed: !i.delegate.is_empty(),
         max_depth: (!i.delegate.is_empty()).then_some(i.depth),
@@ -188,6 +194,44 @@ async fn issue_request(c: &Connection, i: &Issue) -> Result<pb::IssueGrantReques
         delegation: delegation.into(),
         label: i.label.clone(),
         to_new_token: i.to.is_none(),
+        ..Default::default()
+    })
+}
+
+/// The object a scope names, as a template is applied at it.
+fn applied_at(scope: &pb::Scope) -> Result<pb::ObjectRef, CliError> {
+    let (kind, id) = match scope.kind.as_ref() {
+        Some(scope::Kind::Organization(id)) => (pb::ObjectKind::OBJECT_KIND_ORGANIZATION, id),
+        Some(scope::Kind::Project(id)) => (pb::ObjectKind::OBJECT_KIND_PROJECT, id),
+        Some(scope::Kind::Workload(id)) => (pb::ObjectKind::OBJECT_KIND_WORKLOAD, id),
+        _ => return Err(local("a template is applied at an org:, project:, or workload:".into())),
+    };
+    Ok(pb::ObjectRef { kind: kind.into(), id: id.clone(), ..Default::default() })
+}
+
+/// The request issuing from the template `named` at `scope`: the version read now unless one
+/// was named, and the conditions given in place of its defaults, if any were.
+async fn from_template(
+    c: &Connection,
+    i: &Issue,
+    (named, scope): (&str, pb::Scope),
+    conditions: Option<pb::Conditions>,
+) -> Result<pb::IssueGrantRequest, CliError> {
+    let at = applied_at(&scope)?;
+    let (template, place) = super::template::named(c, named, Some(at)).await?;
+    let version = match i.template_version {
+        Some(v) => v,
+        None => super::template::read(c, &template, None, place).await?.version,
+    };
+    Ok(pb::IssueGrantRequest {
+        mutation: mutation(None).into(),
+        parent: i.parent.clone().unwrap_or_default(),
+        subject: i.to.as_deref().map(subject).transpose()?.into(),
+        scope: scope.into(),
+        conditions: conditions.into(),
+        label: i.label.clone(),
+        to_new_token: i.to.is_none(),
+        template: pb::TemplateRef { template, version, ..Default::default() }.into(),
         ..Default::default()
     })
 }

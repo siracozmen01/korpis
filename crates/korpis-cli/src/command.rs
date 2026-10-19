@@ -11,6 +11,7 @@ use crate::cmd::extension::ExtensionAction;
 use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
 use crate::cmd::run::RunAction;
+use crate::cmd::template::TemplateAction;
 use crate::cmd::tenancy::{OrganizationAction, ProjectAction};
 use crate::cmd::volume::VolumeAction;
 use crate::cmd::{Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction};
@@ -60,6 +61,9 @@ pub enum Command {
     /// Shows and sets quota sets, from above.
     #[command(subcommand)]
     Quota(QuotaAction),
+    /// Grant templates: the roles of the interface, applied with `grant issue --template`.
+    #[command(subcommand)]
+    Template(TemplateAction),
     /// Lists what you can read.
     #[command(subcommand)]
     Get(Get),

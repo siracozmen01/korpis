@@ -55,42 +55,42 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
-`organization create|show|suspend|resume`, `project create`, `quota show|set`, `status`, `plan
-approve|reject|cancel`, `workload start|stop|restart|place|classify|delete|recipe`, and `node token
-create|cordon|uncordon|remove`, each one call of the API once its names are resolved. `workload
-recipe` shows the recipe a workload runs, its fields, and its words in the language `--locale` asks
-for or the environment's `LC_ALL`, `LC_MESSAGES`, or `LANG` names (§5.3 of `09-recipes.md`). An
-object is named by its identifier, by its name, or, for a workload, as `project/name`. A name is
-resolved by listing what the caller may read, never by a lookup the API does not offer, so a name
-the caller cannot read is the same local refusal (exit 1) as a name that does not exist, and the
-CLI learns nothing by resolving that the API would not have told it (§8 of `10-api.md`). Listing
-starts from the organizations the caller may read and from the objects its own grants are anchored
-at, so a token scoped to one project names that project though it can read no organization to list
-it from. A name that matches more than one object is refused with the advice to use the identifier,
-not resolved to the first. The cost is calls: a bare workload name lists every project the caller
-can read, which a caller who can read many pays for on each command; `project/name` or the
-identifier avoids it. An organization's name is found by walking the tree down from the
-organizations the caller may read and those its grants are anchored at, one listing per
-organization, so a reseller names its customers' customers as a host names its own, and every list
-is read to its last page; a host that can read thousands of organizations pays a call for each,
-which `org_…` avoids. Added 2026-10-19 by Finding 105 of `23-walkthroughs.md`: the walk and the
-paging were missing, so nothing beneath a root and nothing past a list's first hundred was a name.
-A power change is made against the power version the CLI has just read, so two operators who stop
-and start the same workload at once see one of them get `CONFLICT` rather than both silently
-winning. `organization suspend` takes the reason its tenant is shown and, with `--stop`, holds the
-organization's workloads stopped as well (§2.1 of `08-identity.md`); `organization show` prints a
-suspension's reason, who made it and when, whether the workloads are held, and what the tenant
-still reads; `get organizations` gives each one's state, and `--parent` only those directly beneath
-one; and `status` says when a suspension holds a workload stopped. `quota show` prints an
-organization's quota set, or with `--project` a project's (§5.1 of `05-scheduling.md`): each
-entry's shape, and per dimension what it guarantees and sells, what the workloads it counts hold of
-each, and, for an organization, what it has given below of the entry's shape beside what it may
-sell there, its limit times the overcommit it was permitted, and then each organization beneath it
-with what it was given and what its workloads hold. Reading what was given below reads every
-organization beneath it, one call each. `quota set -f` replaces a set from a file holding what
-`quota show --json` prints of it, YAML or JSON; it is set from above, so it takes `org.quota.write`
-over the organization's parent, or over a project's organization, and a set that breaks a bound
-around it is `CONFLICT` naming the bound.
+`organization create|show|suspend|resume`, `project create`, `quota show|set`, `template
+create|list|show|edit|retire|holders`, `status`, `plan approve|reject|cancel`, `workload
+start|stop|restart|place|classify|delete|recipe`, and `node token create|cordon|uncordon|remove`,
+each one call of the API once its names are resolved. `workload recipe` shows the recipe a workload
+runs, its fields, and its words in the language `--locale` asks for or the environment's `LC_ALL`,
+`LC_MESSAGES`, or `LANG` names (§5.3 of `09-recipes.md`). An object is named by its identifier, by
+its name, or, for a workload, as `project/name`. A name is resolved by listing what the caller may
+read, never by a lookup the API does not offer, so a name the caller cannot read is the same local
+refusal (exit 1) as a name that does not exist, and the CLI learns nothing by resolving that the
+API would not have told it (§8 of `10-api.md`). Listing starts from the organizations the caller
+may read and from the objects its own grants are anchored at, so a token scoped to one project
+names that project though it can read no organization to list it from. A name that matches more
+than one object is refused with the advice to use the identifier, not resolved to the first. The
+cost is calls: a bare workload name lists every project the caller can read, which a caller who can
+read many pays for on each command; `project/name` or the identifier avoids it. An organization's
+name is found by walking the tree down from the organizations the caller may read and those its
+grants are anchored at, one listing per organization, so a reseller names its customers' customers
+as a host names its own, and every list is read to its last page; a host that can read thousands of
+organizations pays a call for each, which `org_…` avoids. Added 2026-10-19 by Finding 105 of
+`23-walkthroughs.md`: the walk and the paging were missing, so nothing beneath a root and nothing
+past a list's first hundred was a name. A power change is made against the power version the CLI
+has just read, so two operators who stop and start the same workload at once see one of them get
+`CONFLICT` rather than both silently winning. `organization suspend` takes the reason its tenant is
+shown and, with `--stop`, holds the organization's workloads stopped as well (§2.1 of
+`08-identity.md`); `organization show` prints a suspension's reason, who made it and when, whether
+the workloads are held, and what the tenant still reads; `get organizations` gives each one's
+state, and `--parent` only those directly beneath one; and `status` says when a suspension holds a
+workload stopped. `quota show` prints an organization's quota set, or with `--project` a project's
+(§5.1 of `05-scheduling.md`): each entry's shape, and per dimension what it guarantees and sells,
+what the workloads it counts hold of each, and, for an organization, what it has given below of the
+entry's shape beside what it may sell there, its limit times the overcommit it was permitted, and
+then each organization beneath it with what it was given and what its workloads hold. Reading what
+was given below reads every organization beneath it, one call each. `quota set -f` replaces a set
+from a file holding what `quota show --json` prints of it, YAML or JSON; it is set from above, so
+it takes `org.quota.write` over the organization's parent, or over a project's organization, and a
+set that breaks a bound around it is `CONFLICT` naming the bound.
 
 ---
 
@@ -423,6 +423,21 @@ pipeline's next call. `--to` issues to an existing subject instead; `grant list`
 > link-form grant because a link is verified offline and stays good until it expires. A link is
 > accepted by the gateway alone and revoked at its next call (§6.1 of `08-identity.md`); it is
 > not this token because every call spends one of a use cap it cannot go without.
+
+Roles are templates (§4 of `08-identity.md`), managed and applied from the same CLI. `korpis
+template create ORG -f moderator.yaml` makes one owned by an organization and offered to everything
+beneath it; the file holds what `template show --json` prints, so a template is read, edited, and
+written back, and `template edit -f` is made against the version the file says it was read at, a
+conflict if the template has moved on since. `template list ORG` lists what is offered there, owned
+by it or above it, and `--owned` what it owns, retired templates included; `template show`,
+`template retire`, and `template holders` complete the set, the last listing the grants issued from
+it that the caller may read, each with the version it came from and those behind marked. A template
+is named by `tpl_…` or by its name among those offered at `--org`. `korpis grant issue --template
+Moderator --scope project:survival` applies it there: the template says the actions and the
+delegation, the version is the one it has as the command runs unless `--template-version` names
+one, and `--expires`, `--source-cidr`, and `--requires-approval-by` replace its defaults. The issue
+is the same attenuation as any other, so a template naming an action the issuer cannot pass on is
+refused.
 
 `korpis grant share --actions workload.restart --scope workload:mc-survival` makes a share link
 (§6.1 of `08-identity.md`) and prints it once, as a URL whose fragment is the link, with what it

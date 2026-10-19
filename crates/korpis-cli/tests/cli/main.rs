@@ -23,4 +23,5 @@ mod quota;
 mod recipe;
 mod sets;
 mod support;
+mod template;
 mod tenancy;
