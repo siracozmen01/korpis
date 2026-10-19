@@ -285,6 +285,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .await?
             .ok_or_else(|| AppError::Internal(format!("workload {}", plan.workload)))?;
         tx.retire_workload(w.id, self.clock.now()).await?;
+        self.rehold(tx, w.id).await?;
         self.place_target(tx, &w, None).await?;
         let mut e = system("workload.retire", Outcome::Succeeded);
         e.workload = Some(w.id);

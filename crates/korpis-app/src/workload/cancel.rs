@@ -109,6 +109,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 "a later approval has moved the workload since this plan",
             ));
         }
+        self.rehold(tx, w.id).await?;
         if matches!(plan.target, PlanTarget::Intent(_)) {
             self.follow_restored(tx, w, plan.from_intent).await?;
         }

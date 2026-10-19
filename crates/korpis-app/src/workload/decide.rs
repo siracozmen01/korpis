@@ -40,6 +40,25 @@ pub struct RejectPlan {
 }
 
 /// Whether `plan` is still for the workload as it is: for its head, computed against its target.
+/// Stamps `plan` approved by the caller at the time given, to apply after the time given, and
+/// queued behind the plan applying if `queued`.
+fn stamp(
+    plan: &mut Plan,
+    (caller, now, apply_after): (&Caller, SystemTime, Option<SystemTime>),
+    queued: bool,
+) -> Result<(), AppError> {
+    let internal =
+        |e: korpis_core::workload::plan::TransitionError| AppError::Internal(e.to_string());
+    plan.transition(PlanStatus::Approved).map_err(internal)?;
+    if queued {
+        plan.transition(PlanStatus::Queued).map_err(internal)?;
+    }
+    plan.approved_by = Some(caller.principal.clone());
+    plan.approved_at = Some(now);
+    plan.apply_after = apply_after;
+    Ok(())
+}
+
 fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
     Ok(match plan.target {
         PlanTarget::Intent(i) => i == w.intent && plan.from_intent == w.target,
@@ -156,15 +175,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if tx.retiring(w.id).await? {
             return Err(retiring());
         }
-        let to =
-            if tx.plan_applying(w.id).await? { PlanStatus::Queued } else { PlanStatus::Approved };
-        plan.transition(PlanStatus::Approved).map_err(|e| AppError::Internal(e.to_string()))?;
-        if to == PlanStatus::Queued {
-            plan.transition(to).map_err(|e| AppError::Internal(e.to_string()))?;
-        }
-        plan.approved_by = Some(caller.principal.clone());
-        plan.approved_at = Some(now);
-        plan.apply_after = cmd.apply_after;
+        let queued = tx.plan_applying(w.id).await?;
+        stamp(&mut plan, (caller, now, cmd.apply_after), queued)?;
         let moved = tx.update_plan(&plan, PlanStatus::Proposed).await?
             && match plan.target {
                 PlanTarget::Intent(i) => tx.move_target(w.id, i, w.target_version).await?,
@@ -189,6 +201,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             PlanTarget::Intent(i) => {
                 let target =
                     tx.intent_within(i).await?.ok_or(AppError::NotFound { kind: "intent" })?;
+                // Its target moved: quota is recounted, and before placement's lock.
+                self.rehold(&mut tx, w.id).await?;
                 self.claim_target(&mut tx, &w, &target.body).await?;
                 self.place_screened(&mut tx, &w, Some(&target), &screened).await?;
             }

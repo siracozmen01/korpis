@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Admission (§5.1 of docs/05-scheduling.md): a declaration fits every quota entry of its
-//! project and of every organization above it that counts it, and the entries are held, locked
-//! and consumed, in the transaction that writes it.
+//! project and of every organization above it that counts it, read from the totals kept beside
+//! each entry, and the entries are held, locked and consumed, in the transaction that writes it.
 
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, QuotaWrite, RecipeSource, Store};
-use korpis_core::tenancy::quota::{Exceeded, Held, QuotaOwner};
+use korpis_core::tenancy::quota::{Exceeded, Held};
 use korpis_core::workload::Workload;
-use std::collections::BTreeMap;
-use std::collections::btree_map::Entry;
 use uuid::Uuid;
 
 /// The deepest an organization tree is walked; a cycle is impossible by schema, so reaching it
@@ -44,7 +42,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(chain)
     }
 
-    /// Admits `workload`, which held `old` (nothing, if new) and will hold `new`.
+    /// Admits `workload`, which held `old` (nothing, if new) and will hold `new`, against the
+    /// totals of every entry counting it, less what each already counted of it.
     pub(super) async fn admit(
         &self,
         tx: &mut S::Tx,
@@ -52,23 +51,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         old: Option<&Held>,
         new: &Held,
     ) -> Result<(), AppError> {
-        let organizations = self.organization_chain(workload.organization).await?;
+        let entries = self.locked_entries(tx, workload.project, workload.organization).await?;
+        let counted = tx.counted(workload.id).await?.unwrap_or_default();
         let labels = workload.labels.as_map();
-        let entries = tx.lock_quota(workload.project, &organizations).await?;
-        let counting: Vec<_> = entries.into_iter().filter(|e| e.counts(labels)).collect();
-        let mut by_owner = BTreeMap::new();
+        let counting: Vec<_> = entries.iter().filter(|e| e.counts(labels)).collect();
         for e in &counting {
-            let key = match e.owner {
-                QuotaOwner::Organization(o) => (0u8, o),
-                QuotaOwner::Project(p) => (1u8, p),
-            };
-            let holders = match by_owner.entry(key) {
-                Entry::Occupied(o) => o.into_mut(),
-                Entry::Vacant(v) => v.insert(tx.holders(e.owner, workload.id).await?),
-            };
-            let others: Vec<Held> =
-                holders.iter().filter(|h| e.counts(&h.labels)).map(|h| h.held.clone()).collect();
-            e.admit(&others, old, new).map_err(|x| exceeded(&x))?;
+            let mut rest = e.held.clone().unwrap_or_default();
+            if counted.by.contains(&e.id) {
+                rest.sub(&counted.held);
+            }
+            e.admit(&rest, old, new).map_err(|x| exceeded(&x))?;
         }
         let ids: Vec<Uuid> = counting.iter().map(|e| e.id).collect();
         if !ids.is_empty() {

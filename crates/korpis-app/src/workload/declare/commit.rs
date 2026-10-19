@@ -72,6 +72,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Err(moved(&now));
             }
         }
+        // What it holds is recounted with its head moved (§5.1 of docs/05-scheduling.md).
+        self.rehold(tx, d.workload.id).await?;
         tx.insert_plan(&d.plan).await?;
         Ok(())
     }
@@ -94,6 +96,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Err(moved(&d.workload));
         }
+        self.rehold(tx, d.workload.id).await?;
         if d.workload.target.is_none() && d.workload.power_target_version == 0 {
             // The first approval approves the first power declaration with it.
             d.workload.power_target_version = 1;

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT held FROM workload_held WHERE $1 = ANY(counted_by) ORDER BY workload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "held",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workload_held",
+            "name": "held"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3df8940394e0f8eda39ea9bb5e0e2d40b429a29c606fc1b660abad6d2b609a59"
+}

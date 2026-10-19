@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2), locked in identifier order.\nSELECT id, owner_kind, owner_id, selector, reservations, limits, version\n  FROM quota_entry\n WHERE (owner_kind = 'project' AND owner_id = $1)\n    OR (owner_kind = 'organization' AND owner_id = ANY($2))\n ORDER BY id\n   FOR UPDATE\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2), locked in identifier order.\nSELECT id, owner_kind, owner_id, selector, reservations, limits, version, held\n  FROM quota_entry\n WHERE (owner_kind = 'project' AND owner_id = $1)\n    OR (owner_kind = 'organization' AND owner_id = ANY($2))\n ORDER BY id\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -79,6 +79,17 @@
             "name": "version"
           }
         }
+      },
+      {
+        "ordinal": 7,
+        "name": "held",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "held"
+          }
+        }
       }
     ],
     "parameters": {
@@ -94,8 +105,9 @@
       true,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "e317ec4709dfb3e170e7a6b17c41ac735235526079cf807c1497a5a15ef11f6d"
+  "hash": "ef71cb9bdf69cc694c43f6676a7797959c1d1bb9dac9e9066ac8ea9fdea18761"
 }

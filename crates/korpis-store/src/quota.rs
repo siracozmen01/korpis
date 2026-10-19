@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Quota entries and what the workloads under them hold (§5.1 of docs/05-scheduling.md).
+//! Quota entries and what the workloads under them hold (§5.1 of docs/05-scheduling.md), with
+//! the totals kept beside each entry (question 7 of §10 there).
 
-use crate::PgTx;
 use crate::errors::from_sqlx;
-use crate::stored::{SelectorDoc, bounds, count, from_json};
+use crate::stored::{SelectorDoc, bounds, count, from_json, held, held_doc, totals, totals_doc};
 use crate::tenancy::labels;
-use korpis_app::ports::{Holder, QuotaWrite, StoreError, StoreResult};
-use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner};
+use crate::{PgStore, PgTx};
+use korpis_app::ports::{Counted, Holding, QuotaRead, QuotaWrite, StoreError, StoreResult};
+use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, Totals};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ struct EntryRow {
     reservations: Value,
     limits: Value,
     version: i64,
+    held: Option<Value>,
 }
 
 impl EntryRow {
@@ -42,6 +44,7 @@ impl EntryRow {
             reservations: bounds("quota reservations", self.reservations)?,
             limits: bounds("quota limits", self.limits)?,
             version: count("quota version", self.version)?,
+            held: self.held.map(totals).transpose()?,
         })
     }
 }
@@ -59,37 +62,122 @@ impl QuotaWrite for PgTx {
         rows.into_iter().map(EntryRow::into_domain).collect()
     }
 
-    async fn holders(&mut self, owner: QuotaOwner, except: Uuid) -> StoreResult<Vec<Holder>> {
-        let (project, organization) = match owner {
-            QuotaOwner::Project(p) => (Some(p), None),
-            QuotaOwner::Organization(o) => (None, Some(o)),
-        };
-        let rows = sqlx::query_file!("queries/quota_holders.sql", project, organization, except)
-            .fetch_all(&mut *self.tx)
-            .await
-            .map_err(from_sqlx)?;
-        let decode = |json: &str, version: &str| {
-            self.bodies
-                .decode(json, version)
-                .map_err(|e| StoreError::Corrupt(format!("intent body: {e}")))
-        };
-        rows.into_iter()
-            .map(|r| {
-                let mut held = Held::of(&decode(&r.head, &r.head_schema)?);
-                if let (Some(t), Some(v)) = (r.target, r.target_schema) {
-                    held = held.max(&Held::of(&decode(&t, &v)?));
-                }
-                let labels = labels(r.labels)?.as_map().clone();
-                Ok(Holder { workload: r.id, labels, held })
-            })
-            .collect()
-    }
-
     async fn consume_quota(&mut self, entries: &[Uuid]) -> StoreResult<()> {
         sqlx::query!("UPDATE quota_entry SET version = version + 1 WHERE id = ANY($1)", entries)
             .execute(&mut *self.tx)
             .await
             .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn lock_quota_entry(&mut self, id: Uuid) -> StoreResult<Option<QuotaEntry>> {
+        let row = sqlx::query_as!(
+            EntryRow,
+            "SELECT id, owner_kind, owner_id, selector, reservations, limits, version, held
+               FROM quota_entry WHERE id = $1 FOR UPDATE",
+            id
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(EntryRow::into_domain).transpose()
+    }
+
+    async fn put_quota_totals(&mut self, entry: Uuid, totals: &Totals) -> StoreResult<()> {
+        sqlx::query!("UPDATE quota_entry SET held = $2 WHERE id = $1", entry, totals_doc(totals)?)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn counted(&mut self, workload: Uuid) -> StoreResult<Option<Counted>> {
+        let row = sqlx::query!(
+            "SELECT held, counted_by FROM workload_held WHERE workload_id = $1",
+            workload
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        row.map(|r| Ok(Counted { held: held(r.held)?, by: r.counted_by })).transpose()
+    }
+
+    async fn put_counted(&mut self, workload: Uuid, counted: &Counted) -> StoreResult<()> {
+        sqlx::query!(
+            "INSERT INTO workload_held (workload_id, held, counted_by) VALUES ($1, $2, $3)
+             ON CONFLICT (workload_id) DO UPDATE SET held = $2, counted_by = $3",
+            workload,
+            held_doc(&counted.held)?,
+            &counted.by
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn holdings(&mut self, owner: QuotaOwner) -> StoreResult<Vec<Holding>> {
+        let (project, organization) = match owner {
+            QuotaOwner::Project(p) => (Some(p), None),
+            QuotaOwner::Organization(o) => (None, Some(o)),
+        };
+        let rows = sqlx::query_file!("queries/quota_holdings.sql", project, organization)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        rows.into_iter()
+            .map(|r| {
+                Ok(Holding {
+                    workload: r.id,
+                    labels: labels(r.labels)?.as_map().clone(),
+                    counted: Counted { held: held(r.held)?, by: r.counted_by },
+                })
+            })
+            .collect()
+    }
+
+    async fn count_in(&mut self, entry: Uuid, workloads: &[Uuid]) -> StoreResult<()> {
+        sqlx::query!(
+            "UPDATE workload_held SET counted_by = array_append(counted_by, $1)
+              WHERE workload_id = ANY($2) AND NOT ($1 = ANY(counted_by))",
+            entry,
+            workloads
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn counted_by(&mut self, entry: Uuid) -> StoreResult<Vec<Held>> {
+        let rows = sqlx::query_scalar!(
+            "SELECT held FROM workload_held WHERE $1 = ANY(counted_by) ORDER BY workload_id",
+            entry
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter().map(held).collect()
+    }
+}
+
+impl QuotaRead for PgStore {
+    async fn quota_entry_ids(&self) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_scalar!("SELECT id FROM quota_entry ORDER BY id")
+            .fetch_all(&self.pool)
+            .await
+            .map_err(from_sqlx)
+    }
+
+    async fn workloads_to_count(&self) -> StoreResult<Vec<Uuid>> {
+        sqlx::query_scalar!(
+            r#"SELECT id AS "id!" FROM workload WHERE deleted_at IS NULL
+               UNION
+               SELECT workload_id FROM workload_held WHERE cardinality(counted_by) > 0
+               ORDER BY 1"#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)
     }
 }

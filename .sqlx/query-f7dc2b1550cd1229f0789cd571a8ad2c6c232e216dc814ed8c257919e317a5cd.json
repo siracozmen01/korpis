@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workload_held (workload_id, held, counted_by) VALUES ($1, $2, $3)\n             ON CONFLICT (workload_id) DO UPDATE SET held = $2, counted_by = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f7dc2b1550cd1229f0789cd571a8ad2c6c232e216dc814ed8c257919e317a5cd"
+}

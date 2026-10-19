@@ -28,6 +28,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(reachability::keep(Arc::clone(api)));
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
     tokio::spawn(expire_offloaded(Arc::clone(api)));
+    tokio::spawn(reconcile_quota(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
@@ -159,6 +160,24 @@ async fn expire_offloaded(api: Arc<Api>) {
                 }
             }
             Err(e) => tracing::warn!(error = %e, "expiring offloaded segments failed"),
+        }
+    }
+}
+
+/// Recounts, hourly, what every workload holds against quota and checks every entry's totals
+/// against it (question 7 of §10 of docs/05-scheduling.md); a difference is corrected and
+/// recorded as a `quota.drift` effect. The first pass is the one at start. The task ends with the
+/// process.
+async fn reconcile_quota(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(3600));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    tick.tick().await;
+    loop {
+        tick.tick().await;
+        match api.app().reconcile_quota().await {
+            Ok(0) => {}
+            Ok(n) => tracing::warn!(corrected = n, "quota totals drifted and were corrected"),
+            Err(e) => tracing::warn!(error = %e, "reconciling quota failed"),
         }
     }
 }

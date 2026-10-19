@@ -204,6 +204,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(plan) = &opened.plan {
             effects.extend(recover_plan(&mut tx, plan, opened, sealed).await?);
         }
+        // Its head and target may have moved forward; quota is locked before placement, as
+        // everywhere (§5.1 of docs/05-scheduling.md).
+        self.rehold(&mut tx, opened.workload).await?;
         let (placed, here) = self.recover_where(&mut tx, opened, sealed).await?;
         effects.extend(placed);
         // Runs are recovered only where the workload is placed, as its id slot is: a node whose

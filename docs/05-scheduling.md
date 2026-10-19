@@ -848,8 +848,9 @@ as a limit.
   that then cannot be edited, not even to shrink it.
 - **Holdings are computed from the intents, under the entries' locks**, never kept as a running
   counter that could drift from them; the entries' versions are bumped in the admitting
-  transaction as the record that they were consumed. Entries are locked in identifier order and
-  after the workload's own row, so two admissions never wait on each other in a cycle. A dry run
+  transaction as the record that they were consumed. Entries are locked in identifier order,
+  after the workload's own row and before the placement lock, so two transactions never wait on
+  each other in a cycle. A dry run
   performs admission and rolls back, so `korpis plan` shows a quota refusal before anything is
   sent for real.
 
@@ -860,6 +861,24 @@ up to 50,000 bodies per declaration, which is too slow to hold a lock over. The 
 survives that is a held total per entry, written in the same transaction as every intent and
 recomputed from the intents by a reconciliation, so a drift between them is found rather than
 trusted; it is not built yet, and question 7 below says when it must be.
+
+> Held totals as built, 2026-10-19 (`crates/korpis-app/src/workload/hold.rs`, question 7 below).
+> The holdings are still computed from the intents, but one workload at a time: each entry keeps
+> the totals of what the workloads it counts hold, and each workload keeps what it was last
+> counted as holding and by which entries. Every change to what a workload holds (a declaration,
+> its target moving at approval, cancellation, or a restore's recovery, and its retirement)
+> recounts that one workload in its own transaction: what it was counted as holding comes out of
+> the entries that counted it, exactly, and what it holds now goes into those that count it now.
+> Admission reads an entry's totals, less what the entry already counts of the workload being
+> declared, so a declaration reads two intents and one row per entry, whatever the entry counts.
+> An entry is reckoned from its workloads' holdings the first time it is used, under its lock. A
+> reconciliation runs at start, before anything is served, and hourly: it recounts every
+> workload from its intents, reckons any entry not yet used, and checks every other entry's
+> totals against what its workloads are counted as holding; each difference it corrects is a
+> `quota.drift` effect, since only a change that skipped its recount makes one. What it costs:
+> the hourly pass reads every workload's intents, one short transaction each, and takes each
+> entry's lock briefly per workload under it; an entry made while a workload under it is being
+> declared can miss that one workload until the next pass, which then says so.
 
 #### Quota holds the enforced value, not the declared one
 
@@ -1159,11 +1178,12 @@ estimates what a rebalance would achieve. It does not act.
    bind time against the entries that select the chosen node's labels. Neither is built; until one
    is, an entry with a selector on a placement property is advisory, and P4 forbids displaying it
    as a limit. → here, before quota sets are offered in Phase 2
-7. **Held totals per quota entry.** Admission computes holdings from the intents on every
-   declaration (§5.1), which does not scale to an entry on a large root organization. A total kept
-   in the admitting transaction, and reconciled from the intents, is the remedy. It must exist
-   before quota sets are offered in Phase 2, because that is when such entries become settable.
-   → here
+7. **Held totals per quota entry.** Resolved in §5.1 here, 2026-10-19: totals kept beside each
+   entry, moved by every recount of a workload, and reconciled at start and hourly. The question
+   was: admission computes holdings from the intents on every declaration (§5.1), which does not
+   scale to an entry on a large root organization. A total kept in the admitting transaction, and
+   reconciled from the intents, is the remedy. It must exist before quota sets are offered in
+   Phase 2, because that is when such entries become settable. → here
 8. **Placement policy per organization.** The policy is one per installation (§2.2). A host that
    sells dedicated pools may want `packed` for its shared fleet and `distributed` for one
    customer's machines, and a customer with nodes of their own (§3.4 of `01-model.md`) may want

@@ -166,6 +166,13 @@ A quota check that does not take a lock on what it is checking is a race, and th
 the current design is "advisory quota", which P4 forbids displaying. → patch `05-scheduling.md`
 §5.1 and `03-state.md` §3.2
 
+> Re-traced 2026-10-19, when held totals were built (question 7 of §10 of `05-scheduling.md`).
+> Step 4 now reads the entry's totals instead of every workload the entry counts, and step 7
+> moves them by what the new workload holds, in the same transaction and under the same lock; the
+> contended row is still the entry. Two creates racing for the last unit still admit exactly one
+> (`crates/korpis-server/tests/api/quota.rs`), and a deletion gives its share back when the
+> workload is retired, not when the deletion is asked.
+
 **FINDING 2: A Plan's steps have no stated atomicity. `CONFIRMED`**
 
 Steps 10–12 are three durable side effects. If the volume is created and endpoint allocation fails,

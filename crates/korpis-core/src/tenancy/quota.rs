@@ -7,7 +7,12 @@
 //! could drift from them. It is the larger, per dimension, of what its head declares (which may
 //! be approved at any moment) and what its target runs (which the kernel grants now): holding
 //! either one alone would let a workload awaiting approval, or one being shrunk, hold less than
-//! it may use (§5.1, "Quota holds the enforced value, not the declared one").
+//! it may use (§5.1, "Quota holds the enforced value, not the declared one"). What they hold
+//! together is kept beside each entry as its totals, so admission reads one row per entry.
+
+mod totals;
+
+pub use totals::Totals;
 
 use crate::labels::LabelSelector;
 use crate::workload::spec::endpoints::Exposure;
@@ -121,6 +126,9 @@ pub struct QuotaEntry {
     pub limits: Bounds,
     /// Participates in the admission compare-and-swap.
     pub version: u64,
+    /// What the workloads it counts hold together; `None` until they are first reckoned, as an
+    /// entry is when it is made.
+    pub held: Option<Totals>,
 }
 
 /// What a workload holds against quota.
@@ -245,18 +253,15 @@ impl QuotaEntry {
         self.selector.as_ref().is_none_or(|s| s.matches(labels))
     }
 
-    /// Admits a workload that held `old` (nothing, if new) and would hold `new`, beside `others`,
-    /// everything else the entry counts. Only growth is refused: a change that holds no more than
-    /// before passes even where the entry is already exceeded, so lowering a bound never strands
-    /// a workload that cannot then be edited.
-    pub fn admit(&self, others: &[Held], old: Option<&Held>, new: &Held) -> Result<(), Exceeded> {
+    /// Admits a workload that held `old` (nothing, if new) and would hold `new`, beside `rest`,
+    /// what everything else the entry counts holds. Only growth is refused: a change that holds
+    /// no more than before passes even where the entry is already exceeded, so lowering a bound
+    /// never strands a workload that cannot then be edited.
+    pub fn admit(&self, rest: &Totals, old: Option<&Held>, new: &Held) -> Result<(), Exceeded> {
         for (d, bound) in &self.reservations {
             let mine = new.reservations.get(d).copied().unwrap_or(0);
             let before = old.and_then(|o| o.reservations.get(d).copied()).unwrap_or(0);
-            let rest = others
-                .iter()
-                .fold(0u64, |a, h| a.saturating_add(h.reservations.get(d).copied().unwrap_or(0)));
-            let would = rest.saturating_add(mine);
+            let would = rest.reserved(*d).saturating_add(mine);
             if mine > before && would > *bound {
                 return Err(self.exceeded(*d, Side::Reservation, *bound, would));
             }
@@ -264,9 +269,7 @@ impl QuotaEntry {
         for (d, bound) in &self.limits {
             let mine = new.limits.get(d).copied().unwrap_or(Some(0));
             let before = old.map_or(Some(0), |o| o.limits.get(d).copied().unwrap_or(Some(0)));
-            let rest = others.iter().try_fold(0u64, |a, h| {
-                h.limits.get(d).copied().unwrap_or(Some(0)).map(|n| a.saturating_add(n))
-            });
+            let rest = rest.limited(*d);
             let grew = match (mine, before) {
                 (_, None) => false,
                 (None, Some(_)) => true,

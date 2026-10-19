@@ -276,6 +276,12 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     }
     let forgotten = app.forget_connections().await?;
     tracing::info!(nodes = forgotten, "nodes unknown until heard again");
+    // Every workload counted before any declaration is admitted against the totals, so a new
+    // entry is reckoned from every workload under it (§5.1 of docs/05-scheduling.md).
+    let drifted = app.reconcile_quota().await?;
+    if drifted > 0 {
+        tracing::warn!(drifted, "quota totals differed from what the workloads hold, corrected");
+    }
     let tls = tls::server_config(&config.data)?;
     let listener = tokio::net::TcpListener::bind(config.listen).await?;
     let addr = listener.local_addr()?;

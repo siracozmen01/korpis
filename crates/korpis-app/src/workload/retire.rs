@@ -245,6 +245,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.update_plan(plan, from).await? || !tx.retire_workload(w.id, now).await? {
             return Err(AppError::conflict("workload.moved", "the workload changed meanwhile"));
         }
+        self.rehold(tx, w.id).await?;
         self.place_target(tx, w, None).await?;
         let mut e = Effect::new(
             Principal::System(SystemActor::Reconciler),
