@@ -15,7 +15,7 @@ pub mod view;
 pub use policy::{PlacementPolicy, Signal, SpreadConstraint, SpreadScope, Strategy};
 
 use crate::node::Node;
-use crate::tenancy::quota::{Bounds, Dimension, Held};
+use crate::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, Totals};
 use crate::workload::IntentBody;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -75,6 +75,21 @@ pub struct Request<'a> {
     pub churn: &'a BTreeMap<Uuid, f64>,
     /// What its dependencies reach, resolved (§5 of docs/07-networking.md).
     pub dependencies: &'a [Needed],
+    /// The quota entries counting it that count where it runs (§5.1 of
+    /// docs/05-scheduling.md).
+    pub quota: &'a [Counting<'a>],
+}
+
+/// A quota entry that counts where workloads run, as placement checks it: the entry, what
+/// everything else it counts holds, and what it already counts of this workload, if anything.
+#[derive(Debug, Clone)]
+pub struct Counting<'a> {
+    /// The entry.
+    pub entry: &'a QuotaEntry,
+    /// What it counts beside this workload.
+    pub rest: Totals,
+    /// What it counts of this workload now, placed on a node it counts.
+    pub counted: Option<&'a Held>,
 }
 
 /// A dependency as placement reads it: its name, whether it is required, and the workloads it
@@ -151,6 +166,9 @@ pub enum Check {
     Affinity,
     /// Every dependency's targets are reachable from the node (§5 of docs/07-networking.md).
     Dependency,
+    /// Every quota entry counting what runs on the node admits it (§5.1 of
+    /// docs/05-scheduling.md).
+    Quota,
     /// The node's driver accepted the intent when the shortlist asked it, or after it was bound
     /// there (§2.1 of docs/05-scheduling.md).
     Prepare,
@@ -158,7 +176,7 @@ pub enum Check {
 
 impl Check {
     /// Every check, in the order they are evaluated.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::Owner,
         Self::Status,
         Self::Driver,
@@ -173,6 +191,7 @@ impl Check {
         Self::Volume,
         Self::Affinity,
         Self::Dependency,
+        Self::Quota,
         Self::Prepare,
     ];
 
@@ -200,6 +219,7 @@ impl Check {
             Self::Volume => "volume",
             Self::Affinity => "affinity",
             Self::Dependency => "dependency",
+            Self::Quota => "quota",
             Self::Prepare => "prepare",
         }
     }

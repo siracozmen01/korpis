@@ -7,6 +7,7 @@ use super::topology::{Fleet, domain, matching};
 use super::{Candidate, Check, Peer, PlacementPolicy, RESERVED, Request, reservation};
 use crate::node::driver::DriverInfo;
 use crate::node::{NodeAdmin, NodeStatus, Reachability};
+use crate::tenancy::quota::Held;
 use crate::workload::spec::ConsoleMode;
 use crate::workload::spec::endpoints::Exposure;
 use crate::workload::spec::placement::AffinityRule;
@@ -218,6 +219,19 @@ fn dependencies(req: &Request<'_>, c: &Candidate<'_>, peers: &[Peer]) -> Vec<Ref
     out
 }
 
+/// Every quota entry counting what runs on the candidate that what this placement would run
+/// there exceeds (§5.1 of docs/05-scheduling.md, "Where a workload runs"). Only growth is
+/// refused, as at declaration: what an entry already counts of the workload is its before.
+fn quota(req: &Request<'_>, c: &Candidate<'_>) -> Vec<Refusal> {
+    let held = Held::of(req.body);
+    req.quota
+        .iter()
+        .filter(|q| q.entry.counts_on(c.node.labels.as_map()))
+        .filter_map(|q| q.entry.admit(&q.rest, q.counted, &held).err())
+        .map(|e| (Check::Quota, e.to_string()))
+        .collect()
+}
+
 /// Every check the candidate fails; empty if it can run the workload.
 pub(super) fn rejections(
     req: &Request<'_>,
@@ -237,6 +251,7 @@ pub(super) fn rejections(
     out.extend(volumes(req, c));
     out.extend(affinity(req, c, fleet, peers, policy));
     out.extend(dependencies(req, c, peers));
+    out.extend(quota(req, c));
     if let Some(why) = req.refused.get(&c.node.id) {
         out.push((Check::Prepare, format!("its driver refused it: {why}")));
     }

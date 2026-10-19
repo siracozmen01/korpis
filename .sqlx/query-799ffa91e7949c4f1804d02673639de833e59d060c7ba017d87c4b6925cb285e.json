@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, owner_kind, owner_id, selector, reservations, limits, version, held\n               FROM quota_entry WHERE id = $1 FOR UPDATE",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2) that count from declaration,\n-- locked in identifier order; those naming nodes move under the placement lock instead.\nSELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held\n  FROM quota_entry\n WHERE ((owner_kind = 'project' AND owner_id = $1)\n        OR (owner_kind = 'organization' AND owner_id = ANY($2)))\n   AND nodes IS NULL\n ORDER BY id\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "nodes",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "nodes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "reservations",
         "type_info": "Jsonb",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "limits",
         "type_info": "Jsonb",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "held",
         "type_info": "Jsonb",
         "origin": {
@@ -94,7 +105,8 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -102,11 +114,12 @@
       false,
       false,
       true,
+      true,
       false,
       false,
       false,
       true
     ]
   },
-  "hash": "ef17022f67c29fcd3c02c0526bf62579ab6453e7a00f20281f47dc8389d9b7e5"
+  "hash": "799ffa91e7949c4f1804d02673639de833e59d060c7ba017d87c4b6925cb285e"
 }

@@ -32,8 +32,8 @@ pub struct Holding {
 
 /// What the quota reconciliation walks.
 pub trait QuotaRead {
-    /// Every quota entry.
-    fn quota_entry_ids(&self) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+    /// Every quota entry, each with whether it names the nodes it counts.
+    fn quota_entry_ids(&self) -> impl Future<Output = StoreResult<Vec<(Uuid, bool)>>> + Send;
 
     /// Every workload that holds or may hold quota: those not deleted, and those deleted that are
     /// still counted by an entry.
@@ -100,4 +100,71 @@ pub trait QuotaWrite {
 
     /// What each workload counted by entry `entry` holds, as it was counted.
     fn counted_by(&mut self, entry: Uuid) -> impl Future<Output = StoreResult<Vec<Held>>> + Send;
+}
+
+/// Where a workload's placement was counted, and as holding what, by the entries that name the
+/// nodes they count (§5.1 of docs/05-scheduling.md, "Where a workload runs").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Placed {
+    /// The node it is placed on.
+    pub node: Uuid,
+    /// What its placement runs, and the entries counting it there.
+    pub counted: Counted,
+}
+
+/// A placed workload under a quota owner: its labels, its node's, and where it was counted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlacedHolding {
+    /// The workload.
+    pub workload: Uuid,
+    /// Its labels.
+    pub labels: BTreeMap<String, String>,
+    /// Its node's labels.
+    pub node_labels: BTreeMap<String, String>,
+    /// Where it was counted.
+    pub placed: Placed,
+}
+
+/// The quota entries that name the nodes they count. Every method runs under the placement lock,
+/// which every change to them holds, so they take no lock of their own.
+pub trait PlacedQuotaWrite {
+    /// The entries of `project` and of `organizations` that name the nodes they count.
+    fn placed_quota(
+        &mut self,
+        project: Uuid,
+        organizations: &[Uuid],
+    ) -> impl Future<Output = StoreResult<Vec<QuotaEntry>>> + Send;
+
+    /// Where `workload`'s placement was counted; `None` if it is counted nowhere.
+    fn placement_held(
+        &mut self,
+        workload: Uuid,
+    ) -> impl Future<Output = StoreResult<Option<Placed>>> + Send;
+
+    /// Records where `workload`'s placement is counted, or, with `None`, that it is not.
+    fn put_placement_held(
+        &mut self,
+        workload: Uuid,
+        placed: Option<&Placed>,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Every placed workload not deleted under `owner` that has been counted: what an entry new
+    /// to them is reckoned from.
+    fn placed_holdings(
+        &mut self,
+        owner: QuotaOwner,
+    ) -> impl Future<Output = StoreResult<Vec<PlacedHolding>>> + Send;
+
+    /// Adds entry `entry` to the entries counting the placement of each of `workloads`.
+    fn count_placed_in(
+        &mut self,
+        entry: Uuid,
+        workloads: &[Uuid],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// What each placement counted by entry `entry` holds, as it was counted.
+    fn placed_counted_by(
+        &mut self,
+        entry: Uuid,
+    ) -> impl Future<Output = StoreResult<Vec<Held>>> + Send;
 }

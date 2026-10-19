@@ -173,6 +173,7 @@ impl Case {
             content: &self.content,
             churn: &self.churn,
             dependencies: &[],
+            quota: &[],
         };
         place(&req, &candidates, &self.peers, &self.policy)
     }
@@ -297,6 +298,7 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         content: &NONE_HELD,
         churn: &NONE_LOST,
         dependencies: &[],
+        quota: &[],
     };
     let e = place(
         &req,
@@ -334,6 +336,7 @@ fn req<'a>(labels: &'a BTreeMap<String, String>, b: &'a IntentBody) -> Request<'
         content: &NONE_HELD,
         churn: &NONE_LOST,
         dependencies: &[],
+        quota: &[],
     }
 }
 
@@ -386,4 +389,5 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
 
 mod colocation;
 mod ingress;
+mod quota;
 mod signals;

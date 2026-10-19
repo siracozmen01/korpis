@@ -130,6 +130,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             content: &learned.content,
             churn: &learned.churn,
             dependencies: &needed,
+            // Quota is checked at the bind, under the placement lock that holds its totals; the
+            // shortlist only asks drivers.
+            quota: &[],
         };
         let (_, ranking) = ranked(&req, &candidates, &peers, &self.policy);
         Ok(ranking.into_iter().take(SHORTLIST).collect())

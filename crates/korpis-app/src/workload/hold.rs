@@ -30,7 +30,8 @@ enum Recount {
     Moved,
 }
 
-fn drift(subject: (&str, Uuid), kept: String, counted: String) -> Effect {
+/// A difference the reconciliation corrected, on the record.
+pub(super) fn drift(subject: (&str, Uuid), kept: String, counted: String) -> Effect {
     Effect::new(Principal::System(SystemActor::Reconciler), "quota.drift", Outcome::Succeeded)
         .after(details([
             (subject.0, subject.1.to_string().into()),
@@ -147,10 +148,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                     .await?;
                 corrected += 1;
             }
+            corrected += u64::from(self.reconcile_placed(&mut tx, workload).await?);
             tx.commit().await?;
         }
-        for entry in self.store.quota_entry_ids().await? {
-            corrected += u64::from(self.check_entry(entry).await?);
+        for (entry, placed) in self.store.quota_entry_ids().await? {
+            let differed = if placed {
+                self.check_placed_entry(entry).await?
+            } else {
+                self.check_entry(entry).await?
+            };
+            corrected += u64::from(differed);
         }
         Ok(corrected)
     }

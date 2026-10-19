@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO placement_held (workload_id, node_id, held, counted_by)\n             VALUES ($1, $2, $3, $4)\n             ON CONFLICT (workload_id) DO UPDATE SET node_id = $2, held = $3, counted_by = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Jsonb",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a2c7b49df7d2165c21e86faf8aa5d0398e8284f4a91fb51e0aa9cd63e953f379"
+}

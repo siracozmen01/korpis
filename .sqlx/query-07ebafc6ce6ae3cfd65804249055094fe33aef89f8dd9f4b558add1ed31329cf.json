@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE placement_held SET counted_by = array_append(counted_by, $1)\n              WHERE workload_id = ANY($2) AND NOT ($1 = ANY(counted_by))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "07ebafc6ce6ae3cfd65804249055094fe33aef89f8dd9f4b558add1ed31329cf"
+}

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\" FROM workload WHERE deleted_at IS NULL\n               UNION\n               SELECT workload_id FROM workload_held WHERE cardinality(counted_by) > 0\n               UNION\n               SELECT workload_id FROM placement_held\n               ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "39afa418b07795644eeb2919a36a7099cca9c09c549ef09179bd5fa4de6ca6a9"
+}

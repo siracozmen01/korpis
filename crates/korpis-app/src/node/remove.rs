@@ -20,10 +20,11 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
     CertificateWrite as _, Clock, EffectWrite as _, NodeWrite as _, PlacementWrite as _,
-    RecipeSource, Store,
+    RecipeSource, Store, WorkloadWrite as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
+use korpis_core::node::NodeAdmin;
 use uuid::Uuid;
 
 /// The operation a removal's idempotency key is kept under.
@@ -44,7 +45,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let permit = self.authorize(caller, "node.remove", ObjectRef::new(Kind::Node, id)).await?;
         let mut tx = self.store.begin().await?;
-        tx.lock_placement().await?;
+        let locked = self.lock_placed(&mut tx, id).await?;
         let mut node = tx.lock_node(id).await?.ok_or(AppError::NotFound { kind: "node" })?;
         let from = node.admin;
         let changed = node.decommission(compromised).map_err(|e| {
@@ -65,30 +66,63 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Err(AppError::Internal(format!("node {id} moved while locked")));
             }
             node.version += 1;
-            let mut moved = 0usize;
-            for w in placed {
-                moved += usize::from(self.displace(&mut tx, w, id).await?);
-            }
-            let endpoints = tx.drop_node_endpoints(id).await?;
-            let exposed =
-                if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };
-            tx.announce_resync().await?;
-            let mut effect =
-                Effect::new(caller.principal.clone(), "node.remove", Outcome::Succeeded)
-                    .under(permit.grant)
-                    .after(details([
-                        ("node", id.to_string().into()),
-                        ("from", admin_name(from).into()),
-                        ("compromised", compromised.into()),
-                        ("workloads_placed_again", moved.into()),
-                        ("endpoints_dropped", endpoints.into()),
-                        ("volumes_lost", volumes.into()),
-                        ("certificates_exposed", exposed.into()),
-                    ]));
-            effect.node = Some(id);
-            tx.append_effect(&effect).await?;
+            let by = (caller, permit.grant);
+            let held = (placed, volumes, locked.as_slice());
+            self.decommissioned(&mut tx, by, (id, from, compromised), held).await?;
         }
         let allocated = tx.allocations(&[id]).await?.remove(&id).unwrap_or_default();
         finish(tx, caller, idem, OPERATION, NodeView { node, allocated }).await
+    }
+
+    /// The workloads placed on node `id`, each locked, and then the placement lock: the order
+    /// every placement takes them in, so placing them again cannot deadlock with a placement of
+    /// one of them.
+    async fn lock_placed(&self, tx: &mut S::Tx, id: Uuid) -> Result<Vec<Uuid>, AppError> {
+        let (mut placed, _) = tx.node_holdings(id).await?;
+        placed.sort_unstable();
+        for w in &placed {
+            tx.lock_workload(*w).await?;
+        }
+        tx.lock_placement().await?;
+        Ok(placed)
+    }
+
+    /// What decommissioning node `id` does beyond its own row: each workload on it placed again,
+    /// each locked before the placement lock was (`locked`), its endpoints dropped, its
+    /// certificates exposed if it was compromised, and the effect recording all of it. A workload
+    /// placed on it after its workloads were locked is a conflict: the removal is asked again.
+    async fn decommissioned(
+        &self,
+        tx: &mut S::Tx,
+        (caller, grant): (&Caller, Uuid),
+        (id, from, compromised): (Uuid, NodeAdmin, bool),
+        (placed, volumes, locked): (Vec<Uuid>, u64, &[Uuid]),
+    ) -> Result<(), AppError> {
+        let mut moved = 0usize;
+        for w in placed {
+            if !locked.contains(&w) {
+                let why = "a workload was placed on it while it was being removed; ask again";
+                return Err(AppError::conflict("node.placed_meanwhile", why));
+            }
+            moved += usize::from(self.displace(tx, w, id).await?);
+        }
+        let endpoints = tx.drop_node_endpoints(id).await?;
+        let exposed =
+            if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };
+        tx.announce_resync().await?;
+        let mut effect = Effect::new(caller.principal.clone(), "node.remove", Outcome::Succeeded)
+            .under(grant)
+            .after(details([
+                ("node", id.to_string().into()),
+                ("from", admin_name(from).into()),
+                ("compromised", compromised.into()),
+                ("workloads_placed_again", moved.into()),
+                ("endpoints_dropped", endpoints.into()),
+                ("volumes_lost", volumes.into()),
+                ("certificates_exposed", exposed.into()),
+            ]));
+        effect.node = Some(id);
+        tx.append_effect(&effect).await?;
+        Ok(())
     }
 }

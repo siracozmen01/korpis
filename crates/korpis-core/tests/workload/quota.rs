@@ -15,6 +15,7 @@ fn entry(reservations: Bounds, limits: Bounds) -> QuotaEntry {
         id: Uuid::now_v7(),
         owner: QuotaOwner::Project(Uuid::now_v7()),
         selector: None,
+        nodes: None,
         reservations,
         limits,
         version: 1,

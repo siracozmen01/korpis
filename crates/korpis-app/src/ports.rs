@@ -94,7 +94,7 @@ pub use placement::{PlacementRead, PlacementWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
-pub use quota::{Counted, Holding, QuotaRead, QuotaWrite};
+pub use quota::{Counted, Holding, Placed, PlacedHolding, PlacedQuotaWrite, QuotaRead, QuotaWrite};
 pub use rate::{RateBuckets, RateWrite};
 pub use recipe::{CachedRecipe, Described, Fetched, RecipeCache, RecipeSource, SourceError};
 pub use recovery::{
@@ -273,6 +273,7 @@ pub trait Tx:
     + IdempotencyWrite
     + WorkloadWrite
     + QuotaWrite
+    + PlacedQuotaWrite
     + NodeWrite
     + PlacementWrite
     + RetirementWrite

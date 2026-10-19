@@ -12,35 +12,44 @@ use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, Totals};
 use serde_json::Value;
 use uuid::Uuid;
 
-struct EntryRow {
+mod placed;
+
+/// A quota entry as stored.
+pub(crate) struct EntryRow {
     id: Uuid,
     owner_kind: String,
     owner_id: Uuid,
     selector: Option<Value>,
+    nodes: Option<Value>,
     reservations: Value,
     limits: Value,
     version: i64,
     held: Option<Value>,
 }
 
+fn selector(
+    what: &str,
+    v: Option<Value>,
+) -> StoreResult<Option<korpis_core::labels::LabelSelector>> {
+    v.map(|s| {
+        let doc: SelectorDoc = from_json(what, s)?;
+        Ok(doc.into_domain())
+    })
+    .transpose()
+}
+
 impl EntryRow {
-    fn into_domain(self) -> StoreResult<QuotaEntry> {
+    pub(crate) fn into_domain(self) -> StoreResult<QuotaEntry> {
         let owner = match self.owner_kind.as_str() {
             "organization" => QuotaOwner::Organization(self.owner_id),
             "project" => QuotaOwner::Project(self.owner_id),
             other => return Err(StoreError::Corrupt(format!("quota owner {other:?}"))),
         };
-        let selector = self
-            .selector
-            .map(|s| {
-                let doc: SelectorDoc = from_json("quota selector", s)?;
-                Ok::<_, StoreError>(doc.into_domain())
-            })
-            .transpose()?;
         Ok(QuotaEntry {
             id: self.id,
             owner,
-            selector,
+            selector: selector("quota selector", self.selector)?,
+            nodes: selector("quota nodes", self.nodes)?,
             reservations: bounds("quota reservations", self.reservations)?,
             limits: bounds("quota limits", self.limits)?,
             version: count("quota version", self.version)?,
@@ -73,7 +82,7 @@ impl QuotaWrite for PgTx {
     async fn lock_quota_entry(&mut self, id: Uuid) -> StoreResult<Option<QuotaEntry>> {
         let row = sqlx::query_as!(
             EntryRow,
-            "SELECT id, owner_kind, owner_id, selector, reservations, limits, version, held
+            "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held
                FROM quota_entry WHERE id = $1 FOR UPDATE",
             id
         )
@@ -162,11 +171,14 @@ impl QuotaWrite for PgTx {
 }
 
 impl QuotaRead for PgStore {
-    async fn quota_entry_ids(&self) -> StoreResult<Vec<Uuid>> {
-        sqlx::query_scalar!("SELECT id FROM quota_entry ORDER BY id")
-            .fetch_all(&self.pool)
-            .await
-            .map_err(from_sqlx)
+    async fn quota_entry_ids(&self) -> StoreResult<Vec<(Uuid, bool)>> {
+        let rows = sqlx::query!(
+            r#"SELECT id, nodes IS NOT NULL AS "placed!" FROM quota_entry ORDER BY id"#
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.id, r.placed)).collect())
     }
 
     async fn workloads_to_count(&self) -> StoreResult<Vec<Uuid>> {
@@ -174,6 +186,8 @@ impl QuotaRead for PgStore {
             r#"SELECT id AS "id!" FROM workload WHERE deleted_at IS NULL
                UNION
                SELECT workload_id FROM workload_held WHERE cardinality(counted_by) > 0
+               UNION
+               SELECT workload_id FROM placement_held
                ORDER BY 1"#
         )
         .fetch_all(&self.pool)

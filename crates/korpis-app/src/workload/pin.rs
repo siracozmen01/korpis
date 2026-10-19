@@ -100,6 +100,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
+        self.count_placed(&mut tx, &w).await?;
         let mut e = Effect::new(caller.principal.clone(), "workload.place", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([
@@ -140,6 +141,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let needed = self.needed(w, &target.body).await?;
         let drivers_refused = tx.refusals(w.id, target.id).await?;
         let learned = self.learned(tx, &[node.id], target).await?;
+        let (entries, placed) = self.placed_entries(tx, w).await?;
+        let quota = super::placed_quota::counting(&entries, placed.as_ref());
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -153,6 +156,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             content: &learned.content,
             churn: &learned.churn,
             dependencies: &needed,
+            quota: &quota,
         };
         let standing = operator_refusals(&req, &c, &peers, &self.policy);
         if !standing.is_empty() {

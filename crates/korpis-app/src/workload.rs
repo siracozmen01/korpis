@@ -18,6 +18,7 @@ mod learned;
 mod observed;
 mod pin;
 mod place;
+mod placed_quota;
 pub(crate) use place::EDGE_TIER;
 mod power;
 mod propose;

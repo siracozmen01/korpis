@@ -120,6 +120,10 @@ pub struct QuotaEntry {
     pub owner: QuotaOwner,
     /// The workloads it counts, by their labels; `None` counts every workload of the owner.
     pub selector: Option<LabelSelector>,
+    /// The nodes it counts them on, by their labels: such an entry counts a workload while it is
+    /// placed on one of them, by what its placement runs, and is checked when it is bound (§5.1,
+    /// "Where a workload runs"). `None` counts it wherever it is, from its declaration.
+    pub nodes: Option<LabelSelector>,
     /// Guaranteed capacity: what the reservations of the workloads it counts may sum to.
     pub reservations: Bounds,
     /// Sold capacity: what their limits may sum to.
@@ -251,6 +255,13 @@ impl QuotaEntry {
     #[must_use]
     pub fn counts(&self, labels: &BTreeMap<String, String>) -> bool {
         self.selector.as_ref().is_none_or(|s| s.matches(labels))
+    }
+
+    /// Whether the entry counts what is placed on a node with `labels`; an entry that names no
+    /// nodes counts nothing by placement.
+    #[must_use]
+    pub fn counts_on(&self, labels: &BTreeMap<String, String>) -> bool {
+        self.nodes.as_ref().is_some_and(|s| s.matches(labels))
     }
 
     /// Admits a workload that held `old` (nothing, if new) and would hold `new`, beside `rest`,

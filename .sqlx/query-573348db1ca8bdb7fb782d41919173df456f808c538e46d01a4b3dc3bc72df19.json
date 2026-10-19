@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id FROM quota_entry ORDER BY id",
+  "query": "SELECT id, nodes IS NOT NULL AS \"placed!\" FROM quota_entry ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -13,14 +13,21 @@
             "name": "id"
           }
         }
+      },
+      {
+        "ordinal": 1,
+        "name": "placed!",
+        "type_info": "Bool",
+        "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": []
     },
     "nullable": [
-      false
+      false,
+      null
     ]
   },
-  "hash": "36bc4ebb6ee37d51aad5272a64f35adc4e2ddf1c16d6b0fa86f09ae022cd0905"
+  "hash": "573348db1ca8bdb7fb782d41919173df456f808c538e46d01a4b3dc3bc72df19"
 }

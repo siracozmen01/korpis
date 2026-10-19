@@ -119,6 +119,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         screened: &Screened,
     ) -> Result<(), AppError> {
         tx.lock_placement().await?;
+        self.place_locked(tx, w, target, screened).await?;
+        // Where it is counted follows where it is placed now, whatever was decided (§5.1 of
+        // docs/05-scheduling.md, "Where a workload runs").
+        self.count_placed(tx, w).await?;
+        Ok(())
+    }
+
+    /// [`Self::place_screened`], under the placement lock.
+    async fn place_locked(
+        &self,
+        tx: &mut S::Tx,
+        w: &Workload,
+        target: Option<&Intent>,
+        screened: &Screened,
+    ) -> Result<(), AppError> {
         let current = tx.placement_in(w.id).await?;
         let Some(target) = target else {
             if current.is_some() {
@@ -151,6 +166,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             (self.existing_nodes(&target.body).await?, self.needed(w, &target.body).await?);
         let refused = self.refusals_screened(tx, (w, target), screened).await?;
         let learned = self.learned(tx, &ids, target).await?;
+        let (entries, placed) = self.placed_entries(tx, w).await?;
+        let quota = super::placed_quota::counting(&entries, placed.as_ref());
         let req = Request {
             workload: w.id,
             project: w.project,
@@ -164,6 +181,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             content: &learned.content,
             churn: &learned.churn,
             dependencies: &needed,
+            quota: &quota,
         };
         let explanation = place(&req, &candidates, &peers, &self.policy);
         match explanation.chosen {

@@ -437,9 +437,9 @@ than architecture.
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 | `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 and 1 built: twenty-five crates and the panel, about 170,000 lines of Rust and 10,700 of TypeScript, 1,008 Rust tests and 85 of the panel's, 85 migrations, and the 129 calls of the public API |
 
-Seventy-two numbered open questions remain open, of 141 recorded. Sixteen of them are a
+Seventy-one numbered open questions remain open, of 141 recorded. Sixteen of them are a
 question restated in a second document, carried there by name or pointing on to the one that will
-settle it, so fifty-six decisions are open, each assigned to the one that will settle it. They
+settle it, so fifty-five decisions are open, each assigned to the one that will settle it. They
 are the design's honest edges, not omissions: an open question with an owner is a decision
 deferred deliberately, and every one of them was recorded where the person who hits it will find
 it.
@@ -456,8 +456,9 @@ it.
 > suspension ..., which Phase 2 builds", and the count read the word as a resolution. So the rule
 > now says it plainly: an item is resolved when it says it was, in the past, and an item saying
 > what will settle it later is open. Phase 1 closed with seventy-four open and fifty-eight
-> distinct. Since then that question was resolved in §6.3 of `08-identity.md`, and question 7 of
-> §10 of `05-scheduling.md` in §5.1 there, which leaves the seventy-two and fifty-six above.
+> distinct. Since then that question was resolved in §6.3 of `08-identity.md`, and questions 6
+> and 7 of §10 of `05-scheduling.md` in §5.1 there, which leaves the seventy-one and fifty-five
+> above.
 
 **Phase 1 is built, and its done-when holds.** `scripts/e2e-phase1.sh` runs it as an operator
 would, on one machine, every step through the `korpis` CLI: the control plane installed into a

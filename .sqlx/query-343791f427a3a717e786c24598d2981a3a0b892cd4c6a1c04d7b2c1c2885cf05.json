@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2), locked in identifier order.\nSELECT id, owner_kind, owner_id, selector, reservations, limits, version, held\n  FROM quota_entry\n WHERE (owner_kind = 'project' AND owner_id = $1)\n    OR (owner_kind = 'organization' AND owner_id = ANY($2))\n ORDER BY id\n   FOR UPDATE\n",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2) that name the nodes they count,\n-- read under the placement lock, which every change to them holds.\nSELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held\n  FROM quota_entry\n WHERE ((owner_kind = 'project' AND owner_id = $1)\n        OR (owner_kind = 'organization' AND owner_id = ANY($2)))\n   AND nodes IS NOT NULL\n ORDER BY id\n",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "nodes",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "nodes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "reservations",
         "type_info": "Jsonb",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "limits",
         "type_info": "Jsonb",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "held",
         "type_info": "Jsonb",
         "origin": {
@@ -103,11 +114,12 @@
       false,
       false,
       true,
+      true,
       false,
       false,
       false,
       true
     ]
   },
-  "hash": "ef71cb9bdf69cc694c43f6676a7797959c1d1bb9dac9e9066ac8ea9fdea18761"
+  "hash": "343791f427a3a717e786c24598d2981a3a0b892cd4c6a1c04d7b2c1c2885cf05"
 }

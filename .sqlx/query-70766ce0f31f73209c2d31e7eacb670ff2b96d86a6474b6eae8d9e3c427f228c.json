@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The placed workloads not deleted in a project ($1) or under an organization and its\n-- descendants ($2), with their labels, their node's labels, and what their placement was counted\n-- as holding.\nWITH RECURSIVE sub AS (\n    SELECT id FROM organization WHERE id = $2\n    UNION ALL\n    SELECT o.id FROM organization o JOIN sub ON o.parent_id = sub.id\n)\nSELECT w.id AS \"id!\", w.labels AS \"labels!\", n.labels AS \"node_labels!\", h.node_id AS \"node!\",\n       h.held AS \"held!\", h.counted_by AS \"counted_by!\"\n  FROM workload w\n  JOIN placement_held h ON h.workload_id = w.id\n  JOIN node n ON n.id = h.node_id\n WHERE w.deleted_at IS NULL\n   AND ((w.project_id = $1) OR (w.organization_id IN (SELECT id FROM sub)))\n ORDER BY w.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "labels!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "node_labels!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "node!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "placement_held",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "held!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "placement_held",
+            "name": "held"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "counted_by!",
+        "type_info": "UuidArray",
+        "origin": {
+          "Table": {
+            "table": "placement_held",
+            "name": "counted_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "70766ce0f31f73209c2d31e7eacb670ff2b96d86a6474b6eae8d9e3c427f228c"
+}

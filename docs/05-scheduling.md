@@ -45,7 +45,7 @@ A node survives the filter only if all hold:
 | belongs to the workload's organization or one of its ancestors | `Node.organization` (§3.4 of `01-model.md`) |
 | can be reached the way the workload's endpoints need | measured reachability (§9 of `07-networking.md`) |
 | is in the overlay, when a dependency or a dependent is placed on another node | `Node.overlay` (§9 of `07-networking.md`); built 2026-10-15 as the `dependency` check, with no node in the overlay yet: a dependent goes where its targets are, and a dependent does not yet hold its targets (§5 of `07-networking.md`) |
-| the tenancy's quota admits it | §5 |
+| every quota entry counting what runs on the node admits it | §5.1, "Where a workload runs" |
 
 **`allocatable` is measured by the agent, less a reserve the operator sets on the node.** The
 agent reports capacity as the machine has it (a thousand millicores per core, and total memory)
@@ -764,6 +764,7 @@ QuotaSet
 
 QuotaEntry
   selector     LabelSelector?     // null = applies to everything
+  nodes        LabelSelector?     // null = counted from declaration; else where it is placed
   reservations Resources          // guaranteed; sums against the parent
   limits       Resources          // ceiling; may exceed the parent, by declared ratio
   version      int                // participates in the admission CAS, see below
@@ -879,6 +880,42 @@ trusted; it is not built yet, and question 7 below says when it must be.
 > the hourly pass reads every workload's intents, one short transaction each, and takes each
 > entry's lock briefly per workload under it; an entry made while a workload under it is being
 > declared can miss that one workload until the next pass, which then says so.
+
+#### Where a workload runs
+
+> Added 2026-10-19, settling question 6 below, when quota sets were built for Phase 2.
+
+"4 GB in the EU" is capacity in a place, and where a workload runs is decided by placement, after
+admission. So an entry may name **the nodes it counts**, by a selector over node labels
+(`nodes`). Such an entry counts a workload its `selector` matches while that workload is placed on
+a node its `nodes` selector matches, and it counts what the placement runs: the holding of the
+target bound there, which is what the kernel grants on that node. It is a filter check of
+placement (§2.1): a node is refused while what the workload would run there exceeds an entry
+counting that node, with the entry, the dimension, and the figures as the reason, so a workload
+that may run anywhere goes where there is room and one that must run in the EU waits, unplaced,
+saying why. Only growth is refused, as at declaration: a workload an entry already counts is
+checked against what it ran there before. An operator placing a workload by hand is refused by it
+too, since it is the tenancy's quota and not the operator's own decision about a node. An entry
+that names no nodes counts the workload from its declaration, wherever it runs, as above.
+
+Every change to a placement (a bind, a following in place, an unbind, a node lost, a restore's
+recovery) recounts where that one workload is counted, at its end and under the placement lock,
+which each of them holds: what the placement was counted as holding comes out of the entries that
+counted it, exactly, and what it runs now goes into the entries counting the node it is on now.
+These entries' totals therefore move only under the placement lock, and they are never locked by
+admission at declaration; the order everywhere is the workload's row, then the entries counted
+from declaration, then the placement lock. Node labels are set at enrollment and do not change, so
+a node never moves between regions under a placement. The reconciliation checks these entries'
+totals and each placement's count as it checks the rest.
+
+What it costs: the binding transaction reads the entries of the workload's project and of every
+organization above it that name nodes, and writes the totals of those counting the old node and
+the new one, all under a lock every placement already takes. A workload declared within its
+global entries may still find no node with room in its region, and is then unplaced with the
+reason rather than refused at declaration; the declaration cannot know where it will run.
+Removing a node now locks the workloads on it before the placement lock, as every placement does,
+which it did not: a workload placed on the node between the two is a conflict, and the removal is
+asked again.
 
 #### Quota holds the enforced value, not the declared one
 
@@ -1168,16 +1205,18 @@ estimates what a rebalance would achieve. It does not act.
    as written are evaluated by the scheduler with full visibility, but the resulting `Explanation`
    would leak placement information across tenancy boundaries. The explanation needs a tenancy
    filter.
-6. **How a regional quota knows the region.** A selector matches the workload's labels (§5.1),
-   because admission happens before placement and the labels are all it has. So "4 Gi in the EU"
-   holds only if a workload that runs in the EU carries the label the entry selects, and nothing
-   yet makes it: a workload labelled for nowhere is counted by the global entry, may be placed in
-   the EU, and consumes EU capacity that the EU entry never counted. The answer has to bind the
-   two, either by making placement honour the labels a counting entry selects on (a workload
-   counted by `region: eu` is placed only where nodes say `region: eu`) or by admitting again at
-   bind time against the entries that select the chosen node's labels. Neither is built; until one
-   is, an entry with a selector on a placement property is advisory, and P4 forbids displaying it
-   as a limit. → here, before quota sets are offered in Phase 2
+6. **How a regional quota knows the region.** Resolved in §5.1 here, "Where a workload runs",
+   2026-10-19: the second way, an entry naming the nodes it counts, checked at the bind and held by
+   it. The question was: a selector matches the workload's labels (§5.1), because admission happens
+   before placement and the labels are all it has. So "4 Gi in the EU" holds only if a workload
+   that runs in the EU carries the label the entry selects, and nothing yet makes it: a workload
+   labelled for nowhere is counted by the global entry, may be placed in the EU, and consumes EU
+   capacity that the EU entry never counted. The answer has to bind the two, either by making
+   placement honour the labels a counting entry selects on (a workload counted by `region: eu` is
+   placed only where nodes say `region: eu`) or by admitting again at bind time against the entries
+   that select the chosen node's labels. Neither is built; until one is, an entry with a selector
+   on a placement property is advisory, and P4 forbids displaying it as a limit. → here, before
+   quota sets are offered in Phase 2
 7. **Held totals per quota entry.** Resolved in §5.1 here, 2026-10-19: totals kept beside each
    entry, moved by every recount of a workload, and reconciled at start and hourly. The question
    was: admission computes holdings from the intents on every declaration (§5.1), which does not

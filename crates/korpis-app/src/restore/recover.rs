@@ -280,6 +280,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 }
             }
         }
+        // Where it is counted follows where it is placed (§5.1 of docs/05-scheduling.md).
+        if let Some(w) = tx.lock_workload(opened.workload).await? {
+            self.count_placed(tx, &w).await?;
+        }
         Ok((effects, here))
     }
 

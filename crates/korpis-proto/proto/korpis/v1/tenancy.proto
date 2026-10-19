@@ -78,6 +78,11 @@ message QuotaEntry {
   uint64 version = 4;
   // What shaping applies when the egress budget for the period is exhausted.
   EgressExhaustion egress_exhausted = 5;
+  // The nodes it counts the workloads on, by their labels: set, it counts a workload while it
+  // is placed on one of them, by what its placement runs, and is checked when it is bound;
+  // absent, it counts the workload from its declaration, wherever it runs ("Where a workload
+  // runs", §5.1 of docs/05-scheduling.md).
+  LabelSelector nodes = 6;
 }
 
 message EgressExhaustion {
