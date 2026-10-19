@@ -12,7 +12,7 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{GrantRead, GrantWrite, StoreResult};
-use korpis_core::authz::{Grant, GrantRecord, ObjectRef};
+use korpis_core::authz::{Grant, GrantRecord, ObjectRef, TemplateRef};
 use sqlx::PgExecutor;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -34,6 +34,8 @@ struct GrantRow {
     root: bool,
     irreversible_override: bool,
     label: String,
+    template_id: Option<Uuid>,
+    template_version: Option<i64>,
 }
 
 impl GrantRow {
@@ -64,6 +66,12 @@ impl GrantRow {
             revoked_at: self.revoked_at.map(to_time),
             suspended_at: self.suspended_at.map(to_time),
             label: self.label,
+            from_template: match (self.template_id, self.template_version) {
+                (Some(template), Some(version)) => {
+                    Some(TemplateRef { template, version: count("template_version", version)? })
+                }
+                _ => None,
+            },
         })
     }
 }
@@ -86,7 +94,8 @@ async fn chain(db: impl PgExecutor<'_>, id: Uuid) -> StoreResult<Vec<GrantRecord
                   delegation AS "delegation!", issued_by AS "issued_by!",
                   link_form AS "link_form!", uses AS "uses!", issued_at AS "issued_at!",
                   revoked_at, suspended_at, root AS "root!",
-                  irreversible_override AS "irreversible_override!", label AS "label!"
+                  irreversible_override AS "irreversible_override!", label AS "label!",
+                  template_id, template_version
            FROM c ORDER BY depth"#,
         id
     )
@@ -121,7 +130,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override, label
+                    irreversible_override, label, template_id, template_version
                FROM grants
               WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)
               ORDER BY id LIMIT $4",
@@ -141,7 +150,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override, label
+                    irreversible_override, label, template_id, template_version
                FROM grants
               WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -177,8 +186,10 @@ impl GrantWrite for PgTx {
         sqlx::query!(
             "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id, conditions,
                                  parent_id, delegation, issued_by, link_form, uses, issued_at,
-                                 root, irreversible_override, label)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
+                                 root, irreversible_override, label, template_id,
+                                 template_version)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                     $17, $18)",
             g.id,
             g.subject.key,
             &actions,
@@ -194,7 +205,9 @@ impl GrantWrite for PgTx {
             from_time(r.issued_at),
             g.root,
             g.irreversible_override,
-            r.label
+            r.label,
+            r.from_template.map(|t| t.template),
+            r.from_template.map(|t| to_count("template_version", t.version)).transpose()?
         )
         .execute(&mut *self.tx)
         .await

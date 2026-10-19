@@ -132,6 +132,14 @@ pub fn grant_to_pb(r: &GrantRecord, now: SystemTime) -> pb::Grant {
         link_form: g.link_form,
         state: state(r.state(now)).into(),
         label: r.label.clone(),
+        from_template: r
+            .from_template
+            .map(|t| pb::TemplateRef {
+                template: wire_id(IdKind::Template, t.template),
+                version: t.version,
+                ..Default::default()
+            })
+            .into(),
         ..Default::default()
     }
 }

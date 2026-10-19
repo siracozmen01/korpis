@@ -267,5 +267,6 @@ fn root_grant(
         revoked_at: None,
         suspended_at: None,
         label: "the installation's root grant".to_owned(),
+        from_template: None,
     })
 }

@@ -66,8 +66,12 @@ pub struct IssueGrant {
     pub conditions: Conditions,
     /// What the holder may pass on.
     pub delegation: Delegation,
-    /// What it is for, for people; required for a new token, which it names.
+    /// What it is for, for people; required for a new token, which it names. From a template,
+    /// the template's name when not given.
     pub label: String,
+    /// The template it is issued from, which then says its actions, delegation, and scope from
+    /// the object `scope` names (§4 of docs/08-identity.md).
+    pub template: Option<super::FromTemplate>,
 }
 
 /// An issued grant, and the secret of the token created to hold it, if one was.
@@ -186,11 +190,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         &self,
         caller: &Caller,
         idem: &Idempotent<'_, Issued>,
-        cmd: IssueGrant,
+        mut cmd: IssueGrant,
     ) -> Result<Reply<Issued>, AppError> {
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
+        let from_template = self.apply_template(caller, &mut cmd).await?;
         validate(&cmd)?;
         let now = self.clock.now();
         let id = Uuid::now_v7();
@@ -236,6 +241,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             revoked_at: None,
             suspended_at: None,
             label: cmd.label,
+            from_template,
         };
         let parent = self.parent_for(caller, &mut record.grant).await?;
         self.record_issue(caller, idem, record, &parent, created).await
@@ -291,6 +297,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("parent", parent.id.to_string().into()),
                 ("holder", record.holder.key().into()),
                 ("label", record.label.clone().into()),
+                ("template", record.from_template.map(|t| t.template.to_string()).into()),
+                ("template_version", record.from_template.map(|t| t.version).into()),
             ]));
         tx.append_effect(&effect).await?;
         let (secret, invitation) = match created {

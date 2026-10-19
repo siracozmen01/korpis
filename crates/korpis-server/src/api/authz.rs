@@ -8,7 +8,9 @@ use super::wire::{self, principal, scope};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
-use korpis_app::authz::{GrantsFilter, Holder, IssueGrant, Issued, MintToken, Revoked};
+use korpis_app::authz::{
+    FromTemplate, GrantsFilter, Holder, IssueGrant, Issued, MintToken, Revoked,
+};
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::list_grants_request::Filter;
@@ -60,6 +62,23 @@ fn issue_command(req: &pb::IssueGrantRequest) -> Result<IssueGrant, ConnectError
         conditions: conditions_from_pb(req.conditions.as_option()).refuse()?,
         delegation: delegation_from_pb(req.delegation.as_option()).refuse()?,
         label: req.label.clone(),
+        template: req
+            .template
+            .as_option()
+            .map(|t| {
+                Ok::<_, ConnectError>(FromTemplate {
+                    template: wire::id(IdKind::Template, "template.template", &t.template)
+                        .refuse()?,
+                    version: t.version,
+                    conditions: req
+                        .conditions
+                        .as_option()
+                        .map(|c| conditions_from_pb(Some(c)))
+                        .transpose()
+                        .refuse()?,
+                })
+            })
+            .transpose()?,
     })
 }
 

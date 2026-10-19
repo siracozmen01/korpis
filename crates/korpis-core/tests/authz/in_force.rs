@@ -19,6 +19,7 @@ fn kept(grant: Grant, now: SystemTime) -> GrantRecord {
         revoked_at: None,
         suspended_at: None,
         label: String::new(),
+        from_template: None,
     }
 }
 

@@ -1426,6 +1426,11 @@ message IssueGrantRequest {
   // an invitation to register its first (§9.6 of docs/08-identity.md). Exclusive with
   // `subject`, `to_new_token`, and `link_form`.
   NewUser to_new_user = 11;
+  // Issue from this version of a grant template (§4 of docs/08-identity.md): the template says
+  // the actions, the delegation, and the scope, from the object `scope` names, so `actions` and
+  // `delegation` are empty; `conditions`, when given, replace the template's defaults. The
+  // version is the one the issuer read; a template edited since is a conflict.
+  TemplateRef template = 12;
 }
 
 // An account to create to hold a grant.

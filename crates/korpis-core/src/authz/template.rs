@@ -6,10 +6,11 @@
 //! and no authorization decision reads it.
 
 use super::action::Action;
-use super::grant::Delegation;
+use super::grant::{Conditions, Delegation};
 use crate::labels::LabelSelector;
-use crate::object::Kind;
+use crate::object::{Kind, ObjectRef};
 use crate::principal::Principal;
+use crate::scope::Scope;
 use crate::tenancy::Name;
 use ipnet::IpNet;
 use std::collections::BTreeSet;
@@ -166,5 +167,76 @@ impl GrantTemplate {
     #[must_use]
     pub fn offered_within(&self, ancestry: &[Uuid]) -> bool {
         self.retired_at.is_none() && ancestry.contains(&self.organization)
+    }
+}
+
+/// Why a template cannot be applied at an object.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ApplyError {
+    /// The object is not of the kind the template is applied to.
+    #[error("this template is applied to {want}, not to {got}")]
+    Kind {
+        /// The kind it is applied to.
+        want: &'static str,
+        /// The kind it was asked for at.
+        got: &'static str,
+    },
+    /// The object is not one a template is applied to at all.
+    #[error("a template is applied to an organization, a project, or a workload")]
+    NotApplicable,
+}
+
+/// What a grant issued from a template asks for, before it is attenuated from the issuer's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Applied {
+    /// What it permits.
+    pub actions: BTreeSet<Action>,
+    /// Where.
+    pub scope: Scope,
+    /// Under which conditions: the template's defaults made absolute at the instant of issue.
+    pub conditions: Conditions,
+    /// What it may pass on.
+    pub delegation: Delegation,
+}
+
+impl ScopePattern {
+    /// The scope a grant has when the template is applied at `at`.
+    pub fn scope_at(&self, at: ObjectRef) -> Result<Scope, ApplyError> {
+        if !matches!(at.kind, Kind::Organization | Kind::Project | Kind::Workload) {
+            return Err(ApplyError::NotApplicable);
+        }
+        if let Some(want) = self.kind.filter(|k| *k != at.kind) {
+            return Err(ApplyError::Kind { want: want.as_str(), got: at.kind.as_str() });
+        }
+        Ok(match &self.selector {
+            Some(selector) => Scope::Selector { within: at, selector: selector.clone() },
+            None => Scope::Object(at),
+        })
+    }
+}
+
+impl TemplateConditions {
+    /// The conditions of a grant issued at `now`.
+    #[must_use]
+    pub fn at(&self, now: SystemTime) -> Conditions {
+        Conditions {
+            expires_at: self.lifetime.map(|l| now + l),
+            source_cidr: self.source_cidr.clone(),
+            requires_mfa: self.requires_mfa,
+            max_uses: self.max_uses,
+            ..Conditions::default()
+        }
+    }
+}
+
+impl TemplateBody {
+    /// What a grant from this body asks for when applied at `at` at `now`.
+    pub fn apply(&self, at: ObjectRef, now: SystemTime) -> Result<Applied, ApplyError> {
+        Ok(Applied {
+            actions: self.actions.clone(),
+            scope: self.pattern.scope_at(at)?,
+            conditions: self.conditions.at(now),
+            delegation: self.delegation.clone(),
+        })
     }
 }

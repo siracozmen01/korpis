@@ -49,5 +49,5 @@ pub use grant::{
     AttenuationError, Conditions, Delegation, Grant, StreamRange, Subject, check_attenuation,
 };
 #[cfg(feature = "authz")]
-pub use record::{GrantRecord, GrantState};
+pub use record::{GrantRecord, GrantState, TemplateRef};
 pub use scope::{Hierarchy, Kind, LabelSelector, Node, ObjectRef, Resource, Scope};

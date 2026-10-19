@@ -190,12 +190,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// read `at`.
     async fn owners_above(&self, caller: &Caller, at: ObjectRef) -> Result<Vec<Uuid>, AppError> {
         self.authorize(caller, &format!("{}.read", read_namespace(at.kind)), at).await?;
-        let ancestry = self.store.ancestry(at).await?;
-        Ok(ancestry
-            .iter()
-            .filter(|n| n.object.kind == Kind::Organization)
-            .map(|n| n.object.id)
-            .collect())
+        self.organizations_above(at).await
     }
 
     /// A template, at `version` or its current one: read at its owner under `org.read`, or,

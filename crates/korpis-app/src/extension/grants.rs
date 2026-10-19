@@ -95,6 +95,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 revoked_at: None,
                 suspended_at: None,
                 label: label(name, &need.reason),
+                from_template: None,
             };
             out.push(NeedGrant { record, parent });
         }

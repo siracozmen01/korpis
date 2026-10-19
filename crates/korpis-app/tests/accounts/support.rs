@@ -116,6 +116,7 @@ pub async fn invite_until(
         conditions: Conditions::default(),
         delegation: Delegation::default(),
         label: String::new(),
+        template: None,
     };
     let Reply::Fresh(issued) = f.app.issue_grant(&f.root, &idem, cmd).await? else {
         panic!("a fresh key replayed");

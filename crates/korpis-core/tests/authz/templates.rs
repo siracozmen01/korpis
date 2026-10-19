@@ -97,3 +97,35 @@ fn a_template_is_offered_to_its_owners_subtree_until_it_is_retired() {
     template.retired_at = Some(SystemTime::now());
     assert!(!template.offered_within(&[customer, reseller, host]), "retired: nowhere");
 }
+
+#[test]
+fn applied_at_a_project_a_moderator_is_a_grant_on_it_expiring_after_its_lifetime() {
+    use korpis_core::authz::template::ApplyError;
+    use korpis_core::authz::{ObjectRef, Scope};
+    let now = SystemTime::now();
+    let project = ObjectRef::new(Kind::Project, Uuid::now_v7());
+    let applied = moderator().apply(project, now).unwrap();
+    assert_eq!(applied.scope, Scope::Object(project));
+    assert_eq!(applied.conditions.expires_at, Some(now + Duration::from_secs(90 * 86_400)));
+    assert_eq!(applied.delegation, moderator().delegation, "the delegation is the template's");
+    assert_eq!(applied.actions, moderator().actions);
+
+    let org = ObjectRef::new(Kind::Organization, Uuid::now_v7());
+    assert_eq!(
+        moderator().apply(org, now).unwrap_err(),
+        ApplyError::Kind { want: "project", got: "organization" }
+    );
+    let volume = ObjectRef::new(Kind::Volume, Uuid::now_v7());
+    let mut any = moderator();
+    any.pattern.kind = None;
+    assert_eq!(any.apply(volume, now).unwrap_err(), ApplyError::NotApplicable);
+
+    let mut gold = moderator();
+    let tier = [("tier".to_owned(), "gold".to_owned())].into();
+    gold.pattern.selector = Some(LabelSelector { match_labels: tier, ..LabelSelector::default() });
+    let scope = gold.apply(project, now).unwrap().scope;
+    assert!(
+        matches!(&scope, Scope::Selector { within, .. } if *within == project),
+        "the gold workloads below the project: {scope:?}"
+    );
+}

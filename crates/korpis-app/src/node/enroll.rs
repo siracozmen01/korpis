@@ -130,6 +130,7 @@ pub(crate) fn enrollment_grant(parent: Uuid, one: OneUse) -> Result<GrantRecord,
         revoked_at: None,
         suspended_at: None,
         label: one.label,
+        from_template: None,
     })
 }
 

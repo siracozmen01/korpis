@@ -526,6 +526,16 @@ treated as secret, and a name that should not be seen below is defined lower dow
 > applied object of a kind, a project applied at, an organization applied at) and says what checks
 > it; the conditions became relative. Versions are kept whole so `from_template: id@version` names
 > exactly what was issued.
+>
+> Issuing from a template, as built 2026-10-19 (P2.3b). `IssueGrant` names the template and the
+> version read, and its `scope` names the object the template is applied to; it names no actions
+> and no delegation policy, which the version says, and conditions it gives replace the template's
+> defaults whole rather than field by field, so what the issuer sent is what the grant holds. A
+> grant without a label is labelled with the template's name. Applying a template at an object
+> takes reading the object, as finding the template offered there did, so whether a template is
+> offered beneath an organization is never said of an object the caller cannot read. The grant's
+> provenance is the template and version, kept as a reference to the version itself, and the
+> `grant.issued` effect names both.
 
 > Second external review, finding S34. "No back-reference" made the most common operator request,
 > changing what every Moderator can do, impossible even to locate. Provenance makes it locatable

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH RECURSIVE c AS (\n               SELECT g.*, 0 AS depth FROM grants g WHERE g.id = $1\n               UNION ALL\n               SELECT g.*, c.depth + 1 FROM grants g JOIN c ON g.id = c.parent_id\n           )\n           SELECT id AS \"id!\", subject_key AS \"subject_key!\", actions AS \"actions!\",\n                  scope AS \"scope!\", conditions AS \"conditions!\", parent_id,\n                  delegation AS \"delegation!\", issued_by AS \"issued_by!\",\n                  link_form AS \"link_form!\", uses AS \"uses!\", issued_at AS \"issued_at!\",\n                  revoked_at, suspended_at, root AS \"root!\",\n                  irreversible_override AS \"irreversible_override!\", label AS \"label!\"\n           FROM c ORDER BY depth",
+  "query": "WITH RECURSIVE c AS (\n               SELECT g.*, 0 AS depth FROM grants g WHERE g.id = $1\n               UNION ALL\n               SELECT g.*, c.depth + 1 FROM grants g JOIN c ON g.id = c.parent_id\n           )\n           SELECT id AS \"id!\", subject_key AS \"subject_key!\", actions AS \"actions!\",\n                  scope AS \"scope!\", conditions AS \"conditions!\", parent_id,\n                  delegation AS \"delegation!\", issued_by AS \"issued_by!\",\n                  link_form AS \"link_form!\", uses AS \"uses!\", issued_at AS \"issued_at!\",\n                  revoked_at, suspended_at, root AS \"root!\",\n                  irreversible_override AS \"irreversible_override!\", label AS \"label!\",\n                  template_id, template_version\n           FROM c ORDER BY depth",
   "describe": {
     "columns": [
       {
@@ -98,6 +98,18 @@
         "name": "label!",
         "type_info": "Text",
         "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "template_id",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "template_version",
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -121,8 +133,10 @@
       null,
       null,
       null,
+      null,
+      null,
       null
     ]
   },
-  "hash": "3378741e703a37ae2843359d7ffc148d9c8a1e4ce0db338ffa4ee7303ac46f91"
+  "hash": "be71ba5c5f912b0b965fbc17a2ec21710c304ce5b66a66b67e887e6466c0f3bb"
 }

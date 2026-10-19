@@ -25,6 +25,18 @@ pub struct GrantRecord {
     pub suspended_at: Option<SystemTime>,
     /// What it is for, for people; no decision reads it.
     pub label: String,
+    /// The template and version it was issued from, as provenance: tooling finds it by this,
+    /// and no decision reads it (§3.5 and §4 of docs/08-identity.md).
+    pub from_template: Option<TemplateRef>,
+}
+
+/// One version of a grant template.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TemplateRef {
+    /// The template.
+    pub template: uuid::Uuid,
+    /// The version.
+    pub version: u64,
 }
 
 /// What a grant's state is, as a client is told (§3 of docs/08-identity.md).

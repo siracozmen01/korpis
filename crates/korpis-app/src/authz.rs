@@ -3,6 +3,7 @@
 //! Authority: authenticating callers, the one authorization path every use case goes through
 //! (P6), and the grant use cases of docs/08-identity.md.
 
+mod apply;
 mod approve;
 mod attest;
 mod denial;
@@ -16,6 +17,7 @@ mod revoke;
 mod snapshot;
 mod template;
 
+pub use apply::FromTemplate;
 pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};
 pub use mint::{MintToken, Minted};
 pub use query::{GrantWithChain, GrantsFilter};
