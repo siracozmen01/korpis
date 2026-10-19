@@ -13,6 +13,7 @@ import { everyGrant } from "./held";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
+import { QuotaView } from "./Quota";
 import { Suspension } from "./Suspension";
 import { OrganizationStatus } from "../gen/korpis/v1/tenancy_pb";
 import { CONVERGENCE } from "../workload/words";
@@ -139,6 +140,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
           <>
             <h1>{o?.name ?? id}</h1>
             {o !== undefined && <Suspension organization={o} />}
+            {o !== undefined && <QuotaView organization={o} />}
           </>
         )}
       />

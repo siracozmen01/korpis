@@ -19,6 +19,7 @@ mod events;
 mod extensions;
 mod grants;
 mod login;
+mod quota;
 mod recipe;
 mod sets;
 mod support;

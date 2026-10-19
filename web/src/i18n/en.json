@@ -27,6 +27,9 @@
     "defaultMessage": "Restart",
     "description": "button: restart a workload"
   },
+  "/E9XnKAE": {
+    "defaultMessage": "Entry {n}, sold {dimension}"
+  },
   "/GKa1+lg": {
     "defaultMessage": "file",
     "description": "a listing entry's kind"
@@ -99,6 +102,9 @@
   "2E9YtXqZ": {
     "defaultMessage": "Its plan applies at {when}."
   },
+  "2MR6/PnK": {
+    "defaultMessage": "Below it"
+  },
   "2NWVup5w": {
     "defaultMessage": "Each code signs you in once beside your password, if you lose your other factors. They are shown here once: keep them somewhere safe now."
   },
@@ -132,6 +138,9 @@
   },
   "3grWaoK5": {
     "defaultMessage": "Reading the invitation…"
+  },
+  "3i0BH2Sx": {
+    "defaultMessage": "Disk reads (bytes/s)"
   },
   "3jqpN1eS": {
     "defaultMessage": "End it",
@@ -177,6 +186,9 @@
   "5sg7KCrr": {
     "defaultMessage": "Password"
   },
+  "5uej/eiK": {
+    "defaultMessage": "Remove entry {n}"
+  },
   "5yTPpEp5": {
     "defaultMessage": "Not open: {why}."
   },
@@ -196,6 +208,9 @@
   },
   "6f0LBR2I": {
     "defaultMessage": "Restart requested"
+  },
+  "6vqEzPIc": {
+    "defaultMessage": "Disk writes (bytes/s)"
   },
   "7L9bcZ1z": {
     "defaultMessage": "Share as a link"
@@ -252,6 +267,9 @@
     "defaultMessage": "expired",
     "description": "a grant's state"
   },
+  "9frcY4W1": {
+    "defaultMessage": "Workloads labelled (empty for every workload)"
+  },
   "9lS0MI/F": {
     "defaultMessage": "Not allowed here."
   },
@@ -286,6 +304,9 @@
   "Ak/ics6v": {
     "defaultMessage": "Make new ones",
     "description": "button: make new recovery codes"
+  },
+  "AwMTvklc": {
+    "defaultMessage": "Its quota"
   },
   "BIIyPmVF": {
     "defaultMessage": "unknown",
@@ -401,6 +422,10 @@
     "defaultMessage": "Modified",
     "description": "column: when a file was modified"
   },
+  "FV4Vc2PH": {
+    "defaultMessage": "tier=gold",
+    "description": "an example of workload labels"
+  },
   "FaYLfRYl": {
     "defaultMessage": "Node acknowledged"
   },
@@ -424,6 +449,9 @@
   "GfsxhpW3": {
     "defaultMessage": "Its workloads are held stopped until it is resumed."
   },
+  "GqwU/lFt": {
+    "defaultMessage": "May sell below at (percent of each limit; empty for 100)"
+  },
   "GrnZDNX+": {
     "defaultMessage": "Saved."
   },
@@ -444,6 +472,9 @@
     "defaultMessage": "cancelled",
     "description": "why a run ended"
   },
+  "I2PQCQOv": {
+    "defaultMessage": "Entry {entry}: {dimension} is not a whole number."
+  },
   "I8T1oMgK": {
     "defaultMessage": "Reading the runs…"
   },
@@ -462,6 +493,9 @@
   },
   "IyTtQLIW": {
     "defaultMessage": "Reading what you can reach…"
+  },
+  "J2la8Jv5": {
+    "defaultMessage": "unbounded"
   },
   "J35Dw5fO": {
     "defaultMessage": "revoked",
@@ -487,6 +521,9 @@
   },
   "JyQxWYW1": {
     "defaultMessage": "Reading your sessions…"
+  },
+  "K56Dims7": {
+    "defaultMessage": "Organization"
   },
   "KJXGpJqL": {
     "defaultMessage": "More",
@@ -542,12 +579,21 @@
     "defaultMessage": "Runs",
     "description": "a workload's runs"
   },
+  "LqRHP7sp": {
+    "defaultMessage": "Nothing beneath it that you can read holds a quota."
+  },
   "Lr/1fpfn": {
     "defaultMessage": "Deny",
     "description": "button"
   },
+  "M6S6vD/N": {
+    "defaultMessage": "The overcommit of {dimension} is not a whole percentage."
+  },
   "MCN1/L+K": {
     "defaultMessage": "QR code of the authenticator address"
+  },
+  "MGkTzanz": {
+    "defaultMessage": "A root organization holds no quota: what it holds is the installation's."
   },
   "MUFpIc0k": {
     "defaultMessage": "The invitation"
@@ -582,9 +628,15 @@
   "NZmMEEju": {
     "defaultMessage": "Rename {name}"
   },
+  "Na/D2y5U": {
+    "defaultMessage": "every workload"
+  },
   "NcvMwAcJ": {
     "defaultMessage": "Started",
     "description": "a run's column"
+  },
+  "NeGvAH8o": {
+    "defaultMessage": "Guaranteed below"
   },
   "Nf2GrGr0": {
     "defaultMessage": "Remove",
@@ -597,6 +649,9 @@
   "Nz+sqiZJ": {
     "defaultMessage": "Change",
     "description": "column: changes to a file"
+  },
+  "O2ptnHRy": {
+    "defaultMessage": "Egress (bits/s)"
   },
   "O3El0XWZ": {
     "defaultMessage": "in force",
@@ -612,6 +667,9 @@
   "OTwZkKc4": {
     "defaultMessage": "A new password, at least 12 characters"
   },
+  "OUob3d7M": {
+    "defaultMessage": "May sell below"
+  },
   "OWdB2JGz": {
     "defaultMessage": "Send a command"
   },
@@ -622,8 +680,17 @@
   "Od6W77Tm": {
     "defaultMessage": "{name} is there with {there} of {size}."
   },
+  "OtefaeX2": {
+    "defaultMessage": "Dimension"
+  },
+  "OuCSDnvE": {
+    "defaultMessage": "Disk"
+  },
   "OvK35h+3": {
     "defaultMessage": "Logo (PNG, WebP, or SVG, at most 256 KiB)"
+  },
+  "OvkS9T6p": {
+    "defaultMessage": "Save the quota"
   },
   "PIXTVfME": {
     "defaultMessage": "Its plan is scheduled."
@@ -638,6 +705,9 @@
   "PwHgAn9a": {
     "defaultMessage": "Lines",
     "description": "a theme colour"
+  },
+  "QKVDcL4/": {
+    "defaultMessage": "Dedicated IPv4 addresses"
   },
   "QPyR2U3r": {
     "defaultMessage": "Due",
@@ -655,9 +725,15 @@
   "R4Vpa9Ew": {
     "defaultMessage": "the session was lost"
   },
+  "R6cxLNsE": {
+    "defaultMessage": "Counts"
+  },
   "RD54aDMn": {
     "defaultMessage": "Theme",
     "description": "an organization's theme"
+  },
+  "RFEbngEl": {
+    "defaultMessage": "No quota is set here. What runs beneath it is bounded only by the organizations above it."
   },
   "RMzLxhOc": {
     "defaultMessage": "The code your app shows now"
@@ -679,6 +755,9 @@
   "S89oXUto": {
     "defaultMessage": "{label}, added {added}{used, select, yes {, last used {lastUsed}} other {, never used}}{copied, select, yes {, may be copied to your other devices} other {}}",
     "description": "one passkey: its label, when added and last used, whether it syncs"
+  },
+  "SGSyVNmC": {
+    "defaultMessage": "workloads labelled {labels}"
   },
   "SsdT0IyI": {
     "defaultMessage": "used up",
@@ -727,12 +806,21 @@
     "defaultMessage": "another run was active",
     "description": "why a run ended"
   },
+  "TvxMA+Lg": {
+    "defaultMessage": "{workloads}, on nodes labelled {labels}"
+  },
+  "U4Y8SVJC": {
+    "defaultMessage": "Set its quota"
+  },
   "U8NwcEng": {
     "defaultMessage": "a request could not be sent"
   },
   "UMB/jFLh": {
     "defaultMessage": "Status",
     "description": "a run's column"
+  },
+  "UOwcGikb": {
+    "defaultMessage": "Entry {n}, guaranteed {dimension}"
   },
   "Usf2nt81": {
     "defaultMessage": "Open to read.",
@@ -784,6 +872,9 @@
   "Y0g70Mpa": {
     "defaultMessage": "send commands to its console"
   },
+  "YAJJ9RyF": {
+    "defaultMessage": "Entry {entry}: labels are written key=value, separated by commas."
+  },
   "YB8VbPji": {
     "defaultMessage": "the session did not open"
   },
@@ -825,6 +916,9 @@
     "defaultMessage": "Start",
     "description": "button: start a workload"
   },
+  "ZEgIPrqb": {
+    "defaultMessage": "Disk writes (operations/s)"
+  },
   "ZInTaFOM": {
     "defaultMessage": "Uses",
     "description": "how many uses a share link has"
@@ -838,6 +932,9 @@
   },
   "Zcs/kMyq": {
     "defaultMessage": "The command-line client was refused, and its code no longer works."
+  },
+  "Zj8bMqyt": {
+    "defaultMessage": "Guaranteed"
   },
   "ZjYy6Yll": {
     "defaultMessage": "Replace it",
@@ -886,6 +983,9 @@
     "defaultMessage": "Opening…",
     "description": "a console opening"
   },
+  "bUErCSWv": {
+    "defaultMessage": "On nodes labelled (empty for every node)"
+  },
   "ba8ytnij": {
     "defaultMessage": "the session ended"
   },
@@ -916,6 +1016,9 @@
   "cLNad6D5": {
     "defaultMessage": "Open the console"
   },
+  "cQyKR1uH": {
+    "defaultMessage": "Endpoints"
+  },
   "cbCaFOB4": {
     "defaultMessage": "{n, plural, =0 {Revoked.} one {Revoked, with # grant attenuated from it.} other {Revoked, with # grants attenuated from it.}}"
   },
@@ -926,11 +1029,20 @@
     "defaultMessage": "Profile",
     "description": "link to the viewer's own profile"
   },
+  "cyDRxetx": {
+    "defaultMessage": "Volumes"
+  },
   "d147hhoF": {
     "defaultMessage": "Its plan waits for approval."
   },
   "d2sELMI6": {
     "defaultMessage": "Set a password"
+  },
+  "dMvvqrTm": {
+    "defaultMessage": "Sold"
+  },
+  "dVx3yznM": {
+    "defaultMessage": "Memory"
   },
   "dXVcO4GV": {
     "defaultMessage": "{n, plural, =0 {No other session was open.} one {# session ended.} other {# sessions ended.}}"
@@ -970,6 +1082,10 @@
   "edpuFUqD": {
     "defaultMessage": "Why, as its tenant will be shown it"
   },
+  "efex8u1S": {
+    "defaultMessage": "region=eu",
+    "description": "an example of node labels"
+  },
   "elnaZeq9": {
     "defaultMessage": "Suspend"
   },
@@ -979,6 +1095,9 @@
   "fKWNsalK": {
     "defaultMessage": "not yet",
     "description": "a convergence moment still to come"
+  },
+  "fb8GdyOM": {
+    "defaultMessage": "Sold below"
   },
   "fcokJlVA": {
     "defaultMessage": "healthy",
@@ -1004,6 +1123,9 @@
   },
   "gmwG2Vqq": {
     "defaultMessage": "{trigger}, attempt {attempt}"
+  },
+  "gslhnC3m": {
+    "defaultMessage": "Show what it gave below"
   },
   "gyWfsTF2": {
     "defaultMessage": "{n, plural, one {# unused code} other {# unused codes}}."
@@ -1063,6 +1185,9 @@
     "defaultMessage": "for a reason it did not give",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
   },
+  "jkeZBWE3": {
+    "defaultMessage": "Limited now"
+  },
   "jvo0vs3n": {
     "defaultMessage": "Save"
   },
@@ -1121,6 +1246,12 @@
     "defaultMessage": "a device is unavailable",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
   },
+  "mSCpuTgp": {
+    "defaultMessage": "CPU (millicores)"
+  },
+  "mZ/c+AKf": {
+    "defaultMessage": "Disk reads (operations/s)"
+  },
   "ma+8ta3Y": {
     "defaultMessage": "Reading the project…"
   },
@@ -1139,6 +1270,9 @@
   },
   "nXNb6xjd": {
     "defaultMessage": "{kind, select, organization {Reading the organization…} project {Reading the project…} other {Reading the workload…}}"
+  },
+  "nh0uJD+E": {
+    "defaultMessage": "Entry {n}"
   },
   "oFH8Xx1m": {
     "defaultMessage": "Remove the logo"
@@ -1195,11 +1329,20 @@
   "qyvx6JZq": {
     "defaultMessage": "Uploading {name}: {done} of {total}"
   },
+  "r7VLZjTn": {
+    "defaultMessage": "Add an entry"
+  },
+  "r8P/1+7/": {
+    "defaultMessage": "Its selectors also hold label expressions, which are kept as they are; `korpis quota set` edits them."
+  },
   "rFlt7Wwo": {
     "defaultMessage": "Whoever holds the link can do this, with no account. Opening its screen is one use, and so is each action; using it needs the control plane to be reachable. It lasts at most {uses, plural, one {# use} other {# uses}} and {lasts}, and you can revoke it at any time."
   },
   "rGyY3Tcv": {
     "defaultMessage": "Remove {name}? This cannot be undone."
+  },
+  "rjT4uxJR": {
+    "defaultMessage": "Quota"
   },
   "rs6XNweZ": {
     "defaultMessage": "Product name"
@@ -1264,6 +1407,9 @@
   "uzVYhI2z": {
     "defaultMessage": "Reading what the link allows…"
   },
+  "v132UQcc": {
+    "defaultMessage": "Reserved now"
+  },
   "v8oIEeoT": {
     "defaultMessage": "Name for a new passkey"
   },
@@ -1298,6 +1444,9 @@
   },
   "x+99iEjx": {
     "defaultMessage": "{cause}, {count, plural, one {# occurrence} other {# occurrences}}"
+  },
+  "x2GhgpDT": {
+    "defaultMessage": "Node ports"
   },
   "xIksTt1G": {
     "defaultMessage": "Not live: last heard {ago} ago.{reconnecting, select, yes { Reconnecting…} other {}}"

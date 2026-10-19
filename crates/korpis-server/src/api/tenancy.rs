@@ -173,10 +173,10 @@ impl pb::ProjectService for Api {
         let caller = self.caller(&ctx).await?;
         let id = wire::id(IdKind::Project, "id", request.id).refuse()?;
         let p = self.app.get_project(&caller, id).await.map_err(error::from_app)?;
-        Response::ok(pb::GetProjectResponse {
-            project: project_to_pb(&p).into(),
-            ..Default::default()
-        })
+        let owner = korpis_core::tenancy::quota::QuotaOwner::Project(id);
+        let quota = self.app.quota_set(owner).await.map_err(error::from_app)?;
+        let project = pb::Project { quota: quota_set_to_pb(&quota).into(), ..project_to_pb(&p) };
+        Response::ok(pb::GetProjectResponse { project: project.into(), ..Default::default() })
     }
 
     async fn list_projects(

@@ -8,6 +8,7 @@ use crate::cmd::certificate::CertificateAction;
 use crate::cmd::domain::DomainAction;
 use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
+use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
 use crate::cmd::run::RunAction;
 use crate::cmd::tenancy::{OrganizationAction, ProjectAction};
@@ -56,6 +57,9 @@ pub enum Command {
     /// Makes projects; `get projects` lists them.
     #[command(subcommand)]
     Project(ProjectAction),
+    /// Shows and sets quota sets, from above.
+    #[command(subcommand)]
+    Quota(QuotaAction),
     /// Lists what you can read.
     #[command(subcommand)]
     Get(Get),

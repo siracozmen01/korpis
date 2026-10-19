@@ -230,6 +230,20 @@ rendered as locked. It is not rendered.
 > organization above, read from the caller's own grants and the tree as far up as it can read;
 > the control plane decides, and a refusal is said in its words. A share link is never offered
 > it, and neither is anyone on a root organization, which nothing is above.
+>
+> Quota as built, 2026-10-19 (`web/src/views/Quota.tsx`). An organization's page shows its quota
+> set to everyone who reads it (§5.1 of `05-scheduling.md`): per entry, what it counts and on which
+> nodes, and per dimension what it guarantees and sells, what the workloads it counts reserve and
+> limit now, and what it may sell below, its limit times the overcommit it was permitted. What it
+> has given below of each entry's shape is read on asking, since it reads every organization
+> beneath it, one call each, and shows only the sets the caller may read, beside each organization
+> beneath with what it was given and what its workloads hold. The editor follows the suspension
+> lever's rule: it is offered to a signed-in caller holding `org.quota.write` on a grant anchored
+> above the organization, never through a share link and never on a root, which holds no quota. It
+> names the field it cannot read as a number or as labels before anything is sent, and the control
+> plane's refusal of a set that breaks a bound around it is said in its words. The editor writes
+> labels, not label expressions; an entry's expressions are kept as they were read and said to be
+> there, and `quota set` edits them.
 
 ---
 

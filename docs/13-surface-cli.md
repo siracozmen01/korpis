@@ -55,7 +55,7 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
-`organization create|show|suspend|resume`, `project create`, `status`, `plan
+`organization create|show|suspend|resume`, `project create`, `quota show|set`, `status`, `plan
 approve|reject|cancel`, `workload start|stop|restart|place|classify|delete|recipe`, and `node token
 create|cordon|uncordon|remove`, each one call of the API once its names are resolved. `workload
 recipe` shows the recipe a workload runs, its fields, and its words in the language `--locale` asks
@@ -81,7 +81,16 @@ winning. `organization suspend` takes the reason its tenant is shown and, with `
 organization's workloads stopped as well (§2.1 of `08-identity.md`); `organization show` prints a
 suspension's reason, who made it and when, whether the workloads are held, and what the tenant
 still reads; `get organizations` gives each one's state, and `--parent` only those directly beneath
-one; and `status` says when a suspension holds a workload stopped.
+one; and `status` says when a suspension holds a workload stopped. `quota show` prints an
+organization's quota set, or with `--project` a project's (§5.1 of `05-scheduling.md`): each
+entry's shape, and per dimension what it guarantees and sells, what the workloads it counts hold of
+each, and, for an organization, what it has given below of the entry's shape beside what it may
+sell there, its limit times the overcommit it was permitted, and then each organization beneath it
+with what it was given and what its workloads hold. Reading what was given below reads every
+organization beneath it, one call each. `quota set -f` replaces a set from a file holding what
+`quota show --json` prints of it, YAML or JSON; it is set from above, so it takes `org.quota.write`
+over the organization's parent, or over a project's organization, and a set that breaks a bound
+around it is `CONFLICT` naming the bound.
 
 ---
 

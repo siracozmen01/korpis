@@ -19,6 +19,7 @@ pub mod grant;
 pub mod logs;
 pub mod logs_offloaded;
 pub mod provider;
+pub mod quota;
 pub mod recipe;
 pub mod repository;
 pub mod run;
