@@ -13,6 +13,7 @@ import { Console } from "../console/Console";
 import { FileManager } from "../files/FileManager";
 import { READ, WRITE } from "../files/session";
 import { Actions } from "../workload/Actions";
+import { Roles } from "../roles/Roles";
 import { Grants } from "../workload/Grants";
 import { Share } from "../workload/Share";
 import { diagnosis } from "../workload/diagnosis";
@@ -104,6 +105,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
           {status.head !== undefined && <Configuration id={id} head={status.head} />}
           <Grants id={id} />
           <Share id={id} />
+          <Roles place={{ case: "workload", id }} />
         </>
       )}
     </main>

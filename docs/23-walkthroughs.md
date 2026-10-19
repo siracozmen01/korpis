@@ -3490,3 +3490,40 @@ is recorded running on its node under those, one it holds pending is started the
 store's schedule and cycle state move past it; and the run maker does nothing while a restore
 settles. → `03-state.md` §8, `02-architecture.md` §4.8; built in
 `crates/korpis-app/src/restore/runs.rs`.
+
+---
+
+## 42. A reseller's Moderator, from a role to a grant and back
+
+Written 2026-10-19, when grant templates were built (§4 of `08-identity.md`). A reseller hosts game
+servers for its customers. It defines a Moderator role once: restart a server and read its console
+on one project, pass restart on one level, for ninety days. A customer's owner gives the role to a
+friend who has no account yet. A month later the reseller decides every Moderator may also read the
+project, finds who holds the old role, and gives each of them the difference.
+
+The trace was chosen by measuring coverage, as §0 describes: until it, `11-surface-web.md` §5 had
+been crossed by one trace (§38) and `13-surface-cli.md` §7 by three (§10, §26, §38), and
+`08-identity.md` §4, where the role every operator asks for first is defined, by none.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The reseller's administrator, holding `template.write` on the reseller, makes Moderator from a file or the panel's organization page: actions, a pattern of `project`, a delegation policy it must state, a lifetime of ninety days | `08-identity.md` §4; `10-api.md` §5; `13-surface-cli.md` §7; `11-surface-web.md` §5 |
+| 2 | The customer's owner, reading their project, sees Moderator among the roles offered there, owned above them by the reseller, without reading the reseller | `08-identity.md` §4 |
+| 3 | They give it to a friend invited now: the control plane reads the version they saw, applies the pattern at the project, takes the actions and delegation from the version, and runs the ordinary attenuation of their own grant † | `08-identity.md` §3.2, §4, §9.6 |
+| 4 | The friend redeems the invitation and holds a grant on that project alone, expiring in ninety days, labelled Moderator, carrying `from_template: tpl_…@1` | `08-identity.md` §3.5, §9.6 |
+| 5 | The reseller edits Moderator to add `project.read`, against version 1: version 2. The friend's grant is unchanged, because no decision reads the template | `08-identity.md` §4 |
+| 6 | The reseller asks who holds Moderator: `template holders` lists the grants issued from it that the reseller may read, the friend's marked behind | `08-identity.md` §3.5; `13-surface-cli.md` §7 |
+| 7 | The difference is issued to each by hand, one ordinary issue apiece, until the `template_rollout` Operation makes it one approval | `05-scheduling.md` §3; `20-roadmap.md` §4 |
+
+**Nothing new found in the steps.** Each has an owner, and the algebra question (what evaluates
+this, where, and with what information) has an answer at each: the pattern is evaluated at step 3
+by the control plane, holding the version and the project's ancestry, and nothing evaluates it
+after. The defects building it found are Findings 108 and 110, recorded with §26.
+
+† Step 3 is where a customer's owner who holds `workload.restart` without the right to pass it on
+is refused, with the reason the attenuation gives, rather than given a role that would grant more
+than they hold. The panel offers the button to anyone signed in who reads the place, because
+whether the giver can pass the role on depends on the giver's whole chain, which only the control
+plane holds.

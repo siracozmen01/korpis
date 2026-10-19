@@ -41,12 +41,18 @@
   "/Sh00btp": {
     "defaultMessage": "Choose a sign-in name"
   },
+  "/Uw0s6vS": {
+    "defaultMessage": "Give {role}"
+  },
   "/gco5BAB": {
     "defaultMessage": "Suspension"
   },
   "/o5ltHSh": {
     "defaultMessage": "[{says}]",
     "description": "a gap in a console"
+  },
+  "/oK6MZ9J": {
+    "defaultMessage": "Uses (optional)"
   },
   "05J8UAPw": {
     "defaultMessage": "stopped",
@@ -156,6 +162,9 @@
     "defaultMessage": "Converged",
     "description": "the moment a workload converged"
   },
+  "4XcIK1Cw": {
+    "defaultMessage": "an account that exists"
+  },
   "4jmg2y3r": {
     "defaultMessage": "This link opens nothing."
   },
@@ -206,6 +215,9 @@
   "6WRJhCn7": {
     "defaultMessage": "the node answered a read with no data"
   },
+  "6aNXS4YN": {
+    "defaultMessage": "How many levels deep is a whole number from 1."
+  },
   "6f0LBR2I": {
     "defaultMessage": "Restart requested"
   },
@@ -225,6 +237,9 @@
   "88JBbyvf": {
     "defaultMessage": "Console",
     "description": "a run's console"
+  },
+  "8N/xR7Qv": {
+    "defaultMessage": "an organization"
   },
   "8RMoim+k": {
     "defaultMessage": "Declared {declared}, {convergence}"
@@ -270,6 +285,9 @@
   "9frcY4W1": {
     "defaultMessage": "Workloads labelled (empty for every workload)"
   },
+  "9j3hXO4O": {
+    "defaultMessage": "To"
+  },
   "9lS0MI/F": {
     "defaultMessage": "Not allowed here."
   },
@@ -287,6 +305,9 @@
   },
   "AKsYwJZw": {
     "defaultMessage": "Reading the request…"
+  },
+  "ALEHPwnw": {
+    "defaultMessage": "Lasts this many days (optional)"
   },
   "ALnyx0KZ": {
     "defaultMessage": "Dark colours"
@@ -308,6 +329,9 @@
   "AwMTvklc": {
     "defaultMessage": "Its quota"
   },
+  "AyRVbIDi": {
+    "defaultMessage": "Edit {role}"
+  },
   "BIIyPmVF": {
     "defaultMessage": "unknown",
     "description": "a workload's state as its node observed it"
@@ -328,6 +352,9 @@
   "Bg2qLKJO": {
     "defaultMessage": "Sign in",
     "description": "button: sign in"
+  },
+  "BhZi+dzN": {
+    "defaultMessage": "Lasts {days, plural, one {# day} other {# days}}."
   },
   "BkY/4vDn": {
     "defaultMessage": "It asked at"
@@ -400,6 +427,9 @@
   "Ekt8OuWU": {
     "defaultMessage": "(heard {ago} ago)"
   },
+  "EppLcnga": {
+    "defaultMessage": "Actions its holder may pass on (optional)"
+  },
   "Eu7t3/2z": {
     "defaultMessage": "Revoke",
     "description": "button"
@@ -432,6 +462,9 @@
   "FazwRldA": {
     "defaultMessage": "Try again"
   },
+  "Fj9NVJ2m": {
+    "defaultMessage": "Labels are written key=value, separated by commas."
+  },
   "FpysbNB0": {
     "defaultMessage": "It says it is"
   },
@@ -457,6 +490,9 @@
   },
   "H+C4LITW": {
     "defaultMessage": "Upload {name}"
+  },
+  "HAlOn1Zs": {
+    "defaultMessage": "Name"
   },
   "HErk5s7f": {
     "defaultMessage": "Downtime: about {seconds, plural, one {# second} other {# seconds}}."
@@ -506,6 +542,9 @@
   },
   "JFlcSpSl": {
     "defaultMessage": "read its console"
+  },
+  "JQj3BcAV": {
+    "defaultMessage": "Allows {actions}."
   },
   "Jby50rYV": {
     "defaultMessage": "I have read every step, and what is marked irreversible cannot be undone"
@@ -561,6 +600,9 @@
     "defaultMessage": "its workload was stopped",
     "description": "why a run ended"
   },
+  "LEqZXL7u": {
+    "defaultMessage": "No role is offered here."
+  },
   "LMQ8/0ve": {
     "defaultMessage": "suspended",
     "description": "a grant's state"
@@ -578,6 +620,9 @@
   "Lmq3qotl": {
     "defaultMessage": "Runs",
     "description": "a workload's runs"
+  },
+  "Lp0Gkby7": {
+    "defaultMessage": "How many days it lasts is a whole number from 1."
   },
   "LqRHP7sp": {
     "defaultMessage": "Nothing beneath it that you can read holds a quota."
@@ -597,6 +642,9 @@
   },
   "MUFpIc0k": {
     "defaultMessage": "The invitation"
+  },
+  "MWd3cfIN": {
+    "defaultMessage": "a project"
   },
   "MddyXGDM": {
     "defaultMessage": "State",
@@ -692,6 +740,9 @@
   "OvkS9T6p": {
     "defaultMessage": "Save the quota"
   },
+  "P1vuzQl1": {
+    "defaultMessage": "Save the role"
+  },
   "PIXTVfME": {
     "defaultMessage": "Its plan is scheduled."
   },
@@ -705,6 +756,9 @@
   "PwHgAn9a": {
     "defaultMessage": "Lines",
     "description": "a theme colour"
+  },
+  "Px9wrp6g": {
+    "defaultMessage": "A role allows at least one action."
   },
   "QKVDcL4/": {
     "defaultMessage": "Dedicated IPv4 addresses"
@@ -728,6 +782,9 @@
   "R6cxLNsE": {
     "defaultMessage": "Counts"
   },
+  "RAkt0S4r": {
+    "defaultMessage": "Reading the roles offered here…"
+  },
   "RD54aDMn": {
     "defaultMessage": "Theme",
     "description": "an organization's theme"
@@ -737,6 +794,9 @@
   },
   "RMzLxhOc": {
     "defaultMessage": "The code your app shows now"
+  },
+  "ROGy03Hk": {
+    "defaultMessage": "Its uses are a whole number from 1."
   },
   "RYkMKXPj": {
     "defaultMessage": "No run yet."
@@ -784,6 +844,9 @@
     "defaultMessage": "Send",
     "description": "button: send a console command"
   },
+  "T7Woi4PP": {
+    "defaultMessage": "Their name, as they will be shown"
+  },
   "T8qBobwN": {
     "defaultMessage": "This link has expired, and opens nothing now."
   },
@@ -814,6 +877,9 @@
   },
   "U8NwcEng": {
     "defaultMessage": "a request could not be sent"
+  },
+  "UI92y43Y": {
+    "defaultMessage": "someone invited now"
   },
   "UMB/jFLh": {
     "defaultMessage": "Status",
@@ -848,9 +914,15 @@
   "WRNdUk9E": {
     "defaultMessage": "It is not there."
   },
+  "Wefo2UWC": {
+    "defaultMessage": "The account, usr_…"
+  },
   "WlKwuX88": {
     "defaultMessage": "unknown",
     "description": "where a workload stands against what was declared"
+  },
+  "WnTGCnhk": {
+    "defaultMessage": "Actions it allows, separated by commas"
   },
   "X1BDgPIM": {
     "defaultMessage": "Open {name}"
@@ -1004,11 +1076,17 @@
     "defaultMessage": "Name",
     "description": "column: a file's name"
   },
+  "c35gM5T7": {
+    "defaultMessage": "Roles"
+  },
   "c3XoMktx": {
     "defaultMessage": "Password, at least 12 characters"
   },
   "c6s3fip6": {
     "defaultMessage": "New directory"
+  },
+  "c7tiahWJ": {
+    "defaultMessage": "Give this role"
   },
   "c8yWpaVr": {
     "defaultMessage": "Removed; the nearest theme above applies."
@@ -1024,6 +1102,9 @@
   },
   "co3A9BSP": {
     "defaultMessage": "Your recovery codes"
+  },
+  "cv76pwSz": {
+    "defaultMessage": "version {v}, from above"
   },
   "cy+bnRnd": {
     "defaultMessage": "Profile",
@@ -1096,6 +1177,9 @@
     "defaultMessage": "not yet",
     "description": "a convergence moment still to come"
   },
+  "fLKiBscu": {
+    "defaultMessage": "Given."
+  },
   "fb8GdyOM": {
     "defaultMessage": "Sold below"
   },
@@ -1137,6 +1221,9 @@
   "hJ6uj4ZM": {
     "defaultMessage": "It asked from"
   },
+  "hdO3gq5y": {
+    "defaultMessage": "a workload"
+  },
   "hfrR434C": {
     "defaultMessage": "Stop",
     "description": "button: stop a workload"
@@ -1167,6 +1254,9 @@
   "iitdQxcB": {
     "defaultMessage": "running",
     "description": "a workload's state as its node observed it"
+  },
+  "ivDcqiC1": {
+    "defaultMessage": "How many levels deep"
   },
   "izYqCARS": {
     "defaultMessage": "Authenticator app"
@@ -1261,6 +1351,9 @@
   "msSyC/mx": {
     "defaultMessage": "Welcome, {name}"
   },
+  "myUPH/nd": {
+    "defaultMessage": "version {v}"
+  },
   "nIafWUcM": {
     "defaultMessage": "Downloading {name}: {done} of {total}"
   },
@@ -1341,6 +1434,12 @@
   "rGyY3Tcv": {
     "defaultMessage": "Remove {name}? This cannot be undone."
   },
+  "rUC1kIHy": {
+    "defaultMessage": "Passes on {actions}, {depth} levels deep."
+  },
+  "ramQHEyT": {
+    "defaultMessage": "A new role"
+  },
   "rjT4uxJR": {
     "defaultMessage": "Quota"
   },
@@ -1364,6 +1463,9 @@
   },
   "sTddvshh": {
     "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} holds it and cannot run it: {why}."
+  },
+  "sWEBtqIv": {
+    "defaultMessage": "Passes nothing on."
   },
   "sYQQIZsv": {
     "defaultMessage": "start it"
@@ -1393,6 +1495,9 @@
     "defaultMessage": "This link lets you {allows}.{expiring, select, yes { It works until {until}.} other {}}{capped, select, yes { It can be used {uses, plural, one {# time} other {# times}} in all.} other {}}",
     "description": "what a share link allows, until when, and how many uses"
   },
+  "ttY/jSVX": {
+    "defaultMessage": "Retire it"
+  },
   "u6Mspyx9": {
     "defaultMessage": "{kind, select, organization {organization} project {project} other {workload}}",
     "description": "the kind of a place the viewer can reach"
@@ -1417,6 +1522,9 @@
     "defaultMessage": "missed",
     "description": "a run's status"
   },
+  "vNKET4df": {
+    "defaultMessage": "Given on"
+  },
   "vcc/+oBE": {
     "defaultMessage": "IRREVERSIBLE"
   },
@@ -1428,8 +1536,14 @@
     "defaultMessage": "someone",
     "description": "a grant's subject, unnamed"
   },
+  "w5Ys9pKK": {
+    "defaultMessage": "Send this to them. It is shown once, works for seven days, and lets them make their account and holds the role from then on."
+  },
   "w9y4DE8u": {
     "defaultMessage": "Downtime: unknown."
+  },
+  "wEQDC6Wv": {
+    "defaultMessage": "Edit"
   },
   "wEQGjatf": {
     "defaultMessage": "Accent",
@@ -1441,6 +1555,9 @@
   "wHbkqfPX": {
     "defaultMessage": "intent v{version}",
     "description": "the version of a workload's intent"
+  },
+  "wPj0Ogg+": {
+    "defaultMessage": "Only the workloads labelled (optional)"
   },
   "x+99iEjx": {
     "defaultMessage": "{cause}, {count, plural, one {# occurrence} other {# occurrences}}"
@@ -1467,6 +1584,9 @@
   },
   "y09OFmzc": {
     "defaultMessage": "Or with a password"
+  },
+  "yMzzPzXC": {
+    "defaultMessage": "Every use needs a second factor"
   },
   "yS/twS6R": {
     "defaultMessage": "converged",
@@ -1508,5 +1628,8 @@
   "zuF+uaw8": {
     "defaultMessage": "Password",
     "description": "heading"
+  },
+  "zyYnOoZA": {
+    "defaultMessage": "A role has a name."
   }
 }

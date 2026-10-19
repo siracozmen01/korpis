@@ -231,6 +231,17 @@ rendered as locked. It is not rendered.
 > the control plane decides, and a refusal is said in its words. A share link is never offered
 > it, and neither is anyone on a root organization, which nothing is above.
 >
+> Roles as built, 2026-10-19 (`web/src/roles/Roles.tsx`). Every organization, project, and workload
+> page lists the roles offered there (§4 of `08-identity.md`): the grant templates its organization
+> and each one above it own, with what each allows, what it passes on, how long it lasts, and
+> whether it comes from above. A signed-in caller is offered to give a role at a place of its kind,
+> to someone invited then, who is sent an invitation link shown once, or to an account that exists;
+> the version given is the one on screen, and the control plane refuses a role the giver cannot
+> pass on, in its own words. The button is offered to anyone signed in who reads the place, because
+> whether a giver can pass a role on depends on the giver's whole chain, which only the control
+> plane holds. On an organization's page, a caller holding `template.write` there makes, edits, and
+> retires its roles; an edit is made against the version shown. A share link is offered none of it.
+>
 > Quota as built, 2026-10-19 (`web/src/views/Quota.tsx`). An organization's page shows its quota
 > set to everyone who reads it (§5.1 of `05-scheduling.md`): per entry, what it counts and on which
 > nodes, and per dimension what it guarantees and sells, what the workloads it counts reserve and

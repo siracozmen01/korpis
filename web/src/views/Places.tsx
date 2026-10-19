@@ -13,6 +13,7 @@ import { everyGrant } from "./held";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
+import { Roles } from "../roles/Roles";
 import { QuotaView } from "./Quota";
 import { Suspension } from "./Suspension";
 import { OrganizationStatus } from "../gen/korpis/v1/tenancy_pb";
@@ -141,6 +142,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
             <h1>{o?.name ?? id}</h1>
             {o !== undefined && <Suspension organization={o} />}
             {o !== undefined && <QuotaView organization={o} />}
+            {o !== undefined && <Roles place={{ case: "organization", id: o.id }} />}
           </>
         )}
       />
@@ -205,7 +207,12 @@ export function ProjectPage({ id }: { readonly id: string }) {
       <Shown
         loaded={name}
         reading={t({ defaultMessage: "Reading the project…", id: "ma+8ta3Y" })}
-        done={(p) => <h1>{p?.name ?? id}</h1>}
+        done={(p) => (
+          <>
+            <h1>{p?.name ?? id}</h1>
+            {p !== undefined && <Roles place={{ case: "project", id: p.id }} />}
+          </>
+        )}
       />
       <Pages
         load={inside}
