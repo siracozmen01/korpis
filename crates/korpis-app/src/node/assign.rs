@@ -18,7 +18,7 @@ use crate::ports::{
     AssignmentWrite, CertificateWrite as _, Clock, RecipeSource, RunWrite as _, SealError, Sealed,
     Store, StoredAssignment, Tx, WorkloadWrite,
 };
-use korpis_core::authz::record::in_force;
+use korpis_core::authz::record::{GrantRecord, in_force};
 use korpis_core::principal::Principal;
 use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
@@ -120,11 +120,21 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let held = self.store.chains_held_by(&Principal::Workload(workload).key()).await?;
         let now = self.clock.now();
         for chain in held.iter().filter(|chain| in_force(chain, now)) {
-            // A grant scoped in a suspended organization authorizes nothing the API would let
-            // the workload change (§2.1 of docs/08-identity.md).
-            let Some(leaf) = chain.last() else { continue };
-            let ancestry = self.store.ancestry(leaf.grant.scope.anchor()).await?;
-            if !ancestry.iter().any(|n| n.suspended) {
+            if !self.under_suspension(chain).await? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Whether any grant of `chain` is scoped in a suspended organization's subtree, which
+    /// suspends the chain (§2.1 of docs/08-identity.md). Every link is asked rather than one, so
+    /// the answer does not depend on the order the chain is given in: a leaf lies within each of
+    /// its ancestors' scopes, so a suspension above any of them reaches it.
+    async fn under_suspension(&self, chain: &[GrantRecord]) -> Result<bool, AppError> {
+        for link in chain {
+            let ancestry = self.store.ancestry(link.grant.scope.anchor()).await?;
+            if ancestry.iter().any(|n| n.suspended) {
                 return Ok(true);
             }
         }

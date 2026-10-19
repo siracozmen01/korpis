@@ -101,6 +101,55 @@ async fn a_workload_holding_a_grant_in_force_reaches_the_api_until_it_is_revoked
     turns(&h, &nightly, false).await;
 }
 
+/// Its organization suspended, a workload's grant scoped there suspends with it, and the node
+/// stops relaying the API to it until the organization is resumed (§2.1 of
+/// docs/08-identity.md). The grant is issued from the host's root, so the chain's root lies
+/// outside the suspended organization and only its leaf within it.
+#[tokio::test]
+async fn a_workload_of_a_suspended_organization_loses_the_api_until_it_is_resumed() {
+    let h = Harness::new().await;
+    let _connected = installed(&h, 41, "dns").await;
+    let made = pb::CreateOrganizationRequest {
+        mutation: mutation("customer").into(),
+        name: "customer".into(),
+        parent: Some(h.root_org()),
+        ..Default::default()
+    };
+    let customer = h.orgs(h.root()).create_organization(made).await.unwrap().into_owned();
+    let customer = customer.organization.as_option().unwrap().id.clone();
+    let project = project(&h, &customer, "jobs").await;
+    let declare = create("b1", &project, "nightly", body(&push_paper().await, &[]));
+    let out = h.workloads(h.root()).declare_intent(declare).await.unwrap().into_owned();
+    let nightly = out.workload.as_option().unwrap().id.clone();
+    let id = korpis_core::id::Id::parse(korpis_core::id::IdKind::Workload, &nightly).unwrap();
+    let issue = pb::IssueGrantRequest {
+        mutation: mutation("to-nightly").into(),
+        parent: h.root_grant(),
+        subject: principal::to_pb(&Principal::Workload(id.uuid())).into(),
+        actions: vec!["backup.create".into()],
+        scope: org_scope(&customer).into(),
+        ..Default::default()
+    };
+    h.grants(h.root()).issue_grant(issue).await.unwrap();
+    turns(&h, &nightly, true).await;
+
+    let suspend = pb::SuspendOrganizationRequest {
+        mutation: mutation("s").into(),
+        organization: customer.clone(),
+        reason: "unpaid".into(),
+        ..Default::default()
+    };
+    h.orgs(h.root()).suspend_organization(suspend).await.unwrap();
+    turns(&h, &nightly, false).await;
+    let resume = pb::ResumeOrganizationRequest {
+        mutation: mutation("r").into(),
+        organization: customer,
+        ..Default::default()
+    };
+    h.orgs(h.root()).resume_organization(resume).await.unwrap();
+    turns(&h, &nightly, true).await;
+}
+
 #[tokio::test]
 async fn a_declaration_asking_what_no_node_enforces_is_refused_saying_why() {
     let h = Harness::new().await;
