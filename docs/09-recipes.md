@@ -203,6 +203,21 @@ and it is declared by the recipe rather than special-cased in core.
 > grace. Until the agent runs the hook, a recipe whose software needs it gets the unclean stop
 > this section warns of. It is task P1.13c of the build plan, before Phase 1 is declared done.
 
+> As built, 2026-10-19, on the node (`crates/korpis-agent/src/reconcile/halt.rs`). The hook
+> needed no new field: the signed assignment carries the recipe document, and the agent reads
+> the hook from it once for each recipe it is assigned. Every stop of a running object, a
+> workload's or a run's, whatever needed it (a power stop, a restart, a rebuild, a retirement, a
+> supersession, a run's cancel, replacement, or timeout), first writes the hook's data to the
+> console as `system:reconciler`, which the driver records in the stream as that input, and
+> journals it as the node's `node.pre_stop` effect; the process then has `wait_for_exit` to exit
+> by itself, and only then is it signalled, and killed once its grace of thirty seconds is over.
+> None of it holds up the node's other workloads, since a stop is moved on pass by pass (§6 of
+> `02-architecture.md`). What it does not do: a workload whose console takes no input (a
+> `console: logs` or `none` workload, or one whose driver cannot write to it) cannot be asked,
+> which the effect records as failed with the driver's reason, and it is signalled at once; and
+> nothing shortens a stop of software that heeds neither the hook nor the signal below its
+> `wait_for_exit` plus the grace.
+
 ### 3.1 A declaration is completed by its recipe, once, and the intent stores the result
 
 > Added 2026-10-13, from the implementation (`crates/korpis-core/src/workload/declare.rs`). The

@@ -80,6 +80,14 @@ impl InMemory {
         }
     }
 
+    /// Makes every running object ignore what a stop hook writes to its console, or heed it
+    /// again by exiting, as software deaf to its recipe's stop command would.
+    pub fn ignore_hooks(&self, ignoring: bool) {
+        if let Ok(mut s) = self.lock() {
+            s.unheeding = ignoring;
+        }
+    }
+
     /// Makes every later `prepare` reject with `rejection`, or accept again.
     pub fn reject(&self, rejection: Option<driver::Rejection>) {
         if let Ok(mut s) = self.lock() {

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A stop that takes its whole grace holds up nothing else on the node (§6 of
-//! docs/02-architecture.md): an object that ignores the terminating signal, as a container's
-//! first process with no handler does, is killed once its grace is over, while the reconciler
-//! goes on starting the node's other workloads; and whatever needed it stopped, a retirement or a
-//! run's cancellation, completes once it has.
+//! How the node stops what it runs (§6 of docs/02-architecture.md, §3 of docs/09-recipes.md):
+//! it asks first, as the recipe's `pre_stop` hook says, by writing the hook's data to the console
+//! as the reconciler's input, and software that heeds it exits without a signal; software that
+//! does not is signalled once the hook's wait is over, and killed once its grace is, if it
+//! ignores the signal too, as a container's first process with no handler does. None of it holds
+//! up the node's other workloads, and whatever needed the stop, a retirement or a run's
+//! cancellation, completes once it has.
 
 use crate::session::until;
-use crate::support::{ControlPlane, facts, mutation};
+use crate::support::{ControlPlane, facts, mutation, push_paper, push_paper_waiting};
 use korpis_agent::host::InMemoryHost;
 use korpis_agent::join::{Join, join};
 use korpis_agent::run::{Agent, Options};
@@ -15,6 +17,7 @@ use korpis_agent::runtime::memory::InMemory;
 use korpis_agent::session::Event;
 use korpis_agent::state::StateDir;
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -77,6 +80,75 @@ async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
     assert_eq!(cp.scalar::<i64>(sql).await, n, "{sql}");
 }
 
+/// Declares workload `name` in `project` from the recipe at `repo`, as `lifecycle`; its wire id.
+async fn declare(cp: &ControlPlane, project: &str, name: &str, repo: String, task: bool) -> String {
+    cp.measured().await;
+    let lifecycle =
+        if task { pb::Lifecycle::LIFECYCLE_TASK } else { pb::Lifecycle::LIFECYCLE_PERSISTENT };
+    let body = pb::IntentBody {
+        recipe: pb::RecipeRef { name: repo, version: "1.21.4".into(), ..Default::default() }.into(),
+        lifecycle: lifecycle.into(),
+        ..Default::default()
+    };
+    let request = pb::DeclareIntentRequest {
+        mutation: mutation(&format!("declare-{name}")).into(),
+        target: Some(Target::Create(Box::new(pb::NewWorkload {
+            project: project.to_owned(),
+            name: name.to_owned(),
+            ..Default::default()
+        }))),
+        body: body.into(),
+        ..Default::default()
+    };
+    let declared = cp.workloads().declare_intent(request).await.unwrap().into_owned();
+    declared.workload.into_option().unwrap().id
+}
+
+/// The call the reconciler makes to ask `id` to stop, as the example recipe's hook says.
+fn asked(id: &str) -> String {
+    format!("console_input {id} system:reconciler pre_stop stop\n")
+}
+
+const RETIRED: &str = "SELECT count(*) FROM effect WHERE action = 'workload.retire'";
+const ASKED: &str =
+    "SELECT count(*) FROM effect WHERE action = 'node.pre_stop' AND outcome = 'succeeded'";
+
+#[tokio::test]
+async fn software_that_heeds_its_hook_exits_without_a_signal() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime, Duration::from_secs(30)).await;
+    let w = declare(&cp, &project, "heeds", push_paper().await, false).await;
+    let id = object(&runtime, &w).await;
+    cp.retire(&w).await;
+    counted(&cp, RETIRED, 1).await;
+    let calls = runtime.calls();
+    assert!(calls.contains(&asked(&id)), "asked as its recipe says: {calls:?}");
+    assert!(!calls.contains(&format!("signal {id}")), "and never signalled: {calls:?}");
+    counted(&cp, ASKED, 1).await;
+}
+
+#[tokio::test]
+async fn software_deaf_to_its_hook_is_signalled_once_the_hook_s_wait_is_over() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime, Duration::from_secs(30)).await;
+    let w = declare(&cp, &project, "deaf", push_paper_waiting("2s").await, false).await;
+    let id = object(&runtime, &w).await;
+    runtime.ignore_hooks(true);
+    cp.retire(&w).await;
+    called(&runtime, &asked(&id)).await;
+    let asking = Instant::now();
+    called(&runtime, &format!("signal {id}")).await;
+    assert!(asking.elapsed() >= Duration::from_millis(1500), "not before the hook's wait");
+    counted(&cp, RETIRED, 1).await;
+    assert!(!runtime.calls().contains(&format!("kill {id}")), "it heeded the signal");
+}
+
 #[tokio::test]
 async fn an_object_that_ignores_its_stop_is_killed_past_its_grace_and_holds_up_no_other() {
     let grace = Duration::from_secs(20);
@@ -85,15 +157,16 @@ async fn an_object_that_ignores_its_stop_is_killed_past_its_grace_and_holds_up_n
     let dir = tempfile::tempdir().unwrap();
     let runtime = InMemory::new();
     let _agent = node(&cp, &dir, &runtime, grace).await;
-    let deaf = cp.declare(&project, "deaf").await;
+    let deaf = declare(&cp, &project, "deaf", push_paper_waiting("1s").await, false).await;
     let first = object(&runtime, &deaf).await;
 
+    runtime.ignore_hooks(true);
     runtime.ignore_term(true);
     let retiring = Instant::now();
     cp.retire(&deaf).await;
     called(&runtime, &format!("signal {first}")).await;
     // While it has its grace, another workload is placed, built, and started.
-    let other = cp.declare(&project, "other").await;
+    let other = declare(&cp, &project, "other", push_paper().await, false).await;
     let second = object(&runtime, &other).await;
     let killed = format!("kill {first}");
     let calls = runtime.calls();
@@ -114,9 +187,10 @@ async fn a_cancelled_run_that_ignores_its_stop_is_killed_past_its_grace_and_ends
     let dir = tempfile::tempdir().unwrap();
     let runtime = InMemory::new();
     let _agent = node(&cp, &dir, &runtime, grace).await;
-    let w = crate::runs::task(&cp, &project, "build", pb::RunPolicy::default()).await;
+    let w = declare(&cp, &project, "build", push_paper_waiting("1s").await, true).await;
     let running = object(&runtime, &w).await;
 
+    runtime.ignore_hooks(true);
     runtime.ignore_term(true);
     let run: Option<(uuid::Uuid,)> =
         cp.query_one("SELECT id FROM run WHERE workload_id::text <> $1", "").await;
@@ -128,6 +202,7 @@ async fn a_cancelled_run_that_ignores_its_stop_is_killed_past_its_grace_and_ends
     };
     let cancelling = Instant::now();
     cp.client(pb::RunServiceClient::new).cancel_run(cancel).await.unwrap();
+    called(&runtime, &asked(&running)).await;
     called(&runtime, &format!("signal {running}")).await;
     called(&runtime, &format!("kill {running}")).await;
     assert!(cancelling.elapsed() >= grace, "not before its grace was over");

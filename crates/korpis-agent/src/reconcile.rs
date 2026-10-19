@@ -83,6 +83,9 @@ struct Tracked {
     runs: BTreeMap<String, runs::RunTracked>,
     /// Where the stop of its object is, while one is under way.
     halting: halt::Halting,
+    /// Its recipe's pre-stop hook, and the recipe it was read from (§3 of docs/09-recipes.md).
+    pre_stop: Option<korpis_core::recipe::behaviour::Hook>,
+    hook_of: String,
 }
 
 /// Where the reconciler reads and writes.

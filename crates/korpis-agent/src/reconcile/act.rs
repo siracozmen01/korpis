@@ -228,7 +228,9 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
     pub(super) async fn stop(&mut self, t: &mut Tracked) -> Result<bool, Failure> {
         let Some(id) = t.runtime.clone() else { return Ok(true) };
         t.stopped_by_us = true;
-        let stopped = self.halt(&id, &mut t.halting).await?;
+        let workload = t.labels.as_ref().map(|l| l.workload.clone()).unwrap_or_default();
+        let hook = t.pre_stop.as_ref().map(|h| (workload.as_str(), h));
+        let stopped = self.halt(&id, &mut t.halting, hook).await?;
         if stopped {
             t.running_since = None;
         }

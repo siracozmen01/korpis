@@ -37,6 +37,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             return self.residual(a).await;
         }
         let mut t = self.tracked.remove(&a.workload).unwrap_or_default();
+        super::halt::hook(a, &mut t);
         self.refresh(&mut t).await;
         let standing = self.wiring.leases.standing(&a.workload);
         let outcome = match &standing {

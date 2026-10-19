@@ -5,8 +5,6 @@
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
-use korpis_recipe::artifact::{Artifact, File};
-use korpis_recipe::registry::Registry;
 use korpis_server::data::DataDir;
 use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
@@ -14,8 +12,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 mod authority;
+mod recipe;
 mod relay;
 mod served;
+
+pub use recipe::{push_paper, push_paper_waiting};
 
 pub struct ControlPlane {
     db: TestDb,
@@ -343,30 +344,6 @@ impl ControlPlane {
 
 pub fn mutation(key: &str) -> pb::Mutation {
     pb::Mutation { idempotency_key: key.to_owned(), ..Default::default() }
-}
-
-/// The example recipe of §3 of docs/09-recipes.md.
-const PAPER: &str = include_str!("../../../korpis-recipe/tests/recipe/paper.yaml");
-
-/// Pushes the example to a repository no other test uses; returns the repository.
-pub async fn push_paper() -> String {
-    let registry =
-        std::env::var("KORPIS_TEST_REGISTRY").unwrap_or_else(|_| "127.0.0.1:55000".to_owned());
-    let repo = format!("{registry}/test/paper-{}", uuid::Uuid::now_v7().simple());
-    let file = |path: &str, data: &[u8]| File {
-        path: path.to_owned(),
-        media_type: "application/octet-stream".to_owned(),
-        data: data.to_vec(),
-    };
-    let artifact = Artifact {
-        document: PAPER.as_bytes().to_vec(),
-        files: vec![
-            file("layers/rootfs.tar.zst", b"not really a rootfs"),
-            file("templates/server.properties", b"motd={{motd}}\n"),
-        ],
-    };
-    Registry::new(vec![registry]).unwrap().push(&repo, "1.21.4", &artifact).await.unwrap();
-    repo
 }
 
 /// What a test node reports: the `oci` driver and the fixtures' capacity.

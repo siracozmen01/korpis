@@ -37,6 +37,8 @@ struct State {
     capturing: bool,
     /// Whether the terminating signal is ignored, so only a kill stops an object.
     deaf: bool,
+    /// Whether what a stop hook writes is ignored, rather than heeded by exiting.
+    unheeding: bool,
 }
 
 /// The in-memory runtime; clones share it.
@@ -183,6 +185,23 @@ impl InMemory {
         s.objects.get(id).map(|_| ()).ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
 
+    /// What a stop hook writes (the session `pre_stop`) stops a running object, as the software
+    /// a recipe's hook is written for exits on it, unless the runtime was made to ignore it.
+    fn heed(&self, id: &str, session: &str) -> RuntimeResult<()> {
+        let mut s = self.lock()?;
+        let unheeding = s.unheeding;
+        let Some(o) = s.objects.get_mut(id) else { return Ok(()) };
+        let running =
+            o.status.state.as_known() == Some(driver::RuntimeState::RUNTIME_STATE_RUNNING);
+        if session != "pre_stop" || unheeding || !running {
+            return Ok(());
+        }
+        o.status = state(driver::RuntimeState::RUNTIME_STATE_STOPPED, Some(0));
+        drop(s);
+        let _ = self.changes.send(id.to_owned());
+        Ok(())
+    }
+
     /// A terminating signal stops a running object, as a process that handles it by exiting
     /// does, unless the runtime was made to ignore it; any other is only recorded.
     fn signal_now(&self, id: &str, signal: &str) -> RuntimeResult<()> {
@@ -283,11 +302,9 @@ impl Runtime for InMemory {
         data: &[u8],
     ) -> impl Future<Output = RuntimeResult<()>> + Send {
         let text = String::from_utf8_lossy(data);
-        ready(self.console_now(
-            "console_input",
-            id,
-            &format!("{} {} {text}", from.by, from.session),
-        ))
+        let logged =
+            self.console_now("console_input", id, &format!("{} {} {text}", from.by, from.session));
+        ready(logged.and_then(|()| self.heed(id, from.session)))
     }
 
     fn resize_console(

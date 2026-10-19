@@ -162,7 +162,8 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
             r.stopped_for.get_or_insert(why);
             // Moved on by one pass, as every stop is (§6 of docs/02-architecture.md); a run still
             // stopping is kept, and so is one whose stop failed, so no run is ever forgotten.
-            if let Err(e) = self.halt(&r.runtime, &mut r.halting).await {
+            let hook = t.pre_stop.as_ref().map(|h| (workload, h));
+            if let Err(e) = self.halt(&r.runtime, &mut r.halting, hook).await {
                 t.runs.insert(run.to_owned(), r);
                 return Err(e);
             }
