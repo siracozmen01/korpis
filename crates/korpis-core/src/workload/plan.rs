@@ -16,7 +16,8 @@ pub use approval::{Approval, Proposing};
 pub use impact::{Estimate, Impact, ResourceDelta};
 pub use status::PlanStatus;
 pub use step::{
-    Classifier, DriverClass, Layer, Override, OverrideRefusal, Step, StepAction, StepExecutor,
+    Classifier, DriverClass, Layer, Override, OverrideRefusal, STOP_GRACE, Step, StepAction,
+    StepExecutor,
 };
 
 use crate::principal::Principal;

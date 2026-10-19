@@ -26,7 +26,15 @@ const proposed = (init: PlanInit): PlanInit => ({
 });
 const START = proposed({ steps: [{ index: 0, action: "start", reversible: true }], impact: safe });
 const RESTART = proposed({
-  steps: [{ index: 0, action: "restart", reversible: true, disruptive: true }],
+  steps: [
+    {
+      index: 0,
+      action: "restart",
+      reversible: true,
+      disruptive: true,
+      detail: { stops_within_seconds: { kind: { case: "intValue", value: 150n } } },
+    },
+  ],
   impact: { ...safe, disruptive: true },
 });
 const DELETE = proposed({
@@ -81,6 +89,8 @@ test("a plan that interrupts service is previewed in place, and cancelling withd
   fireEvent.click(screen.getByRole("button", { name: "Restart" }));
   expect(await screen.findByText("Restart will do this:")).toBeTruthy();
   expect(screen.getByText(/interrupts service/)).toBeTruthy();
+  // The longest its stop can take: the recipe's hook, then the grace (§3 of docs/09-recipes.md).
+  expect(screen.getByText("stops within 150 seconds at most")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   // The action is back at once and stays disabled until the plan is withdrawn.
   await waitFor(() => {

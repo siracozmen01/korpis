@@ -98,7 +98,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             period: Duration::from_secs(2),
-            stop_grace: Duration::from_secs(30),
+            stop_grace: korpis_core::workload::plan::STOP_GRACE,
             maintain_every: Duration::from_secs(5),
             journal: Bounds::default(),
             identity_root: None,

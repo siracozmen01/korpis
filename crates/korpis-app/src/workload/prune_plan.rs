@@ -19,6 +19,7 @@ use korpis_core::workload::plan::impact::ResourceDelta;
 use korpis_core::workload::plan::prune::{forgotten, prune_steps};
 use korpis_core::workload::plan::step::DriverClass;
 use korpis_core::workload::{Plan, PlanTarget};
+use std::time::Duration;
 use uuid::Uuid;
 
 const OPERATION: &str = "backup.prune";
@@ -57,7 +58,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("prune.nothing", why));
         }
         let (driver, recipe) = (DriverClass::default(), Disruption::default());
-        let steps = prune_steps(w.id, repo.id, &judged, propose::classifier(&driver, &recipe, &w));
+        let classifier = propose::classifier(&driver, (&recipe, Duration::ZERO), &w);
+        let steps = prune_steps(w.id, repo.id, &judged, classifier);
         let proposal = Proposal {
             exposures: Vec::new(),
             workload: w.id,

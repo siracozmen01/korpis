@@ -50,6 +50,17 @@ pub struct LifecycleHooks {
     pub pre_stop: Option<Hook>,
 }
 
+impl LifecycleHooks {
+    /// How long the `pre_stop` hook gives the software to exit by itself; zero without one.
+    #[must_use]
+    pub fn stop_wait(&self) -> Duration {
+        match &self.pre_stop {
+            Some(Hook::ConsoleWrite { wait_for_exit, .. }) => *wait_for_exit,
+            None => Duration::ZERO,
+        }
+    }
+}
+
 /// The longest a pre-stop hook may hold a stop.
 pub const MAX_PRE_STOP: Duration = Duration::from_secs(600);
 

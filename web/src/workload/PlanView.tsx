@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // A plan as the control plane computed it (§4 of docs/11-surface-web.md): every step, each with
-// the object it acts on and how it was classified, and the impact: the downtime it estimates,
-// the data at risk, and why it does or does not apply without a person. Nothing is summarized
-// away: the affected objects are enumerated.
+// the object it acts on, how it was classified, and the longest a stop in it can take, and the
+// impact: the downtime it estimates, the data at risk, and why it does or does not apply without
+// a person. Nothing is summarized away: the affected objects are enumerated.
 
 import { durationMs } from "@bufbuild/protobuf/wkt";
 import { ObjectKind } from "../gen/korpis/v1/common_pb";
@@ -40,6 +40,12 @@ function marks(s: Step): string {
     said.filter((m) => m !== ""),
     { type: "unit" },
   );
+}
+
+/** The longest a step that stops a running object can take, in seconds, when it says. */
+function stopsWithin(s: Step): number | undefined {
+  const kind = s.detail.stops_within_seconds?.kind;
+  return kind?.case === "intValue" ? Number(kind.value) : undefined;
 }
 
 /** The impact, in sentences. */
@@ -94,6 +100,19 @@ export function PlanView({ plan }: { readonly plan: Plan }) {
               </strong>
             )}
             {s.reason !== "" && <small> {s.reason}</small>}
+            {stopsWithin(s) !== undefined && (
+              <small className="aside">
+                {t(
+                  {
+                    defaultMessage:
+                      "stops within {seconds, plural, one {# second} other {# seconds}} at most",
+                    id: "XF9O6Qhz",
+                    description: "the longest a step's stop can take",
+                  },
+                  { seconds: stopsWithin(s) },
+                )}
+              </small>
+            )}
           </li>
         ))}
       </ol>

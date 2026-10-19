@@ -742,6 +742,10 @@
   "X1BDgPIM": {
     "defaultMessage": "Open {name}"
   },
+  "XF9O6Qhz": {
+    "defaultMessage": "stops within {seconds, plural, one {# second} other {# seconds}} at most",
+    "description": "the longest a step's stop can take"
+  },
   "XKxxNWbL": {
     "defaultMessage": "{holder}: {actions}{labelled, select, yes { ({label})} other {}}, {state}{expiring, select, yes {, until {until}} other {}}",
     "description": "one grant: who holds it, its actions, its label, state, and expiry"

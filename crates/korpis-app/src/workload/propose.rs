@@ -15,7 +15,7 @@ use korpis_core::workload::plan::{
 };
 use korpis_core::workload::spec::IsolationTier;
 use korpis_core::workload::{Plan, PlanTarget, Workload};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 /// Everything a plan is computed from.
@@ -39,10 +39,10 @@ pub(super) struct Proposal<'a> {
 /// overrides of the workload (§3.3 of docs/01-model.md).
 pub(super) fn classifier<'a>(
     driver: &'a DriverClass,
-    recipe: &'a Disruption,
+    (recipe, stop_wait): (&'a Disruption, Duration),
     w: &'a Workload,
 ) -> Classifier<'a> {
-    Classifier { driver, recipe, overrides: &w.classification }
+    Classifier { driver, recipe, overrides: &w.classification, stop_wait }
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

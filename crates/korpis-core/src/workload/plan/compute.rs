@@ -35,6 +35,13 @@ fn text(s: &str) -> Value {
 impl Builder<'_> {
     fn push(&mut self, action: StepAction, detail: ValueMap, touched: &[String]) {
         let (disruptive, classified_by, reason) = self.classifier.classify(action, touched);
+        // What a stop of a running object can take, as the node moves it on: the recipe's
+        // hook's wait, then the grace (§3 of docs/09-recipes.md, §6 of docs/02-architecture.md).
+        let mut detail = detail;
+        if matches!(action, StepAction::Stop | StepAction::Restart | StepAction::Retire) {
+            let bound = self.classifier.stop_bound().as_secs();
+            detail.insert("stops_within_seconds".to_owned(), int(bound));
+        }
         let (_, reversible) = action.floor();
         self.steps.push(Step {
             index: u32::try_from(self.steps.len()).unwrap_or(u32::MAX),

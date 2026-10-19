@@ -334,7 +334,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         (driver, recipe): (&DriverClass, &Recipe),
         propose: bool,
     ) -> Result<Plan, AppError> {
-        let classifier = propose::classifier(driver, &recipe.disruption, &base.workload);
+        let layers = (&recipe.disruption, recipe.lifecycle_hooks.stop_wait());
+        let classifier = propose::classifier(driver, layers, &base.workload);
         let from = base.target.as_ref().map(|t| (t.id, &t.body));
         let steps = intent_steps(
             to.workload,

@@ -234,6 +234,10 @@ impl Override {
     }
 }
 
+/// How long the node gives a running object to stop once it is signalled, before it kills it
+/// (§6 of docs/02-architecture.md).
+pub const STOP_GRACE: Duration = Duration::from_secs(30);
+
 /// Everything a classification reads.
 #[derive(Debug, Clone, Copy)]
 pub struct Classifier<'a> {
@@ -243,6 +247,17 @@ pub struct Classifier<'a> {
     pub recipe: &'a Disruption,
     /// The operator's overrides for this workload.
     pub overrides: &'a [Override],
+    /// How long the recipe's `pre_stop` hook gives the software to exit before it is signalled;
+    /// zero when it declares none (§3 of docs/09-recipes.md).
+    pub stop_wait: Duration,
+}
+
+impl Classifier<'_> {
+    /// The longest a stop of a running object can take: the hook's wait, then the grace.
+    #[must_use]
+    pub fn stop_bound(&self) -> Duration {
+        self.stop_wait.saturating_add(STOP_GRACE)
+    }
 }
 
 impl Classifier<'_> {

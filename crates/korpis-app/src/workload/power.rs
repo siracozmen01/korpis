@@ -18,6 +18,7 @@ use korpis_core::workload::plan::{Approval, DriverClass, Proposing, ResourceDelt
 use korpis_core::workload::{
     Plan, PlanTarget, Power, PowerChange, PowerRecord, PowerState, Workload,
 };
+use std::time::Duration;
 use uuid::Uuid;
 
 const OPERATION: &str = "workload.change_power";
@@ -160,8 +161,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             0 => Power { desired: PowerState::Stopped, cycle: 0, version: 0 },
             v => self.power_record(w.id, v).await?.power,
         };
-        let (driver, disruption) = self.running_layers(w).await?;
-        let steps = power_steps(w.id, from, to.power, propose::classifier(&driver, &disruption, w));
+        let (driver, disruption, wait) = self.running_layers(w).await?;
+        let classifier = propose::classifier(&driver, (&disruption, wait), w);
+        let steps = power_steps(w.id, from, to.power, classifier);
         let proposal = Proposal {
             exposures: Vec::new(),
             workload: w.id,
@@ -177,11 +179,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// The driver's and the recipe's layers of the classification chain for what the workload
-    /// runs: its target, or its head while nothing is approved.
+    /// runs, its target or its head while nothing is approved, and how long its recipe's hook
+    /// waits before a stop is signalled.
     pub(super) async fn running_layers(
         &self,
         w: &Workload,
-    ) -> Result<(DriverClass, Disruption), AppError> {
+    ) -> Result<(DriverClass, Disruption, Duration), AppError> {
         let id = w.target.unwrap_or(w.intent);
         let intent = self
             .store
@@ -191,6 +194,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let driver = self.driver_class(w.organization, intent.body.runtime.tier).await?;
         let r = &intent.body.recipe;
         let (_, recipe) = self.resolve_recipe(&r.name, &r.digest).await?;
-        Ok((driver, recipe.disruption))
+        Ok((driver, recipe.disruption, recipe.lifecycle_hooks.stop_wait()))
     }
 }

@@ -779,6 +779,18 @@ author or a driver, and an operator who wants a quieter approval flow has to say
 computed they are reported as `unknown` rather than zero, and a plan whose impact is `unknown` is
 **not** auto-approvable. P4 applied to the one number that decides whether a human sees the change.
 
+> Added 2026-10-19, when the recipe's `pre_stop` hook was built (§3 of `09-recipes.md`). The
+> downtime of a stop is still `unknown`, since how long the software takes to come back is
+> measured nowhere, but its upper half is known, and it is shown. Every step that stops a
+> running object (`stop`, `restart`, `retire`) carries `stops_within_seconds` in its detail: the
+> hook's `wait_for_exit` and then the node's grace of thirty seconds, which is the longest the
+> node lets the stop take before it kills the process (§6 of `02-architecture.md`). What
+> evaluates it: the control plane, when it computes the plan, from the recipe it already reads to
+> classify the step and the grace, which is a constant of the platform and the node's default
+> alike. The CLI prints it with the step's other detail, and the panel says it beside the step.
+> What it does not say: an agent configured with another grace (only tests do) stops within its
+> own, not the one the plan shows.
+
 **Plans govern intent changes, not drift correction**
 
 There is a tension here that has to be resolved explicitly, because getting it wrong breaks either

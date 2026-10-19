@@ -84,6 +84,13 @@ async fn an_operator_makes_a_stop_routine_on_the_record_and_the_next_stop_needs_
     let stop = plan.steps.iter().find(|s| s.action == "stop").unwrap();
     assert!(!stop.disruptive, "the recipe said disruptive; the operator said otherwise");
     assert_eq!(stop.classified_by.as_known(), Some(pb::StepLayer::STEP_LAYER_OPERATOR));
+    // The longest the stop can take is shown on the step: the example recipe's hook waits two
+    // minutes for the server to exit, then the node's grace (§3 of docs/09-recipes.md).
+    let within = stop.detail.get("stops_within_seconds").and_then(|v| match v.kind {
+        Some(pb::__buffa::oneof::value::Kind::IntValue(n)) => Some(n),
+        _ => None,
+    });
+    assert_eq!(within, Some(150), "{:?}", stop.detail);
 }
 
 #[tokio::test]

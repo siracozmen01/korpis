@@ -180,10 +180,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 self.store.power_at(w.id, v).await?.map_or(PowerState::Stopped, |p| p.power.desired)
             }
         };
-        let (driver, disruption) = self.running_layers(w).await?;
+        let (driver, disruption, wait) = self.running_layers(w).await?;
         // What no node holds has nothing a node could stop or remove.
         let body = target.as_ref().map(|t| &t.body).filter(|_| held);
-        let classifier = propose::classifier(&driver, &disruption, w);
+        let classifier = propose::classifier(&driver, (&disruption, wait), w);
         let steps = retire_steps(w.id, (body, power), deleting, classifier);
         let held = match &target {
             Some(t) => Some(t.body.clone()),

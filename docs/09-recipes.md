@@ -216,7 +216,8 @@ and it is declared by the recipe rather than special-cased in core.
 > `console: logs` or `none` workload, or one whose driver cannot write to it) cannot be asked,
 > which the effect records as failed with the driver's reason, and it is signalled at once; and
 > nothing shortens a stop of software that heeds neither the hook nor the signal below its
-> `wait_for_exit` plus the grace.
+> `wait_for_exit` plus the grace. A plan says so: each step that stops a running object carries
+> that sum as `stops_within_seconds` (§3.3 of `01-model.md`).
 
 ### 3.1 A declaration is completed by its recipe, once, and the intent stores the result
 

@@ -267,8 +267,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if self.store.open_plans(w.id).await?.iter().any(|p| p.target.volume() == Some(v.id)) {
             return Err(AppError::conflict("volume.busy", "a plan operating on it is open"));
         }
-        let (driver, disruption) = self.running_layers(&w).await?;
-        let classifier = propose::classifier(&driver, &disruption, &w);
+        let (driver, disruption, wait) = self.running_layers(&w).await?;
+        let classifier = propose::classifier(&driver, (&disruption, wait), &w);
         let steps = self.volume_steps(&w, &ask, classifier).await?;
         let gone = ask.op == VolumeOp::Delete && v.kind == VolumeKind::Declared;
         let proposal = Proposal {

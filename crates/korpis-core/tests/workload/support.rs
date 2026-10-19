@@ -81,5 +81,5 @@ pub fn game_server() -> Disruption {
 }
 
 pub fn classifier<'a>(driver: &'a DriverClass, recipe: &'a Disruption) -> Classifier<'a> {
-    Classifier { driver, recipe, overrides: &[] }
+    Classifier { driver, recipe, overrides: &[], stop_wait: std::time::Duration::ZERO }
 }

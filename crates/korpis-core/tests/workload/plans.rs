@@ -8,7 +8,7 @@ use korpis_core::recipe::Disruption;
 use korpis_core::value::Value;
 use korpis_core::workload::plan::compute::{intent_steps, power_steps};
 use korpis_core::workload::plan::impact::{assess, delta};
-use korpis_core::workload::plan::{DriverClass, Estimate, Layer, Override, StepAction};
+use korpis_core::workload::plan::{Classifier, DriverClass, Estimate, Layer, Override, StepAction};
 use korpis_core::workload::{Power, PowerChange, PowerState};
 use uuid::Uuid;
 
@@ -100,6 +100,24 @@ fn power_plans_are_starts_stops_and_restarts() {
 }
 
 #[test]
+fn a_stop_says_the_longest_it_can_take_the_recipe_s_hook_then_the_grace() {
+    let (driver, recipe) = (DriverClass::default(), Disruption::default());
+    let within = |c, to| {
+        let on = Power::initial(PowerState::Running);
+        let steps = power_steps(Uuid::now_v7(), on, on.next(to), c);
+        steps[0].detail.get("stops_within_seconds").cloned()
+    };
+    let bare = classifier(&driver, &recipe);
+    assert_eq!(within(bare, PowerChange::Stop), Some(Value::Int(30)), "the grace alone");
+    let hooked = Classifier { stop_wait: std::time::Duration::from_secs(120), ..bare };
+    assert_eq!(within(hooked, PowerChange::Stop), Some(Value::Int(150)), "its hook's wait too");
+    assert_eq!(within(hooked, PowerChange::Restart), Some(Value::Int(150)), "a restart stops");
+    let off = Power::initial(PowerState::Running).next(PowerChange::Stop);
+    let start = power_steps(Uuid::now_v7(), off, off.next(PowerChange::Start), hooked);
+    assert!(!start[0].detail.contains_key("stops_within_seconds"), "a start stops nothing");
+}
+
+#[test]
 fn the_override_chain_only_raises_below_the_operator_and_never_below_the_floor() {
     let id = Uuid::now_v7();
     let (on, off) = (
@@ -109,7 +127,12 @@ fn the_override_chain_only_raises_below_the_operator_and_never_below_the_floor()
     let quiet = Disruption::default();
     let vm = DriverClass { disruptive: vec![StepAction::Stop] };
     let stop = |driver: &DriverClass, recipe: &Disruption, overrides: &[Override]| {
-        let c = korpis_core::workload::plan::Classifier { driver, recipe, overrides };
+        let c = korpis_core::workload::plan::Classifier {
+            driver,
+            recipe,
+            overrides,
+            stop_wait: std::time::Duration::ZERO,
+        };
         let s = power_steps(id, on, off, c).remove(0);
         (s.disruptive, s.classified_by)
     };
@@ -122,6 +145,7 @@ fn the_override_chain_only_raises_below_the_operator_and_never_below_the_floor()
         driver: &vm,
         recipe: &quiet,
         overrides: &[Override { action: StepAction::DeleteVolume, disruptive: false }],
+        stop_wait: std::time::Duration::ZERO,
     };
     assert!(c.classify(StepAction::DeleteVolume, &[]).0, "the floor cannot be relaxed");
 }
