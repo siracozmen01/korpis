@@ -991,9 +991,22 @@ verifies the kept copy again when it starts, so a restarted agent refuses the sa
 it reaches the control plane. It takes a list with a lower version than the one it holds: replicas
 compute independently, and refusing a lagging replica's list would keep one missing a later
 revocation no longer than the next computation, while accepting it loses at most the two seconds
-it lags. What it does not do yet: a suspended organization (§2.1) and an unverified binding (§5.1)
-suspend grants by derivation, and the list carries only grants whose own row says so, so their
-tokens are refused at renewal rather than within seconds (question 7, §10).
+it lags. A suspended organization (§2.1) and an unverified binding (§5.1) suspend grants by
+derivation, and the list carries only grants whose own row says so, so their tokens are refused at
+renewal, within one token lifetime (120 s) and the skew, rather than within seconds. Decided
+2026-10-19 (question 7, §10). What evaluates a derived suspension is the control plane, which
+holds the ancestry and the bindings; a relay holds neither, and a token carries its chain's
+grants, not the organizations above its scope. Bringing it within seconds would take one of two
+things that cost more than the delay. Expanding each suspension into the grants it suspends, every
+two seconds, is the walk §3.5 removed, over a reseller's whole subtree, and grows the list with
+every grant in it. Naming suspended organizations on the list needs the resource's ancestry at
+every verifier, which no relay has. And the delay is bounded and short: suspension is a
+commercial lever, reversible by design, and a credential that must stop at once is revoked, which
+the list carries within seconds. What it costs: a console or file session open when its tenant is
+suspended goes on for at most one token lifetime. The bound holds only while no token a verifier
+accepts lives longer than the session token; a longer-lived kind, the break-glass token of §6
+among them, has to bring derived suspension onto the list in the same change that raises the
+horizon, and `LONGEST_TOKEN_LIFETIME` is pinned by a test that says so.
 
 Key rotation remains the answer to *"the key may be compromised"* and to control-plane restore
 (§6). It stops being the answer to *"this one credential should stop working"*.
@@ -1602,3 +1615,7 @@ the explicit, tenant-visible grant of §3.3.
    needs the root's identity in the token and the resource's ancestry at the verifier. Settled with
    organization suspension and identity bindings, which Phase 2 builds (§4 of `20-roadmap.md`).
    → here
+   Resolved in §6.3 here, 2026-10-19, when organization suspension was built: neither. The list
+   stays a list of grants whose own row is revoked or suspended, and a derived suspension reaches
+   an offline verifier within one token lifetime, at renewal, which the control plane evaluates
+   with the ancestry in hand.

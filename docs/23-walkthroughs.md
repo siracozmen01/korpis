@@ -830,15 +830,17 @@ authority outlives its source, it is stated, and it is configurable rather than 
 Building the revocation list re-ran step 3 against the question a trace does not ask: what refuses
 the console token offline, where, and with what information. The relay and the agent do, from the
 last list the control plane signed with the token key, which carries every grant whose own row is
-revoked or suspended (§6.3 of `08-identity.md`). The suspension of this trace is not such a row:
-a binding that fails re-verification suspends the grants rooted in it by derivation, as an
+revoked or suspended (§6.3 of `08-identity.md`). The suspension of this trace is not such a row: a
+binding that fails re-verification suspends the grants rooted in it by derivation, as an
 organization's suspension does (§2.1, §3.5), so the console token of step 3 is refused at its next
-renewal, within the 120 seconds §6 promises, and not sooner. The list could do better, and how is
-question 7 of §10 of `08-identity.md`, settled with bindings and organization suspension in
-Phase 2. Building the data path then answered the trace's other half: a grant that *is* revoked
-now ends the console of step 3 while it is open, because the node holding the session checks each
-new list against the session's chain, and the token's renewal is carried on the session itself,
-judged by the relay and the node in turn (§3.1 of `02-architecture.md`).
+renewal, within the 120 seconds §6 promises, and not sooner. Whether the list should do better was
+question 7 of §10 of `08-identity.md`; it was resolved in §6.3 there when organization suspension
+was built (2026-10-19): it should not, since either way of doing so costs more than a bounded delay
+on a reversible lever, and the bound is pinned to the longest token. Building the data path then
+answered the trace's other half: a grant that *is* revoked now ends the console of step 3 while it
+is open, because the node holding the session checks each new list against the session's chain, and
+the token's renewal is carried on the session itself, judged by the relay and the node in turn
+(§3.1 of `02-architecture.md`).
 
 Running the relay as its own process asked the algebra question of step 3 once more: with what
 information does a relay that holds no database refuse the revoked token? With the list its feed

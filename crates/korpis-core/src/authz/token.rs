@@ -360,7 +360,9 @@ pub const SESSION_TOKEN_LIFETIME: Duration = Duration::from_secs(120);
 
 /// The longest any token this control plane mints can live. The revocation list's horizon is
 /// derived from it (§6.3 of docs/08-identity.md), so a longer-lived kind of token raises it
-/// here or outlives its own revocation.
+/// here or outlives its own revocation. It also bounds how long a derived suspension takes to
+/// reach an offline verifier, since such a suspension is refused at renewal and is not on the
+/// list: raising it is the change that brings derived suspension onto the list.
 pub const LONGEST_TOKEN_LIFETIME: Duration = SESSION_TOKEN_LIFETIME;
 
 /// The name a token key is published under: `token-<epoch>`.

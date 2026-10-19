@@ -7,8 +7,9 @@
 //! was written onto any of them.
 
 use korpis_core::authz::evaluate::ChainError;
+use korpis_core::authz::token::LONGEST_TOKEN_LIFETIME;
 use korpis_core::authz::{Action, Decision, Delegation, Hierarchy, Scope, evaluate};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::support::{Tree, actions, child, request, root};
 
@@ -68,4 +69,17 @@ fn a_suspended_customer_leaves_its_reseller_untouched() {
     let chain = [vec![reseller.clone(), host]];
     let decision = evaluate(&request(&reseller.subject, &restart, &w1, now), &chain, &tree);
     assert!(matches!(decision, Decision::Permit(_)), "suspension is effective from above");
+}
+
+/// A derived suspension is not on the revocation list and reaches an offline verifier at renewal
+/// (§6.3 and question 7 of §10 of docs/08-identity.md), so the longest token bounds how long it
+/// takes. A longer-lived token has to bring derived suspension onto the list in the same change,
+/// and this fails until whoever raises the bound has done so.
+#[test]
+fn derived_suspension_reaches_offline_verifiers_within_the_longest_token() {
+    assert_eq!(
+        LONGEST_TOKEN_LIFETIME,
+        Duration::from_secs(120),
+        "a token lives longer: list derived suspensions (§6.3 of docs/08-identity.md), then this"
+    );
 }
