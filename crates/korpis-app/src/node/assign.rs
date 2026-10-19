@@ -110,8 +110,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Whether `workload`'s node relays the control plane's API to it (§9.5 of
     /// docs/08-identity.md): it runs a live installation, or holds a grant in force, whose
     /// authority it has no other way to use. Read from the store at every computation, so an
-    /// installation removed, or a grant revoked, expired, or suspended, closes the relay with the
-    /// next assignment.
+    /// installation removed, or a grant revoked, expired, or suspended, or the organization it is
+    /// scoped in suspended, closes the relay with the next assignment.
     async fn reaches_api(&self, workload: Uuid) -> Result<bool, AppError> {
         let installation = self.store.extension_of_workload(workload).await?;
         if installation.is_some_and(|i| i.uninstalled_at.is_none()) {
@@ -119,7 +119,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let held = self.store.chains_held_by(&Principal::Workload(workload).key()).await?;
         let now = self.clock.now();
-        Ok(held.iter().any(|chain| in_force(chain, now)))
+        for chain in held.iter().filter(|chain| in_force(chain, now)) {
+            // A grant scoped in a suspended organization authorizes nothing the API would let
+            // the workload change (§2.1 of docs/08-identity.md).
+            let Some(leaf) = chain.last() else { continue };
+            let ancestry = self.store.ancestry(leaf.grant.scope.anchor()).await?;
+            if !ancestry.iter().any(|n| n.suspended) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Computes `node`'s set, seals what changed, and returns the set to send.

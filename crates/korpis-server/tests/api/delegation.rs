@@ -17,13 +17,14 @@ use korpis_server::api::wire::{principal, scope};
 use uuid::Uuid;
 
 /// Everything a tenant administrator of one level does.
-const ADMIN: [&str; 5] = ["org.create", "org.read", "project.create", "project.read", "grant.read"];
+pub(crate) const ADMIN: [&str; 5] =
+    ["org.create", "org.read", "project.create", "project.read", "grant.read"];
 
 /// Someone holding one grant: its id, and a client configuration that presents its token.
-struct Holder {
-    grant: String,
-    config: ClientConfig,
-    token: Uuid,
+pub(crate) struct Holder {
+    pub(crate) grant: String,
+    pub(crate) config: ClientConfig,
+    pub(crate) token: Uuid,
 }
 
 fn project_scope(id: &str) -> pb::Scope {
@@ -77,7 +78,7 @@ async fn delegate(
 }
 
 /// An organization named `name` under `parent`, made by `by`; its id.
-async fn organization(h: &Harness, by: &Holder, parent: &str, name: &str) -> String {
+pub(crate) async fn organization(h: &Harness, by: &Holder, parent: &str, name: &str) -> String {
     let made = h
         .orgs(by.config.clone())
         .create_organization(pb::CreateOrganizationRequest {
@@ -99,7 +100,7 @@ async fn refused(h: &Harness, by: &Holder, ask: pb::IssueGrantRequest) -> ErrorC
 
 /// The host's reseller, and the sub-tenant the reseller made and delegated to, after checking
 /// that the reseller can make nothing beside itself nor give a wider scope than its own.
-async fn reseller_and_sub_tenant(harness: &Harness) -> (Holder, Holder, String) {
+pub(crate) async fn reseller_and_sub_tenant(harness: &Harness) -> (Holder, Holder, String) {
     let host = Holder { grant: harness.root_grant(), config: harness.root(), token: Uuid::nil() };
     let root = harness.root_org();
     let org = organization(harness, &host, &root, "reseller").await;

@@ -3,6 +3,7 @@
 //! Organizations, projects, and the object hierarchy.
 
 mod hierarchy;
+mod suspension;
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json, to_time};
@@ -13,6 +14,7 @@ use korpis_app::ports::{StoreError, StoreResult, TenancyRead, TenancyWrite};
 use korpis_core::labels::Labels;
 use korpis_core::tenancy::{Name, Organization, OrganizationStatus, Project};
 use std::collections::BTreeMap;
+use suspension::{decode, encode};
 use uuid::Uuid;
 
 struct OrganizationRow {
@@ -20,22 +22,18 @@ struct OrganizationRow {
     name: String,
     parent_id: Option<Uuid>,
     status: String,
+    suspension: Option<serde_json::Value>,
     version: i64,
     created: DateTime<Utc>,
 }
 
 impl OrganizationRow {
     fn into_domain(self) -> StoreResult<Organization> {
-        let status = match self.status.as_str() {
-            "active" => OrganizationStatus::Active,
-            "suspended" => OrganizationStatus::Suspended,
-            other => return Err(StoreError::Corrupt(format!("organization status {other:?}"))),
-        };
         Ok(Organization {
             id: self.id,
             name: name(self.name)?,
             parent: self.parent_id,
-            status,
+            status: decode(&self.status, self.suspension)?,
             version: count("organization version", self.version)?,
             created: to_time(self.created),
         })
@@ -74,18 +72,12 @@ pub(crate) fn labels(v: serde_json::Value) -> StoreResult<Labels> {
     Labels::new(map).map_err(|e| StoreError::Corrupt(e.to_string()))
 }
 
-fn status(s: OrganizationStatus) -> &'static str {
-    match s {
-        OrganizationStatus::Active => "active",
-        OrganizationStatus::Suspended => "suspended",
-    }
-}
-
 impl TenancyRead for PgStore {
     async fn organization(&self, id: Uuid) -> StoreResult<Option<Organization>> {
         sqlx::query_as!(
             OrganizationRow,
-            "SELECT id, name, parent_id, status, version, created FROM organization WHERE id = $1",
+            "SELECT id, name, parent_id, status, suspension, version, created
+               FROM organization WHERE id = $1",
             id
         )
         .fetch_optional(&self.pool)
@@ -102,7 +94,7 @@ impl TenancyRead for PgStore {
     ) -> StoreResult<Vec<Organization>> {
         sqlx::query_as!(
             OrganizationRow,
-            "SELECT id, name, parent_id, status, version, created FROM organization
+            "SELECT id, name, parent_id, status, suspension, version, created FROM organization
               WHERE parent_id IS NOT DISTINCT FROM $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
             parent,
@@ -158,13 +150,15 @@ impl TenancyWrite for PgTx {
     }
 
     async fn insert_organization(&mut self, o: &Organization) -> StoreResult<()> {
+        let (status, suspension) = encode(&o.status)?;
         sqlx::query!(
-            "INSERT INTO organization (id, name, parent_id, status, version, created)
-             VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO organization (id, name, parent_id, status, suspension, version, created)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)",
             o.id,
             o.name.as_str(),
             o.parent,
-            status(o.status),
+            status,
+            suspension,
             to_count("version", o.version)?,
             from_time(o.created)
         )
@@ -172,6 +166,31 @@ impl TenancyWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
+    }
+
+    async fn change_organization_status(
+        &mut self,
+        id: Uuid,
+        suspended: bool,
+        to: &OrganizationStatus,
+    ) -> StoreResult<Option<Organization>> {
+        let from = if suspended { "suspended" } else { "active" };
+        let (status, suspension) = encode(to)?;
+        sqlx::query_as!(
+            OrganizationRow,
+            "UPDATE organization SET status = $3, suspension = $4, version = version + 1
+              WHERE id = $1 AND status = $2
+             RETURNING id, name, parent_id, status, suspension, version, created",
+            id,
+            from,
+            status,
+            suspension
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?
+        .map(OrganizationRow::into_domain)
+        .transpose()
     }
 
     async fn insert_project(&mut self, p: &Project) -> StoreResult<()> {

@@ -21,6 +21,7 @@ impl HierarchyRead for PgStore {
                 Ok(Node {
                     object: ObjectRef::new(kind, r.id),
                     labels: labels(r.labels)?.into_map(),
+                    suspended: r.suspended,
                 })
             })
             .collect()

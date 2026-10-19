@@ -4,7 +4,8 @@
 -- volume's the project it belongs to, a repository's its project, or its organization when it is
 -- scoped to the whole of it, and a domain's or a certificate's the organization holding it. One
 -- statement walks from the object to its organization and then up the organization tree, so the
--- answer is consistent with a single snapshot.
+-- answer is consistent with a single snapshot. An organization says whether it is suspended,
+-- which authorization derives every grant's suspension from (§2.1 of docs/08-identity.md).
 WITH RECURSIVE
 start AS (
     SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,
@@ -52,7 +53,10 @@ orgs AS (
     SELECT o.id, o.parent_id, orgs.depth + 1
       FROM orgs JOIN organization o ON o.id = orgs.parent_id
 )
-SELECT kind AS "kind!", id AS "id!", labels AS "labels!", depth AS "depth!"
+SELECT chain.kind AS "kind!", chain.id AS "id!", chain.labels AS "labels!",
+       chain.depth AS "depth!",
+       (chain.kind = 'organization' AND coalesce(o.status = 'suspended', false))
+           AS "suspended!"
   FROM (
     SELECT kind, id, labels, depth FROM start
     UNION ALL
@@ -60,4 +64,5 @@ SELECT kind AS "kind!", id AS "id!", labels AS "labels!", depth AS "depth!"
     UNION ALL
     SELECT 'organization', id, '{}'::jsonb, depth FROM orgs
   ) chain
- ORDER BY depth
+  LEFT JOIN organization o ON chain.kind = 'organization' AND o.id = chain.id
+ ORDER BY chain.depth

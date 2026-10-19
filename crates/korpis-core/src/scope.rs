@@ -47,6 +47,8 @@ pub struct Node {
     pub object: ObjectRef,
     /// Its labels.
     pub labels: BTreeMap<String, String>,
+    /// Whether it is an organization that is suspended (§2.1 of docs/08-identity.md).
+    pub suspended: bool,
 }
 
 /// An object together with its ancestry, from the object itself up to its root organization.
@@ -62,7 +64,7 @@ impl Resource {
     /// scoped above it cannot, because nothing here says what is above.
     #[must_use]
     pub fn alone(object: ObjectRef) -> Self {
-        Self { chain: vec![Node { object, labels: BTreeMap::new() }] }
+        Self { chain: vec![Node { object, labels: BTreeMap::new(), suspended: false }] }
     }
 
     /// The object itself.
@@ -75,6 +77,14 @@ impl Resource {
     #[must_use]
     pub fn owning_organization(&self) -> Option<Uuid> {
         self.chain.iter().find(|n| n.object.kind == Kind::Organization).map(|n| n.object.id)
+    }
+
+    /// Whether the object lies in a suspended organization's subtree: it is one, or one is
+    /// above it (§2.1 of docs/08-identity.md). A resource known [`alone`](Self::alone) says
+    /// nothing of what is above it, so it never says so.
+    #[must_use]
+    pub fn suspended(&self) -> bool {
+        self.chain.iter().any(|n| n.suspended)
     }
 
     fn position(&self, object: ObjectRef) -> Option<usize> {

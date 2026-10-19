@@ -188,7 +188,7 @@ domain.read · domain.write · domain.attest           names an org holds (07-ne
 certificate.read · certificate.write                 TLS certificates an organization uploads
 stream.share
 grant.read · grant.revoke
-org.read · org.create · org.write · org.suspend · org.quota.write
+org.read · org.create · org.write · org.suspend · org.resume · org.quota.write
 project.read · project.create · project.write · project.delete
 node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place · node.remove
 ext.<extension>.<action>              extensions define their own, namespaced

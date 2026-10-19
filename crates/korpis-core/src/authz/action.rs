@@ -58,6 +58,7 @@ pub const CORE: &[&str] = &[
     "org.create",
     "org.write",
     "org.suspend",
+    "org.resume",
     "org.quota.write",
     "project.read",
     "project.create",
@@ -99,6 +100,13 @@ pub const PRIVATE: &[&str] = &[
     "backup.restore",
 ];
 
+/// What a suspended organization's tenants may still do under their own grants (§2.1 of
+/// docs/08-identity.md): read their grants, their tree, and the status and audit of what runs in
+/// it, so a customer asked to pay can see what for. Reaching the service itself, a console, a
+/// file, a backup's contents, is what suspension withholds, and every change is refused.
+pub const WHILE_SUSPENDED: &[&str] =
+    &["grant.read", "org.read", "project.read", "workload.read", "plan.read", "node.read"];
+
 /// Why a string is not an action.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("unknown action {0:?}: not in the vocabulary and not ext.<extension>.<action>")]
@@ -134,6 +142,13 @@ impl Action {
     pub fn changes_nothing(&self) -> bool {
         let name = self.0.as_str();
         CORE.contains(&name) && (name.rsplit('.').next() == Some("read") || name == "backup.browse")
+    }
+
+    /// Whether a grant scoped inside a suspended organization still authorizes it (§2.1 of
+    /// docs/08-identity.md).
+    #[must_use]
+    pub fn stays_while_suspended(&self) -> bool {
+        WHILE_SUSPENDED.contains(&self.0.as_str())
     }
 
     /// Whether it reaches a customer's data, which an ancestor never reaches implicitly (§7 of

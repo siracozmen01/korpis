@@ -127,6 +127,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let node = Node {
             object: ObjectRef::new(Kind::Workload, workload.id),
             labels: workload.labels.as_map().clone(),
+            suspended: false,
         };
         Ok(Resource { chain: std::iter::once(node).chain(project).collect() })
     }

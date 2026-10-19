@@ -96,22 +96,20 @@ impl pb::OrganizationService for Api {
         Err(not_yet("quota sets", 2))
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn suspend_organization(
         &self,
-        _ctx: RequestContext,
-        _request: ServiceRequest<'_, pb::SuspendOrganizationRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SuspendOrganizationRequest>,
     ) -> ServiceResult<pb::SuspendOrganizationResponse> {
-        Err(not_yet("organization suspension", 2))
+        super::suspension::suspend(self, &ctx, request).await
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn resume_organization(
         &self,
-        _ctx: RequestContext,
-        _request: ServiceRequest<'_, pb::ResumeOrganizationRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::ResumeOrganizationRequest>,
     ) -> ServiceResult<pb::ResumeOrganizationResponse> {
-        Err(not_yet("organization suspension", 2))
+        super::suspension::resume(self, &ctx, request).await
     }
 
     async fn get_trust_policy(

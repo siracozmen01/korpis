@@ -5,10 +5,12 @@
 
 mod organizations;
 mod projects;
+mod suspension;
 mod theme;
 mod trust;
 
 pub use organizations::CreateOrganization;
 pub use projects::CreateProject;
+pub use suspension::SuspendOrganization;
 pub use theme::{GoverningTheme, SetTheme};
 pub use trust::{Governing, SetTrustPolicy};

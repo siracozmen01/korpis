@@ -121,6 +121,10 @@ pub enum ChainError {
     /// A private action would cross into another organization implicitly.
     #[error("a private action does not reach into another organization implicitly")]
     PrivateAcrossOrganization,
+    /// The grant's scope lies in a suspended organization, and the action is not one a
+    /// suspended tenant keeps (§2.1 of docs/08-identity.md).
+    #[error("the grant's organization is suspended")]
+    OrganizationSuspended,
     /// The request's source is outside a network condition.
     #[error("the request's source address is outside the grant's networks")]
     SourceNotAllowed,
@@ -183,6 +187,13 @@ fn permits(
     }
     if request.action.is_private() && !private_reach(&leaf.scope, request.resource, hierarchy) {
         return Err(ChainError::PrivateAcrossOrganization);
+    }
+    // Suspension is derived from the scope's ancestry and never written onto a grant: a grant
+    // scoped in a suspended organization's subtree is suspended, and every chain beneath it is
+    // too, since each child's scope lies within its parent's (§2.1, §3.5).
+    let suspended = hierarchy.resource(leaf.scope.anchor()).is_some_and(|r| r.suspended());
+    if suspended && !request.action.stays_while_suspended() {
+        return Err(ChainError::OrganizationSuspended);
     }
     for link in chain {
         let nets = &link.conditions.source_cidr;

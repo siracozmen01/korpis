@@ -4,7 +4,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::tenancy::{Organization, Project};
+use korpis_core::tenancy::{Organization, OrganizationStatus, Project};
 use std::future::Future;
 use uuid::Uuid;
 
@@ -46,6 +46,16 @@ pub trait TenancyWrite {
         &mut self,
         organization: &Organization,
     ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Sets organization `id`'s status to `to` if it is suspended now exactly when `suspended`
+    /// says so, bumping its version; the organization as it now is, or `None` if it does not
+    /// exist or its status was not the one expected.
+    fn change_organization_status(
+        &mut self,
+        id: Uuid,
+        suspended: bool,
+        to: &OrganizationStatus,
+    ) -> impl Future<Output = StoreResult<Option<Organization>>> + Send;
 
     /// Inserts a project. A project with the same name in the organization is
     /// [`Unique::ProjectName`](super::Unique::ProjectName).

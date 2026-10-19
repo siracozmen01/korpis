@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, parent_id, status, version, created FROM organization\n              WHERE parent_id IS NOT DISTINCT FROM $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
+  "query": "UPDATE organization SET status = $3, suspension = $4, version = version + 1\n              WHERE id = $1 AND status = $2\n             RETURNING id, name, parent_id, status, suspension, version, created",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "suspension",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "organization",
+            "name": "suspension"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "created",
         "type_info": "Timestamptz",
         "origin": {
@@ -73,8 +84,9 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Uuid",
-        "Int8"
+        "Text",
+        "Text",
+        "Jsonb"
       ]
     },
     "nullable": [
@@ -82,9 +94,10 @@
       false,
       true,
       false,
+      true,
       false,
       false
     ]
   },
-  "hash": "137eb7426f08d4b61d49f8f0ce65c6721de10f61aafd3b0414438ded6320d956"
+  "hash": "2475df1e54aba8cc85d73181f3012d13cbd7500143f4c610492eb9410e882eae"
 }

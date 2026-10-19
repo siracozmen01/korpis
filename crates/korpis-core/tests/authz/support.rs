@@ -13,6 +13,8 @@ use uuid::Uuid;
 pub struct Tree {
     pub parents: HashMap<ObjectRef, ObjectRef>,
     pub labels: HashMap<ObjectRef, BTreeMap<String, String>>,
+    /// The organizations suspended (§2.1 of docs/08-identity.md).
+    pub suspended: BTreeSet<ObjectRef>,
     pub host: ObjectRef,
     pub reseller: ObjectRef,
     pub customer: ObjectRef,
@@ -35,7 +37,17 @@ impl Tree {
             (w2, survival),
         ]);
         let labels = HashMap::from([(w1, BTreeMap::from([("game".into(), "mc".into())]))]);
-        Self { parents, labels, host, reseller, customer, survival, w1, w2 }
+        Self {
+            parents,
+            labels,
+            suspended: BTreeSet::new(),
+            host,
+            reseller,
+            customer,
+            survival,
+            w1,
+            w2,
+        }
     }
 }
 
@@ -44,8 +56,11 @@ impl Hierarchy for Tree {
         let mut chain = Vec::new();
         let mut at = Some(object);
         while let Some(o) = at {
-            chain
-                .push(Node { object: o, labels: self.labels.get(&o).cloned().unwrap_or_default() });
+            chain.push(Node {
+                object: o,
+                labels: self.labels.get(&o).cloned().unwrap_or_default(),
+                suspended: self.suspended.contains(&o),
+            });
             at = self.parents.get(&o).copied();
         }
         Some(Resource { chain })

@@ -6,6 +6,7 @@ pub mod quota;
 pub mod theme;
 
 use crate::labels::Labels;
+use crate::principal::Principal;
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -40,12 +41,35 @@ impl Name {
 }
 
 /// Whether an organization may act.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrganizationStatus {
     /// In good standing.
     Active,
-    /// Suspended by an ancestor (§3.1 of docs/01-model.md); its workloads are stopped.
-    Suspended,
+    /// Suspended from above (§2.1 of docs/08-identity.md): every grant scoped in its subtree
+    /// stops authorizing all but the reads a suspended tenant keeps, until it is resumed.
+    Suspended(Suspension),
+}
+
+/// What happens to an organization's workloads while it is suspended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnSuspend {
+    /// Access is suspended; the service continues.
+    KeepRunning,
+    /// Every workload beneath it is stopped, by a power plan under the suspender's authority.
+    Stop,
+}
+
+/// Who suspended an organization, when, why, and what it did to the workloads.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Suspension {
+    /// Who suspended it.
+    pub by: Principal,
+    /// When.
+    pub at: SystemTime,
+    /// Why, as the suspender said it; shown to the tenant.
+    pub reason: String,
+    /// What it did to the workloads.
+    pub on_suspend: OnSuspend,
 }
 
 /// An organization: the unit of tenancy, delegation, and quota.

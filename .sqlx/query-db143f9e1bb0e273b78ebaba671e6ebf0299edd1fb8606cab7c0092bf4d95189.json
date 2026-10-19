@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, name, parent_id, status, version, created FROM organization WHERE id = $1",
+  "query": "SELECT id, name, parent_id, status, suspension, version, created\n               FROM organization WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "suspension",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "organization",
+            "name": "suspension"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "created",
         "type_info": "Timestamptz",
         "origin": {
@@ -80,9 +91,10 @@
       false,
       true,
       false,
+      true,
       false,
       false
     ]
   },
-  "hash": "3ab3a0386769a76c110a731f4c07f2241777e0ffcb9bd8e12c09fdfd7c100b78"
+  "hash": "db143f9e1bb0e273b78ebaba671e6ebf0299edd1fb8606cab7c0092bf4d95189"
 }

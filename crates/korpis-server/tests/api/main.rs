@@ -111,6 +111,7 @@ mod step_resolve;
 mod stream_share;
 mod streams;
 mod support;
+mod suspension;
 mod tenancy;
 mod tenant_keys;
 mod theme;

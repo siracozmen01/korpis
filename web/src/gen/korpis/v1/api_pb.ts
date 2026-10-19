@@ -4718,7 +4718,8 @@ export const OrganizationService: GenService<{
     output: typeof SetQuotaResponseSchema;
   },
   /**
-   * org.suspend: reversible, from above only.
+   * org.suspend over the organization's parent: reversible, and only from above (§2.1 of
+   * docs/08-identity.md).
    *
    * @generated from rpc korpis.v1.OrganizationService.SuspendOrganization
    */
@@ -4728,6 +4729,8 @@ export const OrganizationService: GenService<{
     output: typeof SuspendOrganizationResponseSchema;
   },
   /**
+   * org.resume over the organization's parent.
+   *
    * @generated from rpc korpis.v1.OrganizationService.ResumeOrganization
    */
   resumeOrganization: {

@@ -93,8 +93,10 @@ service OrganizationService {
   }
   // org.quota.write.
   rpc SetQuota(SetQuotaRequest) returns (SetQuotaResponse);
-  // org.suspend: reversible, from above only.
+  // org.suspend over the organization's parent: reversible, and only from above (§2.1 of
+  // docs/08-identity.md).
   rpc SuspendOrganization(SuspendOrganizationRequest) returns (SuspendOrganizationResponse);
+  // org.resume over the organization's parent.
   rpc ResumeOrganization(ResumeOrganizationRequest) returns (ResumeOrganizationResponse);
   // org.read. The recipe trust policy that governs the organization (§7 of
   // docs/09-recipes.md): its own, else its nearest ancestor's, else the default.
