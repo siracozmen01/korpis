@@ -101,7 +101,9 @@ Organization
 **Invariants**
 - An organization's **reservations** can never exceed its parent's unallocated reservations. Its
   **limits** may exceed the parent's by the overcommit ratio the parent has enabled for each
-  dimension (§5.1 of `05-scheduling.md`).
+  dimension (§5.1 of `05-scheduling.md`). Both are compared entry by entry of one shape, and held
+  when a set is set, as "Setting a quota set" in §5.1 there says; a root organization holds no
+  set.
 - The tree has no cycles.
 - Deleting an organization requires its subtree to be empty.
 

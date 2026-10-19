@@ -203,6 +203,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   `workload.stop`; its record is read under `workload.read` and its streams under
   `workload.console.read`. A new action would have left every grant that may restart a server
   unable to run its backup now, which is the same power.
+- **`org.suspend`, `org.resume`, and `org.quota.write` act from above.** Added 2026-10-19, when
+  quota sets were built. Each is authorized over the organization's parent, so a grant at an
+  organization never suspends, resumes, or sets the quota of the organization itself: a tenant
+  cannot lift its own suspension or raise its own quota. A project's quota, a sub-limit within its
+  organization's, is set under `org.quota.write` over the organization (§5.1 of
+  `05-scheduling.md`, §2.1 of `08-identity.md`).
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

@@ -6,12 +6,13 @@ use super::wire::Refuse;
 use super::wire::tenancy::{labels, organization_to_pb, project_to_pb};
 use super::wire::{self, name};
 use super::{Api, encode, error, mutation_key, next_page, page, respond};
-use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
+use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use korpis_app::Idempotent;
 use korpis_app::tenancy::{CreateOrganization, CreateProject};
-use korpis_app::{AppError, Idempotent};
 use korpis_core::id::IdKind;
 use korpis_core::tenancy::{Organization, Project};
 use korpis_proto::korpis::v1 as pb;
+use korpis_wire::quota::quota_set_to_pb;
 
 fn created_organization(o: &Organization) -> pb::CreateOrganizationResponse {
     pb::CreateOrganizationResponse {
@@ -22,11 +23,6 @@ fn created_organization(o: &Organization) -> pb::CreateOrganizationResponse {
 
 fn created_project(p: &Project) -> pb::CreateProjectResponse {
     pb::CreateProjectResponse { project: project_to_pb(p).into(), ..Default::default() }
-}
-
-/// Specified, scheduled, not yet built.
-fn not_yet(what: &'static str, phase: u8) -> ConnectError {
-    error::from_app(AppError::NotYet { what, phase })
 }
 
 impl pb::OrganizationService for Api {
@@ -58,8 +54,12 @@ impl pb::OrganizationService for Api {
         let caller = self.caller(&ctx).await?;
         let id = wire::id(IdKind::Organization, "id", request.id).refuse()?;
         let o = self.app.get_organization(&caller, id).await.map_err(error::from_app)?;
+        let owner = korpis_core::tenancy::quota::QuotaOwner::Organization(id);
+        let quota = self.app.quota_set(owner).await.map_err(error::from_app)?;
+        let organization =
+            pb::Organization { quota: quota_set_to_pb(&quota).into(), ..organization_to_pb(&o) };
         Response::ok(pb::GetOrganizationResponse {
-            organization: organization_to_pb(&o).into(),
+            organization: organization.into(),
             ..Default::default()
         })
     }
@@ -87,13 +87,12 @@ impl pb::OrganizationService for Api {
         })
     }
 
-    #[expect(clippy::unused_async_trait_impl, reason = "the generated trait is async")]
     async fn set_quota(
         &self,
-        _ctx: RequestContext,
-        _request: ServiceRequest<'_, pb::SetQuotaRequest>,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetQuotaRequest>,
     ) -> ServiceResult<pb::SetQuotaResponse> {
-        Err(not_yet("quota sets", 2))
+        super::quota::set_quota(self, &ctx, request).await
     }
 
     async fn suspend_organization(

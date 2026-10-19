@@ -150,15 +150,24 @@ message ListOrganizationsResponse {
   PageResponse page = 2;
 }
 
+// Replaces an organization's quota set, or one of its projects', as its parent's holder of
+// org.quota.write decides it (§5.1 of docs/05-scheduling.md).
 message SetQuotaRequest {
   Mutation mutation = 1;
+  // The organization whose set it is, or whose project's.
   string organization = 2;
   QuotaSet quota = 3;
+  // Set, the set is this project's, a sub-limit within its organization's quota, and the
+  // change is authorized over the organization rather than above it.
+  optional string project = 4;
 }
 
 message SetQuotaResponse {
+  // The organization, carrying its set when the set was its own.
   Organization organization = 1;
   Consistency consistency = 2;
+  // The project, carrying its set, when the set was a project's.
+  Project project = 3;
 }
 
 message SuspendOrganizationRequest {

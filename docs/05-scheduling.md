@@ -881,6 +881,40 @@ trusted; it is not built yet, and question 7 below says when it must be.
 > entry's lock briefly per workload under it; an entry made while a workload under it is being
 > declared can miss that one workload until the next pass, which then says so.
 
+#### Setting a quota set
+
+> Added 2026-10-19, when quota sets became settable (`crates/korpis-app/src/tenancy/quota.rs`).
+
+An organization's set is its parent's decision, so `SetQuota` replaces it under `org.quota.write`
+over the parent (§5 of `10-api.md`): no tenant raises its own. A root organization holds no set:
+what it holds is the installation's, and Korpis limits no host (P10). A project's set is a
+sub-limit within its organization's and is set under `org.quota.write` over the organization.
+
+The set is checked in one transaction holding the locks of every set it is checked against: the
+parent's, the siblings', the organization's children's, and its projects'. Entries are compared
+**by shape**, the pair of their workload selector and their node selector, because entries of one
+shape at two levels are the same promise made at each. Per shape and dimension: the reservations
+given to the organization and its siblings sum within the parent's, never oversubscribed; their
+limits sum within the parent's times the overcommit percent the parent was permitted, none where
+it was permitted none, and never for dedicated IPv4 or node ports; what the organization gives its
+own children still fits what it is given now, so lowering a reseller below what it gave is
+refused (`quota.overallocated`) and the children are lowered first; and each project's entry fits
+the organization's entry of its shape. A shape the parent has no entry of, or a dimension its
+entry leaves unbounded, holds the children to nothing at this level; admission still counts them
+against every entry above. Within one set, each shape appears once and no reservation exceeds the
+limit beside it. A bound of zero is a bound, which allows none of a dimension: the wire carries
+bounds with explicit presence (`QuotaBounds`), since `Resources` could not tell zero from absent.
+The shaping applied at an exhausted egress budget is refused until it is built (Phase 2's
+bandwidth shaping) rather than accepted and not applied (Rule K-3).
+
+An entry whose shape the new set keeps keeps its identity and the totals of what it counts, and
+takes the new bounds as its next version; an entry of a new shape is reckoned at its first use;
+an entry whose shape is gone is removed, and what counted it no longer does. Lowering a bound
+below what is already held is allowed: admission refuses only growth (above), so a workload is
+never stranded. What it costs: a change locks its parent's set and its siblings', so changes to
+siblings' sets are serialized, which is what stops two of them from each being given the last of
+the parent's reservations at once.
+
 #### Where a workload runs
 
 > Added 2026-10-19, settling question 6 below, when quota sets were built for Phase 2.

@@ -49,6 +49,7 @@ pub mod placement;
 pub mod plan;
 pub mod principal;
 pub mod provider;
+pub mod quota;
 pub mod recipe;
 pub mod recipe_schema;
 pub mod record;

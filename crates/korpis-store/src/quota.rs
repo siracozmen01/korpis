@@ -8,11 +8,12 @@ use crate::stored::{SelectorDoc, bounds, count, from_json, held, held_doc, total
 use crate::tenancy::labels;
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{Counted, Holding, QuotaRead, QuotaWrite, StoreError, StoreResult};
-use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, Totals};
+use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, QuotaSet, Totals};
 use serde_json::Value;
 use uuid::Uuid;
 
 mod placed;
+mod set;
 
 /// A quota entry as stored.
 pub(crate) struct EntryRow {
@@ -193,5 +194,9 @@ impl QuotaRead for PgStore {
         .fetch_all(&self.pool)
         .await
         .map_err(from_sqlx)
+    }
+
+    async fn quota_set(&self, owner: QuotaOwner) -> StoreResult<QuotaSet> {
+        self.read_quota_set(owner).await
     }
 }

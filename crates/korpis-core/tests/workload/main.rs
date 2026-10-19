@@ -14,5 +14,6 @@ mod approval;
 mod declare;
 mod plans;
 mod quota;
+mod quota_set;
 mod spec;
 mod support;

@@ -4,7 +4,9 @@
 //! (question 7 of §10 there).
 
 use super::StoreResult;
-use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, Totals};
+use korpis_core::tenancy::quota::{
+    Bounds, Dimension, Held, QuotaEntry, QuotaOwner, QuotaSet, Totals,
+};
 use std::collections::BTreeMap;
 use std::future::Future;
 use uuid::Uuid;
@@ -38,6 +40,57 @@ pub trait QuotaRead {
     /// Every workload that holds or may hold quota: those not deleted, and those deleted that are
     /// still counted by an entry.
     fn workloads_to_count(&self) -> impl Future<Output = StoreResult<Vec<Uuid>>> + Send;
+
+    /// The quota set of `owner`, with what each entry's workloads hold.
+    fn quota_set(&self, owner: QuotaOwner) -> impl Future<Output = StoreResult<QuotaSet>> + Send;
+}
+
+/// Setting quota sets (§5.1 of docs/05-scheduling.md). Every method runs in the transaction of
+/// the change.
+pub trait QuotaSetWrite {
+    /// The entries of `organizations` and `projects`, locked until the transaction ends, in
+    /// identifier order: the sets being changed, and those they are checked against.
+    fn lock_quota_sets(
+        &mut self,
+        organizations: &[Uuid],
+        projects: &[Uuid],
+    ) -> impl Future<Output = StoreResult<Vec<QuotaEntry>>> + Send;
+
+    /// The overcommit `owner` permits its children's limits, per dimension.
+    fn overcommit(
+        &mut self,
+        owner: QuotaOwner,
+    ) -> impl Future<Output = StoreResult<std::collections::BTreeMap<Dimension, u32>>> + Send;
+
+    /// Replaces the overcommit `owner` permits its children's limits.
+    fn put_overcommit(
+        &mut self,
+        owner: QuotaOwner,
+        percent: &std::collections::BTreeMap<Dimension, u32>,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Records a new entry, its totals not yet reckoned.
+    fn insert_quota_entry(
+        &mut self,
+        e: &QuotaEntry,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Sets the bounds of entry `id`, a new version of it.
+    fn update_quota_bounds(
+        &mut self,
+        id: Uuid,
+        reservations: &Bounds,
+        limits: &Bounds,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Deletes entry `id`; what counted it no longer does.
+    fn delete_quota_entry(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// The organizations directly beneath `organization`, and its projects.
+    fn quota_children(
+        &mut self,
+        organization: Uuid,
+    ) -> impl Future<Output = StoreResult<(Vec<Uuid>, Vec<Uuid>)>> + Send;
 }
 
 /// Admission's side of quota. Every method runs in the transaction of the declaration it admits.

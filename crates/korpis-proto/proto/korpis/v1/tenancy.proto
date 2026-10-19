@@ -70,10 +70,13 @@ message QuotaSet {
 }
 
 message QuotaEntry {
+  // The bounds were `Resources`, whose fields cannot say zero apart from absent, and a bound of
+  // zero, which allows none of a dimension, is one a host sets: no dedicated IPv4 for this
+  // customer. They are `QuotaBounds` now, under new numbers and names (§4 of docs/10-api.md).
+  reserved 2, 3;
+  reserved "reservations", "limits";
   // Absent applies to everything the owner contains.
   LabelSelector selector = 1;
-  Resources reservations = 2;
-  Resources limits = 3;
   // Participates in the admission compare-and-swap (§5.1 of docs/05-scheduling.md).
   uint64 version = 4;
   // What shaping applies when the egress budget for the period is exhausted.
@@ -83,6 +86,41 @@ message QuotaEntry {
   // absent, it counts the workload from its declaration, wherever it runs ("Where a workload
   // runs", §5.1 of docs/05-scheduling.md).
   LabelSelector nodes = 6;
+  // Guaranteed: what the reservations of the workloads it counts may sum to. Sums against the
+  // parent's entry of the same shape and is never oversubscribed.
+  QuotaBounds reservation_bounds = 7;
+  // Sold: what their limits may sum to. May exceed the parent's by the ratio it permits.
+  QuotaBounds limit_bounds = 8;
+  // What the workloads it counts hold now. Output only; absent until it is first counted.
+  QuotaHeld held = 9;
+}
+
+// Bounds per quota dimension (§5.1 of docs/05-scheduling.md): a dimension present is bounded
+// at its value, zero included, which allows none of it; one absent is not bounded. The numbers
+// are those of `Resources` for the same dimension.
+message QuotaBounds {
+  optional uint64 cpu_millis = 1;
+  optional uint64 memory_bytes = 2;
+  optional uint64 disk_bytes = 3;
+  optional uint64 disk_read_bytes_per_sec = 4;
+  optional uint64 disk_write_bytes_per_sec = 5;
+  optional uint64 disk_read_ops_per_sec = 6;
+  optional uint64 disk_write_ops_per_sec = 7;
+  optional uint64 bandwidth_bits_per_sec = 9;
+  optional uint64 workloads = 10;
+  optional uint64 volumes = 11;
+  optional uint64 endpoints = 12;
+  optional uint64 dedicated_ipv4 = 13;
+  optional uint64 node_ports = 15;
+}
+
+// What the workloads a quota entry counts hold together.
+message QuotaHeld {
+  QuotaBounds reservations = 1;
+  // The sums of the limits that are bounded.
+  QuotaBounds limits = 2;
+  // The dimensions in which some workload holds an unbounded limit, which no finite bound holds.
+  repeated string unbounded = 3;
 }
 
 message EgressExhaustion {

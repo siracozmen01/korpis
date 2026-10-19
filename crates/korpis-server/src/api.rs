@@ -41,6 +41,7 @@ mod plan;
 mod profile;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod provider;
+mod quota;
 mod rate;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod relay;

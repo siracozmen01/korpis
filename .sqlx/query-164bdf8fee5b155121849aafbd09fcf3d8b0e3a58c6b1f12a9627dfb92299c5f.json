@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM quota_overcommit WHERE owner_kind = $1 AND owner_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "164bdf8fee5b155121849aafbd09fcf3d8b0e3a58c6b1f12a9627dfb92299c5f"
+}

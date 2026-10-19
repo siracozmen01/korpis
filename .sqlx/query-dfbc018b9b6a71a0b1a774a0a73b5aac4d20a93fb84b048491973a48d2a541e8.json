@@ -1,0 +1,125 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of organizations ($1) and projects ($2), locked in identifier order.\nSELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held\n  FROM quota_entry\n WHERE (owner_kind = 'organization' AND owner_id = ANY($1))\n    OR (owner_kind = 'project' AND owner_id = ANY($2))\n ORDER BY id\n   FOR UPDATE\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "owner_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "owner_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "owner_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "owner_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "selector",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "selector"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "nodes",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "nodes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "reservations",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "reservations"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "limits",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "limits"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "held",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "held"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "dfbc018b9b6a71a0b1a774a0a73b5aac4d20a93fb84b048491973a48d2a541e8"
+}

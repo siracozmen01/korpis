@@ -10,8 +10,10 @@
 //! it may use (§5.1, "Quota holds the enforced value, not the declared one"). What they hold
 //! together is kept beside each entry as its totals, so admission reads one row per entry.
 
+mod set;
 mod totals;
 
+pub use set::{EXCLUSIVE, QuotaSet, SetError, Shape, shape};
 pub use totals::Totals;
 
 use crate::labels::LabelSelector;
@@ -251,6 +253,12 @@ pub struct Exceeded {
 }
 
 impl QuotaEntry {
+    /// This entry with the bounds of `other`, which has its shape.
+    #[must_use]
+    pub fn with_bounds(self, other: Self) -> Self {
+        Self { reservations: other.reservations, limits: other.limits, ..self }
+    }
+
     /// Whether the entry counts a workload with `labels`.
     #[must_use]
     pub fn counts(&self, labels: &BTreeMap<String, String>) -> bool {
