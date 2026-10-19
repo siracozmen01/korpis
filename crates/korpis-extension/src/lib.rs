@@ -15,6 +15,7 @@ pub mod consumer;
 pub mod dns;
 pub mod error;
 pub mod identity;
+pub mod identity_provider;
 pub mod keys;
 pub mod keyseal;
 pub mod provider;

@@ -70,9 +70,39 @@ pub(crate) async fn installed(cp: &ControlPlane, project: &str) -> String {
     done.extension.into_option().unwrap().workload
 }
 
-/// Waits until the target answers a ping.
+/// Waits until the target has registered, and then until it answers a ping. Registration is
+/// read from the list of providers, never by pinging: a ping nothing serves fails at its deadline
+/// and counts against the provider's breaker (§5 of docs/16-extensions.md), so pinging a target
+/// whose image is still being pulled would open the breaker before it ever registered.
 pub(crate) async fn registered(cp: &ControlPlane) {
     let client = pb::ProviderServiceClient::new(cp.http(), cp.config());
+    let asked =
+        pb::ListProvidersRequest { organization: cp.root_org.clone(), ..Default::default() };
+    let serving = |r: &pb::ListProvidersResponse| {
+        r.providers.iter().any(|p| {
+            p.name == "fs"
+                && p.r#type.as_known() == Some(pb::ProviderType::PROVIDER_TYPE_BACKUP_TARGET)
+        })
+    };
+    let mut said = String::new();
+    for _ in 0..240 {
+        match client.list_providers(asked.clone()).await.map(connectrpc::UnaryResponse::into_owned)
+        {
+            Ok(r) if serving(&r) => return answered(&client, cp).await,
+            Ok(r) => said = format!("registered: {:?}", r.providers),
+            Err(e) => said = format!("{e:?}"),
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    // What the list last said tells whether the extension's workload ever came up to register.
+    panic!("the target never registered; the last list said {said}");
+}
+
+/// Waits until a registered target answers a ping.
+async fn answered(
+    client: &pb::ProviderServiceClient<connectrpc::client::HttpClient>,
+    cp: &ControlPlane,
+) {
     let ping = pb::PingProviderRequest {
         organization: cp.root_org.clone(),
         r#type: pb::ProviderType::PROVIDER_TYPE_BACKUP_TARGET.into(),
@@ -80,7 +110,7 @@ pub(crate) async fn registered(cp: &ControlPlane) {
         ..Default::default()
     };
     let mut last = String::new();
-    for _ in 0..240 {
+    for _ in 0..60 {
         match client.ping_provider(ping.clone()).await.map(connectrpc::UnaryResponse::into_owned) {
             Ok(p) => match p.error.as_option() {
                 None => return,
@@ -90,9 +120,7 @@ pub(crate) async fn registered(cp: &ControlPlane) {
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
-    // What the target last answered says which step never came: the extension's workload, its
-    // registration, or its answer.
-    panic!("the target never registered; the last ping said {last}");
+    panic!("the registered target never answered; the last ping said {last}");
 }
 
 #[tokio::test]

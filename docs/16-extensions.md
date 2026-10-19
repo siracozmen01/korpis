@@ -615,11 +615,12 @@ that silently orphans an operator's DNS provider is an outage the operator did n
 interface of the contract the control plane actually speaks, never one it merely tolerates:
 `events.subscribe` (subscriptions and their delivery, §5 of `15-observability.md`),
 `identity.credential` (the credential socket, §9.5 of `08-identity.md`), `provider.serve` (a
-provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of four
+provider's stream, §3.3: registering, being pinged, being cancelled), and the calls of five
 provider types: `provider.backup_target` (§5.6 of `06-storage.md`), `provider.dns` (§3.5 of
-`07-networking.md`), `provider.key_management` (§5.5 of `06-storage.md`), and `provider.step` (§4
-of `09-recipes.md`). The `provider.<type>` of health,
-console, identity, edge router, and chat adapter providers is added when that type's own calls join
+`07-networking.md`), `provider.identity` (re-verification and assertion, §5.1 and §5.2 of
+`08-identity.md`, added in Phase 2), `provider.key_management` (§5.5 of `06-storage.md`), and
+`provider.step` (§4 of `09-recipes.md`). The `provider.<type>` of health, console, edge router,
+and chat adapter providers is added when that type's own calls join
 the contract; until then an extension requiring one is refused, because installing it would leave
 it waiting for calls nothing makes, the failure six weeks later this section forbids. A capability
 is offered once its calls are in the contract and the SDK, even while the control plane's own use

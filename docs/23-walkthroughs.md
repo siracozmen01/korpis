@@ -979,6 +979,16 @@ binding no one re-verifies lapses by itself. Tests take a moderator's chain, its
 through unbound, unverified, lapsed, and confirmed, and withdraw the override from a grant already
 issued. → patched into `08-identity.md` §5
 
+Building the provider's calls (2026-10-20) asked the algebra question of how step 1's set is
+believed at all: what confirms that `@moderator` still is what it was, and with what information?
+The binding's own provider, asked over its own stream by the control plane, which then holds
+the answer and the binding's interval and grace; an ancestor's provider of the same name is
+never asked in its place. The same question of `InvokeAs` found that a signature on the
+assertion was a second key protecting what the stream already authenticates, so the client now
+carries the platform's evidence and the control plane accepts each presentation once
+(`08-identity.md` §5.2, corrected in place, with `12-surface-discord.md` §1 and
+`16-extensions.md` §6).
+
 ---
 
 ## 12. A recipe install fails at step four of six

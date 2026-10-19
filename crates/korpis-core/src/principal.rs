@@ -109,6 +109,16 @@ pub enum Principal {
     },
 }
 
+/// One set at an identity provider: a role in a guild, a group claim's value (§5 of
+/// docs/08-identity.md).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SetName {
+    /// Where it lives at its provider, never containing `:`: a guild, the claim naming groups.
+    pub realm: String,
+    /// The set within it.
+    pub member_of: String,
+}
+
 /// Why a principal or key is malformed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PrincipalError {

@@ -71,6 +71,11 @@ pub enum CallRequest {
         /// As [`CallRequest::GenerateKey`] was answered.
         wrapped: Vec<u8>,
     },
+    /// `identity`: whether a set still is what it was, and which of these people are still in
+    /// it (§5.1 of docs/08-identity.md).
+    VerifyMembers(super::identity::MembersAsked),
+    /// `identity`: who presented this evidence (§5.2 of docs/08-identity.md).
+    Assert(super::identity::Evidence),
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -133,6 +138,10 @@ pub enum CallOutcome {
         /// Records removed.
         deleted: u32,
     },
+    /// The answer to [`CallRequest::VerifyMembers`].
+    Members(super::identity::Members),
+    /// The answer to [`CallRequest::Assert`].
+    Asserted(super::identity::Assertion),
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
 }
@@ -164,6 +173,8 @@ impl CallRequest {
             (Self::UnwrapKey { .. }, CallOutcome::KeyMaterial { wrapped, sealed }) => {
                 wrapped.is_empty() && sealed.len() == SEALED_LEN
             }
+            (Self::VerifyMembers(asked), CallOutcome::Members(m)) => asked.answered_by(m),
+            (Self::Assert(_), CallOutcome::Asserted(a)) => a.well_formed(),
             _ => false,
         }
     }

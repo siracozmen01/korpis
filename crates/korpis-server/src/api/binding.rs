@@ -98,6 +98,25 @@ impl pb::IdentityService for Api {
         respond(reply, made)
     }
 
+    async fn verify_identity_binding(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::VerifyIdentityBindingRequest>,
+    ) -> ServiceResult<pb::VerifyIdentityBindingResponse> {
+        let caller = self.caller(&ctx).await?;
+        let req = request.to_owned_message();
+        let (binding, unanswered) = self
+            .app
+            .verify_identity_binding(&caller, id(&req.id)?)
+            .await
+            .map_err(error::from_app)?;
+        Response::ok(pb::VerifyIdentityBindingResponse {
+            binding: binding_to_pb(&binding).into(),
+            unanswered: unanswered.unwrap_or_default(),
+            ..Default::default()
+        })
+    }
+
     async fn get_identity_binding(
         &self,
         ctx: RequestContext,

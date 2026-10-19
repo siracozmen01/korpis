@@ -132,7 +132,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// A live binding the caller may change; one the caller may not see does not exist.
-    async fn binding_to_write(
+    pub(super) async fn binding_to_write(
         &self,
         caller: &Caller,
         id: Uuid,

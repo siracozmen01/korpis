@@ -8,7 +8,7 @@
 use korpis_core::extension::{CallOutcome, CallRequest};
 use serde_json::{Value, json};
 
-fn hex(bytes: &[u8]) -> String {
+pub(super) fn hex(bytes: &[u8]) -> String {
     bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
         // Writing to a String cannot fail.
         let _ = std::fmt::Write::write_fmt(&mut s, format_args!("{b:02x}"));
@@ -16,7 +16,7 @@ fn hex(bytes: &[u8]) -> String {
     })
 }
 
-fn unhex(v: &Value, key: &str) -> Option<Vec<u8>> {
+pub(super) fn unhex(v: &Value, key: &str) -> Option<Vec<u8>> {
     let s = v.get(key)?.as_str()?;
     if s.len() % 2 != 0 {
         return None;

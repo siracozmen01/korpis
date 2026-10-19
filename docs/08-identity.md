@@ -710,6 +710,17 @@ membership that ended while the delegation tree stays intact. The ceiling catche
 re-verification itself is misconfigured, unreachable, or set too long, and it does so without
 asking anyone to have got a number right.
 
+**Re-verification, as built.** Added 2026-10-20. The control plane asks the binding's own provider,
+never an ancestor's provider of the same name, with `VerifyMembers` over the provider's stream
+(the `provider.identity` capability, §6 of `16-extensions.md`): for a set, whether it still exists
+and is the set it was; for a person, whether the provider still knows them. The answer moves the
+binding by the table above, an unanswered call counting as unreachable, and a change is recorded
+as an `identity.binding.verified` or `identity.binding.unverified` effect. An operator holding
+`identity.binding.write` can ask now, with `VerifyIdentityBinding`, rather than wait for the
+interval. What asks on the interval by itself, and the members who delegated, follow with the
+loop that runs it (Phase 2 of `20-roadmap.md` §4); until then a binding nobody asks lapses after
+its interval and grace, which §5 derives at every use, so the order fails closed.
+
 `reverify_interval` is the honest analogue of token lifetime. It is the bound on how long authority
 outlives its source, it is stated rather than convenient, and it applies to OIDC and SAML equally,
 because a group claim in a token that was issued an hour ago is exactly the same problem.
@@ -733,14 +744,26 @@ ahead as written, the bot would have held every invoking user's full authority. 
 1. **Interactions arrive only by HTTP**, signed. Interactions delivered over Discord's gateway
    connection carry no signature and are not accepted as identity; a bot in gateway mode can read
    and notify, and cannot act for anyone.
-2. **The identity provider verifies and asserts.** It checks the Ed25519 signature, rejects a
-   timestamp more than five minutes from its clock, and rejects an interaction identifier it has
-   already seen within Discord's fifteen-minute interaction lifetime, so a captured interaction
-   cannot be replayed. It produces a signed `Assertion {provider, user, sets, interaction, at}`.
-3. **The chat client never receives the user's authority.** It calls `InvokeAs(assertion, action,
-   resource, arguments)` for the one action the command names. The gateway evaluates the asserted
-   subject's grants for exactly that action on exactly that resource and performs it under them.
-   The assertion is single-use, so a second action needs a second interaction.
+2. **The identity provider verifies and asserts.** The client passes the interaction on as it
+   received it; the control plane asks the identity provider about it, over the provider's own
+   stream, and the provider checks the Ed25519 signature, rejects a timestamp more than five
+   minutes from its clock, and answers `Assertion {user, sets, presentation, at}`, the
+   presentation being the interaction's identifier. The control plane accepts a presentation
+   once within Discord's fifteen-minute interaction lifetime, so a captured interaction cannot be
+   replayed.
+3. **The chat client never receives the user's authority.** It calls `InvokeAs(evidence, action,
+   resource, arguments)` for the one action the command names. The gateway has the evidence
+   asserted, evaluates the asserted subject's grants for exactly that action on exactly that
+   resource, and performs it under them. A presentation is accepted once, so a second action
+   needs a second interaction.
+
+   (Corrected 2026-10-20, when the provider calls were built: steps 2 and 3 had the provider sign
+   an assertion the client then carried, with a key registered at installation, §5.3. Every
+   answer a provider gives already comes up its own stream, authenticated as its installation
+   (§3.3 of `16-extensions.md`), so a signature would add a key to register, rotate, and leak,
+   and buy only an assertion a client could hold, which is what this list exists to deny it. The
+   client carries evidence it cannot alter without the platform's key, and single use moved to
+   the control plane, which is where the action is performed.)
 4. **The effect names everyone**: the asserted subject, the grant that permitted it, the identity
    provider that vouched, and the client that relayed it.
 
@@ -788,8 +811,9 @@ SAML, LDAP, and Discord are spoken by identity provider extensions (§2 of `16-e
 provider decides who is who, so whatever it asserts is believed, exactly as a certificate authority
 is. That is not a weakness of running it out of process; it is what an identity provider is.
 Installing one into an organization therefore requires authority over that whole organization
-(§4.1 of `16-extensions.md`), its assertions are signed with a key registered at installation, and
-it can assert identities and memberships and do nothing else: it holds no grants that let it act.
+(§4.1 of `16-extensions.md`), its assertions are believed only as answers up its own stream to the
+control plane's questions (§5.2, corrected), and only for its own subjects (§5), and it can assert
+identities and memberships and do nothing else: it holds no grants that let it act.
 `12-surface-discord.md` §10 called this machinery core and `16-extensions.md` §2 called the
 providers extensions; both are right about different halves, and this paragraph is the seam.
 

@@ -69,8 +69,34 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         request: CallRequest,
         timeout: Duration,
     ) -> Result<Called, AppError> {
+        let owner = self.provider_owner(target).await?;
+        self.call_owned(owner, target, request, timeout).await
+    }
+
+    /// [`Self::call_provider`], to the organization's own provider only: no ancestor's stands in
+    /// for it. An identity provider vouches for its own subjects alone (§5 of
+    /// docs/08-identity.md), so an ancestor's provider of the same name answering for it would
+    /// be another provider's word.
+    pub async fn call_own_provider(
+        &self,
+        target: &CallTarget,
+        request: CallRequest,
+        timeout: Duration,
+    ) -> Result<Called, AppError> {
+        let owner = self.provider_owner(target).await?.filter(|o| *o == target.organization);
+        self.call_owned(owner, target, request, timeout).await
+    }
+
+    /// Queues `request` for `owner`'s provider and waits for it; fails as unknown with no owner.
+    async fn call_owned(
+        &self,
+        owner: Option<Uuid>,
+        target: &CallTarget,
+        request: CallRequest,
+        timeout: Duration,
+    ) -> Result<Called, AppError> {
         let started = self.clock.now();
-        let Some(organization) = self.provider_owner(target).await? else {
+        let Some(organization) = owner else {
             let outcome = CallOutcome::Failed(CallFailure::unknown());
             let elapsed = Duration::ZERO;
             return Ok(Called { id: Uuid::now_v7(), sent: None, outcome, elapsed, retry_at: None });

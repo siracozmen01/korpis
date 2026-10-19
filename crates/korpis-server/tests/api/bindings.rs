@@ -17,9 +17,9 @@ use korpis_proto::korpis::v1::__buffa::oneof::{external_identity, subject};
 use korpis_server::api::wire::scope;
 
 /// An identity provider named `corp`: the DNS document serving `identity` instead.
-fn identity_document() -> String {
+pub fn identity_document() -> String {
     DNS.replace("{type: dns, name: cloudflare}", "{type: identity, name: corp}")
-        .replace("provider.dns, ", "")
+        .replace("provider.dns, ", "provider.identity, ")
 }
 
 /// Installs the identity provider into `org`, its workload in a project there.
@@ -38,7 +38,7 @@ async fn provider_in(h: &Harness, org: &str, n: u8) {
     extensions.install_extension(req).await.unwrap();
 }
 
-fn set(org: &str, group: &str) -> pb::ExternalIdentity {
+pub fn set(org: &str, group: &str) -> pb::ExternalIdentity {
     let s =
         pb::ExternalSet { realm: "groups".into(), member_of: group.into(), ..Default::default() };
     pb::ExternalIdentity {
@@ -48,7 +48,7 @@ fn set(org: &str, group: &str) -> pb::ExternalIdentity {
     }
 }
 
-async fn bind(
+pub async fn bind(
     h: &Harness,
     org: &str,
     subject: pb::ExternalIdentity,

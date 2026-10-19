@@ -1591,6 +1591,9 @@ service IdentityService {
   // identity.binding.write on its organization: it vouches for nothing since, and every grant
   // rooted in it is suspended.
   rpc RetireIdentityBinding(RetireIdentityBindingRequest) returns (RetireIdentityBindingResponse);
+  // identity.binding.write on its organization: its provider is asked now rather than at its
+  // next interval, and the answer recorded (§5.1 of docs/08-identity.md).
+  rpc VerifyIdentityBinding(VerifyIdentityBindingRequest) returns (VerifyIdentityBindingResponse);
   // org.read on its organization.
   rpc GetIdentityBinding(GetIdentityBindingRequest) returns (GetIdentityBindingResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -1646,6 +1649,18 @@ message RetireIdentityBindingRequest {
 
 message RetireIdentityBindingResponse {
   IdentityBinding binding = 1;
+}
+
+message VerifyIdentityBindingRequest {
+  string id = 1;
+}
+
+message VerifyIdentityBindingResponse {
+  // As the answer left it.
+  IdentityBinding binding = 1;
+  // Why the provider gave no answer, when it gave none: `provider.unknown`, `provider.deadline`,
+  // or the provider's own reason. Empty when it answered.
+  string unanswered = 2;
 }
 
 message GetIdentityBindingRequest {

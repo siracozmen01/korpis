@@ -97,6 +97,13 @@ impl BindingRow {
     }
 }
 
+const fn state_name(state: BindingState) -> &'static str {
+    match state {
+        BindingState::Verified => "verified",
+        BindingState::Unverified => "unverified",
+    }
+}
+
 fn memberships(terms: &BindingTerms) -> StoreResult<serde_json::Value> {
     let sets: Vec<SetDoc> = terms
         .require_membership
@@ -189,10 +196,7 @@ impl BindingWrite for PgTx {
             millis("binding grace", t.grace)?,
             millis("binding interval", t.reverify_interval)?,
             t.allows_irreversible,
-            match b.state {
-                BindingState::Verified => "verified",
-                BindingState::Unverified => "unverified",
-            },
+            state_name(b.state),
             b.last_verified_at.map(from_time),
             to_count("binding version", b.version)?,
             b.made_by.key(),
@@ -225,6 +229,26 @@ impl BindingWrite for PgTx {
             millis("binding grace", t.grace)?,
             millis("binding interval", t.reverify_interval)?,
             t.allows_irreversible
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?
+        .rows_affected();
+        Ok(moved == 1)
+    }
+
+    async fn record_verification(
+        &mut self,
+        id: Uuid,
+        state: BindingState,
+        last_verified_at: Option<SystemTime>,
+    ) -> StoreResult<bool> {
+        let moved = sqlx::query!(
+            "UPDATE identity_binding SET state = $2, last_verified_at = $3
+              WHERE id = $1 AND retired_at IS NULL",
+            id,
+            state_name(state),
+            last_verified_at.map(from_time)
         )
         .execute(&mut *self.tx)
         .await

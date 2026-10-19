@@ -5,7 +5,7 @@
 
 use super::StoreResult;
 use crate::page::Page;
-use korpis_core::authz::binding::{BindingTerms, IdentityBinding};
+use korpis_core::authz::binding::{BindingState, BindingTerms, IdentityBinding};
 use std::future::Future;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -50,6 +50,15 @@ pub trait BindingWrite {
         id: Uuid,
         expected: u64,
         terms: &BindingTerms,
+    ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records a re-verification of live binding `id`: its state and its last confirmation;
+    /// false if it was retired meanwhile.
+    fn record_verification(
+        &mut self,
+        id: Uuid,
+        state: BindingState,
+        last_verified_at: Option<SystemTime>,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
     /// Retires a live binding at `at`; false if it was retired already.

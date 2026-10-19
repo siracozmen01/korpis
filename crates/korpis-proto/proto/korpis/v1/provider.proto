@@ -14,6 +14,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/common.proto";
 import "korpis/v1/extension.proto";
+import "korpis/v1/tenancy.proto";
 
 service ProviderService {
   // A provider's stream: authenticated as an installed extension, its first message registers
@@ -81,6 +82,10 @@ message ProviderCall {
     // key_management: a new data key, and one stored key opened, each sealed to its recipient.
     GenerateKey generate_key = 25;
     UnwrapKey unwrap_key = 26;
+    // identity: whether a set still is what it was, and which of these people are still in it.
+    VerifyMembers verify_members = 27;
+    // identity: who presented this evidence, and which sets they are in.
+    Assert assert = 28;
   }
 }
 
@@ -96,6 +101,8 @@ message CallResult {
     ObjectList object_list = 23;
     ObjectsDeleted objects_deleted = 24;
     KeyMaterial key_material = 25;
+    Members members = 26;
+    Assertion assertion = 27;
   }
 }
 
@@ -372,4 +379,46 @@ message UnwrapKey {
 message KeyMaterial {
   bytes wrapped = 1;
   bytes sealed = 2;
+}
+
+// An identity provider re-verifying what it vouched for (§5.1 of docs/08-identity.md). With a
+// set: whether it still exists and is the set it was, and which of `members` are in it and in
+// every required set. Without one: which of `members` the provider still knows.
+message VerifyMembers {
+  ExternalSet set = 1;
+  // People at the provider, by their identifier there; at most 256.
+  repeated string members = 2;
+  // Other sets of the same provider each member must also be in.
+  repeated ExternalSet require_membership = 3;
+}
+
+message Members {
+  // For a set: it exists and is the set it was. Without a set, unread.
+  bool set_exists = 1;
+  // Those of the members asked about who are confirmed: in the set and every required one, or,
+  // without a set, known to the provider.
+  repeated string present = 2;
+}
+
+// What a person presented to an identity provider's surface, passed on as received: a signed
+// chat interaction, an authorization code. Its form is the provider's own; Korpis reads only the
+// answer (§5.2 of docs/08-identity.md).
+message Assert {
+  // At most 64 KiB.
+  bytes evidence = 1;
+  // How it arrived, where its form says (a signature, a timestamp); at most 32 entries.
+  map<string, string> headers = 2;
+}
+
+// Who presented the evidence, as the provider vouches.
+message Assertion {
+  // The person's identifier at the provider.
+  string user = 1;
+  // The sets of this provider they are in, as the evidence shows; at most 256.
+  repeated ExternalSet sets = 2;
+  // The provider's identifier for this one presentation (an interaction id, a code's digest),
+  // which the control plane accepts once.
+  string presentation = 3;
+  // When the person presented it, by the provider's evidence.
+  google.protobuf.Timestamp at = 4;
 }

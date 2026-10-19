@@ -45,6 +45,7 @@ mod events;
 mod extensions;
 mod failures;
 mod identity;
+mod idp;
 mod issuance;
 mod issuance_dns;
 mod journal;

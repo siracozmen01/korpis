@@ -18,13 +18,15 @@ import type { Error, Value } from "./common_pb";
 import { file_korpis_v1_common } from "./common_pb";
 import type { ProviderType } from "./extension_pb";
 import { file_korpis_v1_extension } from "./extension_pb";
+import type { ExternalSet } from "./tenancy_pb";
+import { file_korpis_v1_tenancy } from "./tenancy_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file korpis/v1/provider.proto.
  */
 export const file_korpis_v1_provider: GenFile = /*@__PURE__*/
-  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSJlCghSZWdpc3RlchIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEwoLY29uY3VycmVuY3kYBCABKA0iIgoKUmVnaXN0ZXJlZBIUCgxyZWdpc3RyYXRpb24YASABKAkiwAMKDFByb3ZpZGVyQ2FsbBIMCgRjYWxsGAEgASgJEiwKCGRlYWRsaW5lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIfCgRwaW5nGAogASgLMg8ua29ycGlzLnYxLlBpbmdIABIwCg1hcHBseV9yZWNvcmRzGBQgASgLMhcua29ycGlzLnYxLkFwcGx5UmVjb3Jkc0gAEiYKCHJ1bl9zdGVwGBUgASgLMhIua29ycGlzLnYxLlJ1blN0ZXBIABIuCgxncmFudF9hY2Nlc3MYFiABKAsyFi5rb3JwaXMudjEuR3JhbnRBY2Nlc3NIABIuCgxsaXN0X29iamVjdHMYFyABKAsyFi5rb3JwaXMudjEuTGlzdE9iamVjdHNIABIyCg5kZWxldGVfb2JqZWN0cxgYIAEoCzIYLmtvcnBpcy52MS5EZWxldGVPYmplY3RzSAASLgoMZ2VuZXJhdGVfa2V5GBkgASgLMhYua29ycGlzLnYxLkdlbmVyYXRlS2V5SAASKgoKdW53cmFwX2tleRgaIAEoCzIULmtvcnBpcy52MS5VbndyYXBLZXlIAEIJCgdyZXF1ZXN0IpMDCgpDYWxsUmVzdWx0EgwKBGNhbGwYASABKAkSIQoFZXJyb3IYAiABKAsyEC5rb3JwaXMudjEuRXJyb3JIABIfCgRwb25nGAogASgLMg8ua29ycGlzLnYxLlBvbmdIABI0Cg9yZWNvcmRzX2FwcGxpZWQYFCABKAsyGS5rb3JwaXMudjEuUmVjb3Jkc0FwcGxpZWRIABIsCgtzdGVwX3Jlc3VsdBgVIAEoCzIVLmtvcnBpcy52MS5TdGVwUmVzdWx0SAASMAoNb2JqZWN0X2FjY2VzcxgWIAEoCzIXLmtvcnBpcy52MS5PYmplY3RBY2Nlc3NIABIsCgtvYmplY3RfbGlzdBgXIAEoCzIVLmtvcnBpcy52MS5PYmplY3RMaXN0SAASNAoPb2JqZWN0c19kZWxldGVkGBggASgLMhkua29ycGlzLnYxLk9iamVjdHNEZWxldGVkSAASLgoMa2V5X21hdGVyaWFsGBkgASgLMhYua29ycGlzLnYxLktleU1hdGVyaWFsSABCCQoHb3V0Y29tZSIaCgpDYW5jZWxDYWxsEgwKBGNhbGwYASABKAkiFQoEUGluZxINCgVub25jZRgBIAEoCSIVCgRQb25nEg0KBW5vbmNlGAEgASgJIv8BChRQcm92aWRlclJlZ2lzdHJhdGlvbhIKCgJpZBgBIAEoCRIRCglleHRlbnNpb24YAiABKAkSFAoMb3JnYW5pemF0aW9uGAMgASgJEiUKBHR5cGUYBCABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRITCgtjb25jdXJyZW5jeRgHIAEoDRItCgljb25uZWN0ZWQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHNlZW4YCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiwKFExpc3RQcm92aWRlcnNSZXF1ZXN0EhQKDG9yZ2FuaXphdGlvbhgBIAEoCSJ2ChVMaXN0UHJvdmlkZXJzUmVzcG9uc2USMgoJcHJvdmlkZXJzGAEgAygLMh8ua29ycGlzLnYxLlByb3ZpZGVyUmVnaXN0cmF0aW9uEikKBmhlYWx0aBgCIAMoCzIZLmtvcnBpcy52MS5Qcm92aWRlckhlYWx0aCKOAgoOUHJvdmlkZXJIZWFsdGgSJQoEdHlwZRgBIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgCIAEoCRIoCgdicmVha2VyGAMgASgOMhcua29ycGlzLnYxLkJyZWFrZXJTdGF0ZRIpCgV1bnRpbBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY2FsbHMYBSABKA0SDgoGZmFpbGVkGAYgASgNEjEKDm1lZGlhbl9sYXRlbmN5GAcgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiAKGG1lZGlhbl9kZWFkbGluZV9wZXJtaWxsZRgIIAEoDSKMAQoTUGluZ1Byb3ZpZGVyUmVxdWVzdBIUCgxvcmdhbml6YXRpb24YASABKAkSJQoEdHlwZRgCIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgDIAEoCRIqCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIpgBChRQaW5nUHJvdmlkZXJSZXNwb25zZRIMCgRjYWxsGAEgASgJEhQKDHJlZ2lzdHJhdGlvbhgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEioKB2VsYXBzZWQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHwoFZXJyb3IYBSABKAsyEC5rb3JwaXMudjEuRXJyb3IiRAoMQXBwbHlSZWNvcmRzEg0KBW93bmVyGAEgASgJEiUKB3JlY29yZHMYAiADKAsyFC5rb3JwaXMudjEuRG5zUmVjb3JkIl4KCURuc1JlY29yZBIMCgRuYW1lGAEgASgJEiYKBHR5cGUYAiABKA4yGC5rb3JwaXMudjEuRG5zUmVjb3JkVHlwZRILCgN0dGwYAyABKA0SDgoGdmFsdWVzGAQgAygJIkMKDlJlY29yZHNBcHBsaWVkEg8KB2NyZWF0ZWQYASABKA0SDwoHdXBkYXRlZBgCIAEoDRIPCgdkZWxldGVkGAMgASgNIsoBCgdSdW5TdGVwEgwKBHN0ZXAYASABKAkSNAoJYXJndW1lbnRzGAIgAygLMiEua29ycGlzLnYxLlJ1blN0ZXAuQXJndW1lbnRzRW50cnkSEAoId29ya2xvYWQYAyABKAkSJQoIcGxhdGZvcm0YBCABKAsyEy5rb3JwaXMudjEuUGxhdGZvcm0aQgoOQXJndW1lbnRzRW50cnkSCwoDa2V5GAEgASgJEh8KBXZhbHVlGAIgASgLMhAua29ycGlzLnYxLlZhbHVlOgI4ASIkCghQbGF0Zm9ybRIKCgJvcxgBIAEoCRIMCgRhcmNoGAIgASgJIloKClN0ZXBSZXN1bHQSKgoJYXJ0aWZhY3RzGAEgAygLMhcua29ycGlzLnYxLlN0ZXBBcnRpZmFjdBIOCgZwaW5uZWQYAiABKAgSEAoIcmVzb2x2ZWQYAyABKAkiZgoMU3RlcEFydGlmYWN0EgwKBHBhdGgYASABKAkSCwoDdXJsGAIgASgJEg4KBnNoYTI1NhgDIAEoCRIMCgRzaXplGAQgASgEEgwKBG1vZGUYBSABKA0SDwoHZXh0cmFjdBgGIAEoCCJXCgtHcmFudEFjY2VzcxIOCgZwcmVmaXgYASABKAkSIwoEbW9kZRgCIAEoDjIVLmtvcnBpcy52MS5BY2Nlc3NNb2RlEhMKC3R0bF9zZWNvbmRzGAMgASgNIm0KDE9iamVjdEFjY2VzcxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgJzMxgKIAEoCzITLmtvcnBpcy52MS5TM0FjY2Vzc0gAQgoKCHByb3RvY29sItUBCghTM0FjY2VzcxIQCghlbmRwb2ludBgBIAEoCRIOCgZyZWdpb24YAiABKAkSDgoGYnVja2V0GAMgASgJEhIKCmtleV9wcmVmaXgYBCABKAkSFQoNYWNjZXNzX2tleV9pZBgFIAEoCRIZChFzZWNyZXRfYWNjZXNzX2tleRgGIAEoCRIVCg1zZXNzaW9uX3Rva2VuGAcgASgJEhIKCnBhdGhfc3R5bGUYCCABKAgSEQoJc2VydmVkX2J5GAkgASgJEhMKC2NlcnRpZmljYXRlGAogASgMIjsKC0xpc3RPYmplY3RzEg4KBnByZWZpeBgBIAEoCRINCgVhZnRlchgCIAEoCRINCgVsaW1pdBgDIAEoDSJECgpPYmplY3RMaXN0EigKB29iamVjdHMYASADKAsyFy5rb3JwaXMudjEuU3RvcmVkT2JqZWN0EgwKBG1vcmUYAiABKAgiVwoMU3RvcmVkT2JqZWN0EgsKA2tleRgBIAEoCRIMCgRzaXplGAIgASgEEiwKCG1vZGlmaWVkGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdCg1EZWxldGVPYmplY3RzEgwKBGtleXMYASADKAkiIQoOT2JqZWN0c0RlbGV0ZWQSDwoHZGVsZXRlZBgBIAEoDSI+CgtHZW5lcmF0ZUtleRILCgNrZXkYASABKAkSDwoHY29udGV4dBgCIAEoDBIRCglyZWNpcGllbnQYAyABKAwiTQoJVW53cmFwS2V5EgsKA2tleRgBIAEoCRIPCgdjb250ZXh0GAIgASgMEhEKCXJlY2lwaWVudBgDIAEoDBIPCgd3cmFwcGVkGAQgASgMIi4KC0tleU1hdGVyaWFsEg8KB3dyYXBwZWQYASABKAwSDgoGc2VhbGVkGAIgASgMKnwKDEJyZWFrZXJTdGF0ZRIdChlCUkVBS0VSX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUQlJFQUtFUl9TVEFURV9DTE9TRUQQARIWChJCUkVBS0VSX1NUQVRFX09QRU4QAhIbChdCUkVBS0VSX1NUQVRFX0hBTEZfT1BFThADKq4BCg1EbnNSZWNvcmRUeXBlEh8KG0ROU19SRUNPUkRfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUROU19SRUNPUkRfVFlQRV9BEAESGAoURE5TX1JFQ09SRF9UWVBFX0FBQUEQAhIZChVETlNfUkVDT1JEX1RZUEVfQ05BTUUQAxIXChNETlNfUkVDT1JEX1RZUEVfU1JWEAQSFwoTRE5TX1JFQ09SRF9UWVBFX1RYVBAFKlYKCkFjY2Vzc01vZGUSGwoXQUNDRVNTX01PREVfVU5TUEVDSUZJRUQQABIVChFBQ0NFU1NfTU9ERV9XUklURRABEhQKEEFDQ0VTU19NT0RFX1JFQUQQAjKAAgoPUHJvdmlkZXJTZXJ2aWNlEkMKBVNlcnZlEhoua29ycGlzLnYxLlByb3ZpZGVyTWVzc2FnZRoaLmtvcnBpcy52MS5Qcm92aWRlckNvbnRyb2woATABElcKDUxpc3RQcm92aWRlcnMSHy5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1JlcXVlc3QaIC5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlIgOQAgESTwoMUGluZ1Byb3ZpZGVyEh4ua29ycGlzLnYxLlBpbmdQcm92aWRlclJlcXVlc3QaHy5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_extension]);
+  fileDesc("Chhrb3JwaXMvdjEvcHJvdmlkZXIucHJvdG8SCWtvcnBpcy52MSJuCg9Qcm92aWRlck1lc3NhZ2USJwoIcmVnaXN0ZXIYASABKAsyEy5rb3JwaXMudjEuUmVnaXN0ZXJIABInCgZyZXN1bHQYAiABKAsyFS5rb3JwaXMudjEuQ2FsbFJlc3VsdEgAQgkKB21lc3NhZ2UimwEKD1Byb3ZpZGVyQ29udHJvbBIrCgpyZWdpc3RlcmVkGAEgASgLMhUua29ycGlzLnYxLlJlZ2lzdGVyZWRIABInCgRjYWxsGAIgASgLMhcua29ycGlzLnYxLlByb3ZpZGVyQ2FsbEgAEicKBmNhbmNlbBgDIAEoCzIVLmtvcnBpcy52MS5DYW5jZWxDYWxsSABCCQoHbWVzc2FnZSJlCghSZWdpc3RlchIlCgR0eXBlGAEgASgOMhcua29ycGlzLnYxLlByb3ZpZGVyVHlwZRIMCgRuYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEwoLY29uY3VycmVuY3kYBCABKA0iIgoKUmVnaXN0ZXJlZBIUCgxyZWdpc3RyYXRpb24YASABKAkimQQKDFByb3ZpZGVyQ2FsbBIMCgRjYWxsGAEgASgJEiwKCGRlYWRsaW5lGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIfCgRwaW5nGAogASgLMg8ua29ycGlzLnYxLlBpbmdIABIwCg1hcHBseV9yZWNvcmRzGBQgASgLMhcua29ycGlzLnYxLkFwcGx5UmVjb3Jkc0gAEiYKCHJ1bl9zdGVwGBUgASgLMhIua29ycGlzLnYxLlJ1blN0ZXBIABIuCgxncmFudF9hY2Nlc3MYFiABKAsyFi5rb3JwaXMudjEuR3JhbnRBY2Nlc3NIABIuCgxsaXN0X29iamVjdHMYFyABKAsyFi5rb3JwaXMudjEuTGlzdE9iamVjdHNIABIyCg5kZWxldGVfb2JqZWN0cxgYIAEoCzIYLmtvcnBpcy52MS5EZWxldGVPYmplY3RzSAASLgoMZ2VuZXJhdGVfa2V5GBkgASgLMhYua29ycGlzLnYxLkdlbmVyYXRlS2V5SAASKgoKdW53cmFwX2tleRgaIAEoCzIULmtvcnBpcy52MS5VbndyYXBLZXlIABIyCg52ZXJpZnlfbWVtYmVycxgbIAEoCzIYLmtvcnBpcy52MS5WZXJpZnlNZW1iZXJzSAASIwoGYXNzZXJ0GBwgASgLMhEua29ycGlzLnYxLkFzc2VydEgAQgkKB3JlcXVlc3Qi5QMKCkNhbGxSZXN1bHQSDAoEY2FsbBgBIAEoCRIhCgVlcnJvchgCIAEoCzIQLmtvcnBpcy52MS5FcnJvckgAEh8KBHBvbmcYCiABKAsyDy5rb3JwaXMudjEuUG9uZ0gAEjQKD3JlY29yZHNfYXBwbGllZBgUIAEoCzIZLmtvcnBpcy52MS5SZWNvcmRzQXBwbGllZEgAEiwKC3N0ZXBfcmVzdWx0GBUgASgLMhUua29ycGlzLnYxLlN0ZXBSZXN1bHRIABIwCg1vYmplY3RfYWNjZXNzGBYgASgLMhcua29ycGlzLnYxLk9iamVjdEFjY2Vzc0gAEiwKC29iamVjdF9saXN0GBcgASgLMhUua29ycGlzLnYxLk9iamVjdExpc3RIABI0Cg9vYmplY3RzX2RlbGV0ZWQYGCABKAsyGS5rb3JwaXMudjEuT2JqZWN0c0RlbGV0ZWRIABIuCgxrZXlfbWF0ZXJpYWwYGSABKAsyFi5rb3JwaXMudjEuS2V5TWF0ZXJpYWxIABIlCgdtZW1iZXJzGBogASgLMhIua29ycGlzLnYxLk1lbWJlcnNIABIpCglhc3NlcnRpb24YGyABKAsyFC5rb3JwaXMudjEuQXNzZXJ0aW9uSABCCQoHb3V0Y29tZSIaCgpDYW5jZWxDYWxsEgwKBGNhbGwYASABKAkiFQoEUGluZxINCgVub25jZRgBIAEoCSIVCgRQb25nEg0KBW5vbmNlGAEgASgJIv8BChRQcm92aWRlclJlZ2lzdHJhdGlvbhIKCgJpZBgBIAEoCRIRCglleHRlbnNpb24YAiABKAkSFAoMb3JnYW5pemF0aW9uGAMgASgJEiUKBHR5cGUYBCABKA4yFy5rb3JwaXMudjEuUHJvdmlkZXJUeXBlEgwKBG5hbWUYBSABKAkSDwoHdmVyc2lvbhgGIAEoCRITCgtjb25jdXJyZW5jeRgHIAEoDRItCgljb25uZWN0ZWQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHNlZW4YCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiwKFExpc3RQcm92aWRlcnNSZXF1ZXN0EhQKDG9yZ2FuaXphdGlvbhgBIAEoCSJ2ChVMaXN0UHJvdmlkZXJzUmVzcG9uc2USMgoJcHJvdmlkZXJzGAEgAygLMh8ua29ycGlzLnYxLlByb3ZpZGVyUmVnaXN0cmF0aW9uEikKBmhlYWx0aBgCIAMoCzIZLmtvcnBpcy52MS5Qcm92aWRlckhlYWx0aCKOAgoOUHJvdmlkZXJIZWFsdGgSJQoEdHlwZRgBIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgCIAEoCRIoCgdicmVha2VyGAMgASgOMhcua29ycGlzLnYxLkJyZWFrZXJTdGF0ZRIpCgV1bnRpbBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY2FsbHMYBSABKA0SDgoGZmFpbGVkGAYgASgNEjEKDm1lZGlhbl9sYXRlbmN5GAcgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEiAKGG1lZGlhbl9kZWFkbGluZV9wZXJtaWxsZRgIIAEoDSKMAQoTUGluZ1Byb3ZpZGVyUmVxdWVzdBIUCgxvcmdhbml6YXRpb24YASABKAkSJQoEdHlwZRgCIAEoDjIXLmtvcnBpcy52MS5Qcm92aWRlclR5cGUSDAoEbmFtZRgDIAEoCRIqCgd0aW1lb3V0GAQgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIpgBChRQaW5nUHJvdmlkZXJSZXNwb25zZRIMCgRjYWxsGAEgASgJEhQKDHJlZ2lzdHJhdGlvbhgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEioKB2VsYXBzZWQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SHwoFZXJyb3IYBSABKAsyEC5rb3JwaXMudjEuRXJyb3IiRAoMQXBwbHlSZWNvcmRzEg0KBW93bmVyGAEgASgJEiUKB3JlY29yZHMYAiADKAsyFC5rb3JwaXMudjEuRG5zUmVjb3JkIl4KCURuc1JlY29yZBIMCgRuYW1lGAEgASgJEiYKBHR5cGUYAiABKA4yGC5rb3JwaXMudjEuRG5zUmVjb3JkVHlwZRILCgN0dGwYAyABKA0SDgoGdmFsdWVzGAQgAygJIkMKDlJlY29yZHNBcHBsaWVkEg8KB2NyZWF0ZWQYASABKA0SDwoHdXBkYXRlZBgCIAEoDRIPCgdkZWxldGVkGAMgASgNIsoBCgdSdW5TdGVwEgwKBHN0ZXAYASABKAkSNAoJYXJndW1lbnRzGAIgAygLMiEua29ycGlzLnYxLlJ1blN0ZXAuQXJndW1lbnRzRW50cnkSEAoId29ya2xvYWQYAyABKAkSJQoIcGxhdGZvcm0YBCABKAsyEy5rb3JwaXMudjEuUGxhdGZvcm0aQgoOQXJndW1lbnRzRW50cnkSCwoDa2V5GAEgASgJEh8KBXZhbHVlGAIgASgLMhAua29ycGlzLnYxLlZhbHVlOgI4ASIkCghQbGF0Zm9ybRIKCgJvcxgBIAEoCRIMCgRhcmNoGAIgASgJIloKClN0ZXBSZXN1bHQSKgoJYXJ0aWZhY3RzGAEgAygLMhcua29ycGlzLnYxLlN0ZXBBcnRpZmFjdBIOCgZwaW5uZWQYAiABKAgSEAoIcmVzb2x2ZWQYAyABKAkiZgoMU3RlcEFydGlmYWN0EgwKBHBhdGgYASABKAkSCwoDdXJsGAIgASgJEg4KBnNoYTI1NhgDIAEoCRIMCgRzaXplGAQgASgEEgwKBG1vZGUYBSABKA0SDwoHZXh0cmFjdBgGIAEoCCJXCgtHcmFudEFjY2VzcxIOCgZwcmVmaXgYASABKAkSIwoEbW9kZRgCIAEoDjIVLmtvcnBpcy52MS5BY2Nlc3NNb2RlEhMKC3R0bF9zZWNvbmRzGAMgASgNIm0KDE9iamVjdEFjY2VzcxIuCgpleHBpcmVzX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgJzMxgKIAEoCzITLmtvcnBpcy52MS5TM0FjY2Vzc0gAQgoKCHByb3RvY29sItUBCghTM0FjY2VzcxIQCghlbmRwb2ludBgBIAEoCRIOCgZyZWdpb24YAiABKAkSDgoGYnVja2V0GAMgASgJEhIKCmtleV9wcmVmaXgYBCABKAkSFQoNYWNjZXNzX2tleV9pZBgFIAEoCRIZChFzZWNyZXRfYWNjZXNzX2tleRgGIAEoCRIVCg1zZXNzaW9uX3Rva2VuGAcgASgJEhIKCnBhdGhfc3R5bGUYCCABKAgSEQoJc2VydmVkX2J5GAkgASgJEhMKC2NlcnRpZmljYXRlGAogASgMIjsKC0xpc3RPYmplY3RzEg4KBnByZWZpeBgBIAEoCRINCgVhZnRlchgCIAEoCRINCgVsaW1pdBgDIAEoDSJECgpPYmplY3RMaXN0EigKB29iamVjdHMYASADKAsyFy5rb3JwaXMudjEuU3RvcmVkT2JqZWN0EgwKBG1vcmUYAiABKAgiVwoMU3RvcmVkT2JqZWN0EgsKA2tleRgBIAEoCRIMCgRzaXplGAIgASgEEiwKCG1vZGlmaWVkGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdCg1EZWxldGVPYmplY3RzEgwKBGtleXMYASADKAkiIQoOT2JqZWN0c0RlbGV0ZWQSDwoHZGVsZXRlZBgBIAEoDSI+CgtHZW5lcmF0ZUtleRILCgNrZXkYASABKAkSDwoHY29udGV4dBgCIAEoDBIRCglyZWNpcGllbnQYAyABKAwiTQoJVW53cmFwS2V5EgsKA2tleRgBIAEoCRIPCgdjb250ZXh0GAIgASgMEhEKCXJlY2lwaWVudBgDIAEoDBIPCgd3cmFwcGVkGAQgASgMIi4KC0tleU1hdGVyaWFsEg8KB3dyYXBwZWQYASABKAwSDgoGc2VhbGVkGAIgASgMInkKDVZlcmlmeU1lbWJlcnMSIwoDc2V0GAEgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0Eg8KB21lbWJlcnMYAiADKAkSMgoScmVxdWlyZV9tZW1iZXJzaGlwGAMgAygLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0Ii4KB01lbWJlcnMSEgoKc2V0X2V4aXN0cxgBIAEoCBIPCgdwcmVzZW50GAIgAygJInsKBkFzc2VydBIQCghldmlkZW5jZRgBIAEoDBIvCgdoZWFkZXJzGAIgAygLMh4ua29ycGlzLnYxLkFzc2VydC5IZWFkZXJzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEifQoJQXNzZXJ0aW9uEgwKBHVzZXIYASABKAkSJAoEc2V0cxgCIAMoCzIWLmtvcnBpcy52MS5FeHRlcm5hbFNldBIUCgxwcmVzZW50YXRpb24YAyABKAkSJgoCYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKnwKDEJyZWFrZXJTdGF0ZRIdChlCUkVBS0VSX1NUQVRFX1VOU1BFQ0lGSUVEEAASGAoUQlJFQUtFUl9TVEFURV9DTE9TRUQQARIWChJCUkVBS0VSX1NUQVRFX09QRU4QAhIbChdCUkVBS0VSX1NUQVRFX0hBTEZfT1BFThADKq4BCg1EbnNSZWNvcmRUeXBlEh8KG0ROU19SRUNPUkRfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUROU19SRUNPUkRfVFlQRV9BEAESGAoURE5TX1JFQ09SRF9UWVBFX0FBQUEQAhIZChVETlNfUkVDT1JEX1RZUEVfQ05BTUUQAxIXChNETlNfUkVDT1JEX1RZUEVfU1JWEAQSFwoTRE5TX1JFQ09SRF9UWVBFX1RYVBAFKlYKCkFjY2Vzc01vZGUSGwoXQUNDRVNTX01PREVfVU5TUEVDSUZJRUQQABIVChFBQ0NFU1NfTU9ERV9XUklURRABEhQKEEFDQ0VTU19NT0RFX1JFQUQQAjKAAgoPUHJvdmlkZXJTZXJ2aWNlEkMKBVNlcnZlEhoua29ycGlzLnYxLlByb3ZpZGVyTWVzc2FnZRoaLmtvcnBpcy52MS5Qcm92aWRlckNvbnRyb2woATABElcKDUxpc3RQcm92aWRlcnMSHy5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1JlcXVlc3QaIC5rb3JwaXMudjEuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlIgOQAgESTwoMUGluZ1Byb3ZpZGVyEh4ua29ycGlzLnYxLlBpbmdQcm92aWRlclJlcXVlc3QaHy5rb3JwaXMudjEuUGluZ1Byb3ZpZGVyUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_duration, file_google_protobuf_timestamp, file_korpis_v1_common, file_korpis_v1_extension, file_korpis_v1_tenancy]);
 
 /**
  * Provider to control plane.
@@ -233,6 +235,22 @@ export type ProviderCall = Message<"korpis.v1.ProviderCall"> & {
      */
     value: UnwrapKey;
     case: "unwrapKey";
+  } | {
+    /**
+     * identity: whether a set still is what it was, and which of these people are still in it.
+     *
+     * @generated from field: korpis.v1.VerifyMembers verify_members = 27;
+     */
+    value: VerifyMembers;
+    case: "verifyMembers";
+  } | {
+    /**
+     * identity: who presented this evidence, and which sets they are in.
+     *
+     * @generated from field: korpis.v1.Assert assert = 28;
+     */
+    value: Assert;
+    case: "assert";
   } | { case: undefined; value?: undefined };
 };
 
@@ -305,6 +323,18 @@ export type CallResult = Message<"korpis.v1.CallResult"> & {
      */
     value: KeyMaterial;
     case: "keyMaterial";
+  } | {
+    /**
+     * @generated from field: korpis.v1.Members members = 26;
+     */
+    value: Members;
+    case: "members";
+  } | {
+    /**
+     * @generated from field: korpis.v1.Assertion assertion = 27;
+     */
+    value: Assertion;
+    case: "assertion";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1216,6 +1246,141 @@ export type KeyMaterial = Message<"korpis.v1.KeyMaterial"> & {
  */
 export const KeyMaterialSchema: GenMessage<KeyMaterial> = /*@__PURE__*/
   messageDesc(file_korpis_v1_provider, 32);
+
+/**
+ * An identity provider re-verifying what it vouched for (§5.1 of docs/08-identity.md). With a
+ * set: whether it still exists and is the set it was, and which of `members` are in it and in
+ * every required set. Without one: which of `members` the provider still knows.
+ *
+ * @generated from message korpis.v1.VerifyMembers
+ */
+export type VerifyMembers = Message<"korpis.v1.VerifyMembers"> & {
+  /**
+   * @generated from field: korpis.v1.ExternalSet set = 1;
+   */
+  set?: ExternalSet | undefined;
+
+  /**
+   * People at the provider, by their identifier there; at most 256.
+   *
+   * @generated from field: repeated string members = 2;
+   */
+  members: string[];
+
+  /**
+   * Other sets of the same provider each member must also be in.
+   *
+   * @generated from field: repeated korpis.v1.ExternalSet require_membership = 3;
+   */
+  requireMembership: ExternalSet[];
+};
+
+/**
+ * Describes the message korpis.v1.VerifyMembers.
+ * Use `create(VerifyMembersSchema)` to create a new message.
+ */
+export const VerifyMembersSchema: GenMessage<VerifyMembers> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 33);
+
+/**
+ * @generated from message korpis.v1.Members
+ */
+export type Members = Message<"korpis.v1.Members"> & {
+  /**
+   * For a set: it exists and is the set it was. Without a set, unread.
+   *
+   * @generated from field: bool set_exists = 1;
+   */
+  setExists: boolean;
+
+  /**
+   * Those of the members asked about who are confirmed: in the set and every required one, or,
+   * without a set, known to the provider.
+   *
+   * @generated from field: repeated string present = 2;
+   */
+  present: string[];
+};
+
+/**
+ * Describes the message korpis.v1.Members.
+ * Use `create(MembersSchema)` to create a new message.
+ */
+export const MembersSchema: GenMessage<Members> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 34);
+
+/**
+ * What a person presented to an identity provider's surface, passed on as received: a signed
+ * chat interaction, an authorization code. Its form is the provider's own; Korpis reads only the
+ * answer (§5.2 of docs/08-identity.md).
+ *
+ * @generated from message korpis.v1.Assert
+ */
+export type Assert = Message<"korpis.v1.Assert"> & {
+  /**
+   * At most 64 KiB.
+   *
+   * @generated from field: bytes evidence = 1;
+   */
+  evidence: Uint8Array;
+
+  /**
+   * How it arrived, where its form says (a signature, a timestamp); at most 32 entries.
+   *
+   * @generated from field: map<string, string> headers = 2;
+   */
+  headers: { [key: string]: string };
+};
+
+/**
+ * Describes the message korpis.v1.Assert.
+ * Use `create(AssertSchema)` to create a new message.
+ */
+export const AssertSchema: GenMessage<Assert> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 35);
+
+/**
+ * Who presented the evidence, as the provider vouches.
+ *
+ * @generated from message korpis.v1.Assertion
+ */
+export type Assertion = Message<"korpis.v1.Assertion"> & {
+  /**
+   * The person's identifier at the provider.
+   *
+   * @generated from field: string user = 1;
+   */
+  user: string;
+
+  /**
+   * The sets of this provider they are in, as the evidence shows; at most 256.
+   *
+   * @generated from field: repeated korpis.v1.ExternalSet sets = 2;
+   */
+  sets: ExternalSet[];
+
+  /**
+   * The provider's identifier for this one presentation (an interaction id, a code's digest),
+   * which the control plane accepts once.
+   *
+   * @generated from field: string presentation = 3;
+   */
+  presentation: string;
+
+  /**
+   * When the person presented it, by the provider's evidence.
+   *
+   * @generated from field: google.protobuf.Timestamp at = 4;
+   */
+  at?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.Assertion.
+ * Use `create(AssertionSchema)` to create a new message.
+ */
+export const AssertionSchema: GenMessage<Assertion> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_provider, 36);
 
 /**
  * @generated from enum korpis.v1.BreakerState

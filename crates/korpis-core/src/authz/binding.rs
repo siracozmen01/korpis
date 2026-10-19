@@ -12,6 +12,7 @@ use super::record::TemplateRef;
 use crate::id::{Id, IdKind};
 use crate::object::{Kind, ObjectRef};
 use crate::principal::Principal;
+pub use crate::principal::SetName;
 use crate::scope::{Hierarchy, Scope};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -92,15 +93,6 @@ pub enum BindingState {
     Verified,
     /// Not confirmed, or found ended: every grant rooted in it is suspended, reversibly.
     Unverified,
-}
-
-/// One set at the same provider: a role in a guild, a group claim.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SetName {
-    /// The realm it lives in: a guild, an issuer.
-    pub realm: String,
-    /// The set within it.
-    pub member_of: String,
 }
 
 /// What a binding's declarer may change.
@@ -197,7 +189,43 @@ impl BindingError {
     }
 }
 
+/// What one re-verification found (§5.1 of docs/08-identity.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verification {
+    /// The provider answered, and the subject is still there.
+    Confirmed,
+    /// The provider answered, and the subject is gone: the set no longer exists or maps
+    /// elsewhere, or the person is no longer known.
+    Ended,
+    /// The provider could not be asked, or did not answer.
+    Unanswered,
+}
+
 impl IdentityBinding {
+    /// Records what a re-verification at `now` found, by the table of §5.1: confirmed is
+    /// `verified` from now, ended is `unverified` at once, and unanswered keeps the binding as
+    /// it was until its last confirmation, its interval, and its grace have passed. Whether the
+    /// state changed.
+    pub fn verified(&mut self, found: Verification, now: SystemTime) -> bool {
+        let before = self.state;
+        match found {
+            Verification::Confirmed => {
+                self.state = BindingState::Verified;
+                self.last_verified_at = Some(now);
+            }
+            Verification::Ended => self.state = BindingState::Unverified,
+            Verification::Unanswered => {
+                let t = &self.terms;
+                let lapsed =
+                    self.last_verified_at.is_none_or(|at| now > at + t.reverify_interval + t.grace);
+                if lapsed {
+                    self.state = BindingState::Unverified;
+                }
+            }
+        }
+        before != self.state
+    }
+
     /// Whether it binds a set rather than a person.
     #[must_use]
     pub const fn is_set(&self) -> bool {

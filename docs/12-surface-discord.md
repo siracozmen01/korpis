@@ -28,10 +28,11 @@ itself who is allowed to ask, an authorization system reimplemented, badly, in a
 
 **The Korpis Discord client is a full client of the same API the web panel uses, and holds no
 authority of its own.** It has no admin key, and it never holds a user's authority either. When a
-user runs a command, Discord delivers a signed interaction; the Discord identity provider verifies
-it and produces a single-use assertion of who the user is and which roles they hold; and the client
-asks the gateway to perform **that one action on that one resource** for the asserted user
-(`InvokeAs`, §5.2 of `08-identity.md`). If the user is not authorized, the *control plane* refuses,
+user runs a command, Discord delivers a signed interaction; the client passes it to the gateway with
+the command, asking it to perform **that one action on that one resource** (`InvokeAs`, §5.2 of
+`08-identity.md`); the gateway has the Discord identity provider verify the interaction and say
+who the user is and which roles they hold, accepts that answer once, and acts for the asserted
+user. If the user is not authorized, the *control plane* refuses,
 the bot never adjudicates.
 
 > Second external review, finding S21. Recorded in §17 of `23-walkthroughs.md`. The first version

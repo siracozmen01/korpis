@@ -141,3 +141,22 @@ fn withdrawing_the_override_reaches_grants_already_issued() {
         "a set grant holding delete without the binding's say is refused at use"
     );
 }
+
+#[test]
+fn a_binding_moves_as_the_table_of_section_5_1_says() {
+    use korpis_core::authz::binding::Verification;
+    let tree = Tree::new();
+    let p = provider(&tree);
+    let mut b = binding(&p, set(&p));
+    let now = SystemTime::now();
+    assert!(!b.verified(Verification::Unanswered, now), "never confirmed stays unverified");
+    assert!(b.verified(Verification::Confirmed, now));
+    assert_eq!((b.state, b.last_verified_at), (BindingState::Verified, Some(now)));
+    let within = now + b.terms.reverify_interval + b.terms.grace;
+    assert!(!b.verified(Verification::Unanswered, within), "an outage is carried for the grace");
+    assert!(b.verified(Verification::Unanswered, within + Duration::from_secs(1)));
+    assert_eq!(b.state, BindingState::Unverified);
+    assert!(b.verified(Verification::Confirmed, within), "reversible");
+    assert!(b.verified(Verification::Ended, within), "an answer that it ended is at once");
+    assert_eq!(b.last_verified_at, Some(within), "the last confirmation is kept");
+}

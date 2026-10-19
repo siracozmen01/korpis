@@ -10,6 +10,7 @@ mod breaker;
 mod call;
 mod condition;
 mod contract;
+pub mod identity;
 mod installation;
 mod registration;
 mod step;

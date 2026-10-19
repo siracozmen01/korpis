@@ -9,6 +9,8 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# The well-known types an identity provider's assertion carries its instant in.
+buffa-types = { version = "=0.9.2" }
 connectrpc = { version = "=0.9.1", default-features = false, features = ["client", "client-tls"] }
 http = "1"
 hyper-util = { version = "0.1", features = ["tokio"] }
