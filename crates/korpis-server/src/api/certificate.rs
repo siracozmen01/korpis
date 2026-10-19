@@ -4,7 +4,7 @@
 //! answered never.
 
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::certificate::Upload;
 use korpis_app::idempotency::Idempotent;
@@ -92,7 +92,7 @@ impl pb::CertificateService for Api {
     ) -> ServiceResult<pb::ListCertificatesResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Certificate)?;
+        let page = self.page(req.page.as_option(), IdKind::Certificate)?;
         let organization =
             wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
         let listed = self
@@ -102,7 +102,7 @@ impl pb::CertificateService for Api {
             .map_err(error::from_app)?;
         Response::ok(pb::ListCertificatesResponse {
             certificates: listed.items.iter().map(certificate_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Certificate).into(),
+            page: self.next_page(listed.next, IdKind::Certificate)?.into(),
             ..Default::default()
         })
     }

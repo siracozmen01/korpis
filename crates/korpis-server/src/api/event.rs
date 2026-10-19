@@ -7,7 +7,7 @@ use super::wire::event::{
     event_id, event_to_pb, filter_from_pb, position_from, subscription_to_pb,
 };
 use super::wire::{self, Refuse};
-use super::{Api, ServerApp, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, ServerApp, encode, error, mutation_key, respond};
 use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
@@ -98,11 +98,11 @@ impl pb::EventService for Api {
     ) -> ServiceResult<pb::ListSubscriptionsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Subscription)?;
+        let page = self.page(req.page.as_option(), IdKind::Subscription)?;
         let listed = self.app.list_subscriptions(&caller, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListSubscriptionsResponse {
             subscriptions: listed.items.iter().map(subscription_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Subscription).into(),
+            page: self.next_page(listed.next, IdKind::Subscription)?.into(),
             ..Default::default()
         })
     }

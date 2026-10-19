@@ -4,7 +4,7 @@
 //! workload and cancelled under `workload.stop`.
 
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::idempotency::Idempotent;
 use korpis_core::id::IdKind;
@@ -35,12 +35,12 @@ impl pb::RunService for Api {
     ) -> ServiceResult<pb::ListRunsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Run)?;
+        let page = self.page(req.page.as_option(), IdKind::Run)?;
         let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
         let listed = self.app.list_runs(&caller, workload, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListRunsResponse {
             runs: listed.items.iter().map(run_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Run).into(),
+            page: self.next_page(listed.next, IdKind::Run)?.into(),
             ..Default::default()
         })
     }

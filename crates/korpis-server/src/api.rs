@@ -21,6 +21,7 @@ mod backup_read;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod certificate;
 mod cookie;
+pub mod cursor;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod data;
 mod device;
@@ -76,7 +77,6 @@ use crate::relay::in_process::InProcess;
 use connectrpc::{ConnectError, RequestContext, Response, Router, ServiceResult};
 use korpis_app::ports::SystemClock;
 use korpis_app::{App, Caller, Page, Reply};
-use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     AccountServiceExt, BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt,
@@ -90,8 +90,6 @@ use korpis_store::PgStore;
 pub use rate::Charging;
 pub use relay::RelayRole;
 use std::sync::Arc;
-use uuid::Uuid;
-use wire::Refuse;
 
 /// The application as the server composes it: PostgreSQL, the system clock, OCI registries.
 pub type ServerApp = App<PgStore, SystemClock, RegistrySource>;
@@ -114,6 +112,8 @@ pub struct Api {
     serves_relay: bool,
     /// The relays this process names to the nodes it holds sessions with.
     named_relays: Arc<crate::named_relays::NamedRelays>,
+    /// The key page tokens are sealed under (§8 of docs/10-api.md).
+    cursors: Arc<cursor::Cursors>,
     /// Until when a restore settles, as last asked of the store, and when that was.
     settling: std::sync::Mutex<Option<(std::time::Instant, Option<std::time::SystemTime>)>>,
 }
@@ -136,8 +136,17 @@ impl Api {
             relay: Arc::new(RelayRole::new(Arc::new(in_process))),
             serves_relay: true,
             named_relays: Arc::default(),
+            cursors: Arc::new(cursor::Cursors::of_this_process()),
             settling: std::sync::Mutex::new(None),
         }
+    }
+
+    /// Seals page tokens under the installation's key, so every control plane opens what
+    /// another sealed (§8 of docs/10-api.md).
+    #[must_use]
+    pub fn with_cursor_key(mut self, key: [u8; 32]) -> Self {
+        self.cursors = Arc::new(cursor::Cursors::new(key));
+        self
     }
 
     /// Whether this process serves the relay role; it does unless told not to.
@@ -313,24 +322,5 @@ fn respond<T, R: buffa::Message + Send + 'static>(
         Reply::Replayed(bytes) => {
             Response::ok(R::decode_from_slice(&bytes).map_err(|e| error::internal(&e))?)
         }
-    }
-}
-
-/// A page request.
-fn page(p: Option<&pb::PageRequest>, kind: IdKind) -> Result<Page, ConnectError> {
-    let (size, token) = p.map_or((0, ""), |p| (p.page_size, p.page_token.as_str()));
-    let after = if token.is_empty() {
-        None
-    } else {
-        Some(wire::id(kind, "page.page_token", token).refuse()?)
-    };
-    Ok(Page::new(after, size))
-}
-
-/// The page response for a next cursor.
-fn next_page(next: Option<Uuid>, kind: IdKind) -> pb::PageResponse {
-    pb::PageResponse {
-        next_page_token: next.map(|n| wire::wire_id(kind, n)).unwrap_or_default(),
-        ..Default::default()
     }
 }

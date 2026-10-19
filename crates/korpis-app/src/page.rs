@@ -52,10 +52,15 @@ pub struct Paged<T> {
     pub next: Option<Uuid>,
 }
 
+/// How many pages of its source one filtered page reads at most, so a caller who may see little
+/// of a long list costs a bounded read per call.
+pub const VISIBLE_READS: usize = 8;
+
 /// A page of what the caller may see: pages of the source after the cursor are read, and what
-/// `keep` keeps of each, until the page holds its size or the source runs out. Its cursor is the
-/// last item it returns, never one the caller may not see, so a cursor says nothing of what was
-/// left out, nor of how much (§8 of docs/10-api.md); what lies past it is read again next time.
+/// `keep` keeps of each, until the page holds its size, the source runs out, or
+/// [`VISIBLE_READS`] pages were read. Its cursor is the last item it returns when it is full,
+/// and otherwise the last row it read, which may be one the caller may not see; the API seals
+/// every cursor, so a token says nothing of what was left out (§8 of docs/10-api.md).
 pub(crate) async fn visible<T, R, RF, K, KF>(
     page: Page,
     id: impl Fn(&T) -> Uuid,
@@ -71,7 +76,7 @@ where
     let size = usize::try_from(page.size).unwrap_or(usize::MAX);
     let mut items = Vec::new();
     let mut after = page.after;
-    loop {
+    for _ in 0..VISIBLE_READS {
         let batch = read(Page { after, size: page.size }).await?;
         let more = batch.len() >= size;
         after = batch.last().map(&id);
@@ -85,6 +90,9 @@ where
             return Ok(Paged { items, next: None });
         }
     }
+    // Read as much as one call may: what was found, and the row it stopped after, which the
+    // token seals so the caller learns nothing of it (§8 of docs/10-api.md).
+    Ok(Paged { items, next: after })
 }
 
 #[cfg(test)]
@@ -124,5 +132,30 @@ mod tests {
         let expected: Vec<Uuid> = ids.iter().copied().filter(shown).collect();
         assert_eq!(seen, expected, "each visible item once, in order, the rest never");
         assert!(tokens.iter().all(shown), "every cursor is an item the caller sees");
+    }
+
+    #[tokio::test]
+    async fn a_long_run_of_what_cannot_be_seen_is_read_a_bounded_stretch_at_a_time() {
+        // A hundred rows the caller may not see, then one it may.
+        let ids: Vec<Uuid> = (0..101).map(|_| Uuid::now_v7()).collect();
+        let last = ids.last().copied();
+        let read = |p: Page| {
+            let from = p.after.and_then(|a| ids.iter().position(|i| *i == a)).map_or(0, |n| n + 1);
+            let size = usize::try_from(p.size).unwrap_or(usize::MAX);
+            std::future::ready(Ok(ids.iter().skip(from).take(size).copied().collect()))
+        };
+        let keep = |batch: Vec<Uuid>| {
+            std::future::ready(Ok(batch.into_iter().filter(|i| Some(*i) == last).collect()))
+        };
+        let mut calls = 1;
+        let mut got = visible(Page::new(None, 2), |i| *i, read, keep).await.unwrap();
+        assert!(got.items.is_empty() && got.next.is_some(), "stopped, with somewhere to go on");
+        while got.items.is_empty() {
+            let after = got.next.expect("the list goes on until the visible row");
+            got = visible(Page::new(Some(after), 2), |i| *i, read, keep).await.unwrap();
+            calls += 1;
+        }
+        assert_eq!(got.items, [ids[100]]);
+        assert_eq!(calls, 101_usize.div_ceil(2 * VISIBLE_READS), "a bounded read per call");
     }
 }

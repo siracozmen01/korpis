@@ -2035,10 +2035,13 @@ it had read, kept or not. Four lists built earlier did the same: an organization
 repositories, and domains, and the root organizations. A page ending on a row the caller could not
 read handed it that row's identifier, which §8 of `10-api.md` exists to withhold.
 
-**Resolution.** A filtered list reads on until its page is full of what the caller may see or
-nothing is left, and its token is the last item it returned; one helper does it for all five, and a
-test pages through a source where most rows are hidden and finds every visible one once and no
-hidden one as a token. → patched into `10-api.md` §8
+**Resolution.** A filtered list reads on past what the caller may not see, at most eight pages of
+rows a call, and every page token is sealed under a key the installation's control planes share, so
+a token names no row and a caller who may see little of a long list costs a bounded read per call;
+one helper does it for all five lists. A second review found the first fix, which read on without a
+bound and answered the last row it returned, let one call read a whole list. Tests page through
+sources where most rows are hidden, and follow and forge tokens on a real control plane. → patched
+into `10-api.md` §8
 
 † Step 4 is where the trace found Finding 45, and step 5 Finding 46.
 

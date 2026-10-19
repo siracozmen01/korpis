@@ -58,6 +58,7 @@ mod observe;
 mod offload_expiry;
 mod offloads;
 mod operator;
+mod pages;
 mod panel;
 mod pebble;
 mod pin;

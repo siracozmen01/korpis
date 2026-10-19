@@ -265,6 +265,13 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     store.ensure_partitions(3).await?;
     tokio::spawn(background::prune_events(store.clone(), config.event_retention));
     let keys = keys::Keys::load_or_create(&config.data)?;
+    // One key for every control plane's page tokens, so a list continues on whichever answers.
+    let mut fresh = [0u8; 32];
+    getrandom::fill(&mut fresh).map_err(|e| ServeError::Serve(format!("randomness: {e}")))?;
+    let cursor_key = store
+        .server_secret(api::cursor::CURSOR_KEY, &fresh)
+        .await
+        .map_err(korpis_app::AppError::from)?;
     let app = application(&config, store, &keys)?;
     app.register_keys(&keys.public()).await?;
     signs_with_the_trusted_key(&app, &keys).await?;
@@ -285,7 +292,9 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
     let tls = tls::server_config(&config.data)?;
     let listener = tokio::net::TcpListener::bind(config.listen).await?;
     let addr = listener.local_addr()?;
-    let api = Api::new(app).with_ca_fingerprint(tls::ca_fingerprint(&config.data)?);
+    let api = Api::new(app)
+        .with_ca_fingerprint(tls::ca_fingerprint(&config.data)?)
+        .with_cursor_key(cursor_key);
     let api = Arc::new(api.with_relay_role(config.relay_role));
     let token_keys = {
         use korpis_app::ports::EnrollmentRead as _;

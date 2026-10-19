@@ -5,7 +5,7 @@
 use super::wire::Refuse;
 use super::wire::tenancy::{labels, organization_to_pb, project_to_pb};
 use super::wire::{self, name};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::tenancy::{CreateOrganization, CreateProject};
@@ -71,7 +71,7 @@ impl pb::OrganizationService for Api {
     ) -> ServiceResult<pb::ListOrganizationsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Organization)?;
+        let page = self.page(req.page.as_option(), IdKind::Organization)?;
         let parent = req
             .parent
             .as_deref()
@@ -82,7 +82,7 @@ impl pb::OrganizationService for Api {
             self.app.list_organizations(&caller, parent, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListOrganizationsResponse {
             organizations: listed.items.iter().map(organization_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Organization).into(),
+            page: self.next_page(listed.next, IdKind::Organization)?.into(),
             ..Default::default()
         })
     }
@@ -187,11 +187,11 @@ impl pb::ProjectService for Api {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
         let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
-        let page = page(req.page.as_option(), IdKind::Project)?;
+        let page = self.page(req.page.as_option(), IdKind::Project)?;
         let listed = self.app.list_projects(&caller, org, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListProjectsResponse {
             projects: listed.items.iter().map(project_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Project).into(),
+            page: self.next_page(listed.next, IdKind::Project)?.into(),
             ..Default::default()
         })
     }

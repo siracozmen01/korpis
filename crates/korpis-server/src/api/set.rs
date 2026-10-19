@@ -4,7 +4,7 @@
 
 use super::wire::workload::{declared_set_to_pb, drift_mode_from_pb};
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::workload::SetDriftMode;
@@ -24,13 +24,13 @@ impl pb::DeclaredSetService for Api {
     ) -> ServiceResult<pb::ListDeclaredSetsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Set)?;
+        let page = self.page(req.page.as_option(), IdKind::Set)?;
         let project = wire::id(IdKind::Project, "project", &req.project).refuse()?;
         let listed =
             self.app.list_declared_sets(&caller, project, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListDeclaredSetsResponse {
             sets: listed.items.iter().map(declared_set_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Set).into(),
+            page: self.next_page(listed.next, IdKind::Set)?.into(),
             ..Default::default()
         })
     }

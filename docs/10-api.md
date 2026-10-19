@@ -413,14 +413,19 @@ before it determines permission.
 `DENIED` carries which action was missing, never which grant would have granted it, the second
 would let someone map the authorization structure by probing.
 
-**A list's cursor names only what the caller was shown.** Added 2026-10-19 (Finding 110 of
-`23-walkthroughs.md`). A list filtered by read authority (an organization's certificates,
-repositories, and domains, the root organizations, the grants issued from a template) reads past
-what the caller may not see until its page is full or nothing is left, and its next-page token is
-the last item it returned. The first build answered the identifier of the last row it had read,
-seen or not, so a page ending on another tenant's object handed the caller that object's
-identifier, and a run of such pages counted what it could not read. The cost is that one page may
-read many rows the caller never sees, and the next page reads again what lay past the cursor.
+**A list's page token names nothing.** Added 2026-10-19 (Finding 110 of `23-walkthroughs.md`). A
+list filtered by read authority (an organization's certificates, repositories, and domains, the
+root organizations, the grants issued from a template) reads past what the caller may not see until
+its page is full, nothing is left, or it has read eight pages of rows, and a page token is the row
+it resumes after sealed under a key every control plane of the installation shares (migration
+0093), with the kind of list bound in. So a token is opaque to the caller, continues on whichever
+control plane answers, and is refused by another list or when no list gave it. The first build
+answered the identifier of the last row it had read, seen or not, so a page ending on another
+tenant's object handed the caller that object's identifier; and reading on without a bound, the
+first fix, let a caller who may see little of a long list make one call read all of it. The cost is
+that a page may come back short, even empty, with a token, when the rows it read were not the
+caller's to see; that the bound still lets the time a call takes say roughly how much it read; and
+that every token of every list is sealed and opened.
 
 ---
 

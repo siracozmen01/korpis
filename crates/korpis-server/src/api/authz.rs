@@ -5,7 +5,7 @@
 use super::wire::Refuse;
 use super::wire::authz::{actions, conditions_from_pb, delegation_from_pb, grant_to_pb};
 use super::wire::{self, principal, scope};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::authz::{
@@ -158,13 +158,13 @@ impl pb::GrantService for Api {
     ) -> ServiceResult<pb::ListGrantsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Grant)?;
+        let page = self.page(req.page.as_option(), IdKind::Grant)?;
         let filter = filter(req.filter.as_ref())?;
         let listed = self.app.list_grants(&caller, filter, page).await.map_err(error::from_app)?;
         let now = self.app.now();
         Response::ok(pb::ListGrantsResponse {
             grants: listed.items.iter().map(|g| grant_to_pb(g, now)).collect(),
-            page: next_page(listed.next, IdKind::Grant).into(),
+            page: self.next_page(listed.next, IdKind::Grant)?.into(),
             ..Default::default()
         })
     }

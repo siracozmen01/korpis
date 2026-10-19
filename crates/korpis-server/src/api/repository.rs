@@ -3,7 +3,7 @@
 //! `RepositoryService` (§5.3 of docs/06-storage.md).
 
 use super::wire::{self, Refuse, name};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::backup::repository::CreateRepository;
 use korpis_app::idempotency::Idempotent;
@@ -80,7 +80,7 @@ impl pb::RepositoryService for Api {
     ) -> ServiceResult<pb::ListRepositoriesResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Repository)?;
+        let page = self.page(req.page.as_option(), IdKind::Repository)?;
         let organization =
             wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
         let project = project("project", req.project.as_deref())?;
@@ -91,7 +91,7 @@ impl pb::RepositoryService for Api {
             .map_err(error::from_app)?;
         Response::ok(pb::ListRepositoriesResponse {
             repositories: listed.items.iter().map(repository_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Repository).into(),
+            page: self.next_page(listed.next, IdKind::Repository)?.into(),
             ..Default::default()
         })
     }

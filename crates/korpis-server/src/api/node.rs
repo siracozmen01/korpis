@@ -6,7 +6,7 @@ use super::wire::node::node_to_pb;
 use super::wire::scope::selector_from_pb;
 use super::wire::tenancy::labels;
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::node::{CreateEnrollment, EnrollmentToken, NodeView};
@@ -84,14 +84,14 @@ impl pb::NodeService for Api {
     ) -> ServiceResult<pb::ListNodesResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Node)?;
+        let page = self.page(req.page.as_option(), IdKind::Node)?;
         let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
         let selector = selector_from_pb("selector", req.selector.as_option()).refuse()?;
         let listed =
             self.app.list_nodes(&caller, org, &selector, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListNodesResponse {
             nodes: listed.items.iter().map(view_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Node).into(),
+            page: self.next_page(listed.next, IdKind::Node)?.into(),
             ..Default::default()
         })
     }

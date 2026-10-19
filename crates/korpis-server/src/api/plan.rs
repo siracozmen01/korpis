@@ -4,7 +4,7 @@
 
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse, time};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::workload::{ApprovePlan, RejectPlan};
@@ -43,12 +43,12 @@ impl pb::PlanService for Api {
     ) -> ServiceResult<pb::ListPlansResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Plan)?;
+        let page = self.page(req.page.as_option(), IdKind::Plan)?;
         let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
         let listed = self.app.list_plans(&caller, workload, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListPlansResponse {
             plans: listed.items.iter().map(plan_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Plan).into(),
+            page: self.next_page(listed.next, IdKind::Plan)?.into(),
             ..Default::default()
         })
     }

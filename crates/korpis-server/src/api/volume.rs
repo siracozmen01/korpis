@@ -5,7 +5,7 @@
 
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::idempotency::Idempotent;
 use korpis_app::volume::ListVolumes;
@@ -145,7 +145,7 @@ impl pb::VolumeService for Api {
     ) -> ServiceResult<pb::ListVolumesResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Volume)?;
+        let page = self.page(req.page.as_option(), IdKind::Volume)?;
         let project = wire::id(IdKind::Project, "project", &req.project).refuse()?;
         let workload = match req.workload.as_deref() {
             None | Some("") => None,
@@ -155,7 +155,7 @@ impl pb::VolumeService for Api {
         let listed = self.app.list_volumes(&caller, q, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListVolumesResponse {
             volumes: listed.items.iter().map(volume_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Volume).into(),
+            page: self.next_page(listed.next, IdKind::Volume)?.into(),
             ..Default::default()
         })
     }

@@ -5,7 +5,7 @@
 use super::wire::Refuse;
 use super::wire::scope::object_ref_from_pb;
 use super::wire::template::{body_from_pb, template_to_pb};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::authz::{TemplateAsked, TemplatesOf};
@@ -129,7 +129,7 @@ impl Api {
     ) -> ServiceResult<pb::ListGrantTemplatesResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Template)?;
+        let page = self.page(req.page.as_option(), IdKind::Template)?;
         let of = match req.of.as_ref() {
             Some(Of::At(at)) => TemplatesOf::At(object_ref_from_pb("at", at).refuse()?),
             Some(Of::Owned(org)) => {
@@ -141,7 +141,7 @@ impl Api {
             self.app.list_grant_templates(&caller, of, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListGrantTemplatesResponse {
             templates: listed.items.iter().map(template_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Template).into(),
+            page: self.next_page(listed.next, IdKind::Template)?.into(),
             ..Default::default()
         })
     }

@@ -11,7 +11,7 @@ use super::wire::workload::{
     classification_from_pb, power_state_from_pb, power_to_pb, shown_intent_to_pb, workload_to_pb,
 };
 use super::wire::{self, name};
-use super::{Api, ServerApp, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, ServerApp, encode, error, mutation_key, respond};
 use connectrpc::{
     ConnectError, RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream,
 };
@@ -301,7 +301,7 @@ impl pb::WorkloadService for Api {
     ) -> ServiceResult<pb::ListWorkloadsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Workload)?;
+        let page = self.page(req.page.as_option(), IdKind::Workload)?;
         let q = ListWorkloads {
             project: req
                 .project
@@ -321,7 +321,7 @@ impl pb::WorkloadService for Api {
         let listed = self.app.list_workloads(&caller, &q, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListWorkloadsResponse {
             workloads: listed.items.iter().map(status).collect(),
-            page: next_page(listed.next, IdKind::Workload).into(),
+            page: self.next_page(listed.next, IdKind::Workload)?.into(),
             ..Default::default()
         })
     }
@@ -333,7 +333,7 @@ impl pb::WorkloadService for Api {
     ) -> ServiceResult<pb::ListIntentsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Intent)?;
+        let page = self.page(req.page.as_option(), IdKind::Intent)?;
         let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
         let listed =
             self.app.list_intents(&caller, workload, page).await.map_err(error::from_app)?;
@@ -343,7 +343,7 @@ impl pb::WorkloadService for Api {
                 .iter()
                 .map(|s| shown_intent_to_pb(&s.intent, &s.withheld))
                 .collect(),
-            page: next_page(listed.next, IdKind::Intent).into(),
+            page: self.next_page(listed.next, IdKind::Intent)?.into(),
             ..Default::default()
         })
     }

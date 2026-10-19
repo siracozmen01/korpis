@@ -5,7 +5,7 @@
 
 use super::wire::plan::plan_to_pb;
 use super::wire::{self, Refuse};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult, ServiceStream};
 use korpis_app::backup::restore::RestoreAsk;
 use korpis_app::idempotency::Idempotent;
@@ -148,7 +148,7 @@ impl pb::BackupService for Api {
     ) -> ServiceResult<pb::ListBackupsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Backup)?;
+        let page = self.page(req.page.as_option(), IdKind::Backup)?;
         let workload = wire::id(IdKind::Workload, "workload", &req.workload).refuse()?;
         let listed = self
             .app
@@ -157,7 +157,7 @@ impl pb::BackupService for Api {
             .map_err(error::from_app)?;
         Response::ok(pb::ListBackupsResponse {
             backups: listed.items.iter().map(backup_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Backup).into(),
+            page: self.next_page(listed.next, IdKind::Backup)?.into(),
             ..Default::default()
         })
     }

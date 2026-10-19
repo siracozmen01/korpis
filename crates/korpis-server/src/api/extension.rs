@@ -9,7 +9,7 @@ use super::wire::plan::plan_to_pb;
 use super::wire::recipe::ref_to_pb;
 use super::wire::value::map_from_pb;
 use super::wire::{self, Refuse, principal, timestamp, wire_id};
-use super::{Api, encode, error, mutation_key, next_page, page, respond};
+use super::{Api, encode, error, mutation_key, respond};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Idempotent;
 use korpis_app::extension::{
@@ -190,12 +190,12 @@ impl pb::ExtensionService for Api {
     ) -> ServiceResult<pb::ListExtensionsResponse> {
         let caller = self.caller(&ctx).await?;
         let req = request.to_owned_message();
-        let page = page(req.page.as_option(), IdKind::Extension)?;
+        let page = self.page(req.page.as_option(), IdKind::Extension)?;
         let org = wire::id(IdKind::Organization, "organization", &req.organization).refuse()?;
         let listed = self.app.list_extensions(&caller, org, page).await.map_err(error::from_app)?;
         Response::ok(pb::ListExtensionsResponse {
             extensions: listed.items.iter().map(view_to_pb).collect(),
-            page: next_page(listed.next, IdKind::Extension).into(),
+            page: self.next_page(listed.next, IdKind::Extension)?.into(),
             ..Default::default()
         })
     }

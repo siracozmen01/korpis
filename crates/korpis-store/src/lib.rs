@@ -44,6 +44,7 @@ mod recovery;
 mod relay;
 mod run;
 pub mod schema;
+mod secret;
 pub mod server;
 mod session;
 mod set;
