@@ -79,14 +79,20 @@ pub(crate) async fn registered(cp: &ControlPlane) {
         name: "fs".into(),
         ..Default::default()
     };
+    let mut last = String::new();
     for _ in 0..240 {
-        let answered = client.ping_provider(ping.clone()).await;
-        if answered.is_ok_and(|p| p.into_owned().error.as_option().is_none()) {
-            return;
+        match client.ping_provider(ping.clone()).await.map(connectrpc::UnaryResponse::into_owned) {
+            Ok(p) => match p.error.as_option() {
+                None => return,
+                Some(e) => last = format!("{e:?}"),
+            },
+            Err(e) => last = format!("{e:?}"),
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
-    panic!("the target never registered");
+    // What the target last answered says which step never came: the extension's workload, its
+    // registration, or its answer.
+    panic!("the target never registered; the last ping said {last}");
 }
 
 #[tokio::test]

@@ -367,7 +367,7 @@ anyone will use.
 Operation
   id             OperationID
   kind           drain | evacuate | migrate | rebalance | recipe_rollout | bulk_intent
-                 | node_upgrade
+                 | node_upgrade | template_rollout
   scope          selector or explicit set
   plans          []PlanID          one per affected workload, generated as it proceeds
   policy         OperationPolicy
@@ -401,6 +401,14 @@ underneath the operation conflicts alone and is reported alone; the rest proceed
 across hundreds of independently owned workloads would let one person's concurrent edit block
 everyone else's change. This answers §12 of `10-api.md` and §10 of `11-surface-web.md` (finding
 S18).
+
+**A template rollout is an Operation over grants, not workloads.** Added 2026-10-19, when grant
+templates were built (§3.5 and §4 of `08-identity.md`). "Give every Moderator what version 3 adds"
+has one approval and a plan per grant issued from an earlier version, each issuing its holder the
+difference, attenuated from a grant of whoever approved it. Its items are grants, so its scope is
+the template and its `max_unavailable` and `window` say nothing; its per-item results are what
+matter, since a holder revoked meanwhile, or one the approver cannot pass the new action to, fails
+alone and the rest proceed. It is built with the other kinds, in Phase 3.
 
 `max_unavailable` is the property that makes drain safe. Without it, draining a node means every
 workload on it migrating at once, which is a self-inflicted outage. With it, drain is a slow,

@@ -145,6 +145,29 @@ impl GrantRead for PgStore {
         all(rows)
     }
 
+    async fn grants_from_template(
+        &self,
+        template: Uuid,
+        page: Page,
+    ) -> StoreResult<Vec<GrantRecord>> {
+        let rows = sqlx::query_as!(
+            GrantRow,
+            "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
+                    link_form, uses, issued_at, revoked_at, suspended_at, root,
+                    irreversible_override, label, template_id, template_version
+               FROM grants
+              WHERE template_id = $1 AND ($2::uuid IS NULL OR id > $2)
+              ORDER BY id LIMIT $3",
+            template,
+            page.after,
+            i64::from(page.size)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        all(rows)
+    }
+
     async fn grants_held(&self, subject_key: &str, page: Page) -> StoreResult<Vec<GrantRecord>> {
         let rows = sqlx::query_as!(
             GrantRow,

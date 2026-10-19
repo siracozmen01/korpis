@@ -20,6 +20,9 @@ pub enum GrantsFilter {
     On(ObjectRef),
     /// Those held by a principal; only the caller's own may be listed this way.
     HeldBy(Principal),
+    /// Those issued from a template, at any version: each one the caller holds or may read
+    /// under `grant.read` over its scope (§3.5 of docs/08-identity.md).
+    FromTemplate(Uuid),
 }
 
 /// A grant and the chain above it.
@@ -73,8 +76,32 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             GrantsFilter::HeldBy(_) | GrantsFilter::Mine => {
                 self.store.grants_held(&caller.subject.key, page).await?
             }
+            GrantsFilter::FromTemplate(template) => {
+                return self.grants_from_template(caller, template, page).await;
+            }
         };
         let next = page.next(&items, |g| g.grant.id);
+        Ok(Paged { items, next })
+    }
+
+    /// The grants issued from `template` that the caller holds or may read; the cursor passes
+    /// what it may not, so a page of nothing readable is not the last.
+    async fn grants_from_template(
+        &self,
+        caller: &Caller,
+        template: Uuid,
+        page: Page,
+    ) -> Result<Paged<GrantRecord>, AppError> {
+        let found = self.store.grants_from_template(template, page).await?;
+        let next = page.next(&found, |g| g.grant.id);
+        let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
+        let readable = self.permitted_each(caller, "grant.read", &anchors).await?;
+        let items = found
+            .into_iter()
+            .zip(readable)
+            .filter(|(g, read)| *read || g.grant.subject == caller.subject)
+            .map(|(g, _)| g)
+            .collect();
         Ok(Paged { items, next })
     }
 }

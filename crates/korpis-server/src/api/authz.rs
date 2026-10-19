@@ -112,6 +112,9 @@ fn filter(f: Option<&Filter>) -> Result<GrantsFilter, ConnectError> {
         Some(Filter::Subject(s)) => {
             GrantsFilter::HeldBy(principal::from_pb("subject", s).refuse()?)
         }
+        Some(Filter::Template(t)) => {
+            GrantsFilter::FromTemplate(wire::id(IdKind::Template, "template", t).refuse()?)
+        }
     })
 }
 

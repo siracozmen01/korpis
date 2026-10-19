@@ -42,6 +42,13 @@ pub trait GrantRead {
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
 
+    /// Grants issued from `template`, at any version, by identifier.
+    fn grants_from_template(
+        &self,
+        template: Uuid,
+        page: Page,
+    ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
+
     /// Grants held by `subject_key`.
     fn grants_held(
         &self,

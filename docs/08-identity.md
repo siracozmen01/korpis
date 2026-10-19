@@ -367,6 +367,20 @@ actually ask for: "give every Moderator `ext.rcon.kick`" finds the grants issued
 and produces an `Operation` that issues the additional grants, as a plan someone approves, rather
 than silently changing what an existing grant means.
 
+> As built, 2026-10-19 (P2.3c). Finding is built: `ListGrants` filtered by a template returns
+> the grants issued from it at every version, each with the version it came from, and only those
+> the caller holds or may read under `grant.read` over their scopes, so a reseller locates its
+> Moderators where it can read grants and nowhere else; a version behind the template's current
+> one is what a rollout would act on. The rollout is not built yet. It is a `template_rollout`
+> Operation (§3 of `05-scheduling.md`): one approval for "give every Moderator what version 3
+> adds", a plan per grant that issues the difference from the version each holds to the current
+> one, attenuated from a grant of whoever approved it, with per-item results, because a holder
+> whose grant was revoked meanwhile, or whose issuer can no longer pass the new action on, fails
+> alone. It is built with Operations in Phase 3 (§4 of `20-roadmap.md`), the machinery it shares
+> with drain and bulk changes. Until then the cost is that the change is made by hand: the
+> operator lists the grants behind and issues each holder the difference, one call each, every
+> one an ordinary issue the issuer's own grant bounds.
+
 ### 3.6 Approval
 
 > Second external review, finding S27. Recorded in §17 of `23-walkthroughs.md`.

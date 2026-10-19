@@ -1468,6 +1468,9 @@ message ListGrantsRequest {
   oneof filter {
     Scope scope = 1;
     Subject subject = 2;
+    // The grants issued from this template, at any version, that the caller may read under
+    // grant.read over their scopes (§3.5 of docs/08-identity.md).
+    string template = 4;
   }
   PageRequest page = 3;
 }

@@ -268,9 +268,11 @@ the ingress, on the UDP path edges bring (§3.2 there). Network rules naming wor
 there), which only reaching workloads on other nodes makes necessary. Devices, including GPU.
 `AssignmentDelta` (§9 of `10-api.md`), once nodes hold enough workloads for the difference to be
 measured. Drain and evacuate, as `Operation`s with their policy (§3 of `05-scheduling.md`), since
-draining a node is migrating its workloads off it. With edges, the count of a node's ports learns
-them: until then every `stable` endpoint reserves a port of its node, which one an edge serves does
-not use (§3 of `07-networking.md`).
+draining a node is migrating its workloads off it; and the `template_rollout` Operation there,
+which issues a grant template's newer version to the holders of an older one (§3.5 of
+`08-identity.md`), the one Operation of Phase 2's tenancy that needs this machinery. With edges,
+the count of a node's ports learns them: until then every `stable` endpoint reserves a port of its
+node, which one an edge serves does not use (§3 of `07-networking.md`).
 
 > Moved here from Phase 1 on 2026-10-15, when Phase 1's scheduling was built. Phase 1 named
 > "cordon and drain", and §3.4 of `01-model.md` defines draining as migrating everything off a

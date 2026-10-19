@@ -184,3 +184,59 @@ async fn a_template_grants_nobody_what_its_issuer_cannot_pass_on() {
     let gone = from(&harness, &reseller, (&id, 1), project_scope(&project)).await.unwrap_err();
     assert_eq!(gone.code, ErrorCode::NotFound, "a retired template is offered nowhere");
 }
+
+#[tokio::test]
+async fn a_templates_grants_are_found_with_their_versions_where_grants_may_be_read() {
+    let harness = Harness::new().await;
+    let (reseller, org, project) = reseller_and_project(&harness).await;
+    let grants = harness.grants(reseller.config.clone());
+    let kind = pb::ObjectKind::OBJECT_KIND_PROJECT;
+    let create = pb::CreateGrantTemplateRequest {
+        mutation: mutation("moderator").into(),
+        organization: org.clone(),
+        template: template("Moderator", &["workload.restart"], kind).into(),
+        ..Default::default()
+    };
+    let made = grants.create_grant_template(create).await.unwrap().into_owned();
+    let id = made.template.into_option().unwrap().id;
+    for _ in 0..2 {
+        from(&harness, &reseller, (&id, 1), project_scope(&project)).await.unwrap();
+    }
+    let edit = pb::UpdateGrantTemplateRequest {
+        mutation: pb::Mutation { expected_version: Some(1), ..mutation("edit") }.into(),
+        id: id.clone(),
+        template: template("Moderator", &PASSED, kind).into(),
+        ..Default::default()
+    };
+    grants.update_grant_template(edit).await.unwrap();
+    from(&harness, &reseller, (&id, 2), project_scope(&project)).await.unwrap();
+
+    assert_eq!(
+        versions(&harness, harness.root(), &id).await,
+        [1, 1, 2],
+        "two behind the current version, one on it"
+    );
+    assert!(
+        versions(&harness, reseller.config.clone(), &id).await.is_empty(),
+        "the reseller reads no grants"
+    );
+}
+
+/// The versions of the grants issued from `template` that `config` may read, in order.
+async fn versions(
+    harness: &Harness,
+    config: connectrpc::client::ClientConfig,
+    template: &str,
+) -> Vec<u64> {
+    let request = pb::ListGrantsRequest {
+        filter: Some(pb::__buffa::oneof::list_grants_request::Filter::Template(
+            template.to_owned(),
+        )),
+        ..Default::default()
+    };
+    let listed = harness.grants(config).list_grants(request).await.unwrap().into_owned();
+    let mut versions: Vec<u64> =
+        listed.grants.iter().map(|g| g.from_template.as_option().unwrap().version).collect();
+    versions.sort_unstable();
+    versions
+}
