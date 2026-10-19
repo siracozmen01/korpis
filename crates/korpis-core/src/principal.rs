@@ -32,6 +32,13 @@ impl Subject {
     pub fn set(key: impl Into<String>) -> Self {
         Self { key: key.into(), set: true }
     }
+
+    /// Whether it is an external identity, which an identity provider vouches for: every set,
+    /// and every person whose key is an `ext:` key.
+    #[must_use]
+    pub fn is_external(&self) -> bool {
+        self.set || self.key.starts_with("ext:")
+    }
 }
 
 /// The control plane acting on its own decisions.

@@ -6,6 +6,8 @@
 //! members receive. Its provider is an identity provider extension installed into an
 //! organization, and it vouches only within that organization's subtree.
 
+use super::evaluate::ChainError;
+use super::grant::Grant;
 use super::record::TemplateRef;
 use crate::id::{Id, IdKind};
 use crate::object::{Kind, ObjectRef};
@@ -234,4 +236,27 @@ impl IdentityBinding {
         }
         Ok(())
     }
+}
+
+/// A grant held by an external identity, as its binding lets it stand now: refused unless a live
+/// binding vouches for its holder and its last confirmation still holds at `now`, and without its irreversible override unless
+/// the binding still allows one, so retiring a binding, its failing re-verification, or an
+/// operator withdrawing the override reaches every grant at its next use (§5, §5.1, §5.2 of
+/// docs/08-identity.md). `None` when the grant stands as stored.
+pub(crate) fn vouched_form(
+    link: &Grant,
+    hierarchy: &impl Hierarchy,
+    now: SystemTime,
+) -> Result<Option<Grant>, ChainError> {
+    if !link.subject.is_external() {
+        return Ok(None);
+    }
+    let vouched = hierarchy.vouched(&link.subject.key).ok_or(ChainError::Unvouched(link.id))?;
+    if vouched.verified_until.is_none_or(|until| now > until) {
+        return Err(ChainError::Unvouched(link.id));
+    }
+    if link.irreversible_override && !vouched.allows_irreversible {
+        return Ok(Some(Grant { irreversible_override: false, ..link.clone() }));
+    }
+    Ok(None)
 }

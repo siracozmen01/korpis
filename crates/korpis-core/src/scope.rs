@@ -104,11 +104,28 @@ impl Resource {
     }
 }
 
-/// The object hierarchy, as the store knows it now.
+/// What the live identity binding of an external subject says now (§5 of
+/// docs/08-identity.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Vouched {
+    /// Until when its provider's last confirmation holds: the confirmation, its interval, and
+    /// its grace (§5.1). `None` when it is unverified, or was never confirmed. A binding nothing
+    /// re-verifies therefore stops vouching on its own.
+    pub verified_until: Option<std::time::SystemTime>,
+    /// Its operator lets grants to the set carry irreversible actions.
+    pub allows_irreversible: bool,
+}
+
+/// The object hierarchy, and the identity bindings external subjects are vouched for by, as the
+/// store knows them now.
 pub trait Hierarchy {
     /// The ancestry of `object`, starting with the object itself, or `None` if it does not
     /// exist.
     fn resource(&self, object: ObjectRef) -> Option<Resource>;
+
+    /// The live binding of the external subject whose key is `subject`, or `None` if it has
+    /// none; a grant held by an external subject is valid only while it is vouched for.
+    fn vouched(&self, subject: &str) -> Option<Vouched>;
 }
 
 /// Whether `child` is contained in `parent` (`child ⊑ parent`).

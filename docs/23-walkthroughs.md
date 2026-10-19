@@ -963,6 +963,22 @@ a realm; every issuer is an `https://` URL. No OIDC group could have been bound.
 service, and is not repeated in the subject; a set's realm is the claim or attribute that names
 groups, and the set its value. → patched into `08-identity.md` §5, `01-model.md` §3.2
 
+**FINDING 113: A retired or lapsed binding left its grants standing. `CONFIRMED`**
+
+Found 2026-10-19 by a security review of the first build of bindings. The control plane read a
+binding when a grant to its subject was issued and never again: retiring it, its failing
+re-verification, or an operator withdrawing its override changed nothing a grant already issued
+was evaluated with, so step 5 of this trace would have suspended nothing once a set could act. Its
+override was copied onto each grant and believed from the copy.
+
+**Resolution.** Evaluation derives it, as it derives an organization's suspension: every link held
+by an external identity needs a live binding whose last confirmation, plus its interval and grace,
+is still ahead of the instant evaluated, or the chain is refused, at use and at renewal; and the
+override counts only while the binding still allows it. Nothing is written per grant, and a
+binding no one re-verifies lapses by itself. Tests take a moderator's chain, its helper beneath it,
+through unbound, unverified, lapsed, and confirmed, and withdraw the override from a grant already
+issued. → patched into `08-identity.md` §5
+
 ---
 
 ## 12. A recipe install fails at step four of six
@@ -1262,6 +1278,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 110 | A list's page token named what its reader could not read | §26 | `10-api.md` §8 |
 | 111 | Two identity providers could vouch for one subject | §11 | `08-identity.md` §5 |
 | 112 | An OIDC issuer could not be the realm of a set | §11 | `08-identity.md` §5, `01-model.md` §3.2 |
+| 113 | A retired or lapsed binding left its grants standing | §11 | `08-identity.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

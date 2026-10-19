@@ -100,6 +100,10 @@ pub enum ChainError {
     /// A grant on the chain is suspended.
     #[error("grant {0} is suspended")]
     Suspended(Uuid),
+    /// A grant on the chain is held by an external identity no live, verified binding vouches
+    /// for: suspended by derivation, reversibly (§5.1 of docs/08-identity.md).
+    #[error("grant {0} is held by an external identity nothing vouches for now")]
+    Unvouched(Uuid),
     /// A grant on the chain is outside its validity window.
     #[error("grant {0} is not in force")]
     NotInForce(Uuid),
@@ -241,6 +245,8 @@ pub fn verify_chain(
         if !in_force(&link.conditions, now) {
             return Err(ChainError::NotInForce(link.id));
         }
+        let narrowed = super::binding::vouched_form(link, hierarchy, now)?;
+        let link = narrowed.as_ref().unwrap_or(link);
         match (link.parent, chain.get(i + 1)) {
             // Only a grant created as a root (at installation, or by local root recovery) may
             // end a chain; a parentless grant that is not marked root roots nothing.

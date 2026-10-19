@@ -613,11 +613,21 @@ never taken from a request (§5.2). The interval is between one minute and one d
 when not said, and the grace at most an hour. Retiring a binding suspends what is rooted in it and
 frees its subject to be bound again.
 
+Whether a binding vouches is derived at every use, never written on a grant. A chain with an
+external identity on it stands only while that identity's binding is live and its last
+confirmation holds, `last_verified_at + reverify_interval + grace` past the instant evaluated, so
+a binding retired, found ended, or simply not re-verified in time suspends every grant rooted in
+it, the children its members issued included, at their next use or renewal (§3.5, §6.3), and
+nothing that stopped re-verifying can leave one standing. A grant's irreversible override counts
+only while the live binding still allows it. (Added 2026-10-19, Finding 113 of
+`23-walkthroughs.md`: the first build checked the binding only at issue.)
+
 What this costs. A customer who wants to give its own project to a group at its reseller's provider
 asks the reseller to declare the binding, because bindings live where the provider is installed.
-The same person at two organizations' providers is two subjects. An edit of a binding, its override
-or its template, reaches grants issued after it, as an edit of a template does (§4); grants already
-issued keep what they were issued with, and changing them is revoking and issuing again. And until
+The same person at two organizations' providers is two subjects. An edit of a binding narrows at
+once and widens only forward: withdrawing the override reaches every grant at its next use, while
+allowing it, or moving the binding to another template, reaches grants issued after the edit, as an
+edit of a template does (§4); widening one already issued is revoking it and issuing again. And until
 re-verification is built (§5.1, Phase 2 of `20-roadmap.md` §4), a binding stays `unverified`, so
 nothing rooted in one is usable yet: the order fails closed.
 

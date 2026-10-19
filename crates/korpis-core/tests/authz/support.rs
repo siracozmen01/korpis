@@ -2,6 +2,7 @@
 
 //! The tenancy tree of the examples, and the grants §3.2 and §6.1 of docs/08-identity.md build.
 
+use korpis_core::authz::scope::Vouched;
 use korpis_core::authz::{
     Action, Conditions, Delegation, Grant, Hierarchy, Kind, Node, ObjectRef, Request, Resource,
     Scope, Subject,
@@ -15,6 +16,8 @@ pub struct Tree {
     pub labels: HashMap<ObjectRef, BTreeMap<String, String>>,
     /// The organizations suspended (§2.1 of docs/08-identity.md).
     pub suspended: BTreeSet<ObjectRef>,
+    /// The live bindings of external subjects, by key (§5 of docs/08-identity.md).
+    pub bindings: HashMap<String, Vouched>,
     pub host: ObjectRef,
     pub reseller: ObjectRef,
     pub customer: ObjectRef,
@@ -41,6 +44,7 @@ impl Tree {
             parents,
             labels,
             suspended: BTreeSet::new(),
+            bindings: HashMap::new(),
             host,
             reseller,
             customer,
@@ -64,6 +68,10 @@ impl Hierarchy for Tree {
             at = self.parents.get(&o).copied();
         }
         Some(Resource { chain })
+    }
+
+    fn vouched(&self, subject: &str) -> Option<Vouched> {
+        self.bindings.get(subject).copied()
     }
 }
 

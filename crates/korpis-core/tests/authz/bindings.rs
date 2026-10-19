@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Identity bindings (§5 of docs/08-identity.md): what a binding may say, and where its provider
-//! may vouch.
+//! Identity bindings (§5 of docs/08-identity.md): what a binding may say, where its provider may
+//! vouch, and that a chain through an external identity stands only while its binding vouches.
 
-use crate::support::Tree;
+use crate::support::{Tree, actions, child, root};
 use korpis_core::authz::binding::{
     BindingError, BindingOrigin, BindingState, BindingTerms, IdentityBinding, ProviderRef, SetName,
 };
-use korpis_core::authz::{Scope, TemplateRef};
+use korpis_core::authz::evaluate::{ChainError, verify_chain};
+use korpis_core::authz::scope::Vouched;
+use korpis_core::authz::{Delegation, Grant, Scope, Subject, TemplateRef};
 use korpis_core::principal::Principal;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -87,4 +89,55 @@ fn a_binding_says_only_what_its_kind_may() {
     b.terms.grace = Duration::ZERO;
     b.terms.require_membership = vec![SetName { realm: "4:5".into(), member_of: "x".into() }];
     assert_eq!(b.validate(), Err(BindingError::Membership));
+}
+
+/// The `@moderator` set of the reseller's provider, holding restart and delete on Survival with
+/// the operator's override, and a helper's child grant beneath it.
+fn moderators(tree: &Tree, now: SystemTime) -> (Grant, Grant, Grant) {
+    let root = root(tree, now);
+    let p = provider(tree);
+    let mut role =
+        child(&root, "x", &["workload.restart", "workload.delete"], Scope::Object(tree.survival));
+    role.subject = Subject::set(set(&p).key());
+    role.irreversible_override = true;
+    role.delegation =
+        Delegation { allowed: true, max_depth: Some(1), actions: actions(&["workload.restart"]) };
+    let helper = child(&role, "user:helper", &["workload.restart"], Scope::Object(tree.w1));
+    (root, role, helper)
+}
+
+fn vouch(tree: &mut Tree, role: &Grant, until: Option<SystemTime>, irreversible: bool) {
+    let v = Vouched { verified_until: until, allows_irreversible: irreversible };
+    tree.bindings.insert(role.subject.key.clone(), v);
+}
+
+#[test]
+fn a_chain_through_a_set_stands_only_while_its_binding_vouches() {
+    let mut tree = Tree::new();
+    let now = SystemTime::now();
+    let (root, role, helper) = moderators(&tree, now);
+    let chain = [helper, role.clone(), root];
+    assert_eq!(verify_chain(&chain, &tree, now), Err(ChainError::Unvouched(role.id)), "unbound");
+    vouch(&mut tree, &role, None, true);
+    assert_eq!(verify_chain(&chain, &tree, now), Err(ChainError::Unvouched(role.id)), "unverified");
+    vouch(&mut tree, &role, Some(now - Duration::from_secs(1)), true);
+    let lapsed = verify_chain(&chain, &tree, now);
+    assert_eq!(lapsed, Err(ChainError::Unvouched(role.id)), "nothing confirmed it in time");
+    vouch(&mut tree, &role, Some(now + Duration::from_secs(60)), true);
+    assert_eq!(verify_chain(&chain, &tree, now), Ok(()), "the helper's grant stands beneath it");
+}
+
+#[test]
+fn withdrawing_the_override_reaches_grants_already_issued() {
+    let mut tree = Tree::new();
+    let now = SystemTime::now();
+    let (root, role, _) = moderators(&tree, now);
+    let chain = [role.clone(), root];
+    vouch(&mut tree, &role, Some(now + Duration::from_secs(60)), true);
+    assert_eq!(verify_chain(&chain, &tree, now), Ok(()));
+    vouch(&mut tree, &role, Some(now + Duration::from_secs(60)), false);
+    assert!(
+        matches!(verify_chain(&chain, &tree, now), Err(ChainError::InvalidAttenuation(id, _)) if id == role.id),
+        "a set grant holding delete without the binding's say is refused at use"
+    );
 }
