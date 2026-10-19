@@ -52,8 +52,12 @@ pub struct Answer {
 /// `korpis get`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum Get {
-    /// The organizations you can read.
-    Organizations,
+    /// The organizations you can read, or those directly beneath one of them.
+    Organizations {
+        /// Only those directly beneath this organization, by name or identifier.
+        #[arg(long, add = ArgValueCompleter::new(complete::organizations))]
+        parent: Option<String>,
+    },
     /// The projects of an organization.
     Projects {
         /// The organization, by name or identifier; the top one you can read by default.

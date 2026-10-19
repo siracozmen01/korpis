@@ -43,7 +43,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .is_some_and(|n| n.connectivity == Connectivity::Connected);
         let current = heard && placed_on == Some(observation.node);
         let generation = self.store.assignment_generation(w.id, observation.node).await?;
-        let power = self.store.power_at(w.id, w.power_target_version).await?;
+        // Measured against what its node is told: stopped while a suspension holds it (§2.1 of
+        // docs/08-identity.md), which its status says beside.
+        let held = self.held_by(w.organization).await?.is_some();
+        let mut power = self.store.power_at(w.id, w.power_target_version).await?;
+        if let Some(p) = power.as_mut().filter(|_| held) {
+            p.power.desired = korpis_core::workload::PowerState::Stopped;
+        }
         let runs = match w.target {
             Some(t) => self.store.intent(t).await?.is_some_and(|i| i.body.lifecycle.has_runs()),
             None => false,

@@ -55,28 +55,33 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
-`organization create|show`, `project create`, `status`, `plan approve|reject|cancel`, `workload
-start|stop|restart|place|classify|delete|recipe`, and `node token create|cordon|uncordon|remove`,
-each one call of the API once its names are resolved. `workload recipe` shows the recipe a workload
-runs, its fields, and its words in the language `--locale` asks for or the environment's `LC_ALL`,
-`LC_MESSAGES`, or `LANG` names (§5.3 of `09-recipes.md`). An object is named by its identifier, by
-its name, or, for a workload, as `project/name`. A name is resolved by listing what the caller may
-read, never by a lookup the API does not offer, so a name the caller cannot read is the same local
-refusal (exit 1) as a name that does not exist, and the CLI learns nothing by resolving that the
-API would not have told it (§8 of `10-api.md`). Listing starts from the organizations the caller
-may read and from the objects its own grants are anchored at, so a token scoped to one project
-names that project though it can read no organization to list it from. A name that matches more
-than one object is refused with the advice to use the identifier, not resolved to the first. The
-cost is calls: a bare workload name lists every project the caller can read, which a caller who can
-read many pays for on each command; `project/name` or the identifier avoids it. An organization's
-name is found by walking the tree down from the organizations the caller may read and those its
-grants are anchored at, one listing per organization, so a reseller names its customers' customers
-as a host names its own, and every list is read to its last page; a host that can read thousands of
-organizations pays a call for each, which `org_…` avoids. Added 2026-10-19 by Finding 105 of
-`23-walkthroughs.md`: the walk and the paging were missing, so nothing beneath a root and nothing
-past a list's first hundred was a name. A power change is made against the power version the CLI
-has just read, so two operators who stop and start the same workload at once see one of them get
-`CONFLICT` rather than both silently winning.
+`organization create|show|suspend|resume`, `project create`, `status`, `plan
+approve|reject|cancel`, `workload start|stop|restart|place|classify|delete|recipe`, and `node token
+create|cordon|uncordon|remove`, each one call of the API once its names are resolved. `workload
+recipe` shows the recipe a workload runs, its fields, and its words in the language `--locale` asks
+for or the environment's `LC_ALL`, `LC_MESSAGES`, or `LANG` names (§5.3 of `09-recipes.md`). An
+object is named by its identifier, by its name, or, for a workload, as `project/name`. A name is
+resolved by listing what the caller may read, never by a lookup the API does not offer, so a name
+the caller cannot read is the same local refusal (exit 1) as a name that does not exist, and the
+CLI learns nothing by resolving that the API would not have told it (§8 of `10-api.md`). Listing
+starts from the organizations the caller may read and from the objects its own grants are anchored
+at, so a token scoped to one project names that project though it can read no organization to list
+it from. A name that matches more than one object is refused with the advice to use the identifier,
+not resolved to the first. The cost is calls: a bare workload name lists every project the caller
+can read, which a caller who can read many pays for on each command; `project/name` or the
+identifier avoids it. An organization's name is found by walking the tree down from the
+organizations the caller may read and those its grants are anchored at, one listing per
+organization, so a reseller names its customers' customers as a host names its own, and every list
+is read to its last page; a host that can read thousands of organizations pays a call for each,
+which `org_…` avoids. Added 2026-10-19 by Finding 105 of `23-walkthroughs.md`: the walk and the
+paging were missing, so nothing beneath a root and nothing past a list's first hundred was a name.
+A power change is made against the power version the CLI has just read, so two operators who stop
+and start the same workload at once see one of them get `CONFLICT` rather than both silently
+winning. `organization suspend` takes the reason its tenant is shown and, with `--stop`, holds the
+organization's workloads stopped as well (§2.1 of `08-identity.md`); `organization show` prints a
+suspension's reason, who made it and when, whether the workloads are held, and what the tenant
+still reads; `get organizations` gives each one's state, and `--parent` only those directly beneath
+one; and `status` says when a suspension holds a workload stopped.
 
 ---
 

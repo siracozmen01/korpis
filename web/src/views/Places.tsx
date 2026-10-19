@@ -9,9 +9,12 @@ import { useCallback } from "react";
 import { Link } from "react-aria-components";
 import { useReach } from "../clients";
 import { type Entry, entries, pathOf } from "./entries";
+import { everyGrant } from "./held";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
+import { Suspension } from "./Suspension";
+import { OrganizationStatus } from "../gen/korpis/v1/tenancy_pb";
 import { CONVERGENCE } from "../workload/words";
 import { ThemeEditor } from "../theme/ThemeEditor";
 import { t } from "../i18n/intl";
@@ -19,17 +22,8 @@ import { t } from "../i18n/intl";
 /** The places the caller's grants open. */
 export function Home() {
   const { clients } = useReach();
-  const load = useCallback(async () => {
-    // Every grant held, not a first page of them: the places are what all of them open.
-    const held = [];
-    let pageToken = "";
-    do {
-      const r = await clients.grants.listGrants({ page: { pageSize: PAGE_SIZE, pageToken } });
-      held.push(...r.grants);
-      pageToken = r.page?.nextPageToken ?? "";
-    } while (pageToken !== "");
-    return entries(held);
-  }, [clients]);
+  // Every grant held, not a first page of them: the places are what all of them open.
+  const load = useCallback(async () => entries(await everyGrant(clients)), [clients]);
   const loaded = useLoad(load);
   return (
     <section aria-labelledby="reach">
@@ -105,7 +99,8 @@ function EntryItem({ entry }: { readonly entry: Entry }) {
   );
 }
 
-/** An organization: its name, the organizations under it, and its projects. */
+/** An organization: its name, whether it is suspended, the organizations under it, and its
+ * projects. */
 export function OrganizationPage({ id }: { readonly id: string }) {
   const { clients, base, metered } = useReach();
   const { organizations, projects } = clients;
@@ -140,7 +135,12 @@ export function OrganizationPage({ id }: { readonly id: string }) {
       <Shown
         loaded={name}
         reading={t({ defaultMessage: "Reading the organization…", id: "R+2+cn8K" })}
-        done={(o) => <h1>{o?.name ?? id}</h1>}
+        done={(o) => (
+          <>
+            <h1>{o?.name ?? id}</h1>
+            {o !== undefined && <Suspension organization={o} />}
+          </>
+        )}
       />
       <Pages
         load={children}
@@ -150,6 +150,15 @@ export function OrganizationPage({ id }: { readonly id: string }) {
         item={(o) => (
           <li key={o.id}>
             <Link href={pathOf(base, { kind: "organization", id: o.id })}>{o.name}</Link>
+            {o.status === OrganizationStatus.SUSPENDED && (
+              <small className="aside">
+                {t({
+                  defaultMessage: "suspended",
+                  id: "Ceot6AFe",
+                  description: "an organization's state",
+                })}
+              </small>
+            )}
           </li>
         )}
       />

@@ -219,6 +219,17 @@ rendered as locked. It is not rendered.
 > project its workloads, each list only what the API returns, a page at a time with the next
 > offered while one exists, never cut at the first page as if it were all. A place the caller
 > cannot read is left out; a read that failed for another reason is said, not hidden.
+>
+> Suspension as built, 2026-10-19 (`web/src/views/Suspension.tsx`). An organization's page tells
+> everyone who reads it that it is suspended, why and since when, whether its workloads are held
+> stopped, and what its tenant still reads (§2.1 of `08-identity.md`); a suspended organization
+> is marked in the list it appears in, and a workload a suspension holds says so where its stage
+> would be said. The lever follows this section's rule. The form to suspend, with the reason the
+> tenant is shown and whether to hold its workloads stopped, or the button to resume, is offered
+> to a signed-in caller holding `org.suspend` or `org.resume` on a grant anchored at an
+> organization above, read from the caller's own grants and the tree as far up as it can read;
+> the control plane decides, and a refusal is said in its words. A share link is never offered
+> it, and neither is anyone on a root organization, which nothing is above.
 
 ---
 

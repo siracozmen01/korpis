@@ -122,6 +122,13 @@ function applying(status: WorkloadStatus, now: number): string {
 
 /** The stage a workload is at, in a sentence; nothing once it has converged. */
 export function diagnosis(status: WorkloadStatus, now: number): string | undefined {
+  // Held, it is converged to stopped, which is not what it declares: said first, whatever the
+  // stage (§2.1 of docs/08-identity.md).
+  if (status.heldBySuspension)
+    return t({
+      defaultMessage: "Held stopped while its organization, or one above it, is suspended.",
+      id: "m8Zm/he+",
+    });
   switch (status.convergence) {
     case Convergence.CONVERGED:
       return undefined;

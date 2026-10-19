@@ -38,6 +38,9 @@
   "/Sh00btp": {
     "defaultMessage": "Choose a sign-in name"
   },
+  "/gco5BAB": {
+    "defaultMessage": "Suspension"
+  },
   "/o5ltHSh": {
     "defaultMessage": "[{says}]",
     "description": "a gap in a console"
@@ -133,6 +136,9 @@
   "3jqpN1eS": {
     "defaultMessage": "End it",
     "description": "button: end a session"
+  },
+  "3y9DGgur": {
+    "defaultMessage": "Resume"
   },
   "47FYwba+": {
     "defaultMessage": "Cancel"
@@ -295,6 +301,9 @@
   "BeBCMfk4": {
     "defaultMessage": "Workloads"
   },
+  "BfEXcPXB": {
+    "defaultMessage": "Its grants, organizations, projects, plans, nodes, and the status of its workloads stay readable. Every change, a console, and a file are refused until it is resumed."
+  },
   "Bg2qLKJO": {
     "defaultMessage": "Sign in",
     "description": "button: sign in"
@@ -322,6 +331,10 @@
   "Cc3ziaQW": {
     "defaultMessage": "succeeded",
     "description": "a run's status"
+  },
+  "Ceot6AFe": {
+    "defaultMessage": "suspended",
+    "description": "an organization's state"
   },
   "Ck0eQc3Q": {
     "defaultMessage": "its node was lost",
@@ -407,6 +420,9 @@
   },
   "GDi3Iw2v": {
     "defaultMessage": "The panel has no page at this address."
+  },
+  "GfsxhpW3": {
+    "defaultMessage": "Its workloads are held stopped until it is resumed."
   },
   "GrnZDNX+": {
     "defaultMessage": "Saved."
@@ -554,8 +570,14 @@
   "N2IrpMDH": {
     "defaultMessage": "Confirm"
   },
+  "NCZyas1o": {
+    "defaultMessage": "Since {since}: {reason}"
+  },
   "NM6+o6pb": {
     "defaultMessage": "Every value it holds is unknown until it answers: nothing it said was kept in this browser."
+  },
+  "NNOUFZd9": {
+    "defaultMessage": "Its workloads keep running."
   },
   "NZmMEEju": {
     "defaultMessage": "Rename {name}"
@@ -721,6 +743,9 @@
   },
   "UxTJRaKa": {
     "defaultMessage": "Projects"
+  },
+  "VOPMMp1+": {
+    "defaultMessage": "Hold its workloads stopped as well"
   },
   "VXCry6sZ": {
     "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} is applying step {step, number} of {steps, number}."
@@ -942,6 +967,12 @@
   "ecniKn1Y": {
     "defaultMessage": "whoever holds a share link"
   },
+  "edpuFUqD": {
+    "defaultMessage": "Why, as its tenant will be shown it"
+  },
+  "elnaZeq9": {
+    "defaultMessage": "Suspend"
+  },
   "esOevyqJ": {
     "defaultMessage": "A whole number"
   },
@@ -1083,6 +1114,9 @@
     "defaultMessage": "Earlier",
     "description": "button: read earlier console lines"
   },
+  "m8Zm/he+": {
+    "defaultMessage": "Held stopped while its organization, or one above it, is suspended."
+  },
   "mJqqsxJJ": {
     "defaultMessage": "a device is unavailable",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
@@ -1108,6 +1142,9 @@
   },
   "oFH8Xx1m": {
     "defaultMessage": "Remove the logo"
+  },
+  "oJsHQWAy": {
+    "defaultMessage": "Suspended"
   },
   "oQ2tYHx3": {
     "defaultMessage": "{n, plural, one {# older line left the view} other {# older lines left the view}}; use Earlier to read them."

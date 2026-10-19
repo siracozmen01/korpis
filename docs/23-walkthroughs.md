@@ -321,7 +321,10 @@ below is why: an extension acts with grants and egress, so the node owner's allo
 > and delegates to it; the sub-tenant makes its customer, gives the customer one project, and
 > passes on nothing it was not allowed to pass on. Every widening is refused at the hop that tries
 > it, and each organization's creation is recorded under the grant of the level above it, never
-> the host's. Driving the same steps through the CLI found Finding 105.
+> the host's. Driving the same steps through the CLI found Finding 105. The host's lever over the
+> sub-tenant, suspending it with its workloads held stopped and resuming it, is driven through
+> the CLI and offered in the panel only to a caller holding it above (§2 of `13-surface-cli.md`,
+> §5 of `11-surface-web.md`); its first build found Finding 106.
 
 **FINDING 105: The CLI could not name a reseller's customers. `CONFIRMED`**
 

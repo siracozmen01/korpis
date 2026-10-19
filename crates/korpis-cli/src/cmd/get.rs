@@ -11,7 +11,7 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::subject::Kind as S;
 use std::fmt::Write as _;
 
-fn subject(s: Option<&pb::Subject>) -> String {
+pub(crate) fn subject(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
         Some(S::Link(grant)) => format!("link {grant}"),
@@ -133,10 +133,15 @@ async fn volumes(
 /// Answers `korpis get`.
 pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
     match what {
-        Get::Organizations => {
-            let list = resolve::organizations(c).await?;
-            let human = rows(&["ID", "NAME", "PARENT"], &list, |o| {
-                vec![o.id.clone(), o.name.clone(), o.parent.clone().unwrap_or_else(|| "-".into())]
+        Get::Organizations { parent } => {
+            let list = match parent {
+                Some(p) => resolve::beneath(c, &resolve::organization(c, Some(p)).await?).await?,
+                None => resolve::organizations(c).await?,
+            };
+            let human = rows(&["ID", "NAME", "PARENT", "STATE"], &list, |o| {
+                let parent = o.parent.clone().unwrap_or_else(|| "-".into());
+                let state = short(o.status, "ORGANIZATION_STATUS_");
+                vec![o.id.clone(), o.name.clone(), parent, state]
             });
             Ok(Answer { json: json(&list), human })
         }
@@ -261,6 +266,9 @@ pub async fn status(c: &Connection, workload: &str) -> Result<Answer, CliError> 
         client.get_workload(request).await?.into_owned().status.into_option().unwrap_or_default();
     let w = s.workload.as_option().cloned().unwrap_or_default();
     let mut out = format!("{} ({})  {}\n", w.name, w.id, short(s.convergence, "CONVERGENCE_"));
+    if s.held_by_suspension {
+        out.push_str("held:      stopped while its organization, or one above it, is suspended\n");
+    }
     if let Some(p) = s.placement.as_option() {
         let _ = writeln!(out, "node:      {} since {}", p.node, time(p.bound_at.as_option()));
     }

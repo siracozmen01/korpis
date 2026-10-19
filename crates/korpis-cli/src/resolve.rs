@@ -55,6 +55,12 @@ async fn children(
     .await
 }
 
+/// Every organization directly beneath organization `parent` that the caller may read.
+pub async fn beneath(c: &Connection, parent: &str) -> Result<Vec<pb::Organization>, CliError> {
+    let client = pb::OrganizationServiceClient::new(c.http(), c.config());
+    children(&client, Some(parent)).await
+}
+
 /// Every organization the caller may read: the roots it may read and those its grants are
 /// anchored at, and everything beneath them, walked one organization at a time, so a reseller
 /// names its customers' customers as the host names its own.
