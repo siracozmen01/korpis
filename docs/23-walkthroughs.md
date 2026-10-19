@@ -365,6 +365,23 @@ the tenant's own power as it was. Nested suspensions each hold their own subtree
 ancestry read per assignment and status read, and no stop on a workload's own history.
 → patched into `08-identity.md` §2.1
 
+**FINDING 107: Two customers could each be given the reseller's last reservations. `CONFIRMED`**
+
+Found 2026-10-19 by a security review of the first build of setting quota sets, the lever this
+trace's reseller pulls when it gives its customers what it sells. The change locked the entries of
+every set it checked, and that is not enough: a second change, waiting on the reseller's entries,
+then read its siblings' sets with a snapshot from before the first committed, so the entries the
+first had just made were not there to sum. Two customers asking at once for 20 GiB each of the
+reseller's 32 were both given it, which is the race of Finding 1 one level up the tree. The same
+review found the project a quota was set for looked up before the caller was authorized, which
+told a stranger whether the project existed.
+
+**Resolution.** A change locks the rows of the organization above it and of its own, top down,
+before it reads any set, so changes beneath one organization are serialized and each reads what
+the last one committed; the project is looked up only after `org.quota.write` over its
+organization is shown. A test races two siblings for the last of their parent and is given it
+once, and fails three runs of three without the lock. → patched into `05-scheduling.md` §5.1
+
 **FINDING 25: An organization without its own trust policy had no policy at all. `CONFIRMED`**
 
 §7 of `09-recipes.md` defined the policy per organization and said nothing of an organization that
@@ -1200,6 +1217,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 104 | A machine kept every workload's network once its node had stopped without destroying them | §35 | `18-operations.md` §3 |
 | 105 | The CLI could not name a reseller's customers | §4 | `13-surface-cli.md` §2 |
 | 106 | A suspension that stopped the workloads did it one workload at a time | §4 | `08-identity.md` §2.1 |
+| 107 | Two customers could each be given the reseller's last reservations | §4 | `05-scheduling.md` §5.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

@@ -911,9 +911,18 @@ An entry whose shape the new set keeps keeps its identity and the totals of what
 takes the new bounds as its next version; an entry of a new shape is reckoned at its first use;
 an entry whose shape is gone is removed, and what counted it no longer does. Lowering a bound
 below what is already held is allowed: admission refuses only growth (above), so a workload is
-never stranded. What it costs: a change locks its parent's set and its siblings', so changes to
-siblings' sets are serialized, which is what stops two of them from each being given the last of
-the parent's reservations at once.
+never stranded. What it costs: a change first locks the rows of the organization above it and of
+its own, top down, and only then reads any set; changes to sets beneath one organization are
+therefore serialized, which is what stops two siblings from each being given the last of their
+parent's reservations at once, and a project or workload made in the organization meanwhile does
+not wait, since the lock leaves the row's key alone.
+
+> Corrected 2026-10-19, the day it was built (Finding 107 of `23-walkthroughs.md`). The first build
+> locked only the entries of the sets it read. Under read-committed isolation a change that waited
+> on the parent's entries then read its siblings' sets with a snapshot taken before the other
+> change committed, so a sibling's entries that the other change had just made were not counted,
+> and two siblings could each be given the last 20 GiB of 32. Locking existing rows cannot cover
+> rows not yet made; the organization rows above them can.
 
 #### Where a workload runs
 

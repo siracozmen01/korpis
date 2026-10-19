@@ -66,6 +66,18 @@ impl PgStore {
 }
 
 impl QuotaSetWrite for PgTx {
+    async fn lock_quota_owners(&mut self, organizations: &[Uuid]) -> StoreResult<()> {
+        // Not FOR UPDATE: that would also wait out every insert of a project or a workload
+        // referencing the organization, which takes a key-share lock on its row.
+        for id in organizations {
+            sqlx::query!("SELECT id FROM organization WHERE id = $1 FOR NO KEY UPDATE", id)
+                .fetch_optional(&mut *self.tx)
+                .await
+                .map_err(from_sqlx)?;
+        }
+        Ok(())
+    }
+
     async fn lock_quota_sets(
         &mut self,
         organizations: &[Uuid],

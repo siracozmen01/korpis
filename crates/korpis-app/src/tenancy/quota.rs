@@ -97,6 +97,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::NotFound { kind: "organization" });
         };
         if let Some(p) = cmd.project {
+            // Authorized before the project is looked for, so whether it exists is told only to
+            // a caller who may set its quota.
+            self.authorize(caller, "org.quota.write", organization(org.id)).await?;
             let project = self.store.project(p).await?.filter(|p| p.organization == org.id);
             let project = project.ok_or(AppError::NotFound { kind: "project" })?;
             return Ok((QuotaOwner::Project(p), org.id, org, Some(project)));
@@ -150,6 +153,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         over: Uuid,
         new: &QuotaSet,
     ) -> Result<Vec<QuotaEntry>, AppError> {
+        // The organization above first, then the owner: every change to a set takes the rows of
+        // the organizations it is checked under, top down, before reading anything, so a
+        // sibling's set made meanwhile is read once it is committed, never missed.
+        let mut owners = vec![over];
+        if let QuotaOwner::Organization(o) = owner {
+            owners.push(o);
+        }
+        tx.lock_quota_owners(&owners).await?;
         let (beside, projects) = tx.quota_children(over).await?;
         let (below, below_projects) = match owner {
             QuotaOwner::Organization(o) => tx.quota_children(o).await?,

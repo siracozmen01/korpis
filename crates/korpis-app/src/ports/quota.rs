@@ -48,6 +48,14 @@ pub trait QuotaRead {
 /// Setting quota sets (§5.1 of docs/05-scheduling.md). Every method runs in the transaction of
 /// the change.
 pub trait QuotaSetWrite {
+    /// Locks the rows of `organizations`, ancestors before descendants, until the transaction
+    /// ends: every change to a set below one of them takes the same lock first, so the sets read
+    /// after it, its children's entries included, are those the last such change committed.
+    fn lock_quota_owners(
+        &mut self,
+        organizations: &[Uuid],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// The entries of `organizations` and `projects`, locked until the transaction ends, in
     /// identifier order: the sets being changed, and those they are checked against.
     fn lock_quota_sets(

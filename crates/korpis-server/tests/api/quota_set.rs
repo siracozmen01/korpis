@@ -139,3 +139,35 @@ async fn a_bound_of_zero_allows_none_and_a_kept_entry_keeps_what_it_counts() {
     let refused = orgs.set_quota(sub).await.unwrap_err();
     assert_eq!(reason(&refused), "quota.overallocated", "a sub-limit fits its organization");
 }
+
+#[tokio::test]
+async fn two_siblings_given_the_last_of_their_parent_at_once_are_given_it_once() {
+    let h = Harness::new().await;
+    let (org, r) = reseller(&h).await;
+    let (a, b) = (organization(&h, &r, &org, "a").await, organization(&h, &r, &org, "b").await);
+    let orgs = h.orgs(r.config.clone());
+    let (one, two) = tokio::join!(
+        orgs.set_quota(setting("a", &a, memory(20 * GIB, 20 * GIB, None))),
+        orgs.set_quota(setting("b", &b, memory(20 * GIB, 20 * GIB, None))),
+    );
+    assert_eq!([one.is_ok(), two.is_ok()].iter().filter(|ok| **ok).count(), 1, "40 GiB of 32");
+    let refused = one.err().or(two.err()).unwrap();
+    assert_eq!(reason(&refused), "quota.overallocated");
+}
+
+#[tokio::test]
+async fn whether_a_project_exists_is_told_only_to_who_may_set_its_quota() {
+    let h = Harness::new().await;
+    let (org, _r) = reseller(&h).await;
+    let shop = project(&h, &org, "shop").await;
+    let (_, secret) = h.bare_token().await;
+    let stranger = h.orgs(h.config(Some(secret.expose())));
+    let ask = |key: &str, project: String| pb::SetQuotaRequest {
+        project: Some(project),
+        ..setting(key, &org, memory(GIB, GIB, None))
+    };
+    let real = stranger.set_quota(ask("real", shop)).await.unwrap_err();
+    let made_up = format!("prj_{}", Uuid::now_v7().simple());
+    let none = stranger.set_quota(ask("none", made_up)).await.unwrap_err();
+    assert_eq!((real.code, real.message.clone()), (none.code, none.message), "the same refusal");
+}
