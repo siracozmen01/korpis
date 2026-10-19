@@ -338,6 +338,28 @@ impl Network {
         let namespace = netns::remove(&self.path(workload))?;
         Ok(link || namespace)
     }
+
+    /// Releases every network bound under the root, as a machine is emptied of what its node
+    /// made when the node did not destroy its workloads itself (§3 of docs/18-operations.md):
+    /// the workloads whose networks were released, and those that could not be, with why.
+    #[must_use]
+    pub fn release_all(&self) -> (Vec<String>, Vec<(String, HelperError)>) {
+        let mut names: Vec<String> = std::fs::read_dir(&self.root)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        let (mut released, mut failed) = (Vec::new(), Vec::new());
+        for name in names {
+            match self.release(&name) {
+                Ok(_) => released.push(name),
+                Err(e) => failed.push((name, e)),
+            }
+        }
+        (released, failed)
+    }
 }
 
 #[cfg(test)]

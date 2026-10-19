@@ -309,19 +309,22 @@ them back with `Recover`.
 The privileged helper runs only when asked. Its socket is a systemd socket unit
 (`ListenStream=/run/korpis/helper.sock`, `SocketMode=0660`, the supervisor's group as
 `SocketGroup`), and its service starts `korpis-helper --inherit` with `StandardInput=socket`, so
-the helper receives the listening socket, serves whoever connects, and exits after a minute
-without a connection. It serves only the users `--allow-uid` names, root alone when none is
-named, keeps volumes in the `local` class under `--volume-root` (`/var/lib/korpis/volumes` by
-default) and its record of id ranges under `--state` (`/var/lib/korpis/helper`). Where systemd is
-absent, `--socket PATH` binds the socket itself and serves until stopped. The class's backend is
-read from the filesystem under `--volume-root`: ext4 made with `-O quota,project` or XFS, mounted
-with `prjquota`, makes `local` a project class with byte and inode limits in the write path (§3 of
-`06-storage.md`); any other filesystem makes it a `directory` class, which enforces no size and
-says so (§2 of `06-storage.md`). The jobs it starts are binaries beside it unless named:
-`--job-binary` for backups and restores and `--install-binary` for installs (`none` runs no
-installs); each job's cgroup is made under `--job-cgroups` (`/sys/fs/cgroup/korpis`), and
-`--content` names the agent's content store, which restores and installs read
-(`/var/lib/korpis-agent/content`).
+the helper receives the listening socket, serves whoever connects, and exits after a minute without
+a connection. It serves only the users `--allow-uid` names, root alone when none is named, keeps
+volumes in the `local` class under `--volume-root` (`/var/lib/korpis/volumes` by default) and its
+record of id ranges under `--state` (`/var/lib/korpis/helper`). Where systemd is absent, `--socket
+PATH` binds the socket itself and serves until stopped. The class's backend is read from the
+filesystem under `--volume-root`: ext4 made with `-O quota,project` or XFS, mounted with
+`prjquota`, makes `local` a project class with byte and inode limits in the write path (§3 of
+`06-storage.md`); btrfs with qgroups enabled makes it a class of one subvolume per volume, its
+bytes limited by its qgroup and its inodes not at all (§3 there); any other filesystem makes it a
+`directory` class, which enforces no size and says so (§2 of `06-storage.md`). Corrected
+2026-10-19: this paragraph named only the project classes after the btrfs class was built, and so
+told an operator on btrfs that their volumes would not be limited. The jobs it starts are binaries
+beside it unless named: `--job-binary` for backups and restores and `--install-binary` for installs
+(`none` runs no installs); each job's cgroup is made under `--job-cgroups`
+(`/sys/fs/cgroup/korpis`), and `--content` names the agent's content store, which restores and
+installs read (`/var/lib/korpis-agent/content`).
 
 Removing a node is the reverse and is never abrupt: cordon, drain, decommission (§3 of
 `05-scheduling.md`), each producing a Plan that names every workload that will move and where it
@@ -333,6 +336,16 @@ node: the node is decommissioned for good, its session ends on whichever replica
 key opens no other. A node removed as compromised (`--compromised`) is removed whatever it holds,
 which §9 of `17-security.md` describes; the CLI asks for `--yes` either way. Added 2026-10-16, when
 it was built; the documents named decommissioning from the start and no operation reached it.
+
+What the node made on its machine is not removed with the node: a node that is removed has stopped
+acting, so whatever it had not destroyed itself, which is everything a node removed as compromised
+ran, stays until the operator removes it. Its containers are containerd's, in the `korpis`
+namespace, and its volumes are the helper's, under its volume root; its workloads' networks, each a
+namespace, a routed link, and nftables rules in the `inet korpis` table, are released by
+`korpis-helper release-networks [--netns-root PATH]`, which releases every network bound under the
+root as the node releases one when it destroys its workload, prints each, and fails naming any it
+could not. Added 2026-10-19, when `scripts/e2e-phase0.sh` was found to leave every workload's
+network on the machine it ran on, and nothing the operator could run removed one.
 
 **Enrolling a relay** that runs as its own process (§3.1 of `02-architecture.md`) is the same
 procedure with three differences. The token is created over the root organization only

@@ -21,7 +21,11 @@ const USAGE: &str = "usage: korpis-helper (--inherit | --socket PATH) [--volume-
                      [--class NAME] [--state PATH] [--allow-uid UID]... [--idle SECONDS] \
                      [--job-binary PATH] [--install-binary PATH|none] [--job-cgroups PATH|none] \
                      [--content PATH] [--netns-root PATH|none] \
-                     [--ingress-binary PATH|none] [--files-binary PATH|none]";
+                     [--ingress-binary PATH|none] [--files-binary PATH|none]\n       \
+                     korpis-helper release-networks [--netns-root PATH]";
+
+/// Where workloads' network namespaces are bound unless `--netns-root` says otherwise.
+const NETNS_ROOT: &str = "/run/korpis/netns";
 
 /// Where the install job binary is, if install jobs are run.
 enum InstallBinary {
@@ -88,7 +92,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
         files_binary: InstallBinary::Beside,
         job_cgroups: Some(PathBuf::from("/sys/fs/cgroup/korpis")),
         content: PathBuf::from("/var/lib/korpis-agent/content"),
-        netns_root: Some(PathBuf::from("/run/korpis/netns")),
+        netns_root: Some(PathBuf::from(NETNS_ROOT)),
     };
     let mut inherit = false;
     while let Some(flag) = args.next() {
@@ -172,6 +176,35 @@ fn run(a: Args) -> Result<(), String> {
     serve(&listener, &allowed, &mut helper, a.idle).map_err(|e| e.to_string())
 }
 
+/// `korpis-helper release-networks`: releases every workload network bound under the netns root
+/// and exits, for a machine whose node did not destroy its workloads itself (§3 of
+/// docs/18-operations.md). Each network released is printed; one that could not be is said, and
+/// the command fails.
+#[expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "what was released, and what was not, is the command's own output"
+)]
+fn release_networks(mut args: impl Iterator<Item = String>) -> ExitCode {
+    let mut root = PathBuf::from(NETNS_ROOT);
+    while let Some(flag) = args.next() {
+        let value = args.next();
+        let (Some(v), "--netns-root") = (value, flag.as_str()) else {
+            eprintln!("{USAGE}");
+            return ExitCode::from(2);
+        };
+        root = PathBuf::from(v);
+    }
+    let (released, failed) = Network::new(root).release_all();
+    for w in &released {
+        println!("released {w}");
+    }
+    for (w, e) in &failed {
+        eprintln!("{w}: {e}");
+    }
+    if failed.is_empty() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
+
 #[expect(clippy::print_stderr, reason = "a usage error is the binary's own output")]
 fn main() -> ExitCode {
     tracing_subscriber::fmt()
@@ -184,6 +217,9 @@ fn main() -> ExitCode {
     if args.peek().map(String::as_str) == Some("--version") {
         eprintln!("{}", korpis_core::build::describe("korpis-helper"));
         return ExitCode::SUCCESS;
+    }
+    if args.peek().map(String::as_str) == Some("release-networks") {
+        return release_networks(args.skip(1));
     }
     let a = match parse(args) {
         Ok(a) => a,

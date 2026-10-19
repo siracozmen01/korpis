@@ -378,3 +378,23 @@ fn a_workload_s_resolver_is_sockets_of_its_own_namespace_its_resolv_conf_names()
     network.release(&workload).unwrap();
     assert!(network.open_resolver(&workload).is_err(), "no network, no resolver");
 }
+
+#[test]
+fn every_network_under_a_root_is_released_at_once_as_for_a_node_that_is_gone() {
+    let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+    let network = Network::new(tmp.path().join("netns"));
+    if !able(&network) {
+        return;
+    }
+    let host = u8::try_from(std::process::id() % 250).unwrap() + 2;
+    let names: Vec<String> =
+        (0..2).map(|i| format!("net-all-{}-{i}", std::process::id())).collect();
+    for (third, w) in [251, 252].into_iter().zip(&names) {
+        network.ensure(&request(w, Ipv4Addr::new(10, 246, third, host))).unwrap();
+    }
+    let (released, failed) = network.release_all();
+    assert!(failed.is_empty(), "{failed:?}");
+    assert_eq!(released, names);
+    assert!(names.iter().all(|w| !link_exists(&host_link(w))), "their links are gone");
+    assert_eq!(std::fs::read_dir(tmp.path().join("netns")).unwrap().count(), 0);
+}

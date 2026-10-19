@@ -95,13 +95,14 @@ with a reason (§2.1 of `05-scheduling.md`), not discovered on the first slow ba
 
 **A directory is a class too, and the least one.** It is a directory on a filesystem with no
 project quota: every capability is false, the size and inode count a volume asks for are enforced
-by nothing, and its usage is not accounted, because the only way to know it would be the walk of §3.
-The helper offers it where a filesystem cannot do better, which is any ext4 or XFS mounted without
-`prjquota`, and says so in what it declares. The control plane holds that declaration from the
-node's `Hello` (§4.2 of `02-architecture.md`), so the question of whether a volume's size may be
-shown has an answer where it is asked: a size is shown only for a volume in a class that declares
-`quota_enforced`, and nowhere else (Rule K-3). The cost is real: a tenant on such a class can fill
-the machine's disk, and the operator who chose it is told so when choosing it.
+by nothing, and its usage is not accounted, because the only way to know it would be the walk of
+§3. The helper offers it where a filesystem cannot do better, which is any ext4 or XFS mounted
+without `prjquota` and any btrfs whose qgroups are off or inconsistent (below), and says so in what
+it declares. The control plane holds that declaration from the node's `Hello` (§4.2 of
+`02-architecture.md`), so the question of whether a volume's size may be shown has an answer where
+it is asked: a size is shown only for a volume in a class that declares `quota_enforced`, and
+nowhere else (Rule K-3). The cost is real: a tenant on such a class can fill the machine's disk,
+and the operator who chose it is told so when choosing it.
 
 > Note, 2026-10-13, from the implementation (`crates/korpis-helper`). The backend list had no
 > entry for a filesystem without quota, so a node on one could either claim a class it does not
@@ -134,18 +135,20 @@ against a number produced by a background process. Neither is in the write path.
 | XFS / ext4 | project quota on the project ID, bytes and inodes | `write()` returns `EDQUOT`, immediately |
 | LVM-thin + XFS | XFS project quota inside; the thin volume's size bounds the filesystem | `EDQUOT` from the quota; `ENOSPC` from the filesystem if the volume is full |
 
-**On ext4 and XFS, each volume is a project of its own.** The helper gives the volume's directory
-a project identifier that everything created under it inherits, sets the project's byte and inode
+**On ext4 and XFS, each volume is a project of its own.** The helper gives the volume's directory a
+project identifier that everything created under it inherits, sets the project's byte and inode
 limits, and reads its usage back through `quotactl_fd(2)` on the class root, so no block device is
 ever named. Identifiers are given from 2^24 upward and recorded beside the volumes, in the class
-root, so the record moves with the data and stays clear of the small numbers an operator assigns
-by hand on the same filesystem. Which backend a class has is read from the filesystem when the
-helper starts, never configured: ext4 or XFS with project quota on is a project class, anything
-else a `directory` (§2). Two things follow that the limit does not say. The volume's own
-directory counts against it, one inode and one block. And a process holding `CAP_SYS_RESOURCE` in
-the host's user namespace passes a hard limit, as the kernel allows root to; a workload never
-holds it, because its capabilities are its own user namespace's (§2 of `04-runtimes.md`), but the
-helper does, and so does anything else running as root on the host.
+root, so the record moves with the data and stays clear of the small numbers an operator assigns by
+hand on the same filesystem. Which backend a class has is read from the filesystem when the helper
+starts, never configured: ext4 or XFS with project quota on is a project class, btrfs with
+consistent qgroups a btrfs class (below), anything else a `directory` (§2); the two sentences
+naming the directory class named only the project classes until 2026-10-19, after the btrfs class
+was built. Two things follow that the limit does not say. The volume's own directory counts against
+it, one inode and one block. And a process holding `CAP_SYS_RESOURCE` in the host's user namespace
+passes a hard limit, as the kernel allows root to; a workload never holds it, because its
+capabilities are its own user namespace's (§2 of `04-runtimes.md`), but the helper does, and so
+does anything else running as root on the host.
 
 **On btrfs, each volume is a subvolume.** The helper creates it with the subvolume ioctl, limits
 the bytes it references with its qgroup, and reads usage from the qgroup accounting in the quota

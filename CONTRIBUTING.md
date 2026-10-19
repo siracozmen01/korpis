@@ -102,6 +102,13 @@ scripts/e2e-phase0.sh     the Phase 0 done-when (§4 of docs/20-roadmap.md) as a
                           it: the five binaries as processes, the recipe published with oras,
                           every step through the CLI; needs root and containerd, and leaves
                           nothing behind
+scripts/e2e-phase1.sh     the Phase 1 done-when (§4 of docs/20-roadmap.md) the same way: the
+                          backup target installed as an extension from its static image, a
+                          workload's console read and typed into, its volume quota refused by
+                          the kernel and its memory limit its cgroup's, a backup taken, read,
+                          and restored into a clone, and all of it deleted; needs root,
+                          containerd, and btrfs-progs, and leaves nothing behind. check.sh runs
+                          neither; the two share scripts/e2e-lib.sh
 scripts/test-install-package.sh
                           `korpis-server install --postgres package` in systemd containers of
                           Debian, Ubuntu, and Fedora, units started (§2 of

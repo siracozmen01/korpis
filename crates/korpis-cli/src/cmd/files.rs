@@ -156,7 +156,8 @@ async fn session(
 }
 
 fn done(what: String) -> Answer {
-    Answer { json: json!({ "done": what }), human: what }
+    let json = json!({ "done": what });
+    Answer { json, human: what + "\n" }
 }
 
 /// Runs `a`.

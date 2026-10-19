@@ -10,96 +10,22 @@
 # subject and the action that was missing.
 #
 # Needs root, containerd, docker (for scripts/dev-pg.sh and scripts/dev-registry.sh), psql, jq,
-# and oras from scripts/tools.sh. Leaves nothing behind: its containers, database, and files are
-# removed on exit however it exits.
+# and oras from scripts/tools.sh. Leaves nothing behind: its processes, containers, networks,
+# database, and files are removed on exit however it exits (scripts/e2e-lib.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=$PWD
-
-log() { printf '\n== %s\n' "$*" >&2; }
-fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
-
-[ "$(id -u)" = 0 ] || fail "needs root: the helper and containerd"
-[ -S /run/containerd/containerd.sock ] || fail "needs containerd at /run/containerd"
-for tool in docker psql jq ctr; do command -v "$tool" >/dev/null || fail "needs $tool"; done
-ORAS=$REPO/.tools/bin/oras
-[ -x "$ORAS" ] || fail "needs oras: run scripts/tools.sh"
+# shellcheck source=scripts/e2e-lib.sh
+. scripts/e2e-lib.sh
+needs ctr
 
 log "building"
 cargo build --quiet -p korpis-server -p korpis-agent -p korpis-driver-oci -p korpis-helper \
-    -p korpis-cli -p korpis-stream
-BIN=$REPO/target/debug
+    -p korpis-cli -p korpis-stream -p korpis-backup -p korpis-install -p korpis-files
+begin
 
-WORK=$(mktemp -d /tmp/korpis-e2e.XXXXXX)
-PG=$(scripts/dev-pg.sh up)
-REGISTRY=$(scripts/dev-registry.sh up)
-DB="korpis_e2e_$$"
-PIDS=()
-WORKLOAD=""
-
-cleanup() {
-    set +e
-    for pid in "${PIDS[@]}"; do kill "$pid" 2>/dev/null; done
-    wait 2>/dev/null
-    if [ -n "$WORKLOAD" ]; then
-        filter="labels.\"korpis.workload\"==$WORKLOAD"
-        for id in $(ctr -n korpis containers ls -q "$filter" 2>/dev/null); do
-            ctr -n korpis tasks kill -s SIGKILL "$id" >/dev/null 2>&1
-            sleep 0.3
-            ctr -n korpis tasks rm -f "$id" >/dev/null 2>&1
-            ctr -n korpis containers rm "$id" >/dev/null 2>&1
-            ctr -n korpis snapshots rm "$id" >/dev/null 2>&1
-        done
-    fi
-    psql "$PG" -qc "DROP DATABASE IF EXISTS $DB WITH (FORCE)" >/dev/null 2>&1
-    rm -rf "$WORK" "${BACKUP:-}"
-}
-trap cleanup EXIT
-
-# Waits up to $1 seconds for the command after it to succeed.
-until_ok() {
-    local secs=$1; shift
-    for _ in $(seq 1 $((secs * 2))); do
-        if "$@" >/dev/null 2>&1; then return 0; fi
-        sleep 0.5
-    done
-    "$@"
-}
-
-# Starts the command after $1 in the background, logging to $WORK/$1.log; its pid is $LAST.
-start() {
-    local name=$1; shift
-    "$@" >>"$WORK/$name.log" 2>&1 &
-    LAST=$!
-    PIDS+=("$LAST")
-}
-
-log "installing the control plane"
-psql "$PG" -qc "CREATE DATABASE $DB TEMPLATE template0" >/dev/null
-DB_URL="${PG%/*}/$DB"
-# The processes are started here rather than by systemd, so installation writes no units; the
-# control plane's backup target is a directory on a tmpfs, another device than $WORK's disk.
-BACKUP=$(mktemp -d /dev/shm/korpis-e2e-backup.XXXXXX)
-"$BIN/korpis-server" install --data-dir "$WORK/server" --database-owner-url "$DB_URL" \
-    --organization acme --root-token --backup-target "$BACKUP" --no-system >"$WORK/install.txt"
-ROOT_TOKEN=$(sed -n '/root API token is shown once/{n;n;s/^ *//p;q}' "$WORK/install.txt")
-[ -n "$ROOT_TOKEN" ] || fail "install printed no root token"
-SERVER_DB_URL=$(sed -n 's/^  --database-url //p' "$WORK/install.txt")
-[ -n "$SERVER_DB_URL" ] || fail "install printed no login for the control plane"
-PORT=$((20000 + $$ % 20000))
-start server "$BIN/korpis-server" serve --data-dir "$WORK/server" --database-url "$SERVER_DB_URL" \
-    --listen "127.0.0.1:$PORT" --plain-http-registry "$REGISTRY"
-export KORPIS_SERVER="https://127.0.0.1:$PORT" KORPIS_CA="$WORK/server/tls/ca.pem"
-export KORPIS_TOKEN=$ROOT_TOKEN
-korpis() { "$BIN/korpis" --plain-http "$REGISTRY" "$@"; }
-until_ok 30 korpis version
-
-log "an organization that runs unsigned recipes, and a project"
-ORG=$(korpis --json get organizations | jq -r '.[0].id')
-korpis call OrganizationService/SetTrustPolicy \
-    -d "{\"organization\": \"$ORG\", \"policy\": {\"allowUnsigned\": true}}" >/dev/null
-korpis call ProjectService/CreateProject -d "{\"organization\": \"$ORG\", \"name\": \"games\"}" \
-    >/dev/null
+log "installing the control plane, an organization that runs unsigned recipes, and a project"
+control_plane
 
 log "publishing the thin recipe with oras"
 RECIPE="$REGISTRY/e2e/sleeper-$$"
@@ -132,19 +58,7 @@ sed -i "s|@REGISTRY@|$REGISTRY|" "$WORK/recipe/recipe.yaml"
     recipe.yaml:application/vnd.korpis.recipe.document.v1+yaml >/dev/null)
 
 log "enrolling this machine as a node"
-NODE="$WORK/node"
-mkdir -p "$NODE"
-JOIN=$(korpis --json node token create "e2e-$$")
-"$BIN/korpis-agent" --state-dir "$NODE/agent" join --server "$KORPIS_SERVER" \
-    --token "$(jq -r .token <<<"$JOIN")" --ca-fingerprint "$(jq -r .caFingerprint <<<"$JOIN")" \
-    --hostname "e2e-$$" >/dev/null
-start helper "$BIN/korpis-helper" --socket "$NODE/helper.sock" --volume-root "$NODE/volumes" \
-    --state "$NODE/helper"
-start driver "$BIN/korpis-driver-oci" --socket "$NODE/driver.sock" \
-    --content "$NODE/agent/content" --volume-root "$NODE/volumes" \
-    --identity-root "$NODE/agent/identity" --state-dir "$NODE/driver"
-until_ok 10 test -S "$NODE/helper.sock"
-until_ok 10 test -S "$NODE/driver.sock"
+enroll "e2e-$$"
 # The agent runs from a copy installed as a package installs it, so that its upgrade below can
 # replace the file under a running node.
 INSTALLED="$WORK/installed/korpis-agent"
@@ -168,6 +82,7 @@ config:
 EOF
 korpis apply -f "$WORK/sleeper.yaml"
 WORKLOAD=$(korpis --json get workloads games | jq -r '.[0].workload.id')
+WORKLOADS+=("$WORKLOAD")
 converged() {
     korpis --json status sleeper | jq -e '.convergence == "CONVERGENCE_CONVERGED"'
 }
@@ -175,7 +90,7 @@ until_ok 180 converged || fail "never converged; agent log: $(tail -n 20 "$WORK/
 RUNTIME=$(korpis --json status sleeper | jq -r '.observation.runtimeId')
 pid_of() { ctr -n korpis tasks ls | awk -v id="$1" '$1 == id { print $2 }'; }
 PID=$(pid_of "$RUNTIME")
-[ -n "$PID" ] && [ "$PID" -gt 0 ] || fail "no task for $RUNTIME"
+[[ "$PID" =~ ^[1-9][0-9]*$ ]] || fail "no task for $RUNTIME"
 STARTS=$(find "$NODE/volumes" -name starts | head -n1)
 until_ok 10 test -s "$STARTS"
 grep -qx 'hello from e2e' "$(dirname "$STARTS")/greeting" || fail "the configured value"

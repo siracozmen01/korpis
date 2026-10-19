@@ -1145,6 +1145,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 101 | Two runs under `allow` would both listen on the workload's one endpoint | §41 | `05-scheduling.md` §4.2 |
 | 102 | A restore could not record the runs its nodes presented, from what the assignment named | §41 | `03-state.md` §8, `02-architecture.md` §4.8 |
 | 103 | A workload granted authority had no way to reach the API to use it | §20 | `08-identity.md` §9.5, `07-networking.md` §6, `02-architecture.md` §6 |
+| 104 | A machine kept every workload's network once its node had stopped without destroying them | §35 | `18-operations.md` §3 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2342,6 +2343,33 @@ which a node's client would accept because the request never leaves the machine.
 the control plane reads a repository too, for a prune and for browsing, and it is no node, so no
 address on a node's own link is one it reaches. The store is reached at its published address
 instead, by every reader, over TLS that trusts the provider's certificate alone.
+
+Run as an operator runs it, 2026-10-19 (`scripts/e2e-phase1.sh`): the control plane, the helper,
+the driver, and the agent started as processes with their own flags, the target's static binary
+pushed as an image and its extension published with `oras`, and steps 1, 2, 3, 4 to 6 (a backup),
+and 8 taken through the `korpis` CLI on a real node whose volumes are on a btrfs with qgroups on.
+They held, and so did what the done-when of Phase 1 asks beside them: the workload's console read
+and typed into, a write past its volume's 64 MiB refused by the kernel, its cgroup's `memory.max`
+the limit its status shows, and a file read back out of the backup. Writing the run's teardown
+found one more.
+
+**FINDING 104: A machine kept every workload's network once its node had stopped without
+destroying them. `CONFIRMED`**
+
+Found 2026-10-19, writing the teardown of `scripts/e2e-phase1.sh`. The node releases a workload's
+network, its namespace, its routed link, and its rules in the host's `inet korpis` table, when it
+destroys the workload (§4.1 of `07-networking.md`). What evaluates the release, where a node
+stops without destroying them, as a node removed as compromised does (§3 of `18-operations.md`)
+and as every run of `scripts/e2e-phase0.sh` that ended did? Nothing: the helper made each network
+and only the helper's own call removed one, and nothing an operator could run made that call.
+`/run/korpis/netns` on the machine this repository is built on still held the namespaces of two
+Phase 0 runs, and the host's table their rules.
+
+**Resolution.** `korpis-helper release-networks` releases every network bound under the netns root,
+by the same call the node makes, and fails naming any it could not; §3 of `18-operations.md` says
+what a removed node leaves on its machine and how each part is removed. Both end-to-end scripts
+now end by it, after deleting through the CLI what they made where they can. → patched into
+`18-operations.md` §3
 
 ## 36. A shop reached by its own name, over HTTPS, on one machine
 
