@@ -1233,6 +1233,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 107 | Two customers could each be given the reseller's last reservations | §4 | `05-scheduling.md` §5.1 |
 | 108 | A template's scope pattern named cases nothing could evaluate | §26 | `08-identity.md` §4, `01-model.md` §3.2 |
 | 109 | A restarted agent whose driver did not answer started a second copy | §7 | `02-architecture.md` §4.4 |
+| 110 | A list's page token named what its reader could not read | §26 | `10-api.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -2024,6 +2025,20 @@ version and the ancestry of the object, and nothing evaluates it after. A templa
 its owner's subtree, its conditions are relative, and its versions are kept whole so provenance
 names what was issued. `01-model.md` §3.2 now copies the one definition. → patched into
 `08-identity.md` §4, `01-model.md` §3.2
+
+**FINDING 110: A list's page token named what its reader could not read. `CONFIRMED`**
+
+Found 2026-10-19 by a security review of the first build of finding a template's grants, the
+lookup this trace's operator makes when a moderator's role changes. The list read a page of grants,
+kept those the caller may read, and answered as its next-page token the identifier of the last grant
+it had read, kept or not. Four lists built earlier did the same: an organization's certificates,
+repositories, and domains, and the root organizations. A page ending on a row the caller could not
+read handed it that row's identifier, which §8 of `10-api.md` exists to withhold.
+
+**Resolution.** A filtered list reads on until its page is full of what the caller may see or
+nothing is left, and its token is the last item it returned; one helper does it for all five, and a
+test pages through a source where most rows are hidden and finds every visible one once and no
+hidden one as a token. → patched into `10-api.md` §8
 
 † Step 4 is where the trace found Finding 45, and step 5 Finding 46.
 

@@ -5,7 +5,7 @@
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
-use crate::page::{Page, Paged};
+use crate::page::{Page, Paged, visible};
 use crate::ports::{Clock, RecipeSource, Store};
 use korpis_core::authz::{GrantRecord, ObjectRef};
 use korpis_core::principal::Principal;
@@ -84,24 +84,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Paged { items, next })
     }
 
-    /// The grants issued from `template` that the caller holds or may read; the cursor passes
-    /// what it may not, so a page of nothing readable is not the last.
+    /// The grants issued from `template` that the caller holds or may read.
     async fn grants_from_template(
         &self,
         caller: &Caller,
         template: Uuid,
         page: Page,
     ) -> Result<Paged<GrantRecord>, AppError> {
-        let found = self.store.grants_from_template(template, page).await?;
-        let next = page.next(&found, |g| g.grant.id);
-        let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
-        let readable = self.permitted_each(caller, "grant.read", &anchors).await?;
-        let items = found
-            .into_iter()
-            .zip(readable)
-            .filter(|(g, read)| *read || g.grant.subject == caller.subject)
-            .map(|(g, _)| g)
-            .collect();
-        Ok(Paged { items, next })
+        let read = |p: Page| async move { Ok(self.store.grants_from_template(template, p).await?) };
+        let readable = |found: Vec<GrantRecord>| async move {
+            let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
+            let shown = self.permitted_each(caller, "grant.read", &anchors).await?;
+            Ok(found
+                .into_iter()
+                .zip(shown)
+                .filter_map(|(g, s)| (s || g.grant.subject == caller.subject).then_some(g))
+                .collect())
+        };
+        visible(page, |g| g.grant.id, read, readable).await
     }
 }

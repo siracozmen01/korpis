@@ -11,7 +11,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::page::{Page, Paged};
+use crate::page::{Page, Paged, visible};
 use crate::ports::{
     BackupWrite as _, Clock, EffectWrite as _, RecipeSource, Store, StoreError, Unique,
 };
@@ -177,14 +177,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         project: Option<Uuid>,
         page: Page,
     ) -> Result<Paged<Repository>, AppError> {
-        let found = self.store.repositories(organization, project, page).await?;
-        // The cursor passes what the caller may not see, so a page of nothing readable is not
-        // the last.
-        let next = page.next(&found, |r| r.id);
-        let objects: Vec<ObjectRef> =
-            found.iter().map(|r| ObjectRef::new(Kind::Repository, r.id)).collect();
-        let readable = self.permitted_each(caller, "repository.read", &objects).await?;
-        let items = found.into_iter().zip(readable).filter_map(|(r, ok)| ok.then_some(r)).collect();
-        Ok(Paged { items, next })
+        let read =
+            |p: Page| async move { Ok(self.store.repositories(organization, project, p).await?) };
+        let readable = |found: Vec<Repository>| async move {
+            let objects: Vec<ObjectRef> =
+                found.iter().map(|r| ObjectRef::new(Kind::Repository, r.id)).collect();
+            let shown = self.permitted_each(caller, "repository.read", &objects).await?;
+            Ok(found.into_iter().zip(shown).filter_map(|(r, s)| s.then_some(r)).collect())
+        };
+        visible(page, |r| r.id, read, readable).await
     }
 }

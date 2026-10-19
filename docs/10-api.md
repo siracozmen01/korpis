@@ -413,6 +413,15 @@ before it determines permission.
 `DENIED` carries which action was missing, never which grant would have granted it, the second
 would let someone map the authorization structure by probing.
 
+**A list's cursor names only what the caller was shown.** Added 2026-10-19 (Finding 110 of
+`23-walkthroughs.md`). A list filtered by read authority (an organization's certificates,
+repositories, and domains, the root organizations, the grants issued from a template) reads past
+what the caller may not see until its page is full or nothing is left, and its next-page token is
+the last item it returned. The first build answered the identifier of the last row it had read,
+seen or not, so a page ending on another tenant's object handed the caller that object's
+identifier, and a run of such pages counted what it could not read. The cost is that one page may
+read many rows the caller never sees, and the next page reads again what lay past the cursor.
+
 ---
 
 ## 9. Full resync is nearly free

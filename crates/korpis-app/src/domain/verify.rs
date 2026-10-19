@@ -8,7 +8,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::page::{Page, Paged};
+use crate::page::{Page, Paged, visible};
 use crate::ports::{Clock, DomainWrite as _, EffectWrite as _, LookupError, RecipeSource, Store};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -126,12 +126,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         organization: Uuid,
         page: Page,
     ) -> Result<Paged<Domain>, AppError> {
-        let found = self.store.domains_of(organization, page).await?;
-        let next = page.next(&found, |d| d.id);
-        let objects: Vec<ObjectRef> =
-            found.iter().map(|d| ObjectRef::new(Kind::Domain, d.id)).collect();
-        let readable = self.permitted_each(caller, "domain.read", &objects).await?;
-        let items = found.into_iter().zip(readable).filter_map(|(d, ok)| ok.then_some(d)).collect();
-        Ok(Paged { items, next })
+        let read = |p: Page| async move { Ok(self.store.domains_of(organization, p).await?) };
+        let readable = |found: Vec<Domain>| async move {
+            let objects: Vec<ObjectRef> =
+                found.iter().map(|d| ObjectRef::new(Kind::Domain, d.id)).collect();
+            let shown = self.permitted_each(caller, "domain.read", &objects).await?;
+            Ok(found.into_iter().zip(shown).filter_map(|(d, s)| s.then_some(d)).collect())
+        };
+        visible(page, |d| d.id, read, readable).await
     }
 }

@@ -18,7 +18,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::page::{Page, Paged};
+use crate::page::{Page, Paged, visible};
 use crate::ports::{CertificateWrite as _, Clock, EffectWrite as _, RecipeSource, Store, TlsVault};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -221,12 +221,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         organization: Uuid,
         page: Page,
     ) -> Result<Paged<Certificate>, AppError> {
-        let found = self.store.certificates_of(organization, page).await?;
-        let next = page.next(&found, |c| c.id);
-        let objects: Vec<ObjectRef> =
-            found.iter().map(|c| ObjectRef::new(Kind::Certificate, c.id)).collect();
-        let readable = self.permitted_each(caller, "certificate.read", &objects).await?;
-        let items = found.into_iter().zip(readable).filter_map(|(c, ok)| ok.then_some(c)).collect();
-        Ok(Paged { items, next })
+        let read = |p: Page| async move { Ok(self.store.certificates_of(organization, p).await?) };
+        let readable = |found: Vec<Certificate>| async move {
+            let objects: Vec<ObjectRef> =
+                found.iter().map(|c| ObjectRef::new(Kind::Certificate, c.id)).collect();
+            let shown = self.permitted_each(caller, "certificate.read", &objects).await?;
+            Ok(found.into_iter().zip(shown).filter_map(|(c, s)| s.then_some(c)).collect())
+        };
+        visible(page, |c| c.id, read, readable).await
     }
 }

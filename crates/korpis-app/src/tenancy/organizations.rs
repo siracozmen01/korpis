@@ -6,7 +6,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
-use crate::page::{Page, Paged};
+use crate::page::{Page, Paged, visible};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, StoreError, TenancyWrite, Unique};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -89,14 +89,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(p) = parent {
             self.authorize(caller, "org.read", org(p)).await?;
         }
-        let rows = self.store.organizations(parent, page).await?;
-        let next = page.next(&rows, |o| o.id);
-        let mut items = Vec::with_capacity(rows.len());
-        for o in rows {
-            if parent.is_some() || self.permitted(caller, "org.read", org(o.id)).await? {
-                items.push(o);
+        let read = |p: Page| async move { Ok(self.store.organizations(parent, p).await?) };
+        let readable = |rows: Vec<Organization>| async move {
+            if parent.is_some() {
+                return Ok(rows);
             }
-        }
-        Ok(Paged { items, next })
+            let objects: Vec<ObjectRef> = rows.iter().map(|o| org(o.id)).collect();
+            let shown = self.permitted_each(caller, "org.read", &objects).await?;
+            Ok(rows.into_iter().zip(shown).filter_map(|(o, s)| s.then_some(o)).collect())
+        };
+        visible(page, |o| o.id, read, readable).await
     }
 }
