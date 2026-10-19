@@ -196,12 +196,13 @@ disruption:                                 # §5.1: what this software costs to
 `stop` to the console and waiting is the difference between a clean shutdown and a corrupted save,
 and it is declared by the recipe rather than special-cased in core.
 
-> Not yet as built, found 2026-10-17. A recipe's `pre_stop` is read and checked (it writes
-> something, and waits at most ten minutes) but no node runs it: every stop, a restart's
-> included, sends `SIGTERM` and kills after thirty seconds. The panel's browser test found it,
-> when a restart of a shell that ignores `SIGTERM` as a container's first process took the whole
-> grace. Until the agent runs the hook, a recipe whose software needs it gets the unclean stop
-> this section warns of. It is task P1.13c of the build plan, before Phase 1 is declared done.
+> Not yet as built, found 2026-10-17 (built 2026-10-19; see the note below). A recipe's `pre_stop`
+> is read and checked (it writes something, and waits at most ten minutes) but no node runs it:
+> every stop, a restart's included, sends `SIGTERM` and kills after thirty seconds. The panel's
+> browser test found it, when a restart of a shell that ignores `SIGTERM` as a container's first
+> process took the whole grace. Until the agent runs the hook, a recipe whose software needs it
+> gets the unclean stop this section warns of. It is task P1.13c of the build plan, before Phase 1
+> is declared done.
 
 > As built, 2026-10-19, on the node (`crates/korpis-agent/src/reconcile/halt.rs`). The hook
 > needed no new field: the signed assignment carries the recipe document, and the agent reads
@@ -217,7 +218,9 @@ and it is declared by the recipe rather than special-cased in core.
 > which the effect records as failed with the driver's reason, and it is signalled at once; and
 > nothing shortens a stop of software that heeds neither the hook nor the signal below its
 > `wait_for_exit` plus the grace. A plan says so: each step that stops a running object carries
-> that sum as `stops_within_seconds` (§3.3 of `01-model.md`).
+> that sum as `stops_within_seconds` (§3.3 of `01-model.md`). Verified on a real node the same
+> day: a restart of software that ignores `SIGTERM` and exits only on `stop` completes in seconds
+> (`crates/korpis-e2e/tests/e2e/stopping.rs`), and Finding 87 of `23-walkthroughs.md` is resolved.
 
 ### 3.1 A declaration is completed by its recipe, once, and the intent stores the result
 

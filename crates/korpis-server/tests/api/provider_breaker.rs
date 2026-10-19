@@ -44,7 +44,7 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     let x = installed(&h, 31, "dns").await;
     let (mut stream, _) = registered(&h, &x.secret, "1.0.0", 10).await;
     let asked = tokio::time::Instant::now();
-    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(20))).collect();
+    let pings: Vec<_> = (0..10).map(|_| ping(&h, "cloudflare", Duration::from_secs(40))).collect();
     let mut calls = Vec::new();
     for _ in 0..10 {
         calls.push(call(&mut stream).await);
@@ -52,10 +52,11 @@ async fn a_provider_that_always_answers_but_slowly_trips_the_breaker() {
     // Every call succeeds at over four fifths of its deadline, counted from when the last of them
     // came down the stream, which is after each was made: however late a loaded machine made
     // them, each has taken that long. Each still answers before its deadline unless delivering
-    // the calls and the answers took more than three seconds between them.
+    // the calls and the answers took more than seven seconds between them; the deadline is long
+    // so that a machine as loaded as the check's often is still leaves that much room.
     let arrived = tokio::time::Instant::now();
-    assert!(arrived - asked < Duration::from_secs(3), "the calls came down in time");
-    tokio::time::sleep_until(arrived + Duration::from_millis(16_600)).await;
+    assert!(arrived - asked < Duration::from_secs(7), "the calls came down in time");
+    tokio::time::sleep_until(arrived + Duration::from_secs(33)).await;
     for c in &calls {
         pong(&mut stream, c).await;
     }

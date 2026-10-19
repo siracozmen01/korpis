@@ -29,4 +29,5 @@ mod programs;
 mod recipes;
 mod runs;
 mod snapshots;
+mod stopping;
 mod support;

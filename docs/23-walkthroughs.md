@@ -1128,7 +1128,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 84 | A secret field's value was read back by anyone who could read the workload | §38 | `09-recipes.md` §5.2 |
 | 85 | A console showed what someone typed as the record's JSON, not as who typed what | §38 | `14-streams.md` §6 |
 | 86 | Saving a configuration showed nothing of the plan it applied | §38 | `11-surface-web.md` §4 |
-| 87 | A recipe's `pre_stop` hook was checked and never run | §38 | `09-recipes.md` §3 |
+| 87 | A recipe's `pre_stop` hook was checked and never run | §38 | `09-recipes.md` §3, `02-architecture.md` §6, `01-model.md` §3.3 |
 | 88 | Every screen that was loading failed when the device's network changed | §38 | `11-surface-web.md` §9 |
 | 89 | A resumed upload could finish a file with a hole of zeros in it | §38 | `06-storage.md` §3.2 |
 | 90 | A file session went on sending after a request it could not tell was delivered | §38 | `11-surface-web.md` §8 |
@@ -3017,6 +3017,18 @@ a node, and no node runs it, so every stop is `SIGTERM` and a kill after thirty 
 **Resolution, in part.** §3 of `09-recipes.md` now says so; running it on the node is task P1.13c
 of the build plan, before Phase 1 is declared done. The test's own recipe ends on `SIGTERM`, as a
 container's first process must say for itself. → `09-recipes.md` §3.
+
+**Resolved 2026-10-19.** The node runs the hook. The signed assignment already carried the recipe
+document, so the agent reads the hook from it; every stop of a running object first writes the
+hook's data to the console as `system:reconciler` and journals `node.pre_stop`, gives the
+software its `wait_for_exit`, and only then signals it and, past its grace, kills it. Building it
+found that the reconciler waited in every stop, which held up the node's other workloads for the
+whole grace, so a stop is now moved on pass by pass (§6 of `02-architecture.md`); and a plan's
+stop steps now say the longest they can take (§3.3 of `01-model.md`). Verified on a real node by
+a restart of software that ignores `SIGTERM` as a first process and exits only on `stop`, which
+completes in seconds rather than the thirty the signal and its grace would take
+(`crates/korpis-e2e/tests/e2e/stopping.rs`). → `09-recipes.md` §3, `02-architecture.md` §6,
+`01-model.md` §3.3
 
 **FINDING 88: Every screen that was loading failed when the device's network changed.
 `CONFIRMED`**
