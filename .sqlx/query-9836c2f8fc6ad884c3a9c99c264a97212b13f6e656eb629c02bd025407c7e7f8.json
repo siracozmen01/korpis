@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE organization SET status = $3, suspension = $4, version = version + 1\n              WHERE id = $1 AND status = $2\n             RETURNING id, name, parent_id, status, suspension, version, created",
+  "query": "UPDATE organization SET status = $3, suspension = $4, version = version + 1\n              WHERE id = $1 AND version = $2\n             RETURNING id, name, parent_id, status, suspension, version, created",
   "describe": {
     "columns": [
       {
@@ -84,7 +84,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text",
+        "Int8",
         "Text",
         "Jsonb"
       ]
@@ -99,5 +99,5 @@
       false
     ]
   },
-  "hash": "2475df1e54aba8cc85d73181f3012d13cbd7500143f4c610492eb9410e882eae"
+  "hash": "9836c2f8fc6ad884c3a9c99c264a97212b13f6e656eb629c02bd025407c7e7f8"
 }

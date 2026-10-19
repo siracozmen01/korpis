@@ -20,10 +20,10 @@ use crate::ports::{
 };
 use korpis_core::authz::record::{GrantRecord, in_force};
 use korpis_core::principal::Principal;
-use korpis_core::workload::Plan;
 use korpis_core::workload::assignment::{Assignment, IdRange, NodePlan, retires, set_digest};
 use korpis_core::workload::plan::PlanStatus;
 use korpis_core::workload::run::named;
+use korpis_core::workload::{Plan, PowerState};
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -60,6 +60,14 @@ fn runs_digest(
     sealer.content_digest(&runs).map_err(seal_error)
 }
 
+/// What a node is to be told about one workload: the assignment, the plan that becomes applying
+/// by being told, and whether a suspension holds the workload stopped.
+struct Desired {
+    assignment: Assignment,
+    plan: Option<Plan>,
+    held: bool,
+}
+
 /// The plan a node is to be executing for a workload: the applying one, or else the earliest
 /// approved or queued whose window has opened, which becomes applying when it is first assigned.
 /// A queued plan waited for the one ahead of it; once that one is done, it is next.
@@ -89,12 +97,13 @@ async fn ids<T: Tx>(tx: &mut T, node: Uuid, workload: Uuid) -> Result<IdRange, A
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// What a live assignment holds of its node: the ids it keeps there, its endpoints as placed
-    /// there, the challenges its node's proxy answers, and the runs it executes.
+    /// there, the challenges its node's proxy answers, and the runs it executes, none while a
+    /// suspension holds it stopped.
     async fn place_here(
         &self,
         tx: &mut S::Tx,
         a: &mut Assignment,
-        range: Option<korpis_core::node::advertised::PortRange>,
+        (range, held): (Option<korpis_core::node::advertised::PortRange>, bool),
     ) -> Result<(), AppError> {
         a.ids = ids(tx, a.node, a.workload).await?;
         let now = self.clock.now();
@@ -102,7 +111,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             endpoints::placed(tx, (a.node, a.workload), &a.target.body, range, now).await?;
         a.challenges = tx.challenges_for(a.workload).await?;
         let active = tx.active_runs_within(a.workload).await?;
-        a.runs = named(&active, &a.target.body.run_policy());
+        if !held {
+            a.runs = named(&active, &a.target.body.run_policy());
+        }
         a.kept_runs = tx.kept_runs_within(a.workload).await?;
         Ok(())
     }
@@ -154,9 +165,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let stored: BTreeMap<Uuid, StoredAssignment> =
             tx.stored_assignments(node).await?.into_iter().map(|s| (s.workload, s)).collect();
         let mut out = Vec::with_capacity(desired.len());
-        for (mut assignment, plan) in desired {
+        for Desired { mut assignment, plan, held } in desired {
             if !assignment.residual {
-                self.place_here(&mut tx, &mut assignment, range).await?;
+                self.place_here(&mut tx, &mut assignment, (range, held)).await?;
             }
             let digest = sealer.content_digest(&assignment).map_err(seal_error)?;
             let runs = runs_digest(sealer.as_ref(), &assignment)?;
@@ -199,7 +210,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// What `node` is to be told: an assignment for each workload placed on it, and a residual
     /// one for each that left a plan there.
-    async fn all_desired(&self, node: Uuid) -> Result<Vec<(Assignment, Option<Plan>)>, AppError> {
+    async fn all_desired(&self, node: Uuid) -> Result<Vec<Desired>, AppError> {
         let mut desired = Vec::new();
         for workload in self.store.placed_on(node).await? {
             desired.extend(self.desired(node, workload).await?);
@@ -236,16 +247,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// What `node` is to be told about `workload`, with the plan that becomes applying by being
-    /// told; `None` if nothing approved reaches a node yet.
-    async fn desired(
-        &self,
-        node: Uuid,
-        workload: Uuid,
-    ) -> Result<Option<(Assignment, Option<Plan>)>, AppError> {
+    /// told; `None` if nothing approved reaches a node yet. While a suspension holds it, it is
+    /// told stopped, and a plan waiting to apply waits on, unless it retires the workload; one
+    /// already applying is let finish, since a node left half way through its steps would hold
+    /// what no plan made (§2.1 of docs/08-identity.md).
+    async fn desired(&self, node: Uuid, workload: Uuid) -> Result<Option<Desired>, AppError> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
         let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
-        let plan = active_plan(self.store.open_plans(workload).await?, self.clock.now());
-        let Some((target, power)) = self.told(&w, plan.as_ref()).await? else { return Ok(None) };
+        let held = self.held_by(w.organization).await?.is_some();
+        let plan = active_plan(self.store.open_plans(workload).await?, self.clock.now())
+            .filter(|p| !held || p.status == PlanStatus::Applying || retires(p));
+        let Some((target, mut power)) = self.told(&w, plan.as_ref()).await? else {
+            return Ok(None);
+        };
+        if held {
+            power.power.desired = PowerState::Stopped;
+        }
         let manifest = self
             .store
             .cached_recipe(&target.body.recipe.digest)
@@ -258,8 +275,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let volume_ids = self.existing_ids(&target.body).await?;
         let reaches_api = self.reaches_api(workload).await?;
         let dependencies = self.resolve_dependencies((w.project, w.id), &target.body).await?;
-        Ok(Some((
-            Assignment {
+        Ok(Some(Desired {
+            assignment: Assignment {
                 workload,
                 project: w.project,
                 organization: w.organization,
@@ -285,17 +302,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 kept_runs: Vec::new(),
             },
             plan,
-        )))
+            held,
+        }))
     }
 
     /// The residual assignment of `workload` on `node`: the plan deleting a volume it left there,
     /// with the last target and power it had for the record. No ids, no lease, no recipe it
     /// needs; `None` once nothing is left to do there.
-    async fn residual(
-        &self,
-        node: Uuid,
-        workload: Uuid,
-    ) -> Result<Option<(Assignment, Option<Plan>)>, AppError> {
+    async fn residual(&self, node: Uuid, workload: Uuid) -> Result<Option<Desired>, AppError> {
         let Some(w) = self.store.workload(workload).await? else { return Ok(None) };
         let missing = |what: &str| AppError::Internal(format!("{what} of workload {workload}"));
         let id = w.target.ok_or_else(|| missing("target"))?;
@@ -315,8 +329,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let Some(plan) = active_plan(here, self.clock.now()) else { return Ok(None) };
         let on_lease_expiry = target.body.continuity.resolved(false);
-        Ok(Some((
-            Assignment {
+        Ok(Some(Desired {
+            assignment: Assignment {
                 workload,
                 project: w.project,
                 organization: w.organization,
@@ -341,7 +355,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 runs: Vec::new(),
                 kept_runs: Vec::new(),
             },
-            Some(plan),
-        )))
+            plan: Some(plan),
+            held: false,
+        }))
     }
 }

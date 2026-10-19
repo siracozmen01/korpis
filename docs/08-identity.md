@@ -77,7 +77,8 @@ Organization
 - `grant.read`, `org.read`, and reading the organization's own metering and audit remain available
   to the suspended tenant, because a customer being asked to pay must be able to see what for.
 - `on_suspend` decides the workloads: `keep_running` (access suspended, service continues) or `stop`
-  (a power plan for every workload, executed by the host's authority and visible to the tenant).
+  (every workload beneath held stopped by the host's authority, visibly to the tenant; this said
+  "a power plan for every workload" until the correction below).
   Volumes and backups are untouched either way; deleting a suspended customer's data is a separate,
   irreversible plan that the host makes on the record.
 
@@ -101,20 +102,34 @@ Korpis provides the reversible state; deciding when to apply it is the billing s
 > `20-roadmap.md`, Phase 2). Reaching the service is what suspension withholds: a console, a
 > file, a backup's contents, and every change are refused. A grant scoped above the suspended
 > organization, the host's or the reseller's, acts on it as before. A workload holding a grant
-> scoped in it loses the API relay of §9.5 with its next assignment, announced at once. Not yet
-> built: the offline side, question 7 of §10.
+> scoped in it loses the API relay of §9.5 with its next assignment, announced at once. The
+> offline side is settled in §6.3 (question 7 of §10).
 >
-> `on_suspend: stop` as built, 2026-10-19. A stop is a change to the tenant's workloads, so the
-> suspender needs `workload.stop` over the organization as well as `org.suspend` above it: a
-> billing system let suspend is not thereby let take servers down. Each workload beneath that is
-> declared running gets a stop declaration and its plan, recorded as the suspender's act and
-> visible to the tenant; the suspension is the decision a plan needing only confirmation would
-> ask for, so such a plan is approved by it, and one needing an approver's authority still
-> waits for that approver. What was already stopped is left alone. Resuming starts again exactly
-> the workloads the suspension stopped whose power no one has changed since, which needs
-> `workload.start` over the organization for the same reason; a workload the tenant had stopped
-> itself, or that anyone started or stopped in between, is left as it is. That makes the whole
-> suspension reversible, which §2.1 asks and a host restoring a customer who paid expects.
+> `on_suspend: stop`, corrected 2026-10-19, the day it was first built (Finding 106 of
+> `23-walkthroughs.md`). The first build wrote the stop onto the workloads: for each workload
+> beneath that was declared running, a stop declaration and its plan, recorded as the
+> suspender's act, and on resume a start for exactly those whose power no one had changed since.
+> Writing a derived fact as one row per workload cost three defects. The workloads were listed
+> before the status was committed, so one declared in between was never stopped; resuming an
+> ancestor started workloads that a still suspended organization beneath it held; and a workload
+> whose power moved while its stop was prepared was skipped without a word. The stop is now
+> derived as the suspension of grants is. While an organization is suspended with `stop`, every
+> workload beneath it, in nested organizations too, is told stopped by its assignment whatever
+> power it declares (§4.8 of `02-architecture.md`). A plan waiting to apply waits on unless it
+> retires the workload; one already applying is let finish, since a node left half way through
+> its steps would hold what no plan made; and no run is made or kept running (§4 of
+> `05-scheduling.md`). Nothing is written onto any workload, so the tenant's declared power stands
+> throughout, a workload declared or started meanwhile is held like the rest, and resuming
+> returns each to its own power. A second suspension, above or below, holds what it covers until
+> it is itself resumed. A workload's status says it is held (`held_by_suspension`, §4.3 of
+> `02-architecture.md`). A stop still changes what the tenant's workloads do, so suspending with
+> it needs `workload.stop` over the organization as well as `org.suspend` above it, and resuming
+> such a suspension needs `workload.start`: a billing system let suspend is not thereby let take
+> servers down. Both are decided against the organization as read, and the status is written
+> only if it is still at that version. What it costs: the hold is not on the record of each
+> workload, so a workload's history shows its own declarations and not the host's stop; the
+> organization's `org.suspend` effect is the record, and it names `on_suspend`. And every
+> assignment, run pass, and status read asks the workload's ancestry, one more query each.
 
 ---
 

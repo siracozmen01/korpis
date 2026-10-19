@@ -25,6 +25,7 @@ pub(super) fn status(v: &WorkloadView) -> pb::WorkloadStatus {
         certificates: certificates(v),
         names: names(v),
         newest_run: v.newest_run.as_ref().map(korpis_wire::run::run_to_pb).into(),
+        held_by_suspension: v.held_by_suspension,
         workload: workload_to_pb(&v.workload, &v.power).into(),
         target: v.target.as_ref().map(|t| shown_intent_to_pb(t, &v.withheld.target)).into(),
         head: shown_intent_to_pb(&v.head, &v.withheld.head).into(),

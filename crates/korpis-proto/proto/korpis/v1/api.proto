@@ -519,6 +519,9 @@ message WorkloadStatus {
   // Its newest run, for a task or scheduled workload (§4 of docs/05-scheduling.md); absent
   // before its first.
   Run newest_run = 13;
+  // Whether a suspension of its organization, or of one above it, holds it stopped whatever
+  // power it declares (§2.1 of docs/08-identity.md); resuming returns it to its own.
+  bool held_by_suspension = 14;
 }
 
 // A name an ingress endpoint routes, in DNS.

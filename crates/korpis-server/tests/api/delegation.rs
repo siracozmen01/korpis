@@ -32,7 +32,7 @@ fn project_scope(id: &str) -> pb::Scope {
     scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Project, id)))
 }
 
-fn delegation(depth: Option<u32>, actions: &[&str]) -> pb::DelegationPolicy {
+pub(crate) fn delegation(depth: Option<u32>, actions: &[&str]) -> pb::DelegationPolicy {
     pb::DelegationPolicy {
         allowed: depth.is_some_and(|d| d > 0),
         max_depth: depth,
@@ -60,7 +60,7 @@ fn issue(
 }
 
 /// A new token given `actions` on `scope` by `parent`, which presents `config`.
-async fn delegate(
+pub(crate) async fn delegate(
     h: &Harness,
     (parent, config): (&str, ClientConfig),
     (actions, scope): (&[&str], pb::Scope),

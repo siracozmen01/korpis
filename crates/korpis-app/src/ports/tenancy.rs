@@ -33,13 +33,6 @@ pub trait TenancyRead {
         organization: Uuid,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Project>>> + Send;
-
-    /// The workloads organization `organization`'s suspension stopped, each with the power
-    /// version it declared (§2.1 of docs/08-identity.md).
-    fn suspension_stops(
-        &self,
-        organization: Uuid,
-    ) -> impl Future<Output = StoreResult<Vec<(Uuid, u64)>>> + Send;
 }
 
 /// Writing organizations and projects.
@@ -54,30 +47,15 @@ pub trait TenancyWrite {
         organization: &Organization,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Sets organization `id`'s status to `to` if it is suspended now exactly when `suspended`
-    /// says so, bumping its version; the organization as it now is, or `None` if it does not
-    /// exist or its status was not the one expected.
+    /// Sets organization `id`'s status to `to` if its version is still `version`, bumping it;
+    /// the organization as it now is, or `None` if it does not exist or changed since it was read
+    /// at that version.
     fn change_organization_status(
         &mut self,
         id: Uuid,
-        suspended: bool,
+        version: u64,
         to: &OrganizationStatus,
     ) -> impl Future<Output = StoreResult<Option<Organization>>> + Send;
-
-    /// Records that organization `organization`'s suspension stopped `workload` at power version
-    /// `power_version`.
-    fn record_suspension_stop(
-        &mut self,
-        organization: Uuid,
-        workload: Uuid,
-        power_version: u64,
-    ) -> impl Future<Output = StoreResult<()>> + Send;
-
-    /// Forgets what organization `organization`'s suspension stopped, as resuming it does.
-    fn clear_suspension_stops(
-        &mut self,
-        organization: Uuid,
-    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Inserts a project. A project with the same name in the organization is
     /// [`Unique::ProjectName`](super::Unique::ProjectName).

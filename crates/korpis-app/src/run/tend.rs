@@ -13,6 +13,7 @@ use crate::ports::{
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::principal::{Principal, SystemActor};
+use korpis_core::workload::PowerState;
 use korpis_core::workload::run::{Run, RunEnd, RunStatus, Tended, Tending, tend};
 use korpis_core::workload::stream::{StreamKey, StreamKind};
 use std::time::SystemTime;
@@ -85,6 +86,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Some(t) => tx.intent_within(t).await?,
             None => None,
         };
+        // A workload a suspension holds stopped is tended as stopped: no run is made, and its
+        // running ones end (§2.1 of docs/08-identity.md).
+        let held = self.held_by(w.organization).await?.is_some();
         let power = self.store.power_at(id, w.power_target_version).await?;
         let zone = target
             .as_ref()
@@ -101,7 +105,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             now: self.clock.now(),
             workload: id,
             target: target.as_ref().map(|i| (i.id, &i.body)),
-            power: power.map(|p| (p.power.desired, p.power.cycle)),
+            power: power
+                .map(|p| (if held { PowerState::Stopped } else { p.power.desired }, p.power.cycle)),
             zone: zone.as_ref(),
             state: state.clone(),
             active,

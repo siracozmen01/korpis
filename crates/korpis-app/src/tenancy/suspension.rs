@@ -2,25 +2,22 @@
 
 //! Suspending and resuming an organization (§2.1 of docs/08-identity.md): the reversible lever a
 //! host pulls for non-payment. It is one row: every grant scoped in the organization's subtree is
-//! suspended by derivation at use, and resuming restores them unchanged. Both are effective only
-//! from above, so each is authorized over the organization's parent, which a grant scoped at the
-//! organization itself never covers: a tenant cannot resume itself, and a root organization,
-//! which has nothing above it, is suspended by no one.
-
-mod workloads;
+//! suspended by derivation at use, and, when the suspension stops the workloads, every workload
+//! beneath it is told stopped by the same derivation; resuming restores them unchanged, since
+//! nothing was written onto any of them. Both are effective only from above, so each is
+//! authorized over the organization's parent, which a grant scoped at the organization itself
+//! never covers: a tenant cannot resume itself, and a root organization, which has nothing above
+//! it, is suspended by no one.
 
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, TenancyWrite};
-use crate::workload::{Written, power_effect};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::{OnSuspend, Organization, OrganizationStatus, Suspension};
-use korpis_core::workload::PowerChange;
 use uuid::Uuid;
-use workloads::Changes;
 
 const SUSPEND: &str = "tenancy.suspend_organization";
 const RESUME: &str = "tenancy.resume_organization";
@@ -43,20 +40,52 @@ fn org(id: Uuid) -> ObjectRef {
     ObjectRef::new(Kind::Organization, id)
 }
 
+/// The conflict of a change made to an organization read at a version it no longer has.
+fn changed() -> AppError {
+    let why = "the organization changed while this was decided; read it again and retry";
+    AppError::conflict("organization.changed", why)
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The organization to suspend or resume, and its parent, which the change is authorized
     /// over; a root is refused once the caller has shown it may see it.
-    async fn above(&self, caller: &Caller, id: Uuid, action: &str) -> Result<Uuid, AppError> {
+    async fn above(
+        &self,
+        caller: &Caller,
+        id: Uuid,
+        action: &str,
+    ) -> Result<(Organization, Uuid), AppError> {
         let target = self.store.organization(id).await?;
-        let Some(parent) = target.as_ref().and_then(|o| o.parent) else {
+        let Some((target, parent)) = target.and_then(|o| o.parent.map(|p| (o, p))) else {
             self.authorize(caller, action, org(id)).await?;
             let why = "a root organization has nothing above it to suspend or resume it";
             return Err(AppError::invalid("organization", why));
         };
-        Ok(parent)
+        Ok((target, parent))
     }
 
-    /// Suspends an organization, from a strict ancestor.
+    /// The nearest organization at or above `organization` that is suspended with its workloads
+    /// stopped: while there is one, every workload beneath it is told stopped, whatever power it
+    /// declares (§2.1 of docs/08-identity.md). Read at every computation, like the suspension of
+    /// grants, so a suspension and its resumption reach every workload beneath at once, nested
+    /// suspensions included.
+    pub(crate) async fn held_by(&self, organization: Uuid) -> Result<Option<Uuid>, AppError> {
+        for node in self.store.ancestry(org(organization)).await? {
+            if !node.suspended {
+                continue;
+            }
+            let status = self.store.organization(node.object.id).await?.map(|o| o.status);
+            if let Some(OrganizationStatus::Suspended(s)) = status
+                && s.on_suspend == OnSuspend::Stop
+            {
+                return Ok(Some(node.object.id));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Suspends an organization, from a strict ancestor; stopping its workloads as well takes
+    /// the authority to stop them.
     pub async fn suspend_organization(
         &self,
         caller: &Caller,
@@ -66,7 +95,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(r) = self.replay(caller, idem, SUSPEND).await? {
             return Ok(Reply::Replayed(r));
         }
-        let parent = self.above(caller, cmd.organization, "org.suspend").await?;
+        let (target, parent) = self.above(caller, cmd.organization, "org.suspend").await?;
         let permit = self.authorize(caller, "org.suspend", org(parent)).await?;
         let reason = cmd.reason.trim().to_owned();
         if reason.is_empty() || reason.chars().count() > REASON_MAX {
@@ -74,10 +103,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 format!("say why, in at most {REASON_MAX} characters; the tenant is shown it");
             return Err(AppError::invalid("reason", why));
         }
-        let stops = match cmd.on_suspend {
-            OnSuspend::Stop => Some(self.stops(caller, cmd.organization).await?),
-            OnSuspend::KeepRunning => None,
-        };
+        if matches!(target.status, OrganizationStatus::Suspended(_)) {
+            let why = "the organization is already suspended";
+            return Err(AppError::conflict("organization.suspended", why));
+        }
+        let stops = cmd.on_suspend == OnSuspend::Stop;
+        if stops {
+            self.authorize(caller, "workload.stop", org(target.id)).await?;
+        }
         let suspension = Suspension {
             by: caller.principal.clone(),
             at: self.clock.now(),
@@ -86,29 +119,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let mut tx = self.store.begin().await?;
         let status = OrganizationStatus::Suspended(suspension);
-        let changed = tx.change_organization_status(cmd.organization, false, &status).await?;
-        let suspended = changed.ok_or_else(|| {
-            AppError::conflict("organization.suspended", "the organization is already suspended")
-        })?;
+        let written = tx.change_organization_status(target.id, target.version, &status).await?;
+        let suspended = written.ok_or_else(changed)?;
         let effect = Effect::new(caller.principal.clone(), "org.suspend", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([
                 ("organization", cmd.organization.to_string().into()),
                 ("reason", reason.into()),
-                ("on_suspend", if stops.is_some() { "stop" } else { "keep_running" }.into()),
+                ("on_suspend", if stops { "stop" } else { "keep_running" }.into()),
             ]));
         tx.append_effect(&effect).await?;
-        if let Some(changes) = stops {
-            let stopped = self.apply_powers(&mut tx, caller, PowerChange::Stop, changes).await?;
-            for (workload, version) in stopped {
-                tx.record_suspension_stop(cmd.organization, workload, version).await?;
-            }
-        }
         finish(tx, caller, idem, SUSPEND, suspended).await
     }
 
     /// Resumes a suspended organization, from a strict ancestor: every grant its suspension held
-    /// authorizes again, as it was.
+    /// authorizes again, as it was, and every workload it held stopped is told its own declared
+    /// power again, which takes the authority to start them.
     pub async fn resume_organization(
         &self,
         caller: &Caller,
@@ -118,47 +144,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if let Some(r) = self.replay(caller, idem, RESUME).await? {
             return Ok(Reply::Replayed(r));
         }
-        let parent = self.above(caller, organization, "org.resume").await?;
+        let (target, parent) = self.above(caller, organization, "org.resume").await?;
         let permit = self.authorize(caller, "org.resume", org(parent)).await?;
-        let restarts = self.restarts(caller, organization).await?;
+        let OrganizationStatus::Suspended(suspension) = &target.status else {
+            let why = "the organization is not suspended";
+            return Err(AppError::conflict("organization.not_suspended", why));
+        };
+        if suspension.on_suspend == OnSuspend::Stop {
+            self.authorize(caller, "workload.start", org(target.id)).await?;
+        }
         let mut tx = self.store.begin().await?;
-        let changed =
-            tx.change_organization_status(organization, true, &OrganizationStatus::Active).await?;
-        let resumed = changed.ok_or_else(|| {
-            AppError::conflict("organization.not_suspended", "the organization is not suspended")
-        })?;
+        let active = OrganizationStatus::Active;
+        let written = tx.change_organization_status(target.id, target.version, &active).await?;
+        let resumed = written.ok_or_else(changed)?;
         let effect = Effect::new(caller.principal.clone(), "org.resume", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([("organization", organization.to_string().into())]));
         tx.append_effect(&effect).await?;
-        if let Some(changes) = restarts {
-            self.apply_powers(&mut tx, caller, PowerChange::Start, changes).await?;
-            tx.clear_suspension_stops(organization).await?;
-        }
         finish(tx, caller, idem, RESUME, resumed).await
-    }
-
-    /// Writes `changes` in `tx`, each recorded as the caller's act; the workloads changed, with
-    /// the power version each was given. A workload whose power moved since its change was
-    /// prepared, or which is being retired, is left as it is: its power is someone else's now.
-    async fn apply_powers(
-        &self,
-        tx: &mut S::Tx,
-        caller: &Caller,
-        change: PowerChange,
-        changes: Changes,
-    ) -> Result<Vec<(Uuid, u64)>, AppError> {
-        let mut done = Vec::new();
-        for mut p in changes.prepared {
-            match self.write_power(tx, caller, &mut p).await? {
-                Written::Done { approved } => {
-                    let effect = power_effect(caller, change, &p, (changes.grant, approved));
-                    tx.append_effect(&effect).await?;
-                    done.push((p.power.workload, p.power.power.version));
-                }
-                Written::Moved(_) | Written::Retiring => {}
-            }
-        }
-        Ok(done)
     }
 }

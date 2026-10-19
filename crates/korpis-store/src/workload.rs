@@ -63,20 +63,12 @@ impl WorkloadRead for PgStore {
                 AND ($2::uuid IS NULL OR organization_id = $2)
                 AND ($3::uuid IS NULL OR id > $3)
                 AND ($5::uuid IS NULL OR set_id = $5)
-                AND ($6::uuid IS NULL OR organization_id IN (
-                    WITH RECURSIVE tree AS (
-                        SELECT $6::uuid AS id
-                        UNION
-                        SELECT o.id FROM organization o JOIN tree ON o.parent_id = tree.id
-                    )
-                    SELECT id FROM tree))
               ORDER BY id LIMIT $4",
             f.project,
             f.organization,
             page.after,
             i64::from(page.size),
-            f.set,
-            f.beneath
+            f.set
         )
         .fetch_all(&self.pool)
         .await

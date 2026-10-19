@@ -139,20 +139,6 @@ impl TenancyRead for PgStore {
         .map(ProjectRow::into_domain)
         .collect()
     }
-
-    async fn suspension_stops(&self, organization: Uuid) -> StoreResult<Vec<(Uuid, u64)>> {
-        let rows = sqlx::query!(
-            "SELECT workload_id, power_version FROM suspension_stop WHERE organization_id = $1
-              ORDER BY workload_id",
-            organization
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        rows.into_iter()
-            .map(|r| Ok((r.workload_id, count("power version", r.power_version)?)))
-            .collect()
-    }
 }
 
 impl TenancyWrite for PgTx {
@@ -185,18 +171,17 @@ impl TenancyWrite for PgTx {
     async fn change_organization_status(
         &mut self,
         id: Uuid,
-        suspended: bool,
+        version: u64,
         to: &OrganizationStatus,
     ) -> StoreResult<Option<Organization>> {
-        let from = if suspended { "suspended" } else { "active" };
         let (status, suspension) = encode(to)?;
         sqlx::query_as!(
             OrganizationRow,
             "UPDATE organization SET status = $3, suspension = $4, version = version + 1
-              WHERE id = $1 AND status = $2
+              WHERE id = $1 AND version = $2
              RETURNING id, name, parent_id, status, suspension, version, created",
             id,
-            from,
+            crate::stored::to_count("organization version", version)?,
             status,
             suspension
         )
@@ -205,33 +190,6 @@ impl TenancyWrite for PgTx {
         .map_err(from_sqlx)?
         .map(OrganizationRow::into_domain)
         .transpose()
-    }
-
-    async fn record_suspension_stop(
-        &mut self,
-        organization: Uuid,
-        workload: Uuid,
-        power_version: u64,
-    ) -> StoreResult<()> {
-        sqlx::query!(
-            "INSERT INTO suspension_stop (organization_id, workload_id, power_version)
-             VALUES ($1, $2, $3)",
-            organization,
-            workload,
-            to_count("power version", power_version)?
-        )
-        .execute(&mut *self.tx)
-        .await
-        .map_err(from_sqlx)?;
-        Ok(())
-    }
-
-    async fn clear_suspension_stops(&mut self, organization: Uuid) -> StoreResult<()> {
-        sqlx::query!("DELETE FROM suspension_stop WHERE organization_id = $1", organization)
-            .execute(&mut *self.tx)
-            .await
-            .map_err(from_sqlx)?;
-        Ok(())
     }
 
     async fn insert_project(&mut self, p: &Project) -> StoreResult<()> {

@@ -337,6 +337,24 @@ grants are anchored at, one listing per organization beneath them, and reads eve
 last page. The cost is calls, one per organization the caller may read, stated where the cost of
 resolving a name already is. → patched into `13-surface-cli.md` §2
 
+**FINDING 106: A suspension that stopped the workloads did it one workload at a time. `CONFIRMED`**
+
+Found 2026-10-19 by a security review of the first build of `on_suspend: stop`, which carried
+this trace's host past step 3 to suspending the sub-tenant. That build wrote a stop declaration
+for each running workload beneath the organization and, on resume, a start for each it had
+stopped. The workloads were listed before the suspension was committed, so one declared in
+between ran on through the suspension; resuming the sub-tenant's reseller started the workloads
+of a sub-tenant still suspended itself; and a workload whose power moved while its stop was
+prepared was passed over silently. Each is what a fact derived from the tree costs when it is
+written down per workload.
+
+**Resolution.** The stop is derived from the organization's status at every assignment, as the
+suspension of grants is: a workload beneath an organization suspended with `stop` is told stopped
+whatever it declares, its waiting plans and its runs wait, and resuming lifts the hold and leaves
+the tenant's own power as it was. Nested suspensions each hold their own subtree. The cost is one
+ancestry read per assignment and status read, and no stop on a workload's own history.
+→ patched into `08-identity.md` §2.1
+
 **FINDING 25: An organization without its own trust policy had no policy at all. `CONFIRMED`**
 
 §7 of `09-recipes.md` defined the policy per organization and said nothing of an organization that
@@ -1171,6 +1189,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 103 | A workload granted authority had no way to reach the API to use it | §20 | `08-identity.md` §9.5, `07-networking.md` §6, `02-architecture.md` §6 |
 | 104 | A machine kept every workload's network once its node had stopped without destroying them | §35 | `18-operations.md` §3 |
 | 105 | The CLI could not name a reseller's customers | §4 | `13-surface-cli.md` §2 |
+| 106 | A suspension that stopped the workloads did it one workload at a time | §4 | `08-identity.md` §2.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

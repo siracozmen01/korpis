@@ -56,6 +56,9 @@ pub struct WorkloadView {
     pub withheld: Withheld,
     /// Its newest run, for a workload that has runs (§4 of docs/05-scheduling.md).
     pub newest_run: Option<korpis_core::workload::run::Run>,
+    /// Whether a suspension of its organization, or of one above it, holds it stopped whatever
+    /// power it declares (§2.1 of docs/08-identity.md).
+    pub held_by_suspension: bool,
 }
 
 /// The keys whose values a view left out, by intent.
@@ -151,6 +154,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             certificates,
             endpoints,
             drift,
+            held_by_suspension: self.held_by(workload.organization).await?.is_some(),
             workload,
             power,
             head,
@@ -224,8 +228,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 None => return Ok(Paged { items: Vec::new(), next: None }),
             },
         };
-        let filter =
-            WorkloadFilter { project: q.project, organization: q.organization, set, beneath: None };
+        let filter = WorkloadFilter { project: q.project, organization: q.organization, set };
         let read = self.store.workloads(&filter, page).await?;
         let next = page.next(&read, |w| w.id);
         let matching = read.into_iter().filter(|w| q.selector.matches(w.labels.as_map())).collect();
