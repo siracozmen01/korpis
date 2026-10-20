@@ -16,10 +16,14 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::{external_identity, subject};
 use korpis_server::api::wire::scope;
 
-/// An identity provider named `corp`: the DNS document serving `identity` instead.
+/// An identity provider named `corp`, which relays what its people present as well: the DNS
+/// document serving `identity` instead, with the need a relaying client declares.
 pub fn identity_document() -> String {
+    let relay = "  needs:\n    - actions: [identity.relay]\n      scope: organization\n      \
+                 reason: to act for the people it asserts, one command at a time\n";
     DNS.replace("{type: dns, name: cloudflare}", "{type: identity, name: corp}")
         .replace("provider.dns, ", "provider.identity, ")
+        .replace("  needs:\n", relay)
 }
 
 /// Installs the identity provider into `org`, its workload in a project there.

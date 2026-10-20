@@ -51,7 +51,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 held.ok_or(AppError::Unauthenticated)?.subject
             }
             // Never presented as the bearer of a call; `presented_any` does not offer them.
-            SecretKind::Invitation | SecretKind::Refresh | SecretKind::DeviceCode => {
+            SecretKind::Invitation
+            | SecretKind::Refresh
+            | SecretKind::DeviceCode
+            | SecretKind::Ticket => {
                 return Err(AppError::Unauthenticated);
             }
         };

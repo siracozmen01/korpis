@@ -14,6 +14,7 @@
 mod accounts;
 mod acme;
 mod agent;
+mod assertion;
 mod assignments;
 mod authority;
 mod authz;

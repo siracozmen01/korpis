@@ -189,7 +189,8 @@ certificate.read · certificate.write                 TLS certificates an organi
 stream.share
 grant.read · grant.revoke
 template.write                                       make, edit, retire an org's grant templates
-identity.binding.write                               declare, edit, retire an org's identity bindings
+identity.binding.write                               declare, edit, retire an org's bindings
+identity.relay                                       act for people an org's provider asserts
 org.read · org.create · org.write · org.suspend · org.resume · org.quota.write
 project.read · project.create · project.write · project.delete
 node.read · node.enroll · node.cordon · node.drain · node.evacuate · node.place · node.remove
@@ -222,6 +223,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   nothing, but it decides which provider's word makes someone a subject, which is why it is held
   over the whole organization the provider serves rather than over a project; reading the bindings
   takes `org.read` there.
+- **`identity.relay` is a new action implied by nothing.** Added 2026-10-20, when assertion was
+  built (§5.2 of `08-identity.md`). Held on the organization an identity provider is installed
+  into, it lets a client pass on what a person presented to that provider and be handed a ticket
+  for one action on one object; the person's own grants decide whether the action is performed.
+  It is separate from `identity.binding.write` because relaying decides nothing about who is a
+  subject, and a chat client must never be able to declare a binding.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

@@ -989,6 +989,17 @@ carries the platform's evidence and the control plane accepts each presentation 
 (`08-identity.md` §5.2, corrected in place, with `12-surface-discord.md` §1 and
 `16-extensions.md` §6).
 
+Building assertion (2026-10-20) asked it of step 3's moderator, who acts by running a command:
+what lets the gateway act as them, and with what information? The relay's evidence, asserted
+by the binding's provider, gives who they are and their sets. The action and the object come
+from the relay, so nothing the gateway holds ties them to the command typed, and §5.2 says so as
+the cost. Acting through `InvokeAs` would have put every call's arguments through a second,
+untyped path, so the relay is handed a ticket instead and makes the ordinary typed call with it.
+The same question of first use, who decides that this person is a subject, found that a person
+whose binding an operator retired would be bound again by their next interaction, undoing the
+operator; a first-use binding is now made only for a subject never bound. → patched into
+`08-identity.md` §5.2, with `10-api.md` §5, `12-surface-discord.md` §1, and `16-extensions.md` §7
+
 **FINDING 114: An older answer could replace a newer one that a membership had ended. `CONFIRMED`**
 
 Found 2026-10-20 by a security review of the provider's calls. A binding's answer was written

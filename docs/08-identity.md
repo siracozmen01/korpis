@@ -762,11 +762,24 @@ ahead as written, the bot would have held every invoking user's full authority. 
    once within Discord's fifteen-minute interaction lifetime, so a captured interaction cannot be
    replayed, and keeps the evidence only while its call is queued and sent: a finished call,
    however it finished, holds none (Finding 115 of `23-walkthroughs.md`).
-3. **The chat client never receives the user's authority.** It calls `InvokeAs(evidence, action,
-   resource, arguments)` for the one action the command names. The gateway has the evidence
-   asserted, evaluates the asserted subject's grants for exactly that action on exactly that
-   resource, and performs it under them. A presentation is accepted once, so a second action
-   needs a second interaction.
+3. **The chat client never receives the user's authority.** It asks the control plane to assert
+   the evidence, `AssertIdentity(provider, evidence, action, object)`, for the one action on the
+   one object the command names, and is handed a ticket: a secret good for that action on that
+   object, once, within a minute, beside the client's own credential and no other. It then makes
+   the ordinary call for that action with the ticket in its `korpis-as` header, and the gateway
+   redeems the ticket, evaluates the asserted subject's grants, and those of the sets the
+   assertion named, for exactly that action on exactly that object, and performs it under them.
+   A presentation is accepted once, so a second action needs a second interaction.
+
+   (Corrected 2026-10-20, when assertion was built: this step had one call,
+   `InvokeAs(evidence, action, resource, arguments)`, that asserted and acted at once. Acting
+   through it would have been a second, untyped way into every call of the API, its arguments
+   encoded generically and checked a second time beside the typed request each call already
+   validates, with an idempotency and replies of its own. A ticket leaves every call as it is
+   and changes only whom the gateway evaluates. It costs a second round trip per command, and a
+   secret the client holds for at most a minute, which alone is worth nothing: it is redeemed
+   only beside the credential of the client it was handed to, for the action and object it
+   names.)
 
    (Corrected 2026-10-20, when the provider calls were built: steps 2 and 3 had the provider sign
    an assertion the client then carried, with a key registered at installation, §5.3. Every
@@ -777,6 +790,32 @@ ahead as written, the bot would have held every invoking user's full authority. 
    the control plane, which is where the action is performed.)
 4. **The effect names everyone**: the asserted subject, the grant that permitted it, the identity
    provider that vouched, and the client that relayed it.
+
+**Assertion, as built.** Added 2026-10-20. A client relays under `identity.relay`, held on the
+organization the provider is installed into (§5 of `10-api.md`), which a chat client declares as a
+need of its installation. The control plane asks that organization's own provider, never an
+ancestor's of the same name, with the `Assert` call (§6 of `16-extensions.md`), waits ten seconds
+at most because a person is waiting, and believes an answer dated within five minutes of its
+clock. A refusal of the evidence is the provider's word and is reported as invalid evidence; a
+provider that cannot be reached fails closed, as unavailable. A presentation is remembered for
+fifteen minutes, longer than twice the five minutes either side of the clock an assertion may be
+dated, so none the control plane would still believe is accepted twice, and a second is refused
+as `identity.replayed`. The ticket is shown once, kept as the digest of its secret, and forgotten
+fifteen minutes after it expires. The person's binding is made at their first use, verified,
+since the provider has just vouched for them, and only if their subject was never bound: an
+individual binding an operator retired stays retired, so the retirement cuts the grants issued to
+that person and a later interaction does not restore them, while what they hold through a set is
+the set binding's to decide. Every assertion is an `identity.asserted` effect by the relaying
+client under its grant, naming the ticket, the person, the provider, the presentation, the action,
+and the object. Redeeming the ticket at the gateway comes next (Phase 2 of `20-roadmap.md` §4);
+until it is built a ticket authorizes nothing, so the order fails closed.
+
+What this costs. The client names the action and the object, and nothing ties them to the command
+the person typed: the interaction names its command, but which action that command is belongs to
+the client. A compromised chat client can therefore spend one interaction on another action than
+the one asked for, once, within that person's grants, and the effect names it as the relay; it
+cannot keep the person's authority or use it a second time. `InvokeAs` had the same gap, since it
+too took the action from the client.
 
 A chat client therefore holds its own narrow grants (reading events for the channels bound to it,
 §7 of `12-surface-discord.md`) and nothing else. It is the user's conduit for one action at a time,
@@ -814,7 +853,7 @@ granting a chat role real authority defensible.
 Standard, and the same shape: a claim's value maps to an `ExternalIdentity`, grants are
 issued to it, group claims work exactly like chat roles including the same trust boundary. SSO is a
 paid-tier feature in the commercial products and absent from the open ones. Here the machinery is
-core (external identities, bindings, templates, assertions, `InvokeAs`), because it is the same
+core (external identities, bindings, templates, assertions, tickets), because it is the same
 mechanism an external chat identity already requires.
 
 **The adapters are extensions, and an identity provider is in the trust base by definition.** OIDC,

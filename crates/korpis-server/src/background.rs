@@ -30,6 +30,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(expire_offloaded(Arc::clone(api)));
     tokio::spawn(reconcile_quota(Arc::clone(api)));
     tokio::spawn(reverify_bindings(Arc::clone(api)));
+    tokio::spawn(forget_assertions(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
@@ -183,6 +184,19 @@ async fn reverify_bindings(api: Arc<Api>) {
                 tracing::warn!(bindings = n, error = %e, "recording a re-verification failed");
             }
             Err(e) => tracing::warn!(error = %e, "re-verifying identity bindings failed"),
+        }
+    }
+}
+
+/// Forgets, every minute, the presentations and tickets past use (§5.2 of
+/// docs/08-identity.md). The task ends with the process.
+async fn forget_assertions(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(60));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        if let Err(e) = api.app().forget_assertions().await {
+            tracing::warn!(error = %e, "forgetting presentations and tickets failed");
         }
     }
 }

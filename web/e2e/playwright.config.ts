@@ -17,6 +17,10 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   timeout: 60_000,
+  // An assertion waits up to fifteen seconds rather than Playwright's five: the first page a
+  // run loads is built, served, and rendered while the rest of the check loads the machine,
+  // and has taken longer than five there. A test that passes takes no longer for it.
+  expect: { timeout: 15_000 },
   reporter: [["list"]],
   use: {
     ...devices["Desktop Chrome"],

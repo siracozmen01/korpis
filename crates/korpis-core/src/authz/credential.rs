@@ -29,6 +29,9 @@ pub const REFRESH_PREFIX: &str = "korpisrt_";
 /// Every device code starts with this (§9.4 of docs/08-identity.md).
 pub const DEVICE_CODE_PREFIX: &str = "korpisdv_";
 
+/// Every ticket an assertion is redeemed by starts with this (§5.2 of docs/08-identity.md).
+pub const TICKET_PREFIX: &str = "korpisas_";
+
 /// Which kind of credential a secret is, by its prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretKind {
@@ -44,6 +47,10 @@ pub enum SecretKind {
     /// A device authorization's device code, which the CLI polls with until its user approves
     /// it (§9.4 of docs/08-identity.md). Never a bearer of API calls.
     DeviceCode,
+    /// A ticket for one action as an asserted external identity (§5.2 of
+    /// docs/08-identity.md), presented beside the relaying client's own credential, never as
+    /// the bearer of a call.
+    Ticket,
 }
 
 impl SecretKind {
@@ -54,6 +61,7 @@ impl SecretKind {
             Self::Invitation => INVITATION_PREFIX,
             Self::Refresh => REFRESH_PREFIX,
             Self::DeviceCode => DEVICE_CODE_PREFIX,
+            Self::Ticket => TICKET_PREFIX,
         }
     }
 }

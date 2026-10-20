@@ -56,6 +56,7 @@ pub const CORE: &[&str] = &[
     "grant.revoke",
     "template.write",
     "identity.binding.write",
+    "identity.relay",
     "org.read",
     "org.create",
     "org.write",

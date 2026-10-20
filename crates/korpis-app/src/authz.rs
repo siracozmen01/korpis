@@ -5,6 +5,7 @@
 
 mod apply;
 mod approve;
+mod assert;
 mod attest;
 mod binding;
 mod denial;
@@ -21,6 +22,7 @@ mod template;
 mod vouch;
 
 pub use apply::FromTemplate;
+pub use assert::{AssertAsked, Asserted};
 pub use binding::BindingAsked;
 pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};
 pub use mint::{MintToken, Minted};

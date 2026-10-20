@@ -640,8 +640,9 @@ Stated as a list because the boundary is the design:
 - read or write the database
 - modify, replace, or read Korpis' own files
 - hold authority exceeding their installer's
-- receive another subject's capability token (acting for an asserted user goes through `InvokeAs`,
-  §5.2 of `08-identity.md`, which hands the extension no token at all)
+- receive another subject's capability token (acting for an asserted user goes through a ticket,
+  §5.2 of `08-identity.md`: one action on one object, once, redeemed only beside the extension's
+  own credential, so the extension holds no authority of the user's)
 - act, during an invocation, on a resource the invoker was not authorized for
 - run in the control plane's process, address space, or privilege
 - add a field to a core object: they carry their own state, keyed by core identifiers

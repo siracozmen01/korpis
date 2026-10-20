@@ -11,6 +11,7 @@
 mod account;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod agent;
+mod assert;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod audit;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]

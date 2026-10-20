@@ -117,6 +117,14 @@ impl pb::IdentityService for Api {
         })
     }
 
+    async fn assert_identity(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::AssertIdentityRequest>,
+    ) -> ServiceResult<pb::AssertIdentityResponse> {
+        self.assert(ctx, request).await
+    }
+
     async fn get_identity_binding(
         &self,
         ctx: RequestContext,

@@ -32,16 +32,28 @@ impl IdentityProvider for Directory {
         std::future::ready(Ok(Answer { set_exists: exists, present: Vec::new() }))
     }
 
+    /// Evidence is `<user>:<presentation>[:<seconds ago>]`; `eve` is nobody.
     fn assert(
         &self,
-        _: Vec<u8>,
+        evidence: Vec<u8>,
         _: BTreeMap<String, String>,
     ) -> impl Future<Output = Result<Asserted, Failure>> + Send {
-        std::future::ready(Err(Failure {
-            reason: "identity.unsupported".into(),
-            message: String::new(),
-            retryable: false,
-        }))
+        let text = String::from_utf8(evidence).unwrap_or_default();
+        let parts: Vec<&str> = text.split(':').collect();
+        let ago = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+        std::future::ready(match parts.as_slice() {
+            [user, presentation, ..] if *user != "eve" => Ok(Asserted {
+                user: (*user).to_owned(),
+                sets: vec![Set { realm: "groups".into(), member_of: "admins".into() }],
+                presentation: (*presentation).to_owned(),
+                at: SystemTime::now() - Duration::from_secs(ago),
+            }),
+            _ => Err(Failure {
+                reason: "identity.unverified".into(),
+                message: "no such person".into(),
+                retryable: false,
+            }),
+        })
     }
 }
 
@@ -56,9 +68,14 @@ fn state(r: &pb::VerifyIdentityBindingResponse) -> Option<pb::BindingState> {
 
 /// The directory, installed as the `n`th node's extension, registered and serving; while the
 /// handle runs.
-async fn serving(h: &Harness, n: u8, present: &Arc<AtomicBool>) -> tokio::task::JoinHandle<()> {
+pub async fn serving(
+    h: &Harness,
+    n: u8,
+    present: &Arc<AtomicBool>,
+) -> (tokio::task::JoinHandle<()>, String) {
     let repo = push_document(&identity_document()).await;
     let x = installed_from(h, n, &format!("idp-{n}"), repo).await;
+    let secret = x.secret.clone();
     let connection = Arc::new(Connection::new(Fixed(Credential {
         secret: x.secret.clone(),
         expires_at: SystemTime::now() + Duration::from_secs(900),
@@ -83,14 +100,14 @@ async fn serving(h: &Harness, n: u8, present: &Arc<AtomicBool>) -> tokio::task::
         .await
         .expect("registered within ten seconds")
         .unwrap();
-    running
+    (running, secret)
 }
 
 #[tokio::test]
 async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_without_it() {
     let h = Harness::new().await;
     let present = Arc::new(AtomicBool::new(true));
-    let running = serving(&h, 51, &present).await;
+    let (running, _) = serving(&h, 51, &present).await;
     let org = h.root_org();
     let made = bind(&h, &org, set(&org, "admins"), pb::IdentityBindingTerms::default());
     let made = made.await.unwrap();

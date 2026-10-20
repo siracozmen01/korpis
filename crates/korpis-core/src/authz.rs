@@ -41,6 +41,8 @@ mod sealed;
 #[cfg(feature = "authz")]
 pub mod template;
 #[cfg(feature = "authz")]
+pub mod ticket;
+#[cfg(feature = "authz")]
 pub mod token;
 
 pub use action::Action;

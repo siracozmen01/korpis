@@ -171,6 +171,8 @@ table! {
         IdentityServiceClient::retire_identity_binding(RetireIdentityBindingRequest);
     "korpis.v1.IdentityService/VerifyIdentityBinding" =>
         IdentityServiceClient::verify_identity_binding(VerifyIdentityBindingRequest);
+    "korpis.v1.IdentityService/AssertIdentity" =>
+        IdentityServiceClient::assert_identity(AssertIdentityRequest);
     "korpis.v1.IdentityService/GetIdentityBinding" =>
         IdentityServiceClient::get_identity_binding(GetIdentityBindingRequest);
     "korpis.v1.IdentityService/ListIdentityBindings" =>

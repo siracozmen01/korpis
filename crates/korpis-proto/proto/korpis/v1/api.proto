@@ -1594,6 +1594,11 @@ service IdentityService {
   // identity.binding.write on its organization: its provider is asked now rather than at its
   // next interval, and the answer recorded (§5.1 of docs/08-identity.md).
   rpc VerifyIdentityBinding(VerifyIdentityBindingRequest) returns (VerifyIdentityBindingResponse);
+  // identity.relay on the provider's organization, held by the client relaying what a person
+  // presented (§5.2 of docs/08-identity.md). The provider asserts it, the presentation is
+  // accepted once, and the client is handed a ticket for the one action on the one object, used
+  // beside its own credential within a minute.
+  rpc AssertIdentity(AssertIdentityRequest) returns (AssertIdentityResponse);
   // org.read on its organization.
   rpc GetIdentityBinding(GetIdentityBindingRequest) returns (GetIdentityBindingResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -1661,6 +1666,32 @@ message VerifyIdentityBindingResponse {
   // Why the provider gave no answer, when it gave none: `provider.unknown`, `provider.deadline`,
   // or the provider's own reason. Empty when it answered.
   string unanswered = 2;
+}
+
+message AssertIdentityRequest {
+  // Where the provider is installed.
+  string organization = 1;
+  // The provider's name there.
+  string provider = 2;
+  // What the person presented, as the client received it: at most 64 KiB.
+  bytes evidence = 3;
+  // How it arrived, where its form says: at most 32 entries.
+  map<string, string> headers = 4;
+  // The one action the person asked for.
+  string action = 5;
+  // The one object they asked it of.
+  ObjectRef object = 6;
+}
+
+message AssertIdentityResponse {
+  // Shown once; sent as the `korpis-as` header of the one call, beside the client's own
+  // credential.
+  string ticket = 1;
+  // Who the provider says presented it.
+  ExternalIdentity subject = 2;
+  // The provider's sets the assertion says they are in.
+  repeated ExternalSet sets = 3;
+  google.protobuf.Timestamp expires_at = 4;
 }
 
 message GetIdentityBindingRequest {

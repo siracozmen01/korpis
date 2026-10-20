@@ -24,7 +24,7 @@ struct SetDoc {
     member_of: String,
 }
 
-fn millis(what: &str, d: Duration) -> StoreResult<i64> {
+pub(crate) fn millis(what: &str, d: Duration) -> StoreResult<i64> {
     i64::try_from(d.as_millis()).map_err(|_| StoreError::Corrupt(format!("{what} is too long")))
 }
 
@@ -106,7 +106,7 @@ const fn state_name(state: BindingState) -> &'static str {
     }
 }
 
-fn memberships(terms: &BindingTerms) -> StoreResult<serde_json::Value> {
+pub(crate) fn memberships(terms: &BindingTerms) -> StoreResult<serde_json::Value> {
     let sets: Vec<SetDoc> = terms
         .require_membership
         .iter()

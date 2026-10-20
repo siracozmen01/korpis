@@ -8,6 +8,7 @@
 
 mod account;
 mod acme;
+mod assertion;
 mod assignment;
 mod audit;
 mod authz;
@@ -59,6 +60,7 @@ pub use account::{
     AccountRead, AccountWrite, FactorVault, InPlace, PasswordFuture, Passwords, TotpFactor,
 };
 pub use acme::{Acme, AcmeError, AcmeFuture, Challenge, HttpOffer, Issued, Proof, Publish};
+pub use assertion::AssertionWrite;
 pub use assignment::{
     AssignmentRead, AssignmentSealer, AssignmentWrite, Opened, SealError, Sealed, StoredAssignment,
 };
@@ -319,6 +321,7 @@ pub trait Tx:
     + CertificateWrite
     + TemplateWrite
     + BindingWrite
+    + AssertionWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

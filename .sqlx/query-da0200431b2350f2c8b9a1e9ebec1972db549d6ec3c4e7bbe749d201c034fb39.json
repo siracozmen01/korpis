@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM identity_presentation WHERE accepted_at < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da0200431b2350f2c8b9a1e9ebec1972db549d6ec3c4e7bbe749d201c034fb39"
+}

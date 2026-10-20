@@ -12,6 +12,7 @@
 )]
 
 mod accounts;
+mod assertion;
 mod buckets;
 mod chain;
 mod epochs;
