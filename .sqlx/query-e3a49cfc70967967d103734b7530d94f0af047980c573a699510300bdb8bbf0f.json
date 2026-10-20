@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT binding_id, member, state, last_verified_at FROM identity_member\n              WHERE binding_id = $1 AND member = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "binding_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "identity_member",
+            "name": "binding_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "member",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_member",
+            "name": "member"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_member",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_verified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "identity_member",
+            "name": "last_verified_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "e3a49cfc70967967d103734b7530d94f0af047980c573a699510300bdb8bbf0f"
+}

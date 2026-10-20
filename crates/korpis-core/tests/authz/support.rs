@@ -20,6 +20,8 @@ pub struct Tree {
     pub bindings: HashMap<String, Vouched>,
     /// The delegation ceilings organizations set (§5.1 of docs/08-identity.md).
     pub ceilings: HashMap<ObjectRef, Duration>,
+    /// Until when each (set, member) membership was last confirmed to hold (§5.1).
+    pub members: HashMap<(String, String), SystemTime>,
     pub host: ObjectRef,
     pub reseller: ObjectRef,
     pub customer: ObjectRef,
@@ -48,6 +50,7 @@ impl Tree {
             suspended: BTreeSet::new(),
             bindings: HashMap::new(),
             ceilings: HashMap::new(),
+            members: HashMap::new(),
             host,
             reseller,
             customer,
@@ -77,6 +80,10 @@ impl Hierarchy for Tree {
     fn vouched(&self, subject: &str) -> Option<Vouched> {
         self.bindings.get(subject).cloned()
     }
+
+    fn member_vouched(&self, set: &str, member: &str) -> Option<SystemTime> {
+        self.members.get(&(set.to_owned(), member.to_owned())).copied()
+    }
 }
 
 pub fn actions(names: &[&str]) -> BTreeSet<Action> {
@@ -93,6 +100,7 @@ pub fn root(tree: &Tree, now: SystemTime) -> Grant {
     Grant {
         id: Uuid::now_v7(),
         issued_at: now,
+        via: None,
         subject: Subject::new("user:host-admin"),
         actions: actions(&all),
         scope: Scope::Object(tree.host),
@@ -112,6 +120,7 @@ pub fn child(parent: &Grant, subject: &str, acts: &[&str], scope: Scope) -> Gran
     Grant {
         id: Uuid::now_v7(),
         issued_at: parent.issued_at,
+        via: None,
         subject: Subject::new(subject),
         actions: actions(acts),
         scope,

@@ -3,11 +3,13 @@
 //! A snapshot of the object hierarchy, loaded for one decision.
 
 use crate::error::AppError;
-use crate::ports::{BindingRead, HierarchyRead};
+use crate::ports::{BindingRead, HierarchyRead, MemberRead};
 use korpis_core::authz::binding::BindingState;
 use korpis_core::authz::scope::Vouched;
 use korpis_core::authz::{Grant, Hierarchy, ObjectRef, Resource};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::time::SystemTime;
 
 /// The ancestries one decision needs. Evaluation is synchronous and pure, so everything it reads
 /// is loaded first.
@@ -15,6 +17,7 @@ use std::collections::HashMap;
 pub(crate) struct Snapshot {
     resources: HashMap<ObjectRef, Option<Resource>>,
     bindings: HashMap<String, Option<Vouched>>,
+    members: HashMap<(String, String), Option<SystemTime>>,
 }
 
 impl Hierarchy for Snapshot {
@@ -24,6 +27,10 @@ impl Hierarchy for Snapshot {
 
     fn vouched(&self, subject: &str) -> Option<Vouched> {
         self.bindings.get(subject).cloned().flatten()
+    }
+
+    fn member_vouched(&self, set: &str, member: &str) -> Option<SystemTime> {
+        self.members.get(&(set.to_owned(), member.to_owned())).copied().flatten()
     }
 }
 
@@ -52,13 +59,26 @@ impl Snapshot {
         }
     }
 
-    /// Loads everything a grant's validity depends on: its scope, its approval scope, and, for a
-    /// grant held by an external identity, the binding vouching for it.
+    /// Loads everything a grant's validity depends on: its scope, its approval scope, for a
+    /// grant held by an external identity the binding vouching for it, and for one a member
+    /// issued through a set whether the set still confirms them.
     pub(crate) async fn load_grant(
         &mut self,
-        store: &(impl HierarchyRead + BindingRead),
+        store: &(impl HierarchyRead + BindingRead + MemberRead),
         grant: &Grant,
     ) -> Result<(), AppError> {
+        if let Some(via) = &grant.via
+            && let Entry::Vacant(slot) =
+                self.members.entry((via.set.key.clone(), via.member.key.clone()))
+        {
+            let until = match store.binding_of(&via.set.key).await? {
+                Some(b) => {
+                    store.member(b.id, &via.member.key).await?.and_then(|m| m.verified_until(&b))
+                }
+                None => None,
+            };
+            slot.insert(until);
+        }
         self.load(store, grant.scope.anchor()).await?;
         if let Some(s) = &grant.conditions.requires_approval_by {
             self.load(store, s.anchor()).await?;

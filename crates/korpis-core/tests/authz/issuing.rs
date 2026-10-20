@@ -19,15 +19,22 @@ fn only_the_holder_of_a_valid_parent_can_issue() {
     let link = link(&tree, &moderator, now);
     let chain = [moderator.clone(), root.clone()];
 
-    issue(&moderator.subject, &chain, &link, false, &tree, now).unwrap();
+    issue((&moderator.subject, &[]), &chain, &link, false, &tree, now).unwrap();
     assert_eq!(
-        issue(&Subject::new("user:mallory"), &chain, &link, false, &tree, now),
+        issue((&Subject::new("user:mallory"), &[]), &chain, &link, false, &tree, now),
         Err(IssueError::NotHolder),
         "issuing is attenuating a grant one holds"
     );
     moderator.revoked = true;
     assert!(matches!(
-        issue(&moderator.subject, &[moderator.clone(), root.clone()], &link, false, &tree, now),
+        issue(
+            (&moderator.subject, &[]),
+            &[moderator.clone(), root.clone()],
+            &link,
+            false,
+            &tree,
+            now
+        ),
         Err(IssueError::ParentChain(ChainError::Revoked(_)))
     ));
 }
@@ -42,16 +49,16 @@ fn the_override_comes_from_the_binding_and_roots_from_installation() {
     role.subject = Subject::set("discord:guild-456:role-mod");
     role.irreversible_override = true;
     assert_eq!(
-        issue(&root.subject, &chain, &role, false, &tree, now),
+        issue((&root.subject, &[]), &chain, &role, false, &tree, now),
         Err(IssueError::OverrideNotFromBinding),
         "a request cannot set the override itself"
     );
-    issue(&root.subject, &chain, &role, true, &tree, now).expect("the binding allows it");
+    issue((&root.subject, &[]), &chain, &role, true, &tree, now).expect("the binding allows it");
 
     let mut individual = role.clone();
     individual.subject = Subject::new("user:bob");
     assert_eq!(
-        issue(&root.subject, &chain, &individual, true, &tree, now),
+        issue((&root.subject, &[]), &chain, &individual, true, &tree, now),
         Err(IssueError::OverrideNotFromBinding),
         "the override exists only for set subjects"
     );
@@ -73,7 +80,7 @@ fn the_override_comes_from_the_binding_and_roots_from_installation() {
     let mut minted_root = child(&root, "user:eve", &["workload.restart"], Scope::Object(tree.w1));
     minted_root.root = true;
     assert_eq!(
-        issue(&root.subject, &chain, &minted_root, false, &tree, now),
+        issue((&root.subject, &[]), &chain, &minted_root, false, &tree, now),
         Err(IssueError::RootNotIssuable)
     );
 }

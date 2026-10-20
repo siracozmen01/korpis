@@ -19,7 +19,9 @@ use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::credential::{ApiToken, Secret, SecretKind};
 use korpis_core::authz::evaluate::{IssueError, issue};
 use korpis_core::authz::link;
-use korpis_core::authz::{Action, Conditions, Delegation, Grant, GrantRecord, Resource, Scope};
+use korpis_core::authz::{
+    Action, Conditions, Delegation, Grant, GrantRecord, Resource, Scope, Via,
+};
 use korpis_core::principal::Principal;
 use std::collections::BTreeSet;
 use std::time::SystemTime;
@@ -222,6 +224,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             grant: Grant {
                 id,
                 issued_at: now,
+                via: None,
                 subject: holder.subject(),
                 actions: cmd.actions,
                 scope: cmd.scope,
@@ -360,7 +363,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub(crate) async fn check_issue(
         &self,
         caller: &Caller,
-        child: &Grant,
+        child: &mut Grant,
     ) -> Result<Grant, AppError> {
         self.check_issue_assuming(caller, child, None).await
     }
@@ -370,7 +373,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub(crate) async fn check_issue_assuming(
         &self,
         caller: &Caller,
-        child: &Grant,
+        child: &mut Grant,
         assumed: Option<&Resource>,
     ) -> Result<Grant, AppError> {
         let parent_id = child.parent.ok_or(AppError::invalid("parent", "required"))?;
@@ -379,15 +382,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Some(parent) = chain.first().cloned() else {
             return Err(AppError::NotFound { kind: "grant" });
         };
+        child.via = Via::through(&parent.subject, &caller.subject);
         let mut snapshot = Snapshot::default();
         if let Some(r) = assumed {
             snapshot.assume(r.clone());
         }
-        for g in chain.iter().chain(std::iter::once(child)) {
+        for g in chain.iter().chain(std::iter::once(&*child)) {
             snapshot.load_grant(&self.store, g).await?;
         }
         let allows = self.binding_allows_irreversible(child).await?;
-        issue(&caller.subject, &chain, child, allows, &snapshot, self.clock.now())
+        let issuer = (&caller.subject, &caller.memberships[..]);
+        issue(issuer, &chain, child, allows, &snapshot, self.clock.now())
             .map_err(|e| issue_error(&e))?;
         Ok(parent)
     }

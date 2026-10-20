@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override, label, template_id, template_version\n               FROM grants\n              WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
+  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override, label, template_id, template_version, via\n               FROM grants\n              WHERE template_id = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -200,11 +200,21 @@
             "name": "template_version"
           }
         }
+      },
+      {
+        "ordinal": 18,
+        "name": "via",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "grants",
+            "name": "via"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Uuid",
         "Uuid",
         "Int8"
@@ -228,8 +238,9 @@
       false,
       false,
       true,
+      true,
       true
     ]
   },
-  "hash": "b1a93d8adffbdd71787883e83561b766448aaf039429ca8d5f501d2eac44f817"
+  "hash": "570820038f8015ff170598aedb374a66f7d705becb1dbc48d802e50af78f01ba"
 }

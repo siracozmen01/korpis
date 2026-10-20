@@ -134,6 +134,11 @@ pub trait Hierarchy {
     /// The live binding of the external subject whose key is `subject`, or `None` if it has
     /// none; a grant held by an external subject is valid only while it is vouched for.
     fn vouched(&self, subject: &str) -> Option<Vouched>;
+
+    /// Until when the membership of `member` in the set `set` was last confirmed to hold: its
+    /// confirmation plus the set binding's interval and grace (§5.1 of docs/08-identity.md),
+    /// `None` when it was never confirmed, was found ended, or the set is not bound.
+    fn member_vouched(&self, set: &str, member: &str) -> Option<std::time::SystemTime>;
 }
 
 /// Whether `child` is contained in `parent` (`child ⊑ parent`).

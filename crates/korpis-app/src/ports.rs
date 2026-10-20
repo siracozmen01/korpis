@@ -30,6 +30,7 @@ mod job;
 mod journal;
 mod lease;
 mod lookup;
+mod member;
 mod node;
 mod observation;
 mod placement;
@@ -93,6 +94,7 @@ pub use journal::{JournalRead, JournalWrite};
 pub use korpis_core::workload::run::RunEnd;
 pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
+pub use member::{MemberRead, MemberWrite};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
@@ -235,6 +237,7 @@ pub trait Store:
     + CertificateRead
     + TemplateRead
     + BindingRead
+    + MemberRead
     + Send
     + Sync
     + 'static
@@ -322,6 +325,7 @@ pub trait Tx:
     + TemplateWrite
     + BindingWrite
     + AssertionWrite
+    + MemberWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

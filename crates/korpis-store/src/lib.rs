@@ -33,6 +33,7 @@ mod idempotency;
 mod job;
 mod journal;
 mod lease;
+mod member;
 mod node;
 mod observation;
 mod placement;

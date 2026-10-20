@@ -20,7 +20,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
 
-/// A directory with one set, `groups/admins`, while `present` says it exists.
+/// The people who have left the directory's set, by name; everyone else asked about is in it.
+pub static LEFT: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// A directory with one set, `groups/admins`, while `present` says it exists, whose members are
+/// everyone asked about but those in [`LEFT`].
 struct Directory {
     present: Arc<AtomicBool>,
 }
@@ -29,7 +33,9 @@ impl IdentityProvider for Directory {
     fn verify(&self, asked: Asked) -> impl Future<Output = Result<Answer, Failure>> + Send {
         let admins = Set { realm: "groups".into(), member_of: "admins".into() };
         let exists = self.present.load(Ordering::SeqCst) && asked.set == Some(admins);
-        std::future::ready(Ok(Answer { set_exists: exists, present: Vec::new() }))
+        let left = LEFT.lock().map(|l| l.clone()).unwrap_or_default();
+        let present = asked.members.into_iter().filter(|m| !left.contains(m)).collect();
+        std::future::ready(Ok(Answer { set_exists: exists, present }))
     }
 
     /// Evidence is `<user>:<presentation>[:<seconds ago>]`; `eve` is nobody.

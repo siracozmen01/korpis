@@ -108,6 +108,7 @@ pub(crate) fn enrollment_grant(parent: Uuid, one: OneUse) -> Result<GrantRecord,
         grant: Grant {
             id: one.grant,
             issued_at: one.created.1,
+            via: None,
             subject: holder.subject(),
             actions: BTreeSet::from([enroll]),
             scope: Scope::Object(ObjectRef::new(Kind::Organization, one.organization)),
@@ -209,8 +210,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at: enrollment.expires_at,
             label: format!("enrollment of node {}", enrollment.node_name.as_str()),
         };
-        let record = enrollment_grant(permit.grant, one)?;
-        let parent = self.check_issue(caller, &record.grant).await?;
+        let mut record = enrollment_grant(permit.grant, one)?;
+        let parent = self.check_issue(caller, &mut record.grant).await?;
         let secret = Secret::generate().map_err(|e| AppError::Internal(e.to_string()))?;
         let token = ApiToken {
             id: enrollment.token,

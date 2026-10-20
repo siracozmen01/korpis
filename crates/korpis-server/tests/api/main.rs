@@ -31,6 +31,7 @@ mod classify;
 mod compromise;
 mod console;
 mod control_backup;
+mod delegated;
 mod delegation;
 mod denials;
 mod dependencies;

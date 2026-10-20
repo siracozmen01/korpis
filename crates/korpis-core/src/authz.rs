@@ -17,6 +17,8 @@ pub mod action;
 #[cfg(feature = "authz")]
 pub mod binding;
 #[cfg(feature = "authz")]
+pub mod ceiling;
+#[cfg(feature = "authz")]
 pub mod credential;
 #[cfg(feature = "authz")]
 pub mod device;
@@ -25,7 +27,11 @@ pub mod evaluate;
 #[cfg(feature = "authz")]
 pub mod grant;
 #[cfg(feature = "authz")]
+mod issuing;
+#[cfg(feature = "authz")]
 pub mod link;
+#[cfg(feature = "authz")]
+pub mod membership;
 #[cfg(feature = "authz")]
 pub mod record;
 #[cfg(feature = "authz")]
@@ -50,7 +56,7 @@ pub use action::Action;
 pub use evaluate::{Decision, Denial, Permit, Request, evaluate};
 #[cfg(feature = "authz")]
 pub use grant::{
-    AttenuationError, Conditions, Delegation, Grant, StreamRange, Subject, check_attenuation,
+    AttenuationError, Conditions, Delegation, Grant, StreamRange, Subject, Via, check_attenuation,
 };
 #[cfg(feature = "authz")]
 pub use record::{GrantRecord, GrantState, TemplateRef};

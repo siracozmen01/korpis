@@ -10,9 +10,12 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::extension::CallTarget;
-use crate::ports::{BindingWrite as _, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
+use crate::ports::{
+    BindingWrite as _, Clock, EffectWrite as _, MemberWrite as _, RecipeSource, Store, Tx as _,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::binding::{BindingState, IdentityBinding, Verification};
+use korpis_core::authz::membership::MemberRecord;
 use korpis_core::extension::identity::MembersAsked;
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
 use korpis_core::principal::{Principal, SetName, SystemActor};
@@ -30,13 +33,16 @@ const HELD: Duration = Duration::from_secs(30);
 const BATCH: u32 = 32;
 
 /// What a re-verification asks about `b`, and the person it asks about, for a person's binding.
-fn asked(b: &IdentityBinding) -> Result<(MembersAsked, Option<&str>), AppError> {
+fn asked<'b>(
+    b: &'b IdentityBinding,
+    delegated: &[MemberRecord],
+) -> Result<(MembersAsked, Option<&'b str>), AppError> {
     match &b.subject {
         Principal::ExternalSet { realm, member_of, .. } => {
             let set = SetName { realm: realm.clone(), member_of: member_of.clone() };
             let asked = MembersAsked {
                 set: Some(set),
-                members: Vec::new(),
+                members: delegated.iter().filter_map(|m| user_of(&m.member)).collect(),
                 require_membership: b.terms.require_membership.clone(),
             };
             Ok((asked, None))
@@ -51,6 +57,25 @@ fn asked(b: &IdentityBinding) -> Result<(MembersAsked, Option<&str>), AppError> 
         }
         _ => Err(AppError::Internal("a binding of no external identity".into())),
     }
+}
+
+/// A member's identifier at their provider.
+fn user_of(member: &Principal) -> Option<String> {
+    match member {
+        Principal::ExternalUser { user, .. } => Some(user.clone()),
+        _ => None,
+    }
+}
+
+/// Of the members asked about, the keys of those an answer says are in the set and of those it
+/// says are not; nothing when it did not answer.
+fn members_found(outcome: &CallOutcome, delegated: &[MemberRecord]) -> (Vec<String>, Vec<String>) {
+    let CallOutcome::Members(m) = outcome else { return (Vec::new(), Vec::new()) };
+    let (present, absent): (Vec<_>, Vec<_>) = delegated
+        .iter()
+        .partition(|d| user_of(&d.member).is_some_and(|u| m.set_exists && m.present.contains(&u)));
+    let keys = |v: Vec<&MemberRecord>| v.iter().map(|d| d.member.key()).collect();
+    (keys(present), keys(absent))
 }
 
 /// What a re-verification found, and the provider's reason when it found nothing.
@@ -73,6 +98,8 @@ struct Answer {
     actor: Principal,
     relay: Option<Principal>,
     grant: Option<Uuid>,
+    /// For a set: the members who delegated it found in it, and those found not to be.
+    members: (Vec<String>, Vec<String>),
 }
 
 /// The effect of a binding moving to `state` on `answer`.
@@ -114,7 +141,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             None => (Principal::System(SystemActor::Authority), None, None),
         };
-        let (request, person) = asked(&binding)?;
+        let delegated = match binding.subject {
+            Principal::ExternalSet { .. } => self.store.members_who_delegated(binding.id).await?,
+            _ => Vec::new(),
+        };
+        let (request, person) = asked(&binding, &delegated)?;
         let target = CallTarget {
             organization: binding.provider.organization,
             kind: ProviderType::Identity,
@@ -123,8 +154,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let called = self
             .call_own_provider(&target, CallRequest::VerifyMembers(request), VERIFY_CALL)
             .await?;
+        let members = members_found(&called.outcome, &delegated);
         let (verification, reason) = found(called.outcome, person);
-        let answer = Answer { verification, reason, actor, relay, grant };
+        let answer = Answer { verification, reason, actor, relay, grant, members };
         if let Some(recorded) = self.record_answer(binding.clone(), &answer).await? {
             return Ok((recorded, answer.reason));
         }
@@ -132,7 +164,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         // safe to say, so it is said whatever was recorded, and asked again within a minute in
         // case it was older; that one is still there may be older than what was recorded, so it
         // is dropped.
-        if verification == Verification::Ended {
+        if verification == Verification::Ended || !answer.members.1.is_empty() {
             self.record_ended(binding.id, &answer).await?;
         }
         let current = self.store.binding(binding.id).await?.filter(|b| b.retired_at.is_none());
@@ -141,12 +173,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Records that `id`'s subject ended, whatever was recorded meanwhile, with an effect if it
-    /// was verified.
+    /// was verified, and that the members found not in it are not.
     async fn record_ended(&self, id: Uuid, answer: &Answer) -> Result<(), AppError> {
         let mut tx = self.store.begin().await?;
-        let before = tx.record_ended(id, self.clock.now() + RETRY).await?;
-        if before == Some(BindingState::Verified) {
-            tx.append_effect(&transition(id, None, BindingState::Unverified, answer)).await?;
+        // A member found not in the set is recorded so whatever came between, as an ending is.
+        let now = self.clock.now();
+        tx.record_members(id, (&[], &answer.members.1), now).await?;
+        if answer.verification == Verification::Ended {
+            let before = tx.record_ended(id, now + RETRY).await?;
+            if before == Some(BindingState::Verified) {
+                let effect = transition(id, None, BindingState::Unverified, answer);
+                tx.append_effect(&effect).await?;
+            }
         }
         tx.commit().await?;
         Ok(())
@@ -171,6 +209,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Ok(None);
         }
         binding.verifications = asked_at + 1;
+        tx.record_members(binding.id, (&answer.members.0, &answer.members.1), now).await?;
         if changed {
             let effect = transition(binding.id, Some(&binding.subject), state, answer);
             tx.append_effect(&effect).await?;

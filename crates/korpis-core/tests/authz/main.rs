@@ -17,6 +17,7 @@ mod approval;
 mod attenuation;
 mod bindings;
 mod ceiling;
+mod delegated;
 mod in_force;
 mod issuing;
 mod members;

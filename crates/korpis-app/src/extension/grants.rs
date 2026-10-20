@@ -71,6 +71,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let mut grant = Grant {
                 id: Uuid::now_v7(),
                 issued_at: now,
+                via: None,
                 subject: holder.subject(),
                 actions: need.actions.iter().cloned().collect(),
                 scope: Scope::Object(place.object(need.scope)),

@@ -21,6 +21,7 @@ mod grant_notify;
 mod identity;
 mod ids;
 mod jobs;
+mod members;
 mod nodes;
 mod placement;
 mod plans;

@@ -747,8 +747,26 @@ subject ended is recorded whatever came between, because it only ever moves a bi
 `unverified`, and the binding is asked again within a minute in case that answer was the older
 (Findings 114 and 116 of `23-walkthroughs.md`). An edit of a binding's terms counts as an answer,
 so one asked under the old terms is not recorded, and makes the binding due at once. The members
-who delegated follow with the record of who delegated (`via`, below). A binding nobody asks lapses
-after its interval and grace anyway, which §5 derives at every use, so a stopped loop fails closed.
+who delegated are asked about in the same question (Members, as built, below). A binding nobody
+asks lapses after its interval and grace anyway, which §5 derives at every use, so a stopped loop
+fails closed.
+
+**Members, as built.** Added 2026-10-20. A grant issued from a parent its issuer holds through a
+set records `via: {set, member}`, and issuance refuses one that leaves it out or names it falsely.
+Inserting such a grant records the member, unverified, and makes the set's binding due, so
+whichever use case issues it, the member is asked about within seconds, and until then the grant
+fails closed, as a new binding does. The set's own re-verification asks about every member who
+holds a grant through it that is not revoked, in the same question and on its interval, so a set
+costs one provider call per interval however many of its members delegated. A member found in the
+set is confirmed then; one found not in it is unverified whatever came between, as an ending is
+(Finding 116 of `23-walkthroughs.md`). Evaluation refuses a link with `via` once its member's last
+confirmation, plus the set binding's interval and grace, has passed, and everything beneath it with
+it, at use and at renewal.
+
+What this costs. A member is asked about only with their set, so while the set's provider cannot
+answer, the member's grace runs with the set's. And as with the ceiling, nothing issues as a member
+until OIDC's signed-in external users can (Phase 2 of `20-roadmap.md` §4): a relayed call issues
+nothing (§5.2).
 
 `reverify_interval` is the honest analogue of token lifetime. It is the bound on how long authority
 outlives its source, it is stated rather than convenient, and it applies to OIDC and SAML equally,

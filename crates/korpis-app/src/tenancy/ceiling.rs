@@ -12,7 +12,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, Store, TenancyWrite as _};
 use korpis_core::audit::{Outcome, details};
-use korpis_core::authz::binding::{DELEGATION_CEILING, ceiling_at};
+use korpis_core::authz::ceiling::{DELEGATION_CEILING, ceiling_at};
 use korpis_core::authz::{Grant, Kind, ObjectRef};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;

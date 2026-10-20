@@ -10,8 +10,8 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store};
 use korpis_core::audit::{Outcome, details};
-use korpis_core::authz::binding::holds;
 use korpis_core::authz::evaluate::verify_chain;
+use korpis_core::authz::membership::holds;
 use korpis_core::authz::{Grant, GrantRecord};
 use uuid::Uuid;
 

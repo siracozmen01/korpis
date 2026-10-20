@@ -249,6 +249,7 @@ fn root_grant(
         grant: Grant {
             id: Uuid::now_v7(),
             issued_at: now,
+            via: None,
             subject: holder.subject(),
             actions: all.clone(),
             scope: Scope::Object(ObjectRef::new(Kind::Organization, org.id)),

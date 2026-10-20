@@ -70,7 +70,7 @@ pub async fn bind(
     Ok(made.binding.into_option().unwrap())
 }
 
-fn project_scope(id: &str) -> pb::Scope {
+pub fn project_scope(id: &str) -> pb::Scope {
     let id = Id::parse(IdKind::Project, id).unwrap().uuid();
     scope::to_pb(&Scope::Object(ObjectRef::new(Kind::Project, id)))
 }
@@ -219,7 +219,7 @@ fn moderator(actions: &[&str]) -> pb::GrantTemplateBody {
 }
 
 /// Issuing from `template` at `version` on project `at` to `to`.
-fn from_template(
+pub fn from_template(
     h: &Harness,
     to: &pb::ExternalIdentity,
     (template, version): (&str, u64),

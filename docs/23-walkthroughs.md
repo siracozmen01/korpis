@@ -989,6 +989,13 @@ carries the platform's evidence and the control plane accepts each presentation 
 (`08-identity.md` §5.2, corrected in place, with `12-surface-discord.md` §1 and
 `16-extensions.md` §6).
 
+Building what a member passes on (2026-10-20) asked it of step 3's helper grant: what evaluates
+that moderator X is still in the set, where, and with what information? The set's provider, asked
+about X in the same question as the set, on the set's interval, and the control plane, which then
+holds X's last confirmation beside the binding's interval and grace. A grant records the member it
+came through, and inserting it records the member, so no way of issuing one leaves X unasked.
+→ patched into `08-identity.md` §5.1
+
 Building assertion (2026-10-20) asked it of step 3's moderator, who acts by running a command:
 what lets the gateway act as them, and with what information? The relay's evidence, asserted
 by the binding's provider, gives who they are and their sets. The action and the object come

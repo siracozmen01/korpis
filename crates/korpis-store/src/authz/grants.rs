@@ -12,7 +12,8 @@ use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{GrantRead, GrantWrite, StoreResult};
-use korpis_core::authz::{Grant, GrantRecord, ObjectRef, TemplateRef};
+use korpis_core::authz::{Grant, GrantRecord, ObjectRef, TemplateRef, Via};
+use serde::{Deserialize, Serialize};
 use sqlx::PgExecutor;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -36,6 +37,20 @@ struct GrantRow {
     label: String,
     template_id: Option<Uuid>,
     template_version: Option<i64>,
+    via: Option<serde_json::Value>,
+}
+
+/// A grant's `via`, as kept: the set's and the member's subject keys.
+#[derive(Debug, Serialize, Deserialize)]
+struct ViaDoc {
+    set: String,
+    member: String,
+}
+
+fn via_from(v: Option<serde_json::Value>) -> StoreResult<Option<Via>> {
+    let Some(v) = v else { return Ok(None) };
+    let doc: ViaDoc = from_json("via", v)?;
+    Ok(Some(Via { set: principal(&doc.set)?.subject(), member: principal(&doc.member)?.subject() }))
 }
 
 impl GrantRow {
@@ -48,6 +63,7 @@ impl GrantRow {
             grant: Grant {
                 id: self.id,
                 issued_at: to_time(self.issued_at),
+                via: via_from(self.via)?,
                 subject: holder.subject(),
                 actions: actions(&self.actions)?,
                 scope: scope.into_domain()?,
@@ -96,7 +112,7 @@ async fn chain(db: impl PgExecutor<'_>, id: Uuid) -> StoreResult<Vec<GrantRecord
                   link_form AS "link_form!", uses AS "uses!", issued_at AS "issued_at!",
                   revoked_at, suspended_at, root AS "root!",
                   irreversible_override AS "irreversible_override!", label AS "label!",
-                  template_id, template_version
+                  template_id, template_version, via
            FROM c ORDER BY depth"#,
         id
     )
@@ -104,6 +120,27 @@ async fn chain(db: impl PgExecutor<'_>, id: Uuid) -> StoreResult<Vec<GrantRecord
     .await
     .map_err(from_sqlx)?;
     all(rows)
+}
+
+/// Records the member a grant names in its `via`, unverified, and makes their set's binding due,
+/// so its next question asks about them (§5.1 of docs/08-identity.md): every way of issuing
+/// such a grant inserts it here, so none forgets.
+async fn record_member(db: impl PgExecutor<'_>, v: &Via, at: SystemTime) -> StoreResult<()> {
+    sqlx::query!(
+        "WITH b AS (SELECT id FROM identity_binding WHERE subject = $1 AND retired_at IS NULL),
+              recorded AS (
+                  INSERT INTO identity_member (binding_id, member, state, recorded_at)
+                  SELECT b.id, $2, 'unverified', $3 FROM b ON CONFLICT DO NOTHING)
+         UPDATE identity_binding SET verify_due_at = LEAST(verify_due_at, $3)
+          WHERE id IN (SELECT id FROM b)",
+        v.set.key,
+        v.member.key,
+        from_time(at)
+    )
+    .execute(db)
+    .await
+    .map_err(from_sqlx)?;
+    Ok(())
 }
 
 impl GrantRead for PgStore {
@@ -131,7 +168,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override, label, template_id, template_version
+                    irreversible_override, label, template_id, template_version, via
                FROM grants
               WHERE scope_kind = $1 AND scope_id = $2 AND ($3::uuid IS NULL OR id > $3)
               ORDER BY id LIMIT $4",
@@ -155,7 +192,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override, label, template_id, template_version
+                    irreversible_override, label, template_id, template_version, via
                FROM grants
               WHERE template_id = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -174,7 +211,7 @@ impl GrantRead for PgStore {
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
-                    irreversible_override, label, template_id, template_version
+                    irreversible_override, label, template_id, template_version, via
                FROM grants
               WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -211,9 +248,9 @@ impl GrantWrite for PgTx {
             "INSERT INTO grants (id, subject_key, actions, scope, scope_kind, scope_id, conditions,
                                  parent_id, delegation, issued_by, link_form, uses, issued_at,
                                  root, irreversible_override, label, template_id,
-                                 template_version)
+                                 template_version, via)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                     $17, $18)",
+                     $17, $18, $19)",
             g.id,
             g.subject.key,
             &actions,
@@ -231,11 +268,21 @@ impl GrantWrite for PgTx {
             g.irreversible_override,
             r.label,
             r.from_template.map(|t| t.template),
-            r.from_template.map(|t| to_count("template_version", t.version)).transpose()?
+            r.from_template.map(|t| to_count("template_version", t.version)).transpose()?,
+            g.via
+                .as_ref()
+                .map(|v| {
+                    let doc = ViaDoc { set: v.set.key.clone(), member: v.member.key.clone() };
+                    to_json("via", &doc)
+                })
+                .transpose()?
         )
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
+        if let Some(v) = &g.via {
+            record_member(&mut *self.tx, v, r.issued_at).await?;
+        }
         Ok(())
     }
 

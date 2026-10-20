@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE identity_member\n                SET state = CASE WHEN member = ANY($2) THEN 'verified' ELSE 'unverified' END,\n                    last_verified_at = CASE WHEN member = ANY($2) THEN $4 ELSE last_verified_at END\n              WHERE binding_id = $1 AND (member = ANY($2) OR member = ANY($3))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "TextArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f84d09096c31c559d9f5c2b637efbbef21b6477afdf3c3cfe1a64ec44ecfc4f1"
+}

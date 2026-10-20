@@ -9,6 +9,7 @@
 
 use super::action::Action;
 use super::grant::{At, Grant, Subject, check_attenuation, in_force};
+pub use super::issuing::{IssueError, issue};
 use super::scope::{Hierarchy, Resource, Scope};
 use std::net::IpAddr;
 use std::time::SystemTime;
@@ -186,7 +187,7 @@ fn permits(
 ) -> Result<Decision, ChainError> {
     verify_chain(chain, hierarchy, request.now)?;
     let leaf = chain.first().ok_or(ChainError::EmptyChain)?;
-    super::binding::holds((request.subject, request.memberships), &leaf.subject, hierarchy)?;
+    super::membership::holds((request.subject, request.memberships), &leaf.subject, hierarchy)?;
     if !leaf.actions.contains(request.action) {
         return Err(ChainError::ActionNotHeld);
     }
@@ -249,7 +250,8 @@ pub fn verify_chain(
         if !in_force(&link.conditions, now) {
             return Err(ChainError::NotInForce(link.id));
         }
-        super::binding::within_ceiling(chain, i, hierarchy, now)?;
+        super::ceiling::within_ceiling(chain, i, hierarchy, now)?;
+        super::membership::member_vouched(link, hierarchy, now)?;
         let narrowed = super::binding::vouched_form(link, hierarchy, now)?;
         let link = narrowed.as_ref().unwrap_or(link);
         match (link.parent, chain.get(i + 1)) {
@@ -342,56 +344,4 @@ pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decis
         Decision::Propose { .. } => deny(Vec::new()),
         decision => decision,
     }
-}
-
-/// Why a grant could not be issued.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum IssueError {
-    /// The issuer does not hold the parent.
-    #[error("the issuer does not hold the parent grant")]
-    NotHolder,
-    /// The parent's own chain is not valid now.
-    #[error("the parent chain is not valid now: {0}")]
-    ParentChain(ChainError),
-    /// The override was claimed by a request rather than granted by an identity binding.
-    #[error("only an operator's identity binding can override the irreversible-action default")]
-    OverrideNotFromBinding,
-    /// A root grant is created by installation, never issued.
-    #[error("a root grant is created at installation, never issued")]
-    RootNotIssuable,
-    /// The child is not a valid attenuation of the parent.
-    #[error(transparent)]
-    Attenuation(#[from] super::grant::AttenuationError),
-}
-
-/// Issues `child` from the first grant of `parent_chain` on behalf of `issuer`. Issuing a grant to
-/// someone *is* attenuating a grant one holds (§3.2 of docs/08-identity.md), so the issuer must be
-/// the parent's subject, the parent's whole chain must be valid now, and the child must be a valid
-/// attenuation of it, use limits included. The gateway runs this before inserting the child, in
-/// the transaction that takes the parent's remaining uses (§6.2).
-///
-/// `binding_allows_irreversible` is what the subject's identity binding says, read by the caller
-/// from the binding an operator declared (§5.2), never from the request: a child carrying
-/// `irreversible_override` is refused unless it is a set subject whose binding allows it.
-pub fn issue(
-    issuer: &Subject,
-    parent_chain: &[Grant],
-    child: &Grant,
-    binding_allows_irreversible: bool,
-    hierarchy: &impl Hierarchy,
-    now: SystemTime,
-) -> Result<(), IssueError> {
-    if child.root {
-        return Err(IssueError::RootNotIssuable);
-    }
-    if child.irreversible_override && !(child.subject.set && binding_allows_irreversible) {
-        return Err(IssueError::OverrideNotFromBinding);
-    }
-    let Some(parent) = parent_chain.first() else { return Err(IssueError::NotHolder) };
-    if &parent.subject != issuer || child.parent != Some(parent.id) {
-        return Err(IssueError::NotHolder);
-    }
-    verify_chain(parent_chain, hierarchy, now).map_err(IssueError::ParentChain)?;
-    check_attenuation(parent, child, hierarchy, At::Issue)?;
-    Ok(())
 }

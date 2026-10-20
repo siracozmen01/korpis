@@ -82,6 +82,25 @@ pub struct Delegation {
     pub actions: BTreeSet<Action>,
 }
 
+/// The set a member held a grant through when they issued another from it, and the member
+/// (§5.1 of docs/08-identity.md): a condition on the child, not a fact about who issued it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Via {
+    /// The set subject that holds the parent.
+    pub set: Subject,
+    /// The member who issued.
+    pub member: Subject,
+}
+
+impl Via {
+    /// What a child `issuer` issues from a parent held by `holder` records: nothing when they
+    /// hold it themself, and otherwise that they issued through the set holding it.
+    #[must_use]
+    pub fn through(holder: &Subject, issuer: &Subject) -> Option<Self> {
+        (holder != issuer).then(|| Self { set: holder.clone(), member: issuer.clone() })
+    }
+}
+
 /// A grant as evaluation sees it.
 #[allow(
     clippy::struct_excessive_bools,
@@ -94,6 +113,9 @@ pub struct Grant {
     /// When it was issued, from which a delegation ceiling counts (§5.1 of
     /// docs/08-identity.md).
     pub issued_at: SystemTime,
+    /// For a grant a member issued through a set: the set and the member, so it stands only
+    /// while both are verified (§5.1 of docs/08-identity.md).
+    pub via: Option<Via>,
     /// Who holds it.
     pub subject: Subject,
     /// What it permits.

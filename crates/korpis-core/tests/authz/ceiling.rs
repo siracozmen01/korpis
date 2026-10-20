@@ -7,7 +7,8 @@
 //! it.
 
 use crate::support::{Tree, actions, child, days, root};
-use korpis_core::authz::binding::{DELEGATION_CEILING, ProviderRef};
+use korpis_core::authz::binding::ProviderRef;
+use korpis_core::authz::ceiling::DELEGATION_CEILING;
 use korpis_core::authz::evaluate::{ChainError, verify_chain};
 use korpis_core::authz::scope::Vouched;
 use korpis_core::authz::{Delegation, Grant, Scope};
