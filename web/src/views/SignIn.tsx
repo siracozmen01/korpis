@@ -3,7 +3,9 @@
 // Signing in (§9.6 of docs/08-identity.md): a passkey, which the browser offers for this site
 // without a name being typed; or a sign-in name and password with a code from an authenticator
 // app or a recovery code beside it. Every refusal reads the same, whichever part was wrong.
-// Beside them, the identity providers a person may sign in through instead (§9.7).
+// Beside them, the identity providers a person may sign in through instead (§9.7). A sign-in
+// whose answer never arrived may have begun a session all the same, so it says so and offers to
+// go on rather than ask for the factor again, whose proof was spent.
 
 import type { Client } from "@connectrpc/connect";
 import { type ReactNode, useState } from "react";
@@ -11,7 +13,7 @@ import { Button } from "react-aria-components";
 import type { AccountService } from "../gen/korpis/v1/account_pb";
 import type { Assertion } from "../session/webauthn";
 import { type Credentials, PasswordForm } from "./PasswordForm";
-import { refusal } from "./refusal";
+import { lostAnswer, refusal } from "./refusal";
 import { Brand, useWorn } from "../theme/useTheme";
 import { t } from "../i18n/intl";
 
@@ -28,6 +30,7 @@ export interface SignInProps {
 export function SignIn({ accounts, assert, signedIn, providers }: SignInProps) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [lost, setLost] = useState(false);
 
   const attempt = async (run: () => Promise<unknown>) => {
     setBusy(true);
@@ -36,7 +39,8 @@ export function SignIn({ accounts, assert, signedIn, providers }: SignInProps) {
       await run();
       signedIn();
     } catch (e) {
-      setError(refusal(e));
+      if (lostAnswer(e)) setLost(true);
+      else setError(refusal(e));
     } finally {
       setBusy(false);
     }
@@ -83,6 +87,18 @@ export function SignIn({ accounts, assert, signedIn, providers }: SignInProps) {
         submit={(c) => void withPassword(c)}
       />
       {error !== undefined && <p role="alert">{error}</p>}
+      {lost && (
+        <div role="alert">
+          <p>
+            {t({
+              defaultMessage:
+                "The answer did not reach this browser, so it may have signed you in. Go on to find out; if it did not, sign in again.",
+              id: "78wEWTnD",
+            })}
+          </p>
+          <Button onPress={signedIn}>{t({ defaultMessage: "Go on", id: "RTVXrAOw" })}</Button>
+        </div>
+      )}
       {providers}
     </main>
   );

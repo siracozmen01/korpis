@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { retrying } from "./retrying";
+import { LOST_BEFORE, retrying } from "./retrying";
 
 const answer = new Response("ok");
 
@@ -48,4 +48,20 @@ test("a Request, whose body reads once, is sent once", async () => {
   const inner = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("Failed to fetch"));
   await expect(retrying(inner, [0])(new Request("http://x/a"))).rejects.toThrow();
   expect(inner).toHaveBeenCalledTimes(1);
+});
+
+test("a refusal that follows a failure is marked, and one that does not is not", async () => {
+  const refused = () => new Response("{}", { status: 400, headers: { "x-a": "b" } });
+  const after = vi
+    .fn<typeof fetch>()
+    .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+    .mockResolvedValueOnce(refused());
+  const marked = await retrying(after, [0, 0])("/a", { method: "POST" });
+  expect([marked.status, marked.headers.get(LOST_BEFORE), marked.headers.get("x-a")]).toEqual([
+    400,
+    "1",
+    "b",
+  ]);
+  const first = await retrying(vi.fn<typeof fetch>().mockResolvedValue(refused()), [0])("/a");
+  expect(first.headers.get(LOST_BEFORE)).toBeNull();
 });

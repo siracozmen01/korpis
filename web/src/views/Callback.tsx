@@ -11,7 +11,7 @@ import type { Client } from "@connectrpc/connect";
 import { useEffect, useState } from "react";
 import type { SessionService } from "../gen/korpis/v1/session_pb";
 import { type Storage, ownPath, takePending } from "../session/external";
-import { refusal } from "./refusal";
+import { lostAnswer, refusal } from "./refusal";
 import { t } from "../i18n/intl";
 
 /** What completing needs. */
@@ -67,6 +67,7 @@ async function complete(p: CallbackProps): Promise<string> {
 /** The callback page. */
 export function Callback(props: CallbackProps) {
   const [said, setSaid] = useState<string>();
+  const [lost, setLost] = useState(false);
   const { query, done } = props;
   useEffect(() => {
     let current = true;
@@ -80,7 +81,10 @@ export function Callback(props: CallbackProps) {
         if (current) done(then);
       },
       (e: unknown) => {
-        if (current) setSaid(e instanceof Said ? e.message : refusal(e));
+        if (!current) return;
+        if (e instanceof Said) setSaid(e.message);
+        else if (lostAnswer(e)) setLost(true);
+        else setSaid(refusal(e));
       },
     );
     return () => {
@@ -90,7 +94,18 @@ export function Callback(props: CallbackProps) {
   return (
     <main>
       <h1>{t({ defaultMessage: "Signing in", id: "FDCCkvlv" })}</h1>
-      {said === undefined ? (
+      {lost ? (
+        <div role="alert">
+          <p>
+            {t({
+              defaultMessage:
+                "The answer did not reach this browser, so it may have signed you in. Go on to find out; if it did not, sign in again.",
+              id: "78wEWTnD",
+            })}
+          </p>
+          <a href="/">{t({ defaultMessage: "Go on", id: "RTVXrAOw" })}</a>
+        </div>
+      ) : said === undefined ? (
         <p>
           {t({ defaultMessage: "Completing the sign-in through your provider…", id: "B4hht6h4" })}
         </p>

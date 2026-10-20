@@ -7,6 +7,7 @@
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ErrorSchema } from "../gen/korpis/v1/common_pb";
+import { LOST_BEFORE } from "../retrying";
 import { t } from "../i18n/intl";
 
 /** The reason of the refusal's `korpis.v1.Error` detail, such as `session.not_recent`. */
@@ -42,4 +43,15 @@ export function refusal(e: unknown): string {
     default:
       return error.rawMessage;
   }
+}
+
+/** Whether `e` is a call whose answer may never have reached this browser: the network failed
+ * it, before any answer or partway through one, after the panel's retries (`retrying.ts`); or a
+ * retry was refused after an attempt whose answer was lost. A ceremony that spends a single-use
+ * proof may then have done what it was asked, and sending it again is refused, so its screen
+ * says what may have happened rather than "Failed to fetch" or the retry's refusal. */
+export function lostAnswer(e: unknown): boolean {
+  const error = ConnectError.from(e);
+  if (error.metadata.get(LOST_BEFORE) !== null) return true;
+  return error.code === Code.Unknown && error.cause instanceof TypeError;
 }

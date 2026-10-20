@@ -3785,3 +3785,22 @@ Step 6 is where a group bound only after her sign-in would give Dana nothing yet
 as its member would have been made, and it would count from her next sign-in. Step 9 is where an
 issuer that issued no refresh token would leave her `ops` membership standing until the set's
 interval and grace past her sign-in, the cost §9.7 states.
+
+**FINDING 121: A ceremony whose answer was lost was reported refused, though it may have happened.
+`CONFIRMED`**
+
+Found 2026-10-21, after this trace was written, by asking of step 5 what the panel knows when the
+network loses the callback's answer, the question Finding 88 left open. The panel sends a call that
+failed with no answer again, and §9 of `11-surface-web.md` calls that safe for a ceremony because a
+repeat spends a proof already spent and is refused. Safe, but not truthful: when the first attempt
+arrived and only its answer was lost, the repeat's refusal is about the repeat. Dana's sign-in may
+have begun a session, and the panel said it had not; and a person redeeming an invitation read
+"Failed to fetch", or the repeat's refusal, of an account that existed and recovery codes they were
+never shown. The panel's browser test met exactly this on 2026-10-20, a redemption answered and
+then cut off, and a wait in its harness covers it there; a person on a phone has no such wait.
+
+**Resolution.** The retrying fetch marks a refusal that follows a lost answer, and a ceremony's
+screen reads it, or a failure with no answer, as a ceremony that may have happened: a sign-in, or
+one completed through a provider, offers to go on and find out; a redemption says to sign in with
+what was just registered and to renew the recovery codes. → patched into `11-surface-web.md` §9;
+built and tested in `web/src/retrying.ts` and `web/src/views/refusal.ts`.

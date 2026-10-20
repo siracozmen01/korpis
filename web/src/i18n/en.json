@@ -236,6 +236,9 @@
   "6wYZOskN": {
     "defaultMessage": "A set: a group, a role"
   },
+  "78wEWTnD": {
+    "defaultMessage": "The answer did not reach this browser, so it may have signed you in. Go on to find out; if it did not, sign in again."
+  },
   "7L9bcZ1z": {
     "defaultMessage": "Share as a link"
   },
@@ -245,6 +248,9 @@
   "7gPpqPv6": {
     "defaultMessage": "its timeout",
     "description": "why a run ended"
+  },
+  "7sTuzfIq": {
+    "defaultMessage": "The answer did not reach this browser, so your account may have been made. Sign in with {factor}; if that signs you in, renew your recovery codes from your profile, since these were never shown."
   },
   "88JBbyvf": {
     "defaultMessage": "Console",
@@ -867,6 +873,9 @@
   "RTHCUGR4": {
     "defaultMessage": "verified"
   },
+  "RTVXrAOw": {
+    "defaultMessage": "Go on"
+  },
   "RYkMKXPj": {
     "defaultMessage": "No run yet."
   },
@@ -1304,6 +1313,9 @@
   "gN4aX+eV": {
     "defaultMessage": "A grant passed on beneath a set lasts at most {effective, plural, one {# day} other {# days}} from its issue here."
   },
+  "gO7dF6eu": {
+    "defaultMessage": "the passkey you just registered"
+  },
   "gaANAXFU": {
     "defaultMessage": "This organization's own theme, worn here and beneath unless an organization sets its own."
   },
@@ -1640,6 +1652,9 @@
   "uBUvoH5J": {
     "defaultMessage": "Files",
     "description": "a workload's files"
+  },
+  "uXc0ekMl": {
+    "defaultMessage": "your sign-in name, password, and a code"
   },
   "uj4MMHqP": {
     "defaultMessage": "This organization wears the theme of the nearest organization above that sets one."

@@ -11,7 +11,7 @@ import type { AccountService, GetInvitationResponse } from "../gen/korpis/v1/acc
 import type { Creation, Registered } from "../session/webauthn";
 import { field } from "./PasswordForm";
 import { Qr } from "./Qr";
-import { refusal } from "./refusal";
+import { lostAnswer, refusal } from "./refusal";
 import { t } from "../i18n/intl";
 
 /** What redeeming needs. */
@@ -33,14 +33,27 @@ type Step =
     }
   | { readonly kind: "codes"; readonly codes: readonly string[] };
 
+/** What a redemption whose answer was lost tells its user, who signs in `with` what they just
+ * registered: the account may have been made, and its recovery codes were never shown. */
+function lostWith(factor: string): string {
+  return t(
+    {
+      defaultMessage:
+        "The answer did not reach this browser, so your account may have been made. Sign in with {factor}; if that signs you in, renew your recovery codes from your profile, since these were never shown.",
+      id: "7sTuzfIq",
+    },
+    { factor },
+  );
+}
+
 /** The redemption screen. */
 export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) {
   const [step, setStep] = useState<Step>({ kind: "read" });
   const [error, setError] = useState<string>();
-  const run = (work: () => Promise<void>) => {
+  const run = (work: () => Promise<void>, lost?: string) => {
     setError(undefined);
     work().catch((e: unknown) => {
-      setError(refusal(e));
+      setError(lost !== undefined && lostAnswer(e) ? lost : refusal(e));
     });
   };
 
@@ -70,26 +83,29 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
   if (step.kind === "codes") return <Codes codes={step.codes} done={redeemed} />;
 
   const withPasskey = (name: string) => {
-    run(async () => {
-      const begun = await accounts.beginRedemption({ invitation, name });
-      const c = begun.creation;
-      if (c === undefined)
-        throw new Error(
-          t({ defaultMessage: "the control plane sent no registration", id: "XiPLZivE" }),
-        );
-      const made = await create({ ...c, exclude: c.excludeCredentials });
-      const registration = {
-        challengeId: c.challengeId,
-        label: t({
-          defaultMessage: "passkey",
-          id: "OJ+KsVog",
-          description: "a passkey's label, until renamed",
-        }),
-        ...made,
-      };
-      const r = await accounts.redeemWithPasskey({ invitation, name, registration });
-      setStep({ kind: "codes", codes: r.recoveryCodes });
-    });
+    run(
+      async () => {
+        const begun = await accounts.beginRedemption({ invitation, name });
+        const c = begun.creation;
+        if (c === undefined)
+          throw new Error(
+            t({ defaultMessage: "the control plane sent no registration", id: "XiPLZivE" }),
+          );
+        const made = await create({ ...c, exclude: c.excludeCredentials });
+        const registration = {
+          challengeId: c.challengeId,
+          label: t({
+            defaultMessage: "passkey",
+            id: "OJ+KsVog",
+            description: "a passkey's label, until renamed",
+          }),
+          ...made,
+        };
+        const r = await accounts.redeemWithPasskey({ invitation, name, registration });
+        setStep({ kind: "codes", codes: r.recoveryCodes });
+      },
+      lostWith(t({ defaultMessage: "the passkey you just registered", id: "gO7dF6eu" })),
+    );
   };
   const offerTotp = (name: string) => {
     run(async () => {
@@ -104,16 +120,21 @@ export function Redeem({ invitation, accounts, create, redeemed }: RedeemProps) 
         uri={step.uri}
         error={error}
         submit={(password, code) => {
-          run(async () => {
-            const r = await accounts.redeemWithPassword({
-              invitation,
-              name: step.name,
-              password,
-              totpSecret: step.secret,
-              totpCode: code,
-            });
-            setStep({ kind: "codes", codes: r.recoveryCodes });
-          });
+          run(
+            async () => {
+              const r = await accounts.redeemWithPassword({
+                invitation,
+                name: step.name,
+                password,
+                totpSecret: step.secret,
+                totpCode: code,
+              });
+              setStep({ kind: "codes", codes: r.recoveryCodes });
+            },
+            lostWith(
+              t({ defaultMessage: "your sign-in name, password, and a code", id: "uXc0ekMl" }),
+            ),
+          );
         }}
       />
     );

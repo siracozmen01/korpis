@@ -566,6 +566,20 @@ explicit paused-and-buffered reading mode rather than by leaving it unsolved.
 > calls are the exception and are sent once, since a call whose answer was lost may have spent a
 > use; its screen offers to try again instead. What it costs: a control plane that is truly
 > unreachable is said so a second and a quarter later.
+>
+> Sending a ceremony again is safe, but its refusal is not the whole truth. When the first attempt
+> arrived and only its answer was lost, the repeat is refused because the first spent the proof,
+> and the ceremony may have done what it was asked: an invitation redeemed, a session begun. So
+> until 2026-10-21 a person whose redemption's answer was lost read "Failed to fetch", or the
+> repeat's refusal, of an account that existed. The panel now marks a refusal that follows a lost
+> answer (`korpis-earlier-answer-lost`, which `retrying.ts` sets and the control plane never
+> sends), and a ceremony's screen says what may have happened in place of the refusal. A
+> redemption says the account may have been made and to sign in with what was just registered,
+> and to renew the recovery codes from the profile if that works, since these were never shown.
+> A sign-in, or a sign-in completed through an identity provider, says it may have signed the
+> person in and offers to go on and find out. What it costs: a refusal that would have been
+> right, after a lost attempt that never reached the control plane, is said as "may have", and
+> going on finds that it did not.
 
 ---
 
