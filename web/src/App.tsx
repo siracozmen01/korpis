@@ -29,6 +29,8 @@ import { LINK_BASE, LINK_PREFIX, LinkShell } from "./views/LinkShell";
 import { Place, placeAt } from "./views/place";
 import { Home } from "./views/Places";
 import { SignIn } from "./views/SignIn";
+import { Callback } from "./views/Callback";
+import { ProviderSignIn, Providers, providerAt } from "./views/ProviderSignIn";
 import { Profile } from "./profile/Profile";
 import { Brand, type Source, Themed } from "./theme/useTheme";
 import { t } from "./i18n/intl";
@@ -51,6 +53,11 @@ export function returnTo(search: string): string {
   const then = new URLSearchParams(search).get("then");
   if (then?.startsWith("/") !== true || then.startsWith("//") || then.includes("\\")) return "/";
   return then;
+}
+
+/** Sends the browser to an identity provider, leaving the panel. */
+function goTo(url: string): void {
+  window.location.assign(url);
 }
 
 /** The sign-in page's address, returning to `path` (with its query) once signed in. */
@@ -91,6 +98,41 @@ function Routes({ session }: { readonly session: Session }) {
           signedIn={() => {
             signedIn(to);
           }}
+          providers={
+            <Providers
+              sessions={cookieSessions}
+              storage={window.sessionStorage}
+              then={to}
+              go={goTo}
+            />
+          }
+        />
+      </Themed>
+    );
+  }
+  if (path === "/sign-in/callback") {
+    return (
+      <Themed source={signInTheme} stylesheet>
+        <Callback
+          query={window.location.search}
+          storage={window.sessionStorage}
+          anonymous={cookieSessions}
+          signedIn={sessions}
+          done={signedIn}
+        />
+      </Themed>
+    );
+  }
+  const provider = path.startsWith("/sign-in/") ? providerAt(path) : undefined;
+  if (provider !== undefined) {
+    return (
+      <Themed source={signInTheme} stylesheet>
+        <ProviderSignIn
+          sessions={cookieSessions}
+          storage={window.sessionStorage}
+          then={returnTo(window.location.search)}
+          go={goTo}
+          provider={provider}
         />
       </Themed>
     );
@@ -124,6 +166,7 @@ function Routes({ session }: { readonly session: Session }) {
         accounts={accounts}
         profiles={profiles}
         assert={assert}
+        again={{ sessions: cookieSessions, storage: window.sessionStorage, go: goTo }}
       />
     );
   }

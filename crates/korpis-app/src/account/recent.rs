@@ -14,28 +14,43 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store, Tx as _, UserSessionWrite as _};
 use korpis_core::account::session::REAUTHENTICATE_WITHIN;
+use korpis_core::authz::binding::IdentityBinding;
 use korpis_core::principal::Holder;
 use korpis_core::principal::Principal;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+/// Whom a profile is of.
+#[derive(Debug)]
+pub enum Profiled {
+    /// An account, with its factors and passkeys.
+    Account(AccountView),
+    /// A person signed in through an identity provider, by their own binding: they have no
+    /// factors here (§9.7 of docs/08-identity.md).
+    Person(Box<IdentityBinding>),
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The caller's account, and when its session last signed in or re-authenticated; none for
-    /// a caller without a session.
+    /// Whom the caller is, an account or a person signed in through an identity provider, and
+    /// when its session last signed in or re-authenticated; none for a caller without a session.
     pub async fn profile(
         &self,
         caller: &Caller,
-    ) -> Result<(AccountView, Option<SystemTime>), AppError> {
-        let view = self.own_account(caller).await?;
+    ) -> Result<(Profiled, Option<SystemTime>), AppError> {
+        let holder = own_holder(caller)?;
+        let profiled = match holder {
+            Holder::Account(_) => Profiled::Account(self.own_account(caller).await?),
+            Holder::Person(binding) => {
+                let person = self.store.binding(binding).await?;
+                let person = person.ok_or(AppError::NotFound { kind: "binding" })?;
+                Profiled::Person(Box::new(person))
+            }
+        };
         let at = match caller.session {
-            Some(id) => self
-                .store
-                .user_session(Holder::Account(view.account.id), id)
-                .await?
-                .map(|s| s.authenticated_at),
+            Some(id) => self.store.user_session(holder, id).await?.map(|s| s.authenticated_at),
             None => None,
         };
-        Ok((view, at))
+        Ok((profiled, at))
     }
 
     /// The caller's account, if its session signed in or re-authenticated recently; a caller

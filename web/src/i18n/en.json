@@ -344,6 +344,9 @@
   "AyRVbIDi": {
     "defaultMessage": "Edit {role}"
   },
+  "B4hht6h4": {
+    "defaultMessage": "Completing the sign-in through your provider…"
+  },
   "BIIyPmVF": {
     "defaultMessage": "unknown",
     "description": "a workload's state as its node observed it"
@@ -433,6 +436,9 @@
     "defaultMessage": "Redeem",
     "description": "button: redeem an invitation"
   },
+  "EIodbIJ7": {
+    "defaultMessage": "Sign in with {name} again"
+  },
   "EOBZyeyd": {
     "defaultMessage": "an unknown time"
   },
@@ -459,6 +465,9 @@
   "FAkmp8n+": {
     "defaultMessage": "Make the link"
   },
+  "FDCCkvlv": {
+    "defaultMessage": "Signing in"
+  },
   "FId+XQnj": {
     "defaultMessage": "Reading the workload…"
   },
@@ -469,6 +478,9 @@
   "FNNGdHd/": {
     "defaultMessage": "Modified",
     "description": "column: when a file was modified"
+  },
+  "FUKsmHmt": {
+    "defaultMessage": "Your identity provider did not sign you in: {why}"
   },
   "FV4Vc2PH": {
     "defaultMessage": "tier=gold",
@@ -543,6 +555,9 @@
   },
   "ICZqeoPt": {
     "defaultMessage": "Save the configuration"
+  },
+  "IEq/J+Xb": {
+    "defaultMessage": "Back to signing in"
   },
   "IfkE03As": {
     "defaultMessage": "Reading its workloads…"
@@ -642,6 +657,9 @@
   "LMQ8/0ve": {
     "defaultMessage": "suspended",
     "description": "a grant's state"
+  },
+  "LMbOMhPv": {
+    "defaultMessage": "Or through your organization"
   },
   "LTNNkoPm": {
     "defaultMessage": "the console refused input"
@@ -926,6 +944,9 @@
     "defaultMessage": "another run was active",
     "description": "why a run ended"
   },
+  "TpH+2TQO": {
+    "defaultMessage": "This sign-in was begun in another browser or tab, so it cannot be completed here. Sign in again from this one."
+  },
   "TvxMA+Lg": {
     "defaultMessage": "{workloads}, on nodes labelled {labels}"
   },
@@ -1051,6 +1072,9 @@
   "YxsNQ0kQ": {
     "defaultMessage": "it has too few resources left",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "YzgT39O0": {
+    "defaultMessage": "Sign in with {name}"
   },
   "Z12PiHVA": {
     "defaultMessage": "starting",
@@ -1444,6 +1468,9 @@
   "myUPH/nd": {
     "defaultMessage": "version {v}"
   },
+  "nBfQfjER": {
+    "defaultMessage": "Signed in through {provider}, which vouches for who you are. You have no passkey or password here; your provider is how you sign in."
+  },
   "nH30CoiV": {
     "defaultMessage": "A ceiling is a whole number of days from 1."
   },
@@ -1663,6 +1690,10 @@
   "wHbkqfPX": {
     "defaultMessage": "intent v{version}",
     "description": "the version of a workload's intent"
+  },
+  "wNuwN10n": {
+    "defaultMessage": "Sign in",
+    "description": "heading of a provider's sign-in page"
   },
   "wPj0Ogg+": {
     "defaultMessage": "Only the workloads labelled (optional)"

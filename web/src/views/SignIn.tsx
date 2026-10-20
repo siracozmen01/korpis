@@ -3,9 +3,10 @@
 // Signing in (§9.6 of docs/08-identity.md): a passkey, which the browser offers for this site
 // without a name being typed; or a sign-in name and password with a code from an authenticator
 // app or a recovery code beside it. Every refusal reads the same, whichever part was wrong.
+// Beside them, the identity providers a person may sign in through instead (§9.7).
 
 import type { Client } from "@connectrpc/connect";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
 import type { AccountService } from "../gen/korpis/v1/account_pb";
 import type { Assertion } from "../session/webauthn";
@@ -19,10 +20,12 @@ export interface SignInProps {
   readonly accounts: Client<typeof AccountService>;
   readonly assert: (challenge: Uint8Array, rpId: string) => Promise<Assertion>;
   readonly signedIn: () => void;
+  /** The identity providers a person may sign in through instead, if any are offered. */
+  readonly providers?: ReactNode;
 }
 
 /** The sign-in screen. */
-export function SignIn({ accounts, assert, signedIn }: SignInProps) {
+export function SignIn({ accounts, assert, signedIn, providers }: SignInProps) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
@@ -80,6 +83,7 @@ export function SignIn({ accounts, assert, signedIn }: SignInProps) {
         submit={(c) => void withPassword(c)}
       />
       {error !== undefined && <p role="alert">{error}</p>}
+      {providers}
     </main>
   );
 }

@@ -7,14 +7,27 @@ use super::account::{assertion, client, creation, registration};
 use super::{Api, cookie, error};
 use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::Caller;
-use korpis_app::account::{AccountView, SecondFactor};
+use korpis_app::account::{AccountView, Profiled, SecondFactor};
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::audit::failure::Attempt;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::reauthenticate_with_password_request::Second;
+use korpis_wire::binding::binding_to_pb;
 use korpis_wire::{timestamp, wire_id};
 use std::time::SystemTime;
+
+/// The profile of whom `p` names.
+fn profiled(p: Profiled, authenticated_at: Option<SystemTime>) -> pb::GetProfileResponse {
+    match p {
+        Profiled::Account(v) => profile(v, authenticated_at),
+        Profiled::Person(b) => pb::GetProfileResponse {
+            person: Some(binding_to_pb(&b)).into(),
+            authenticated_at: authenticated_at.map(timestamp).into(),
+            ..Default::default()
+        },
+    }
+}
 
 fn profile(v: AccountView, authenticated_at: Option<SystemTime>) -> pb::GetProfileResponse {
     let passkeys = v
@@ -68,8 +81,8 @@ impl pb::ProfileService for Api {
         _request: ServiceRequest<'_, pb::GetProfileRequest>,
     ) -> ServiceResult<pb::GetProfileResponse> {
         let caller = self.caller(&ctx).await?;
-        let (view, at) = self.app.profile(&caller).await.map_err(error::from_app)?;
-        Response::ok(profile(view, at))
+        let (profile, at) = self.app.profile(&caller).await.map_err(error::from_app)?;
+        Response::ok(profiled(profile, at))
     }
 
     async fn reauthenticate_with_passkey(

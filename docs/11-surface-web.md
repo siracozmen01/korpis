@@ -82,6 +82,15 @@ listed.
 > factors, so `/profile` shows them their subject, its provider, and their sessions; and where a
 > recent sign-in is asked for, approving a `korpis login` among them, confirming it is them is
 > signing in through the provider again.
+>
+> Built 2026-10-20 as designed (P2.5d of `20-roadmap.md`). The tab keeps one pending sign-in
+> and takes it once, so a second callback in the same tab completes nothing. A pending sign-in
+> also records whether it re-authenticates, and the callback then completes with the session's
+> access token, returning to the page that asked: the device page returns with its code, and the
+> person approves from there. The path returned to is held to the panel's own, as the sign-in
+> page's `then` is. An identity provider's own refusal, its `error` in the callback's query, is
+> shown as it said it. `GetProfile` answers a person with their own binding and no account
+> (`profile.proto`), which is how the panel tells the two apart.
 
 ---
 

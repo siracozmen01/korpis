@@ -6,6 +6,7 @@ package korpis.v1;
 
 import "google/protobuf/timestamp.proto";
 import "korpis/v1/account.proto";
+import "korpis/v1/authority.proto";
 
 // The signed-in user's own account (§9.6 of docs/08-identity.md): its factors, read and changed.
 // Called with an access token, as any call is, and only by a user signed in to a session; an API
@@ -71,6 +72,10 @@ message GetProfileResponse {
   uint32 recovery_codes = 7;
   // When the session last signed in or re-authenticated; a change needs it within ten minutes.
   google.protobuf.Timestamp authenticated_at = 8;
+  // For a person signed in through an identity provider (§9.7 of docs/08-identity.md): their own
+  // binding, naming the provider and the subject it vouches for. Every field above but
+  // `authenticated_at` is then empty, since such a person holds no account and no factors here.
+  IdentityBinding person = 9;
 }
 
 message ReauthenticateWithPasswordRequest {

@@ -96,6 +96,12 @@ async fn a_person_signs_in_once_per_state_into_a_session_of_their_own() {
     let listed = listed.unwrap().into_owned().sessions;
     assert_eq!(listed.len(), 1);
     assert!(listed[0].current);
+    let profiles = pb::ProfileServiceClient::new(h.http.clone(), h.config(Some(&token)));
+    let profile = profiles.get_profile(pb::GetProfileRequest::default()).await.unwrap();
+    let profile = profile.into_owned();
+    let person = profile.person.as_option().expect("a person's profile is their binding");
+    assert_eq!((person.id.as_str(), person.provider.as_str()), (done.binding.as_str(), "corp"));
+    assert_eq!((profile.account.as_str(), profile.passkeys.len()), ("", 0), "and no account");
 
     // Signed in again from their own session, the same person re-authenticates it, and the
     // sets this sign-in no longer names lose their record.

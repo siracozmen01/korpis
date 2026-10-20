@@ -24,6 +24,7 @@ pub use device::Device;
 pub use device_grant::{Authorized, DeviceSignedIn};
 pub use external::SignInBegun;
 pub use manage::AccountView;
+pub use recent::Profiled;
 pub use redeem::{InvitationView, PasswordRedemption, Redeemed};
 pub use session::{Begun, Client, Exchanged, SessionView};
 pub use sign_in::{Assertion, SecondFactor, SignedIn};

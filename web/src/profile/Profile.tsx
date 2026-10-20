@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // The signed-in user's own screen: who they are, how they sign in, and where they are signed in.
+// A person signed in through an identity provider has no factors here (§9.7 of
+// docs/08-identity.md), so theirs says who their provider vouches they are, and their sessions.
 
 import { useCallback, useState } from "react";
 import { useLoad } from "../views/load";
@@ -8,6 +10,7 @@ import { Shown } from "../views/Shown";
 import { Factors } from "./Factors";
 import type { ProfileServices } from "./services";
 import { Sessions } from "./Sessions";
+import { subjectText } from "../identity/identity";
 import { t } from "../i18n/intl";
 
 /** The profile screen, its factors read again after each change. */
@@ -35,13 +38,29 @@ function Read(props: { readonly services: ProfileServices; readonly changed: () 
     <Shown
       loaded={profile}
       reading={t({ defaultMessage: "Reading your profile…", id: "3AVtR6Oy" })}
-      done={(p) => (
-        <>
-          <h1>{p.displayName}</h1>
-          <p>{t({ defaultMessage: "Signed in as {name}.", id: "TDUCXqaO" }, { name: p.name })}</p>
-          <Factors profile={p} services={services} changed={changed} />
-        </>
-      )}
+      done={(p) =>
+        p.person === undefined ? (
+          <>
+            <h1>{p.displayName}</h1>
+            <p>{t({ defaultMessage: "Signed in as {name}.", id: "TDUCXqaO" }, { name: p.name })}</p>
+            <Factors profile={p} services={services} changed={changed} />
+          </>
+        ) : (
+          <>
+            <h1>{subjectText(p.person.subject)}</h1>
+            <p>
+              {t(
+                {
+                  defaultMessage:
+                    "Signed in through {provider}, which vouches for who you are. You have no passkey or password here; your provider is how you sign in.",
+                  id: "nBfQfjER",
+                },
+                { provider: p.person.provider },
+              )}
+            </p>
+          </>
+        )
+      }
     />
   );
 }

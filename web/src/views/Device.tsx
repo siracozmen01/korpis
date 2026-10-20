@@ -15,6 +15,7 @@ import type { ProfileService } from "../gen/korpis/v1/profile_pb";
 import type { GetDeviceAuthorizationResponse, SessionService } from "../gen/korpis/v1/session_pb";
 import type { Assertion } from "../session/webauthn";
 import { Reauthenticate } from "./Reauthenticate";
+import type { Again } from "./ThroughAgain";
 import { reasonOf, refusal } from "./refusal";
 import { intl, t } from "../i18n/intl";
 
@@ -25,6 +26,8 @@ export interface DeviceProps {
   readonly accounts: Client<typeof AccountService>;
   readonly profiles: Client<typeof ProfileService>;
   readonly assert: (challenge: Uint8Array, rpId: string) => Promise<Assertion>;
+  /** How a person signed in through an identity provider signs in through it again. */
+  readonly again?: Omit<Again, "here">;
 }
 
 type Step =
@@ -142,6 +145,14 @@ export function Device(props: DeviceProps) {
             done={() => {
               decide(step.asked, true);
             }}
+            again={
+              props.again === undefined
+                ? undefined
+                : {
+                    ...props.again,
+                    here: `/device?code=${encodeURIComponent(step.asked.userCode)}`,
+                  }
+            }
           />
         </main>
       );
