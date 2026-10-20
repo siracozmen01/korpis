@@ -773,6 +773,13 @@ answer, the member's grace runs with the set's. And as with the ceiling, nothing
 until OIDC's signed-in external users can (Phase 2 of `20-roadmap.md` §4): a relayed call issues
 nothing (§5.2).
 
+Designed 2026-10-20, for signing in (§9.7). The members a set's re-verification asks about are
+also those holding a live session that named the set, so a person signed in is asked about as a
+person who delegated is. And a provider may answer of a member that it cannot tell, which an OIDC
+provider holding no refresh token for them must: that member's last confirmation is kept as it
+was, to lapse on its own after the set's interval and grace, and only an answer that they are not
+in the set unverifies them at once.
+
 `reverify_interval` is the honest analogue of token lifetime. It is the bound on how long authority
 outlives its source, it is stated rather than convenient, and it applies to OIDC and SAML equally,
 because a group claim in a token that was issued an hour ago is exactly the same problem.
@@ -931,6 +938,48 @@ control plane's questions (§5.2, corrected), and only for its own subjects (§5
 identities and memberships and do nothing else: it holds no grants that let it act.
 `12-surface-discord.md` §10 called this machinery core and `16-extensions.md` §2 called the
 providers extensions; both are right about different halves, and this paragraph is the seam.
+
+**OIDC, as designed.** Designed 2026-10-20, with signing in (§9.7). The first-party OIDC provider,
+`korpis-idp-oidc`, is configured by its operator with an issuer, a client identifier and secret
+registered at that issuer, the claim that names a person's groups (`groups` when not said), which
+is the realm of every set it vouches for (§5), any scopes beyond `openid`, and whether to ask for
+offline access. It reads the issuer's discovery document and its keys, each fetched under a
+deadline and kept, the keys fetched again when a token names one it does not hold, at most once a
+minute. Asked to authorize, it answers the issuer's authorization endpoint with the client, the
+scopes, the state, the nonce, and the challenge it was given, `response_type=code`. Asked to
+assert a code, it redeems it at the token endpoint with the client's secret, the verifier, and the
+redirect URI, and validates the ID token by OIDC Core §3.1.3.7: signed by a key the issuer
+publishes, with an asymmetric algorithm the key names (RS256, ES256, or EdDSA; `none` and every
+HMAC refused); `iss` exactly the configured issuer; `aud` containing the client, and `azp` the
+client when present; `exp` not passed; `iat` within the five minutes of skew assertion allows
+(§5.2); and `nonce` the control plane's. It answers `sub` as the person, since `sub` with `iss` is
+the one identifier OIDC says a client may rely on (OIDC Core §5.7), and each value of the group
+claim as a set; the presentation is the code's SHA-256 digest, and `at` the token's `iat`.
+
+What it does not do. It never acts on an identity provider's own initiative: a sign-in the control
+plane did not begin finds no state and is refused, so a flow begun at the identity provider's
+portal lands on the sign-in page instead. It reads groups only from the ID token, or a refreshed
+one, never from the userinfo endpoint, so an issuer that puts groups only there must be configured
+to put them in the token. And a set's existence is not something OIDC can answer: a group with no
+members left simply confirms no one, so a set binding at an OIDC provider stays verified while the
+provider is configured to read its claim, and what it gives lapses member by member. An issuer
+that leaves groups out of a token past some count names none, and the person then holds no set:
+the failure is closed, and the operator configures fewer groups into the claim.
+
+**SAML's shape.** SAML takes the same two calls and different evidence. `Authorize` answers an
+`AuthnRequest` for the HTTP-Redirect binding whose identifier is derived from the nonce and whose
+`RelayState` is the state. The identity provider answers by HTTP-POST to the control plane's own
+assertion consumer address rather than the panel's, since a cross-site form post is how SAML
+returns; the control plane keeps the response as the pending sign-in's evidence and sends the
+browser on to the panel's callback with the state, and the panel completes the sign-in with its
+verifier. SAML has no verifier of its own, so the control plane checks it against the challenge
+itself, and the binding to the browser that began the sign-in is the same as OIDC's.
+The provider validates the response's signature, its `InResponseTo`, its audience, and its
+validity window, answers the `NameID` as the person and the configured attribute's values as sets,
+and the assertion's identifier as the presentation. SAML issues nothing like a refresh token, so a
+SAML provider answers every re-verification of a member that it cannot tell (§5.1), and a person's
+set memberships are confirmed only by their sign-ins. It is a shape, not a build: no first-party
+SAML provider is in Phase 2 (§4 of `20-roadmap.md`), and this paragraph is what one is built to.
 
 ---
 
@@ -1371,7 +1420,7 @@ failed, never whose nodes failed them.
 | Passkeys / WebAuthn | **the default and the recommendation**, phishing-resistant, and the reason it is first here |
 | TOTP | supported, second class |
 | Password | supported, always with a second factor available |
-| OIDC / SAML | §5.3 |
+| OIDC / SAML | §5.3, and signing in through one §9.7 |
 | Discord | §5.2, with its stated limits |
 | Node enrolment token | single-use, short-lived, itself an attenuated grant (§7 of `02-architecture.md`) |
 
@@ -1834,6 +1883,116 @@ tested against a software authenticator and a browser's virtual one (§9 of `21-
 > to the factors refused as not recent once the sign-in is more than ten minutes old, the holder
 > confirming it is them, and a second passkey added on another authenticator that then signs
 > them in with the first one gone.
+
+### 9.7 Signing in through an identity provider
+
+> Designed 2026-10-20, for OIDC in Phase 2 (§4 of `20-roadmap.md`). §5.3 said a group claim works
+> exactly like a chat role, and §5.1 that the first to issue beneath a set are people signed in
+> through OIDC; nothing said how such a person signs in, what their session is, or how long a
+> membership they signed in with is believed.
+
+**A person signs in as the external subject their provider names, and no account is made.** The
+session of §9.4 is held by the `ExternalIdentity` the provider vouches for (§5), its provider and
+the person's identifier there, and its authority is the grants to that subject and to the sets the
+person is in, exactly as for a call relayed for them (§5.2). They register no factor here: the
+provider is their factor. Their first sign-in makes their binding at first use (§5), as a relayed
+assertion does. A person who also holds an account holds two subjects, as a person at two
+providers does (§5), and nothing links them, since a link would let the weaker of the two reach
+the grants of the other.
+
+**The protocol is the provider's; the decisions are the control plane's.** The control plane never
+speaks OIDC or SAML. A sign-in is two calls of `SessionService`, neither authenticated.
+`BeginExternalSignIn(provider, code_challenge)` makes a state, 256 random bits of which the
+control plane keeps the digest, and a nonce, keeps both ten minutes with the provider and the
+challenge, and asks the provider, with the identity provider's `Authorize` call (§6 of
+`16-extensions.md`), for the address to send the person to. The address the person comes back to
+is the panel's, `--public-url` followed by `/sign-in/callback`, the one redirect URI an operator
+registers at their identity provider, and without a public URL the call is refused, there being no
+panel to come back to. The panel made the PKCE verifier (RFC 7636, `S256`) and
+keeps it in the tab's session storage; the control plane is given only its challenge.
+`CompleteExternalSignIn(state, code, code_verifier)` follows the person's return: the control
+plane spends the pending sign-in by its state, once, and has the provider `Assert` the code, the
+verifier, the redirect URI, and the nonce (§5.2). The provider redeems the code at the identity
+provider and validates what it is given (§5.3), and answers the person and their sets; the
+control plane accepts the presentation once, begins the session, and sets its refresh credential
+as every sign-in does.
+
+The verifier stays in the browser because there it is what binds the sign-in to the person who
+began it. A code taken from the redirect, out of a referrer, a log, or a history, is worthless
+without it, and a sign-in an attacker began and steered into someone else's browser finds no
+verifier there, so nobody is signed in as somebody else (the injection RFC 9700 §2.1.1 requires
+PKCE against, and the forgery of its §4.7). The state is still made and spent by the control
+plane, because it is what finds the pending sign-in and its nonce, and it is spent once.
+
+**Which providers a sign-in page offers.** `ListSignInProviders`, unauthenticated, answers the
+identity providers of the root organization that serve sign-in, which a provider says when it
+registers (§6 of `16-extensions.md`), and the installation's sign-in page offers those. A provider
+anywhere else is reached by its sign-in link, `/sign-in/<organization>/<name>`, which its
+organization's operator hands its own people, so no page lists a tenant's providers, and with them
+its customers, to strangers. A link names an organization by identifier, so whoever holds it can
+tell that the provider exists; that is all it tells them. Offering a tenant's provider at all
+reaches nothing the tenant did not already reach: a provider vouches only at and beneath its own
+organization (§5), so a person signed in through it holds nothing above it. A reseller's page
+under its own name (§9.6, Finding 66 of `23-walkthroughs.md`) offers its own providers when Phase
+2 serves the control plane under that name.
+
+**A membership is believed while its member record vouches.** A sign-in names the sets the person
+is in. Each call's caller holds those sets only while the person's record as a member of each
+vouches (§5.1, Members, as built): the sign-in records them confirmed, at its own time, in every
+named set that has a binding, and not in any set they held a record in that it no longer names;
+and it confirms the person's own binding, which the assertion has just vouched for. So the set's
+re-verification asks about the person, as it asks about every member who delegated, and a person
+removed from a group at their provider loses what the group gave them at the set's next
+re-verification or at their own next sign-in, whichever is sooner. A set whose binding requires
+another counts only while the sign-in named that one too (Finding 117). The sets are kept with the
+session and written into each access token exchanged from it, so a call reads nothing an
+account's call does not; whether each still counts is evaluation's, from the member records it
+loads with the bindings (§5). A set bound only after the sign-in has no record of the person, so it
+counts from their next sign-in.
+
+**How an OIDC provider re-verifies a person.** OIDC has no standard way to ask whether someone is
+still in a group without a token of theirs. The provider asks for `offline_access` when its
+operator allows it, keeps the refresh token the identity provider then issues (OIDC Core §11) in
+its own volume and nowhere else, and answers a re-verification by refreshing it: a refresh refused
+means the person is no longer known there, and a new ID token without the group means they have
+left it. Where no refresh token was issued, the provider answers that it cannot tell, and a member
+it cannot tell about keeps their last confirmation, which lapses after the set binding's interval
+and grace (§5.1); the person's next sign-in is then the only thing that confirms them again.
+Refreshing is done one person at a time, and one refresh answers every set asked about that
+person within the next minute, because identity providers rotate refresh tokens and treat a
+rotated one presented again as stolen: two sets asking about one person at once would otherwise
+present the same token twice and end the person's grant at the identity provider (Finding 119 of
+`23-walkthroughs.md`).
+
+**What it does not satisfy.** A sign-in through a provider never satisfies `requires_mfa`, by the
+rule of §9, even when the identity provider's `amr` claim says it used two factors: Korpis cannot
+check what an identity provider says of its own ceremony, and a grant that requires a second
+factor routes its holder to an account. A person signed in this way has nothing for §9.3 to
+recover: if their identity provider will not sign them in, nothing here will, and its
+administrator is who restores them. A completion that fails is charged to its source (§10 of
+`10-api.md`); there is no account to count against, and the identity provider keeps its own
+count.
+
+**A recent sign-in is a sign-in again.** Where §9.6 asks for a sign-in within ten minutes, before
+approving a `korpis login` for instance, such a person confirms it is them by signing in through
+their provider again, completed with their session's access token: the control plane then marks
+that session recent instead of beginning another, and only if the provider named the same person,
+since otherwise one person's sign-in would vouch for another's session.
+
+**The CLI** signs such a person in by the device flow of §9.4, unchanged: `korpis login`, then the
+person signs in to the panel through their provider and approves the code there. So no redirect
+URI is registered at the identity provider for each machine a person uses, and the CLI's session
+is held by the same subject as the browser's.
+
+**What it costs.** The provider is in every sign-in's path, so a provider that is down refuses
+sign-in through it, failing closed (§5 of `16-extensions.md`), while accounts sign in as before. A
+pending sign-in and a provider call cost the control plane a row and a call before anyone has
+proved anything, so `BeginExternalSignIn` is limited by source as a failed attempt is (§10 of
+`10-api.md`), and pending sign-ins are forgotten when they expire. The refresh tokens an OIDC
+provider keeps are credentials at the identity provider for everyone who signed in; they never
+reach the control plane or its backups, and the provider's volume is where they leak from if they
+leak. Without them, a person removed from a group keeps what it gave them for up to the set's
+interval and grace past their last sign-in, and must sign in again within that time to keep it.
 
 ---
 

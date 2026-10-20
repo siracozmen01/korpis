@@ -531,6 +531,24 @@ Primary:
   attempts" (§5.1); and, against remote phishing, "it is RECOMMENDED to inform the user that they
   are authorizing a device" (§5.4) ([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628.html), read
   2026-10-17). How `korpis login` signs in (§9.4 of `../08-identity.md`).
+- **[V]** RFC 7636, PKCE: the verifier is 43 to 128 characters (§4.1) and the `S256` challenge is
+  the base64url of its SHA-256 (§4.2) ([RFC 7636](https://www.rfc-editor.org/rfc/rfc7636.html)).
+  RFC 9700, the OAuth security best current practice: "Public clients MUST use PKCE" against
+  authorization code injection, it is RECOMMENDED for confidential clients, and it "prevents CSRF
+  even in the presence of strong attackers" (§2.1.1); the forgery of a redirect into a victim's
+  client is §4.7; and under rotation "the authorization server cannot determine which party
+  submitted the invalid refresh token", so it revokes the active one too (§4.14.2) ([RFC
+  9700](https://www.rfc-editor.org/rfc/rfc9700.html), read 2026-10-20). Why the panel holds the
+  verifier of a sign-in through an identity provider, and why the OIDC provider refreshes one
+  person at a time (§9.7 of `../08-identity.md`, Finding 119 of `../23-walkthroughs.md`).
+- **[V]** OpenID Connect Core 1.0: the ID token validation rules, `iss` that "MUST exactly match",
+  `aud` that must contain the client, `azp` the client when present, `exp`, `iat`, and a `nonce`
+  that must be present when one was sent (§3.1.3.7); `sub` "MUST NOT exceed 255 ASCII characters"
+  (§2), and `sub` and `iss` "used together, are the only Claims that an RP can rely upon" as an
+  identifier (§5.7); `offline_access` "requests that an OAuth 2.0 Refresh Token be issued", with
+  the person's consent (§11) ([OIDC
+  Core](https://openid.net/specs/openid-connect-core-1_0.html), read 2026-10-20). What the OIDC
+  provider validates and how it re-verifies (§5.3 and §9.7 of `../08-identity.md`).
 - [Nomad: task driver plugins](https://developer.hashicorp.com/nomad/plugins/drivers), [exec2
   driver](https://developer.hashicorp.com/nomad/plugins/drivers/exec2), [qemu
   driver](https://developer.hashicorp.com/nomad/docs/deploy/task-driver/qemu)

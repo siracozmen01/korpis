@@ -398,6 +398,12 @@ down.
 > copied from that file and used elsewhere ends the session the first time both are exchanged,
 > which is how a copy is detected and also how a user who copies their own learns not to.
 
+> Designed 2026-10-20 (§9.7 of `08-identity.md`). A person who signs in through an identity
+> provider rather than with an account runs the same `korpis login`: they open the device page,
+> sign in to the panel through their provider, and approve the code, so the CLI needs no
+> redirect address registered at the identity provider and holds a session of the same subject
+> as the browser.
+
 For automation, §3 of `08-identity.md` does something RBAC systems cannot:
 
 ```

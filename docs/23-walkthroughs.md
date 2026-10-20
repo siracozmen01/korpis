@@ -1364,6 +1364,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 116 | Re-applying an ending could lose a second race, and an edit left old answers standing | §11 | `08-identity.md` §5.1 |
 | 117 | A set's required membership constrained nothing when a member acted | §11 | `08-identity.md` §5.2 |
 | 118 | A binding read as verified after its confirmation had lapsed | §43 | `08-identity.md` §5.1 |
+| 119 | Two sets asking about one person at once would spend a rotating refresh token twice | §44 | `08-identity.md` §9.7 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3713,3 +3714,56 @@ patched into `08-identity.md` §5.1
 Step 5 is where a moderator whose grant needs a second factor is refused: the call comes from the
 bot, and no second factor is the person's (§3 of `12-surface-discord.md`), so a high-authority
 grant routes to the panel by construction.
+
+## 44. A company's staff sign in through its own identity provider, and one leaves the team
+
+Written 2026-10-20, when signing in through an identity provider was designed (§9.7 of
+`08-identity.md`). A reseller's customer runs its staff's identities at its own OIDC issuer. It
+installs the OIDC provider into its organization, binds its `ops` group to an Operator role, and
+hands its staff a sign-in link. Dana, in `ops` and in `oncall`, signs in and restarts a server. At
+14:00 she moves teams and is removed from `ops`.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, §5.3 of `08-identity.md`
+had been cited by no trace, while §9.4 to §9.6, the sessions and sign-ins of accounts and
+workloads, had been cited at least thirty-three times, and this is the path every delegation
+beneath a set waits on (§5.1).
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The customer's operator, holding authority over the whole organization, installs the OIDC provider into it with the issuer, the client, `groups` as the claim, and offline access allowed | `16-extensions.md` §4.1; `08-identity.md` §5.3 |
+| 2 | They bind `set:groups/ops` at it with Operator as its template and `set:groups/oncall` with an On-call role, and issue each role's grant to its set | `08-identity.md` §3.4, §4, §5; `13-surface-cli.md` §7 |
+| 3 | They hand the staff `/sign-in/<organization>/corp`; the installation's own sign-in page does not list it | `08-identity.md` §9.7; `11-surface-web.md` §1 |
+| 4 | Dana opens it. The panel makes a verifier, begins the sign-in with its challenge, and is sent to the issuer: the control plane made the state and the nonce, and the provider built the address with `Authorize` | `08-identity.md` §9.7; `16-extensions.md` §6; `10-api.md` §10 |
+| 5 | The issuer returns her to `/sign-in/callback` with a code. The control plane spends the pending sign-in once and has the provider assert the code; the provider redeems it with the verifier, validates the ID token, and answers her `sub` and the sets `groups/ops` and `groups/oncall` | `08-identity.md` §5.2, §5.3, §9.7 |
+| 6 | The presentation is accepted once; her binding is made at first use; she is recorded confirmed in both sets, each having a binding, and the session begins, its sets written into each access token | `08-identity.md` §5, §5.1, §9.4, §9.7 |
+| 7 | She restarts a server: evaluation counts the set's grant while the set's binding and her record as its member vouch | `08-identity.md` §5, §5.1 |
+| 8 | Later that morning the re-verifications of `ops` and `oncall` fall due together, claimed by two control planes; both ask the provider about Dana ‡ | `08-identity.md` §5.1, §9.7 |
+| 9 | At 14:00 she is removed from `ops`. The set's next re-verification asks about her; the provider refreshes her token, reads a new ID token without `ops`, and answers her not present; her record is unverified, and her next restart is refused | `08-identity.md` §5.1, §9.7 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 119: Two sets asking about one person at once would spend a rotating refresh token twice.
+`CONFIRMED`**
+
+Found 2026-10-20 designing re-verification for OIDC, by asking the algebra question of step 8: what
+evaluates "is Dana still in this group", where, and with what information? The provider, holding
+her refresh token and nothing else of hers. Each set's re-verification is one call, and two sets'
+calls may run at once on two control planes, each claim keeping only its own binding from being
+asked twice. Identity providers rotate refresh tokens and take a rotated one presented again as a
+sign of theft, and, unable to tell which party presented it, revoke the active token as well (RFC
+9700 §4.14.2). Two calls refreshing Dana's token at once would present one token twice, and the
+second would end her grant at the issuer: from then on every re-verification finds her unknown
+there, and a person still in both groups loses both, through no act of anyone's. Nothing in the
+design said that a person is one token however many sets ask.
+
+**Resolution.** The provider refreshes each person one at a time, and one refresh answers every
+set asked about that person within the next minute, so a person costs the issuer at most one
+refresh a minute however many sets they are in and however many control planes ask. →
+patched into `08-identity.md` §9.7
+
+Step 6 is where a group bound only after her sign-in would give Dana nothing yet: no record of her
+as its member would have been made, and it would count from her next sign-in. Step 9 is where an
+issuer that issued no refresh token would leave her `ops` membership standing until the set's
+interval and grace past her sign-in, the cost §9.7 states.

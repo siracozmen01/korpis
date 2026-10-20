@@ -631,6 +631,17 @@ required capability that is missing, at once, is refused as `extension.incompati
 missing and what is offered. A client reads both lists from `ServerInfo` (`extension_contracts` and
 `capabilities`), which is how an extension's SDK negotiates rather than compares version numbers.
 
+**Signing in, designed 2026-10-20** (§9.7 of `08-identity.md`). `provider.identity` grows, as the
+rules above allow, by addition alone. An identity provider that can sign people in says so when it
+registers (`sign_in`), and answers `Authorize {state, nonce, code_challenge, redirect_uri}` with
+the address to send a person to; one that registered without it is never asked, so a Discord
+provider is unchanged. Its `Assert` evidence may be an authorization code, with the verifier, the
+redirect URI, and the nonce as headers. And its answer to `VerifyMembers` may name members it
+cannot tell about (`unknown`), beside those present, so that a provider holding no current
+evidence of someone, an OIDC provider without their refresh token or any SAML provider, keeps
+their last confirmation standing rather than ending it. A provider built before this answers no
+`unknown`, and every member it does not name present is ended as before.
+
 ---
 
 ## 7. What extensions cannot do

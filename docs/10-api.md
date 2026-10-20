@@ -661,6 +661,11 @@ by revoking the grant.
 > credential or a device code refused is a failed attempt of the kind `session.refresh`. Extended
 > again 2026-10-17 to `ServerInfoService.GetSignInTheme`, which reads the store for anyone (§7 of
 > `11-surface-web.md`); `GetServerInfo`, answered from memory, is still charged to no bucket.
+> Designed 2026-10-20 for signing in through an identity provider (§9.7 of `08-identity.md`):
+> `ListSignInProviders`, `BeginExternalSignIn`, and `CompleteExternalSignIn` are charged to the
+> same bucket, since the second writes a pending sign-in and calls a provider before anyone has
+> proved anything; a completion refused, a state unknown or spent, or a code the provider would
+> not assert, is a failed attempt of the kind `session.external`.
 
 > Corrected 2026-10-16 (Finding 69 in `23-walkthroughs.md`). "Each is checked first, and one that
 > opens is admitted, whatever its source has done" is right for every credential above that

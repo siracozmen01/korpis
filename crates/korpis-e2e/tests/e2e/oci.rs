@@ -69,8 +69,20 @@ async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
-    panic!("{sql} never reached {n}");
+    let held = cp.scalar::<Option<String>>(PLANS).await;
+    panic!("{sql} never reached {n}; the store held {held:?}");
 }
+
+/// Every workload's plans and the effects it was named in, said when a count never arrives.
+const PLANS: &str = "SELECT 'plans ' || coalesce(
+                       (SELECT string_agg(w.name || ' ' || p.kind || ' ' || p.status || ' '
+                                          || p.computed_at::text, '; ' ORDER BY p.computed_at)
+                          FROM plan p JOIN workload w ON w.id = p.workload_id), 'none')
+                || ' | effects ' || coalesce(
+                       (SELECT string_agg(w.name || ' ' || e.action || ' ' || e.outcome || ' '
+                                          || e.at::text || ' ' || coalesce(e.error::text, ''),
+                                          '; ' ORDER BY e.at)
+                          FROM effect e JOIN workload w ON w.id = e.workload_id), 'none')";
 
 /// The workload's one declared volume on the node, and its console stream's.
 fn volumes(node: &Node) -> (PathBuf, PathBuf) {

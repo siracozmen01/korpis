@@ -70,6 +70,18 @@ listed.
 > confirm it is them and is then made, so none is lost to the ten-minute rule (§9.4 of
 > `08-identity.md`). A browser without Web Locks (no current one lacks
 > them) falls back to a lock per tab, and there two tabs exchanging at once end the session.
+>
+> Signing in through an identity provider, designed 2026-10-20 (§9.7 of `08-identity.md`).
+> `/sign-in` offers, beside the account's ceremonies, a button for each provider
+> `ListSignInProviders` answers, and `/sign-in/<organization>/<name>`, open signed out, offers the
+> one it names. Either makes a PKCE verifier, keeps it and the path to return to in the tab's
+> session storage, begins the sign-in with its challenge, and sends the browser to the address the
+> control plane answers. `/sign-in/callback`, open signed out, completes it with the state and code
+> the identity provider returned and the verifier the tab kept, and a tab that kept none, because
+> another browser began it, completes nothing and says so. A person signed in this way has no
+> factors, so `/profile` shows them their subject, its provider, and their sessions; and where a
+> recent sign-in is asked for, approving a `korpis login` among them, confirming it is them is
+> signing in through the provider again.
 
 ---
 
