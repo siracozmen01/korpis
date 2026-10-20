@@ -5,7 +5,9 @@
 //! call; an assertion keeps its instant in milliseconds since the Unix epoch.
 
 use super::keys::{hex, unhex};
-use korpis_core::extension::identity::{Assertion, Evidence, Members, MembersAsked};
+use korpis_core::extension::identity::{
+    Assertion, Authorization, Evidence, Members, MembersAsked, SignIn,
+};
 use korpis_core::extension::{CallOutcome, CallRequest};
 use korpis_core::principal::SetName;
 use serde_json::{Value, json};
@@ -41,6 +43,10 @@ pub(crate) fn request_to(r: &CallRequest) -> Option<Value> {
         CallRequest::Assert(e) => json!({ "assert": {
             "evidence": hex(&e.body), "headers": e.headers,
         } }),
+        CallRequest::Authorize(s) => json!({ "authorize": {
+            "state": s.state, "nonce": s.nonce, "code_challenge": s.code_challenge,
+            "redirect_uri": s.redirect_uri,
+        } }),
         _ => return None,
     })
 }
@@ -58,6 +64,15 @@ pub(crate) fn request_from(v: &Value) -> Option<CallRequest> {
             require_membership: sets_from(m.get("require_membership"))?,
         }));
     }
+    if let Some(s) = v.get("authorize") {
+        let text = |k: &str| s.get(k)?.as_str().map(str::to_owned);
+        return Some(CallRequest::Authorize(SignIn {
+            state: text("state")?,
+            nonce: text("nonce")?,
+            code_challenge: text("code_challenge")?,
+            redirect_uri: text("redirect_uri")?,
+        }));
+    }
     let a = v.get("assert")?;
     let headers = a
         .get("headers")?
@@ -72,8 +87,11 @@ pub(crate) fn request_from(v: &Value) -> Option<CallRequest> {
 pub(crate) fn outcome_to(o: &CallOutcome) -> Option<Value> {
     match o {
         CallOutcome::Members(m) => {
-            Some(json!({ "members": { "set_exists": m.set_exists, "present": m.present } }))
+            let members =
+                json!({ "set_exists": m.set_exists, "present": m.present, "unknown": m.unknown });
+            Some(json!({ "members": members }))
         }
+        CallOutcome::Authorization(a) => Some(json!({ "authorization": { "url": a.url } })),
         CallOutcome::Asserted(a) => {
             let ms = a.at.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis());
             Some(json!({ "asserted": {
@@ -91,7 +109,13 @@ pub(crate) fn outcome_from(v: &Value) -> Option<CallOutcome> {
         return Some(CallOutcome::Members(Members {
             set_exists: m.get("set_exists")?.as_bool()?,
             present: strings(m.get("present"))?,
+            // Answers stored before a provider could say it cannot tell named nobody so.
+            unknown: m.get("unknown").map_or(Some(Vec::new()), |u| strings(Some(u)))?,
         }));
+    }
+    if let Some(a) = v.get("authorization") {
+        let url = a.get("url")?.as_str()?.to_owned();
+        return Some(CallOutcome::Authorization(Authorization { url }));
     }
     let a = v.get("asserted")?;
     Some(CallOutcome::Asserted(Assertion {
@@ -128,12 +152,23 @@ mod tests {
                 body: b"{\"type\":2}".to_vec(),
                 headers: BTreeMap::from([("x-signature-ed25519".into(), "ab".into())]),
             }),
+            CallRequest::Authorize(SignIn {
+                state: "s".into(),
+                nonce: "n".into(),
+                code_challenge: "c".into(),
+                redirect_uri: "https://panel.example/sign-in/callback".into(),
+            }),
         ];
         for r in asks {
             assert_eq!(request_from(&request_to(&r).unwrap()), Some(r));
         }
         let answers = [
-            CallOutcome::Members(Members { set_exists: true, present: vec!["2".into()] }),
+            CallOutcome::Authorization(Authorization { url: "https://idp.example/auth".into() }),
+            CallOutcome::Members(Members {
+                set_exists: true,
+                present: vec!["2".into()],
+                unknown: vec!["3".into()],
+            }),
             CallOutcome::Asserted(Assertion {
                 user: "1".into(),
                 sets: vec![moderators()],

@@ -30,7 +30,7 @@ echo "== licence lines (CLAUDE.md, §2 of docs/19-governance.md)"
 # own headers.
 spdx=$(git ls-files --cached --others --exclude-standard \
         'crates/*.rs' 'crates/*.sql' 'crates/*.proto' 'scripts/*.sh' 'scripts/*.mjs' \
-        'conformance/*.rs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' 'web/*.css' \
+        'conformance/*.rs' 'conformance/*.mjs' 'web/*.ts' 'web/*.tsx' 'web/*.js' 'web/*.html' 'web/*.css' \
     | grep -v '^crates/korpis-containerd/proto/' \
     | while read -r f; do
         [ -e "$f" ] || continue
@@ -106,6 +106,13 @@ if [ -z "${KORPIS_TEST_REGISTRY:-}" ]; then ./scripts/dev-registry.sh up >/dev/n
 # skipped, and said to be here, where a reader of the check sees it.
 if [ ! -d .tools/ms-playwright ]; then
     echo "Chromium not installed (scripts/test-tools.sh), the panel's browser tests are skipped"
+fi
+# The OIDC provider is tested against an independent issuer, an npm package held to the panel's
+# supply-chain policy: exact versions, no install scripts, and deny.toml's licences.
+if [ -d conformance/oidc/node_modules/oidc-provider ]; then
+    (cd conformance/oidc && pnpm licenses list --json | node ../../scripts/web-licences.mjs)
+else
+    echo "the OIDC issuer is not installed (scripts/test-tools.sh), its conformance is skipped"
 fi
 # The end-to-end tests run the `korpis` binary as a user would, built as its own package and so
 # with its own features, not the workspace's; built here first, a test's build of it is a link

@@ -104,8 +104,8 @@ pub(crate) fn request_to(r: &CallRequest) -> Value {
             // Always some for these two.
             super::keys::request_to(r).unwrap_or(Value::Null)
         }
-        CallRequest::VerifyMembers(_) | CallRequest::Assert(_) => {
-            // Always some for these two.
+        CallRequest::VerifyMembers(_) | CallRequest::Assert(_) | CallRequest::Authorize(_) => {
+            // Always some for these three.
             super::identity::request_to(r).unwrap_or(Value::Null)
         }
         CallRequest::ApplyRecords { owner, records } => json!({
@@ -155,8 +155,8 @@ pub(crate) fn outcome_to(o: &CallOutcome) -> Value {
             super::backup::outcome_to(o).unwrap_or(Value::Null)
         }
         CallOutcome::KeyMaterial { .. } => super::keys::outcome_to(o).unwrap_or(Value::Null),
-        CallOutcome::Members(_) | CallOutcome::Asserted(_) => {
-            // Always some for these two.
+        CallOutcome::Members(_) | CallOutcome::Asserted(_) | CallOutcome::Authorization(_) => {
+            // Always some for these three.
             super::identity::outcome_to(o).unwrap_or(Value::Null)
         }
         CallOutcome::RecordsApplied { created, updated, deleted } => json!({

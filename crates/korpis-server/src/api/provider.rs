@@ -99,7 +99,8 @@ fn pinged(c: &Called) -> pb::PingProviderResponse {
             | CallOutcome::Deleted { .. }
             | CallOutcome::KeyMaterial { .. }
             | CallOutcome::Members(_)
-            | CallOutcome::Asserted(_) => None.into(),
+            | CallOutcome::Asserted(_)
+            | CallOutcome::Authorization(_) => None.into(),
         },
         ..Default::default()
     }

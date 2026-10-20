@@ -68,14 +68,20 @@ fn user_of(member: &Principal) -> Option<String> {
 }
 
 /// Of the members asked about, the keys of those an answer says are in the set and of those it
-/// says are not; nothing when it did not answer.
+/// says are not; nothing when it did not answer. A member it says it cannot tell about is in
+/// neither, and keeps their last confirmation (§5.1); a set that no longer exists holds no one.
 fn members_found(outcome: &CallOutcome, delegated: &[MemberRecord]) -> (Vec<String>, Vec<String>) {
     let CallOutcome::Members(m) = outcome else { return (Vec::new(), Vec::new()) };
-    let (present, absent): (Vec<_>, Vec<_>) = delegated
-        .iter()
-        .partition(|d| user_of(&d.member).is_some_and(|u| m.set_exists && m.present.contains(&u)));
-    let keys = |v: Vec<&MemberRecord>| v.iter().map(|d| d.member.key()).collect();
-    (keys(present), keys(absent))
+    let (mut present, mut absent) = (Vec::new(), Vec::new());
+    for d in delegated {
+        let Some(user) = user_of(&d.member) else { continue };
+        if m.set_exists && m.present.contains(&user) {
+            present.push(d.member.key());
+        } else if !m.set_exists || !m.unknown.contains(&user) {
+            absent.push(d.member.key());
+        }
+    }
+    (present, absent)
 }
 
 /// What a re-verification found, and the provider's reason when it found nothing.
@@ -84,6 +90,10 @@ fn found(outcome: CallOutcome, person: Option<&str>) -> (Verification, Option<St
         (CallOutcome::Members(m), None) if m.set_exists => (Verification::Confirmed, None),
         (CallOutcome::Members(m), Some(p)) if m.present.iter().any(|q| q == p) => {
             (Verification::Confirmed, None)
+        }
+        // It holds no current evidence of the person: as if it could not be asked (§5.1).
+        (CallOutcome::Members(m), Some(p)) if m.unknown.iter().any(|q| q == p) => {
+            (Verification::Unanswered, Some("identity.unknown".into()))
         }
         (CallOutcome::Members(_), _) => (Verification::Ended, None),
         (CallOutcome::Failed(f), _) => (Verification::Unanswered, Some(f.reason)),
@@ -242,5 +252,46 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(IdentityBinding, Option<String>), AppError> {
         let (binding, permit) = self.binding_to_write(caller, id).await?;
         self.reverify(binding, Some((caller, permit.grant))).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use korpis_core::extension::identity::Members;
+
+    fn record(user: &str) -> MemberRecord {
+        MemberRecord {
+            binding: Uuid::nil(),
+            member: Principal::ExternalUser { provider: "org/corp".into(), user: user.into() },
+            state: BindingState::Verified,
+            last_verified_at: None,
+        }
+    }
+
+    fn members(set_exists: bool, present: &[&str], unknown: &[&str]) -> CallOutcome {
+        let owned = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect();
+        CallOutcome::Members(Members {
+            set_exists,
+            present: owned(present),
+            unknown: owned(unknown),
+        })
+    }
+
+    #[test]
+    fn a_member_the_provider_cannot_tell_about_is_neither_confirmed_nor_ended() {
+        let asked = [record("ann"), record("bob"), record("cat")];
+        let key = |u: &str| record(u).member.key();
+        let (present, absent) = members_found(&members(true, &["ann"], &["bob"]), &asked);
+        assert_eq!((present, absent), (vec![key("ann")], vec![key("cat")]));
+        let (present, absent) = members_found(&members(false, &["ann"], &["bob"]), &asked);
+        assert!(present.is_empty(), "a set that is gone holds no one");
+        assert_eq!(absent.len(), 3);
+        let (state, reason) = found(members(true, &[], &["ann"]), Some("ann"));
+        assert_eq!(
+            (state, reason.as_deref()),
+            (Verification::Unanswered, Some("identity.unknown"))
+        );
+        assert_eq!(found(members(true, &[], &[]), Some("ann")).0, Verification::Ended);
     }
 }

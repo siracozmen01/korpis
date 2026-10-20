@@ -637,10 +637,13 @@ registers (`sign_in`), and answers `Authorize {state, nonce, code_challenge, red
 the address to send a person to; one that registered without it is never asked, so a Discord
 provider is unchanged. Its `Assert` evidence may be an authorization code, with the verifier, the
 redirect URI, and the nonce as headers. And its answer to `VerifyMembers` may name members it
-cannot tell about (`unknown`), beside those present, so that a provider holding no current
-evidence of someone, an OIDC provider without their refresh token or any SAML provider, keeps
-their last confirmation standing rather than ending it. A provider built before this answers no
-`unknown`, and every member it does not name present is ended as before.
+cannot tell about (`unknown`), beside those present, so that a provider holding no current evidence
+of someone, an OIDC provider without their refresh token or any SAML provider, keeps their last
+confirmation standing rather than ending it. A provider built before this answers no `unknown`, and
+every member it does not name present is ended as before. Built 2026-10-20 in the contract, the SDK
+(`IdentityProvider::authorize`, refused by default, and `Registration::sign_in`), and the control
+plane's re-verification, which keeps an `unknown` member's record as it was and holds a person's
+own binding unknown to the provider as if it could not be asked.
 
 ---
 

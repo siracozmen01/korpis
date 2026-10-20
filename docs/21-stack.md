@@ -364,6 +364,17 @@ turns on a `serde_json` feature that changes how JSON maps are ordered, and in t
 would have changed that for every crate's tests, so that they no longer tested what production
 runs.
 
+The OpenID Connect provider (§5.3 of `08-identity.md`) is held to the same standard. Its ID tokens
+are verified by `ring` too, RS256, ES256, and EdDSA from the issuer's published keys, rather than
+by a JWT library that would bring a second cryptographic stack and an algorithm list wider than
+the three it accepts. It is tested against an independent issuer, panva's `oidc-provider`, which
+is OpenID Certified, run as a host process from a package of its own (`conformance/oidc`) whose
+lockfile, exact versions, refused install scripts, and licences are held to the panel's policy:
+codes with PKCE, ID tokens in each algorithm, and refresh tokens it rotates and revokes on reuse,
+which is how a test proved that two sets asking about one person at once would otherwise have
+ended that person's grant (Finding 119 of `23-walkthroughs.md`). Only who signs in is the test's
+own: the issuer's login and consent are answered by a script, not a form.
+
 ---
 
 ## 10. Open questions

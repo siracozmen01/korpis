@@ -89,6 +89,7 @@ async fn serve(h: &Harness, x: &Installed, as_name: &str, provider: Publishing) 
         name: as_name.into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(connection, registration, Dns(provider)));
     let mut registered = provider.registered();

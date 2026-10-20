@@ -101,6 +101,7 @@ async fn every_reader_is_given_the_published_address_of_the_endpoint_the_target_
         name: "disk".into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(connection, registration, Backup(Serving)));
     let mut registered = provider.registered();

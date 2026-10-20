@@ -109,6 +109,7 @@ async fn kms_serving(h: &Harness, service: Service) {
         name: "vault".into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(connection, registration, Keys(service)));
     let mut registered = provider.registered();

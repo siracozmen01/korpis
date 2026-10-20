@@ -64,6 +64,23 @@ async fn it_does_the_same_through_the_relay_its_node_serves() {
     serves_and_consumes(&h, 42, Some(relay(dir.path(), &h))).await;
 }
 
+/// The registered `cloudflare` provider answers the control plane's ping, through the SDK.
+async fn answers_a_ping(h: &Harness) {
+    let ping = pb::PingProviderRequest {
+        organization: h.root_org(),
+        r#type: pb::ProviderType::PROVIDER_TYPE_DNS.into(),
+        name: "cloudflare".into(),
+        ..Default::default()
+    };
+    let pinged = pb::ProviderServiceClient::new(h.http.clone(), h.root())
+        .ping_provider(ping)
+        .await
+        .unwrap()
+        .into_owned();
+    assert!(pinged.error.as_option().is_none(), "the SDK answers a ping: {pinged:?}");
+    assert_eq!(pinged.version, "1.0.0");
+}
+
 /// Installs the extension as the `n`th node's, and serves and consumes as it, through `relay` if
 /// there is one.
 async fn serves_and_consumes(h: &Harness, n: u8, relay: Option<PathBuf>) {
@@ -83,6 +100,7 @@ async fn serves_and_consumes(h: &Harness, n: u8, relay: Option<PathBuf>) {
         name: "cloudflare".into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(Arc::clone(&connection), registration, Unsupported));
     let mut registered = provider.registered();
@@ -92,19 +110,7 @@ async fn serves_and_consumes(h: &Harness, n: u8, relay: Option<PathBuf>) {
         .await
         .expect("registered within ten seconds")
         .unwrap();
-    let ping = pb::PingProviderRequest {
-        organization: h.root_org(),
-        r#type: pb::ProviderType::PROVIDER_TYPE_DNS.into(),
-        name: "cloudflare".into(),
-        ..Default::default()
-    };
-    let pinged = pb::ProviderServiceClient::new(h.http.clone(), h.root())
-        .ping_provider(ping)
-        .await
-        .unwrap()
-        .into_owned();
-    assert!(pinged.error.as_option().is_none(), "the SDK answers a ping: {pinged:?}");
-    assert_eq!(pinged.version, "1.0.0");
+    answers_a_ping(h).await;
 
     let (tx, mut rx) = mpsc::unbounded_channel();
     let consumer = Arc::new(Consumer::new(Arc::clone(&connection), Forward(tx)));

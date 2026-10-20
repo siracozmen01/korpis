@@ -1,0 +1,32 @@
+[package]
+name = "korpis-idp-oidc"
+description = "Korpis's first-party OpenID Connect identity provider: signs people in through an issuer and re-verifies their groups"
+license = "AGPL-3.0-or-later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md): the
+# SDK and the wire contract, and nothing else of ours. scripts/check-layers.sh holds it to that.
+[dependencies]
+base64 = "0.22"
+futures = "0.3"
+korpis-extension = { path = "../korpis-extension" }
+korpis-proto = { workspace = true }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2", "form", "json"] }
+ring = "0.17"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+serde_json = "1"
+tokio = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[dev-dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "cookies"] }
+tempfile = "3"

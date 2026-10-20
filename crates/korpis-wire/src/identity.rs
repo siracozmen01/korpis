@@ -3,7 +3,7 @@
 //! Identity provider calls on the wire (§5 of docs/08-identity.md).
 
 use crate::{time, timestamp};
-use korpis_core::extension::identity::{Assertion, Evidence, Members, MembersAsked};
+use korpis_core::extension::identity::{Assertion, Authorization, Evidence, Members, MembersAsked};
 use korpis_core::extension::{CallOutcome, CallRequest};
 use korpis_core::principal::SetName;
 use korpis_proto::korpis::v1 as pb;
@@ -37,6 +37,13 @@ pub fn request_to_pb(r: &CallRequest) -> Option<Request> {
             headers: e.headers.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
             ..Default::default()
         })),
+        CallRequest::Authorize(s) => Request::Authorize(Box::new(pb::Authorize {
+            state: s.state.clone(),
+            nonce: s.nonce.clone(),
+            code_challenge: s.code_challenge.clone(),
+            redirect_uri: s.redirect_uri.clone(),
+            ..Default::default()
+        })),
         _ => return None,
     })
 }
@@ -46,9 +53,13 @@ pub fn request_to_pb(r: &CallRequest) -> Option<Request> {
 #[must_use]
 pub fn outcome_from_pb(o: &Outcome) -> Option<CallOutcome> {
     match o {
+        Outcome::Authorization(a) => {
+            Some(CallOutcome::Authorization(Authorization { url: a.url.clone() }))
+        }
         Outcome::Members(m) => Some(CallOutcome::Members(Members {
             set_exists: m.set_exists,
             present: m.present.clone(),
+            unknown: m.unknown.clone(),
         })),
         Outcome::Assertion(a) => {
             let at = a.at.as_option().and_then(|t| time("assertion.at", t).ok())?;

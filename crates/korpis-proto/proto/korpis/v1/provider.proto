@@ -58,6 +58,9 @@ message Register {
   string version = 3;
   // How many calls it accepts at once on this stream; the control plane never sends more.
   uint32 concurrency = 4;
+  // identity: it signs people in, answering Authorize (§9.7 of docs/08-identity.md). A provider
+  // that registered without it is never asked to.
+  bool sign_in = 5;
 }
 
 message Registered {
@@ -86,6 +89,8 @@ message ProviderCall {
     VerifyMembers verify_members = 27;
     // identity: who presented this evidence, and which sets they are in.
     Assert assert = 28;
+    // identity, sign_in: where to send a person to sign in.
+    Authorize authorize = 29;
   }
 }
 
@@ -103,6 +108,7 @@ message CallResult {
     KeyMaterial key_material = 25;
     Members members = 26;
     Assertion assertion = 27;
+    Authorization authorization = 28;
   }
 }
 
@@ -398,6 +404,10 @@ message Members {
   // Those of the members asked about who are confirmed: in the set and every required one, or,
   // without a set, known to the provider.
   repeated string present = 2;
+  // Those of the members asked about the provider holds no current evidence of, neither present
+  // nor gone: each keeps their last confirmation, to lapse on its own (§5.1 of
+  // docs/08-identity.md). Every member named neither here nor in `present` is gone.
+  repeated string unknown = 3;
 }
 
 // What a person presented to an identity provider's surface, passed on as received: a signed
@@ -421,4 +431,22 @@ message Assertion {
   string presentation = 3;
   // When the person presented it, by the provider's evidence.
   google.protobuf.Timestamp at = 4;
+}
+
+// A sign-in the control plane began (§9.7 of docs/08-identity.md): the provider answers where to
+// send the person, carrying these as its protocol carries them.
+message Authorize {
+  // Opaque, made by the control plane; returned with the person.
+  string state = 1;
+  // Opaque, made by the control plane; asserted back inside what the person returns with.
+  string nonce = 2;
+  // The PKCE challenge, S256 (RFC 7636 §4.2), of a verifier the control plane never sees.
+  string code_challenge = 3;
+  // Where the person is sent back to: the panel's callback.
+  string redirect_uri = 4;
+}
+
+message Authorization {
+  // An https URL at the identity provider.
+  string url = 1;
 }

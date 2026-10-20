@@ -12,7 +12,8 @@
 # database. Chromium, for the panel's browser tests, is the build the pinned @playwright/test names,
 # installed by Playwright's own installer into ./.tools/ms-playwright: that installer fetches it
 # from Playwright's download host and checks nothing against a digest pinned here, which is the
-# trust the browser tests place in the Playwright release itself. A test whose server is not
+# trust the browser tests place in the Playwright release itself. The OIDC issuer, panva's
+# oidc-provider, is installed from conformance/oidc's lockfile. A test whose server is not
 # installed says so and does not run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -73,6 +74,10 @@ if [ "$(cat "$TOOLS/openbao.version" 2>/dev/null)" != "$OPENBAO_VERSION" ]; then
     rm -rf "$tmp"
     echo "$OPENBAO_VERSION" > "$TOOLS/openbao.version"
 fi
+# The independent OpenID Connect issuer the OIDC provider is tested against, panva's oidc-provider,
+# installed from its lockfile, every package checked against the integrity it records, with no
+# install scripts run (conformance/oidc/.npmrc).
+(cd conformance/oidc && pnpm install --frozen-lockfile --ignore-scripts --reporter=silent)
 PLAYWRIGHT_VERSION=$(node -p 'require("./web/package.json").devDependencies["@playwright/test"]')
 if [ "$(cat "$TOOLS/playwright.version" 2>/dev/null)" != "$PLAYWRIGHT_VERSION" ]; then
     (cd web && pnpm install --frozen-lockfile --ignore-scripts --reporter=silent \

@@ -39,6 +39,9 @@ pub struct Registration {
     pub version: String,
     /// How many calls it takes at once, 1 to 1024.
     pub concurrency: u32,
+    /// For an identity provider: it signs people in, answering `Authorize` (§9.7 of
+    /// docs/08-identity.md). Every other kind leaves it false.
+    pub sign_in: bool,
 }
 
 /// Answers calls. A liveness check never reaches it: the SDK answers that itself.
@@ -161,6 +164,7 @@ impl<S: CredentialSource, H: Handler> Provider<S, H> {
             name: r.name.clone(),
             version: r.version.clone(),
             concurrency: r.concurrency,
+            sign_in: r.sign_in,
             ..Default::default()
         };
         let first = Up::Register(Box::new(register));

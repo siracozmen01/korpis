@@ -50,6 +50,7 @@ async fn main() -> ExitCode {
         name: config.name,
         version: env!("CARGO_PKG_VERSION").to_owned(),
         concurrency: config.concurrency,
+        sign_in: false,
     };
     let connection = Arc::new(Connection::new(IdentitySocket::default()));
     let e = Provider::new(connection, registration, Backup(target)).run().await;

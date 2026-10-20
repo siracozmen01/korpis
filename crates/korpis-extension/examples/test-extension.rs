@@ -40,6 +40,7 @@ async fn main() {
         name,
         version: env!("CARGO_PKG_VERSION").to_owned(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(Arc::clone(&connection), registration, Unsupported));
     let serving = Arc::clone(&provider);

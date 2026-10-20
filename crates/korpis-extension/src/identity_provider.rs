@@ -6,8 +6,9 @@
 //! still in it (re-verification, §5.1), and who presented a piece of evidence and which of its
 //! sets they are in (§5.2). Whatever it says is believed for its own subjects and nobody else's,
 //! so it says nothing it has not verified: a signature checked, a timestamp within five minutes,
-//! a presentation it names so the control plane accepts it once. Requires the
-//! `provider.identity` capability.
+//! a presentation it names so the control plane accepts it once. A provider that signs people
+//! in (§9.7) answers a third, where to send a person, and registers with `sign_in`. Requires
+//! the `provider.identity` capability.
 
 pub use crate::provider::Failure;
 use crate::provider::{Handler, Outcome, Unsupported};
@@ -44,6 +45,10 @@ pub struct Answer {
     pub set_exists: bool,
     /// The people confirmed, only of those asked about.
     pub present: Vec<String>,
+    /// The people it holds no current evidence of, neither confirmed nor gone: each keeps
+    /// their last confirmation, to lapse on its own. Everyone asked about and named in neither
+    /// list is gone.
+    pub unknown: Vec<String>,
 }
 
 /// Who presented a piece of evidence.
@@ -59,6 +64,20 @@ pub struct Asserted {
     pub at: SystemTime,
 }
 
+/// A sign-in the control plane began, to be carried to the identity provider as its protocol
+/// carries these.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignInAsked {
+    /// Returned with the person.
+    pub state: String,
+    /// Asserted back inside what the person returns with.
+    pub nonce: String,
+    /// The PKCE challenge, `S256`.
+    pub code_challenge: String,
+    /// Where the person is sent back to.
+    pub redirect_uri: String,
+}
+
 /// An identity provider.
 pub trait IdentityProvider: Send + Sync + 'static {
     /// Answers a re-verification.
@@ -70,6 +89,20 @@ pub trait IdentityProvider: Send + Sync + 'static {
         evidence: Vec<u8>,
         headers: BTreeMap<String, String>,
     ) -> impl Future<Output = Result<Asserted, Failure>> + Send;
+
+    /// Where to send a person to sign in, an `https` URL; refused unless the provider signs
+    /// people in and registered with `sign_in`.
+    fn authorize(
+        &self,
+        asked: SignInAsked,
+    ) -> impl Future<Output = Result<String, Failure>> + Send {
+        let _ = asked;
+        std::future::ready(Err(Failure {
+            reason: "provider.unsupported".into(),
+            message: "this provider signs nobody in".into(),
+            retryable: false,
+        }))
+    }
 }
 
 /// Serves an [`IdentityProvider`] as a provider's [`Handler`].
@@ -113,6 +146,7 @@ impl<P: IdentityProvider> Handler for Identity<P> {
                     Outcome::Members(Box::new(pb::Members {
                         set_exists: a.set_exists,
                         present: a.present,
+                        unknown: a.unknown,
                         ..Default::default()
                     }))
                 })
@@ -120,6 +154,20 @@ impl<P: IdentityProvider> Handler for Identity<P> {
             Some(Request::Assert(a)) => {
                 let headers = a.headers.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
                 self.0.assert(a.evidence.clone(), headers).await.map(|a| assertion(&a))
+            }
+            Some(Request::Authorize(a)) => {
+                let asked = SignInAsked {
+                    state: a.state.clone(),
+                    nonce: a.nonce.clone(),
+                    code_challenge: a.code_challenge.clone(),
+                    redirect_uri: a.redirect_uri.clone(),
+                };
+                self.0.authorize(asked).await.map(|url| {
+                    Outcome::Authorization(Box::new(pb::Authorization {
+                        url,
+                        ..Default::default()
+                    }))
+                })
             }
             _ => return Unsupported.call(call).await,
         };
@@ -138,7 +186,8 @@ mod tests {
         fn verify(&self, asked: Asked) -> impl Future<Output = Result<Answer, Failure>> + Send {
             let mods = Set { realm: "guild".into(), member_of: "mods".into() };
             let present = asked.members.into_iter().filter(|m| m == "ann").collect();
-            std::future::ready(Ok(Answer { set_exists: asked.set == Some(mods), present }))
+            let set_exists = asked.set == Some(mods);
+            std::future::ready(Ok(Answer { set_exists, present, unknown: Vec::new() }))
         }
 
         fn assert(
@@ -199,5 +248,12 @@ mod tests {
             panic!("an unverified presentation is refused");
         };
         assert_eq!(e.reason, "identity.unverified");
+        let authorize = pb::Authorize { state: "s".into(), ..Default::default() };
+        let Outcome::Error(e) =
+            Identity(Guild).call(call(Request::Authorize(Box::new(authorize)))).await
+        else {
+            panic!("a provider that signs nobody in refuses to authorize");
+        };
+        assert_eq!(e.reason, "provider.unsupported");
     }
 }

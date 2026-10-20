@@ -86,6 +86,7 @@ async fn serve(socket: PathBuf, minio: &Minio) {
         name: "s3".into(),
         version: VERSION.into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(connection, registration, Backup(real(minio))));
     let mut registered = provider.registered();

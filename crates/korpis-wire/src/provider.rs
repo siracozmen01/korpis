@@ -80,7 +80,7 @@ pub fn call_to_pb(c: &ProviderCall) -> pb::ProviderCall {
                 None => Request::Ping(Box::default()),
             }
         }
-        CallRequest::VerifyMembers(_) | CallRequest::Assert(_) => {
+        CallRequest::VerifyMembers(_) | CallRequest::Assert(_) | CallRequest::Authorize(_) => {
             match crate::identity::request_to_pb(&c.request) {
                 Some(r) => r,
                 None => Request::Ping(Box::default()),
@@ -116,7 +116,7 @@ pub fn outcome_from_pb(r: &pb::CallResult) -> CallOutcome {
             o @ (Outcome::ObjectAccess(_) | Outcome::ObjectList(_) | Outcome::ObjectsDeleted(_)),
         ) => crate::backup::outcome_from_pb(o)
             .unwrap_or(CallOutcome::Failed(CallFailure::malformed())),
-        Some(o @ (Outcome::Members(_) | Outcome::Assertion(_))) => {
+        Some(o @ (Outcome::Members(_) | Outcome::Assertion(_) | Outcome::Authorization(_))) => {
             crate::identity::outcome_from_pb(o)
                 .unwrap_or(CallOutcome::Failed(CallFailure::malformed()))
         }

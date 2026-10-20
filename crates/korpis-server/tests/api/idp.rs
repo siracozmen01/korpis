@@ -35,7 +35,7 @@ impl IdentityProvider for Directory {
         let exists = self.present.load(Ordering::SeqCst) && asked.set == Some(admins);
         let left = LEFT.lock().map(|l| l.clone()).unwrap_or_default();
         let present = asked.members.into_iter().filter(|m| !left.contains(m)).collect();
-        std::future::ready(Ok(Answer { set_exists: exists, present }))
+        std::future::ready(Ok(Answer { set_exists: exists, present, unknown: Vec::new() }))
     }
 
     /// Evidence is `<user>:<presentation>[:<seconds ago>]`; `eve` is nobody.
@@ -94,6 +94,7 @@ pub async fn serving(
         name: "corp".into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let directory = Identity(Directory { present: Arc::clone(present) });
     let provider = Arc::new(Provider::new(connection, registration, directory));

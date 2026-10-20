@@ -53,7 +53,11 @@ and tested against a real OpenBao run as a host process. The third, added 2026-1
 target for a disk, `korpis-target-fs` (§5.6 of `06-storage.md`): its own volume served as the S3
 subset a job uses, over TLS with a certificate every reader pins, and with access it mints per job,
 scoped as the S3 target's is; it is held to the same rule, and is the first of the set run in a
-container on a real node in its tests.
+container on a real node in its tests. The fourth, added 2026-10-20, is the OpenID Connect
+identity provider, `korpis-idp-oidc` (§5.3 and §9.7 of `08-identity.md`): people sent to their
+issuer with PKCE, their ID tokens validated by OIDC Core §3.1.3.7, and their groups re-verified
+with refresh tokens kept in its own volume, one person at a time. It is held to the same rule,
+and tested against an independent issuer (§9 of `21-stack.md`).
 
 Four of these are worth explaining, because they are the ones our architecture makes possible and
 the incumbents structurally cannot match.

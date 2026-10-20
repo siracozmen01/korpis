@@ -76,6 +76,9 @@ pub enum CallRequest {
     VerifyMembers(super::identity::MembersAsked),
     /// `identity`: who presented this evidence (§5.2 of docs/08-identity.md).
     Assert(super::identity::Evidence),
+    /// `identity`, for a provider that signs people in: where to send a person (§9.7 of
+    /// docs/08-identity.md).
+    Authorize(super::identity::SignIn),
     /// `step`: resolve an install step (§4 of docs/09-recipes.md).
     RunStep {
         /// The step kind, `<publisher>/<step>`.
@@ -142,6 +145,8 @@ pub enum CallOutcome {
     Members(super::identity::Members),
     /// The answer to [`CallRequest::Assert`].
     Asserted(super::identity::Assertion),
+    /// The answer to [`CallRequest::Authorize`].
+    Authorization(super::identity::Authorization),
     /// The provider, or the control plane on its behalf, failed the call.
     Failed(CallFailure),
 }
@@ -175,6 +180,7 @@ impl CallRequest {
             }
             (Self::VerifyMembers(asked), CallOutcome::Members(m)) => asked.answered_by(m),
             (Self::Assert(_), CallOutcome::Asserted(a)) => a.well_formed(),
+            (Self::Authorize(_), CallOutcome::Authorization(a)) => a.well_formed(),
             _ => false,
         }
     }

@@ -966,6 +966,24 @@ provider is configured to read its claim, and what it gives lapses member by mem
 that leaves groups out of a token past some count names none, and the person then holds no set:
 the failure is closed, and the operator configures fewer groups into the claim.
 
+**OIDC, as built.** Added 2026-10-20 (`crates/korpis-idp-oidc`), as designed above and with four
+things the design left unsaid. An authorization that asks for offline access also asks
+`prompt=consent`, which OIDC Core §11 requires and without which an issuer may drop the scope. A
+token is taken until a minute past its `exp`, for clocks that differ by a little; `iat` is held to
+the five minutes of skew. A refresh the issuer answers without an ID token says the person is
+still known and nothing of their groups, so a set's re-verification counts them as one the
+provider cannot tell about rather than as gone. And a code redeemed twice is refused by the
+issuer, which then revokes what the first redemption gave (RFC 6749 §4.1.2), so a replayed
+callback reaching the provider would end the person's refresh token: the control plane spends the
+sign-in's state before it ever asks for the code (§9.7), and a replay is refused there. The
+configuration is the provider's environment: `KORPIS_OIDC_ISSUER`, `KORPIS_OIDC_CLIENT_ID` and
+`KORPIS_OIDC_CLIENT_SECRET`, `KORPIS_OIDC_GROUPS_CLAIM`, `KORPIS_OIDC_SCOPES`, and
+`KORPIS_OIDC_OFFLINE` with `KORPIS_OIDC_STATE_DIR`, the volume refresh tokens are kept in, each
+in a file named by the SHA-256 of the person's `sub` and readable by the provider alone. It is
+tested against an independent issuer (§9 of `21-stack.md`). Until the control plane's half is
+built (Phase 2 of `20-roadmap.md` §4), nothing asks it to authorize, and a sign-in through it
+cannot yet begin.
+
 **SAML's shape.** SAML takes the same two calls and different evidence. `Authorize` answers an
 `AuthnRequest` for the HTTP-Redirect binding whose identifier is derived from the nonce and whose
 `RelayState` is the state. The identity provider answers by HTTP-POST to the control plane's own

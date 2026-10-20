@@ -36,6 +36,10 @@ pub struct Members {
     pub set_exists: bool,
     /// The people confirmed.
     pub present: Vec<String>,
+    /// The people the provider holds no current evidence of: each keeps their last
+    /// confirmation, to lapse on its own (§5.1). Every one asked about and named in neither
+    /// list is gone.
+    pub unknown: Vec<String>,
 }
 
 /// Evidence a person presented to a provider's surface, passed on as received (§5.2).
@@ -76,7 +80,45 @@ impl MembersAsked {
     /// Whether `m` answers it: it names only people asked about.
     #[must_use]
     pub fn answered_by(&self, m: &Members) -> bool {
-        m.present.len() <= self.members.len() && m.present.iter().all(|p| self.members.contains(p))
+        let asked = |v: &[String]| v.iter().all(|p| self.members.contains(p));
+        m.present.len() + m.unknown.len() <= self.members.len()
+            && asked(&m.present)
+            && asked(&m.unknown)
+            && !m.unknown.iter().any(|u| m.present.contains(u))
+    }
+}
+
+/// A sign-in the control plane began (§9.7 of docs/08-identity.md), which a provider that signs
+/// people in answers with where to send the person.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignIn {
+    /// Opaque; returned with the person.
+    pub state: String,
+    /// Opaque; asserted back inside what the person returns with.
+    pub nonce: String,
+    /// The PKCE challenge of a verifier only the panel holds, `S256`.
+    pub code_challenge: String,
+    /// The panel's callback.
+    pub redirect_uri: String,
+}
+
+/// Where a person is sent to sign in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Authorization {
+    /// An `https` URL at the identity provider.
+    pub url: String,
+}
+
+impl Authorization {
+    /// Whether it can be sent to a browser: an `https` URL with a host, and no longer than a
+    /// browser keeps.
+    #[must_use]
+    pub fn well_formed(&self) -> bool {
+        const MAX_URL: usize = 8 << 10;
+        self.url.len() <= MAX_URL
+            && self.url.strip_prefix("https://").is_some_and(|rest| {
+                rest.split(['/', '?', '#']).next().is_some_and(|h| !h.is_empty())
+            })
     }
 }
 

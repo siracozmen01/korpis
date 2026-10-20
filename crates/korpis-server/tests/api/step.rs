@@ -109,6 +109,7 @@ pub async fn serving(h: &Harness) -> pb::Extension {
         name: "valve/steam.app".into(),
         version: "1.0.0".into(),
         concurrency: 4,
+        sign_in: false,
     };
     let provider = Arc::new(Provider::new(connection, registration, Step(Steam)));
     let mut registered = provider.registered();
