@@ -46,6 +46,7 @@ mod enroll;
 mod epoch_fence;
 mod events;
 mod extensions;
+mod external_sign_in;
 mod failures;
 mod identity;
 mod idp;

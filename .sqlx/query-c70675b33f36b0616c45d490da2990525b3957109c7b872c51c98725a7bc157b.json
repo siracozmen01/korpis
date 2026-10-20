@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pending_sign_in WHERE state_digest = $1 AND expires_at > $2\n             RETURNING organization_id, provider, nonce, code_challenge, begun_at, expires_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "provider",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "provider"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "nonce",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "nonce"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "code_challenge",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "code_challenge"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "begun_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "begun_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c70675b33f36b0616c45d490da2990525b3957109c7b872c51c98725a7bc157b"
+}

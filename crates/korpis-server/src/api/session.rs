@@ -194,4 +194,20 @@ impl pb::SessionService for Api {
         self.app.decide_device(&caller, code, false).await.map_err(error::from_app)?;
         Response::ok(pb::DenyDeviceResponse::default())
     }
+
+    async fn list_sign_in_providers(
+        &self,
+        _ctx: RequestContext,
+        _request: ServiceRequest<'_, pb::ListSignInProvidersRequest>,
+    ) -> ServiceResult<pb::ListSignInProvidersResponse> {
+        Response::ok(self.sign_in_providers().await?)
+    }
+
+    async fn begin_external_sign_in(
+        &self,
+        _ctx: RequestContext,
+        request: ServiceRequest<'_, pb::BeginExternalSignInRequest>,
+    ) -> ServiceResult<pb::BeginExternalSignInResponse> {
+        Response::ok(Api::begin_external_sign_in(self, &request.to_owned_message()).await?)
+    }
 }

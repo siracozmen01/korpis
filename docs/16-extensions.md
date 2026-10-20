@@ -644,6 +644,12 @@ every member it does not name present is ended as before. Built 2026-10-20 in th
 (`IdentityProvider::authorize`, refused by default, and `Registration::sign_in`), and the control
 plane's re-verification, which keeps an `unknown` member's record as it was and holds a person's
 own binding unknown to the provider as if it could not be asked.
+The control plane keeps `sign_in` with the registration, refuses it from a provider of any other
+type, and shows it in `ListProviders`. A sign-in's calls carry secrets the stored queue would
+otherwise keep for the hour: the state and nonce of an `Authorize`, the code and verifier of an
+`Assert`. The control plane empties them from the stored call as soon as it has the answer, and
+the sweep empties those of a call whose caller died first within a minute, as it does an access
+answer's secret (§5.6 of `06-storage.md`).
 
 ---
 

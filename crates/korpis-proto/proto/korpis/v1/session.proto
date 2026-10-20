@@ -11,8 +11,9 @@ import "google/protobuf/timestamp.proto";
 // control plane's own name, so no script can read it, no other site's request carries it, and no
 // sibling name can set one; the CLI's travels in the request and response bodies instead.
 // Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
-// is a failed attempt (§10 of docs/10-api.md); the rest are called with an access token, as any
-// call is.
+// is a failed attempt (§10 of docs/10-api.md); ListSignInProviders and BeginExternalSignIn take
+// none at all, and are charged to their source; the rest are called with an access token, as
+// any call is.
 service SessionService {
   // Exchanges the refresh credential for an access token, rotating it: the cookie is replaced,
   // or, for a credential sent in the body, the next one is answered in the body. A credential
@@ -48,6 +49,17 @@ service SessionService {
   rpc ApproveDevice(ApproveDeviceRequest) returns (ApproveDeviceResponse);
   // Denies a pending device authorization.
   rpc DenyDevice(DenyDeviceRequest) returns (DenyDeviceResponse);
+  // The identity providers the installation's sign-in page offers: those of its root
+  // organization that sign people in (§9.7 of docs/08-identity.md). A provider anywhere else is
+  // reached by its own sign-in link.
+  rpc ListSignInProviders(ListSignInProvidersRequest) returns (ListSignInProvidersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Begins a sign-in through an identity provider for a panel that keeps the PKCE verifier of
+  // the challenge: where to send the person. UNAVAILABLE without a public URL, there being no
+  // panel to return to, and while the provider cannot answer; NOT_FOUND for a provider that does
+  // not sign people in.
+  rpc BeginExternalSignIn(BeginExternalSignInRequest) returns (BeginExternalSignInResponse);
 }
 
 message ExchangeRequest {
@@ -172,3 +184,33 @@ message DenyDeviceRequest {
 }
 
 message DenyDeviceResponse {}
+
+message ListSignInProvidersRequest {}
+
+// An identity provider a person may sign in through.
+message SignInProvider {
+  // Its organization, as `org_…`.
+  string organization = 1;
+  // Its name there.
+  string name = 2;
+}
+
+message ListSignInProvidersResponse {
+  repeated SignInProvider providers = 1;
+}
+
+message BeginExternalSignInRequest {
+  // The provider's organization, as `org_…`.
+  string organization = 1;
+  // The provider's name there.
+  string provider = 2;
+  // The S256 challenge (RFC 7636 §4.2) of the verifier the panel keeps.
+  string code_challenge = 3;
+}
+
+message BeginExternalSignInResponse {
+  // Where to send the person: an https address at the identity provider.
+  string url = 1;
+  // When the sign-in stops being completed.
+  google.protobuf.Timestamp expires_at = 2;
+}

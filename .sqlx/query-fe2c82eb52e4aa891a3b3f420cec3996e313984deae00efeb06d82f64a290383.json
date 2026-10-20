@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE provider_call\n                  SET request = CASE\n                        WHEN request ? 'authorize' THEN jsonb_set(jsonb_set(request,\n                             '{authorize,state}', '\"\"'), '{authorize,nonce}', '\"\"')\n                        ELSE jsonb_set(jsonb_set(request,\n                             '{assert,evidence}', '\"\"'), '{assert,headers}', '{}')\n                      END\n                WHERE finished_at < $1\n                  AND ((request #>> '{authorize,state}') <> ''\n                       OR (request #> '{assert,headers}') ? 'code_verifier')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe2c82eb52e4aa891a3b3f420cec3996e313984deae00efeb06d82f64a290383"
+}

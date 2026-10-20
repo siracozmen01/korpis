@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/session.proto.
  */
 export const file_korpis_v1_session: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvc2Vzc2lvbi5wcm90bxIJa29ycGlzLnYxIiIKD0V4Y2hhbmdlUmVxdWVzdBIPCgdyZWZyZXNoGAEgASgJItsBChBFeGNoYW5nZVJlc3BvbnNlEhQKDGFjY2Vzc190b2tlbhgBIAEoCRI1ChFhY2Nlc3NfZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHYWNjb3VudBgDIAEoCRIPCgdzZXNzaW9uGAQgASgJEg8KB3JlZnJlc2gYBSABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdiaW5kaW5nGAcgASgJIiEKDlNpZ25PdXRSZXF1ZXN0Eg8KB3JlZnJlc2gYASABKAkiEQoPU2lnbk91dFJlc3BvbnNlIhUKE0xpc3RTZXNzaW9uc1JlcXVlc3Qi6gEKB1Nlc3Npb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3VzZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnVzZXJfYWdlbnQYBiABKAkSDgoGc291cmNlGAcgASgJEg8KB2N1cnJlbnQYCCABKAgiPAoUTGlzdFNlc3Npb25zUmVzcG9uc2USJAoIc2Vzc2lvbnMYASADKAsyEi5rb3JwaXMudjEuU2Vzc2lvbiIkChFFbmRTZXNzaW9uUmVxdWVzdBIPCgdzZXNzaW9uGAEgASgJIhQKEkVuZFNlc3Npb25SZXNwb25zZSIZChdFbmRPdGhlclNlc3Npb25zUmVxdWVzdCIpChhFbmRPdGhlclNlc3Npb25zUmVzcG9uc2USDQoFZW5kZWQYASABKAQiGAoWQXV0aG9yaXplRGV2aWNlUmVxdWVzdCLAAQoXQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghpbnRlcnZhbBgGIAEoDSIpChJEZXZpY2VUb2tlblJlcXVlc3QSEwoLZGV2aWNlX2NvZGUYASABKAkigAEKE0RldmljZVRva2VuUmVzcG9uc2USDwoHYWNjb3VudBgBIAEoCRIPCgdzZXNzaW9uGAIgASgJEg8KB3JlZnJlc2gYAyABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIyCh1HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkitwEKHkdldERldmljZUF1dGhvcml6YXRpb25SZXNwb25zZRIRCgl1c2VyX2NvZGUYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgEIAEoCRIOCgZzb3VyY2UYBSABKAkiKQoUQXBwcm92ZURldmljZVJlcXVlc3QSEQoJdXNlcl9jb2RlGAEgASgJIhcKFUFwcHJvdmVEZXZpY2VSZXNwb25zZSImChFEZW55RGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiFAoSRGVueURldmljZVJlc3BvbnNlMtAGCg5TZXNzaW9uU2VydmljZRJDCghFeGNoYW5nZRIaLmtvcnBpcy52MS5FeGNoYW5nZVJlcXVlc3QaGy5rb3JwaXMudjEuRXhjaGFuZ2VSZXNwb25zZRJACgdTaWduT3V0Ehkua29ycGlzLnYxLlNpZ25PdXRSZXF1ZXN0Ghoua29ycGlzLnYxLlNpZ25PdXRSZXNwb25zZRJUCgxMaXN0U2Vzc2lvbnMSHi5rb3JwaXMudjEuTGlzdFNlc3Npb25zUmVxdWVzdBofLmtvcnBpcy52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZSIDkAIBEkkKCkVuZFNlc3Npb24SHC5rb3JwaXMudjEuRW5kU2Vzc2lvblJlcXVlc3QaHS5rb3JwaXMudjEuRW5kU2Vzc2lvblJlc3BvbnNlElsKEEVuZE90aGVyU2Vzc2lvbnMSIi5rb3JwaXMudjEuRW5kT3RoZXJTZXNzaW9uc1JlcXVlc3QaIy5rb3JwaXMudjEuRW5kT3RoZXJTZXNzaW9uc1Jlc3BvbnNlElgKD0F1dGhvcml6ZURldmljZRIhLmtvcnBpcy52MS5BdXRob3JpemVEZXZpY2VSZXF1ZXN0GiIua29ycGlzLnYxLkF1dGhvcml6ZURldmljZVJlc3BvbnNlEkwKC0RldmljZVRva2VuEh0ua29ycGlzLnYxLkRldmljZVRva2VuUmVxdWVzdBoeLmtvcnBpcy52MS5EZXZpY2VUb2tlblJlc3BvbnNlEnIKFkdldERldmljZUF1dGhvcml6YXRpb24SKC5rb3JwaXMudjEuR2V0RGV2aWNlQXV0aG9yaXphdGlvblJlcXVlc3QaKS5rb3JwaXMudjEuR2V0RGV2aWNlQXV0aG9yaXphdGlvblJlc3BvbnNlIgOQAgESUgoNQXBwcm92ZURldmljZRIfLmtvcnBpcy52MS5BcHByb3ZlRGV2aWNlUmVxdWVzdBogLmtvcnBpcy52MS5BcHByb3ZlRGV2aWNlUmVzcG9uc2USSQoKRGVueURldmljZRIcLmtvcnBpcy52MS5EZW55RGV2aWNlUmVxdWVzdBodLmtvcnBpcy52MS5EZW55RGV2aWNlUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Chdrb3JwaXMvdjEvc2Vzc2lvbi5wcm90bxIJa29ycGlzLnYxIiIKD0V4Y2hhbmdlUmVxdWVzdBIPCgdyZWZyZXNoGAEgASgJItsBChBFeGNoYW5nZVJlc3BvbnNlEhQKDGFjY2Vzc190b2tlbhgBIAEoCRI1ChFhY2Nlc3NfZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHYWNjb3VudBgDIAEoCRIPCgdzZXNzaW9uGAQgASgJEg8KB3JlZnJlc2gYBSABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdiaW5kaW5nGAcgASgJIiEKDlNpZ25PdXRSZXF1ZXN0Eg8KB3JlZnJlc2gYASABKAkiEQoPU2lnbk91dFJlc3BvbnNlIhUKE0xpc3RTZXNzaW9uc1JlcXVlc3Qi6gEKB1Nlc3Npb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3VzZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnVzZXJfYWdlbnQYBiABKAkSDgoGc291cmNlGAcgASgJEg8KB2N1cnJlbnQYCCABKAgiPAoUTGlzdFNlc3Npb25zUmVzcG9uc2USJAoIc2Vzc2lvbnMYASADKAsyEi5rb3JwaXMudjEuU2Vzc2lvbiIkChFFbmRTZXNzaW9uUmVxdWVzdBIPCgdzZXNzaW9uGAEgASgJIhQKEkVuZFNlc3Npb25SZXNwb25zZSIZChdFbmRPdGhlclNlc3Npb25zUmVxdWVzdCIpChhFbmRPdGhlclNlc3Npb25zUmVzcG9uc2USDQoFZW5kZWQYASABKAQiGAoWQXV0aG9yaXplRGV2aWNlUmVxdWVzdCLAAQoXQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghpbnRlcnZhbBgGIAEoDSIpChJEZXZpY2VUb2tlblJlcXVlc3QSEwoLZGV2aWNlX2NvZGUYASABKAkigAEKE0RldmljZVRva2VuUmVzcG9uc2USDwoHYWNjb3VudBgBIAEoCRIPCgdzZXNzaW9uGAIgASgJEg8KB3JlZnJlc2gYAyABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIyCh1HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkitwEKHkdldERldmljZUF1dGhvcml6YXRpb25SZXNwb25zZRIRCgl1c2VyX2NvZGUYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgEIAEoCRIOCgZzb3VyY2UYBSABKAkiKQoUQXBwcm92ZURldmljZVJlcXVlc3QSEQoJdXNlcl9jb2RlGAEgASgJIhcKFUFwcHJvdmVEZXZpY2VSZXNwb25zZSImChFEZW55RGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiFAoSRGVueURldmljZVJlc3BvbnNlIhwKGkxpc3RTaWduSW5Qcm92aWRlcnNSZXF1ZXN0IjQKDlNpZ25JblByb3ZpZGVyEhQKDG9yZ2FuaXphdGlvbhgBIAEoCRIMCgRuYW1lGAIgASgJIksKG0xpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZRIsCglwcm92aWRlcnMYASADKAsyGS5rb3JwaXMudjEuU2lnbkluUHJvdmlkZXIiXAoaQmVnaW5FeHRlcm5hbFNpZ25JblJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEhYKDmNvZGVfY2hhbGxlbmdlGAMgASgJIloKG0JlZ2luRXh0ZXJuYWxTaWduSW5SZXNwb25zZRILCgN1cmwYASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyoQgKDlNlc3Npb25TZXJ2aWNlEkMKCEV4Y2hhbmdlEhoua29ycGlzLnYxLkV4Y2hhbmdlUmVxdWVzdBobLmtvcnBpcy52MS5FeGNoYW5nZVJlc3BvbnNlEkAKB1NpZ25PdXQSGS5rb3JwaXMudjEuU2lnbk91dFJlcXVlc3QaGi5rb3JwaXMudjEuU2lnbk91dFJlc3BvbnNlElQKDExpc3RTZXNzaW9ucxIeLmtvcnBpcy52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0Gh8ua29ycGlzLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlIgOQAgESSQoKRW5kU2Vzc2lvbhIcLmtvcnBpcy52MS5FbmRTZXNzaW9uUmVxdWVzdBodLmtvcnBpcy52MS5FbmRTZXNzaW9uUmVzcG9uc2USWwoQRW5kT3RoZXJTZXNzaW9ucxIiLmtvcnBpcy52MS5FbmRPdGhlclNlc3Npb25zUmVxdWVzdBojLmtvcnBpcy52MS5FbmRPdGhlclNlc3Npb25zUmVzcG9uc2USWAoPQXV0aG9yaXplRGV2aWNlEiEua29ycGlzLnYxLkF1dGhvcml6ZURldmljZVJlcXVlc3QaIi5rb3JwaXMudjEuQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USTAoLRGV2aWNlVG9rZW4SHS5rb3JwaXMudjEuRGV2aWNlVG9rZW5SZXF1ZXN0Gh4ua29ycGlzLnYxLkRldmljZVRva2VuUmVzcG9uc2UScgoWR2V0RGV2aWNlQXV0aG9yaXphdGlvbhIoLmtvcnBpcy52MS5HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBopLmtvcnBpcy52MS5HZXREZXZpY2VBdXRob3JpemF0aW9uUmVzcG9uc2UiA5ACARJSCg1BcHByb3ZlRGV2aWNlEh8ua29ycGlzLnYxLkFwcHJvdmVEZXZpY2VSZXF1ZXN0GiAua29ycGlzLnYxLkFwcHJvdmVEZXZpY2VSZXNwb25zZRJJCgpEZW55RGV2aWNlEhwua29ycGlzLnYxLkRlbnlEZXZpY2VSZXF1ZXN0Gh0ua29ycGlzLnYxLkRlbnlEZXZpY2VSZXNwb25zZRJpChNMaXN0U2lnbkluUHJvdmlkZXJzEiUua29ycGlzLnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXF1ZXN0GiYua29ycGlzLnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZSIDkAIBEmQKE0JlZ2luRXh0ZXJuYWxTaWduSW4SJS5rb3JwaXMudjEuQmVnaW5FeHRlcm5hbFNpZ25JblJlcXVlc3QaJi5rb3JwaXMudjEuQmVnaW5FeHRlcm5hbFNpZ25JblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message korpis.v1.ExchangeRequest
@@ -525,13 +525,131 @@ export const DenyDeviceResponseSchema: GenMessage<DenyDeviceResponse> = /*@__PUR
   messageDesc(file_korpis_v1_session, 20);
 
 /**
+ * @generated from message korpis.v1.ListSignInProvidersRequest
+ */
+export type ListSignInProvidersRequest = Message<"korpis.v1.ListSignInProvidersRequest"> & {
+};
+
+/**
+ * Describes the message korpis.v1.ListSignInProvidersRequest.
+ * Use `create(ListSignInProvidersRequestSchema)` to create a new message.
+ */
+export const ListSignInProvidersRequestSchema: GenMessage<ListSignInProvidersRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 21);
+
+/**
+ * An identity provider a person may sign in through.
+ *
+ * @generated from message korpis.v1.SignInProvider
+ */
+export type SignInProvider = Message<"korpis.v1.SignInProvider"> & {
+  /**
+   * Its organization, as `org_…`.
+   *
+   * @generated from field: string organization = 1;
+   */
+  organization: string;
+
+  /**
+   * Its name there.
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message korpis.v1.SignInProvider.
+ * Use `create(SignInProviderSchema)` to create a new message.
+ */
+export const SignInProviderSchema: GenMessage<SignInProvider> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 22);
+
+/**
+ * @generated from message korpis.v1.ListSignInProvidersResponse
+ */
+export type ListSignInProvidersResponse = Message<"korpis.v1.ListSignInProvidersResponse"> & {
+  /**
+   * @generated from field: repeated korpis.v1.SignInProvider providers = 1;
+   */
+  providers: SignInProvider[];
+};
+
+/**
+ * Describes the message korpis.v1.ListSignInProvidersResponse.
+ * Use `create(ListSignInProvidersResponseSchema)` to create a new message.
+ */
+export const ListSignInProvidersResponseSchema: GenMessage<ListSignInProvidersResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 23);
+
+/**
+ * @generated from message korpis.v1.BeginExternalSignInRequest
+ */
+export type BeginExternalSignInRequest = Message<"korpis.v1.BeginExternalSignInRequest"> & {
+  /**
+   * The provider's organization, as `org_…`.
+   *
+   * @generated from field: string organization = 1;
+   */
+  organization: string;
+
+  /**
+   * The provider's name there.
+   *
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * The S256 challenge (RFC 7636 §4.2) of the verifier the panel keeps.
+   *
+   * @generated from field: string code_challenge = 3;
+   */
+  codeChallenge: string;
+};
+
+/**
+ * Describes the message korpis.v1.BeginExternalSignInRequest.
+ * Use `create(BeginExternalSignInRequestSchema)` to create a new message.
+ */
+export const BeginExternalSignInRequestSchema: GenMessage<BeginExternalSignInRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 24);
+
+/**
+ * @generated from message korpis.v1.BeginExternalSignInResponse
+ */
+export type BeginExternalSignInResponse = Message<"korpis.v1.BeginExternalSignInResponse"> & {
+  /**
+   * Where to send the person: an https address at the identity provider.
+   *
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * When the sign-in stops being completed.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 2;
+   */
+  expiresAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.BeginExternalSignInResponse.
+ * Use `create(BeginExternalSignInResponseSchema)` to create a new message.
+ */
+export const BeginExternalSignInResponseSchema: GenMessage<BeginExternalSignInResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 25);
+
+/**
  * User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
  * `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
  * control plane's own name, so no script can read it, no other site's request carries it, and no
  * sibling name can set one; the CLI's travels in the request and response bodies instead.
  * Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
- * is a failed attempt (§10 of docs/10-api.md); the rest are called with an access token, as any
- * call is.
+ * is a failed attempt (§10 of docs/10-api.md); ListSignInProviders and BeginExternalSignIn take
+ * none at all, and are charged to their source; the rest are called with an access token, as
+ * any call is.
  *
  * @generated from service korpis.v1.SessionService
  */
@@ -644,6 +762,31 @@ export const SessionService: GenService<{
     methodKind: "unary";
     input: typeof DenyDeviceRequestSchema;
     output: typeof DenyDeviceResponseSchema;
+  },
+  /**
+   * The identity providers the installation's sign-in page offers: those of its root
+   * organization that sign people in (§9.7 of docs/08-identity.md). A provider anywhere else is
+   * reached by its own sign-in link.
+   *
+   * @generated from rpc korpis.v1.SessionService.ListSignInProviders
+   */
+  listSignInProviders: {
+    methodKind: "unary";
+    input: typeof ListSignInProvidersRequestSchema;
+    output: typeof ListSignInProvidersResponseSchema;
+  },
+  /**
+   * Begins a sign-in through an identity provider for a panel that keeps the PKCE verifier of
+   * the challenge: where to send the person. UNAVAILABLE without a public URL, there being no
+   * panel to return to, and while the provider cannot answer; NOT_FOUND for a provider that does
+   * not sign people in.
+   *
+   * @generated from rpc korpis.v1.SessionService.BeginExternalSignIn
+   */
+  beginExternalSignIn: {
+    methodKind: "unary";
+    input: typeof BeginExternalSignInRequestSchema;
+    output: typeof BeginExternalSignInResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_korpis_v1_session, 0);

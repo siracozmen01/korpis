@@ -46,6 +46,7 @@ mod retire;
 mod run;
 mod session;
 mod set;
+mod sign_in;
 mod stream;
 mod subscription;
 mod template;
@@ -117,6 +118,7 @@ pub use retire::RetirementWrite;
 pub use run::{RunRead, RunWrite};
 pub use session::{AgentVersion, NodeFacts, SessionWrite};
 pub use set::{SetRead, SetWrite};
+pub use sign_in::SignInWrite;
 pub use stream::{Expired, Reported, StreamRead, StreamWrite};
 pub use subscription::{SubscriptionRead, SubscriptionWrite};
 pub use template::{TemplateRead, TemplateWrite};
@@ -326,6 +328,7 @@ pub trait Tx:
     + BindingWrite
     + AssertionWrite
     + MemberWrite
+    + SignInWrite
     + Send
 {
     /// Makes every write of the transaction durable at once.

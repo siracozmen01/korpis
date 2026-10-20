@@ -31,6 +31,8 @@ pub struct Register {
     pub version: String,
     /// How many calls it accepts at once.
     pub concurrency: u32,
+    /// An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
+    pub sign_in: bool,
 }
 
 fn checked(r: &Register) -> Result<(), AppError> {
@@ -42,6 +44,9 @@ fn checked(r: &Register) -> Result<(), AppError> {
     if r.concurrency == 0 || r.concurrency > MAX_CONCURRENCY {
         return Err(AppError::invalid("register.concurrency", "1 to 1024 calls at once"));
     }
+    if r.sign_in && r.kind != ProviderType::Identity {
+        return Err(AppError::invalid("register.sign_in", "an identity provider's alone"));
+    }
     Ok(())
 }
 
@@ -51,6 +56,7 @@ fn effect(actor: Principal, action: &str, r: &Registration, workload: Option<Uui
         ("type", r.kind.as_str().into()),
         ("name", r.name.clone().into()),
         ("version", r.version.clone().into()),
+        ("sign_in", r.sign_in.into()),
     ]));
     e.workload = workload;
     e
@@ -97,6 +103,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             name: r.name,
             version: r.version,
             concurrency: r.concurrency,
+            sign_in: r.sign_in,
             replica,
             connected_at: now,
             seen_at: now,

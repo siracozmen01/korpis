@@ -45,6 +45,8 @@ pub mod route;
 #[cfg(feature = "authz")]
 mod sealed;
 #[cfg(feature = "authz")]
+pub mod sign_in;
+#[cfg(feature = "authz")]
 pub mod template;
 #[cfg(feature = "authz")]
 pub mod ticket;

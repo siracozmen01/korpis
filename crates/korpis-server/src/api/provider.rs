@@ -34,6 +34,7 @@ fn register_from_pb(r: &pb::Register) -> Result<Register, ConnectError> {
         name: r.name.clone(),
         version: r.version.clone(),
         concurrency: r.concurrency,
+        sign_in: r.sign_in,
     })
 }
 

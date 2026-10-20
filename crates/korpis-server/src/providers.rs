@@ -133,6 +133,7 @@ mod tests {
             name: "dns".into(),
             version: "1.0.0".into(),
             concurrency: 1,
+            sign_in: false,
             replica: p.replica(),
             connected_at: SystemTime::now(),
             seen_at: SystemTime::now(),

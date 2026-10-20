@@ -11,7 +11,9 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::extension::CallTarget;
-use crate::ports::{AssertionWrite as _, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
+use crate::ports::{
+    AssertionWrite as _, Clock, EffectWrite as _, RecipeSource, SignInWrite as _, Store, Tx as _,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::binding::{
     BindingOrigin, BindingState, BindingTerms, IdentityBinding, ProviderRef,
@@ -136,11 +138,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Forgets the presentations accepted, and the tickets expired, more than a presentation is
-    /// kept ago: by then each is refused as stale whatever is remembered of it. How many.
+    /// kept ago: by then each is refused as stale whatever is remembered of it. Forgets as well
+    /// the sign-ins begun that expired unspent (§9.7 of docs/08-identity.md). How many.
     pub async fn forget_assertions(&self) -> Result<u64, AppError> {
-        let before = self.clock.now().checked_sub(PRESENTATION_KEPT).unwrap_or(UNIX_EPOCH);
+        let now = self.clock.now();
+        let before = now.checked_sub(PRESENTATION_KEPT).unwrap_or(UNIX_EPOCH);
         let mut tx = self.store.begin().await?;
-        let forgotten = tx.forget_assertions(before).await?;
+        let forgotten =
+            tx.forget_assertions(before).await? + tx.forget_pending_sign_ins(now).await?;
         tx.commit().await?;
         Ok(forgotten)
     }

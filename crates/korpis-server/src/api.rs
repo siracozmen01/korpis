@@ -36,6 +36,7 @@ pub mod error;
 mod event;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod extension;
+mod external;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod info;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]

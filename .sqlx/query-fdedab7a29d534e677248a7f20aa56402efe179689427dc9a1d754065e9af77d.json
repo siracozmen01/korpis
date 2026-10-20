@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO pending_sign_in\n                (state_digest, organization_id, provider, nonce, code_challenge, begun_at,\n                 expires_at)\n             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fdedab7a29d534e677248a7f20aa56402efe179689427dc9a1d754065e9af77d"
+}

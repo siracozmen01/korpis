@@ -30,6 +30,8 @@ pub struct Registration {
     pub version: String,
     /// How many calls it accepts at once.
     pub concurrency: u32,
+    /// An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
+    pub sign_in: bool,
     /// The control-plane process holding its stream.
     pub replica: Uuid,
     /// When it registered.

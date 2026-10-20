@@ -29,14 +29,18 @@ const UNCHARGED: [&str; 4] = [
 /// The procedures anyone may call without a credential, whose every request is charged to its
 /// source instead: each sign-in or redemption the account service begins writes a challenge,
 /// a refresh credential is presented without another, and a CLI begins and polls its device
-/// authorization before it has one; and the sign-in page's theme, which reads the store.
-const ANONYMOUS: [&str; 6] = [
+/// authorization before it has one; the sign-in page's theme, which reads the store; and a
+/// sign-in through an identity provider, offered and begun (§9.7 of docs/08-identity.md), which
+/// writes a pending sign-in and calls a provider.
+const ANONYMOUS: [&str; 8] = [
     "/korpis.v1.AccountService/",
     "/korpis.v1.ServerInfoService/GetSignInTheme",
     "/korpis.v1.SessionService/Exchange",
     "/korpis.v1.SessionService/SignOut",
     "/korpis.v1.SessionService/AuthorizeDevice",
     "/korpis.v1.SessionService/DeviceToken",
+    "/korpis.v1.SessionService/ListSignInProviders",
+    "/korpis.v1.SessionService/BeginExternalSignIn",
 ];
 
 /// The procedures charged to the expensive budget as well: those that compute a plan, take or

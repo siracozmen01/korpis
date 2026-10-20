@@ -80,6 +80,8 @@ table! {
     "korpis.v1.SessionService/GetDeviceAuthorization" => SessionServiceClient::get_device_authorization(GetDeviceAuthorizationRequest);
     "korpis.v1.SessionService/ApproveDevice" => SessionServiceClient::approve_device(ApproveDeviceRequest);
     "korpis.v1.SessionService/DenyDevice" => SessionServiceClient::deny_device(DenyDeviceRequest);
+    "korpis.v1.SessionService/ListSignInProviders" => SessionServiceClient::list_sign_in_providers(ListSignInProvidersRequest);
+    "korpis.v1.SessionService/BeginExternalSignIn" => SessionServiceClient::begin_external_sign_in(BeginExternalSignInRequest);
     "korpis.v1.ProfileService/GetProfile" => ProfileServiceClient::get_profile(GetProfileRequest);
     "korpis.v1.ProfileService/ReauthenticateWithPasskey" => ProfileServiceClient::reauthenticate_with_passkey(SignInWithPasskeyRequest);
     "korpis.v1.ProfileService/ReauthenticateWithPassword" => ProfileServiceClient::reauthenticate_with_password(ReauthenticateWithPasswordRequest);

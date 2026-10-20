@@ -137,6 +137,8 @@ message ProviderRegistration {
   google.protobuf.Timestamp connected = 8;
   // When the replica holding its stream last confirmed it open.
   google.protobuf.Timestamp seen = 9;
+  // An identity provider's: it signs people in (§9.7 of docs/08-identity.md).
+  bool sign_in = 10;
 }
 
 message ListProvidersRequest {

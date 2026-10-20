@@ -91,7 +91,7 @@ impl ProviderCallRead for PgStore {
         let rows = sqlx::query_as!(
             RegistrationRow,
             r#"SELECT id, extension_id, organization_id, type AS kind, name, version,
-                      concurrency, replica, connected_at, seen_at
+                      concurrency, sign_in, replica, connected_at, seen_at
                  FROM provider_registration
                 WHERE organization_id = $1 ORDER BY type, name, connected_at, id"#,
             organization
@@ -264,6 +264,25 @@ impl ProviderCallWrite for PgTx {
         Ok(())
     }
 
+    async fn redact_sign_in_call(&mut self, id: Uuid) -> StoreResult<()> {
+        // Emptied rather than removed, so the call still reads as the request it was.
+        sqlx::query!(
+            r#"UPDATE provider_call
+                  SET request = CASE
+                        WHEN request ? 'authorize' THEN jsonb_set(jsonb_set(request,
+                             '{authorize,state}', '""'), '{authorize,nonce}', '""')
+                        ELSE jsonb_set(jsonb_set(request,
+                             '{assert,evidence}', '""'), '{assert,headers}', '{}')
+                      END
+                WHERE id = $1 AND (request ? 'authorize' OR request ? 'assert')"#,
+            id
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
     async fn redact_calls(&mut self, before: SystemTime) -> StoreResult<u64> {
         let done = sqlx::query!(
             r#"UPDATE provider_call
@@ -276,7 +295,23 @@ impl ProviderCallWrite for PgTx {
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(done.rows_affected())
+        let signing_in = sqlx::query!(
+            r#"UPDATE provider_call
+                  SET request = CASE
+                        WHEN request ? 'authorize' THEN jsonb_set(jsonb_set(request,
+                             '{authorize,state}', '""'), '{authorize,nonce}', '""')
+                        ELSE jsonb_set(jsonb_set(request,
+                             '{assert,evidence}', '""'), '{assert,headers}', '{}')
+                      END
+                WHERE finished_at < $1
+                  AND ((request #>> '{authorize,state}') <> ''
+                       OR (request #> '{assert,headers}') ? 'code_verifier')"#,
+            from_time(before)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(done.rows_affected() + signing_in.rows_affected())
     }
 
     async fn prune_calls(&mut self, before: SystemTime) -> StoreResult<u64> {

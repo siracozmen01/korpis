@@ -27,6 +27,7 @@ pub fn registration_to_pb(r: &Registration) -> pb::ProviderRegistration {
         name: r.name.clone(),
         version: r.version.clone(),
         concurrency: r.concurrency,
+        sign_in: r.sign_in,
         connected: timestamp(r.connected_at).into(),
         seen: timestamp(r.seen_at).into(),
         ..Default::default()

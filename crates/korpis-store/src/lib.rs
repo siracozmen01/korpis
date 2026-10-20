@@ -51,6 +51,7 @@ mod secret;
 pub mod server;
 mod session;
 mod set;
+mod sign_in;
 mod snapshot;
 mod stored;
 mod stream;

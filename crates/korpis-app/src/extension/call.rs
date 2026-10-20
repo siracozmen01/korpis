@@ -230,7 +230,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let orphaned = tx.fail_calls_without_registration(&ended, now).await?;
         let unknown = CallOutcome::Failed(CallFailure::unknown());
         let unserved = tx.fail_calls_without_provider(&unknown, now).await?;
-        // Access its caller never read, because it died, keeps its secret a minute at most.
+        // Access its caller never read, and a sign-in its caller never emptied, because it died,
+        // keeps its secret a minute at most.
         tx.redact_calls(now.checked_sub(SECRET_KEPT).unwrap_or(SystemTime::UNIX_EPOCH)).await?;
         tx.prune_calls(now.checked_sub(FINISHED_KEPT).unwrap_or(SystemTime::UNIX_EPOCH)).await?;
         tx.commit().await?;
