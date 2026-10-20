@@ -7,7 +7,7 @@ use crate::stored::{from_time, principal, to_time};
 use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{MemberRead, MemberWrite, StoreError, StoreResult};
-use korpis_core::authz::binding::BindingState;
+use korpis_core::authz::binding::{BindingState, ProviderRef};
 use korpis_core::authz::membership::MemberRecord;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -56,9 +56,12 @@ impl MemberRead for PgStore {
             "SELECT m.binding_id, m.member, m.state, m.last_verified_at
                FROM identity_member m JOIN identity_binding b ON b.id = m.binding_id
               WHERE m.binding_id = $1
-                AND EXISTS (SELECT 1 FROM grants g
-                             WHERE g.revoked_at IS NULL AND g.via ->> 'set' = b.subject
-                               AND g.via ->> 'member' = m.member)
+                AND (EXISTS (SELECT 1 FROM grants g
+                              WHERE g.revoked_at IS NULL AND g.via ->> 'set' = b.subject
+                                AND g.via ->> 'member' = m.member)
+                     OR EXISTS (SELECT 1 FROM user_session s
+                                  JOIN identity_binding p ON p.id = s.binding_id
+                                 WHERE p.subject = m.member AND s.expires_at > now()))
               ORDER BY m.member",
             binding
         )
@@ -85,6 +88,41 @@ impl MemberWrite for PgTx {
             present,
             absent,
             from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn record_sign_in(
+        &mut self,
+        member: &str,
+        provider: &ProviderRef,
+        confirmed: &[Uuid],
+        at: SystemTime,
+    ) -> StoreResult<()> {
+        sqlx::query!(
+            "INSERT INTO identity_member (binding_id, member, state, last_verified_at, recorded_at)
+             SELECT b, $2, 'verified', $3, $3 FROM unnest($1::uuid[]) AS b
+             ON CONFLICT (binding_id, member)
+             DO UPDATE SET state = 'verified', last_verified_at = EXCLUDED.last_verified_at",
+            confirmed,
+            member,
+            from_time(at)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        sqlx::query!(
+            "UPDATE identity_member m SET state = 'unverified'
+               FROM identity_binding b
+              WHERE b.id = m.binding_id AND m.member = $1 AND b.organization_id = $2
+                AND b.provider = $3 AND NOT (m.binding_id = ANY($4))",
+            member,
+            provider.organization,
+            provider.name,
+            confirmed
         )
         .execute(&mut *self.tx)
         .await

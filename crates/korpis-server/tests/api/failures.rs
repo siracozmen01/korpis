@@ -27,7 +27,7 @@ async fn failures(h: &Harness, action: &str) -> Vec<(String, i64, Option<uuid::U
 }
 
 /// The failures of `action` once `done` holds of them, within ten seconds.
-async fn recorded(
+pub async fn recorded(
     h: &Harness,
     action: &str,
     done: impl Fn(&[(String, i64, Option<uuid::Uuid>, String)]) -> bool,

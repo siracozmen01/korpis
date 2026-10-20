@@ -6,8 +6,9 @@
 //! the provider asserts the code they bring. The control plane keeps only the state's digest, so
 //! the store's contents begin no one's sign-in.
 
-use super::binding::ProviderRef;
+use super::binding::{IdentityBinding, ProviderRef};
 use super::credential::EntropyError;
+use crate::principal::SetName;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest as _, Sha256};
@@ -86,6 +87,29 @@ pub fn is_verifier(s: &str) -> bool {
         && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._~".contains(&b))
 }
 
+/// Whether `verifier` is the one `challenge` was made from (RFC 7636 §4.6): checked by the
+/// control plane before the provider is asked, so a code returned to the wrong browser costs no
+/// call.
+#[must_use]
+pub fn verifies(verifier: &str, challenge: &str) -> bool {
+    is_verifier(verifier)
+        && URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes())) == challenge
+}
+
+/// Of the live bindings of the sets a sign-in named, those it confirms the person in: each whose
+/// required sets it named too (Finding 117 of docs/23-walkthroughs.md).
+#[must_use]
+pub fn confirmed_in<'a>(
+    named: &[SetName],
+    bound: &'a [IdentityBinding],
+) -> Vec<&'a IdentityBinding> {
+    bound
+        .iter()
+        .filter(|b| b.retired_at.is_none())
+        .filter(|b| b.terms.require_membership.iter().all(|r| named.contains(r)))
+        .collect()
+}
+
 /// The redirect URI of the panel at `origin`.
 #[must_use]
 pub fn redirect_uri(origin: &str) -> String {
@@ -123,6 +147,48 @@ mod tests {
         assert!(!is_verifier(&"a".repeat(42)));
         assert!(!is_verifier(&"a".repeat(129)));
         assert!(!is_verifier(&format!("{}/", "a".repeat(43))));
+    }
+
+    #[test]
+    fn a_verifier_is_checked_against_its_challenge() {
+        let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+        assert!(verifies(verifier, "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+        assert!(!verifies(verifier, "F9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+        assert!(!verifies("short", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"));
+    }
+
+    #[test]
+    fn a_sign_in_confirms_a_set_only_with_every_set_it_requires() {
+        use crate::authz::binding::{BindingOrigin, BindingState, BindingTerms};
+        use crate::principal::Principal;
+        let set = |name: &str| SetName { realm: "groups".into(), member_of: name.into() };
+        let bound = |name: &str, requires: Vec<SetName>| IdentityBinding {
+            id: uuid::Uuid::now_v7(),
+            provider: ProviderRef { organization: uuid::Uuid::nil(), name: "corp".into() },
+            subject: Principal::ExternalSet {
+                provider: "org_x/corp".into(),
+                realm: "groups".into(),
+                member_of: name.into(),
+            },
+            origin: BindingOrigin::Operator,
+            terms: BindingTerms { require_membership: requires, ..BindingTerms::default() },
+            state: BindingState::Verified,
+            last_verified_at: None,
+            verifications: 0,
+            version: 1,
+            made_by: Principal::Anonymous,
+            made_at: SystemTime::UNIX_EPOCH,
+            retired_at: None,
+        };
+        let ops = bound("ops", Vec::new());
+        let oncall = bound("oncall", vec![set("ops")]);
+        let prod = bound("prod", vec![set("staff")]);
+        let mut retired = bound("old", Vec::new());
+        retired.retired_at = Some(SystemTime::UNIX_EPOCH);
+        let all = [ops.clone(), oncall.clone(), prod, retired];
+        let named = [set("ops"), set("oncall"), set("prod"), set("old")];
+        let confirmed: Vec<_> = confirmed_in(&named, &all).into_iter().map(|b| b.id).collect();
+        assert_eq!(confirmed, [ops.id, oncall.id], "prod needs staff, and old is retired");
     }
 
     #[test]

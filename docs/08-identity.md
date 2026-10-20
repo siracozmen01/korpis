@@ -2024,6 +2024,19 @@ reach the control plane or its backups, and the provider's volume is where they 
 leak. Without them, a person removed from a group keeps what it gave them for up to the set's
 interval and grace past their last sign-in, and must sign in again within that time to keep it.
 
+> Built 2026-10-20 in the control plane (P2.5c of `20-roadmap.md`), deciding what the design left
+> open. The control plane checks the verifier against the challenge itself before it asks the
+> provider, so a code brought to the wrong browser costs no call. The state is spent by the
+> attempt whatever follows, so a completion that fails cannot be tried again with it. A sign-in
+> confirms the person in each named set that has a live binding and whose required sets it named
+> too, and a set's re-verification asks about every member holding a live session signed in
+> through its provider, beside every member who delegated. A re-authentication keeps the sets
+> its session began with: the member records follow the new sign-in, so a set it no longer names
+> stops counting at once, and one it names newly counts from the next sign-in. A sign-in's
+> calls keep neither the state and nonce nor the code and verifier once answered (§6 of
+> `16-extensions.md`). Not yet built: the panel's pages, and approving a `korpis login` from such
+> a session.
+
 ---
 
 ## 10. Open questions

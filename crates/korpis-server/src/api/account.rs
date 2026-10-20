@@ -68,7 +68,7 @@ pub(super) fn assertion(req: pb::SignInWithPasskeyRequest) -> Result<Assertion, 
 }
 
 /// `body`, with the cookie that gives the browser the refresh credential of `session`.
-fn with_cookie<B>(body: B, session: &Begun) -> ServiceResult<B> {
+pub(super) fn with_cookie<B>(body: B, session: &Begun) -> ServiceResult<B> {
     let now = SystemTime::now();
     let not_a_header = || error::internal(&"a cookie that is not a header value");
     let refresh =

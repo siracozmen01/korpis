@@ -210,4 +210,12 @@ impl pb::SessionService for Api {
     ) -> ServiceResult<pb::BeginExternalSignInResponse> {
         Response::ok(Api::begin_external_sign_in(self, &request.to_owned_message()).await?)
     }
+
+    async fn complete_external_sign_in(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::CompleteExternalSignInRequest>,
+    ) -> ServiceResult<pb::CompleteExternalSignInResponse> {
+        Api::complete_external_sign_in(self, &ctx, request.to_owned_message()).await
+    }
 }

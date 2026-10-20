@@ -75,7 +75,11 @@ fn believed(outcome: CallOutcome, now: SystemTime) -> Result<Assertion, AppError
 /// The binding a person gets at their first authenticated use (§5): it decides nothing, and is
 /// verified, since the provider has just vouched for them. Made once: a binding an operator
 /// retired stays retired.
-fn first_use(provider: &ProviderRef, subject: &Principal, now: SystemTime) -> IdentityBinding {
+pub(crate) fn first_use(
+    provider: &ProviderRef,
+    subject: &Principal,
+    now: SystemTime,
+) -> IdentityBinding {
     IdentityBinding {
         id: Uuid::now_v7(),
         provider: provider.clone(),

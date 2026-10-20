@@ -24,6 +24,7 @@ mod template;
 mod vouch;
 
 pub use apply::FromTemplate;
+pub(crate) use assert::first_use;
 pub use assert::{AssertAsked, Asserted};
 pub use binding::BindingAsked;
 pub use issue::{Holder, IssueGrant, Issued, MAX_LABEL};

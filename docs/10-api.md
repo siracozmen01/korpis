@@ -665,7 +665,9 @@ by revoking the grant.
 > `ListSignInProviders`, `BeginExternalSignIn`, and `CompleteExternalSignIn` are charged to the
 > same bucket, since the second writes a pending sign-in and calls a provider before anyone has
 > proved anything; a completion refused, a state unknown or spent, or a code the provider would
-> not assert, is a failed attempt of the kind `session.external`.
+> not assert, is a failed attempt of the kind `session.external`. Built 2026-10-20 as designed;
+> `CompleteExternalSignIn` called with an access token, to re-authenticate, is charged to its
+> caller instead, as any call presenting one is.
 
 > Corrected 2026-10-16 (Finding 69 in `23-walkthroughs.md`). "Each is checked first, and one that
 > opens is admitted, whatever its source has done" is right for every credential above that

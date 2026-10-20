@@ -8,6 +8,7 @@
 
 mod ceremony;
 mod check;
+mod completion;
 mod device;
 mod device_grant;
 mod external;
@@ -18,6 +19,7 @@ mod session;
 mod sign_in;
 
 pub use ceremony::{NewRegistration, Registration, SignInOptions};
+pub use completion::{Completed, Completion};
 pub use device::Device;
 pub use device_grant::{Authorized, DeviceSignedIn};
 pub use external::SignInBegun;

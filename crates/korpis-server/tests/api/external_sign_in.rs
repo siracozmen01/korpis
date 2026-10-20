@@ -13,7 +13,7 @@ use crate::support::Harness;
 use connectrpc::ErrorCode;
 use connectrpc::client::HttpClient;
 use korpis_extension::identity_provider::{
-    Answer, Asked, Asserted, Failure, Identity, IdentityProvider, SignInAsked,
+    Answer, Asked, Asserted, Failure, Identity, IdentityProvider, Set, SignInAsked,
 };
 use korpis_extension::provider::{Provider, Registration};
 use korpis_extension::{Connection, Credential, Fixed};
@@ -26,8 +26,36 @@ use std::time::{Duration, SystemTime};
 pub const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 
 /// An identity provider that sends people to `https://idp.example/authorize`, with what the
-/// control plane began the sign-in with in the query, and asserts nobody.
-struct Issuer;
+/// control plane began the sign-in with in the query. A code it asserts is
+/// `<user>|<nonce>|<set>,<set>…|<presentation>`, and only beside the nonce it names, a verifier,
+/// and the panel's callback, as an OIDC provider redeems one; `eve` is nobody.
+pub struct Issuer;
+
+/// Refuses what was presented.
+fn unverified(why: &str) -> Failure {
+    Failure { reason: "identity.unverified".into(), message: why.into(), retryable: false }
+}
+
+/// The person a code names, if `headers` are what a sign-in sends beside it.
+fn asserted(code: &str, headers: &BTreeMap<String, String>) -> Result<Asserted, Failure> {
+    let [user, nonce, sets, presentation] = code.split('|').collect::<Vec<_>>()[..] else {
+        return Err(unverified("not a code"));
+    };
+    let header = |k: &str| headers.get(k).map_or("", String::as_str);
+    if user == "eve" || header("nonce") != nonce || header("code_verifier").is_empty() {
+        return Err(unverified("not this sign-in's code"));
+    }
+    if !header("redirect_uri").ends_with("/sign-in/callback") {
+        return Err(unverified("redeemed for another redirect"));
+    }
+    let sets = sets.split(',').filter(|s| !s.is_empty());
+    Ok(Asserted {
+        user: user.to_owned(),
+        sets: sets.map(|s| Set { realm: "groups".into(), member_of: s.into() }).collect(),
+        presentation: presentation.to_owned(),
+        at: SystemTime::now(),
+    })
+}
 
 impl IdentityProvider for Issuer {
     fn verify(&self, _: Asked) -> impl Future<Output = Result<Answer, Failure>> + Send {
@@ -36,14 +64,10 @@ impl IdentityProvider for Issuer {
 
     fn assert(
         &self,
-        _: Vec<u8>,
-        _: BTreeMap<String, String>,
+        evidence: Vec<u8>,
+        headers: BTreeMap<String, String>,
     ) -> impl Future<Output = Result<Asserted, Failure>> + Send {
-        std::future::ready(Err(Failure {
-            reason: "identity.unverified".into(),
-            message: "nobody".into(),
-            retryable: false,
-        }))
+        std::future::ready(asserted(&String::from_utf8(evidence).unwrap_or_default(), &headers))
     }
 
     fn authorize(&self, a: SignInAsked) -> impl Future<Output = Result<String, Failure>> + Send {
@@ -56,7 +80,7 @@ impl IdentityProvider for Issuer {
 
 /// The issuer, installed as the `n`th node's extension and registered as `name`, signing people
 /// in if `sign_in`; while the handle runs.
-async fn issuing(h: &Harness, n: u8, name: &str, sign_in: bool) -> tokio::task::JoinHandle<()> {
+pub async fn issuing(h: &Harness, n: u8, name: &str, sign_in: bool) -> tokio::task::JoinHandle<()> {
     let document = identity_document()
         .replace("name: corp", &format!("name: {name}"))
         .replace("name: cloudflare-dns", &format!("name: issuer-{name}"));
@@ -89,11 +113,11 @@ async fn issuing(h: &Harness, n: u8, name: &str, sign_in: bool) -> tokio::task::
 }
 
 /// The session service, called without a credential.
-fn anonymous(h: &Harness) -> pb::SessionServiceClient<HttpClient> {
+pub fn anonymous(h: &Harness) -> pb::SessionServiceClient<HttpClient> {
     pb::SessionServiceClient::new(h.http.clone(), h.config(None))
 }
 
-fn begin(org: &str, provider: &str, challenge: &str) -> pb::BeginExternalSignInRequest {
+pub fn begin(org: &str, provider: &str, challenge: &str) -> pb::BeginExternalSignInRequest {
     pb::BeginExternalSignInRequest {
         organization: org.to_owned(),
         provider: provider.to_owned(),
@@ -103,7 +127,7 @@ fn begin(org: &str, provider: &str, challenge: &str) -> pb::BeginExternalSignInR
 }
 
 /// The value of `key` in `url`'s query.
-fn query<'a>(url: &'a str, key: &str) -> &'a str {
+pub fn query<'a>(url: &'a str, key: &str) -> &'a str {
     let q = url.split_once('?').map_or("", |(_, q)| q);
     q.split('&').find_map(|kv| kv.strip_prefix(&format!("{key}="))).unwrap_or("")
 }

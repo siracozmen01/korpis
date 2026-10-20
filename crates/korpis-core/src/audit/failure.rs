@@ -24,6 +24,10 @@ pub enum Attempt {
     SignIn,
     /// A session's refresh credential, exchanged or signed out with.
     Refresh,
+    /// A sign-in through an identity provider completed: a state unknown or spent, a verifier
+    /// that is not the challenge's, or a code the provider would not assert (§9.7 of
+    /// docs/08-identity.md).
+    External,
 }
 
 impl Attempt {
@@ -38,6 +42,7 @@ impl Attempt {
             Self::Invitation => "account.redeem",
             Self::SignIn => "account.sign_in",
             Self::Refresh => "session.refresh",
+            Self::External => "session.external",
         }
     }
 
@@ -52,6 +57,7 @@ impl Attempt {
             Self::Invitation,
             Self::SignIn,
             Self::Refresh,
+            Self::External,
         ]
         .into_iter()
         .find(|a| a.action() == action)

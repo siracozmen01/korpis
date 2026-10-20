@@ -2,10 +2,13 @@
 
 //! A session held by a person signed in through an identity provider (§9.7 of
 //! docs/08-identity.md, migration 0101): kept with the sets of the sign-in, read and ended by
-//! its holder alone, and unusable once the person's binding is retired.
+//! its holder alone, and unusable once the person's binding is retired; and the person recorded
+//! in the sets their sign-in named, and asked about by those sets while their session lives.
 
 use crate::support::{fixture, now};
-use korpis_app::ports::{BindingWrite, Presented, Store, Tx, UserSessionRead, UserSessionWrite};
+use korpis_app::ports::{
+    BindingWrite, MemberRead, MemberWrite, Presented, Store, Tx, UserSessionRead, UserSessionWrite,
+};
 use korpis_core::account::session::{Holder, SessionKind, UserSession};
 use korpis_core::authz::binding::{
     BindingOrigin, BindingState, BindingTerms, IdentityBinding, ProviderRef,
@@ -86,4 +89,45 @@ async fn a_person_s_session_keeps_its_sets_and_answers_only_to_its_holder() {
     assert!(!tx.end_user_session(stranger, s.id).await.unwrap(), "only its holder ends it");
     assert!(tx.end_user_session(held, s.id).await.unwrap());
     tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_sign_in_records_its_person_in_its_sets_and_their_session_has_them_asked_about() {
+    let f = fixture().await;
+    let dana = person(f.organization);
+    let mut ops = person(f.organization);
+    ops.id = Uuid::now_v7();
+    ops.subject = Principal::ExternalSet {
+        provider: ops.provider.key(),
+        realm: "groups".into(),
+        member_of: "ops".into(),
+    };
+    ops.origin = BindingOrigin::Operator;
+    let s = session(Holder::Person(dana.id));
+    let (member, at) = (dana.subject.key(), now());
+    let mut tx = f.store.begin().await.unwrap();
+    tx.insert_binding(&dana).await.unwrap();
+    tx.insert_binding(&ops).await.unwrap();
+    tx.record_sign_in(&member, &dana.provider, &[ops.id], at).await.unwrap();
+    tx.insert_user_session(&s, &[3u8; 32]).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let record = f.store.member(ops.id, &member).await.unwrap().expect("recorded at sign-in");
+    assert_eq!((record.state, record.last_verified_at), (BindingState::Verified, Some(at)));
+    let asked = f.store.members_who_delegated(ops.id).await.unwrap();
+    assert_eq!(
+        asked,
+        std::slice::from_ref(&record),
+        "her live session has her asked about, not a grant"
+    );
+
+    // A sign-in naming the set no longer unverifies her record there; her session ended, she is
+    // asked about no more.
+    let mut tx = f.store.begin().await.unwrap();
+    tx.record_sign_in(&member, &dana.provider, &[], now()).await.unwrap();
+    assert!(tx.end_user_session(Holder::Person(dana.id), s.id).await.unwrap());
+    tx.commit().await.unwrap();
+    let record = f.store.member(ops.id, &member).await.unwrap().unwrap();
+    assert_eq!(record.state, BindingState::Unverified);
+    assert!(f.store.members_who_delegated(ops.id).await.unwrap().is_empty());
 }

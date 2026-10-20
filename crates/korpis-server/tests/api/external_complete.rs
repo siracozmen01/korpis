@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! Signing in through an identity provider, completed (§9.7 of docs/08-identity.md), against a
+//! real control plane and a provider written with the SDK. A person returns with the state and a
+//! code; the state is spent once, the verifier must be the challenge's, the provider asserts the
+//! code beside the sign-in's own nonce, and the presentation is accepted once. The person's
+//! session is theirs, their records as members follow what each sign-in named, and signing in
+//! again from their own session re-authenticates it rather than beginning another.
+
+use crate::bindings::{bind, set};
+use crate::external_sign_in::{CHALLENGE, anonymous, begin, issuing, query};
+use crate::failures::recorded;
+use crate::panel::refresh_cookie;
+use crate::support::Harness;
+use connectrpc::ErrorCode;
+use connectrpc::client::HttpClient;
+use korpis_proto::korpis::v1 as pb;
+
+/// The verifier [`CHALLENGE`] was made from.
+const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+
+/// The session service, called with `bearer` if given and the refresh cookie `cookie` if given.
+fn sessions(
+    h: &Harness,
+    cookie: Option<&str>,
+    bearer: Option<&str>,
+) -> pb::SessionServiceClient<HttpClient> {
+    let mut config = h.config(bearer);
+    if let Some(c) = cookie {
+        config = config.with_default_header("cookie", format!("__Host-korpis_refresh={c}"));
+    }
+    pb::SessionServiceClient::new(h.http.clone(), config)
+}
+
+/// Begins a sign-in through `corp`; the state, and the code the identity provider would return
+/// for `user` in `sets`, presented as `presentation`.
+async fn returned(h: &Harness, user: &str, sets: &str, presentation: &str) -> (String, String) {
+    let anonymous = anonymous(h);
+    let begun = anonymous.begin_external_sign_in(begin(&h.root_org(), "corp", CHALLENGE)).await;
+    let url = begun.unwrap().into_owned().url;
+    let code = format!("{user}|{}|{sets}|{presentation}", query(&url, "nonce"));
+    (query(&url, "state").to_owned(), code)
+}
+
+fn completion(state: &str, code: &str, verifier: &str) -> pb::CompleteExternalSignInRequest {
+    pb::CompleteExternalSignInRequest {
+        state: state.to_owned(),
+        code: code.to_owned(),
+        code_verifier: verifier.to_owned(),
+        ..Default::default()
+    }
+}
+
+/// Each member record kept, as `<set's member_of> <state>`, in order.
+async fn records(h: &Harness) -> Vec<String> {
+    let store = h.db.store().await.unwrap();
+    sqlx::query_scalar(
+        "SELECT split_part(b.subject, ':', 5) || ' ' || m.state
+           FROM identity_member m JOIN identity_binding b ON b.id = m.binding_id
+          ORDER BY 1",
+    )
+    .fetch_all(store.pool())
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_person_signs_in_once_per_state_into_a_session_of_their_own() {
+    let h = Harness::new().await;
+    let _corp = issuing(&h, 71, "corp", true).await;
+    let org = h.root_org();
+    for group in ["admins", "old"] {
+        bind(&h, &org, set(&org, group), pb::IdentityBindingTerms::default()).await.unwrap();
+    }
+
+    let (state, code) = returned(&h, "dana", "admins,old,unbound", "p1").await;
+    let done = anonymous(&h).complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    let done = done.unwrap();
+    let cookie = refresh_cookie(done.headers()).expect("the refresh credential is the cookie");
+    let done = done.into_owned();
+    assert!(done.binding.starts_with("idb_"), "{done:?}");
+    assert!(done.session.starts_with("ses_"));
+    assert!(done.reauthenticated_at.as_option().is_none());
+    assert_eq!(records(&h).await, ["admins verified", "old verified"], "bound sets only");
+
+    let again = anonymous(&h).complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert_eq!(again.unwrap_err().code, ErrorCode::Unauthenticated, "a state is spent once");
+
+    let browser = sessions(&h, Some(&cookie), None);
+    let exchanged = browser.exchange(pb::ExchangeRequest::default()).await.unwrap().into_owned();
+    assert!(exchanged.access_token.starts_with("korpisax_"), "a person's access token");
+    assert_eq!((exchanged.account.as_str(), &exchanged.binding), ("", &done.binding));
+    let token = exchanged.access_token;
+    let signed_in = sessions(&h, None, Some(&token));
+    let listed = signed_in.list_sessions(pb::ListSessionsRequest::default()).await;
+    let listed = listed.unwrap().into_owned().sessions;
+    assert_eq!(listed.len(), 1);
+    assert!(listed[0].current);
+
+    // Signed in again from their own session, the same person re-authenticates it, and the
+    // sets this sign-in no longer names lose their record.
+    let (state, code) = returned(&h, "dana", "admins", "p2").await;
+    let again = sessions(&h, None, Some(&token))
+        .complete_external_sign_in(completion(&state, &code, VERIFIER))
+        .await
+        .unwrap()
+        .into_owned();
+    assert_eq!(again.session, done.session, "no other session begins");
+    assert!(again.reauthenticated_at.as_option().is_some());
+    assert_eq!(records(&h).await, ["admins verified", "old unverified"]);
+
+    // Another person's sign-in vouches for nobody's session but theirs.
+    let (state, code) = returned(&h, "erin", "admins", "p3").await;
+    let other = sessions(&h, None, Some(&token))
+        .complete_external_sign_in(completion(&state, &code, VERIFIER))
+        .await;
+    assert_eq!(other.unwrap_err().code, ErrorCode::Unauthenticated);
+}
+
+#[tokio::test]
+async fn a_wrong_verifier_spends_the_state_and_a_presentation_is_accepted_once() {
+    let h = Harness::new().await;
+    let _corp = issuing(&h, 72, "corp", true).await;
+    let sessions = anonymous(&h);
+    let refused = |r: Result<_, connectrpc::ConnectError>| r.map(|_| ()).unwrap_err().code;
+
+    let (state, code) = returned(&h, "dana", "", "p1").await;
+    let other = "a".repeat(43);
+    let wrong = sessions.complete_external_sign_in(completion(&state, &code, &other)).await;
+    assert_eq!(refused(wrong), ErrorCode::Unauthenticated, "not the challenge's verifier");
+    let late = sessions.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert_eq!(refused(late), ErrorCode::Unauthenticated, "the state was spent by the attempt");
+
+    let (state, code) = returned(&h, "eve", "", "p2").await;
+    let nobody = sessions.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert_eq!(refused(nobody), ErrorCode::Unauthenticated, "a code its provider refuses");
+
+    let (state, code) = returned(&h, "dana", "", "p3").await;
+    let first = sessions.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert!(first.is_ok(), "{first:?}");
+    let (state, code) = returned(&h, "dana", "", "p3").await;
+    let replay = sessions.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert_eq!(refused(replay), ErrorCode::Unauthenticated, "the presentation was accepted");
+
+    let counted =
+        |f: &[(String, i64, Option<uuid::Uuid>, String)]| f.iter().map(|r| r.1).sum::<i64>();
+    let failed = recorded(&h, "session.external", |f| counted(f) >= 4).await;
+    assert_eq!(counted(&failed), 4, "each refusal is a failed attempt: {failed:?}");
+    let store = h.db.store().await.unwrap();
+    let kept: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM provider_call
+          WHERE request ? 'assert' AND (request #> '{assert,headers}') ? 'code_verifier'",
+    )
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    assert_eq!(kept, 0, "no asserted call keeps its verifier");
+}

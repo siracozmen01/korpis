@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/session.proto.
  */
 export const file_korpis_v1_session: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvc2Vzc2lvbi5wcm90bxIJa29ycGlzLnYxIiIKD0V4Y2hhbmdlUmVxdWVzdBIPCgdyZWZyZXNoGAEgASgJItsBChBFeGNoYW5nZVJlc3BvbnNlEhQKDGFjY2Vzc190b2tlbhgBIAEoCRI1ChFhY2Nlc3NfZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHYWNjb3VudBgDIAEoCRIPCgdzZXNzaW9uGAQgASgJEg8KB3JlZnJlc2gYBSABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdiaW5kaW5nGAcgASgJIiEKDlNpZ25PdXRSZXF1ZXN0Eg8KB3JlZnJlc2gYASABKAkiEQoPU2lnbk91dFJlc3BvbnNlIhUKE0xpc3RTZXNzaW9uc1JlcXVlc3Qi6gEKB1Nlc3Npb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3VzZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnVzZXJfYWdlbnQYBiABKAkSDgoGc291cmNlGAcgASgJEg8KB2N1cnJlbnQYCCABKAgiPAoUTGlzdFNlc3Npb25zUmVzcG9uc2USJAoIc2Vzc2lvbnMYASADKAsyEi5rb3JwaXMudjEuU2Vzc2lvbiIkChFFbmRTZXNzaW9uUmVxdWVzdBIPCgdzZXNzaW9uGAEgASgJIhQKEkVuZFNlc3Npb25SZXNwb25zZSIZChdFbmRPdGhlclNlc3Npb25zUmVxdWVzdCIpChhFbmRPdGhlclNlc3Npb25zUmVzcG9uc2USDQoFZW5kZWQYASABKAQiGAoWQXV0aG9yaXplRGV2aWNlUmVxdWVzdCLAAQoXQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghpbnRlcnZhbBgGIAEoDSIpChJEZXZpY2VUb2tlblJlcXVlc3QSEwoLZGV2aWNlX2NvZGUYASABKAkigAEKE0RldmljZVRva2VuUmVzcG9uc2USDwoHYWNjb3VudBgBIAEoCRIPCgdzZXNzaW9uGAIgASgJEg8KB3JlZnJlc2gYAyABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIyCh1HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkitwEKHkdldERldmljZUF1dGhvcml6YXRpb25SZXNwb25zZRIRCgl1c2VyX2NvZGUYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgEIAEoCRIOCgZzb3VyY2UYBSABKAkiKQoUQXBwcm92ZURldmljZVJlcXVlc3QSEQoJdXNlcl9jb2RlGAEgASgJIhcKFUFwcHJvdmVEZXZpY2VSZXNwb25zZSImChFEZW55RGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiFAoSRGVueURldmljZVJlc3BvbnNlIhwKGkxpc3RTaWduSW5Qcm92aWRlcnNSZXF1ZXN0IjQKDlNpZ25JblByb3ZpZGVyEhQKDG9yZ2FuaXphdGlvbhgBIAEoCRIMCgRuYW1lGAIgASgJIksKG0xpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZRIsCglwcm92aWRlcnMYASADKAsyGS5rb3JwaXMudjEuU2lnbkluUHJvdmlkZXIiXAoaQmVnaW5FeHRlcm5hbFNpZ25JblJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEhYKDmNvZGVfY2hhbGxlbmdlGAMgASgJIloKG0JlZ2luRXh0ZXJuYWxTaWduSW5SZXNwb25zZRILCgN1cmwYASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyoQgKDlNlc3Npb25TZXJ2aWNlEkMKCEV4Y2hhbmdlEhoua29ycGlzLnYxLkV4Y2hhbmdlUmVxdWVzdBobLmtvcnBpcy52MS5FeGNoYW5nZVJlc3BvbnNlEkAKB1NpZ25PdXQSGS5rb3JwaXMudjEuU2lnbk91dFJlcXVlc3QaGi5rb3JwaXMudjEuU2lnbk91dFJlc3BvbnNlElQKDExpc3RTZXNzaW9ucxIeLmtvcnBpcy52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0Gh8ua29ycGlzLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlIgOQAgESSQoKRW5kU2Vzc2lvbhIcLmtvcnBpcy52MS5FbmRTZXNzaW9uUmVxdWVzdBodLmtvcnBpcy52MS5FbmRTZXNzaW9uUmVzcG9uc2USWwoQRW5kT3RoZXJTZXNzaW9ucxIiLmtvcnBpcy52MS5FbmRPdGhlclNlc3Npb25zUmVxdWVzdBojLmtvcnBpcy52MS5FbmRPdGhlclNlc3Npb25zUmVzcG9uc2USWAoPQXV0aG9yaXplRGV2aWNlEiEua29ycGlzLnYxLkF1dGhvcml6ZURldmljZVJlcXVlc3QaIi5rb3JwaXMudjEuQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USTAoLRGV2aWNlVG9rZW4SHS5rb3JwaXMudjEuRGV2aWNlVG9rZW5SZXF1ZXN0Gh4ua29ycGlzLnYxLkRldmljZVRva2VuUmVzcG9uc2UScgoWR2V0RGV2aWNlQXV0aG9yaXphdGlvbhIoLmtvcnBpcy52MS5HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBopLmtvcnBpcy52MS5HZXREZXZpY2VBdXRob3JpemF0aW9uUmVzcG9uc2UiA5ACARJSCg1BcHByb3ZlRGV2aWNlEh8ua29ycGlzLnYxLkFwcHJvdmVEZXZpY2VSZXF1ZXN0GiAua29ycGlzLnYxLkFwcHJvdmVEZXZpY2VSZXNwb25zZRJJCgpEZW55RGV2aWNlEhwua29ycGlzLnYxLkRlbnlEZXZpY2VSZXF1ZXN0Gh0ua29ycGlzLnYxLkRlbnlEZXZpY2VSZXNwb25zZRJpChNMaXN0U2lnbkluUHJvdmlkZXJzEiUua29ycGlzLnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXF1ZXN0GiYua29ycGlzLnYxLkxpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZSIDkAIBEmQKE0JlZ2luRXh0ZXJuYWxTaWduSW4SJS5rb3JwaXMudjEuQmVnaW5FeHRlcm5hbFNpZ25JblJlcXVlc3QaJi5rb3JwaXMudjEuQmVnaW5FeHRlcm5hbFNpZ25JblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Chdrb3JwaXMvdjEvc2Vzc2lvbi5wcm90bxIJa29ycGlzLnYxIiIKD0V4Y2hhbmdlUmVxdWVzdBIPCgdyZWZyZXNoGAEgASgJItsBChBFeGNoYW5nZVJlc3BvbnNlEhQKDGFjY2Vzc190b2tlbhgBIAEoCRI1ChFhY2Nlc3NfZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHYWNjb3VudBgDIAEoCRIPCgdzZXNzaW9uGAQgASgJEg8KB3JlZnJlc2gYBSABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdiaW5kaW5nGAcgASgJIiEKDlNpZ25PdXRSZXF1ZXN0Eg8KB3JlZnJlc2gYASABKAkiEQoPU2lnbk91dFJlc3BvbnNlIhUKE0xpc3RTZXNzaW9uc1JlcXVlc3Qi6gEKB1Nlc3Npb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxsYXN0X3VzZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCmV4cGlyZXNfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnVzZXJfYWdlbnQYBiABKAkSDgoGc291cmNlGAcgASgJEg8KB2N1cnJlbnQYCCABKAgiPAoUTGlzdFNlc3Npb25zUmVzcG9uc2USJAoIc2Vzc2lvbnMYASADKAsyEi5rb3JwaXMudjEuU2Vzc2lvbiIkChFFbmRTZXNzaW9uUmVxdWVzdBIPCgdzZXNzaW9uGAEgASgJIhQKEkVuZFNlc3Npb25SZXNwb25zZSIZChdFbmRPdGhlclNlc3Npb25zUmVxdWVzdCIpChhFbmRPdGhlclNlc3Npb25zUmVzcG9uc2USDQoFZW5kZWQYASABKAQiGAoWQXV0aG9yaXplRGV2aWNlUmVxdWVzdCLAAQoXQXV0aG9yaXplRGV2aWNlUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghpbnRlcnZhbBgGIAEoDSIpChJEZXZpY2VUb2tlblJlcXVlc3QSEwoLZGV2aWNlX2NvZGUYASABKAkigAEKE0RldmljZVRva2VuUmVzcG9uc2USDwoHYWNjb3VudBgBIAEoCRIPCgdzZXNzaW9uGAIgASgJEg8KB3JlZnJlc2gYAyABKAkSNgoSc2Vzc2lvbl9leHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIyCh1HZXREZXZpY2VBdXRob3JpemF0aW9uUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkitwEKHkdldERldmljZUF1dGhvcml6YXRpb25SZXNwb25zZRIRCgl1c2VyX2NvZGUYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdXNlcl9hZ2VudBgEIAEoCRIOCgZzb3VyY2UYBSABKAkiKQoUQXBwcm92ZURldmljZVJlcXVlc3QSEQoJdXNlcl9jb2RlGAEgASgJIhcKFUFwcHJvdmVEZXZpY2VSZXNwb25zZSImChFEZW55RGV2aWNlUmVxdWVzdBIRCgl1c2VyX2NvZGUYASABKAkiFAoSRGVueURldmljZVJlc3BvbnNlIhwKGkxpc3RTaWduSW5Qcm92aWRlcnNSZXF1ZXN0IjQKDlNpZ25JblByb3ZpZGVyEhQKDG9yZ2FuaXphdGlvbhgBIAEoCRIMCgRuYW1lGAIgASgJIksKG0xpc3RTaWduSW5Qcm92aWRlcnNSZXNwb25zZRIsCglwcm92aWRlcnMYASADKAsyGS5rb3JwaXMudjEuU2lnbkluUHJvdmlkZXIiXAoaQmVnaW5FeHRlcm5hbFNpZ25JblJlcXVlc3QSFAoMb3JnYW5pemF0aW9uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEhYKDmNvZGVfY2hhbGxlbmdlGAMgASgJIloKG0JlZ2luRXh0ZXJuYWxTaWduSW5SZXNwb25zZRILCgN1cmwYASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUwodQ29tcGxldGVFeHRlcm5hbFNpZ25JblJlcXVlc3QSDQoFc3RhdGUYASABKAkSDAoEY29kZRgCIAEoCRIVCg1jb2RlX3ZlcmlmaWVyGAMgASgJInoKHkNvbXBsZXRlRXh0ZXJuYWxTaWduSW5SZXNwb25zZRIPCgdiaW5kaW5nGAEgASgJEg8KB3Nlc3Npb24YAiABKAkSNgoScmVhdXRoZW50aWNhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDKQCQoOU2Vzc2lvblNlcnZpY2USQwoIRXhjaGFuZ2USGi5rb3JwaXMudjEuRXhjaGFuZ2VSZXF1ZXN0Ghsua29ycGlzLnYxLkV4Y2hhbmdlUmVzcG9uc2USQAoHU2lnbk91dBIZLmtvcnBpcy52MS5TaWduT3V0UmVxdWVzdBoaLmtvcnBpcy52MS5TaWduT3V0UmVzcG9uc2USVAoMTGlzdFNlc3Npb25zEh4ua29ycGlzLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaHy5rb3JwaXMudjEuTGlzdFNlc3Npb25zUmVzcG9uc2UiA5ACARJJCgpFbmRTZXNzaW9uEhwua29ycGlzLnYxLkVuZFNlc3Npb25SZXF1ZXN0Gh0ua29ycGlzLnYxLkVuZFNlc3Npb25SZXNwb25zZRJbChBFbmRPdGhlclNlc3Npb25zEiIua29ycGlzLnYxLkVuZE90aGVyU2Vzc2lvbnNSZXF1ZXN0GiMua29ycGlzLnYxLkVuZE90aGVyU2Vzc2lvbnNSZXNwb25zZRJYCg9BdXRob3JpemVEZXZpY2USIS5rb3JwaXMudjEuQXV0aG9yaXplRGV2aWNlUmVxdWVzdBoiLmtvcnBpcy52MS5BdXRob3JpemVEZXZpY2VSZXNwb25zZRJMCgtEZXZpY2VUb2tlbhIdLmtvcnBpcy52MS5EZXZpY2VUb2tlblJlcXVlc3QaHi5rb3JwaXMudjEuRGV2aWNlVG9rZW5SZXNwb25zZRJyChZHZXREZXZpY2VBdXRob3JpemF0aW9uEigua29ycGlzLnYxLkdldERldmljZUF1dGhvcml6YXRpb25SZXF1ZXN0Gikua29ycGlzLnYxLkdldERldmljZUF1dGhvcml6YXRpb25SZXNwb25zZSIDkAIBElIKDUFwcHJvdmVEZXZpY2USHy5rb3JwaXMudjEuQXBwcm92ZURldmljZVJlcXVlc3QaIC5rb3JwaXMudjEuQXBwcm92ZURldmljZVJlc3BvbnNlEkkKCkRlbnlEZXZpY2USHC5rb3JwaXMudjEuRGVueURldmljZVJlcXVlc3QaHS5rb3JwaXMudjEuRGVueURldmljZVJlc3BvbnNlEmkKE0xpc3RTaWduSW5Qcm92aWRlcnMSJS5rb3JwaXMudjEuTGlzdFNpZ25JblByb3ZpZGVyc1JlcXVlc3QaJi5rb3JwaXMudjEuTGlzdFNpZ25JblByb3ZpZGVyc1Jlc3BvbnNlIgOQAgESZAoTQmVnaW5FeHRlcm5hbFNpZ25JbhIlLmtvcnBpcy52MS5CZWdpbkV4dGVybmFsU2lnbkluUmVxdWVzdBomLmtvcnBpcy52MS5CZWdpbkV4dGVybmFsU2lnbkluUmVzcG9uc2USbQoWQ29tcGxldGVFeHRlcm5hbFNpZ25JbhIoLmtvcnBpcy52MS5Db21wbGV0ZUV4dGVybmFsU2lnbkluUmVxdWVzdBopLmtvcnBpcy52MS5Db21wbGV0ZUV4dGVybmFsU2lnbkluUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message korpis.v1.ExchangeRequest
@@ -642,14 +642,80 @@ export const BeginExternalSignInResponseSchema: GenMessage<BeginExternalSignInRe
   messageDesc(file_korpis_v1_session, 25);
 
 /**
+ * @generated from message korpis.v1.CompleteExternalSignInRequest
+ */
+export type CompleteExternalSignInRequest = Message<"korpis.v1.CompleteExternalSignInRequest"> & {
+  /**
+   * The state the identity provider returned.
+   *
+   * @generated from field: string state = 1;
+   */
+  state: string;
+
+  /**
+   * The authorization code it returned; at most 2 KiB.
+   *
+   * @generated from field: string code = 2;
+   */
+  code: string;
+
+  /**
+   * The PKCE verifier the panel kept (RFC 7636 §4.1).
+   *
+   * @generated from field: string code_verifier = 3;
+   */
+  codeVerifier: string;
+};
+
+/**
+ * Describes the message korpis.v1.CompleteExternalSignInRequest.
+ * Use `create(CompleteExternalSignInRequestSchema)` to create a new message.
+ */
+export const CompleteExternalSignInRequestSchema: GenMessage<CompleteExternalSignInRequest> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 26);
+
+/**
+ * @generated from message korpis.v1.CompleteExternalSignInResponse
+ */
+export type CompleteExternalSignInResponse = Message<"korpis.v1.CompleteExternalSignInResponse"> & {
+  /**
+   * The person's binding, as `idb_…`.
+   *
+   * @generated from field: string binding = 1;
+   */
+  binding: string;
+
+  /**
+   * The session begun, or the caller's, re-authenticated, as `ses_…`.
+   *
+   * @generated from field: string session = 2;
+   */
+  session: string;
+
+  /**
+   * When the caller's session re-authenticated; unset when a session began.
+   *
+   * @generated from field: google.protobuf.Timestamp reauthenticated_at = 3;
+   */
+  reauthenticatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.CompleteExternalSignInResponse.
+ * Use `create(CompleteExternalSignInResponseSchema)` to create a new message.
+ */
+export const CompleteExternalSignInResponseSchema: GenMessage<CompleteExternalSignInResponse> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_session, 27);
+
+/**
  * User sessions (§9.4 of docs/08-identity.md). A browser's refresh credential is a cookie,
  * `__Host-korpis_refresh`, which is `HttpOnly`, `Secure`, `SameSite=Strict`, and bound to the
  * control plane's own name, so no script can read it, no other site's request carries it, and no
  * sibling name can set one; the CLI's travels in the request and response bodies instead.
  * Exchange, SignOut, AuthorizeDevice, and DeviceToken take no other credential, and a refused one
  * is a failed attempt (§10 of docs/10-api.md); ListSignInProviders and BeginExternalSignIn take
- * none at all, and are charged to their source; the rest are called with an access token, as
- * any call is.
+ * none at all, and are charged to their source, as CompleteExternalSignIn is when it begins a
+ * session; the rest are called with an access token, as any call is.
  *
  * @generated from service korpis.v1.SessionService
  */
@@ -787,6 +853,23 @@ export const SessionService: GenService<{
     methodKind: "unary";
     input: typeof BeginExternalSignInRequestSchema;
     output: typeof BeginExternalSignInResponseSchema;
+  },
+  /**
+   * Completes a sign-in through an identity provider with what the person returned with and
+   * the verifier the panel kept: the state is spent once, and the provider asserts the code.
+   * Called without a credential, it begins a session for the person and sets its refresh
+   * credential as the cookie; called with the access token of a session the same person holds
+   * through the same provider, it re-authenticates that session instead (§9.6). A state unknown,
+   * expired, or spent, a verifier that is not the challenge's, a code the provider will not
+   * assert, or another person's session is UNAUTHENTICATED, a failed attempt of the kind
+   * `session.external`.
+   *
+   * @generated from rpc korpis.v1.SessionService.CompleteExternalSignIn
+   */
+  completeExternalSignIn: {
+    methodKind: "unary";
+    input: typeof CompleteExternalSignInRequestSchema;
+    output: typeof CompleteExternalSignInResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_korpis_v1_session, 0);

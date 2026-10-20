@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.binding_id, m.member, m.state, m.last_verified_at\n               FROM identity_member m JOIN identity_binding b ON b.id = m.binding_id\n              WHERE m.binding_id = $1\n                AND EXISTS (SELECT 1 FROM grants g\n                             WHERE g.revoked_at IS NULL AND g.via ->> 'set' = b.subject\n                               AND g.via ->> 'member' = m.member)\n              ORDER BY m.member",
+  "query": "SELECT m.binding_id, m.member, m.state, m.last_verified_at\n               FROM identity_member m JOIN identity_binding b ON b.id = m.binding_id\n              WHERE m.binding_id = $1\n                AND (EXISTS (SELECT 1 FROM grants g\n                              WHERE g.revoked_at IS NULL AND g.via ->> 'set' = b.subject\n                                AND g.via ->> 'member' = m.member)\n                     OR EXISTS (SELECT 1 FROM user_session s\n                                  JOIN identity_binding p ON p.id = s.binding_id\n                                 WHERE p.subject = m.member AND s.expires_at > now()))\n              ORDER BY m.member",
   "describe": {
     "columns": [
       {
@@ -60,5 +60,5 @@
       true
     ]
   },
-  "hash": "fcbb68a68a8702a09d22bbcbfbd03cc548b1d66cc660a1a073f95d5f2440a36c"
+  "hash": "b619cfd2a404c6b9691ae45c56d0643f959e9747b8fd0fd19388c97954bdab0e"
 }

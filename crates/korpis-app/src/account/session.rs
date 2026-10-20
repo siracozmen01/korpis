@@ -85,15 +85,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         account: Uuid,
         client: &Client,
     ) -> Result<Begun, AppError> {
-        self.begin_held(tx, Holder::Account(account), Vec::new(), client).await
+        let held = (Holder::Account(account), Principal::User(account));
+        self.begin_held(tx, held, Vec::new(), client).await
     }
 
-    /// Begins a session `holder` holds, with `sets` for a person, for `client` in `tx`: what
-    /// vouched for the holder having just been checked.
+    /// Begins a session `holder` holds, acting as `actor`, with `sets` for a person, for
+    /// `client` in `tx`: what vouched for the holder having just been checked. The actor is
+    /// given rather than read, since a person's binding may be made in `tx` itself.
     pub(crate) async fn begin_held(
         &self,
         tx: &mut S::Tx,
-        holder: Holder,
+        (holder, actor): (Holder, Principal),
         sets: Vec<SetName>,
         client: &Client,
     ) -> Result<Begun, AppError> {
@@ -117,7 +119,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("kind", client.kind.as_str().into()),
             ("source", session.source.clone().into()),
         ];
-        let actor = self.actor_of(holder).await?;
         record_held(tx, &actor, "session.begun", holder, more).await?;
         // A device cookie spares an account's browsers its password guesses (§9.6); a person
         // signed in through a provider has no password here to guess.
