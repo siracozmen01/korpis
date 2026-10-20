@@ -49,7 +49,10 @@ pub type Client = connectrpc::client::BidiStream<
     pb::__buffa::view::RelayResponseView<'static>,
 >;
 
-/// A session opened with `request` at `relay`, retried while the node is not yet attached.
+/// A session opened with `request` at `relay`, retried while the node is not yet attached, and
+/// while it does not yet hold the workload: a workload declared just before is placed on the
+/// node at once, and its assignment reaches the node with the next set it is sent, which under a
+/// loaded machine can come after the session asks.
 pub async fn opened(
     relay: &pb::RelayServiceClient<connectrpc::client::HttpClient>,
     request: &pb::RelayRequest,
@@ -60,7 +63,7 @@ pub async fn opened(
         let first = match client.message::<pb::RelayResponse>().await {
             Ok(m) => m.map(|m| m.to_owned_message()),
             // Until the data connection is attached, the node is unavailable here.
-            Err(e) if e.code == connectrpc::ErrorCode::Unavailable => {
+            Err(e) if e.code == connectrpc::ErrorCode::Unavailable || not_held_yet(&e) => {
                 tokio::time::sleep(Duration::from_millis(100)).await;
                 continue;
             }
@@ -69,6 +72,13 @@ pub async fn opened(
         assert!(matches!(first.and_then(|m| m.message), Some(Reply::Opened(_))), "opened first");
         return client;
     }
+}
+
+/// Whether `e` is the node's refusal of a workload it does not hold, as `korpis_agent::data`
+/// words it.
+fn not_held_yet(e: &connectrpc::ConnectError) -> bool {
+    e.code == connectrpc::ErrorCode::FailedPrecondition
+        && e.message.as_deref() == Some("this node does not hold that workload")
 }
 
 pub fn open(token: &str, action: &str, workload: &str, node: &str) -> pb::RelayRequest {

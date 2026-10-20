@@ -69,7 +69,8 @@ fn authorized(a: Authorized, page: &str) -> pb::AuthorizeDeviceResponse {
 
 fn device_signed_in(s: &DeviceSignedIn) -> pb::DeviceTokenResponse {
     pb::DeviceTokenResponse {
-        account: wire_id(IdKind::User, s.account),
+        account: s.holder.account().map(|a| wire_id(IdKind::User, a)).unwrap_or_default(),
+        binding: s.holder.binding().map(|b| wire_id(IdKind::Binding, b)).unwrap_or_default(),
         session: wire_id(IdKind::Session, s.session.id),
         refresh: s.session.refresh.expose().to_owned(),
         session_expires_at: Some(timestamp(s.session.expires_at)).into(),

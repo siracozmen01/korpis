@@ -4,8 +4,10 @@
 //! 8628. A CLI asks and is given a device code to poll with and a user code for its user; an
 //! account signed in to the panel, recently, approves the user code there, having been shown where
 //! the CLI asked from; and the CLI's next poll begins a session of its own and spends the grant.
+//! A person signed in through an identity provider approves one the same way (§9.7), and the
+//! CLI's session is then theirs, with the sets the approving session holds.
 
-use super::{Begun, Client, own_account, record};
+use super::{Begun, Client, own_holder, record_held};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -16,7 +18,7 @@ use korpis_core::account::device_grant::{
 use korpis_core::account::session::{SessionKind, user_agent};
 use korpis_core::audit::failure::source;
 use korpis_core::authz::credential::{Secret, SecretKind};
-use korpis_core::principal::Principal;
+use korpis_core::principal::Holder;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -40,8 +42,8 @@ pub struct Authorized {
 /// A device authorization approved, and the session the poll that found it began.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceSignedIn {
-    /// The account that approved it.
-    pub account: Uuid,
+    /// Who approved it, and holds the session: an account, or a person's binding.
+    pub holder: Holder,
     /// The CLI's session, and its refresh credential.
     pub session: Begun,
 }
@@ -93,7 +95,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .ok_or(AppError::Unauthenticated)?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
-        let Polled::Found { authorization: a, polled_before, honoured } =
+        let Polled::Found { authorization: a, polled_before, honoured, from } =
             tx.poll_device(&secret.digest(), now).await?
         else {
             return Err(AppError::Unauthenticated);
@@ -130,9 +132,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let cli = Client { kind: SessionKind::Cli, ..client.clone() };
-        let session = self.begin_session(&mut tx, decision.account, &cli).await?;
+        let session = self.begin_cli_session(&mut tx, decision.holder, from, &cli).await?;
         tx.commit().await?;
-        Ok(DeviceSignedIn { account: decision.account, session })
+        Ok(DeviceSignedIn { holder: decision.holder, session })
     }
 
     /// The pending device authorization whose user code is `typed`, as the caller is shown it
@@ -142,7 +144,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         typed: &str,
     ) -> Result<DeviceAuthorization, AppError> {
-        own_account(caller)?;
+        own_holder(caller)?;
         let code = user_code(typed).ok_or(AppError::NotFound { kind: "device authorization" })?;
         let now = self.clock.now();
         self.store
@@ -163,19 +165,41 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         typed: &str,
         approved: bool,
     ) -> Result<(), AppError> {
-        let account =
-            if approved { self.recently_signed_in(caller).await? } else { own_account(caller)? };
+        let holder =
+            if approved { self.recently_signed_in_as(caller).await? } else { own_holder(caller)? };
         let a = self.device_authorization(caller, typed).await?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         let from = if approved { caller.session } else { None };
-        if !tx.decide_device(&a.user_code, (account, from), approved, now).await? {
+        if !tx.decide_device(&a.user_code, (holder, from), approved, now).await? {
             return Err(AppError::NotFound { kind: "device authorization" });
         }
         let effect = if approved { "device.approved" } else { "device.denied" };
         let more = [("user_code", a.shown().into()), ("source", a.source.clone().into())];
-        record(&mut tx, &Principal::User(account), effect, account, more).await?;
+        record_held(&mut tx, &caller.principal, effect, holder, more).await?;
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Begins the CLI's session for `holder`, who approved from session `from`: an account's,
+    /// or a person's with the sets that session holds, which they signed in with.
+    async fn begin_cli_session(
+        &self,
+        tx: &mut S::Tx,
+        holder: Holder,
+        from: Option<Uuid>,
+        cli: &Client,
+    ) -> Result<Begun, AppError> {
+        let Holder::Person(binding) = holder else {
+            let account = holder.account().ok_or(AppError::Unauthenticated)?;
+            return self.begin_session(tx, account, cli).await;
+        };
+        let person = self.store.binding(binding).await?.ok_or(AppError::Unauthenticated)?;
+        let approving = match from {
+            Some(id) => self.store.user_session(holder, id).await?,
+            None => None,
+        };
+        let sets = approving.map(|s| s.sets).ok_or(AppError::Unauthenticated)?;
+        self.begin_held(tx, (holder, person.subject), sets, cli).await
     }
 }

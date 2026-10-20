@@ -32,6 +32,8 @@ struct State {
     next: u64,
     calls: Vec<String>,
     failing: BTreeSet<String>,
+    /// Verbs answered as a driver that cannot be reached, or did not answer in time.
+    unreachable: BTreeSet<String>,
     rejecting: Option<driver::Rejection>,
     holding: BTreeSet<String>,
     capturing: bool,
@@ -76,6 +78,9 @@ impl InMemory {
         s.calls.push(format!("{verb} {id}"));
         if s.failing.contains(verb) {
             return Err(RuntimeError::Failed(format!("{verb} was made to fail")));
+        }
+        if s.unreachable.contains(verb) {
+            return Err(RuntimeError::Unavailable(format!("{verb} was not answered in time")));
         }
         Ok(s)
     }

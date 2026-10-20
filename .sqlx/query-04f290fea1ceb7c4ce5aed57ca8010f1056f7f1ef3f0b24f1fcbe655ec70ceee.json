@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.id, d.user_code, d.created_at, d.expires_at, d.interval_secs, d.user_agent,\n                      d.source, d.decided_by, d.decided_at, d.approved, d.last_polled_at,\n                      (d.approved IS NOT TRUE\n                       OR (EXISTS (SELECT 1 FROM account a\n                                    WHERE a.id = d.decided_by AND a.disabled_at IS NULL)\n                           AND EXISTS (SELECT 1 FROM user_session s\n                                        WHERE s.id = d.decided_session AND s.expires_at > $2)))\n                      AS \"honoured!\"\n                 FROM device_authorization d WHERE d.device_hash = $1 FOR UPDATE OF d",
+  "query": "SELECT d.id, d.user_code, d.created_at, d.expires_at, d.interval_secs, d.user_agent,\n                      d.source, d.decided_by, d.decided_binding, d.decided_at, d.approved,\n                      d.last_polled_at, d.decided_session,\n                      (d.approved IS NOT TRUE\n                       OR ((EXISTS (SELECT 1 FROM account a\n                                     WHERE a.id = d.decided_by AND a.disabled_at IS NULL)\n                            OR EXISTS (SELECT 1 FROM identity_binding b\n                                        WHERE b.id = d.decided_binding AND b.retired_at IS NULL))\n                           AND EXISTS (SELECT 1 FROM user_session s\n                                        WHERE s.id = d.decided_session AND s.expires_at > $2)))\n                      AS \"honoured!\"\n                 FROM device_authorization d WHERE d.device_hash = $1 FOR UPDATE OF d",
   "describe": {
     "columns": [
       {
@@ -93,6 +93,17 @@
       },
       {
         "ordinal": 8,
+        "name": "decided_binding",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "device_authorization",
+            "name": "decided_binding"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
         "name": "decided_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "approved",
         "type_info": "Bool",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "last_polled_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -125,7 +136,18 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
+        "name": "decided_session",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "device_authorization",
+            "name": "decided_session"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
         "name": "honoured!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -149,8 +171,10 @@
       true,
       true,
       true,
+      true,
+      true,
       null
     ]
   },
-  "hash": "1036de4914b8d7f6c36a620b360b8095c76f0ab9a56a5e4705adc77f848ee51b"
+  "hash": "04f290fea1ceb7c4ce5aed57ca8010f1056f7f1ef3f0b24f1fcbe655ec70ceee"
 }

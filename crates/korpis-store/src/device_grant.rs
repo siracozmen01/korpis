@@ -8,6 +8,7 @@ use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{DeviceGrantRead, DeviceGrantWrite, Polled, StoreError, StoreResult};
 use korpis_core::account::device_grant::{Decision, DeviceAuthorization};
+use korpis_core::principal::Holder;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -20,6 +21,7 @@ struct Row {
     user_agent: String,
     source: String,
     decided_by: Option<Uuid>,
+    decided_binding: Option<Uuid>,
     decided_at: Option<chrono::DateTime<chrono::Utc>>,
     approved: Option<bool>,
 }
@@ -30,9 +32,14 @@ impl TryFrom<Row> for DeviceAuthorization {
     fn try_from(r: Row) -> StoreResult<Self> {
         let interval = u64::try_from(r.interval_secs)
             .map_err(|_| StoreError::Corrupt(format!("device authorization {}: interval", r.id)))?;
-        let decision = match (r.decided_by, r.decided_at, r.approved) {
-            (Some(account), Some(at), Some(approved)) => {
-                Some(Decision { account, at: to_time(at), approved })
+        let holder = match (r.decided_by, r.decided_binding) {
+            (Some(account), None) => Some(Holder::Account(account)),
+            (None, Some(binding)) => Some(Holder::Person(binding)),
+            _ => None,
+        };
+        let decision = match (holder, r.decided_at, r.approved) {
+            (Some(holder), Some(at), Some(approved)) => {
+                Some(Decision { holder, at: to_time(at), approved })
             }
             _ => None,
         };
@@ -54,7 +61,7 @@ impl DeviceGrantRead for PgStore {
         let row = sqlx::query_as!(
             Row,
             "SELECT id, user_code, created_at, expires_at, interval_secs, user_agent, source,
-                    decided_by, decided_at, approved
+                    decided_by, decided_binding, decided_at, approved
                FROM device_authorization WHERE user_code = $1",
             code
         )
@@ -113,10 +120,13 @@ impl DeviceGrantWrite for PgTx {
     async fn poll_device(&mut self, digest: &[u8; 32], at: SystemTime) -> StoreResult<Polled> {
         let found = sqlx::query!(
             r#"SELECT d.id, d.user_code, d.created_at, d.expires_at, d.interval_secs, d.user_agent,
-                      d.source, d.decided_by, d.decided_at, d.approved, d.last_polled_at,
+                      d.source, d.decided_by, d.decided_binding, d.decided_at, d.approved,
+                      d.last_polled_at, d.decided_session,
                       (d.approved IS NOT TRUE
-                       OR (EXISTS (SELECT 1 FROM account a
-                                    WHERE a.id = d.decided_by AND a.disabled_at IS NULL)
+                       OR ((EXISTS (SELECT 1 FROM account a
+                                     WHERE a.id = d.decided_by AND a.disabled_at IS NULL)
+                            OR EXISTS (SELECT 1 FROM identity_binding b
+                                        WHERE b.id = d.decided_binding AND b.retired_at IS NULL))
                            AND EXISTS (SELECT 1 FROM user_session s
                                         WHERE s.id = d.decided_session AND s.expires_at > $2)))
                       AS "honoured!"
@@ -146,11 +156,13 @@ impl DeviceGrantWrite for PgTx {
             user_agent: r.user_agent,
             source: r.source,
             decided_by: r.decided_by,
+            decided_binding: r.decided_binding,
             decided_at: r.decided_at,
             approved: r.approved,
         };
-        let authorization = DeviceAuthorization::try_from(row)?;
-        Ok(Polled::Found { authorization, polled_before, honoured: r.honoured })
+        let authorization = Box::new(DeviceAuthorization::try_from(row)?);
+        let from = r.decided_session;
+        Ok(Polled::Found { authorization, polled_before, honoured: r.honoured, from })
     }
 
     async fn slow_device(&mut self, id: Uuid, seconds: u32) -> StoreResult<()> {
@@ -169,16 +181,18 @@ impl DeviceGrantWrite for PgTx {
     async fn decide_device(
         &mut self,
         code: &str,
-        (account, session): (Uuid, Option<Uuid>),
+        (holder, session): (Holder, Option<Uuid>),
         approved: bool,
         at: SystemTime,
     ) -> StoreResult<bool> {
         let done = sqlx::query!(
             "UPDATE device_authorization
-                SET decided_by = $2, decided_at = $3, approved = $4, decided_session = $5
-              WHERE user_code = $1 AND decided_by IS NULL AND expires_at > $3",
+                SET decided_by = $2, decided_binding = $3, decided_at = $4, approved = $5,
+                    decided_session = $6
+              WHERE user_code = $1 AND decided_at IS NULL AND expires_at > $4",
             code,
-            account,
+            holder.account(),
+            holder.binding(),
             from_time(at),
             approved,
             session

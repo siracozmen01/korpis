@@ -156,3 +156,56 @@ async fn a_wrong_verifier_spends_the_state_and_a_presentation_is_accepted_once()
     .unwrap();
     assert_eq!(kept, 0, "no asserted call keeps its verifier");
 }
+
+/// Signs `user` in through `corp` in `sets`; their binding and an access token for the session.
+async fn signed_in(h: &Harness, user: &str, sets: &str, presentation: &str) -> (String, String) {
+    let (state, code) = returned(h, user, sets, presentation).await;
+    let anonymous = anonymous(h);
+    let done = anonymous.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    let done = done.unwrap();
+    let cookie = refresh_cookie(done.headers()).unwrap();
+    let browser = sessions(h, Some(&cookie), None);
+    let exchanged = browser.exchange(pb::ExchangeRequest::default()).await.unwrap().into_owned();
+    (done.into_owned().binding, exchanged.access_token)
+}
+
+#[tokio::test]
+async fn a_person_approves_korpis_login_and_the_cli_s_session_is_theirs() {
+    let h = Harness::new().await;
+    let _corp = issuing(&h, 73, "corp", true).await;
+    let (binding, token) = signed_in(&h, "dana", "ops", "p1").await;
+    let cli = anonymous(&h);
+    let asked = cli.authorize_device(pb::AuthorizeDeviceRequest::default()).await.unwrap();
+    let asked = asked.into_owned();
+    let approve =
+        || pb::ApproveDeviceRequest { user_code: asked.user_code.clone(), ..Default::default() };
+
+    // A sign-in more than ten minutes old approves nothing: the person signs in again first.
+    let store = h.db.store().await.unwrap();
+    sqlx::query("UPDATE user_session SET authenticated_at = now() - interval '11 minutes'")
+        .execute(store.pool())
+        .await
+        .unwrap();
+    let browser = sessions(&h, None, Some(&token));
+    let old = browser.approve_device(approve()).await.unwrap_err();
+    assert_eq!(old.code, ErrorCode::Aborted, "session.not_recent: {old:?}");
+    let (state, code) = returned(&h, "dana", "ops", "p2").await;
+    let again = browser.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;
+    assert!(again.unwrap().into_owned().reauthenticated_at.as_option().is_some());
+    browser.approve_device(approve()).await.unwrap();
+
+    let poll =
+        pb::DeviceTokenRequest { device_code: asked.device_code.clone(), ..Default::default() };
+    let signed_in = cli.device_token(poll).await.unwrap().into_owned();
+    assert_eq!((signed_in.account.as_str(), &signed_in.binding), ("", &binding), "hers");
+    let refresh = pb::ExchangeRequest { refresh: signed_in.refresh, ..Default::default() };
+    let exchanged = cli.exchange(refresh).await.unwrap().into_owned();
+    assert!(exchanged.access_token.starts_with("korpisax_"));
+    let held: (String,) = sqlx::query_as(
+        "SELECT sets::text FROM user_session WHERE kind = 'cli' AND binding_id IS NOT NULL",
+    )
+    .fetch_one(store.pool())
+    .await
+    .unwrap();
+    assert!(held.0.contains("\"ops\""), "the CLI holds the sets her browser does: {}", held.0);
+}

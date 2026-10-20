@@ -221,3 +221,25 @@ async fn a_cancelled_run_that_ignores_its_stop_is_killed_past_its_grace_and_ends
     }
     panic!("the run's object was never removed: {:?}", runtime.objects());
 }
+
+#[tokio::test]
+async fn a_retirement_the_driver_does_not_answer_is_asked_again_rather_than_failed() {
+    let cp = ControlPlane::start().await;
+    let project = cp.project().await;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = InMemory::new();
+    let _agent = node(&cp, &dir, &runtime, Duration::from_secs(30)).await;
+    let w = declare(&cp, &project, "slow", push_paper().await, false).await;
+    let id = object(&runtime, &w).await;
+    runtime.unreachable("destroy", true);
+    cp.retire(&w).await;
+    called(&runtime, &format!("destroy {id}")).await;
+    // Passes go by, each asking again, and none fails the retirement.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let asked = runtime.calls().iter().filter(|c| *c == &format!("destroy {id}")).count();
+    assert!(asked >= 2, "asked again on a later pass: {asked}");
+    let failed = "SELECT count(*) FROM effect WHERE action = 'step.retire' AND outcome = 'failed'";
+    assert_eq!(cp.scalar::<i64>(failed).await, 0, "a moment of the driver's fails nothing");
+    runtime.unreachable("destroy", false);
+    counted(&cp, RETIRED, 1).await;
+}

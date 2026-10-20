@@ -1174,6 +1174,15 @@ period late (two seconds by default). What it costs: a stop is no longer one cal
 but a signal, a kill, and a look on each pass, and an agent that restarts in the middle of one
 forgets how far it was and signals the object again, which starts its grace again.
 
+> Added 2026-10-20. A retirement's last call, destroying the object, is left for a later pass
+> in the same way when the driver does not answer it in time or cannot be reached, rather than
+> failing the retirement: nothing then says the object is not gone or going, and destroying it
+> again is harmless, since an object already gone counts as destroyed. A full check failed a
+> retirement on a loaded machine whose containerd took longer than the call's thirty seconds to
+> remove a container, and the workload was left neither running nor retired. What it costs: a
+> driver that never answers leaves the retirement waiting rather than failed, and the plan says
+> so only by not finishing.
+
 Three properties follow from this structure:
 
 **No component both holds privilege and accepts tenant input.** The supervisor accepts

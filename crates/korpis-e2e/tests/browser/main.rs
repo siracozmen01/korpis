@@ -127,6 +127,38 @@ async fn tasks(cp: &ControlPlane, project: &str, node: Option<&Node>) -> (String
     panic!("the waiter never ran, or the printer's run never ended");
 }
 
+/// Waits until the machine's interfaces and addresses have stayed as they are for three seconds,
+/// for at most a minute. A run that has ended is torn down after its end is recorded, and its
+/// teardown changed the interfaces while the browser was redeeming an invitation, so the answer
+/// was lost mid-response (Finding 88 of docs/23-walkthroughs.md): a ceremony whose proof was
+/// spent cannot be sent again, so the browser steps begin only once the network is still.
+async fn quiet_network() {
+    let read = || async {
+        let mut seen = Vec::new();
+        for what in ["link", "addr"] {
+            let out = tokio::process::Command::new("ip").args(["-o", what, "show"]).output().await;
+            seen.push(out.map(|o| o.stdout).unwrap_or_default());
+        }
+        seen
+    };
+    let (mut last, mut still) = (read().await, 0);
+    for _ in 0..240 {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        let now = read().await;
+        still = if now == last { still + 1 } else { 0 };
+        if still >= 12 {
+            return;
+        }
+        last = now;
+    }
+    #[expect(clippy::print_stderr, reason = "a browser step begun on a restless network says so")]
+    {
+        eprintln!(
+            "the machine's network did not settle within a minute; the browser steps begin anyway"
+        );
+    }
+}
+
 fn web() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web")
 }
@@ -191,6 +223,7 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let project = cp.project().await;
     let talking = talking(&cp, &project).await;
     let (waiter, printer) = tasks(&cp, &project, talking.as_ref().map(|(n, _, _)| n)).await;
+    quiet_network().await;
     let config = tempfile::tempdir().unwrap();
     let (login, approve_at, login_stderr) = logging_in(&cp, &cli, config.path()).await;
     let mut playwright = tokio::process::Command::new("pnpm");

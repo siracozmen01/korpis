@@ -20,6 +20,10 @@ pub use recipe::{push_paper, push_paper_waiting};
 
 pub struct ControlPlane {
     db: TestDb,
+    /// The one store the test's own queries go through, made at the first: a pool made for each
+    /// query, as the tests poll, opened connections faster than dropped pools closed theirs, and
+    /// the agent's tests together ran the database out of connection slots.
+    store: tokio::sync::OnceCell<korpis_store::PgStore>,
     _dir: tempfile::TempDir,
     pub data: DataDir,
     pub url: String,
@@ -52,6 +56,7 @@ impl ControlPlane {
         );
         Self {
             db,
+            store: tokio::sync::OnceCell::new(),
             _dir: dir,
             data,
             url: format!("https://localhost:{}", served.addr.port()),
@@ -86,6 +91,8 @@ impl ControlPlane {
     pub async fn serve_on(&mut self, db: Option<(TestDb, String)>) {
         self.served.stop();
         if let Some((db, login)) = db {
+            // The old store first, so that nothing of it holds the old database as it goes.
+            self.store = tokio::sync::OnceCell::new();
             self.db = db;
             self.login = login;
         }
@@ -274,12 +281,17 @@ impl ControlPlane {
         got.plan.into_option().unwrap()
     }
 
+    /// The store the test's own queries go through.
+    async fn store(&self) -> &korpis_store::PgStore {
+        self.store.get_or_init(|| async { self.db.store().await.unwrap() }).await
+    }
+
     /// One query against the control plane's database.
     pub async fn scalar<T>(&self, sql: &'static str) -> T
     where
         T: Send + Unpin + for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::Postgres>,
     {
-        let store = self.db.store().await.unwrap();
+        let store = self.store().await;
         sqlx::query_scalar(sql).fetch_one(store.pool()).await.unwrap()
     }
 
@@ -288,7 +300,7 @@ impl ControlPlane {
     where
         T: for<'r> sqlx::FromRow<'r, sqlx::postgres::PgRow> + Send + Unpin,
     {
-        let store = self.db.store().await.unwrap();
+        let store = self.store().await;
         sqlx::query_as(sql).bind(arg.to_owned()).fetch_optional(store.pool()).await.unwrap()
     }
 
@@ -309,7 +321,7 @@ impl ControlPlane {
 
     /// One statement against the control plane's database.
     pub async fn execute(&self, sql: &'static str) {
-        let store = self.db.store().await.unwrap();
+        let store = self.store().await;
         sqlx::query(sql).execute(store.pool()).await.unwrap();
     }
 

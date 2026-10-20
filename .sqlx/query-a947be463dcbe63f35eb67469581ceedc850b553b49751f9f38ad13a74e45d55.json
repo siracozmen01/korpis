@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE device_authorization\n                SET decided_by = $2, decided_binding = $3, decided_at = $4, approved = $5,\n                    decided_session = $6\n              WHERE user_code = $1 AND decided_at IS NULL AND expires_at > $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a947be463dcbe63f35eb67469581ceedc850b553b49751f9f38ad13a74e45d55"
+}

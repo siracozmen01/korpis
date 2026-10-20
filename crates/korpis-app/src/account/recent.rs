@@ -8,7 +8,7 @@
 //! beside it, charged and limited as a sign-in is.
 
 use super::sign_in::{Assertion, SecondFactor};
-use super::{AccountView, Client, own_account, record};
+use super::{AccountView, Client, own_account, own_holder, record};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
@@ -42,17 +42,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// without a session, one presenting an API token, never has.
     pub(super) async fn recently_signed_in(&self, caller: &Caller) -> Result<Uuid, AppError> {
         let account = own_account(caller)?;
+        match self.recently_signed_in_as(caller).await? {
+            Holder::Account(held) if held == account => Ok(account),
+            _ => Err(AppError::Unauthenticated),
+        }
+    }
+
+    /// Who holds the caller's session, an account or a person signed in through an identity
+    /// provider, if it signed in or re-authenticated recently (§9.6 and §9.7 of
+    /// docs/08-identity.md); a caller without a session never has.
+    pub(super) async fn recently_signed_in_as(&self, caller: &Caller) -> Result<Holder, AppError> {
+        let holder = own_holder(caller)?;
         let session = caller.session.ok_or_else(not_recent)?;
-        let session = self
-            .store
-            .user_session(Holder::Account(account), session)
-            .await?
-            .ok_or(AppError::Unauthenticated)?;
+        let session =
+            self.store.user_session(holder, session).await?.ok_or(AppError::Unauthenticated)?;
         let since = self.clock.now().checked_sub(REAUTHENTICATE_WITHIN);
         if since.is_some_and(|since| session.authenticated_at <= since) {
             return Err(not_recent());
         }
-        Ok(account)
+        Ok(holder)
     }
 
     /// Re-authenticates the caller's session with the passkey assertion `a`.
@@ -129,6 +137,6 @@ fn session_of(caller: &Caller) -> Result<(Uuid, Uuid), AppError> {
 fn not_recent() -> AppError {
     AppError::conflict(
         "session.not_recent",
-        "changing the account's factors needs a sign-in within ten minutes: re-authenticate first",
+        "this needs a sign-in within ten minutes: re-authenticate first",
     )
 }

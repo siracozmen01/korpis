@@ -44,8 +44,10 @@ service SessionService {
       returns (GetDeviceAuthorizationResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // Approves a pending device authorization for the caller's account; needs a recent sign-in,
-  // as a change of factors does (profile.proto).
+  // Approves a pending device authorization for the caller's account, or for the caller signed
+  // in through an identity provider, whose CLI session then holds the sets theirs does; needs a
+  // recent sign-in, as a change of factors does (profile.proto), which such a person gives by
+  // signing in through their provider again (CompleteExternalSignIn).
   rpc ApproveDevice(ApproveDeviceRequest) returns (ApproveDeviceResponse);
   // Denies a pending device authorization.
   rpc DenyDevice(DenyDeviceRequest) returns (DenyDeviceResponse);
@@ -159,13 +161,17 @@ message DeviceTokenRequest {
 }
 
 message DeviceTokenResponse {
-  // The account that approved it, as `usr_…`.
+  // The account that approved it, as `usr_…`; empty when a person did.
   string account = 1;
   // The CLI's session, as `ses_…`.
   string session = 2;
   // Its refresh credential, `korpisrt_` and the rest, exchanged as ExchangeRequest says.
   string refresh = 3;
   google.protobuf.Timestamp session_expires_at = 4;
+  // The binding of the person signed in through an identity provider who approved it, as
+  // `idb_…`, and who holds the CLI's session (§9.7 of docs/08-identity.md); empty when an
+  // account did.
+  string binding = 5;
 }
 
 message GetDeviceAuthorizationRequest {

@@ -5,6 +5,7 @@
 //! polls with, and a user code, which its user types into the panel of a browser already signed
 //! in; the account approves it there, and the CLI's next poll begins a session of its own.
 
+use crate::principal::Holder;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -41,11 +42,12 @@ pub struct DeviceAuthorization {
     pub decision: Option<Decision>,
 }
 
-/// An account's answer to a device authorization.
+/// The answer to a device authorization, by an account or by a person signed in through an
+/// identity provider (§9.7 of docs/08-identity.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Decision {
-    /// The account that decided, and whose session the CLI begins if it approved.
-    pub account: Uuid,
+    /// Who decided, and who holds the session the CLI begins if it approved.
+    pub holder: Holder,
     /// When.
     pub at: SystemTime,
     /// Whether it approved.

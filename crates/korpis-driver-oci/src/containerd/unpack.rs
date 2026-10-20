@@ -14,6 +14,7 @@ use korpis_containerd::containerd::services::diff::v1 as diff;
 use korpis_containerd::containerd::services::snapshots::v1 as snapshots;
 use korpis_containerd::containerd::types;
 use korpis_core::content::{Descriptor, chain_ids, hex_of};
+use uuid::Uuid;
 
 /// The label that keeps an image's unpacked snapshots for as long as its configuration is kept.
 const SNAPSHOT_REF: &str = "containerd.io/gc.ref.snapshot.overlayfs";
@@ -69,7 +70,12 @@ impl Containerd {
         chain: &str,
         diff_id: &str,
     ) -> DriverResult<()> {
-        let key = format!("korpis-extract-{}", hex_of(chain).map_err(failed)?);
+        // Each attempt extracts under a key of its own: two unpacks of one image at once, as two
+        // workloads of a recipe starting together are, each commit the same chain, the first to
+        // finish wins and the other's commit finds it there. A key shared by both had the second
+        // take the first's extraction for a stale one and remove it under it. An attempt that
+        // dies leaves its key to the collection of its lease, which expires.
+        let key = format!("korpis-extract-{}-{}", hex_of(chain).map_err(failed)?, Uuid::now_v7());
         let prepare = snapshots::PrepareSnapshotRequest {
             snapshotter: SNAPSHOTTER.into(),
             key: key.clone(),
@@ -78,11 +84,6 @@ impl Containerd {
         };
         let mounts = match self.snapshots().prepare_with_options(prepare, under(lease)).await {
             Ok(r) => r.into_owned().mounts,
-            Err(e) if e.code == connectrpc::ErrorCode::AlreadyExists => {
-                // A half-done extraction from before: start it again.
-                self.remove_snapshot(&key).await?;
-                return Box::pin(self.apply(lease, layer, parent, chain, diff_id)).await;
-            }
             Err(e) => return Err(e.into()),
         };
         let request = diff::ApplyRequest {

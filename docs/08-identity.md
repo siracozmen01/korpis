@@ -2014,6 +2014,12 @@ person signs in to the panel through their provider and approves the code there.
 URI is registered at the identity provider for each machine a person uses, and the CLI's session
 is held by the same subject as the browser's.
 
+> Built 2026-10-20. A device authorization's decision names the account or the person's binding
+> that made it, never both. The CLI's session holds the sets the approving session holds, the
+> ones the person signed in with, so the CLI counts a set exactly while the browser does. As for
+> an account (Findings 74 and 75 of `23-walkthroughs.md`), the approval is collected only while
+> the session it was given from lasts and the person's binding is not retired.
+
 **What it costs.** The provider is in every sign-in's path, so a provider that is down refuses
 sign-in through it, failing closed (§5 of `16-extensions.md`), while accounts sign in as before. A
 pending sign-in and a provider call cost the control plane a row and a call before anyone has
@@ -2034,8 +2040,8 @@ interval and grace past their last sign-in, and must sign in again within that t
 > its session began with: the member records follow the new sign-in, so a set it no longer names
 > stops counting at once, and one it names newly counts from the next sign-in. A sign-in's
 > calls keep neither the state and nonce nor the code and verifier once answered (§6 of
-> `16-extensions.md`). Not yet built: the panel's pages, and approving a `korpis login` from such
-> a session.
+> `16-extensions.md`). Approving a `korpis login` from such a session was built beside it, as
+> the note under **The CLI** above says. Not yet built: the panel's pages.
 
 ---
 

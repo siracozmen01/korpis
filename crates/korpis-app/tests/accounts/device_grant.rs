@@ -8,6 +8,7 @@ use crate::support::{Fixture, browser, client, fixture, in_session, invite, rede
 use korpis_app::AppError;
 use korpis_app::account::{Authorized, DeviceSignedIn};
 use korpis_core::account::session::SessionKind;
+use korpis_core::principal::Holder;
 use std::time::Duration;
 
 fn conflict(e: &AppError, expected: &str) -> bool {
@@ -40,7 +41,7 @@ async fn an_approved_user_code_begins_one_cli_session_and_is_spent() {
     assert!(matches!(again, AppError::NotFound { .. }), "decided once");
 
     let signed_in = poll(&f, &a).await.unwrap();
-    assert_eq!(signed_in.account, redeemed.account);
+    assert_eq!(signed_in.holder, Holder::Account(redeemed.account));
     assert!(signed_in.session.device.is_none(), "a CLI keeps no device cookie");
     let sessions = f.app.sessions(&me).await.unwrap();
     assert!(sessions.iter().any(|s| s.session.kind == SessionKind::Cli));

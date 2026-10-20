@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What a test sets and reads of the in-memory runtime: the calls made, a verb made to fail or to
-//! wait, a rejection, an exit, consoles captured, and the terminating signal ignored.
+//! What a test sets and reads of the in-memory runtime: the calls made, a verb made to fail, to go
+//! unanswered, or to wait, a rejection, an exit, consoles captured, and the terminating signal
+//! ignored.
 
 use super::{InMemory, Object, state};
 use korpis_proto::korpis::driver::v1 as driver;
@@ -21,6 +22,18 @@ impl InMemory {
                 s.failing.insert(verb.to_owned());
             } else {
                 s.failing.remove(verb);
+            }
+        }
+    }
+
+    /// Makes every later call of `verb` go unanswered, as a driver that cannot be reached or did
+    /// not answer in time, or be answered again.
+    pub fn unreachable(&self, verb: &str, unreachable: bool) {
+        if let Ok(mut s) = self.lock() {
+            if unreachable {
+                s.unreachable.insert(verb.to_owned());
+            } else {
+                s.unreachable.remove(verb);
             }
         }
     }

@@ -247,6 +247,13 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         }
         match self.runtime.destroy(&id).await {
             Ok(()) | Err(RuntimeError::NotFound(_)) => {}
+            // Not answered in time, or not reached: nothing says the object is not gone or going,
+            // and destroying it again is harmless, so a later pass asks again rather than fail
+            // the retirement for a moment of the driver's (§6 of docs/02-architecture.md).
+            Err(RuntimeError::Unavailable(why)) => {
+                tracing::warn!(%why, "the object was not destroyed yet; a later pass asks again");
+                return Ok(false);
+            }
             Err(e) => return Err(e.into()),
         }
         t.runtime = None;
