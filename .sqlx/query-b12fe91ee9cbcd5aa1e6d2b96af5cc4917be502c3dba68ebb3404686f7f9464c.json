@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, version, made_by, made_at, retired_at\n               FROM identity_binding WHERE id = $1",
+  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, verifications, version, made_by, made_at, retired_at\n               FROM identity_binding WHERE subject = $1 AND retired_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -148,6 +148,17 @@
       },
       {
         "ordinal": 13,
+        "name": "verifications",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "verifications"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "made_by",
         "type_info": "Text",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "made_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "retired_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -193,7 +204,7 @@
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Text"
       ]
     },
     "nullable": [
@@ -213,8 +224,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "b9dc8cbeeee949ed127a80480b9a05e5676b77f506dca0017c5eaa99d740f72a"
+  "hash": "b12fe91ee9cbcd5aa1e6d2b96af5cc4917be502c3dba68ebb3404686f7f9464c"
 }

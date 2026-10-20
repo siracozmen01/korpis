@@ -119,6 +119,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // Nothing has confirmed it yet: grants rooted in it wait for its provider (§5.1).
             state: BindingState::Unverified,
             last_verified_at: None,
+            verifications: 0,
             version: 1,
             made_by: caller.principal.clone(),
             made_at: self.clock.now(),

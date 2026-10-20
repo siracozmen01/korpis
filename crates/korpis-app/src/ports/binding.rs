@@ -52,14 +52,25 @@ pub trait BindingWrite {
         terms: &BindingTerms,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Records a re-verification of live binding `id`: its state and its last confirmation;
-    /// false if it was retired meanwhile.
+    /// Records a re-verification of live binding `id` asked when it had `asked_at` recorded:
+    /// its state, its last confirmation, and when it is next due, counting one more; false if
+    /// it was retired, or another answer was recorded, meanwhile.
     fn record_verification(
         &mut self,
-        id: Uuid,
+        binding: (Uuid, u64),
         state: BindingState,
         last_verified_at: Option<SystemTime>,
+        due: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Claims at most `limit` live bindings due at `now`, earliest first, by making each due
+    /// again only at `held_until`, so no other control plane takes them meanwhile.
+    fn claim_due_bindings(
+        &mut self,
+        now: SystemTime,
+        held_until: SystemTime,
+        limit: u32,
+    ) -> impl Future<Output = StoreResult<Vec<IdentityBinding>>> + Send;
 
     /// Retires a live binding at `at`; false if it was retired already.
     fn retire_binding(

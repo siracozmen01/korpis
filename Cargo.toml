@@ -56,6 +56,16 @@ thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v7", "serde"] }
 
+# A debug build keeps line tables, so a panic or a backtrace names the file and line, and no
+# debugger variables: the workspace's test binaries with full debug information came to about 100
+# GiB, which a shared build machine cannot hold beside its other work. Dependencies carry none.
+# `CARGO_PROFILE_DEV_DEBUG=true` restores full information for one debugging session.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

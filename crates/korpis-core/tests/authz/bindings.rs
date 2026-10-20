@@ -31,6 +31,7 @@ fn binding(p: &ProviderRef, subject: Principal) -> IdentityBinding {
         terms: BindingTerms::default(),
         state: BindingState::Unverified,
         last_verified_at: None,
+        verifications: 0,
         version: 1,
         made_by: Principal::User(Uuid::now_v7()),
         made_at: SystemTime::now(),

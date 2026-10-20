@@ -17,6 +17,8 @@ thiserror = { workspace = true }
 # An opened data key is wiped when the job that needed it has it.
 zeroize = "1"
 uuid = { workspace = true }
+# The due identity bindings of one pass are asked about at once, each over its provider's stream.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 # The use cases of accounts are tested against the real schema, with a software authenticator.
@@ -25,8 +27,6 @@ korpis-store = { path = "../korpis-store", features = ["testing"] }
 tokio = { workspace = true }
 # The tests of making runs set up what the use case reads with plain statements.
 sqlx = { workspace = true }
-# Guesses sent at once, in the tests of sign-in's limits.
-futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true

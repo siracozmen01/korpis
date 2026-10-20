@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, version, made_by, made_at, retired_at\n               FROM identity_binding WHERE subject = $1 AND retired_at IS NULL",
+  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, verifications, version, made_by, made_at, retired_at\n               FROM identity_binding WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -148,6 +148,17 @@
       },
       {
         "ordinal": 13,
+        "name": "verifications",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "verifications"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "made_by",
         "type_info": "Text",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "made_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "retired_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -193,7 +204,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -213,8 +224,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "a0f3ac88f8615d04642abaf78a7d1fe36f6ecd11318b2eecbed16f1a987d95af"
+  "hash": "699fd4c8f791cefa1c8c4959a193dee426a54f413c250270c7ecd7e50a6e9101"
 }

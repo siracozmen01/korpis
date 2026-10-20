@@ -29,6 +29,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
     tokio::spawn(expire_offloaded(Arc::clone(api)));
     tokio::spawn(reconcile_quota(Arc::clone(api)));
+    tokio::spawn(reverify_bindings(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
     tokio::spawn(control_jobs::work(Arc::clone(api)));
     tokio::spawn(issuer::keep(Arc::clone(api)));
@@ -160,6 +161,28 @@ async fn expire_offloaded(api: Arc<Api>) {
                 }
             }
             Err(e) => tracing::warn!(error = %e, "expiring offloaded segments failed"),
+        }
+    }
+}
+
+/// How often due identity bindings are looked for: well within the shortest interval one may
+/// declare, a minute (§5.1 of docs/08-identity.md).
+const REVERIFY_EVERY: Duration = Duration::from_secs(5);
+
+/// Re-verifies, every few seconds, the identity bindings due, so a membership that ended stops
+/// authorizing within its binding's interval. The task ends with the process.
+async fn reverify_bindings(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(REVERIFY_EVERY);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().reverify_due().await {
+            Ok((0, None)) => {}
+            Ok((n, None)) => tracing::debug!(bindings = n, "identity bindings re-verified"),
+            Ok((n, Some(e))) => {
+                tracing::warn!(bindings = n, error = %e, "recording a re-verification failed");
+            }
+            Err(e) => tracing::warn!(error = %e, "re-verifying identity bindings failed"),
         }
     }
 }

@@ -17,6 +17,7 @@ mod chain;
 mod epochs;
 mod events;
 mod grant_notify;
+mod identity;
 mod ids;
 mod jobs;
 mod nodes;

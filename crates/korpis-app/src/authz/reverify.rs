@@ -15,12 +15,19 @@ use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::binding::{BindingState, IdentityBinding, Verification};
 use korpis_core::extension::identity::MembersAsked;
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
-use korpis_core::principal::{Principal, SetName};
+use korpis_core::principal::{Principal, SetName, SystemActor};
 use std::time::Duration;
 use uuid::Uuid;
 
 /// How long an identity provider has to answer a re-verification.
 const VERIFY_CALL: Duration = Duration::from_secs(15);
+/// How soon a binding whose provider did not answer is asked again, when its interval is longer:
+/// a provider back from an outage restores what it vouches for within a minute.
+const RETRY: Duration = Duration::from_secs(60);
+/// How long a claim holds a binding against other control planes: its call, and the write after.
+const HELD: Duration = Duration::from_secs(30);
+/// The most bindings one pass asks about, all at once.
+const BATCH: u32 = 32;
 
 /// What a re-verification asks about `b`, and the person it asks about, for a person's binding.
 fn asked(b: &IdentityBinding) -> Result<(MembersAsked, Option<&str>), AppError> {
@@ -59,13 +66,21 @@ fn found(outcome: CallOutcome, person: Option<&str>) -> (Verification, Option<St
     }
 }
 
+/// What one re-verification found, and who asked.
+struct Answer {
+    verification: Verification,
+    reason: Option<String>,
+    actor: Principal,
+    grant: Option<Uuid>,
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Asks `binding`'s provider about it once and records what it found, with an effect by
     /// `actor` (under `grant`, when a person asked) if its state changed: the binding as it now
     /// stands, and the provider's reason when it could not answer.
     pub(crate) async fn reverify(
         &self,
-        mut binding: IdentityBinding,
+        binding: IdentityBinding,
         actor: Principal,
         grant: Option<Uuid>,
     ) -> Result<(IdentityBinding, Option<String>), AppError> {
@@ -79,29 +94,77 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .call_own_provider(&target, CallRequest::VerifyMembers(request), VERIFY_CALL)
             .await?;
         let (verification, reason) = found(called.outcome, person);
-        let changed = binding.verified(verification, self.clock.now());
-        let mut tx = self.store.begin().await?;
-        let state = binding.state;
-        if !tx.record_verification(binding.id, state, binding.last_verified_at).await? {
-            return Err(AppError::conflict("binding.retired", "the binding was retired"));
+        let answer = Answer { verification, reason, actor, grant };
+        let gone = || AppError::conflict("binding.retired", "the binding was retired");
+        if let Some(recorded) = self.record_answer(binding.clone(), &answer).await? {
+            return Ok((recorded, answer.reason));
         }
+        // Another answer was recorded since this one was asked. That an identity ended is
+        // always safe to say, so it is said of the binding as it now stands; that one is still
+        // there may be older than what was recorded, so it is dropped.
+        let current = self.store.binding(binding.id).await?.filter(|b| b.retired_at.is_none());
+        let current = current.ok_or_else(gone)?;
+        if verification != Verification::Ended {
+            return Ok((current, answer.reason));
+        }
+        let recorded = self.record_answer(current, &answer).await?;
+        Ok((recorded.ok_or_else(gone)?, answer.reason))
+    }
+
+    /// Records `answer` of `binding`, against the verifications it had when it was read, with an
+    /// effect if its state changed; `None` if another answer was recorded meanwhile, or it was
+    /// retired.
+    async fn record_answer(
+        &self,
+        mut binding: IdentityBinding,
+        answer: &Answer,
+    ) -> Result<Option<IdentityBinding>, AppError> {
+        let now = self.clock.now();
+        let asked_at = binding.verifications;
+        let changed = binding.verified(answer.verification, now);
+        let interval = binding.terms.reverify_interval;
+        let due = now + if answer.reason.is_some() { interval.min(RETRY) } else { interval };
+        let mut tx = self.store.begin().await?;
+        let (state, last) = (binding.state, binding.last_verified_at);
+        if !tx.record_verification((binding.id, asked_at), state, last, due).await? {
+            return Ok(None);
+        }
+        binding.verifications = asked_at + 1;
         if changed {
             let action = match state {
                 BindingState::Verified => "identity.binding.verified",
                 BindingState::Unverified => "identity.binding.unverified",
             };
-            let mut effect = Effect::new(actor, action, Outcome::Succeeded).after(details([
-                ("binding", binding.id.to_string().into()),
-                ("subject", binding.subject.key().into()),
-                ("reason", reason.clone().into()),
-            ]));
-            if let Some(g) = grant {
-                effect = effect.under(g);
-            }
+            let effect =
+                Effect::new(answer.actor.clone(), action, Outcome::Succeeded).after(details([
+                    ("binding", binding.id.to_string().into()),
+                    ("subject", binding.subject.key().into()),
+                    ("reason", answer.reason.clone().into()),
+                ]));
+            let effect = match answer.grant {
+                Some(g) => effect.under(g),
+                None => effect,
+            };
             tx.append_effect(&effect).await?;
         }
         tx.commit().await?;
-        Ok((binding, reason))
+        Ok(Some(binding))
+    }
+
+    /// Re-verifies every binding due now, at most a batch of them at once, each claimed so no
+    /// other control plane asks the same question meanwhile (§5.1 of docs/08-identity.md); how
+    /// many it asked about, and the first failure to record an answer, if any did fail. One
+    /// that failed is due again once its claim lapses.
+    pub async fn reverify_due(&self) -> Result<(u64, Option<AppError>), AppError> {
+        let now = self.clock.now();
+        let mut tx = self.store.begin().await?;
+        let due = tx.claim_due_bindings(now, now + HELD, BATCH).await?;
+        tx.commit().await?;
+        let asked = u64::try_from(due.len()).unwrap_or(u64::MAX);
+        let authority = || Principal::System(SystemActor::Authority);
+        let each = due.into_iter().map(|b| self.reverify(b, authority(), None));
+        let failed = futures_util::future::join_all(each).await.into_iter().find_map(Result::err);
+        Ok((asked, failed))
     }
 
     /// Re-verifies a binding now, under `identity.binding.write` where it is declared, rather

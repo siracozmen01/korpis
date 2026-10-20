@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, version, made_by, made_at, retired_at\n               FROM identity_binding\n              WHERE organization_id = $1 AND ($2 OR retired_at IS NULL)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
+  "query": "SELECT id, organization_id, provider, subject, origin, template_id, template_version,\n                    require_membership, grace_ms, reverify_ms, allows_irreversible, state,\n                    last_verified_at, verifications, version, made_by, made_at, retired_at\n               FROM identity_binding\n              WHERE organization_id = $1 AND ($2 OR retired_at IS NULL)\n                AND ($3::uuid IS NULL OR id > $3)\n              ORDER BY id LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -148,6 +148,17 @@
       },
       {
         "ordinal": 13,
+        "name": "verifications",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "verifications"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
         "name": "version",
         "type_info": "Int8",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "made_by",
         "type_info": "Text",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "made_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "retired_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -216,8 +227,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "062cf5623bbb98d249dcb30e868baf1ce44ae30a69ac4190235431b5be681508"
+  "hash": "357e13ef513271191110b3722da10a1d647837824e98f2dd752afbe1d8873a4b"
 }

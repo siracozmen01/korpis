@@ -50,7 +50,8 @@ pub enum SystemActor {
     Scheduler,
     /// Installation, before any grant exists.
     Bootstrap,
-    /// The installation's authority, renewing the certificate of a relay it admitted.
+    /// The installation's authority: renewing the certificate of a relay it admitted, and
+    /// re-verifying the identity bindings its providers vouch for.
     Authority,
 }
 

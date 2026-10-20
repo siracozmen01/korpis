@@ -141,6 +141,9 @@ pub struct IdentityBinding {
     pub state: BindingState,
     /// When its provider last confirmed it.
     pub last_verified_at: Option<SystemTime>,
+    /// How many re-verifications have been recorded: an answer is recorded only against the
+    /// count it was asked at, so one arriving after a newer answer never replaces it.
+    pub verifications: u64,
     /// 1 when made, one more at every change of its terms.
     pub version: u64,
     /// Who made it.

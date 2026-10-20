@@ -989,6 +989,29 @@ carries the platform's evidence and the control plane accepts each presentation 
 (`08-identity.md` §5.2, corrected in place, with `12-surface-discord.md` §1 and
 `16-extensions.md` §6).
 
+**FINDING 114: An older answer could replace a newer one that a membership had ended. `CONFIRMED`**
+
+Found 2026-10-20 by a security review of the provider's calls. A binding's answer was written
+over whatever was there: an operator asking now and the control plane asking on the interval
+could each hold a question, and if the one that heard "still there" wrote after the one that
+heard "ended", step 5 of this trace would be undone until the next interval.
+
+**Resolution.** Each answer is recorded only against the count of answers the binding had when it
+was asked, and counts one more. A later write finds the count moved: "ended" is then said again of
+the binding as it stands, because it is always safe to say, and "still there" is dropped. Due
+bindings are claimed by one control plane at a time besides, so the interval's own questions never
+race each other. → patched into `08-identity.md` §5.1
+
+**FINDING 115: A person's evidence outlived the call that asked about it. `CONFIRMED`**
+
+Found by the same review. An `Assert` call is queued, sent, and kept an hour after it finishes for
+whoever reads it, and it kept what the person presented: a signed interaction, or for OIDC an
+authorization code, which is a credential until it is redeemed.
+
+**Resolution.** The store empties a call's evidence and headers the moment it finishes, however it
+finishes, by a trigger rather than by each statement that finishes a call, so a way of finishing
+one added later cannot forget. → patched into `08-identity.md` §5.2
+
 ---
 
 ## 12. A recipe install fails at step four of six
@@ -1289,6 +1312,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 111 | Two identity providers could vouch for one subject | §11 | `08-identity.md` §5 |
 | 112 | An OIDC issuer could not be the realm of a set | §11 | `08-identity.md` §5, `01-model.md` §3.2 |
 | 113 | A retired or lapsed binding left its grants standing | §11 | `08-identity.md` §5 |
+| 114 | An older answer could replace a newer one that a membership had ended | §11 | `08-identity.md` §5.1 |
+| 115 | A person's evidence outlived the call that asked about it | §11 | `08-identity.md` §5.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

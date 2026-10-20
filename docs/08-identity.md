@@ -598,8 +598,9 @@ provider part of every subject it vouches for is that organization and that name
 two providers therefore vouch for one subject, and a subject says where its provider may vouch: a
 grant names an external identity only at or beneath the organization its provider is installed
 into, which the control plane checks at issue, holding the scope's ancestry. A set's realm is where
-the set lives at its provider and never contains a colon: a Discord guild, or the OIDC claim or SAML
-attribute that names groups. The issuer belongs to the provider and is not repeated in the subject.
+the set lives at its provider and never contains a colon: a Discord guild, or the OIDC claim or
+SAML attribute that names groups. The issuer belongs to the provider and is not repeated in the
+subject.
 
 A binding is declared under `identity.binding.write` on the provider's organization (§5 of
 `10-api.md`) and read there under `org.read`; a subject has one live binding, and a grant names an
@@ -627,9 +628,9 @@ asks the reseller to declare the binding, because bindings live where the provid
 The same person at two organizations' providers is two subjects. An edit of a binding narrows at
 once and widens only forward: withdrawing the override reaches every grant at its next use, while
 allowing it, or moving the binding to another template, reaches grants issued after the edit, as an
-edit of a template does (§4); widening one already issued is revoking it and issuing again. And until
-re-verification is built (§5.1, Phase 2 of `20-roadmap.md` §4), a binding stays `unverified`, so
-nothing rooted in one is usable yet: the order fails closed.
+edit of a template does (§4); widening one already issued is revoking it and issuing again. And
+until re-verification is built (§5.1, Phase 2 of `20-roadmap.md` §4), a binding stays `unverified`,
+so nothing rooted in one is usable yet: the order fails closed.
 
 ### 5.1 Losing a role removes authority only if something notices
 
@@ -668,11 +669,11 @@ dated, and reversible, and it fails closed for authority while failing loudly fo
 
 `grace` is declared per binding (default fifteen minutes, at most an hour) and reported beside the
 interval, so the longest an unreachable provider can extend a membership is a stated number rather
-than "until it comes back". (Corrected 2026-10-19, when bindings were built: this said per provider,
-while the binding carries both the interval and the grace, and a bound read off two objects is one
-nobody reports together.) `12-surface-discord.md` §9 had said role-derived grants stay valid until their own
-expiry while Discord is unreachable, which is the opposite of this section's fail-closed rule; both
-now say this.
+than "until it comes back". (Corrected 2026-10-19, when bindings were built: this said per
+provider, while the binding carries both the interval and the grace, and a bound read off two
+objects is one nobody reports together.) `12-surface-discord.md` §9 had said role-derived grants
+stay valid until their own expiry while Discord is unreachable, which is the opposite of this
+section's fail-closed rule; both now say this.
 
 **A set binding verifies the set. A member's delegation needs the member verified too.**
 
@@ -717,9 +718,16 @@ and is the set it was; for a person, whether the provider still knows them. The 
 binding by the table above, an unanswered call counting as unreachable, and a change is recorded
 as an `identity.binding.verified` or `identity.binding.unverified` effect. An operator holding
 `identity.binding.write` can ask now, with `VerifyIdentityBinding`, rather than wait for the
-interval. What asks on the interval by itself, and the members who delegated, follow with the
-loop that runs it (Phase 2 of `20-roadmap.md` §4); until then a binding nobody asks lapses after
-its interval and grace, which §5 derives at every use, so the order fails closed.
+interval. Every few seconds a control plane claims the bindings that are due, a batch at a time, so
+no two control planes ask the same question at once, and asks each one's provider; a binding is due
+as soon as it is made, again one interval after an answer, and a minute after a call that went
+unanswered, so a provider back from an outage restores what it vouches for within a minute. An
+answer is recorded only against the count of answers the binding had when it was asked, so one
+that arrives after a newer one never replaces it: that a subject ended is still said of the
+binding as it now stands, because saying so is always safe, while that it is still there is
+dropped (Finding 114 of `23-walkthroughs.md`). The members who delegated follow with the record of
+who delegated (`via`, below). A binding nobody asks lapses after its interval and grace anyway,
+which §5 derives at every use, so a stopped loop fails closed.
 
 `reverify_interval` is the honest analogue of token lifetime. It is the bound on how long authority
 outlives its source, it is stated rather than convenient, and it applies to OIDC and SAML equally,
@@ -750,7 +758,8 @@ ahead as written, the bot would have held every invoking user's full authority. 
    minutes from its clock, and answers `Assertion {user, sets, presentation, at}`, the
    presentation being the interaction's identifier. The control plane accepts a presentation
    once within Discord's fifteen-minute interaction lifetime, so a captured interaction cannot be
-   replayed.
+   replayed, and keeps the evidence only while its call is queued and sent: a finished call,
+   however it finished, holds none (Finding 115 of `23-walkthroughs.md`).
 3. **The chat client never receives the user's authority.** It calls `InvokeAs(evidence, action,
    resource, arguments)` for the one action the command names. The gateway has the evidence
    asserted, evaluates the asserted subject's grants for exactly that action on exactly that

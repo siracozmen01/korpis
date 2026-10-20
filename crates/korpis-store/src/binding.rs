@@ -48,6 +48,7 @@ struct BindingRow {
     allows_irreversible: bool,
     state: String,
     last_verified_at: Option<DateTime<Utc>>,
+    verifications: i64,
     version: i64,
     made_by: String,
     made_at: DateTime<Utc>,
@@ -89,6 +90,7 @@ impl BindingRow {
                 _ => return Err(corrupt("state")),
             },
             last_verified_at: self.last_verified_at.map(to_time),
+            verifications: count("binding verifications", self.verifications)?,
             version: count("binding version", self.version)?,
             made_by: principal(&self.made_by)?,
             made_at: to_time(self.made_at),
@@ -119,7 +121,7 @@ impl BindingRead for PgStore {
             BindingRow,
             "SELECT id, organization_id, provider, subject, origin, template_id, template_version,
                     require_membership, grace_ms, reverify_ms, allows_irreversible, state,
-                    last_verified_at, version, made_by, made_at, retired_at
+                    last_verified_at, verifications, version, made_by, made_at, retired_at
                FROM identity_binding WHERE id = $1",
             id
         )
@@ -134,7 +136,7 @@ impl BindingRead for PgStore {
             BindingRow,
             "SELECT id, organization_id, provider, subject, origin, template_id, template_version,
                     require_membership, grace_ms, reverify_ms, allows_irreversible, state,
-                    last_verified_at, version, made_by, made_at, retired_at
+                    last_verified_at, verifications, version, made_by, made_at, retired_at
                FROM identity_binding WHERE subject = $1 AND retired_at IS NULL",
             subject
         )
@@ -154,7 +156,7 @@ impl BindingRead for PgStore {
             BindingRow,
             "SELECT id, organization_id, provider, subject, origin, template_id, template_version,
                     require_membership, grace_ms, reverify_ms, allows_irreversible, state,
-                    last_verified_at, version, made_by, made_at, retired_at
+                    last_verified_at, verifications, version, made_by, made_at, retired_at
                FROM identity_binding
               WHERE organization_id = $1 AND ($2 OR retired_at IS NULL)
                 AND ($3::uuid IS NULL OR id > $3)
@@ -178,9 +180,9 @@ impl BindingWrite for PgTx {
             "INSERT INTO identity_binding (id, organization_id, provider, subject, is_set, origin,
                     template_id, template_version, require_membership, grace_ms, reverify_ms,
                     allows_irreversible, state, last_verified_at, version, made_by, made_at,
-                    retired_at)
+                    retired_at, verifications)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                     $18)",
+                     $18, $19)",
             b.id,
             b.provider.organization,
             b.provider.name,
@@ -201,7 +203,8 @@ impl BindingWrite for PgTx {
             to_count("binding version", b.version)?,
             b.made_by.key(),
             from_time(b.made_at),
-            b.retired_at.map(from_time)
+            b.retired_at.map(from_time),
+            to_count("binding verifications", b.verifications)?
         )
         .execute(&mut *self.tx)
         .await
@@ -239,22 +242,54 @@ impl BindingWrite for PgTx {
 
     async fn record_verification(
         &mut self,
-        id: Uuid,
+        (id, asked_at): (Uuid, u64),
         state: BindingState,
         last_verified_at: Option<SystemTime>,
+        due: SystemTime,
     ) -> StoreResult<bool> {
         let moved = sqlx::query!(
-            "UPDATE identity_binding SET state = $2, last_verified_at = $3
-              WHERE id = $1 AND retired_at IS NULL",
+            "UPDATE identity_binding
+                SET state = $3, last_verified_at = $4, verify_due_at = $5,
+                    verifications = verifications + 1
+              WHERE id = $1 AND verifications = $2 AND retired_at IS NULL",
             id,
+            to_count("binding verifications", asked_at)?,
             state_name(state),
-            last_verified_at.map(from_time)
+            last_verified_at.map(from_time),
+            from_time(due)
         )
         .execute(&mut *self.tx)
         .await
         .map_err(from_sqlx)?
         .rows_affected();
         Ok(moved == 1)
+    }
+
+    async fn claim_due_bindings(
+        &mut self,
+        now: SystemTime,
+        held_until: SystemTime,
+        limit: u32,
+    ) -> StoreResult<Vec<IdentityBinding>> {
+        let rows = sqlx::query_as!(
+            BindingRow,
+            "UPDATE identity_binding b SET verify_due_at = $2
+               FROM (SELECT id FROM identity_binding
+                      WHERE retired_at IS NULL AND verify_due_at <= $1
+                      ORDER BY verify_due_at LIMIT $3 FOR UPDATE SKIP LOCKED) due
+              WHERE b.id = due.id
+          RETURNING b.id, b.organization_id, b.provider, b.subject, b.origin, b.template_id,
+                    b.template_version, b.require_membership, b.grace_ms, b.reverify_ms,
+                    b.allows_irreversible, b.state, b.last_verified_at, b.verifications,
+                    b.version, b.made_by, b.made_at, b.retired_at",
+            from_time(now),
+            from_time(held_until),
+            i64::from(limit)
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        rows.into_iter().map(BindingRow::into_domain).collect()
     }
 
     async fn retire_binding(&mut self, id: Uuid, at: SystemTime) -> StoreResult<bool> {

@@ -54,10 +54,11 @@ fn state(r: &pb::VerifyIdentityBindingResponse) -> Option<pb::BindingState> {
     r.binding.as_option().and_then(|b| b.state.as_known())
 }
 
-#[tokio::test]
-async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_without_it() {
-    let h = Harness::new().await;
-    let x = installed_from(&h, 51, "idp", push_document(&identity_document()).await).await;
+/// The directory, installed as the `n`th node's extension, registered and serving; while the
+/// handle runs.
+async fn serving(h: &Harness, n: u8, present: &Arc<AtomicBool>) -> tokio::task::JoinHandle<()> {
+    let repo = push_document(&identity_document()).await;
+    let x = installed_from(h, n, &format!("idp-{n}"), repo).await;
     let connection = Arc::new(Connection::new(Fixed(Credential {
         secret: x.secret.clone(),
         expires_at: SystemTime::now() + Duration::from_secs(900),
@@ -65,23 +66,31 @@ async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_witho
         ca_pem: h.ca_pem.clone(),
         relay: None,
     })));
-    let present = Arc::new(AtomicBool::new(true));
     let registration = Registration {
         kind: pb::ProviderType::PROVIDER_TYPE_IDENTITY,
         name: "corp".into(),
         version: "1.0.0".into(),
         concurrency: 4,
     };
-    let directory = Identity(Directory { present: Arc::clone(&present) });
+    let directory = Identity(Directory { present: Arc::clone(present) });
     let provider = Arc::new(Provider::new(connection, registration, directory));
     let mut registered = provider.registered();
-    let serving = Arc::clone(&provider);
-    let running = tokio::spawn(async move { serving.run().await });
+    let running = tokio::spawn(async move {
+        let _ = provider.run().await;
+        drop(x);
+    });
     tokio::time::timeout(Duration::from_secs(10), registered.wait_for(Option::is_some))
         .await
         .expect("registered within ten seconds")
         .unwrap();
+    running
+}
 
+#[tokio::test]
+async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_without_it() {
+    let h = Harness::new().await;
+    let present = Arc::new(AtomicBool::new(true));
+    let running = serving(&h, 51, &present).await;
     let org = h.root_org();
     let made = bind(&h, &org, set(&org, "admins"), pb::IdentityBindingTerms::default());
     let made = made.await.unwrap();
@@ -100,7 +109,6 @@ async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_witho
     assert_eq!(state(&back), Some(pb::BindingState::BINDING_STATE_VERIFIED), "reversible");
 
     running.abort();
-    drop(provider);
     let unanswered = verify(&h, &made.id).await;
     assert!(!unanswered.unanswered.is_empty(), "the reason is said: {unanswered:?}");
     assert_eq!(
@@ -108,4 +116,28 @@ async fn a_binding_is_verified_by_asking_its_own_provider_and_fails_closed_witho
         Some(pb::BindingState::BINDING_STATE_VERIFIED),
         "an outage is carried for the binding's grace"
     );
+}
+
+#[tokio::test]
+async fn a_binding_is_verified_by_itself_as_soon_as_it_is_made() {
+    let h = Harness::new().await;
+    let present = Arc::new(AtomicBool::new(true));
+    let _running = serving(&h, 52, &present).await;
+    let org = h.root_org();
+    let made = bind(&h, &org, set(&org, "admins"), pb::IdentityBindingTerms::default());
+    let made = made.await.unwrap();
+    let identity = h.identity(h.root());
+    let get = pb::GetIdentityBindingRequest { id: made.id.clone(), ..Default::default() };
+    for _ in 0..60 {
+        let read = identity.get_identity_binding(get.clone()).await.unwrap().into_owned();
+        let binding = read.binding.as_option().unwrap();
+        if binding.state.as_known() == Some(pb::BindingState::BINDING_STATE_VERIFIED) {
+            let effects = h.effects("identity.binding.verified").await;
+            assert_eq!(effects.len(), 1, "by the installation's authority, under no grant");
+            assert_eq!(effects[0].1, None);
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    panic!("the binding was never re-verified by the control plane's own loop");
 }
