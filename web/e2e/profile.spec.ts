@@ -8,7 +8,7 @@
 // it, which says the control plane cannot be reached and when it was last heard from.
 
 import { expect, test } from "@playwright/test";
-import { aged, authenticator, given } from "./support";
+import { aged, authenticator, given, visit } from "./support";
 
 test("a keeper themes the organization, adds a passkey, and loads the panel offline", async ({
   page,
@@ -16,7 +16,7 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
 }) => {
   test.setTimeout(90_000);
   const phone = await authenticator(page);
-  await page.goto(`/invitation#${given("KORPIS_E2E_KEEPER_INVITATION")}`);
+  await visit(page, `/invitation#${given("KORPIS_E2E_KEEPER_INVITATION")}`);
   await page.getByLabel("Choose a sign-in name").fill("keeper");
   await page.getByRole("button", { name: "Register a passkey" }).click();
   await page.getByRole("button", { name: "I have kept them" }).click();
@@ -32,7 +32,7 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
     .fill("#5a189a");
   await theme.getByRole("button", { name: "Save" }).click();
   await expect(theme.getByText("Saved.")).toBeVisible();
-  await page.goto("/");
+  await visit(page, "/");
   await expect(page).toHaveTitle("Acme Games");
   const accent = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),
@@ -41,7 +41,7 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
 
   // Ten minutes on, a change to how they sign in asks them to confirm it is them first.
   await aged();
-  await page.goto("/profile");
+  await visit(page, "/profile");
   await page.getByRole("button", { name: "Make new ones" }).click();
   await expect(page.getByRole("heading", { name: "Confirm it is you" })).toBeVisible();
   await page.getByRole("button", { name: "Use a passkey" }).click();

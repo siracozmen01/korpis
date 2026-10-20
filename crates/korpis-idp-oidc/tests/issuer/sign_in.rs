@@ -99,3 +99,22 @@ async fn without_offline_access_a_person_is_neither_confirmed_nor_ended() {
     let ops = oidc.verify(asked(Some(group("ops")))).await.unwrap();
     assert_eq!(found(&ops), (&[][..], &["dana".to_owned()][..]), "it cannot tell");
 }
+
+#[tokio::test]
+async fn a_client_the_issuer_refuses_ends_nobody_and_keeps_their_token() {
+    let Some(issuer) = Issuer::start("ES256").await else { return };
+    let state = tempfile::tempdir().unwrap();
+    let oidc = provider(issuer.settings(Some(state.path())));
+    let returned = sign_in(&oidc).await;
+    oidc.assert(returned.code.clone().into_bytes(), headers(&returned)).await.unwrap();
+    // The operator rotated the client's secret at the issuer before at the provider: every
+    // refresh is refused `invalid_client`, which says nothing of the person.
+    let mut rotated = issuer.settings(Some(state.path()));
+    rotated.client_secret = "a-secret-the-issuer-no-longer-holds".into();
+    let wrong = provider(rotated);
+    let refused = wrong.verify(asked(Some(group("ops")))).await.unwrap();
+    assert_eq!(found(&refused), (&[][..], &["dana".to_owned()][..]), "it cannot tell");
+    let right = provider(issuer.settings(Some(state.path())));
+    let kept = right.verify(asked(Some(group("ops")))).await.unwrap();
+    assert_eq!(kept.present, ["dana"], "her token was kept, and still works");
+}

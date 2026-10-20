@@ -13,6 +13,21 @@ export function given(name: string): string {
   return value;
 }
 
+/** Opens `url` in `page`, again if Chromium abandons the navigation because the machine's
+ * network changed: it does whenever an interface comes or goes, and the end-to-end tests beside
+ * these make and remove a workload's interfaces all the while. Any other failure is the test's. */
+export async function visit(page: Page, url: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (e) {
+      if (attempt >= 5 || !String(e).includes("net::ERR_NETWORK_CHANGED")) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
 /** An authenticator given to a browser, which can be taken away again. */
 export interface Authenticator {
   readonly remove: () => Promise<void>;

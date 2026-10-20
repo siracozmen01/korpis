@@ -6,12 +6,12 @@
 // docs/14-streams.md), from its node, after the run is gone from it.
 
 import { expect, test, type Page } from "@playwright/test";
-import { authenticator, given } from "./support";
+import { authenticator, given, visit } from "./support";
 
 /** Redeems the runner's invitation with a passkey and keeps the recovery codes. */
 async function signedIn(page: Page): Promise<void> {
   await authenticator(page);
-  await page.goto(`/invitation#${given("KORPIS_E2E_RUNNER_INVITATION")}`);
+  await visit(page, `/invitation#${given("KORPIS_E2E_RUNNER_INVITATION")}`);
   await page.getByLabel("Choose a sign-in name").fill("runner");
   await page.getByRole("button", { name: "Register a passkey" }).click();
   await page.getByRole("button", { name: "I have kept them" }).click();
@@ -20,7 +20,7 @@ async function signedIn(page: Page): Promise<void> {
 
 /** Opens the task `name` of the project `games` from the start page. */
 async function opened(page: Page, name: string): Promise<void> {
-  await page.goto("/");
+  await visit(page, "/");
   await page.getByRole("link", { name: "acme", exact: true }).click();
   await page.getByRole("link", { name: "games", exact: true }).click();
   await page.getByRole("link", { name, exact: true }).click();

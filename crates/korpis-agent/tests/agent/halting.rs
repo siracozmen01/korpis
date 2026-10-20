@@ -45,9 +45,9 @@ async fn node(
     agent
 }
 
-/// The running object of `workload`, once there is one.
+/// The running object of `workload`, once there is one, waited for up to two minutes.
 async fn object(runtime: &InMemory, workload: &str) -> String {
-    for _ in 0..300 {
+    for _ in 0..1200 {
         let found =
             runtime.objects().into_iter().find(|(_, (w, running))| w == workload && *running);
         if let Some((id, _)) = found {
@@ -58,9 +58,9 @@ async fn object(runtime: &InMemory, workload: &str) -> String {
     panic!("{workload} never ran: {:?}", runtime.objects());
 }
 
-/// Waits until the runtime has been asked for `call`.
+/// Waits until the runtime has been asked for `call`, for up to two minutes.
 async fn called(runtime: &InMemory, call: &str) {
-    for _ in 0..600 {
+    for _ in 0..1200 {
         if runtime.calls().iter().any(|c| c == call) {
             return;
         }
@@ -69,9 +69,10 @@ async fn called(runtime: &InMemory, call: &str) {
     panic!("{call} never happened: {:?}", runtime.calls());
 }
 
-/// Waits until `sql` counts `n`.
+/// Waits until `sql` counts `n`, for up to two minutes: a guard against a hang, not a measure of
+/// speed, so a machine loaded by other work does not fail it.
 async fn counted(cp: &ControlPlane, sql: &'static str, n: i64) {
-    for _ in 0..300 {
+    for _ in 0..1200 {
         if cp.scalar::<i64>(sql).await == n {
             return;
         }

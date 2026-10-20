@@ -208,12 +208,18 @@ impl Issuer {
         let response = request.form(&form).send().await.map_err(|e| unreachable("token", e))?;
         let status = response.status();
         let body = json("token", response).await?;
-        if status.is_client_error() {
-            let error = body.get("error").and_then(Value::as_str).unwrap_or("refused");
-            return Err(Refusal::Refused(format!("the issuer refused the grant: {error}")));
-        }
         if !status.is_success() {
-            return Err(unreachable("token", status));
+            // RFC 6749 §5.2: only `invalid_grant` says the grant itself is no good, so only it
+            // ends the person and forgets their token. A client the issuer no longer knows (a
+            // secret rotated there first), a rate limit, or any other refusal is the provider's
+            // trouble, not the person's, and answers that it cannot tell, keeping the token.
+            let error = body.get("error").and_then(Value::as_str);
+            return Err(match error {
+                Some("invalid_grant") => {
+                    Refusal::Refused("the issuer refused the grant: invalid_grant".into())
+                }
+                _ => unreachable("token", format!("{status} {}", error.unwrap_or("-"))),
+            });
         }
         let text = |f: &str| body.get(f).and_then(Value::as_str).map(str::to_owned);
         Ok(Tokens { id_token: text("id_token"), refresh_token: text("refresh_token") })

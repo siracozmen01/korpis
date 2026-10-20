@@ -8,14 +8,14 @@
 // has no Turkish catalogue yet, so its own words stay English.
 
 import { type Browser, expect, test, type Page } from "@playwright/test";
-import { authenticator, given } from "./support";
+import { authenticator, given, visit } from "./support";
 
 test.use({ locale: "tr-TR" });
 
 /** Redeems the operator's invitation with a passkey and keeps the recovery codes. */
 async function signedIn(page: Page): Promise<void> {
   await authenticator(page);
-  await page.goto(`/invitation#${given("KORPIS_E2E_OPERATOR_INVITATION")}`);
+  await visit(page, `/invitation#${given("KORPIS_E2E_OPERATOR_INVITATION")}`);
   await page.getByLabel("Choose a sign-in name").fill("operator");
   await page.getByRole("button", { name: "Register a passkey" }).click();
   await page.getByRole("button", { name: "I have kept them" }).click();
@@ -75,8 +75,8 @@ async function sharedConsole(page: Page, browser: Browser): Promise<void> {
   const elsewhere = await browser.newContext({ ignoreHTTPSErrors: true });
   const moderator = await elsewhere.newPage();
   const opened = async () => {
-    await moderator.goto("about:blank");
-    await moderator.goto(link);
+    await visit(moderator, "about:blank");
+    await visit(moderator, link);
     await expect(moderator.getByRole("heading", { name: "talker", level: 1 })).toBeVisible();
     await expect(moderator.getByRole("button", { name: "Restart" })).toHaveCount(0);
   };
@@ -87,8 +87,8 @@ async function sharedConsole(page: Page, browser: Browser): Promise<void> {
   await expect(moderator.getByText("ready merhaba")).toBeVisible();
   await expect(moderator.getByLabel("Send a command"), "reading is not typing").toHaveCount(0);
   await opened();
-  await moderator.goto("about:blank");
-  await moderator.goto(link);
+  await visit(moderator, "about:blank");
+  await visit(moderator, link);
   await expect(moderator.getByRole("alert")).toHaveText(
     "This link has been used as many times as it allows, and opens nothing now.",
   );

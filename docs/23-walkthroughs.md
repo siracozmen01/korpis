@@ -1365,6 +1365,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 117 | A set's required membership constrained nothing when a member acted | §11 | `08-identity.md` §5.2 |
 | 118 | A binding read as verified after its confirmation had lapsed | §43 | `08-identity.md` §5.1 |
 | 119 | Two sets asking about one person at once would spend a rotating refresh token twice | §44 | `08-identity.md` §9.7 |
+| 120 | Any refusal of a refresh ended the person and deleted their token | §44 | `08-identity.md` §9.7 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3762,6 +3763,23 @@ design said that a person is one token however many sets ask.
 set asked about that person within the next minute, so a person costs the issuer at most one
 refresh a minute however many sets they are in and however many control planes ask. →
 patched into `08-identity.md` §9.7
+
+**FINDING 120: Any refusal of a refresh ended the person and deleted their token. `CONFIRMED`**
+
+Found 2026-10-20 by an automated security review of the commit that built the provider, after
+this trace was written, and recorded with it because step 9 is where it bites. The design said a
+refresh refused means the person is no longer known, and the provider took every 4xx answer from
+the token endpoint so. An operator who rotates the client's secret at the issuer before at the
+provider makes every refresh `invalid_client`; a rate limit is a 429. Either would have answered
+every member gone, ending every set membership of everyone signed in through the provider at the
+sets' next re-verification, and deleted every kept refresh token, which no fix afterwards could
+bring back: the destructive answer to a fault that was the provider's, not the people's.
+
+**Resolution.** Only `invalid_grant` (RFC 6749 §5.2) ends a person and forgets their token; every
+other refusal answers that the provider cannot tell, so their last confirmation stands to lapse on
+its own and their token is kept. A conformance test signs Dana in, asks with a client secret the
+issuer no longer holds, finds her unknown rather than gone, and then finds her present with the
+right secret. → patched into `08-identity.md` §9.7
 
 Step 6 is where a group bound only after her sign-in would give Dana nothing yet: no record of her
 as its member would have been made, and it would count from her next sign-in. Step 9 is where an

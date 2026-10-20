@@ -1972,15 +1972,25 @@ counts from their next sign-in.
 still in a group without a token of theirs. The provider asks for `offline_access` when its
 operator allows it, keeps the refresh token the identity provider then issues (OIDC Core §11) in
 its own volume and nowhere else, and answers a re-verification by refreshing it: a refresh refused
-means the person is no longer known there, and a new ID token without the group means they have
-left it. Where no refresh token was issued, the provider answers that it cannot tell, and a member
-it cannot tell about keeps their last confirmation, which lapses after the set binding's interval
-and grace (§5.1); the person's next sign-in is then the only thing that confirms them again.
-Refreshing is done one person at a time, and one refresh answers every set asked about that
-person within the next minute, because identity providers rotate refresh tokens and treat a
+as an invalid grant means the person is no longer known there, and a new ID token without the group
+means they have left it. Where no refresh token was issued, the provider answers that it cannot
+tell, and a member it cannot tell about keeps their last confirmation, which lapses after the set
+binding's interval and grace (§5.1); the person's next sign-in is then the only thing that confirms
+them again. Refreshing is done one person at a time, and one refresh answers every set asked about
+that person within the next minute, because identity providers rotate refresh tokens and treat a
 rotated one presented again as stolen: two sets asking about one person at once would otherwise
 present the same token twice and end the person's grant at the identity provider (Finding 119 of
 `23-walkthroughs.md`).
+
+> Corrected 2026-10-20 (Finding 120 of `23-walkthroughs.md`, from a security review of the
+> commit that built the provider). "A refresh refused means the person is no longer known" took
+> every refusal for the person's. Only `invalid_grant` says the grant itself is dead (RFC 6749
+> §5.2); `invalid_client`, which every refresh is answered once an operator rotates the client's
+> secret at the issuer before at the provider, a rate limit, and any other refusal say nothing of
+> the person. Taken as theirs, one such mistake would have ended every signed-in person's sets
+> and deleted every kept token, which no later fix could bring back. Only `invalid_grant` now
+> ends a person and forgets their token; every other refusal answers that the provider cannot
+> tell, and their token is kept.
 
 **What it does not satisfy.** A sign-in through a provider never satisfies `requires_mfa`, by the
 rule of §9, even when the identity provider's `amr` claim says it used two factors: Korpis cannot

@@ -5,13 +5,13 @@
 // again with the passkey alone, and approves `korpis login` on a terminal.
 
 import { expect, test } from "@playwright/test";
-import { authenticator, given } from "./support";
+import { authenticator, given, visit } from "./support";
 
 test("an invitation is redeemed with a passkey, which signs its holder in and a terminal too", async ({
   page,
 }) => {
   await authenticator(page);
-  await page.goto(`/invitation#${given("KORPIS_E2E_INVITATION")}`);
+  await visit(page, `/invitation#${given("KORPIS_E2E_INVITATION")}`);
   await expect(page.getByRole("heading", { name: "Welcome, Friend" })).toBeVisible();
   expect(page.url(), "the invitation is cleared from the address").not.toContain("korpisiv_");
   await page.getByLabel("Choose a sign-in name").fill("friend");
@@ -29,7 +29,7 @@ test("an invitation is redeemed with a passkey, which signs its holder in and a 
   // `korpis login` waits in the harness with a code; the friend, just signed in, approves it at
   // the address it named, having been shown what asks and from where (§9.4 of
   // docs/08-identity.md).
-  await page.goto(given("KORPIS_E2E_DEVICE_URL"));
+  await visit(page, given("KORPIS_E2E_DEVICE_URL"));
   await expect(page.getByRole("heading", { name: "Sign in a command-line client" })).toBeVisible();
   await expect(page.getByText("It asked from")).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
