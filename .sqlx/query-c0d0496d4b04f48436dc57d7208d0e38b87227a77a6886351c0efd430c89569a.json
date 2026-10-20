@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH before AS (SELECT id, state FROM identity_binding\n                              WHERE id = $1 AND retired_at IS NULL FOR UPDATE)\n             UPDATE identity_binding b\n                SET state = 'unverified', verifications = b.verifications + 1,\n                    verify_due_at = LEAST(b.verify_due_at, $2)\n               FROM before WHERE b.id = before.id\n          RETURNING before.state",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "identity_binding",
+            "name": "state"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c0d0496d4b04f48436dc57d7208d0e38b87227a77a6886351c0efd430c89569a"
+}

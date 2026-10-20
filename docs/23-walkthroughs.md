@@ -1012,6 +1012,21 @@ authorization code, which is a credential until it is redeemed.
 finishes, by a trigger rather than by each statement that finishes a call, so a way of finishing
 one added later cannot forget. → patched into `08-identity.md` §5.2
 
+**FINDING 116: Re-applying an ending could lose a second race, and an edit left old answers
+standing. `CONFIRMED`**
+
+Found 2026-10-20 by a security review of Finding 114's resolution. "Ended" re-applied to the
+binding as it stood was itself recorded against a count, so a third answer landing between the
+read and the write dropped it. And an edit of a binding's terms moved neither the count nor the
+schedule: an answer asked under the old terms was still recorded, and a shortened interval waited
+out the old one before anything asked again.
+
+**Resolution.** "Ended" is recorded without a count, since it only ever moves a binding toward
+`unverified`, and brings the next question within a minute in case it was the older answer. An
+edit counts as an answer and makes the binding due at once. A store test edits a binding between
+an answer's question and its write, and ends it whatever came between. → patched into
+`08-identity.md` §5.1
+
 ---
 
 ## 12. A recipe install fails at step four of six
@@ -1314,6 +1329,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 113 | A retired or lapsed binding left its grants standing | §11 | `08-identity.md` §5 |
 | 114 | An older answer could replace a newer one that a membership had ended | §11 | `08-identity.md` §5.1 |
 | 115 | A person's evidence outlived the call that asked about it | §11 | `08-identity.md` §5.2 |
+| 116 | Re-applying an ending could lose a second race, and an edit left old answers standing | §11 | `08-identity.md` §5.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

@@ -74,6 +74,28 @@ struct Answer {
     grant: Option<Uuid>,
 }
 
+/// The effect of a binding moving to `state` on `answer`.
+fn transition(
+    id: Uuid,
+    subject: Option<&Principal>,
+    state: BindingState,
+    answer: &Answer,
+) -> Effect {
+    let action = match state {
+        BindingState::Verified => "identity.binding.verified",
+        BindingState::Unverified => "identity.binding.unverified",
+    };
+    let effect = Effect::new(answer.actor.clone(), action, Outcome::Succeeded).after(details([
+        ("binding", id.to_string().into()),
+        ("subject", subject.map(Principal::key).into()),
+        ("reason", answer.reason.clone().into()),
+    ]));
+    match answer.grant {
+        Some(g) => effect.under(g),
+        None => effect,
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Asks `binding`'s provider about it once and records what it found, with an effect by
     /// `actor` (under `grant`, when a person asked) if its state changed: the binding as it now
@@ -95,20 +117,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .await?;
         let (verification, reason) = found(called.outcome, person);
         let answer = Answer { verification, reason, actor, grant };
-        let gone = || AppError::conflict("binding.retired", "the binding was retired");
         if let Some(recorded) = self.record_answer(binding.clone(), &answer).await? {
             return Ok((recorded, answer.reason));
         }
-        // Another answer was recorded since this one was asked. That an identity ended is
-        // always safe to say, so it is said of the binding as it now stands; that one is still
-        // there may be older than what was recorded, so it is dropped.
-        let current = self.store.binding(binding.id).await?.filter(|b| b.retired_at.is_none());
-        let current = current.ok_or_else(gone)?;
-        if verification != Verification::Ended {
-            return Ok((current, answer.reason));
+        // Another answer was recorded since this one was asked. That a subject ended is always
+        // safe to say, so it is said whatever was recorded, and asked again within a minute in
+        // case it was older; that one is still there may be older than what was recorded, so it
+        // is dropped.
+        if verification == Verification::Ended {
+            self.record_ended(binding.id, &answer).await?;
         }
-        let recorded = self.record_answer(current, &answer).await?;
-        Ok((recorded.ok_or_else(gone)?, answer.reason))
+        let current = self.store.binding(binding.id).await?.filter(|b| b.retired_at.is_none());
+        let gone = || AppError::conflict("binding.retired", "the binding was retired");
+        Ok((current.ok_or_else(gone)?, answer.reason))
+    }
+
+    /// Records that `id`'s subject ended, whatever was recorded meanwhile, with an effect if it
+    /// was verified.
+    async fn record_ended(&self, id: Uuid, answer: &Answer) -> Result<(), AppError> {
+        let mut tx = self.store.begin().await?;
+        let before = tx.record_ended(id, self.clock.now() + RETRY).await?;
+        if before == Some(BindingState::Verified) {
+            tx.append_effect(&transition(id, None, BindingState::Unverified, answer)).await?;
+        }
+        tx.commit().await?;
+        Ok(())
     }
 
     /// Records `answer` of `binding`, against the verifications it had when it was read, with an
@@ -131,20 +164,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         binding.verifications = asked_at + 1;
         if changed {
-            let action = match state {
-                BindingState::Verified => "identity.binding.verified",
-                BindingState::Unverified => "identity.binding.unverified",
-            };
-            let effect =
-                Effect::new(answer.actor.clone(), action, Outcome::Succeeded).after(details([
-                    ("binding", binding.id.to_string().into()),
-                    ("subject", binding.subject.key().into()),
-                    ("reason", answer.reason.clone().into()),
-                ]));
-            let effect = match answer.grant {
-                Some(g) => effect.under(g),
-                None => effect,
-            };
+            let effect = transition(binding.id, Some(&binding.subject), state, answer);
             tx.append_effect(&effect).await?;
         }
         tx.commit().await?;

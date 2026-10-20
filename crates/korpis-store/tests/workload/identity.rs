@@ -95,3 +95,24 @@ async fn a_finished_call_keeps_none_of_the_evidence_presented() {
     assert_eq!(kept["assert"]["evidence"], "", "{kept}");
     assert_eq!(kept["assert"]["headers"], serde_json::json!({}));
 }
+
+#[tokio::test]
+async fn an_edit_voids_answers_asked_before_it_and_an_ending_is_recorded_whatever_came_between() {
+    let f = fixture().await;
+    let b = bound(&f).await;
+    let at = now() + Duration::from_secs(1);
+    let later = at + Duration::from_secs(3600);
+    let verified = BindingState::Verified;
+    let mut tx = f.store.begin().await.unwrap();
+    assert!(tx.record_verification((b.id, 0), verified, Some(at), later).await.unwrap());
+    let terms = BindingTerms { reverify_interval: Duration::from_secs(120), ..b.terms.clone() };
+    assert!(tx.update_binding((b.id, 1), &terms, at).await.unwrap());
+    let asked_before = tx.record_verification((b.id, 1), verified, Some(at), later);
+    assert!(!asked_before.await.unwrap(), "asked under the old terms");
+    let due = tx.claim_due_bindings(at, at + Duration::from_secs(30), 8).await.unwrap();
+    assert_eq!(due.len(), 1, "due again at once under its new terms");
+    assert_eq!(tx.record_ended(b.id, at).await.unwrap(), Some(verified), "whatever the count");
+    tx.commit().await.unwrap();
+    let read = f.store.binding(b.id).await.unwrap().unwrap();
+    assert_eq!((read.state, read.verifications), (BindingState::Unverified, 3));
+}

@@ -85,7 +85,9 @@ pub(crate) async fn registered(cp: &ControlPlane) {
         })
     };
     let mut said = String::new();
-    for _ in 0..240 {
+    // Up to five minutes: the extension's image is pushed, pulled, and started first, which on a
+    // loaded test machine has taken longer than two.
+    for _ in 0..600 {
         match client.list_providers(asked.clone()).await.map(connectrpc::UnaryResponse::into_owned)
         {
             Ok(r) if serving(&r) => return answered(&client, cp).await,

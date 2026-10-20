@@ -3,6 +3,9 @@
 # Every check a commit must pass. Run from anywhere; exits non-zero on the first failure.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# A check builds each target once and compares nothing with the last build, so incremental
+# compilation's caches, about half of the target directory, buy it nothing but disk.
+export CARGO_INCREMENTAL=0
 
 echo "== em dash (CLAUDE.md rule 2)"
 if grep -rnPI --exclude-dir=.git --exclude-dir=target --exclude-dir=.tools --exclude-dir=node_modules \

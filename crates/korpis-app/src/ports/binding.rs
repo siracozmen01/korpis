@@ -44,13 +44,24 @@ pub trait BindingWrite {
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Replaces the terms of live binding `id` and moves it to `expected + 1`, if its version is
-    /// still `expected`; false otherwise.
+    /// still `expected`; false otherwise. An answer asked under the old terms is recorded no
+    /// more, as if one had been recorded, and the binding is due again at `now`.
     fn update_binding(
         &mut self,
-        id: Uuid,
-        expected: u64,
+        binding: (Uuid, u64),
         terms: &BindingTerms,
+        now: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
+
+    /// Records that live binding `id`'s subject ended, whatever was recorded meanwhile: it only
+    /// ever moves a binding toward unverified, so it needs no count to be recorded against. It
+    /// counts one more, and makes the binding due by `due_by` at the latest. The state it had,
+    /// or `None` if it was retired.
+    fn record_ended(
+        &mut self,
+        id: Uuid,
+        due_by: SystemTime,
+    ) -> impl Future<Output = StoreResult<Option<BindingState>>> + Send;
 
     /// Records a re-verification of live binding `id` asked when it had `asked_at` recorded:
     /// its state, its last confirmation, and when it is next due, counting one more; false if

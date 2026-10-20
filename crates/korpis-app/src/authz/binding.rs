@@ -174,9 +174,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         binding.version = expected + 1;
         self.binding_checked(&binding).await?;
         let mut tx = self.store.begin().await?;
-        if !tx.update_binding(id, expected, &binding.terms).await? {
+        if !tx.update_binding((id, expected), &binding.terms, self.clock.now()).await? {
             return Err(changed());
         }
+        binding.verifications += 1;
         tx.append_effect(&effect(caller, "identity.binding.update", &permit, &binding)).await?;
         finish(tx, caller, idem, UPDATE, binding).await
     }

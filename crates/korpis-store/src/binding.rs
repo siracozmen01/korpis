@@ -214,15 +214,16 @@ impl BindingWrite for PgTx {
 
     async fn update_binding(
         &mut self,
-        id: Uuid,
-        expected: u64,
+        (id, expected): (Uuid, u64),
         t: &BindingTerms,
+        now: SystemTime,
     ) -> StoreResult<bool> {
         let moved = sqlx::query!(
             "UPDATE identity_binding
                 SET version = version + 1, template_id = $3, template_version = $4,
                     require_membership = $5, grace_ms = $6, reverify_ms = $7,
-                    allows_irreversible = $8
+                    allows_irreversible = $8, verifications = verifications + 1,
+                    verify_due_at = LEAST(verify_due_at, $9)
               WHERE id = $1 AND version = $2 AND retired_at IS NULL",
             id,
             to_count("binding version", expected)?,
@@ -231,7 +232,8 @@ impl BindingWrite for PgTx {
             memberships(t)?,
             millis("binding grace", t.grace)?,
             millis("binding interval", t.reverify_interval)?,
-            t.allows_irreversible
+            t.allows_irreversible,
+            from_time(now)
         )
         .execute(&mut *self.tx)
         .await
@@ -263,6 +265,33 @@ impl BindingWrite for PgTx {
         .map_err(from_sqlx)?
         .rows_affected();
         Ok(moved == 1)
+    }
+
+    async fn record_ended(
+        &mut self,
+        id: Uuid,
+        due_by: SystemTime,
+    ) -> StoreResult<Option<BindingState>> {
+        let before = sqlx::query_scalar!(
+            "WITH before AS (SELECT id, state FROM identity_binding
+                              WHERE id = $1 AND retired_at IS NULL FOR UPDATE)
+             UPDATE identity_binding b
+                SET state = 'unverified', verifications = b.verifications + 1,
+                    verify_due_at = LEAST(b.verify_due_at, $2)
+               FROM before WHERE b.id = before.id
+          RETURNING before.state",
+            id,
+            from_time(due_by)
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        match before.as_deref() {
+            None => Ok(None),
+            Some("verified") => Ok(Some(BindingState::Verified)),
+            Some("unverified") => Ok(Some(BindingState::Unverified)),
+            Some(_) => Err(StoreError::Corrupt("binding state".into())),
+        }
     }
 
     async fn claim_due_bindings(

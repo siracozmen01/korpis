@@ -712,22 +712,24 @@ re-verification itself is misconfigured, unreachable, or set too long, and it do
 asking anyone to have got a number right.
 
 **Re-verification, as built.** Added 2026-10-20. The control plane asks the binding's own provider,
-never an ancestor's provider of the same name, with `VerifyMembers` over the provider's stream
-(the `provider.identity` capability, §6 of `16-extensions.md`): for a set, whether it still exists
-and is the set it was; for a person, whether the provider still knows them. The answer moves the
-binding by the table above, an unanswered call counting as unreachable, and a change is recorded
-as an `identity.binding.verified` or `identity.binding.unverified` effect. An operator holding
+never an ancestor's provider of the same name, with `VerifyMembers` over the provider's stream (the
+`provider.identity` capability, §6 of `16-extensions.md`): for a set, whether it still exists and
+is the set it was; for a person, whether the provider still knows them. The answer moves the
+binding by the table above, an unanswered call counting as unreachable, and a change is recorded as
+an `identity.binding.verified` or `identity.binding.unverified` effect. An operator holding
 `identity.binding.write` can ask now, with `VerifyIdentityBinding`, rather than wait for the
 interval. Every few seconds a control plane claims the bindings that are due, a batch at a time, so
 no two control planes ask the same question at once, and asks each one's provider; a binding is due
 as soon as it is made, again one interval after an answer, and a minute after a call that went
 unanswered, so a provider back from an outage restores what it vouches for within a minute. An
-answer is recorded only against the count of answers the binding had when it was asked, so one
-that arrives after a newer one never replaces it: that a subject ended is still said of the
-binding as it now stands, because saying so is always safe, while that it is still there is
-dropped (Finding 114 of `23-walkthroughs.md`). The members who delegated follow with the record of
-who delegated (`via`, below). A binding nobody asks lapses after its interval and grace anyway,
-which §5 derives at every use, so a stopped loop fails closed.
+answer is recorded only against the count of answers the binding had when it was asked, so one that
+arrives after a newer one never replaces it: that it is still there is then dropped, while that a
+subject ended is recorded whatever came between, because it only ever moves a binding toward
+`unverified`, and the binding is asked again within a minute in case that answer was the older
+(Findings 114 and 116 of `23-walkthroughs.md`). An edit of a binding's terms counts as an answer,
+so one asked under the old terms is not recorded, and makes the binding due at once. The members
+who delegated follow with the record of who delegated (`via`, below). A binding nobody asks lapses
+after its interval and grace anyway, which §5 derives at every use, so a stopped loop fails closed.
 
 `reverify_interval` is the honest analogue of token lifetime. It is the bound on how long authority
 outlives its source, it is stated rather than convenient, and it applies to OIDC and SAML equally,
