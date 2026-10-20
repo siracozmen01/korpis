@@ -9,7 +9,7 @@ use crate::stored::{from_json, from_time, principal, to_json, to_time};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{AssertionWrite, StoreError, StoreResult};
 use korpis_core::authz::binding::{IdentityBinding, ProviderRef};
-use korpis_core::authz::ticket::Ticket;
+use korpis_core::authz::ticket::{Ticket, TicketObject};
 use korpis_core::authz::{Action, Kind, ObjectRef};
 use korpis_core::principal::SetName;
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,13 @@ impl TicketRow {
     fn into_domain(self) -> StoreResult<Ticket> {
         let corrupt = |what: &str| StoreError::Corrupt(format!("ticket {what}"));
         let sets: Vec<SetDoc> = from_json("ticket sets", self.sets)?;
-        let kind = Kind::parse(&self.object_kind).ok_or_else(|| corrupt("object kind"))?;
+        let object = match self.object_kind.as_str() {
+            "grant" => TicketObject::Grant(self.object_id),
+            kind => {
+                let kind = Kind::parse(kind).ok_or_else(|| corrupt("object kind"))?;
+                TicketObject::Object(ObjectRef::new(kind, self.object_id))
+            }
+        };
         Ok(Ticket {
             id: self.id,
             relay: principal(&self.relay)?,
@@ -53,7 +59,7 @@ impl TicketRow {
             provider: ProviderRef { organization: self.organization_id, name: self.provider },
             presentation: self.presentation,
             action: Action::parse(&self.action).map_err(|_| corrupt("action"))?,
-            object: ObjectRef::new(kind, self.object_id),
+            object,
             expires_at: to_time(self.expires_at),
         })
     }
@@ -130,8 +136,8 @@ impl AssertionWrite for PgTx {
             t.provider.name,
             t.presentation,
             t.action.as_str(),
-            t.object.kind.as_str(),
-            t.object.id,
+            t.object.kind(),
+            t.object.id(),
             from_time(t.expires_at)
         )
         .execute(&mut *self.tx)

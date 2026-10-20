@@ -76,7 +76,7 @@ fn project_scope(id: &str) -> pb::Scope {
 }
 
 /// Issues `actions` on `at` to `to`, delegating them when `delegates`.
-async fn issue(
+pub async fn issue(
     h: &Harness,
     to: &pb::ExternalIdentity,
     actions: &[&str],

@@ -71,7 +71,7 @@ impl Hierarchy for Tree {
     }
 
     fn vouched(&self, subject: &str) -> Option<Vouched> {
-        self.bindings.get(subject).copied()
+        self.bindings.get(subject).cloned()
     }
 }
 
@@ -146,5 +146,15 @@ pub fn request<'a>(
     resource: &'a Resource,
     now: SystemTime,
 ) -> Request<'a> {
-    Request { subject, action, resource, source_ip: None, mfa: false, now, renewal: false }
+    let memberships = &[];
+    Request {
+        subject,
+        memberships,
+        action,
+        resource,
+        source_ip: None,
+        mfa: false,
+        now,
+        renewal: false,
+    }
 }

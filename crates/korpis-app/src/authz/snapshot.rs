@@ -23,7 +23,7 @@ impl Hierarchy for Snapshot {
     }
 
     fn vouched(&self, subject: &str) -> Option<Vouched> {
-        self.bindings.get(subject).copied().flatten()
+        self.bindings.get(subject).cloned().flatten()
     }
 }
 
@@ -71,6 +71,12 @@ impl Snapshot {
                     .filter(|_| b.state == BindingState::Verified)
                     .map(|at| at + b.terms.reverify_interval + b.terms.grace),
                 allows_irreversible: b.terms.allows_irreversible,
+                requires: b
+                    .terms
+                    .require_membership
+                    .iter()
+                    .map(|s| s.at(&b.provider.key()).key())
+                    .collect(),
             });
             self.bindings.insert(key.clone(), vouched);
         }

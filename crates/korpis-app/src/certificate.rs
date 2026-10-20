@@ -45,7 +45,7 @@ impl std::fmt::Debug for Upload {
 }
 
 fn effect(caller: &Caller, action: &str, grant: Uuid, c: &Certificate) -> Effect {
-    Effect::new(caller.principal.clone(), action, Outcome::Succeeded).under(grant).after(details([
+    caller.effect(action, Outcome::Succeeded).under(grant).after(details([
         ("certificate", c.id.to_string().into()),
         ("names", c.names.join(",").into()),
         ("revision", c.revision.into()),

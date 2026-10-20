@@ -47,6 +47,7 @@ pub struct Minted {
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Mints a capability token for actions the caller may perform now.
     pub async fn mint_token(&self, caller: &Caller, cmd: MintToken) -> Result<Minted, AppError> {
+        caller.direct()?;
         if cmd.actions.is_empty() {
             return Err(AppError::invalid("actions", "at least one action"));
         }

@@ -40,6 +40,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// sent to someone with no account, and who issued it, holding what, is not theirs to read
     /// (§6.1 of docs/08-identity.md).
     pub async fn get_grant(&self, caller: &Caller, id: Uuid) -> Result<GrantWithChain, AppError> {
+        caller.direct()?;
         let mut records = self.store.grant_chain(id).await?;
         if records.is_empty() {
             return Err(AppError::NotFound { kind: "grant" });
@@ -62,6 +63,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         filter: GrantsFilter,
         page: Page,
     ) -> Result<Paged<GrantRecord>, AppError> {
+        caller.direct()?;
         let items = match filter {
             GrantsFilter::On(object) => {
                 self.authorize(caller, "grant.read", object).await?;

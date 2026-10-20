@@ -8,7 +8,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, PolicyChange, RecipeSource, SetPolicy, Store, TrustWrite};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::recipe::trust::cosign::signer;
 use korpis_core::recipe::trust::{Signer, TrustPolicy};
@@ -172,10 +172,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let message = "the organization's policy changed meanwhile";
             return Err(AppError::conflict("trust_policy.moved", message));
         }
-        let effect =
-            Effect::new(caller.principal.clone(), "org.trust_policy.set", Outcome::Succeeded)
-                .under(permit.grant)
-                .after(effect_details(&change));
+        let effect = caller
+            .effect("org.trust_policy.set", Outcome::Succeeded)
+            .under(permit.grant)
+            .after(effect_details(&change));
         tx.append_effect(&effect).await?;
         let governing = Governing { set, own_version: change.version };
         finish(tx, caller, idem, OPERATION, governing).await

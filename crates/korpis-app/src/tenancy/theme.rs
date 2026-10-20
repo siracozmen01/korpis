@@ -12,7 +12,7 @@ use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
     Clock, EffectWrite, RecipeSource, SetTheme as Set, Store, ThemeChange, ThemeWrite,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Decision, Kind, ObjectRef};
 use korpis_core::tenancy::theme::{Asked, Theme};
 use uuid::Uuid;
@@ -145,7 +145,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 "the organization's theme changed meanwhile",
             ));
         }
-        let effect = Effect::new(caller.principal.clone(), "org.theme.set", Outcome::Succeeded)
+        let effect = caller
+            .effect("org.theme.set", Outcome::Succeeded)
             .under(permit.grant)
             .after(effect_details(&change));
         tx.append_effect(&effect).await?;

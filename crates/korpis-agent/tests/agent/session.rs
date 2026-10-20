@@ -13,6 +13,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::Receiver;
 
+/// The first event `pick` takes, within thirty seconds: on the shared build machine a check has
+/// run at a load average four times its cores, and ten seconds were not always enough there for
+/// an event a test waits on, although an unloaded run takes well under one.
 pub async fn until(events: &mut Receiver<Event>, pick: impl Fn(&Event) -> bool) -> Event {
     let wait = async {
         loop {
@@ -22,7 +25,8 @@ pub async fn until(events: &mut Receiver<Event>, pick: impl Fn(&Event) -> bool) 
             }
         }
     };
-    tokio::time::timeout(Duration::from_secs(10), wait).await.expect("the event within ten seconds")
+    let waited = tokio::time::timeout(Duration::from_secs(30), wait).await;
+    waited.expect("the event within thirty seconds")
 }
 
 #[tokio::test]

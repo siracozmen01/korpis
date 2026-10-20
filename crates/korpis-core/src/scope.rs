@@ -106,7 +106,7 @@ impl Resource {
 
 /// What the live identity binding of an external subject says now (§5 of
 /// docs/08-identity.md).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vouched {
     /// Until when its provider's last confirmation holds: the confirmation, its interval, and
     /// its grace (§5.1). `None` when it is unverified, or was never confirmed. A binding nothing
@@ -114,6 +114,9 @@ pub struct Vouched {
     pub verified_until: Option<std::time::SystemTime>,
     /// Its operator lets grants to the set carry irreversible actions.
     pub allows_irreversible: bool,
+    /// For a set: the keys of the other sets its members must also be in, so a member acting
+    /// through a grant to it is held to them by what the assertion names (§5.2).
+    pub requires: Vec<String>,
 }
 
 /// The object hierarchy, and the identity bindings external subjects are vouched for by, as the

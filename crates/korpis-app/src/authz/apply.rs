@@ -49,6 +49,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         cmd: &mut IssueGrant,
     ) -> Result<Option<TemplateRef>, AppError> {
+        caller.direct()?;
         let Some(from) = cmd.template.take() else { return Ok(None) };
         if !cmd.actions.is_empty() || cmd.delegation != Delegation::default() {
             let why = "the template says the actions and the delegation; name neither";

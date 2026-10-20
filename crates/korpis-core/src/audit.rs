@@ -78,6 +78,9 @@ pub struct Effect {
     pub node: Option<Uuid>,
     /// Who acted.
     pub actor: Principal,
+    /// The client that relayed what the actor presented, when they acted through one (§5.2 of
+    /// docs/08-identity.md).
+    pub relay: Option<Principal>,
     /// The grant that permitted it; `None` for a refusal and for installation.
     pub grant: Option<Uuid>,
     /// What was done, e.g. `org.create`.
@@ -111,6 +114,7 @@ impl Effect {
             workload: None,
             node: None,
             actor,
+            relay: None,
             grant: None,
             action: action.into(),
             outcome,
@@ -121,6 +125,13 @@ impl Effect {
             window_end: None,
             origin: None,
         }
+    }
+
+    /// Names the client that relayed what the actor presented, if one did.
+    #[must_use]
+    pub fn relayed_by(mut self, relay: Option<Principal>) -> Self {
+        self.relay = relay;
+        self
     }
 
     /// Names the grant that permitted it.

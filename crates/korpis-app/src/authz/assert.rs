@@ -17,7 +17,7 @@ use korpis_core::authz::binding::{
     BindingOrigin, BindingState, BindingTerms, IdentityBinding, ProviderRef,
 };
 use korpis_core::authz::credential::{Secret, SecretKind};
-use korpis_core::authz::ticket::{PRESENTATION_KEPT, TICKET_LIFETIME, Ticket, fresh};
+use korpis_core::authz::ticket::{PRESENTATION_KEPT, TICKET_LIFETIME, Ticket, TicketObject, fresh};
 use korpis_core::authz::{Action, Kind, ObjectRef};
 use korpis_core::extension::identity::{Assertion, Evidence};
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
@@ -38,7 +38,7 @@ pub struct AssertAsked {
     /// The one action the person asked for.
     pub action: Action,
     /// The one object they asked it of.
-    pub object: ObjectRef,
+    pub object: TicketObject,
 }
 
 /// What the client is handed.
@@ -104,6 +104,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !asked.evidence.bounded() {
             return Err(AppError::invalid("evidence", "at most 64 KiB and 32 headers"));
         }
+        if !asked.object.admits(&asked.action) {
+            return Err(AppError::invalid("object", "a grant is the object of grant.revoke alone"));
+        }
         let target = CallTarget {
             organization: p.organization,
             kind: ProviderType::Identity,
@@ -166,8 +169,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ("provider", ticket.provider.key().into()),
                 ("presentation", ticket.presentation.clone().into()),
                 ("action", ticket.action.as_str().into()),
-                ("object_kind", ticket.object.kind.as_str().into()),
-                ("object", ticket.object.id.to_string().into()),
+                ("object_kind", ticket.object.kind().into()),
+                ("object", ticket.object.id().to_string().into()),
             ]));
         tx.append_effect(&effect).await?;
         tx.commit().await?;

@@ -15,7 +15,7 @@ use crate::page::{Page, Paged, visible};
 use crate::ports::{
     BackupWrite as _, Clock, EffectWrite as _, RecipeSource, Store, StoreError, Unique,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::backup::{KeyCustody, MAX_TENANT_KEY, Repository, Retention, TenantKey};
 use korpis_core::extension::is_prefix;
 use korpis_core::object::{Kind, ObjectRef};
@@ -77,6 +77,24 @@ fn checked(cmd: &CreateRepository) -> Result<(), AppError> {
     }
 }
 
+/// What a repository's insertion refusing a duplicate means to the caller.
+fn taken(e: StoreError) -> AppError {
+    match e {
+        StoreError::Duplicate(Unique::RepositoryPrefix) => AppError::conflict(
+            "repository.prefix_overlaps",
+            "a repository of this provider holds that prefix, or one its prune would reach",
+        ),
+        StoreError::Duplicate(Unique::RepositoryName) => {
+            AppError::conflict("repository.name_taken", "the name is taken here")
+        }
+        StoreError::Duplicate(Unique::RepositoryStreams) => AppError::conflict(
+            "repository.streams_taken",
+            "another repository takes the streams of this organization or project",
+        ),
+        other => other.into(),
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The vault, or why there is none.
     pub(crate) fn vault(&self) -> Result<&dyn crate::ports::KeyVault, AppError> {
@@ -133,21 +151,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             KeyCustody::Tenant => None,
         };
         let mut tx = self.store.begin().await?;
-        tx.insert_repository(&created, kek.as_ref()).await.map_err(|e| match e {
-            StoreError::Duplicate(Unique::RepositoryPrefix) => AppError::conflict(
-                "repository.prefix_overlaps",
-                "a repository of this provider holds that prefix, or one its prune would reach",
-            ),
-            StoreError::Duplicate(Unique::RepositoryName) => {
-                AppError::conflict("repository.name_taken", "the name is taken here")
-            }
-            StoreError::Duplicate(Unique::RepositoryStreams) => AppError::conflict(
-                "repository.streams_taken",
-                "another repository takes the streams of this organization or project",
-            ),
-            other => other.into(),
-        })?;
-        let effect = Effect::new(caller.principal.clone(), "repository.create", Outcome::Succeeded)
+        tx.insert_repository(&created, kek.as_ref()).await.map_err(taken)?;
+        let effect = caller
+            .effect("repository.create", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([
                 ("repository", created.id.to_string().into()),

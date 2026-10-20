@@ -457,6 +457,9 @@ message Effect {
   // Coalesced repeats (denials, crash loops): how many, over what window.
   uint64 count = 16;
   google.protobuf.Timestamp window_end = 17;
+  // The client that relayed what the actor presented, when they acted through one (§5.2 of
+  // docs/08-identity.md).
+  Subject relay = 18;
 }
 
 message JournalOrigin {

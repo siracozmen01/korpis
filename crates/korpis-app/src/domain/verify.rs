@@ -10,7 +10,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged, visible};
 use crate::ports::{Clock, DomainWrite as _, EffectWrite as _, LookupError, RecipeSource, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::domain::{Domain, Verification, blocked_by, holder_of};
 use uuid::Uuid;
@@ -69,9 +69,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let now = self.clock.now();
         tx.verify_domain(d.id, now).await?;
         d.verified_at = Some(now);
-        let effect = Effect::new(caller.principal.clone(), "domain.verify", Outcome::Succeeded)
-            .under(grant)
-            .after(details([
+        let effect =
+            caller.effect("domain.verify", Outcome::Succeeded).under(grant).after(details([
                 ("domain", d.id.to_string().into()),
                 ("name", d.name.as_str().into()),
             ]));
@@ -103,9 +102,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         }
         let gone = tx.delete_domain(d.id).await?;
-        let effect = Effect::new(caller.principal.clone(), "domain.delete", Outcome::Succeeded)
-            .under(grant)
-            .after(details([
+        let effect =
+            caller.effect("domain.delete", Outcome::Succeeded).under(grant).after(details([
                 ("domain", d.id.to_string().into()),
                 ("name", d.name.as_str().into()),
                 ("deleted", gone.into()),

@@ -18,6 +18,7 @@ mod attenuation;
 mod bindings;
 mod in_force;
 mod issuing;
+mod members;
 mod private;
 mod support;
 mod suspension;

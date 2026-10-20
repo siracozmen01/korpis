@@ -15,7 +15,7 @@ use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
     BackupWrite as _, Clock, EffectWrite, PruneWrite as _, RecipeSource, Store, WorkloadWrite,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::backup::{Backup, BackupStats, BackupStatus};
 use korpis_core::node::driver::StorageFeature;
@@ -295,7 +295,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if approve_if_auto(&mut tx, &mut plan, caller, self.clock.now()).await? {
             tx.update_plan(&plan, korpis_core::workload::plan::PlanStatus::Proposed).await?;
         }
-        let mut e = Effect::new(caller.principal.clone(), ask.action, Outcome::Succeeded)
+        let mut e = caller
+            .effect(ask.action, Outcome::Succeeded)
             .under(permit.grant)
             .after(proposed(&ask, &plan));
         e.workload = Some(w.id);

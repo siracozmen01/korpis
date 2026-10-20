@@ -20,7 +20,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, RelayWrite as _, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::relay::Relay;
 use uuid::Uuid;
@@ -75,9 +75,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("relay.removed", "the relay is removed already"));
         }
         relay.removed_at = Some(now);
-        let effect = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect =
+            caller.effect(OPERATION, Outcome::Succeeded).under(permit.grant).after(details([
                 ("relay", id.to_string().into()),
                 ("name", relay.name.as_str().into()),
             ]));
@@ -111,9 +110,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let held_at = relay.held_at.take();
         let held_at = held_at.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
-        let effect = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect =
+            caller.effect(OPERATION, Outcome::Succeeded).under(permit.grant).after(details([
                 ("relay", id.to_string().into()),
                 ("name", relay.name.as_str().into()),
                 ("held_at", held_at.map_or(0, |d| d.as_secs()).into()),

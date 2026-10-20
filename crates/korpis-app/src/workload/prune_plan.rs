@@ -11,7 +11,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, Store, WorkloadWrite as _};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::backup::retention;
 use korpis_core::recipe::Disruption;
@@ -83,9 +83,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("forget", forgets.into()),
             ("approval", propose::approval_name(&plan).into()),
         ]);
-        let mut e = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
-            .under(permit.grant)
-            .after(after);
+        let mut e = caller.effect(OPERATION, Outcome::Succeeded).under(permit.grant).after(after);
         e.workload = Some(w.id);
         e.plan = Some(plan.id);
         tx.append_effect(&e).await?;

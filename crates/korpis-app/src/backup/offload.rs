@@ -17,7 +17,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::extension::CallTarget;
 use crate::ports::{Area, Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef, StreamRange};
 use korpis_core::extension::{AccessMode, CallOutcome, ProviderType};
 use korpis_core::workload::stream::{Segment, StreamKey};
@@ -85,23 +85,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if segments.is_empty() {
             return Ok(Offloaded { run: key.run, segments, grants, stream_range });
         }
-        let mut e =
-            Effect::new(caller.principal.clone(), "workload.console.read", Outcome::Succeeded)
-                .under(permit.grant)
-                .after(details([
-                    ("stream", key.kind.as_str().into()),
-                    (
-                        "run",
-                        key.run.map_or(serde_json::Value::Null, |r| {
-                            korpis_core::id::Id::from_uuid(korpis_core::id::IdKind::Run, r)
-                                .to_string()
-                                .into()
-                        }),
-                    ),
-                    ("from_offset", from.into()),
-                    ("offloaded", true.into()),
-                    ("ranged", stream_range.is_some().into()),
-                ]));
+        let mut e = caller
+            .effect("workload.console.read", Outcome::Succeeded)
+            .under(permit.grant)
+            .after(details([
+                ("stream", key.kind.as_str().into()),
+                (
+                    "run",
+                    key.run.map_or(serde_json::Value::Null, |r| {
+                        korpis_core::id::Id::from_uuid(korpis_core::id::IdKind::Run, r)
+                            .to_string()
+                            .into()
+                    }),
+                ),
+                ("from_offset", from.into()),
+                ("offloaded", true.into()),
+                ("ranged", stream_range.is_some().into()),
+            ]));
         e.workload = Some(workload);
         let mut tx = self.store.begin().await?;
         tx.append_effect(&e).await?;

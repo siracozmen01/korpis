@@ -5,14 +5,23 @@
 use super::wire::scope::object_ref_from_pb;
 use super::wire::{self, Refuse};
 use super::{Api, error};
-use connectrpc::{RequestContext, Response, ServiceRequest, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::authz::AssertAsked;
 use korpis_core::authz::Action;
 use korpis_core::authz::binding::ProviderRef;
+use korpis_core::authz::ticket::TicketObject;
 use korpis_core::extension::identity::Evidence;
 use korpis_core::id::IdKind;
 use korpis_proto::korpis::v1 as pb;
 use korpis_wire::identity::set_to_pb;
+
+/// What a ticket is asked of: a grant, for revoking it, or an object of the hierarchy.
+fn ticket_object(o: &pb::ObjectRef) -> Result<TicketObject, ConnectError> {
+    if o.kind.as_known() == Some(pb::ObjectKind::OBJECT_KIND_GRANT) {
+        return Ok(TicketObject::Grant(wire::id(IdKind::Grant, "object.id", &o.id).refuse()?));
+    }
+    Ok(TicketObject::Object(object_ref_from_pb("object", o).refuse()?))
+}
 
 impl Api {
     pub(super) async fn assert(
@@ -33,7 +42,7 @@ impl Api {
             },
             action: Action::parse(&req.action)
                 .map_err(|e| error::invalid("action", e.to_string()))?,
-            object: object_ref_from_pb("object", object).refuse()?,
+            object: ticket_object(object)?,
         };
         let asserted = self.app.assert_identity(&caller, asked).await.map_err(error::from_app)?;
         let t = &asserted.ticket;

@@ -48,6 +48,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         plan: &Plan,
     ) -> Result<Permit, AppError> {
+        caller.direct()?;
         let workload = ObjectRef::new(Kind::Workload, plan.workload);
         match &plan.approval {
             Approval::Authority { scope } => self.authorize_authority(caller, plan, scope).await,

@@ -15,7 +15,7 @@ use crate::ports::{
     Unique,
 };
 use korpis_core::account::record::{Account, INVITATION_LIFETIME, Invitation, display_name};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::credential::{ApiToken, Secret, SecretKind};
 use korpis_core::authz::evaluate::{IssueError, issue};
 use korpis_core::authz::link;
@@ -192,6 +192,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, Issued>,
         mut cmd: IssueGrant,
     ) -> Result<Reply<Issued>, AppError> {
+        caller.direct()?;
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -273,14 +274,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Created::User(account, invitation, secret) => {
                 tx.insert_account(account).await?;
                 tx.insert_invitation(invitation, &secret.digest()).await?;
-                let effect =
-                    Effect::new(caller.principal.clone(), "account.invited", Outcome::Succeeded)
-                        .under(parent.id)
-                        .after(details([
-                            ("account", account.id.to_string().into()),
-                            ("display_name", account.display_name.clone().into()),
-                            ("invitation", invitation.id.to_string().into()),
-                        ]));
+                let effect = caller
+                    .effect("account.invited", Outcome::Succeeded)
+                    .under(parent.id)
+                    .after(details([
+                        ("account", account.id.to_string().into()),
+                        ("display_name", account.display_name.clone().into()),
+                        ("invitation", invitation.id.to_string().into()),
+                    ]));
                 tx.append_effect(&effect).await?;
             }
         }
@@ -290,9 +291,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect = Effect::new(caller.principal.clone(), "grant.issued", Outcome::Succeeded)
-            .under(parent.id)
-            .after(details([
+        let effect =
+            caller.effect("grant.issued", Outcome::Succeeded).under(parent.id).after(details([
                 ("grant", record.grant.id.to_string().into()),
                 ("parent", parent.id.to_string().into()),
                 ("holder", record.holder.key().into()),

@@ -12,7 +12,7 @@ use crate::page::{Page, Paged};
 use crate::ports::{
     Clock, EffectWrite as _, RecipeSource, RunWrite as _, Store, WorkloadWrite as _,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::workload::run::{Cause, Run, RunEnd, RunStatus};
 use uuid::Uuid;
@@ -76,7 +76,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 format!("the run is {}", run.status.as_str()),
             ));
         }
-        let mut effect = Effect::new(caller.principal.clone(), "run.cancelled", Outcome::Succeeded)
+        let mut effect = caller
+            .effect("run.cancelled", Outcome::Succeeded)
             .after(details([("run", id.to_string().into()), ("cause", "cancelled".into())]))
             .under(permit.grant);
         effect.workload = Some(run.workload);

@@ -19,6 +19,9 @@ use uuid::Uuid;
 pub struct Request<'a> {
     /// Who asks.
     pub subject: &'a Subject,
+    /// The sets an identity provider has just asserted the subject is in, for a person acting
+    /// through a relay (§5.2 of docs/08-identity.md); a grant held by one of them is theirs.
+    pub memberships: &'a [Subject],
     /// What they ask to do.
     pub action: &'a Action,
     /// What they ask to do it to, with its ancestry.
@@ -116,6 +119,9 @@ pub enum ChainError {
     /// The leaf is held by someone else.
     #[error("the grant is held by a different subject")]
     WrongSubject,
+    /// The leaf is held by a set whose binding requires another the assertion does not name.
+    #[error("the grant's set requires its members to be in a set they were not asserted in")]
+    MembershipRequired,
     /// The leaf does not carry the action.
     #[error("the grant does not carry the action")]
     ActionNotHeld,
@@ -180,9 +186,7 @@ fn permits(
 ) -> Result<Decision, ChainError> {
     verify_chain(chain, hierarchy, request.now)?;
     let leaf = chain.first().ok_or(ChainError::EmptyChain)?;
-    if &leaf.subject != request.subject {
-        return Err(ChainError::WrongSubject);
-    }
+    super::binding::holds((request.subject, request.memberships), &leaf.subject, hierarchy)?;
     if !leaf.actions.contains(request.action) {
         return Err(ChainError::ActionNotHeld);
     }
@@ -325,6 +329,7 @@ pub fn may_approve(approval: &Approval<'_>, hierarchy: &impl Hierarchy) -> Decis
         .collect();
     let request = Request {
         subject: approval.approver,
+        memberships: &[],
         action: &approve,
         resource: &anchor,
         source_ip: approval.source_ip,

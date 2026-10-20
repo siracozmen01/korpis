@@ -25,6 +25,10 @@ pub enum AppError {
         /// The action no grant carried.
         action: String,
     },
+    /// A person acting through a relay asked for something other than the one action their
+    /// ticket names, or for something no ticket can name (§5.2 of docs/08-identity.md).
+    #[error("a relayed call performs only the one action its ticket names")]
+    Relayed,
     /// The caller may make the change but not set this field: an operator field of a recipe's
     /// configuration needs authority over the owning organization's parent (§5 of
     /// docs/09-recipes.md).

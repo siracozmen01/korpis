@@ -9,7 +9,8 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, GrantWrite, RecipeSource, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
+use korpis_core::authz::binding::holds;
 use korpis_core::authz::evaluate::verify_chain;
 use korpis_core::authz::{Grant, GrantRecord};
 use uuid::Uuid;
@@ -27,13 +28,16 @@ pub struct Revoked {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// Revokes a grant. Permitted to its holder; to anyone holding a currently valid grant above
-    /// it on its chain; and to a holder of `grant.revoke` over a scope containing it.
+    /// it on its chain, a person through a set the assertion they act under names included; and
+    /// to a holder of `grant.revoke` over a scope containing it. A person acting through a relay
+    /// revokes only the grant their ticket names (§5.2 of docs/08-identity.md).
     pub async fn revoke_grant(
         &self,
         caller: &Caller,
         idem: &Idempotent<'_, Revoked>,
         grant: Uuid,
     ) -> Result<Reply<Revoked>, AppError> {
+        caller.may_revoke(grant)?;
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -49,13 +53,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let chain: Vec<Grant> = records.into_iter().map(|r| r.grant).collect();
-        let authority = self.revocation_authority(caller, &chain).await?;
+        let at = caller.revoking_at(target.grant.scope.anchor());
+        let authority = self.revocation_authority(&at, &chain).await?;
 
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         tx.revoke_grant(grant, now).await?;
         let cascaded = tx.descendant_count(grant).await?;
-        let effect = Effect::new(caller.principal.clone(), "grant.revoke", Outcome::Succeeded)
+        let effect = caller
+            .effect("grant.revoke", Outcome::Succeeded)
             .under(authority)
             .after(details([("grant", grant.to_string().into()), ("cascaded", cascaded.into())]));
         tx.append_effect(&effect).await?;
@@ -82,8 +88,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let above = (1..chain.len()).find_map(|i| {
             let rest = chain.get(i..)?;
             let g = rest.first()?;
-            (g.subject == caller.subject && verify_chain(rest, &snapshot, now).is_ok())
-                .then_some(g.id)
+            let held = holds((&caller.subject, &caller.memberships), &g.subject, &snapshot);
+            (held.is_ok() && verify_chain(rest, &snapshot, now).is_ok()).then_some(g.id)
         });
         match above {
             Some(id) => Ok(id),

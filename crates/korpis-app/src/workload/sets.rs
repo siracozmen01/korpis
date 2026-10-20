@@ -10,7 +10,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
 use crate::ports::{Clock, EffectWrite, RecipeSource, SetWrite, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::Name;
 use korpis_core::workload::set::{DeclaredSet, DriftMode};
@@ -67,9 +67,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let message = format!("the set is at version {}", set.version);
             return Err(AppError::conflict("set.moved", message));
         }
-        let effect = Effect::new(caller.principal.clone(), "set.mode", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect =
+            caller.effect("set.mode", Outcome::Succeeded).under(permit.grant).after(details([
                 ("set", set.id.to_string().into()),
                 ("from", set.mode.as_str().into()),
                 ("to", cmd.mode.as_str().into()),

@@ -20,7 +20,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, QuotaSetWrite, RecipeSource, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::quota::{QuotaEntry, QuotaOwner, QuotaSet, SetError, shape};
 use korpis_core::tenancy::{Organization, Project};
@@ -132,7 +132,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let current = self.check_quota(&mut tx, owner, over, &cmd.quota).await?;
         let quota = write_set(&mut tx, owner, current, cmd.quota).await?;
-        let effect = Effect::new(caller.principal.clone(), "org.quota.write", Outcome::Succeeded)
+        let effect = caller
+            .effect("org.quota.write", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([
                 ("organization", org.id.to_string().into()),

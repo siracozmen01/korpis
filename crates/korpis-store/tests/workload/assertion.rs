@@ -9,7 +9,7 @@ use korpis_app::ports::{AssertionWrite, BindingRead, BindingWrite, Store, Tx};
 use korpis_core::authz::binding::{
     BindingOrigin, BindingState, BindingTerms, IdentityBinding, ProviderRef,
 };
-use korpis_core::authz::ticket::{TICKET_LIFETIME, Ticket};
+use korpis_core::authz::ticket::{TICKET_LIFETIME, Ticket, TicketObject};
 use korpis_core::authz::{Action, Kind, ObjectRef};
 use korpis_core::principal::{Principal, SetName};
 use std::time::Duration;
@@ -25,7 +25,7 @@ fn ticket(f: &Fixture) -> Ticket {
         provider,
         presentation: "p1".into(),
         action: Action::parse("org.read").unwrap(),
-        object: ObjectRef::new(Kind::Organization, f.organization),
+        object: TicketObject::Object(ObjectRef::new(Kind::Organization, f.organization)),
         expires_at: now() + TICKET_LIFETIME,
     }
 }
@@ -60,7 +60,16 @@ async fn a_ticket_works_once_for_its_relay_before_it_expires() {
     assert_eq!(used.as_ref(), Some(&t), "read back as kept");
     let again = tx.redeem_ticket(&digest, &alice().key(), now()).await.unwrap();
     assert_eq!(again, None, "once");
-    assert_eq!(tx.forget_assertions(late).await.unwrap(), 1, "expired tickets are forgotten");
+    let revoking = Ticket {
+        id: Uuid::now_v7(),
+        action: Action::parse("grant.revoke").unwrap(),
+        object: TicketObject::Grant(Uuid::now_v7()),
+        ..t.clone()
+    };
+    tx.insert_ticket(&revoking, &[8u8; 32]).await.unwrap();
+    let read = tx.redeem_ticket(&[8u8; 32], &alice().key(), now()).await.unwrap();
+    assert_eq!(read, Some(revoking), "a ticket naming a grant reads back as one");
+    assert_eq!(tx.forget_assertions(late).await.unwrap(), 2, "expired tickets are forgotten");
     tx.commit().await.unwrap();
 }
 

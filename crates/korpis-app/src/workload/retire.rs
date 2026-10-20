@@ -105,12 +105,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.insert_plan(plan).await?;
         let superseded = tx.supersede_proposed(plan).await?;
         let mut effect =
-            Effect::new(caller.principal.clone(), "workload.delete", Outcome::Succeeded)
-                .under(grant)
-                .after(details([
-                    ("approval", propose::approval_name(plan).into()),
-                    ("superseded_plans", superseded.into()),
-                ]));
+            caller.effect("workload.delete", Outcome::Succeeded).under(grant).after(details([
+                ("approval", propose::approval_name(plan).into()),
+                ("superseded_plans", superseded.into()),
+            ]));
         effect.workload = Some(w.id);
         effect.plan = Some(plan.id);
         tx.append_effect(&effect).await?;

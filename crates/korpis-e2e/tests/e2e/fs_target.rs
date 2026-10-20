@@ -96,9 +96,24 @@ pub(crate) async fn registered(cp: &ControlPlane) {
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
-    // What the list last said tells whether the extension's workload ever came up to register.
-    panic!("the target never registered; the last list said {said}");
+    // What the list last said tells whether the extension's workload ever came up to register,
+    // and what the store held tells how far it got: placed, leased, started, or refused.
+    let held = cp.scalar::<Option<String>>(HELD).await;
+    panic!("the target never registered; the last list said {said}; the store held {held:?}");
 }
+
+/// The leases and effects of every workload, said when the target never registers.
+const HELD: &str = "SELECT 'leases ' || coalesce(
+                      (SELECT string_agg(w.name || ' until ' || l.grantor_expiry::text
+                                         || ' released ' || coalesce(l.released_at::text, '-'),
+                                         '; ')
+                         FROM lease l JOIN workload w ON w.id = l.workload_id), 'none')
+               || ' | effects ' || coalesce(
+                      (SELECT string_agg(coalesce(w.name, '-') || ' ' || e.action || ' '
+                                         || e.outcome || ' ' || e.at::text || ' '
+                                         || coalesce(e.error::text, ''), '; ' ORDER BY e.at)
+                         FROM effect e LEFT JOIN workload w ON w.id = e.workload_id
+                        WHERE e.workload_id IS NOT NULL OR e.action LIKE 'provider.%'), 'none')";
 
 /// Waits until a registered target answers a ping.
 async fn answered(

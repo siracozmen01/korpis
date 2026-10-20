@@ -10,7 +10,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, RetirementWrite, Store, WorkloadWrite};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef, Permit};
 use korpis_core::recipe::Disruption;
 use korpis_core::workload::plan::compute::power_steps;
@@ -118,14 +118,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         {
             return Err(power_moved(&locked));
         }
-        let mut effect =
-            Effect::new(caller.principal.clone(), action(cmd.change), Outcome::Succeeded)
-                .under(permit.grant)
-                .after(details([
-                    ("power_version", power.power.version.into()),
-                    ("cycle", power.power.cycle.into()),
-                    ("approved", approved.into()),
-                ]));
+        let mut effect = caller
+            .effect(action(cmd.change), Outcome::Succeeded)
+            .under(permit.grant)
+            .after(details([
+                ("power_version", power.power.version.into()),
+                ("cycle", power.power.cycle.into()),
+                ("approved", approved.into()),
+            ]));
         effect.workload = Some(w.id);
         effect.plan = Some(plan.id);
         tx.append_effect(&effect).await?;

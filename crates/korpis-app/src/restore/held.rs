@@ -13,7 +13,7 @@ use crate::ports::{
     Clock, EffectWrite as _, PlacementWrite as _, RecipeSource, RecoveryWrite as _, Store,
     WorkloadWrite as _,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::placement::Placement;
 use uuid::Uuid;
@@ -61,10 +61,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let placement = tx.placement_in(cmd.workload).await?;
         let placement = placement.ok_or(AppError::NotFound { kind: "placement" })?;
-        let mut e =
-            Effect::new(caller.principal.clone(), "workload.placement.confirm", Outcome::Succeeded)
-                .under(permit.grant)
-                .after(details([("node", node.to_string().into()), ("reason", reason.into())]));
+        let mut e = caller
+            .effect("workload.placement.confirm", Outcome::Succeeded)
+            .under(permit.grant)
+            .after(details([("node", node.to_string().into()), ("reason", reason.into())]));
         e.workload = Some(cmd.workload);
         e.node = Some(node);
         tx.append_effect(&e).await?;

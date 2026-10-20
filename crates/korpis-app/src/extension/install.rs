@@ -323,21 +323,18 @@ fn exists() -> AppError {
 }
 
 pub(super) fn issued_effect(caller: &Caller, record: &GrantRecord, parent: Uuid) -> Effect {
-    Effect::new(caller.principal.clone(), "grant.issued", Outcome::Succeeded).under(parent).after(
-        details([
-            ("grant", record.grant.id.to_string().into()),
-            ("parent", parent.to_string().into()),
-            ("holder", record.holder.key().into()),
-            ("label", record.label.clone().into()),
-        ]),
-    )
+    caller.effect("grant.issued", Outcome::Succeeded).under(parent).after(details([
+        ("grant", record.grant.id.to_string().into()),
+        ("parent", parent.to_string().into()),
+        ("holder", record.holder.key().into()),
+        ("label", record.label.clone().into()),
+    ]))
 }
 
 fn install_effect(caller: &Caller, i: &Installed, grant: Uuid) -> Effect {
     let x = &i.installation;
-    let mut e = Effect::new(caller.principal.clone(), "extension.install", Outcome::Succeeded)
-        .under(grant)
-        .after(details([
+    let mut e =
+        caller.effect("extension.install", Outcome::Succeeded).under(grant).after(details([
             ("extension", x.id.to_string().into()),
             ("name", x.name.clone().into()),
             ("version", x.version.clone().into()),

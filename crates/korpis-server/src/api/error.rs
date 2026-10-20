@@ -112,6 +112,13 @@ fn refusal(e: AppError) -> ConnectError {
             message: &format!("missing action {action}"),
             retryable: false,
         }),
+        AppError::Relayed => build(&Wire {
+            code: C::ERROR_CODE_DENIED,
+            reason: "identity.relayed",
+            field: "",
+            message: "a relayed call performs only the one action its ticket names",
+            retryable: false,
+        }),
         AppError::FieldDenied { field, action } => build(&Wire {
             code: C::ERROR_CODE_DENIED,
             reason: "authorization.field_denied",
@@ -138,6 +145,7 @@ pub fn from_app(e: AppError) -> ConnectError {
         AppError::Invalid { field, message } => invalid(&field, message),
         e @ (AppError::Unauthenticated
         | AppError::Denied { .. }
+        | AppError::Relayed
         | AppError::FieldDenied { .. }
         | AppError::Untrusted { .. }) => refusal(e),
         // Also what a caller who may not read the object is told, so existence is gated by

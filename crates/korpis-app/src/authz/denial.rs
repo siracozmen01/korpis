@@ -33,6 +33,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
+        // A relayed call costs a presentation the relay cannot make, so its refusals cannot
+        // flood; each is written at once, naming the relay (§5.2 of docs/08-identity.md).
+        if let Some(r) = &caller.relayed {
+            tx.append_effect(&denial(&key).relayed_by(Some(r.relay.clone()))).await?;
+            tx.commit().await?;
+            return Ok(());
+        }
         let open = tx.lock_denial_run(&key).await?;
         match offer(open, now, self.denial_window) {
             Offer::Count { run } => tx.put_denial_run(&key, &run).await?,

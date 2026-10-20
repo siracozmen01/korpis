@@ -43,9 +43,46 @@ pub struct Ticket {
     /// The one action it permits asking for.
     pub action: Action,
     /// The one object it permits asking about.
-    pub object: ObjectRef,
+    pub object: TicketObject,
     /// When it stops working, used or not.
     pub expires_at: SystemTime,
+}
+
+/// What a ticket's one action is asked of: an object, or, for `grant.revoke` alone, the grant to
+/// revoke, so a person can kill a leaked link from where it leaked (§3 of
+/// docs/12-surface-discord.md) and the ticket still names exactly one thing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TicketObject {
+    /// An object of the hierarchy.
+    Object(ObjectRef),
+    /// The grant `grant.revoke` revokes.
+    Grant(Uuid),
+}
+
+impl TicketObject {
+    /// Its kind, as kept: an object's kind, or `grant`.
+    #[must_use]
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Object(o) => o.kind.as_str(),
+            Self::Grant(_) => "grant",
+        }
+    }
+
+    /// Its identifier.
+    #[must_use]
+    pub const fn id(&self) -> Uuid {
+        match self {
+            Self::Object(o) => o.id,
+            Self::Grant(g) => *g,
+        }
+    }
+
+    /// Whether `action` may be asked of it: a grant only for `grant.revoke`.
+    #[must_use]
+    pub fn admits(&self, action: &Action) -> bool {
+        matches!(self, Self::Object(_)) || action.as_str() == "grant.revoke"
+    }
 }
 
 /// Whether an assertion made at `at` may be believed at `now`.
@@ -55,16 +92,9 @@ pub fn fresh(at: SystemTime, now: SystemTime) -> bool {
     apart <= ASSERTION_SKEW
 }
 
-/// The subjects a ticket's holder is evaluated as: the person, and each of their sets.
+/// The sets a ticket's holder is evaluated as a member of, beside the person themself.
 #[must_use]
 pub fn sets_of(ticket: &Ticket) -> Vec<Principal> {
-    ticket
-        .sets
-        .iter()
-        .map(|s| Principal::ExternalSet {
-            provider: ticket.provider.key(),
-            realm: s.realm.clone(),
-            member_of: s.member_of.clone(),
-        })
-        .collect()
+    let provider = ticket.provider.key();
+    ticket.sets.iter().map(|s| s.at(&provider)).collect()
 }

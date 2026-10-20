@@ -58,6 +58,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         needs: &[(usize, &Need)],
         place: &Place<'_>,
     ) -> Result<Vec<NeedGrant>, AppError> {
+        caller.direct()?;
         let workload = self.planned(place.workload).await?;
         let held = self.store.chains_held_by(&caller.subject.key).await?;
         let mut leaves: Vec<Uuid> =

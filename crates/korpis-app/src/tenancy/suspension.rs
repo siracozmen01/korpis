@@ -14,7 +14,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, TenancyWrite};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::tenancy::{OnSuspend, Organization, OrganizationStatus, Suspension};
 use uuid::Uuid;
@@ -121,9 +121,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let status = OrganizationStatus::Suspended(suspension);
         let written = tx.change_organization_status(target.id, target.version, &status).await?;
         let suspended = written.ok_or_else(changed)?;
-        let effect = Effect::new(caller.principal.clone(), "org.suspend", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect =
+            caller.effect("org.suspend", Outcome::Succeeded).under(permit.grant).after(details([
                 ("organization", cmd.organization.to_string().into()),
                 ("reason", reason.into()),
                 ("on_suspend", if stops { "stop" } else { "keep_running" }.into()),
@@ -157,7 +156,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let active = OrganizationStatus::Active;
         let written = tx.change_organization_status(target.id, target.version, &active).await?;
         let resumed = written.ok_or_else(changed)?;
-        let effect = Effect::new(caller.principal.clone(), "org.resume", Outcome::Succeeded)
+        let effect = caller
+            .effect("org.resume", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([("organization", organization.to_string().into())]));
         tx.append_effect(&effect).await?;

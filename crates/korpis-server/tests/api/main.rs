@@ -87,6 +87,7 @@ mod refusal;
 mod relay;
 mod relay_hold;
 mod relay_watch;
+mod relaying;
 mod relays;
 mod removal;
 mod renewal;

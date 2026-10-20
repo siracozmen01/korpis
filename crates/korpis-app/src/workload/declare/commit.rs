@@ -125,9 +125,8 @@ pub(super) fn declaration_effects(
         Some(Vouched::Unsigned) => serde_json::json!("unsigned"),
         None => Value::Null,
     };
-    let mut e = Effect::new(caller.principal.clone(), base.action, Outcome::Succeeded)
-        .under(base.permit.grant)
-        .after(details([
+    let mut e =
+        caller.effect(base.action, Outcome::Succeeded).under(base.permit.grant).after(details([
             ("intent", d.intent.id.to_string().into()),
             ("version", d.intent.version.into()),
             ("recipe", recipe.digest.clone().into()),
@@ -140,15 +139,15 @@ pub(super) fn declaration_effects(
     e.plan = Some(d.plan.id);
     let mut effects = vec![e];
     if recipe.trust == Some(Vouched::Unsigned) {
-        let mut u =
-            Effect::new(caller.principal.clone(), "recipe.use_unsigned", Outcome::Succeeded)
-                .under(base.permit.grant)
-                .after(details([
-                    ("recipe", recipe.name.clone().into()),
-                    ("version", recipe.version.clone().into()),
-                    ("digest", recipe.digest.clone().into()),
-                    ("organization", d.workload.organization.to_string().into()),
-                ]));
+        let mut u = caller
+            .effect("recipe.use_unsigned", Outcome::Succeeded)
+            .under(base.permit.grant)
+            .after(details([
+                ("recipe", recipe.name.clone().into()),
+                ("version", recipe.version.clone().into()),
+                ("digest", recipe.digest.clone().into()),
+                ("organization", d.workload.organization.to_string().into()),
+            ]));
         u.workload = Some(d.workload.id);
         u.plan = Some(d.plan.id);
         effects.push(u);
@@ -158,13 +157,13 @@ pub(super) fn declaration_effects(
 
 /// The effect of approving a plan by default policy.
 pub(super) fn approval_effect(caller: &Caller, base: &Base, plan: &Plan) -> Effect {
-    let mut e = Effect::new(caller.principal.clone(), "plan.approve", Outcome::Succeeded)
-        .under(base.permit.grant)
-        .after(details([
+    let mut e = caller.effect("plan.approve", Outcome::Succeeded).under(base.permit.grant).after(
+        details([
             ("approval", "auto".into()),
             ("status", plan.status.as_str().into()),
             ("reason", plan.approval_reason.clone().into()),
-        ]));
+        ]),
+    );
     e.workload = Some(plan.workload);
     e.plan = Some(plan.id);
     e

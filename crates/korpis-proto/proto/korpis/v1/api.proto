@@ -1679,7 +1679,8 @@ message AssertIdentityRequest {
   map<string, string> headers = 4;
   // The one action the person asked for.
   string action = 5;
-  // The one object they asked it of.
+  // The one object they asked it of; a grant only when the action is grant.revoke, so a
+  // person revokes that one grant (§5.2 of docs/08-identity.md).
   ObjectRef object = 6;
 }
 

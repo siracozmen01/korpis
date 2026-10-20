@@ -250,10 +250,19 @@ impl Api {
     /// API token, from the peer address.
     async fn caller(&self, ctx: &RequestContext) -> Result<Caller, ConnectError> {
         self.not_settling().await?;
-        if let Some(caller) = ctx.extensions().get::<Caller>() {
-            return Ok(caller.clone());
+        let caller = match ctx.extensions().get::<Caller>() {
+            Some(caller) => caller.clone(),
+            None => self.authenticated(ctx).await?,
+        };
+        // A client that relayed what a person presented acts for them with the ticket it was
+        // handed, beside its own credential (§5.2 of docs/08-identity.md).
+        match ctx.headers().get(RELAYED_AS) {
+            Some(ticket) => {
+                let ticket = ticket.to_str().unwrap_or_default();
+                self.app.relayed(&caller, ticket).await.map_err(error::from_app)
+            }
+            None => Ok(caller),
         }
-        self.authenticated(ctx).await
     }
 
     /// Refused while a restore settles (§8 of docs/03-state.md): until what the agents present
@@ -292,6 +301,9 @@ impl Api {
             .map_err(error::from_app)
     }
 }
+
+/// The header a relaying client sends the ticket it was handed in.
+pub const RELAYED_AS: &str = "korpis-as";
 
 /// The bearer credential a request presents; empty if it presents none.
 fn bearer(ctx: &RequestContext) -> &str {

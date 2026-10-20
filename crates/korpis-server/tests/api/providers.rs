@@ -51,10 +51,23 @@ pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
     held(&mut session, &extension.workload, n).await;
-    let Outcome::Credential(issued) = ask(&mut session, &extension.workload, "c").await else {
-        panic!("an installed extension's workload obtains its credential");
-    };
-    Installed { extension, secret: issued.secret.clone(), _session: session }
+    let secret = credential(&mut session, &extension.workload).await;
+    Installed { extension, secret, _session: session }
+}
+
+/// `workload`'s credential, asked again after every retryable refusal as an agent asks: on a
+/// loaded machine the store may answer `credential.unavailable` for a while.
+async fn credential(session: &mut agent::Stream, workload: &str) -> String {
+    let mut last = String::new();
+    for attempt in 0..40u8 {
+        match ask(session, workload, &format!("c{attempt}")).await {
+            Outcome::Credential(issued) => return issued.secret.clone(),
+            Outcome::Refused(e) if e.retryable => last.clone_from(&e.reason),
+            Outcome::Refused(e) => panic!("the workload's credential was refused: {}", e.reason),
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    panic!("an installed extension's workload obtains its credential; last refused {last}");
 }
 
 /// Asks for `workload`'s lease until it is granted, as an agent does: the credential is asked

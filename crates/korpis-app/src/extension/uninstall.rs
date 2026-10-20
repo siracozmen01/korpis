@@ -14,7 +14,7 @@ use crate::ports::{
     Clock, EffectWrite, ExtensionWrite, ProviderCallWrite, ProviderWrite, RecipeSource,
     RetirementWrite, Store, SubscriptionWrite, Tx,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{GrantRecord, Kind, ObjectRef};
 use korpis_core::extension::{CallFailure, CallOutcome, Installation};
 use korpis_core::workload::Plan;
@@ -89,9 +89,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             self.write_retirement(&mut tx, caller, &w, &p, grant).await?;
             plan = Some(p);
         }
-        let mut effect = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let mut effect =
+            caller.effect(OPERATION, Outcome::Succeeded).under(permit.grant).after(details([
                 ("extension", id.to_string().into()),
                 ("revoked_grants", revoked.into()),
                 ("ended_subscriptions", ended.into()),
@@ -118,9 +117,8 @@ pub(super) async fn revoke_all<X: Tx>(
     for g in held.iter().filter(|g| g.revoked_at.is_none()) {
         tx.revoke_grant(g.grant.id, now).await?;
         let cascaded = tx.descendant_count(g.grant.id).await?;
-        let effect = Effect::new(caller.principal.clone(), "grant.revoke", Outcome::Succeeded)
-            .under(under)
-            .after(details([
+        let effect =
+            caller.effect("grant.revoke", Outcome::Succeeded).under(under).after(details([
                 ("grant", g.grant.id.to_string().into()),
                 ("cascaded", cascaded.into()),
             ]));

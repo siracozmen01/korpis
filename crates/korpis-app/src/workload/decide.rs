@@ -78,12 +78,12 @@ fn current(plan: &Plan, w: &Workload) -> Result<bool, AppError> {
 }
 
 pub(super) fn effect(
-    actor: Principal,
+    caller: &Caller,
     action: &str,
     plan: &Plan,
     after: serde_json::Map<String, serde_json::Value>,
 ) -> Effect {
-    let mut e = Effect::new(actor, action, Outcome::Succeeded).after(after);
+    let mut e = caller.effect(action, Outcome::Succeeded).after(after);
     e.workload = Some(plan.workload);
     e.plan = Some(plan.id);
     e
@@ -117,9 +117,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let record = async {
             plan.transition(to).map_err(|e| AppError::Internal(e.to_string()))?;
             tx.update_plan(&plan, PlanStatus::Proposed).await?;
-            let actor = Principal::System(SystemActor::Reconciler);
+            let actor = Caller::new(Principal::System(SystemActor::Reconciler), None, false);
             let action = if to == PlanStatus::Expired { "plan.expire" } else { "plan.supersede" };
-            tx.append_effect(&effect(actor, action, &plan, details([]))).await?;
+            tx.append_effect(&effect(&actor, action, &plan, details([]))).await?;
             tx.commit().await?;
             Ok::<_, AppError>(())
         };
@@ -193,10 +193,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ));
         }
         let after = details([("status", plan.status.as_str().into())]);
-        tx.append_effect(
-            &effect(caller.principal.clone(), "plan.approve", &plan, after).under(permit.grant),
-        )
-        .await?;
+        tx.append_effect(&effect(caller, "plan.approve", &plan, after).under(permit.grant)).await?;
         match plan.target {
             PlanTarget::Intent(i) => {
                 let target =
@@ -234,10 +231,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("plan.not_proposed", "the plan was decided meanwhile"));
         }
         let after = details([("reason", cmd.reason.into())]);
-        tx.append_effect(
-            &effect(caller.principal.clone(), "plan.reject", &plan, after).under(permit.grant),
-        )
-        .await?;
+        tx.append_effect(&effect(caller, "plan.reject", &plan, after).under(permit.grant)).await?;
         finish(tx, caller, idem, REJECT, plan).await
     }
 }

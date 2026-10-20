@@ -79,10 +79,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("plan.not_proposed", "the plan changed meanwhile"));
         }
         let after = details([("was", from.as_str().into()), ("completed", plan.completed.into())]);
-        tx.append_effect(
-            &effect(caller.principal.clone(), "plan.cancel", &plan, after).under(permit.grant),
-        )
-        .await?;
+        tx.append_effect(&effect(caller, "plan.cancel", &plan, after).under(permit.grant)).await?;
         finish(tx, caller, idem, CANCEL, plan).await
     }
 

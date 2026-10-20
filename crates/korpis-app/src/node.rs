@@ -35,7 +35,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
 use crate::ports::{Clock, EffectWrite, NodeWrite, PlacementWrite, RecipeSource, Store};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::labels::LabelSelector;
 use korpis_core::node::{Node, NodeAdmin};
@@ -123,9 +123,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             node.version += 1;
             let action = if to == NodeAdmin::Cordoned { "node.cordon" } else { "node.uncordon" };
-            let mut effect = Effect::new(caller.principal.clone(), action, Outcome::Succeeded)
-                .under(permit.grant)
-                .after(details([
+            let mut effect =
+                caller.effect(action, Outcome::Succeeded).under(permit.grant).after(details([
                     ("node", id.to_string().into()),
                     ("from", admin_name(from).into()),
                     ("to", admin_name(to).into()),

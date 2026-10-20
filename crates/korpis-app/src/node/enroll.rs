@@ -178,6 +178,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, EnrollmentToken>,
         cmd: CreateEnrollment,
     ) -> Result<Reply<EnrollmentToken>, AppError> {
+        caller.direct()?;
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -224,7 +225,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.insert_token(&token, &secret.digest(), &caller.principal).await?;
         tx.insert_grant(&record).await?;
         tx.insert_enrollment(&enrollment).await?;
-        for effect in creation_effects(&caller.principal, permit.grant, &enrollment) {
+        for effect in creation_effects(caller, permit.grant, &enrollment) {
             tx.append_effect(&effect).await?;
         }
         finish(tx, caller, idem, OPERATION, EnrollmentToken { enrollment, secret }).await
@@ -279,9 +280,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.complete_enrollment(enrollment.token, node.id, now).await? {
             return Err(AppError::conflict("enrollment.used", "the token was redeemed meanwhile"));
         }
-        let mut effect = Effect::new(caller.principal.clone(), "node.enroll", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let mut effect =
+            caller.effect("node.enroll", Outcome::Succeeded).under(permit.grant).after(details([
                 ("node", node.id.to_string().into()),
                 ("name", node.name.as_str().into()),
                 ("organization", node.organization.to_string().into()),
@@ -294,24 +294,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 }
 
-fn creation_effects(actor: &Principal, parent: Uuid, e: &Enrollment) -> [Effect; 2] {
-    let actor = actor.clone();
+fn creation_effects(caller: &Caller, parent: Uuid, e: &Enrollment) -> [Effect; 2] {
     [
-        Effect::new(actor.clone(), "grant.issued", Outcome::Succeeded).under(parent).after(
-            details([
-                ("grant", e.grant.to_string().into()),
-                ("parent", parent.to_string().into()),
-                ("holder", Principal::Token(e.token).key().into()),
-            ]),
-        ),
-        Effect::new(actor, "node.enrollment.create", Outcome::Succeeded).under(parent).after(
-            details([
-                ("organization", e.organization.to_string().into()),
-                ("node_name", e.node_name.as_str().into()),
-                ("token", e.token.to_string().into()),
-                ("grant", e.grant.to_string().into()),
-            ]),
-        ),
+        caller.effect("grant.issued", Outcome::Succeeded).under(parent).after(details([
+            ("grant", e.grant.to_string().into()),
+            ("parent", parent.to_string().into()),
+            ("holder", Principal::Token(e.token).key().into()),
+        ])),
+        caller.effect("node.enrollment.create", Outcome::Succeeded).under(parent).after(details([
+            ("organization", e.organization.to_string().into()),
+            ("node_name", e.node_name.as_str().into()),
+            ("token", e.token.to_string().into()),
+            ("grant", e.grant.to_string().into()),
+        ])),
     ]
 }
 
@@ -353,7 +348,8 @@ pub(crate) async fn first_enrollment<T: Tx>(
     tx.insert_token(&token, &secret.digest(), &bootstrap).await?;
     tx.insert_grant(&record).await?;
     tx.insert_enrollment(&enrollment).await?;
-    for effect in creation_effects(&bootstrap, parent, &enrollment) {
+    let by = Caller::new(bootstrap, None, false);
+    for effect in creation_effects(&by, parent, &enrollment) {
         tx.append_effect(&effect).await?;
     }
     Ok(EnrollmentToken { enrollment, secret })

@@ -22,7 +22,7 @@ use crate::ports::{
     CertificateWrite as _, Clock, EffectWrite as _, NodeWrite as _, PlacementWrite as _,
     RecipeSource, Store, WorkloadWrite as _,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::NodeAdmin;
 use uuid::Uuid;
@@ -110,9 +110,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let exposed =
             if compromised { tx.expose_certificates(id, self.clock.now()).await? } else { 0 };
         tx.announce_resync().await?;
-        let mut effect = Effect::new(caller.principal.clone(), "node.remove", Outcome::Succeeded)
-            .under(grant)
-            .after(details([
+        let mut effect =
+            caller.effect("node.remove", Outcome::Succeeded).under(grant).after(details([
                 ("node", id.to_string().into()),
                 ("from", admin_name(from).into()),
                 ("compromised", compromised.into()),

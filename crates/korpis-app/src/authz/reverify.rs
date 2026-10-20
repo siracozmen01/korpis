@@ -71,6 +71,7 @@ struct Answer {
     verification: Verification,
     reason: Option<String>,
     actor: Principal,
+    relay: Option<Principal>,
     grant: Option<Uuid>,
 }
 
@@ -85,7 +86,8 @@ fn transition(
         BindingState::Verified => "identity.binding.verified",
         BindingState::Unverified => "identity.binding.unverified",
     };
-    let effect = Effect::new(answer.actor.clone(), action, Outcome::Succeeded).after(details([
+    let effect = Effect::new(answer.actor.clone(), action, Outcome::Succeeded);
+    let effect = effect.relayed_by(answer.relay.clone()).after(details([
         ("binding", id.to_string().into()),
         ("subject", subject.map(Principal::key).into()),
         ("reason", answer.reason.clone().into()),
@@ -97,15 +99,21 @@ fn transition(
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Asks `binding`'s provider about it once and records what it found, with an effect by
-    /// `actor` (under `grant`, when a person asked) if its state changed: the binding as it now
-    /// stands, and the provider's reason when it could not answer.
+    /// Asks `binding`'s provider about it once and records what it found, with an effect if its
+    /// state changed, by the person who asked under their grant, or else by the installation's
+    /// authority: the binding as it now stands, and the provider's reason when it could not
+    /// answer.
     pub(crate) async fn reverify(
         &self,
         binding: IdentityBinding,
-        actor: Principal,
-        grant: Option<Uuid>,
+        asker: Option<(&Caller, Uuid)>,
     ) -> Result<(IdentityBinding, Option<String>), AppError> {
+        let (actor, relay, grant) = match asker {
+            Some((c, g)) => {
+                (c.principal.clone(), c.relayed.as_ref().map(|r| r.relay.clone()), Some(g))
+            }
+            None => (Principal::System(SystemActor::Authority), None, None),
+        };
         let (request, person) = asked(&binding)?;
         let target = CallTarget {
             organization: binding.provider.organization,
@@ -116,7 +124,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             .call_own_provider(&target, CallRequest::VerifyMembers(request), VERIFY_CALL)
             .await?;
         let (verification, reason) = found(called.outcome, person);
-        let answer = Answer { verification, reason, actor, grant };
+        let answer = Answer { verification, reason, actor, relay, grant };
         if let Some(recorded) = self.record_answer(binding.clone(), &answer).await? {
             return Ok((recorded, answer.reason));
         }
@@ -181,8 +189,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let due = tx.claim_due_bindings(now, now + HELD, BATCH).await?;
         tx.commit().await?;
         let asked = u64::try_from(due.len()).unwrap_or(u64::MAX);
-        let authority = || Principal::System(SystemActor::Authority);
-        let each = due.into_iter().map(|b| self.reverify(b, authority(), None));
+        let each = due.into_iter().map(|b| self.reverify(b, None));
         let failed = futures_util::future::join_all(each).await.into_iter().find_map(Result::err);
         Ok((asked, failed))
     }
@@ -195,6 +202,6 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         id: Uuid,
     ) -> Result<(IdentityBinding, Option<String>), AppError> {
         let (binding, permit) = self.binding_to_write(caller, id).await?;
-        self.reverify(binding, caller.principal.clone(), Some(permit.grant)).await
+        self.reverify(binding, Some((caller, permit.grant))).await
     }
 }

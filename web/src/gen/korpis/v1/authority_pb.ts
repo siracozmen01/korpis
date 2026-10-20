@@ -679,8 +679,9 @@ export const IdentityBindingSchema: GenMessage<IdentityBinding> = /*@__PURE__*/
  */
 export type BindingConstraints = Message<"korpis.v1.BindingConstraints"> & {
   /**
-   * For a set: other sets at the same provider its members must also be in, checked at every
-   * re-verification.
+   * For a set: other sets at the same provider its members must also be in, checked when a
+   * member acts through the set against the sets the provider has just asserted they are in
+   * (§5.2 of docs/08-identity.md), and asked of the provider at every re-verification.
    *
    * @generated from field: repeated korpis.v1.ExternalSet require_membership = 1;
    */

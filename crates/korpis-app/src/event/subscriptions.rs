@@ -27,6 +27,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, Subscription>,
         filter: EventFilter,
     ) -> Result<Reply<Subscription>, AppError> {
+        caller.direct()?;
         if let Some(r) = self.replay(caller, idem, CREATE).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -51,6 +52,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         id: Uuid,
     ) -> Result<Subscription, AppError> {
+        caller.direct()?;
         self.store
             .subscription(id)
             .await?
@@ -64,6 +66,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         page: Page,
     ) -> Result<Paged<Subscription>, AppError> {
+        caller.direct()?;
         let items = self.store.subscriptions_of(&caller.principal.key(), page).await?;
         let next = page.next(&items, |s| s.id);
         Ok(Paged { items, next })
@@ -76,6 +79,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, ()>,
         id: Uuid,
     ) -> Result<Reply<()>, AppError> {
+        caller.direct()?;
         if let Some(r) = self.replay(caller, idem, DELETE).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -97,6 +101,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         id: Uuid,
         through: u64,
     ) -> Result<u64, AppError> {
+        caller.direct()?;
         self.get_subscription(caller, id).await?;
         if through > self.store.last_position().await? {
             let why = "an event that has been delivered; a later one would skip what is not yet";
@@ -110,6 +115,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 fn subscription_effect(caller: &Caller, action: &str, id: Uuid) -> Effect {
-    Effect::new(caller.principal.clone(), action, Outcome::Succeeded)
+    caller
+        .effect(action, Outcome::Succeeded)
         .after(details([("subscription", id.to_string().into())]))
 }

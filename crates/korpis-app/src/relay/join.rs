@@ -15,7 +15,7 @@ use crate::ports::{
     StoreError, Unique, VerifyKey,
 };
 use crate::ports::{Store, Tx as _};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::identity::valid_public_key;
 use korpis_core::principal::Principal;
@@ -143,9 +143,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !tx.join_relay(&relay, identity_key, enrollment.token).await.map_err(join_conflict)? {
             return Err(AppError::conflict("enrollment.used", "the token was redeemed meanwhile"));
         }
-        let effect = Effect::new(caller.principal.clone(), "relay.join", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect =
+            caller.effect("relay.join", Outcome::Succeeded).under(permit.grant).after(details([
                 ("relay", relay.id.to_string().into()),
                 ("name", relay.name.as_str().into()),
                 ("url", relay.url.as_str().into()),

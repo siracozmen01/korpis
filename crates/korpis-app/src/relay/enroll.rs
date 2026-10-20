@@ -54,6 +54,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         idem: &Idempotent<'_, RelayEnrollmentToken>,
         cmd: CreateRelayEnrollment,
     ) -> Result<Reply<RelayEnrollmentToken>, AppError> {
+        caller.direct()?;
         if let Some(r) = self.replay(caller, idem, OPERATION).await? {
             return Ok(Reply::Replayed(r));
         }
@@ -107,15 +108,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
 /// What creating `e` records: the token's grant issued, and the enrollment created.
 fn effects(caller: &Caller, under: Uuid, e: &RelayEnrollment) -> [Effect; 2] {
-    let actor = caller.principal.clone();
-    let issued = Effect::new(actor.clone(), "grant.issued", Outcome::Succeeded).under(under).after(
-        details([
-            ("grant", e.grant.to_string().into()),
-            ("parent", under.to_string().into()),
-            ("holder", Principal::Token(e.token).key().into()),
-        ]),
-    );
-    let created = Effect::new(actor, OPERATION, Outcome::Succeeded).under(under).after(details([
+    let issued = caller.effect("grant.issued", Outcome::Succeeded).under(under).after(details([
+        ("grant", e.grant.to_string().into()),
+        ("parent", under.to_string().into()),
+        ("holder", Principal::Token(e.token).key().into()),
+    ]));
+    let created = caller.effect(OPERATION, Outcome::Succeeded).under(under).after(details([
         ("name", e.relay_name.as_str().into()),
         ("url", e.relay_url.as_str().into()),
         ("token", e.token.to_string().into()),

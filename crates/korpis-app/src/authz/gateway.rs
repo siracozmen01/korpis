@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::ports::{Clock, GrantWrite, RecipeSource, Store, Tx};
 use korpis_core::authz::credential::{Secret, SecretKind};
 use korpis_core::authz::token::KeyRing;
-use korpis_core::authz::{self, Action, Decision, Grant, Kind, ObjectRef, Permit, Request};
+use korpis_core::authz::{self, Action, Decision, Denial, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::authz::{access, link};
 use korpis_core::principal::Principal;
 use korpis_core::workload::plan::Proposing;
@@ -121,7 +121,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         snapshot: &mut Snapshot,
     ) -> Result<Vec<Vec<Grant>>, AppError> {
         let mut chains = Vec::new();
-        for records in self.store.chains_held_by(&caller.subject.key).await? {
+        let mut held = self.store.chains_held_by(&caller.subject.key).await?;
+        // A person acting through a relay holds, for the call, what the sets the assertion
+        // names hold (§5.2 of docs/08-identity.md).
+        for set in &caller.memberships {
+            held.extend(self.store.chains_held_by(&set.key).await?);
+        }
+        for records in held {
             if via.is_some_and(|v| records.first().is_none_or(|leaf| leaf.grant.id != v)) {
                 continue;
             }
@@ -144,8 +150,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         renewal: bool,
     ) -> Option<Decision> {
         let resource = authz::Hierarchy::resource(snapshot, object)?;
+        if !caller.may_ask(action, object) {
+            let missing_action = action.clone();
+            return Some(Decision::Deny(Denial { missing_action, reasons: Vec::new() }));
+        }
         let request = Request {
             subject: &caller.subject,
+            memberships: &caller.memberships,
             action,
             resource: &resource,
             source_ip: caller.source_ip,

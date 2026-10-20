@@ -47,6 +47,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let request = Request {
             subject: &caller.subject,
+            memberships: &caller.memberships,
             action,
             resource: &resource,
             source_ip: None,

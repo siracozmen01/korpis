@@ -11,8 +11,8 @@ use super::grant::Grant;
 use super::record::TemplateRef;
 use crate::id::{Id, IdKind};
 use crate::object::{Kind, ObjectRef};
-use crate::principal::Principal;
 pub use crate::principal::SetName;
+use crate::principal::{Principal, Subject};
 use crate::scope::{Hierarchy, Scope};
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -270,10 +270,10 @@ impl IdentityBinding {
 }
 
 /// A grant held by an external identity, as its binding lets it stand now: refused unless a live
-/// binding vouches for its holder and its last confirmation still holds at `now`, and without its irreversible override unless
-/// the binding still allows one, so retiring a binding, its failing re-verification, or an
-/// operator withdrawing the override reaches every grant at its next use (§5, §5.1, §5.2 of
-/// docs/08-identity.md). `None` when the grant stands as stored.
+/// binding vouches for its holder and its last confirmation still holds at `now`, and without
+/// its irreversible override unless the binding still allows one, so retiring a binding, its
+/// failing re-verification, or an operator withdrawing the override reaches every grant at its
+/// next use (§5, §5.1, §5.2 of docs/08-identity.md). `None` when the grant stands as stored.
 pub(crate) fn vouched_form(
     link: &Grant,
     hierarchy: &impl Hierarchy,
@@ -290,4 +290,28 @@ pub(crate) fn vouched_form(
         return Ok(Some(Grant { irreversible_override: false, ..link.clone() }));
     }
     Ok(None)
+}
+
+/// Whether `subject`, asserted a member of `memberships`, holds a grant to `holder`: they are
+/// it, or the assertion names them a member of it and of every set its binding requires its
+/// members to be in (§5.2 of docs/08-identity.md). Re-verification asks a provider about the
+/// set; only the assertion says, at the moment of use, which sets this member is in.
+///
+/// # Errors
+/// [`ChainError::WrongSubject`] if they are neither it nor a member of it, and
+/// [`ChainError::MembershipRequired`] if the assertion lacks a set its binding requires.
+pub fn holds(
+    (subject, memberships): (&Subject, &[Subject]),
+    holder: &Subject,
+    hierarchy: &impl Hierarchy,
+) -> Result<(), ChainError> {
+    if holder == subject {
+        return Ok(());
+    }
+    if !memberships.contains(holder) {
+        return Err(ChainError::WrongSubject);
+    }
+    let requires = hierarchy.vouched(&holder.key).map(|v| v.requires).unwrap_or_default();
+    let member = |key: &String| memberships.iter().any(|m| &m.key == key);
+    if requires.iter().all(member) { Ok(()) } else { Err(ChainError::MembershipRequired) }
 }

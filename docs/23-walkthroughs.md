@@ -1038,6 +1038,20 @@ edit counts as an answer and makes the binding due at once. A store test edits a
 an answer's question and its write, and ends it whatever came between. → patched into
 `08-identity.md` §5.1
 
+**FINDING 117: A set's required membership constrained nothing when a member acted. `CONFIRMED`**
+
+Found 2026-10-20 building the gateway's half of acting for a person, by asking the algebra
+question of `require_membership`: what evaluates "its members must also be in these sets", where,
+and with what information? Only re-verification read it, and re-verification asks a provider about
+a set, not about the member who is acting through it now, so a binding that required `@verified`
+beside `@moderator` let anyone asserted into `@moderator` act under the set's grants.
+
+**Resolution.** The binding's required sets are loaded with whether it vouches, and a grant held by
+a set counts for a member only while the assertion they act under names every set the binding
+requires. The check is in evaluation, which holds both the assertion's sets and the binding. A core
+test refuses a member of `@moderator` alone and permits one asserted into both. → patched into
+`08-identity.md` §5.2
+
 ---
 
 ## 12. A recipe install fails at step four of six
@@ -1341,6 +1355,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 114 | An older answer could replace a newer one that a membership had ended | §11 | `08-identity.md` §5.1 |
 | 115 | A person's evidence outlived the call that asked about it | §11 | `08-identity.md` §5.2 |
 | 116 | Re-applying an ending could lose a second race, and an edit left old answers standing | §11 | `08-identity.md` §5.1 |
+| 117 | A set's required membership constrained nothing when a member acted | §11 | `08-identity.md` §5.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in

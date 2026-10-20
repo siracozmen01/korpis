@@ -17,7 +17,7 @@ use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
     Clock, DomainWrite as _, EffectWrite as _, RecipeSource, Store, StoreError, Unique,
 };
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::domain::{Domain, DomainName, Verification, blocked_by, new_token};
 use uuid::Uuid;
@@ -192,9 +192,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect = Effect::new(caller.principal.clone(), "domain.create", Outcome::Succeeded)
-            .under(grant)
-            .after(details([
+        let effect =
+            caller.effect("domain.create", Outcome::Succeeded).under(grant).after(details([
                 ("domain", created.id.to_string().into()),
                 ("organization", created.organization.to_string().into()),
                 ("name", created.name.as_str().into()),

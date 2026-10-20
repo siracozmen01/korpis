@@ -12,7 +12,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, EffectWrite as _, RecipeSource, Store, Tx as _};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::backup::BackupStatus;
 use korpis_core::extension::AccessMode;
 use korpis_core::object::{Kind, ObjectRef};
@@ -67,7 +67,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         let repo = self.store.repository(b.repository).await?;
         let repo = repo.ok_or(AppError::NotFound { kind: "repository" })?;
-        let mut e = Effect::new(caller.principal.clone(), what.action(), Outcome::Succeeded)
+        let mut e = caller
+            .effect(what.action(), Outcome::Succeeded)
             .under(permit.grant)
             .after(details([("backup", b.id.to_string().into()), ("path", path.into())]));
         e.workload = Some(b.workload);

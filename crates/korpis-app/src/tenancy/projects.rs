@@ -8,7 +8,7 @@ use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, StoreError, TenancyWrite, Unique};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::labels::Labels;
 use korpis_core::tenancy::{Name, Project};
@@ -55,13 +55,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect = Effect::new(caller.principal.clone(), "project.create", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let effect = caller.effect("project.create", Outcome::Succeeded).under(permit.grant).after(
+            details([
                 ("project", created.id.to_string().into()),
                 ("organization", cmd.organization.to_string().into()),
                 ("name", created.name.as_str().into()),
-            ]));
+            ]),
+        );
         tx.append_effect(&effect).await?;
         finish(tx, caller, idem, OPERATION, created).await
     }

@@ -67,14 +67,12 @@ fn name_taken(e: StoreError) -> AppError {
 }
 
 fn effect(caller: &Caller, action: &str, permit: &Permit, t: &GrantTemplate) -> Effect {
-    Effect::new(caller.principal.clone(), action, Outcome::Succeeded).under(permit.grant).after(
-        details([
-            ("template", t.id.to_string().into()),
-            ("organization", t.organization.to_string().into()),
-            ("name", t.current.name.as_str().into()),
-            ("version", t.current.version.into()),
-        ]),
-    )
+    caller.effect(action, Outcome::Succeeded).under(permit.grant).after(details([
+        ("template", t.id.to_string().into()),
+        ("organization", t.organization.to_string().into()),
+        ("name", t.current.name.as_str().into()),
+        ("version", t.current.version.into()),
+    ]))
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

@@ -108,7 +108,7 @@ fn moderators(tree: &Tree, now: SystemTime) -> (Grant, Grant, Grant) {
 }
 
 fn vouch(tree: &mut Tree, role: &Grant, until: Option<SystemTime>, irreversible: bool) {
-    let v = Vouched { verified_until: until, allows_irreversible: irreversible };
+    let v = Vouched { verified_until: until, allows_irreversible: irreversible, requires: vec![] };
     tree.bindings.insert(role.subject.key.clone(), v);
 }
 

@@ -12,7 +12,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, PlacementWrite, RecipeSource, Store, WorkloadWrite};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::node::Node;
 use korpis_core::placement::{BoundBy, Placement};
@@ -101,14 +101,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.bind(&placement).await?;
         tx.clear_unplaced(w.id).await?;
         self.count_placed(&mut tx, &w).await?;
-        let mut e = Effect::new(caller.principal.clone(), "workload.place", Outcome::Succeeded)
-            .under(permit.grant)
-            .after(details([
+        let mut e = caller.effect("workload.place", Outcome::Succeeded).under(permit.grant).after(
+            details([
                 ("node", node.id.to_string().into()),
                 ("intent", target.id.to_string().into()),
                 ("bound_by", "operator".into()),
                 ("reason", reason.into()),
-            ]));
+            ]),
+        );
         e.workload = Some(w.id);
         e.node = Some(node.id);
         tx.append_effect(&e).await?;

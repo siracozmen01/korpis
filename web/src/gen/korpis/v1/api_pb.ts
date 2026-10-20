@@ -5117,7 +5117,8 @@ export type AssertIdentityRequest = Message<"korpis.v1.AssertIdentityRequest"> &
   action: string;
 
   /**
-   * The one object they asked it of.
+   * The one object they asked it of; a grant only when the action is grant.revoke, so a
+   * person revokes that one grant (§5.2 of docs/08-identity.md).
    *
    * @generated from field: korpis.v1.ObjectRef object = 6;
    */

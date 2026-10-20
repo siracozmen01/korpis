@@ -12,7 +12,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{Clock, EffectWrite, RecipeSource, Store, WorkloadWrite};
-use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::workload::plan::{Override, OverrideRefusal};
 use korpis_core::workload::{PowerRecord, Workload};
@@ -95,7 +95,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 format!("the workload is at version {}, not {}", w.version, cmd.expected_version),
             ));
         }
-        let mut e = Effect::new(caller.principal.clone(), "workload.classify", Outcome::Succeeded)
+        let mut e = caller
+            .effect("workload.classify", Outcome::Succeeded)
             .under(permit.grant)
             .after(details([
                 ("before", recorded(&w.classification)),

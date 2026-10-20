@@ -807,15 +807,38 @@ individual binding an operator retired stays retired, so the retirement cuts the
 that person and a later interaction does not restore them, while what they hold through a set is
 the set binding's to decide. Every assertion is an `identity.asserted` effect by the relaying
 client under its grant, naming the ticket, the person, the provider, the presentation, the action,
-and the object. Redeeming the ticket at the gateway comes next (Phase 2 of `20-roadmap.md` §4);
-until it is built a ticket authorizes nothing, so the order fails closed.
+and the object.
+
+**Acting, as built.** Added 2026-10-20. The client makes the ordinary call with its own credential
+and the ticket in its `korpis-as` header, and the gateway spends the ticket as it authenticates the
+call: it must be unused, unexpired, handed to that client, and the client must still hold
+`identity.relay` where the provider is installed, or the call is unauthenticated. The call is then
+the person's. Their own grants count, and so do the grants of the sets the assertion named, each
+only while its binding vouches (§5); a set whose binding requires its members to be in another
+counts only while the assertion names that one too, which re-verification cannot say of one member
+(Finding 117 of `23-walkthroughs.md`). Only the ticket's action on the ticket's object is
+authorized, and anything else is refused as if the object were not there, since reading it is
+another action. The call comes from the client, so the person's address is unknown, and no second
+factor is theirs: a grant with a network condition, or one requiring MFA, does not permit it. A
+ticket may name a grant, for `grant.revoke` alone, and then revokes that one grant by whichever
+authority of §3.5 the person holds, a set's included, so a moderator kills a leaked link from the
+channel where it leaked (§3 of `12-surface-discord.md`). What no ticket can name is refused
+outright as `identity.relayed`: issuing a grant, minting a token, deciding a plan, reading grants,
+subscribing to events, and enrolling a node or a relay, each of which acts outside the gateway's
+one authorization or would leave the client a credential of the person's. Every effect of the call
+has the person as its actor, the grant that permitted it, and the client as its `relay`; the
+provider is in the person's key. A refusal is written at once rather than coalesced, since each
+costs a presentation the client cannot make.
 
 What this costs. The client names the action and the object, and nothing ties them to the command
 the person typed: the interaction names its command, but which action that command is belongs to
 the client. A compromised chat client can therefore spend one interaction on another action than
 the one asked for, once, within that person's grants, and the effect names it as the relay; it
 cannot keep the person's authority or use it a second time. `InvokeAs` had the same gap, since it
-too took the action from the client.
+too took the action from the client. A ticket is spent when the call is authenticated, so a call
+that then fails, or that its client never completes, costs the person their interaction. And a
+ticket is honoured on the API's calls only: a console or a file stream is opened with a session
+token, which no relayed call can mint, so a chat client cannot hold one open for a person.
 
 A chat client therefore holds its own narrow grants (reading events for the channels bound to it,
 §7 of `12-surface-discord.md`) and nothing else. It is the user's conduit for one action at a time,

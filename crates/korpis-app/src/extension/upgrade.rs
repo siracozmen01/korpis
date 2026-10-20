@@ -299,17 +299,15 @@ async fn redeclaration<S: Store, C: Clock, R: RecipeSource>(
 
 fn upgrade_effect(caller: &Caller, old: &Installation, new: &Upgraded, under: Uuid) -> Effect {
     let i = &new.installation;
-    let mut e = Effect::new(caller.principal.clone(), OPERATION, Outcome::Succeeded)
-        .under(under)
-        .after(details([
-            ("extension", i.id.to_string().into()),
-            ("from_version", old.version.clone().into()),
-            ("version", i.version.clone().into()),
-            ("from_artifact", old.artifact_digest.clone().into()),
-            ("artifact", i.artifact_digest.clone().into()),
-            ("issued", new.issued.len().into()),
-            ("revoked", new.revoked.len().into()),
-        ]));
+    let mut e = caller.effect(OPERATION, Outcome::Succeeded).under(under).after(details([
+        ("extension", i.id.to_string().into()),
+        ("from_version", old.version.clone().into()),
+        ("version", i.version.clone().into()),
+        ("from_artifact", old.artifact_digest.clone().into()),
+        ("artifact", i.artifact_digest.clone().into()),
+        ("issued", new.issued.len().into()),
+        ("revoked", new.revoked.len().into()),
+    ]));
     e.workload = Some(i.workload);
     e
 }

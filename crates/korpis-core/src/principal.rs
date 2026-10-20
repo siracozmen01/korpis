@@ -120,6 +120,18 @@ pub struct SetName {
     pub member_of: String,
 }
 
+impl SetName {
+    /// The set as a subject of the provider whose key is `provider`.
+    #[must_use]
+    pub fn at(&self, provider: &str) -> Principal {
+        Principal::ExternalSet {
+            provider: provider.to_owned(),
+            realm: self.realm.clone(),
+            member_of: self.member_of.clone(),
+        }
+    }
+}
+
 /// Why a principal or key is malformed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PrincipalError {

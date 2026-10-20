@@ -57,18 +57,16 @@ fn bound(e: StoreError) -> AppError {
 }
 
 fn effect(caller: &Caller, action: &str, permit: &Permit, b: &IdentityBinding) -> Effect {
-    Effect::new(caller.principal.clone(), action, Outcome::Succeeded).under(permit.grant).after(
-        details([
-            ("binding", b.id.to_string().into()),
-            ("organization", b.provider.organization.to_string().into()),
-            ("provider", b.provider.name.clone().into()),
-            ("subject", b.subject.key().into()),
-            ("version", b.version.into()),
-            ("allows_irreversible", b.terms.allows_irreversible.into()),
-            ("template", b.terms.template.map(|t| t.template.to_string()).into()),
-            ("template_version", b.terms.template.map(|t| t.version).into()),
-        ]),
-    )
+    caller.effect(action, Outcome::Succeeded).under(permit.grant).after(details([
+        ("binding", b.id.to_string().into()),
+        ("organization", b.provider.organization.to_string().into()),
+        ("provider", b.provider.name.clone().into()),
+        ("subject", b.subject.key().into()),
+        ("version", b.version.into()),
+        ("allows_irreversible", b.terms.allows_irreversible.into()),
+        ("template", b.terms.template.map(|t| t.template.to_string()).into()),
+        ("template_version", b.terms.template.map(|t| t.version).into()),
+    ]))
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

@@ -229,6 +229,9 @@ ext.<extension>.<action>              extensions define their own, namespaced
   for one action on one object; the person's own grants decide whether the action is performed.
   It is separate from `identity.binding.write` because relaying decides nothing about who is a
   subject, and a chat client must never be able to declare a binding.
+  The ticket is sent as the `korpis-as` header of the one call it permits, beside the client's
+  own bearer credential, and that call is the person's; what no ticket can name, such as issuing
+  a grant or minting a token, is refused as `identity.relayed`.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

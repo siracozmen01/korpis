@@ -10,6 +10,7 @@ use korpis_app::ports::{
     EffectCursor, EffectFilter, EffectRead, EffectWrite, StoreError, StoreResult,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome};
+use korpis_core::principal::Principal;
 use serde_json::{Map, Value};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -23,6 +24,7 @@ struct EffectRow {
     workload_id: Option<Uuid>,
     node_id: Option<Uuid>,
     actor: String,
+    relay: Option<String>,
     grant_id: Option<Uuid>,
     action: String,
     outcome: String,
@@ -59,6 +61,7 @@ impl EffectRow {
             workload: self.workload_id,
             node: self.node_id,
             actor: principal(&self.actor)?,
+            relay: self.relay.as_deref().map(principal).transpose()?,
             grant: self.grant_id,
             action: self.action,
             outcome,
@@ -85,9 +88,9 @@ impl EffectRead for PgStore {
     ) -> StoreResult<Vec<Effect>> {
         let rows = sqlx::query_as!(
             EffectRow,
-            "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, actor, grant_id,
-                    action, outcome, error, before, after, count, window_end, origin_node,
-                    origin_seq
+            "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, actor, relay,
+                    grant_id, action, outcome, error, before, after, count, window_end,
+                    origin_node, origin_seq
                FROM effect
               WHERE ($1::uuid IS NULL OR workload_id = $1)
                 AND ($2::uuid IS NULL OR plan_id = $2)
@@ -138,9 +141,9 @@ impl EffectWrite for PgTx {
         let at = sqlx::query_scalar!(
             "INSERT INTO effect (id, occurred_at, plan_id, step, workload_id, node_id, actor,
                                  grant_id, action, outcome, error, before, after, count,
-                                 window_end, origin_node, origin_seq)
+                                 window_end, origin_node, origin_seq, relay)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                     $17)
+                     $17, $18)
              RETURNING at",
             e.id,
             e.occurred_at.map(from_time),
@@ -158,7 +161,8 @@ impl EffectWrite for PgTx {
             to_count("count", e.count)?,
             e.window_end.map(from_time),
             origin_node,
-            origin_seq
+            origin_seq,
+            e.relay.as_ref().map(Principal::key)
         )
         .fetch_one(&mut *self.tx)
         .await

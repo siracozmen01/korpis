@@ -11,7 +11,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, EffectWrite, RecipeSource, SetWrite, Store, StoreError, Unique};
-use korpis_core::audit::{Effect, Outcome};
+use korpis_core::audit::Outcome;
 use korpis_core::tenancy::Name;
 use korpis_core::workload::set::{DeclaredSet, DriftMode, SetRefusal, Through, through};
 use korpis_core::workload::spec::IntentBody;
@@ -114,7 +114,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let mut fields =
                 vec![("set", set.id.to_string().into()), ("name", set.name.as_str().into())];
             fields.extend(extra);
-            let mut e = Effect::new(caller.principal.clone(), action, Outcome::Succeeded)
+            let mut e = caller
+                .effect(action, Outcome::Succeeded)
                 .under(base.permit.grant)
                 .after(fields.into_iter().map(|(k, v)| (k.to_owned(), v)).collect());
             e.workload = Some(d.workload.id);
