@@ -5,7 +5,7 @@
 //! recognised as the copy it must be.
 
 use super::StoreResult;
-use korpis_core::account::session::UserSession;
+use korpis_core::account::session::{Holder, UserSession};
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
@@ -17,15 +17,16 @@ pub enum Presented {
     Current {
         /// The session.
         session: UserSession,
-        /// Whether its account may still sign in: it is not disabled.
+        /// Whether its holder may still sign in: an account not disabled, a person whose
+        /// binding is not retired.
         usable: bool,
     },
     /// A credential a session rotated away: presented again, it can only be a copy.
     Rotated {
         /// The session.
         session: Uuid,
-        /// Its account.
-        account: Uuid,
+        /// Who holds it.
+        holder: Holder,
     },
     /// Nothing this control plane issued, or a session that has ended.
     Unknown,
@@ -33,16 +34,16 @@ pub enum Presented {
 
 /// Reading sessions.
 pub trait UserSessionRead {
-    /// The sessions of `account`, newest first.
+    /// The sessions of `holder`, newest first.
     fn user_sessions(
         &self,
-        account: Uuid,
+        holder: Holder,
     ) -> impl Future<Output = StoreResult<Vec<UserSession>>> + Send;
 
-    /// Session `id` of `account`, if it has not ended.
+    /// Session `id` of `holder`, if it has not ended.
     fn user_session(
         &self,
-        account: Uuid,
+        holder: Holder,
         id: Uuid,
     ) -> impl Future<Output = StoreResult<Option<UserSession>>> + Send;
 
@@ -80,29 +81,29 @@ pub trait UserSessionWrite {
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Records that session `id` of `account` re-authenticated `at`; false if it has none such.
+    /// Records that session `id` of `holder` re-authenticated `at`; false if it has none such.
     fn reauthenticated(
         &mut self,
-        account: Uuid,
+        holder: Holder,
         id: Uuid,
         at: SystemTime,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Ends session `id` of `account`; false if it has none such.
+    /// Ends session `id` of `holder`; false if it has none such.
     fn end_user_session(
         &mut self,
-        account: Uuid,
+        holder: Holder,
         id: Uuid,
     ) -> impl Future<Output = StoreResult<bool>> + Send;
 
-    /// Ends every session of `account` but `keep`; how many it ended.
+    /// Ends every session of `holder` but `keep`; how many it ended.
     fn end_other_sessions(
         &mut self,
-        account: Uuid,
+        holder: Holder,
         keep: Option<Uuid>,
     ) -> impl Future<Output = StoreResult<u64>> + Send;
 
-    /// Ends every session of every account, as a restore does once its token key is rotated
+    /// Ends every session of every holder, as a restore does once its token key is rotated
     /// (§8 of docs/03-state.md); how many it ended.
     fn end_every_session(&mut self) -> impl Future<Output = StoreResult<u64>> + Send;
 }

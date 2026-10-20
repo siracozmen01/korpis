@@ -26,6 +26,9 @@ pub struct Caller {
     pub mfa: bool,
     /// The session a signed-in user's access token was exchanged under.
     pub session: Option<uuid::Uuid>,
+    /// Who holds that session: an account, or a person signed in through an identity provider
+    /// (§9.7 of docs/08-identity.md).
+    pub holder: Option<korpis_core::principal::Holder>,
     /// For a person acting through a relay: the ticket they act under.
     pub relayed: Option<Relayed>,
 }
@@ -55,14 +58,20 @@ impl Caller {
             source_ip,
             mfa,
             session: None,
+            holder: None,
             relayed: None,
         }
     }
 
-    /// The caller, acting under the user session `session`.
+    /// The caller, acting under the user session `session` that `holder` holds.
     #[must_use]
-    pub const fn with_session(mut self, session: uuid::Uuid) -> Self {
+    pub const fn with_session(
+        mut self,
+        holder: korpis_core::principal::Holder,
+        session: uuid::Uuid,
+    ) -> Self {
         self.session = Some(session);
+        self.holder = Some(holder);
         self
     }
 

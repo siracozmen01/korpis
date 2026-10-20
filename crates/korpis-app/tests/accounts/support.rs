@@ -73,6 +73,8 @@ pub struct Fixture {
     pub clock: TestClock,
     pub root: Caller,
     pub organization: Uuid,
+    /// The control plane's token key, so a test can mint what only the control plane signs.
+    pub key: Arc<SigningKey>,
 }
 
 pub async fn fixture() -> Fixture {
@@ -84,14 +86,15 @@ pub async fn fixture_with(limits: SessionLimits) -> Fixture {
     let db = TestDb::new().await.unwrap();
     let store = db.store().await.unwrap();
     let clock = TestClock::default();
-    let app = App::new(store, clock.clone(), Arc::new(SigningKey::generate(1)), NoRecipes)
+    let key = Arc::new(SigningKey::generate(1));
+    let app = App::new(store, clock.clone(), Arc::clone(&key), NoRecipes)
         .with_relying_party(RelyingParty { id: RP.into(), origins: vec![ORIGIN.into()] })
         .with_factor_vault(Arc::new(Bound))
         .with_session_limits(limits);
     let installed =
         app.install(Name::parse("acme").unwrap(), RootHolder::Token, None).await.unwrap();
     let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
-    Fixture { db, app, clock, root, organization: installed.organization.id }
+    Fixture { db, app, clock, root, organization: installed.organization.id, key }
 }
 
 /// Issues `workload.read` on the organization to a new user called `display_name`; answers its
@@ -163,7 +166,8 @@ pub fn signed_in(account: Uuid) -> Caller {
 
 /// The caller signed in to the session `redeemed` began.
 pub fn in_session(redeemed: &Redeemed) -> Caller {
-    signed_in(redeemed.account).with_session(redeemed.session.id)
+    let holder = korpis_core::principal::Holder::Account(redeemed.account);
+    signed_in(redeemed.account).with_session(holder, redeemed.session.id)
 }
 
 /// A browser's client, from nowhere in particular.

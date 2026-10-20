@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, account_id, kind, created_at, last_used_at, authenticated_at, expires_at,\n                    user_agent, source\n               FROM user_session WHERE account_id = $1 ORDER BY created_at DESC, id",
+  "query": "SELECT id, account_id, binding_id, sets, kind, created_at, last_used_at, authenticated_at,\n                    expires_at, user_agent, source\n               FROM user_session\n              WHERE (account_id = $1 OR binding_id = $2)\n              ORDER BY created_at DESC, id",
   "describe": {
     "columns": [
       {
@@ -27,6 +27,28 @@
       },
       {
         "ordinal": 2,
+        "name": "binding_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "binding_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sets",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "sets"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "kind",
         "type_info": "Text",
         "origin": {
@@ -37,7 +59,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 5,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -48,7 +70,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 6,
         "name": "last_used_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -59,7 +81,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "authenticated_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -70,7 +92,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -81,7 +103,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "user_agent",
         "type_info": "Text",
         "origin": {
@@ -92,7 +114,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 10,
         "name": "source",
         "type_info": "Text",
         "origin": {
@@ -105,11 +127,14 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Uuid"
       ]
     },
     "nullable": [
       false,
+      true,
+      true,
       false,
       false,
       false,
@@ -120,5 +145,5 @@
       false
     ]
   },
-  "hash": "eecd03e799ffb865c2cec03faa827439ef007cec4f0c43ee9e0fd59374f62a18"
+  "hash": "531974c095c13d33c6b276a4af999457dcb7f5628b1b591aaac3a35111f69c19"
 }

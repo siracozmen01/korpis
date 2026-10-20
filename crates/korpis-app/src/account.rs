@@ -31,7 +31,7 @@ use crate::ports::{Clock, FactorVault, Passwords, RecipeSource, Store, Tx};
 use korpis_core::account::record::passkey_label;
 use korpis_core::account::recovery;
 use korpis_core::audit::{Effect, Outcome};
-use korpis_core::principal::Principal;
+use korpis_core::principal::{Holder, Principal};
 use korpis_core::webauthn::RelyingParty;
 use serde_json::{Map, Value};
 use std::sync::Arc;
@@ -74,6 +74,35 @@ pub(crate) async fn fresh_codes<T: Tx>(tx: &mut T, account: Uuid) -> Result<Vec<
     let digests: Vec<[u8; 32]> = codes.iter().map(|c| recovery::digest(c)).collect();
     tx.replace_recovery_codes(account, &digests).await?;
     Ok(codes)
+}
+
+/// Who holds the caller's sessions: the account it is, or the person whose session it calls from.
+pub(crate) fn own_holder(caller: &Caller) -> Result<Holder, AppError> {
+    match (caller.holder, &caller.principal) {
+        (Some(holder), _) => Ok(holder),
+        (None, Principal::User(id)) => Ok(Holder::Account(*id)),
+        _ => Err(AppError::invalid("caller", "only a signed-in caller has sessions")),
+    }
+}
+
+/// Records `action` on a session `holder` holds, as `actor`, naming the account or the binding.
+pub(crate) async fn record_held<T: Tx>(
+    tx: &mut T,
+    actor: &Principal,
+    action: &str,
+    holder: Holder,
+    more: impl IntoIterator<Item = (&'static str, Value)>,
+) -> Result<(), AppError> {
+    let (field, id) = match holder {
+        Holder::Account(id) => ("account", id),
+        Holder::Person(id) => ("binding", id),
+    };
+    let mut fields = Map::new();
+    fields.insert(field.into(), Value::from(id.to_string()));
+    fields.extend(more.into_iter().map(|(k, v)| (k.to_owned(), v)));
+    let effect = Effect::new(actor.clone(), action, Outcome::Succeeded).after(fields);
+    tx.append_effect(&effect).await?;
+    Ok(())
 }
 
 /// Records `action` by `actor` on `account`, with `more` details beside the account's.

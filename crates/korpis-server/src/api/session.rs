@@ -41,7 +41,8 @@ fn exchanged(e: &Exchanged, carried: &Carried) -> ServiceResult<pb::ExchangeResp
     let body = pb::ExchangeResponse {
         access_token: e.access.clone(),
         access_expires_at: Some(timestamp(e.access_expires_at)).into(),
-        account: wire_id(IdKind::User, e.account),
+        account: e.holder.account().map(|a| wire_id(IdKind::User, a)).unwrap_or_default(),
+        binding: e.holder.binding().map(|b| wire_id(IdKind::Binding, b)).unwrap_or_default(),
         session: wire_id(IdKind::Session, e.session),
         refresh: match carried {
             Carried::Body(_) => e.refresh.expose().to_owned(),

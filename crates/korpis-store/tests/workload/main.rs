@@ -31,6 +31,7 @@ mod routes;
 mod runs;
 mod schema;
 mod server;
+mod sessions;
 mod support;
 mod trust;
 mod volumes;

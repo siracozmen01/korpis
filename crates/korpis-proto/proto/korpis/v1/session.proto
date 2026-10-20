@@ -57,10 +57,11 @@ message ExchangeRequest {
 }
 
 message ExchangeResponse {
-  // The bearer of the account's calls, `korpisat_` and the rest.
+  // The bearer of the holder's calls: `korpisat_` and the rest for an account, `korpisax_` for a
+  // person signed in through an identity provider (§9.7 of docs/08-identity.md).
   string access_token = 1;
   google.protobuf.Timestamp access_expires_at = 2;
-  // The account, as `usr_…`.
+  // The account, as `usr_…`; empty for a person's session.
   string account = 3;
   // The session, as `ses_…`.
   string session = 4;
@@ -68,6 +69,8 @@ message ExchangeResponse {
   string refresh = 5;
   // When the session ends whatever is done with it.
   google.protobuf.Timestamp session_expires_at = 6;
+  // For a person's session: their own binding, as `idb_…`; empty for an account's.
+  string binding = 7;
 }
 
 message SignOutRequest {

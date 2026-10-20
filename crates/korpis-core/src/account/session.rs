@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! User sessions (§9.4 of docs/08-identity.md): what a sign-in begins, and what a refresh
-//! credential exchanges for access tokens until it ends, by idleness, by age, or by its user.
+//! credential exchanges for access tokens until it ends, by idleness, by age, or by its user. A
+//! session is held by an account, or by a person who signed in through an identity provider
+//! (§9.7), with the sets the provider named then.
 
+pub use crate::principal::Holder;
+use crate::principal::SetName;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
@@ -62,8 +66,11 @@ impl SessionKind {
 pub struct UserSession {
     /// Its identifier, which access tokens name.
     pub id: Uuid,
-    /// The account signed in to.
-    pub account: Uuid,
+    /// Who signed in.
+    pub holder: Holder,
+    /// For a person, the sets their provider named at the sign-in, which count only while their
+    /// record as a member of each vouches (§9.7); none for an account.
+    pub sets: Vec<SetName>,
     /// Where its refresh credential is held.
     pub kind: SessionKind,
     /// When it began.
@@ -103,7 +110,8 @@ mod tests {
         let at = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
         let s = UserSession {
             id: Uuid::nil(),
-            account: Uuid::nil(),
+            holder: Holder::Account(Uuid::nil()),
+            sets: Vec::new(),
             kind: SessionKind::Web,
             created_at: at,
             last_used_at: at,
@@ -114,7 +122,7 @@ mod tests {
         };
         assert!(s.live(at + SESSION_IDLE - Duration::from_secs(1), SESSION_IDLE));
         assert!(!s.live(at + SESSION_IDLE, SESSION_IDLE), "idle");
-        let used = UserSession { last_used_at: at + SESSION_MAX, ..s };
+        let used = UserSession { last_used_at: at + SESSION_MAX, ..s.clone() };
         assert!(!used.live(at + SESSION_MAX, SESSION_IDLE), "old");
         assert_eq!(user_agent("Firefox\n\u{7}/1"), "Firefox/1");
         assert_eq!(user_agent(&"x".repeat(300)).len(), MAX_USER_AGENT);

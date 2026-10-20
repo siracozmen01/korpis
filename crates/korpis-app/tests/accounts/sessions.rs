@@ -18,7 +18,10 @@ async fn a_refresh_credential_is_exchanged_once_for_an_access_token_the_gateway_
     let first = redeemed.session.refresh.expose().to_owned();
 
     let exchanged = f.app.exchange(&first).await.unwrap();
-    assert_eq!((exchanged.account, exchanged.session), (redeemed.account, redeemed.session.id));
+    assert_eq!(
+        (exchanged.holder, exchanged.session),
+        (korpis_core::principal::Holder::Account(redeemed.account), redeemed.session.id)
+    );
     let caller = f.app.authenticate(&exchanged.access, None).await.unwrap();
     assert_eq!(caller.principal, Principal::User(redeemed.account));
     assert_eq!(caller.session, Some(redeemed.session.id));

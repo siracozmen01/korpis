@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT r.session_id, s.account_id\n               FROM user_session_rotated r JOIN user_session s ON s.id = r.session_id\n              WHERE r.refresh_hash = $1",
+  "query": "SELECT r.session_id, s.account_id, s.binding_id\n               FROM user_session_rotated r JOIN user_session s ON s.id = r.session_id\n              WHERE r.refresh_hash = $1",
   "describe": {
     "columns": [
       {
@@ -24,6 +24,17 @@
             "name": "account_id"
           }
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "binding_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "binding_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -33,8 +44,9 @@
     },
     "nullable": [
       false,
-      false
+      true,
+      true
     ]
   },
-  "hash": "1631b888dd791652dfa813e00c721d5e3a8b8526f232bc9e3fa3c6ef1cb3cd84"
+  "hash": "fd123fa420b8bdb8191b5849b475fe0d159124c1be0763db61415c9e56d660b2"
 }

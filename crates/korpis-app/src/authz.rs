@@ -13,6 +13,7 @@ mod failure;
 pub(crate) mod gateway;
 mod issue;
 mod mint;
+mod person;
 mod query;
 mod relayed;
 mod reverify;

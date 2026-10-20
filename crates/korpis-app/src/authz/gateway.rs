@@ -13,7 +13,7 @@ use korpis_core::authz::credential::{Secret, SecretKind};
 use korpis_core::authz::token::KeyRing;
 use korpis_core::authz::{self, Action, Decision, Denial, Grant, Kind, ObjectRef, Permit, Request};
 use korpis_core::authz::{access, link};
-use korpis_core::principal::Principal;
+use korpis_core::principal::{Holder, Principal};
 use korpis_core::workload::plan::Proposing;
 use std::net::IpAddr;
 use std::time::SystemTime;
@@ -28,13 +28,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         source_ip: Option<IpAddr>,
     ) -> Result<Caller, AppError> {
         let now = self.clock.now();
-        if presented.starts_with(access::ACCESS_PREFIX) {
-            // Verified by its signature and expiry alone (§9.4 of docs/08-identity.md): what the
-            // user may do is evaluated per call, from the grants it holds then.
+        if presented.starts_with(access::ACCESS_PREFIX)
+            || presented.starts_with(access::PERSON_ACCESS_PREFIX)
+        {
+            // An account's is verified by its signature and expiry alone (§9.4 of
+            // docs/08-identity.md): what the user may do is evaluated per call, from the grants it
+            // holds then. A person's names a session the gateway reads (§9.7).
             let claims = access::verify(&self.token_ring()?, presented, now)
                 .map_err(|_| AppError::Unauthenticated)?;
-            let caller = Caller::new(Principal::User(claims.user), source_ip, true);
-            return Ok(caller.with_session(claims.session));
+            return match claims.holder {
+                Holder::Account(user) => Ok(Caller::new(Principal::User(user), source_ip, true)
+                    .with_session(claims.holder, claims.session)),
+                Holder::Person(_) => self.person(&claims, source_ip, now).await,
+            };
         }
         if presented.starts_with(link::LINK_PREFIX) {
             let grant = self.linked(presented, now).await?;

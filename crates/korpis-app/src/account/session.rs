@@ -4,17 +4,16 @@
 //! refresh credential for access tokens, rotated on every exchange, and ended by idleness, by
 //! age, by its user, or by a rotated credential presented again, which only a copy can do.
 
-use super::{Device, own_account, record};
+use super::{Device, own_holder, record_held};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, Presented, RecipeSource, Store, Tx, UserSessionWrite as _};
-use korpis_core::account::session::{SessionKind, UserSession, user_agent};
+use korpis_core::account::session::{Holder, SessionKind, UserSession, user_agent};
 use korpis_core::audit::failure::source;
-use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::access::{ACCESS_LIFETIME, AccessClaims, mint};
 use korpis_core::authz::credential::{Secret, SecretKind};
-use korpis_core::principal::Principal;
+use korpis_core::principal::{Principal, SetName};
 use std::net::IpAddr;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -51,8 +50,8 @@ pub struct Begun {
 /// A refresh credential exchanged.
 #[derive(Debug)]
 pub struct Exchanged {
-    /// The account.
-    pub account: Uuid,
+    /// Who holds the session.
+    pub holder: Holder,
     /// The session.
     pub session: Uuid,
     /// The access token, the bearer of the account's calls until it expires.
@@ -86,10 +85,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         account: Uuid,
         client: &Client,
     ) -> Result<Begun, AppError> {
+        self.begin_held(tx, Holder::Account(account), Vec::new(), client).await
+    }
+
+    /// Begins a session `holder` holds, with `sets` for a person, for `client` in `tx`: what
+    /// vouched for the holder having just been checked.
+    pub(crate) async fn begin_held(
+        &self,
+        tx: &mut S::Tx,
+        holder: Holder,
+        sets: Vec<SetName>,
+        client: &Client,
+    ) -> Result<Begun, AppError> {
         let now = self.clock.now();
         let session = UserSession {
             id: Uuid::now_v7(),
-            account,
+            holder,
+            sets,
             kind: client.kind,
             created_at: now,
             last_used_at: now,
@@ -105,9 +117,26 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             ("kind", client.kind.as_str().into()),
             ("source", session.source.clone().into()),
         ];
-        record(tx, &Principal::User(account), "session.begun", account, more).await?;
-        let device = (client.kind == SessionKind::Web).then(|| self.device_for(account));
+        let actor = self.actor_of(holder).await?;
+        record_held(tx, &actor, "session.begun", holder, more).await?;
+        // A device cookie spares an account's browsers its password guesses (§9.6); a person
+        // signed in through a provider has no password here to guess.
+        let device = holder
+            .account()
+            .filter(|_| client.kind == SessionKind::Web)
+            .map(|account| self.device_for(account));
         Ok(Begun { id: session.id, refresh, expires_at: session.expires_at, device })
+    }
+
+    /// Whom a session `holder` holds acts as: the account, or the person their binding binds.
+    pub(crate) async fn actor_of(&self, holder: Holder) -> Result<Principal, AppError> {
+        match holder {
+            Holder::Account(id) => Ok(Principal::User(id)),
+            Holder::Person(binding) => {
+                let bound = self.store.binding(binding).await?;
+                bound.map(|b| b.subject).ok_or_else(|| internal(&"a session of no binding"))
+            }
+        }
     }
 
     /// Exchanges the refresh credential `presented` for an access token and its successor.
@@ -118,15 +147,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         let (session, usable) = match tx.present_refresh(&secret.digest()).await? {
             Presented::Current { session, usable } => (session, usable),
-            Presented::Rotated { session, account } => {
-                reused(&mut tx, session, account).await?;
+            Presented::Rotated { session, holder } => {
+                reused(&mut tx, session, holder).await?;
                 tx.commit().await?;
                 return Err(AppError::Unauthenticated);
             }
             Presented::Unknown => return Err(AppError::Unauthenticated),
         };
         if !usable || !session.live(now, self.session_limits.idle) {
-            tx.end_user_session(session.account, session.id).await?;
+            tx.end_user_session(session.holder, session.id).await?;
             tx.commit().await?;
             return Err(AppError::Unauthenticated);
         }
@@ -134,14 +163,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.rotate_refresh(session.id, &secret.digest(), &next.digest(), now).await?;
         let access_expires_at = now + ACCESS_LIFETIME;
         let claims = AccessClaims {
-            user: session.account,
+            holder: session.holder,
             session: session.id,
             expires_at: access_expires_at,
         };
         let access = mint(&self.token_key, &claims);
         tx.commit().await?;
         Ok(Exchanged {
-            account: session.account,
+            holder: session.holder,
             session: session.id,
             access,
             access_expires_at,
@@ -158,19 +187,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let Presented::Current { session, .. } = tx.present_refresh(&secret.digest()).await? else {
             return Err(AppError::Unauthenticated);
         };
-        tx.end_user_session(session.account, session.id).await?;
+        tx.end_user_session(session.holder, session.id).await?;
         let more = [("session", session.id.to_string().into())];
-        let actor = Principal::User(session.account);
-        record(&mut tx, &actor, "session.ended", session.account, more).await?;
+        let actor = self.actor_of(session.holder).await?;
+        record_held(&mut tx, &actor, "session.ended", session.holder, more).await?;
         tx.commit().await?;
         Ok(())
     }
 
     /// The caller's sessions, newest first.
     pub async fn sessions(&self, caller: &Caller) -> Result<Vec<SessionView>, AppError> {
-        let account = own_account(caller)?;
+        let holder = own_holder(caller)?;
         let now = self.clock.now();
-        let sessions = self.store.user_sessions(account).await?;
+        let sessions = self.store.user_sessions(holder).await?;
         Ok(sessions
             .into_iter()
             .filter(|s| s.live(now, self.session_limits.idle))
@@ -180,38 +209,33 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Ends the caller's session `id`.
     pub async fn end_session(&self, caller: &Caller, id: Uuid) -> Result<(), AppError> {
-        let account = own_account(caller)?;
+        let holder = own_holder(caller)?;
         let mut tx = self.store.begin().await?;
-        if !tx.end_user_session(account, id).await? {
+        if !tx.end_user_session(holder, id).await? {
             return Err(AppError::NotFound { kind: "session" });
         }
         let more = [("session", id.to_string().into())];
-        record(&mut tx, &caller.principal, "session.ended", account, more).await?;
+        record_held(&mut tx, &caller.principal, "session.ended", holder, more).await?;
         tx.commit().await?;
         Ok(())
     }
 
     /// Ends every session of the caller's but the one it is using; how many it ended.
     pub async fn end_other_sessions(&self, caller: &Caller) -> Result<u64, AppError> {
-        let account = own_account(caller)?;
+        let holder = own_holder(caller)?;
         let mut tx = self.store.begin().await?;
-        let ended = tx.end_other_sessions(account, caller.session).await?;
+        let ended = tx.end_other_sessions(holder, caller.session).await?;
         let more = [("ended", ended.into())];
-        record(&mut tx, &caller.principal, "session.others_ended", account, more).await?;
+        record_held(&mut tx, &caller.principal, "session.others_ended", holder, more).await?;
         tx.commit().await?;
         Ok(ended)
     }
 }
 
-/// Ends `session` of `account`, a rotated refresh credential of it having been presented, which
+/// Ends `session` of `holder`, a rotated refresh credential of it having been presented, which
 /// only a copy can do, and records it as the anonymous presenter's.
-async fn reused<T: Tx>(tx: &mut T, session: Uuid, account: Uuid) -> Result<(), AppError> {
-    tx.end_user_session(account, session).await?;
-    let effect =
-        Effect::new(Principal::Anonymous, "session.reused", Outcome::Succeeded).after(details([
-            ("account", account.to_string().into()),
-            ("session", session.to_string().into()),
-        ]));
-    tx.append_effect(&effect).await?;
-    Ok(())
+async fn reused<T: Tx>(tx: &mut T, session: Uuid, holder: Holder) -> Result<(), AppError> {
+    tx.end_user_session(holder, session).await?;
+    let more = [("session", session.to_string().into())];
+    record_held(tx, &Principal::Anonymous, "session.reused", holder, more).await
 }

@@ -86,7 +86,11 @@ mod tests {
         assert_eq!(access::verify(&keys, &as_access, now), Err(DeviceError::Signature));
         let token = access::mint(
             &key,
-            &AccessClaims { user: account, session: device, expires_at: now + DEVICE_LIFETIME },
+            &AccessClaims {
+                holder: crate::principal::Holder::Account(account),
+                session: device,
+                expires_at: now + DEVICE_LIFETIME,
+            },
         );
         let as_device = token.replacen(access::ACCESS_PREFIX, DEVICE_PREFIX, 1);
         assert_eq!(verify(&keys, &as_device, now), Err(DeviceError::Signature));

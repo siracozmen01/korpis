@@ -19,6 +19,7 @@ mod devices;
 mod manage;
 mod passkeys;
 mod passwords;
+mod person;
 mod recent;
 mod root;
 mod sessions;

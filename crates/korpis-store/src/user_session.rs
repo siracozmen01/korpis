@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! User sessions (migration 0069), kept by the digest of their current refresh credential and
-//! every digest they rotated away.
+//! User sessions (migrations 0069 and 0101), kept by the digest of their current refresh
+//! credential and every digest they rotated away, held by an account or by a person's binding,
+//! never both and never neither.
 
 use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{Presented, StoreError, StoreResult, UserSessionRead, UserSessionWrite};
-use korpis_core::account::session::{SessionKind, UserSession};
+use korpis_core::account::session::{Holder, SessionKind, UserSession};
+use korpis_core::principal::SetName;
+use serde_json::Value;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
 struct SessionRow {
     id: Uuid,
-    account_id: Uuid,
+    account_id: Option<Uuid>,
+    binding_id: Option<Uuid>,
+    sets: Value,
     kind: String,
     created_at: chrono::DateTime<chrono::Utc>,
     last_used_at: chrono::DateTime<chrono::Utc>,
@@ -27,9 +32,16 @@ impl TryFrom<SessionRow> for UserSession {
     type Error = StoreError;
 
     fn try_from(r: SessionRow) -> StoreResult<Self> {
+        let corrupt = |what: &str| StoreError::Corrupt(format!("session {}: {what}", r.id));
+        let holder = match (r.account_id, r.binding_id) {
+            (Some(a), None) => Holder::Account(a),
+            (None, Some(b)) => Holder::Person(b),
+            _ => return Err(corrupt("holder")),
+        };
         Ok(Self {
             id: r.id,
-            account: r.account_id,
+            holder,
+            sets: sets_from(&r.sets).ok_or_else(|| corrupt("sets"))?,
             kind: SessionKind::parse(&r.kind)
                 .ok_or_else(|| StoreError::Corrupt(format!("session {}: kind", r.id)))?,
             created_at: to_time(r.created_at),
@@ -42,14 +54,33 @@ impl TryFrom<SessionRow> for UserSession {
     }
 }
 
+fn sets_from(v: &Value) -> Option<Vec<SetName>> {
+    v.as_array()?
+        .iter()
+        .map(|s| {
+            Some(SetName {
+                realm: s.get("realm")?.as_str()?.to_owned(),
+                member_of: s.get("member_of")?.as_str()?.to_owned(),
+            })
+        })
+        .collect()
+}
+
+fn sets_to(sets: &[SetName]) -> Value {
+    sets.iter().map(|s| serde_json::json!({ "realm": s.realm, "member_of": s.member_of })).collect()
+}
+
 impl UserSessionRead for PgStore {
-    async fn user_sessions(&self, account: Uuid) -> StoreResult<Vec<UserSession>> {
+    async fn user_sessions(&self, holder: Holder) -> StoreResult<Vec<UserSession>> {
         let rows = sqlx::query_as!(
             SessionRow,
-            "SELECT id, account_id, kind, created_at, last_used_at, authenticated_at, expires_at,
-                    user_agent, source
-               FROM user_session WHERE account_id = $1 ORDER BY created_at DESC, id",
-            account
+            "SELECT id, account_id, binding_id, sets, kind, created_at, last_used_at, authenticated_at,
+                    expires_at, user_agent, source
+               FROM user_session
+              WHERE (account_id = $1 OR binding_id = $2)
+              ORDER BY created_at DESC, id",
+            holder.account(),
+            holder.binding()
         )
         .fetch_all(&self.pool)
         .await
@@ -57,13 +88,16 @@ impl UserSessionRead for PgStore {
         rows.into_iter().map(UserSession::try_from).collect()
     }
 
-    async fn user_session(&self, account: Uuid, id: Uuid) -> StoreResult<Option<UserSession>> {
+    async fn user_session(&self, holder: Holder, id: Uuid) -> StoreResult<Option<UserSession>> {
         let row = sqlx::query_as!(
             SessionRow,
-            "SELECT id, account_id, kind, created_at, last_used_at, authenticated_at, expires_at,
-                    user_agent, source
-               FROM user_session WHERE account_id = $1 AND id = $2",
-            account,
+            "SELECT id, account_id, binding_id, sets, kind, created_at, last_used_at, authenticated_at,
+                    expires_at, user_agent, source
+               FROM user_session
+              WHERE (account_id = $1 OR binding_id = $2)
+                AND id = $3",
+            holder.account(),
+            holder.binding(),
             id
         )
         .fetch_optional(&self.pool)
@@ -98,12 +132,14 @@ impl UserSessionRead for PgStore {
 impl UserSessionWrite for PgTx {
     async fn insert_user_session(&mut self, s: &UserSession, digest: &[u8; 32]) -> StoreResult<()> {
         sqlx::query!(
-            "INSERT INTO user_session (id, account_id, kind, refresh_hash, created_at,
-                                       last_used_at, authenticated_at, expires_at, user_agent,
-                                       source)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+            "INSERT INTO user_session (id, account_id, binding_id, sets, kind, refresh_hash,
+                                       created_at, last_used_at, authenticated_at, expires_at,
+                                       user_agent, source)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
             s.id,
-            s.account,
+            s.holder.account(),
+            s.holder.binding(),
+            sets_to(&s.sets),
             s.kind.as_str(),
             digest.as_slice(),
             from_time(s.created_at),
@@ -121,9 +157,13 @@ impl UserSessionWrite for PgTx {
 
     async fn present_refresh(&mut self, digest: &[u8; 32]) -> StoreResult<Presented> {
         let current = sqlx::query!(
-            r#"SELECT s.id, s.account_id, s.kind, s.created_at, s.last_used_at, s.authenticated_at,
-                      s.expires_at, s.user_agent, s.source, a.disabled_at IS NULL AS "usable!"
-                 FROM user_session s JOIN account a ON a.id = s.account_id
+            r#"SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,
+                      s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,
+                      CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL
+                           ELSE b.retired_at IS NULL END AS "usable!"
+                 FROM user_session s
+                 LEFT JOIN account a ON a.id = s.account_id
+                 LEFT JOIN identity_binding b ON b.id = s.binding_id
                 WHERE s.refresh_hash = $1 FOR UPDATE OF s"#,
             digest.as_slice()
         )
@@ -134,6 +174,8 @@ impl UserSessionWrite for PgTx {
             let row = SessionRow {
                 id: r.id,
                 account_id: r.account_id,
+                binding_id: r.binding_id,
+                sets: r.sets,
                 kind: r.kind,
                 created_at: r.created_at,
                 last_used_at: r.last_used_at,
@@ -148,7 +190,7 @@ impl UserSessionWrite for PgTx {
             });
         }
         let rotated = sqlx::query!(
-            "SELECT r.session_id, s.account_id
+            "SELECT r.session_id, s.account_id, s.binding_id
                FROM user_session_rotated r JOIN user_session s ON s.id = r.session_id
               WHERE r.refresh_hash = $1",
             digest.as_slice()
@@ -156,10 +198,13 @@ impl UserSessionWrite for PgTx {
         .fetch_optional(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(rotated.map_or(Presented::Unknown, |r| Presented::Rotated {
-            session: r.session_id,
-            account: r.account_id,
-        }))
+        let Some(r) = rotated else { return Ok(Presented::Unknown) };
+        let holder = match (r.account_id, r.binding_id) {
+            (Some(a), _) => Holder::Account(a),
+            (None, Some(b)) => Holder::Person(b),
+            (None, None) => return Err(StoreError::Corrupt(format!("session {}", r.session_id))),
+        };
+        Ok(Presented::Rotated { session: r.session_id, holder })
     }
 
     async fn rotate_refresh(
@@ -191,13 +236,16 @@ impl UserSessionWrite for PgTx {
 
     async fn reauthenticated(
         &mut self,
-        account: Uuid,
+        holder: Holder,
         id: Uuid,
         at: SystemTime,
     ) -> StoreResult<bool> {
         let done = sqlx::query!(
-            "UPDATE user_session SET authenticated_at = $3 WHERE account_id = $1 AND id = $2",
-            account,
+            "UPDATE user_session SET authenticated_at = $4
+              WHERE (account_id = $1 OR binding_id = $2)
+                AND id = $3",
+            holder.account(),
+            holder.binding(),
             id,
             from_time(at)
         )
@@ -207,12 +255,17 @@ impl UserSessionWrite for PgTx {
         Ok(done.rows_affected() == 1)
     }
 
-    async fn end_user_session(&mut self, account: Uuid, id: Uuid) -> StoreResult<bool> {
-        let done =
-            sqlx::query!("DELETE FROM user_session WHERE id = $1 AND account_id = $2", id, account)
-                .execute(&mut *self.tx)
-                .await
-                .map_err(from_sqlx)?;
+    async fn end_user_session(&mut self, holder: Holder, id: Uuid) -> StoreResult<bool> {
+        let done = sqlx::query!(
+            "DELETE FROM user_session
+              WHERE id = $1 AND (account_id = $2 OR binding_id = $3)",
+            id,
+            holder.account(),
+            holder.binding()
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
         Ok(done.rows_affected() == 1)
     }
 
@@ -224,10 +277,13 @@ impl UserSessionWrite for PgTx {
         Ok(done.rows_affected())
     }
 
-    async fn end_other_sessions(&mut self, account: Uuid, keep: Option<Uuid>) -> StoreResult<u64> {
+    async fn end_other_sessions(&mut self, holder: Holder, keep: Option<Uuid>) -> StoreResult<u64> {
         let done = sqlx::query!(
-            "DELETE FROM user_session WHERE account_id = $1 AND id IS DISTINCT FROM $2",
-            account,
+            "DELETE FROM user_session
+              WHERE (account_id = $1 OR binding_id = $2)
+                AND id IS DISTINCT FROM $3",
+            holder.account(),
+            holder.binding(),
             keep
         )
         .execute(&mut *self.tx)

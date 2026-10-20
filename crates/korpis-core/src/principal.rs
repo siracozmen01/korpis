@@ -250,6 +250,37 @@ impl fmt::Display for Principal {
     }
 }
 
+/// Who holds a session (§9.4 and §9.7 of docs/08-identity.md), and so whom its access tokens
+/// name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Holder {
+    /// An account, signed in with its own factors.
+    Account(Uuid),
+    /// A person signed in through an identity provider (§9.7 of docs/08-identity.md), named by
+    /// their own binding, the one live binding of their subject.
+    Person(Uuid),
+}
+
+impl Holder {
+    /// The account, if an account holds it.
+    #[must_use]
+    pub const fn account(self) -> Option<Uuid> {
+        match self {
+            Self::Account(id) => Some(id),
+            Self::Person(_) => None,
+        }
+    }
+
+    /// The person's binding, if a person holds it.
+    #[must_use]
+    pub const fn binding(self) -> Option<Uuid> {
+        match self {
+            Self::Person(id) => Some(id),
+            Self::Account(_) => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

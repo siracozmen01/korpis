@@ -1963,10 +1963,12 @@ re-verification asks about the person, as it asks about every member who delegat
 removed from a group at their provider loses what the group gave them at the set's next
 re-verification or at their own next sign-in, whichever is sooner. A set whose binding requires
 another counts only while the sign-in named that one too (Finding 117). The sets are kept with the
-session and written into each access token exchanged from it, so a call reads nothing an
-account's call does not; whether each still counts is evaluation's, from the member records it
-loads with the bindings (§5). A set bound only after the sign-in has no record of the person, so it
-counts from their next sign-in.
+session, not in its access tokens: an access token names the session, and the gateway reads it at
+each call, so such a call costs one read more than an account's, and one ended is refused at once
+rather than within its tokens' 120 seconds. Writing the sets into the token would spare the read
+and make a bearer header of kilobytes for a person in hundreds of groups. Whether each set still
+counts is evaluation's, from the member records it loads with the bindings (§5). A set bound only
+after the sign-in has no record of the person, so it counts from their next sign-in.
 
 **How an OIDC provider re-verifies a person.** OIDC has no standard way to ask whether someone is
 still in a group without a token of theirs. The provider asks for `offline_access` when its

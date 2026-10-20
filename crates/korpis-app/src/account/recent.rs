@@ -14,6 +14,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store, Tx as _, UserSessionWrite as _};
 use korpis_core::account::session::REAUTHENTICATE_WITHIN;
+use korpis_core::principal::Holder;
 use korpis_core::principal::Principal;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -27,9 +28,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<(AccountView, Option<SystemTime>), AppError> {
         let view = self.own_account(caller).await?;
         let at = match caller.session {
-            Some(id) => {
-                self.store.user_session(view.account.id, id).await?.map(|s| s.authenticated_at)
-            }
+            Some(id) => self
+                .store
+                .user_session(Holder::Account(view.account.id), id)
+                .await?
+                .map(|s| s.authenticated_at),
             None => None,
         };
         Ok((view, at))
@@ -40,8 +43,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     pub(super) async fn recently_signed_in(&self, caller: &Caller) -> Result<Uuid, AppError> {
         let account = own_account(caller)?;
         let session = caller.session.ok_or_else(not_recent)?;
-        let session =
-            self.store.user_session(account, session).await?.ok_or(AppError::Unauthenticated)?;
+        let session = self
+            .store
+            .user_session(Holder::Account(account), session)
+            .await?
+            .ok_or(AppError::Unauthenticated)?;
         let since = self.clock.now().checked_sub(REAUTHENTICATE_WITHIN);
         if since.is_some_and(|since| session.authenticated_at <= since) {
             return Err(not_recent());
@@ -102,7 +108,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         factor: &'static str,
     ) -> Result<SystemTime, AppError> {
         let now = self.clock.now();
-        if !tx.reauthenticated(account, session, now).await? {
+        if !tx.reauthenticated(Holder::Account(account), session, now).await? {
             return Err(AppError::Unauthenticated);
         }
         let more = [("session", session.to_string().into()), ("factor", factor.into())];
