@@ -177,7 +177,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         binding.verifications += 1;
         tx.append_effect(&effect(caller, "identity.binding.update", &permit, &binding)).await?;
-        finish(tx, caller, idem, UPDATE, binding).await
+        finish(tx, caller, idem, UPDATE, self.as_evaluated(binding)).await
     }
 
     /// Retires a binding: it vouches for nothing since, so every grant rooted in it is
@@ -213,7 +213,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if !self.permitted(caller, "org.read", at).await? {
             return Err(not_found());
         }
-        Ok(binding)
+        Ok(self.as_evaluated(binding))
     }
 
     /// The bindings declared in an organization, under `org.read` there.
@@ -227,6 +227,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.authorize(caller, "org.read", organization(org)).await?;
         let items = self.store.bindings_in(org, retired, page).await?;
         let next = page.next(&items, |b| b.id);
+        let items = items.into_iter().map(|b| self.as_evaluated(b)).collect();
         Ok(Paged { items, next })
+    }
+
+    /// `binding` with the state evaluation finds now rather than the one last recorded, which
+    /// says verified until a re-verification finds its confirmation lapsed (Finding 118).
+    fn as_evaluated(&self, mut binding: IdentityBinding) -> IdentityBinding {
+        binding.state = binding.state_at(self.clock.now());
+        binding
     }
 }

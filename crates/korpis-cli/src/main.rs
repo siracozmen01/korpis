@@ -12,6 +12,7 @@ use korpis_cli::cmd::domain;
 use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
+use korpis_cli::cmd::identity;
 use korpis_cli::cmd::quota;
 use korpis_cli::cmd::repository;
 use korpis_cli::cmd::run::{self as runs, RunAction};
@@ -154,6 +155,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         | Command::Project(_)
         | Command::Quota(_)
         | Command::Template(_)
+        | Command::Identity(_)
         | Command::Grant(_)
         | Command::Set(_)
         | Command::Extension(_)
@@ -204,6 +206,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Project(a) => tenancy::project(c, a).await,
         Command::Quota(a) => quota::quota(c, a).await,
         Command::Template(a) => template::template(c, a).await,
+        Command::Identity(a) => identity::identity(c, a).await,
         Command::Grant(a) => grant::grant(c, a).await,
         Command::Set(a) => sets::set(c, a).await,
         Command::Extension(a) => extension::extension(c, a).await,

@@ -13,6 +13,8 @@ import { everyGrant } from "./held";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
 import { Shown } from "./Shown";
+import { Bindings } from "../identity/Bindings";
+import { Ceiling } from "../identity/Ceiling";
 import { Roles } from "../roles/Roles";
 import { QuotaView } from "./Quota";
 import { Suspension } from "./Suspension";
@@ -143,6 +145,8 @@ export function OrganizationPage({ id }: { readonly id: string }) {
             {o !== undefined && <Suspension organization={o} />}
             {o !== undefined && <QuotaView organization={o} />}
             {o !== undefined && <Roles place={{ case: "organization", id: o.id }} />}
+            {o !== undefined && <Bindings organization={o.id} />}
+            {o !== undefined && <Ceiling organization={o.id} />}
           </>
         )}
       />

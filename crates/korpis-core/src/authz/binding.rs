@@ -217,16 +217,21 @@ impl IdentityBinding {
                 self.last_verified_at = Some(now);
             }
             Verification::Ended => self.state = BindingState::Unverified,
-            Verification::Unanswered => {
-                let t = &self.terms;
-                let lapsed =
-                    self.last_verified_at.is_none_or(|at| now > at + t.reverify_interval + t.grace);
-                if lapsed {
-                    self.state = BindingState::Unverified;
-                }
-            }
+            Verification::Unanswered => self.state = self.state_at(now),
         }
         before != self.state
+    }
+
+    /// The state evaluation finds at `now`: a verified binding whose last confirmation,
+    /// interval, and grace have all passed is unverified, whether or not a re-verification
+    /// has recorded it yet, so what a reader is shown is what is enforced (Finding 118 of
+    /// docs/23-walkthroughs.md).
+    #[must_use]
+    pub fn state_at(&self, now: SystemTime) -> BindingState {
+        let t = &self.terms;
+        let lapsed =
+            self.last_verified_at.is_none_or(|at| now > at + t.reverify_interval + t.grace);
+        if lapsed { BindingState::Unverified } else { self.state }
     }
 
     /// Whether it binds a set rather than a person.

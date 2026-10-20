@@ -185,6 +185,8 @@ message IdentityBinding {
   BindingConstraints constraints = 7;
   // Between one minute and one day; fifteen minutes when not said.
   google.protobuf.Duration reverify_interval = 8;
+  // As evaluation finds it when read: unverified once its last confirmation, interval, and grace
+  // have passed, though no re-verification has recorded that yet (§5.1 of docs/08-identity.md).
   BindingState state = 9;
   // Absent until its provider first confirms it.
   google.protobuf.Timestamp last_verified_at = 10;

@@ -161,3 +161,19 @@ fn a_binding_moves_as_the_table_of_section_5_1_says() {
     assert!(b.verified(Verification::Ended, within), "an answer that it ended is at once");
     assert_eq!(b.last_verified_at, Some(within), "the last confirmation is kept");
 }
+
+#[test]
+fn a_lapsed_confirmation_reads_unverified_before_anything_records_it() {
+    use korpis_core::authz::binding::Verification;
+    let tree = Tree::new();
+    let p = provider(&tree);
+    let mut b = binding(&p, set(&p));
+    let now = SystemTime::now();
+    assert_eq!(b.state_at(now), BindingState::Unverified, "never confirmed");
+    b.verified(Verification::Confirmed, now);
+    let within = now + b.terms.reverify_interval + b.terms.grace;
+    assert_eq!(b.state_at(within), BindingState::Verified);
+    let lapsed = within + Duration::from_secs(1);
+    assert_eq!(b.state_at(lapsed), BindingState::Unverified, "Finding 118: shown as enforced");
+    assert_eq!(b.state, BindingState::Verified, "reading records nothing");
+}

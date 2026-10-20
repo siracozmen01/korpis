@@ -8,6 +8,7 @@ use crate::cmd::certificate::CertificateAction;
 use crate::cmd::domain::DomainAction;
 use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
+use crate::cmd::identity::IdentityAction;
 use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
 use crate::cmd::run::RunAction;
@@ -64,6 +65,9 @@ pub enum Command {
     /// Grant templates: the roles of the interface, applied with `grant issue --template`.
     #[command(subcommand)]
     Template(TemplateAction),
+    /// Identity bindings: the people and sets at an identity provider that grants can name.
+    #[command(subcommand)]
+    Identity(IdentityAction),
     /// Lists what you can read.
     #[command(subcommand)]
     Get(Get),

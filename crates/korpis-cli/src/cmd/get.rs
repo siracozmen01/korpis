@@ -15,7 +15,7 @@ pub(crate) fn subject(s: Option<&pb::Subject>) -> String {
     match s.and_then(|s| s.kind.as_ref()) {
         Some(S::User(id) | S::Token(id) | S::Workload(id) | S::Extension(id)) => id.clone(),
         Some(S::Link(grant)) => format!("link {grant}"),
-        Some(S::External(_)) => "external".into(),
+        Some(S::External(x)) => format!("{} {}", x.provider, super::identity::named(Some(x))),
         Some(S::System(_)) => "system".into(),
         Some(S::Anonymous(_)) => "anonymous".into(),
         None => "-".into(),
@@ -54,11 +54,13 @@ async fn effects(
     };
     let client = pb::EffectServiceClient::new(c.http(), c.config());
     let list = client.list_effects(request).await?.into_owned().effects;
-    let header = ["AT", "ACTION", "OUTCOME", "ACTOR", "GRANT"];
+    let header = ["AT", "ACTION", "OUTCOME", "ACTOR", "GRANT", "RELAYED BY"];
     let human = rows(&header, &list, |e| {
         let outcome = short(e.outcome, "EFFECT_OUTCOME_");
         let grant = e.grant.clone().unwrap_or_else(|| "-".into());
-        vec![time(e.at.as_option()), e.action.clone(), outcome, subject(e.actor.as_option()), grant]
+        let actor = subject(e.actor.as_option());
+        let relay = subject(e.relay.as_option());
+        vec![time(e.at.as_option()), e.action.clone(), outcome, actor, grant, relay]
     });
     Ok(Answer { json: json(&list), human })
 }

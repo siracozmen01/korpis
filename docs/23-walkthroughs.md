@@ -1363,6 +1363,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 115 | A person's evidence outlived the call that asked about it | §11 | `08-identity.md` §5.2 |
 | 116 | Re-applying an ending could lose a second race, and an edit left old answers standing | §11 | `08-identity.md` §5.1 |
 | 117 | A set's required membership constrained nothing when a member acted | §11 | `08-identity.md` §5.2 |
+| 118 | A binding read as verified after its confirmation had lapsed | §43 | `08-identity.md` §5.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3656,3 +3657,59 @@ is refused, with the reason the attenuation gives, rather than given a role that
 than they hold. The panel offers the button to anyone signed in who reads the place, because
 whether the giver can pass the role on depends on the giver's whole chain, which only the control
 plane holds.
+
+## 43. A moderator restarts a server through the community's bot, and the provider goes dark
+
+Written 2026-10-20, when the CLI and panel for identity bindings were built (§5 of
+`08-identity.md`). A community hosts its survival server with a reseller. Its operator binds the
+guild's `@moderator` role to a template that restarts servers in one project, as §2 of
+`12-surface-discord.md` describes. A moderator who has never had an account restarts the server
+from the channel through the community's bot. That evening the provider cannot be reached for
+forty minutes, and the operator watches the binding on the organization's page.
+
+The trace was chosen by measuring coverage, as §0 describes: until it, `12-surface-discord.md` had
+been cited seven times in this document, the fewest of any surface, and §5.2 of `08-identity.md`,
+which the bot's every call rests on, had been traced only by §11, before assertion was built. The
+chat client itself ships in Phase 4 (§4 of `20-roadmap.md`); what it calls is built now, so the
+trace follows that machinery under the client that will use it.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The operator, holding `identity.binding.write` on the community's organization, binds `set:<guild>/<role>` at the Discord provider installed there, with `operate@1` as its template, from `korpis identity bind` or the organization's page: it is `unverified` until the provider first answers | `08-identity.md` §5; `12-surface-discord.md` §2; `13-surface-cli.md` §7; `11-surface-web.md` §5 |
+| 2 | The binding is due as soon as it is made; within seconds the provider confirms the role exists, and the binding is `verified` with its confirmation's time | `08-identity.md` §5.1; `16-extensions.md` §6 |
+| 3 | The template's grant is issued to the set; it carries no irreversible action, since the binding does not allow one | `08-identity.md` §3.4, §4, §5.2; `12-surface-discord.md` §3 |
+| 4 | The page shows the binding asked every fifteen minutes with fifteen of grace, said as one sentence: an unreachable provider extends it at most thirty minutes past its last confirmation | `11-surface-web.md` §5 |
+| 5 | A moderator runs the restart in the channel. The bot, holding `identity.relay` where the provider is installed, relays what the moderator presented with `AssertIdentity`, naming `workload.restart` on the server: the provider vouches for the person and their sets, and the bot is handed a ticket for that one action on that one object | `08-identity.md` §5.2; `12-surface-discord.md` §4 |
+| 6 | The bot calls `Restart` with its own credential and the ticket. The gateway spends the ticket, counts the set's grant while its binding vouches, and the restart is the person's: its effect names the person as actor, the set's grant, and the bot as relay | `08-identity.md` §5.2; `03-state.md` §4 |
+| 7 | The operator runs `korpis get effects --workload mc-survival` and reads the restart as the moderator's, relayed by the bot, never as the bot's own | `13-surface-cli.md` §7 |
+| 8 | The provider last confirmed the binding at 20:00 and then stops answering. From 20:15 every re-verification goes unanswered and the binding is asked again a minute after each; once 20:30 has passed, the confirmation has run out its interval and grace, and the next restart is refused, the grant suspended | `08-identity.md` §5, §5.1; `12-surface-discord.md` §9 |
+| 9 | The operator opens the organization's page to see why, between the instant the confirmation lapsed and the next call ‡ | `11-surface-web.md` §5; `08-identity.md` §5.1 |
+| 10 | At 20:40 the provider answers again; within a minute the binding is asked, is confirmed, and the moderator's next restart succeeds, since a suspension is not a revocation | `08-identity.md` §5.1, §3.5 |
+
+**One finding, at step 9** (‡).
+
+**FINDING 118: A binding read as verified after its confirmation had lapsed. `CONFIRMED`**
+
+Found 2026-10-20 building the panel's and the CLI's view of a binding, by asking the algebra
+question of the state they show: what evaluates "verified", where, and with what information? A
+binding's state is written when a re-verification records an answer, and an unanswered one records
+`unverified` only once it finds the confirmation lapsed. So from 20:30 until the call that found
+it, a minute while the loop runs and for as long as it does not (every control plane stopped, or
+none claiming it), the page and `identity show` said the binding vouched, while evaluation, which
+derives it from the last confirmation at every use, had suspended everything rooted in it. The
+question had an answer at evaluation (the control plane, holding the confirmation's time, the
+interval, the grace, and its clock) and none at the read, which held only the stored word: a
+display of something the control plane was not enforcing, which Rule K-3 forbids of a limit.
+
+**Resolution.** A read of a binding, alone or in a list or as an edit answers it, derives its
+state as evaluation does, at the control plane's clock, and records nothing; the stored state
+still moves only by the table of §5.1 of `08-identity.md`. A core test reads a confirmed binding
+`verified` within its interval and grace and `unverified` a second past them, the stored state
+unchanged, and a use-case test reads the same through `GetIdentityBinding` and the list. →
+patched into `08-identity.md` §5.1
+
+Step 5 is where a moderator whose grant needs a second factor is refused: the call comes from the
+bot, and no second factor is the person's (§3 of `12-surface-discord.md`), so a high-authority
+grant routes to the panel by construction.

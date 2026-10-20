@@ -615,6 +615,9 @@ export type IdentityBinding = Message<"korpis.v1.IdentityBinding"> & {
   reverifyInterval?: Duration | undefined;
 
   /**
+   * As evaluation finds it when read: unverified once its last confirmation, interval, and grace
+   * have passed, though no re-verification has recorded that yet (§5.1 of docs/08-identity.md).
+   *
    * @generated from field: korpis.v1.BindingState state = 9;
    */
   state: BindingState;

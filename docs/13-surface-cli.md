@@ -439,6 +439,23 @@ one, and `--expires`, `--source-cidr`, and `--requires-approval-by` replace its 
 is the same attenuation as any other, so a template naming an action the issuer cannot pass on is
 refused.
 
+**Identity bindings, as built.** Added 2026-10-20. `korpis identity bind set:groups/admins
+--provider corp --org reseller --template tpl_…@3` declares a binding (§5 of `08-identity.md`),
+`user:<id>` naming one person instead; `--interval` and `--grace` take a number and a unit,
+fifteen minutes each when not said, `--irreversible` sets the override deliberately, and
+`--require` names another set its members must also be in. `identity list ORG`, with `--retired`
+for those retired, and `identity show` print each binding's state, when its provider last
+confirmed it, and its interval and grace together with their sum, which is the longest an
+unreachable provider extends it past that confirmation, because a reader shown the interval alone
+is shown a shorter window than the one enforced. `identity edit` changes its terms against the
+version it has as the command runs, `identity retire` suspends what is rooted in it, and `identity
+verify` asks its provider now rather than at its interval, printing what the provider answered or,
+when it did not answer in time, why. `korpis organization ceiling ORG` prints the delegation
+ceiling in force there and the organization's own (§5.1 of `08-identity.md`), `--set 3d` sets its
+own, and `--remove` removes it, so the one above is in force again. And `get effects` names, for
+an effect done through a relay, the client that relayed it beside the actor it relayed for (§5.2
+of `08-identity.md`), so a person acting through a bot is never shown as the bot.
+
 `korpis grant share --actions workload.restart --scope workload:mc-survival` makes a share link
 (§6.1 of `08-identity.md`) and prints it once, as a URL whose fragment is the link, with what it
 permits, on what, how many times, for how long, and that using it needs the control plane.

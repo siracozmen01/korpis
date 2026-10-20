@@ -135,6 +135,9 @@
   "3AVtR6Oy": {
     "defaultMessage": "Reading your profile…"
   },
+  "3ELC9iPv": {
+    "defaultMessage": "Asked every this many minutes"
+  },
   "3K8BEHus": {
     "defaultMessage": "stopping",
     "description": "a workload's state as its node observed it"
@@ -161,6 +164,9 @@
   "4H4xOTsE": {
     "defaultMessage": "Converged",
     "description": "the moment a workload converged"
+  },
+  "4WUq97/2": {
+    "defaultMessage": "This organization sets {own, plural, one {# day} other {# days}} of its own."
   },
   "4XcIK1Cw": {
     "defaultMessage": "an account that exists"
@@ -212,6 +218,9 @@
     "defaultMessage": "Signed in",
     "description": "a device sign-in approved"
   },
+  "6Mby31OS": {
+    "defaultMessage": "Delegation ceiling"
+  },
   "6WRJhCn7": {
     "defaultMessage": "the node answered a read with no data"
   },
@@ -223,6 +232,9 @@
   },
   "6vqEzPIc": {
     "defaultMessage": "Disk writes (bytes/s)"
+  },
+  "6wYZOskN": {
+    "defaultMessage": "A set: a group, a role"
   },
   "7L9bcZ1z": {
     "defaultMessage": "Share as a link"
@@ -359,6 +371,9 @@
   "BkY/4vDn": {
     "defaultMessage": "It asked at"
   },
+  "BnCWRq2n": {
+    "defaultMessage": "The grace is a whole number of minutes."
+  },
   "C0bpQ4YI": {
     "defaultMessage": "They can"
   },
@@ -379,6 +394,9 @@
   "Cc3ziaQW": {
     "defaultMessage": "succeeded",
     "description": "a run's status"
+  },
+  "CcFwK8UF": {
+    "defaultMessage": "No person or set is bound here."
   },
   "Ceot6AFe": {
     "defaultMessage": "suspended",
@@ -456,6 +474,12 @@
     "defaultMessage": "tier=gold",
     "description": "an example of workload labels"
   },
+  "FYBLj+RT": {
+    "defaultMessage": "Whom it binds"
+  },
+  "FaFxmjmi": {
+    "defaultMessage": "Save the binding"
+  },
   "FaYLfRYl": {
     "defaultMessage": "Node acknowledged"
   },
@@ -487,6 +511,9 @@
   },
   "GrnZDNX+": {
     "defaultMessage": "Saved."
+  },
+  "H+ArmwnP": {
+    "defaultMessage": "Identity bindings"
   },
   "H+C4LITW": {
     "defaultMessage": "Upload {name}"
@@ -561,6 +588,9 @@
   "JyQxWYW1": {
     "defaultMessage": "Reading your sessions…"
   },
+  "K/Rt6UmZ": {
+    "defaultMessage": "Edit {subject}"
+  },
   "K56Dims7": {
     "defaultMessage": "Organization"
   },
@@ -593,12 +623,18 @@
     "defaultMessage": "preparing it was refused",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
   },
+  "L+NetjuJ": {
+    "defaultMessage": "Bind a person or a set"
+  },
   "L/Pkbpdp": {
     "defaultMessage": "no passkey answered"
   },
   "L0/tjXb5": {
     "defaultMessage": "its workload was stopped",
     "description": "why a run ended"
+  },
+  "L0CqJYP/": {
+    "defaultMessage": "Asked every {interval} minutes with {grace} minutes of grace: an unreachable provider extends it at most {longest} minutes past its last confirmation."
   },
   "LEqZXL7u": {
     "defaultMessage": "No role is offered here."
@@ -612,6 +648,9 @@
   },
   "LW9qzGlz": {
     "defaultMessage": "Configuration change"
+  },
+  "LjPPHXIQ": {
+    "defaultMessage": "Name a person, or a set by its realm and name, without a colon."
   },
   "LkssjtoZ": {
     "defaultMessage": "Preview",
@@ -686,6 +725,9 @@
   "NeGvAH8o": {
     "defaultMessage": "Guaranteed below"
   },
+  "NeP9qItg": {
+    "defaultMessage": "Ask its provider now"
+  },
   "Nf2GrGr0": {
     "defaultMessage": "Remove",
     "description": "button: remove a file"
@@ -727,6 +769,9 @@
   },
   "Od6W77Tm": {
     "defaultMessage": "{name} is there with {there} of {size}."
+  },
+  "OpZ8xYEa": {
+    "defaultMessage": "The set's name there"
   },
   "OtefaeX2": {
     "defaultMessage": "Dimension"
@@ -770,6 +815,9 @@
   "QUNOzzQJ": {
     "defaultMessage": "Show the runs"
   },
+  "Qgzl1qJN": {
+    "defaultMessage": "Its provider did not answer: {why}"
+  },
   "R+2+cn8K": {
     "defaultMessage": "Reading the organization…"
   },
@@ -798,6 +846,9 @@
   "ROGy03Hk": {
     "defaultMessage": "Its uses are a whole number from 1."
   },
+  "RTHCUGR4": {
+    "defaultMessage": "verified"
+  },
   "RYkMKXPj": {
     "defaultMessage": "No run yet."
   },
@@ -811,6 +862,12 @@
   },
   "Rsr0afH7": {
     "defaultMessage": "Sign in a command-line client"
+  },
+  "RuANMV6H": {
+    "defaultMessage": "at {provider}, {state}"
+  },
+  "RxwBxdfL": {
+    "defaultMessage": "Name the identity provider."
   },
   "S89oXUto": {
     "defaultMessage": "{label}, added {added}{used, select, yes {, last used {lastUsed}} other {, never used}}{copied, select, yes {, may be copied to your other devices} other {}}",
@@ -881,6 +938,9 @@
   "UI92y43Y": {
     "defaultMessage": "someone invited now"
   },
+  "UK0SIM1f": {
+    "defaultMessage": "Days a grant passed on beneath a set lasts"
+  },
   "UMB/jFLh": {
     "defaultMessage": "Status",
     "description": "a run's column"
@@ -904,8 +964,14 @@
   "VXCry6sZ": {
     "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} is applying step {step, number} of {steps, number}."
   },
+  "VrQtwEUx": {
+    "defaultMessage": "Reading the delegation ceiling…"
+  },
   "WLC8/hBB": {
     "defaultMessage": "the node answered a listing with no entries"
+  },
+  "WNmQ7tuE": {
+    "defaultMessage": "Set it"
   },
   "WQNWGK22": {
     "defaultMessage": "applying",
@@ -970,8 +1036,14 @@
   "YYmFtOqj": {
     "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} cannot run it."
   },
+  "YbussuOe": {
+    "defaultMessage": "Last confirmed {at}."
+  },
   "YgBq8K12": {
     "defaultMessage": "The directory is not empty."
+  },
+  "YjqQlIWk": {
+    "defaultMessage": "Remove this organization's own"
   },
   "YvHdWl5o": {
     "defaultMessage": "(last observed {ago} ago: {value})"
@@ -1014,6 +1086,9 @@
   },
   "Zs6s57kx": {
     "defaultMessage": "Data at risk: {volumes}."
+  },
+  "ZtFkds/I": {
+    "defaultMessage": "Identity provider"
   },
   "ZwP0zyqP": {
     "defaultMessage": "not set yet"
@@ -1202,6 +1277,9 @@
   "gFzZ9t+1": {
     "defaultMessage": "What it is for (shown wherever it is listed)"
   },
+  "gN4aX+eV": {
+    "defaultMessage": "A grant passed on beneath a set lasts at most {effective, plural, one {# day} other {# days}} from its issue here."
+  },
   "gaANAXFU": {
     "defaultMessage": "This organization's own theme, worn here and beneath unless an organization sets its own."
   },
@@ -1220,6 +1298,9 @@
   },
   "hJ6uj4ZM": {
     "defaultMessage": "It asked from"
+  },
+  "hO8zbGty": {
+    "defaultMessage": "Their identifier at the provider"
   },
   "hdO3gq5y": {
     "defaultMessage": "a workload"
@@ -1254,6 +1335,12 @@
   "iitdQxcB": {
     "defaultMessage": "running",
     "description": "a workload's state as its node observed it"
+  },
+  "il62TauY": {
+    "defaultMessage": "Realm: the claim or guild naming the set"
+  },
+  "isipEzpo": {
+    "defaultMessage": "Minutes of grace while it cannot be asked"
   },
   "ivDcqiC1": {
     "defaultMessage": "How many levels deep"
@@ -1339,6 +1426,9 @@
   "mSCpuTgp": {
     "defaultMessage": "CPU (millicores)"
   },
+  "mVCuSoEt": {
+    "defaultMessage": "unverified"
+  },
   "mZ/c+AKf": {
     "defaultMessage": "Disk reads (operations/s)"
   },
@@ -1354,6 +1444,9 @@
   "myUPH/nd": {
     "defaultMessage": "version {v}"
   },
+  "nH30CoiV": {
+    "defaultMessage": "A ceiling is a whole number of days from 1."
+  },
   "nIafWUcM": {
     "defaultMessage": "Downloading {name}: {done} of {total}"
   },
@@ -1366,6 +1459,12 @@
   },
   "nh0uJD+E": {
     "defaultMessage": "Entry {n}"
+  },
+  "ntlnaUQN": {
+    "defaultMessage": "This organization sets none of its own."
+  },
+  "oC5qt97I": {
+    "defaultMessage": "Never confirmed yet."
   },
   "oFH8Xx1m": {
     "defaultMessage": "Remove the logo"
@@ -1395,6 +1494,9 @@
   "pCb+hggQ": {
     "defaultMessage": "Enrol it",
     "description": "button: enrol an authenticator app"
+  },
+  "pQA40tdT": {
+    "defaultMessage": "retired"
   },
   "pSEaRCSm": {
     "defaultMessage": "Use a password and an authenticator app"
@@ -1433,6 +1535,9 @@
   },
   "rGyY3Tcv": {
     "defaultMessage": "Remove {name}? This cannot be undone."
+  },
+  "rLD07YnN": {
+    "defaultMessage": "Reading the identity bindings declared here…"
   },
   "rUC1kIHy": {
     "defaultMessage": "Passes on {actions}, {depth} levels deep."
@@ -1483,6 +1588,9 @@
   "stvCF2Qv": {
     "defaultMessage": "For",
     "description": "how long a share link lasts"
+  },
+  "tH3NtNAa": {
+    "defaultMessage": "Set the delegation ceiling"
   },
   "tiVJHECN": {
     "defaultMessage": "{action} will do this:"
@@ -1585,6 +1693,9 @@
   "y09OFmzc": {
     "defaultMessage": "Or with a password"
   },
+  "yIdyoAX6": {
+    "defaultMessage": "One person"
+  },
   "yMzzPzXC": {
     "defaultMessage": "Every use needs a second factor"
   },
@@ -1608,6 +1719,9 @@
   },
   "zHB1mRzN": {
     "defaultMessage": "{what} (uses one of the link's uses)"
+  },
+  "zM8m+UKl": {
+    "defaultMessage": "The interval is a whole number of minutes from 1."
   },
   "zQpbwSBJ": {
     "defaultMessage": "An invitation starts {prefix}"

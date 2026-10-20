@@ -53,6 +53,19 @@ pub enum OrganizationAction {
         /// The organization, by name or identifier.
         organization: String,
     },
+    /// The delegation ceiling at an organization: the longest a grant beneath a set subject
+    /// lasts there (§5.1 of docs/08-identity.md). With `--set` or `--remove`, changes its own,
+    /// under `org.write` there; below the root it may only lower what is in force above it.
+    Ceiling {
+        /// The organization, by name or identifier; the top one you can read by default.
+        organization: Option<String>,
+        /// Sets its own: a number then h or d, an hour at least.
+        #[arg(long, conflicts_with = "remove")]
+        set: Option<String>,
+        /// Removes its own, leaving the one above it in force.
+        #[arg(long)]
+        remove: bool,
+    },
 }
 
 /// `korpis project …`.
@@ -130,6 +143,10 @@ pub async fn organization(c: &Connection, a: &OrganizationAction) -> Result<Answ
                 ..Default::default()
             };
             client.resume_organization(request).await?.into_owned().organization
+        }
+        OrganizationAction::Ceiling { organization, set, remove } => {
+            let asked = (set.as_deref(), *remove);
+            return super::ceiling::ceiling(c, organization.as_deref(), asked).await;
         }
     };
     let o = o.into_option().unwrap_or_default();

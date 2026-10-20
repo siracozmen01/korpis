@@ -18,6 +18,7 @@ mod declared;
 mod events;
 mod extensions;
 mod grants;
+mod identity;
 mod login;
 mod quota;
 mod recipe;

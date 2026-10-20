@@ -628,9 +628,11 @@ asks the reseller to declare the binding, because bindings live where the provid
 The same person at two organizations' providers is two subjects. An edit of a binding narrows at
 once and widens only forward: withdrawing the override reaches every grant at its next use, while
 allowing it, or moving the binding to another template, reaches grants issued after the edit, as an
-edit of a template does (§4); widening one already issued is revoking it and issuing again. And
-until re-verification is built (§5.1, Phase 2 of `20-roadmap.md` §4), a binding stays `unverified`,
-so nothing rooted in one is usable yet: the order fails closed.
+edit of a template does (§4); widening one already issued is revoking it and issuing again. A
+binding is usable only once its provider has first confirmed it (§5.1), so until then the order
+fails closed. (Corrected 2026-10-20, when the panel and CLI for bindings were built: this said a
+binding stays `unverified` until re-verification is built, which stood after re-verification was
+built in §5.1 and was no longer true.)
 
 ### 5.1 Losing a role removes authority only if something notices
 
@@ -749,7 +751,10 @@ subject ended is recorded whatever came between, because it only ever moves a bi
 so one asked under the old terms is not recorded, and makes the binding due at once. The members
 who delegated are asked about in the same question (Members, as built, below). A binding nobody
 asks lapses after its interval and grace anyway, which §5 derives at every use, so a stopped loop
-fails closed.
+fails closed. A read of a binding derives its state the same way, at the control plane's clock, so
+one whose last confirmation, interval, and grace have passed reads `unverified` before anything
+records it, rather than `verified` while everything rooted in it is suspended (Finding 118 of
+`23-walkthroughs.md`, found when the panel and CLI first showed a binding's state).
 
 **Members, as built.** Added 2026-10-20. A grant issued from a parent its issuer holds through a
 set records `via: {set, member}`, and issuance refuses one that leaves it out or names it falsely.

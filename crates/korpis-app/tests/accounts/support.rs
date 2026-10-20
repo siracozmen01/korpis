@@ -68,7 +68,7 @@ impl Clock for TestClock {
 }
 
 pub struct Fixture {
-    _db: TestDb,
+    pub db: TestDb,
     pub app: App<PgStore, TestClock, NoRecipes>,
     pub clock: TestClock,
     pub root: Caller,
@@ -91,7 +91,7 @@ pub async fn fixture_with(limits: SessionLimits) -> Fixture {
     let installed =
         app.install(Name::parse("acme").unwrap(), RootHolder::Token, None).await.unwrap();
     let root = Caller::new(Principal::Token(installed.token().unwrap().0.id), None, false);
-    Fixture { _db: db, app, clock, root, organization: installed.organization.id }
+    Fixture { db, app, clock, root, organization: installed.organization.id }
 }
 
 /// Issues `workload.read` on the organization to a new user called `display_name`; answers its

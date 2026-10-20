@@ -69,6 +69,7 @@ async fn the_commands_are_the_api_by_name() {
 
     let effects = ok(&cp.korpis(&s, &["get", "effects", "--workload", "sleeper"]).await);
     assert!(effects.lines().count() > 2 && effects.contains("grt_"), "named grants: {effects}");
+    assert!(effects.contains("RELAYED BY"), "the relay has a column: {effects}");
 
     let token = cp
         .korpis(&s, &["node", "token", "create", "n1", "--label", "region=eu", "--expires", "30m"])

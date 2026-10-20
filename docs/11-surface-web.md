@@ -255,6 +255,22 @@ rendered as locked. It is not rendered.
 > plane's refusal of a set that breaks a bound around it is said in its words. The editor writes
 > labels, not label expressions; an entry's expressions are kept as they were read and said to be
 > there, and `quota set` edits them.
+>
+> Identity as built, 2026-10-20 (`web/src/identity/`). An organization's page lists the identity
+> bindings declared there to everyone who reads it (§5 of `08-identity.md`): each subject, its
+> provider, its state, when its provider last confirmed it, and its interval and grace said in one
+> sentence with their sum, the longest an unreachable provider extends it, since shown apart the
+> two read as a window shorter than the one enforced. A signed-in caller holding
+> `identity.binding.write` there, read as the roles' editor reads `template.write`, binds a person
+> or a set at a provider installed there, edits a binding's interval and grace against the
+> version shown, keeping what the form does not name, retires one, and asks its provider now, the
+> answer or the reason there was none said in the control plane's words. The page shows the
+> delegation ceiling in force and the organization's own (§5.1 of `08-identity.md`), and a caller
+> holding `org.write` there sets or removes its own; one above what is in force above is refused
+> by the control plane, in its words, rather than by the form, which holds only what it read. A
+> share link is offered none of it. What it does not show: the effects of a relayed call, with the
+> client that relayed them, are read by `korpis get effects` until the tenant-visible audit of
+> Phase 2 (`20-roadmap.md` §4) gives the panel an effect log at all.
 
 ---
 

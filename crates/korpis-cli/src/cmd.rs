@@ -6,6 +6,7 @@
 
 pub mod act;
 pub mod backup;
+pub mod ceiling;
 pub mod certificate;
 pub mod classify;
 pub mod clone;
@@ -16,6 +17,7 @@ pub mod extension;
 pub mod files;
 pub mod get;
 pub mod grant;
+pub mod identity;
 pub mod logs;
 pub mod logs_offloaded;
 pub mod provider;
