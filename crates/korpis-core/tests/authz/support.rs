@@ -18,6 +18,8 @@ pub struct Tree {
     pub suspended: BTreeSet<ObjectRef>,
     /// The live bindings of external subjects, by key (§5 of docs/08-identity.md).
     pub bindings: HashMap<String, Vouched>,
+    /// The delegation ceilings organizations set (§5.1 of docs/08-identity.md).
+    pub ceilings: HashMap<ObjectRef, Duration>,
     pub host: ObjectRef,
     pub reseller: ObjectRef,
     pub customer: ObjectRef,
@@ -45,6 +47,7 @@ impl Tree {
             labels,
             suspended: BTreeSet::new(),
             bindings: HashMap::new(),
+            ceilings: HashMap::new(),
             host,
             reseller,
             customer,
@@ -64,6 +67,7 @@ impl Hierarchy for Tree {
                 object: o,
                 labels: self.labels.get(&o).cloned().unwrap_or_default(),
                 suspended: self.suspended.contains(&o),
+                ceiling: self.ceilings.get(&o).copied(),
             });
             at = self.parents.get(&o).copied();
         }
@@ -86,9 +90,9 @@ pub fn days(n: u64) -> Duration {
 /// The root grant created at installation: everything, unbounded delegation.
 pub fn root(tree: &Tree, now: SystemTime) -> Grant {
     let all: Vec<&str> = korpis_core::authz::action::CORE.to_vec();
-    let _ = now;
     Grant {
         id: Uuid::now_v7(),
+        issued_at: now,
         subject: Subject::new("user:host-admin"),
         actions: actions(&all),
         scope: Scope::Object(tree.host),
@@ -107,6 +111,7 @@ pub fn root(tree: &Tree, now: SystemTime) -> Grant {
 pub fn child(parent: &Grant, subject: &str, acts: &[&str], scope: Scope) -> Grant {
     Grant {
         id: Uuid::now_v7(),
+        issued_at: parent.issued_at,
         subject: Subject::new(subject),
         actions: actions(acts),
         scope,

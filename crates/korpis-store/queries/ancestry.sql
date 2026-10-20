@@ -5,7 +5,8 @@
 -- scoped to the whole of it, and a domain's or a certificate's the organization holding it. One
 -- statement walks from the object to its organization and then up the organization tree, so the
 -- answer is consistent with a single snapshot. An organization says whether it is suspended,
--- which authorization derives every grant's suspension from (§2.1 of docs/08-identity.md).
+-- which authorization derives every grant's suspension from (§2.1 of docs/08-identity.md), and
+-- the delegation ceiling it sets, if it sets one (§5.1).
 WITH RECURSIVE
 start AS (
     SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,
@@ -56,7 +57,8 @@ orgs AS (
 SELECT chain.kind AS "kind!", chain.id AS "id!", chain.labels AS "labels!",
        chain.depth AS "depth!",
        (chain.kind = 'organization' AND coalesce(o.status = 'suspended', false))
-           AS "suspended!"
+           AS "suspended!",
+       o.delegation_ceiling_ms AS "ceiling_ms?"
   FROM (
     SELECT kind, id, labels, depth FROM start
     UNION ALL

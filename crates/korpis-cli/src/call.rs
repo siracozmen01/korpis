@@ -99,6 +99,10 @@ table! {
     "korpis.v1.OrganizationService/ResumeOrganization" => OrganizationServiceClient::resume_organization(ResumeOrganizationRequest);
     "korpis.v1.OrganizationService/GetTrustPolicy" => OrganizationServiceClient::get_trust_policy(GetTrustPolicyRequest);
     "korpis.v1.OrganizationService/SetTrustPolicy" => OrganizationServiceClient::set_trust_policy(SetTrustPolicyRequest);
+    "korpis.v1.OrganizationService/GetDelegationCeiling" =>
+        OrganizationServiceClient::get_delegation_ceiling(GetDelegationCeilingRequest);
+    "korpis.v1.OrganizationService/SetDelegationCeiling" =>
+        OrganizationServiceClient::set_delegation_ceiling(SetDelegationCeilingRequest);
     "korpis.v1.OrganizationService/GetTheme" => OrganizationServiceClient::get_theme(GetThemeRequest);
     "korpis.v1.OrganizationService/SetTheme" => OrganizationServiceClient::set_theme(SetThemeRequest);
     "korpis.v1.ProjectService/CreateProject" => ProjectServiceClient::create_project(CreateProjectRequest);

@@ -152,7 +152,11 @@ impl Containerd {
         }
     }
 
-    /// Writes the blob `digest` from the store into containerd's, unless it holds it.
+    /// Writes the blob `digest` from the store into containerd's, unless it holds it. As
+    /// containerd's own client does, a write refused because another holds the same ingest ref,
+    /// importing the same content, is asked again until that one is done, and a commit answered
+    /// that the content already exists is a write: two workloads of one image placed at once
+    /// both import it, and neither may fail for the other.
     async fn write(
         &self,
         lease: &str,
@@ -160,12 +164,36 @@ impl Containerd {
         size: u64,
         labels: BTreeMap<String, String>,
     ) -> DriverResult<()> {
-        if self.holds(digest).await? {
-            return Ok(());
+        let started = tokio::time::Instant::now();
+        let mut wait = LOCKED_FIRST;
+        loop {
+            if self.holds(digest).await? {
+                return Ok(());
+            }
+            match self.write_once(lease, digest, size, &labels).await {
+                Ok(()) | Err(Writing::Exists) => return Ok(()),
+                Err(Writing::Locked(why)) if started.elapsed() < LOCKED_AT_MOST => {
+                    tracing::debug!(digest, why, "another import holds the blob; waiting");
+                    tokio::time::sleep(wait).await;
+                    wait = (wait * 2).min(LOCKED_MOST);
+                }
+                Err(Writing::Locked(why)) => return Err(DriverError::Unavailable(why)),
+                Err(Writing::Other(e)) => return Err(e),
+            }
         }
+    }
+
+    /// One write of the blob `digest`, under the ingest ref its digest names.
+    async fn write_once(
+        &self,
+        lease: &str,
+        digest: &str,
+        size: u64,
+        labels: &BTreeMap<String, String>,
+    ) -> Result<(), Writing> {
         let mut file = tokio::fs::File::open(self.blob(digest)?).await?;
         if file.metadata().await?.len() != size {
-            return Err(failed(format!("{digest} in the content store is not {size} bytes")));
+            return Err(failed(format!("{digest} in the content store is not {size} bytes")).into());
         }
         let client = content::ContentClient::new(self.conn.clone(), self.config.clone());
         let mut stream = client.write_with_options(under(lease)).await?;
@@ -195,11 +223,54 @@ impl Containerd {
             offset = offset.saturating_add(i64::try_from(n).unwrap_or(i64::MAX));
         }
         let mut commit = request(content::WriteAction::COMMIT, offset, Vec::new());
-        commit.labels = labels;
+        commit.labels.clone_from(labels);
         stream.send(commit).await?;
         stream.close_send();
         while stream.message::<content::WriteContentResponse>().await?.is_some() {}
         Ok(())
+    }
+}
+
+/// How long a write waits first for another import of the same blob to finish, and at most
+/// between askings.
+const LOCKED_FIRST: std::time::Duration = std::time::Duration::from_millis(100);
+const LOCKED_MOST: std::time::Duration = std::time::Duration::from_secs(2);
+/// How long a write waits for another import in all before it is the driver's failure: longer
+/// than any one blob takes to write on a node that can run what it is given.
+const LOCKED_AT_MOST: std::time::Duration = std::time::Duration::from_secs(600);
+
+/// How one write of a blob ended, when it did not.
+enum Writing {
+    /// containerd answered `Unavailable`, which its content service says of an ingest ref
+    /// another writer holds.
+    Locked(String),
+    /// The commit found the content already there.
+    Exists,
+    /// Anything else.
+    Other(DriverError),
+}
+
+impl From<connectrpc::ConnectError> for Writing {
+    fn from(e: connectrpc::ConnectError) -> Self {
+        match e.code {
+            connectrpc::ErrorCode::Unavailable => {
+                Self::Locked(e.message.unwrap_or_else(|| "locked".into()))
+            }
+            connectrpc::ErrorCode::AlreadyExists => Self::Exists,
+            _ => Self::Other(e.into()),
+        }
+    }
+}
+
+impl From<DriverError> for Writing {
+    fn from(e: DriverError) -> Self {
+        Self::Other(e)
+    }
+}
+
+impl From<std::io::Error> for Writing {
+    fn from(e: std::io::Error) -> Self {
+        Self::Other(e.into())
     }
 }
 
@@ -218,5 +289,44 @@ fn media(d: &Document) -> &'static str {
     match d {
         Document::Index(_) => oci::OCI_INDEX,
         Document::Image { .. } => oci::OCI_MANIFEST,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    /// Only where containerd runs and this process may reach it, which takes root.
+    const SOCKET: &str = "/run/containerd/containerd.sock";
+
+    #[tokio::test]
+    async fn two_imports_of_one_blob_at_once_both_succeed() {
+        if std::os::unix::net::UnixStream::connect(SOCKET).is_err() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        // A blob nobody has imported before, large enough that two writes of it overlap.
+        let mut bytes = vec![0u8; 3 * CHUNK];
+        let nonce = uuid::Uuid::now_v7();
+        for (i, b) in bytes.iter_mut().enumerate() {
+            *b = nonce.as_bytes()[i % 16] ^ u8::try_from(i % 251).unwrap();
+        }
+        let digest = oci::digest_of(&bytes);
+        let blobs = dir.path().join("blobs/sha256");
+        std::fs::create_dir_all(&blobs).unwrap();
+        std::fs::write(blobs.join(oci::hex_of(&digest).unwrap()), &bytes).unwrap();
+        let c = Containerd::connect(Path::new(SOCKET), dir.path()).await.unwrap();
+        let lease = c.lease().await.unwrap();
+        let size = u64::try_from(bytes.len()).unwrap();
+        let (a, b) = tokio::join!(
+            c.write(&lease, &digest, size, BTreeMap::new()),
+            c.write(&lease, &digest, size, BTreeMap::new()),
+        );
+        let held = c.holds(&digest).await;
+        c.release(&lease).await;
+        a.unwrap();
+        b.unwrap();
+        assert!(held.unwrap(), "containerd holds the blob once, under the lease");
     }
 }

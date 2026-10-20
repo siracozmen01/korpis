@@ -50,18 +50,25 @@ pub async fn installed_from(h: &Harness, n: u8, project_name: &str, repo: String
     };
     let done = h.extensions(h.root()).install_extension(req).await.unwrap().into_owned();
     let extension = done.extension.into_option().unwrap();
-    held(&mut session, &extension.workload, n).await;
-    let secret = credential(&mut session, &extension.workload).await;
+    held(&mut session, &extension.workload, n, 0).await;
+    let secret = credential(&mut session, &extension.workload, n).await;
     Installed { extension, secret, _session: session }
 }
 
 /// `workload`'s credential, asked again after every retryable refusal as an agent asks: on a
-/// loaded machine the store may answer `credential.unavailable` for a while.
-async fn credential(session: &mut agent::Stream, workload: &str) -> String {
+/// loaded machine the store may answer `credential.unavailable` for a while, and the harness's
+/// two-second lease may lapse before the ask, so a lapsed lease is taken again first, as an
+/// agent renews its own.
+async fn credential(session: &mut agent::Stream, workload: &str, n: u8) -> String {
     let mut last = String::new();
     for attempt in 0..40u8 {
         match ask(session, workload, &format!("c{attempt}")).await {
             Outcome::Credential(issued) => return issued.secret.clone(),
+            Outcome::Refused(e) if e.reason == "credential.no_lease" => {
+                last.clone_from(&e.reason);
+                held(session, workload, n, attempt.saturating_add(1)).await;
+                continue;
+            }
             Outcome::Refused(e) if e.retryable => last.clone_from(&e.reason),
             Outcome::Refused(e) => panic!("the workload's credential was refused: {}", e.reason),
         }
@@ -72,11 +79,11 @@ async fn credential(session: &mut agent::Stream, workload: &str) -> String {
 
 /// Asks for `workload`'s lease until it is granted, as an agent does: the credential is asked
 /// once the lease is held, and a request that arrives before the workload is placed is refused.
-async fn held(session: &mut agent::Stream, workload: &str, n: u8) {
+async fn held(session: &mut agent::Stream, workload: &str, n: u8, round: u8) {
     for attempt in 0..20u8 {
         let lease = wire_agent::LeaseRequest {
             workload: workload.to_owned(),
-            nonce: vec![n, attempt, 0, 0, 0, 0, 0, 0],
+            nonce: vec![n, attempt, round, 0, 0, 0, 0, 0],
             ..Default::default()
         };
         send(session, AgentUp::LeaseRequest(Box::new(lease))).await;

@@ -3,6 +3,7 @@
 //! Tenancy: organizations and projects (§3.1 of docs/01-model.md), and each organization's
 //! recipe trust policy (§7 of docs/09-recipes.md) and theme (§7 of docs/11-surface-web.md).
 
+mod ceiling;
 mod organizations;
 mod projects;
 mod quota;
@@ -10,6 +11,7 @@ mod suspension;
 mod theme;
 mod trust;
 
+pub use ceiling::{Ceiling, MAX_CEILING, MIN_CEILING};
 pub use organizations::CreateOrganization;
 pub use projects::CreateProject;
 pub use quota::{QuotaSetAt, SetQuota};

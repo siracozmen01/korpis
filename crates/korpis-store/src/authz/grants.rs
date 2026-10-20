@@ -47,6 +47,7 @@ impl GrantRow {
         Ok(GrantRecord {
             grant: Grant {
                 id: self.id,
+                issued_at: to_time(self.issued_at),
                 subject: holder.subject(),
                 actions: actions(&self.actions)?,
                 scope: scope.into_domain()?,

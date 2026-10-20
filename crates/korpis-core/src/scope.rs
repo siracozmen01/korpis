@@ -49,6 +49,9 @@ pub struct Node {
     pub labels: BTreeMap<String, String>,
     /// Whether it is an organization that is suspended (§2.1 of docs/08-identity.md).
     pub suspended: bool,
+    /// For an organization: the delegation ceiling it sets for its subtree, the longest a grant
+    /// beneath a set subject lasts there (§5.1 of docs/08-identity.md), if it sets one.
+    pub ceiling: Option<std::time::Duration>,
 }
 
 /// An object together with its ancestry, from the object itself up to its root organization.
@@ -64,7 +67,9 @@ impl Resource {
     /// scoped above it cannot, because nothing here says what is above.
     #[must_use]
     pub fn alone(object: ObjectRef) -> Self {
-        Self { chain: vec![Node { object, labels: BTreeMap::new(), suspended: false }] }
+        Self {
+            chain: vec![Node { object, labels: BTreeMap::new(), suspended: false, ceiling: None }],
+        }
     }
 
     /// The object itself.

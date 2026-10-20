@@ -70,6 +70,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for &(i, need) in needs {
             let mut grant = Grant {
                 id: Uuid::now_v7(),
+                issued_at: now,
                 subject: holder.subject(),
                 actions: need.actions.iter().cloned().collect(),
                 scope: Scope::Object(place.object(need.scope)),
@@ -130,6 +131,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             object: ObjectRef::new(Kind::Workload, workload.id),
             labels: workload.labels.as_map().clone(),
             suspended: false,
+            ceiling: None,
         };
         Ok(Resource { chain: std::iter::once(node).chain(project).collect() })
     }

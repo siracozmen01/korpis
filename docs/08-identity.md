@@ -711,6 +711,25 @@ membership that ended while the delegation tree stays intact. The ceiling catche
 re-verification itself is misconfigured, unreachable, or set too long, and it does so without
 asking anyone to have got a number right.
 
+**The ceiling, as built.** Added 2026-10-20. An organization sets its own with
+`SetDelegationCeiling` under `org.write` there, and `GetDelegationCeiling` under `org.read` says
+both its own and the one in force. The one in force at a scope is the lowest any organization
+along it sets, seven days where none does. Below the root an organization may set at most what is
+in force above it, so only the root raises it, to ninety days at most; none is shorter than an
+hour, and every change is an `org.delegation_ceiling.set` effect. Evaluation holds it, not issue
+alone: a grant keeps when it was issued, and a link beneath a set-subject link on its chain stands
+until then plus the ceiling at its own scope, whatever its expiry says. So a ceiling lowered later
+reaches grants already issued at their next use or renewal, and a root that raises it lengthens
+what was cut. A grant issued beneath a set has its expiry clamped to the ceiling as well, so what
+it shows is what is enforced (Rule K-3). The set's own grant is not beneath a set and is not held
+to it.
+
+What this costs. A verifier that holds a chain without the ancestry of its scopes takes the
+default, which refuses early beneath a root that raised the ceiling. And nothing is issued beneath
+a set until a member can issue: a relayed call issues nothing (§5.2), so the first issuers are the
+signed-in external users of OIDC (Phase 2 of `20-roadmap.md` §4), and until then the ceiling is
+held by evaluation over grants nobody has yet been able to make.
+
 **Re-verification, as built.** Added 2026-10-20. The control plane asks the binding's own provider,
 never an ancestor's provider of the same name, with `VerifyMembers` over the provider's stream (the
 `provider.identity` capability, §6 of `16-extensions.md`): for a set, whether it still exists and

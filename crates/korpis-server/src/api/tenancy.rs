@@ -127,6 +127,22 @@ impl pb::OrganizationService for Api {
         super::trust::set(self, &ctx, request).await
     }
 
+    async fn get_delegation_ceiling(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetDelegationCeilingRequest>,
+    ) -> ServiceResult<pb::GetDelegationCeilingResponse> {
+        super::ceiling::get(self, &ctx, request).await
+    }
+
+    async fn set_delegation_ceiling(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetDelegationCeilingRequest>,
+    ) -> ServiceResult<pb::SetDelegationCeilingResponse> {
+        super::ceiling::set(self, &ctx, request).await
+    }
+
     async fn get_theme(
         &self,
         ctx: RequestContext,

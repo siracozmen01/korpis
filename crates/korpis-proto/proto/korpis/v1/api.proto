@@ -106,6 +106,14 @@ service OrganizationService {
   // org.write. Sets or removes the organization's own policy. mutation.expected_version is
   // the own_version GetTrustPolicy returned, absent when the organization has none.
   rpc SetTrustPolicy(SetTrustPolicyRequest) returns (SetTrustPolicyResponse);
+  // org.read. The delegation ceiling at the organization (§5.1 of docs/08-identity.md): the
+  // longest a grant beneath a set subject lasts there, as it sets it and as it is in force.
+  rpc GetDelegationCeiling(GetDelegationCeilingRequest) returns (GetDelegationCeilingResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.write. Sets or removes the organization's own ceiling: at least an hour, and below the
+  // root at most what is in force above it, so only the root raises it (at most ninety days).
+  rpc SetDelegationCeiling(SetDelegationCeilingRequest) returns (SetDelegationCeilingResponse);
   // The theme that applies to an organization, a project, or a workload (§7 of
   // docs/11-surface-web.md): its organization's own, else its nearest ancestor's. Under the read
   // action of the object asked about.
@@ -1713,4 +1721,31 @@ message ListIdentityBindingsRequest {
 message ListIdentityBindingsResponse {
   repeated IdentityBinding bindings = 1;
   PageResponse page = 2;
+}
+
+// The delegation ceiling at an organization (§5.1 of docs/08-identity.md).
+message DelegationCeiling {
+  // The one the organization sets itself; absent when it sets none.
+  google.protobuf.Duration own = 1;
+  // The one in force there: the lowest along its organizations, seven days when none sets one.
+  google.protobuf.Duration effective = 2;
+}
+
+message GetDelegationCeilingRequest {
+  string organization = 1;
+}
+
+message GetDelegationCeilingResponse {
+  DelegationCeiling ceiling = 1;
+}
+
+message SetDelegationCeilingRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // Absent removes the organization's own.
+  google.protobuf.Duration ceiling = 3;
+}
+
+message SetDelegationCeilingResponse {
+  DelegationCeiling ceiling = 1;
 }

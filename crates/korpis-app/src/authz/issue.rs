@@ -221,6 +221,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut record = GrantRecord {
             grant: Grant {
                 id,
+                issued_at: now,
                 subject: holder.subject(),
                 actions: cmd.actions,
                 scope: cmd.scope,
@@ -245,6 +246,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         self.vouched(&mut record).await?;
         let parent = self.parent_for(caller, &mut record.grant).await?;
+        self.clamp_to_ceiling(&mut record.grant, now).await?;
         self.record_issue(caller, idem, record, &parent, created).await
     }
 
@@ -269,7 +271,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         match &created {
             Created::Nothing => {}
             Created::Token(t, secret) => {
-                tx.insert_token(t, &secret.digest(), &caller.principal).await?;
+                // Its token lasts as its grant does, which a delegation ceiling may have clamped.
+                let t = ApiToken { expires_at: record.grant.conditions.expires_at, ..t.clone() };
+                tx.insert_token(&t, &secret.digest(), &caller.principal).await?;
             }
             Created::User(account, invitation, secret) => {
                 tx.insert_account(account).await?;

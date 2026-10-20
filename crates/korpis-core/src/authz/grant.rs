@@ -91,6 +91,9 @@ pub struct Delegation {
 pub struct Grant {
     /// Immutable identity.
     pub id: Uuid,
+    /// When it was issued, from which a delegation ceiling counts (§5.1 of
+    /// docs/08-identity.md).
+    pub issued_at: SystemTime,
     /// Who holds it.
     pub subject: Subject,
     /// What it permits.

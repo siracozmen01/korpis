@@ -14,6 +14,7 @@ use korpis_app::ports::{StoreError, StoreResult, TenancyRead, TenancyWrite};
 use korpis_core::labels::Labels;
 use korpis_core::tenancy::{Name, Organization, OrganizationStatus, Project};
 use std::collections::BTreeMap;
+use std::time::Duration;
 use suspension::{decode, encode};
 use uuid::Uuid;
 
@@ -190,6 +191,35 @@ impl TenancyWrite for PgTx {
         .map_err(from_sqlx)?
         .map(OrganizationRow::into_domain)
         .transpose()
+    }
+
+    async fn set_delegation_ceiling(
+        &mut self,
+        id: Uuid,
+        ceiling: Option<Duration>,
+    ) -> StoreResult<Option<Option<Duration>>> {
+        let ms = ceiling
+            .map(|c| i64::try_from(c.as_millis()))
+            .transpose()
+            .map_err(|_| StoreError::Corrupt("delegation ceiling too long".into()))?;
+        let replaced = sqlx::query_scalar!(
+            "UPDATE organization o SET delegation_ceiling_ms = $2
+               FROM (SELECT delegation_ceiling_ms FROM organization WHERE id = $1 FOR UPDATE) old
+              WHERE o.id = $1
+             RETURNING old.delegation_ceiling_ms",
+            id,
+            ms
+        )
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        replaced
+            .map(|old| {
+                old.map(|ms| u64::try_from(ms).map(Duration::from_millis))
+                    .transpose()
+                    .map_err(|_| StoreError::Corrupt("delegation ceiling".into()))
+            })
+            .transpose()
     }
 
     async fn insert_project(&mut self, p: &Project) -> StoreResult<()> {

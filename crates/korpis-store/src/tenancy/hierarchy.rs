@@ -7,6 +7,7 @@ use crate::PgStore;
 use crate::errors::from_sqlx;
 use korpis_app::ports::{HierarchyRead, StoreError, StoreResult};
 use korpis_core::authz::{Kind, Node, ObjectRef};
+use std::time::Duration;
 
 impl HierarchyRead for PgStore {
     async fn ancestry(&self, object: ObjectRef) -> StoreResult<Vec<Node>> {
@@ -22,6 +23,11 @@ impl HierarchyRead for PgStore {
                     object: ObjectRef::new(kind, r.id),
                     labels: labels(r.labels)?.into_map(),
                     suspended: r.suspended,
+                    ceiling: r
+                        .ceiling_ms
+                        .map(|ms| u64::try_from(ms).map(Duration::from_millis))
+                        .transpose()
+                        .map_err(|_| StoreError::Corrupt("delegation ceiling".into()))?,
                 })
             })
             .collect()

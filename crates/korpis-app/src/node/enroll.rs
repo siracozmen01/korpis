@@ -107,6 +107,7 @@ pub(crate) fn enrollment_grant(parent: Uuid, one: OneUse) -> Result<GrantRecord,
     Ok(GrantRecord {
         grant: Grant {
             id: one.grant,
+            issued_at: one.created.1,
             subject: holder.subject(),
             actions: BTreeSet::from([enroll]),
             scope: Scope::Object(ObjectRef::new(Kind::Organization, one.organization)),

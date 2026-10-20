@@ -249,6 +249,7 @@ pub fn verify_chain(
         if !in_force(&link.conditions, now) {
             return Err(ChainError::NotInForce(link.id));
         }
+        super::binding::within_ceiling(chain, i, hierarchy, now)?;
         let narrowed = super::binding::vouched_form(link, hierarchy, now)?;
         let link = narrowed.as_ref().unwrap_or(link);
         match (link.parent, chain.get(i + 1)) {

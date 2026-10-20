@@ -95,6 +95,8 @@ Organization
   parent        OrgID?         null for a root organization
   quota         QuotaSet       what this org may consume (§5.1 of `05-scheduling.md`)
   status        active | suspended     reversible, from above only (§2.1 of 08-identity.md)
+  delegation_ceiling  Duration?  the longest a grant beneath a set subject lasts in its subtree
+                                 (§5.1 of 08-identity.md)
   created       Timestamp
 ```
 

@@ -24,6 +24,7 @@ mod backups;
 mod bindings;
 mod bootstrap;
 mod cancel;
+mod ceiling;
 mod certificates;
 mod churn;
 mod classify;

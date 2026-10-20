@@ -6,6 +6,7 @@ use super::StoreResult;
 use crate::page::Page;
 use korpis_core::tenancy::{Organization, OrganizationStatus, Project};
 use std::future::Future;
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Reading organizations and projects.
@@ -56,6 +57,15 @@ pub trait TenancyWrite {
         version: u64,
         to: &OrganizationStatus,
     ) -> impl Future<Output = StoreResult<Option<Organization>>> + Send;
+
+    /// Sets the delegation ceiling organization `id` sets for its subtree, or removes it with
+    /// `None` (§5.1 of docs/08-identity.md); the one it replaced, or `None` outside if the
+    /// organization does not exist.
+    fn set_delegation_ceiling(
+        &mut self,
+        id: Uuid,
+        ceiling: Option<Duration>,
+    ) -> impl Future<Output = StoreResult<Option<Option<Duration>>>> + Send;
 
     /// Inserts a project. A project with the same name in the organization is
     /// [`Unique::ProjectName`](super::Unique::ProjectName).
