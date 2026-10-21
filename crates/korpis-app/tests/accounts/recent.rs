@@ -15,7 +15,7 @@ fn not_recent(e: &AppError) -> bool {
 }
 
 async fn assertion(f: &crate::support::Fixture, browser: &mut SoftAuthenticator) -> Assertion {
-    let options = f.app.begin_sign_in().await.unwrap();
+    let options = f.app.begin_sign_in(None).await.unwrap();
     let got = browser.get(&options.challenge);
     Assertion {
         challenge: options.challenge_id,

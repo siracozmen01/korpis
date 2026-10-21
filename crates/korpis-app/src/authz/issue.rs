@@ -352,6 +352,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for g in chain.iter().chain(std::iter::once(&*child)) {
             snapshot.load_grant(&self.store, g).await?;
         }
+        caller.confined(
+            korpis_core::authz::Hierarchy::resource(&snapshot, child.scope.anchor()).as_ref(),
+        )?;
         let allows = self.binding_allows_irreversible(child).await?;
         let issuer = (&caller.subject, &caller.memberships[..]);
         issue(issuer, &chain, child, allows, &snapshot, self.clock.now())

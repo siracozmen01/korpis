@@ -8,7 +8,7 @@ use crate::errors::from_sqlx;
 use crate::stored::{from_time, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{Presented, StoreError, StoreResult, UserSessionRead, UserSessionWrite};
-use korpis_core::account::session::{Holder, SessionKind, UserSession};
+use korpis_core::account::session::{AtPortal, Holder, SessionKind, UserSession};
 use korpis_core::principal::SetName;
 use serde_json::Value;
 use std::time::{Duration, SystemTime};
@@ -26,6 +26,8 @@ struct SessionRow {
     expires_at: chrono::DateTime<chrono::Utc>,
     user_agent: String,
     source: String,
+    portal_id: Option<Uuid>,
+    portal_organization: Option<Uuid>,
 }
 
 impl TryFrom<SessionRow> for UserSession {
@@ -37,6 +39,13 @@ impl TryFrom<SessionRow> for UserSession {
             (Some(a), None) => Holder::Account(a),
             (None, Some(b)) => Holder::Person(b),
             _ => return Err(corrupt("holder")),
+        };
+        // A session's portal is never read without its organization, which confines it: one
+        // missing would leave the session reaching everything.
+        let portal = match (r.portal_id, r.portal_organization) {
+            (Some(portal), Some(organization)) => Some(AtPortal { portal, organization }),
+            (None, _) => None,
+            (Some(_), None) => return Err(corrupt("portal")),
         };
         Ok(Self {
             id: r.id,
@@ -50,6 +59,7 @@ impl TryFrom<SessionRow> for UserSession {
             expires_at: to_time(r.expires_at),
             user_agent: r.user_agent,
             source: r.source,
+            portal,
         })
     }
 }
@@ -74,11 +84,12 @@ impl UserSessionRead for PgStore {
     async fn user_sessions(&self, holder: Holder) -> StoreResult<Vec<UserSession>> {
         let rows = sqlx::query_as!(
             SessionRow,
-            "SELECT id, account_id, binding_id, sets, kind, created_at, last_used_at, authenticated_at,
-                    expires_at, user_agent, source
-               FROM user_session
-              WHERE (account_id = $1 OR binding_id = $2)
-              ORDER BY created_at DESC, id",
+            "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,
+                    s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,
+                    p.organization_id AS \"portal_organization?\"
+               FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id
+              WHERE (s.account_id = $1 OR s.binding_id = $2)
+              ORDER BY s.created_at DESC, s.id",
             holder.account(),
             holder.binding()
         )
@@ -91,11 +102,12 @@ impl UserSessionRead for PgStore {
     async fn user_session(&self, holder: Holder, id: Uuid) -> StoreResult<Option<UserSession>> {
         let row = sqlx::query_as!(
             SessionRow,
-            "SELECT id, account_id, binding_id, sets, kind, created_at, last_used_at, authenticated_at,
-                    expires_at, user_agent, source
-               FROM user_session
-              WHERE (account_id = $1 OR binding_id = $2)
-                AND id = $3",
+            "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at, s.last_used_at,
+                    s.authenticated_at, s.expires_at, s.user_agent, s.source, s.portal_id,
+                    p.organization_id AS \"portal_organization?\"
+               FROM user_session s LEFT JOIN portal p ON p.id = s.portal_id
+              WHERE (s.account_id = $1 OR s.binding_id = $2)
+                AND s.id = $3",
             holder.account(),
             holder.binding(),
             id
@@ -134,8 +146,8 @@ impl UserSessionWrite for PgTx {
         sqlx::query!(
             "INSERT INTO user_session (id, account_id, binding_id, sets, kind, refresh_hash,
                                        created_at, last_used_at, authenticated_at, expires_at,
-                                       user_agent, source)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+                                       user_agent, source, portal_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
             s.id,
             s.holder.account(),
             s.holder.binding(),
@@ -147,7 +159,8 @@ impl UserSessionWrite for PgTx {
             from_time(s.authenticated_at),
             from_time(s.expires_at),
             s.user_agent,
-            s.source
+            s.source,
+            s.portal.map(|p| p.portal)
         )
         .execute(&mut *self.tx)
         .await
@@ -159,11 +172,13 @@ impl UserSessionWrite for PgTx {
         let current = sqlx::query!(
             r#"SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,
                       s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,
+                      s.portal_id, p.organization_id AS "portal_organization?",
                       CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL
                            ELSE b.retired_at IS NULL END AS "usable!"
                  FROM user_session s
                  LEFT JOIN account a ON a.id = s.account_id
                  LEFT JOIN identity_binding b ON b.id = s.binding_id
+                 LEFT JOIN portal p ON p.id = s.portal_id
                 WHERE s.refresh_hash = $1 FOR UPDATE OF s"#,
             digest.as_slice()
         )
@@ -183,6 +198,8 @@ impl UserSessionWrite for PgTx {
                 expires_at: r.expires_at,
                 user_agent: r.user_agent,
                 source: r.source,
+                portal_id: r.portal_id,
+                portal_organization: r.portal_organization,
             };
             return Ok(Presented::Current {
                 session: UserSession::try_from(row)?,

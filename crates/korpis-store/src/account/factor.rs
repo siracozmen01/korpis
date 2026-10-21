@@ -20,8 +20,8 @@ pub(super) async fn insert_passkey(tx: &mut PgTx, p: &Passkey) -> StoreResult<()
         .map_err(|_| StoreError::Failed(format!("algorithm {}", p.algorithm.cose())))?;
     sqlx::query!(
         "INSERT INTO passkey (credential_id, account_id, public_key, algorithm, sign_count, aaguid,
-                              backup_eligible, label, created_at, last_used_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                              backup_eligible, label, created_at, last_used_at, portal_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
         p.credential_id,
         p.account,
         p.public_key,
@@ -31,7 +31,8 @@ pub(super) async fn insert_passkey(tx: &mut PgTx, p: &Passkey) -> StoreResult<()
         p.backup_eligible,
         p.label,
         from_time(p.created_at),
-        p.last_used_at.map(from_time)
+        p.last_used_at.map(from_time),
+        p.portal
     )
     .execute(&mut *tx.tx)
     .await

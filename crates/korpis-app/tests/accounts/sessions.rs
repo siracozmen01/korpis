@@ -40,7 +40,7 @@ async fn a_user_lists_their_sessions_and_ends_the_others() {
     let invitation = invite(&f, "A Friend").await;
     let phone = browser();
     let first = redeem(&f, &invitation, "friend", &phone).await.unwrap();
-    let options = f.app.begin_sign_in().await.unwrap();
+    let options = f.app.begin_sign_in(None).await.unwrap();
     let mut phone = phone;
     let got = phone.get(&options.challenge);
     let assertion = korpis_app::account::Assertion {

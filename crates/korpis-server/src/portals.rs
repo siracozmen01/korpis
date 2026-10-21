@@ -41,7 +41,10 @@ pub struct Serving {
     pub at: PortalAt,
     /// The configuration its connections are served with.
     pub config: Arc<rustls::ServerConfig>,
-    revision: i64,
+    /// The certificate it was made from, and that certificate's revision: a revision is the
+    /// certificate's own, so a portal moved to another certificate is made again whatever the
+    /// two revisions are.
+    made_from: (Uuid, i64),
 }
 
 /// The portals of the installation, as this replica serves them.
@@ -143,19 +146,17 @@ impl Portals {
             .ok()
     }
 
-    /// Reads the portals served again, keeping the configuration of each whose certificate has
-    /// not changed.
+    /// Reads the portals served again, keeping the configuration of each still served with the
+    /// same certificate at the same revision.
     async fn refresh(&self) -> Result<(), korpis_app::AppError> {
         let before = self.held.read().map(|h| Arc::clone(&h)).unwrap_or_default();
         let names = self.api.app().portal_names().await?.into_iter().collect();
         let mut next = BTreeMap::new();
         for s in self.api.app().portals_served().await? {
             let name = s.portal.name.as_str().to_owned();
-            if let Some(kept) = before
-                .served
-                .get(&name)
-                .filter(|k| k.revision == s.revision && k.at.id == s.portal.id)
-            {
+            if let Some(kept) = before.served.get(&name).filter(|k| {
+                k.made_from == (s.portal.certificate, s.revision) && k.at.id == s.portal.id
+            }) {
                 next.insert(name, Arc::clone(kept));
                 continue;
             }
@@ -172,7 +173,8 @@ impl Portals {
                 origin: s.portal.origin(self.port),
                 name: name.clone(),
             };
-            next.insert(name, Arc::new(Serving { at, config, revision: s.revision }));
+            let made_from = (s.portal.certificate, s.revision);
+            next.insert(name, Arc::new(Serving { at, config, made_from }));
         }
         let origins: Vec<String> = next.values().map(|s| s.at.origin.clone()).collect();
         if let Ok(mut held) = self.held.write() {

@@ -30,16 +30,23 @@ pub(super) struct CheckedPasskey {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Verifies the passkey assertion `a`; spent with [`Self::spend_passkey`].
-    pub(super) async fn check_passkey(&self, a: Assertion) -> Result<CheckedPasskey, AppError> {
-        let challenge = self.take_challenge(a.challenge, Ceremony::SignIn).await?;
-        let passkey =
-            self.store.passkey(&a.credential_id).await?.ok_or(AppError::Unauthenticated)?;
+    /// Verifies the passkey assertion `a`, answered at the address `portal` names, where the
+    /// passkey must be registered (§9.8 of docs/08-identity.md); spent with
+    /// [`Self::spend_passkey`].
+    pub(super) async fn check_passkey(
+        &self,
+        a: Assertion,
+        portal: Option<Uuid>,
+    ) -> Result<CheckedPasskey, AppError> {
+        let challenge = self.take_challenge(a.challenge, Ceremony::SignIn, portal).await?;
+        let passkey = self.store.passkey(&a.credential_id).await?;
+        let passkey = passkey.filter(|p| p.portal == portal).ok_or(AppError::Unauthenticated)?;
         self.usable(passkey.account).await?;
+        let rp = self.relying_party_at(portal).await?;
         let stored =
             StoredPasskey { public_key: &passkey.public_key, sign_count: passkey.sign_count };
         let verified = verify_assertion(
-            self.relying_party()?,
+            &rp,
             &challenge.challenge,
             &stored,
             &a.client_data_json,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "DELETE FROM webauthn_challenge WHERE id = $1\n         RETURNING purpose, challenge, account_id, invitation_id, expires_at",
+  "query": "DELETE FROM webauthn_challenge WHERE id = $1\n         RETURNING purpose, challenge, account_id, invitation_id, portal_id, expires_at",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,17 @@
       },
       {
         "ordinal": 4,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "webauthn_challenge",
+            "name": "portal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -69,8 +80,9 @@
       false,
       true,
       true,
+      true,
       false
     ]
   },
-  "hash": "4613739f866a790e4f2b9239c5428f2d49f75a14e8b036176b0defd207bbb6c8"
+  "hash": "72f6f0db769378e3ae276f3494b5a06ca10e0e45687b87c7a0402a5443911efb"
 }

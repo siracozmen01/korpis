@@ -36,9 +36,9 @@ async fn a_sign_in_name_is_one_account_s_and_an_invitation_lasts_a_week_at_most(
     let f = fixture().await;
     let (one, two) = (invite(&f, "One").await, invite(&f, "Two").await);
     redeem(&f, &one, "same", &browser()).await.unwrap();
-    let taken = f.app.begin_redemption(&two, "SAME").await.unwrap_err();
+    let taken = f.app.begin_redemption(&two, "SAME", None).await.unwrap_err();
     assert!(matches!(taken, AppError::Conflict { reason: "account.name_taken", .. }), "{taken:?}");
-    let bad = f.app.begin_redemption(&two, "-x").await.unwrap_err();
+    let bad = f.app.begin_redemption(&two, "-x", None).await.unwrap_err();
     assert!(matches!(bad, AppError::Invalid { .. }));
 
     let too_late = SystemTime::now() + INVITATION_LIFETIME + Duration::from_secs(60);
@@ -53,7 +53,7 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
     let mut phone = browser();
     let account = redeem(&f, &invitation, "friend", &phone).await.unwrap().account;
 
-    let options = f.app.begin_sign_in().await.unwrap();
+    let options = f.app.begin_sign_in(None).await.unwrap();
     let got = phone.get(&options.challenge);
     let assertion = Assertion {
         challenge: options.challenge_id,
@@ -70,7 +70,7 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
 
     // Another authenticator holding the credential answers with a counter behind the stored one.
     phone.set_counter(0);
-    let options = f.app.begin_sign_in().await.unwrap();
+    let options = f.app.begin_sign_in(None).await.unwrap();
     let got = phone.get(&options.challenge);
     let cloned = Assertion {
         challenge: options.challenge_id,
@@ -93,7 +93,7 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
 async fn a_registration_answering_another_invitation_s_challenge_is_refused() {
     let f = fixture().await;
     let (one, two) = (invite(&f, "One").await, invite(&f, "Two").await);
-    let options = f.app.begin_redemption(&one, "one").await.unwrap();
+    let options = f.app.begin_redemption(&one, "one", None).await.unwrap();
     let created = browser().create(&options.challenge);
     let r = NewRegistration {
         challenge: options.challenge_id,

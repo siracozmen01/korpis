@@ -46,8 +46,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::NotFound { kind: "grant" });
         }
         let grant = records.remove(0);
-        let holds = grant.grant.subject == caller.subject;
-        if !holds && !self.permitted(caller, "grant.read", grant.grant.scope.anchor()).await? {
+        let anchor = grant.grant.scope.anchor();
+        let holds = grant.grant.subject == caller.subject
+            && self.reached_each(caller, &[anchor]).await?.first() == Some(&true);
+        if !holds && !self.permitted(caller, "grant.read", anchor).await? {
             return Err(AppError::NotFound { kind: "grant" });
         }
         if holds && matches!(caller.principal, Principal::Link(_)) {
@@ -76,7 +78,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 ));
             }
             GrantsFilter::HeldBy(_) | GrantsFilter::Mine => {
-                self.store.grants_held(&caller.subject.key, page).await?
+                return self.grants_held(caller, page).await;
             }
             GrantsFilter::FromTemplate(template) => {
                 return self.grants_from_template(caller, template, page).await;
@@ -84,6 +86,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let next = page.next(&items, |g| g.grant.id);
         Ok(Paged { items, next })
+    }
+
+    /// The grants the caller holds, those beneath its portal's organization alone for a session
+    /// begun at one.
+    async fn grants_held(
+        &self,
+        caller: &Caller,
+        page: Page,
+    ) -> Result<Paged<GrantRecord>, AppError> {
+        let read =
+            |p: Page| async move { Ok(self.store.grants_held(&caller.subject.key, p).await?) };
+        let reached = |found: Vec<GrantRecord>| async move {
+            let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
+            let shown = self.reached_each(caller, &anchors).await?;
+            Ok(found.into_iter().zip(shown).filter_map(|(g, s)| s.then_some(g)).collect())
+        };
+        visible(page, |g| g.grant.id, read, reached).await
     }
 
     /// The grants issued from `template` that the caller holds or may read.
@@ -97,10 +116,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let readable = |found: Vec<GrantRecord>| async move {
             let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
             let shown = self.permitted_each(caller, "grant.read", &anchors).await?;
+            let reached = self.reached_each(caller, &anchors).await?;
             Ok(found
                 .into_iter()
-                .zip(shown)
-                .filter_map(|(g, s)| (s || g.grant.subject == caller.subject).then_some(g))
+                .zip(shown.into_iter().zip(reached))
+                .filter_map(|(g, (s, r))| {
+                    (s || (r && g.grant.subject == caller.subject)).then_some(g)
+                })
                 .collect())
         };
         visible(page, |g| g.grant.id, read, readable).await

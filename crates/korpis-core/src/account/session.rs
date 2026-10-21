@@ -85,6 +85,18 @@ pub struct UserSession {
     pub user_agent: String,
     /// The address it began from, as its source is charged (an address, or an IPv6 /64).
     pub source: String,
+    /// The portal it was begun at, beneath whose organization it acts (§9.8 of
+    /// docs/08-identity.md); none for one begun at the installation's own address.
+    pub portal: Option<AtPortal>,
+}
+
+/// A portal a session was begun at, and the organization it is confined beneath.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AtPortal {
+    /// The portal.
+    pub portal: Uuid,
+    /// Its organization.
+    pub organization: Uuid,
 }
 
 impl UserSession {
@@ -119,6 +131,7 @@ mod tests {
             expires_at: at + SESSION_MAX,
             user_agent: String::new(),
             source: String::new(),
+            portal: None,
         };
         assert!(s.live(at + SESSION_IDLE - Duration::from_secs(1), SESSION_IDLE));
         assert!(!s.live(at + SESSION_IDLE, SESSION_IDLE), "idle");

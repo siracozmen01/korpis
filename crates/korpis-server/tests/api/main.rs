@@ -79,6 +79,7 @@ mod pin;
 mod placement;
 mod plans;
 mod portal_serving;
+mod portal_sessions;
 mod portals;
 mod profile;
 mod provider_breaker;

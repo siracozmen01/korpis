@@ -7,7 +7,9 @@
 //!
 //! The form: the prefix, then the payload and its Ed25519 signature, each base64url without
 //! padding, joined by a dot. The payload is a version byte, the key id, the two ids, and the
-//! expiry in seconds since the epoch, big-endian.
+//! expiry in seconds since the epoch, big-endian. Version 2, added 2026-10-22, carries a third id
+//! after the two, the organization an access token of a session begun at a portal is confined
+//! beneath (§9.8 of docs/08-identity.md); what carries none is still version 1.
 
 use super::token::{KeyRing, SigningKey};
 use base64::Engine as _;
@@ -16,12 +18,14 @@ use ed25519_dalek::{Signature, Signer as _, VerifyingKey};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// The payload's version.
+/// The payload's version, naming two ids.
 const VERSION: u8 = 1;
-/// The payload's length: version, key id, the two ids, expiry.
-const PAYLOAD: usize = 1 + 4 + 16 + 16 + 8;
-/// The payload and a 64-byte signature in base64url, and the dot between them.
-const ENCODED: usize = 60 + 1 + 86;
+/// The payload's version naming a third, the organization a claim is confined beneath.
+const VERSION_WITHIN: u8 = 2;
+/// The longest payload: version, key id, the three ids, expiry.
+const PAYLOAD: usize = 1 + 4 + 16 + 16 + 16 + 8;
+/// The longest payload and a 64-byte signature in base64url, and the dot between them.
+const ENCODED: usize = 82 + 1 + 86;
 
 /// One kind of sealed claim.
 pub(crate) struct Kind {
@@ -38,6 +42,8 @@ pub(crate) struct Claims {
     pub subject: Uuid,
     /// What it was issued under.
     pub under: Uuid,
+    /// The organization it is confined beneath, if any.
+    pub within: Option<Uuid>,
     /// When it stops working.
     pub expires_at: SystemTime,
 }
@@ -60,10 +66,13 @@ pub enum SealError {
 pub(crate) fn seal(key: &SigningKey, kind: &Kind, claims: &Claims) -> String {
     let seconds = claims.expires_at.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
     let mut payload = Vec::with_capacity(PAYLOAD);
-    payload.push(VERSION);
+    payload.push(if claims.within.is_some() { VERSION_WITHIN } else { VERSION });
     payload.extend_from_slice(&key.key_id.to_be_bytes());
     payload.extend_from_slice(claims.subject.as_bytes());
     payload.extend_from_slice(claims.under.as_bytes());
+    if let Some(within) = claims.within {
+        payload.extend_from_slice(within.as_bytes());
+    }
     payload.extend_from_slice(&seconds.to_be_bytes());
     let signing = ed25519_dalek::SigningKey::from_bytes(&key.seed());
     let signature = signing.sign(&signed(kind, &payload));
@@ -113,8 +122,16 @@ fn parse(payload: &[u8]) -> Result<Fields, SealError> {
     let (key_id, rest) = rest.split_first_chunk::<4>().ok_or(SealError::Malformed)?;
     let (subject, rest) = rest.split_first_chunk::<16>().ok_or(SealError::Malformed)?;
     let (under, rest) = rest.split_first_chunk::<16>().ok_or(SealError::Malformed)?;
+    let (within, rest) = match version {
+        VERSION => (None, rest),
+        VERSION_WITHIN => {
+            let (within, rest) = rest.split_first_chunk::<16>().ok_or(SealError::Malformed)?;
+            (Some(Uuid::from_bytes(*within)), rest)
+        }
+        _ => return Err(SealError::Malformed),
+    };
     let (expiry, rest) = rest.split_first_chunk::<8>().ok_or(SealError::Malformed)?;
-    if version != VERSION || !rest.is_empty() {
+    if !rest.is_empty() {
         return Err(SealError::Malformed);
     }
     // Read before the signature is checked, so it is anyone's bytes: an expiry past what a time
@@ -127,6 +144,7 @@ fn parse(payload: &[u8]) -> Result<Fields, SealError> {
         claims: Claims {
             subject: Uuid::from_bytes(*subject),
             under: Uuid::from_bytes(*under),
+            within,
             expires_at,
         },
     })
@@ -158,11 +176,30 @@ mod tests {
         let claims = Claims {
             subject: Uuid::now_v7(),
             under: Uuid::now_v7(),
+            within: None,
             expires_at: now + Duration::from_secs(60),
         };
         let sealed = seal(&key, &ONE, &claims);
         assert_eq!(open(&ring(&key), &ONE, &sealed, now), Ok(claims));
         assert_eq!(open(&ring(&key), &TWO, &sealed, now), Err(SealError::Signature));
+    }
+
+    #[test]
+    fn a_claim_confined_beneath_an_organization_says_so_and_one_unconfined_does_not() {
+        let key = SigningKey::generate(3);
+        let now = UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let within = Uuid::now_v7();
+        let confined = Claims {
+            subject: Uuid::now_v7(),
+            under: Uuid::now_v7(),
+            within: Some(within),
+            expires_at: now + Duration::from_secs(60),
+        };
+        let sealed = seal(&key, &ONE, &confined);
+        assert_eq!(open(&ring(&key), &ONE, &sealed, now).map(|c| c.within), Ok(Some(within)));
+        let free = seal(&key, &ONE, &Claims { within: None, ..confined });
+        assert!(free.len() < sealed.len(), "version 1 when it names no organization");
+        assert_eq!(open(&ring(&key), &ONE, &free, now).map(|c| c.within), Ok(None));
     }
 
     #[test]

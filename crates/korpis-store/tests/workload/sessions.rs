@@ -48,6 +48,7 @@ fn session(holder: Holder) -> UserSession {
         expires_at: now() + Duration::from_secs(3600),
         user_agent: "test".into(),
         source: "203.0.113.7".into(),
+        portal: None,
     }
 }
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT credential_id, account_id, public_key, algorithm, sign_count, aaguid,\n                    backup_eligible, label, created_at, last_used_at\n               FROM passkey WHERE account_id = $1 ORDER BY created_at, credential_id",
+  "query": "SELECT credential_id, account_id, public_key, algorithm, sign_count, aaguid,\n                    backup_eligible, label, created_at, last_used_at, portal_id\n               FROM passkey WHERE account_id = $1 ORDER BY created_at, credential_id",
   "describe": {
     "columns": [
       {
@@ -112,6 +112,17 @@
             "name": "last_used_at"
           }
         }
+      },
+      {
+        "ordinal": 10,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "passkey",
+            "name": "portal_id"
+          }
+        }
       }
     ],
     "parameters": {
@@ -129,8 +140,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "2aa3c8e5e685ccae263f74a1ab2070dcafc6f7e006557542078200a31d1b2e0c"
+  "hash": "0f448385f69d6483877581d63e394891fc9554d4b74dd3192f519398efe15bf4"
 }

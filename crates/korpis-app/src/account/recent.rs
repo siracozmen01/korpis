@@ -13,7 +13,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, RecipeSource, Store, Tx as _, UserSessionWrite as _};
-use korpis_core::account::session::REAUTHENTICATE_WITHIN;
+use korpis_core::account::session::{REAUTHENTICATE_WITHIN, UserSession};
 use korpis_core::authz::binding::IdentityBinding;
 use korpis_core::principal::Holder;
 use korpis_core::principal::Principal;
@@ -56,10 +56,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The caller's account, if its session signed in or re-authenticated recently; a caller
     /// without a session, one presenting an API token, never has.
     pub(super) async fn recently_signed_in(&self, caller: &Caller) -> Result<Uuid, AppError> {
+        Ok(self.recently_signed_in_at(caller).await?.0)
+    }
+
+    /// The caller's account, as [`Self::recently_signed_in`] answers it, and the portal its
+    /// session began at, the one address its passkeys are registered at (§9.8 of
+    /// docs/08-identity.md).
+    pub(super) async fn recently_signed_in_at(
+        &self,
+        caller: &Caller,
+    ) -> Result<(Uuid, Option<Uuid>), AppError> {
         let account = own_account(caller)?;
-        match self.recently_signed_in_as(caller).await? {
-            Holder::Account(held) if held == account => Ok(account),
-            _ => Err(AppError::Unauthenticated),
+        let session = self.recent_session(caller).await?;
+        match session.holder {
+            Holder::Account(held) if held == account => {
+                Ok((account, session.portal.map(|p| p.portal)))
+            }
+            Holder::Account(_) | Holder::Person(_) => Err(AppError::Unauthenticated),
         }
     }
 
@@ -67,6 +80,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// provider, if it signed in or re-authenticated recently (§9.6 and §9.7 of
     /// docs/08-identity.md); a caller without a session never has.
     pub(super) async fn recently_signed_in_as(&self, caller: &Caller) -> Result<Holder, AppError> {
+        Ok(self.recent_session(caller).await?.holder)
+    }
+
+    /// The caller's session, if it signed in or re-authenticated recently.
+    async fn recent_session(&self, caller: &Caller) -> Result<UserSession, AppError> {
         let holder = own_holder(caller)?;
         let session = caller.session.ok_or_else(not_recent)?;
         let session =
@@ -75,7 +93,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if since.is_some_and(|since| session.authenticated_at <= since) {
             return Err(not_recent());
         }
-        Ok(holder)
+        Ok(session)
     }
 
     /// Re-authenticates the caller's session with the passkey assertion `a`.
@@ -85,7 +103,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         a: Assertion,
     ) -> Result<SystemTime, AppError> {
         let (account, session) = session_of(caller)?;
-        let checked = self.check_passkey(a).await?;
+        let held = self.store.user_session(Holder::Account(account), session).await?;
+        let at = held.ok_or(AppError::Unauthenticated)?.portal.map(|p| p.portal);
+        let checked = self.check_passkey(a, at).await?;
         if checked.account != account {
             return Err(AppError::Unauthenticated);
         }

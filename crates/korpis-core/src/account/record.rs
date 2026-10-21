@@ -122,12 +122,23 @@ pub struct Passkey {
     pub created_at: SystemTime,
     /// When it last signed in.
     pub last_used_at: Option<SystemTime>,
+    /// The portal it was registered at, whose name is its relying party's identifier, and the
+    /// only address it signs in at; none for the installation's own (§9.8 of
+    /// docs/08-identity.md).
+    pub portal: Option<Uuid>,
 }
 
 impl Passkey {
-    /// The passkey a verified registration made, for `account`, called `label`, at `now`.
+    /// The passkey a verified registration made, for `account`, called `label`, at `now`, at
+    /// `portal` or the installation's own address.
     #[must_use]
-    pub fn registered(new: NewPasskey, account: Uuid, label: String, now: SystemTime) -> Self {
+    pub fn registered(
+        new: NewPasskey,
+        account: Uuid,
+        label: String,
+        now: SystemTime,
+        portal: Option<Uuid>,
+    ) -> Self {
         Self {
             credential_id: new.credential_id,
             account,
@@ -139,6 +150,7 @@ impl Passkey {
             label,
             created_at: now,
             last_used_at: None,
+            portal,
         }
     }
 }
@@ -194,6 +206,9 @@ pub struct Challenge {
     pub account: Option<Uuid>,
     /// The invitation a registration redeems.
     pub invitation: Option<Uuid>,
+    /// The portal it was issued at, whose relying party its answer is verified for; none for
+    /// the installation's own address (§9.8 of docs/08-identity.md).
+    pub portal: Option<Uuid>,
     /// When it stops being answerable.
     pub expires_at: SystemTime,
 }

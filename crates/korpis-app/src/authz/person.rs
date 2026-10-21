@@ -38,6 +38,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut caller = Caller::new(person.subject.clone(), source_ip, false)
             .with_session(claims.holder, claims.session);
         caller.memberships = memberships;
+        caller.within = claims.within;
         Ok(caller)
     }
 

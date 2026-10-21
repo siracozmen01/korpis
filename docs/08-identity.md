@@ -2134,6 +2134,28 @@ signs in at a reseller's portal reaches only the reseller's organization there, 
 the installation's own address for the rest. Every portal is a redirect URI to register at each
 identity provider its organization offers.
 
+> Built 2026-10-22 (P2.9d1 of the build plan): the relying party, passkeys, and confinement. The
+> listener tells each request the portal its connection proved, and the account service takes the
+> portal from there alone. A ceremony at a portal is verified for the relying party made from the
+> portal's record when it runs, its whole name and its one origin, so a portal deleted meanwhile
+> has none and the ceremony fails. Every challenge records the address it was issued at and is
+> taken only by an answer at the same one, so a challenge a portal's page obtained cannot be
+> answered at the installation's address, or the reverse; a passkey records its portal and is
+> accepted only there; and a session adds passkeys and re-authenticates only at the address it
+> began at, so a session begun at a portal cannot register a passkey for the installation's own
+> relying party. The session records its portal, and an exchange reads the portal's organization
+> beside it, refusing a session whose portal it cannot read rather than leaving it unconfined;
+> every access token names that organization, in a claim the token's format carries from its
+> second version. The gateway refuses a call made with such a token on any object outside the
+> organization before it consults a grant, which also filters every list it answers per object;
+> issuing a grant, a token, or a share link with one is refused `session.portal_confined` unless
+> the scope lies beneath the organization, as is approving a plan, both of which evaluate chains
+> outside the one decision path; and the caller's own grants are listed only where they lie
+> beneath it. A `korpis login` approved from a confined session is confined as it is. Deleting a
+> portal deletes the sessions, passkeys, and challenges recorded with it by the database's own
+> cascade; the effects §9.8 records for it, the sign-in page's theme and providers, and the
+> rules for what a confined session may change of the account are P2.9d2.
+
 ---
 
 ## 10. Open questions

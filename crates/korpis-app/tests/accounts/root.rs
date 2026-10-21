@@ -51,7 +51,7 @@ async fn the_installed_root_account_is_redeemed_by_a_passkey_alone() {
         .unwrap_err();
     assert!(matches!(refused, AppError::Invalid { ref field, .. } if field == "invitation"));
 
-    let options = app.begin_redemption(invitation, "admin").await.unwrap();
+    let options = app.begin_redemption(invitation, "admin", None).await.unwrap();
     let created = browser().create(&options.challenge);
     let r = NewRegistration {
         challenge: options.challenge_id,

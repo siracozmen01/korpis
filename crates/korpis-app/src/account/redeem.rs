@@ -97,15 +97,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
     }
 
-    /// Begins redeeming the invitation `secret` by registering a passkey, as `name`.
+    /// Begins redeeming the invitation `secret` by registering a passkey, as `name`, at the
+    /// address `portal` names, whose passkey it will be (§9.8 of docs/08-identity.md).
     pub async fn begin_redemption(
         &self,
         secret: &str,
         name: &str,
+        portal: Option<Uuid>,
     ) -> Result<Registration, AppError> {
         let (invitation, account) = self.open_invitation(secret).await?;
         let name = self.free_name(account.id, name).await?;
-        self.registration(&account, &name, Some(invitation.id), Vec::new()).await
+        self.registration((&account, &name), Some(invitation.id), Vec::new(), portal).await
     }
 
     /// Redeems the invitation `secret` as `name` with the passkey registration `r`, answering
@@ -118,19 +120,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Redeemed, AppError> {
         let (invitation, account) = self.open_invitation(secret).await?;
         let name = self.free_name(account.id, name).await?;
-        let challenge = self.take_challenge(r.challenge, Ceremony::Register).await?;
+        let at = client.address();
+        let challenge = self.take_challenge(r.challenge, Ceremony::Register, at).await?;
         if challenge.invitation != Some(invitation.id) || challenge.account != Some(account.id) {
             return Err(AppError::Unauthenticated);
         }
         let new = verify_registration(
-            self.relying_party()?,
+            &self.relying_party_at(at).await?,
             &challenge.challenge,
             &r.client_data_json,
             &r.attestation_object,
         )
         .map_err(|_| AppError::Unauthenticated)?;
-        let passkey =
-            Passkey::registered(new, account.id, super::label(&r.label)?, self.clock.now());
+        let label = super::label(&r.label)?;
+        let passkey = Passkey::registered(new, account.id, label, self.clock.now(), at);
         let mut tx = self.store.begin().await?;
         self.spend(&mut tx, &invitation, &account, &name).await?;
         tx.insert_passkey(&passkey).await.map_err(registered)?;

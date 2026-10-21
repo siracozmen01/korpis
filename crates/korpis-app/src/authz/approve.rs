@@ -93,6 +93,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     ) -> Result<Permit, AppError> {
         let mut snapshot = Snapshot::default();
         snapshot.load(&self.store, scope.anchor()).await?;
+        caller.confined(
+            korpis_core::authz::Hierarchy::resource(&snapshot, scope.anchor()).as_ref(),
+        )?;
         let chain = match plan.proposed_under {
             Some(grant) => self.store.grant_chain(grant).await?,
             None => Vec::new(),

@@ -5,7 +5,7 @@
 use crate::error::AppError;
 use korpis_core::audit::{Effect, Outcome};
 use korpis_core::authz::ticket::TicketObject;
-use korpis_core::authz::{Action, ObjectRef, Subject};
+use korpis_core::authz::{Action, Kind, ObjectRef, Resource, Scope, Subject};
 use korpis_core::principal::Principal;
 use std::net::IpAddr;
 
@@ -31,6 +31,9 @@ pub struct Caller {
     pub holder: Option<korpis_core::principal::Holder>,
     /// For a person acting through a relay: the ticket they act under.
     pub relayed: Option<Relayed>,
+    /// For a session begun at a portal, the portal's organization: nothing outside it is
+    /// authorized for the call, whatever its grants reach (§9.8 of docs/08-identity.md).
+    pub within: Option<uuid::Uuid>,
 }
 
 /// A person acting through a client that relayed what they presented, under the ticket it was
@@ -60,6 +63,7 @@ impl Caller {
             session: None,
             holder: None,
             relayed: None,
+            within: None,
         }
     }
 
@@ -93,13 +97,44 @@ impl Caller {
         if self.relayed.is_some() { Err(AppError::Relayed) } else { Ok(()) }
     }
 
-    /// Whether this caller may be authorized for `action` on `object` at all: anyone may, but a
-    /// person acting through a relay only for what their ticket names.
+    /// Whether this caller may be authorized for `action` on `object`, whose ancestry is
+    /// `resource`, at all: anyone may, but a person acting through a relay only for what their
+    /// ticket names, and a session begun at a portal only at or beneath its organization.
     #[must_use]
-    pub fn may_ask(&self, action: &Action, object: ObjectRef) -> bool {
-        self.relayed
-            .as_ref()
-            .is_none_or(|r| &r.action == action && r.object == TicketObject::Object(object))
+    pub fn may_ask(&self, action: &Action, resource: &Resource) -> bool {
+        let Some(object) = resource.object() else { return false };
+        self.reaches(resource)
+            && self
+                .relayed
+                .as_ref()
+                .is_none_or(|r| &r.action == action && r.object == TicketObject::Object(object))
+    }
+
+    /// Whether `resource` lies where the caller may act at all: anywhere, but for a session
+    /// begun at a portal only at or beneath the portal's organization (§9.8 of
+    /// docs/08-identity.md).
+    #[must_use]
+    pub fn reaches(&self, resource: &Resource) -> bool {
+        self.within.is_none_or(|org| {
+            resource.is_within(&Scope::Object(ObjectRef::new(Kind::Organization, org)))
+        })
+    }
+
+    /// Refuses `resource` if it lies outside where the caller may act ([`Self::reaches`]): what
+    /// a session begun at a portal issues or approves is held beneath its organization, as
+    /// every call it makes is.
+    ///
+    /// # Errors
+    /// [`AppError::Conflict`] `session.portal_confined` for such a resource.
+    pub fn confined(&self, resource: Option<&Resource>) -> Result<(), AppError> {
+        if self.within.is_none() || resource.is_some_and(|r| self.reaches(r)) {
+            return Ok(());
+        }
+        Err(AppError::conflict(
+            "session.portal_confined",
+            "a session begun at a portal acts only beneath the portal's organization: sign in at \
+             the installation's own address for this",
+        ))
     }
 
     /// Refuses a person acting through a relay whose ticket does not name revoking `grant`.
@@ -128,5 +163,46 @@ impl Caller {
             r.object = TicketObject::Object(anchor);
         }
         narrowed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use korpis_core::authz::Node;
+    use uuid::Uuid;
+
+    /// `object`, beneath each of `above`, nearest first.
+    fn beneath(object: ObjectRef, above: &[ObjectRef]) -> Resource {
+        let node = |object| Node {
+            object,
+            labels: std::collections::BTreeMap::new(),
+            suspended: false,
+            ceiling: None,
+        };
+        Resource { chain: std::iter::once(object).chain(above.iter().copied()).map(node).collect() }
+    }
+
+    #[test]
+    fn a_session_begun_at_a_portal_reaches_only_beneath_its_organization() {
+        let (root, reseller) = (Uuid::now_v7(), Uuid::now_v7());
+        let (root, reseller) = (
+            ObjectRef::new(Kind::Organization, root),
+            ObjectRef::new(Kind::Organization, reseller),
+        );
+        let inside = beneath(ObjectRef::new(Kind::Project, Uuid::now_v7()), &[reseller, root]);
+        let outside = beneath(ObjectRef::new(Kind::Project, Uuid::now_v7()), &[root]);
+        let mut caller = Caller::new(Principal::User(Uuid::now_v7()), None, true);
+        assert!(caller.reaches(&outside), "a session begun at the installation's own address");
+        caller.within = Some(reseller.id);
+        assert!(caller.reaches(&inside));
+        assert!(caller.reaches(&beneath(reseller, &[root])), "the organization itself");
+        assert!(!caller.reaches(&outside));
+        assert!(!caller.reaches(&beneath(root, &[])));
+        let read = Action::parse("org.read").unwrap();
+        assert!(!caller.may_ask(&read, &outside));
+        assert!(caller.confined(Some(&inside)).is_ok());
+        assert!(caller.confined(Some(&outside)).is_err());
+        assert!(caller.confined(None).is_err(), "nothing known of it is nothing reached");
     }
 }

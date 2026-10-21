@@ -35,6 +35,7 @@ fn passkey(account: Uuid, id: u8) -> Passkey {
         label: "laptop".into(),
         created_at: now(),
         last_used_at: None,
+        portal: None,
     }
 }
 
@@ -135,6 +136,7 @@ async fn a_challenge_answers_one_ceremony_before_it_expires() {
         challenge: [3; 32],
         account: None,
         invitation: None,
+        portal: None,
         expires_at,
     };
     let (live, stale) = (challenge(now() + CHALLENGE_LIFETIME), challenge(now()));

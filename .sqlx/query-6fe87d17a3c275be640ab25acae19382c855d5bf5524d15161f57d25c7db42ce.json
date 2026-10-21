@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,\n                      s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,\n                      CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL\n                           ELSE b.retired_at IS NULL END AS \"usable!\"\n                 FROM user_session s\n                 LEFT JOIN account a ON a.id = s.account_id\n                 LEFT JOIN identity_binding b ON b.id = s.binding_id\n                WHERE s.refresh_hash = $1 FOR UPDATE OF s",
+  "query": "SELECT s.id, s.account_id, s.binding_id, s.sets, s.kind, s.created_at,\n                      s.last_used_at, s.authenticated_at, s.expires_at, s.user_agent, s.source,\n                      s.portal_id, p.organization_id AS \"portal_organization?\",\n                      CASE WHEN s.account_id IS NOT NULL THEN a.disabled_at IS NULL\n                           ELSE b.retired_at IS NULL END AS \"usable!\"\n                 FROM user_session s\n                 LEFT JOIN account a ON a.id = s.account_id\n                 LEFT JOIN identity_binding b ON b.id = s.binding_id\n                 LEFT JOIN portal p ON p.id = s.portal_id\n                WHERE s.refresh_hash = $1 FOR UPDATE OF s",
   "describe": {
     "columns": [
       {
@@ -126,6 +126,28 @@
       },
       {
         "ordinal": 11,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "user_session",
+            "name": "portal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "portal_organization?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "portal",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
         "name": "usable!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -148,8 +170,10 @@
       false,
       false,
       false,
+      true,
+      false,
       null
     ]
   },
-  "hash": "fd88417d3997dd46e5aac191c27f6caca438167c348ec80833806c84ee6d4948"
+  "hash": "6fe87d17a3c275be640ab25acae19382c855d5bf5524d15161f57d25c7db42ce"
 }

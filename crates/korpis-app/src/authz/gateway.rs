@@ -37,8 +37,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let claims = access::verify(&self.token_ring()?, presented, now)
                 .map_err(|_| AppError::Unauthenticated)?;
             return match claims.holder {
-                Holder::Account(user) => Ok(Caller::new(Principal::User(user), source_ip, true)
-                    .with_session(claims.holder, claims.session)),
+                Holder::Account(user) => {
+                    let mut caller = Caller::new(Principal::User(user), source_ip, true)
+                        .with_session(claims.holder, claims.session);
+                    caller.within = claims.within;
+                    Ok(caller)
+                }
                 Holder::Person(_) => self.person(&claims, source_ip, now).await,
             };
         }
@@ -156,7 +160,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         renewal: bool,
     ) -> Option<Decision> {
         let resource = authz::Hierarchy::resource(snapshot, object)?;
-        if !caller.may_ask(action, object) {
+        if !caller.may_ask(action, &resource) {
             let missing_action = action.clone();
             return Some(Decision::Deny(Denial { missing_action, reasons: Vec::new() }));
         }
@@ -171,6 +175,27 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             renewal,
         };
         Some(authz::evaluate(&request, chains, snapshot))
+    }
+
+    /// Whether each of `objects` lies where the caller may act ([`Caller::reaches`]): what a
+    /// list of the caller's own, such as the grants it holds, answers a session begun at a
+    /// portal (§9.8 of docs/08-identity.md).
+    pub(crate) async fn reached_each(
+        &self,
+        caller: &Caller,
+        objects: &[ObjectRef],
+    ) -> Result<Vec<bool>, AppError> {
+        if caller.within.is_none() {
+            return Ok(vec![true; objects.len()]);
+        }
+        let mut snapshot = Snapshot::default();
+        let mut reached = Vec::with_capacity(objects.len());
+        for o in objects {
+            snapshot.load(&self.store, *o).await?;
+            let resource = authz::Hierarchy::resource(&snapshot, *o);
+            reached.push(resource.is_some_and(|r| caller.reaches(&r)));
+        }
+        Ok(reached)
     }
 
     /// Whether `caller` may do `action` on each of `objects` now, without recording anything:

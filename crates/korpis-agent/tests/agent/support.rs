@@ -13,10 +13,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 mod authority;
+mod contended;
 mod recipe;
 mod relay;
 mod served;
 
+use contended::contended;
 pub use recipe::{push_paper, push_paper_waiting};
 
 pub struct ControlPlane {
@@ -248,27 +250,25 @@ impl ControlPlane {
         got.status.as_option().unwrap().clone()
     }
 
-    /// Deletes a workload and approves its retirement.
+    /// Deletes a workload and approves its retirement, each asked again under the same key while
+    /// the store answers that another change contended with it, as a client does: the agent is
+    /// reporting on the same workload meanwhile.
     pub async fn retire(&self, workload: &str) {
-        let deleted = self
-            .workloads()
-            .delete_workload(pb::DeleteWorkloadRequest {
-                mutation: mutation(&format!("delete-{workload}")).into(),
-                workload: workload.to_owned(),
-                ..Default::default()
-            })
-            .await
-            .unwrap()
-            .into_owned();
-        let plan = deleted.plan.as_option().unwrap().id.clone();
-        pb::PlanServiceClient::new(self.http(), self.config())
-            .approve_plan(pb::ApprovePlanRequest {
-                mutation: mutation(&format!("approve-{plan}")).into(),
-                plan,
-                ..Default::default()
-            })
-            .await
-            .unwrap();
+        let delete = pb::DeleteWorkloadRequest {
+            mutation: mutation(&format!("delete-{workload}")).into(),
+            workload: workload.to_owned(),
+            ..Default::default()
+        };
+        let workloads = self.workloads();
+        let deleted = contended(|| workloads.delete_workload(delete.clone())).await;
+        let plan = deleted.into_owned().plan.as_option().unwrap().id.clone();
+        let approve = pb::ApprovePlanRequest {
+            mutation: mutation(&format!("approve-{plan}")).into(),
+            plan,
+            ..Default::default()
+        };
+        let plans = pb::PlanServiceClient::new(self.http(), self.config());
+        contended(|| plans.approve_plan(approve.clone())).await;
     }
 
     /// Cancels a plan.

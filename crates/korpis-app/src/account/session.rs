@@ -9,7 +9,7 @@ use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::ports::{Clock, Presented, RecipeSource, Store, Tx, UserSessionWrite as _};
-use korpis_core::account::session::{Holder, SessionKind, UserSession, user_agent};
+use korpis_core::account::session::{AtPortal, Holder, SessionKind, UserSession, user_agent};
 use korpis_core::audit::failure::source;
 use korpis_core::authz::access::{ACCESS_LIFETIME, AccessClaims, mint};
 use korpis_core::authz::credential::{Secret, SecretKind};
@@ -31,6 +31,17 @@ pub struct Client {
     /// The device cookies it presented (§9.6 of docs/08-identity.md), which only a password
     /// sign-in asks about.
     pub devices: Vec<String>,
+    /// The portal it reached the control plane at, whose connection named it (§9.8 of
+    /// docs/08-identity.md); none at the installation's own address.
+    pub portal: Option<AtPortal>,
+}
+
+impl Client {
+    /// The portal its ceremonies are held at, none at the installation's own address.
+    #[must_use]
+    pub fn address(&self) -> Option<Uuid> {
+        self.portal.map(|p| p.portal)
+    }
 }
 
 /// A session begun, and its refresh credential, answered once and kept only as its digest.
@@ -111,6 +122,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             expires_at: now + self.session_limits.max,
             user_agent: user_agent(&client.user_agent),
             source: source(client.ip),
+            portal: client.portal,
         };
         let refresh = Secret::generate_kind(SecretKind::Refresh).map_err(|e| internal(&e))?;
         tx.insert_user_session(&session, &refresh.digest()).await?;
@@ -166,6 +178,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let claims = AccessClaims {
             holder: session.holder,
             session: session.id,
+            within: session.portal.map(|p| p.organization),
             expires_at: access_expires_at,
         };
         let access = mint(&self.token_key, &claims);

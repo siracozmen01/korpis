@@ -56,12 +56,13 @@ pub struct SignInOptions {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// Issues a challenge for `ceremony`, for `account` and `invitation` when it registers.
+    /// Issues a challenge for `ceremony` at the address `portal` names, for `account` and
+    /// `invitation` when it registers.
     async fn challenge(
         &self,
         ceremony: Ceremony,
-        account: Option<Uuid>,
-        invitation: Option<Uuid>,
+        (account, invitation): (Option<Uuid>, Option<Uuid>),
+        portal: Option<Uuid>,
     ) -> Result<Challenge, AppError> {
         let now = self.clock.now();
         let challenge = Challenge {
@@ -70,6 +71,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             challenge: nonce().map_err(|e| AppError::Internal(e.to_string()))?,
             account,
             invitation,
+            portal,
             expires_at: now + CHALLENGE_LIFETIME,
         };
         let mut tx = self.store.begin().await?;
@@ -78,17 +80,18 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(challenge)
     }
 
-    /// A registration of a passkey for `account` as `name`, redeeming `invitation` if one is
-    /// named.
+    /// A registration of a passkey for `account` as `name` at the address `portal` names,
+    /// redeeming `invitation` if one is named.
     pub(super) async fn registration(
         &self,
-        account: &Account,
-        name: &str,
+        (account, name): (&Account, &str),
         invitation: Option<Uuid>,
         exclude: Vec<Vec<u8>>,
+        portal: Option<Uuid>,
     ) -> Result<Registration, AppError> {
-        let rp_id = self.relying_party()?.id.clone();
-        let c = self.challenge(Ceremony::Register, Some(account.id), invitation).await?;
+        let rp_id = self.relying_party_at(portal).await?.id;
+        let held = (Some(account.id), invitation);
+        let c = self.challenge(Ceremony::Register, held, portal).await?;
         Ok(Registration {
             challenge_id: c.id,
             challenge: c.challenge,
@@ -100,22 +103,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
-    /// Begins a passkey sign-in.
-    pub async fn begin_sign_in(&self) -> Result<SignInOptions, AppError> {
-        let rp_id = self.relying_party()?.id.clone();
-        let c = self.challenge(Ceremony::SignIn, None, None).await?;
+    /// Begins a passkey sign-in at the address `portal` names, a portal or, for none, the
+    /// installation's own.
+    pub async fn begin_sign_in(&self, portal: Option<Uuid>) -> Result<SignInOptions, AppError> {
+        let rp_id = self.relying_party_at(portal).await?.id;
+        let c = self.challenge(Ceremony::SignIn, (None, None), portal).await?;
         Ok(SignInOptions { challenge_id: c.id, challenge: c.challenge, rp_id })
     }
 
-    /// Takes challenge `id`, which must be open and for `ceremony`.
+    /// Takes challenge `id`, which must be open, for `ceremony`, and issued at the address
+    /// `portal` names: an answer is verified for the relying party it was issued for, and only
+    /// there.
     pub(super) async fn take_challenge(
         &self,
         id: Uuid,
         ceremony: Ceremony,
+        portal: Option<Uuid>,
     ) -> Result<Challenge, AppError> {
         let mut tx = self.store.begin().await?;
         let taken = tx.take_challenge(id, self.clock.now()).await?;
         tx.commit().await?;
-        taken.filter(|c| c.ceremony == ceremony).ok_or(AppError::Unauthenticated)
+        taken
+            .filter(|c| c.ceremony == ceremony && c.portal == portal)
+            .ok_or(AppError::Unauthenticated)
     }
 }

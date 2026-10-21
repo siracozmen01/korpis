@@ -54,7 +54,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         a: Assertion,
         client: &Client,
     ) -> Result<SignedIn, AppError> {
-        let checked = self.check_passkey(a).await?;
+        let checked = self.check_passkey(a, client.address()).await?;
         let mut tx = self.store.begin().await?;
         self.spend_passkey(&mut tx, &checked).await?;
         self.signed_in(tx, checked.account, "passkey", client).await

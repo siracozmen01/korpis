@@ -49,8 +49,12 @@ impl DeviceClaims {
 /// Mints a device cookie's value for `claims`, signed by `key`.
 #[must_use]
 pub fn mint(key: &SigningKey, claims: &DeviceClaims) -> String {
-    let claims =
-        Claims { subject: claims.account, under: claims.device, expires_at: claims.expires_at };
+    let claims = Claims {
+        subject: claims.account,
+        under: claims.device,
+        within: None,
+        expires_at: claims.expires_at,
+    };
     sealed::seal(key, &DEVICE, &claims)
 }
 
@@ -89,6 +93,7 @@ mod tests {
             &AccessClaims {
                 holder: crate::principal::Holder::Account(account),
                 session: device,
+                within: None,
                 expires_at: now + DEVICE_LIFETIME,
             },
         );

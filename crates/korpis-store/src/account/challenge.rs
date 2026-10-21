@@ -27,13 +27,14 @@ pub(super) async fn insert(tx: &mut PgTx, c: &Challenge, now: SystemTime) -> Sto
     .map_err(from_sqlx)?;
     sqlx::query!(
         "INSERT INTO webauthn_challenge (id, purpose, challenge, account_id, invitation_id,
-                                         expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6)",
+                                         portal_id, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
         c.id,
         c.ceremony.as_str(),
         c.challenge.as_slice(),
         c.account,
         c.invitation,
+        c.portal,
         from_time(c.expires_at)
     )
     .execute(&mut *tx.tx)
@@ -49,7 +50,7 @@ pub(super) async fn take(
 ) -> StoreResult<Option<Challenge>> {
     let row = sqlx::query!(
         "DELETE FROM webauthn_challenge WHERE id = $1
-         RETURNING purpose, challenge, account_id, invitation_id, expires_at",
+         RETURNING purpose, challenge, account_id, invitation_id, portal_id, expires_at",
         id
     )
     .fetch_optional(&mut *tx.tx)
@@ -68,6 +69,7 @@ pub(super) async fn take(
             .map_err(|_| corrupt("challenge"))?,
         account: r.account_id,
         invitation: r.invitation_id,
+        portal: r.portal_id,
         expires_at,
     }))
 }

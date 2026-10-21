@@ -6,13 +6,14 @@
 //! keeps guessing is answered `RATE_LIMITED` instead.
 
 use super::{Api, cookie, error};
+use crate::portals::PortalAt;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceRequest, ServiceResult};
 use korpis_app::AppError;
 use korpis_app::account::{
     Assertion, Begun, Client, NewRegistration, PasswordRedemption, Redeemed, Registration,
     SecondFactor, SignedIn,
 };
-use korpis_core::account::session::SessionKind;
+use korpis_core::account::session::{AtPortal, SessionKind};
 use korpis_core::account::totp::TotpSecret;
 use korpis_core::audit::failure::Attempt;
 use korpis_core::id::IdKind;
@@ -107,6 +108,14 @@ fn ip(ctx: &RequestContext) -> Option<IpAddr> {
     ctx.peer_addr().map(|a| a.ip())
 }
 
+/// The portal the request reached the control plane at, which its connection's certificate
+/// named, never anything the page says (§9.8 of docs/08-identity.md); none at the
+/// installation's own address.
+pub(super) fn at(ctx: &RequestContext) -> Option<AtPortal> {
+    let at = ctx.extensions().get::<PortalAt>()?;
+    Some(AtPortal { portal: at.id, organization: at.organization })
+}
+
 /// The browser a ceremony comes from: a web session's, with the user agent it says it is and
 /// the device cookies it holds.
 pub(super) fn client(ctx: &RequestContext) -> Client {
@@ -116,6 +125,7 @@ pub(super) fn client(ctx: &RequestContext) -> Client {
         user_agent: agent.unwrap_or_default().to_owned(),
         ip: ip(ctx),
         devices: cookie::devices(ctx.headers()),
+        portal: at(ctx),
     }
 }
 
@@ -155,7 +165,8 @@ impl pb::AccountService for Api {
         ctx: RequestContext,
         request: ServiceRequest<'_, pb::BeginRedemptionRequest>,
     ) -> ServiceResult<pb::BeginRedemptionResponse> {
-        let begun = self.app.begin_redemption(request.invitation, request.name).await;
+        let portal = at(&ctx).map(|p| p.portal);
+        let begun = self.app.begin_redemption(request.invitation, request.name, portal).await;
         let options = self.attempted(begun, Attempt::Invitation, ip(&ctx)).await?;
         Response::ok(pb::BeginRedemptionResponse {
             creation: creation(options).into(),
@@ -212,10 +223,11 @@ impl pb::AccountService for Api {
 
     async fn begin_sign_in(
         &self,
-        _ctx: RequestContext,
+        ctx: RequestContext,
         _request: ServiceRequest<'_, pb::BeginSignInRequest>,
     ) -> ServiceResult<pb::BeginSignInResponse> {
-        let options = self.app.begin_sign_in().await.map_err(error::from_app)?;
+        let portal = at(&ctx).map(|p| p.portal);
+        let options = self.app.begin_sign_in(portal).await.map_err(error::from_app)?;
         Response::ok(pb::BeginSignInResponse {
             request: pb::PasskeyRequest {
                 challenge_id: options.challenge_id.to_string(),

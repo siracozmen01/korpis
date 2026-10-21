@@ -39,6 +39,10 @@ pub struct AccessClaims {
     pub holder: Holder,
     /// The session it was exchanged under.
     pub session: Uuid,
+    /// The organization its session was begun at a portal of, beneath which every call it
+    /// bears is confined (§9.8 of docs/08-identity.md); none for a session begun at the
+    /// installation's own address.
+    pub within: Option<Uuid>,
     /// When it stops working.
     pub expires_at: SystemTime,
 }
@@ -50,7 +54,12 @@ pub fn mint(key: &SigningKey, claims: &AccessClaims) -> String {
         Holder::Account(id) => (&ACCESS, id),
         Holder::Person(binding) => (&PERSON, binding),
     };
-    let sealed = Claims { subject, under: claims.session, expires_at: claims.expires_at };
+    let sealed = Claims {
+        subject,
+        under: claims.session,
+        within: claims.within,
+        expires_at: claims.expires_at,
+    };
     sealed::seal(key, kind, &sealed)
 }
 
@@ -68,7 +77,12 @@ pub fn verify(
         (&ACCESS, Holder::Account)
     };
     let c = sealed::open(keys, kind, presented, now)?;
-    Ok(AccessClaims { holder: holder(c.subject), session: c.under, expires_at: c.expires_at })
+    Ok(AccessClaims {
+        holder: holder(c.subject),
+        session: c.under,
+        within: c.within,
+        expires_at: c.expires_at,
+    })
 }
 
 #[cfg(test)]
@@ -89,6 +103,7 @@ mod tests {
         let claims = AccessClaims {
             holder: Holder::Account(Uuid::now_v7()),
             session: Uuid::now_v7(),
+            within: None,
             expires_at: now + ACCESS_LIFETIME,
         };
         let token = mint(&key, &claims);
@@ -112,6 +127,7 @@ mod tests {
         let claims = AccessClaims {
             holder: Holder::Person(binding),
             session: Uuid::now_v7(),
+            within: None,
             expires_at: now + ACCESS_LIFETIME,
         };
         let token = mint(&key, &claims);

@@ -51,6 +51,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         })
     }
 
+    /// The relying party of an address: the portal `portal`'s, whose identifier is its whole
+    /// name and whose one origin is its own, or for none the installation's (§9.8 of
+    /// docs/08-identity.md). A portal deleted since the ceremony began has none.
+    pub(crate) async fn relying_party_at(
+        &self,
+        portal: Option<Uuid>,
+    ) -> Result<RelyingParty, AppError> {
+        let own = self.relying_party()?;
+        let Some(id) = portal else { return Ok(own.clone()) };
+        let portal = self.store.portal(id).await?.ok_or(AppError::Unauthenticated)?;
+        let origins = vec![portal.origin(self.public_port())];
+        Ok(RelyingParty { id: portal.name.as_str().to_owned(), origins })
+    }
+
     /// The vault TOTP secrets are sealed by, or why there is none.
     pub(crate) fn factor_vault(&self) -> Result<&Arc<dyn FactorVault>, AppError> {
         self.factor_vault.as_ref().ok_or_else(|| AppError::Unavailable {

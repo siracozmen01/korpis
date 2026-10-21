@@ -140,7 +140,7 @@ pub async fn redeem(
     name: &str,
     browser: &SoftAuthenticator,
 ) -> Result<Redeemed, korpis_app::AppError> {
-    let options = f.app.begin_redemption(invitation, name).await?;
+    let options = f.app.begin_redemption(invitation, name, None).await?;
     let created = browser.create(&options.challenge);
     let r = NewRegistration {
         challenge: options.challenge_id,
@@ -172,5 +172,11 @@ pub fn in_session(redeemed: &Redeemed) -> Caller {
 
 /// A browser's client, from nowhere in particular.
 pub fn client() -> Client {
-    Client { kind: SessionKind::Web, user_agent: "test".into(), ip: None, devices: Vec::new() }
+    Client {
+        kind: SessionKind::Web,
+        user_agent: "test".into(),
+        ip: None,
+        devices: Vec::new(),
+        portal: None,
+    }
 }

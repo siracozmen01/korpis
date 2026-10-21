@@ -58,6 +58,7 @@ async fn signed_in(f: &Fixture) -> (IdentityBinding, Principal, Uuid) {
         expires_at: now + Duration::from_secs(3600),
         user_agent: "test".into(),
         source: "203.0.113.7".into(),
+        portal: None,
     };
     let store = f.db.store().await.unwrap();
     let mut tx = store.begin().await.unwrap();
@@ -80,7 +81,7 @@ async fn signed_in(f: &Fixture) -> (IdentityBinding, Principal, Uuid) {
 fn token(f: &Fixture, person: &IdentityBinding, session: Uuid) -> String {
     let holder = Holder::Person(person.id);
     let expires_at = f.clock.now() + ACCESS_LIFETIME;
-    mint(&f.key, &AccessClaims { holder, session, expires_at })
+    mint(&f.key, &AccessClaims { holder, session, within: None, expires_at })
 }
 
 #[tokio::test]

@@ -51,6 +51,7 @@ pub(crate) struct PasskeyRow {
     label: String,
     created_at: chrono::DateTime<chrono::Utc>,
     last_used_at: Option<chrono::DateTime<chrono::Utc>>,
+    portal_id: Option<Uuid>,
 }
 
 impl TryFrom<PasskeyRow> for Passkey {
@@ -74,6 +75,7 @@ impl TryFrom<PasskeyRow> for Passkey {
             label: r.label,
             created_at: to_time(r.created_at),
             last_used_at: r.last_used_at.map(to_time),
+            portal: r.portal_id,
         })
     }
 }
@@ -158,7 +160,7 @@ impl AccountRead for PgStore {
         let row = sqlx::query_as!(
             PasskeyRow,
             "SELECT credential_id, account_id, public_key, algorithm, sign_count, aaguid,
-                    backup_eligible, label, created_at, last_used_at
+                    backup_eligible, label, created_at, last_used_at, portal_id
                FROM passkey WHERE credential_id = $1",
             credential_id
         )
@@ -172,7 +174,7 @@ impl AccountRead for PgStore {
         let rows = sqlx::query_as!(
             PasskeyRow,
             "SELECT credential_id, account_id, public_key, algorithm, sign_count, aaguid,
-                    backup_eligible, label, created_at, last_used_at
+                    backup_eligible, label, created_at, last_used_at, portal_id
                FROM passkey WHERE account_id = $1 ORDER BY created_at, credential_id",
             account
         )

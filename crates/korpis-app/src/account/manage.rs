@@ -57,13 +57,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(AccountView { account, factors, passkeys })
     }
 
-    /// Begins registering another passkey for the caller.
+    /// Begins registering another passkey for the caller, at the address its session began
+    /// at: a session begun at a portal registers passkeys there alone (§9.8 of
+    /// docs/08-identity.md).
     pub async fn begin_add_passkey(&self, caller: &Caller) -> Result<Registration, AppError> {
-        self.recently_signed_in(caller).await?;
+        let (_, at) = self.recently_signed_in_at(caller).await?;
         let view = self.own_account(caller).await?;
         let name = view.account.name.clone().unwrap_or_else(|| view.account.id.to_string());
-        let exclude = view.passkeys.into_iter().map(|p| p.credential_id).collect();
-        self.registration(&view.account, &name, None, exclude).await
+        let exclude =
+            view.passkeys.into_iter().filter(|p| p.portal == at).map(|p| p.credential_id).collect();
+        self.registration((&view.account, &name), None, exclude, at).await
     }
 
     /// Adds the passkey `r` registers, answering a challenge [`Self::begin_add_passkey`] issued.
@@ -72,19 +75,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         caller: &Caller,
         r: super::NewRegistration,
     ) -> Result<(), AppError> {
-        let id = self.recently_signed_in(caller).await?;
-        let challenge = self.take_challenge(r.challenge, Ceremony::Register).await?;
+        let (id, at) = self.recently_signed_in_at(caller).await?;
+        let challenge = self.take_challenge(r.challenge, Ceremony::Register, at).await?;
         if challenge.account != Some(id) || challenge.invitation.is_some() {
             return Err(AppError::Unauthenticated);
         }
         let new = verify_registration(
-            self.relying_party()?,
+            &self.relying_party_at(at).await?,
             &challenge.challenge,
             &r.client_data_json,
             &r.attestation_object,
         )
         .map_err(|e| AppError::invalid("registration", e.to_string()))?;
-        let passkey = Passkey::registered(new, id, super::label(&r.label)?, self.clock.now());
+        let passkey = Passkey::registered(new, id, super::label(&r.label)?, self.clock.now(), at);
         let mut tx = self.store.begin().await?;
         locked(&mut tx, id).await?;
         tx.insert_passkey(&passkey).await.map_err(super::redeem::registered)?;
