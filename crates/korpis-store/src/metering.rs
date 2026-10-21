@@ -4,10 +4,12 @@
 
 use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json, to_time};
-use crate::{PgStore, PgTx};
+
+mod read;
+use crate::PgTx;
 use chrono::{DateTime, Utc};
-use korpis_app::ports::{MeteringRead, MeteringWrite, Overdue, StoreError, StoreResult};
-use korpis_core::metering::{Counters, Loss, Reading, Record, RecordKind};
+use korpis_app::ports::{MeteringWrite, StoreResult};
+use korpis_core::metering::{Counters, Loss, Reading, Record};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -252,81 +254,5 @@ impl MeteringWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(())
-    }
-}
-
-impl MeteringRead for PgStore {
-    async fn metering_overdue(&self, cutoff: SystemTime) -> StoreResult<Vec<Overdue>> {
-        let rows = sqlx::query!(
-            r#"SELECT p.workload_id AS "workload_id!", p.node_id AS "node_id!", c.at AS "from!"
-                 FROM placement p
-                 LEFT JOIN metering_reading r
-                        ON r.workload_id = p.workload_id AND r.node_id = p.node_id
-                 CROSS JOIN LATERAL (SELECT CASE WHEN r.workload_id IS NULL THEN p.bound_at
-                      ELSE greatest(r.interval_end, coalesce(r.gapped_through, r.interval_end))
-                      END AS at) c
-                WHERE c.at < $1"#,
-            from_time(cutoff)
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        Ok(rows
-            .into_iter()
-            .map(|r| Overdue { workload: r.workload_id, node: r.node_id, from: to_time(r.from) })
-            .collect())
-    }
-
-    async fn metering_records(
-        &self,
-        workload: Uuid,
-        from: SystemTime,
-        to: SystemTime,
-    ) -> StoreResult<Vec<Record>> {
-        let rows = sqlx::query!(
-            "SELECT id, workload_id, node_id, lease_epoch, interval_start, interval_end, kind,
-                    cause, supersedes, cpu_usec, cpu_throttled_usec, io_read_bytes,
-                    io_write_bytes, net_rx_bytes, net_tx_bytes, memory_kib_seconds,
-                    memory_peak_bytes, disk_bytes, losses
-               FROM metering_record
-              WHERE workload_id = $1 AND interval_start >= $2 AND interval_start < $3
-              ORDER BY interval_start, recorded_at, id",
-            workload,
-            from_time(from),
-            from_time(to)
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(from_sqlx)?;
-        rows.into_iter()
-            .map(|r| {
-                let kind = RecordKind::parse(&r.kind)
-                    .ok_or_else(|| StoreError::Corrupt(format!("metering kind {}", r.kind)))?;
-                let used = [
-                    r.cpu_usec,
-                    r.cpu_throttled_usec,
-                    r.io_read_bytes,
-                    r.io_write_bytes,
-                    r.net_rx_bytes,
-                    r.net_tx_bytes,
-                    r.memory_kib_seconds,
-                ];
-                Ok(Record {
-                    id: r.id,
-                    workload: r.workload_id,
-                    node: r.node_id,
-                    lease_epoch: count("lease epoch", r.lease_epoch)?,
-                    from: to_time(r.interval_start),
-                    to: to_time(r.interval_end),
-                    kind,
-                    cause: r.cause,
-                    supersedes: r.supersedes,
-                    used: counters(used)?,
-                    memory_peak_bytes: read("memory_peak_bytes", r.memory_peak_bytes)?,
-                    disk_bytes: read("disk_bytes", r.disk_bytes)?,
-                    losses: losses(r.losses)?,
-                })
-            })
-            .collect()
     }
 }

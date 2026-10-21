@@ -9,11 +9,13 @@ mod nodes;
 pub use nodes::{FixtureError, capacity, enroll, oci_driver, ready_node};
 
 use crate::{Error, PgStore, migrate};
-use korpis_app::ports::{CodecError, IntentCodec};
+use korpis_app::ports::{CodecError, IntentCodec, MeteringWrite as _, Store as _, Tx as _};
+use korpis_core::metering::Record;
 use korpis_core::workload::IntentBody;
 use sqlx::Connection;
 use sqlx::postgres::PgConnection;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 /// The default superuser URL, matching `scripts/dev-pg.sh url`.
 pub const DEFAULT_ADMIN_URL: &str = "postgres://postgres:korpis-dev@127.0.0.1:55432/postgres";
@@ -100,6 +102,20 @@ impl TestDb {
     /// stored as the control plane stores them.
     pub async fn store(&self) -> Result<PgStore, Error> {
         PgStore::connect(&self.owner_url, 4, Arc::new(WireBodies)).await
+    }
+
+    /// Records `record` at `at`, as ingesting a node's journal would, for a test of what reads
+    /// metering without a node to sample.
+    pub async fn record_metering(
+        &self,
+        record: &Record,
+        at: SystemTime,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let store = self.store().await?;
+        let mut tx = store.begin().await?;
+        tx.append_metering_record(record, at).await?;
+        tx.commit().await?;
+        Ok(())
     }
 }
 

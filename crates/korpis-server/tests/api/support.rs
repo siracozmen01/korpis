@@ -296,6 +296,10 @@ impl Harness {
         pb::ExtensionServiceClient::new(self.http.clone(), config)
     }
 
+    pub fn metering(&self, config: ClientConfig) -> pb::MeteringServiceClient<HttpClient> {
+        pb::MeteringServiceClient::new(self.http.clone(), config)
+    }
+
     pub fn effect_log(&self, config: ClientConfig) -> pb::EffectServiceClient<HttpClient> {
         pb::EffectServiceClient::new(self.http.clone(), config)
     }

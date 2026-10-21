@@ -178,6 +178,7 @@ workload.secret.read                                 read a field the recipe mar
 workload.classify                                    override how its plan steps are classified
 extension.read · extension.install · extension.uninstall
 event.read                                           receive events about what it reaches
+metering.read                                        what a workload used, interval by interval
 plan.read · plan.approve · plan.cancel
 volume.read · volume.snapshot.create · volume.snapshot.rollback · volume.snapshot.delete
 volume.delete
@@ -232,6 +233,15 @@ ext.<extension>.<action>              extensions define their own, namespaced
   The ticket is sent as the `korpis-as` header of the one call it permits, beside the client's
   own bearer credential, and that call is the person's; what no ticket can name, such as issuing
   a grant or minting a token, is refused as `identity.relayed`.
+- **`metering.read` is a new action implied by nothing.** Added 2026-10-21, when metering was
+  built (§2 of `15-observability.md`). It reads what a workload, a project's workloads, or an
+  organization's subtree used, held over that object. It is not private (§3.3 of
+  `08-identity.md`): a parent holds it over its children as it holds every read, because it is
+  paying for what they use (§7 there). It is kept while an organization is suspended (§2.1
+  there), since a suspended tenant is still billed for what it used. It is separate from
+  `workload.read` so a billing system can read every workload's usage and nothing else of them.
+  When each metering day closes is the installation's, the same for every caller, and is read by
+  any caller with a credential.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the
   workload already exposes and starting a new process inside the workload are different powers,
   and the second is strictly stronger.

@@ -9,6 +9,10 @@
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
+mod period;
+
+pub use period::{Period, PeriodState};
+
 /// A span samples were lost over, between the last one received and the next.
 pub const SAMPLES_LOST: &str = "samples lost";
 /// An interval of a workload a node holds that no record covered two intervals after it ended.
@@ -262,6 +266,8 @@ pub struct Record {
     pub disk_bytes: Option<u64>,
     /// What the node could not measure within it.
     pub losses: Vec<Loss>,
+    /// When the control plane recorded it, once it has: an adjustment's date.
+    pub recorded_at: Option<SystemTime>,
 }
 
 impl Record {
@@ -282,6 +288,7 @@ impl Record {
             memory_peak_bytes: sample.memory_peak_bytes,
             disk_bytes: sample.disk_bytes,
             losses: sample.losses.clone(),
+            recorded_at: None,
         }
     }
 }
@@ -304,6 +311,7 @@ impl Record {
             memory_peak_bytes: None,
             disk_bytes: None,
             losses: Vec::new(),
+            recorded_at: None,
         }
     }
 }

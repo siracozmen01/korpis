@@ -27,7 +27,8 @@ fn sample(seq: u64, workload: &str, at: u32, cpu: u64) -> agent::JournalRecord {
     sample_at(seq, workload, hour(at), cpu)
 }
 
-fn sample_at(seq: u64, workload: &str, start: SystemTime, cpu: u64) -> agent::JournalRecord {
+/// A sample of `workload`'s CPU time, `cpu`, for the hour from `start`, as journal record `seq`.
+pub fn sample_at(seq: u64, workload: &str, start: SystemTime, cpu: u64) -> agent::JournalRecord {
     let s = agent::MeteringSample {
         workload: workload.to_owned(),
         interval_start: korpis_wire::timestamp(start).into(),

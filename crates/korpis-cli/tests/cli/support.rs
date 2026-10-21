@@ -45,7 +45,7 @@ config:
 }
 
 pub struct ControlPlane {
-    _db: TestDb,
+    pub db: TestDb,
     dir: tempfile::TempDir,
     pub data: DataDir,
     pub url: String,
@@ -105,7 +105,7 @@ impl ControlPlane {
             installed.organization.id,
         );
         Self {
-            _db: db,
+            db,
             dir,
             data,
             url: format!("https://localhost:{}", running.addr.port()),

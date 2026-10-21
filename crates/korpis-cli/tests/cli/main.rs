@@ -26,3 +26,4 @@ mod sets;
 mod support;
 mod template;
 mod tenancy;
+mod usage;

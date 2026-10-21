@@ -54,7 +54,8 @@ meaningful and map to the error codes of §8 of `10-api.md`, `DENIED`, `CONFLICT
 With `--json` a failure is written to standard error as the API's error (code, reason, field, and
 message), so a script reads the same object whether it called the API or the CLI.
 
-The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects),
+The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects,
+usage, periods),
 `organization create|show|suspend|resume`, `project create`, `quota show|set`, `template
 create|list|show|edit|retire|holders`, `status`, `plan approve|reject|cancel`, `workload
 start|stop|restart|place|classify|delete|recipe`, and `node token create|cordon|uncordon|remove`,
@@ -91,6 +92,23 @@ was given below reads every organization beneath it, one call each. `quota set -
 from a file holding what `quota show --json` prints of it, YAML or JSON; it is set from above, so
 it takes `org.quota.write` over the organization's parent, or over a project's organization, and a
 set that breaks a bound around it is `CONFLICT` naming the bound.
+
+**Usage, as built.** Added 2026-10-21. `korpis get usage` prints what metering recorded (§2 of
+`15-observability.md`): a row for each interval of a workload, or for each span nothing was heard
+over, with the interval's two ends in UTC, its kind (measured, gap, or adjustment), CPU and
+throttled time in seconds, memory in GiB-hours, its peak, the block, network, and disk bytes, the
+node that measured it where the caller may read that node, and why it is longer than an interval
+or is a gap. A quantity nothing measured is `-`, never `0`, and how each was measured is printed
+under the table, since a billable number is never shown without its source, its window, and its
+method (§8 of `11-surface-web.md`). It reads an organization's subtree, the caller's own top
+organization when nothing is named, or one `--project` or `--workload`. `--from` and `--to` take
+an RFC 3339 time, a UTC day such as `2026-10-01` (metering's days are UTC days), or a span ago
+such as `7d`, the last day when neither is said; `--every-version` adds the gaps a measurement
+superseded, and `--limit` says how many are read, a hundred when not said. `korpis get periods`
+prints the metering days of a window, each open, closing, or closed, and when it closes. `--json`
+gives the API's records, whose quantities are exact integers; the table rounds CPU time to the
+millisecond and memory to the thousandth of a GiB-hour. The cost is width: fifteen columns wrap
+in a narrow terminal, and `--json` is the form a script reads.
 
 ---
 

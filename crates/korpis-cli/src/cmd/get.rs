@@ -201,6 +201,8 @@ pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
             Ok(Answer { json: json(&list), human })
         }
         Get::Effects(e) => effects(c, e).await,
+        Get::Usage(u) => super::usage::usage(c, u).await,
+        Get::Periods(p) => super::usage::periods(c, p).await,
     }
 }
 

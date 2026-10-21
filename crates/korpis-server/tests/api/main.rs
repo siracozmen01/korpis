@@ -137,6 +137,7 @@ mod tokens;
 mod told;
 mod trust;
 mod upgrade;
+mod usage;
 mod volume_attach;
 mod volume_delete;
 mod volumes;

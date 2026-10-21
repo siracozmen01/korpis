@@ -34,6 +34,7 @@ pub mod template;
 pub mod tenancy;
 pub mod theme;
 pub mod upgrade;
+pub mod usage;
 pub mod volume;
 pub mod workload;
 
@@ -104,6 +105,11 @@ pub enum Get {
     /// The effect log, as far as the caller's grants reach: an organization's subtree (the
     /// caller's own when nothing is named), or one project, workload, plan, or node.
     Effects(Effects),
+    /// What workloads used over intervals in a window, as their nodes measured it, and where
+    /// nothing was heard (§2 of docs/15-observability.md).
+    Usage(usage::Usage),
+    /// The metering days in a window, and whether each has closed.
+    Periods(usage::Periods),
 }
 
 /// What `korpis get effects` reads.

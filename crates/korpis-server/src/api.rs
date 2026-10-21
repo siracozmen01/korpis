@@ -40,6 +40,8 @@ mod external;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod info;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod metering;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod node;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod plan;
@@ -86,8 +88,8 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::{
     AccountServiceExt, BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt,
     DomainServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
-    IdentityServiceExt, NodeServiceExt, OrganizationServiceExt, PlanServiceExt, ProfileServiceExt,
-    ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
+    IdentityServiceExt, MeteringServiceExt, NodeServiceExt, OrganizationServiceExt, PlanServiceExt,
+    ProfileServiceExt, ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
     ServerInfoServiceExt, SessionServiceExt, StreamServiceExt, VolumeServiceExt,
     WorkloadServiceExt,
 };
@@ -225,6 +227,7 @@ impl Api {
         let router = PlanServiceExt::register(Arc::clone(&self), router);
         let router = NodeServiceExt::register(Arc::clone(&self), router);
         let router = EffectServiceExt::register(Arc::clone(&self), router);
+        let router = MeteringServiceExt::register(Arc::clone(&self), router);
         let router = DeclaredSetServiceExt::register(Arc::clone(&self), router);
         let router = ExtensionServiceExt::register(Arc::clone(&self), router);
         let router = EventServiceExt::register(Arc::clone(&self), router);

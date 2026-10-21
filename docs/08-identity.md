@@ -89,21 +89,21 @@ Korpis provides the reversible state; deciding when to apply it is the billing s
 > `crates/korpis-core/src/authz/evaluate.rs`). Suspending and resuming are authorized over the
 > organization's **parent**, which is what "only from above" means once it is evaluated: a grant
 > scoped at the organization itself never covers its parent, so a tenant cannot resume itself, and
-> a root organization, with nothing above it, is suspended by no one. `org.resume` is an action
-> of its own beside `org.suspend` (§5 of `10-api.md`, which named only the first), so a billing
-> system may be let restore a customer without being let suspend one. The cascade is derived as
-> written: an organization's ancestry carries whether each organization in it is suspended, and a
-> grant whose scope lies in a suspended organization's subtree authorizes only the reads a
-> suspended tenant keeps, which needs checking at the grant alone, because every grant beneath
-> it is scoped within it. What a suspended tenant keeps was left to an implementation by "reading
-> the organization's own metering and audit", so it is stated: `grant.read`, `org.read`,
+> a root organization, with nothing above it, is suspended by no one. `org.resume` is an action of
+> its own beside `org.suspend` (§5 of `10-api.md`, which named only the first), so a billing system
+> may be let restore a customer without being let suspend one. The cascade is derived as written:
+> an organization's ancestry carries whether each organization in it is suspended, and a grant
+> whose scope lies in a suspended organization's subtree authorizes only the reads a suspended
+> tenant keeps, which needs checking at the grant alone, because every grant beneath it is scoped
+> within it. What a suspended tenant keeps was left to an implementation by "reading the
+> organization's own metering and audit", so it is stated: `grant.read`, `org.read`,
 > `project.read`, `workload.read`, `plan.read`, and `node.read`, the reads its audit and its
-> workloads' status are answered under, and the metering read when metering is built (§4 of
-> `20-roadmap.md`, Phase 2). Reaching the service is what suspension withholds: a console, a
-> file, a backup's contents, and every change are refused. A grant scoped above the suspended
-> organization, the host's or the reseller's, acts on it as before. A workload holding a grant
-> scoped in it loses the API relay of §9.5 with its next assignment, announced at once. The
-> offline side is settled in §6.3 (question 7 of §10).
+> workloads' status are answered under, and `metering.read` since metering was built on 2026-10-21
+> (§2 of `15-observability.md`, §5 of `10-api.md`). Reaching the service is what suspension
+> withholds: a console, a file, a backup's contents, and every change are refused. A grant scoped
+> above the suspended organization, the host's or the reseller's, acts on it as before. A workload
+> holding a grant scoped in it loses the API relay of §9.5 with its next assignment, announced at
+> once. The offline side is settled in §6.3 (question 7 of §10).
 >
 > `on_suspend: stop`, corrected 2026-10-19, the day it was first built (Finding 106 of
 > `23-walkthroughs.md`). The first build wrote the stop onto the workloads: for each workload

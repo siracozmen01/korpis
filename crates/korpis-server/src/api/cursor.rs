@@ -13,7 +13,7 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use korpis_app::ports::EffectCursor;
 use korpis_core::id::IdKind;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -33,6 +33,8 @@ impl std::fmt::Debug for Cursors {
 
 /// What an effect-log token is sealed for, beside the kinds `context` names.
 const EFFECT_CONTEXT: &str = "korpis page token effect";
+/// What a usage token is sealed for.
+const USAGE_CONTEXT: &str = "korpis page token usage";
 
 fn context(kind: IdKind) -> String {
     format!("korpis page token {}", kind.prefix())
@@ -66,24 +68,42 @@ impl Cursors {
     /// any other list's row is, since a filtered page of the log may stop on an effect the
     /// caller may not see (§4 of docs/15-observability.md).
     pub fn seal_effect(&self, after: EffectCursor) -> Result<String, ConnectError> {
-        let micros = after.at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
-        let micros = u64::try_from(micros).unwrap_or(u64::MAX);
-        let mut plain = micros.to_be_bytes().to_vec();
-        plain.extend_from_slice(after.id.as_bytes());
-        let sealed =
-            seal_bytes(&self.key, EFFECT_CONTEXT, &plain).map_err(|e| error::internal(&e))?;
-        Ok(URL_SAFE_NO_PAD.encode(sealed))
+        self.seal_timed(EFFECT_CONTEXT, (after.at, after.id))
     }
 
     /// The effect a token of the effect log resumes after; `None` for one this key did not seal.
     #[must_use]
     pub fn open_effect(&self, token: &str) -> Option<EffectCursor> {
+        let (at, id) = self.open_timed(EFFECT_CONTEXT, token)?;
+        Some(EffectCursor { at, id })
+    }
+
+    /// The token resuming a listing of usage after a record: its interval start and identifier.
+    pub fn seal_usage(&self, after: (SystemTime, Uuid)) -> Result<String, ConnectError> {
+        self.seal_timed(USAGE_CONTEXT, after)
+    }
+
+    /// The record a token of a usage listing resumes after; `None` for one this key did not seal.
+    #[must_use]
+    pub fn open_usage(&self, token: &str) -> Option<(SystemTime, Uuid)> {
+        self.open_timed(USAGE_CONTEXT, token)
+    }
+
+    fn seal_timed(&self, for_: &str, (at, id): (SystemTime, Uuid)) -> Result<String, ConnectError> {
+        let micros = at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
+        let micros = u64::try_from(micros).unwrap_or(u64::MAX);
+        let mut plain = micros.to_be_bytes().to_vec();
+        plain.extend_from_slice(id.as_bytes());
+        let sealed = seal_bytes(&self.key, for_, &plain).map_err(|e| error::internal(&e))?;
+        Ok(URL_SAFE_NO_PAD.encode(sealed))
+    }
+
+    fn open_timed(&self, for_: &str, token: &str) -> Option<(SystemTime, Uuid)> {
         let sealed = URL_SAFE_NO_PAD.decode(token).ok()?;
-        let plain = open_bytes(&self.key, EFFECT_CONTEXT, &sealed).ok()?;
+        let plain = open_bytes(&self.key, for_, &sealed).ok()?;
         let (micros, id) = plain.split_at_checked(8)?;
         let micros = u64::from_be_bytes(micros.try_into().ok()?);
-        let id = Uuid::from_slice(id).ok()?;
-        Some(EffectCursor { at: UNIX_EPOCH + Duration::from_micros(micros), id })
+        Some((UNIX_EPOCH + Duration::from_micros(micros), Uuid::from_slice(id).ok()?))
     }
 
     /// The row a token of `kind` resumes after; `None` for a token this key did not seal for it.

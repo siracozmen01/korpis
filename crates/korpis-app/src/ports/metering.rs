@@ -19,8 +19,43 @@ pub struct Overdue {
     pub from: SystemTime,
 }
 
+/// Which records to read: of one workload, a project's, or an organization's subtree's, whose
+/// intervals begin in a window, after a page's last.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsageQuery {
+    /// One workload's.
+    pub workload: Option<Uuid>,
+    /// Every workload of a project.
+    pub project: Option<Uuid>,
+    /// Every workload of an organization's subtree.
+    pub organization: Option<Uuid>,
+    /// Intervals beginning at or after this.
+    pub from: SystemTime,
+    /// And before this.
+    pub to: SystemTime,
+    /// Only the records nothing later supersedes.
+    pub current: bool,
+    /// After this interval start and record, in their order.
+    pub after: Option<(SystemTime, Uuid)>,
+    /// At most this many.
+    pub limit: u32,
+}
+
 /// Reading metering.
 pub trait MeteringRead {
+    /// The records `query` asks for, in the order their intervals begin.
+    fn metering_usage(
+        &self,
+        query: &UsageQuery,
+    ) -> impl Future<Output = StoreResult<Vec<Record>>> + Send;
+
+    /// The days closed from `from` to before `to`: each day's start and when it closed.
+    fn metering_closed_days(
+        &self,
+        from: SystemTime,
+        to: SystemTime,
+    ) -> impl Future<Output = StoreResult<Vec<(SystemTime, SystemTime)>>> + Send;
+
     /// Every workload, on each node it is placed on, that nothing covers from before `cutoff`:
     /// from its last sample or gap there, or from its placement where it has none.
     fn metering_overdue(

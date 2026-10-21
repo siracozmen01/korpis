@@ -28,6 +28,7 @@ pub const CORE: &[&str] = &[
     "extension.install",
     "extension.uninstall",
     "event.read",
+    "metering.read",
     "plan.read",
     "plan.approve",
     "plan.cancel",
@@ -107,8 +108,15 @@ pub const PRIVATE: &[&str] = &[
 /// docs/08-identity.md): read their grants, their tree, and the status and audit of what runs in
 /// it, so a customer asked to pay can see what for. Reaching the service itself, a console, a
 /// file, a backup's contents, is what suspension withholds, and every change is refused.
-pub const WHILE_SUSPENDED: &[&str] =
-    &["grant.read", "org.read", "project.read", "workload.read", "plan.read", "node.read"];
+pub const WHILE_SUSPENDED: &[&str] = &[
+    "grant.read",
+    "org.read",
+    "project.read",
+    "workload.read",
+    "plan.read",
+    "node.read",
+    "metering.read",
+];
 
 /// Why a string is not an action.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

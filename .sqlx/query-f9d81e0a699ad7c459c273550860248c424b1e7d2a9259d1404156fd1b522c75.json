@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (day::timestamp AT TIME ZONE 'UTC') AS \"start!\", closed_at\n                 FROM metering_period\n                WHERE day >= ($1::timestamptz AT TIME ZONE 'UTC')::date\n                  AND day < ($2::timestamptz AT TIME ZONE 'UTC')::date\n                ORDER BY day",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "start!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "metering_period",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "f9d81e0a699ad7c459c273550860248c424b1e7d2a9259d1404156fd1b522c75"
+}

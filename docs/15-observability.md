@@ -324,6 +324,24 @@ split by destination until bandwidth accounting is built.
 > names no epoch past it. One that fails is a `journal.rejected` record, and the journal moves
 > past it. The API test sends a counter beyond the store and a sample twenty hours ahead, and
 > finds both rejected and the journal moved on.
+>
+> Built 2026-10-21 (P2.7d): reading it. `MeteringService.ListUsage` answers the records of a
+> workload, of every workload of a project, or of every workload in an organization's subtree,
+> whose intervals begin in a window (a day up to now when none is named), in the order they
+> begin and paged by that order, under `metering.read` held over what it names. By default it
+> answers the current records, what nothing later superseded, and `every_version` adds the gaps
+> a measurement replaced. Each record carries its window, its kind, its cause, what it
+> supersedes, when it was recorded (an adjustment's date), and each quantity it measured, absent
+> where nothing measured it; the node that measured it is shown only to a caller who may read
+> that node, as an effect's nodes are (§4 of this document). `ListPeriods` answers the UTC days
+> of a window, at most a year of them, each open, closing, or closed, and when it closed or will
+> close at the lateness in force, to any caller with a credential (§5 of `10-api.md`, under
+> `metering.read`). `korpis get usage` and `korpis get periods` print them (§2 of
+> `13-surface-cli.md`). What it costs: a page of an organization's usage joins every record of
+> the window with the organization tree beneath it, and a node a caller may not read is a lookup
+> per node named on the page. API and CLI tests read a workload's records in their units, page
+> them, find a caller without `metering.read` refused, and find the days of a window with their
+> states.
 
 ---
 

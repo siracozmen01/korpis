@@ -73,6 +73,8 @@ pub enum IdKind {
     Template,
     /// An identity binding (`idb_`).
     Binding,
+    /// A metering record (`use_`).
+    Usage,
 }
 
 impl IdKind {
@@ -110,6 +112,7 @@ impl IdKind {
             Self::Run => "run",
             Self::Template => "tpl",
             Self::Binding => "idb",
+            Self::Usage => "use",
         }
     }
 }

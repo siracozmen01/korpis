@@ -10,6 +10,10 @@ use crate::error::AppError;
 use crate::ports::{Clock, MeteringWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::metering::{Record, day_of, gaps, interval_of};
 
+mod usage;
+
+pub use usage::{UsageCursor, UsageOf, UsageWindow};
+
 /// The most gaps written for one workload on one node in one pass, so a node silent for months
 /// is caught up over several passes rather than in one transaction.
 const MOST_GAPS: usize = 24 * 7;
