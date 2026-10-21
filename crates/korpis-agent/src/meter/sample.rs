@@ -124,6 +124,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         for workload in &held {
             self.read_link(workload, now);
         }
+        self.read_table(now).await;
         self.meter.with_book(|b| {
             if elapsed > LONGEST_READ
                 && let Some(from) = last
@@ -181,6 +182,32 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             (Some(_), Some(_)) => b.read(workload, "net", net, now),
             _ if b.has_source(workload, "net") => b.ended(workload, "net", None, now),
             _ => {}
+        });
+    }
+
+    /// Reads what the host's table counted of every held workload's link, in one listing: its
+    /// egress and its counted endpoints. A node whose helper lists nothing reads nothing, and a
+    /// workload whose counters went with its network ends the source as its link's bytes do.
+    async fn read_table(&self, now: SystemTime) {
+        let held: Vec<(String, Vec<korpis_proto::korpis::v1::Endpoint>)> = {
+            let held = self.sources.held.borrow();
+            held.assignments.iter().map(|(w, a)| (w.clone(), a.endpoints.clone())).collect()
+        };
+        let listed = match self.sources.host.read_counters().await {
+            Ok(r) => super::table::listed(r.counters),
+            Err(e) => {
+                tracing::debug!(error = %e, "the host's table went unread");
+                return;
+            }
+        };
+        let counted: Vec<_> = held
+            .iter()
+            .map(|(w, endpoints)| (w, super::table::counted(w, endpoints, &listed)))
+            .collect();
+        self.meter.with_book(|b| {
+            for (workload, counted) in counted {
+                b.read_or_end(workload, "table", counted, now);
+            }
         });
     }
 

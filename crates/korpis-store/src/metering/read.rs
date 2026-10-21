@@ -35,6 +35,8 @@ struct RecordRow {
     disk_bytes: Option<i64>,
     losses: serde_json::Value,
     recorded_at: DateTime<Utc>,
+    egress_bytes: Option<i64>,
+    endpoints: serde_json::Value,
 }
 
 impl RecordRow {
@@ -49,6 +51,7 @@ impl RecordRow {
             self.net_rx_bytes,
             self.net_tx_bytes,
             self.memory_kib_seconds,
+            self.egress_bytes,
         ];
         Ok(Record {
             id: self.id,
@@ -60,7 +63,7 @@ impl RecordRow {
             kind,
             cause: self.cause,
             supersedes: self.supersedes,
-            used: counters(used)?,
+            used: counters(used, self.endpoints)?,
             memory_peak_bytes: read("memory_peak_bytes", self.memory_peak_bytes)?,
             disk_bytes: read("disk_bytes", self.disk_bytes)?,
             losses: losses(self.losses)?,
@@ -102,7 +105,7 @@ impl MeteringRead for PgStore {
             "SELECT id, workload_id, node_id, lease_epoch, interval_start, interval_end, kind,
                     cause, supersedes, cpu_usec, cpu_throttled_usec, io_read_bytes,
                     io_write_bytes, net_rx_bytes, net_tx_bytes, memory_kib_seconds,
-                    memory_peak_bytes, disk_bytes, losses, recorded_at
+                    memory_peak_bytes, disk_bytes, losses, recorded_at, egress_bytes, endpoints
                FROM metering_record
               WHERE workload_id = $1 AND interval_start >= $2 AND interval_start < $3
               ORDER BY interval_start, recorded_at, id",
@@ -125,7 +128,7 @@ impl MeteringRead for PgStore {
                     r.interval_end, r.kind, r.cause, r.supersedes, r.cpu_usec,
                     r.cpu_throttled_usec, r.io_read_bytes, r.io_write_bytes, r.net_rx_bytes,
                     r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,
-                    r.losses, r.recorded_at
+                    r.losses, r.recorded_at, r.egress_bytes, r.endpoints
                FROM metering_record r JOIN workload w ON w.id = r.workload_id
               WHERE ((NOT $10 OR r.kind <> 'adjustment')
                      AND r.interval_start >= $4 AND r.interval_start < $5

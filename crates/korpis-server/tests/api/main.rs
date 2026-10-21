@@ -139,6 +139,7 @@ mod told;
 mod trust;
 mod upgrade;
 mod usage;
+mod usage_endpoints;
 mod volume_attach;
 mod volume_delete;
 mod volumes;

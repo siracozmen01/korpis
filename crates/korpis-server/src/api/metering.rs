@@ -43,6 +43,14 @@ fn record_to_pb(r: &Record) -> pb::UsageRecord {
         cause: l.cause.clone(),
         ..Default::default()
     });
+    let endpoints = r.used.endpoints.iter().map(|(name, e)| pb::EndpointUsage {
+        endpoint: name.clone(),
+        received_bytes: e.received_bytes,
+        received_packets: e.received_packets,
+        sent_bytes: e.sent_bytes,
+        sent_packets: e.sent_packets,
+        ..Default::default()
+    });
     pb::UsageRecord {
         id: wire::wire_id(IdKind::Usage, r.id),
         workload: wire::wire_id(IdKind::Workload, r.workload),
@@ -64,6 +72,8 @@ fn record_to_pb(r: &Record) -> pb::UsageRecord {
         memory_peak_bytes: r.memory_peak_bytes,
         disk_bytes: r.disk_bytes,
         losses: losses.collect(),
+        egress_bytes: r.used.egress_bytes,
+        endpoints: endpoints.collect(),
         ..Default::default()
     }
 }

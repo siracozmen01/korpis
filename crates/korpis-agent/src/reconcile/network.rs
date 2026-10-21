@@ -14,7 +14,7 @@ use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 
 /// What a protocol rides on.
-fn transport(p: &pb::Endpoint) -> helper::Transport {
+pub(crate) fn transport(p: &pb::Endpoint) -> helper::Transport {
     match p.protocol.as_known() {
         Some(
             pb::EndpointProtocol::ENDPOINT_PROTOCOL_UDP

@@ -33,6 +33,27 @@ pub fn add(a: &mut agent::MeterCounters, b: &agent::MeterCounters) {
     a.net_rx_bytes = sum(a.net_rx_bytes, b.net_rx_bytes);
     a.net_tx_bytes = sum(a.net_tx_bytes, b.net_tx_bytes);
     a.memory_kib_seconds = sum(a.memory_kib_seconds, b.memory_kib_seconds);
+    a.egress_bytes = sum(a.egress_bytes, b.egress_bytes);
+    for e in &b.endpoints {
+        match a.endpoints.iter_mut().find(|x| x.endpoint == e.endpoint) {
+            Some(x) => {
+                x.received_bytes = x.received_bytes.saturating_add(e.received_bytes);
+                x.received_packets = x.received_packets.saturating_add(e.received_packets);
+                x.sent_bytes = x.sent_bytes.saturating_add(e.sent_bytes);
+                x.sent_packets = x.sent_packets.saturating_add(e.sent_packets);
+            }
+            None => a.endpoints.push(e.clone()),
+        }
+    }
+    a.endpoints.sort_by(|x, y| x.endpoint.cmp(&y.endpoint));
+}
+
+/// What `before` counted of the endpoints `now` no longer counts: an endpoint whose accounting
+/// was turned off or that was renamed keeps what it carried, as a source that ended does.
+fn dropped(before: &agent::MeterCounters, now: &agent::MeterCounters) -> agent::MeterCounters {
+    let gone =
+        before.endpoints.iter().filter(|e| !now.endpoints.iter().any(|n| n.endpoint == e.endpoint));
+    agent::MeterCounters { endpoints: gone.cloned().collect(), ..Default::default() }
 }
 
 /// Whether any counter of `now` is below the same counter of `before`.
@@ -44,8 +65,16 @@ fn went_back(before: &agent::MeterCounters, now: &agent::MeterCounters) -> bool 
         (before.io_write_bytes, now.io_write_bytes),
         (before.net_rx_bytes, now.net_rx_bytes),
         (before.net_tx_bytes, now.net_tx_bytes),
+        (before.egress_bytes, now.egress_bytes),
     ];
+    let endpoint = |e: &agent::EndpointCounters| {
+        now.endpoints
+            .iter()
+            .find(|n| n.endpoint == e.endpoint)
+            .is_some_and(|n| n.received_bytes < e.received_bytes || n.sent_bytes < e.sent_bytes)
+    };
     pairs.iter().any(|(b, n)| matches!((b, n), (Some(b), Some(n)) if n < b))
+        || before.endpoints.iter().any(endpoint)
 }
 
 /// The timestamp `t` is.
@@ -142,13 +171,31 @@ impl Book {
     ) {
         let since = self.read_at().unwrap_or(now);
         let w = self.workload(workload);
-        if let Some(before) = w.sources.get(source).cloned()
-            && went_back(&before, &reading)
-        {
-            add(w.base.get_or_insert_default(), &before);
-            w.losses.push(loss(since, now, COUNTER_RESET));
+        if let Some(before) = w.sources.get(source).cloned() {
+            if went_back(&before, &reading) {
+                add(w.base.get_or_insert_default(), &before);
+                w.losses.push(loss(since, now, COUNTER_RESET));
+            } else {
+                add(w.base.get_or_insert_default(), &dropped(&before, &reading));
+            }
         }
         w.sources.insert(source.to_owned(), reading);
+    }
+
+    /// Takes `reading` of `workload`'s `source` at `now`, or, where it went unread after it was
+    /// read, ends it unread.
+    pub fn read_or_end(
+        &mut self,
+        workload: &str,
+        source: &str,
+        reading: Option<agent::MeterCounters>,
+        now: SystemTime,
+    ) {
+        match reading {
+            Some(r) => self.read(workload, source, r, now),
+            None if self.has_source(workload, source) => self.ended(workload, source, None, now),
+            None => {}
+        }
     }
 
     /// Integrates `object`'s memory in use, `current`, over the `elapsed` since the last reading,

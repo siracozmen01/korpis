@@ -6,7 +6,14 @@ import { cores, cpuSeconds, gibHours, permille, perSecond, totals } from "./figu
 
 const HOUR = 3600n;
 
-function record(hour: bigint, kind: UsageKind, init: { cpuUsec?: bigint; diskBytes?: bigint }) {
+interface Init {
+  readonly cpuUsec?: bigint;
+  readonly diskBytes?: bigint;
+  readonly egressBytes?: bigint;
+  readonly endpoints?: { endpoint: string; receivedBytes: bigint; sentBytes: bigint }[];
+}
+
+function record(hour: bigint, kind: UsageKind, init: Init) {
   return create(UsageRecordSchema, {
     id: `use_${String(hour)}`,
     kind,
@@ -40,4 +47,19 @@ test("a day's records sum what was measured and count the unheard apart", () => 
   expect(sum.disk).toEqual({ bytes: 20n, at: 3 * 3_600_000 });
   expect(sum.netRxBytes, "nothing measured it: absent, not zero").toBeUndefined();
   expect(totals([]).cpuUsec).toBeUndefined();
+});
+
+test("a day's egress and each counted endpoint are summed by name", () => {
+  const game = (receivedBytes: bigint, sentBytes: bigint) => ({
+    endpoint: "game",
+    receivedBytes,
+    sentBytes,
+  });
+  const sum = totals([
+    record(0n, UsageKind.MEASURED, { egressBytes: 900n, endpoints: [game(100n, 400n)] }),
+    record(1n, UsageKind.MEASURED, { egressBytes: 100n, endpoints: [game(20n, 30n)] }),
+  ]);
+  expect(sum.egressBytes).toBe(1000n);
+  expect(sum.endpoints.get("game")).toEqual({ receivedBytes: 120n, sentBytes: 430n });
+  expect(totals([record(2n, UsageKind.MEASURED, {})]).endpoints.size, "none counted").toBe(0);
 });

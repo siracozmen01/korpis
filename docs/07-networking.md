@@ -1175,6 +1175,10 @@ needs `nft` (§2 of `18-operations.md`).
 > sees (Finding 124, §47 of `23-walkthroughs.md`). Not yet built: the meter's reading of the
 > counters (P2.8d), and the egress budget (P2.8e).
 
+> Built 2026-10-21 (P2.8d): the meter reads the counters through the helper's `ReadCounters` at
+> each reading, and each record carries its egress and what each counted endpoint carried (§2 of
+> `15-observability.md`). Not yet built: the egress budget (P2.8e).
+
 ---
 
 ## 8. Abuse and attack

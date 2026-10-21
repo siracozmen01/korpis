@@ -64,4 +64,9 @@ impl InMemoryHost {
     pub fn set_usage(&self, volume: &str, bytes: u64) {
         let _ = self.with(|k| k.usage.insert(volume.to_owned(), bytes));
     }
+
+    /// The host's table counts `counters` from now on, as `ReadCounters` lists them.
+    pub fn set_counters(&self, counters: Vec<helper::Counter>) {
+        let _ = self.with(|k| k.counters = counters);
+    }
 }

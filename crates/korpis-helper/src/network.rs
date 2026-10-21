@@ -320,6 +320,12 @@ impl Network {
         bandwidth::uplinks(r)
     }
 
+    /// What the host's table has counted of every workload's link, in one listing of it.
+    pub fn read_counters(&self) -> HelperResult<helper::ReadCountersResponse> {
+        let counters = account::read(&forward::listed()?.account);
+        Ok(helper::ReadCountersResponse { counters, ..Default::default() })
+    }
+
     /// The sockets of `workload`'s resolver, opened inside its network namespace: UDP, then TCP
     /// listening. Its network must have been made.
     pub fn open_resolver(&self, workload: &str) -> HelperResult<Vec<rustix::fd::OwnedFd>> {

@@ -68,7 +68,11 @@ export function WorkloadPage({ id }: { readonly id: string }) {
           },
         )}
       </p>
-      {said !== undefined && <p role="status">{said}</p>}
+      {/* Always there, a line held for it: a live region present before it speaks is announced
+          when it does, and what it says never moves the actions below it under a pointer. */}
+      <p role="status" className="said">
+        {said}
+      </p>
       {ended !== undefined && (
         <div role="alert">
           <p>

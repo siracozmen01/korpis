@@ -37,6 +37,8 @@ struct Kept {
     opened_files: Vec<helper::OpenFilesRequest>,
     /// What each volume's filesystem accounts, as a test set it; unaccounted where unset.
     usage: BTreeMap<String, u64>,
+    /// What the host's table has counted, as a test set it.
+    counters: Vec<helper::Counter>,
 }
 
 /// A helper and content store that keep their records in memory; clones share them.
@@ -315,6 +317,15 @@ impl Host for InMemoryHost {
         _request: &helper::EnsureUplinksRequest,
     ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send {
         ready(Err(HostError("the in-memory host shapes nothing".into())))
+    }
+
+    fn read_counters(
+        &self,
+    ) -> impl Future<Output = Result<helper::ReadCountersResponse, HostError>> + Send {
+        ready(self.with(|k| helper::ReadCountersResponse {
+            counters: k.counters.clone(),
+            ..Default::default()
+        }))
     }
 }
 

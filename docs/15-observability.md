@@ -386,6 +386,24 @@ interval's record as the interface's bytes are. An endpoint is named in a record
 a record says which of a workload's services carried what. What it costs: a record grows by a row
 per endpoint, and an endpoint renamed begins a count of its own.
 
+> Built 2026-10-21 (P2.8d of the build plan). Corrected as it was built: only an endpoint whose
+> `accounting` is on is counted, not each declared endpoint, since the flag is the declaration
+> that it is metered and the host's table writes its counters for no other (§7 of
+> `07-networking.md`, P2.8c). The helper's `ReadCounters` lists every counter of the workloads'
+> links in one listing of the table, and the meter reads it at each of its readings as one more
+> source of each workload, named for the endpoint by the assignment's port and protocol, so it is
+> carried across a reset as the interface's bytes are; an endpoint whose accounting is turned off
+> or that is renamed keeps what it carried, joining the workload's base as a source that ended
+> does, and is no loss. A sample naming an endpoint twice, or none, is not believed. The control
+> plane differences each endpoint by its name and the egress as the other counters, and keeps them
+> with the record: its `egress_bytes` column, and its endpoints as one document of the record, a
+> member per endpoint, rather than a row each in a table of their own, since a record is never
+> changed and is always read whole (`0107_metering_endpoints`). `UsageRecord` carries
+> `egress_bytes` and `endpoints`; `korpis get usage` prints an EGRESS column and, under the table,
+> each endpoint's bytes and packets by record; the panel's Accounted shows the day's egress and
+> what each endpoint carried. The API test sends three samples and reads the first from zero, the
+> second as its difference, and the third, which names an endpoint twice, rejected.
+
 ---
 
 ## 3. Metrics

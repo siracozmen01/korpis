@@ -109,6 +109,12 @@ small {
   color: var(--muted);
 }
 
+/* A status line that holds its line while it says nothing, so what it says later moves nothing
+   below it. */
+.said {
+  min-block-size: 1lh;
+}
+
 /* What follows a value as a remark on it: a kind, an age, a mark. The space before it is the
    page's to draw, not a word of any language, so no message carries it. */
 .aside {

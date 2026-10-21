@@ -61,6 +61,9 @@ service HelperService {
   // each declared uplink an HTB tree of its capacity, and every tree of Korpis's on an
   // interface no longer declared removed.
   rpc EnsureUplinks(EnsureUplinksRequest) returns (EnsureUplinksResponse);
+  // What the host's table has counted of every workload's link (§7 of docs/07-networking.md):
+  // each named counter, in one listing of the table, which the meter reads at each reading.
+  rpc ReadCounters(ReadCountersRequest) returns (ReadCountersResponse);
 }
 
 // One request, as the transport carries it.
@@ -89,6 +92,7 @@ message HelperRequest {
     StopIngressRequest stop_ingress = 21;
     OpenFilesRequest open_files = 22;
     EnsureUplinksRequest ensure_uplinks = 23;
+    ReadCountersRequest read_counters = 24;
   }
 }
 
@@ -119,6 +123,7 @@ message HelperResponse {
     StopIngressResponse stop_ingress = 22;
     OpenFilesResponse open_files = 23;
     EnsureUplinksResponse ensure_uplinks = 24;
+    ReadCountersResponse read_counters = 25;
   }
 }
 
@@ -237,6 +242,21 @@ message EnsureUplinksResponse {
   repeated string shaped = 1;
   // The interfaces whose trees were removed.
   repeated string removed = 2;
+}
+
+message ReadCountersRequest {}
+
+message ReadCountersResponse {
+  // Every counter of a workload's link: `<link>_egress`, and `<link>_<tcp|udp>_<port>_in` and
+  // `_out` for each port whose accounting is on.
+  repeated Counter counters = 1;
+}
+
+// A named counter of the host's table, cumulative since it was made.
+message Counter {
+  string name = 1;
+  uint64 bytes = 2;
+  uint64 packets = 3;
 }
 
 // Opens the sockets of a workload's resolver inside its network namespace, on the resolver's

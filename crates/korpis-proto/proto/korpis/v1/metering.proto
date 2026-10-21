@@ -98,6 +98,23 @@ message UsageRecord {
   optional uint64 disk_bytes = 19;
   // What the node could not measure within it.
   repeated UsageLoss losses = 20;
+  // Bytes that left the workload's link for anything but another workload's link on its node,
+  // counted in the node's host table: what its egress budget is measured in (§5.1 of
+  // docs/05-scheduling.md). Traffic to the node's ingress proxy counts; to another workload of
+  // the node does not.
+  optional uint64 egress_bytes = 21;
+  // What each endpoint whose accounting is on carried, by name; none for an endpoint whose
+  // accounting is off, which is not counted.
+  repeated EndpointUsage endpoints = 22;
+}
+
+// One endpoint's bytes and packets over a record's window: sent to its port, and from it.
+message EndpointUsage {
+  string endpoint = 1;
+  uint64 received_bytes = 2;
+  uint64 received_packets = 3;
+  uint64 sent_bytes = 4;
+  uint64 sent_packets = 5;
 }
 
 message UsageLoss {

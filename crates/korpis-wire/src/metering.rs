@@ -5,11 +5,16 @@
 
 use crate::{Result, duration_from, id, invalid, time};
 use korpis_core::id::IdKind;
-use korpis_core::metering::{Counters, Loss, Sample};
+use korpis_core::metering::{Counters, EndpointUse, Loss, Sample};
 use korpis_proto::korpis::agent::v1 as agent;
 
-fn counters(c: &agent::MeterCounters) -> Counters {
-    Counters {
+fn counters(field: &str, c: &agent::MeterCounters) -> Result<Counters> {
+    let names: std::collections::BTreeSet<&str> =
+        c.endpoints.iter().map(|e| e.endpoint.as_str()).collect();
+    if names.len() != c.endpoints.len() || names.contains("") {
+        return Err(invalid(&format!("{field}.endpoints"), "each endpoint is named, once"));
+    }
+    Ok(Counters {
         cpu_usec: c.cpu_usec,
         cpu_throttled_usec: c.cpu_throttled_usec,
         io_read_bytes: c.io_read_bytes,
@@ -17,7 +22,21 @@ fn counters(c: &agent::MeterCounters) -> Counters {
         net_rx_bytes: c.net_rx_bytes,
         net_tx_bytes: c.net_tx_bytes,
         memory_kib_seconds: c.memory_kib_seconds,
-    }
+        egress_bytes: c.egress_bytes,
+        endpoints: c
+            .endpoints
+            .iter()
+            .map(|e| {
+                let used = EndpointUse {
+                    received_bytes: e.received_bytes,
+                    received_packets: e.received_packets,
+                    sent_bytes: e.sent_bytes,
+                    sent_packets: e.sent_packets,
+                };
+                (e.endpoint.clone(), used)
+            })
+            .collect(),
+    })
 }
 
 fn loss(field: &str, l: &agent::MeterLoss) -> Result<Loss> {
@@ -51,7 +70,10 @@ pub fn sample_from_pb(field: &str, s: &agent::MeteringSample) -> Result<Sample> 
         interval_start: start,
         interval,
         lease_epoch: s.lease_epoch,
-        counters: s.counters.as_option().map(counters).unwrap_or_default(),
+        counters: match s.counters.as_option() {
+            Some(c) => counters(&format!("{field}.counters"), c)?,
+            None => Counters::default(),
+        },
         memory_peak_bytes: s.memory_peak_bytes,
         disk_bytes: s.disk_bytes,
         losses: losses.collect::<Result<_>>()?,

@@ -80,6 +80,10 @@
     "defaultMessage": "unknown",
     "description": "a grant's state"
   },
+  "0CdU+wF7": {
+    "defaultMessage": "{received} received, {sent} sent",
+    "description": "an endpoint's bytes"
+  },
   "0bWtzCgd": {
     "defaultMessage": "{action}: done. What it did"
   },
@@ -247,6 +251,10 @@
   },
   "6f0LBR2I": {
     "defaultMessage": "Restart requested"
+  },
+  "6vnOVE2b": {
+    "defaultMessage": "Egress",
+    "description": "a usage figure: bytes sent beyond the node"
   },
   "6vqEzPIc": {
     "defaultMessage": "Disk writes (bytes/s)"
@@ -590,6 +598,10 @@
   },
   "GDi3Iw2v": {
     "defaultMessage": "The panel has no page at this address."
+  },
+  "GUVPdT95": {
+    "defaultMessage": "Egress",
+    "description": "a usage column: sent beyond the node"
   },
   "GfsxhpW3": {
     "defaultMessage": "Its workloads are held stopped until it is resumed."
@@ -981,6 +993,10 @@
   },
   "Rsr0afH7": {
     "defaultMessage": "Sign in a command-line client"
+  },
+  "RtRRxOmg": {
+    "defaultMessage": "By endpoint",
+    "description": "what each endpoint of the workload carried"
   },
   "RuANMV6H": {
     "defaultMessage": "at {provider}, {state}"
@@ -1375,9 +1391,6 @@
   "e4C1p0sc": {
     "defaultMessage": "Recovery code"
   },
-  "e7uDfKUT": {
-    "defaultMessage": "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. A gap is an interval nothing was heard over, never filled in."
-  },
   "e9SAPfzd": {
     "defaultMessage": "That did not sign you in."
   },
@@ -1589,6 +1602,9 @@
   },
   "lWYMAj0Y": {
     "defaultMessage": "Reading its configuration…"
+  },
+  "leHarPmZ": {
+    "defaultMessage": "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in."
   },
   "lfun+oaM": {
     "defaultMessage": "It is shown this once. Send it only to the person it is for, not to a group."

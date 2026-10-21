@@ -251,6 +251,14 @@ impl HelperClient {
         }
     }
 
+    /// What the host's table has counted of every workload's link.
+    pub async fn read_counters(&self) -> Result<helper::ReadCountersResponse, HostError> {
+        match self.call(Verb::ReadCounters(Box::default())).await? {
+            Answer::ReadCounters(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the filesystem accounts for a volume.
     pub async fn volume_usage(
         &self,

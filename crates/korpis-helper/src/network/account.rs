@@ -15,6 +15,7 @@
 use super::forward::Transport;
 use super::nft::{TABLE, chain};
 use super::policy::Inbound;
+use korpis_proto::korpis::helper::v1 as helper;
 use serde_json::{Value, json};
 
 /// The map from a workload's link to its `from_` chain.
@@ -261,6 +262,22 @@ pub(crate) fn listed(items: &[Value]) -> Listed {
     l
 }
 
+/// The counters of every workload's link that `listed` holds, as the meter reads them.
+pub(crate) fn read(listed: &Listed) -> Vec<helper::Counter> {
+    let prefix = korpis_core::workload::network::HOST_LINK_PREFIX;
+    listed
+        .counters
+        .iter()
+        .filter(|(name, _)| name.starts_with(prefix))
+        .map(|(name, (bytes, packets))| helper::Counter {
+            name: name.clone(),
+            bytes: *bytes,
+            packets: *packets,
+            ..Default::default()
+        })
+        .collect()
+}
+
 /// The class `link` holds, or the lowest one free from `first`; none when every class an HTB
 /// qdisc can number is held.
 pub(crate) fn class_for(link: &str, listed: &Listed, first: u32) -> Option<u32> {
@@ -314,6 +331,8 @@ mod tests {
         ];
         let l = listed(&items);
         assert_eq!(l.counters.get("kwabc_egress"), Some(&(1200, 3)));
+        let read = read(&l);
+        assert_eq!((read[0].name.as_str(), read[0].bytes), ("kwabc_egress", 1200), "as metered");
         assert_eq!(class_for("kwabc", &l, 16), Some(16), "its own, kept");
         assert_eq!(class_for("kwnew", &l, 16), Some(18), "the lowest free");
         let released = Value::Array(release("kwabc", &l)).to_string();

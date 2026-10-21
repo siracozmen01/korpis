@@ -18,7 +18,7 @@ mod halt;
 mod install;
 mod jobs;
 mod managed;
-mod network;
+pub(crate) mod network;
 mod observe;
 mod policy;
 pub mod progress;

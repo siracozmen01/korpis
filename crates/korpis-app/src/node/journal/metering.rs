@@ -58,7 +58,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             record.kind = RecordKind::Adjustment;
         }
         tx.append_metering_record(&record, self.clock.now()).await?;
-        let reading = Reading { end: sample.end(), counters: sample.counters };
+        let reading = Reading { end: sample.end(), counters: sample.counters.clone() };
         tx.keep_metering_reading(w, node, &reading).await?;
         Ok(None)
     }

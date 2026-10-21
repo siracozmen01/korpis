@@ -206,6 +206,12 @@ impl Host for NodeHost {
         self.helper.ensure_uplinks(request)
     }
 
+    fn read_counters(
+        &self,
+    ) -> impl Future<Output = Result<helper::ReadCountersResponse, HostError>> + Send {
+        self.helper.read_counters()
+    }
+
     fn volume_usage(
         &self,
         volume: &str,

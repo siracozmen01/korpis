@@ -15,7 +15,15 @@ import { bytes } from "../i18n/format";
 import { intl, t } from "../i18n/intl";
 import { refusal } from "../views/refusal";
 import { Intervals } from "./Intervals";
-import { cores, cpuSeconds, gibHours, perSecond, permille, totals } from "./figures";
+import {
+  type EndpointTotal,
+  cores,
+  cpuSeconds,
+  gibHours,
+  perSecond,
+  permille,
+  totals,
+} from "./figures";
 import { useUsageNow } from "./useUsageNow";
 
 /** The window accounted: the last day. */
@@ -58,6 +66,12 @@ const NAMES = {
   received: () =>
     t({ defaultMessage: "Network received", id: "FqyUjrsq", description: "a usage figure" }),
   sent: () => t({ defaultMessage: "Network sent", id: "RpzP/389", description: "a usage figure" }),
+  egress: () =>
+    t({
+      defaultMessage: "Egress",
+      id: "6vnOVE2b",
+      description: "a usage figure: bytes sent beyond the node",
+    }),
   disk: () => t({ defaultMessage: "Disk", id: "UYHJnj7x", description: "a usage figure" }),
 };
 
@@ -127,6 +141,35 @@ function Now({ id }: { readonly id: string }) {
   );
 }
 
+/** What each endpoint whose accounting is on carried; nothing where none is counted. */
+function Endpoints({ endpoints }: { readonly endpoints: ReadonlyMap<string, EndpointTotal> }) {
+  if (endpoints.size === 0) {
+    return null;
+  }
+  const heading = t({
+    defaultMessage: "By endpoint",
+    id: "RtRRxOmg",
+    description: "what each endpoint of the workload carried",
+  });
+  const rows = [...endpoints].map(([name, e]): [string, string] => [
+    name,
+    t(
+      {
+        defaultMessage: "{received} received, {sent} sent",
+        id: "0CdU+wF7",
+        description: "an endpoint's bytes",
+      },
+      { received: bytes(e.receivedBytes), sent: bytes(e.sentBytes) },
+    ),
+  ]);
+  return (
+    <section aria-label={heading}>
+      <h4>{heading}</h4>
+      <Figures rows={rows} />
+    </section>
+  );
+}
+
 /** What the last day's records of the workload come to, and each of them. */
 function Accounted({ records, from }: { readonly records: UsageRecord[]; readonly from: number }) {
   const sum = totals(records);
@@ -163,6 +206,7 @@ function Accounted({ records, from }: { readonly records: UsageRecord[]; readonl
           [NAMES.written(), map(sum.ioWriteBytes, bytes)],
           [NAMES.received(), map(sum.netRxBytes, bytes)],
           [NAMES.sent(), map(sum.netTxBytes, bytes)],
+          [NAMES.egress(), map(sum.egressBytes, bytes)],
           [
             NAMES.disk(),
             map(sum.disk, (d) =>
@@ -178,11 +222,12 @@ function Accounted({ records, from }: { readonly records: UsageRecord[]; readonl
           ],
         ]}
       />
+      <Endpoints endpoints={sum.endpoints} />
       <p className="aside">
         {t({
           defaultMessage:
-            "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. A gap is an interval nothing was heard over, never filled in.",
-          id: "e7uDfKUT",
+            "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. Egress, and each endpoint whose accounting is on, are counted in the node's firewall, out of the workload's reach; egress is what left for anything but another workload on its node. A gap is an interval nothing was heard over, never filled in.",
+          id: "leHarPmZ",
         })}
       </p>
       <Intervals records={records} />

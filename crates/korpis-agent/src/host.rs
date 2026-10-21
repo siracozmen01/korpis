@@ -177,6 +177,12 @@ pub trait Host: Send + Sync + 'static {
         request: &helper::EnsureUplinksRequest,
     ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send;
 
+    /// What the host's table has counted of every workload's link: each endpoint whose
+    /// accounting is on, and its egress (§7 of docs/07-networking.md).
+    fn read_counters(
+        &self,
+    ) -> impl Future<Output = Result<helper::ReadCountersResponse, HostError>> + Send;
+
     /// What the filesystem accounts for `volume`, read rather than computed (§3 of
     /// docs/06-storage.md): what the meter samples as its stored bytes (§2 of
     /// docs/15-observability.md).

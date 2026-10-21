@@ -123,9 +123,10 @@ and here it does.
 > observation, which the control plane decides (its node heard, §4.3 of `02-architecture.md`),
 > heard live; stale is the panel no longer hearing, the value dimmed with how long ago it was
 > heard; unknown is no observation, or one the control plane says is not current, shown as
-> "unknown" with the last one and its age beside it. Ages grow on screen each second. A signed-in screen opens a dropped watch again by itself,
-> waiting from one second up to thirty; a share link's screen asks, because each opening spends
-> a use. The lists of workloads show each one's convergence as the list was read.
+> "unknown" with the last one and its age beside it. Ages grow on screen each second. A signed-in
+> screen opens a dropped watch again by itself, waiting from one second up to thirty; a share
+> link's screen asks, because each opening spends a use. The lists of workloads show each one's
+> convergence as the list was read.
 >
 > Corrected 2026-10-17. This note said a resource not reported is shown as unknown, never 0, and
 > the screen showed CPU, memory, and disk rows. Nothing in Phase 1 reports them, so the rows only
@@ -557,19 +558,21 @@ interface's rule is that a billable number is never rendered without provenance.
 > throttling, and block and network bytes as rates, with when the node read it, by its clock, and
 > the seconds each rate is over, and the words "Not billed, and not the figure below".
 > **Accounted** is the last day's records from `ListUsage`: CPU time, throttled time, GiB-hours of
-> memory, the peak, the bytes, and the disk at the latest interval's end with that time, under the
-> window they cover and how many intervals were measured, and, where any were not heard, "not
-> counting N unheard over H hours", since a day's sum over a day not heard throughout is a sum of
-> part of it; then how each figure was measured, and each record on request, a gap shown as unheard
-> with its cause. A quantity nothing measured is left out, never shown as a zero. The two parts are
-> never reconciled: a reading is ten seconds of the node's meter, a record an interval of its
-> counters differenced, and a difference between them is shown as it is. A caller without
-> `metering.read` is told so and opens no session; a share link's screen shows the section only
-> when the link holds the action, and only when asked, each reading being a use. What it costs: a
-> signed-in screen holds a session at the node for as long as it is open, one more besides the
-> console's, and the day's records are read once when the screen opens, up to a day of one-minute
-> intervals, not followed. Component tests read both parts with their sources and a caller refused;
-> the browser test reads both on a real node.
+> memory, the peak, the bytes, the egress, and the disk at the latest interval's end with that
+> time, and, where any endpoint's accounting is on, what each such endpoint received and sent (both
+> added 2026-10-21, §2 of `15-observability.md`), under the window they cover and how many
+> intervals were measured, and, where any were not heard, "not counting N unheard over H hours",
+> since a day's sum over a day not heard throughout is a sum of part of it; then how each figure
+> was measured, and each record on request, a gap shown as unheard with its cause. A quantity
+> nothing measured is left out, never shown as a zero. The two parts are never reconciled: a
+> reading is ten seconds of the node's meter, a record an interval of its counters differenced, and
+> a difference between them is shown as it is. A caller without `metering.read` is told so and
+> opens no session; a share link's screen shows the section only when the link holds the action,
+> and only when asked, each reading being a use. What it costs: a signed-in screen holds a session
+> at the node for as long as it is open, one more besides the console's, and the day's records are
+> read once when the screen opens, up to a day of one-minute intervals, not followed. Component
+> tests read both parts with their sources and a caller refused; the browser test reads both on a
+> real node.
 
 ---
 

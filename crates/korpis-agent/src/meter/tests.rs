@@ -24,10 +24,18 @@ struct Node {
 fn assignment(workload: &str, epoch: u64) -> agent::Assignment {
     let volume = pb::VolumeSpec { name: "world".into(), ..Default::default() };
     let body = pb::IntentBody { volumes: vec![volume], ..Default::default() };
+    let game = pb::Endpoint {
+        name: "game".into(),
+        protocol: pb::EndpointProtocol::ENDPOINT_PROTOCOL_UDP.into(),
+        container_port: 25565,
+        accounting: true,
+        ..Default::default()
+    };
     agent::Assignment {
         workload: workload.into(),
         lease_epoch: epoch,
         target: pb::Intent { body: body.into(), ..Default::default() }.into(),
+        endpoints: vec![game],
         ..Default::default()
     }
 }
@@ -145,4 +153,29 @@ async fn memory_unread_for_long_is_not_integrated_and_is_said_lost() {
     let pending = n.meter.with_book(|b| b.pending("wl_1"));
     assert_eq!(pending.counters.memory_kib_seconds, Some(1024 * 10 + 1024 * 30));
     assert_eq!(pending.losses[0].cause, sample::MEMORY_UNREAD);
+}
+
+#[tokio::test]
+async fn a_sample_carries_what_the_hosts_table_counted_of_the_workloads_link() {
+    let n = node("wl_1");
+    let link = host_link("wl_1");
+    let counter = |what: &str, bytes, packets| korpis_proto::korpis::helper::v1::Counter {
+        name: format!("{link}_{what}"),
+        bytes,
+        packets,
+        ..Default::default()
+    };
+    n.host.set_counters(vec![
+        counter("egress", 9_000, 30),
+        counter("udp_25565_in", 1_200, 4),
+        counter("udp_25565_out", 4_800, 6),
+    ]);
+    n.sampler.read(t(0)).await;
+    n.sampler.sample(t(0), DEFAULT_INTERVAL).await;
+    let s = samples(&n.journal).await;
+    let c = s[0].counters.as_option().unwrap();
+    assert_eq!(c.egress_bytes, Some(9_000), "its egress, beside its interface's bytes");
+    let game = &c.endpoints[0];
+    assert_eq!(game.endpoint, "game", "named as the workload declares it");
+    assert_eq!((game.received_bytes, game.sent_bytes, game.received_packets), (1_200, 4_800, 4));
 }

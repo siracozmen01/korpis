@@ -64,6 +64,10 @@ export interface Totals {
   readonly ioWriteBytes: bigint | undefined;
   readonly netRxBytes: bigint | undefined;
   readonly netTxBytes: bigint | undefined;
+  /** What left the workload's link for anything but another workload's on its node. */
+  readonly egressBytes: bigint | undefined;
+  /** What each endpoint whose accounting is on carried, by name. */
+  readonly endpoints: ReadonlyMap<string, EndpointTotal>;
   /** The disk the latest record measured, and when its interval ended. */
   readonly disk: { readonly bytes: bigint; readonly at: number } | undefined;
   /** How many records were measured, adjustments among them. */
@@ -72,6 +76,12 @@ export interface Totals {
   /** How many records are gaps, and the milliseconds they span. */
   readonly gaps: number;
   readonly gapMs: number;
+}
+
+/** What one endpoint carried over a window. */
+export interface EndpointTotal {
+  readonly receivedBytes: bigint;
+  readonly sentBytes: bigint;
 }
 
 const sum = (a: bigint | undefined, b: bigint | undefined) => (b === undefined ? a : (a ?? 0n) + b);
@@ -90,6 +100,8 @@ export function totals(records: readonly UsageRecord[]): Totals {
     ioWriteBytes: undefined,
     netRxBytes: undefined,
     netTxBytes: undefined,
+    egressBytes: undefined,
+    endpoints: new Map(),
     disk: undefined,
     measured: 0,
     adjustments: 0,
@@ -102,6 +114,14 @@ export function totals(records: readonly UsageRecord[]): Totals {
       acc = { ...acc, gaps: acc.gaps + 1, gapMs: acc.gapMs + span.to - span.from };
       continue;
     }
+    const endpoints = new Map(acc.endpoints);
+    for (const e of r.endpoints) {
+      const before = endpoints.get(e.endpoint) ?? { receivedBytes: 0n, sentBytes: 0n };
+      endpoints.set(e.endpoint, {
+        receivedBytes: before.receivedBytes + e.receivedBytes,
+        sentBytes: before.sentBytes + e.sentBytes,
+      });
+    }
     const later = r.diskBytes !== undefined && (acc.disk === undefined || span.to >= acc.disk.at);
     acc = {
       ...acc,
@@ -113,6 +133,8 @@ export function totals(records: readonly UsageRecord[]): Totals {
       ioWriteBytes: sum(acc.ioWriteBytes, r.ioWriteBytes),
       netRxBytes: sum(acc.netRxBytes, r.netRxBytes),
       netTxBytes: sum(acc.netTxBytes, r.netTxBytes),
+      egressBytes: sum(acc.egressBytes, r.egressBytes),
+      endpoints,
       disk: later && r.diskBytes !== undefined ? { bytes: r.diskBytes, at: span.to } : acc.disk,
       measured: acc.measured + 1,
       adjustments: acc.adjustments + (r.kind === UsageKind.ADJUSTMENT ? 1 : 0),

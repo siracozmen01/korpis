@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT interval_end, cpu_usec, cpu_throttled_usec, io_read_bytes, io_write_bytes,\n                    net_rx_bytes, net_tx_bytes, memory_kib_seconds\n               FROM metering_reading WHERE workload_id = $1 AND node_id = $2 FOR UPDATE",
+  "query": "SELECT interval_end, cpu_usec, cpu_throttled_usec, io_read_bytes, io_write_bytes,\n                    net_rx_bytes, net_tx_bytes, memory_kib_seconds, egress_bytes, endpoints\n               FROM metering_reading WHERE workload_id = $1 AND node_id = $2 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -90,6 +90,28 @@
             "name": "memory_kib_seconds"
           }
         }
+      },
+      {
+        "ordinal": 8,
+        "name": "egress_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "metering_reading",
+            "name": "egress_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "endpoints",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "metering_reading",
+            "name": "endpoints"
+          }
+        }
       }
     ],
     "parameters": {
@@ -106,8 +128,10 @@
       true,
       true,
       true,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "0d282805e1cc91b23f75ad3dfc992bf78d7cddab8794c0f079e8edd0cb700d66"
+  "hash": "2619f88951162371140041f7199e23a4cd85be269e5221ab9d2df25871a31648"
 }

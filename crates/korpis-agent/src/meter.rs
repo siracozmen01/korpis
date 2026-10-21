@@ -10,6 +10,7 @@ pub mod book;
 pub mod metered;
 pub mod now;
 mod sample;
+mod table;
 
 use crate::held::HeldSet;
 use crate::host::Host;

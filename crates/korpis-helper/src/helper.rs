@@ -136,6 +136,9 @@ impl Helper {
             Verb::EnsureUplinks(r) => {
                 Answer::EnsureUplinks(Box::new(self.network()?.ensure_uplinks(&r)?))
             }
+            Verb::ReadCounters(_) => {
+                Answer::ReadCounters(Box::new(self.network()?.read_counters()?))
+            }
             _ => return Err(HelperError::Refused("not a network verb".into())),
         })
     }
@@ -354,6 +357,7 @@ impl Helper {
             | Verb::ReleaseNetwork(_)
             | Verb::DescribeNetwork(_)
             | Verb::EnsureUplinks(_)
+            | Verb::ReadCounters(_)
             | Verb::OpenResolver(_)) => self.networking(v)?,
             v @ (Verb::OpenIngress(_) | Verb::StartIngress(_) | Verb::StopIngress(_)) => {
                 self.ingress_verb(v)?

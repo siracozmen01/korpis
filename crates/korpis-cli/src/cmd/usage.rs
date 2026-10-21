@@ -18,8 +18,10 @@ use std::time::SystemTime;
 const METHOD: &str = "Times are UTC. CPU, throttled time, and block and network bytes are the \
                       kernel's counters, differenced between two samples on the node; memory is \
                       integrated from readings every ten seconds; disk is what the volumes' \
-                      filesystem accounted at the interval's end. A gap is an interval nothing \
-                      was heard over.";
+                      filesystem accounted at the interval's end. Egress, and each endpoint whose \
+                      accounting is on, are counted in the node's host table: egress is what left \
+                      the workload's link for anything but another workload's on its node. A gap \
+                      is an interval nothing was heard over.";
 
 /// What `korpis get usage` reads.
 #[derive(Debug, Clone, clap::Args)]
@@ -138,6 +140,10 @@ pub async fn usage(c: &Connection, u: &Usage) -> Result<Answer, CliError> {
     }
     list.truncate(u.limit);
     let mut human = table(&usage_rows(&list));
+    let endpoints = endpoint_rows(&list);
+    if endpoints.len() > 1 {
+        let _ = write!(human, "\n{}", table(&endpoints));
+    }
     let _ = writeln!(human, "\n{METHOD}");
     Ok(Answer { json: json(&list), human })
 }
@@ -156,6 +162,7 @@ fn usage_rows(list: &[pb::UsageRecord]) -> Vec<Vec<String>> {
         "WRITTEN",
         "RECEIVED",
         "SENT",
+        "EGRESS",
         "DISK",
         "NODE",
         "CAUSE",
@@ -185,10 +192,33 @@ fn usage_row(r: &pb::UsageRecord) -> Vec<String> {
         size(r.io_write_bytes),
         size(r.net_rx_bytes),
         size(r.net_tx_bytes),
+        size(r.egress_bytes),
         size(r.disk_bytes),
         r.node.clone().unwrap_or_else(|| "-".to_owned()),
         cause,
     ]
+}
+
+/// What each counted endpoint of each record carried, a row each, with its header; the header
+/// alone where no record counts an endpoint.
+fn endpoint_rows(list: &[pb::UsageRecord]) -> Vec<Vec<String>> {
+    let header = ["FROM", "TO", "WORKLOAD", "ENDPOINT", "RECEIVED", "SENT", "PACKETS IN", "OUT"];
+    let mut rows = vec![header.iter().map(|h| (*h).to_owned()).collect()];
+    for r in list {
+        for e in &r.endpoints {
+            rows.push(vec![
+                time(r.from.as_option()),
+                time(r.to.as_option()),
+                r.workload.clone(),
+                e.endpoint.clone(),
+                bytes(e.received_bytes),
+                bytes(e.sent_bytes),
+                e.received_packets.to_string(),
+                e.sent_packets.to_string(),
+            ]);
+        }
+    }
+    rows
 }
 
 /// Microseconds of CPU time as seconds, to the millisecond.
@@ -237,5 +267,20 @@ mod tests {
         let row = usage_row(&pb::UsageRecord { cpu_usec: Some(0), ..Default::default() });
         assert_eq!(row.get(4).map(String::as_str), Some("0.000 s"));
         assert_eq!(row.get(5).map(String::as_str), Some("-"), "throttling was not measured");
+        let game = pb::EndpointUsage {
+            endpoint: "game".into(),
+            received_bytes: 2048,
+            sent_packets: 6,
+            ..Default::default()
+        };
+        let r = pb::UsageRecord {
+            egress_bytes: Some(4096),
+            endpoints: vec![game],
+            ..Default::default()
+        };
+        assert_eq!(usage_row(&r).get(12).map(String::as_str), Some(bytes(4096).as_str()));
+        let rows = endpoint_rows(&[r]);
+        assert_eq!((rows.len(), rows[1][3].as_str(), rows[1][7].as_str()), (2, "game", "6"));
+        assert_eq!(endpoint_rows(&[]).len(), 1, "the header alone, which is not printed");
     }
 }

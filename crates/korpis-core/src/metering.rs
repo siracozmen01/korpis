@@ -9,8 +9,10 @@
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
 
+mod endpoints;
 mod period;
 
+pub use endpoints::{EndpointUse, Endpoints};
 pub use period::{Period, PeriodState};
 
 /// A span samples were lost over, between the last one received and the next.
@@ -41,7 +43,7 @@ pub const COUNTER_RESET: &str = "counter reset";
 
 /// Counters, cumulative in a sample and the differences in a record. Each is absent where
 /// nothing measured it, never zero for that.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Counters {
     /// CPU time, in microseconds.
     pub cpu_usec: Option<u64>,
@@ -57,10 +59,14 @@ pub struct Counters {
     pub net_tx_bytes: Option<u64>,
     /// Memory in use integrated over time, in KiB-seconds.
     pub memory_kib_seconds: Option<u64>,
+    /// Bytes that left the workload's link for anything but another workload's on its node.
+    pub egress_bytes: Option<u64>,
+    /// What each endpoint whose accounting is on carried, by name.
+    pub endpoints: Endpoints,
 }
 
 impl Counters {
-    fn pairs(&self) -> [Option<u64>; 7] {
+    fn pairs(&self) -> [Option<u64>; 8] {
         [
             self.cpu_usec,
             self.cpu_throttled_usec,
@@ -69,11 +75,12 @@ impl Counters {
             self.net_rx_bytes,
             self.net_tx_bytes,
             self.memory_kib_seconds,
+            self.egress_bytes,
         ]
     }
 
-    fn from_pairs(p: [Option<u64>; 7]) -> Self {
-        let [cpu, throttled, read, written, rx, tx, memory] = p;
+    fn from_pairs(p: [Option<u64>; 8], endpoints: Endpoints) -> Self {
+        let [cpu, throttled, read, written, rx, tx, memory, egress] = p;
         Self {
             cpu_usec: cpu,
             cpu_throttled_usec: throttled,
@@ -82,6 +89,8 @@ impl Counters {
             net_rx_bytes: rx,
             net_tx_bytes: tx,
             memory_kib_seconds: memory,
+            egress_bytes: egress,
+            endpoints,
         }
     }
 
@@ -92,17 +101,18 @@ impl Counters {
             .iter()
             .zip(before.pairs())
             .any(|(n, b)| matches!((n, b), (Some(n), Some(b)) if *n < b))
+            || endpoints::below(&self.endpoints, &before.endpoints)
     }
 
     /// What was used since `before`, counter by counter. A counter `before` did not measure is
     /// counted from zero, since a node's counter begins at zero when it is first measured.
     #[must_use]
     pub fn since(&self, before: &Self) -> Self {
-        let mut out = [None; 7];
+        let mut out = [None; 8];
         for (o, (n, b)) in out.iter_mut().zip(self.pairs().into_iter().zip(before.pairs())) {
             *o = n.map(|n| n.saturating_sub(b.unwrap_or(0)));
         }
-        Self::from_pairs(out)
+        Self::from_pairs(out, endpoints::since(&self.endpoints, &before.endpoints))
     }
 }
 
@@ -177,7 +187,12 @@ pub fn implausible(sample: &Sample, now: SystemTime) -> Option<&'static str> {
     let fits = |n: Option<u64>| n.is_none_or(|n| i64::try_from(n).is_ok());
     let counted =
         sample.counters.pairs().into_iter().chain([sample.memory_peak_bytes, sample.disk_bytes]);
-    if !counted.into_iter().all(fits) || i64::try_from(sample.lease_epoch).is_err() {
+    let endpoints = sample.counters.endpoints.iter();
+    let endpoint_fits = endpoints.flat_map(|(_, e)| e.fields()).all(|n| i64::try_from(n).is_ok());
+    if !counted.into_iter().all(fits)
+        || !endpoint_fits
+        || i64::try_from(sample.lease_epoch).is_err()
+    {
         return Some("a counter is beyond what is stored");
     }
     None
@@ -185,7 +200,7 @@ pub fn implausible(sample: &Sample, now: SystemTime) -> Option<&'static str> {
 
 /// The last sample of a workload on a node the control plane took: where the next is measured
 /// from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reading {
     /// The end of its interval.
     pub end: SystemTime,
@@ -284,7 +299,7 @@ impl Record {
             kind: RecordKind::Measured,
             cause: m.cause.map(str::to_owned),
             supersedes: Vec::new(),
-            used: m.used,
+            used: m.used.clone(),
             memory_peak_bytes: sample.memory_peak_bytes,
             disk_bytes: sample.disk_bytes,
             losses: sample.losses.clone(),
@@ -341,7 +356,7 @@ pub fn measure(sample: &Sample, before: Option<&Reading>) -> Result<Measured, Un
     let to = sample.end();
     let Some(before) = before else {
         // The first sample of a workload on a node counts from zero, at the start of its interval.
-        let used = sample.counters;
+        let used = sample.counters.clone();
         return Ok(Measured { from: sample.interval_start, to, used, cause: None });
     };
     if to <= before.end {
@@ -349,7 +364,7 @@ pub fn measure(sample: &Sample, before: Option<&Reading>) -> Result<Measured, Un
     }
     if sample.counters.below(&before.counters) {
         // What ran between the reading before and the count beginning again is unknown.
-        let used = sample.counters;
+        let used = sample.counters.clone();
         return Ok(Measured { from: sample.interval_start, to, used, cause: Some(COUNTER_RESET) });
     }
     let used = sample.counters.since(&before.counters);

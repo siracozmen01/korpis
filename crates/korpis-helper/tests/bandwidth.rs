@@ -274,6 +274,11 @@ fn a_reservation_is_a_class_on_the_uplink_and_each_endpoint_is_counted_until_rel
         inside(&dir, &["ping", "-c1", "-W2", "169.254.1.1"]).output().unwrap().status.success()
     );
     assert!(counted(&format!("{link}_egress")).is_some_and(|(b, _)| b > 0));
+    let read = network.read_counters().unwrap().counters;
+    assert!(
+        read.iter().any(|c| c.name == format!("{link}_tcp_8080_in") && c.packets > 0),
+        "{read:?}"
+    );
 
     // What it sends on through the uplink goes in its class, by the priority the host table
     // sets as it is forwarded.

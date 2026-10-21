@@ -47,6 +47,7 @@ function Row({ record: r }: { readonly record: UsageRecord }) {
     shown(r.ioWriteBytes, bytes),
     shown(r.netRxBytes, bytes),
     shown(r.netTxBytes, bytes),
+    shown(r.egressBytes, bytes),
   ];
   return (
     <tr className={r.kind === UsageKind.GAP ? "gap" : undefined}>
@@ -72,6 +73,11 @@ export function Intervals({ records }: { readonly records: readonly UsageRecord[
     t({ defaultMessage: "Written", id: "SqsiTxuN", description: "a usage column" }),
     t({ defaultMessage: "Received", id: "nN6WZyJ2", description: "a usage column" }),
     t({ defaultMessage: "Sent", id: "JegOZ5Sz", description: "a usage column" }),
+    t({
+      defaultMessage: "Egress",
+      id: "GUVPdT95",
+      description: "a usage column: sent beyond the node",
+    }),
   ];
   return (
     <details>

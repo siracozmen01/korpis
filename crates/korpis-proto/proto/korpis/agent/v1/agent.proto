@@ -680,6 +680,22 @@ message MeterCounters {
   // Memory in use integrated over time from ten-second readings, in KiB-seconds: a sum of
   // measurements, not a kernel counter.
   optional uint64 memory_kib_seconds = 7;
+  // Bytes that left its link for anything but another workload's link on its node, counted in
+  // the host's table: its egress, which its egress budget is measured in (§5.1 of
+  // docs/05-scheduling.md).
+  optional uint64 egress_bytes = 8;
+  // What each of its endpoints whose accounting is on carried, by name (§7 of
+  // docs/07-networking.md).
+  repeated EndpointCounters endpoints = 9;
+}
+
+// One endpoint's counters, cumulative: what was sent to its port, and what left it.
+message EndpointCounters {
+  string endpoint = 1;
+  uint64 received_bytes = 2;
+  uint64 received_packets = 3;
+  uint64 sent_bytes = 4;
+  uint64 sent_packets = 5;
 }
 
 // A span the node could not measure, and why: "counter reset", "node rebooted".

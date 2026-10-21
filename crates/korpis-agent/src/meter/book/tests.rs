@@ -89,3 +89,42 @@ fn memory_is_integrated_and_an_interval_s_peak_falls_with_the_next() {
     assert_eq!(second.peak, Some(gib / 2), "a lifetime's mark that did not rise is not this peak");
     assert_eq!(book.close("wl_1").peak, None, "nothing read, no peak");
 }
+
+fn table(egress: u64, endpoints: &[(&str, u64)]) -> agent::MeterCounters {
+    let endpoints = endpoints
+        .iter()
+        .map(|(name, received)| agent::EndpointCounters {
+            endpoint: (*name).into(),
+            received_bytes: *received,
+            sent_bytes: received * 2,
+            ..Default::default()
+        })
+        .collect();
+    agent::MeterCounters { egress_bytes: Some(egress), endpoints, ..Default::default() }
+}
+
+fn received(c: &agent::MeterCounters, name: &str) -> Option<u64> {
+    c.endpoints.iter().find(|e| e.endpoint == name).map(|e| e.received_bytes)
+}
+
+#[test]
+fn an_endpoints_bytes_run_on_across_a_reset_and_are_kept_when_it_stops_being_counted() {
+    let mut book = Book::default();
+    book.read("wl_1", "table", table(1000, &[("game", 100), ("map", 7)]), t(0));
+    book.read("wl_1", "table", table(1500, &[("game", 150), ("map", 9)]), t(10));
+    // The network was made again, its counters with it.
+    book.read("wl_1", "table", table(20, &[("game", 10), ("map", 1)]), t(20));
+    let reset = book.pending("wl_1");
+    assert_eq!(
+        (reset.counters.egress_bytes, received(&reset.counters, "game")),
+        (Some(1520), Some(160))
+    );
+    assert_eq!(reset.losses.len(), 1, "what was sent between the readings is lost");
+    // The map's accounting is turned off: what it carried stays counted, and nothing is lost.
+    book.read("wl_1", "table", table(40, &[("game", 12)]), t(30));
+    let off = book.close("wl_1");
+    assert_eq!(received(&off.counters, "map"), Some(10), "nine before the reset, one after");
+    assert_eq!(received(&off.counters, "game"), Some(162));
+    assert_eq!(off.counters.endpoints[1].sent_bytes, 20, "its bytes sent, kept with it");
+    assert_eq!(off.losses.len(), 1);
+}
