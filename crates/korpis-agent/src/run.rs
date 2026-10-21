@@ -166,9 +166,10 @@ pub async fn facts_of<R: Runtime, H: Host>(
     // docs/05-scheduling.md).
     capacity.disk_bytes = storage_classes.iter().map(|c| c.capacity_bytes).sum();
     allocatable.disk_bytes = storage_classes.iter().map(|c| c.free_bytes).sum();
-    if let Some((offered, link)) = crate::shaping::shaped(host, uplinks).await {
+    let held = crate::shaping::held(host, uplinks).await;
+    crate::shaping::enforced(&mut driver, &held.kinds);
+    if let Some((offered, link)) = held.bandwidth {
         (allocatable.bandwidth_bits_per_sec, capacity.bandwidth_bits_per_sec) = (offered, link);
-        crate::shaping::enforced(&mut driver);
     }
     let advertised = agent::Advertised::default();
     let facts = Facts { drivers: vec![driver], storage_classes, capacity, allocatable, advertised };

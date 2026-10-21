@@ -295,16 +295,14 @@ impl Network {
         let own = egress::Own { opened: &a.opened, rules: &a.rules, limits: a.limits };
         host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
         let class = bandwidth::class(&link, &a.shaping, &listed.account)?;
-        let ports: Vec<(Transport, u16)> =
-            a.inbound.iter().map(|i| (i.transport, i.port)).collect();
-        let own = account::Own { ports: &ports, class, cut_off: a.shaping.cut_off };
+        let own = account::Own { ports: &a.inbound, class, cut_off: a.shaping.cut_off };
         host.extend(account::held(&link, &own, &listed.account));
         nft::apply(&serde_json::json!({"nftables": host}))?;
         if class.is_none() {
             bandwidth::unclass(&link, &listed.account)?;
         }
         netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
-        bandwidth::apply(&dir, &link, &a.shaping, class)?;
+        bandwidth::apply((&dir, &link), &a.shaping, class, &a.inbound)?;
         resolver::write(&dir)?;
         Ok(helper::EnsureNetworkResponse {
             namespaces: dir.to_string_lossy().into_owned(),

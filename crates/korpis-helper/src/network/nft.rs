@@ -104,6 +104,10 @@ fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
 /// A workload's own table, written whole: new connections in are dropped, except over loopback,
 /// the messages a network needs, and to the ports `inbound` its endpoints listen on, each through
 /// its endpoint's rules and limits where it has any; replies to its own connections are let back.
+/// What an endpoint with a limit of its own sends from its port is put in its class on `eth0`
+/// (§7 of docs/07-networking.md), by the priority its output chain sets, which the workload,
+/// holding no `NET_ADMIN`, cannot change. A priority it sets on a socket itself can put what it
+/// sends only in another of its own classes, each beneath its own limit.
 pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
     let table = json!({"table": {"family": "inet", "name": TABLE}});
     let mut commands = vec![
@@ -116,12 +120,17 @@ pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
         accept_when(&json!({"ct": {"key": "state"}}), "in", &json!(["established", "related"])),
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("icmp")),
         accept_when(&json!({"meta": {"key": "l4proto"}}), "==", &json!("ipv6-icmp")),
+        chain("output", "filter", "output", 0, "accept"),
+        flush("output"),
     ];
+    for i in inbound.iter().filter(|i| i.shaping.0 > 0) {
+        let set = json!({"mangle": {"key": {"meta": {"key": "priority"}},
+            "value": super::shape::link_id(i.class)}});
+        let [proto, sport] = port_of(i, "sport");
+        commands.push(rule("output", vec![proto, sport, set]));
+    }
     for i in inbound {
-        let proto = json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
-            "right": i.transport.name()}});
-        let dport = json!({"match": {"op": "==",
-            "left": {"payload": {"protocol": "th", "field": "dport"}}, "right": i.port}});
+        let [proto, dport] = port_of(i, "dport");
         let guarded = !i.rules.is_empty() || i.max_connections > 0 || i.new_per_sec > 0;
         if !guarded {
             commands.push(rule("input", vec![proto, dport, json!({"accept": null})]));
@@ -133,6 +142,16 @@ pub(crate) fn namespace(inbound: &[Inbound]) -> Value {
         commands.extend(guard(&name, i));
     }
     json!({"nftables": commands})
+}
+
+/// What matches `i`'s port as `field`, `dport` or `sport`, over its transport.
+fn port_of(i: &Inbound, field: &str) -> [Value; 2] {
+    [
+        json!({"match": {"op": "==", "left": {"meta": {"key": "l4proto"}},
+            "right": i.transport.name()}}),
+        json!({"match": {"op": "==",
+            "left": {"payload": {"protocol": "th", "field": field}}, "right": i.port}}),
+    ]
 }
 
 /// The rules of the chain `name` for the port `i`: its limits, then its rules in order, then

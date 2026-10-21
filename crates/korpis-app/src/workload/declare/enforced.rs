@@ -57,9 +57,6 @@ fn endpoint(at: &str, e: &EndpointSpec) -> Result<(), AppError> {
     if e.exposure == Exposure::DedicatedIp {
         return Err(AppError::NotYet { what: "dedicated addresses", phase: 3 });
     }
-    if e.shaping.egress_bits_per_sec > 0 || e.shaping.ingress_bits_per_sec > 0 || e.accounting {
-        return Err(AppError::NotYet { what: "per-endpoint shaping and accounting", phase: 2 });
-    }
     half_open(&format!("{at}.policy.conntrack"), e.policy.conntrack)?;
     for (j, r) in e.policy.ingress.iter().enumerate() {
         let here = format!("{at}.policy.ingress[{j}]");

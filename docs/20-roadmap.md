@@ -432,7 +432,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: forty-three traces and their 123 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: forty-four traces and their 125 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
@@ -477,13 +477,14 @@ built (§19 to §41 of `23-walkthroughs.md`) record what each found.
 
 **What Phase 1 does not do is homed.** Every refusal the code answers with "arrives in Phase N"
 names a phase that names it in §4: dedicated addresses and rules naming workloads in Phase 3, an
-endpoint's shaping and accounting in Phase 2. Two local volume backends of §2 of `06-storage.md`
-are not built: ZFS, which the machine Phase 1 was built on could not run without loading a kernel
-module its operator did not ask for, and LVM-thin. Both are built before the first release, beside
-the succession document, which still blocks it; until then a ZFS dataset is offered as a
-`directory` class that says it enforces nothing, and XFS on a thin volume as the XFS project class
-it is, without a thin volume of its own per Korpis volume. The network classes are Phase 3's (§4).
-Drain is Phase 3's too, since draining is migrating (§4, Phase 3).
+endpoint's shaping and accounting in Phase 2, since built there and no longer refused (§7 of
+`07-networking.md`). Two local volume backends of §2 of `06-storage.md` are not built: ZFS, which
+the machine Phase 1 was built on could not run without loading a kernel module its operator did not
+ask for, and LVM-thin. Both are built before the first release, beside the succession document,
+which still blocks it; until then a ZFS dataset is offered as a `directory` class that says it
+enforces nothing, and XFS on a thin volume as the XFS project class it is, without a thin volume of
+its own per Korpis volume. The network classes are Phase 3's (§4). Drain is Phase 3's too, since
+draining is migrating (§4, Phase 3).
 
 > Corrected 2026-10-19, as Phase 1 closed. This section said Phase 0 was built and that what
 > remained was Phase 1, and its counts were Phase 0's.

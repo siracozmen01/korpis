@@ -7,10 +7,14 @@
 //! neither chain decides anything but a cut-off, so the filter's verdicts are untouched. The
 //! counters are named objects, which a chain rewritten keeps counting into, and which the meter
 //! reads; the class is kept in a map from the link, so the helper allocates it without a ledger
-//! of its own and finds it again to remove it.
+//! of its own and finds it again to remove it. The `to_` chain also decides the class on the
+//! host's side of the link of everything sent to the workload: an endpoint's own, by its port,
+//! where it has a limit of its own, and otherwise none, so a priority set before, by the
+//! sender's chain or by a program on the node, never lands in one.
 
 use super::forward::Transport;
 use super::nft::{TABLE, chain};
+use super::policy::Inbound;
 use serde_json::{Value, json};
 
 /// The map from a workload's link to its `from_` chain.
@@ -92,7 +96,7 @@ pub(crate) fn port_counter(link: &str, (transport, port): (Transport, u16), dir:
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Own<'a> {
     /// Its endpoints' ports.
-    pub(crate) ports: &'a [(Transport, u16)],
+    pub(crate) ports: &'a [Inbound],
     /// Its class on the uplinks, if it reserves any.
     pub(crate) class: Option<u32>,
     /// Nothing it sends leaves for beyond the node: its egress budget is spent with a cut-off.
@@ -102,9 +106,9 @@ pub(crate) struct Own<'a> {
 /// The counters `own` keeps for `link`.
 pub(crate) fn counters(link: &str, own: &Own<'_>) -> Vec<String> {
     let mut names = vec![counter(link, "egress")];
-    for p in own.ports {
-        names.push(port_counter(link, *p, "in"));
-        names.push(port_counter(link, *p, "out"));
+    for i in own.ports.iter().filter(|i| i.accounted) {
+        names.push(port_counter(link, (i.transport, i.port), "in"));
+        names.push(port_counter(link, (i.transport, i.port), "out"));
     }
     names
 }
@@ -119,6 +123,10 @@ fn port_match(dir: &str, (transport, port): (Transport, u16)) -> [Value; 2] {
 
 fn counted(name: &str) -> Value {
     json!({"counter": name})
+}
+
+fn priority(value: &str) -> Value {
+    json!({"mangle": {"key": meta("priority"), "value": value}})
 }
 
 /// The rows of `link`'s chains, rewritten whole, and its entries in the maps; `stale` are the
@@ -142,14 +150,25 @@ pub(crate) fn hold(link: &str, own: &Own<'_>, stale: &[String]) -> Vec<Value> {
         c.push(rule(&from, row));
     }
     if let Some(class) = own.class {
-        let set = json!({"mangle": {"key": meta("priority"), "value": super::shape::id(class)}});
-        c.push(rule(&from, vec![set]));
+        c.push(rule(&from, vec![priority(&super::shape::id(class))]));
     }
-    for p in own.ports {
-        let [l4, port] = port_match("out", *p);
-        c.push(rule(&from, vec![l4, port, counted(&port_counter(link, *p, "out"))]));
-        let [l4, port] = port_match("in", *p);
-        c.push(rule(&to, vec![l4, port, counted(&port_counter(link, *p, "in"))]));
+    c.push(rule(&to, vec![priority("none")]));
+    for i in own.ports {
+        let p = (i.transport, i.port);
+        if i.accounted {
+            let [l4, port] = port_match("out", p);
+            c.push(rule(&from, vec![l4, port, counted(&port_counter(link, p, "out"))]));
+        }
+        let mut row = Vec::from(port_match("in", p));
+        if i.accounted {
+            row.push(counted(&port_counter(link, p, "in")));
+        }
+        if i.shaping.1 > 0 {
+            row.push(priority(&super::shape::link_id(i.class)));
+        }
+        if row.len() > 2 {
+            c.push(rule(&to, row));
+        }
     }
     c.push(rule(&from, vec![beyond(), counted(&counter(link, "egress"))]));
     let element = |map: &str, data: Value| json!({"add": obj("element", json!({"name": map, "elem": [[link, data]]}))});
@@ -256,15 +275,34 @@ pub(crate) fn class_for(link: &str, listed: &Listed, first: u32) -> Option<u32> 
 mod tests {
     use super::*;
 
+    fn port(port: u16, accounted: bool, ingress: u64) -> Inbound {
+        Inbound {
+            transport: Transport::Tcp,
+            port,
+            rules: Vec::new(),
+            max_connections: 0,
+            new_per_sec: 0,
+            shaping: (0, ingress),
+            accounted,
+            class: 0x11,
+        }
+    }
+
     #[test]
     fn a_workload_is_counted_by_port_and_classed_from_its_link_and_found_again() {
-        let ports = [(Transport::Tcp, 25565)];
+        let ports = [port(25565, true, 0), port(8080, false, 0)];
         let own = Own { ports: &ports, class: Some(0x10), cut_off: false };
         let held = Value::Array(hold("kwabc", &own, &["kwabc_udp_1_in".into()])).to_string();
         assert!(held.contains("\"kwabc_tcp_25565_in\"") && held.contains("\"kwabc_egress\""));
+        assert!(!held.contains("8080"), "a port whose accounting is off is not counted");
         assert!(held.contains("\"priority\"") && held.contains("\"4b50:10\""), "{held}");
         assert!(held.contains("\"delete\":{\"counter\""), "a stale counter goes");
         assert!(!held.contains("drop"), "nothing decided but a cut-off");
+        let shaped = [port(8080, false, 5_000_000)];
+        let own = Own { ports: &shaped, class: None, cut_off: false };
+        let held = Value::Array(hold("kwabc", &own, &[])).to_string();
+        assert!(held.contains("\"none\"") && held.contains("\"4b51:11\""), "{held}");
+        assert!(!held.contains("kwabc_tcp_8080"), "classed, not counted");
         let cut = Own { ports: &ports, class: None, cut_off: true };
         assert!(Value::Array(hold("kwabc", &cut, &[])).to_string().contains("drop"));
 

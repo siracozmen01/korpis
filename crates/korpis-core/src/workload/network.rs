@@ -19,6 +19,9 @@ pub const GATEWAY_V6: Ipv6Addr = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
 pub const RESOLVER_RATE: u32 = 50;
 /// The burst above that rate.
 pub const RESOLVER_BURST: u32 = 200;
+/// What the host side of every workload's link is named with, and no other interface.
+pub const HOST_LINK_PREFIX: &str = "kw";
+
 /// The host side of `workload`'s link: `kw` and 13 hex digits of a 64-bit FNV-1a hash of its
 /// identifier, inside the 15 bytes an interface name may have. Two workloads on one node share a
 /// name with a chance of about one in 2^52 per pair.
@@ -27,5 +30,5 @@ pub fn host_link(workload: &str) -> String {
     let hash = workload
         .bytes()
         .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
-    format!("kw{:013x}", hash >> 12)
+    format!("{HOST_LINK_PREFIX}{:013x}", hash >> 12)
 }

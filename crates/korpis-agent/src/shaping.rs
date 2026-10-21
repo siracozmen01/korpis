@@ -2,8 +2,8 @@
 
 //! The node's bandwidth (§7 of docs/07-networking.md): the uplinks its operator declares, which
 //! the helper shapes; the bandwidth the node then offers placement, the smallest uplink's
-//! capacity less what the node keeps of it; and the limits its drivers that join its links then
-//! enforce, since the node's network holds them and not the driver.
+//! capacity less what the node keeps of it; and what its drivers that join its links then
+//! enforce, since the node's network holds it and not the driver.
 
 use crate::host::Host;
 use korpis_core::quantity::parse_rate;
@@ -32,58 +32,87 @@ pub fn parse_uplink(text: &str) -> Result<helper::Uplink, String> {
     Ok(helper::Uplink { interface: interface.to_owned(), capacity, reserve, ..Default::default() })
 }
 
-/// The bandwidth the node offers placement once the helper has shaped `uplinks`: the smallest
-/// uplink's capacity less what the node keeps of it, and that capacity. None, with why logged,
-/// where it shapes nothing.
-pub async fn shaped<H: Host>(host: &H, uplinks: &[helper::Uplink]) -> Option<(u64, u64)> {
-    let described = host.describe_network().await.ok()?;
-    if !described.shapes {
-        if !uplinks.is_empty() {
+/// What the node's network holds for the workloads of its link-joining drivers: the kinds of
+/// limit it enforces, each with how, and the bandwidth it offers placement with that capacity.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Held {
+    /// Each kind, as placement asks for it, with the mechanism that holds it.
+    pub kinds: Vec<(&'static str, &'static str)>,
+    /// What the smallest uplink offers less what the node keeps of it, and its capacity.
+    pub bandwidth: Option<(u64, u64)>,
+}
+
+/// What the node's network holds once the helper has made its `uplinks`: an endpoint's traffic
+/// counted wherever the helper gives workloads networks; an ingress limit and an endpoint's own
+/// shaping wherever it can shape, on the workload's link; and an egress reservation or limit
+/// only where an uplink is declared and shaped, since a reservation is held there. Each thing
+/// the node cannot do is logged with why.
+pub async fn held<H: Host>(host: &H, uplinks: &[helper::Uplink]) -> Held {
+    let Ok(described) = host.describe_network().await else { return Held::default() };
+    if !described.offered || !described.shapes {
+        if described.offered && !uplinks.is_empty() {
             tracing::warn!(
                 why = described.why_not_shapes,
-                "uplinks were declared and this node cannot shape them, so it enforces no \
-                 bandwidth and nothing that sets one is placed here"
+                "uplinks were declared and this node cannot shape, so it enforces no bandwidth \
+                 and nothing that sets one is placed here"
             );
         }
-        return None;
+        return of(&described, &[]);
     }
+    // Asked even with no uplink declared, so a tree an earlier declaration left is removed.
     let request = helper::EnsureUplinksRequest { uplinks: uplinks.to_vec(), ..Default::default() };
     match host.ensure_uplinks(&request).await {
         Ok(made) => {
             for removed in &made.removed {
                 tracing::info!(uplink = removed, "an uplink no longer declared is not shaped");
             }
+            of(&described, uplinks)
         }
         Err(e) => {
-            tracing::error!(error = %e, "the uplinks could not be shaped; no bandwidth enforced");
-            return None;
+            tracing::error!(error = %e, "the uplinks could not be shaped; no egress enforced");
+            of(&described, &[])
         }
     }
-    let smallest = uplinks.iter().min_by_key(|u| u.capacity - u.reserve)?;
-    Some((smallest.capacity - smallest.reserve, smallest.capacity))
 }
 
-/// Declares on `driver`, if it joins the node's links, that it enforces the egress and ingress
-/// limits the node's network holds for it (§4 of docs/04-runtimes.md).
-pub fn enforced(driver: &mut pb::DriverInfo) {
+/// What a network `described` so holds, with `shaped` the uplinks the helper has made.
+fn of(described: &helper::DescribeNetworkResponse, shaped: &[helper::Uplink]) -> Held {
+    let mut held = Held::default();
+    if !described.offered {
+        return held;
+    }
+    held.kinds.push(("endpoint_accounting", "named counters in the host's nftables table"));
+    if !described.shapes {
+        return held;
+    }
+    held.kinds.push(("ingress", "tc htb on the host's side of the workload's link"));
+    held.kinds.push(("endpoint_shaping", "tc htb classes on the workload's link, by port"));
+    if let Some(smallest) = shaped.iter().min_by_key(|u| u.capacity - u.reserve) {
+        held.kinds.push(("egress", "tc htb on the node's uplinks and on the workload's own link"));
+        held.bandwidth = Some((smallest.capacity - smallest.reserve, smallest.capacity));
+    }
+    held
+}
+
+/// Declares on `driver`, if it joins the node's links, that it enforces what the node's network
+/// holds for it, `kinds` (§4 of docs/04-runtimes.md).
+pub fn enforced(driver: &mut pb::DriverInfo, kinds: &[(&str, &str)]) {
     let Some(caps) = driver.capabilities.as_option_mut() else { return };
     let joins =
         caps.network_modes.iter().any(|m| m.as_known() == Some(pb::NetworkMode::NETWORK_MODE_VETH));
     if !joins {
         return;
     }
-    let declared = |mechanism: &str| pb::EnforcementDecl {
-        enforced: true,
-        mechanism: mechanism.to_owned(),
-        granularity: "bits a second".to_owned(),
-        ..Default::default()
-    };
-    caps.enforcement.insert(
-        "egress".to_owned(),
-        declared("tc htb on the node's uplinks and on the workload's own link"),
-    );
-    caps.enforcement
-        .insert("ingress".to_owned(), declared("tc htb on the host's side of the workload's link"));
+    for (kind, mechanism) in kinds {
+        let declared = pb::EnforcementDecl {
+            enforced: true,
+            mechanism: (*mechanism).to_owned(),
+            granularity: if kind.ends_with("accounting") { "bytes" } else { "bits a second" }
+                .to_owned(),
+            ..Default::default()
+        };
+        caps.enforcement.insert((*kind).to_owned(), declared);
+    }
 }
 
 #[cfg(test)]
@@ -104,20 +133,37 @@ mod tests {
     }
 
     #[test]
+    fn each_kind_is_held_only_where_the_network_has_what_it_rests_on() {
+        let kinds = |h: &Held| h.kinds.iter().map(|(k, _)| *k).collect::<Vec<_>>();
+        let mut d = helper::DescribeNetworkResponse::default();
+        assert_eq!(of(&d, &[]), Held::default(), "no networks, nothing held");
+        d.offered = true;
+        assert_eq!(kinds(&of(&d, &[])), ["endpoint_accounting"], "counted, and not shaped");
+        d.shapes = true;
+        let unshaped = of(&d, &[]);
+        assert_eq!(kinds(&unshaped), ["endpoint_accounting", "ingress", "endpoint_shaping"]);
+        assert_eq!(unshaped.bandwidth, None, "no uplink, no reservation, no egress");
+        let u = |capacity, reserve| helper::Uplink { capacity, reserve, ..Default::default() };
+        let both = of(&d, &[u(1000, 50), u(400, 20)]);
+        assert!(kinds(&both).contains(&"egress"));
+        assert_eq!(both.bandwidth, Some((380, 400)), "the smallest uplink, less what it keeps");
+    }
+
+    #[test]
     fn a_driver_that_joins_the_nodes_links_enforces_what_they_hold_and_another_does_not() {
         let caps = pb::Capabilities {
             network_modes: vec![pb::NetworkMode::NETWORK_MODE_VETH.into()],
             ..Default::default()
         };
         let mut veth = pb::DriverInfo { capabilities: caps.into(), ..Default::default() };
-        enforced(&mut veth);
+        enforced(&mut veth, &[("egress", "tc"), ("ingress", "tc")]);
         let held = veth.capabilities.as_option().map(|c| c.enforcement.clone()).unwrap_or_default();
         assert!(held.get("egress").is_some_and(|e| e.enforced) && held.contains_key("ingress"));
         let mut own = pb::DriverInfo {
             capabilities: pb::Capabilities::default().into(),
             ..Default::default()
         };
-        enforced(&mut own);
+        enforced(&mut own, &[("egress", "tc")]);
         assert!(own.capabilities.as_option().is_some_and(|c| c.enforcement.is_empty()));
     }
 }

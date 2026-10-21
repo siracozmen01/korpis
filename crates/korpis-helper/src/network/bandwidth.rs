@@ -4,15 +4,13 @@
 //! and its link (§7 of docs/07-networking.md); and the uplinks themselves.
 
 use super::account::{self, Listed};
-use super::shape::{self, Uplink};
+use super::policy::Inbound;
+use super::shape::{self, NO_CEILING, Uplink};
 use super::{INNER, netns};
 use crate::error::{HelperError, HelperResult, identifier};
+use korpis_core::workload::network::HOST_LINK_PREFIX;
 use korpis_proto::korpis::helper::v1 as helper;
 use std::path::Path;
-
-/// A ceiling for a class that has none of its own: above any uplink's capacity, so its
-/// parent's is what holds it.
-const NO_CEILING: u64 = 10_000_000_000_000;
 
 /// What a workload may send and be sent, in bits a second, as the kernel is to hold it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -60,17 +58,31 @@ pub(crate) fn class(link: &str, s: &Shaping, listed: &Listed) -> HelperResult<Op
 }
 
 /// Makes `s` so for the workload whose link is `link` and whose namespaces are in `dir`, its
-/// class `class`, after its accounting rows are written: its class on every uplink, the
-/// ingress limit on the host's side of its link, and its limit inside.
-pub(crate) fn apply(dir: &Path, link: &str, s: &Shaping, class: Option<u32>) -> HelperResult<()> {
+/// class `class`, after its accounting rows are written: its class on every uplink; on the host's
+/// side of its link, its ingress limit and each endpoint's own of `inbound`; and inside, its limit
+/// and each endpoint's own.
+pub(crate) fn apply(
+    (dir, link): (&Path, &str),
+    s: &Shaping,
+    class: Option<u32>,
+    inbound: &[Inbound],
+) -> HelperResult<()> {
     if let Some(minor) = class {
         let ceil = if s.limit == 0 { NO_CEILING } else { s.limit };
         for dev in shape::trees()? {
             shape::run(&shape::class(&dev, minor, (s.reserved, ceil)), true)?;
         }
     }
-    shape::run(&shape::link(link, s.ingress, shape::present(link)?), true)?;
-    let inside = || shape::run(&shape::link(INNER, s.limit, shape::present(INNER)?), true);
+    let limited = |pick: fn(&Inbound) -> u64| -> Vec<(u32, u64)> {
+        inbound.iter().filter(|i| pick(i) > 0).map(|i| (i.class, pick(i))).collect()
+    };
+    let (sent, received) = (limited(|i| i.shaping.0), limited(|i| i.shaping.1));
+    let present = shape::held(link)?;
+    shape::run(&shape::link(link, s.ingress, &received, present.as_deref()), true)?;
+    let inside = || {
+        let present = shape::held(INNER)?;
+        shape::run(&shape::link(INNER, s.limit, &sent, present.as_deref()), true)
+    };
     netns::within(&netns::net(dir), inside)?;
     Ok(())
 }
@@ -93,7 +105,7 @@ pub(crate) fn uplinks(
     let mut wanted = Vec::new();
     for u in &r.uplinks {
         identifier("uplink", &u.interface)?;
-        if u.interface.len() > 15 || u.interface.starts_with("kw") {
+        if u.interface.len() > 15 || u.interface.starts_with(HOST_LINK_PREFIX) {
             return Err(HelperError::Refused(format!("{} is not an uplink", u.interface)));
         }
         if u.capacity == 0 || u.reserve >= u.capacity {
@@ -108,7 +120,7 @@ pub(crate) fn uplinks(
     let present = shape::trees()?;
     let mut removed = Vec::new();
     for dev in present.iter().filter(|d| !wanted.iter().any(|u| &u.interface == *d)) {
-        shape::run(&shape::link(dev, 0, true), true)?;
+        shape::run(&shape::link(dev, 0, &[], Some(&[])), true)?;
         removed.push(dev.clone());
     }
     for u in &wanted {

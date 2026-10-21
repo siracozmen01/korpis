@@ -366,6 +366,13 @@ message Port {
   // Connections to it at once, and new ones a second; zero for no limit of its own.
   uint32 max_connections = 4;
   uint32 new_per_sec = 5;
+  // What the endpoint may send from its port and be sent to it, in bits a second, each held in
+  // a class of its own on the workload's link (§7 of docs/07-networking.md); zero for no limit
+  // of its own.
+  uint64 egress_limit = 6;
+  uint64 ingress_limit = 7;
+  // Whether what it carries is counted, in and out, in the host's table.
+  bool accounted = 8;
 }
 
 // A rule of a workload's own policy (§6 of docs/07-networking.md), naming an address range.

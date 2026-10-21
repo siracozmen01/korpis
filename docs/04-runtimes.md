@@ -204,6 +204,15 @@ the node's uplinks (§7 there). So the agent adds `egress` and `ingress` to such
 leaves them out otherwise; a driver that builds a network of its own declares its own. Added
 2026-10-21, when shaping was designed.
 
+> Corrected 2026-10-21, when an endpoint's own shaping and accounting were built (P2.8c of the
+> build plan): each kind is declared on what it rests on, and only an egress reservation rests
+> on an uplink. The agent adds `endpoint_accounting` wherever its helper gives workloads
+> networks, since the host's table counts each endpoint; `ingress` and `endpoint_shaping`
+> wherever the helper can also write the qdiscs, since both are held on the workload's own link;
+> and `egress` only where an uplink is declared and shaped as well, since a reservation is held
+> there and a limit is placed against the bandwidth it offers. The paragraph above tied
+> `ingress` to an uplink, which nothing held there needs.
+
 **`volume_semantics`, because a VM's volume is a block device.** Under `process` and `container`, a
 volume is a directory on a filesystem the host controls, quota is `refquota` or a project quota,
 exceeding it returns `EDQUOT` in the write path, and inodes are a thing that can run out. Under

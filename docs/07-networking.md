@@ -1040,7 +1040,10 @@ workload whose `bandwidth` sets a reservation or a limit is placed only on a nod
 declares it enforces one, so it stays unplaced with that reason where none does (§4.1 of
 `04-runtimes.md`, §5.3 of `05-scheduling.md`): either way nothing is shown as held that the kernel
 does not hold (Rule K-3). Until the node's shaping was built (below) no driver did; now a node
-with a declared uplink does.
+with a declared uplink does. Since an endpoint's own shaping and accounting were built too (P2.8c,
+below), a declaration asking for either is no longer refused: it is placed only on a node whose
+driver declares `endpoint_shaping` or `endpoint_accounting`, and stays unplaced with that reason
+where none does.
 
 **Shaping and accounting, as designed.** Designed 2026-10-21, before they were built (Phase 2 of
 §4 of `20-roadmap.md`), on the network of §4.1: a point-to-point link per workload, routed, every
@@ -1135,6 +1138,42 @@ needs `nft` (§2 of `18-operations.md`).
 > node without one still enforces none, and a workload that sets one is not placed there. Not yet
 > built: placement tested against a node that declares an uplink, and an endpoint's own bandwidth
 > (P2.8c), the meter's reading of the counters (P2.8d), and the egress budget (P2.8e).
+
+> Corrected the day it was built (Finding 125, §47 of `23-walkthroughs.md`): the note above gave
+> every qdisc Korpis makes the handle `4b50:` and found the uplinks' trees again by it, so the
+> qdiscs on the workloads' links were found as uplinks too. Declaring the uplinks removed each
+> workload's ingress limit, and a reservation's class was written on every other workload's link. A
+> qdisc on a workload's link now has the handle `4b51:` and an uplink's `4b50:`, and the uplinks'
+> trees are looked for only among interfaces whose names are not a workload link's.
+
+> Built 2026-10-21 (P2.8c of the build plan): an endpoint's own bandwidth and its accounting. An
+> endpoint's `shaping` limits what it sends from its port and what is sent to it, each in a class
+> of its own beneath the qdisc of the workload's link. On `eth0` the class is chosen by the
+> priority the workload's own table sets on what leaves the port, in an output chain the workload,
+> holding no `NET_ADMIN`, cannot change; a priority it sets on a socket itself can put its traffic
+> only in another of its own classes, each beneath its own limit. On the host's side the class is
+> chosen by the priority the workload's `to_` chain sets on what goes to the port. That chain sets
+> the priority of everything sent to the workload, `none` where no endpoint's class is its, so a
+> priority the sender's chain set for its uplink class never lands in one of this workload's
+> classes. A link's qdisc is now a root of the workload's limit (of no limit, where only its
+> endpoints set one), a default class for everything else, and the endpoints' classes, each with an
+> equal share of the root as its rate and its own limit as its ceiling, so the endpoints contend
+> fairly beneath the workload's ceiling; a class an endpoint no longer needs is removed. Corrected
+> from the design above, which counted every declared endpoint: the counters are written only for
+> an endpoint whose `accounting` is on, since that flag is the declaration that it is metered, and
+> a rule on every packet of traffic nobody meters is cost with no reader. The workload's egress is
+> counted whatever its endpoints say, since its budget is measured in it. The agent declares each
+> kind on what it rests on (§4.1 of `04-runtimes.md`): `endpoint_accounting` wherever the helper
+> gives workloads networks, `ingress` and `endpoint_shaping` wherever it can also shape, `egress`
+> only with a shaped uplink. Placement is tested against a node that declares an uplink: a
+> reservation is placed there within the bandwidth it offers and not beyond it, and on no node
+> without one. The helper's privileged test finds both of an endpoint's classes with their
+> ceilings, a connection to the endpoint in the host side's class and the reset it is answered with
+> in `eth0`'s, and no counter for a port whose accounting is off. Building it found that a priority
+> the sender's chain set for its uplink class could put another workload's traffic in an endpoint's
+> class on the receiver's link, which is why the `to_` chain decides the class of everything it
+> sees (Finding 124, §47 of `23-walkthroughs.md`). Not yet built: the meter's reading of the
+> counters (P2.8d), and the egress budget (P2.8e).
 
 ---
 

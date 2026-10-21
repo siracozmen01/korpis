@@ -2,7 +2,8 @@
 
 //! A workload's bandwidth, shaped by the helper on this machine (§7 of docs/07-networking.md):
 //! an uplink's tree, the workload's class on it and the forwarded packets it classes, the limits
-//! on its link, the counters of its endpoint and of its egress, and their removal. The test runs
+//! on its link and its endpoint's own classes there, the counters of its endpoint and of its
+//! egress, and their removal. The test runs
 //! in a network namespace of its own, standing for the host, whose uplink is a dummy interface:
 //! nothing the machine uses is shaped or rewritten, and no other firewall on it drops what is
 //! forwarded. Needs root, nftables, and tc; skipped without them.
@@ -113,6 +114,14 @@ fn request(workload: &str, ipv4: Ipv4Addr, reserved: u64) -> helper::EnsureNetwo
     let port = helper::Port {
         transport: helper::Transport::TRANSPORT_TCP.into(),
         port: 8080,
+        egress_limit: 5_000_000,
+        ingress_limit: 3_000_000,
+        accounted: true,
+        ..Default::default()
+    };
+    let unaccounted = helper::Port {
+        transport: helper::Transport::TRANSPORT_TCP.into(),
+        port: 9090,
         ..Default::default()
     };
     helper::EnsureNetworkRequest {
@@ -121,7 +130,7 @@ fn request(workload: &str, ipv4: Ipv4Addr, reserved: u64) -> helper::EnsureNetwo
         ipv4_pool: "10.247.0.0/16".into(),
         uid_base: FIRST_WORKLOAD_ID,
         uid_count: 1 << 16,
-        inbound: vec![port],
+        inbound: vec![port, unaccounted],
         bandwidth: helper::Bandwidth {
             egress_reservation: reserved,
             egress_limit: 200_000_000,
@@ -175,6 +184,66 @@ impl Drop for Dummy {
     }
 }
 
+/// `dev` declared as the node's uplink, a gigabit of which the node keeps 50 Mbit.
+fn declared(dev: &str) -> helper::EnsureUplinksRequest {
+    let uplink = helper::Uplink {
+        interface: dev.to_owned(),
+        capacity: 1_000_000_000,
+        reserve: 50_000_000,
+        ..Default::default()
+    };
+    helper::EnsureUplinksRequest { uplinks: vec![uplink], ..Default::default() }
+}
+
+/// The workload's `link` is never taken for an uplink: its network made again, the link holds no
+/// class of the uplinks', and the uplinks made again leave its limits as they were.
+fn kept_apart(network: &Network, r: &helper::EnsureNetworkRequest, (link, dev): (&str, &str)) {
+    network.ensure(r).unwrap();
+    assert!(!classes(link).iter().any(|c| c.0.starts_with("4b50:")), "{:?}", classes(link));
+    let again = network.ensure_uplinks(&declared(dev)).unwrap();
+    assert!(again.removed.is_empty(), "a workload's link is not an uplink: {again:?}");
+    assert_eq!(rate_of(link, "4b51:1"), Some(50_000_000), "its ingress limit is kept");
+}
+
+/// A dummy interface, declared to `network` as the node's uplink and shaped.
+fn uplink(network: &Network, pid: u32) -> Dummy {
+    let dummy = Dummy(format!("kpup{}", pid % 100_000));
+    let made = Command::new("ip").args(["link", "add", &dummy.0, "type", "dummy"]).output();
+    assert!(made.is_ok_and(|o| o.status.success()), "a dummy uplink");
+    Command::new("ip").args(["link", "set", &dummy.0, "up"]).output().unwrap();
+    assert_eq!(network.ensure_uplinks(&declared(&dummy.0)).unwrap().shaped, vec![dummy.0.clone()]);
+    assert_eq!(rate_of(&dummy.0, "4b50:1"), Some(1_000_000_000), "the uplink's capacity");
+    assert_eq!(rate_of(&dummy.0, "4b50:2"), Some(50_000_000), "what the node keeps");
+    dummy
+}
+
+/// The limits on `link` and inside `dir`, its endpoint's own classes, and a connection to it
+/// at `ip` counted and classed.
+fn endpoint(link: &str, dir: &Path, ip: Ipv4Addr) {
+    assert_eq!(rate_of(link, "4b51:1"), Some(50_000_000), "its ingress limit, on the host's side");
+    let eth0 = || {
+        classes_in(&inside(dir, &["tc", "-s", "class", "show", "dev", "eth0"]).output().unwrap())
+    };
+    let find = |listed: Vec<(String, u64, u64, u64)>, handle: &str| {
+        listed.into_iter().find(|c| c.0 == handle)
+    };
+    let root = find(eth0(), "4b51:1").map(|c| c.1);
+    assert_eq!(root, Some(200_000_000), "its limit, on its own link");
+    let (sent, received) = (find(eth0(), "4b51:10"), find(classes(link), "4b51:10"));
+    assert_eq!(sent.map(|c| c.2), Some(5_000_000), "its endpoint's own limit, sent");
+    assert_eq!(received.map(|c| c.2), Some(3_000_000), "and sent to it");
+
+    // A connection to its endpoint is counted in, and goes in the endpoint's class on the host's
+    // side of the link, as the reset it is answered with does on its own; what it sends to the
+    // node is counted as egress. A port whose accounting is off is not counted.
+    let to = SocketAddr::from((ip, 8080));
+    let _ = TcpStream::connect_timeout(&to, Duration::from_secs(1));
+    assert!(counted(&format!("{link}_tcp_8080_in")).is_some_and(|(_, p)| p > 0));
+    assert!(find(classes(link), "4b51:10").is_some_and(|c| c.3 > 0), "{:?}", classes(link));
+    assert!(find(eth0(), "4b51:10").is_some_and(|c| c.3 > 0), "{:?}", eth0());
+    assert!(counted(&format!("{link}_tcp_9090_in")).is_none(), "not counted");
+}
+
 #[test]
 fn a_reservation_is_a_class_on_the_uplink_and_each_endpoint_is_counted_until_released() {
     let tmp = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
@@ -188,20 +257,7 @@ fn a_reservation_is_a_class_on_the_uplink_and_each_endpoint_is_counted_until_rel
     if !able(&network) {
         return;
     }
-    let dummy = Dummy(format!("kpup{}", pid % 100_000));
-    let made = Command::new("ip").args(["link", "add", &dummy.0, "type", "dummy"]).output();
-    assert!(made.is_ok_and(|o| o.status.success()), "a dummy uplink");
-    Command::new("ip").args(["link", "set", &dummy.0, "up"]).output().unwrap();
-    let uplink = helper::Uplink {
-        interface: dummy.0.clone(),
-        capacity: 1_000_000_000,
-        reserve: 50_000_000,
-        ..Default::default()
-    };
-    let r = helper::EnsureUplinksRequest { uplinks: vec![uplink], ..Default::default() };
-    assert_eq!(network.ensure_uplinks(&r).unwrap().shaped, vec![dummy.0.clone()]);
-    assert_eq!(rate_of(&dummy.0, "4b50:1"), Some(1_000_000_000), "the uplink's capacity");
-    assert_eq!(rate_of(&dummy.0, "4b50:2"), Some(50_000_000), "what the node keeps");
+    let dummy = uplink(&network, pid);
 
     let workload = format!("bw-test-{pid}");
     let _made = Made(&network, workload.clone());
@@ -212,15 +268,8 @@ fn a_reservation_is_a_class_on_the_uplink_and_each_endpoint_is_counted_until_rel
         classes(&dummy.0).into_iter().find(|c| c.0.starts_with("4b50:1") && c.0 != "4b50:1");
     let class = class.expect("the workload's class on the uplink");
     assert_eq!((class.1, class.2), (100_000_000, 200_000_000), "its reservation, its limit");
-    assert_eq!(rate_of(&link, "4b50:1"), Some(50_000_000), "its ingress limit, on the host's side");
-    let eth0 =
-        classes_in(&inside(&dir, &["tc", "-s", "class", "show", "dev", "eth0"]).output().unwrap());
-    assert_eq!(eth0.first().map(|c| c.1), Some(200_000_000), "its limit, on its own link");
-
-    // A connection to its endpoint is counted in, and what it sends to the node as egress.
-    let to = SocketAddr::from((ip, 8080));
-    let _ = TcpStream::connect_timeout(&to, Duration::from_secs(1));
-    assert!(counted(&format!("{link}_tcp_8080_in")).is_some_and(|(_, p)| p > 0));
+    endpoint(&link, &dir, ip);
+    kept_apart(&network, &request(&workload, ip, 100_000_000), (&link, &dummy.0));
     assert!(
         inside(&dir, &["ping", "-c1", "-W2", "169.254.1.1"]).output().unwrap().status.success()
     );

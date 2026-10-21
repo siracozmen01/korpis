@@ -69,9 +69,9 @@ fn what_no_node_of_this_release_enforces_is_refused_with_where_it_is_built() {
     assert!(super::endpoint("e", &ingress).is_ok(), "the ingress is built");
     ingress.tls = Some(TlsSpec::Provided { secret: "crt_x".into() });
     assert!(super::endpoint("e", &ingress).is_ok(), "so are provided certificates");
-    let shaping = "per-endpoint shaping and accounting in phase 2";
-    assert_eq!(refused(|e| e.shaping.egress_bits_per_sec = 1), shaping);
-    assert_eq!(refused(|e| e.accounting = true), shaping);
+    let mut shaped = declared();
+    (shaped.shaping.egress_bits_per_sec, shaped.accounting) = (1_000_000, true);
+    assert!(super::endpoint("e", &shaped).is_ok(), "placed where a node enforces it");
     let half = "e.policy.conntrack.max_half_open";
     assert_eq!(refused(|e| e.policy.conntrack.max_half_open = 10), half);
     let mut ported = rule(NetworkAction::Deny, cidr("5.6.7.0/24"));

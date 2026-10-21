@@ -387,6 +387,7 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
     assert!(DriverClass::of(&drivers, IsolationTier::Process).disruptive.is_empty());
 }
 
+mod bandwidth;
 mod colocation;
 mod ingress;
 mod quota;

@@ -3949,3 +3949,87 @@ zone sums the UTC days of its month and says so on its invoice.
 Designed after this trace, on what it made readable: the egress budget (§5.1 of
 `05-scheduling.md`) sums a month of records as an invoice sums them, so a budget, too, is spent
 once by each byte, and a late sample spends it in the day it arrives rather than in a closed one.
+
+## 47. A host sells a game server a share of its uplink, and another server on the node joins it
+
+Written 2026-10-21, when an endpoint's own bandwidth was built (Phase 2 of §4 of
+`20-roadmap.md`). Kestrel Hosting's node `fra-14` has one uplink, sold to Kestrel as a gigabit.
+Blockhaven runs `mc` there, sold "100 Mbit guaranteed, 400 Mbit burst" outbound, 200 Mbit inbound,
+with its game port metered and its map's web port held to 10 Mbit each way. Northwind runs
+`lobby` on the same node, a proxy that passes players on to `mc`, with a reservation of its own.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, one row of every trace and
+review cited §7 of `07-networking.md`, a finding of the second external review that took a
+guarantee away from inbound; no scenario had crossed the node's shaping, which a host sells.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Kestrel's operator starts the agent with `--uplink eth0=1gbit`. The helper makes the uplink's tree, keeping five percent for the node; the agent declares `endpoint_accounting`, `ingress`, `endpoint_shaping`, and `egress` on its link-joining driver, and 950 Mbit allocatable | `18-operations.md` §2; `04-runtimes.md` §4.1; `07-networking.md` §7 |
+| 2 | Blockhaven declares `mc`: an egress reservation of 100 Mbit and a limit of 400, an ingress limit of 200, an `ingress` endpoint for its map, declared first, with limits of its own of 10 Mbit each way, and a `node_port` endpoint on 25565 with its accounting on | `01-model.md` §3.6; `05-scheduling.md` §5.2 |
+| 3 | Placement keeps only nodes whose driver declares each kind the intent sets, and reserves the 100 Mbit against what `fra-14` offers, as it reserves memory; a node with no uplink declared is refused with why | `05-scheduling.md` §2.1, §5.2 |
+| 4 | `mc`'s assignment carries its bandwidth and its endpoints; the agent asks the helper for its network with each port's own limits and whether it is counted | `02-architecture.md` §4.8; `07-networking.md` §4.1 |
+| 5 | The helper gives `mc` a class on the uplink, its rate the reservation and its ceiling the limit; on `eth0` inside it, a qdisc of 400 Mbit, and on the host's side one of 200, each with the map port's class of 10; and counters for the game port in and out and for its egress | `07-networking.md` §7 |
+| 6 | `lobby`, holding the class before `mc`'s on the uplink, connects to `mc`'s game port, which has no class of its own. Each packet crosses the host's forward hook, where `lobby`'s chain sets the priority of its uplink class, and `mc`'s link, whose qdisc takes a class from a priority ‡ | `07-networking.md` §7, §4.1 |
+| 7 | `lobby`'s traffic to `mc` never reaches the uplink, so `mc`'s guarantee is not spent on it; it is held by `lobby`'s ceiling and `mc`'s ingress limit, and it is not `mc`'s egress, nor `lobby`'s | `07-networking.md` §7; `05-scheduling.md` §5.1 |
+| 8 | At each reading the meter reads the counters through the helper and journals them with the interval's sample, the game port's bytes beside the workload's egress (designed, and built next, in P2.8d of the build plan) | `15-observability.md` §2; `07-networking.md` §7 |
+| 9 | Blockhaven's project reaches its egress budget for the month; `mc`'s next assignment holds its class and its link to the floor, until the month turns (designed, and built after it, in P2.8e) | `05-scheduling.md` §5.1; `02-architecture.md` §4.8 |
+
+**Two findings: at step 6 (‡), and at steps 1 and 5, from a review of the code.**
+
+**FINDING 124: Another workload's traffic could be put in an endpoint's class it was never sent
+to. `CONFIRMED`**
+
+Found 2026-10-21 building an endpoint's own bandwidth, by asking the algebra question of step 6:
+what decides the class of a packet on `mc`'s link, and with what information? HTB takes a class
+from a packet's priority wherever the priority's major is its qdisc's, and every qdisc Korpis makes
+has the major `4b50`. The kernel's forwarding sets a packet's priority from its header, and then
+the forward hook runs, where `lobby`'s chain sets the priority of its class on the uplink. `mc`'s
+endpoint classes on its link are numbered from the same first minor as the workloads' classes on
+the uplink, since each qdisc numbers its own. So a packet `lobby` sent to `mc`'s game port reached
+`mc`'s link carrying `4b50:10`, `lobby`'s uplink class, and was put in `mc`'s class `4b50:10`, its
+map port's, held to the map's 10 Mbit, though nothing it carried was the map's. As first written,
+the chain set an endpoint's class by its port and left every other packet's priority as it came;
+until the endpoints had classes, a priority with no class on the link fell to its default, and the
+defect had nothing to land in.
+
+**Resolution.** The workload's `to_` chain decides the class of everything sent to it: an
+endpoint's own by its port, and `none` for anything else, which HTB puts in the link's default
+class. It runs after the sender's chain in the forward hook, and for what the node sends, in the
+output hook, so no priority set before it, by a sender's chain or a program on the node, reaches
+the workload's link. And a link's qdisc has a major of its own, `4b51`, since Finding 125, so a
+priority set for an uplink's class names no class of a link at all. → patched into
+`07-networking.md` §7; built in `crates/korpis-helper/src/network/account.rs` and `shape.rs`, and
+tested with a connection to an endpoint found in its class.
+
+What it costs, and what it does not do. A rule on every packet sent to every workload, beside the
+counters'. Inside the workload, what it sends is classed by its own table, after anything it sets
+on a socket, so a priority it chooses itself puts its traffic only in another of its own classes.
+Traffic between two workloads of a node is still held by no guarantee, as §7 says; this finding
+only stops it being held to a limit that is not its own.
+
+**FINDING 125: Declaring the uplinks removed every workload's ingress limit, and a reservation's
+class was written on every other workload's link. `CONFIRMED`**
+
+Found 2026-10-21 by an automated security review of the commit that built the node's shaping
+(P2.8b), as Finding 48 was, and confirmed by reading it against steps 1 and 5. The helper found the
+uplinks' trees again, with no ledger, as the interfaces whose root qdisc had the handle `4b50:`,
+and every qdisc it made had that handle, the qdiscs on the workloads' links included. So at step 1,
+when the agent starts and asks for its uplinks, every workload's link was an uplink no longer
+declared, and its tree, the workload's ingress limit, was removed; and at step 5, a workload that
+reserves had its class written on every tree, so on `lobby`'s link too, beneath its ingress root. A
+host restarting its agent lifted every ingress limit on the node until each workload's network was
+next made, and a workload's reservation shaped what another was sent. The helper's privileged test
+made one workload, released it before declaring the uplinks again, and so never saw either.
+
+**Resolution.** A qdisc on a workload's link has the major `4b51`, and an uplink's `4b50`, so the
+two are never taken for each other, and the uplinks' trees are found among the interfaces that are
+not workloads' links, whose names begin with `kw` and no uplink's may. → patched into
+`07-networking.md` §7; built in `crates/korpis-helper/src/network/shape.rs`, and tested by making
+the workload's network again and the uplinks again, and finding its link with no uplink's class and
+its ingress limit kept.
+
+What it costs: a second major to keep apart, and a name no uplink may have, which the helper
+already refused. It was fixed the day the defect was built, before any release, so no node holds
+a link shaped with the old handle.

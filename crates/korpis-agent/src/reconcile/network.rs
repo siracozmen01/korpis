@@ -25,7 +25,8 @@ fn transport(p: &pb::Endpoint) -> helper::Transport {
 }
 
 /// The ports inside the workload its endpoints listen on, which its firewall accepts, and the
-/// ports of the node forwarded to them (§3 of docs/07-networking.md). An endpoint of exposure
+/// ports of the node forwarded to them (§3 of docs/07-networking.md), each with its own limits
+/// and whether it is counted (§7 there). An endpoint of exposure
 /// `none` is not reachable, so its port stays closed. Only `node_port` and `node_bound` hold a
 /// port of the node; an `ingress` endpoint's address is the proxy's, on 443, and the proxy
 /// reaches the workload at its own address.
@@ -33,10 +34,16 @@ fn ports(endpoints: &[pb::Endpoint]) -> (Vec<helper::Port>, Vec<helper::Forward>
     let reachable =
         endpoints.iter().filter(|e| e.exposure.as_known() != Some(pb::Exposure::EXPOSURE_NONE));
     let inbound = reachable
-        .map(|e| helper::Port {
-            transport: transport(e).into(),
-            port: e.container_port,
-            ..Default::default()
+        .map(|e| {
+            let shaping = e.shaping.as_option();
+            helper::Port {
+                transport: transport(e).into(),
+                port: e.container_port,
+                egress_limit: shaping.map_or(0, |s| s.egress_bits_per_sec),
+                ingress_limit: shaping.map_or(0, |s| s.ingress_bits_per_sec),
+                accounted: e.accounting,
+                ..Default::default()
+            }
         })
         .collect();
     let forwards = endpoints

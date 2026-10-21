@@ -49,7 +49,13 @@ fn driver<'n>(req: &Request<'_>, c: &Candidate<'n>) -> Result<&'n DriverInfo, Re
     Ok(d)
 }
 
-/// The kinds of limit the intent sets, by the names drivers declare enforcement under.
+fn shaped(s: &crate::workload::spec::endpoints::ShapingSpec) -> bool {
+    s.egress_bits_per_sec > 0 || s.ingress_bits_per_sec > 0
+}
+
+/// The kinds of limit the intent sets, by the names drivers declare enforcement under: an
+/// endpoint's own shaping and its accounting among them, which a node's network holds (§7 of
+/// docs/07-networking.md).
 fn limited(req: &Request<'_>) -> Vec<&'static str> {
     let r = &req.body.resources;
     let io = r.io;
@@ -68,6 +74,8 @@ fn limited(req: &Request<'_>) -> Vec<&'static str> {
         ("pids", r.pids_limit > 0),
         ("egress", r.bandwidth.egress.effective() > 0),
         ("ingress", r.bandwidth.ingress_limit > 0),
+        ("endpoint_shaping", req.body.endpoints.iter().any(|e| shaped(&e.shaping))),
+        ("endpoint_accounting", req.body.endpoints.iter().any(|e| e.accounting)),
     ]
     .into_iter()
     .filter_map(|(k, set)| set.then_some(k))

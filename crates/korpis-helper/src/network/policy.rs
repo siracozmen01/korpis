@@ -39,6 +39,14 @@ pub(crate) struct Inbound {
     pub(crate) max_connections: u32,
     /// New connections a second; zero for no limit of its own.
     pub(crate) new_per_sec: u32,
+    /// What it may send from its port and be sent to it, in bits a second; zero for no limit
+    /// of its own.
+    pub(crate) shaping: (u64, u64),
+    /// Whether what it carries is counted.
+    pub(crate) accounted: bool,
+    /// Its class on the workload's link, where it has a limit of its own: by its place among
+    /// the workload's ports, from the first a workload is given.
+    pub(crate) class: u32,
 }
 
 /// The limits on the connections a workload opens, the default's where it sets none.
@@ -95,9 +103,13 @@ pub(crate) fn rules(rules: &[helper::Rule]) -> HelperResult<Vec<Rule>> {
 
 /// The ports `ports` a workload accepts connections on, checked.
 pub(crate) fn inbound(ports: &[helper::Port]) -> HelperResult<Vec<Inbound>> {
+    if ports.len() > 0x1_0000 - 0x10 {
+        return Err(refuse("more ports than a workload's link has classes for"));
+    }
     ports
         .iter()
-        .map(|p| {
+        .zip(super::shape::FIRST..=0xffff)
+        .map(|(p, class)| {
             let transport = optional_transport(p.transport)?
                 .ok_or_else(|| refuse("a port's transport is tcp or udp"))?;
             let rules = rules(&p.rules)?;
@@ -110,6 +122,9 @@ pub(crate) fn inbound(ports: &[helper::Port]) -> HelperResult<Vec<Inbound>> {
                 rules,
                 max_connections: p.max_connections,
                 new_per_sec: p.new_per_sec,
+                shaping: (p.egress_limit, p.ingress_limit),
+                accounted: p.accounted,
+                class,
             })
         })
         .collect()
