@@ -10,7 +10,7 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::page::{Page, Paged, visible};
 use crate::ports::{Clock, EffectCursor, EffectFilter, RecipeSource, Store};
-use korpis_core::audit::{Effect, reader, without_nodes};
+use korpis_core::audit::{Effect, node_reads, reader, without_nodes};
 use korpis_core::authz::{Kind, ObjectRef};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -104,8 +104,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         visible(page, cursor, read, readable).await
     }
 
-    /// What of `found` the caller may read, each without the nodes they may not read. An effect
-    /// about nothing is read under `org.read` at the root organization.
+    /// What of `found` the caller may read, each without the nodes they may not read: every node
+    /// it names is asked about, so one the caller may not read hides them all. An effect about
+    /// nothing is read under `org.read` at the root organization.
     async fn readable_effects(
         &self,
         caller: &Caller,
@@ -116,16 +117,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             None => return Ok(Vec::new()),
         };
         let mut asked: Vec<(&str, ObjectRef)> = Vec::with_capacity(found.len() * 2);
+        let mut nodes = Vec::with_capacity(found.len());
         for e in &found {
             asked.push(e.concerns().map_or(("org.read", root), |o| (reader(&e.action, o), o)));
-            let node = e.node.or(e.origin.map(|o| o.node));
-            asked.push(("node.read", node.map_or(root, |n| ObjectRef::new(Kind::Node, n))));
+            let reads = node_reads(e, root);
+            nodes.push(reads.len());
+            asked.extend(reads.into_iter().map(|o| ("node.read", o)));
         }
         let permitted = self.permitted_all(caller, &asked).await?;
+        let mut answers = permitted.into_iter();
         let mut shown = Vec::new();
-        for (mut e, pair) in found.into_iter().zip(permitted.chunks(2)) {
-            let [true, reads_node] = pair else { continue };
-            if !reads_node {
+        for (mut e, n) in found.into_iter().zip(nodes) {
+            let reads = answers.next().unwrap_or(false);
+            // Every answer about its nodes is taken, so the next effect's are its own.
+            let about_nodes: Vec<bool> = answers.by_ref().take(n).collect();
+            let reads_nodes = about_nodes.iter().all(|p| *p);
+            if !reads {
+                continue;
+            }
+            if !reads_nodes {
                 without_nodes(&mut e);
             }
             shown.push(e);

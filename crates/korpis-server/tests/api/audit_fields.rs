@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What of the effect log a tenant reads (§4 of docs/15-observability.md): an effect about its
-//! workload without the operator's node it landed on, and a person signed in through their set
-//! reading under the set's grant while the set has them.
+//! workload without the operator's node it landed on, an enrollment without its node's name,
+//! and a person signed in through their set reading under the set's grant while the set has
+//! them.
 
 use crate::external_complete::signed_in;
 use crate::external_sign_in::{GONE, issuing};
@@ -54,6 +55,27 @@ async fn a_tenant_reads_its_workload_s_effects_without_the_operator_s_node() {
     assert_eq!(seen.effects.len(), 1, "the tenant reads that its workload was placed");
     let placed = format!("{:?}", seen.effects[0]);
     assert!(!placed.contains(&node), "and not on which of the operator's nodes: {placed}");
+
+    // A machine enrolled into the tenant's organization is said without its name to a reader
+    // who may not read the tenant's nodes, though the enrollment is about the organization.
+    let enrol = pb::CreateEnrollmentTokenRequest {
+        mutation: mutation("enrol").into(),
+        organization: tenant_org.clone(),
+        node_name: "blockhaven-1".into(),
+        ..Default::default()
+    };
+    h.nodes(h.root()).create_enrollment_token(enrol).await.unwrap();
+    let enrolled = || pb::ListEffectsRequest {
+        organization: Some(tenant_org.clone()),
+        action_prefix: "node.enrollment".into(),
+        ..Default::default()
+    };
+    let seen = tenant.list_effects(enrolled()).await.unwrap().into_owned();
+    assert_eq!(seen.effects.len(), 1, "the tenant reads that a machine was enrolled");
+    let said = format!("{:?}", seen.effects[0]);
+    assert!(!said.contains("blockhaven-1"), "and not which: {said}");
+    let as_root = h.effect_log(h.root()).list_effects(enrolled()).await.unwrap().into_owned();
+    assert!(format!("{:?}", as_root.effects[0]).contains("blockhaven-1"), "the operator does");
 }
 
 #[tokio::test]

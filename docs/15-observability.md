@@ -257,6 +257,20 @@ itself names none, so it is read only at the root.
 > of one at a time; finds its own refusal there, recorded as the action it lacked; is not found
 > asking for a sibling's; reads both customers' projects as their reseller and by action; and
 > has a forged token refused.
+>
+> Corrected 2026-10-21, after an automated security review of that commit. The rule above was
+> built as a filter on two fields and on detail keys `node` and `…_node`, with one `node.read`
+> asked over the effect's own node. It let through what named a node any other way: an effect
+> about a node read under its family's read (a grant issued over a node, read under
+> `grant.read`) kept its object; a lease's `previous_node`, a second node, was never asked
+> about; and an enrollment's `node_name` and a key's `node_public_key` matched no key at all,
+> so a tenant holding `org.read` read the name of a machine being enrolled into it without
+> holding `node.read` anywhere. Now every node an effect names is asked about (its node, its
+> journal origin's, its object where that is a node, and each identifier under a node key,
+> `node`, `nodes`, `node_…`, or `…_node`, alone or in a list), and a node said without an
+> identifier is asked about over what the effect is about, or the root; one the caller may not
+> read hides every node of that effect. Unit tests in `korpis-core` cover a lease, an
+> enrollment, and a grant about a node; an API test, a placement and an enrollment's name.
 
 ---
 
