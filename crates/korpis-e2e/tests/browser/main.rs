@@ -26,23 +26,24 @@
 mod image;
 #[path = "../e2e/node.rs"]
 mod node;
+mod person;
 #[path = "../e2e/recipes.rs"]
 mod recipes;
 #[path = "../e2e/support.rs"]
 mod support;
+mod terminal;
 
 use crate::node::{Node, live};
 use crate::recipes::{VERSION, busybox, push_printer, push_waiter, push_with};
 use crate::support::korpis;
 use crate::support::{ControlPlane, converged, mutation};
+use crate::terminal::logging_in;
 use korpis_agent::run::Agent;
 use korpis_proto::korpis::v1 as pb;
 use korpis_recipe::artifact::File;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt as _, BufReader};
 
 /// The talker's Turkish catalogue (§5.3 of docs/09-recipes.md).
 const TR: &str = r#"{"config.fields.greeting.label": "Selamlama",
@@ -159,12 +160,31 @@ async fn quiet_network() {
     }
 }
 
+/// What the control plane logs, as `RUST_LOG` asks: the reason behind a refusal the browser
+/// sees only as "retry" is in its warnings.
+fn logs() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_test_writer()
+        .try_init();
+}
+
 fn web() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web")
 }
 
 fn browsers() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.tools/ms-playwright")
+}
+
+/// Playwright, running the panel's browser tests in the browser installed for them.
+fn playwright() -> tokio::process::Command {
+    let mut command = tokio::process::Command::new("pnpm");
+    command
+        .args(["exec", "playwright", "test", "--config", "e2e/playwright.config.ts"])
+        .current_dir(web())
+        .env("PLAYWRIGHT_BROWSERS_PATH", browsers());
+    command
 }
 
 impl ControlPlane {
@@ -204,6 +224,7 @@ impl ControlPlane {
 
 #[tokio::test]
 async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
+    logs();
     let dist = web().join("dist");
     if !dist.join("index.html").exists() || !browsers().exists() {
         eprintln!(
@@ -223,41 +244,43 @@ async fn the_panel_is_used_in_a_browser_against_a_real_control_plane() {
     let project = cp.project().await;
     let talking = talking(&cp, &project).await;
     let (waiter, printer) = tasks(&cp, &project, talking.as_ref().map(|(n, _, _)| n)).await;
-    quiet_network().await;
     let config = tempfile::tempdir().unwrap();
-    let (login, approve_at, login_stderr) = logging_in(&cp, &cli, config.path()).await;
-    let mut playwright = tokio::process::Command::new("pnpm");
+    let node = talking.as_ref().map(|(n, _, _)| n);
+    let dana = person::dana(&cp, &project, node, &cli, &config.path().join("dana")).await;
+    quiet_network().await;
+    let login = logging_in(&cp, &cli, &config.path().join("friend")).await;
+    let mut playwright = playwright();
     playwright
-        .args(["exec", "playwright", "test", "--config", "e2e/playwright.config.ts"])
-        .current_dir(web())
-        .env("PLAYWRIGHT_BROWSERS_PATH", browsers())
         .env("KORPIS_E2E_URL", &cp.url)
         .env("KORPIS_E2E_INVITATION", invitation)
         .env("KORPIS_E2E_OPERATOR_INVITATION", operator)
-        .env("KORPIS_E2E_DEVICE_URL", approve_at)
+        .env("KORPIS_E2E_DEVICE_URL", &login.at)
         .env("KORPIS_E2E_KEEPER_INVITATION", keeper)
         .env("KORPIS_E2E_RUNNER_INVITATION", runner)
         .env("KORPIS_E2E_WAITER", waiter)
-        .env("KORPIS_E2E_AGE", config.path().join("age"));
+        .env("KORPIS_E2E_AGE", config.path().join("age"))
+        .env("KORPIS_E2E_AGE_PERSON", config.path().join("age-person"));
     if let Some((_, _, w)) = &talking {
         playwright.env("KORPIS_E2E_WORKLOAD", w);
     }
     if let Some(p) = &printer {
         playwright.env("KORPIS_E2E_PRINTER", p);
     }
-    let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().join("age")));
+    if let Some(dana) = &dana {
+        dana.env(&mut playwright);
+    }
+    let ageing = tokio::spawn(ager(Arc::clone(&cp), config.path().to_owned()));
     let ran = playwright.status().await.unwrap();
     ageing.abort();
     if !ran.success() {
         eprintln!("what the store held: {:?}", cp.scalar::<Option<String>>(HELD).await);
     }
     assert!(ran.success(), "the browser tests failed: {ran}");
-    let logged = tokio::time::timeout(Duration::from_secs(30), login.wait_with_output());
-    let logged = logged.await.expect("korpis login ended once approved").unwrap();
-    let said = String::from_utf8_lossy(&logged.stdout);
-    let told = login_stderr.await.unwrap();
-    assert!(logged.status.success(), "korpis login, {}: {said} {told}", logged.status);
+    let said = login.said().await;
     assert!(said.contains("friend"), "signed in as the friend who approved it: {said}");
+    if let Some(dana) = dana {
+        dana.approved().await;
+    }
     if let Some((node, agent, w)) = talking {
         let uploaded = std::fs::read(node.volumes.join(format!("{w}.data/world.bin"))).unwrap();
         assert!(uploaded == world(), "the resumed upload is the file, whole and in order");
@@ -288,14 +311,24 @@ const AGE_THE_KEEPER: &str = "UPDATE user_session \
     SET authenticated_at = authenticated_at - interval '11 minutes' \
     WHERE kind = 'web' AND account_id = (SELECT id FROM account WHERE name = 'keeper')";
 
-/// Ages the keeper's browser sessions by eleven minutes whenever a browser test asks, by writing
-/// the file `asked`, and says it is done by removing it: a session is recent for ten (§9.4 of
-/// docs/08-identity.md), and a test that waited that long for it would be a slow test.
-async fn ager(cp: Arc<ControlPlane>, asked: PathBuf) {
+/// The browser sessions of people signed in through an identity provider, signed in eleven
+/// minutes earlier than they were.
+const AGE_A_PERSON: &str = "UPDATE user_session \
+    SET authenticated_at = authenticated_at - interval '11 minutes' \
+    WHERE kind = 'web' AND binding_id IS NOT NULL";
+
+/// Ages the keeper's sessions, or those of people signed in through a provider, by eleven
+/// minutes whenever a browser test asks, by writing `age` or `age-person` in `dir`, and says it
+/// is done by removing it: a session is recent for ten (§9.4 of docs/08-identity.md), and a test
+/// that waited that long for it would be a slow test.
+async fn ager(cp: Arc<ControlPlane>, dir: PathBuf) {
+    let asked = [(dir.join("age"), AGE_THE_KEEPER), (dir.join("age-person"), AGE_A_PERSON)];
     loop {
-        if asked.exists() {
-            cp.execute(AGE_THE_KEEPER).await;
-            std::fs::remove_file(&asked).unwrap();
+        for (file, age) in &asked {
+            if file.exists() {
+                cp.execute(age).await;
+                std::fs::remove_file(file).unwrap();
+            }
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -305,49 +338,6 @@ async fn ager(cp: Arc<ControlPlane>, asked: PathBuf) {
 /// of whose chunks are alike, so a chunk out of place or missing cannot pass for the file.
 fn world() -> Vec<u8> {
     (0..5u32 << 20).map(|i| u8::try_from((i * 7 + i / 1_048_576) % 251).unwrap_or(0)).collect()
-}
-
-/// `korpis login` from the binary `korpis`, keeping nothing, run to read the caller's profile
-/// once signed in, its sessions under `config`: the process, the address it says to approve it
-/// at, and the rest of what it writes to its standard error. That is read to the end as it is
-/// written: a pipe closed under it would fail its next write, and with it the command.
-async fn logging_in(
-    cp: &ControlPlane,
-    korpis: &Path,
-    config: &Path,
-) -> (tokio::process::Child, String, tokio::task::JoinHandle<String>) {
-    let mut child = tokio::process::Command::new(korpis)
-        .args(["login", "--no-store", "--", "call", "ProfileService/GetProfile"])
-        .env("KORPIS_SERVER", &cp.url)
-        .env("KORPIS_CA", cp.data.tls().join("ca.pem"))
-        .env_remove("KORPIS_TOKEN")
-        .env("KORPIS_KEYRING", "off")
-        .env("KORPIS_CONFIG_DIR", config)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-        .unwrap();
-    // "To sign in, open <uri> and enter the code <code>", then "or open <uri with the code>".
-    let mut told = BufReader::new(child.stderr.take().unwrap()).lines();
-    let read = async {
-        while let Some(line) = told.next_line().await.unwrap() {
-            if let Some(at) = line.strip_prefix("or open ") {
-                return at.to_owned();
-            }
-        }
-        panic!("korpis login named no address to approve it at");
-    };
-    let at = tokio::time::timeout(Duration::from_secs(30), read).await.unwrap();
-    let rest = tokio::spawn(async move {
-        let mut rest = String::new();
-        while let Ok(Some(line)) = told.next_line().await {
-            rest.push_str(&line);
-            rest.push('\n');
-        }
-        rest
-    });
-    (child, at, rest)
 }
 
 /// What the friend of the account flows may do, on the root organization.

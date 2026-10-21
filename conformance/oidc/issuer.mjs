@@ -11,9 +11,12 @@
 //   PEOPLE     a JSON file: { "next": "<sub>", "people": { "<sub>": ["<group>", ...] } }
 //   CLIENT_ID, CLIENT_SECRET, REDIRECT_URI   the one client
 //   ALG        the ID token's algorithm: RS256, ES256, or EdDSA
+//   TLS_CERT, TLS_KEY   if set, PEM files it serves HTTPS with, as an issuer a browser is sent
+//              to must (§6 of docs/16-extensions.md); plain HTTP otherwise
 
 import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:https";
 import Provider from "oidc-provider";
 
 const env = (k) => {
@@ -30,7 +33,10 @@ const pair =
       ? generateKeyPairSync("ed25519")
       : generateKeyPairSync("ec", { namedCurve: "P-256" });
 const jwk = { ...pair.privateKey.export({ format: "jwk" }), kid: "k1", alg, use: "sig" };
-const issuer = `http://127.0.0.1:${env("PORT")}`;
+const tls = process.env.TLS_CERT
+  ? { cert: readFileSync(env("TLS_CERT")), key: readFileSync(env("TLS_KEY")) }
+  : undefined;
+const issuer = `${tls ? "https" : "http"}://127.0.0.1:${env("PORT")}`;
 
 const provider = new Provider(issuer, {
   clients: [
@@ -80,6 +86,7 @@ provider.use(async (ctx, next) => {
   });
 });
 
-provider.listen(Number(env("PORT")), "127.0.0.1", () => {
+const server = tls ? createServer(tls, provider.callback()) : provider;
+server.listen(Number(env("PORT")), "127.0.0.1", () => {
   process.stdout.write(`listening ${issuer}\n`);
 });

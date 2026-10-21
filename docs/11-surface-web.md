@@ -91,6 +91,11 @@ listed.
 > page's `then` is. An identity provider's own refusal, its `error` in the callback's query, is
 > shown as it said it. `GetProfile` answers a person with their own binding and no account
 > (`profile.proto`), which is how the panel tells the two apart.
+>
+> Tested in a browser 2026-10-21 (`web/e2e/person.spec.ts`), against a real issuer and the real
+> provider as §9 of `21-stack.md` describes: a person opens the sign-in link, is sent to the
+> issuer and back, reads who the panel says they are, and, ten minutes on, approves
+> `korpis login` by signing in through the provider again.
 
 ---
 

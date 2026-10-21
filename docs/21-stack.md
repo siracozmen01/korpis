@@ -350,6 +350,19 @@ that breaks the panel fails like one that breaks the server.
 > sign-in back eleven minutes when a test asks, rather than the ten-minute rule becoming
 > configurable, and Chromium is told to ignore the control plane's certificate error, without
 > which it registers no service worker (question 3 of §10 of `11-surface-web.md`).
+>
+> Added 2026-10-21: a person signing in through an identity provider is tested the same way,
+> against the independent issuer of `conformance/oidc` (panva's oidc-provider) on a loopback
+> port, serving HTTPS under a test authority that only the provider's client trusts, since the
+> control plane sends a browser to no identity provider over plain HTTP (§6 of
+> `16-extensions.md`), with `korpis-idp-oidc` installed into the organization and its workload on
+> the node. The
+> provider is served from the test's own process, through the identity socket and the relay the
+> node serves that workload, as its `main` serves it inside the workload. It cannot run inside:
+> the node's egress rules deny a workload every address of its own host (§7 of
+> `07-networking.md`), and the issuer is on this one. What that leaves untested is the
+> provider's `main` itself: reading its configuration from the environment, which `config`'s own
+> tests cover, and building its HTTP client.
 > `scripts/check.sh` runs them with the rest of the tests, and says so when no browser is
 > installed and they are skipped. What it costs: about forty seconds of a check, and one
 > download trusted on its publisher's word. Written over one day, they found eight defects that

@@ -635,21 +635,26 @@ missing and what is offered. A client reads both lists from `ServerInfo` (`exten
 rules above allow, by addition alone. An identity provider that can sign people in says so when it
 registers (`sign_in`), and answers `Authorize {state, nonce, code_challenge, redirect_uri}` with
 the address to send a person to; one that registered without it is never asked, so a Discord
-provider is unchanged. Its `Assert` evidence may be an authorization code, with the verifier, the
-redirect URI, and the nonce as headers. And its answer to `VerifyMembers` may name members it
+provider is unchanged. The address must be an `https` URL with a host, at most 8 KiB, or the
+control plane sends no browser to it and fails the sign-in as `provider.malformed`: the
+authorization request carries the state and the challenge, and RFC 6749 §3.1 requires TLS of an
+authorization endpoint. (Recorded 2026-10-21: the rule was built with the call, in
+`Authorization::well_formed`, and stated nowhere; the panel's browser test found it, its issuer
+then speaking only HTTP.) Its `Assert` evidence may be an authorization code, with the verifier,
+the redirect URI, and the nonce as headers. And its answer to `VerifyMembers` may name members it
 cannot tell about (`unknown`), beside those present, so that a provider holding no current evidence
 of someone, an OIDC provider without their refresh token or any SAML provider, keeps their last
 confirmation standing rather than ending it. A provider built before this answers no `unknown`, and
 every member it does not name present is ended as before. Built 2026-10-20 in the contract, the SDK
 (`IdentityProvider::authorize`, refused by default, and `Registration::sign_in`), and the control
 plane's re-verification, which keeps an `unknown` member's record as it was and holds a person's
-own binding unknown to the provider as if it could not be asked.
-The control plane keeps `sign_in` with the registration, refuses it from a provider of any other
-type, and shows it in `ListProviders`. A sign-in's calls carry secrets the stored queue would
-otherwise keep for the hour: the state and nonce of an `Authorize`, the code and verifier of an
-`Assert`. The control plane empties them from the stored call as soon as it has the answer, and
-the sweep empties those of a call whose caller died first within a minute, as it does an access
-answer's secret (§5.6 of `06-storage.md`).
+own binding unknown to the provider as if it could not be asked. The control plane keeps `sign_in`
+with the registration, refuses it from a provider of any other type, and shows it in
+`ListProviders`. A sign-in's calls carry secrets the stored queue would otherwise keep for the
+hour: the state and nonce of an `Authorize`, the code and verifier of an `Assert`. The control
+plane empties them from the stored call as soon as it has the answer, and the sweep empties those
+of a call whose caller died first within a minute, as it does an access answer's secret (§5.6 of
+`06-storage.md`).
 
 ---
 

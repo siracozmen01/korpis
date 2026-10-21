@@ -3729,6 +3729,10 @@ had been cited by no trace, while §9.4 to §9.6, the sessions and sign-ins of a
 workloads, had been cited at least thirty-three times, and this is the path every delegation
 beneath a set waits on (§5.1).
 
+Steps 3 to 6 run in a browser since 2026-10-21 (`web/e2e/person.spec.ts`), against a real issuer
+and the real provider (§9 of `21-stack.md`), and so does Dana's approval of `korpis login` from her
+own terminal ten minutes later, re-authenticated through the provider.
+
 **Trace**
 
 | # | Step | Governed by |

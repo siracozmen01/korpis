@@ -2859,6 +2859,7 @@ dependencies = [
  "korpis-driver-oci",
  "korpis-extension",
  "korpis-helper",
+ "korpis-idp-oidc",
  "korpis-proto",
  "korpis-recipe",
  "korpis-server",

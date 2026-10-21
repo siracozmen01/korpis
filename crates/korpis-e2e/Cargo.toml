@@ -23,6 +23,7 @@ korpis-core = { workspace = true }
 korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-extension = { path = "../korpis-extension" }
 korpis-helper = { path = "../korpis-helper" }
+korpis-idp-oidc = { path = "../korpis-idp-oidc" }
 ipnet = "2"
 korpis-proto = { workspace = true, features = ["client"] }
 korpis-recipe = { workspace = true }
