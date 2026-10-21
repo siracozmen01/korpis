@@ -121,8 +121,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let status = OrganizationStatus::Suspended(suspension);
         let written = tx.change_organization_status(target.id, target.version, &status).await?;
         let suspended = written.ok_or_else(changed)?;
-        let effect =
-            caller.effect("org.suspend", Outcome::Succeeded).under(permit.grant).after(details([
+        let effect = caller
+            .effect("org.suspend", Outcome::Succeeded)
+            .under(permit.grant)
+            .about(org(target.id))
+            .after(details([
                 ("organization", cmd.organization.to_string().into()),
                 ("reason", reason.into()),
                 ("on_suspend", if stops { "stop" } else { "keep_running" }.into()),
@@ -159,6 +162,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("org.resume", Outcome::Succeeded)
             .under(permit.grant)
+            .about(org(target.id))
             .after(details([("organization", organization.to_string().into())]));
         tx.append_effect(&effect).await?;
         finish(tx, caller, idem, RESUME, resumed).await

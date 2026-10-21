@@ -10,6 +10,7 @@ use korpis_app::ports::{
     EffectCursor, EffectFilter, EffectRead, EffectWrite, StoreError, StoreResult,
 };
 use korpis_core::audit::{Effect, JournalOrigin, Outcome};
+use korpis_core::object::{Kind, ObjectRef};
 use korpis_core::principal::Principal;
 use serde_json::{Map, Value};
 use std::time::SystemTime;
@@ -23,6 +24,9 @@ struct EffectRow {
     step: Option<i32>,
     workload_id: Option<Uuid>,
     node_id: Option<Uuid>,
+    object_kind: Option<String>,
+    object_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
     actor: String,
     relay: Option<String>,
     grant_id: Option<Uuid>,
@@ -39,6 +43,16 @@ struct EffectRow {
 
 fn object(what: &str, v: Option<Value>) -> StoreResult<Option<Map<String, Value>>> {
     v.map(|v| from_json(what, v)).transpose()
+}
+
+/// The object a stored kind and identifier name.
+fn about(kind: Option<&str>, id: Option<Uuid>) -> StoreResult<Option<ObjectRef>> {
+    match (kind, id) {
+        (Some(k), Some(id)) => Kind::parse(k)
+            .map(|k| Some(ObjectRef::new(k, id)))
+            .ok_or_else(|| StoreError::Corrupt(format!("effect object kind {k:?}"))),
+        _ => Ok(None),
+    }
 }
 
 impl EffectRow {
@@ -60,6 +74,8 @@ impl EffectRow {
                 .transpose()?,
             workload: self.workload_id,
             node: self.node_id,
+            object: about(self.object_kind.as_deref(), self.object_id)?,
+            organization: self.organization_id,
             actor: principal(&self.actor)?,
             relay: self.relay.as_deref().map(principal).transpose()?,
             grant: self.grant_id,
@@ -88,15 +104,22 @@ impl EffectRead for PgStore {
     ) -> StoreResult<Vec<Effect>> {
         let rows = sqlx::query_as!(
             EffectRow,
-            "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, actor, relay,
-                    grant_id, action, outcome, error, before, after, count, window_end,
-                    origin_node, origin_seq
+            "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, object_kind,
+                    object_id, organization_id, actor, relay, grant_id, action, outcome, error,
+                    before, after, count, window_end, origin_node, origin_seq
                FROM effect
               WHERE ($1::uuid IS NULL OR workload_id = $1)
                 AND ($2::uuid IS NULL OR plan_id = $2)
                 AND ($3::uuid IS NULL OR node_id = $3)
                 AND ($4::timestamptz IS NULL OR at >= $4)
                 AND ($5::timestamptz IS NULL OR (at, id) > ($5, $6))
+                AND ($8::uuid IS NULL OR organization_id IN (
+                        WITH RECURSIVE tree AS (
+                            SELECT id FROM organization WHERE id = $8
+                            UNION ALL
+                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)
+                        SELECT id FROM tree))
+                AND ($9::uuid IS NULL OR project_id = $9)
               ORDER BY at, id LIMIT $7",
             f.workload,
             f.plan,
@@ -104,7 +127,9 @@ impl EffectRead for PgStore {
             f.since.map(from_time),
             after.map(|c| from_time(c.at)),
             after.map(|c| c.id),
-            i64::from(limit)
+            i64::from(limit),
+            f.organization,
+            f.project
         )
         .fetch_all(&self.pool)
         .await
@@ -138,12 +163,15 @@ impl EffectWrite for PgTx {
             Some(o) => (Some(o.node), Some(to_count("origin_seq", o.seq)?)),
             None => (None, None),
         };
+        let about = e.concerns();
         let at = sqlx::query_scalar!(
             "INSERT INTO effect (id, occurred_at, plan_id, step, workload_id, node_id, actor,
                                  grant_id, action, outcome, error, before, after, count,
-                                 window_end, origin_node, origin_seq, relay)
+                                 window_end, origin_node, origin_seq, relay, object_kind,
+                                 object_id, organization_id, project_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                     $17, $18)
+                     $17, $18, $19, $20, korpis_object_organization($19, $20),
+                     korpis_object_project($19, $20))
              RETURNING at",
             e.id,
             e.occurred_at.map(from_time),
@@ -162,7 +190,9 @@ impl EffectWrite for PgTx {
             e.window_end.map(from_time),
             origin_node,
             origin_seq,
-            e.relay.as_ref().map(Principal::key)
+            e.relay.as_ref().map(Principal::key),
+            about.map(|o| o.kind.as_str()),
+            about.map(|o| o.id)
         )
         .fetch_one(&mut *self.tx)
         .await

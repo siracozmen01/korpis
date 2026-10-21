@@ -6,6 +6,7 @@
 pub mod denial;
 pub mod failure;
 
+use crate::object::{Kind, ObjectRef};
 use crate::principal::Principal;
 use serde_json::{Map, Value};
 use std::time::SystemTime;
@@ -76,6 +77,12 @@ pub struct Effect {
     pub workload: Option<Uuid>,
     /// The node it concerns.
     pub node: Option<Uuid>,
+    /// What it is about, the object its action was authorized over (§4 of
+    /// docs/15-observability.md); unnamed, its workload's or node's.
+    pub object: Option<ObjectRef>,
+    /// The organization whose subtree holds its object, which the store resolves as it writes
+    /// it; `None` before then, and for a node or for nothing.
+    pub organization: Option<Uuid>,
     /// Who acted.
     pub actor: Principal,
     /// The client that relayed what the actor presented, when they acted through one (§5.2 of
@@ -113,6 +120,8 @@ impl Effect {
             step: None,
             workload: None,
             node: None,
+            object: None,
+            organization: None,
             actor,
             relay: None,
             grant: None,
@@ -132,6 +141,21 @@ impl Effect {
     pub fn relayed_by(mut self, relay: Option<Principal>) -> Self {
         self.relay = relay;
         self
+    }
+
+    /// Names what it is about.
+    #[must_use]
+    pub const fn about(mut self, object: ObjectRef) -> Self {
+        self.object = Some(object);
+        self
+    }
+
+    /// What it is about: the object it names, or else its workload, or else its node.
+    #[must_use]
+    pub fn concerns(&self) -> Option<ObjectRef> {
+        self.object
+            .or_else(|| self.workload.map(|w| ObjectRef::new(Kind::Workload, w)))
+            .or_else(|| self.node.map(|n| ObjectRef::new(Kind::Node, n)))
     }
 
     /// Names the grant that permitted it.

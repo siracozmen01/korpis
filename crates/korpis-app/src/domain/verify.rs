@@ -69,8 +69,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let now = self.clock.now();
         tx.verify_domain(d.id, now).await?;
         d.verified_at = Some(now);
-        let effect =
-            caller.effect("domain.verify", Outcome::Succeeded).under(grant).after(details([
+        let effect = caller
+            .effect("domain.verify", Outcome::Succeeded)
+            .under(grant)
+            .about(ObjectRef::new(Kind::Domain, d.id))
+            .after(details([
                 ("domain", d.id.to_string().into()),
                 ("name", d.name.as_str().into()),
             ]));
@@ -102,8 +105,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
         }
         let gone = tx.delete_domain(d.id).await?;
-        let effect =
-            caller.effect("domain.delete", Outcome::Succeeded).under(grant).after(details([
+        let effect = caller
+            .effect("domain.delete", Outcome::Succeeded)
+            .under(grant)
+            .about(ObjectRef::new(Kind::Organization, d.organization))
+            .after(details([
                 ("domain", d.id.to_string().into()),
                 ("name", d.name.as_str().into()),
                 ("deleted", gone.into()),

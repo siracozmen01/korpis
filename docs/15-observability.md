@@ -207,6 +207,41 @@ Export is to open formats for whatever SIEM the operator runs. Tenants can read 
 trail scoped by grant, which is unusual in this market and is simply what happens when the audit
 log is the same object the authorization model already filters.
 
+**Reading it, as designed.** Designed 2026-10-21, when the tenant-visible audit was built (Phase 2
+of §4 of `20-roadmap.md`). Until then `ListEffects` answered one workload, plan, or node, and an
+effect named no organization, so an organization could not ask for its own subtree, and an
+effect of something done to the organization itself (a grant issued, a theme set, a binding
+made) was reachable by no tenant at all. Every effect now names what it is about: `object`, the
+object its action was authorized over, or for an effect the control plane writes as its own
+actor, the object it acts on (a placement's or a lease's workload, the workload or node of a
+node's journal entry); and `organization`, the organization whose subtree holds that object,
+resolved by the store from the object's own ancestry in the transaction that writes the effect.
+A node's organization is the one it was enrolled into. An effect about nothing (installation,
+restore, a relay, an account's own factors and sessions, a caller's own event subscriptions, a
+quota's drift corrected) has no organization.
+
+`ListEffects` asks for an organization's subtree or one project, beside a workload, a plan, or a
+node. Each effect is shown to a caller who holds, over its object, the read of the effect's family
+where the family has one (`grant.read` for `grant.*`, `plan.read`, `extension.read`, `backup.read`,
+`event.read`), and otherwise the read of the object's kind (`org.read`, `project.read`,
+`workload.read` for a workload and its streams, `volume.read`, `endpoint.read`, `node.read`,
+`repository.read`, `domain.read`, `certificate.read`). A denial is shown by the same rule, its
+object the one that was asked for, so a tenant sees what was attempted against what it holds. The
+fields are filtered as an explanation is (§8 of `08-identity.md`): an effect's node, and a `node`
+among its details, are shown only to a caller who may read that node. The actor and the client that
+relayed them are shown as they are, an operator's included, since an operator acting on a tenant's
+workload is exactly what §7 of `08-identity.md` says the tenant may see. An effect about nothing is
+read only under `org.read` on the root organization.
+
+What it costs. Every effect shown is one evaluation against the caller's grants, loaded once a
+page. The list pages as every list filtered by read authority does (§8 of `10-api.md`): it reads
+past what the caller may not see until its page is full, nothing is left, or it has read eight
+pages of effects, and its page token is sealed, so a token names no effect the caller could not
+see. A deleted object has no ancestry left to resolve, so an effect of deleting one (a domain, a
+certificate) is about the organization that held it. Effects written before this name the
+object their workload, plan, or node gives them, and an earlier effect done to an organization
+itself names none, so it is read only at the root.
+
 ---
 
 ## 5. Alerting stops at the boundary
@@ -446,3 +481,10 @@ is not billing-grade and does not claim to be.
    operator accessed their workload. Which accesses are exempt, an operator debugging a node-wide
    failure touching every tenant, is a policy question with real privacy weight. **Resolved in §8
    of `17-security.md`**: none are exempt.
+6. **An event's organization.** An event (§5) is keyed to its effect's workload, or else its
+   node's organization, or else the organization its grant was scoped over, and that last one is
+   where the authority came from, not what was done: an operator who sets a tenant's theme under
+   the root grant writes an event to the root's subscribers, not the tenant's. Effects name what
+   they are about since the audit was made tenant-visible (§4), so an event could follow its
+   effect's object instead, which changes which subscribers hear of what and whether an existing
+   subscription goes quiet. → here

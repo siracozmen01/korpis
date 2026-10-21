@@ -83,7 +83,7 @@ async fn a_passkey_signs_in_once_per_challenge_and_a_cloned_one_is_recorded() {
         f.app.sign_in_with_passkey(cloned, &crate::support::client()).await,
         Err(AppError::Unauthenticated)
     );
-    let all = EffectFilter { workload: None, plan: None, node: None, since: None };
+    let all = EffectFilter::default();
     let effects = f.app.store().effects(&all, None, 1000).await.unwrap();
     let cloned = effects.iter().find(|e| e.action == "account.passkey_cloned").unwrap();
     assert_eq!(cloned.actor, korpis_core::principal::Principal::User(account));

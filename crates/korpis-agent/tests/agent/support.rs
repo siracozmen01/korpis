@@ -311,9 +311,12 @@ impl ControlPlane {
     }
 
     /// Waits until every connected node's reachability has been measured (§9 of
-    /// docs/07-networking.md).
+    /// docs/07-networking.md): past a first attempt that measured nothing, as one does on a
+    /// loaded machine or when the node's session ends under it, and the retry after it.
     pub async fn measured(&self) {
-        for _ in 0..300 {
+        let wait = korpis_server::testing::PROBE_RETRY + Duration::from_secs(30);
+        let rounds = wait.as_millis() / 100;
+        for _ in 0..rounds {
             let waiting: i64 = self
                 .scalar("SELECT count(*) FROM node WHERE connectivity = 'connected' AND probed_at IS NULL")
                 .await;
@@ -322,7 +325,7 @@ impl ControlPlane {
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        panic!("the nodes were not measured within thirty seconds");
+        panic!("the nodes were not measured within {} seconds", wait.as_secs());
     }
 
     /// One statement against the control plane's database.

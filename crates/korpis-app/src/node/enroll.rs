@@ -297,18 +297,25 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 }
 
 fn creation_effects(caller: &Caller, parent: Uuid, e: &Enrollment) -> [Effect; 2] {
+    let home = ObjectRef::new(Kind::Organization, e.organization);
     [
-        caller.effect("grant.issued", Outcome::Succeeded).under(parent).after(details([
-            ("grant", e.grant.to_string().into()),
-            ("parent", parent.to_string().into()),
-            ("holder", Principal::Token(e.token).key().into()),
-        ])),
-        caller.effect("node.enrollment.create", Outcome::Succeeded).under(parent).after(details([
-            ("organization", e.organization.to_string().into()),
-            ("node_name", e.node_name.as_str().into()),
-            ("token", e.token.to_string().into()),
-            ("grant", e.grant.to_string().into()),
-        ])),
+        caller.effect("grant.issued", Outcome::Succeeded).under(parent).about(home).after(details(
+            [
+                ("grant", e.grant.to_string().into()),
+                ("parent", parent.to_string().into()),
+                ("holder", Principal::Token(e.token).key().into()),
+            ],
+        )),
+        caller
+            .effect("node.enrollment.create", Outcome::Succeeded)
+            .under(parent)
+            .about(home)
+            .after(details([
+                ("organization", e.organization.to_string().into()),
+                ("node_name", e.node_name.as_str().into()),
+                ("token", e.token.to_string().into()),
+                ("grant", e.grant.to_string().into()),
+            ])),
     ]
 }
 

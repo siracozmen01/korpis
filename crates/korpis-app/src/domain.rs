@@ -192,8 +192,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect =
-            caller.effect("domain.create", Outcome::Succeeded).under(grant).after(details([
+        let effect = caller
+            .effect("domain.create", Outcome::Succeeded)
+            .under(grant)
+            .about(ObjectRef::new(Kind::Domain, created.id))
+            .after(details([
                 ("domain", created.id.to_string().into()),
                 ("organization", created.organization.to_string().into()),
                 ("name", created.name.as_str().into()),

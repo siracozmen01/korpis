@@ -135,6 +135,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("org.quota.write", Outcome::Succeeded)
             .under(permit.grant)
+            .about(
+                project
+                    .as_ref()
+                    .map_or(organization(org.id), |p| ObjectRef::new(Kind::Project, p.id)),
+            )
             .after(details([
                 ("organization", org.id.to_string().into()),
                 ("project", project.as_ref().map(|p| p.id.to_string()).into()),

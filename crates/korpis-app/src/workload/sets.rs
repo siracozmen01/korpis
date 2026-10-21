@@ -68,11 +68,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::conflict("set.moved", message));
         }
         let effect =
-            caller.effect("set.mode", Outcome::Succeeded).under(permit.grant).after(details([
-                ("set", set.id.to_string().into()),
-                ("from", set.mode.as_str().into()),
-                ("to", cmd.mode.as_str().into()),
-            ]));
+            caller.effect("set.mode", Outcome::Succeeded).under(permit.grant).about(project).after(
+                details([
+                    ("set", set.id.to_string().into()),
+                    ("from", set.mode.as_str().into()),
+                    ("to", cmd.mode.as_str().into()),
+                ]),
+            );
         tx.append_effect(&effect).await?;
         set.mode = cmd.mode;
         set.version = cmd.expected_version + 1;

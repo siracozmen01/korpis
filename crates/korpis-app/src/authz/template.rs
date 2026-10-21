@@ -67,7 +67,8 @@ fn name_taken(e: StoreError) -> AppError {
 }
 
 fn effect(caller: &Caller, action: &str, permit: &Permit, t: &GrantTemplate) -> Effect {
-    caller.effect(action, Outcome::Succeeded).under(permit.grant).after(details([
+    let about = ObjectRef::new(Kind::Organization, t.organization);
+    caller.effect(action, Outcome::Succeeded).under(permit.grant).about(about).after(details([
         ("template", t.id.to_string().into()),
         ("organization", t.organization.to_string().into()),
         ("name", t.current.name.as_str().into()),

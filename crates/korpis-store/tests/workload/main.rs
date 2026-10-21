@@ -11,6 +11,7 @@
     reason = "a failing test should fail loudly"
 )]
 
+mod about;
 mod accounts;
 mod assertion;
 mod buckets;

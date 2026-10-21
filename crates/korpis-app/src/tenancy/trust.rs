@@ -175,6 +175,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("org.trust_policy.set", Outcome::Succeeded)
             .under(permit.grant)
+            .about(ObjectRef::new(Kind::Organization, change.organization))
             .after(effect_details(&change));
         tx.append_effect(&effect).await?;
         let governing = Governing { set, own_version: change.version };

@@ -117,8 +117,11 @@ pub(super) async fn revoke_all<X: Tx>(
     for g in held.iter().filter(|g| g.revoked_at.is_none()) {
         tx.revoke_grant(g.grant.id, now).await?;
         let cascaded = tx.descendant_count(g.grant.id).await?;
-        let effect =
-            caller.effect("grant.revoke", Outcome::Succeeded).under(under).after(details([
+        let effect = caller
+            .effect("grant.revoke", Outcome::Succeeded)
+            .under(under)
+            .about(g.grant.scope.anchor())
+            .after(details([
                 ("grant", g.grant.id.to_string().into()),
                 ("cascaded", cascaded.into()),
             ]));

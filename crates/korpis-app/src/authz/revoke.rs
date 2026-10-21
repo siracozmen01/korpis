@@ -63,6 +63,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("grant.revoke", Outcome::Succeeded)
             .under(authority)
+            .about(target.grant.scope.anchor())
             .after(details([("grant", grant.to_string().into()), ("cascaded", cascaded.into())]));
         tx.append_effect(&effect).await?;
         target.revoked_at = Some(now);

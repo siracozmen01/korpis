@@ -14,9 +14,9 @@ use crate::ports::{
     AccountWrite, Clock, CredentialWrite, EffectWrite, GrantWrite, RecipeSource, Store, StoreError,
     Unique,
 };
-use korpis_core::account::record::{Account, INVITATION_LIFETIME, Invitation, display_name};
+use korpis_core::account::record::{Account, Invitation, display_name};
 use korpis_core::audit::{Outcome, details};
-use korpis_core::authz::credential::{ApiToken, Secret, SecretKind};
+use korpis_core::authz::credential::{ApiToken, Secret};
 use korpis_core::authz::evaluate::{IssueError, issue};
 use korpis_core::authz::link;
 use korpis_core::authz::{
@@ -26,6 +26,10 @@ use korpis_core::principal::Principal;
 use std::collections::BTreeSet;
 use std::time::SystemTime;
 use uuid::Uuid;
+
+mod created;
+
+use created::{issued, new_user};
 
 const OPERATION: &str = "authz.issue_grant";
 
@@ -133,40 +137,6 @@ fn validate(cmd: &IssueGrant) -> Result<(), AppError> {
             .map(|_| ())
             .map_err(|e| AppError::invalid("display_name", e.to_string())),
     }
-}
-
-/// The account and invitation a grant to a new user creates, issued by `caller` at `now`.
-fn new_user(
-    caller: &Caller,
-    name: &str,
-    expires_at: Option<SystemTime>,
-    now: SystemTime,
-) -> Result<(Account, Invitation, Secret), AppError> {
-    let latest = now + INVITATION_LIFETIME;
-    let expires_at = expires_at.unwrap_or(latest);
-    if expires_at <= now || expires_at > latest {
-        return Err(AppError::invalid("invitation_expires_at", "within the next seven days"));
-    }
-    let account = Account {
-        id: Uuid::now_v7(),
-        display_name: display_name(name)
-            .map_err(|e| AppError::invalid("display_name", e.to_string()))?,
-        name: None,
-        created_by: caller.principal.key(),
-        created_at: now,
-        disabled_at: None,
-    };
-    let invitation = Invitation {
-        id: Uuid::now_v7(),
-        account: account.id,
-        issued_by: caller.principal.key(),
-        expires_at,
-        passkey_only: false,
-        redeemed_at: None,
-    };
-    let secret = Secret::generate_kind(SecretKind::Invitation)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    Ok((account, invitation, secret))
 }
 
 /// What a link must say of itself (§6.1 of docs/08-identity.md): short expiry and a use cap
@@ -284,6 +254,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 let effect = caller
                     .effect("account.invited", Outcome::Succeeded)
                     .under(parent.id)
+                    .about(record.grant.scope.anchor())
                     .after(details([
                         ("account", account.id.to_string().into()),
                         ("display_name", account.display_name.clone().into()),
@@ -298,16 +269,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect =
-            caller.effect("grant.issued", Outcome::Succeeded).under(parent.id).after(details([
-                ("grant", record.grant.id.to_string().into()),
-                ("parent", parent.id.to_string().into()),
-                ("holder", record.holder.key().into()),
-                ("label", record.label.clone().into()),
-                ("template", record.from_template.map(|t| t.template.to_string()).into()),
-                ("template_version", record.from_template.map(|t| t.version).into()),
-            ]));
-        tx.append_effect(&effect).await?;
+        tx.append_effect(&issued(caller, &record, parent.id)).await?;
         let (secret, invitation) = match created {
             Created::Nothing => (None, None),
             Created::Token(_, secret) => (Some(secret), None),

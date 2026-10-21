@@ -57,7 +57,8 @@ fn bound(e: StoreError) -> AppError {
 }
 
 fn effect(caller: &Caller, action: &str, permit: &Permit, b: &IdentityBinding) -> Effect {
-    caller.effect(action, Outcome::Succeeded).under(permit.grant).after(details([
+    let about = ObjectRef::new(Kind::Organization, b.provider.organization);
+    caller.effect(action, Outcome::Succeeded).under(permit.grant).about(about).after(details([
         ("binding", b.id.to_string().into()),
         ("organization", b.provider.organization.to_string().into()),
         ("provider", b.provider.name.clone().into()),

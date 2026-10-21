@@ -99,7 +99,7 @@ fn denial(key: &DenialKey) -> Effect {
     ]));
     effect.workload = (key.object.kind == Kind::Workload).then_some(key.object.id);
     effect.node = (key.object.kind == Kind::Node).then_some(key.object.id);
-    effect
+    effect.about(key.object)
 }
 
 /// The effect recording a closed run's repeats, if it counted any: one refusal's record with

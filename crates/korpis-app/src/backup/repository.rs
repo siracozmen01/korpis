@@ -155,6 +155,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("repository.create", Outcome::Succeeded)
             .under(permit.grant)
+            .about(ObjectRef::new(Kind::Repository, created.id))
             .after(details([
                 ("repository", created.id.to_string().into()),
                 ("organization", created.organization.to_string().into()),

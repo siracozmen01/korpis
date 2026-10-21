@@ -16,6 +16,7 @@ use crate::ports::{
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::binding::{BindingState, IdentityBinding, Verification};
 use korpis_core::authz::membership::MemberRecord;
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::extension::identity::MembersAsked;
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
 use korpis_core::principal::{Principal, SetName, SystemActor};
@@ -112,9 +113,9 @@ struct Answer {
     members: (Vec<String>, Vec<String>),
 }
 
-/// The effect of a binding moving to `state` on `answer`.
+/// The effect of the binding `id`, of `organization`, moving to `state` on `answer`.
 fn transition(
-    id: Uuid,
+    (id, organization): (Uuid, Uuid),
     subject: Option<&Principal>,
     state: BindingState,
     answer: &Answer,
@@ -123,7 +124,8 @@ fn transition(
         BindingState::Verified => "identity.binding.verified",
         BindingState::Unverified => "identity.binding.unverified",
     };
-    let effect = Effect::new(answer.actor.clone(), action, Outcome::Succeeded);
+    let effect = Effect::new(answer.actor.clone(), action, Outcome::Succeeded)
+        .about(ObjectRef::new(Kind::Organization, organization));
     let effect = effect.relayed_by(answer.relay.clone()).after(details([
         ("binding", id.to_string().into()),
         ("subject", subject.map(Principal::key).into()),
@@ -175,7 +177,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         // case it was older; that one is still there may be older than what was recorded, so it
         // is dropped.
         if verification == Verification::Ended || !answer.members.1.is_empty() {
-            self.record_ended(binding.id, &answer).await?;
+            self.record_ended((binding.id, binding.provider.organization), &answer).await?;
         }
         let current = self.store.binding(binding.id).await?.filter(|b| b.retired_at.is_none());
         let gone = || AppError::conflict("binding.retired", "the binding was retired");
@@ -184,7 +186,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Records that `id`'s subject ended, whatever was recorded meanwhile, with an effect if it
     /// was verified, and that the members found not in it are not.
-    async fn record_ended(&self, id: Uuid, answer: &Answer) -> Result<(), AppError> {
+    async fn record_ended(
+        &self,
+        (id, organization): (Uuid, Uuid),
+        answer: &Answer,
+    ) -> Result<(), AppError> {
         let mut tx = self.store.begin().await?;
         // A member found not in the set is recorded so whatever came between, as an ending is.
         let now = self.clock.now();
@@ -192,7 +198,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         if answer.verification == Verification::Ended {
             let before = tx.record_ended(id, now + RETRY).await?;
             if before == Some(BindingState::Verified) {
-                let effect = transition(id, None, BindingState::Unverified, answer);
+                let effect = transition((id, organization), None, BindingState::Unverified, answer);
                 tx.append_effect(&effect).await?;
             }
         }
@@ -221,7 +227,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         binding.verifications = asked_at + 1;
         tx.record_members(binding.id, (&answer.members.0, &answer.members.1), now).await?;
         if changed {
-            let effect = transition(binding.id, Some(&binding.subject), state, answer);
+            let at = (binding.id, binding.provider.organization);
+            let effect = transition(at, Some(&binding.subject), state, answer);
             tx.append_effect(&effect).await?;
         }
         tx.commit().await?;

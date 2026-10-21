@@ -184,6 +184,7 @@ fn failure(key: &FailureKey) -> Effect {
             ("target", target.into()),
         ]));
     effect.node = key.target.filter(|t| t.kind == Kind::Node).map(|t| t.id);
+    effect.object = key.target;
     effect
 }
 

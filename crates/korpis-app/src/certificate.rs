@@ -45,7 +45,9 @@ impl std::fmt::Debug for Upload {
 }
 
 fn effect(caller: &Caller, action: &str, grant: Uuid, c: &Certificate) -> Effect {
-    caller.effect(action, Outcome::Succeeded).under(grant).after(details([
+    // About the organization, not the certificate, so a deletion's effect keeps its home.
+    let about = ObjectRef::new(Kind::Organization, c.organization);
+    caller.effect(action, Outcome::Succeeded).under(grant).about(about).after(details([
         ("certificate", c.id.to_string().into()),
         ("names", c.names.join(",").into()),
         ("revision", c.revision.into()),

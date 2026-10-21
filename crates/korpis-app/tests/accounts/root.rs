@@ -78,7 +78,7 @@ async fn recovering_root_at_the_machine_invites_a_new_account_and_says_who_asked
     let recovered = app.recover_root("uid 0 (root), by sudo from alice").await.unwrap();
     assert_ne!(recovered.grant, installed.root_grant);
     assert!(app.invitation(recovered.secret.expose()).await.unwrap().passkey_only);
-    let all = EffectFilter { workload: None, plan: None, node: None, since: None };
+    let all = EffectFilter::default();
     let effects = app.store().effects(&all, None, 100).await.unwrap();
     let said = effects.iter().find(|e| e.action == "root.recovered").unwrap();
     let operator = said.after.as_ref().and_then(|a| a.get("operator")).and_then(|o| o.as_str());
@@ -112,7 +112,7 @@ async fn installation_makes_the_first_node_s_enrollment_which_enrolls_it_once() 
     let other = hex(b"c9a3f86aae465f0e56513864510f3997561fa2c9e85ea21dc2292309f3cd6022");
     let refused = app.enroll(enroll(&other)).await.unwrap_err();
     assert!(matches!(refused, AppError::Conflict { reason: "enrollment.used", .. }), "{refused}");
-    let all = EffectFilter { workload: None, plan: None, node: None, since: None };
+    let all = EffectFilter::default();
     let effects = app.store().effects(&all, None, 100).await.unwrap();
     let created = effects.iter().find(|e| e.action == "node.enrollment.create").unwrap();
     assert_eq!(created.grant, Some(installed.root_grant), "attenuated from the root grant");

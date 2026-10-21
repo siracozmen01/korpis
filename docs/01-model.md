@@ -858,7 +858,13 @@ Effect
   step          int?
   workload      WorkloadID?
   node          NodeID?
+  object        ObjectRef?     what it is about, the object its action was authorized over
+                               (§4 of 15-observability.md)
+  organization  OrganizationID?  the organization whose subtree holds the object, resolved
+                               when it is written; none for a node or for nothing
   actor         Subject
+  relay         Subject?       the client that relayed what the actor presented (§5.2 of
+                               08-identity.md)
   grant         GrantID?       the grant that authorized it
   at            Timestamp      when the control plane ingested it, the only ordering clock
   occurred_at   Timestamp?     the originating node's reading, informational (§4 of 03-state.md)

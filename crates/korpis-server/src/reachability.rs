@@ -34,7 +34,7 @@ pub const EVERY: Duration = Duration::from_secs(600);
 /// How often nodes are looked at.
 const TICK: Duration = Duration::from_secs(2);
 /// How long after an attempt that measured nothing a node is tried again.
-const RETRY: Duration = Duration::from_secs(30);
+pub(crate) const RETRY: Duration = Duration::from_secs(30);
 /// How long a node has to start listening.
 const LISTEN: Duration = Duration::from_secs(10);
 /// How long one connection or one answer may take.

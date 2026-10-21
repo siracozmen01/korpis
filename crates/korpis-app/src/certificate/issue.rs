@@ -13,6 +13,7 @@ use crate::ports::{
     AcmeError, CertificateWrite as _, Clock, EffectWrite as _, Issued, RecipeSource, Store, Tx as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::certificate::{Certificate, State, backoff, renew_after};
 use korpis_core::principal::{Principal, SystemActor};
 use std::time::Duration;
@@ -40,14 +41,14 @@ pub(super) struct Order {
 }
 
 fn effect(c: &Certificate, outcome: Outcome, reason: Option<&str>) -> Effect {
-    Effect::new(Principal::System(SystemActor::Authority), "certificate.issue", outcome).after(
-        details([
+    Effect::new(Principal::System(SystemActor::Authority), "certificate.issue", outcome)
+        .about(ObjectRef::new(Kind::Certificate, c.id))
+        .after(details([
             ("certificate", c.id.to_string().into()),
             ("names", c.names.join(",").into()),
             ("revision", c.revision.into()),
             ("reason", reason.unwrap_or_default().into()),
-        ]),
-    )
+        ]))
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {

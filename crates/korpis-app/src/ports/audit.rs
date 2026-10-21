@@ -32,6 +32,11 @@ pub struct EffectFilter {
     pub node: Option<Uuid>,
     /// Ingested at or after this time.
     pub since: Option<SystemTime>,
+    /// Effects about an object in this organization's subtree (§4 of
+    /// docs/15-observability.md).
+    pub organization: Option<Uuid>,
+    /// Effects about an object in this project.
+    pub project: Option<Uuid>,
 }
 
 /// Reading the log.

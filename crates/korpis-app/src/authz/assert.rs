@@ -172,6 +172,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.insert_ticket(ticket, &secret.digest()).await?;
         let effect = Effect::new(ticket.relay.clone(), "identity.asserted", Outcome::Succeeded)
             .under(grant)
+            .about(ObjectRef::new(Kind::Organization, ticket.provider.organization))
             .after(details([
                 ("ticket", ticket.id.to_string().into()),
                 ("subject", ticket.subject.key().into()),

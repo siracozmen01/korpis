@@ -89,6 +89,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let effect = caller
             .effect("org.delegation_ceiling.set", Outcome::Succeeded)
             .under(permit.grant)
+            .about(ObjectRef::new(Kind::Organization, organization))
             .after(details([
                 ("organization", organization.to_string().into()),
                 ("ceiling_seconds", secs(ceiling).into()),

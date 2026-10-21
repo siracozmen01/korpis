@@ -55,13 +55,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             }
             other => other.into(),
         })?;
-        let effect = caller.effect("project.create", Outcome::Succeeded).under(permit.grant).after(
-            details([
-                ("project", created.id.to_string().into()),
-                ("organization", cmd.organization.to_string().into()),
-                ("name", created.name.as_str().into()),
-            ]),
-        );
+        let about = ObjectRef::new(Kind::Project, created.id);
+        let effect = caller.effect("project.create", Outcome::Succeeded).under(permit.grant);
+        let effect = effect.about(about).after(details([
+            ("project", created.id.to_string().into()),
+            ("organization", cmd.organization.to_string().into()),
+            ("name", created.name.as_str().into()),
+        ]));
         tx.append_effect(&effect).await?;
         finish(tx, caller, idem, OPERATION, created).await
     }
