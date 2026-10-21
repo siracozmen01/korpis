@@ -145,6 +145,8 @@ table! {
     "korpis.v1.PlanService/RejectPlan" => PlanServiceClient::reject_plan(RejectPlanRequest);
     "korpis.v1.PlanService/CancelPlan" => PlanServiceClient::cancel_plan(CancelPlanRequest);
     "korpis.v1.EffectService/ListEffects" => EffectServiceClient::list_effects(ListEffectsRequest);
+    "korpis.v1.MeteringService/ListUsage" => MeteringServiceClient::list_usage(ListUsageRequest);
+    "korpis.v1.MeteringService/ListPeriods" => MeteringServiceClient::list_periods(ListPeriodsRequest);
     "korpis.v1.NodeService/CreateEnrollmentToken" => NodeServiceClient::create_enrollment_token(CreateEnrollmentTokenRequest);
     "korpis.v1.NodeService/GetNode" => NodeServiceClient::get_node(GetNodeRequest);
     "korpis.v1.NodeService/ListNodes" => NodeServiceClient::list_nodes(ListNodesRequest);
