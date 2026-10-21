@@ -261,6 +261,25 @@ integral is as good as ten-second sampling, stated rather than presented as a co
 the machine loses up to ten seconds of each workload's use, recorded as lost. Network bytes are not
 split by destination until bandwidth accounting is built.
 
+> Built 2026-10-21 on the node (P2.7b of the build plan, Phase 2 of §4 of `20-roadmap.md`). The
+> agent runs every runtime through a metered one, which tells the meter each object it creates or
+> recovers and the workload it is, and reads an object's counters just before destroying it. The
+> meter reads every object, and the interface `host_link` names for every workload held, every ten
+> seconds (or at the interval's own pace where that is shorter), keeps its accounts in `meter`
+> beside the journal, and at each interval's end by the node's clock journals a
+> `MeteringSample` for every workload held and every one it still reads: the cumulative counters,
+> the lease epoch, the interval's peak, the bytes of the declared volumes whose filesystem
+> accounts them, and its losses. The build named two causes of loss the design did not: `object
+> ended unread`, an object gone before its last counters could be read, whose reading before is
+> kept; and `memory unread`, a span of more than thirty seconds between readings, an agent
+> stopped, over which memory is not integrated, while the cumulative counters lose nothing. A
+> sample's interval is closed only once the journal holds it, so one not journaled leaves its
+> peak and losses to the next. The interval is the agent's own option until the control plane
+> declares it (P2.7c), and the control plane still records a sample only as having arrived
+> (§4.10 of `02-architecture.md`). Unit tests drive the accounts across two objects, a reset, a
+> reboot, an unread end, and an agent restart, and an agent test finds a sample an interval
+> delivered.
+
 ---
 
 ## 3. Metrics

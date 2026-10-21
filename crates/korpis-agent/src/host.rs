@@ -169,4 +169,12 @@ pub trait Host: Send + Sync + 'static {
     fn describe_network(
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send;
+
+    /// What the filesystem accounts for `volume`, read rather than computed (§3 of
+    /// docs/06-storage.md): what the meter samples as its stored bytes (§2 of
+    /// docs/15-observability.md).
+    fn volume_usage(
+        &self,
+        volume: &str,
+    ) -> impl Future<Output = Result<helper::VolumeUsageResponse, HostError>> + Send;
 }

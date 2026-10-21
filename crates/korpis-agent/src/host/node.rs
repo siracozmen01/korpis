@@ -198,4 +198,11 @@ impl Host for NodeHost {
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {
         self.helper.describe_network()
     }
+
+    fn volume_usage(
+        &self,
+        volume: &str,
+    ) -> impl Future<Output = Result<helper::VolumeUsageResponse, HostError>> + Send {
+        self.helper.volume_usage(volume)
+    }
 }

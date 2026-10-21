@@ -9,7 +9,7 @@
 //! crashed workload with a backoff, and reports what it observes. It acts only under a lease
 //! (§4.5): without one it changes nothing, and when another node holds the workload it stops it.
 
-mod act;
+pub(crate) mod act;
 pub(crate) use act::volume_id;
 mod backup;
 mod content;

@@ -24,6 +24,7 @@ mod ingress;
 mod join;
 mod journal;
 mod lease;
+mod metering;
 mod offload;
 mod reachability;
 mod reconcile;

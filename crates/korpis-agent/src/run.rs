@@ -14,12 +14,11 @@ use crate::data::handler::Handlers;
 use crate::data::{DataLink, Judged};
 use crate::host::Host;
 use crate::identity::{ControlPlane, IdentitySockets};
-use crate::inventory::Inventory;
 use crate::journal::{Bounds, JournalHandle};
 use crate::lease::{Keeper, Leases};
-use crate::network::{Addresses, Networking, Pools};
+use crate::meter::Metering;
+use crate::network::Pools;
 use crate::offload::Offloader;
-use crate::reconcile::progress::Progress;
 use crate::reconcile::streams::Streams;
 use crate::reconcile::{Reconciler, Wiring};
 use crate::runtime::{Runtime, RuntimeError};
@@ -32,6 +31,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
+
+mod kept;
+
+use kept::Kept;
 
 /// Why the agent could not start.
 #[derive(Debug, thiserror::Error)]
@@ -92,6 +95,8 @@ pub struct Options {
     /// docs/07-networking.md); none runs no ingress. It needs the node to give its workloads
     /// networks and to advertise an address.
     pub ingress: Option<Arc<std::sync::atomic::AtomicBool>>,
+    /// The meter's interval and where it reads interfaces (§2 of docs/15-observability.md).
+    pub metering: Metering,
 }
 
 impl Default for Options {
@@ -105,6 +110,7 @@ impl Default for Options {
             handlers: Handlers::default(),
             network: None,
             ingress: None,
+            metering: Metering::default(),
         }
     }
 }
@@ -250,42 +256,6 @@ fn consoles<R: Runtime + Clone>(
         .with(console_write::ACTION, Arc::new(write))
 }
 
-/// What the agent keeps on disk under its state directory.
-struct Kept {
-    journal: JournalHandle,
-    progress: Progress,
-    streams: Streams,
-    inventory: Inventory,
-    network: Option<Networking>,
-}
-
-impl Kept {
-    /// Opens each under `state`, the journal within `bounds`, and the workloads' addresses
-    /// where the node gives them networks from `pools`.
-    fn open(state: &StateDir, bounds: Bounds, pools: Option<Pools>) -> Result<Self, RunError> {
-        let io = |what| move |source| RunError::Io { what, source };
-        let root = state.root();
-        Ok(Self {
-            journal: JournalHandle::open(&root.join("journal"), bounds)
-                .map_err(io("the journal"))?,
-            progress: Progress::open(&root.join("progress")).map_err(io("the progress"))?,
-            streams: Streams::open(&root.join("streams")).map_err(io("the streams watched"))?,
-            inventory: Inventory::open(&root.join("inventory"))
-                .map_err(io("the content inventory"))?,
-            network: match pools {
-                Some(pools) => Some(Networking {
-                    pools,
-                    addresses: Addresses::open(&root.join("addresses"))
-                        .map_err(io("the workloads' addresses"))?,
-                    resolvers: std::collections::BTreeMap::new(),
-                    dependencies_opened: std::collections::BTreeMap::new(),
-                }),
-                None => None,
-            },
-        })
-    }
-}
-
 impl Agent {
     /// Starts the agent of the node that joined into `state`, driving `runtime` and `host`;
     /// called inside a Tokio runtime, whose tasks it spawns.
@@ -305,6 +275,10 @@ impl Agent {
         let data = identity.clone();
         let ingress_facts = facts();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
+        let metered = (host.clone(), link.held.clone(), journal.clone());
+        let (runtime, sampler) =
+            crate::meter::start(state.root(), runtime, metered, options.metering)
+                .map_err(|source| RunError::Io { what: "the meter", source })?;
         let (ingress, proxy) =
             ingress(state, &host, (ingress_facts, options.ingress), (network.is_some(), &link));
         let answerer = crate::feasibility::answerer(runtime.clone());
@@ -348,6 +322,7 @@ impl Agent {
             tokio::spawn(Reconciler::new(runtime, host, wiring, progress, streams).run()),
             tokio::spawn(data.run()),
             tokio::spawn(offloader.run()),
+            tokio::spawn(sampler.run()),
         ];
         let tasks = tasks.into_iter().chain(proxy).collect();
         Ok(Self { tasks, journal, events: link.events })

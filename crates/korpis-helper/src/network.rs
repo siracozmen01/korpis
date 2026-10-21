@@ -24,7 +24,7 @@ use std::os::fd::AsRawFd as _;
 use std::path::PathBuf;
 
 use korpis_core::workload::network::RESOLVER_V4;
-pub use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6};
+pub use korpis_core::workload::network::{GATEWAY_V4, GATEWAY_V6, host_link};
 /// The name of the workload's side of its link.
 const INNER: &str = "eth0";
 
@@ -43,17 +43,6 @@ pub struct Network {
 
 fn sysctl_on(path: &str) -> bool {
     std::fs::read_to_string(path).is_ok_and(|v| v.trim() == "1")
-}
-
-/// The host side of `workload`'s link: `kw` and 13 hex digits of a 64-bit FNV-1a hash of its
-/// identifier, inside the 15 bytes an interface name may have. Two workloads on one node share a
-/// name with a chance of about one in 2^52 per pair.
-#[must_use]
-pub fn host_link(workload: &str) -> String {
-    let hash = workload
-        .bytes()
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
-    format!("kw{:013x}", hash >> 12)
 }
 
 fn prefix(what: &str, text: &str) -> HelperResult<Prefix> {

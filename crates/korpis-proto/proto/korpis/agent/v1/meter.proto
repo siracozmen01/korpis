@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// The agent's meter, as it keeps it on its own disk between readings (§2 of
+// docs/15-observability.md, "Measuring it, as designed"): each workload's base, the last reading
+// of each of its sources, and what its current interval has seen. The file is the agent's own,
+// replaced at every reading; nothing else reads it, and it is described here so that its
+// encoding is versioned like every other.
+
+syntax = "proto3";
+
+package korpis.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "korpis/agent/v1/agent.proto";
+
+message MeterBook {
+  // When the meter last read every source.
+  google.protobuf.Timestamp read_at = 1;
+  repeated WorkloadMeter workloads = 2;
+}
+
+message WorkloadMeter {
+  string workload = 1;
+  // What the sources that ended used, and the memory integral so far.
+  MeterCounters base = 2;
+  // The last reading of each source still running: a runtime object by its identifier, or
+  // "net" for the workload's interface.
+  map<string, MeterCounters> sources = 3;
+  // Each object's memory high-water mark at its last reading.
+  map<string, uint64> high_water = 4;
+  // The most memory read within the current interval.
+  optional uint64 interval_peak_bytes = 5;
+  // What could not be measured since the last sample.
+  repeated MeterLoss losses = 6;
+}

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! What every workload's network on a node has in common (§4.1 and §5.1 of
-//! docs/07-networking.md), which the helper that makes it and the supervisor that serves it must
-//! agree on.
+//! docs/07-networking.md), which the helper that makes it, the supervisor that serves it, and the
+//! meter that reads its counters (§2 of docs/15-observability.md) must agree on.
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 
@@ -19,3 +19,13 @@ pub const GATEWAY_V6: Ipv6Addr = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
 pub const RESOLVER_RATE: u32 = 50;
 /// The burst above that rate.
 pub const RESOLVER_BURST: u32 = 200;
+/// The host side of `workload`'s link: `kw` and 13 hex digits of a 64-bit FNV-1a hash of its
+/// identifier, inside the 15 bytes an interface name may have. Two workloads on one node share a
+/// name with a chance of about one in 2^52 per pair.
+#[must_use]
+pub fn host_link(workload: &str) -> String {
+    let hash = workload
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
+    format!("kw{:013x}", hash >> 12)
+}

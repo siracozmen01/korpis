@@ -639,17 +639,51 @@ message JournalRecord {
   uint64 count = 8;
 }
 
+// One workload's meter at the end of one metering interval (§2 of docs/15-observability.md,
+// "Measuring it, as designed"). It carries the workload's cumulative counters, not what the
+// interval used: the control plane takes each interval as the difference of two samples, so a
+// sample lost loses where within a span its use fell, never the use.
 message MeteringSample {
   string workload = 1;
   google.protobuf.Timestamp interval_start = 2;
   google.protobuf.Duration interval = 3;
-  korpis.v1.ResourceUsage usage = 4;
-  // CPU-seconds, byte-hours, and egress bytes for the interval (§2 of
-  // docs/15-observability.md).
-  double cpu_seconds = 5;
-  double memory_byte_hours = 6;
-  double disk_byte_hours = 7;
-  uint64 egress_bytes = 8;
+  reserved 4 to 8;
+  reserved "usage", "cpu_seconds", "memory_byte_hours", "disk_byte_hours", "egress_bytes";
+  // The lease epoch it ran under here; zero for a workload that holds no lease.
+  uint64 lease_epoch = 9;
+  // Its counters since it first ran on this node, across every object it ran as.
+  MeterCounters counters = 10;
+  // The most memory it used within the interval, as read and as the kernel's high-water marks
+  // rose; absent where nothing of it was read.
+  optional uint64 memory_peak_bytes = 11;
+  // The bytes its volumes hold at the sample, where their filesystem accounts them.
+  optional uint64 disk_bytes = 12;
+  // What the node knows it could not measure since its previous sample.
+  repeated MeterLoss losses = 13;
+}
+
+// Cumulative counters. Each is absent where nothing measured it, never zero for that.
+message MeterCounters {
+  // CPU time, and the time it was throttled, in microseconds.
+  optional uint64 cpu_usec = 1;
+  optional uint64 cpu_throttled_usec = 2;
+  // Bytes read from and written to block devices.
+  optional uint64 io_read_bytes = 3;
+  optional uint64 io_write_bytes = 4;
+  // Bytes its network interface received and sent: what reached the workload, and what it sent.
+  // Not split by destination (§2 of docs/15-observability.md).
+  optional uint64 net_rx_bytes = 5;
+  optional uint64 net_tx_bytes = 6;
+  // Memory in use integrated over time from ten-second readings, in KiB-seconds: a sum of
+  // measurements, not a kernel counter.
+  optional uint64 memory_kib_seconds = 7;
+}
+
+// A span the node could not measure, and why: "counter reset", "node rebooted".
+message MeterLoss {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+  string cause = 3;
 }
 
 // A segment of a workload's stream was sealed, offloaded, or pruned on this node (§4 of
