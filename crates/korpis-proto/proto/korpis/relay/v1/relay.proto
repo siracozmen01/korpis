@@ -61,7 +61,15 @@ message FeedUpdate {
     NodeKeys node_keys = 3;
     FeedTerms terms = 4;
     Heartbeat heartbeat = 5;
+    PortalOrigins portal_origins = 6;
   }
+}
+
+// The origin of every portal (§3.6 of docs/07-networking.md), whose panels open console and file
+// sessions here: sent when the feed opens and whenever they change, and answered beside the
+// relay's own --web-origin for its sessions alone.
+message PortalOrigins {
+  repeated string origins = 1;
 }
 
 // What the relay judges a node's DataHello by, as the control plane judges a Hello.

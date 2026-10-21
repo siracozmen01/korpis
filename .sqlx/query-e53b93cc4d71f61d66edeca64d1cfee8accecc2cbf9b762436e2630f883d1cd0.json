@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM portal_challenge WHERE certificate_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e53b93cc4d71f61d66edeca64d1cfee8accecc2cbf9b762436e2630f883d1cd0"
+}

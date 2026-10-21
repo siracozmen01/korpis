@@ -25,7 +25,7 @@ use korpis_proto::korpis::relay::v1::__buffa::oneof::feed_update::Message as Upd
 use korpis_proto::korpis::v1::ErrorCode;
 use korpis_wire::duration_from;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Mutex, PoisonError, RwLock};
+use std::sync::{Arc, Mutex, PoisonError, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -53,6 +53,7 @@ pub struct Fed {
     url: String,
     held: RwLock<Held>,
     nonces: Mutex<HashMap<(Uuid, Vec<u8>), SystemTime>>,
+    portal_origins: tokio::sync::watch::Sender<Arc<[String]>>,
 }
 
 fn node_keys(nodes: &relay::NodeKeys) -> Result<HashMap<Uuid, Vec<u8>>, String> {
@@ -87,7 +88,19 @@ impl Fed {
     /// Nothing held yet, for the relay serving at `url`.
     #[must_use]
     pub fn new(url: String) -> Self {
-        Self { url, held: RwLock::default(), nonces: Mutex::default() }
+        Self {
+            url,
+            held: RwLock::default(),
+            nonces: Mutex::default(),
+            portal_origins: tokio::sync::watch::Sender::new(Arc::from(Vec::new())),
+        }
+    }
+
+    /// The portals' origins the feed named, and every change after (§3.6 of
+    /// docs/07-networking.md).
+    #[must_use]
+    pub fn portal_origins(&self) -> tokio::sync::watch::Receiver<Arc<[String]>> {
+        self.portal_origins.subscribe()
     }
 
     /// The terms, once the feed declared them.
@@ -115,6 +128,9 @@ impl Fed {
             }
             Update::NodeKeys(n) => held.nodes = node_keys(&n)?,
             Update::Heartbeat(_) => {}
+            Update::PortalOrigins(o) => {
+                self.portal_origins.send_replace(Arc::from(o.origins.clone()));
+            }
         }
         Ok(())
     }
@@ -214,5 +230,22 @@ mod tests {
         };
         assert!(fed.apply(update).is_err());
         assert!(fed.revoked().is_empty());
+    }
+
+    #[test]
+    fn the_portals_origins_the_feed_names_are_answered_from_then_on() {
+        let fed = Fed::new("https://r1.example".into());
+        let origins = fed.portal_origins();
+        assert!(origins.borrow().is_empty());
+        let named = relay::PortalOrigins {
+            origins: vec!["https://panel.reseller.example".into()],
+            ..Default::default()
+        };
+        let update = relay::FeedUpdate {
+            message: Some(Update::PortalOrigins(Box::new(named))),
+            ..Default::default()
+        };
+        fed.apply(update).unwrap();
+        assert_eq!(origins.borrow().as_ref(), ["https://panel.reseller.example".to_owned()]);
     }
 }

@@ -18,8 +18,8 @@ use crate::App;
 use crate::error::AppError;
 use crate::extension::CallTarget;
 use crate::ports::{
-    AcmeError, CertificateWrite as _, Challenge, Clock, HttpOffer, Proof, RecipeSource, Store,
-    Tx as _,
+    AcmeError, CertificateWrite as _, Challenge, Clock, HttpOffer, PortalWrite as _, Proof,
+    RecipeSource, Store, Tx as _,
 };
 use korpis_core::dns::{DnsRecord, RecordType};
 use korpis_core::extension::{CallOutcome, ProviderType};
@@ -46,11 +46,15 @@ fn unavailable(e: impl std::fmt::Display) -> AcmeError {
     AcmeError::Unavailable(e.to_string())
 }
 
-/// Why `name` could not be proven: no DNS provider serves its zone, and, for an endpoint's
-/// certificate, the directory did not offer HTTP-01; a portal's has nowhere to answer it.
+/// Why `name` could not be proven: no DNS provider serves its zone, and the directory did not
+/// offer the challenge the rest is answered by, TLS-ALPN-01 for a portal, which the control
+/// plane's listener answers, and HTTP-01 for an endpoint, which its node's proxy answers.
 fn unprovable(portal: bool, name: &str) -> String {
     if portal {
-        format!("no DNS provider of its organization serves the zone of {name}")
+        format!(
+            "no DNS provider of its organization serves the zone of {name}, and TLS-ALPN-01 is not \
+             offered"
+        )
     } else {
         format!("no DNS provider serves the zone of {name}, and HTTP-01 is not offered")
     }
@@ -95,9 +99,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 txt.push((c.name, value));
                 continue;
             }
-            let offer = if order.portal { None } else { c.http };
-            let Some(offer) = offer else {
-                return Err(AcmeError::Refused(unprovable(order.portal, &c.name)));
+            if order.portal {
+                proofs.push(self.answer_alpn(order.id, &c.name, c.tls_alpn).await?);
+                continue;
+            }
+            let Some(offer) = c.http else {
+                return Err(AcmeError::Refused(unprovable(false, &c.name)));
             };
             http.push((c.name, offer));
             proofs.push(Proof::Http01);
@@ -107,6 +114,42 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         }
         self.propagated(&txt).await?;
         Ok(proofs)
+    }
+
+    /// Proves the portal's name `name` by TLS-ALPN-01 with `digest`, its DNS not having proven it.
+    async fn answer_alpn(
+        &self,
+        certificate: Uuid,
+        name: &str,
+        digest: Option<Vec<u8>>,
+    ) -> Result<Proof, AcmeError> {
+        let Some(digest) = digest else {
+            return Err(AcmeError::Refused(unprovable(true, name)));
+        };
+        self.publish_alpn(certificate, name, &digest).await.map_err(unavailable)?;
+        Ok(Proof::TlsAlpn01)
+    }
+
+    /// Records the TLS-ALPN-01 digest the order of `certificate` answers `name` with, which
+    /// whichever replica the directory reaches reads for its handshake.
+    async fn publish_alpn(
+        &self,
+        certificate: Uuid,
+        name: &str,
+        digest: &[u8],
+    ) -> Result<(), AppError> {
+        let mut tx = self.store.begin().await?;
+        tx.put_portal_challenge(name, certificate, digest).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Withdraws the TLS-ALPN-01 digests the order of `certificate` recorded, however it ended.
+    pub(super) async fn withdraw_alpn(&self, certificate: Uuid) -> Result<(), AppError> {
+        let mut tx = self.store.begin().await?;
+        tx.clear_portal_challenges(certificate).await?;
+        tx.commit().await?;
+        Ok(())
     }
 
     /// Asks each DNS provider in turn to publish `name`'s challenge record; whether one did.

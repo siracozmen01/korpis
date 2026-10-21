@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO portal_challenge (name, certificate_id, digest) VALUES ($1, $2, $3)\n             ON CONFLICT (name) DO UPDATE SET certificate_id = $2, digest = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fa08b08e01804ca4f8d131b11cf3c92f840a014cf128090cc121b6f17e5a4e8f"
+}

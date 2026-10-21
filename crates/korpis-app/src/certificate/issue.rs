@@ -118,6 +118,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         });
         let issued = acme.issue(&c.names, publish).await;
         self.withdraw_records(Some(c.id)).await?;
+        self.withdraw_alpn(c.id).await?;
         match issued {
             Ok(issued) => self.issued(c, &issued).await,
             Err(e) => self.attempt_failed(c, &e).await,

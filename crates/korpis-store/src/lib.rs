@@ -203,6 +203,10 @@ impl Store for PgStore {
         self.endpoint_wakeups()
     }
 
+    fn portal_changes(&self) -> feed::Wakeups {
+        self.portal_wakeups()
+    }
+
     async fn begin(&self) -> StoreResult<PgTx> {
         let tx = self.pool.begin().await.map_err(errors::from_sqlx)?;
         Ok(PgTx { tx, bodies: Arc::clone(&self.bodies) })

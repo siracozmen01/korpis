@@ -185,7 +185,7 @@ async fn directory() -> Option<(Pebble, ChallengeDns)> {
         Err(e) => panic!("pebble-challtestsrv: {e}"),
     };
     let options =
-        PebbleOptions { always_valid: false, http_port: Some(80), dns: Some(dns.address) };
+        PebbleOptions { http_port: Some(80), dns: Some(dns.address), ..PebbleOptions::default() };
     let pebble = Pebble::start(options).await.expect("pebble");
     Some((pebble, dns))
 }

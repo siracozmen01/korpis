@@ -168,11 +168,19 @@ async fn challenges(order: &mut instant_acme::Order) -> Result<Vec<Challenge>, A
             .await?
             .into_iter()
             .collect();
+    let tls_alpn: BTreeMap<String, Option<Vec<u8>>> =
+        offered(order, ChallengeType::TlsAlpn01, |c| {
+            c.key_authorization().digest().as_ref().to_vec()
+        })
+        .await?
+        .into_iter()
+        .collect();
     Ok(http
         .into_iter()
         .map(|(name, http)| {
             let dns_value = dns.get(&name).cloned().flatten();
-            Challenge { name, http, dns_value }
+            let tls_alpn = tls_alpn.get(&name).cloned().flatten();
+            Challenge { name, http, dns_value, tls_alpn }
         })
         .collect())
 }
@@ -193,6 +201,7 @@ async fn ready(
         let kind = match proofs.get(&name) {
             Some(Proof::Http01) => ChallengeType::Http01,
             Some(Proof::Dns01) => ChallengeType::Dns01,
+            Some(Proof::TlsAlpn01) => ChallengeType::TlsAlpn01,
             None => return Err(AcmeError::Refused(format!("{name} was not published"))),
         };
         if let Some(mut challenge) = authorization.challenge(kind) {

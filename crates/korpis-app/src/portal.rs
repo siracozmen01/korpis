@@ -9,6 +9,9 @@
 //! `provided` one of its organization covering its name, named under `certificate.read` on it.
 
 mod change;
+mod serve;
+
+pub use serve::Served;
 
 use crate::App;
 use crate::caller::Caller;
@@ -94,6 +97,23 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         self.relying_party.as_ref().map_or_else(Vec::new, |rp| {
             rp.origins.iter().filter_map(|o| host_of(o)).map(str::to_owned).collect()
         })
+    }
+
+    /// The port the installation is reached on, from its public URL's origin; none for HTTPS's
+    /// own, or without a public URL, so a portal's origin is `https://<name>` (§3.6 of
+    /// docs/07-networking.md).
+    #[must_use]
+    pub fn public_port(&self) -> Option<u16> {
+        let own = self.relying_party.as_ref()?.origins.first()?;
+        let port = own.rsplit_once(':').and_then(|(_, p)| p.parse::<u16>().ok())?;
+        (port != 443).then_some(port)
+    }
+
+    /// The origin of every portal, whose panels open sessions at the relays (§3.6 of
+    /// docs/07-networking.md).
+    pub async fn portal_origins(&self) -> Result<Vec<String>, AppError> {
+        let port = self.public_port();
+        Ok(self.store.all_portals().await?.iter().map(|p| p.origin(port)).collect())
     }
 
     /// Checks in `tx`, under the domains lock, that `name` may be a portal of `organization`:

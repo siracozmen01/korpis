@@ -27,6 +27,7 @@ pub mod keys;
 pub mod lookup;
 pub mod named_relays;
 pub mod passwords;
+pub mod portals;
 mod provider_calls;
 pub mod providers;
 mod reachability;
@@ -303,23 +304,42 @@ pub async fn serve(config: ServeConfig) -> Result<Running, ServeError> {
         .with_ca_fingerprint(tls::ca_fingerprint(&config.data)?)
         .with_cursor_key(cursor_key);
     let api = Arc::new(api.with_relay_role(config.relay_role));
-    let token_keys = {
-        use korpis_app::ports::EnrollmentRead as _;
-        api.app().store().verify_keys("token").await.map_err(korpis_app::AppError::from)?
-    };
-    let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
-    api.relay().trust(relay::token_ring(names));
+    trust_token_keys(&api).await?;
     background::start(&api, &config);
     let charging = api::Charging::new(Arc::clone(&api));
     let service = connectrpc::ConnectRpcService::new(Arc::clone(&api).router());
+    let (tls, origins) = serving_portals(&api, tls);
     let service = front(service.with_interceptor(charging), &config)
-        .with_relays(api.named_relays().subscribe());
+        .with_relays(api.named_relays().subscribe())
+        .with_portal_origins(origins);
     let proxies: Arc<[ipnet::IpNet]> = config.proxy_protocol_from.clone().into();
     let task = tokio::spawn(async move {
         accept::serve_on(listener, tls, service, proxies).await.map_err(ServeError::Serve)
     });
     tracing::info!(%addr, "serving");
     Ok(Running { addr, task, api })
+}
+
+/// Has this process's relay role trust every key that ever signed a capability token.
+async fn trust_token_keys(api: &Api) -> Result<(), ServeError> {
+    use korpis_app::ports::EnrollmentRead as _;
+    let token_keys =
+        api.app().store().verify_keys("token").await.map_err(korpis_app::AppError::from)?;
+    let names = token_keys.iter().map(|k| (k.key_id.as_str(), k.public.as_slice()));
+    api.relay().trust(relay::token_ring(names));
+    Ok(())
+}
+
+/// The listener's TLS: the installation's own configuration `own`, and the portals, kept from
+/// now on, with their origins as they change (§3.6 of docs/07-networking.md).
+fn serving_portals(
+    api: &Arc<Api>,
+    own: Arc<rustls::ServerConfig>,
+) -> (accept::Tls, tokio::sync::watch::Receiver<Arc<[String]>>) {
+    let portals = Arc::new(portals::Portals::new(Arc::clone(api), api.app().public_port()));
+    portals.keep();
+    let origins = portals.origins();
+    (accept::Tls { own, portals: Some(portals) }, origins)
 }
 
 /// The address's front: the API, the panel's files from `--web-root`, and cross-origin calls

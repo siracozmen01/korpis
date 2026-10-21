@@ -53,6 +53,12 @@ const JOB_TICK: Duration = Duration::from_secs(5);
 /// missed announcement costs at most this.
 const CALL_TICK: Duration = Duration::from_secs(1);
 
+/// The channel a portal made, changed, or deleted, or its certificate changed, announces on.
+const PORTAL: &str = "korpis_portal";
+
+/// How often a replica reads the portals it serves without a wake-up.
+const PORTAL_TICK: Duration = Duration::from_secs(60);
+
 /// How many announcements a slow subscriber may fall behind before it is told to resync.
 const BACKLOG: usize = 1024;
 
@@ -76,6 +82,8 @@ pub(crate) struct Feed {
     certificates: tokio::sync::watch::Sender<u64>,
     /// Bumped whenever an endpoint or a node's addresses change.
     endpoints: tokio::sync::watch::Sender<u64>,
+    /// Bumped whenever a portal or its certificate changes.
+    portals: tokio::sync::watch::Sender<u64>,
 }
 
 impl Feed {
@@ -86,6 +94,7 @@ impl Feed {
         let (jobs, _) = tokio::sync::watch::channel(0);
         let (certificates, _) = tokio::sync::watch::channel(0);
         let (endpoints, _) = tokio::sync::watch::channel(0);
+        let (portals, _) = tokio::sync::watch::channel(0);
         let events_written = tokio::sync::Notify::new();
         Arc::new(Self {
             sender,
@@ -96,6 +105,7 @@ impl Feed {
             jobs,
             certificates,
             endpoints,
+            portals,
         })
     }
 }
@@ -180,6 +190,13 @@ impl PgStore {
         Wakeups { receiver: self.feed.certificates.subscribe(), tick }
     }
 
+    /// Wake-ups for a replica's listener, which serves the portals, from now on.
+    pub(crate) fn portal_wakeups(&self) -> Wakeups {
+        let mut tick = tokio::time::interval_at(Instant::now() + PORTAL_TICK, PORTAL_TICK);
+        tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        Wakeups { receiver: self.feed.portals.subscribe(), tick }
+    }
+
     /// Wake-ups for the reconciler of endpoint records, from now on.
     pub(crate) fn endpoint_wakeups(&self) -> Wakeups {
         let mut tick = tokio::time::interval_at(Instant::now() + ENDPOINT_TICK, ENDPOINT_TICK);
@@ -206,6 +223,7 @@ impl PgStore {
                 feed.jobs.send_modify(|j| *j += 1);
                 feed.certificates.send_modify(|c| *c += 1);
                 feed.endpoints.send_modify(|e| *e += 1);
+                feed.portals.send_modify(|p| *p += 1);
                 tokio::time::sleep(RECONNECT).await;
             }
         });
@@ -215,8 +233,16 @@ impl PgStore {
 /// Relays announcements until the connection fails.
 async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
     let mut listener = PgListener::connect_with(pool).await?;
-    let channels =
-        [CHANNEL, EVENT_WRITTEN, EVENT_POSITIONED, PROVIDER_CALL, JOB, CERTIFICATE, ENDPOINT];
+    let channels = [
+        CHANNEL,
+        EVENT_WRITTEN,
+        EVENT_POSITIONED,
+        PROVIDER_CALL,
+        JOB,
+        CERTIFICATE,
+        ENDPOINT,
+        PORTAL,
+    ];
     listener.listen_all(channels).await?;
     loop {
         let notification = listener.recv().await?;
@@ -239,6 +265,10 @@ async fn relay(pool: &sqlx::PgPool, feed: &Feed) -> Result<(), sqlx::Error> {
             }
             ENDPOINT => {
                 feed.endpoints.send_modify(|e| *e += 1);
+                continue;
+            }
+            PORTAL => {
+                feed.portals.send_modify(|p| *p += 1);
                 continue;
             }
             EVENT_POSITIONED => {

@@ -49,10 +49,15 @@ fn node_keys(keys: &[(Uuid, Vec<u8>)]) -> relay::NodeKeys {
     relay::NodeKeys { nodes, ..Default::default() }
 }
 
-/// The keys as they stand, each sent when it differs from what was sent last; whether any was.
+/// What the feed last sent of what changes: the token keys, the node keys, and the portals'
+/// origins (§3.6 of docs/07-networking.md).
+type Sent = (Option<relay::TokenKeys>, Option<relay::NodeKeys>, Option<relay::PortalOrigins>);
+
+/// The keys and the portals' origins as they stand, each sent when it differs from what was
+/// sent last; whether any was.
 async fn keys(
     app: &ServerApp,
-    sent: &mut (Option<relay::TokenKeys>, Option<relay::NodeKeys>),
+    sent: &mut Sent,
     tx: &mpsc::Sender<relay::FeedUpdate>,
 ) -> Result<bool, String> {
     let mut any = false;
@@ -80,6 +85,16 @@ async fn keys(
             .map_err(|e| e.to_string())?;
         (sent.1, any) = (Some(nodes), true);
     }
+    let origins = relay::PortalOrigins {
+        origins: app.portal_origins().await.map_err(|e| e.to_string())?,
+        ..Default::default()
+    };
+    if sent.2.as_ref() != Some(&origins) {
+        tx.send(update(Update::PortalOrigins(Box::new(origins.clone()))))
+            .await
+            .map_err(|e| e.to_string())?;
+        (sent.2, any) = (Some(origins), true);
+    }
     Ok(any)
 }
 
@@ -104,7 +119,7 @@ async fn feed(
     tx: mpsc::Sender<relay::FeedUpdate>,
 ) {
     let mut lists = revocations.subscribe();
-    let mut sent = (None, None);
+    let mut sent = (None, None, None);
     let mut list_sent = false;
     let mut seen: Option<tokio::time::Instant> = None;
     if tx.send(terms(&app)).await.is_err() {

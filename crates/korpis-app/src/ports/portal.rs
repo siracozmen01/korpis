@@ -23,6 +23,15 @@ pub trait PortalRead {
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Portal>>> + Send;
 
+    /// Every portal of the installation, which every replica serves.
+    fn all_portals(&self) -> impl Future<Output = StoreResult<Vec<Portal>>> + Send;
+
+    /// The TLS-ALPN-01 digest an order for `name` is answering with now, if one is.
+    fn portal_challenge(
+        &self,
+        name: &str,
+    ) -> impl Future<Output = StoreResult<Option<Vec<u8>>>> + Send;
+
     /// The portals of any of `names`.
     fn portals_named(
         &self,
@@ -76,6 +85,20 @@ pub trait PortalWrite {
         &mut self,
         certificate: Uuid,
     ) -> impl Future<Output = StoreResult<Vec<Portal>>> + Send;
+
+    /// Records the TLS-ALPN-01 digest the order of `certificate` answers for `name` with.
+    fn put_portal_challenge(
+        &mut self,
+        name: &str,
+        certificate: Uuid,
+        digest: &[u8],
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Withdraws every TLS-ALPN-01 digest the order of `certificate` recorded.
+    fn clear_portal_challenges(
+        &mut self,
+        certificate: Uuid,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Removes a portal.
     fn delete_portal(&mut self, id: Uuid) -> impl Future<Output = StoreResult<()>> + Send;

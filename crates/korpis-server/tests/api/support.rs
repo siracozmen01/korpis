@@ -92,6 +92,11 @@ fn client_tls(data: &DataDir) -> HttpClient {
     HttpClient::with_tls(Arc::new(tls))
 }
 
+/// Any port of loopback.
+fn any() -> std::net::SocketAddr {
+    std::net::SocketAddr::from(([127, 0, 0, 1], 0))
+}
+
 impl Harness {
     pub async fn new() -> Self {
         Self::with_heartbeat(std::time::Duration::from_secs(30)).await
@@ -105,21 +110,22 @@ impl Harness {
 
     /// As [`Self::with_heartbeat`], coalescing refusals over `denial_window`.
     pub async fn with(heartbeat: std::time::Duration, denial_window: std::time::Duration) -> Self {
-        Self::build(heartbeat, denial_window, None, AcmeConfig::default(), unmetered()).await
+        Self::build(heartbeat, denial_window, None, AcmeConfig::default(), unmetered(), any()).await
     }
 
     /// A control plane charging the client API's requests at `rates` (§10 of docs/10-api.md).
     pub async fn with_rates(rates: Rates) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, None, AcmeConfig::default(), rates).await
+        Self::build(heartbeat, window, None, AcmeConfig::default(), rates, any()).await
     }
 
     /// A control plane verifying domains through the DNS server at `resolver`.
     pub async fn with_resolver(resolver: std::net::SocketAddr) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default(), unmetered()).await
+        Self::build(heartbeat, window, Some(resolver), AcmeConfig::default(), unmetered(), any())
+            .await
     }
 
     /// A control plane ordering certificates from the ACME directory `acme` names, and resolving
@@ -127,7 +133,15 @@ impl Harness {
     pub async fn with_acme(acme: AcmeConfig, resolver: Option<std::net::SocketAddr>) -> Self {
         let (heartbeat, window) =
             (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
-        Self::build(heartbeat, window, resolver, acme, unmetered()).await
+        Self::build(heartbeat, window, resolver, acme, unmetered(), any()).await
+    }
+
+    /// As [`Self::with_acme`], listening on `listen`: where a directory's TLS-ALPN-01
+    /// validation must reach the control plane's own listener (§3.6 of docs/07-networking.md).
+    pub async fn with_acme_on(acme: AcmeConfig, listen: std::net::SocketAddr) -> Self {
+        let (heartbeat, window) =
+            (std::time::Duration::from_secs(30), std::time::Duration::from_secs(1));
+        Self::build(heartbeat, window, None, acme, unmetered(), listen).await
     }
 
     async fn build(
@@ -136,6 +150,7 @@ impl Harness {
         dns_resolver: Option<std::net::SocketAddr>,
         acme: AcmeConfig,
         rates: Rates,
+        listen: std::net::SocketAddr,
     ) -> Self {
         log_errors();
         let db = TestDb::new().await.expect("test database");
@@ -147,7 +162,7 @@ impl Harness {
         let config = korpis_server::ServeConfig {
             data: data.clone(),
             database_url: login,
-            listen: "127.0.0.1:0".parse().unwrap(),
+            listen,
             max_connections: 4,
             fetch_allow: Vec::new(),
             plain_http_registries: vec![
@@ -230,86 +245,6 @@ impl Harness {
 
     pub fn root(&self) -> ClientConfig {
         self.config(Some(self.installed.token().unwrap().1.expose()))
-    }
-
-    pub fn orgs(&self, config: ClientConfig) -> pb::OrganizationServiceClient<HttpClient> {
-        pb::OrganizationServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn projects(&self, config: ClientConfig) -> pb::ProjectServiceClient<HttpClient> {
-        pb::ProjectServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn workloads(&self, config: ClientConfig) -> pb::WorkloadServiceClient<HttpClient> {
-        pb::WorkloadServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn plans(&self, config: ClientConfig) -> pb::PlanServiceClient<HttpClient> {
-        pb::PlanServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn grants(&self, config: ClientConfig) -> pb::GrantServiceClient<HttpClient> {
-        pb::GrantServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn identity(&self, config: ClientConfig) -> pb::IdentityServiceClient<HttpClient> {
-        pb::IdentityServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn streams(&self, config: ClientConfig) -> pb::StreamServiceClient<HttpClient> {
-        pb::StreamServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn volumes(&self, config: ClientConfig) -> pb::VolumeServiceClient<HttpClient> {
-        pb::VolumeServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn domains(&self, config: ClientConfig) -> pb::DomainServiceClient<HttpClient> {
-        pb::DomainServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn certificates(&self, config: ClientConfig) -> pb::CertificateServiceClient<HttpClient> {
-        pb::CertificateServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn portals(&self, config: ClientConfig) -> pb::PortalServiceClient<HttpClient> {
-        pb::PortalServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn repositories(&self, config: ClientConfig) -> pb::RepositoryServiceClient<HttpClient> {
-        pb::RepositoryServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn backups(&self, config: ClientConfig) -> pb::BackupServiceClient<HttpClient> {
-        pb::BackupServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn runs(&self, config: ClientConfig) -> pb::RunServiceClient<HttpClient> {
-        pb::RunServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn sets(&self, config: ClientConfig) -> pb::DeclaredSetServiceClient<HttpClient> {
-        pb::DeclaredSetServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn events(&self, config: ClientConfig) -> pb::EventServiceClient<HttpClient> {
-        pb::EventServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn extensions(&self, config: ClientConfig) -> pb::ExtensionServiceClient<HttpClient> {
-        pb::ExtensionServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn metering(&self, config: ClientConfig) -> pb::MeteringServiceClient<HttpClient> {
-        pb::MeteringServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn effect_log(&self, config: ClientConfig) -> pb::EffectServiceClient<HttpClient> {
-        pb::EffectServiceClient::new(self.http.clone(), config)
-    }
-
-    pub fn nodes(&self, config: ClientConfig) -> pb::NodeServiceClient<HttpClient> {
-        pb::NodeServiceClient::new(self.http.clone(), config)
     }
 
     /// Enrolls a ready node owned by `organization` (the root organization when `None`), as

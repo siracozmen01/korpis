@@ -290,6 +290,10 @@ pub trait Store:
     /// Wakes, from now on, whenever an endpoint is placed, moved, or removed, or a node's
     /// advertised addresses change, and on an interval besides.
     fn endpoint_changes(&self) -> Self::Wakeups;
+
+    /// Wakes, from now on, whenever a portal is made, changed, or deleted, or the certificate one
+    /// is served with changes, and every minute besides (§3.6 of docs/07-networking.md).
+    fn portal_changes(&self) -> Self::Wakeups;
 }
 
 /// A transaction: every write goes through one. Dropped without [`Tx::commit`], it rolls back.

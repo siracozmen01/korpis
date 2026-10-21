@@ -64,6 +64,8 @@ pub struct PebbleOptions {
     pub always_valid: bool,
     /// The port HTTP-01 validations connect to; Pebble's own default when none.
     pub http_port: Option<u16>,
+    /// The port TLS-ALPN-01 validations connect to; one nothing listens on when none.
+    pub tls_port: Option<u16>,
     /// The DNS server validations resolve names through; the system's when none.
     pub dns: Option<SocketAddr>,
 }
@@ -99,7 +101,7 @@ impl Pebble {
             "listenAddress": format!("127.0.0.1:{listen}"),
             "managementListenAddress": format!("127.0.0.1:{manage}"),
             "certificate": cert, "privateKey": key,
-            "httpPort": options.http_port.unwrap_or(5002), "tlsPort": free_port()?,
+            "httpPort": options.http_port.unwrap_or(5002), "tlsPort": options.tls_port.map_or_else(free_port, Ok)?,
             "ocspResponderURL": "", "externalAccountBindingRequired": false,
             "retryAfter": {"authz": 1, "order": 1}, "keyAlgorithm": "ecdsa",
             "profiles": {"default": {"description": "test", "validityPeriod": 7_776_000}},

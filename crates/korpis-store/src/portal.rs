@@ -75,6 +75,24 @@ impl PortalRead for PgStore {
         portals(rows)
     }
 
+    async fn all_portals(&self) -> StoreResult<Vec<Portal>> {
+        let rows = sqlx::query_as!(
+            PortalRow,
+            "SELECT id, organization_id, name, certificate_id, created_at FROM portal ORDER BY name"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        portals(rows)
+    }
+
+    async fn portal_challenge(&self, name: &str) -> StoreResult<Option<Vec<u8>>> {
+        sqlx::query_scalar!("SELECT digest FROM portal_challenge WHERE name = $1", name)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(from_sqlx)
+    }
+
     async fn portals_named(&self, names: &[DomainName]) -> StoreResult<Vec<Portal>> {
         let rows = sqlx::query_as!(
             PortalRow,
@@ -189,6 +207,33 @@ impl PortalWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         portals(rows)
+    }
+
+    async fn put_portal_challenge(
+        &mut self,
+        name: &str,
+        certificate: Uuid,
+        digest: &[u8],
+    ) -> StoreResult<()> {
+        sqlx::query!(
+            "INSERT INTO portal_challenge (name, certificate_id, digest) VALUES ($1, $2, $3)
+             ON CONFLICT (name) DO UPDATE SET certificate_id = $2, digest = $3",
+            name,
+            certificate,
+            digest
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn clear_portal_challenges(&mut self, certificate: Uuid) -> StoreResult<()> {
+        sqlx::query!("DELETE FROM portal_challenge WHERE certificate_id = $1", certificate)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
     }
 
     async fn delete_portal(&mut self, id: Uuid) -> StoreResult<()> {

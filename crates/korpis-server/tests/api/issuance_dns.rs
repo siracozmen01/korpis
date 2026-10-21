@@ -111,7 +111,7 @@ async fn node(h: &Harness) -> Stream {
 #[tokio::test]
 async fn a_name_a_dns_provider_serves_is_proven_by_dns_and_its_record_withdrawn() {
     let (zone, dns) = Zone::serve().await;
-    let options = PebbleOptions { always_valid: false, http_port: None, dns: Some(dns) };
+    let options = PebbleOptions { dns: Some(dns), ..PebbleOptions::default() };
     let Some(pebble) = crate::pebble::start_with(options).await else { return };
     let h = Harness::with_acme(pebble.config(), Some(dns)).await;
     let elsewhere = installed_from(&h, 51, "elsewhere", push_document(DNS).await).await;

@@ -650,6 +650,25 @@ information, and the same source page at it as at home.
 > once no portal names it, the issuer's sweep removes it as it removes an endpoint's. Until the
 > listener answers TLS-ALPN-01 (P2.9c), such a certificate is issued only where a DNS provider of
 > the organization serves the name's zone, and otherwise stays `failed` with that reason.
+> (Answered since P2.9c, below.)
+>
+> Built 2026-10-21 (P2.9c): serving. The listener reads each connection's ClientHello before it
+> chooses a configuration: a portal's name is served with its portal's certificate and its
+> requests told which portal they are for; the name of a portal whose certificate is not issued,
+> or not valid now, gets no handshake; any other name, or none, is served with the installation's
+> own certificate. Each replica holds the portals in memory and reads them again on
+> `korpis_portal`, which a portal's change and a raised revision of its certificate announce
+> (migration 0111), and every minute. A ClientHello offering only `acme-tls/1` for a name is
+> answered with a certificate made for the order's challenge, the digest read from
+> `portal_challenge` for that handshake, and nothing is served after it; the issuer records the
+> digest before telling the directory to look and withdraws it when the order ends. At a portal,
+> a request naming another host is refused 421 and a cross-origin call is answered for the
+> portal's own origin alone; a relay's session (`korpis.v1.RelayService`) is answered for every
+> portal's origin at the installation's own address too, and a relay that is its own process is
+> sent the portals' origins on its feed (`PortalOrigins`) and answers them for its sessions. The
+> API test proves a portal by TLS-ALPN-01 through Pebble against the control plane's own
+> listener, verifies the served chain for the portal's name against Pebble's issuing root, and
+> finds the 421 and the cross-origin rule.
 
 ---
 

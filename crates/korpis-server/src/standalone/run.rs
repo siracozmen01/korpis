@@ -10,6 +10,7 @@ use super::fed::Fed;
 use super::follow::{FollowError, follow};
 use super::renew::keep_renewed;
 use super::served::{Served, load};
+use crate::accept::Tls;
 use crate::api::RelayRole;
 use connectrpc::Router;
 use std::net::SocketAddr;
@@ -79,12 +80,13 @@ pub async fn run(
     let addr = listener.local_addr()?;
     let router = Arc::new(RelayRole::new(Arc::clone(&fed))).register(Router::new());
     let service = connectrpc::ConnectRpcService::new(router);
-    let service = crate::front::Front::new(service, None, edge.web_origins);
+    let service = crate::front::Front::new(service, None, edge.web_origins)
+        .with_portal_origins(fed.portal_origins());
     let renewing = tokio::spawn(keep_renewed(dir.clone(), relay, Arc::clone(&served)));
     let following = tokio::spawn(follow(dir, Arc::clone(&fed)));
     let task = tokio::spawn(async move {
         let ended = tokio::select! {
-            served = crate::accept::serve_on(listener, tls, service, edge.proxies.into()) => {
+            served = crate::accept::serve_on(listener, Tls::own(tls), service, edge.proxies.into()) => {
                 served.map_err(RunError::Serve)
             }
             refused = following => match refused {

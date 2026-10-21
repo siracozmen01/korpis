@@ -110,7 +110,7 @@ pub fn resolving(
 }
 
 /// Speaking HTTP/2 and HTTP/1.1 with `certs` and `key`.
-fn serving(
+pub(crate) fn serving(
     certs: Vec<CertificateDer<'static>>,
     key: PrivateKeyDer<'static>,
 ) -> Result<Arc<rustls::ServerConfig>, TlsError> {

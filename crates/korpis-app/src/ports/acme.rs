@@ -25,6 +25,10 @@ pub enum Proof {
     Http01,
     /// By publishing a TXT record at `_acme-challenge.<name>`.
     Dns01,
+    /// By answering a TLS connection to port 443 of the name that offers only the protocol
+    /// `acme-tls/1` with a certificate made for the challenge (RFC 8737), as the control plane's
+    /// own listener does for a portal (§3.6 of docs/07-networking.md).
+    TlsAlpn01,
 }
 
 /// The challenges the directory offers for one name.
@@ -36,6 +40,9 @@ pub struct Challenge {
     pub http: Option<HttpOffer>,
     /// DNS-01, if offered: the TXT record's value.
     pub dns_value: Option<String>,
+    /// TLS-ALPN-01, if offered: the SHA-256 digest of the key authorization, which the
+    /// challenge's certificate carries in its `acmeIdentifier` extension.
+    pub tls_alpn: Option<Vec<u8>>,
 }
 
 /// An HTTP-01 challenge.
