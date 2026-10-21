@@ -274,6 +274,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let lease_epoch = self.store.lease_epoch(workload, node).await?.unwrap_or(0);
         let volume_ids = self.existing_ids(&target.body).await?;
         let reaches_api = self.reaches_api(workload).await?;
+        let month = korpis_core::tenancy::quota::month_of(self.clock.now()).0;
+        let egress = self.store.workload_egress(workload, month).await?;
         let dependencies = self.resolve_dependencies((w.project, w.id), &target.body).await?;
         Ok(Some(Desired {
             assignment: Assignment {
@@ -296,6 +298,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 volume_ids,
                 endpoints: Vec::new(),
                 reaches_api,
+                egress,
                 dependencies,
                 challenges: Vec::new(),
                 runs: Vec::new(),
@@ -350,6 +353,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 volume_ids: BTreeMap::new(),
                 endpoints: Vec::new(),
                 reaches_api: false,
+                egress: None,
                 dependencies: Vec::new(),
                 challenges: Vec::new(),
                 runs: Vec::new(),

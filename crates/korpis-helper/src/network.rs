@@ -276,6 +276,7 @@ impl Network {
         if !offered.offered {
             return Err(HelperError::Failed(offered.why_not));
         }
+        let a = Asked { shaping: bandwidth::here(a.shaping, offered.shapes, &a.workload), ..a };
         let ipv6 = a.ipv6.filter(|_| offered.ipv6);
         if a.ipv6.is_some() && ipv6.is_none() {
             tracing::warn!(

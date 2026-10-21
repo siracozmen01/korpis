@@ -10,6 +10,7 @@ use crate::spec::continuity_to_pb;
 use crate::wire_id;
 use crate::workload::{intent_to_pb, power_to_pb};
 use korpis_core::id::IdKind;
+use korpis_core::tenancy::quota::Exhaustion;
 use korpis_core::workload::assignment::Assignment;
 use korpis_core::workload::dependency::ResolvedDependency;
 use korpis_proto::korpis::agent::v1 as agent;
@@ -35,6 +36,21 @@ fn resolved_to_pb(d: &ResolvedDependency) -> agent::ResolvedDependency {
     }
 }
 
+/// What a spent egress budget holds the workload to, as its node is told it.
+fn shaping_to_pb(held: Option<Exhaustion>) -> agent::Shaping {
+    match held {
+        None => agent::Shaping::default(),
+        Some(Exhaustion::Floor(bits)) => agent::Shaping {
+            egress_exhausted: true,
+            egress_floor_bits_per_sec: bits,
+            ..Default::default()
+        },
+        Some(Exhaustion::CutOff) => {
+            agent::Shaping { egress_exhausted: true, egress_cut_off: true, ..Default::default() }
+        }
+    }
+}
+
 /// The wire form of an assignment.
 #[must_use]
 pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
@@ -48,7 +64,7 @@ pub fn assignment_to_pb(a: &Assignment) -> agent::Assignment {
         target: intent_to_pb(&a.target).into(),
         power: power_to_pb(&a.power).into(),
         on_lease_expiry: continuity_to_pb(a.on_lease_expiry).into(),
-        shaping: agent::Shaping::default().into(),
+        shaping: shaping_to_pb(a.egress).into(),
         plan: a
             .plan
             .as_ref()

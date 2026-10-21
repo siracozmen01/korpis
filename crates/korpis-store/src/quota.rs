@@ -4,11 +4,15 @@
 //! the totals kept beside each entry (question 7 of §10 there).
 
 use crate::errors::from_sqlx;
-use crate::stored::{SelectorDoc, bounds, count, from_json, held, held_doc, totals, totals_doc};
+use crate::stored::{
+    SelectorDoc, bounds, count, from_json, held, held_doc, to_json, totals, totals_doc,
+};
 use crate::tenancy::labels;
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{Counted, Holding, QuotaRead, QuotaWrite, StoreError, StoreResult};
-use korpis_core::tenancy::quota::{Held, QuotaEntry, QuotaOwner, QuotaSet, Totals};
+use korpis_core::tenancy::quota::{
+    EgressBudget, Exhaustion, Held, QuotaEntry, QuotaOwner, QuotaSet, Totals,
+};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -17,15 +21,56 @@ mod set;
 
 /// A quota entry as stored.
 pub(crate) struct EntryRow {
-    id: Uuid,
-    owner_kind: String,
-    owner_id: Uuid,
-    selector: Option<Value>,
-    nodes: Option<Value>,
-    reservations: Value,
-    limits: Value,
-    version: i64,
-    held: Option<Value>,
+    pub(crate) id: Uuid,
+    pub(crate) owner_kind: String,
+    pub(crate) owner_id: Uuid,
+    pub(crate) selector: Option<Value>,
+    pub(crate) nodes: Option<Value>,
+    pub(crate) reservations: Value,
+    pub(crate) limits: Value,
+    pub(crate) version: i64,
+    pub(crate) held: Option<Value>,
+    pub(crate) egress_budget: Option<Value>,
+}
+
+/// An entry's egress budget as stored: the bytes a month, and a floor or a cut-off.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct BudgetDoc {
+    bytes_per_month: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    floor_bits_per_sec: Option<u64>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    cut_off: bool,
+}
+
+/// A budget, to store.
+pub(crate) fn budget_doc(b: Option<&EgressBudget>) -> StoreResult<Option<Value>> {
+    b.map(|b| {
+        let (floor_bits_per_sec, cut_off) = match b.exhausted {
+            Exhaustion::Floor(bits) => (Some(bits), false),
+            Exhaustion::CutOff => (None, true),
+        };
+        to_json(
+            "egress budget",
+            &BudgetDoc { bytes_per_month: b.bytes_per_month, floor_bits_per_sec, cut_off },
+        )
+    })
+    .transpose()
+}
+
+fn budget(v: Option<Value>) -> StoreResult<Option<EgressBudget>> {
+    v.map(|v| {
+        let d: BudgetDoc = from_json("egress budget", v)?;
+        let exhausted = match (d.cut_off, d.floor_bits_per_sec) {
+            (true, _) => Exhaustion::CutOff,
+            (false, Some(bits)) => Exhaustion::Floor(bits),
+            (false, None) => {
+                return Err(StoreError::Corrupt("an egress budget with no floor".into()));
+            }
+        };
+        Ok(EgressBudget { bytes_per_month: d.bytes_per_month, exhausted, spent: None })
+    })
+    .transpose()
 }
 
 fn selector(
@@ -54,6 +99,7 @@ impl EntryRow {
             reservations: bounds("quota reservations", self.reservations)?,
             limits: bounds("quota limits", self.limits)?,
             version: count("quota version", self.version)?,
+            egress: budget(self.egress_budget)?,
             held: self.held.map(totals).transpose()?,
         })
     }
@@ -83,7 +129,8 @@ impl QuotaWrite for PgTx {
     async fn lock_quota_entry(&mut self, id: Uuid) -> StoreResult<Option<QuotaEntry>> {
         let row = sqlx::query_as!(
             EntryRow,
-            "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held
+            "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held,
+                    egress_budget
                FROM quota_entry WHERE id = $1 FOR UPDATE",
             id
         )

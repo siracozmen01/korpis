@@ -22,6 +22,7 @@ mod condition;
 mod denial;
 mod device_grant;
 mod domain;
+mod egress;
 mod endpoint;
 mod enrollment;
 mod errors;

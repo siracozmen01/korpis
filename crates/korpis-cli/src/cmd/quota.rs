@@ -11,7 +11,7 @@ use super::{Answer, json, mutation};
 use crate::connect::Connection;
 use crate::error::CliError;
 use crate::resolve;
-use crate::show::table;
+use crate::show::{bytes, table, time};
 use clap::Subcommand;
 use korpis_core::tenancy::quota::{Bounds, Dimension};
 use korpis_proto::korpis::v1 as pb;
@@ -160,7 +160,45 @@ fn rows(set: &pb::QuotaSet, children: &[pb::Organization]) -> String {
             ]);
         }
     }
-    table(&all)
+    let mut out = table(&all);
+    if let Some(egress) = egress_rows(set) {
+        out.push_str(&egress);
+    }
+    out
+}
+
+/// What a spent budget does, as the table says it.
+fn exhaustion(e: Option<&pb::EgressExhaustion>) -> String {
+    match e {
+        Some(x) if x.cut_off => "cut off".into(),
+        Some(x) => format!("held to {} bit/s", x.floor_bits_per_sec),
+        None => "-".into(),
+    }
+}
+
+/// The egress budget of each entry of `set` that has one, and what it spent this month; none
+/// where no entry has a budget (§5.1 of docs/05-scheduling.md).
+fn egress_rows(set: &pb::QuotaSet) -> Option<String> {
+    let header = ["SHAPE", "EGRESS A MONTH", "SENT THIS MONTH", "ONCE SPENT", "NOW", "RECKONED"];
+    let mut all = vec![header.iter().map(|h| (*h).to_owned()).collect::<Vec<_>>()];
+    for e in &set.entries {
+        let Some(budget) = e.egress_bytes_per_month else { continue };
+        let spent = e.egress_spent.as_option();
+        let now = match spent {
+            Some(s) if s.exhausted => "spent",
+            Some(_) => "within",
+            None => "not yet reckoned",
+        };
+        all.push(vec![
+            shape(e),
+            bytes(budget),
+            spent.map_or_else(|| "-".to_owned(), |s| bytes(s.bytes)),
+            exhaustion(e.egress_exhausted.as_option()),
+            now.to_owned(),
+            spent.map_or_else(|| "-".to_owned(), |s| time(s.reckoned_at.as_option())),
+        ]);
+    }
+    (all.len() > 1).then(|| format!("egress\n{}", table(&all)))
 }
 
 /// What each of `children` was given and holds, one row per entry and dimension it bounds.
@@ -255,5 +293,30 @@ pub async fn quota(c: &Connection, a: &QuotaAction) -> Result<Answer, CliError> 
             );
             Ok(Answer { human: format!("quota of {owner} set\n"), json: json(&set) })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_budget_is_shown_with_what_it_spent_and_what_its_spending_does() {
+        let spent = pb::EgressSpent { bytes: 12 << 30, exhausted: true, ..Default::default() };
+        let entry = pb::QuotaEntry {
+            egress_bytes_per_month: Some(10 << 30),
+            egress_exhausted: pb::EgressExhaustion {
+                floor_bits_per_sec: 1_000_000,
+                ..Default::default()
+            }
+            .into(),
+            egress_spent: spent.into(),
+            ..Default::default()
+        };
+        let set = pb::QuotaSet { entries: vec![entry], ..Default::default() };
+        let shown = egress_rows(&set).unwrap();
+        assert!(shown.contains("held to 1000000 bit/s") && shown.contains("spent"), "{shown}");
+        assert!(shown.contains(&bytes(10 << 30)) && shown.contains(&bytes(12 << 30)));
+        assert!(egress_rows(&pb::QuotaSet::default()).is_none(), "no budget, no table");
     }
 }

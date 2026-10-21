@@ -222,7 +222,8 @@ async fn reconcile_quota(api: Arc<Api>) {
 }
 
 /// Writes, every minute, the metering gaps now due and closes the days whose lateness window has
-/// passed (§2 of docs/15-observability.md). The task ends with the process.
+/// passed (§2 of docs/15-observability.md), then reckons the egress budgets (§5.1 of
+/// docs/05-scheduling.md). The task ends with the process.
 async fn keep_metering(api: Arc<Api>) {
     let mut tick = tokio::time::interval(Duration::from_secs(60));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -234,6 +235,11 @@ async fn keep_metering(api: Arc<Api>) {
             }
             Ok(_) => {}
             Err(e) => tracing::warn!(error = %e, "keeping metering failed"),
+        }
+        match api.app().keep_egress().await {
+            Ok(0) => {}
+            Ok(n) => tracing::info!(changed = n, "egress budgets reckoned"),
+            Err(e) => tracing::warn!(error = %e, "reckoning egress budgets failed"),
         }
     }
 }

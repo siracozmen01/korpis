@@ -19,6 +19,7 @@ fn entry(reservations: Bounds, limits: Bounds) -> QuotaEntry {
         reservations,
         limits,
         version: 1,
+        egress: None,
         held: None,
     }
 }

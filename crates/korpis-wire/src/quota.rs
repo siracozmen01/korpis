@@ -7,7 +7,8 @@
 use crate::scope::{selector_from_pb, selector_to_pb};
 use crate::{Result, invalid};
 use korpis_core::tenancy::quota::{
-    Bounds, Dimension as D, QuotaEntry, QuotaOwner, QuotaSet, Totals,
+    Bounds, Dimension as D, EgressBudget, Exhaustion, QuotaEntry, QuotaOwner, QuotaSet, Spent,
+    Totals,
 };
 use korpis_proto::korpis::v1 as pb;
 use uuid::Uuid;
@@ -68,8 +69,31 @@ fn held_to_pb(t: &Totals) -> pb::QuotaHeld {
     }
 }
 
+fn exhaustion_to_pb(e: Exhaustion) -> pb::EgressExhaustion {
+    match e {
+        Exhaustion::Floor(bits) => {
+            pb::EgressExhaustion { floor_bits_per_sec: bits, ..Default::default() }
+        }
+        Exhaustion::CutOff => pb::EgressExhaustion { cut_off: true, ..Default::default() },
+    }
+}
+
+fn spent_to_pb(s: &Spent) -> pb::EgressSpent {
+    pb::EgressSpent {
+        month: crate::timestamp(s.month).into(),
+        bytes: s.bytes,
+        exhausted: s.exhausted,
+        reckoned_at: crate::timestamp(s.reckoned_at).into(),
+        ..Default::default()
+    }
+}
+
 fn entry_to_pb(e: &QuotaEntry) -> pb::QuotaEntry {
+    let budget = e.egress.as_ref();
     pb::QuotaEntry {
+        egress_exhausted: budget.map(|b| exhaustion_to_pb(b.exhausted)).into(),
+        egress_bytes_per_month: budget.map(|b| b.bytes_per_month),
+        egress_spent: budget.and_then(|b| b.spent.as_ref()).map(spent_to_pb).into(),
         selector: e.selector.as_ref().map(selector_to_pb).into(),
         version: e.version,
         nodes: e.nodes.as_ref().map(selector_to_pb).into(),
@@ -95,11 +119,11 @@ pub fn quota_set_to_pb(s: &QuotaSet) -> pb::QuotaSet {
 }
 
 fn entry_from_pb(field: &str, owner: QuotaOwner, e: &pb::QuotaEntry) -> Result<QuotaEntry> {
-    if e.egress_exhausted.is_set() {
-        let why = "shaping at an exhausted egress budget is not built yet (§7 of \
-                   docs/07-networking.md): leave it unset";
-        return Err(invalid(&format!("{field}.egress_exhausted"), why));
-    }
+    let exhaustion = e.egress_exhausted.as_option().map(|x| {
+        if x.cut_off { Exhaustion::CutOff } else { Exhaustion::Floor(x.floor_bits_per_sec) }
+    });
+    let egress = EgressBudget::asked(e.egress_bytes_per_month, exhaustion)
+        .map_err(|why| invalid(&format!("{field}.egress_exhausted"), why.to_string()))?;
     let selector = |name: &str, s: Option<&pb::LabelSelector>| {
         s.map(|s| selector_from_pb(&format!("{field}.{name}"), Some(s))).transpose()
     };
@@ -111,6 +135,7 @@ fn entry_from_pb(field: &str, owner: QuotaOwner, e: &pb::QuotaEntry) -> Result<Q
         reservations: bounds_from_pb(e.reservation_bounds.as_option()),
         limits: bounds_from_pb(e.limit_bounds.as_option()),
         version: 0,
+        egress,
         held: None,
     })
 }

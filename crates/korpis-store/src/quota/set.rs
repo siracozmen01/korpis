@@ -9,7 +9,9 @@ use crate::stored::{SelectorDoc, bounds_doc, to_json};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{QuotaSetWrite, StoreError, StoreResult};
 use korpis_core::labels::LabelSelector;
-use korpis_core::tenancy::quota::{Bounds, Dimension, QuotaEntry, QuotaOwner, QuotaSet};
+use korpis_core::tenancy::quota::{
+    Bounds, Dimension, EgressBudget, QuotaEntry, QuotaOwner, QuotaSet,
+};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -43,7 +45,8 @@ impl PgStore {
         let (kind, id) = owned(owner);
         let rows = sqlx::query_as!(
             EntryRow,
-            "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held
+            "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held,
+                    egress_budget
                FROM quota_entry WHERE owner_kind = $1 AND owner_id = $2 ORDER BY id",
             kind,
             id
@@ -51,7 +54,15 @@ impl PgStore {
         .fetch_all(&self.pool)
         .await
         .map_err(from_sqlx)?;
-        let entries = rows.into_iter().map(EntryRow::into_domain).collect::<StoreResult<_>>()?;
+        let mut entries: Vec<QuotaEntry> =
+            rows.into_iter().map(EntryRow::into_domain).collect::<StoreResult<_>>()?;
+        let ids: Vec<Uuid> = entries.iter().map(|e| e.id).collect();
+        let spent = korpis_app::ports::EgressRead::quota_egress_spent(self, &ids).await?;
+        for e in &mut entries {
+            if let Some(b) = e.egress.as_mut() {
+                b.spent = spent.get(&e.id).copied();
+            }
+        }
         let percent = sqlx::query_as::<_, (String, i32)>(
             "SELECT dimension, percent FROM quota_overcommit
               WHERE owner_kind = $1 AND owner_id = $2",
@@ -141,15 +152,16 @@ impl QuotaSetWrite for PgTx {
         let (kind, owner) = owned(e.owner);
         sqlx::query!(
             "INSERT INTO quota_entry (id, owner_kind, owner_id, selector, nodes, reservations,
-                                      limits)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                                      limits, egress_budget)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
             e.id,
             kind,
             owner,
             selector_doc(e.selector.as_ref())?,
             selector_doc(e.nodes.as_ref())?,
             bounds_doc(&e.reservations),
-            bounds_doc(&e.limits)
+            bounds_doc(&e.limits),
+            super::budget_doc(e.egress.as_ref())?
         )
         .execute(&mut *self.tx)
         .await
@@ -160,15 +172,17 @@ impl QuotaSetWrite for PgTx {
     async fn update_quota_bounds(
         &mut self,
         id: Uuid,
-        reservations: &Bounds,
-        limits: &Bounds,
+        (reservations, limits): (&Bounds, &Bounds),
+        egress: Option<&EgressBudget>,
     ) -> StoreResult<()> {
         sqlx::query!(
-            "UPDATE quota_entry SET reservations = $2, limits = $3, version = version + 1
+            "UPDATE quota_entry SET reservations = $2, limits = $3, egress_budget = $4,
+                    version = version + 1
               WHERE id = $1",
             id,
             bounds_doc(reservations),
-            bounds_doc(limits)
+            bounds_doc(limits),
+            super::budget_doc(egress)?
         )
         .execute(&mut *self.tx)
         .await

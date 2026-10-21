@@ -55,9 +55,8 @@ With `--json` a failure is written to standard error as the API's error (code, r
 message), so a script reads the same object whether it called the API or the CLI.
 
 The imperative commands are `get` (organizations, projects, workloads, nodes, plans, effects,
-usage, periods),
-`organization create|show|suspend|resume`, `project create`, `quota show|set`, `template
-create|list|show|edit|retire|holders`, `status`, `plan approve|reject|cancel`, `workload
+usage, periods), `organization create|show|suspend|resume`, `project create`, `quota show|set`,
+`template create|list|show|edit|retire|holders`, `status`, `plan approve|reject|cancel`, `workload
 start|stop|restart|place|classify|delete|recipe`, and `node token create|cordon|uncordon|remove`,
 each one call of the API once its names are resolved. `workload recipe` shows the recipe a workload
 runs, its fields, and its words in the language `--locale` asks for or the environment's `LC_ALL`,
@@ -87,11 +86,14 @@ workload stopped. `quota show` prints an organization's quota set, or with `--pr
 (§5.1 of `05-scheduling.md`): each entry's shape, and per dimension what it guarantees and sells,
 what the workloads it counts hold of each, and, for an organization, what it has given below of the
 entry's shape beside what it may sell there, its limit times the overcommit it was permitted, and
-then each organization beneath it with what it was given and what its workloads hold. Reading what
-was given below reads every organization beneath it, one call each. `quota set -f` replaces a set
-from a file holding what `quota show --json` prints of it, YAML or JSON; it is set from above, so
-it takes `org.quota.write` over the organization's parent, or over a project's organization, and a
-set that breaks a bound around it is `CONFLICT` naming the bound.
+then each organization beneath it with what it was given and what its workloads hold; where an
+entry has an egress budget, a table under the bounds gives it, what the entry's workloads sent this
+month as last reckoned, what its spending does, whether it is spent, and when it was reckoned
+(added 2026-10-21, §5.1 of `05-scheduling.md`). Reading what was given below reads every
+organization beneath it, one call each. `quota set -f` replaces a set from a file holding what
+`quota show --json` prints of it, YAML or JSON; it is set from above, so it takes `org.quota.write`
+over the organization's parent, or over a project's organization, and a set that breaks a bound
+around it is `CONFLICT` naming the bound.
 
 **Usage, as built.** Added 2026-10-21. `korpis get usage` prints what metering recorded (§2 of
 `15-observability.md`): a row for each interval of a workload, or for each span nothing was heard

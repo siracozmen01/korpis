@@ -23,6 +23,7 @@ fn in_the_eu(memory: u64) -> QuotaEntry {
         reservations: Bounds::from([(Dimension::Memory, memory)]),
         limits: Bounds::new(),
         version: 1,
+        egress: None,
         held: Some(Totals::default()),
     }
 }

@@ -44,6 +44,7 @@ mod dns;
 mod domains;
 mod effects;
 mod egress;
+mod egress_budget;
 mod endpoints;
 mod enroll;
 mod epoch_fence;

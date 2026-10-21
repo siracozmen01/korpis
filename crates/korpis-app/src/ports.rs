@@ -21,6 +21,7 @@ mod clock;
 mod condition;
 mod device_grant;
 mod domain;
+mod egress;
 mod endpoint;
 mod enrollment;
 mod extension;
@@ -86,6 +87,7 @@ pub use clock::{Clock, SystemClock, Timer};
 pub use condition::{ConditionRead, ConditionWrite};
 pub use device_grant::{DeviceGrantRead, DeviceGrantWrite, Polled};
 pub use domain::{DomainRead, DomainWrite};
+pub use egress::{EgressAt, EgressRead, EgressWrite};
 pub use endpoint::{EndpointRead, EndpointWrite};
 pub use enrollment::{Enrollment, EnrollmentRead, EnrollmentWrite, VerifyKey};
 pub use extension::{ExtensionRead, ExtensionWrite};
@@ -215,6 +217,7 @@ pub trait Store:
     + FailureRead
     + IdempotencyRead
     + MeteringRead
+    + EgressRead
     + KeyRegistry
     + RecipeCache
     + WorkloadRead
@@ -336,6 +339,7 @@ pub trait Tx:
     + AssertionWrite
     + MemberWrite
     + MeteringWrite
+    + EgressWrite
     + SignInWrite
     + Send
 {

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT entry_id, month, bytes, exhausted, reckoned_at FROM quota_egress\n              WHERE entry_id = ANY($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entry_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "quota_egress",
+            "name": "entry_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "month",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "quota_egress",
+            "name": "month"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "quota_egress",
+            "name": "bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "exhausted",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "quota_egress",
+            "name": "exhausted"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reckoned_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "quota_egress",
+            "name": "reckoned_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "651fb06c67003001527f21ba92925eb61ea6c762b9c4ad10ceacc7858a32b657"
+}

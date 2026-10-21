@@ -23,6 +23,8 @@ pub(crate) struct Shaping {
     pub(crate) ingress: u64,
     /// Nothing it sends leaves for beyond the node.
     pub(crate) cut_off: bool,
+    /// Its limit is a spent budget's floor.
+    pub(crate) floored: bool,
 }
 
 /// What `b` asks for, with a spent budget's floor in place of the limit.
@@ -36,6 +38,7 @@ pub(crate) fn asked(b: Option<&helper::Bandwidth>) -> HelperResult<Shaping> {
         limit: b.egress_limit,
         ingress: b.ingress_limit,
         cut_off: b.exhausted && b.cut_off,
+        floored: false,
     };
     if b.exhausted && !b.cut_off {
         if b.floor == 0 {
@@ -43,8 +46,23 @@ pub(crate) fn asked(b: Option<&helper::Bandwidth>) -> HelperResult<Shaping> {
         }
         s.limit = if s.limit == 0 { b.floor } else { s.limit.min(b.floor) };
         s.reserved = s.reserved.min(b.floor);
+        s.floored = true;
     }
     Ok(s)
+}
+
+/// `s` as a node that `shapes`, or does not, can hold it: where nothing can be shaped, a spent
+/// budget's floor is held as a cut-off, the stricter of the two, rather than not at all, since a
+/// budget spent and not enforced is a number displayed and not held (Rule K-3).
+pub(crate) fn here(s: Shaping, shapes: bool, workload: &str) -> Shaping {
+    if shapes || !s.floored {
+        return s;
+    }
+    tracing::warn!(
+        workload,
+        "this node cannot shape, so a spent egress budget's floor is held as a cut-off"
+    );
+    Shaping { reserved: 0, limit: 0, ingress: s.ingress, cut_off: true, floored: false }
 }
 
 /// The class `link` is to hold on the uplinks, if it reserves.
@@ -156,5 +174,9 @@ mod tests {
             helper::Bandwidth { egress_reservation: 9, egress_limit: 5, ..Default::default() };
         assert!(asked(Some(&above)).is_err());
         assert_eq!(asked(None).unwrap(), Shaping::default());
+        let floored = asked(Some(&b(true, 50, false))).unwrap();
+        assert_eq!(here(floored, true, "w"), floored, "held as asked where it can be");
+        let cut = here(floored, false, "w");
+        assert!(cut.cut_off && cut.limit == 0, "and cut off where nothing can be shaped");
     }
 }

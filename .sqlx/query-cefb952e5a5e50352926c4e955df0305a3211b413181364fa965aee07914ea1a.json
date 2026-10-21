@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT floor_bits_per_sec, cut_off FROM workload_egress\n              WHERE workload_id = $1 AND month = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "floor_bits_per_sec",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "floor_bits_per_sec"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cut_off",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "cut_off"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "cefb952e5a5e50352926c4e955df0305a3211b413181364fa965aee07914ea1a"
+}

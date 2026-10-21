@@ -23,6 +23,7 @@ fn entry(reservations: &[(D, u64)], limits: &[(D, u64)]) -> QuotaEntry {
         reservations: reservations.iter().copied().collect::<Bounds>(),
         limits: limits.iter().copied().collect::<Bounds>(),
         version: 1,
+        egress: None,
         held: None,
     }
 }

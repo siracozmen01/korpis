@@ -5,7 +5,7 @@
 
 use super::StoreResult;
 use korpis_core::tenancy::quota::{
-    Bounds, Dimension, Held, QuotaEntry, QuotaOwner, QuotaSet, Totals,
+    Bounds, Dimension, EgressBudget, Held, QuotaEntry, QuotaOwner, QuotaSet, Totals,
 };
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -83,12 +83,13 @@ pub trait QuotaSetWrite {
         e: &QuotaEntry,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
-    /// Sets the bounds of entry `id`, a new version of it.
+    /// Sets the bounds, reservations and limits, and the egress budget of entry `id`, a new
+    /// version of it.
     fn update_quota_bounds(
         &mut self,
         id: Uuid,
-        reservations: &Bounds,
-        limits: &Bounds,
+        bounds: (&Bounds, &Bounds),
+        egress: Option<&EgressBudget>,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Deletes entry `id`; what counted it no longer does.

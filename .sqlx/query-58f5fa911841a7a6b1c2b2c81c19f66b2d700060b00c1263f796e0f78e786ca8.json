@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO quota_egress (entry_id, month, bytes, exhausted, reckoned_at)\n             VALUES ($1, $2, $3, $4, $5)\n             ON CONFLICT (entry_id) DO UPDATE SET month = $2, bytes = $3, exhausted = $4,\n                    reckoned_at = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Int8",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58f5fa911841a7a6b1c2b2c81c19f66b2d700060b00c1263f796e0f78e786ca8"
+}

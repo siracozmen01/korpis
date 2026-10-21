@@ -913,7 +913,8 @@ against every entry above. Within one set, each shape appears once and no reserv
 limit beside it. A bound of zero is a bound, which allows none of a dimension: the wire carries
 bounds with explicit presence (`QuotaBounds`), since `Resources` could not tell zero from absent.
 The shaping applied at an exhausted egress budget is refused until it is built (Phase 2's
-bandwidth shaping) rather than accepted and not applied (Rule K-3).
+bandwidth shaping) rather than accepted and not applied (Rule K-3). Built 2026-10-21 (P2.8e): it
+is accepted now, with the budget it applies to ("The egress budget, as designed", below).
 
 An entry whose shape the new set keeps keeps its identity and the totals of what it counts, and
 takes the new bounds as its next version; an entry of a new shape is reckoned at its first use;
@@ -1016,6 +1017,29 @@ floor knowing that, and sets a shorter interval where an overrun costs more than
 1 of §7 of `15-observability.md`). The bytes are those that left the workload's link for anything
 but another workload's on its node, so traffic to the node's own ingress proxy counts, being sent to
 the world on the workload's behalf, and traffic between two workloads of a node does not.
+
+> Built 2026-10-21 (P2.8e of the build plan). An entry carries `egress_bytes_per_month` beside
+> `egress_exhausted`, a floor or a cut-off; the two are set together or not at all, and a floor
+> of zero is refused as a cut-off unnamed. The budget is not a bound admission checks, so it lives
+> beside the bounds and not among them. Every minute, with metering's own pass, the control plane
+> reads every workload placed now or with egress recorded this month, on each node, with the
+> bytes its records hold there as an invoice sums them, and each entry with a budget sums those
+> it counts: its owner's, selected by its labels, and, for an entry that names nodes, sent from
+> those nodes. What each spent is kept apart from the entry (`quota_egress`), so reckoning never
+> waits on admission, which locks the entry, and `GetOrganization` and `korpis quota show` say
+> it with when it was reckoned. Each workload a spent entry counts is held where it is placed, to
+> the strictest of its spent entries' exhaustions, in a row of its own (`workload_egress`) whose
+> trigger announces the workload, so its node is told in its next assignment; a row is read only
+> for the month it was found in, so the turn of the month lifts every hold at once, and the next
+> pass removes the rows. A budget raised or removed lets its workloads go at the next pass. The
+> agent hands the hold to the helper, which holds a floor on the workload's link and its class on
+> the uplinks, and a cut-off in the host table (§7 of `07-networking.md`). Decided as it was built:
+> a node that gives networks and cannot shape holds a floor as a cut-off, the stricter of the two,
+> since holding nothing would display a spent budget the kernel does not hold (Rule K-3), and says
+> so in its log; what it costs is that a host's floor is a cut-off on such a node until `tc` is
+> installed there. The API test sets a budget, is refused one that names nothing to do, spends it
+> with two samples, finds the workload's next assignment holding it to its floor and the entry
+> saying what it spent, and raises the budget to find the workload let go.
 
 ### 5.2 Reservation and limit are different numbers
 

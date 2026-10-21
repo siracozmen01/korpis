@@ -219,11 +219,12 @@ async fn write_set<T: QuotaSetWrite>(
     let mut entries = Vec::with_capacity(new.entries.len());
     for mut e in new.entries {
         match current.iter().find(|c| shape(c) == shape(&e)) {
-            Some(c) if c.reservations == e.reservations && c.limits == e.limits => {
+            Some(c) if c.same_terms(&e) => {
                 e = c.clone();
             }
             Some(c) => {
-                tx.update_quota_bounds(c.id, &e.reservations, &e.limits).await?;
+                tx.update_quota_bounds(c.id, (&e.reservations, &e.limits), e.egress.as_ref())
+                    .await?;
                 e = QuotaEntry { version: c.version + 1, ..c.clone() }.with_bounds(e);
             }
             None => {

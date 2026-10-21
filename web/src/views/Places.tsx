@@ -135,6 +135,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
     },
     [projects, id],
   );
+  const org = name.state === "done" ? name.value : undefined;
   return (
     <main>
       <Shown
@@ -144,10 +145,6 @@ export function OrganizationPage({ id }: { readonly id: string }) {
           <>
             <h1>{o?.name ?? id}</h1>
             {o !== undefined && <Suspension organization={o} />}
-            {o !== undefined && <QuotaView organization={o} />}
-            {o !== undefined && <Roles place={{ case: "organization", id: o.id }} />}
-            {o !== undefined && <Bindings organization={o.id} />}
-            {o !== undefined && <Ceiling organization={o.id} />}
           </>
         )}
       />
@@ -182,6 +179,12 @@ export function OrganizationPage({ id }: { readonly id: string }) {
           </li>
         )}
       />
+      {/* What it holds comes before what is set on it, which is read after and would otherwise
+          move the links beneath a pointer as each part arrives. */}
+      {org !== undefined && <QuotaView organization={org} />}
+      {org !== undefined && <Roles place={{ case: "organization", id: org.id }} />}
+      {org !== undefined && <Bindings organization={org.id} />}
+      {org !== undefined && <Ceiling organization={org.id} />}
       {!metered && <ThemeEditor id={id} />}
       {/* A share link's calls each spend a use, so its holder is shown no trail to page. */}
       {!metered && <Audit id={id} />}
@@ -209,17 +212,13 @@ export function ProjectPage({ id }: { readonly id: string }) {
     },
     [workloads, id],
   );
+  const project = name.state === "done" ? name.value : undefined;
   return (
     <main>
       <Shown
         loaded={name}
         reading={t({ defaultMessage: "Reading the project…", id: "ma+8ta3Y" })}
-        done={(p) => (
-          <>
-            <h1>{p?.name ?? id}</h1>
-            {p !== undefined && <Roles place={{ case: "project", id: p.id }} />}
-          </>
-        )}
+        done={(p) => <h1>{p?.name ?? id}</h1>}
       />
       <Pages
         load={inside}
@@ -233,6 +232,9 @@ export function ProjectPage({ id }: { readonly id: string }) {
           </li>
         )}
       />
+      {/* Its roles are read after its workloads and shown beneath them, so nothing arriving
+          late moves a workload's link (as on an organization's page). */}
+      {project !== undefined && <Roles place={{ case: "project", id: project.id }} />}
     </main>
   );
 }

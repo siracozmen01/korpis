@@ -61,6 +61,9 @@ pub struct Assignment {
     /// Whether the node relays the control plane's API to the workload: it runs an installed
     /// extension, or holds a grant in force (§9.5 of docs/08-identity.md).
     pub reaches_api: bool,
+    /// What a spent egress budget holds it to this month, if one does (§5.1 of
+    /// docs/05-scheduling.md, "The egress budget").
+    pub egress: Option<crate::tenancy::quota::Exhaustion>,
     /// Its dependencies, resolved to the endpoints they reach now (§5 of
     /// docs/07-networking.md).
     pub dependencies: Vec<super::dependency::ResolvedDependency>,

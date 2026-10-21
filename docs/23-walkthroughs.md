@@ -3974,7 +3974,7 @@ guarantee away from inbound; no scenario had crossed the node's shaping, which a
 | 6 | `lobby`, holding the class before `mc`'s on the uplink, connects to `mc`'s game port, which has no class of its own. Each packet crosses the host's forward hook, where `lobby`'s chain sets the priority of its uplink class, and `mc`'s link, whose qdisc takes a class from a priority ‡ | `07-networking.md` §7, §4.1 |
 | 7 | `lobby`'s traffic to `mc` never reaches the uplink, so `mc`'s guarantee is not spent on it; it is held by `lobby`'s ceiling and `mc`'s ingress limit, and it is not `mc`'s egress, nor `lobby`'s | `07-networking.md` §7; `05-scheduling.md` §5.1 |
 | 8 | At each reading the meter reads the counters through the helper and journals them with the interval's sample, the game port's bytes beside the workload's egress (built in P2.8d of the build plan, with the egress and the endpoints in each record) | `15-observability.md` §2; `07-networking.md` §7 |
-| 9 | Blockhaven's project reaches its egress budget for the month; `mc`'s next assignment holds its class and its link to the floor, until the month turns (designed, and built after it, in P2.8e) | `05-scheduling.md` §5.1; `02-architecture.md` §4.8 |
+| 9 | Blockhaven's project reaches its egress budget for the month; `mc`'s next assignment holds its class and its link to the floor, until the month turns (built in P2.8e, reckoned every minute) | `05-scheduling.md` §5.1; `02-architecture.md` §4.8 |
 
 **Two findings: at step 6 (‡), and at steps 1 and 5, from a review of the code.**
 

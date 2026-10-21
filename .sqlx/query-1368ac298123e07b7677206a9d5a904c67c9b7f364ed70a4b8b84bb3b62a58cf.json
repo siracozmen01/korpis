@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held\n               FROM quota_entry WHERE id = $1 FOR UPDATE",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The quota entries of a project ($1) and of organizations ($2) that count from declaration,\n-- locked in identifier order; those naming nodes move under the placement lock instead.\nSELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held,\n       egress_budget\n  FROM quota_entry\n WHERE ((owner_kind = 'project' AND owner_id = $1)\n        OR (owner_kind = 'organization' AND owner_id = ANY($2)))\n   AND nodes IS NULL\n ORDER BY id\n   FOR UPDATE\n",
   "describe": {
     "columns": [
       {
@@ -101,11 +101,23 @@
             "name": "held"
           }
         }
+      },
+      {
+        "ordinal": 9,
+        "name": "egress_budget",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "egress_budget"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -117,8 +129,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "818cf33c7f568c3d571f26e157e4e7cb0c103a4316fa0296c8e125af775b7e8f"
+  "hash": "1368ac298123e07b7677206a9d5a904c67c9b7f364ed70a4b8b84bb3b62a58cf"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held\n               FROM quota_entry WHERE owner_kind = $1 AND owner_id = $2 ORDER BY id",
+  "query": "SELECT id, owner_kind, owner_id, selector, nodes, reservations, limits, version, held,\n                    egress_budget\n               FROM quota_entry WHERE id = $1 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -101,11 +101,21 @@
             "name": "held"
           }
         }
+      },
+      {
+        "ordinal": 9,
+        "name": "egress_budget",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "quota_entry",
+            "name": "egress_budget"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Uuid"
       ]
     },
@@ -118,8 +128,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "1e3cd8109e68eb7e8279a29609e7519ec3e5f51e0c003eb5bf2bc0e24aa92548"
+  "hash": "7b7449eceb885d4a415afc49b3450d5022008d5c5bbd3751e00ef3a6de2a9dde"
 }

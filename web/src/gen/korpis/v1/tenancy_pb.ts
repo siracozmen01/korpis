@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/tenancy.proto.
  */
 export const file_korpis_v1_tenancy: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEi0QIKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIPCgd2ZXJzaW9uGAQgASgEEjUKEGVncmVzc19leGhhdXN0ZWQYBSABKAsyGy5rb3JwaXMudjEuRWdyZXNzRXhoYXVzdGlvbhInCgVub2RlcxgGIAEoCzIYLmtvcnBpcy52MS5MYWJlbFNlbGVjdG9yEjIKEnJlc2VydmF0aW9uX2JvdW5kcxgHIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIsCgxsaW1pdF9ib3VuZHMYCCABKAsyFi5rb3JwaXMudjEuUXVvdGFCb3VuZHMSIgoEaGVsZBgJIAEoCzIULmtvcnBpcy52MS5RdW90YUhlbGRKBAgCEANKBAgDEARSDHJlc2VydmF0aW9uc1IGbGltaXRzIpMFCgtRdW90YUJvdW5kcxIXCgpjcHVfbWlsbGlzGAEgASgESACIAQESGQoMbWVtb3J5X2J5dGVzGAIgASgESAGIAQESFwoKZGlza19ieXRlcxgDIAEoBEgCiAEBEiQKF2Rpc2tfcmVhZF9ieXRlc19wZXJfc2VjGAQgASgESAOIAQESJQoYZGlza193cml0ZV9ieXRlc19wZXJfc2VjGAUgASgESASIAQESIgoVZGlza19yZWFkX29wc19wZXJfc2VjGAYgASgESAWIAQESIwoWZGlza193cml0ZV9vcHNfcGVyX3NlYxgHIAEoBEgGiAEBEiMKFmJhbmR3aWR0aF9iaXRzX3Blcl9zZWMYCSABKARIB4gBARIWCgl3b3JrbG9hZHMYCiABKARICIgBARIUCgd2b2x1bWVzGAsgASgESAmIAQESFgoJZW5kcG9pbnRzGAwgASgESAqIAQESGwoOZGVkaWNhdGVkX2lwdjQYDSABKARIC4gBARIXCgpub2RlX3BvcnRzGA8gASgESAyIAQFCDQoLX2NwdV9taWxsaXNCDwoNX21lbW9yeV9ieXRlc0INCgtfZGlza19ieXRlc0IaChhfZGlza19yZWFkX2J5dGVzX3Blcl9zZWNCGwoZX2Rpc2tfd3JpdGVfYnl0ZXNfcGVyX3NlY0IYChZfZGlza19yZWFkX29wc19wZXJfc2VjQhkKF19kaXNrX3dyaXRlX29wc19wZXJfc2VjQhkKF19iYW5kd2lkdGhfYml0c19wZXJfc2VjQgwKCl93b3JrbG9hZHNCCgoIX3ZvbHVtZXNCDAoKX2VuZHBvaW50c0IRCg9fZGVkaWNhdGVkX2lwdjRCDQoLX25vZGVfcG9ydHMidAoJUXVvdGFIZWxkEiwKDHJlc2VydmF0aW9ucxgBIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxImCgZsaW1pdHMYAiABKAsyFi5rb3JwaXMudjEuUXVvdGFCb3VuZHMSEQoJdW5ib3VuZGVkGAMgAygJIj8KEEVncmVzc0V4aGF1c3Rpb24SGgoSZmxvb3JfYml0c19wZXJfc2VjGAEgASgEEg8KB2N1dF9vZmYYAiABKAgi2wEKB1N1YmplY3QSDgoEdXNlchgBIAEoCUgAEg8KBXRva2VuGAIgASgJSAASLwoIZXh0ZXJuYWwYAyABKAsyGy5rb3JwaXMudjEuRXh0ZXJuYWxJZGVudGl0eUgAEhIKCHdvcmtsb2FkGAQgASgJSAASEwoJZXh0ZW5zaW9uGAUgASgJSAASKAoGc3lzdGVtGAYgASgOMhYua29ycGlzLnYxLlN5c3RlbUFjdG9ySAASDgoEbGluaxgHIAEoCUgAEhMKCWFub255bW91cxgIIAEoCEgAQgYKBGtpbmQiZwoQRXh0ZXJuYWxJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRIOCgR1c2VyGAIgASgJSAASJQoDc2V0GAMgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0SABCCgoIc2VsZWN0b3IiLwoLRXh0ZXJuYWxTZXQSDQoFcmVhbG0YASABKAkSEQoJbWVtYmVyX29mGAIgASgJIrMBCgVUaGVtZRIUCgxwcm9kdWN0X25hbWUYASABKAkSHQoEbG9nbxgCIAEoCzIPLmtvcnBpcy52MS5Mb2dvEiUKBWxpZ2h0GAMgASgLMhYua29ycGlzLnYxLlRoZW1lQ29sb3JzEiQKBGRhcmsYBCABKAsyFi5rb3JwaXMudjEuVGhlbWVDb2xvcnMSFAoMc2lnbl9pbl90ZXh0GAUgASgJEhIKCnN0eWxlc2hlZXQYBiABKAkiKAoETG9nbxISCgptZWRpYV90eXBlGAEgASgJEgwKBGRhdGEYAiABKAwioQEKC1RoZW1lQ29sb3JzEhIKCmJhY2tncm91bmQYASABKAkSDAoEdGV4dBgCIAEoCRINCgVtdXRlZBgDIAEoCRIMCgRsaW5lGAQgASgJEg4KBmFjY2VudBgFIAEoCRITCgthY2NlbnRfdGV4dBgGIAEoCRIOCgZkYW5nZXIYByABKAkSDwoHc3VyZmFjZRgIIAEoCRINCgVmb2N1cxgJIAEoCSJmCg5Hb3Zlcm5pbmdUaGVtZRIfCgV0aGVtZRgBIAEoCzIQLmtvcnBpcy52MS5UaGVtZRITCgZzZXRfb24YAiABKAlIAIgBARITCgtvd25fdmVyc2lvbhgDIAEoBEIJCgdfc2V0X29uKnwKEk9yZ2FuaXphdGlvblN0YXR1cxIjCh9PUkdBTklaQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHgoaT1JHQU5JWkFUSU9OX1NUQVRVU19BQ1RJVkUQARIhCh1PUkdBTklaQVRJT05fU1RBVFVTX1NVU1BFTkRFRBACKlkKCU9uU3VzcGVuZBIaChZPTl9TVVNQRU5EX1VOU1BFQ0lGSUVEEAASGwoXT05fU1VTUEVORF9LRUVQX1JVTk5JTkcQARITCg9PTl9TVVNQRU5EX1NUT1AQAiqcAQoLU3lzdGVtQWN0b3ISHAoYU1lTVEVNX0FDVE9SX1VOU1BFQ0lGSUVEEAASGwoXU1lTVEVNX0FDVE9SX1JFQ09OQ0lMRVIQARIaChZTWVNURU1fQUNUT1JfU0NIRURVTEVSEAISGgoWU1lTVEVNX0FDVE9SX0JPT1RTVFJBUBADEhoKFlNZU1RFTV9BQ1RPUl9BVVRIT1JJVFkQBGIGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_common]);
+  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEivwMKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIPCgd2ZXJzaW9uGAQgASgEEjUKEGVncmVzc19leGhhdXN0ZWQYBSABKAsyGy5rb3JwaXMudjEuRWdyZXNzRXhoYXVzdGlvbhIjChZlZ3Jlc3NfYnl0ZXNfcGVyX21vbnRoGAogASgESACIAQESLAoMZWdyZXNzX3NwZW50GAsgASgLMhYua29ycGlzLnYxLkVncmVzc1NwZW50EicKBW5vZGVzGAYgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISMgoScmVzZXJ2YXRpb25fYm91bmRzGAcgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiwKDGxpbWl0X2JvdW5kcxgIIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIiCgRoZWxkGAkgASgLMhQua29ycGlzLnYxLlF1b3RhSGVsZEIZChdfZWdyZXNzX2J5dGVzX3Blcl9tb250aEoECAIQA0oECAMQBFIMcmVzZXJ2YXRpb25zUgZsaW1pdHMikwUKC1F1b3RhQm91bmRzEhcKCmNwdV9taWxsaXMYASABKARIAIgBARIZCgxtZW1vcnlfYnl0ZXMYAiABKARIAYgBARIXCgpkaXNrX2J5dGVzGAMgASgESAKIAQESJAoXZGlza19yZWFkX2J5dGVzX3Blcl9zZWMYBCABKARIA4gBARIlChhkaXNrX3dyaXRlX2J5dGVzX3Blcl9zZWMYBSABKARIBIgBARIiChVkaXNrX3JlYWRfb3BzX3Blcl9zZWMYBiABKARIBYgBARIjChZkaXNrX3dyaXRlX29wc19wZXJfc2VjGAcgASgESAaIAQESIwoWYmFuZHdpZHRoX2JpdHNfcGVyX3NlYxgJIAEoBEgHiAEBEhYKCXdvcmtsb2FkcxgKIAEoBEgIiAEBEhQKB3ZvbHVtZXMYCyABKARICYgBARIWCgllbmRwb2ludHMYDCABKARICogBARIbCg5kZWRpY2F0ZWRfaXB2NBgNIAEoBEgLiAEBEhcKCm5vZGVfcG9ydHMYDyABKARIDIgBAUINCgtfY3B1X21pbGxpc0IPCg1fbWVtb3J5X2J5dGVzQg0KC19kaXNrX2J5dGVzQhoKGF9kaXNrX3JlYWRfYnl0ZXNfcGVyX3NlY0IbChlfZGlza193cml0ZV9ieXRlc19wZXJfc2VjQhgKFl9kaXNrX3JlYWRfb3BzX3Blcl9zZWNCGQoXX2Rpc2tfd3JpdGVfb3BzX3Blcl9zZWNCGQoXX2JhbmR3aWR0aF9iaXRzX3Blcl9zZWNCDAoKX3dvcmtsb2Fkc0IKCghfdm9sdW1lc0IMCgpfZW5kcG9pbnRzQhEKD19kZWRpY2F0ZWRfaXB2NEINCgtfbm9kZV9wb3J0cyJ0CglRdW90YUhlbGQSLAoMcmVzZXJ2YXRpb25zGAEgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiYKBmxpbWl0cxgCIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIRCgl1bmJvdW5kZWQYAyADKAkiiwEKC0VncmVzc1NwZW50EikKBW1vbnRoGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVieXRlcxgCIAEoBBIRCglleGhhdXN0ZWQYAyABKAgSLwoLcmVja29uZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEEVncmVzc0V4aGF1c3Rpb24SGgoSZmxvb3JfYml0c19wZXJfc2VjGAEgASgEEg8KB2N1dF9vZmYYAiABKAgi2wEKB1N1YmplY3QSDgoEdXNlchgBIAEoCUgAEg8KBXRva2VuGAIgASgJSAASLwoIZXh0ZXJuYWwYAyABKAsyGy5rb3JwaXMudjEuRXh0ZXJuYWxJZGVudGl0eUgAEhIKCHdvcmtsb2FkGAQgASgJSAASEwoJZXh0ZW5zaW9uGAUgASgJSAASKAoGc3lzdGVtGAYgASgOMhYua29ycGlzLnYxLlN5c3RlbUFjdG9ySAASDgoEbGluaxgHIAEoCUgAEhMKCWFub255bW91cxgIIAEoCEgAQgYKBGtpbmQiZwoQRXh0ZXJuYWxJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRIOCgR1c2VyGAIgASgJSAASJQoDc2V0GAMgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0SABCCgoIc2VsZWN0b3IiLwoLRXh0ZXJuYWxTZXQSDQoFcmVhbG0YASABKAkSEQoJbWVtYmVyX29mGAIgASgJIrMBCgVUaGVtZRIUCgxwcm9kdWN0X25hbWUYASABKAkSHQoEbG9nbxgCIAEoCzIPLmtvcnBpcy52MS5Mb2dvEiUKBWxpZ2h0GAMgASgLMhYua29ycGlzLnYxLlRoZW1lQ29sb3JzEiQKBGRhcmsYBCABKAsyFi5rb3JwaXMudjEuVGhlbWVDb2xvcnMSFAoMc2lnbl9pbl90ZXh0GAUgASgJEhIKCnN0eWxlc2hlZXQYBiABKAkiKAoETG9nbxISCgptZWRpYV90eXBlGAEgASgJEgwKBGRhdGEYAiABKAwioQEKC1RoZW1lQ29sb3JzEhIKCmJhY2tncm91bmQYASABKAkSDAoEdGV4dBgCIAEoCRINCgVtdXRlZBgDIAEoCRIMCgRsaW5lGAQgASgJEg4KBmFjY2VudBgFIAEoCRITCgthY2NlbnRfdGV4dBgGIAEoCRIOCgZkYW5nZXIYByABKAkSDwoHc3VyZmFjZRgIIAEoCRINCgVmb2N1cxgJIAEoCSJmCg5Hb3Zlcm5pbmdUaGVtZRIfCgV0aGVtZRgBIAEoCzIQLmtvcnBpcy52MS5UaGVtZRITCgZzZXRfb24YAiABKAlIAIgBARITCgtvd25fdmVyc2lvbhgDIAEoBEIJCgdfc2V0X29uKnwKEk9yZ2FuaXphdGlvblN0YXR1cxIjCh9PUkdBTklaQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHgoaT1JHQU5JWkFUSU9OX1NUQVRVU19BQ1RJVkUQARIhCh1PUkdBTklaQVRJT05fU1RBVFVTX1NVU1BFTkRFRBACKlkKCU9uU3VzcGVuZBIaChZPTl9TVVNQRU5EX1VOU1BFQ0lGSUVEEAASGwoXT05fU1VTUEVORF9LRUVQX1JVTk5JTkcQARITCg9PTl9TVVNQRU5EX1NUT1AQAiqcAQoLU3lzdGVtQWN0b3ISHAoYU1lTVEVNX0FDVE9SX1VOU1BFQ0lGSUVEEAASGwoXU1lTVEVNX0FDVE9SX1JFQ09OQ0lMRVIQARIaChZTWVNURU1fQUNUT1JfU0NIRURVTEVSEAISGgoWU1lTVEVNX0FDVE9SX0JPT1RTVFJBUBADEhoKFlNZU1RFTV9BQ1RPUl9BVVRIT1JJVFkQBGIGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_common]);
 
 /**
  * The root of a tenancy tree. Recursive: a child organization is how reselling exists.
@@ -219,11 +219,29 @@ export type QuotaEntry = Message<"korpis.v1.QuotaEntry"> & {
 
   /**
    * What shaping applies when the egress budget for the month is exhausted (§5.1 of
-   * docs/05-scheduling.md).
+   * docs/05-scheduling.md). Set exactly when egress_bytes_per_month is: a budget that changes
+   * nothing when it is spent is refused, since it would be displayed and not enforced.
    *
    * @generated from field: korpis.v1.EgressExhaustion egress_exhausted = 5;
    */
   egressExhausted?: EgressExhaustion | undefined;
+
+  /**
+   * The bytes a calendar month of UTC days the workloads it counts may send beyond their links,
+   * as their nodes count it (§7 of docs/07-networking.md). Not admitted: enforced after use, by
+   * shaping, from the month's records as an invoice sums them.
+   *
+   * @generated from field: optional uint64 egress_bytes_per_month = 10;
+   */
+  egressBytesPerMonth?: bigint | undefined;
+
+  /**
+   * What the workloads it counts sent this month, as last reckoned. Output only; absent for an
+   * entry with no budget, or one not yet reckoned.
+   *
+   * @generated from field: korpis.v1.EgressSpent egress_spent = 11;
+   */
+  egressSpent?: EgressSpent | undefined;
 
   /**
    * The nodes it counts the workloads on, by their labels: set, it counts a workload while it
@@ -380,6 +398,46 @@ export const QuotaHeldSchema: GenMessage<QuotaHeld> = /*@__PURE__*/
   messageDesc(file_korpis_v1_tenancy, 6);
 
 /**
+ * An entry's egress this month.
+ *
+ * @generated from message korpis.v1.EgressSpent
+ */
+export type EgressSpent = Message<"korpis.v1.EgressSpent"> & {
+  /**
+   * The month, its first instant.
+   *
+   * @generated from field: google.protobuf.Timestamp month = 1;
+   */
+  month?: Timestamp | undefined;
+
+  /**
+   * @generated from field: uint64 bytes = 2;
+   */
+  bytes: bigint;
+
+  /**
+   * Whether the budget is spent, and so its workloads held to its egress_exhausted.
+   *
+   * @generated from field: bool exhausted = 3;
+   */
+  exhausted: boolean;
+
+  /**
+   * When it was last reckoned.
+   *
+   * @generated from field: google.protobuf.Timestamp reckoned_at = 4;
+   */
+  reckonedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.EgressSpent.
+ * Use `create(EgressSpentSchema)` to create a new message.
+ */
+export const EgressSpentSchema: GenMessage<EgressSpent> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 7);
+
+/**
  * @generated from message korpis.v1.EgressExhaustion
  */
 export type EgressExhaustion = Message<"korpis.v1.EgressExhaustion"> & {
@@ -401,7 +459,7 @@ export type EgressExhaustion = Message<"korpis.v1.EgressExhaustion"> & {
  * Use `create(EgressExhaustionSchema)` to create a new message.
  */
 export const EgressExhaustionSchema: GenMessage<EgressExhaustion> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 7);
+  messageDesc(file_korpis_v1_tenancy, 8);
 
 /**
  * Anything that can act (§3.2 of docs/01-model.md).
@@ -477,7 +535,7 @@ export type Subject = Message<"korpis.v1.Subject"> & {
  * Use `create(SubjectSchema)` to create a new message.
  */
 export const SubjectSchema: GenMessage<Subject> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 8);
+  messageDesc(file_korpis_v1_tenancy, 9);
 
 /**
  * @generated from message korpis.v1.ExternalIdentity
@@ -519,7 +577,7 @@ export type ExternalIdentity = Message<"korpis.v1.ExternalIdentity"> & {
  * Use `create(ExternalIdentitySchema)` to create a new message.
  */
 export const ExternalIdentitySchema: GenMessage<ExternalIdentity> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 9);
+  messageDesc(file_korpis_v1_tenancy, 10);
 
 /**
  * @generated from message korpis.v1.ExternalSet
@@ -547,7 +605,7 @@ export type ExternalSet = Message<"korpis.v1.ExternalSet"> & {
  * Use `create(ExternalSetSchema)` to create a new message.
  */
 export const ExternalSetSchema: GenMessage<ExternalSet> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 10);
+  messageDesc(file_korpis_v1_tenancy, 11);
 
 /**
  * An organization's brand (§7 of docs/11-surface-web.md): data, applied by the panel to whatever
@@ -602,7 +660,7 @@ export type Theme = Message<"korpis.v1.Theme"> & {
  * Use `create(ThemeSchema)` to create a new message.
  */
 export const ThemeSchema: GenMessage<Theme> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 11);
+  messageDesc(file_korpis_v1_tenancy, 12);
 
 /**
  * A logo, carried in the theme so the panel fetches nothing a theme names: PNG, WebP, or SVG,
@@ -629,7 +687,7 @@ export type Logo = Message<"korpis.v1.Logo"> & {
  * Use `create(LogoSchema)` to create a new message.
  */
 export const LogoSchema: GenMessage<Logo> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 12);
+  messageDesc(file_korpis_v1_tenancy, 13);
 
 /**
  * The panel's colour tokens, each #rrggbb.
@@ -688,7 +746,7 @@ export type ThemeColors = Message<"korpis.v1.ThemeColors"> & {
  * Use `create(ThemeColorsSchema)` to create a new message.
  */
 export const ThemeColorsSchema: GenMessage<ThemeColors> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 13);
+  messageDesc(file_korpis_v1_tenancy, 14);
 
 /**
  * The theme that applies to an object, and the organization it comes from.
@@ -724,7 +782,7 @@ export type GoverningTheme = Message<"korpis.v1.GoverningTheme"> & {
  * Use `create(GoverningThemeSchema)` to create a new message.
  */
 export const GoverningThemeSchema: GenMessage<GoverningTheme> = /*@__PURE__*/
-  messageDesc(file_korpis_v1_tenancy, 14);
+  messageDesc(file_korpis_v1_tenancy, 15);
 
 /**
  * @generated from enum korpis.v1.OrganizationStatus

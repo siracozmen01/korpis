@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workload_egress (workload_id, month, floor_bits_per_sec, cut_off)\n             VALUES ($1, $2, $3, $4)\n             ON CONFLICT (workload_id) DO UPDATE SET month = $2, floor_bits_per_sec = $3,\n                    cut_off = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b31ddeb272b75f7c38aa12a2f3b29b381fd393743457874e12fb3d9dadccc00"
+}

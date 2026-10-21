@@ -10,9 +10,11 @@
 //! it may use (§5.1, "Quota holds the enforced value, not the declared one"). What they hold
 //! together is kept beside each entry as its totals, so admission reads one row per entry.
 
+mod egress;
 mod set;
 mod totals;
 
+pub use egress::{BudgetError, EgressBudget, Exhaustion, Spent, month_of};
 pub use set::{EXCLUSIVE, QuotaSet, SetError, Shape, shape};
 pub use totals::Totals;
 
@@ -132,6 +134,8 @@ pub struct QuotaEntry {
     pub limits: Bounds,
     /// Participates in the admission compare-and-swap.
     pub version: u64,
+    /// Its egress budget for each month, and what a spent one does; none for no budget.
+    pub egress: Option<EgressBudget>,
     /// What the workloads it counts hold together; `None` until they are first reckoned, as an
     /// entry is when it is made.
     pub held: Option<Totals>,
@@ -253,10 +257,23 @@ pub struct Exceeded {
 }
 
 impl QuotaEntry {
-    /// This entry with the bounds of `other`, which has its shape.
+    /// This entry with the bounds and the egress budget of `other`, which has its shape; what
+    /// this entry's budget was reckoned to have spent is kept.
     #[must_use]
     pub fn with_bounds(self, other: Self) -> Self {
-        Self { reservations: other.reservations, limits: other.limits, ..self }
+        let spent = self.egress.and_then(|b| b.spent);
+        let egress = other.egress.map(|b| EgressBudget { spent, ..b });
+        Self { reservations: other.reservations, limits: other.limits, egress, ..self }
+    }
+
+    /// Whether `other`, of this entry's shape, says what this entry says: the same bounds, and
+    /// the same budget with the same exhaustion.
+    #[must_use]
+    pub fn same_terms(&self, other: &Self) -> bool {
+        let terms = |e: &Self| e.egress.map(|b| (b.bytes_per_month, b.exhausted));
+        self.reservations == other.reservations
+            && self.limits == other.limits
+            && terms(self) == terms(other)
     }
 
     /// Whether the entry counts a workload with `labels`.

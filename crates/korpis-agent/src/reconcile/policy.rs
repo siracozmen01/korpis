@@ -7,6 +7,7 @@
 //! deny left out is a weaker policy than the one declared.
 
 use super::act::Failure;
+use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::helper::v1 as helper;
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::network_rule::Peer;
@@ -64,6 +65,16 @@ fn bandwidth(body: &pb::IntentBody) -> Option<helper::Bandwidth> {
         ingress_limit: b.ingress_limit,
         ..Default::default()
     })
+}
+
+/// Holds the workload `request` makes the network of to what a spent egress budget says,
+/// where `shaping` says one is spent (§5.1 of docs/05-scheduling.md): its floor in place of its
+/// limit, or nothing leaving its link for beyond the node.
+pub(super) fn spent(request: &mut helper::EnsureNetworkRequest, shaping: Option<&agent::Shaping>) {
+    let Some(s) = shaping.filter(|s| s.egress_exhausted) else { return };
+    let mut b = request.bandwidth.as_option().cloned().unwrap_or_default();
+    (b.exhausted, b.floor, b.cut_off) = (true, s.egress_floor_bits_per_sec, s.egress_cut_off);
+    request.bandwidth = b.into();
 }
 
 /// Sets on `request` the workload's own outbound rules and limits, and on each of its inbound
@@ -124,5 +135,25 @@ mod tests {
         let r = pb::NetworkRule { peer: Some(Peer::Cidr("10.1.0.0/16".into())), ..r };
         let made = rule(&r).ok().map(|h| (h.allow, h.cidr));
         assert_eq!(made, Some((false, "10.1.0.0/16".to_owned())));
+    }
+
+    #[test]
+    fn a_spent_budget_holds_the_workload_beside_what_it_asks_for_itself() {
+        let mut request = helper::EnsureNetworkRequest::default();
+        spent(&mut request, Some(&agent::Shaping::default()));
+        assert!(request.bandwidth.as_option().is_none(), "nothing spent, nothing held");
+        request.bandwidth =
+            helper::Bandwidth { egress_limit: 50_000_000, ..Default::default() }.into();
+        let floor = agent::Shaping {
+            egress_exhausted: true,
+            egress_floor_bits_per_sec: 1_000_000,
+            ..Default::default()
+        };
+        spent(&mut request, Some(&floor));
+        let b = request.bandwidth.as_option().cloned().unwrap_or_default();
+        assert_eq!(
+            (b.exhausted, b.floor, b.cut_off, b.egress_limit),
+            (true, 1_000_000, false, 50_000_000)
+        );
     }
 }

@@ -80,8 +80,16 @@ message QuotaEntry {
   // Participates in the admission compare-and-swap (§5.1 of docs/05-scheduling.md).
   uint64 version = 4;
   // What shaping applies when the egress budget for the month is exhausted (§5.1 of
-  // docs/05-scheduling.md).
+  // docs/05-scheduling.md). Set exactly when egress_bytes_per_month is: a budget that changes
+  // nothing when it is spent is refused, since it would be displayed and not enforced.
   EgressExhaustion egress_exhausted = 5;
+  // The bytes a calendar month of UTC days the workloads it counts may send beyond their links,
+  // as their nodes count it (§7 of docs/07-networking.md). Not admitted: enforced after use, by
+  // shaping, from the month's records as an invoice sums them.
+  optional uint64 egress_bytes_per_month = 10;
+  // What the workloads it counts sent this month, as last reckoned. Output only; absent for an
+  // entry with no budget, or one not yet reckoned.
+  EgressSpent egress_spent = 11;
   // The nodes it counts the workloads on, by their labels: set, it counts a workload while it
   // is placed on one of them, by what its placement runs, and is checked when it is bound;
   // absent, it counts the workload from its declaration, wherever it runs ("Where a workload
@@ -122,6 +130,17 @@ message QuotaHeld {
   QuotaBounds limits = 2;
   // The dimensions in which some workload holds an unbounded limit, which no finite bound holds.
   repeated string unbounded = 3;
+}
+
+// An entry's egress this month.
+message EgressSpent {
+  // The month, its first instant.
+  google.protobuf.Timestamp month = 1;
+  uint64 bytes = 2;
+  // Whether the budget is spent, and so its workloads held to its egress_exhausted.
+  bool exhausted = 3;
+  // When it was last reckoned.
+  google.protobuf.Timestamp reckoned_at = 4;
 }
 
 message EgressExhaustion {

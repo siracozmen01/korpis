@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE quota_entry SET reservations = $2, limits = $3, egress_budget = $4,\n                    version = version + 1\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2d6c2e2d1ac4a962e6d8a0d9620a4f93e53bc9c4ab3d8f6e60190e4de9e1b989"
+}

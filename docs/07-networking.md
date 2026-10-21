@@ -1179,6 +1179,11 @@ needs `nft` (§2 of `18-operations.md`).
 > each reading, and each record carries its egress and what each counted endpoint carried (§2 of
 > `15-observability.md`). Not yet built: the egress budget (P2.8e).
 
+> Built 2026-10-21 (P2.8e): the egress budget, reckoned every minute from the records and held
+> by each workload's next assignment, its floor on the workload's link and its uplink class, its
+> cut-off in the host table (§5.1 of `05-scheduling.md`). So everything this section designs is
+> built.
+
 ---
 
 ## 8. Abuse and attack

@@ -98,6 +98,7 @@ impl<R: Runtime, H: Host> Reconciler<R, H> {
         (request.inbound, request.forwards) = ports(&a.endpoints);
         let body = a.target.as_option().and_then(|t| t.body.as_option());
         super::policy::apply(&mut request, body)?;
+        super::policy::spent(&mut request, a.shaping.as_option());
         request.opened.clone_from(&dependencies);
         let made = self.host.ensure_network(&request).await?;
         if let Some(n) = self.wiring.network.as_mut() {

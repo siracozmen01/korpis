@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Every workload placed now ($1 and $2 bounding the month) or with egress recorded in the month,\n-- on each node, with what its records hold for it there as an invoice sums them: a measurement\n-- in the month its interval begins, an adjustment in the month it was recorded, and a record\n-- superseded only by an adjustment still counted (§2 of docs/15-observability.md).\nWITH spent AS (\n    SELECT r.workload_id, r.node_id, sum(r.egress_bytes)::bigint AS bytes\n      FROM metering_record r\n     WHERE r.egress_bytes IS NOT NULL\n       AND (r.kind <> 'adjustment' AND r.interval_start >= $1 AND r.interval_start < $2\n            OR r.kind = 'adjustment' AND r.recorded_at >= $1 AND r.recorded_at < $2)\n       AND NOT EXISTS (SELECT 1 FROM metering_record s\n                        WHERE r.id = ANY (s.supersedes) AND s.kind <> 'adjustment')\n     GROUP BY r.workload_id, r.node_id\n), placed AS (\n    SELECT workload_id, node_id FROM placement WHERE authoritative\n), at AS (\n    SELECT workload_id, node_id FROM spent\n    UNION\n    SELECT workload_id, node_id FROM placed\n)\nSELECT w.id AS workload_id, w.project_id, w.organization_id, w.labels,\n       a.node_id AS \"node_id?\", n.labels AS \"node_labels?\",\n       coalesce(s.bytes, 0) AS \"bytes!\",\n       (p.workload_id IS NOT NULL) AS \"placed!\"\n  FROM at a\n  JOIN workload w ON w.id = a.workload_id\n  LEFT JOIN node n ON n.id = a.node_id\n  LEFT JOIN spent s ON s.workload_id = a.workload_id AND s.node_id IS NOT DISTINCT FROM a.node_id\n  LEFT JOIN placed p ON p.workload_id = a.workload_id AND p.node_id = a.node_id\n ORDER BY w.id, a.node_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "labels",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workload",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "node_id?",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "node_labels?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "node",
+            "name": "labels"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "placed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "932df8ef665cc88d22392e0f15edaad47d4d79249e7b226d938bee780a902e45"
+}

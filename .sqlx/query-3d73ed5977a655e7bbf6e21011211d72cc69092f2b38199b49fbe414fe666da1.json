@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT workload_id, month, floor_bits_per_sec, cut_off FROM workload_egress",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workload_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "workload_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "month",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "month"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "floor_bits_per_sec",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "floor_bits_per_sec"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "cut_off",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "workload_egress",
+            "name": "cut_off"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "3d73ed5977a655e7bbf6e21011211d72cc69092f2b38199b49fbe414fe666da1"
+}
