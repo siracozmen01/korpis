@@ -19,6 +19,8 @@ import { Share } from "../workload/Share";
 import { diagnosis } from "../workload/diagnosis";
 import { age, freshness } from "../workload/freshness";
 import { Observed } from "../workload/Observed";
+import { Usage } from "../usage/Usage";
+import { METERING } from "../usage/useUsageNow";
 import { Runs } from "../workload/Runs";
 import { TimelineView } from "../workload/TimelineView";
 import { useNow } from "../workload/useNow";
@@ -85,6 +87,11 @@ export function WorkloadPage({ id }: { readonly id: string }) {
       <Actions status={status} />
       {live.timeline !== undefined && <TimelineView timeline={live.timeline} />}
       <Observed status={status} freshness={freshness(status, live.heard)} now={now} />
+      {may(METERING) && (
+        <Asked metered={metered} what={t({ defaultMessage: "Show the usage", id: "dOd1hwVp" })}>
+          <Usage id={id} />
+        </Asked>
+      )}
       {runs && may("workload.read") && (
         <Asked metered={metered} what={t({ defaultMessage: "Show the runs", id: "QUNOzzQJ" })}>
           <Runs id={id} newest={newest} />

@@ -72,7 +72,7 @@ Sonrası, gerçekten neyi merak ettiğine bağlı:
 |---|---|
 | Model tutarlı mı? | [`01-model.md`](./docs/01-model.md) · [`02-architecture.md`](./docs/02-architecture.md) · [`03-state.md`](./docs/03-state.md) |
 | Güvenli mi? | [`17-security.md`](./docs/17-security.md) · [`04-runtimes.md`](./docs/04-runtimes.md) · [`08-identity.md`](./docs/08-identity.md) |
-| **Gerçekle temasa dayanıyor mu?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): uçtan uca izlenen kırk iki senaryo, buldukları kusurlar ve iki dış inceleme |
+| **Gerçekle temasa dayanıyor mu?** | [`23-walkthroughs.md`](./docs/23-walkthroughs.md): uçtan uca izlenen kırk üç senaryo, buldukları kusurlar ve iki dış inceleme |
 | Çalıştırabilir miyim? | [`18-operations.md`](./docs/18-operations.md) |
 | Üstüne bir şey inşa edebilir miyim? | [`10-api.md`](./docs/10-api.md) · [`16-extensions.md`](./docs/16-extensions.md) · [`09-recipes.md`](./docs/09-recipes.md) |
 | Önce ne yapılacak? | [`20-roadmap.md`](./docs/20-roadmap.md) |
@@ -116,7 +116,7 @@ okumaya değer olması için fiilen ne yapıldığı:
   iptal edilmiş yetki, her gözlem sağlıklı derken trafiği kesebilen bir kenar ve kaldırıldığında
   hiçbir şeye yayılmayan bir sohbet rolü de bunların arasında. Hepsi düzeltildi ve inceleme
   dokümanı onları sessizce yamamak yerine kayda geçirdi. Uygulama inşa edildikçe ondan yazılan
-  yirmi dört izleme daha başka kusurlar buldu ve her biri aynı şekilde kayda geçirildi.
+  yirmi dokuz izleme daha başka kusurlar buldu ve her biri aynı şekilde kayda geçirildi.
 - **İkinci bir okuma dikişlere değil tanımlara saldırdı.** Farklı bir modelle yapılan bağımsız bir
   inceleme, her dokümanın kendi cebrini hedef aldı: bu koşulu ne, hangi bilgiyle değerlendiriyor ve
   değerlendirebilir mi. On dokuz şey buldu, on yedisi gerçekti; aralarında kimlik dokümanının

@@ -546,6 +546,30 @@ interface's rule is that a billable number is never rendered without provenance.
 > costs: an operator reads usage from the node until Phase 2, when each figure arrives with its
 > source, its window, and its method, and an accounted figure beside an instantaneous one shows
 > both rather than one reconciled to the other.
+>
+> Built 2026-10-21, when metering was (P2.7e of the build plan, Phase 2 of §4 of `20-roadmap.md`),
+> and the note above corrected in one respect: the instantaneous figure was to come from the
+> observation's `ResourceUsage`, and still does not, because an observation is sent when it changes
+> (§4.3 of `02-architecture.md`) and a figure that changes every ten seconds would send one, and
+> write a row, every ten seconds for every workload. The workload's screen has a Usage section
+> (`web/src/usage`) of two parts side by side. **Now** is its node's latest meter reading, on a
+> `metering.read` session through the relay (§2 of `15-observability.md`): memory in use, and CPU,
+> throttling, and block and network bytes as rates, with when the node read it, by its clock, and
+> the seconds each rate is over, and the words "Not billed, and not the figure below".
+> **Accounted** is the last day's records from `ListUsage`: CPU time, throttled time, GiB-hours of
+> memory, the peak, the bytes, and the disk at the latest interval's end with that time, under the
+> window they cover and how many intervals were measured, and, where any were not heard, "not
+> counting N unheard over H hours", since a day's sum over a day not heard throughout is a sum of
+> part of it; then how each figure was measured, and each record on request, a gap shown as unheard
+> with its cause. A quantity nothing measured is left out, never shown as a zero. The two parts are
+> never reconciled: a reading is ten seconds of the node's meter, a record an interval of its
+> counters differenced, and a difference between them is shown as it is. A caller without
+> `metering.read` is told so and opens no session; a share link's screen shows the section only
+> when the link holds the action, and only when asked, each reading being a use. What it costs: a
+> signed-in screen holds a session at the node for as long as it is open, one more besides the
+> console's, and the day's records are read once when the screen opens, up to a day of one-minute
+> intervals, not followed. Component tests read both parts with their sources and a caller refused;
+> the browser test reads both on a real node.
 
 ---
 

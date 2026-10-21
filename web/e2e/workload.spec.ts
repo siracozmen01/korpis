@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// A workload on a real node, used in a browser whose language is Turkish: an operator restarts it
-// and is shown the plan after, types into its console and reads the answer, changes its
-// configuration through the form its recipe generates, whose labels are the recipe's own Turkish
-// ones (§5.3 of docs/09-recipes.md), previews a deletion and cancels it, uploads a file the
-// network cuts off and resumes it, and shares its console by a link whose uses run out. The panel itself
-// has no Turkish catalogue yet, so its own words stay English.
+// A workload on a real node, used in a browser whose language is Turkish: an operator reads what it
+// uses now beside what was accounted, restarts it and is shown the plan after, types into its
+// console and reads the answer, changes its configuration through the form its recipe generates,
+// whose labels are the recipe's own Turkish ones (§5.3 of docs/09-recipes.md), previews a deletion
+// and cancels it, uploads a file the network cuts off and resumes it, and shares its console by a
+// link whose uses run out. The panel itself has no Turkish catalogue yet, so its own words stay
+// English.
 
 import { type Browser, expect, test, type Page } from "@playwright/test";
 import { authenticator, given, visit } from "./support";
@@ -117,6 +118,17 @@ test("a workload is restarted, typed into, configured, filled, and shared", asyn
 
   const console_ = page.getByRole("region", { name: "Console" });
   await expect(console_.getByText("ready hello")).toBeVisible();
+
+  // What it uses now is its node's latest reading, beside the day accounted, which says how many
+  // intervals it measured, none yet for a workload started minutes ago unless an hour turned
+  // (§8 of docs/11-surface-web.md, §2 of docs/15-observability.md).
+  const usage = page.getByRole("region", { name: "Usage" });
+  const now = usage.getByRole("region", { name: "Now" });
+  await expect(now.getByText("Memory", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(now).toContainText("Read by the workload's node at");
+  const accounted = usage.getByRole("region", { name: "Accounted" });
+  await expect(accounted).toContainText(/\d+ intervals? measured/);
+  await expect(accounted).toContainText("differenced between two samples");
 
   // The recipe says a restart costs something: its plan is previewed in place and confirmed once
   // (§4 of docs/11-surface-web.md), and its convergence shown as it happens (step 5 of §38).

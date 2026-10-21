@@ -5,6 +5,7 @@
 //! docs/15-observability.md, "Measuring it, as designed").
 
 use super::book::{self, Book};
+use super::now::Readings;
 use super::{Meter, READ_EVERY, reading};
 use crate::held::HeldSet;
 use crate::host::Host;
@@ -14,6 +15,7 @@ use crate::runtime::{Runtime, RuntimeError};
 use korpis_core::workload::network::host_link;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -71,6 +73,12 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         Self { meter, sources, journal, interval }
     }
 
+    /// Watches what each workload comes to at every reading.
+    #[must_use]
+    pub fn watch(&self) -> watch::Receiver<Readings> {
+        self.meter.watch()
+    }
+
     /// The interval sampled at: the control plane's, once it declared one, or else the agent's.
     fn interval(&self) -> Duration {
         (*self.sources.told.borrow()).unwrap_or(self.interval)
@@ -98,8 +106,12 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         let last = self.meter.with_book(|b| b.read_at());
         let elapsed = last.and_then(|l| now.duration_since(l).ok()).unwrap_or(READ_EVERY);
         let integrated = elapsed.min(LONGEST_READ);
+        let mut memory = BTreeMap::<String, u64>::new();
         for (object, workload) in self.meter.live() {
-            self.read_object((&workload, &object), now, integrated).await;
+            if let Some(bytes) = self.read_object((&workload, &object), now, integrated).await {
+                let held = memory.entry(workload).or_default();
+                *held = held.saturating_add(bytes);
+            }
         }
         let held: Vec<String> = self.sources.held.borrow().assignments.keys().cloned().collect();
         for workload in &held {
@@ -117,21 +129,26 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             b.read_all(now);
         });
         self.meter.keep();
+        self.meter.publish(now, &memory);
     }
 
-    /// Reads `workload`'s `object`, its memory integrated over `integrated`.
+    /// Reads `workload`'s `object`, its memory integrated over `integrated`; the memory it
+    /// holds, where that was read.
     async fn read_object(
         &self,
         (workload, object): (&str, &str),
         now: SystemTime,
         integrated: Duration,
-    ) {
+    ) -> Option<u64> {
         let stats = match self.sources.runtime.stats(object).await {
             Ok(stats) => stats,
-            Err(RuntimeError::NotFound(_)) => return self.meter.ended(object, None),
+            Err(RuntimeError::NotFound(_)) => {
+                self.meter.ended(object, None);
+                return None;
+            }
             Err(e) => {
                 tracing::debug!(error = %e, object, "an object's counters went unread");
-                return;
+                return None;
             }
         };
         let c = stats.counters.as_option().cloned().unwrap_or_default();
@@ -140,6 +157,7 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             b.read(workload, object, reading(&c), now);
             b.memory((workload, object), memory, integrated);
         });
+        memory.0
     }
 
     /// Reads `workload`'s interface, if it has one.

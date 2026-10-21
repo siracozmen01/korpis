@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/metering.proto.
  */
 export const file_korpis_v1_metering: GenFile = /*@__PURE__*/
-  fileDesc("Chhrb3JwaXMvdjEvbWV0ZXJpbmcucHJvdG8SCWtvcnBpcy52MSKTAgoQTGlzdFVzYWdlUmVxdWVzdBIVCgh3b3JrbG9hZBgBIAEoCUgAiAEBEhQKB3Byb2plY3QYAiABKAlIAYgBARIZCgxvcmdhbml6YXRpb24YAyABKAlIAogBARIoCgRmcm9tGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNZXZlcnlfdmVyc2lvbhgGIAEoCBIkCgRwYWdlGAcgASgLMhYua29ycGlzLnYxLlBhZ2VSZXF1ZXN0QgsKCV93b3JrbG9hZEIKCghfcHJvamVjdEIPCg1fb3JnYW5pemF0aW9uImMKEUxpc3RVc2FnZVJlc3BvbnNlEicKB3JlY29yZHMYASADKAsyFi5rb3JwaXMudjEuVXNhZ2VSZWNvcmQSJQoEcGFnZRgCIAEoCzIXLmtvcnBpcy52MS5QYWdlUmVzcG9uc2Ui9AUKC1VzYWdlUmVjb3JkEgoKAmlkGAEgASgJEhAKCHdvcmtsb2FkGAIgASgJEhEKBG5vZGUYAyABKAlIAIgBARITCgtsZWFzZV9lcG9jaBgEIAEoBBIoCgRmcm9tGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASIgoEa2luZBgHIAEoDjIULmtvcnBpcy52MS5Vc2FnZUtpbmQSDQoFY2F1c2UYCCABKAkSEgoKc3VwZXJzZWRlcxgJIAMoCRIvCgtyZWNvcmRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoIY3B1X3VzZWMYCyABKARIAYgBARIfChJjcHVfdGhyb3R0bGVkX3VzZWMYDCABKARIAogBARIaCg1pb19yZWFkX2J5dGVzGA0gASgESAOIAQESGwoOaW9fd3JpdGVfYnl0ZXMYDiABKARIBIgBARIZCgxuZXRfcnhfYnl0ZXMYDyABKARIBYgBARIZCgxuZXRfdHhfYnl0ZXMYECABKARIBogBARIfChJtZW1vcnlfa2liX3NlY29uZHMYESABKARIB4gBARIeChFtZW1vcnlfcGVha19ieXRlcxgSIAEoBEgIiAEBEhcKCmRpc2tfYnl0ZXMYEyABKARICYgBARIkCgZsb3NzZXMYFCADKAsyFC5rb3JwaXMudjEuVXNhZ2VMb3NzQgcKBV9ub2RlQgsKCV9jcHVfdXNlY0IVChNfY3B1X3Rocm90dGxlZF91c2VjQhAKDl9pb19yZWFkX2J5dGVzQhEKD19pb193cml0ZV9ieXRlc0IPCg1fbmV0X3J4X2J5dGVzQg8KDV9uZXRfdHhfYnl0ZXNCFQoTX21lbW9yeV9raWJfc2Vjb25kc0IUChJfbWVtb3J5X3BlYWtfYnl0ZXNCDQoLX2Rpc2tfYnl0ZXMibAoJVXNhZ2VMb3NzEigKBGZyb20YASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKAnRvGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVjYXVzZRgDIAEoCSJmChJMaXN0UGVyaW9kc1JlcXVlc3QSKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIroBCg5NZXRlcmluZ1BlcmlvZBIpCgVzdGFydBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJwoDZW5kGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIlCgVzdGF0ZRgDIAEoDjIWLmtvcnBpcy52MS5QZXJpb2RTdGF0ZRItCgljbG9zZXNfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkEKE0xpc3RQZXJpb2RzUmVzcG9uc2USKgoHcGVyaW9kcxgBIAMoCzIZLmtvcnBpcy52MS5NZXRlcmluZ1BlcmlvZCpvCglVc2FnZUtpbmQSGgoWVVNBR0VfS0lORF9VTlNQRUNJRklFRBAAEhcKE1VTQUdFX0tJTkRfTUVBU1VSRUQQARISCg5VU0FHRV9LSU5EX0dBUBACEhkKFVVTQUdFX0tJTkRfQURKVVNUTUVOVBADKnUKC1BlcmlvZFN0YXRlEhwKGFBFUklPRF9TVEFURV9VTlNQRUNJRklFRBAAEhUKEVBFUklPRF9TVEFURV9PUEVOEAESGAoUUEVSSU9EX1NUQVRFX0NMT1NJTkcQAhIXChNQRVJJT0RfU1RBVEVfQ0xPU0VEEAMysQEKD01ldGVyaW5nU2VydmljZRJLCglMaXN0VXNhZ2USGy5rb3JwaXMudjEuTGlzdFVzYWdlUmVxdWVzdBocLmtvcnBpcy52MS5MaXN0VXNhZ2VSZXNwb25zZSIDkAIBElEKC0xpc3RQZXJpb2RzEh0ua29ycGlzLnYxLkxpc3RQZXJpb2RzUmVxdWVzdBoeLmtvcnBpcy52MS5MaXN0UGVyaW9kc1Jlc3BvbnNlIgOQAgFiBnByb3RvMw", [file_google_protobuf_timestamp, file_korpis_v1_api]);
+  fileDesc("Chhrb3JwaXMvdjEvbWV0ZXJpbmcucHJvdG8SCWtvcnBpcy52MSKmAgoQTGlzdFVzYWdlUmVxdWVzdBIVCgh3b3JrbG9hZBgBIAEoCUgAiAEBEhQKB3Byb2plY3QYAiABKAlIAYgBARIZCgxvcmdhbml6YXRpb24YAyABKAlIAogBARIoCgRmcm9tGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoNZXZlcnlfdmVyc2lvbhgGIAEoCBIkCgRwYWdlGAcgASgLMhYua29ycGlzLnYxLlBhZ2VSZXF1ZXN0EhEKCWJ5X3BlcmlvZBgIIAEoCEILCglfd29ya2xvYWRCCgoIX3Byb2plY3RCDwoNX29yZ2FuaXphdGlvbiJjChFMaXN0VXNhZ2VSZXNwb25zZRInCgdyZWNvcmRzGAEgAygLMhYua29ycGlzLnYxLlVzYWdlUmVjb3JkEiUKBHBhZ2UYAiABKAsyFy5rb3JwaXMudjEuUGFnZVJlc3BvbnNlIvQFCgtVc2FnZVJlY29yZBIKCgJpZBgBIAEoCRIQCgh3b3JrbG9hZBgCIAEoCRIRCgRub2RlGAMgASgJSACIAQESEwoLbGVhc2VfZXBvY2gYBCABKAQSKAoEZnJvbRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiIKBGtpbmQYByABKA4yFC5rb3JwaXMudjEuVXNhZ2VLaW5kEg0KBWNhdXNlGAggASgJEhIKCnN1cGVyc2VkZXMYCSADKAkSLwoLcmVjb3JkZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKCGNwdV91c2VjGAsgASgESAGIAQESHwoSY3B1X3Rocm90dGxlZF91c2VjGAwgASgESAKIAQESGgoNaW9fcmVhZF9ieXRlcxgNIAEoBEgDiAEBEhsKDmlvX3dyaXRlX2J5dGVzGA4gASgESASIAQESGQoMbmV0X3J4X2J5dGVzGA8gASgESAWIAQESGQoMbmV0X3R4X2J5dGVzGBAgASgESAaIAQESHwoSbWVtb3J5X2tpYl9zZWNvbmRzGBEgASgESAeIAQESHgoRbWVtb3J5X3BlYWtfYnl0ZXMYEiABKARICIgBARIXCgpkaXNrX2J5dGVzGBMgASgESAmIAQESJAoGbG9zc2VzGBQgAygLMhQua29ycGlzLnYxLlVzYWdlTG9zc0IHCgVfbm9kZUILCglfY3B1X3VzZWNCFQoTX2NwdV90aHJvdHRsZWRfdXNlY0IQCg5faW9fcmVhZF9ieXRlc0IRCg9faW9fd3JpdGVfYnl0ZXNCDwoNX25ldF9yeF9ieXRlc0IPCg1fbmV0X3R4X2J5dGVzQhUKE19tZW1vcnlfa2liX3NlY29uZHNCFAoSX21lbW9yeV9wZWFrX2J5dGVzQg0KC19kaXNrX2J5dGVzImwKCVVzYWdlTG9zcxIoCgRmcm9tGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY2F1c2UYAyABKAkiZgoSTGlzdFBlcmlvZHNSZXF1ZXN0EigKBGZyb20YASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKAnRvGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK6AQoOTWV0ZXJpbmdQZXJpb2QSKQoFc3RhcnQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEicKA2VuZBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJQoFc3RhdGUYAyABKA4yFi5rb3JwaXMudjEuUGVyaW9kU3RhdGUSLQoJY2xvc2VzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJBChNMaXN0UGVyaW9kc1Jlc3BvbnNlEioKB3BlcmlvZHMYASADKAsyGS5rb3JwaXMudjEuTWV0ZXJpbmdQZXJpb2QihwQKCFVzYWdlTm93EiYKAmF0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIpCgVzaW5jZRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoMbWVtb3J5X2J5dGVzGAMgASgESACIAQESGwoOY3B1X21pbGxpY29yZXMYBCABKARIAYgBARIjChZjcHVfdGhyb3R0bGVkX3Blcm1pbGxlGAUgASgESAKIAQESJQoYaW9fcmVhZF9ieXRlc19wZXJfc2Vjb25kGAYgASgESAOIAQESJgoZaW9fd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgHIAEoBEgEiAEBEiQKF25ldF9yeF9ieXRlc19wZXJfc2Vjb25kGAggASgESAWIAQESJAoXbmV0X3R4X2J5dGVzX3Blcl9zZWNvbmQYCSABKARIBogBAUIPCg1fbWVtb3J5X2J5dGVzQhEKD19jcHVfbWlsbGljb3Jlc0IZChdfY3B1X3Rocm90dGxlZF9wZXJtaWxsZUIbChlfaW9fcmVhZF9ieXRlc19wZXJfc2Vjb25kQhwKGl9pb193cml0ZV9ieXRlc19wZXJfc2Vjb25kQhoKGF9uZXRfcnhfYnl0ZXNfcGVyX3NlY29uZEIaChhfbmV0X3R4X2J5dGVzX3Blcl9zZWNvbmQqbwoJVXNhZ2VLaW5kEhoKFlVTQUdFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNVU0FHRV9LSU5EX01FQVNVUkVEEAESEgoOVVNBR0VfS0lORF9HQVAQAhIZChVVU0FHRV9LSU5EX0FESlVTVE1FTlQQAyp1CgtQZXJpb2RTdGF0ZRIcChhQRVJJT0RfU1RBVEVfVU5TUEVDSUZJRUQQABIVChFQRVJJT0RfU1RBVEVfT1BFThABEhgKFFBFUklPRF9TVEFURV9DTE9TSU5HEAISFwoTUEVSSU9EX1NUQVRFX0NMT1NFRBADMrEBCg9NZXRlcmluZ1NlcnZpY2USSwoJTGlzdFVzYWdlEhsua29ycGlzLnYxLkxpc3RVc2FnZVJlcXVlc3QaHC5rb3JwaXMudjEuTGlzdFVzYWdlUmVzcG9uc2UiA5ACARJRCgtMaXN0UGVyaW9kcxIdLmtvcnBpcy52MS5MaXN0UGVyaW9kc1JlcXVlc3QaHi5rb3JwaXMudjEuTGlzdFBlcmlvZHNSZXNwb25zZSIDkAIBYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_api]);
 
 /**
  * @generated from message korpis.v1.ListUsageRequest
@@ -72,6 +72,18 @@ export type ListUsageRequest = Message<"korpis.v1.ListUsageRequest"> & {
    * @generated from field: korpis.v1.PageRequest page = 7;
    */
   page?: PageRequest | undefined;
+
+  /**
+   * Read the window as an invoice sums it: the records of the UTC days beginning from the day
+   * `from` falls in and before the day `to` falls in, each record in the day it counts in. A
+   * measurement or gap counts in the day its interval begins, and an adjustment in the day it was
+   * recorded, which was open then; a record superseded only by an adjustment stays in its closed
+   * day. So a closed day reads the same whenever it is read, and a sum of consecutive days counts
+   * each use once.
+   *
+   * @generated from field: bool by_period = 8;
+   */
+  byPeriod: boolean;
 };
 
 /**
@@ -340,6 +352,80 @@ export type ListPeriodsResponse = Message<"korpis.v1.ListPeriodsResponse"> & {
  */
 export const ListPeriodsResponseSchema: GenMessage<ListPeriodsResponse> = /*@__PURE__*/
   messageDesc(file_korpis_v1_metering, 6);
+
+/**
+ * What a workload uses now, as its node reads it: sent by the node at each of its meter's
+ * readings, every ten seconds, on a session opened under metering.read over the workload (§3.1
+ * of docs/02-architecture.md), whose params are empty. It is not a record: nothing keeps it, and
+ * what is billed is the UsageRecord of the interval it falls in. Each rate is over the window
+ * from the reading before, and absent where either reading did not measure it, or on the first,
+ * which has no reading before it.
+ *
+ * @generated from message korpis.v1.UsageNow
+ */
+export type UsageNow = Message<"korpis.v1.UsageNow"> & {
+  /**
+   * When the node read it, by the node's clock.
+   *
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp | undefined;
+
+  /**
+   * The reading before, which the rates are over; absent on the first.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp | undefined;
+
+  /**
+   * Memory in use at the reading.
+   *
+   * @generated from field: optional uint64 memory_bytes = 3;
+   */
+  memoryBytes?: bigint | undefined;
+
+  /**
+   * CPU time a second of the window, in thousandths of a core.
+   *
+   * @generated from field: optional uint64 cpu_millicores = 4;
+   */
+  cpuMillicores?: bigint | undefined;
+
+  /**
+   * Of the window, the thousandths the workload's CPU was throttled.
+   *
+   * @generated from field: optional uint64 cpu_throttled_permille = 5;
+   */
+  cpuThrottledPermille?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 io_read_bytes_per_second = 6;
+   */
+  ioReadBytesPerSecond?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 io_write_bytes_per_second = 7;
+   */
+  ioWriteBytesPerSecond?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 net_rx_bytes_per_second = 8;
+   */
+  netRxBytesPerSecond?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 net_tx_bytes_per_second = 9;
+   */
+  netTxBytesPerSecond?: bigint | undefined;
+};
+
+/**
+ * Describes the message korpis.v1.UsageNow.
+ * Use `create(UsageNowSchema)` to create a new message.
+ */
+export const UsageNowSchema: GenMessage<UsageNow> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_metering, 7);
 
 /**
  * @generated from enum korpis.v1.UsageKind

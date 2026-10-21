@@ -240,6 +240,8 @@ ext.<extension>.<action>              extensions define their own, namespaced
   paying for what they use (§7 there). It is kept while an organization is suspended (§2.1
   there), since a suspended tenant is still billed for what it used. It is separate from
   `workload.read` so a billing system can read every workload's usage and nothing else of them.
+  Over a workload it also opens a session at the workload's node, through the relay, that is
+  sent what the workload uses now at each of the node's meter readings.
   When each metering day closes is the installation's, the same for every caller, and is read by
   any caller with a credential.
 - **`workload.exec` is separate from `workload.console.write`.** Typing into a console the

@@ -127,7 +127,9 @@ impl MeteringRead for PgStore {
                     r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,
                     r.losses, r.recorded_at
                FROM metering_record r JOIN workload w ON w.id = r.workload_id
-              WHERE r.interval_start >= $4 AND r.interval_start < $5
+              WHERE ((NOT $10 OR r.kind <> 'adjustment')
+                     AND r.interval_start >= $4 AND r.interval_start < $5
+                  OR $10 AND r.kind = 'adjustment' AND r.recorded_at >= $4 AND r.recorded_at < $5)
                 AND ($1::uuid IS NULL OR r.workload_id = $1)
                 AND ($2::uuid IS NULL OR w.project_id = $2)
                 AND ($3::uuid IS NULL OR w.organization_id IN (
@@ -137,7 +139,8 @@ impl MeteringRead for PgStore {
                             SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)
                         SELECT id FROM tree))
                 AND (NOT $6 OR NOT EXISTS (
-                        SELECT 1 FROM metering_record s WHERE r.id = ANY (s.supersedes)))
+                        SELECT 1 FROM metering_record s WHERE r.id = ANY (s.supersedes)
+                           AND (NOT $10 OR s.kind <> 'adjustment')))
                 AND ($7::timestamptz IS NULL OR (r.interval_start, r.id) > ($7, $8::uuid))
               ORDER BY r.interval_start, r.id LIMIT $9",
             q.workload,
@@ -148,7 +151,8 @@ impl MeteringRead for PgStore {
             q.current,
             after_start,
             after_id,
-            i64::from(q.limit)
+            i64::from(q.limit),
+            q.by_period
         )
         .fetch_all(&self.pool)
         .await

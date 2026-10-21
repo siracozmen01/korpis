@@ -55,9 +55,10 @@ export function Value(props: {
 }
 
 /** The observed values of `status`: its state and its health. A resource figure is not among
- * them: §8 of docs/11-surface-web.md shows no figure without its source, its window, and how it
- * was collected, and nothing gives one those until metering is built (§2 and §3 of
- * docs/15-observability.md), so the panel shows none rather than one it cannot account for. */
+ * them: an observation's carry no window and no collection method, and nothing fills them, so
+ * what a workload uses is the usage section's (../usage/Usage.tsx), its node's latest reading
+ * beside the records accounted, each with its source, its window, and how it was measured (§8
+ * of docs/11-surface-web.md, §2 of docs/15-observability.md). */
 export function Observed(props: {
   readonly status: WorkloadStatus;
   readonly freshness: Freshness;

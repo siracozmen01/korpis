@@ -14,6 +14,7 @@ use korpis_core::id::{Id, IdKind};
 use korpis_core::metering::{DAY, RecordKind, day_of, gaps, interval_of};
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body as B;
+use korpis_proto::korpis::v1 as pb;
 use std::time::{Duration, SystemTime};
 
 const HOUR: Duration = Duration::from_secs(3600);
@@ -143,6 +144,35 @@ async fn silence_is_a_gap_until_measured_and_a_closed_day_is_adjusted() {
         records.iter().filter(|r| r.kind == RecordKind::Gap).map(|r| r.id).collect();
     assert!(late.supersedes.iter().all(|g| gap_ids.contains(g)));
     assert_eq!(records[0].kind, RecordKind::Measured, "the first, before its day closed");
+
+    // Read as an invoice sums it, the closed day is what it was when it closed, its gaps still
+    // in it, and the adjustment is in the day it was written into: each use counted once.
+    let read = |from: SystemTime, by_period| pb::ListUsageRequest {
+        workload: Some(workload.clone()),
+        from: korpis_wire::timestamp(from).into(),
+        to: korpis_wire::timestamp(from + DAY).into(),
+        by_period,
+        ..Default::default()
+    };
+    let metering = h.metering(h.root());
+    let kinds = |r: &pb::ListUsageResponse| -> Vec<pb::UsageKind> {
+        r.records.iter().filter_map(|r| r.kind.as_known()).collect()
+    };
+    let in_day = gaps(start + HOUR, start + DAY, HOUR).len();
+    let closed = metering.list_usage(read(start, true)).await.unwrap().into_owned();
+    assert!(!kinds(&closed).contains(&pb::UsageKind::USAGE_KIND_ADJUSTMENT), "{closed:?}");
+    assert_eq!(
+        kinds(&closed).iter().filter(|k| **k == pb::UsageKind::USAGE_KIND_GAP).count(),
+        in_day
+    );
+    let today = metering.list_usage(read(day_of(now), true)).await.unwrap().into_owned();
+    let adjusted: Vec<_> = today.records.iter().filter(|r| r.cpu_usec == Some(40)).collect();
+    assert_eq!(adjusted.len(), 1, "the adjustment, in the day it was recorded");
+    // By its intervals, what was used: the adjustment in place of the gaps it supersedes.
+    let used = metering.list_usage(read(start, false)).await.unwrap().into_owned();
+    assert!(used.records.iter().any(|r| r.cpu_usec == Some(40)));
+    let gaps_left = kinds(&used).iter().filter(|k| **k == pb::UsageKind::USAGE_KIND_GAP).count();
+    assert_eq!(gaps_left, in_day - 5, "the five it covers are superseded");
 }
 
 #[tokio::test]

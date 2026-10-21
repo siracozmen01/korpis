@@ -12,6 +12,7 @@ pub mod console;
 pub mod console_write;
 pub mod files;
 pub mod handler;
+pub mod usage;
 pub mod wake;
 
 use crate::held::HeldSet;

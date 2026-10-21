@@ -41,6 +41,11 @@ pub struct Usage {
     /// Superseded records too: the gaps a later measurement replaced.
     #[arg(long)]
     every_version: bool,
+    /// As an invoice sums them: the UTC days from the one `--from` falls in and before the one
+    /// `--to` falls in, each record in the day it counts in, an adjustment in the day it was
+    /// recorded; a closed day reads the same whenever it is read.
+    #[arg(long)]
+    by_period: bool,
     /// At most this many, the earliest first.
     #[arg(long, default_value_t = 100)]
     limit: usize,
@@ -101,6 +106,7 @@ async fn request(c: &Connection, u: &Usage) -> Result<pb::ListUsageRequest, CliE
         from: from.into(),
         to: to.into(),
         every_version: u.every_version,
+        by_period: u.by_period,
         ..Default::default()
     };
     if let Some(w) = &u.workload {

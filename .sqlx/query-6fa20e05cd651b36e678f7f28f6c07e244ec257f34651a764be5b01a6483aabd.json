@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT r.id, r.workload_id, r.node_id, r.lease_epoch, r.interval_start,\n                    r.interval_end, r.kind, r.cause, r.supersedes, r.cpu_usec,\n                    r.cpu_throttled_usec, r.io_read_bytes, r.io_write_bytes, r.net_rx_bytes,\n                    r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,\n                    r.losses, r.recorded_at\n               FROM metering_record r JOIN workload w ON w.id = r.workload_id\n              WHERE r.interval_start >= $4 AND r.interval_start < $5\n                AND ($1::uuid IS NULL OR r.workload_id = $1)\n                AND ($2::uuid IS NULL OR w.project_id = $2)\n                AND ($3::uuid IS NULL OR w.organization_id IN (\n                        WITH RECURSIVE tree AS (\n                            SELECT id FROM organization WHERE id = $3\n                            UNION ALL\n                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)\n                        SELECT id FROM tree))\n                AND (NOT $6 OR NOT EXISTS (\n                        SELECT 1 FROM metering_record s WHERE r.id = ANY (s.supersedes)))\n                AND ($7::timestamptz IS NULL OR (r.interval_start, r.id) > ($7, $8::uuid))\n              ORDER BY r.interval_start, r.id LIMIT $9",
+  "query": "SELECT r.id, r.workload_id, r.node_id, r.lease_epoch, r.interval_start,\n                    r.interval_end, r.kind, r.cause, r.supersedes, r.cpu_usec,\n                    r.cpu_throttled_usec, r.io_read_bytes, r.io_write_bytes, r.net_rx_bytes,\n                    r.net_tx_bytes, r.memory_kib_seconds, r.memory_peak_bytes, r.disk_bytes,\n                    r.losses, r.recorded_at\n               FROM metering_record r JOIN workload w ON w.id = r.workload_id\n              WHERE ((NOT $10 OR r.kind <> 'adjustment')\n                     AND r.interval_start >= $4 AND r.interval_start < $5\n                  OR $10 AND r.kind = 'adjustment' AND r.recorded_at >= $4 AND r.recorded_at < $5)\n                AND ($1::uuid IS NULL OR r.workload_id = $1)\n                AND ($2::uuid IS NULL OR w.project_id = $2)\n                AND ($3::uuid IS NULL OR w.organization_id IN (\n                        WITH RECURSIVE tree AS (\n                            SELECT id FROM organization WHERE id = $3\n                            UNION ALL\n                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)\n                        SELECT id FROM tree))\n                AND (NOT $6 OR NOT EXISTS (\n                        SELECT 1 FROM metering_record s WHERE r.id = ANY (s.supersedes)\n                           AND (NOT $10 OR s.kind <> 'adjustment')))\n                AND ($7::timestamptz IS NULL OR (r.interval_start, r.id) > ($7, $8::uuid))\n              ORDER BY r.interval_start, r.id LIMIT $9",
   "describe": {
     "columns": [
       {
@@ -234,7 +234,8 @@
         "Bool",
         "Timestamptz",
         "Uuid",
-        "Int8"
+        "Int8",
+        "Bool"
       ]
     },
     "nullable": [
@@ -260,5 +261,5 @@
       false
     ]
   },
-  "hash": "c4f98cd2108f7e52183c0365d210c97436b0511ca977965c00bfe257bd2abdef"
+  "hash": "6fa20e05cd651b36e678f7f28f6c07e244ec257f34651a764be5b01a6483aabd"
 }

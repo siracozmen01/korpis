@@ -6,6 +6,9 @@
   "+8amu4Ol": {
     "defaultMessage": "Your last sign-in was more than ten minutes ago. Sign in again to continue."
   },
+  "+METW+EQ": {
+    "defaultMessage": "Read by the workload's node at {at}: memory in use then. Rates follow from its next reading."
+  },
   "+PRD45NT": {
     "defaultMessage": "A recovery code"
   },
@@ -15,6 +18,13 @@
   "+e3kx38m": {
     "defaultMessage": "its image is not supported there",
     "description": "why a node cannot run a workload, completing 'it cannot run there because'"
+  },
+  "+uBQ8wO1": {
+    "defaultMessage": "Read by the workload's node at {at}, by its clock: memory in use then, and each rate over the {seconds, plural, one {# second} other {# seconds}} before. Not billed, and not the figure below."
+  },
+  "/0MCIc2b": {
+    "defaultMessage": "{size} at {at}",
+    "description": "disk measured then"
   },
   "/3iT1gnB": {
     "defaultMessage": "Danger",
@@ -33,6 +43,10 @@
   "/GKa1+lg": {
     "defaultMessage": "file",
     "description": "a listing entry's kind"
+  },
+  "/IQrq2KV": {
+    "defaultMessage": "Now",
+    "description": "usage as the node reads it"
   },
   "/SF8inMU": {
     "defaultMessage": "missed while the control plane was down",
@@ -195,6 +209,10 @@
     "defaultMessage": "requested",
     "description": "what made a run"
   },
+  "5TdsCzpq": {
+    "defaultMessage": "measured",
+    "description": "a metering record"
+  },
   "5ot6y0in": {
     "defaultMessage": "no passkey was made"
   },
@@ -347,6 +365,9 @@
   "AZ8OrWtY": {
     "defaultMessage": "Its plan waits for approval: {why}"
   },
+  "Adiqi3MR": {
+    "defaultMessage": "From {from} to now: {measured, plural, one {# interval} other {# intervals}} measured{gaps, plural, =0 {} other {, not counting # unheard over {hours} hours}}."
+  },
   "Ak/ics6v": {
     "defaultMessage": "Make new ones",
     "description": "button: make new recovery codes"
@@ -397,6 +418,9 @@
   "C0bpQ4YI": {
     "defaultMessage": "They can"
   },
+  "C1xXK205": {
+    "defaultMessage": "Waiting for the node's next reading…"
+  },
   "C3v4CI1c": {
     "defaultMessage": "End every other session"
   },
@@ -442,12 +466,24 @@
   "DDEIbpCL": {
     "defaultMessage": "The code expires at"
   },
+  "DFOWqdkl": {
+    "defaultMessage": "{from} to {to}",
+    "description": "an interval"
+  },
   "DIHNjZk9": {
     "defaultMessage": "nothing",
     "description": "a client that names no user agent"
   },
+  "DTF6uJd7": {
+    "defaultMessage": "Interval",
+    "description": "a usage column"
+  },
   "DbQxUDQO": {
     "defaultMessage": "{known, select, yes {Declared {ago} ago} other {Declared}}, {where, select, node {node {node}} region {its node in {region}} other {its node}} has not acknowledged."
+  },
+  "Dr+dcwVH": {
+    "defaultMessage": "Memory",
+    "description": "a usage figure"
   },
   "E1h4MoXX": {
     "defaultMessage": "Redeem",
@@ -462,6 +498,9 @@
   },
   "EOBZyeyd": {
     "defaultMessage": "an unknown time"
+  },
+  "EYSPop3r": {
+    "defaultMessage": "Nothing was recorded over the day."
   },
   "Eh+k5eCM": {
     "defaultMessage": "Stylesheet"
@@ -485,6 +524,10 @@
   },
   "FAkmp8n+": {
     "defaultMessage": "Make the link"
+  },
+  "FC/2C3Mk": {
+    "defaultMessage": "late, after its day closed",
+    "description": "a metering adjustment"
   },
   "FDCCkvlv": {
     "defaultMessage": "Signing in"
@@ -529,6 +572,10 @@
   "FpysbNB0": {
     "defaultMessage": "It says it is"
   },
+  "FqyUjrsq": {
+    "defaultMessage": "Network received",
+    "description": "a usage figure"
+  },
   "FtiVEVDY": {
     "defaultMessage": "{by} typed: {text}",
     "description": "a line typed into a console, and by whom"
@@ -561,6 +608,10 @@
   },
   "HAlOn1Zs": {
     "defaultMessage": "Name"
+  },
+  "HCO4YTa2": {
+    "defaultMessage": "Block read",
+    "description": "a usage figure"
   },
   "HErk5s7f": {
     "defaultMessage": "Downtime: about {seconds, plural, one {# second} other {# seconds}}."
@@ -622,6 +673,10 @@
   },
   "JeLzuc6N": {
     "defaultMessage": "The code your terminal shows"
+  },
+  "JegOZ5Sz": {
+    "defaultMessage": "Sent",
+    "description": "a usage column"
   },
   "JiItQLSQ": {
     "defaultMessage": "{where, select, node {Node {node}} region {Its node in {region}} other {Its node}} has not been heard for {span}."
@@ -868,6 +923,10 @@
   "QUNOzzQJ": {
     "defaultMessage": "Show the runs"
   },
+  "QaevgwhF": {
+    "defaultMessage": "Read",
+    "description": "a usage column"
+  },
   "Qgzl1qJN": {
     "defaultMessage": "Its provider did not answer: {why}"
   },
@@ -916,6 +975,10 @@
     "defaultMessage": "Resume",
     "description": "button: resume an upload"
   },
+  "RpzP/389": {
+    "defaultMessage": "Network sent",
+    "description": "a usage figure"
+  },
   "Rsr0afH7": {
     "defaultMessage": "Sign in a command-line client"
   },
@@ -931,6 +994,10 @@
   },
   "SGSyVNmC": {
     "defaultMessage": "workloads labelled {labels}"
+  },
+  "SqsiTxuN": {
+    "defaultMessage": "Written",
+    "description": "a usage column"
   },
   "SsdT0IyI": {
     "defaultMessage": "used up",
@@ -969,6 +1036,10 @@
   "TDUCXqaO": {
     "defaultMessage": "Signed in as {name}."
   },
+  "TFzi1qzw": {
+    "defaultMessage": "{size}/s",
+    "description": "bytes a second"
+  },
   "TThIOMeM": {
     "defaultMessage": "Not found"
   },
@@ -981,6 +1052,10 @@
   "Tj+uaRpH": {
     "defaultMessage": "another run was active",
     "description": "why a run ended"
+  },
+  "TlViedNL": {
+    "defaultMessage": "Block written",
+    "description": "a usage figure"
   },
   "TpH+2TQO": {
     "defaultMessage": "This sign-in was begun in another browser or tab, so it cannot be completed here. Sign in again from this one."
@@ -1006,6 +1081,10 @@
   },
   "UOwcGikb": {
     "defaultMessage": "Entry {n}, guaranteed {dimension}"
+  },
+  "UYHJnj7x": {
+    "defaultMessage": "Disk",
+    "description": "a usage figure"
   },
   "Usf2nt81": {
     "defaultMessage": "Open to read.",
@@ -1158,6 +1237,10 @@
   "a0PUqsnM": {
     "defaultMessage": "Recovery codes"
   },
+  "a2d2NBD2": {
+    "defaultMessage": "unheard",
+    "description": "a metering gap"
+  },
   "aKY5Nsss": {
     "defaultMessage": "Downloaded {name}."
   },
@@ -1176,6 +1259,10 @@
   },
   "acrOozm0": {
     "defaultMessage": "Continue"
+  },
+  "axg3rbL5": {
+    "defaultMessage": "Accounted",
+    "description": "usage the workload is billed on"
   },
   "b3rCwi2e": {
     "defaultMessage": "Open.",
@@ -1259,6 +1346,9 @@
   "dMvvqrTm": {
     "defaultMessage": "Sold"
   },
+  "dOd1hwVp": {
+    "defaultMessage": "Show the usage"
+  },
   "dVx3yznM": {
     "defaultMessage": "Memory"
   },
@@ -1267,6 +1357,10 @@
   },
   "dastCq+7": {
     "defaultMessage": "This browser last heard from it {ago} ago."
+  },
+  "dtYTi3e8": {
+    "defaultMessage": "Recorded as",
+    "description": "a usage column"
   },
   "du4X8Qzs": {
     "defaultMessage": "pending",
@@ -1281,8 +1375,15 @@
   "e4C1p0sc": {
     "defaultMessage": "Recovery code"
   },
+  "e7uDfKUT": {
+    "defaultMessage": "Measured by the workload's node and recorded by the control plane an interval at a time. CPU, throttled time, and block and network bytes are the kernel's counters, differenced between two samples; memory is integrated from readings every ten seconds; disk is what the volumes' filesystem accounted at an interval's end. A gap is an interval nothing was heard over, never filled in."
+  },
   "e9SAPfzd": {
     "defaultMessage": "That did not sign you in."
+  },
+  "eDZcmQn6": {
+    "defaultMessage": "Peak memory",
+    "description": "a usage figure"
   },
   "eN1HQN31": {
     "defaultMessage": "Remove the authenticator app"
@@ -1380,6 +1481,9 @@
   "hkRoo7vP": {
     "defaultMessage": "The directory above"
   },
+  "hlu/UVW6": {
+    "defaultMessage": "{n, plural, one {The # record} other {Each of the # records}}"
+  },
   "hybHBiuq": {
     "defaultMessage": "None you can read."
   },
@@ -1409,6 +1513,10 @@
   },
   "il62TauY": {
     "defaultMessage": "Realm: the claim or guild naming the set"
+  },
+  "ipeOHj31": {
+    "defaultMessage": "CPU",
+    "description": "a usage column"
   },
   "isipEzpo": {
     "defaultMessage": "Minutes of grace while it cannot be asked"
@@ -1471,6 +1579,14 @@
   "kvFHVWDb": {
     "defaultMessage": "A share link is held only while its page is open, so it is not left in the browser. Open it again from where it was sent to you."
   },
+  "l+Q2Uzc5": {
+    "defaultMessage": "Throttled",
+    "description": "a usage figure: CPU throttled"
+  },
+  "lO2mTRKT": {
+    "defaultMessage": "Memory",
+    "description": "a usage column"
+  },
   "lWYMAj0Y": {
     "defaultMessage": "Reading its configuration…"
   },
@@ -1486,6 +1602,10 @@
   "m+KRi2NS": {
     "defaultMessage": "Earlier",
     "description": "button: read earlier console lines"
+  },
+  "m19Hb+VP": {
+    "defaultMessage": "{n, plural, one {{count} core} other {{count} cores}}",
+    "description": "CPU in use"
   },
   "m8Zm/he+": {
     "defaultMessage": "Held stopped while its organization, or one above it, is suspended."
@@ -1524,6 +1644,14 @@
   "nIafWUcM": {
     "defaultMessage": "Downloading {name}: {done} of {total}"
   },
+  "nMyqQDPP": {
+    "defaultMessage": "CPU",
+    "description": "a usage figure"
+  },
+  "nN6WZyJ2": {
+    "defaultMessage": "Received",
+    "description": "a usage column"
+  },
   "nVDoOwm8": {
     "defaultMessage": "running",
     "description": "a workload's declared power state"
@@ -1533,6 +1661,9 @@
   },
   "nh0uJD+E": {
     "defaultMessage": "Entry {n}"
+  },
+  "nkWrtaLz": {
+    "defaultMessage": "Reading what it used…"
   },
   "ntlnaUQN": {
     "defaultMessage": "This organization sets none of its own."
@@ -1636,6 +1767,10 @@
   "rs6XNweZ": {
     "defaultMessage": "Product name"
   },
+  "rtuT1XEt": {
+    "defaultMessage": "Peak",
+    "description": "a usage column"
+  },
   "rxv4RRs4": {
     "defaultMessage": "Rename",
     "description": "button: rename a file"
@@ -1659,6 +1794,10 @@
   },
   "sYQQIZsv": {
     "defaultMessage": "start it"
+  },
+  "sgfAtMMm": {
+    "defaultMessage": "{hours} GiB-hours",
+    "description": "memory held over time"
   },
   "sjzOngga": {
     "defaultMessage": "the control plane",
@@ -1729,6 +1868,10 @@
   "vNKET4df": {
     "defaultMessage": "Given on"
   },
+  "vNzwC4D0": {
+    "defaultMessage": "{seconds} s",
+    "description": "CPU time"
+  },
   "vcc/+oBE": {
     "defaultMessage": "IRREVERSIBLE"
   },
@@ -1745,6 +1888,10 @@
   },
   "w9y4DE8u": {
     "defaultMessage": "Downtime: unknown."
+  },
+  "wBsEapDn": {
+    "defaultMessage": "Usage",
+    "description": "what a workload used"
   },
   "wEQDC6Wv": {
     "defaultMessage": "Edit"

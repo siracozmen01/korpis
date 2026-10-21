@@ -8,6 +8,7 @@
 
 pub mod book;
 pub mod metered;
+pub mod now;
 mod sample;
 
 use crate::held::HeldSet;
@@ -19,6 +20,7 @@ use buffa::Message as _;
 use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::driver::v1 as driver;
 use metered::Metered;
+use now::{Now, Readings};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -96,6 +98,8 @@ pub struct Meter {
     book: Mutex<Book>,
     /// Each runtime object the node runs, by identifier: the workload it is.
     live: Mutex<BTreeMap<String, String>>,
+    /// What each workload came to at the latest reading, for whoever watches it now.
+    now: watch::Sender<Readings>,
     path: PathBuf,
 }
 
@@ -118,7 +122,8 @@ impl Meter {
         {
             accounts.rebooted(boot);
         }
-        Ok(Self { book: Mutex::new(accounts), live: Mutex::default(), path: path.to_owned() })
+        let (now, _) = watch::channel(Readings::default());
+        Ok(Self { book: Mutex::new(accounts), live: Mutex::default(), now, path: path.to_owned() })
     }
 
     pub(crate) fn with_book<T>(&self, f: impl FnOnce(&mut Book) -> T) -> T {
@@ -154,6 +159,26 @@ impl Meter {
         let now = SystemTime::now();
         self.with_book(|b| b.ended(&workload, object, last.map(reading), now));
         self.keep();
+    }
+
+    /// Watches what each workload comes to at every reading.
+    #[must_use]
+    pub fn watch(&self) -> watch::Receiver<Readings> {
+        self.now.subscribe()
+    }
+
+    /// Publishes what each workload came to at the reading at `at`, `memory` the bytes its
+    /// objects held where any were read.
+    fn publish(&self, at: SystemTime, memory: &BTreeMap<String, u64>) {
+        let readings = self.with_book(|b| {
+            let every = b.workloads().into_iter().map(|w| {
+                let counters = b.pending(&w).counters;
+                let memory_bytes = memory.get(&w).copied();
+                (w, Now { at, counters, memory_bytes })
+            });
+            every.collect::<BTreeMap<_, _>>()
+        });
+        self.now.send_replace(Arc::new(readings));
     }
 
     /// Writes the accounts to the meter's file; a failure is logged, and the next reading

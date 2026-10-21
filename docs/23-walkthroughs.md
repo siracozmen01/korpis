@@ -1368,6 +1368,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 120 | Any refusal of a refresh ended the person and deleted their token | §44 | `08-identity.md` §9.7 |
 | 121 | A ceremony whose answer was lost was reported refused, though it may have happened | §44 | `11-surface-web.md` §9 |
 | 122 | A console read on its node was recorded nowhere, though every document said it was | §45 | `14-streams.md` §8 |
+| 123 | A closed day changed when it was read again, and an adjustment was read in no day | §46 | `15-observability.md` §2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3877,3 +3878,70 @@ detect that (§8 of `17-security.md`). What the effect gives a tenant is the ope
 path made visible, not a guarantee against the unsupported one. Sam is named by their account,
 which Blockhaven cannot read further; who that account is is Kestrel's to answer, and the
 answer is on the ticket.
+
+## 46. A reseller bills a customer for a month whose last night its node went dark
+
+Written 2026-10-21, when metering was built (Phase 2 of §4 of `20-roadmap.md`). Kestrel Hosting
+runs the machines; Northwind is a reseller beneath Kestrel's root, and Blockhaven a customer
+beneath Northwind, running `mc` in its project `survival` on Kestrel's node `fra-12`. The
+interval is an hour and the lateness a day, the defaults. At 20:00 on 31 October a fibre cut
+isolates `fra-12` until 09:00 on 2 November. Northwind bills Blockhaven for October, and later
+for November, from what Korpis recorded.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, the steps of every trace
+cited `04-runtimes.md` three times, `11-surface-web.md` nine, and `15-observability.md` eleven,
+the fewest of any document a scenario of the platform's own crosses but the Discord surface and
+the stack; and §2 of `15-observability.md`, which this trace tests, had been crossed by one trace,
+§8, written before anything was metered.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | All month the node's meter reads `mc`'s cgroup every ten seconds, the driver's `Stats` answering its counters since the object was made. `mc` crashes twice and is made again each time, its counters beginning again, and the meter keeps the workload's continuous across its objects | `04-runtimes.md` §4.2; `15-observability.md` §2 |
+| 2 | At the end of each hour the node journals a sample; the control plane measures it from the one before on that node and records the interval, writing no effect | `15-observability.md` §2; `02-architecture.md` §4.10 |
+| 3 | 20:00 on the 31st: the link goes. `mc`'s volume is local, so its lease's expiry keeps it running, and the node keeps sampling into its journal, which holds a week | `02-architecture.md` §4.5, §4.6; `15-observability.md` §2 |
+| 4 | From 22:00 the control plane writes a gap, `node unreachable`, for each hour of `mc` two hours past. Blockhaven's panel opens no session at the node and says why, and its accounted day says how many hours were unheard | `15-observability.md` §2; `11-surface-web.md` §8 |
+| 5 | 00:00 on 2 November: the 31st closes, a day after it ended. At 06:00 Northwind's billing job runs `korpis get periods` for October, finds every day closed, and reads October's usage for Blockhaven's subtree as an invoice sums it: the month, with its last four hours unheard ‡ | `15-observability.md` §2; `13-surface-cli.md` §2; `08-identity.md` §7 |
+| 6 | 09:00: the link returns, and the journal delivers thirty-seven samples in order. The four of the 31st begin in a closed day, so each is an adjustment recorded on the 2nd, superseding the gap it covers; the rest supersede the gaps of the 1st and 2nd, which are not closed | `02-architecture.md` §4.10; `15-observability.md` §2 |
+| 7 | Blockhaven disputes October's invoice. Northwind reads October again: as an invoice sums it, exactly what it billed ‡; by its intervals, what was used, the adjustments in place of the gaps | `15-observability.md` §2; `10-api.md` §5 |
+| 8 | 1 December: Northwind bills November as an invoice sums it. The four adjustments are in it, each naming the October hour it belongs to, so those hours are billed once, a month late, rather than never ‡ | `15-observability.md` §2 |
+| 9 | Blockhaven's owner sets the panel's figure for now beside the invoice, and they differ. The panel says which is which: a ten-second reading of the node, not billed, beside the intervals accounted | `11-surface-web.md` §8; `15-observability.md` §2 |
+| 10 | Kestrel reads its whole tree and sees `fra-12` named on each record; Northwind reads the same records without it, since nothing Northwind holds reads Kestrel's machine | `08-identity.md` §7; `15-observability.md` §2, §4 |
+
+**One finding, at steps 5, 7, and 8** (‡).
+
+**FINDING 123: A closed day changed when it was read again, and the day an adjustment was written
+into could not be read. `CONFIRMED`**
+
+Found 2026-10-21 writing this trace, by asking the algebra question of step 5: what does the
+billing job read, and with what information does it know it read a closed month? §2 of
+`15-observability.md` answers Finding 11 of §8: a day closes after its lateness, and a record for
+a closed day is "written into the current open one as an adjustment", "never as a silent edit of
+a closed one". The control plane writes it so. But `ListUsage`, built a day before this trace,
+selected records by when their intervals began and, by default, left out whatever a later record
+superseded. So at step 7 October read differently from what was billed at step 5: the four gaps
+were gone, superseded, and the four adjustments were in it, because their intervals begin on the
+31st. And at step 8 November's read left the adjustments out, for the same reason. The closed
+day was edited, silently, by the read rather than the write, and the hours it lost were billed in
+no month. A billing system had no way to ask for a day as it closed, or for what was written into
+the day it was billing.
+
+**Resolution.** `ListUsage` reads a window one of two ways. By default, by its intervals: what was
+used over them, every superseded gap left out, which is what a person asks of a day. With
+`by_period`, as an invoice sums it: the records of the UTC days from the day `from` falls in and
+before the day `to` falls in, each in the day it counts in. A measurement or a gap counts in the
+day its interval begins, and an adjustment in the day it was recorded, which was open then; and a
+record superseded only by an adjustment stays in its closed day. So a closed day reads the same
+whenever it is read, and consecutive days sum each use once. `korpis get usage --by-period` asks
+for it. → patched into `15-observability.md` §2; built in
+`crates/korpis-store/src/metering/read.rs`, and tested through the API with a closed day read as it
+closed, its adjustment in the day it was written, and the same day by its intervals.
+
+What it costs, and what it does not do. A host must pick the right read: an invoice from the
+default read is the bug this finding describes, and nothing stops a script from making it, so
+§2 of `13-surface-cli.md` and the field's own comment say which to use. A gap stays in its closed
+day though the use behind it is known, so October's invoice states four hours unheard even after
+November's names what they used, and a customer reading the two together must add them; that is
+the price of a day that does not change. The days are UTC days, so a host billing in another time
+zone sums the UTC days of its month and says so on its invoice.

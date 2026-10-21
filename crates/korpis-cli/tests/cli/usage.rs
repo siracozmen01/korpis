@@ -97,6 +97,11 @@ async fn usage_is_shown_in_its_units_with_its_window_and_the_days_with_their_sta
     let json: Value = serde_json::from_str(&ok(&cp.korpis(s, &args).await)).unwrap();
     assert_eq!(json.as_array().unwrap().len(), 2, "{json}");
     assert_eq!(json[1]["kind"], "USAGE_KIND_GAP");
+    // As an invoice sums it, the day's two records, neither an adjustment.
+    let mut args = vec!["--json", "get", "usage", "--workload", "games/sleeper", "--by-period"];
+    args.extend(window);
+    let json: Value = serde_json::from_str(&ok(&cp.korpis(s, &args).await)).unwrap();
+    assert_eq!(json.as_array().unwrap().len(), 2, "{json}");
 
     let to = rfc3339(day + DAY * 2);
     let shown = ok(&cp.korpis(s, &["get", "periods", "--from", &from, "--to", &to]).await);

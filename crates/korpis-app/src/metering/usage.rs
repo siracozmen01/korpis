@@ -28,7 +28,8 @@ pub enum UsageOf {
 }
 
 /// The intervals to read: those beginning from `from` and before `to`, and whether superseded
-/// records are read too.
+/// records are read too; or, by period, the records of the UTC days from the one `from` falls in
+/// and before the one `to` falls in, each in the day it counts in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UsageWindow {
     /// From.
@@ -37,6 +38,8 @@ pub struct UsageWindow {
     pub to: SystemTime,
     /// Every version, superseded ones included.
     pub every_version: bool,
+    /// As an invoice sums them: each record in the day it counts in.
+    pub by_period: bool,
 }
 
 /// Where a page of usage resumes: after this interval start and record.
@@ -62,13 +65,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let id = query.0.or(query.1).or(query.2).unwrap_or_default();
         self.authorize(caller, "metering.read", ObjectRef::new(object, id)).await?;
         let (workload, project, organization) = query;
+        let (from, to) = if window.by_period {
+            (day_of(window.from), day_of(window.to))
+        } else {
+            (window.from, window.to)
+        };
         let q = UsageQuery {
             workload,
             project,
             organization,
-            from: window.from,
-            to: window.to,
+            from,
+            to,
             current: !window.every_version,
+            by_period: window.by_period,
             after: page.after,
             limit: page.size,
         };

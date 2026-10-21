@@ -356,6 +356,7 @@ const OPERATOR: &[&str] = &[
     "workload.file.read",
     "workload.file.write",
     "grant.read",
+    "metering.read",
 ];
 
 /// What the runner of the runs flow may do, on the root organization: read the tasks' runs and

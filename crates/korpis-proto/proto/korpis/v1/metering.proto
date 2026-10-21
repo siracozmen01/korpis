@@ -40,6 +40,13 @@ message ListUsageRequest {
   // later replaced.
   bool every_version = 6;
   PageRequest page = 7;
+  // Read the window as an invoice sums it: the records of the UTC days beginning from the day
+  // `from` falls in and before the day `to` falls in, each record in the day it counts in. A
+  // measurement or gap counts in the day its interval begins, and an adjustment in the day it was
+  // recorded, which was open then; a record superseded only by an adjustment stays in its closed
+  // day. So a closed day reads the same whenever it is read, and a sum of consecutive days counts
+  // each use once.
+  bool by_period = 8;
 }
 
 message ListUsageResponse {
@@ -126,4 +133,27 @@ message MeteringPeriod {
 
 message ListPeriodsResponse {
   repeated MeteringPeriod periods = 1;
+}
+
+// What a workload uses now, as its node reads it: sent by the node at each of its meter's
+// readings, every ten seconds, on a session opened under metering.read over the workload (§3.1
+// of docs/02-architecture.md), whose params are empty. It is not a record: nothing keeps it, and
+// what is billed is the UsageRecord of the interval it falls in. Each rate is over the window
+// from the reading before, and absent where either reading did not measure it, or on the first,
+// which has no reading before it.
+message UsageNow {
+  // When the node read it, by the node's clock.
+  google.protobuf.Timestamp at = 1;
+  // The reading before, which the rates are over; absent on the first.
+  google.protobuf.Timestamp since = 2;
+  // Memory in use at the reading.
+  optional uint64 memory_bytes = 3;
+  // CPU time a second of the window, in thousandths of a core.
+  optional uint64 cpu_millicores = 4;
+  // Of the window, the thousandths the workload's CPU was throttled.
+  optional uint64 cpu_throttled_permille = 5;
+  optional uint64 io_read_bytes_per_second = 6;
+  optional uint64 io_write_bytes_per_second = 7;
+  optional uint64 net_rx_bytes_per_second = 8;
+  optional uint64 net_tx_bytes_per_second = 9;
 }

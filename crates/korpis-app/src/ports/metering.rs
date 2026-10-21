@@ -35,6 +35,11 @@ pub struct UsageQuery {
     pub to: SystemTime,
     /// Only the records nothing later supersedes.
     pub current: bool,
+    /// Each record in the day it counts in, as an invoice sums them: `from` and `to` are the
+    /// starts of UTC days, a measurement or a gap counts in the day its interval begins and an
+    /// adjustment in the day it was recorded, and, with `current`, a record superseded only by
+    /// an adjustment is still read in its closed day.
+    pub by_period: bool,
     /// After this interval start and record, in their order.
     pub after: Option<(SystemTime, Uuid)>,
     /// At most this many.

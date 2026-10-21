@@ -342,6 +342,39 @@ split by destination until bandwidth accounting is built.
 > per node named on the page. API and CLI tests read a workload's records in their units, page
 > them, find a caller without `metering.read` refused, and find the days of a window with their
 > states.
+>
+> Built 2026-10-21 (P2.7e1): what a workload uses now. An observation's resource figures were
+> never filled, and filling them would send an observation and write a row every ten seconds for
+> every workload, since an observation is sent when it changes (§4.3 of `02-architecture.md`).
+> Instead a client opens a session through the relay under `metering.read` over the workload
+> (§3.1 of `02-architecture.md`), and the node sends a `UsageNow` at each of its meter's readings:
+> when it read, the memory in use then, and CPU time, throttling, and block and network bytes as
+> rates over the window from the reading before, each absent where either reading did not
+> measure it, and none on the first, which has no reading before it. It is the meter's own
+> readings, published as the meter takes them, so a session watching costs the node no reading
+> of its own. It is not kept and not billed: what is billed is the interval's record, and the two
+> are shown side by side rather than one reconciled to the other (§8 of `11-surface-web.md`).
+> What it does not do: disk is not among it, since the volumes' filesystem is read at an
+> interval's end, not at every reading; the rates are over ten seconds, so a burst shorter than
+> that is averaged into its window; the times are the node's clock; and a session is not
+> journaled as a console read is (§8 of `17-security.md`), because it shows nothing the workload
+> wrote and nothing `ListUsage` does not answer the same caller an interval at a time. The agent
+> test opens one with a token holding `metering.read` alone and reads the memory in use and a
+> CPU rate over a window.
+>
+> Corrected 2026-10-21 by Finding 123 of `23-walkthroughs.md`. As built above, `ListUsage`
+> selected records only by when their intervals began, the superseded left out, so a closed day
+> read again had lost the gaps an adjustment superseded and gained the adjustment, and the day the
+> adjustment was written into never read it: the closed day was edited by the read, and its late
+> hours were billed in no day. Now a window is read one of two ways. By default, by its
+> intervals: what was used over them. With `by_period`, as an invoice sums it: the records of the
+> UTC days from the day `from` falls in and before the day `to` falls in, a measurement or a gap
+> in the day its interval begins, an adjustment in the day it was recorded, and a record
+> superseded only by an adjustment kept in its closed day; so a closed day reads the same
+> whenever it is read, and consecutive days count each use once. What it costs: a host must ask
+> for the second to invoice from, and a gap stays in its closed day though the use behind it is
+> known, named again by the adjustment in a later day. The API test reads a closed day as it
+> closed, the adjustment in the day it was written, and the same day by its intervals.
 
 ---
 

@@ -104,7 +104,7 @@ impl pb::MeteringService for Api {
         let req = request.to_owned_message();
         let of = usage_of(&req)?;
         let (from, to) = window(self, req.from.as_option(), req.to.as_option())?;
-        let every_version = req.every_version;
+        let (every_version, by_period) = (req.every_version, req.by_period);
         let (size, token) =
             req.page.as_option().map_or((0, ""), |p| (p.page_size, p.page_token.as_str()));
         let after = if token.is_empty() {
@@ -118,7 +118,7 @@ impl pb::MeteringService for Api {
             .list_usage(
                 &caller,
                 of,
-                UsageWindow { from, to, every_version },
+                UsageWindow { from, to, every_version, by_period },
                 Page::new(after, size),
             )
             .await
