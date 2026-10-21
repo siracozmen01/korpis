@@ -91,6 +91,15 @@ pub fn effect_to_pb(e: &Effect) -> pb::Effect {
         error: e.error.as_ref().map(error_to_pb).into(),
         count: e.count,
         window_end: e.window_end.map(timestamp).into(),
+        object: e
+            .object
+            .map(|o| pb::ObjectRef {
+                kind: crate::scope::object_kind_to_pb(o.kind).into(),
+                id: wire_id(crate::id_kind(o.kind), o.id),
+                ..Default::default()
+            })
+            .into(),
+        organization: e.organization.map(|o| wire_id(IdKind::Organization, o)),
         ..Default::default()
     }
 }

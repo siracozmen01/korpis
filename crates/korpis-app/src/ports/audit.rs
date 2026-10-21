@@ -37,6 +37,8 @@ pub struct EffectFilter {
     pub organization: Option<Uuid>,
     /// Effects about an object in this project.
     pub project: Option<Uuid>,
+    /// Effects whose action begins with this.
+    pub action_prefix: Option<String>,
 }
 
 /// Reading the log.

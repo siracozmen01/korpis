@@ -242,6 +242,19 @@ certificate) is about the organization that held it. Effects written before this
 object their workload, plan, or node gives them, and an earlier effect done to an organization
 itself names none, so it is read only at the root.
 
+> Built 2026-10-21 in the API (P2.6b of the build plan). `ListEffects` names exactly one of a
+> workload, a plan, a node, a project, or an organization, and may ask only for actions beginning
+> with a prefix (`grant.`, `workload.restart`). Asking for an organization or a project needs
+> `org.read` or `project.read` there, and is otherwise not found, as reading anything is (§8 of
+> `10-api.md`); every list then applies the rule above to each effect, the three that existed
+> before included, so a caller holding `workload.read` without `plan.read` no longer reads a
+> workload's plan approvals. Each effect answers its `object` and `organization`. The page token
+> is sealed for the log, its ingest time and identifier inside, where it was the two in clear. An
+> API test reads a customer's log as the customer, without `grant.read` and then with it, a page
+> of one at a time; finds its own refusal there, recorded as the action it lacked; is not found
+> asking for a sibling's; reads both customers' projects as their reseller and by action; and
+> has a forged token refused.
+
 ---
 
 ## 5. Alerting stops at the boundary

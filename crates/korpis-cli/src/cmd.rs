@@ -101,21 +101,39 @@ pub enum Get {
         /// The workload: an identifier, `project/name`, or a name.
         workload: String,
     },
-    /// The effect log, filtered.
-    Effects {
-        /// Only this workload's.
-        #[arg(add = ArgValueCompleter::new(complete::workloads))]
-        #[arg(long)]
-        workload: Option<String>,
-        /// Only this plan's.
-        #[arg(add = ArgValueCompleter::new(complete::plans))]
-        #[arg(long)]
-        plan: Option<String>,
-        /// Only this node's.
-        #[arg(add = ArgValueCompleter::new(complete::nodes))]
-        #[arg(long)]
-        node: Option<String>,
-    },
+    /// The effect log, as far as the caller's grants reach: an organization's subtree (the
+    /// caller's own when nothing is named), or one project, workload, plan, or node.
+    Effects(Effects),
+}
+
+/// What `korpis get effects` reads.
+#[derive(Debug, Clone, clap::Args)]
+pub struct Effects {
+    /// Only this workload's.
+    #[arg(add = ArgValueCompleter::new(complete::workloads))]
+    #[arg(long)]
+    workload: Option<String>,
+    /// Only this plan's.
+    #[arg(add = ArgValueCompleter::new(complete::plans))]
+    #[arg(long)]
+    plan: Option<String>,
+    /// Only this node's.
+    #[arg(add = ArgValueCompleter::new(complete::nodes))]
+    #[arg(long)]
+    node: Option<String>,
+    /// What is about anything in this project.
+    #[arg(add = ArgValueCompleter::new(complete::projects))]
+    #[arg(long)]
+    project: Option<String>,
+    /// What is about anything in this organization's subtree.
+    #[arg(long = "org", add = ArgValueCompleter::new(complete::organizations))]
+    organization: Option<String>,
+    /// Only actions beginning with this, such as `grant.` or `workload.restart`.
+    #[arg(long)]
+    action: Option<String>,
+    /// At most this many, the oldest first.
+    #[arg(long, default_value_t = 100)]
+    limit: usize,
 }
 
 /// `korpis plan approve|reject|cancel`.

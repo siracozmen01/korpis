@@ -120,6 +120,7 @@ impl EffectRead for PgStore {
                             SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)
                         SELECT id FROM tree))
                 AND ($9::uuid IS NULL OR project_id = $9)
+                AND ($10::text IS NULL OR starts_with(action, $10))
               ORDER BY at, id LIMIT $7",
             f.workload,
             f.plan,
@@ -129,7 +130,8 @@ impl EffectRead for PgStore {
             after.map(|c| c.id),
             i64::from(limit),
             f.organization,
-            f.project
+            f.project,
+            f.action_prefix.as_deref()
         )
         .fetch_all(&self.pool)
         .await

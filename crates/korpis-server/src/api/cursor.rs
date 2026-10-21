@@ -11,7 +11,9 @@ use super::{Api, ConnectError, Page, pb};
 use crate::vault::{open_bytes, seal_bytes};
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use korpis_app::ports::EffectCursor;
 use korpis_core::id::IdKind;
+use std::time::{Duration, UNIX_EPOCH};
 use uuid::Uuid;
 use zeroize::Zeroizing;
 
@@ -28,6 +30,9 @@ impl std::fmt::Debug for Cursors {
         f.debug_struct("Cursors").finish_non_exhaustive()
     }
 }
+
+/// What an effect-log token is sealed for, beside the kinds `context` names.
+const EFFECT_CONTEXT: &str = "korpis page token effect";
 
 fn context(kind: IdKind) -> String {
     format!("korpis page token {}", kind.prefix())
@@ -55,6 +60,30 @@ impl Cursors {
         let sealed = seal_bytes(&self.key, &context(kind), after.as_bytes())
             .map_err(|e| error::internal(&e))?;
         Ok(URL_SAFE_NO_PAD.encode(sealed))
+    }
+
+    /// The token resuming the effect log after `after`: its ingest time and identifier, sealed as
+    /// any other list's row is, since a filtered page of the log may stop on an effect the
+    /// caller may not see (§4 of docs/15-observability.md).
+    pub fn seal_effect(&self, after: EffectCursor) -> Result<String, ConnectError> {
+        let micros = after.at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
+        let micros = u64::try_from(micros).unwrap_or(u64::MAX);
+        let mut plain = micros.to_be_bytes().to_vec();
+        plain.extend_from_slice(after.id.as_bytes());
+        let sealed =
+            seal_bytes(&self.key, EFFECT_CONTEXT, &plain).map_err(|e| error::internal(&e))?;
+        Ok(URL_SAFE_NO_PAD.encode(sealed))
+    }
+
+    /// The effect a token of the effect log resumes after; `None` for one this key did not seal.
+    #[must_use]
+    pub fn open_effect(&self, token: &str) -> Option<EffectCursor> {
+        let sealed = URL_SAFE_NO_PAD.decode(token).ok()?;
+        let plain = open_bytes(&self.key, EFFECT_CONTEXT, &sealed).ok()?;
+        let (micros, id) = plain.split_at_checked(8)?;
+        let micros = u64::from_be_bytes(micros.try_into().ok()?);
+        let id = Uuid::from_slice(id).ok()?;
+        Some(EffectCursor { at: UNIX_EPOCH + Duration::from_micros(micros), id })
     }
 
     /// The row a token of `kind` resumes after; `None` for a token this key did not seal for it.

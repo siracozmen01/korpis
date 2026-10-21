@@ -182,11 +182,22 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         action: &str,
         objects: &[ObjectRef],
     ) -> Result<Vec<bool>, AppError> {
-        let action = core_action(action)?;
+        let asked: Vec<(&str, ObjectRef)> = objects.iter().map(|o| (action, *o)).collect();
+        self.permitted_all(caller, &asked).await
+    }
+
+    /// [`Self::permitted_each`] for an action of each object's own, the caller's grants loaded
+    /// once for all of them.
+    pub(crate) async fn permitted_all(
+        &self,
+        caller: &Caller,
+        asked: &[(&str, ObjectRef)],
+    ) -> Result<Vec<bool>, AppError> {
         let mut snapshot = Snapshot::default();
         let chains = self.held_chains(caller, None, &mut snapshot).await?;
-        let mut out = Vec::with_capacity(objects.len());
-        for o in objects {
+        let mut out = Vec::with_capacity(asked.len());
+        for (action, o) in asked {
+            let action = core_action(action)?;
             snapshot.load(&self.store, *o).await?;
             let decision = self.evaluate(caller, (&action, *o), &chains, &snapshot, false);
             out.push(matches!(decision, Some(Decision::Permit(p)) if !p.redeem));

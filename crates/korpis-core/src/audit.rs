@@ -180,6 +180,49 @@ impl Effect {
     }
 }
 
+/// The families of action that read their effects under a read of their own, beside the read of
+/// what the effect is about (§4 of docs/15-observability.md).
+const FAMILY_READS: [(&str, &str); 5] = [
+    ("grant", "grant.read"),
+    ("plan", "plan.read"),
+    ("extension", "extension.read"),
+    ("backup", "backup.read"),
+    ("event", "event.read"),
+];
+
+/// What a caller must hold over `object` to read an effect of `action` about it: the read of
+/// the action's family where the family has one, and otherwise the read of the object's kind
+/// (§4 of docs/15-observability.md).
+#[must_use]
+pub fn reader(action: &str, object: ObjectRef) -> &'static str {
+    let family = action.split('.').next().unwrap_or_default();
+    if let Some((_, read)) = FAMILY_READS.iter().find(|(f, _)| *f == family) {
+        return read;
+    }
+    match object.kind {
+        Kind::Organization => "org.read",
+        Kind::Project => "project.read",
+        Kind::Workload | Kind::Stream => "workload.read",
+        Kind::Volume => "volume.read",
+        Kind::Endpoint => "endpoint.read",
+        Kind::Node => "node.read",
+        Kind::Repository => "repository.read",
+        Kind::Domain => "domain.read",
+        Kind::Certificate => "certificate.read",
+    }
+}
+
+/// `e` without what names a node, for a reader who may not read that node (§8 of
+/// docs/08-identity.md): its node, its journal position, and every `node` or `*_node` among its
+/// details.
+pub fn without_nodes(e: &mut Effect) {
+    e.node = None;
+    e.origin = None;
+    for details in [&mut e.before, &mut e.after, &mut e.error].into_iter().flatten() {
+        details.retain(|k, _| k != "node" && !k.ends_with("_node"));
+    }
+}
+
 /// A JSON object from pairs, for effect details.
 #[must_use]
 pub fn details<const N: usize>(pairs: [(&str, Value); N]) -> Map<String, Value> {
@@ -189,6 +232,32 @@ pub fn details<const N: usize>(pairs: [(&str, Value); N]) -> Map<String, Value> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_effect_is_read_under_its_familys_read_or_else_its_objects() {
+        let w = ObjectRef::new(Kind::Workload, Uuid::now_v7());
+        let org = ObjectRef::new(Kind::Organization, Uuid::now_v7());
+        assert_eq!(reader("grant.issued", org), "grant.read");
+        assert_eq!(reader("plan.approve", w), "plan.read");
+        assert_eq!(reader("workload.restart", w), "workload.read");
+        assert_eq!(reader("org.theme.set", org), "org.read");
+        assert_eq!(reader("lease.issue", w), "workload.read", "lease has no read of its own");
+    }
+
+    #[test]
+    fn a_reader_who_may_not_read_its_node_reads_no_node_of_it() {
+        let mut e =
+            Effect::new(Principal::Anonymous, "lease.issue", Outcome::Succeeded).after(details([
+                ("node", "n".into()),
+                ("previous_node", "p".into()),
+                ("epoch", 2.into()),
+            ]));
+        e.node = Some(Uuid::now_v7());
+        e.origin = Some(JournalOrigin { node: Uuid::now_v7(), seq: 1 });
+        without_nodes(&mut e);
+        assert_eq!((e.node, e.origin), (None, None));
+        assert_eq!(e.after.unwrap().keys().collect::<Vec<_>>(), ["epoch"]);
+    }
 
     #[test]
     fn outcomes_round_trip_through_their_stored_names() {

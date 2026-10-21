@@ -70,6 +70,11 @@ async fn the_commands_are_the_api_by_name() {
     let effects = ok(&cp.korpis(&s, &["get", "effects", "--workload", "sleeper"]).await);
     assert!(effects.lines().count() > 2 && effects.contains("grt_"), "named grants: {effects}");
     assert!(effects.contains("RELAYED BY"), "the relay has a column: {effects}");
+    // Naming nothing reads the caller's own organization's subtree, here by action.
+    let ours =
+        ok(&cp.korpis(&s, &["get", "effects", "--action", "project.", "--limit", "5"]).await);
+    assert!(ours.contains("project.create") && ours.contains("prj_"), "about its project: {ours}");
+    assert!(!ours.contains("workload.restart"), "only what the action names: {ours}");
 
     let token = cp
         .korpis(&s, &["node", "token", "create", "n1", "--label", "region=eu", "--expires", "30m"])

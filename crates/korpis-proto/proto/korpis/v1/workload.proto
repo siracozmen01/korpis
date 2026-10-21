@@ -460,6 +460,11 @@ message Effect {
   // The client that relayed what the actor presented, when they acted through one (§5.2 of
   // docs/08-identity.md).
   Subject relay = 18;
+  // What it is about, the object its action was authorized over (§4 of
+  // docs/15-observability.md); absent for an effect about nothing.
+  ObjectRef object = 19;
+  // The organization whose subtree holds its object.
+  optional string organization = 20;
 }
 
 message JournalOrigin {

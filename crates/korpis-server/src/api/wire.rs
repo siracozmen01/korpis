@@ -12,10 +12,7 @@ pub use korpis_wire::{
 
 use super::error::invalid;
 use connectrpc::ConnectError;
-use korpis_app::ports::EffectCursor;
 use korpis_wire::WireError;
-use std::time::{Duration, UNIX_EPOCH};
-use uuid::Uuid;
 
 /// A refused translation, as the `request.invalid` error naming the field.
 #[must_use]
@@ -33,23 +30,4 @@ impl<T> Refuse<T> for Result<T, WireError> {
     fn refuse(self) -> Result<T, ConnectError> {
         self.map_err(refuse)
     }
-}
-
-/// The log is ordered by (ingest time, id); its page token carries both, as microseconds since
-/// the epoch and the identifier.
-#[must_use]
-pub fn encode_cursor(c: EffectCursor) -> String {
-    let micros = c.at.duration_since(UNIX_EPOCH).unwrap_or_default().as_micros();
-    format!("{micros}.{}", c.id.simple())
-}
-
-/// A page token from the request.
-pub fn decode_cursor(s: &str) -> Result<EffectCursor, ConnectError> {
-    let bad = || invalid("page.page_token", "malformed");
-    let (at, id) = s.split_once('.').ok_or_else(bad)?;
-    let micros: u64 = at.parse().map_err(|_| bad())?;
-    Ok(EffectCursor {
-        at: UNIX_EPOCH + Duration::from_micros(micros),
-        id: Uuid::try_parse(id).map_err(|_| bad())?,
-    })
 }

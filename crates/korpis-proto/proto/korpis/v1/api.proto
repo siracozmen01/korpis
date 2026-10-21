@@ -1193,10 +1193,17 @@ service EffectService {
 }
 
 message ListEffectsRequest {
+  // Exactly one of the five: what the effects are about. An organization asks for its whole
+  // subtree, and each effect is answered only to a caller who may read its object (§4 of
+  // docs/15-observability.md).
   optional string workload = 1;
   optional string plan = 2;
   optional string node = 3;
+  optional string organization = 6;
+  optional string project = 7;
   google.protobuf.Timestamp since = 4;
+  // Only effects whose action begins with this, such as `grant.` or `workload.restart`.
+  string action_prefix = 8;
   PageRequest page = 5;
 }
 

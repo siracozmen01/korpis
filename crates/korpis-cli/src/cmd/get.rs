@@ -2,7 +2,7 @@
 
 //! `korpis get` and `korpis status`: what the caller may read, listed or in detail.
 
-use super::{Answer, Get, json};
+use super::{Answer, Effects, Get, json};
 use crate::connect::Connection;
 use crate::error::CliError;
 use crate::resolve;
@@ -36,31 +36,51 @@ fn workload_row(s: &pb::WorkloadStatus) -> Vec<String> {
     vec![w.id, w.name, short(s.convergence, "CONVERGENCE_"), observed, node]
 }
 
-async fn effects(
-    c: &Connection,
-    workload: Option<&String>,
-    plan: Option<&String>,
-    node: Option<&String>,
-) -> Result<Answer, CliError> {
-    let workload = match workload {
-        Some(w) => Some(resolve::workload(c, w).await?),
-        None => None,
-    };
-    let request = pb::ListEffectsRequest {
-        workload,
-        plan: plan.cloned(),
-        node: node.cloned(),
+/// What `get effects` names: one of a workload, plan, node, or project, or else an
+/// organization, the caller's own top one when nothing is named.
+async fn effects_of(c: &Connection, e: &Effects) -> Result<pb::ListEffectsRequest, CliError> {
+    let mut request = pb::ListEffectsRequest {
+        plan: e.plan.clone(),
+        node: e.node.clone(),
+        action_prefix: e.action.clone().unwrap_or_default(),
         ..Default::default()
     };
+    if let Some(w) = &e.workload {
+        request.workload = Some(resolve::workload(c, w).await?);
+    } else if let Some(p) = &e.project {
+        request.project = Some(resolve::project(c, p).await?);
+    } else if e.plan.is_none() && e.node.is_none() {
+        request.organization = Some(resolve::organization(c, e.organization.as_deref()).await?);
+    }
+    Ok(request)
+}
+
+/// The effects `e` names, following page tokens until `e.limit` of them were read.
+async fn effects(c: &Connection, e: &Effects) -> Result<Answer, CliError> {
+    let mut request = effects_of(c, e).await?;
     let client = pb::EffectServiceClient::new(c.http(), c.config());
-    let list = client.list_effects(request).await?.into_owned().effects;
-    let header = ["AT", "ACTION", "OUTCOME", "ACTOR", "GRANT", "RELAYED BY"];
+    let mut list = Vec::new();
+    while list.len() < e.limit {
+        let size = u32::try_from(e.limit - list.len()).unwrap_or(u32::MAX).min(1000);
+        let token = std::mem::take(&mut request.page).into_option().unwrap_or_default();
+        request.page = pb::PageRequest { page_size: size, ..token }.into();
+        let page = client.list_effects(request.clone()).await?.into_owned();
+        list.extend(page.effects);
+        let next = page.page.into_option().unwrap_or_default().next_page_token;
+        if next.is_empty() {
+            break;
+        }
+        request.page = pb::PageRequest { page_token: next, ..Default::default() }.into();
+    }
+    list.truncate(e.limit);
+    let header = ["AT", "ACTION", "OUTCOME", "ABOUT", "ACTOR", "GRANT", "RELAYED BY"];
     let human = rows(&header, &list, |e| {
         let outcome = short(e.outcome, "EFFECT_OUTCOME_");
+        let about = e.object.as_option().map_or_else(|| "-".into(), |o| o.id.clone());
         let grant = e.grant.clone().unwrap_or_else(|| "-".into());
         let actor = subject(e.actor.as_option());
         let relay = subject(e.relay.as_option());
-        vec![time(e.at.as_option()), e.action.clone(), outcome, actor, grant, relay]
+        vec![time(e.at.as_option()), e.action.clone(), outcome, about, actor, grant, relay]
     });
     Ok(Answer { json: json(&list), human })
 }
@@ -180,9 +200,7 @@ pub async fn get(c: &Connection, what: &Get) -> Result<Answer, CliError> {
                 });
             Ok(Answer { json: json(&list), human })
         }
-        Get::Effects { workload, plan, node } => {
-            effects(c, workload.as_ref(), plan.as_ref(), node.as_ref()).await
-        }
+        Get::Effects(e) => effects(c, e).await,
     }
 }
 

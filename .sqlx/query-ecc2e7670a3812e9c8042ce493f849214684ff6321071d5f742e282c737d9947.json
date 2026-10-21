@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, object_kind,\n                    object_id, organization_id, actor, relay, grant_id, action, outcome, error,\n                    before, after, count, window_end, origin_node, origin_seq\n               FROM effect\n              WHERE ($1::uuid IS NULL OR workload_id = $1)\n                AND ($2::uuid IS NULL OR plan_id = $2)\n                AND ($3::uuid IS NULL OR node_id = $3)\n                AND ($4::timestamptz IS NULL OR at >= $4)\n                AND ($5::timestamptz IS NULL OR (at, id) > ($5, $6))\n                AND ($8::uuid IS NULL OR organization_id IN (\n                        WITH RECURSIVE tree AS (\n                            SELECT id FROM organization WHERE id = $8\n                            UNION ALL\n                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)\n                        SELECT id FROM tree))\n                AND ($9::uuid IS NULL OR project_id = $9)\n              ORDER BY at, id LIMIT $7",
+  "query": "SELECT id, at, occurred_at, plan_id, step, workload_id, node_id, object_kind,\n                    object_id, organization_id, actor, relay, grant_id, action, outcome, error,\n                    before, after, count, window_end, origin_node, origin_seq\n               FROM effect\n              WHERE ($1::uuid IS NULL OR workload_id = $1)\n                AND ($2::uuid IS NULL OR plan_id = $2)\n                AND ($3::uuid IS NULL OR node_id = $3)\n                AND ($4::timestamptz IS NULL OR at >= $4)\n                AND ($5::timestamptz IS NULL OR (at, id) > ($5, $6))\n                AND ($8::uuid IS NULL OR organization_id IN (\n                        WITH RECURSIVE tree AS (\n                            SELECT id FROM organization WHERE id = $8\n                            UNION ALL\n                            SELECT o.id FROM organization o JOIN tree t ON o.parent_id = t.id)\n                        SELECT id FROM tree))\n                AND ($9::uuid IS NULL OR project_id = $9)\n                AND ($10::text IS NULL OR starts_with(action, $10))\n              ORDER BY at, id LIMIT $7",
   "describe": {
     "columns": [
       {
@@ -256,7 +256,8 @@
         "Uuid",
         "Int8",
         "Uuid",
-        "Uuid"
+        "Uuid",
+        "Text"
       ]
     },
     "nullable": [
@@ -284,5 +285,5 @@
       true
     ]
   },
-  "hash": "f7ffec82ccf6daba7eba60faadc61998f52fc06cc7202076f19a410e03be8abb"
+  "hash": "ecc2e7670a3812e9c8042ce493f849214684ff6321071d5f742e282c737d9947"
 }
