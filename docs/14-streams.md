@@ -145,7 +145,8 @@ last chunk says where that is. This is how a retired workload's stream is read (
 `korpis logs --offloaded` is its command (§8 of `13-surface-cli.md`).
 
 What it costs: the control plane handles the records of a tenant's console, which a read through a
-node never puts in its hands; that is why the read is recorded, and why it reads only with the
+node never puts in its hands; that is one reason the read is recorded, as a read through a node is
+too since 2026-10-21 (§8, Finding 122 of `23-walkthroughs.md`), and why it reads only with the
 operator's custody of the key (§5.5 of `06-storage.md`). What it does not do: search, or follow;
 those stay on the node, where the records are written. Nor does the control plane check that a
 segment journaled as offloaded is in the target until someone reads it: a node given access could
@@ -492,6 +493,18 @@ one included, is refused on the data path, and its kept stream (§4) is read the
 offloaded segments (§9, question 6, resolved). Corrected 2026-10-19, as Phase 1 closed: this said
 offload was unbuilt and a retired workload's stream unreadable, which stopped being true when
 offload was built.
+
+> Corrected 2026-10-21 (Finding 122 of `23-walkthroughs.md`). A read on the node recorded
+> nothing, though §8 of `17-security.md`, §4 of `15-observability.md`, and §7 of `08-identity.md`
+> each said an operator's read of a console is an effect its tenant reads; only a read of
+> offloaded segments, through the control plane (§4), was one. A read is now an effect before it
+> is anything else, as input is (§6): once the node has found the stream, it journals
+> `workload.console.read` as the act of the session's subject, naming the session, the run, the
+> pattern, and whether it follows, under the grant the token was minted from, and sends nothing
+> until the journal holds it. The control plane believes it only as far as that grant permitted
+> the subject the read when it happened. It is one effect a session, not one a chunk, so a
+> follower is one row and a follower that reconnects one a reconnection. A node its operator has
+> changed can serve a read and journal nothing (§8 of `17-security.md`).
 
 ---
 

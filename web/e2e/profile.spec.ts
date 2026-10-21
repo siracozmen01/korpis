@@ -5,7 +5,8 @@
 // docs/11-surface-web.md); confirms it is them once their sign-in is more than ten minutes old
 // and adds a second passkey on another device, which then signs them in alone (§9.6 of
 // docs/08-identity.md); and loads the panel again with no network, from the browser's copy of
-// it, which says the control plane cannot be reached and when it was last heard from.
+// it, which says the control plane cannot be reached and when it was last heard from. The theme
+// it set is in the organization's audit trail (§4 of docs/15-observability.md).
 
 import { expect, test } from "@playwright/test";
 import { aged, authenticator, given, visit } from "./support";
@@ -32,6 +33,10 @@ test("a keeper themes the organization, adds a passkey, and loads the panel offl
     .fill("#5a189a");
   await theme.getByRole("button", { name: "Save" }).click();
   await expect(theme.getByText("Saved.")).toBeVisible();
+  // The organization's audit trail records it as the keeper's, read under their org.read.
+  await visit(page, page.url());
+  const audit = page.getByRole("region", { name: "Audit" });
+  await expect(audit.getByText("org.theme.set")).toBeVisible();
   await visit(page, "/");
   await expect(page).toHaveTitle("Acme Games");
   const accent = await page.evaluate(() =>

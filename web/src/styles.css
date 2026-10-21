@@ -115,6 +115,16 @@ small {
   margin-inline-start: 0.35em;
 }
 
+/* An entry of an audit trail: its parts spaced by the page, as an aside is. A refusal is marked,
+   since what was attempted and refused is what an audit trail is read for. */
+li.effect > * + * {
+  margin-inline-start: 0.5em;
+}
+
+li.effect.refused strong {
+  color: var(--danger);
+}
+
 ul,
 ol {
   padding-left: 1.25rem;

@@ -12,6 +12,7 @@ import { type Entry, entries, pathOf } from "./entries";
 import { everyGrant } from "./held";
 import { useLoad } from "./load";
 import { PAGE_SIZE, Pages } from "./Pages";
+import { Audit } from "../audit/Audit";
 import { Shown } from "./Shown";
 import { Bindings } from "../identity/Bindings";
 import { Ceiling } from "../identity/Ceiling";
@@ -182,6 +183,8 @@ export function OrganizationPage({ id }: { readonly id: string }) {
         )}
       />
       {!metered && <ThemeEditor id={id} />}
+      {/* A share link's calls each spend a use, so its holder is shown no trail to page. */}
+      {!metered && <Audit id={id} />}
     </main>
   );
 }

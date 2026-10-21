@@ -239,6 +239,10 @@
   "78wEWTnD": {
     "defaultMessage": "The answer did not reach this browser, so it may have signed you in. Go on to find out; if it did not, sign in again."
   },
+  "7HIqExhL": {
+    "defaultMessage": "{kind, select, user {user {id}} token {token {id}} workload {workload {id}} other {extension {id}}}",
+    "description": "who did what an effect records"
+  },
   "7L9bcZ1z": {
     "defaultMessage": "Share as a link"
   },
@@ -255,6 +259,9 @@
   "88JBbyvf": {
     "defaultMessage": "Console",
     "description": "a run's console"
+  },
+  "8BU1HZM/": {
+    "defaultMessage": "by {actor}"
   },
   "8N/xR7Qv": {
     "defaultMessage": "an organization"
@@ -383,6 +390,10 @@
   "BnCWRq2n": {
     "defaultMessage": "The grace is a whole number of minutes."
   },
+  "BqSUTrrS": {
+    "defaultMessage": "refused",
+    "description": "an effect's outcome"
+  },
   "C0bpQ4YI": {
     "defaultMessage": "They can"
   },
@@ -445,6 +456,10 @@
   "EIodbIJ7": {
     "defaultMessage": "Sign in with {name} again"
   },
+  "EMBvy9ZF": {
+    "defaultMessage": "done",
+    "description": "an effect's outcome"
+  },
   "EOBZyeyd": {
     "defaultMessage": "an unknown time"
   },
@@ -473,6 +488,10 @@
   },
   "FDCCkvlv": {
     "defaultMessage": "Signing in"
+  },
+  "FGxoaUqS": {
+    "defaultMessage": "failed",
+    "description": "an effect's outcome"
   },
   "FId+XQnj": {
     "defaultMessage": "Reading the workload…"
@@ -517,6 +536,10 @@
   "G3xFadAQ": {
     "defaultMessage": "Preview",
     "description": "a plan previewed"
+  },
+  "G75UWPra": {
+    "defaultMessage": "someone not signed in",
+    "description": "an effect's actor"
   },
   "GDi3Iw2v": {
     "defaultMessage": "The panel has no page at this address."
@@ -673,6 +696,9 @@
   "LW9qzGlz": {
     "defaultMessage": "Configuration change"
   },
+  "LivUik0h": {
+    "defaultMessage": "{subject} at {provider}"
+  },
   "LjPPHXIQ": {
     "defaultMessage": "Name a person, or a set by its realm and name, without a colon."
   },
@@ -726,6 +752,9 @@
   },
   "N2IrpMDH": {
     "defaultMessage": "Confirm"
+  },
+  "N8Z+Vwlk": {
+    "defaultMessage": "Nothing you can read."
   },
   "NCZyas1o": {
     "defaultMessage": "Since {since}: {reason}"
@@ -1275,6 +1304,9 @@
     "defaultMessage": "region=eu",
     "description": "an example of node labels"
   },
+  "elS34uKD": {
+    "defaultMessage": "Reading what was done here…"
+  },
   "elnaZeq9": {
     "defaultMessage": "Suspend"
   },
@@ -1363,6 +1395,9 @@
   },
   "iQQgmW3M": {
     "defaultMessage": "A part of the path is not a directory."
+  },
+  "iQx3ZysS": {
+    "defaultMessage": "by {actor}, through {relay}"
   },
   "iX+GUVAl": {
     "defaultMessage": "Live.",
@@ -1524,6 +1559,10 @@
     "defaultMessage": "Opening…",
     "description": "a file session opening"
   },
+  "p+T4+0NW": {
+    "defaultMessage": "someone",
+    "description": "an effect's actor, unnamed"
+  },
   "p556q3uv": {
     "defaultMessage": "Copied"
   },
@@ -1560,6 +1599,9 @@
   "qmFAWUlu": {
     "defaultMessage": "Where you are signed in"
   },
+  "qvul+rhG": {
+    "defaultMessage": "{count} times"
+  },
   "qyvx6JZq": {
     "defaultMessage": "Uploading {name}: {done} of {total}"
   },
@@ -1568,6 +1610,10 @@
   },
   "r8P/1+7/": {
     "defaultMessage": "Its selectors also hold label expressions, which are kept as they are; `korpis quota set` edits them."
+  },
+  "rFeYbQzb": {
+    "defaultMessage": "undone",
+    "description": "an effect's outcome"
   },
   "rFlt7Wwo": {
     "defaultMessage": "Whoever holds the link can do this, with no account. Opening its screen is one use, and so is each action; using it needs the control plane to be reachable. It lasts at most {uses, plural, one {# use} other {# uses}} and {lasts}, and you can revoke it at any time."
@@ -1614,6 +1660,10 @@
   "sYQQIZsv": {
     "defaultMessage": "start it"
   },
+  "sjzOngga": {
+    "defaultMessage": "the control plane",
+    "description": "an effect's actor"
+  },
   "slJc0FW2": {
     "defaultMessage": "unknown",
     "description": "what made a run"
@@ -1644,6 +1694,10 @@
   },
   "ttY/jSVX": {
     "defaultMessage": "Retire it"
+  },
+  "txhbVtC/": {
+    "defaultMessage": "Audit",
+    "description": "an organization's effect log"
   },
   "u6Mspyx9": {
     "defaultMessage": "{kind, select, organization {organization} project {project} other {workload}}",
@@ -1713,6 +1767,9 @@
   "wPj0Ogg+": {
     "defaultMessage": "Only the workloads labelled (optional)"
   },
+  "wl8ilnIC": {
+    "defaultMessage": "whoever held the share link {id}"
+  },
   "x+99iEjx": {
     "defaultMessage": "{cause}, {count, plural, one {# occurrence} other {# occurrences}}"
   },
@@ -1748,6 +1805,10 @@
   "yS/twS6R": {
     "defaultMessage": "converged",
     "description": "where a workload stands against what was declared"
+  },
+  "yl1+rIGt": {
+    "defaultMessage": "not needed",
+    "description": "an effect's outcome"
   },
   "ytucBzBe": {
     "defaultMessage": "Change the password"

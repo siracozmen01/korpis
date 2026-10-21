@@ -251,7 +251,12 @@ What Korpis provides instead is **visibility**, which is achievable and is what 
 behaviour:
 
 - Operator access to a tenant's console, files, or backups produces an `Effect` naming the
-  operator, the action, and the object (§4 of `15-observability.md`).
+  operator, the action, and the object (§4 of `15-observability.md`). As built, 2026-10-21: a
+  read of a console is journaled by the node that serves it, and a read of its offloaded segments
+  recorded by the control plane, each as the reader's act (§8 and §4 of `14-streams.md`); until
+  then a read on the node was recorded nowhere (Finding 122 of `23-walkthroughs.md`). A node its
+  operator has changed can serve a read and journal nothing: the effect makes the supported path
+  visible, not the unsupported one.
 - **That effect is visible to the tenant** (§7 of `08-identity.md`), in their own audit view.
 - Break-glass access is the same mechanism, not a bypass, a grant, issued, time-bounded, logged (§6
   of `08-identity.md`).

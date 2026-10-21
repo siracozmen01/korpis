@@ -19,19 +19,29 @@
 //! A task or scheduled workload's runs each write their own console (§4 of docs/14-streams.md):
 //! the params name the run, and the node looks for its stream only beneath the session's
 //! workload.
+//!
+//! A read is an effect before it is anything else (§8 of docs/17-security.md): once the node has
+//! found the stream, it journals that the session's subject read it, on this session, under the
+//! grant its token was minted from, and sends nothing until the journal holds that. So a console
+//! someone read is never one the journal does not say they read, and the control plane believes
+//! it as it believes typed input, as far as that grant permitted the read then.
 
 use super::handler::{Ended, Handler, Io, Opened, Serving};
 use super::wake::Wake;
+use crate::journal::JournalHandle;
 use crate::reconcile::streams::{Located, stream_name};
 use buffa::Message as _;
 use buffa_types::google::protobuf::Timestamp;
 use korpis_core::authz::StreamRange;
+use korpis_core::principal::Principal;
+use korpis_proto::korpis::agent::v1::__buffa::oneof::journal_record::Body;
 use korpis_proto::korpis::v1 as pb;
 use korpis_stream::dir::StreamDir;
 use korpis_stream::read::{Batch, end_offset, offset_since, read};
 use korpis_stream::record::Record;
 use korpis_stream::search::Matcher;
 use korpis_wire::record::record_to_pb;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
@@ -49,24 +59,71 @@ const CHUNK_BYTES: usize = 512 * 1024;
 #[derive(Debug, Clone)]
 pub struct ConsoleRead {
     located: Located,
+    journal: JournalHandle,
 }
 
 impl ConsoleRead {
-    /// Reads the streams `located` says where to find.
+    /// Reads the streams `located` says where to find, journaling each read.
     #[must_use]
-    pub const fn new(located: Located) -> Self {
-        Self { located }
+    pub const fn new(located: Located, journal: JournalHandle) -> Self {
+        Self { located, journal }
     }
 }
 
 impl Handler for ConsoleRead {
     fn serve(&self, opened: Opened, io: Io) -> Serving {
-        Box::pin(serve(self.located.clone(), opened, io))
+        Box::pin(serve(self.clone(), opened, io))
     }
 }
 
 fn ended(code: &str, message: impl Into<String>) -> Ended {
     Ended { code: code.to_owned(), message: message.into() }
+}
+
+fn text(s: &str) -> pb::Value {
+    pb::Value { kind: Some(pb::value::Kind::StringValue(s.to_owned())), ..Default::default() }
+}
+
+/// The effect of `opened`'s subject reading what `asked` asks for.
+fn effect(opened: &Opened, actor: &Principal, asked: &pb::ConsoleRead) -> pb::Effect {
+    let mut after = BTreeMap::from([("session".to_owned(), text(&opened.session))]);
+    for (key, value) in [("run", &asked.run), ("pattern", &asked.pattern)] {
+        if !value.is_empty() {
+            after.insert(key.to_owned(), text(value));
+        }
+    }
+    let follow =
+        pb::Value { kind: Some(pb::value::Kind::BoolValue(asked.follow)), ..Default::default() };
+    after.insert("follow".to_owned(), follow);
+    pb::Effect {
+        workload: Some(opened.workload.clone()),
+        action: ACTION.to_owned(),
+        outcome: pb::EffectOutcome::EFFECT_OUTCOME_SUCCEEDED.into(),
+        actor: korpis_wire::principal::to_pb(actor).into(),
+        grant: opened
+            .chain
+            .first()
+            .map(|g| korpis_wire::wire_id(korpis_core::id::IdKind::Grant, *g)),
+        after,
+        ..Default::default()
+    }
+}
+
+/// Journals that `opened`'s subject reads what `asked` asks for; the read goes no further if it
+/// cannot be.
+async fn journaled(
+    journal: &JournalHandle,
+    opened: &Opened,
+    asked: &pb::ConsoleRead,
+) -> Result<(), Ended> {
+    let actor = Principal::from_key(&opened.subject)
+        .map_err(|e| ended("refused", format!("the session's subject: {e}")))?;
+    let e = effect(opened, &actor, asked);
+    journal
+        .append(Body::Effect(Box::new(e)))
+        .await
+        .map_err(|e| ended("unavailable", format!("the read could not be recorded: {e}")))?;
+    Ok(())
 }
 
 fn nanos(t: &Timestamp) -> i64 {
@@ -180,7 +237,7 @@ async fn put(io: &Io, chunk: pb::ConsoleChunk) -> bool {
     io.outgoing.send(chunk.encode_to_vec()).await.is_ok()
 }
 
-async fn serve(located: Located, opened: Opened, mut io: Io) -> Result<(), Ended> {
+async fn serve(console: ConsoleRead, opened: Opened, mut io: Io) -> Result<(), Ended> {
     let asked = pb::ConsoleRead::decode_from_slice(&opened.params)
         .map_err(|e| ended("invalid", format!("the params are not a ConsoleRead: {e}")))?;
     let matcher = Matcher::new(&asked.pattern, asked.regex)
@@ -190,8 +247,9 @@ async fn serve(located: Located, opened: Opened, mut io: Io) -> Result<(), Ended
     }
     // A run's stream is found only beneath the session's workload, which is what it grants.
     let name = stream_name(&opened.workload, &asked.run);
-    let dir = located.borrow().get(&name).cloned();
+    let dir = console.located.borrow().get(&name).cloned();
     let dir = dir.ok_or_else(|| ended("no_stream", "no such console stream is written here"))?;
+    journaled(&console.journal, &opened, &asked).await?;
     let at = dir.clone();
     let next = match (asked.last, asked.since.as_option().map(nanos)) {
         (last, _) if last > 0 => {

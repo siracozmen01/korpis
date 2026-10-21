@@ -27,7 +27,7 @@ fn input(i: Input) -> pb::RelayRequest {
 }
 
 /// The runtime object `w` runs as, once it runs.
-async fn running(runtime: &InMemory, w: &str) -> String {
+pub async fn running(runtime: &InMemory, w: &str) -> String {
     for _ in 0..200 {
         let found = runtime.objects().into_iter().find(|(_, (on, up))| on == w && *up);
         if let Some((id, _)) = found {

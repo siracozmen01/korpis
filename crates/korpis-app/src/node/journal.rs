@@ -28,10 +28,15 @@ use uuid::Uuid;
 mod reports;
 mod runs;
 
-/// The actions a node reports as the act of a session's subject: console input (§6 of
-/// docs/14-streams.md), and a file session's opening and end (§3.2 of docs/06-storage.md).
-const SESSION_ACTS: &[&str] =
-    &["workload.console.write", "workload.file.read", "workload.file.write"];
+/// The actions a node reports as the act of a session's subject: a console read (§8 of
+/// docs/17-security.md) and input (§6 of docs/14-streams.md), and a file session's opening and
+/// end (§3.2 of docs/06-storage.md).
+const SESSION_ACTS: &[&str] = &[
+    "workload.console.read",
+    "workload.console.write",
+    "workload.file.read",
+    "workload.file.write",
+];
 
 fn system(action: &str, outcome: Outcome) -> Effect {
     Effect::new(Principal::System(SystemActor::Reconciler), action, outcome)

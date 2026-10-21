@@ -1366,6 +1366,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 118 | A binding read as verified after its confirmation had lapsed | §43 | `08-identity.md` §5.1 |
 | 119 | Two sets asking about one person at once would spend a rotating refresh token twice | §44 | `08-identity.md` §9.7 |
 | 120 | Any refusal of a refresh ended the person and deleted their token | §44 | `08-identity.md` §9.7 |
+| 121 | A ceremony whose answer was lost was reported refused, though it may have happened | §44 | `11-surface-web.md` §9 |
+| 122 | A console read on its node was recorded nowhere, though every document said it was | §45 | `14-streams.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3810,3 +3812,68 @@ screen reads it, or a failure with no answer, as a ceremony that may have happen
 one completed through a provider, offers to go on and find out; a redemption says to sign in with
 what was just registered and to renew the recovery codes. → patched into `11-surface-web.md` §9;
 built and tested in `web/src/retrying.ts` and `web/src/views/refusal.ts`.
+
+## 45. A host's support engineer reads a customer's console, and the customer reads that they did
+
+Written 2026-10-21, when the tenant-visible audit was built (Phase 2 of §4 of `20-roadmap.md`).
+Kestrel Hosting sells game servers; Blockhaven is a customer organization beneath its root, and
+runs `mc` in its project `survival`. Blockhaven opens a ticket: the server crashes at noon. Sam,
+one of Kestrel's support engineers, holds a grant at Kestrel's root, and reads the console to find
+out why. That evening, Blockhaven's owner reads who looked at their console, and when.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, the steps of every trace
+cited `17-security.md` nine times and `15-observability.md` fourteen, fewer than any other
+document a scenario crosses except the Discord surface and the runtime interface; §8 of
+`17-security.md`, the promise this trace tests, three times; and §4 of `15-observability.md`, which
+keeps it, four.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Sam runs `korpis logs mc --since 1h`. The control plane is asked for a token for `workload.console.read` on `mc` and refuses it: a console read is private, and Sam's grant is scoped to a strict ancestor of Blockhaven. The denial is an effect about `mc`, in Blockhaven | `08-identity.md` §3.3, §7; `15-observability.md` §4 |
+| 2 | Sam issues, from their root grant, a grant to themselves of `workload.console.read` scoped to Blockhaven, for a day. Its effect, `grant.issued`, is about Blockhaven | `08-identity.md` §3.2, §3.3; `13-surface-cli.md` §7 |
+| 3 | Sam runs the command again. The token is minted, which records nothing, since a token is recorded where it is used; the relay carries the session to the node running `mc`, and sees what it carries | `08-identity.md` §6; `02-architecture.md` §3.1; `17-security.md` §8 |
+| 4 | The node finds the stream and journals the read as Sam's act on that session, under the grant the token was minted from, before it sends a record. The control plane ingests it in order, and records it as Sam's because that grant permitted Sam the read when it happened ‡ | `14-streams.md` §6, §8; `02-architecture.md` §4.10; `03-state.md` §4 |
+| 5 | The crash was yesterday, and the node no longer holds it. Sam runs `korpis logs mc --offloaded`; the control plane reads the segments from the repository and records the read before it sends one | `14-streams.md` §4; `13-surface-cli.md` §8 |
+| 6 | That evening Blockhaven's owner opens the organization's page. Its audit trail lists the refusal, the grant issued, and both reads, each by Sam's account, the node's read without the node, since nothing Blockhaven holds reads Kestrel's machine | `11-surface-web.md` §5; `15-observability.md` §4; `08-identity.md` §8 |
+| 7 | A Blockhaven moderator holding `workload.read` but not `grant.read` reads the refusal and both reads, but not the grant: a grant's effect is read under `grant.read` | `15-observability.md` §4 |
+| 8 | The owner runs `korpis get effects --action workload.console`, and reads the two reads again, a page at a time | `13-surface-cli.md` §7; `10-api.md` §8 |
+| 9 | The next day Sam's grant lapses. Their next read is refused again, and that refusal is Blockhaven's to read too | `08-identity.md` §3.5; `15-observability.md` §4 |
+
+**One finding, at step 4** (‡).
+
+**FINDING 122: A console read on its node was recorded nowhere, though every document said it was.
+`CONFIRMED`**
+
+Found 2026-10-21 writing this trace, by asking the algebra question of step 4: what records that
+Sam read the console, where, and with what information? Three documents answered that something
+did: §8 of `17-security.md` (operator access to a console produces an effect naming the operator),
+§4 of `15-observability.md` (attaching to another tenant's console under operator authority is an
+event), and §7 of `08-identity.md` (when it is used, the effect is visible to the tenant). None
+named what. The control plane mints the token and records nothing, by design, because a token
+minted is not a token used; the relay carries the session and records nothing; and the node, the
+only component that knew the read was happening, journaled typed input and file sessions but not
+a read. A read of offloaded segments through the control plane was recorded (§4 of
+`14-streams.md`); a read of what the node held, which is every read of a console the past day,
+was not. So the tenant-visible audit built beside this trace would have shown Blockhaven the
+grant issued and never its use, the exact gap §7 of `08-identity.md` exists to close.
+
+**Resolution.** A console read is an effect before it is anything else, as console input is (§6
+of `14-streams.md`): once the node has found the stream, it journals `workload.console.read` as
+the act of the session's subject, naming the session, the run, the pattern, and whether it
+follows, under the grant the token was minted from, and sends nothing until the journal holds it.
+The control plane believes it as it believes input, only as far as that grant permitted the
+subject the read when it happened. → patched into `14-streams.md` §8; built in
+`crates/korpis-agent/src/data/console.rs`, and tested through the relay with the agent wired as
+`korpis-agent run` wires it.
+
+What it costs, and what it does not do. A read is one effect a session, not one a chunk, so a
+follower reading for a day is one row, and a follower that reconnects is one a reconnection. A
+tenant's own reads are recorded as well, which fills their trail with their own name; telling an
+operator's reads apart is the actor, not a separate log. The node is operator infrastructure: a
+node its operator has changed can serve a read and journal nothing, and nothing in Korpis can
+detect that (§8 of `17-security.md`). What the effect gives a tenant is the operator's supported
+path made visible, not a guarantee against the unsupported one. Sam is named by their account,
+which Blockhaven cannot read further; who that account is is Kestrel's to answer, and the
+answer is on the ticket.

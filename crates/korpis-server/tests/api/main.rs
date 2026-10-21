@@ -16,6 +16,7 @@ mod acme;
 mod agent;
 mod assertion;
 mod assignments;
+mod audit_fields;
 mod audit_tenant;
 mod authority;
 mod authz;

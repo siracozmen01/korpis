@@ -196,7 +196,10 @@ cannot be turned into an unbounded write path.
 another tenant's console under operator authority (§7 of `08-identity.md`), these are events. An
 audit log that only contains writes cannot answer "did anyone look at this". Browsing a backup and
 reading a file from one are recorded as `backup.browse` and `backup.read`, with the path, before
-anything is read (§5.4 of `06-storage.md`).
+anything is read (§5.4 of `06-storage.md`). A console read is recorded as
+`workload.console.read`, by the node that serves it before it sends a record, or by the control
+plane for offloaded segments (§8 and §4 of `14-streams.md`); the first was missing until
+2026-10-21 (Finding 122 of `23-walkthroughs.md`).
 
 **Tamper-evidence, not just append-only.** `REVOKE UPDATE, DELETE` stops the application; it does
 not stop someone with database access. Each day's effects are hash-chained and the day's root is

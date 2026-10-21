@@ -246,7 +246,7 @@ fn consoles<R: Runtime + Clone>(
 ) -> Handlers {
     let write = ConsoleWrite::new(runtime.clone(), runtimes.subscribe(), journal.clone());
     handlers
-        .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located())))
+        .with(console::ACTION, Arc::new(ConsoleRead::new(streams.located(), journal.clone())))
         .with(console_write::ACTION, Arc::new(write))
 }
 

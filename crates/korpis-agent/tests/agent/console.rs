@@ -9,6 +9,7 @@ use crate::support::ControlPlane;
 use buffa::Message as _;
 use korpis_agent::data::console::{ACTION, ConsoleRead};
 use korpis_agent::data::handler::Handlers;
+use korpis_agent::journal::{Bounds, JournalHandle};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::session_frame::Frame;
 use korpis_stream::dir::StreamDir;
@@ -37,6 +38,12 @@ fn bodies(c: &pb::ConsoleChunk) -> Vec<String> {
     c.records.iter().map(|r| String::from_utf8_lossy(&r.body).into_owned()).collect()
 }
 
+/// A journal of the node's own beside its streams; what it holds is read by the test that wires
+/// the agent as `korpis-agent run` does.
+fn journal(beside: &tempfile::TempDir) -> JournalHandle {
+    JournalHandle::open(&beside.path().join("journal"), Bounds::default()).unwrap()
+}
+
 fn asking(read: &pb::ConsoleRead) -> Vec<u8> {
     read.encode_to_vec()
 }
@@ -46,7 +53,8 @@ async fn a_console_is_read_searched_limited_and_followed_through_the_relay() {
     let cp = ControlPlane::start().await;
     let streams = tempfile::tempdir().unwrap();
     let (located, watching) = tokio::sync::watch::channel(BTreeMap::new());
-    let handlers = Handlers::default().with(ACTION, Arc::new(ConsoleRead::new(watching)));
+    let read = ConsoleRead::new(watching, journal(&streams));
+    let handlers = Handlers::default().with(ACTION, Arc::new(read));
     let n = node_with(&cp, "fra-9", handlers).await;
     let dir = streams.path().join("console");
     let mut w = writer(&dir);
@@ -108,7 +116,8 @@ async fn a_shared_range_is_all_a_reader_is_sent_and_its_end_ends_the_reading() {
     let cp = ControlPlane::start().await;
     let streams = tempfile::tempdir().unwrap();
     let (located, watching) = tokio::sync::watch::channel(BTreeMap::new());
-    let handlers = Handlers::default().with(ACTION, Arc::new(ConsoleRead::new(watching)));
+    let read = ConsoleRead::new(watching, journal(&streams));
+    let handlers = Handlers::default().with(ACTION, Arc::new(read));
     let n = node_with(&cp, "fra-10", handlers).await;
     let dir = streams.path().join("console");
     let mut w = writer(&dir);

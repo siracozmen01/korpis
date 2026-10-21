@@ -297,6 +297,13 @@ rendered as locked. It is not rendered.
 > share link is offered none of it. What it does not show: the effects of a relayed call, with the
 > client that relayed them, are read by `korpis get effects` until the tenant-visible audit of
 > Phase 2 (`20-roadmap.md` §4) gives the panel an effect log at all.
+>
+> Built 2026-10-21 (P2.6d of the build plan): an organization's page ends with its audit trail,
+> what was done to anything in its subtree as far as the viewer's grants reach (§4 of
+> `15-observability.md`), a page at a time. Each entry says when, the action, how it turned out,
+> who did it, and the client that relayed them if one did, so the effect of a relayed call is
+> now read here too; a refusal is marked as one, and repeats coalesced into an entry say how
+> many. A share link's holder is shown no trail, since each of its calls spends a use.
 
 ---
 

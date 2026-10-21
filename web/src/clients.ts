@@ -10,6 +10,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, useContext } from "react";
 import type { Relay } from "./console/relay";
 import {
+  EffectService,
   GrantService,
   IdentityService,
   OrganizationService,
@@ -22,6 +23,7 @@ import { RunService } from "./gen/korpis/v1/run_pb";
 
 /** The services the navigation reads. */
 export interface Clients {
+  readonly effects: Client<typeof EffectService>;
   readonly grants: Client<typeof GrantService>;
   readonly identity: Client<typeof IdentityService>;
   readonly organizations: Client<typeof OrganizationService>;
@@ -35,6 +37,7 @@ export interface Clients {
 /** The clients of every service over `transport`. */
 export function clientsOver(transport: Transport): Clients {
   return {
+    effects: createClient(EffectService, transport),
     grants: createClient(GrantService, transport),
     identity: createClient(IdentityService, transport),
     organizations: createClient(OrganizationService, transport),

@@ -27,7 +27,7 @@ fn at(t: SystemTime) -> Timestamp {
 
 /// The ops set bound with the Readers template and given it on `project`, verified: the set's
 /// grant and the binding.
-async fn ops_read(h: &Harness, project: &str) -> (String, String) {
+pub async fn ops_read(h: &Harness, project: &str) -> (String, String) {
     let org = h.root_org();
     let grants = h.grants(h.root());
     let create = pb::CreateGrantTemplateRequest {
@@ -49,7 +49,8 @@ async fn ops_read(h: &Harness, project: &str) -> (String, String) {
     (issued.unwrap().into_owned().grant.into_option().unwrap().id, binding.id)
 }
 
-async fn verify(h: &Harness, binding: &str) {
+/// Re-verifies `binding` now, as its interval would.
+pub async fn verify(h: &Harness, binding: &str) {
     let req = pb::VerifyIdentityBindingRequest { id: binding.to_owned(), ..Default::default() };
     h.identity(h.root()).verify_identity_binding(req).await.unwrap();
 }
