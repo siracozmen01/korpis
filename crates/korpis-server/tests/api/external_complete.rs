@@ -164,7 +164,12 @@ async fn a_wrong_verifier_spends_the_state_and_a_presentation_is_accepted_once()
 }
 
 /// Signs `user` in through `corp` in `sets`; their binding and an access token for the session.
-async fn signed_in(h: &Harness, user: &str, sets: &str, presentation: &str) -> (String, String) {
+pub async fn signed_in(
+    h: &Harness,
+    user: &str,
+    sets: &str,
+    presentation: &str,
+) -> (String, String) {
     let (state, code) = returned(h, user, sets, presentation).await;
     let anonymous = anonymous(h);
     let done = anonymous.complete_external_sign_in(completion(&state, &code, VERIFIER)).await;

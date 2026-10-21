@@ -28,8 +28,12 @@ pub const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 /// An identity provider that sends people to `https://idp.example/authorize`, with what the
 /// control plane began the sign-in with in the query. A code it asserts is
 /// `<user>|<nonce>|<set>,<set>…|<presentation>`, and only beside the nonce it names, a verifier,
-/// and the panel's callback, as an OIDC provider redeems one; `eve` is nobody.
+/// and the panel's callback, as an OIDC provider redeems one; `eve` is nobody. Asked about a
+/// set's members, it has every set, and everyone in it but those in [`GONE`].
 pub struct Issuer;
+
+/// The people who have left every set the issuer has; everyone else asked about is in them.
+pub static GONE: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
 /// Refuses what was presented.
 fn unverified(why: &str) -> Failure {
@@ -58,8 +62,10 @@ fn asserted(code: &str, headers: &BTreeMap<String, String>) -> Result<Asserted, 
 }
 
 impl IdentityProvider for Issuer {
-    fn verify(&self, _: Asked) -> impl Future<Output = Result<Answer, Failure>> + Send {
-        std::future::ready(Ok(Answer::default()))
+    fn verify(&self, asked: Asked) -> impl Future<Output = Result<Answer, Failure>> + Send {
+        let gone = GONE.lock().map(|g| g.clone()).unwrap_or_default();
+        let present = asked.members.into_iter().filter(|m| !gone.contains(m)).collect();
+        std::future::ready(Ok(Answer { set_exists: true, present, unknown: Vec::new() }))
     }
 
     fn assert(

@@ -42,6 +42,12 @@ impl ControlPlane {
     /// A control plane that serves the relay role itself only if `relay_role`.
     pub async fn start_with(relay_role: bool) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
+        // The control plane's errors, in a failing test's output: an internal error's cause is
+        // logged and never sent (RUST_LOG widens it).
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .with_test_writer()
+            .try_init();
         let db = TestDb::new().await.expect("test database");
         let dir = tempfile::tempdir().expect("tempdir");
         let data = DataDir::new(dir.path().join("data"));

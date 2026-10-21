@@ -34,6 +34,11 @@ pub(crate) fn from_sqlx(e: sqlx::Error) -> StoreError {
         sqlx::Error::Database(d) if d.is_unique_violation() => {
             StoreError::Duplicate(unique(d.constraint()))
         }
+        // deadlock_detected and serialization_failure: the database undid this transaction so
+        // another could finish, and running it again can succeed.
+        sqlx::Error::Database(d) if matches!(d.code().as_deref(), Some("40P01" | "40001")) => {
+            StoreError::Contended(d.message().to_owned())
+        }
         other => StoreError::Failed(other.to_string()),
     }
 }

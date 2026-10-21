@@ -3746,6 +3746,8 @@ own terminal ten minutes later, re-authenticated through the provider.
 | 7 | She restarts a server: evaluation counts the set's grant while the set's binding and her record as its member vouch | `08-identity.md` §5, §5.1 |
 | 8 | Later that morning the re-verifications of `ops` and `oncall` fall due together, claimed by two control planes; both ask the provider about Dana ‡ | `08-identity.md` §5.1, §9.7 |
 | 9 | At 14:00 she is removed from `ops`. The set's next re-verification asks about her; the provider refreshes her token, reads a new ID token without `ops`, and answers her not present; her record is unverified, and her next restart is refused | `08-identity.md` §5.1, §9.7 |
+| 10 | Added 2026-10-21. That morning, between steps 7 and 8, she passed reading one project on to a helper's token through `ops`: issued from her own session beneath the set's grant, it names `ops` and her as the set and member it came through, and the thirty days she asked for are clamped to the delegation ceiling's seven | `08-identity.md` §5.1, §9.7 |
+| 11 | From step 9 on, the helper's token reads nothing, though nobody revoked it, and she can pass nothing more on through `ops`, holding its grant no longer | `08-identity.md` §5.1 |
 
 **One finding, at step 8** (‡).
 

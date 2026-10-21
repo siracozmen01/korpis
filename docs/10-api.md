@@ -415,6 +415,13 @@ Error
   retry_after Duration?
 ```
 
+> Added 2026-10-21. A request whose transaction the database undid so that another could finish,
+> having lost a deadlock or a serializable ordering to it, is answered `CONFLICT` with reason
+> `store.contended`, retryable: sending it again can succeed, and its idempotency key makes sending
+> it again safe (§6). Until then it was answered `INTERNAL`, which says the control plane is
+> broken. The check met one: an approval of a plan deadlocked with the ingestion of the node's
+> journal, which now locks every plan a batch names before it records anything.
+
 ### Existence is gated by read authority
 
 ```

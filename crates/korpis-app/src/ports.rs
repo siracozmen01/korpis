@@ -186,6 +186,10 @@ pub enum StoreError {
     /// Stored data does not parse into the domain: a bug or tampering, never the caller's fault.
     #[error("stored data is malformed: {0}")]
     Corrupt(String),
+    /// The transaction lost a deadlock or a serialization conflict to another and was rolled
+    /// back: running it again can succeed.
+    #[error("contended: {0}")]
+    Contended(String),
     /// Anything else: connectivity, timeouts, the database refusing.
     #[error("{0}")]
     Failed(String),

@@ -162,7 +162,10 @@ pub fn from_app(e: AppError) -> ConnectError {
             reason,
             field: "",
             message: &message,
-            retryable: matches!(reason, "idempotency.in_flight" | "device.pending"),
+            retryable: matches!(
+                reason,
+                "idempotency.in_flight" | "device.pending" | "store.contended"
+            ),
         }),
         AppError::Unsatisfiable { reason, message } => build(&Wire {
             code: C::ERROR_CODE_UNSATISFIABLE,

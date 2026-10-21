@@ -127,6 +127,10 @@ impl From<StoreError> for AppError {
                 "idempotency.in_flight",
                 "a request with this idempotency key is in flight; retry it",
             ),
+            StoreError::Contended(_) => Self::conflict(
+                "store.contended",
+                "another change contended with this one and it was undone; retry it",
+            ),
             other => Self::Internal(other.to_string()),
         }
     }

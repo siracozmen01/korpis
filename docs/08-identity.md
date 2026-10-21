@@ -732,6 +732,14 @@ a set until a member can issue: a relayed call issues nothing (§5.2), so the fi
 signed-in external users of OIDC (Phase 2 of `20-roadmap.md` §4), and until then the ceiling is
 held by evaluation over grants nobody has yet been able to make.
 
+> Issued 2026-10-21 (P2.5e of the build plan, Phase 2 of §4 of `20-roadmap.md`): a person signed in
+> through an identity provider (§9.7) issues beneath their set's grant from their own session,
+> while the set's record of them vouches. The grant names the set and the person it came through,
+> its expiry is clamped to the ceiling, it stands only while both are verified, and once the set's
+> re-verification finds them gone they hold the set's grant no longer and issue nothing more
+> through it. The grant's `via` was in the schema from the start and never written to the wire; it
+> now is, so a holder reads whom they hold it through.
+
 **Re-verification, as built.** Added 2026-10-20. The control plane asks the binding's own provider,
 never an ancestor's provider of the same name, with `VerifyMembers` over the provider's stream (the
 `provider.identity` capability, §6 of `16-extensions.md`): for a set, whether it still exists and
@@ -2030,18 +2038,18 @@ reach the control plane or its backups, and the provider's volume is where they 
 leak. Without them, a person removed from a group keeps what it gave them for up to the set's
 interval and grace past their last sign-in, and must sign in again within that time to keep it.
 
-> Built 2026-10-20 in the control plane (P2.5c of `20-roadmap.md`), deciding what the design left
-> open. The control plane checks the verifier against the challenge itself before it asks the
-> provider, so a code brought to the wrong browser costs no call. The state is spent by the
-> attempt whatever follows, so a completion that fails cannot be tried again with it. A sign-in
-> confirms the person in each named set that has a live binding and whose required sets it named
-> too, and a set's re-verification asks about every member holding a live session signed in
-> through its provider, beside every member who delegated. A re-authentication keeps the sets
-> its session began with: the member records follow the new sign-in, so a set it no longer names
-> stops counting at once, and one it names newly counts from the next sign-in. A sign-in's
-> calls keep neither the state and nonce nor the code and verifier once answered (§6 of
-> `16-extensions.md`). Approving a `korpis login` from such a session was built beside it, as
-> the note under **The CLI** above says. Not yet built: the panel's pages.
+> Built 2026-10-20 in the control plane (P2.5c of the build plan, Phase 2 of §4 of
+> `20-roadmap.md`), deciding what the design left open. The control plane checks the verifier
+> against the challenge itself before it asks the provider, so a code brought to the wrong browser
+> costs no call. The state is spent by the attempt whatever follows, so a completion that fails
+> cannot be tried again with it. A sign-in confirms the person in each named set that has a live
+> binding and whose required sets it named too, and a set's re-verification asks about every member
+> holding a live session signed in through its provider, beside every member who delegated. A
+> re-authentication keeps the sets its session began with: the member records follow the new
+> sign-in, so a set it no longer names stops counting at once, and one it names newly counts from
+> the next sign-in. A sign-in's calls keep neither the state and nonce nor the code and verifier
+> once answered (§6 of `16-extensions.md`). Approving a `korpis login` from such a session was
+> built beside it, as the note under **The CLI** above says. Not yet built: the panel's pages.
 
 ---
 

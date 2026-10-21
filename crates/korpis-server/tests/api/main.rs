@@ -58,6 +58,7 @@ mod leases;
 mod lifecycle;
 mod links;
 mod locality;
+mod member_issue;
 mod migrate;
 mod names;
 mod nodes;

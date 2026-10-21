@@ -49,6 +49,17 @@ fn origin(node: Uuid, r: &Record) -> impl Fn(Effect) -> Effect {
     }
 }
 
+/// The plans `records` name, each once and in order.
+fn plans_named(records: &[Record]) -> std::collections::BTreeSet<Uuid> {
+    records
+        .iter()
+        .filter_map(|r| match &r.body {
+            Body::Effect(e) => e.plan,
+            _ => None,
+        })
+        .collect()
+}
+
 fn rejected(why: &str, action: &str) -> Effect {
     system("journal.rejected", Outcome::Failed)
         .error(details([("reason", why.into()), ("action", action.into())]))
@@ -66,6 +77,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let cursor = tx.lock_journal(node).await?;
         let admitted = admit(cursor, records);
         let Some(through) = admitted.last().map(|r| r.seq) else { return Ok(cursor) };
+        // Every plan the records name is locked, in one order, before any effect is appended:
+        // an effect takes its workload's event counter, and a decision on a plan locks the plan
+        // and then appends its effect, so a batch that appended one record's effect and then
+        // locked the plan of the next deadlocked with an approval of that plan.
+        for plan in plans_named(&admitted) {
+            tx.lock_plan(plan).await?;
+        }
         for record in &admitted {
             let effect = self.apply(&mut tx, node, record).await?;
             tx.append_effect(&origin(node, record)(effect)).await?;

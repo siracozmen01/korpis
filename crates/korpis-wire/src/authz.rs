@@ -5,9 +5,13 @@
 use crate::invalid;
 use crate::{principal, scope, time, timestamp, wire_id};
 
-use korpis_core::authz::{Action, Conditions, Delegation, GrantRecord, GrantState, StreamRange};
+use korpis_core::authz::{
+    Action, Conditions, Delegation, GrantRecord, GrantState, StreamRange, Via,
+};
 use korpis_core::id::IdKind;
+use korpis_core::principal::{Principal, Subject};
 use korpis_proto::korpis::v1 as pb;
+use korpis_proto::korpis::v1::__buffa::oneof::subject;
 use std::collections::BTreeSet;
 use std::time::SystemTime;
 
@@ -114,6 +118,24 @@ fn state(s: GrantState) -> pb::GrantState {
     }
 }
 
+/// The external identity `s` keys, if it keys one.
+fn external(s: &Subject) -> Option<pb::ExternalIdentity> {
+    let p = Principal::from_key(&s.key).ok()?;
+    match principal::to_pb(&p).kind {
+        Some(subject::Kind::External(e)) => Some(*e),
+        _ => None,
+    }
+}
+
+/// The set and the member a grant was issued through (§5.1 of docs/08-identity.md).
+fn via_to_pb(v: &Via) -> Option<pb::SetMemberIssue> {
+    Some(pb::SetMemberIssue {
+        set: external(&v.set)?.into(),
+        member: external(&v.member)?.into(),
+        ..Default::default()
+    })
+}
+
 /// The wire form of a grant, with its state at `now`.
 #[must_use]
 pub fn grant_to_pb(r: &GrantRecord, now: SystemTime) -> pb::Grant {
@@ -132,6 +154,7 @@ pub fn grant_to_pb(r: &GrantRecord, now: SystemTime) -> pb::Grant {
         link_form: g.link_form,
         state: state(r.state(now)).into(),
         label: r.label.clone(),
+        via: g.via.as_ref().and_then(via_to_pb).into(),
         from_template: r
             .from_template
             .map(|t| pb::TemplateRef {
