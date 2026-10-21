@@ -114,6 +114,13 @@ impl Containerd {
         })
     }
 
+    /// `id`'s counters since its cgroup was made, each absent where its file is.
+    pub fn counters(&self, id: &str) -> driver::ObjectCounters {
+        let dir =
+            std::path::Path::new("/sys/fs/cgroup").join(self.cgroup(id).trim_start_matches('/'));
+        super::counters::counters(|f| std::fs::read_to_string(dir.join(f)).ok())
+    }
+
     /// Forgets the CPU reading of a container that is gone.
     pub(crate) fn forget_sample(&self, id: &str) {
         if let Ok(mut s) = self.samples.lock() {

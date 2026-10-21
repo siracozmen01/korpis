@@ -191,7 +191,7 @@ impl Runtime for DriverRuntime {
         self.inspect_call(id)
     }
 
-    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<pb::ResourceUsage>> + Send {
+    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<driver::StatsResponse>> + Send {
         self.stats_call(id)
     }
 

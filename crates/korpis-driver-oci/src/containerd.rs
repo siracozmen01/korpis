@@ -5,6 +5,7 @@
 //! lease, so the content and snapshots it is assembling are not collected half way.
 
 mod console;
+mod counters;
 mod events;
 mod import;
 mod inspect;

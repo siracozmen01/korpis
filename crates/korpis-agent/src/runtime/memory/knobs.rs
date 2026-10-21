@@ -108,6 +108,15 @@ impl InMemory {
         }
     }
 
+    /// The object `id`'s counters from now on, as its driver would read them.
+    pub fn set_counters(&self, id: &str, counters: driver::ObjectCounters) {
+        if let Ok(mut s) = self.lock()
+            && let Some(o) = s.objects.get_mut(id)
+        {
+            o.counters = counters;
+        }
+    }
+
     /// The object `id` exits by itself with `code`, as a crash would, and says so.
     pub fn exit(&self, id: &str, code: i32) {
         if let Ok(mut s) = self.lock()

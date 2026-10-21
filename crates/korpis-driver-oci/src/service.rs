@@ -192,7 +192,12 @@ impl driver::DriverService for Driver {
             pids: u.pids,
             ..Default::default()
         };
-        Response::ok(driver::StatsResponse { usage: usage.into(), ..Default::default() })
+        let counters = self.containerd.counters(id);
+        Response::ok(driver::StatsResponse {
+            usage: usage.into(),
+            counters: counters.into(),
+            ..Default::default()
+        })
     }
 
     fn events(

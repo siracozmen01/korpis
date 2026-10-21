@@ -238,7 +238,24 @@ message StatsRequest {
 }
 
 message StatsResponse {
+  // What it uses now: a rate over the time since it was last asked, and memory in use.
   korpis.v1.ResourceUsage usage = 1;
+  // Its counters since it was made, what metering sums (§2 of docs/15-observability.md).
+  ObjectCounters counters = 2;
+}
+
+// A runtime object's cumulative counters, as its kernel keeps them. Each is absent where the
+// driver cannot read it: a quantity not measured, never a zero.
+message ObjectCounters {
+  // CPU time, and the time it was throttled, in microseconds.
+  optional uint64 cpu_usec = 1;
+  optional uint64 cpu_throttled_usec = 2;
+  // Bytes read from and written to block devices.
+  optional uint64 io_read_bytes = 3;
+  optional uint64 io_write_bytes = 4;
+  // Memory in use now, and the most it has used.
+  optional uint64 memory_bytes = 5;
+  optional uint64 memory_peak_bytes = 6;
 }
 
 message EventsRequest {}

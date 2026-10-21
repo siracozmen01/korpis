@@ -87,6 +87,11 @@ writes a gap with the cause `journal exhausted`, which no later delivery can sup
 is nothing to deliver. The trade is stated: local disk against how long a node may be partitioned
 before its meter has holes in it.
 
+> Corrected 2026-10-21, when metering was designed ("Measuring it, as designed", below). A sample
+> carries cumulative counters, so the first sample a node delivers after a loss measures the whole
+> span the lost ones covered; what is lost is how it divides among the span's intervals, and the
+> peaks within it. The cause `journal exhausted` stays, on a record that spans the intervals.
+
 ### Periods close, or the numbers never stop moving
 
 > Finding 11 of `23-walkthroughs.md`.
@@ -140,6 +145,121 @@ Migration is the hard one, and it is already solved: the seven-phase migration o
 The source node's final sample and the destination's first are cut at that instant. Without a
 fenced cutover this is unsolvable, which is a good illustration of why the fencing was designed
 first.
+
+### Measuring it, as designed
+
+Designed 2026-10-21, when metering was built (Phase 2 of §4 of `20-roadmap.md`). Until then the
+node journaled no sample, the control plane recorded the kind it could not store as
+`journal.unsupported` (§4.10 of `02-architecture.md`), and the driver's `Stats` answered a rate
+over the time since it was last asked and the memory in use now, which no interval can be summed
+from. This section says what each quantity is read from, by whom, how often, and what the control
+plane keeps; the sections above say what that must guarantee.
+
+**Every counter is cumulative per workload, and the node keeps it so.** The driver answers, for
+each runtime object, the kernel's own counters of its cgroup since the cgroup was made: CPU time
+and the time it was throttled (`usage_usec` and `throttled_usec` of `cpu.stat`, the second the
+number question 1 of §7 says a dispute about dedicated capacity turns on), bytes read and written
+(`rbytes` and `wbytes` of `io.stat`, summed over devices), the memory high-water mark
+(`memory.peak`), and the memory in use now (`memory.current`). A workload outlives its objects: a
+restart, a run, and an upgrade each make a new cgroup whose counters begin at zero. So the agent's
+meter keeps, for each workload, a base that each source (an object, or the interface below) adds
+its final reading to when it ends, and a workload's counter is that base and its current sources'
+readings. An object's final reading is taken before the agent removes it, since a cgroup's counters
+are readable until then whether its process exited or crashed. A reading lower than the one before
+is a source made again without the meter seeing it end: the last reading joins the base, and what
+the source used between that reading and its end, which nothing can read any more, is a gap with
+the cause `counter reset`. The meter keeps the base and its last reading of every source in a file
+of its own, replaced atomically at every reading, so an agent that restarts takes up where it
+stopped and nothing is counted twice or lost; a driver that restarts loses nothing, since the
+cgroups are the kernel's.
+
+**Memory is integrated on the node, and says so.** The kernel keeps no integral of memory in use.
+The meter reads `memory.current` every ten seconds and adds the reading times the time since the
+last one, so `memory_byte_seconds` is a sum of measured samples, never of a limit; its error is how
+much the memory moved within ten seconds, and the method is published with the number (§8 of
+`11-surface-web.md`). An interval's peak is the most memory read within it, and, where an object's
+`memory.peak`, the kernel's high-water mark since the object was made, rose since the reading
+before, that mark: so a spike between two readings that set a new high is caught, one below an
+earlier high is not, and a spike between an interval's last reading and the next interval's first
+is counted in the next. The high-water mark alone would not do, since it is an object's whole
+life's and an interval's peak would never fall.
+
+**Network bytes are the kernel's counters of the workload's own interface.** The helper gives
+each networked workload a pair of virtual interfaces (§4.1 of `07-networking.md`); the host side's
+`rx_bytes` and `tx_bytes` are what the workload sent and received, every packet of it, and survive
+a restart of the workload, since the interface is the workload's network rather than an object's.
+The split into on-net and off-net is a question of where each packet went, which only the
+per-endpoint and per-destination accounting of Phase 2's bandwidth work answers (§7 of
+`07-networking.md`); until it is built a sample says its network bytes are not split, rather than
+calling them all one or the other. A workload with no network of its own has no network meter.
+
+**What is not measured yet says so.** `device_seconds` waits for devices and `address_hours` for
+dedicated addresses, both Phase 3 (§4 of `20-roadmap.md`). A sample names the quantities it
+measured, and a quantity it does not name is absent, never zero: a zero is a measurement.
+
+**Storage is sampled, and the samples are stored.** `disk_bytes_stored` is `statfs` of each of the
+workload's volumes at the sample, used bytes summed, as the helper reads it for the volume's own
+status. `backup_bytes_stored` is measured where backups are stored, not reported by the jobs that
+wrote them: once a day the control plane lists each workload's prefix in each repository holding
+its backups and sums what it holds, which is the post-deduplication size with the scope named,
+since a workload's scope is its own prefix (§5.3 of `06-storage.md`): recipe content it holds by
+reference is stored once, outside the prefix, and is metered to no workload. It is the control
+plane's own sample, the one metered quantity no node reports.
+
+**The interval is the installation's, and it is an hour by default**, as question 1 of §7 resolved.
+`korpis-server serve --metering-interval` declares it, a whole number of minutes from one to sixty
+that divides an hour, and each node is told it with its assignment. The node samples each workload
+it runs at each interval's end by its own clock, and journals one `MeteringSample` naming the
+workload, the interval, the lease epoch it ran under, every cumulative counter and the base under
+it, the memory integral, the peak, and what it measured. A sample carries the counters, not the
+differences, because a difference is the control plane's to take: so a sample lost does not lose
+what it measured, only where within a span it fell.
+
+**The control plane keeps what each interval used, and how it knows.** A record is one workload's
+one interval, every quantity a column, and the control plane writes it from two samples: the
+quantity is the later counter less the earlier. When the samples between two received ones were
+lost, to a journal exhausted or discarded before ingestion (§4.10 of `02-architecture.md`), the
+record spans the intervals between them, with the cause: the total is measured, its division
+among the intervals is not, and the record says so rather than dividing it. This corrects the
+paragraph above that a `journal exhausted` gap "no later delivery can supersede": with cumulative
+counters the next sample the node does deliver measures the whole span. What a lost sample does
+lose is the division, and the peak, which is per sample.
+
+The node samples every workload it holds an assignment for, running or not, since a stopped
+workload still stores its volumes, and a stopped one's CPU is a measured zero. So an interval of an
+assigned workload that no record covers once two more intervals have ended is written as a gap
+(`node unreachable`), and a record that later covers it supersedes it, as the sections above
+require; a node whose journal is merely behind costs a gap and its retraction, both visible. A
+machine that restarts loses what its objects used between the meter's last reading and the moment
+they ended, since a cgroup does not survive the machine: the agent, starting with a meter whose last
+reading is older than the machine's boot, journals that span, at most ten seconds of use and the
+time the machine was down, as a gap with the cause `node rebooted`, which no later sample can
+supersede. A sample from a node that does not hold the workload's lease at that
+lease epoch is recorded as rejected (§4.5 of `02-architecture.md`), which is the fenced cut that
+migration needs when Phase 3 builds it.
+
+**Periods are days, and close after a day.** A period is one UTC day of intervals. It is open while
+its day runs, closing from its end until the lateness window passes, and closed after that:
+`--metering-lateness`, one day by default, a whole number of hours. A record for a closed period is
+written into the current open one as an adjustment naming the interval it belongs to (above). A day
+is the period because it is the smallest unit invoices are summed from, and closing small periods
+often lets a host reconcile as they close rather than once a month.
+
+**Read under `metering.read`.** A new action, read over a workload, a project, or an organization
+like every read, and kept while an organization is suspended (§2.1 of `08-identity.md`), since a
+suspended tenant is still billed for what it used. A parent holds it over its children by default
+(§7 of `08-identity.md`): they are paying for it. The interval a record covers, its source, and its
+method are part of the record.
+
+What it costs. Hourly intervals are 24 records a workload a day, a thousand workloads 24,000 a day,
+in PostgreSQL; one-minute intervals are sixty times that, the count question 1 of §7 says is stated
+when the interval is chosen, and the table is partitioned by month like the effect log. A sample is
+a journal record every interval for every workload, which the journal's bound and its reported
+horizon now count. The meter reads a cgroup's files every ten seconds per object, which is cheap
+but not free on a node of a thousand objects, and replaces the meter's file as often. Memory's
+integral is as good as ten-second sampling, stated rather than presented as a counter. A crash of
+the machine loses up to ten seconds of each workload's use, recorded as lost. Network bytes are not
+split by destination until bandwidth accounting is built.
 
 ---
 

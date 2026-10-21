@@ -53,10 +53,10 @@ impl DriverRuntime {
         Ok(r.into_owned().status.into_option().unwrap_or_default())
     }
 
-    pub(super) async fn stats_call(&self, id: &str) -> RuntimeResult<pb::ResourceUsage> {
+    pub(super) async fn stats_call(&self, id: &str) -> RuntimeResult<driver::StatsResponse> {
         let request = driver::StatsRequest { runtime_id: id.to_owned(), ..Default::default() };
         let r = self.client.stats_with_options(request, within(QUICK)).await.map_err(error)?;
-        Ok(r.into_owned().usage.into_option().unwrap_or_default())
+        Ok(r.into_owned())
     }
 
     pub(super) async fn input_call(

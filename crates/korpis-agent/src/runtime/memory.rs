@@ -24,6 +24,7 @@ pub const NAME: &str = "memory";
 struct Object {
     spec: driver::PreparedSpec,
     status: driver::RuntimeStatus,
+    counters: driver::ObjectCounters,
 }
 
 #[derive(Debug, Default)]
@@ -137,7 +138,8 @@ impl InMemory {
         s.next += 1;
         let id = format!("mem-{}", s.next);
         let created = state(driver::RuntimeState::RUNTIME_STATE_CREATED, None);
-        s.objects.insert(id.clone(), Object { spec: spec.clone(), status: created });
+        let counters = driver::ObjectCounters::default();
+        s.objects.insert(id.clone(), Object { spec: spec.clone(), status: created, counters });
         Ok(id)
     }
 
@@ -176,12 +178,10 @@ impl InMemory {
         s.objects.get(id).map(|o| o.status.clone()).ok_or_else(|| RuntimeError::NotFound(id.into()))
     }
 
-    fn stats_now(&self, id: &str) -> RuntimeResult<pb::ResourceUsage> {
+    fn stats_now(&self, id: &str) -> RuntimeResult<driver::StatsResponse> {
         let s = self.lock()?;
-        s.objects
-            .get(id)
-            .map(|_| pb::ResourceUsage::default())
-            .ok_or_else(|| RuntimeError::NotFound(id.into()))
+        let o = s.objects.get(id).ok_or_else(|| RuntimeError::NotFound(id.into()))?;
+        Ok(driver::StatsResponse { counters: o.counters.clone().into(), ..Default::default() })
     }
 
     /// Logs `verb id what`, for an object that exists.
@@ -292,7 +292,7 @@ impl Runtime for InMemory {
         ready(self.inspect_now(id))
     }
 
-    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<pb::ResourceUsage>> + Send {
+    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<driver::StatsResponse>> + Send {
         ready(self.stats_now(id))
     }
 

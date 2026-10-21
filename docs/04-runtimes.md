@@ -236,7 +236,7 @@ Destroy(RuntimeID)                                     // release all resources
 Recover()                → []RuntimeID                 // adoption after agent restart
 Inspect(RuntimeID)       → RuntimeStatus
 Wait(RuntimeID)          → ExitStatus
-Stats(RuntimeID)         → ResourceUsage
+Stats(RuntimeID)         → ResourceUsage, ObjectCounters
 
 Signal(RuntimeID, SignalName)
 Exec(RuntimeID, Command) → Stream                      // capability-gated
@@ -290,6 +290,16 @@ it leaves the object in, read back with `Inspect` rather than built from the eve
 therefore only make the supervisor look sooner, never tell it something `Inspect` would not, and
 one lost in a reconnection costs that latency and nothing else, because the reconciler reads every
 object on its period anyway (§4.1 of `02-architecture.md`).
+
+**`Stats` answers what metering sums, as the kernel counts it.** Beside the usage now, a rate
+over the time since it was last asked and the memory in use, it answers the object's counters
+since the object was made: CPU time and time throttled, bytes read and written, memory in use and
+its high-water mark (§2 of `15-observability.md`). Each is absent where the driver cannot read
+it, and the `oci` driver reads them from the container's cgroup v2 files, so a controller not
+enabled is a quantity not measured rather than a zero. The counters begin again with each object;
+keeping a workload's continuous across its objects is the agent's meter, not the driver's. Added
+2026-10-21, when metering was built: `Stats` answered only the usage now, from which no interval
+can be summed.
 
 **`Recover` is not optional.** It is the adoption primitive of §4.4 of `02-architecture.md`. A
 driver that cannot enumerate and re-adopt the objects it created is a driver that turns every agent

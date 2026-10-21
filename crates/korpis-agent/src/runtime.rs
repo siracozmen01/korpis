@@ -104,8 +104,9 @@ pub trait Runtime: Send + Sync + 'static {
         id: &str,
     ) -> impl Future<Output = RuntimeResult<driver::RuntimeStatus>> + Send;
 
-    /// What it is using.
-    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<pb::ResourceUsage>> + Send;
+    /// What it is using now, and its counters since it was made, each absent where the driver
+    /// cannot read it (§2 of docs/15-observability.md).
+    fn stats(&self, id: &str) -> impl Future<Output = RuntimeResult<driver::StatsResponse>> + Send;
 
     /// Sends it a driver-declared signal.
     fn signal(&self, id: &str, signal: &str) -> impl Future<Output = RuntimeResult<()>> + Send;
