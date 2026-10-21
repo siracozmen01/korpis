@@ -5,6 +5,7 @@
 use connectrpc::client::{ClientConfig, HttpClient};
 use korpis_proto::korpis::v1 as pb;
 use korpis_proto::korpis::v1::__buffa::oneof::declare_intent_request::Target;
+use korpis_server::ServeConfig;
 use korpis_server::data::DataDir;
 use korpis_store::testing::TestDb;
 use rustls::pki_types::{CertificateDer, pem::PemObject};
@@ -36,11 +37,15 @@ pub struct ControlPlane {
 
 impl ControlPlane {
     pub async fn start() -> Self {
-        Self::start_with(true).await
+        Self::start_as(true, |c| c).await
     }
 
-    /// A control plane that serves the relay role itself only if `relay_role`.
-    pub async fn start_with(relay_role: bool) -> Self {
+    /// A control plane that serves the relay role itself only if `relay_role`, serving what
+    /// `tweak` makes of the harness's configuration.
+    pub async fn start_as(
+        relay_role: bool,
+        tweak: impl FnOnce(ServeConfig) -> ServeConfig,
+    ) -> Self {
         let _ = rustls::crypto::ring::default_provider().install_default();
         // The control plane's errors, in a failing test's output: an internal error's cause is
         // logged and never sent (RUST_LOG widens it).
@@ -55,7 +60,8 @@ impl ControlPlane {
         let login = db.login().await.expect("login");
         let installed = korpis_server::testing::install_acme(&db.owner_url, &data, &login).await;
         let listen = "127.0.0.1:0".parse().unwrap();
-        let served = served::Served::start(served::config(&data, &login, listen, relay_role)).await;
+        let config = tweak(served::config(&data, &login, listen, relay_role));
+        let served = served::Served::start(config).await;
         let root_org = korpis_server::api::wire::wire_id(
             korpis_core::id::IdKind::Organization,
             installed.organization.id,

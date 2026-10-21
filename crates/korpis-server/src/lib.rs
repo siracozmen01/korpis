@@ -12,7 +12,7 @@ pub mod api;
 pub mod authority;
 pub mod bodies;
 mod flags;
-pub use flags::{placement_policy, span};
+pub use flags::{metering_interval, placement_policy, span};
 mod background;
 mod buckets;
 pub mod control_backup;
@@ -87,6 +87,8 @@ pub struct ServeConfig {
     pub heartbeat_interval: Duration,
     /// How long a lease lasts from the holder's request (§4.5 of docs/02-architecture.md).
     pub lease_term: Duration,
+    /// The metering interval every node is told (§2 of docs/15-observability.md).
+    pub metering_interval: Duration,
     /// The window repeated identical denials are coalesced over (§10 of docs/10-api.md).
     pub denial_window: Duration,
     /// How long the event log keeps an event (§5 of docs/15-observability.md).
@@ -172,6 +174,7 @@ fn application(
     let terms = SessionTerms {
         heartbeat_interval: config.heartbeat_interval,
         lease_term: config.lease_term,
+        metering_interval: config.metering_interval,
         ..Default::default()
     };
     let app = App::new(store, SystemClock, keys.token.clone(), recipes)

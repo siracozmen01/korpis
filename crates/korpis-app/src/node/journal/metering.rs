@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+//! A node's metering samples (§2 of docs/15-observability.md, "Measuring it, as designed"): each
+//! is measured from the last sample of its workload on that node, and what it measured is
+//! appended as a record. A sample is believed only from a node that held the workload, and it is
+//! not an effect: metering is not the audit log, and the record is its own. Only a sample that
+//! is not believed leaves an effect, as a rejection.
+
+use super::rejected;
+use crate::App;
+use crate::error::AppError;
+use crate::ports::{Clock, MeteringWrite as _, RecipeSource, Store};
+use korpis_core::audit::Effect;
+use korpis_core::metering::{Reading, Record, Sample, measure};
+use uuid::Uuid;
+
+impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
+    /// Takes `sample` from `node`; the effect of not believing it, where it is not believed.
+    pub(super) async fn metering(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        sample: &Sample,
+    ) -> Result<Option<Effect>, AppError> {
+        let w = sample.workload;
+        if !self.store.ever_leased(w, node).await? && !self.store.nodes_of(w).await?.contains(&node)
+        {
+            let mut e = rejected("the node never held the workload", "metering");
+            e.workload = Some(w);
+            return Ok(Some(e));
+        }
+        let before = tx.metering_reading(w, node).await?;
+        let measured = match measure(sample, before.as_ref()) {
+            Ok(m) => m,
+            Err(why) => {
+                let mut e = rejected(&why.to_string(), "metering");
+                e.workload = Some(w);
+                return Ok(Some(e));
+            }
+        };
+        let record = Record::measured(sample, node, &measured);
+        tx.append_metering_record(&record, self.clock.now()).await?;
+        let reading = Reading { end: sample.end(), counters: sample.counters };
+        tx.keep_metering_reading(w, node, &reading).await?;
+        Ok(None)
+    }
+}

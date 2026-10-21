@@ -46,7 +46,7 @@ pub enum Body {
     /// An effect.
     Effect(NodeEffect),
     /// A metering sample (§2 of docs/15-observability.md).
-    Metering,
+    Metering(crate::metering::Sample),
     /// A break-glass session opened on the machine (§10 of docs/02-architecture.md).
     BreakGlass {
         /// The operator, as the machine knows them.
@@ -167,7 +167,8 @@ mod tests {
     use super::*;
 
     fn record(seq: u64) -> Record {
-        Record { seq, occurred_at: None, body: Body::Metering, count: 1 }
+        let body = Body::Malformed { reason: String::new() };
+        Record { seq, occurred_at: None, body, count: 1 }
     }
 
     #[test]

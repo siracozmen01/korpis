@@ -25,6 +25,7 @@ use korpis_core::workload::stream::StreamKey;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+mod metering;
 mod reports;
 mod runs;
 
@@ -90,17 +91,24 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             tx.lock_plan(plan).await?;
         }
         for record in &admitted {
-            let effect = self.apply(&mut tx, node, record).await?;
-            tx.append_effect(&origin(node, record)(effect)).await?;
+            if let Some(effect) = self.apply(&mut tx, node, record).await? {
+                tx.append_effect(&origin(node, record)(effect)).await?;
+            }
         }
         tx.advance_journal(node, through).await?;
         tx.commit().await?;
         Ok(through)
     }
 
-    /// Applies one record; the effect that records it.
-    async fn apply(&self, tx: &mut S::Tx, node: Uuid, r: &Record) -> Result<Effect, AppError> {
-        Ok(match &r.body {
+    /// Applies one record; the effect that records it, where it is one: a metering sample
+    /// believed is a record of its own.
+    async fn apply(
+        &self,
+        tx: &mut S::Tx,
+        node: Uuid,
+        r: &Record,
+    ) -> Result<Option<Effect>, AppError> {
+        Ok(Some(match &r.body {
             Body::Effect(e) if SESSION_ACTS.contains(&e.action.as_str()) => {
                 let at = r.occurred_at.unwrap_or_else(|| self.clock.now());
                 self.session_act(node, e, at).await?
@@ -136,11 +144,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             Body::Snapshot(snap) => self.snapshot(tx, node, snap).await?,
             Body::Backup(b) => self.backup(tx, node, b).await?,
             Body::Malformed { reason } => rejected(reason, "malformed"),
-            // Metering is stored with the metering of Phase 2 (§4 of docs/20-roadmap.md); until
-            // then its arrival is recorded, so the loss is visible rather than silent.
-            Body::Metering => system("journal.unsupported", Outcome::Skipped)
-                .after(details([("kind", "metering".into())])),
-        })
+            Body::Metering(sample) => return self.metering(tx, node, sample).await,
+        }))
     }
 
     /// What the node carried on a session, console input or a file session's opening or end,

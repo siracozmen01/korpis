@@ -243,7 +243,7 @@ async fn revoking_a_grant_ends_the_live_sessions_its_tokens_opened() {
 
 #[tokio::test]
 async fn a_relay_of_its_own_carries_sessions_and_ends_revoked_ones() {
-    let cp = ControlPlane::start_with(false).await;
+    let cp = ControlPlane::start_as(false, |c| c).await;
     let relay = cp.standalone_relay("edge-1").await;
     let n = node(&cp, "fra-8").await;
     let (grant, secret) = cp.grant_to_new_token("console", &[CONSOLE]).await;

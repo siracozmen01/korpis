@@ -93,4 +93,7 @@ pub struct Link {
     /// The certificates the node's proxy serves with, asked for up this session and answered
     /// down it (§3.2 of docs/07-networking.md).
     pub certificates: Arc<crate::ingress::Certificates>,
+    /// The metering interval the control plane declared in its last Welcome; none before one
+    /// declared it (§2 of docs/15-observability.md).
+    pub metering: watch::Receiver<Option<Duration>>,
 }

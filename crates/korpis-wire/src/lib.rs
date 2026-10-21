@@ -45,6 +45,7 @@ pub mod extension;
 pub mod identity;
 pub mod journal;
 pub mod keys;
+pub mod metering;
 pub mod node;
 pub mod observation;
 pub mod placement;

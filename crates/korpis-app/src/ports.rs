@@ -31,6 +31,7 @@ mod journal;
 mod lease;
 mod lookup;
 mod member;
+mod metering;
 mod node;
 mod observation;
 mod placement;
@@ -96,6 +97,7 @@ pub use korpis_core::workload::run::RunEnd;
 pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
 pub use member::{MemberRead, MemberWrite};
+pub use metering::{MeteringRead, MeteringWrite};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
@@ -212,6 +214,7 @@ pub trait Store:
     + DenialRead
     + FailureRead
     + IdempotencyRead
+    + MeteringRead
     + KeyRegistry
     + RecipeCache
     + WorkloadRead
@@ -332,6 +335,7 @@ pub trait Tx:
     + BindingWrite
     + AssertionWrite
     + MemberWrite
+    + MeteringWrite
     + SignInWrite
     + Send
 {

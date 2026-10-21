@@ -25,6 +25,7 @@ pub fn config(data: &DataDir, login: &str, listen: SocketAddr, relay_role: bool)
         watch_resync: Duration::from_secs(1),
         heartbeat_interval: Duration::from_secs(30),
         lease_term: Duration::from_secs(2),
+        metering_interval: std::time::Duration::from_secs(3600),
         denial_window: Duration::from_secs(60),
         event_retention: Duration::from_secs(30 * 86_400),
         stream_retention_floor: Duration::ZERO,

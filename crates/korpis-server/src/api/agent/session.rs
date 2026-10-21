@@ -101,6 +101,7 @@ fn welcome(app: &ServerApp, s: &Session, present: bool) -> agent::ControlMessage
             server_time: timestamp(app.now()).into(),
             auth_skew: duration(s.terms.auth_skew).into(),
             present_assignments: present,
+            metering_interval: duration(s.terms.metering_interval).into(),
             ..Default::default()
         }))),
         ..Default::default()

@@ -56,6 +56,10 @@ pub fn boot_time() -> Option<SystemTime> {
     Some(SystemTime::UNIX_EPOCH + Duration::from_secs(seconds))
 }
 
+/// What the meter reads beside the runtime: the host, the assignments held, the interval the
+/// control plane declared, and the journal it samples into.
+pub type Told<H> = (H, watch::Receiver<HeldSet>, watch::Receiver<Option<Duration>>, JournalHandle);
+
 /// A runtime metered, and the sampler that reads it.
 pub type Started<R, H> = (Metered<R>, Sampler<Metered<R>, H>);
 
@@ -65,12 +69,12 @@ pub type Started<R, H> = (Metered<R>, Sampler<Metered<R>, H>);
 pub fn start<R: Runtime + Clone, H: Host>(
     root: &Path,
     runtime: R,
-    (host, held, journal): (H, watch::Receiver<HeldSet>, JournalHandle),
+    (host, held, told, journal): Told<H>,
     options: Metering,
 ) -> std::io::Result<Started<R, H>> {
     let meter = Arc::new(Meter::open(&root.join("meter"), boot_time())?);
     let metered = Metered::new(runtime, meter.clone());
-    let sources = Sources { runtime: metered.clone(), host, held, net: options.net };
+    let sources = Sources { runtime: metered.clone(), host, held, net: options.net, told };
     Ok((metered.clone(), Sampler::new(meter, sources, journal, options.interval)))
 }
 

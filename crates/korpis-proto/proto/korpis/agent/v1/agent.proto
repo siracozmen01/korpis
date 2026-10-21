@@ -299,6 +299,9 @@ message Welcome {
   // Set while a restored control plane is settling (§8 of docs/03-state.md): the agent answers
   // with Presented, every assignment it holds, signed as it received them. Added 2026-10-18.
   bool present_assignments = 6;
+  // The installation's metering interval: the node samples every workload it holds at the end
+  // of each, by its own clock (§2 of docs/15-observability.md). Added 2026-10-21.
+  google.protobuf.Duration metering_interval = 7;
 }
 
 // The assignments an agent holds, as the control plane that issued them signed them, presented

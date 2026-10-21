@@ -323,7 +323,7 @@ bytes, file transfers, and stream segments travel on the separate data connectio
 | `ContentHint` | recipe digests likely to be needed soon; prefetch |
 | `Probe` | liveness check with a nonce |
 | `ReachabilityProbe` | listen on a port of the node's range, over TCP and UDP, and answer nonces with the node key's signature, to measure whether the node can be reached at what it advertises (§9 of `07-networking.md`) |
-| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, and the control plane's clock |
+| `Welcome` | the first answer to a verified `Hello`: the protocol accepted, the heartbeat interval, the auth skew window, the control plane's clock, and the metering interval |
 | `Relays` | the relays to keep a data connection to, and whether the control plane serves the role itself; sent when the session opens and when they change (§3.1) |
 | `WorkloadCredential` | the answer to a `CredentialRequest`: a credential for the workload and its expiry, or the refusal (§9.5 of `08-identity.md`) |
 | `JobAccess` | the answer to a `JobAccessRequest`: the workload's data key and scoped access to its repository's store, or the refusal (§5.5 of `06-storage.md`) |
@@ -968,9 +968,11 @@ JournalRecord
   retire plan applied retires the workload (§4.8). A failure the node marks `step.refused`,
   its driver refusing before anything of the workload was made there, places the workload
   elsewhere instead, the plan still open (§2.1 of `05-scheduling.md`). A gap record and a
-  break-glass record are effects in their own right. A metering sample is recorded only as having
-  arrived (`journal.unsupported`) until metering is stored in Phase 2 (§4 of `20-roadmap.md`): a
-  loss that is visible, not silent.
+  break-glass record are effects in their own right. A metering sample believed is a record of its
+  own, measured from the workload's sample before it on that node (§2 of `15-observability.md`),
+  and writes no effect, since metering is not the audit log; a sample not believed is a
+  `journal.rejected` effect like any other record. Corrected 2026-10-21, when metering was
+  stored: until then a sample was recorded only as having arrived (`journal.unsupported`).
 - **`JournalAck`** tells the agent the cursor. Nothing is discarded before it is acknowledged, and
   acknowledged records are kept for a further retention window (default seven days) before they
   are discarded, so that a control plane restored from an older backup can re-ingest them (§8 of

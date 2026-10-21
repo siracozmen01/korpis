@@ -60,6 +60,10 @@ pub struct ServeArgs {
     /// none.
     #[arg(long, default_value_t = 0)]
     stream_retention_floor_days: u64,
+    /// The metering interval every node samples at, `<n>m` or `1h`: a whole number of minutes
+    /// that divides an hour (§2 of docs/15-observability.md).
+    #[arg(long, default_value = "1h", value_parser = korpis_server::metering_interval)]
+    metering_interval: Duration,
     /// Whether this process serves the relay role, carrying console and file sessions; turn it
     /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
     #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
@@ -151,6 +155,7 @@ pub async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         watch_resync: Duration::from_secs(args.watch_resync_secs.max(1)),
         heartbeat_interval: Duration::from_secs(args.agent_heartbeat_secs.max(1)),
         lease_term: Duration::from_secs(args.lease_term_secs.max(1)),
+        metering_interval: args.metering_interval,
         denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
         event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
         stream_retention_floor: Duration::from_secs(

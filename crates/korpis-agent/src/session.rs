@@ -57,6 +57,7 @@ pub struct Session {
     token_keys: TokenKeys,
     revoked: Revoked,
     relays: watch::Sender<Vec<String>>,
+    metering: watch::Sender<Option<Duration>>,
     inbound: mpsc::Sender<Down>,
     outbound: mpsc::Receiver<agent::AgentMessage>,
     events: broadcast::Sender<Event>,
@@ -134,6 +135,7 @@ impl Session {
         let (token_keys, ring) = TokenKeys::load(kept_keys, &identity.keys.token_keys);
         let (revoked, revoked_rx) = Revoked::load(state.root().join("revoked.binpb"), ring.clone());
         let (relays, relays_rx) = watch::channel(Vec::new());
+        let (metering, metering_rx) = watch::channel(None);
         let (inbound, inbound_rx) = mpsc::channel(256);
         let (outbound_tx, outbound) = mpsc::channel(1024);
         let (events, _) = broadcast::channel(64);
@@ -158,6 +160,7 @@ impl Session {
             steps: steps.clone(),
             offered: Arc::clone(&offered),
             certificates: Arc::clone(&certificates),
+            metering: metering_rx,
         };
         let session = Self {
             identity,
@@ -168,6 +171,7 @@ impl Session {
             token_keys,
             revoked,
             relays,
+            metering,
             inbound,
             outbound,
             events,
@@ -290,6 +294,9 @@ impl Session {
             .as_option()
             .and_then(|d| korpis_wire::duration_from("heartbeat_interval", d).ok())
             .unwrap_or(Duration::from_secs(30));
+        let metering = welcome.metering_interval.as_option();
+        let metering = metering.and_then(|d| korpis_wire::duration_from("metering", d).ok());
+        self.metering.send_replace(metering.filter(|d| !d.is_zero()));
         let _ = self.events.send(Event::Welcomed { heartbeat: interval });
         if welcome.present_assignments {
             // A restored control plane settles: it is shown what this node was told, as signed,

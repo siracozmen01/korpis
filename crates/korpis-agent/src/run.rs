@@ -275,7 +275,7 @@ impl Agent {
         let data = identity.clone();
         let ingress_facts = facts();
         let (session, link) = Session::new(identity, state.clone(), facts, journal.clone());
-        let metered = (host.clone(), link.held.clone(), journal.clone());
+        let metered = (host.clone(), link.held.clone(), link.metering.clone(), journal.clone());
         let (runtime, sampler) =
             crate::meter::start(state.root(), runtime, metered, options.metering)
                 .map_err(|source| RunError::Io { what: "the meter", source })?;

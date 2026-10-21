@@ -37,6 +37,8 @@ pub struct SessionTerms {
     /// The declared bound on clock-rate error, in parts per million: the holder treats its
     /// lease as ending `term × ρ` early.
     pub rho_ppm: u32,
+    /// The metering interval every node samples at (§2 of docs/15-observability.md).
+    pub metering_interval: Duration,
 }
 
 impl Default for SessionTerms {
@@ -46,6 +48,7 @@ impl Default for SessionTerms {
             auth_skew: Duration::from_secs(300),
             lease_term: Duration::from_secs(60),
             rho_ppm: 1000,
+            metering_interval: Duration::from_secs(3600),
         }
     }
 }

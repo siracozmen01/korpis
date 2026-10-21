@@ -208,12 +208,12 @@ plane's own sample, the one metered quantity no node reports.
 
 **The interval is the installation's, and it is an hour by default**, as question 1 of §7 resolved.
 `korpis-server serve --metering-interval` declares it, a whole number of minutes from one to sixty
-that divides an hour, and each node is told it with its assignment. The node samples each workload
-it runs at each interval's end by its own clock, and journals one `MeteringSample` naming the
-workload, the interval, the lease epoch it ran under, every cumulative counter and the base under
-it, the memory integral, the peak, and what it measured. A sample carries the counters, not the
-differences, because a difference is the control plane's to take: so a sample lost does not lose
-what it measured, only where within a span it fell.
+that divides an hour, and each node is told it in the `Welcome` that begins each of its sessions
+(§4 of `02-architecture.md`). The node samples each workload it runs at each interval's end by its
+own clock, and journals one `MeteringSample` naming the workload, the interval, the lease epoch it
+ran under, every cumulative counter, the memory integral, the peak, and what it measured. A sample
+carries the counters, not the differences, because a difference is the control plane's to take: so
+a sample lost does not lose what it measured, only where within a span it fell.
 
 **The control plane keeps what each interval used, and how it knows.** A record is one workload's
 one interval, every quantity a column, and the control plane writes it from two samples: the
@@ -279,6 +279,26 @@ split by destination until bandwidth accounting is built.
 > (§4.10 of `02-architecture.md`). Unit tests drive the accounts across two objects, a reset, a
 > reboot, an unread end, and an agent restart, and an agent test finds a sample an interval
 > delivered.
+>
+> Built 2026-10-21 in the control plane (P2.7c1). `korpis-server serve --metering-interval`, an
+> hour by default, is told to every node in its session's `Welcome`, and the agent samples at it
+> from then on. The design said each node is told it with its assignment; the interval is the
+> installation's and not any assignment's, and one `Welcome` carries it to each session. Nor does
+> a sample carry the base under its counters, as the design said: the base is the node's own
+> accounts, and the control plane needs only the counters. A sample is believed from a node that
+> has held the workload's lease or is placed with it, measured from that workload's last sample
+> on that node (kept in `metering_reading`, one row each), and appended to `metering_record`,
+> partitioned by month of when it was recorded, as the effect log is, so a record of an interval
+> long past still finds a partition. The first sample of a workload on a node counts from zero; a
+> count lower than the last begins again with the cause `counter reset`; samples lost leave one
+> record spanning their intervals with the cause `samples lost`; a sample ending no later than
+> the last is rejected. A sample believed writes no effect (§4.10 of `02-architecture.md`). The
+> lease epoch is recorded on each record, but the cut at an epoch boundary is not yet enforced:
+> the lease table keeps only each workload's current lease, and the history the cut needs is
+> Phase 3's, with migration. Unit tests measure each case; an API test speaks the agent protocol
+> and finds the interval told, a stranger's sample rejected, a duplicate dropped by the cursor,
+> a span, and a stale sample rejected; the agent test finds what a workload used recorded once,
+> interval by interval, across an agent restart.
 
 ---
 

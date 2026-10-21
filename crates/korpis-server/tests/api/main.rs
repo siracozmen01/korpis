@@ -61,6 +61,7 @@ mod lifecycle;
 mod links;
 mod locality;
 mod member_issue;
+mod metering;
 mod migrate;
 mod names;
 mod nodes;

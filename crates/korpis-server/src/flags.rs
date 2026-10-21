@@ -33,9 +33,27 @@ pub fn span(s: &str) -> Result<Duration, String> {
     seconds.filter(|s| (60..=365 * 86_400).contains(s)).map(Duration::from_secs).ok_or_else(bad)
 }
 
+/// A metering interval: a span of whole minutes from one to sixty that divides an hour, so every
+/// interval of a day begins on the same minutes of every hour (§2 of docs/15-observability.md).
+pub fn metering_interval(s: &str) -> Result<Duration, String> {
+    let d = span(s)?;
+    let seconds = d.as_secs();
+    let fits = seconds <= 3600 && seconds % 60 == 0 && 3600 % seconds == 0;
+    fits.then_some(d).ok_or_else(|| format!("{s:?}: a metering interval divides an hour"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_metering_interval_is_whole_minutes_that_divide_an_hour() {
+        assert_eq!(metering_interval("1h"), Ok(Duration::from_secs(3600)));
+        assert_eq!(metering_interval("15m"), Ok(Duration::from_secs(900)));
+        for bad in ["7m", "2h", "1d", "0m"] {
+            assert!(metering_interval(bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn a_span_is_minutes_hours_or_days_from_a_minute_to_a_year() {

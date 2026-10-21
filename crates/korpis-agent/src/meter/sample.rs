@@ -36,6 +36,8 @@ pub struct Sources<R, H> {
     pub held: watch::Receiver<HeldSet>,
     /// Where the kernel lists network interfaces, `/sys/class/net` on a node.
     pub net: PathBuf,
+    /// The interval the control plane declared, which is the one sampled at once it is told.
+    pub told: watch::Receiver<Option<Duration>>,
 }
 
 /// The meter's reading and sampling.
@@ -69,16 +71,21 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
         Self { meter, sources, journal, interval }
     }
 
+    /// The interval sampled at: the control plane's, once it declared one, or else the agent's.
+    fn interval(&self) -> Duration {
+        (*self.sources.told.borrow()).unwrap_or(self.interval)
+    }
+
     /// Reads and samples until the task is dropped.
     pub async fn run(self) {
         let started = self.meter.with_book(|b| b.read_at()).unwrap_or_else(SystemTime::now);
-        let mut current = start_of(started, self.interval);
+        let mut current = start_of(started, self.interval());
         // An interval shorter than a reading's period is read at its own pace.
         let mut tick = tokio::time::interval(READ_EVERY.min(self.interval));
         loop {
             tick.tick().await;
             self.read(SystemTime::now()).await;
-            let now = start_of(SystemTime::now(), self.interval);
+            let now = start_of(SystemTime::now(), self.interval());
             if now > current {
                 self.sample(current, now.duration_since(current).unwrap_or_default()).await;
                 current = now;

@@ -97,7 +97,9 @@ fn segment(field: &str, e: &agent::StreamSegmentEvent) -> Result<Body> {
 fn body(field: &str, seq: u64, b: Option<&B>) -> Result<Body> {
     Ok(match b.ok_or_else(|| invalid(field, "required"))? {
         B::Effect(e) => Body::Effect(effect(&format!("{field}.effect"), e)?),
-        B::Metering(_) => Body::Metering,
+        B::Metering(m) => {
+            Body::Metering(crate::metering::sample_from_pb(&format!("{field}.metering"), m)?)
+        }
         B::BreakGlass(g) => Body::BreakGlass {
             operator: g.operator.clone(),
             reason: g.reason.clone(),

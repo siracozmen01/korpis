@@ -34,6 +34,7 @@ mod job;
 mod journal;
 mod lease;
 mod member;
+mod metering;
 mod node;
 mod observation;
 mod placement;
@@ -141,9 +142,14 @@ impl PgStore {
         &self.pool
     }
 
-    /// Ensures effect partitions exist for the coming months. Called at start and daily.
+    /// Ensures effect and metering partitions exist for the coming months. Called at start and
+    /// daily.
     pub async fn ensure_partitions(&self, months_ahead: i32) -> Result<(), Error> {
         sqlx::query("SELECT korpis_ensure_effect_partitions($1)")
+            .bind(months_ahead)
+            .execute(&self.pool)
+            .await?;
+        sqlx::query("SELECT korpis_ensure_metering_partitions($1)")
             .bind(months_ahead)
             .execute(&self.pool)
             .await?;

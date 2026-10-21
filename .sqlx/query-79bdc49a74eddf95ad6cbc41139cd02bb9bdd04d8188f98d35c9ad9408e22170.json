@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO metering_reading (workload_id, node_id, interval_end, cpu_usec,\n                    cpu_throttled_usec, io_read_bytes, io_write_bytes, net_rx_bytes, net_tx_bytes,\n                    memory_kib_seconds)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n             ON CONFLICT (workload_id, node_id) DO UPDATE SET interval_end = $3, cpu_usec = $4,\n                    cpu_throttled_usec = $5, io_read_bytes = $6, io_write_bytes = $7,\n                    net_rx_bytes = $8, net_tx_bytes = $9, memory_kib_seconds = $10",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79bdc49a74eddf95ad6cbc41139cd02bb9bdd04d8188f98d35c9ad9408e22170"
+}

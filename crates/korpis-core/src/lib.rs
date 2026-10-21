@@ -20,6 +20,7 @@ pub mod event;
 pub mod extension;
 pub mod id;
 pub mod labels;
+pub mod metering;
 pub mod node;
 pub mod object;
 pub mod placement;
