@@ -187,6 +187,7 @@ backup.create · backup.browse · backup.read · backup.restore · backup.prune
 repository.read · repository.write                   where an organization's backups are kept
 domain.read · domain.write · domain.attest           names an org holds (07-networking.md §3.2)
 certificate.read · certificate.write                 TLS certificates an organization uploads
+portal.read · portal.write                           an org's own addresses (07-networking.md §3.6)
 stream.share
 grant.read · grant.revoke
 template.write                                       make, edit, retire an org's grant templates
@@ -288,6 +289,12 @@ ext.<extension>.<action>              extensions define their own, namespaced
   `certificate.write` uploads, replaces, and deletes an organization's provided certificates and
   `certificate.read` lists them, never their keys, which no action reads back. Routing a held name
   from an endpoint is `workload.write`, as declaring any endpoint is.
+- **`portal.read` and `portal.write` are new actions implied by nothing.** Added 2026-10-21, when
+  portals were designed (§3.6 of `07-networking.md`). A portal decides under which name the control
+  plane serves an organization's customers, and whose theme, identity providers, and passkeys they
+  meet there, which no existing action covered. `portal.write` on an organization makes a portal
+  of a name it holds, changes its certificate, and deletes it; naming a provided certificate takes
+  `certificate.read` on it beside. `portal.read` reads them, with what a deletion would leave.
 - **`node.place` is binding a workload to a node by hand** (§2.3 of `05-scheduling.md`), an
   authority over the node, held beside `workload.write` on the workload. Added 2026-10-13, when
   manual placement was built: the model had `bound_by: operator` and no action anyone could hold

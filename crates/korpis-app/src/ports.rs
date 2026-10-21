@@ -36,6 +36,7 @@ mod metering;
 mod node;
 mod observation;
 mod placement;
+mod portal;
 mod provider;
 mod provider_call;
 mod prune;
@@ -103,6 +104,7 @@ pub use metering::{MeteringRead, MeteringWrite, Overdue, UsageQuery};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};
 pub use placement::{PlacementRead, PlacementWrite};
+pub use portal::{PortalRead, PortalWrite};
 pub use provider::{ProviderRead, ProviderWrite};
 pub use provider_call::{ProviderCallRead, ProviderCallWrite};
 pub use prune::{AccessRecord, Area, Prefix, PruneRead, PruneWrite};
@@ -169,6 +171,8 @@ pub enum Unique {
     RepositoryStreams,
     /// An organization asks for one name once.
     DomainName,
+    /// A name is one portal's at most.
+    PortalName,
     /// A sign-in name names one account.
     AccountName,
     /// A passkey's credential is registered once.
@@ -246,6 +250,7 @@ pub trait Store:
     + JobRead
     + PruneRead
     + DomainRead
+    + PortalRead
     + CertificateRead
     + TemplateRead
     + BindingRead
@@ -333,6 +338,7 @@ pub trait Tx:
     + JobWrite
     + PruneWrite
     + DomainWrite
+    + PortalWrite
     + CertificateWrite
     + TemplateWrite
     + BindingWrite

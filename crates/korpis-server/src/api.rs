@@ -46,6 +46,8 @@ mod node;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod plan;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
+mod portal;
+#[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod profile;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod provider;
@@ -89,9 +91,9 @@ use korpis_proto::korpis::v1::{
     AccountServiceExt, BackupServiceExt, CertificateServiceExt, DeclaredSetServiceExt,
     DomainServiceExt, EffectServiceExt, EventServiceExt, ExtensionServiceExt, GrantServiceExt,
     IdentityServiceExt, MeteringServiceExt, NodeServiceExt, OrganizationServiceExt, PlanServiceExt,
-    ProfileServiceExt, ProjectServiceExt, ProviderServiceExt, RepositoryServiceExt, RunServiceExt,
-    ServerInfoServiceExt, SessionServiceExt, StreamServiceExt, VolumeServiceExt,
-    WorkloadServiceExt,
+    PortalServiceExt, ProfileServiceExt, ProjectServiceExt, ProviderServiceExt,
+    RepositoryServiceExt, RunServiceExt, ServerInfoServiceExt, SessionServiceExt, StreamServiceExt,
+    VolumeServiceExt, WorkloadServiceExt,
 };
 use korpis_recipe::source::RegistrySource;
 use korpis_store::PgStore;
@@ -237,6 +239,7 @@ impl Api {
         let router = RepositoryServiceExt::register(Arc::clone(&self), router);
         let router = DomainServiceExt::register(Arc::clone(&self), router);
         let router = CertificateServiceExt::register(Arc::clone(&self), router);
+        let router = PortalServiceExt::register(Arc::clone(&self), router);
         let router = BackupServiceExt::register(Arc::clone(&self), router);
         let router = RunServiceExt::register(Arc::clone(&self), router);
         let router = AccountServiceExt::register(Arc::clone(&self), router);

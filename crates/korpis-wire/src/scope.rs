@@ -46,6 +46,7 @@ fn object_from_kind(field: &str, kind: &K) -> Result<ObjectRef, crate::WireError
         K::Repository(v) => (Kind::Repository, v),
         K::Domain(v) => (Kind::Domain, v),
         K::Certificate(v) => (Kind::Certificate, v),
+        K::Portal(v) => (Kind::Portal, v),
         K::Selector(_) => return Err(invalid(field, "expected an object, not a selector")),
     };
     Ok(ObjectRef::new(k, id(id_kind(k), field, value)?))
@@ -66,6 +67,7 @@ pub fn object_to_pb(o: ObjectRef) -> pb::Scope {
         Kind::Repository => K::Repository(id),
         Kind::Domain => K::Domain(id),
         Kind::Certificate => K::Certificate(id),
+        Kind::Portal => K::Portal(id),
     };
     pb::Scope { kind: Some(kind), ..Default::default() }
 }
@@ -158,6 +160,7 @@ pub fn object_kind_to_pb(k: Kind) -> pb::ObjectKind {
         Kind::Repository => pb::ObjectKind::OBJECT_KIND_REPOSITORY,
         Kind::Domain => pb::ObjectKind::OBJECT_KIND_DOMAIN,
         Kind::Certificate => pb::ObjectKind::OBJECT_KIND_CERTIFICATE,
+        Kind::Portal => pb::ObjectKind::OBJECT_KIND_PORTAL,
     }
 }
 
@@ -178,6 +181,7 @@ pub fn object_kind_from_pb(
         Some(K::OBJECT_KIND_REPOSITORY) => Kind::Repository,
         Some(K::OBJECT_KIND_DOMAIN) => Kind::Domain,
         Some(K::OBJECT_KIND_CERTIFICATE) => Kind::Certificate,
+        Some(K::OBJECT_KIND_PORTAL) => Kind::Portal,
         _ => return Err(invalid(field, "expected an object kind")),
     })
 }

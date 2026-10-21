@@ -9,6 +9,7 @@ use crate::cmd::domain::DomainAction;
 use crate::cmd::event::EventAction;
 use crate::cmd::extension::ExtensionAction;
 use crate::cmd::identity::IdentityAction;
+use crate::cmd::portal::PortalAction;
 use crate::cmd::quota::QuotaAction;
 use crate::cmd::repository::RepositoryAction;
 use crate::cmd::run::RunAction;
@@ -96,6 +97,10 @@ pub enum Command {
     /// Asks for, verifies, lists, shows, and deletes the domains an organization holds.
     #[command(subcommand)]
     Domain(DomainAction),
+    /// Makes, changes, lists, shows, and deletes the names the control plane answers under for
+    /// an organization, with its theme and sign-in.
+    #[command(subcommand)]
+    Portal(PortalAction),
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),

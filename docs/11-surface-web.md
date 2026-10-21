@@ -52,6 +52,13 @@ listed.
 > the control plane's own accept loop, the one a PROXY header already needed, rather than
 > connectrpc's server, which serves nothing but procedures.
 >
+> At a portal, designed 2026-10-21 (§3.6 of `07-networking.md`). The control plane serves the
+> same bundle, the API, and `/about/source` under a name an organization holds, so a reseller's
+> customers reach the panel at the reseller's own address with nothing else to run, on the same
+> site as the control plane by construction. A cross-origin call at a portal is answered, with
+> credentials, only for the portal's own origin; a `--web-origin` is the installation's, and is
+> answered at the installation's own address.
+>
 > As built, 2026-10-17 (`web/src`). The panel's own routes are `/sign-in`, `/invitation`, `/g`
 > (a share link's screen, §6), `/device`, `/profile`, and the places `/o/<id>`, `/p/<id>`, and
 > `/w/<id>` (§5); the first three are open signed out, and any other route, signed out, leads to
@@ -396,6 +403,16 @@ names organizations hold for their customers (Finding 66 of `23-walkthroughs.md`
 organization holding the verified domain the panel was reached at, which the browser states in its
 `Origin`, is applied then. Setting one is `org.write` on the organization. A theme is read through
 the API like everything else, with the logo inside it, so the panel fetches nothing a theme names.
+
+> Designed 2026-10-21, with portals (§3.6 of `07-networking.md`, §9.8 of `08-identity.md`), and
+> corrected in one respect (Finding 127 of `23-walkthroughs.md`). At a portal the panel wears the
+> theme of the portal's organization, before anyone signs in and after, whatever the viewer can
+> read: `GetSignInTheme` answers that organization's there, and `GetServerInfo` names the portal
+> and its organization, so the panel knows where it is without guessing from its own address. The
+> paragraph above took the organization from the domain the browser names in its `Origin`, which
+> is what the client says it is; which portal a request is for is decided by the connection, whose
+> certificate named it, and nothing a request says changes it. Everywhere else the rule above
+> holds: at the installation's own address the panel wears the theme of the viewer's provider.
 
 **A stylesheet is code that runs in the panel, and it is fenced.** The panel's content security
 policy, which the bundle carries in its own page so it holds wherever the bundle is served, admits

@@ -40,6 +40,7 @@ pub(crate) struct CertificateRow {
     created_at: chrono::DateTime<chrono::Utc>,
     workload_id: Option<Uuid>,
     endpoint: Option<String>,
+    portal_id: Option<Uuid>,
     attempts: i32,
     next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
     key_id: Option<String>,
@@ -68,6 +69,7 @@ impl TryFrom<CertificateRow> for Certificate {
                 .workload_id
                 .zip(r.endpoint)
                 .map(|(workload, endpoint)| Owner { workload, endpoint }),
+            portal: r.portal_id,
             attempts: u32::try_from(r.attempts).map_err(|_| corrupt("attempts"))?,
             next_attempt: r.next_attempt_at.map(to_time),
             key_id: r.key_id,
@@ -81,8 +83,8 @@ impl CertificateRead for PgStore {
         let row = sqlx::query_as!(
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
-                    next_attempt_at, key_id, exposed
+                    reason, renew_after, revision, created_at, workload_id, endpoint, portal_id,
+                    attempts, next_attempt_at, key_id, exposed
                FROM certificate WHERE id = $1",
             id
         )
@@ -122,8 +124,8 @@ impl CertificateRead for PgStore {
         let rows = sqlx::query_as!(
             CertificateRow,
             "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
-                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
-                    next_attempt_at, key_id, exposed
+                    reason, renew_after, revision, created_at, workload_id, endpoint, portal_id,
+                    attempts, next_attempt_at, key_id, exposed
                FROM certificate
               WHERE organization_id = $1 AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
@@ -164,8 +166,9 @@ impl CertificateWrite for PgTx {
             "INSERT INTO certificate (id, organization_id, names, source, chain, key_sealed,
                                       sealed_by, not_before, not_after, state, reason,
                                       renew_after, revision, created_at, workload_id, endpoint,
-                                      key_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
+                                      key_id, portal_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+                     $18)",
             c.id,
             c.organization,
             &c.names,
@@ -182,7 +185,8 @@ impl CertificateWrite for PgTx {
             from_time(c.created_at),
             c.owner.as_ref().map(|o| o.workload),
             c.owner.as_ref().map(|o| o.endpoint.as_str()),
-            c.key_id
+            c.key_id,
+            c.portal
         )
         .execute(&mut *self.tx)
         .await
@@ -201,7 +205,7 @@ impl CertificateWrite for PgTx {
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                         reason, renew_after, revision, created_at, workload_id, endpoint,
-                        attempts, next_attempt_at, key_id, exposed
+                        portal_id, attempts, next_attempt_at, key_id, exposed
                    FROM certificate WHERE id = $1 FOR UPDATE",
                 id
             )
@@ -212,7 +216,7 @@ impl CertificateWrite for PgTx {
                 CertificateRow,
                 "SELECT id, organization_id, names, source, chain, not_before, not_after, state,
                         reason, renew_after, revision, created_at, workload_id, endpoint,
-                        attempts, next_attempt_at, key_id, exposed
+                        portal_id, attempts, next_attempt_at, key_id, exposed
                    FROM certificate WHERE id = $1 FOR SHARE",
                 id
             )

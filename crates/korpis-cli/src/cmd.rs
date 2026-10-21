@@ -20,6 +20,7 @@ pub mod grant;
 pub mod identity;
 pub mod logs;
 pub mod logs_offloaded;
+pub mod portal;
 pub mod provider;
 pub mod quota;
 pub mod recipe;

@@ -46,6 +46,16 @@ fn unavailable(e: impl std::fmt::Display) -> AcmeError {
     AcmeError::Unavailable(e.to_string())
 }
 
+/// Why `name` could not be proven: no DNS provider serves its zone, and, for an endpoint's
+/// certificate, the directory did not offer HTTP-01; a portal's has nowhere to answer it.
+fn unprovable(portal: bool, name: &str) -> String {
+    if portal {
+        format!("no DNS provider of its organization serves the zone of {name}")
+    } else {
+        format!("no DNS provider serves the zone of {name}, and HTTP-01 is not offered")
+    }
+}
+
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The DNS providers `organization` sees, by name, its own first: one of an ancestor of the
     /// same name is shadowed, as calls are routed (§3.3 of docs/16-extensions.md).
@@ -85,12 +95,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 txt.push((c.name, value));
                 continue;
             }
-            let Some(offer) = c.http else {
-                let why = format!(
-                    "no DNS provider serves the zone of {}, and HTTP-01 is not offered",
-                    c.name
-                );
-                return Err(AcmeError::Refused(why));
+            let offer = if order.portal { None } else { c.http };
+            let Some(offer) = offer else {
+                return Err(AcmeError::Refused(unprovable(order.portal, &c.name)));
             };
             http.push((c.name, offer));
             proofs.push(Proof::Http01);

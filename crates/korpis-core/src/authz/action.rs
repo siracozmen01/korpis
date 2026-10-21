@@ -52,6 +52,8 @@ pub const CORE: &[&str] = &[
     "domain.attest",
     "certificate.read",
     "certificate.write",
+    "portal.read",
+    "portal.write",
     "stream.share",
     "grant.read",
     "grant.revoke",

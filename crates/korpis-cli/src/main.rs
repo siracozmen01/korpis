@@ -13,6 +13,7 @@ use korpis_cli::cmd::event::{self, EventAction};
 use korpis_cli::cmd::extension;
 use korpis_cli::cmd::files::files as remote_files;
 use korpis_cli::cmd::identity;
+use korpis_cli::cmd::portal;
 use korpis_cli::cmd::quota;
 use korpis_cli::cmd::repository;
 use korpis_cli::cmd::run::{self as runs, RunAction};
@@ -163,6 +164,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         | Command::Repository(_)
         | Command::Certificate(_)
         | Command::Domain(_)
+        | Command::Portal(_)
         | Command::Theme(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
             answer(cli, get::status(&cli.required().await?, workload).await)
@@ -176,14 +178,7 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Logs(a) => logs::logs(&cli.required().await?, a, &mut printer(cli.json)).await,
         Command::Stream(a) => answer(cli, stream_share::run(&cli.required().await?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required().await?, a).await),
-        Command::Backup(BackupAction::Clone { backup, name, project }) => {
-            let c = cli.required().await?;
-            answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
-        }
-        Command::Backup(BackupAction::Cat { backup, path, output }) => {
-            backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
-        }
-        Command::Backup(a) => answer(cli, backup::backup(&cli.required().await?, a).await),
+        Command::Backup(a) => backups(cli, a).await,
         Command::Run(RunAction::Logs { run, reading }) => {
             runs::logs(&cli.required().await?, run, reading, &mut printer(cli.json)).await
         }
@@ -196,6 +191,20 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Call { method, data, list } => {
             call_method(cli, method.as_deref(), data, *list).await
         }
+    }
+}
+
+/// `korpis backup …`: a clone and a file's contents write as they go; the rest answer.
+async fn backups(cli: &Cli, action: &BackupAction) -> Result<(), CliError> {
+    match action {
+        BackupAction::Clone { backup, name, project } => {
+            let c = cli.required().await?;
+            answer(cli, Box::pin(clone::clone(&c, backup, (name, project.as_deref()))).await)
+        }
+        BackupAction::Cat { backup, path, output } => {
+            backup::cat_to(&cli.required().await?, (backup, path), output.as_deref()).await
+        }
+        a => answer(cli, backup::backup(&cli.required().await?, a).await),
     }
 }
 
@@ -214,6 +223,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Repository(a) => repository::repository(c, a).await,
         Command::Certificate(a) => certificate::certificate(c, a).await,
         Command::Domain(a) => domain::domain(c, a).await,
+        Command::Portal(a) => portal::portal(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),
     }

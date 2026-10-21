@@ -346,5 +346,6 @@ pub(crate) fn read_namespace(kind: Kind) -> &'static str {
         Kind::Repository => "repository",
         Kind::Domain => "domain",
         Kind::Certificate => "certificate",
+        Kind::Portal => "portal",
     }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE certificate SET issuing_until = $2\n          WHERE id = (SELECT id FROM certificate\n                       WHERE source = 'acme'\n                         AND (issuing_until IS NULL OR issuing_until < $1)\n                         AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                         AND (state <> 'issued' OR renew_after <= $1)\n                       ORDER BY next_attempt_at NULLS FIRST, id\n                       LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,\n                    next_attempt_at, key_id, exposed",
+  "query": "UPDATE certificate SET issuing_until = $2\n          WHERE id = (SELECT id FROM certificate\n                       WHERE source = 'acme'\n                         AND (issuing_until IS NULL OR issuing_until < $1)\n                         AND (next_attempt_at IS NULL OR next_attempt_at <= $1)\n                         AND (state <> 'issued' OR renew_after <= $1)\n                       ORDER BY next_attempt_at NULLS FIRST, id\n                       LIMIT 1 FOR UPDATE SKIP LOCKED)\n          RETURNING id, organization_id, names, source, chain, not_before, not_after, state,\n                    reason, renew_after, revision, created_at, workload_id, endpoint, portal_id,\n                    attempts, next_attempt_at, key_id, exposed",
   "describe": {
     "columns": [
       {
@@ -159,6 +159,17 @@
       },
       {
         "ordinal": 14,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "portal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "attempts",
         "type_info": "Int4",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "next_attempt_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "key_id",
         "type_info": "Text",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "exposed",
         "type_info": "Bool",
         "origin": {
@@ -223,11 +234,12 @@
       false,
       true,
       true,
+      true,
       false,
       true,
       true,
       false
     ]
   },
-  "hash": "8c4557bb976c658b630a978fcaa4845052a6e206103e1e463e0e9e5cd931c0d8"
+  "hash": "5687ade804be16b2d1251603589d7609b77472fde0aaedb4374f1237931906cf"
 }

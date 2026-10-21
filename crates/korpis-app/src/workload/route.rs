@@ -11,7 +11,7 @@
 use crate::App;
 use crate::certificate::{named, servable};
 use crate::error::AppError;
-use crate::ports::{CertificateWrite as _, Clock, DomainWrite as _};
+use crate::ports::{CertificateWrite as _, Clock, DomainWrite as _, PortalWrite as _};
 use crate::ports::{RecipeSource, Store};
 use korpis_core::dns::certificate::Owner;
 use korpis_core::dns::domain::{DomainName, Route, holder_of};
@@ -76,6 +76,17 @@ fn not_held(name: &DomainName) -> AppError {
     )
 }
 
+fn portal(name: &DomainName) -> AppError {
+    AppError::conflict(
+        "endpoint.name_portal",
+        format!(
+            "{} is a portal, which the control plane answers under itself (§3.6 of \
+             docs/07-networking.md)",
+            name.as_str()
+        ),
+    )
+}
+
 fn routed(name: &DomainName) -> AppError {
     AppError::conflict(
         "endpoint.name_routed",
@@ -104,6 +115,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             servable((id, found.as_ref()), owner.0, &names, now)?;
         }
         let names: Vec<DomainName> = routes.into_iter().map(|r| r.name).collect();
+        if let Some(p) = self.store.portals_named(&names).await?.first() {
+            return Err(portal(&p.name));
+        }
         let taken = self.store.routes_of(&names).await?;
         match taken.iter().find(|r| r.workload != owner.1) {
             Some(r) => Err(routed(&r.name)),
@@ -138,6 +152,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             if holder_of(&r.name, &covering) != Some(w.organization) {
                 return Err(not_held(&r.name));
             }
+        }
+        let names: Vec<DomainName> = routes.iter().map(|r| r.name.clone()).collect();
+        if let Some(p) = tx.portals_named_now(&names).await?.first() {
+            return Err(portal(&p.name));
         }
         let now = self.clock.now();
         for (id, names) in served(&routes) {

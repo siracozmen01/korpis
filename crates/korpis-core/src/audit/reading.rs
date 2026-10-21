@@ -40,6 +40,7 @@ pub fn reader(action: &str, object: ObjectRef) -> &'static str {
         Kind::Repository => "repository.read",
         Kind::Domain => "domain.read",
         Kind::Certificate => "certificate.read",
+        Kind::Portal => "portal.read",
     }
 }
 

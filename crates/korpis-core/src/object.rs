@@ -27,6 +27,8 @@ pub enum Kind {
     Domain,
     /// A certificate the ingress serves.
     Certificate,
+    /// A name the control plane answers under for an organization.
+    Portal,
 }
 
 impl Kind {
@@ -44,6 +46,7 @@ impl Kind {
             Self::Repository => "repository",
             Self::Domain => "domain",
             Self::Certificate => "certificate",
+            Self::Portal => "portal",
         }
     }
 
@@ -61,6 +64,7 @@ impl Kind {
             "repository" => Self::Repository,
             "domain" => Self::Domain,
             "certificate" => Self::Certificate,
+            "portal" => Self::Portal,
             _ => return None,
         })
     }

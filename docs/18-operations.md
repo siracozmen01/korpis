@@ -82,11 +82,11 @@ and origin (§1 of `11-surface-web.md`). Without it the address serves the API a
 start. `--web-origin`, repeatable, names each other origin allowed to call the API with
 credentials, which a relying party's own page needs. `/about/source` is served either way, because
 the source offer of §2 of `19-governance.md` is owed to every network user, not only to panel
-users.
-A relay that is its own process takes the same `--web-origin` (`korpis-server relay run`), so the
-panel can open console and file sessions at it; the control plane names its relays in the panel
-page's policy as it serves it, and a panel built to be served elsewhere names them at build
-time with `VITE_KORPIS_RELAYS` beside `VITE_KORPIS_API`.
+users. A relay that is its own process takes the same `--web-origin` (`korpis-server relay run`),
+so the panel can open console and file sessions at it, and answers every portal's origin, which its
+feed names (§3.6 of `07-networking.md`); the control plane names its relays in the panel page's
+policy as it serves it, and a panel built to be served elsewhere names them at build time with
+`VITE_KORPIS_RELAYS` beside `VITE_KORPIS_API`.
 
 ### The binary is its own installer
 
@@ -753,6 +753,15 @@ writes to about expiring certificates and changes to its terms. The account's ke
 data directory beside the other keys, one file per directory, so moving to another directory makes
 another account. A directory with an authority of its own, a test one or an enterprise one, is
 trusted with `--acme-ca`, a PEM certificate, instead of the system's roots.
+
+A portal's `acme` certificate is ordered from the same directory with the same account (§3.6 of
+`07-networking.md`), designed 2026-10-21. Where no DNS provider of its organization serves the
+name's zone, the directory validates it by TLS-ALPN-01 on port 443 of the name, answered by the
+control plane's own listener, so an installation serving portals is reached on 443 at their names,
+directly or through a load balancer that passes TCP (with `--proxy-protocol-from`, §3), never one
+that terminates TLS itself, which would see the handshake the control plane must answer. Every
+connection that names no portal is still served with the installation's own certificate, so agents,
+relays, and clients that pin the installation's authority see no change.
 
 ---
 

@@ -27,6 +27,7 @@ pub mod install;
 pub mod metering;
 pub mod node;
 pub mod page;
+pub mod portal;
 pub mod ports;
 pub mod rate;
 pub mod recipe;

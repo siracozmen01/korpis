@@ -36,8 +36,11 @@ pub(super) struct Order {
     pub(super) organization: Uuid,
     /// The DNS providers, by name, the organization's own first.
     pub(super) providers: Vec<String>,
-    /// The nodes its endpoint is placed on.
+    /// The nodes its endpoint is placed on; none for a portal's.
     pub(super) nodes: Vec<Uuid>,
+    /// Whether it is a portal's, which no node serves, so HTTP-01 has nowhere to be answered
+    /// (§3.6 of docs/07-networking.md).
+    pub(super) portal: bool,
 }
 
 fn effect(c: &Certificate, outcome: Outcome, reason: Option<&str>) -> Effect {
@@ -100,7 +103,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         };
         let providers = self.dns_providers(c.organization).await?;
         let nodes = self.serving(c.id).await?;
-        if nodes.is_empty() && providers.is_empty() {
+        if nodes.is_empty() && providers.is_empty() && c.portal.is_none() {
             let waiting = Certificate {
                 reason: Some("its endpoint is placed on no node yet".into()),
                 next_attempt: Some(self.clock.now() + UNPLACED),
@@ -108,7 +111,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             };
             return self.record(&waiting, None).await;
         }
-        let order = Order { id: c.id, organization: c.organization, providers, nodes };
+        let portal = c.portal.is_some();
+        let order = Order { id: c.id, organization: c.organization, providers, nodes, portal };
         let publish: crate::ports::Publish<'_> = Box::new(move |challenges| {
             Box::pin(async move { self.publish(&order, challenges).await })
         });

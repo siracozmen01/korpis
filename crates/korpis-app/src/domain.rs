@@ -15,7 +15,8 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::ports::{
-    Clock, DomainWrite as _, EffectWrite as _, RecipeSource, Store, StoreError, Unique,
+    Clock, DomainWrite as _, EffectWrite as _, PortalWrite as _, RecipeSource, Store, StoreError,
+    Unique,
 };
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
@@ -57,6 +58,18 @@ pub(crate) fn routed(name: &DomainName) -> AppError {
         format!(
             "{} is routed by an endpoint, whose organization would no longer hold it; change the \
              endpoint first",
+            name.as_str()
+        ),
+    )
+}
+
+/// The conflict of a change to domains that would leave `name`, a portal's, without the
+/// portal's organization as its holder (§3.6 of docs/07-networking.md).
+pub(crate) fn portaled(name: &DomainName) -> AppError {
+    AppError::conflict(
+        "domain.portal",
+        format!(
+            "{} is a portal, whose organization would no longer hold it; delete the portal first",
             name.as_str()
         ),
     )
@@ -184,6 +197,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             let beneath = tx.routes_beneath(&created.name).await?;
             if let Some(r) = beneath.iter().find(|r| r.organization != created.organization) {
                 return Err(routed(&r.name));
+            }
+            let portals = tx.portals_beneath(&created.name).await?;
+            if let Some(p) = portals.iter().find(|p| p.organization != created.organization) {
+                return Err(portaled(&p.name));
             }
         }
         tx.insert_domain(&created).await.map_err(|e| match e {

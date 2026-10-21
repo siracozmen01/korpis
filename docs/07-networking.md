@@ -559,6 +559,98 @@ an observation is what a node reports, and no node knows what a DNS provider ans
 does not do: publish anything for an endpoint of any other exposure, which names no domain in Phase
 1.
 
+### 3.6 The control plane under an organization's name
+
+> Designed 2026-10-21, for Phase 2 (§4 of `20-roadmap.md`), resolving Finding 66 of
+> `23-walkthroughs.md`: a reseller's customers were to reach the panel, sign in, and hold passkeys
+> at the reseller's own address, and nothing served the control plane under any name but the
+> installation's own.
+
+**A portal is a name an organization holds, under which the control plane serves itself.** A
+`Portal` (§3.6 of `01-model.md`) belongs to one organization and names one DNS name, which the
+organization must hold as an endpoint's names are held (§3.2): the holder of the name is the
+organization whose verified domain is the most specific one covering it. At a portal the control
+plane answers what it answers at its own address, the API, the panel from `--web-root`, and
+`/about/source`, on the port of `--public-url`, so a portal's origin is `https://<name>` for an
+installation reached on port 443. What differs is whom it is for: the panel wears the theme of the
+portal's organization (§7 of `11-surface-web.md`), the sign-in page offers that organization's
+identity providers, a passkey registered there is bound to the portal's name, and a session begun
+there acts only beneath that organization (§9.8 of `08-identity.md`). A name is a portal or an
+endpoint's route, never both, and two portals never share one: the control plane keeps the
+portals' names beside the names endpoints route, under the lock verification takes, and refuses a
+portal for a name an endpoint routes and a route for a portal's name. A portal is never the
+installation's own host, nor the host of a `--web-origin`, which the control plane serves already.
+A domain cannot be deleted, nor delegated to another organization, while a portal's name needs it,
+as for a route. Making and deleting a portal is `portal.write` on its organization, and reading
+one `portal.read` (§5 of `10-api.md`); an organization makes as many as it holds names for
+(Principle P10). The name's records are the holder's to publish, a `CNAME` to the installation's
+host or its addresses: the control plane does not publish them, because it does not know the
+addresses it is reached at, `--public-url` naming a host that may resolve to a load balancer.
+
+**A portal's certificate is its own, and the control plane serves it.** A portal's TLS is `acme`
+unless it names a `provided` certificate of its organization covering its name, checked as an
+endpoint's is (§3.2). An `acme` certificate is the portal's, made with the portal, for its one
+name, and issued and renewed by the same issuer, from the same directory and account, with the same
+backoff and the same expiry warnings as an endpoint's. Only the proof differs: no node serves a
+portal, so HTTP-01 has nowhere to be answered. The issuer proves the name by DNS where a DNS
+provider of the organization serves its zone, asked in the order of §3.2, and otherwise by
+TLS-ALPN-01 (RFC 8737), which the control plane answers on its own listener. The issuer records the
+challenge's digest for the name before it tells the directory to look, and withdraws it when the
+order ends, however it ends; a connection whose client offers only the protocol `acme-tls/1`, for a
+portal's name, is answered by whichever replica it reaches with a certificate made for the
+challenge from the digest, read from the database for that handshake, and is then closed. So it
+works on any replica, behind a load balancer that passes TCP, without the replicas agreeing on
+anything first. What it needs: the name's records pointing at the control plane, and the control
+plane reached on port 443 at them, the only port a directory validates TLS-ALPN-01 on. A name the
+control plane is not reached at on 443, and no DNS provider serves, is given a `provided`
+certificate instead, or stays `failed` with the directory's reason.
+
+**Which certificate a connection is given, and which portal a request is for.** Each replica holds
+the portals and their certificates in memory, read again when the database announces a change to
+either and every minute in case an announcement was missed, and chooses by the name the client
+sends in SNI: a portal's name is served with its portal's certificate, and any other name, or none,
+with the installation's own (§7 of `18-operations.md`), as before. A portal whose certificate is
+not issued yet gets no handshake, as the proxy answers a name with no certificate (§3.2), and the
+portal says why, `pending` or `failed` with the reason. A request on a portal's connection whose
+`Host` names another name is refused 421, so the portal a connection proved is the portal its
+requests are for (Finding 127 of `23-walkthroughs.md`); and since a portal's certificate names its
+one name, a browser never carries another name's requests on it. The panel at a portal opens
+console and file sessions at relays as it does at home: the control plane names the portals'
+origins to every relay in the relay's feed, and a relay that is its own process answers them beside
+its `--web-origin` (§3.1 of `02-architecture.md`, Finding 132 of `23-walkthroughs.md`).
+
+**What evaluates this, where, and with what information:** whether a name may be a portal, the
+control plane, at creation, from its records of verified domains, routes, and portals, under the
+lock verification takes; the certificate's issuance, the issuer, as for an endpoint, its proof
+answered by whichever replica the directory reaches, from the database; the certificate a
+connection is given, the replica's listener, from the SNI and the portals it holds; the portal a
+request is for, the listener again, from the certificate it served; and the relying party, the
+theme, the providers, and the reach of a session, the control plane, from that portal (§9.8 of
+`08-identity.md`).
+
+What it costs, and what it does not do. A portal needs the control plane's own listener to
+terminate its TLS: behind a load balancer that terminates TLS itself, the control plane sees
+neither the name nor the handshake, and a portal's key never leaves it but sealed, so an
+installation serving portals has its load balancer pass TCP, with the PROXY header of §3.1 of
+`02-architecture.md` for the client's address. Every portal's traffic is the control plane's own
+load, on its own listener. And a portal hides nothing about the installation: it is the same
+control plane under another name, and a customer who looks finds the same API, the same server
+information, and the same source page at it as at home.
+
+> Built in part, 2026-10-21 (P2.9b of the build plan): the portal itself. `PortalService` makes,
+> reads, re-certifies, and deletes portals under `portal.write` and `portal.read`, with
+> `certificate.read` on a provided certificate it names, and `korpis portal` calls it (§5 of
+> `13-surface-cli.md`). A portal is checked under the domains lock against the domains, the
+> routes, and the other portals (migration 0110), and the installation's own hosts are the
+> origins its relying party is configured with. An endpoint naming a portal's name is refused
+> `endpoint.name_portal`, at declaration and at its claim; a delegation or deletion that would
+> take a portal's name from its organization is refused `domain.portal`; a provided certificate
+> a portal is served with is neither deleted nor replaced by a chain that no longer covers its
+> name. A portal's own `acme` certificate is made with it and recorded with the portal it is for;
+> once no portal names it, the issuer's sweep removes it as it removes an endpoint's. Until the
+> listener answers TLS-ALPN-01 (P2.9c), such a certificate is issued only where a DNS provider of
+> the organization serves the name's zone, and otherwise stays `failed` with that reason.
+
 ---
 
 ## 4. Addressing

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                        reason, renew_after, revision, created_at, workload_id, endpoint,\n                        attempts, next_attempt_at, key_id, exposed\n                   FROM certificate WHERE id = $1 FOR SHARE",
+  "query": "SELECT id, organization_id, names, source, chain, not_before, not_after, state,\n                        reason, renew_after, revision, created_at, workload_id, endpoint,\n                        portal_id, attempts, next_attempt_at, key_id, exposed\n                   FROM certificate WHERE id = $1 FOR SHARE",
   "describe": {
     "columns": [
       {
@@ -159,6 +159,17 @@
       },
       {
         "ordinal": 14,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "certificate",
+            "name": "portal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "attempts",
         "type_info": "Int4",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "next_attempt_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "key_id",
         "type_info": "Text",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "exposed",
         "type_info": "Bool",
         "origin": {
@@ -222,11 +233,12 @@
       false,
       true,
       true,
+      true,
       false,
       true,
       true,
       false
     ]
   },
-  "hash": "9ee0356d5af7eeeca4d7abc09ac8578ff9f50a26a527c35fdc5441a4c2dd2c54"
+  "hash": "27e51b1ccec7ee3d98d05588f8fd78417f8bb89fe18aec0eb6e523eec7eb2af7"
 }

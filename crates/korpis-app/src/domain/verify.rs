@@ -3,13 +3,15 @@
 //! Verifying a domain by its TXT record, deleting one with what was delegated beneath it, and
 //! reading them.
 
-use super::{held, routed};
+use super::{held, portaled, routed};
 use crate::App;
 use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged, visible};
-use crate::ports::{Clock, DomainWrite as _, EffectWrite as _, LookupError, RecipeSource, Store};
+use crate::ports::{
+    Clock, DomainWrite as _, EffectWrite as _, LookupError, PortalWrite as _, RecipeSource, Store,
+};
 use korpis_core::audit::{Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::domain::{Domain, Verification, blocked_by, holder_of};
@@ -102,6 +104,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             covering.retain(|c| !tree.contains(&c.id));
             if holder_of(&r.name, &covering) != Some(r.organization) {
                 return Err(routed(&r.name));
+            }
+        }
+        for p in tx.portals_beneath(&d.name).await? {
+            let mut covering = tx.verified_overlapping(&p.name).await?;
+            covering.retain(|c| !tree.contains(&c.id));
+            if holder_of(&p.name, &covering) != Some(p.organization) {
+                return Err(portaled(&p.name));
             }
         }
         let gone = tx.delete_domain(d.id).await?;

@@ -233,7 +233,10 @@ landing screen a host composes for its customers (question 2 of §10 of `11-surf
 here 2026-10-16 with the hosts it serves. The control plane answering under a name an organization
 holds, so that a reseller's customers reach the panel, sign in, and hold passkeys at the reseller's
 own address with the reseller's sign-in page (Finding 66 of `23-walkthroughs.md`): which names,
-with which certificates, and how a passkey registered at one site is offered at another.
+with which certificates, and how a passkey registered at one site is offered at another (designed
+2026-10-21 as portals, §3.6 of `07-networking.md` and §9.8 of `08-identity.md`: a name the
+organization holds, served with a certificate of its own, and a passkey registered at one address
+never offered at another, which §9.8 argues).
 `IdentityBinding` and role-to-template mapping. Quota sets. Metering, with the exactness guarantees
 of §2 of `15-observability.md`. Tenant-visible audit. External identity through OIDC, as a provider
 on the Phase 1 contract core. Bandwidth shaping, a workload's reservation and limits (§5.2 of
@@ -432,7 +435,7 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: forty-four traces and their 126 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: forty-five traces and their 132 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |

@@ -34,6 +34,7 @@ anchored AS (
              WHEN 'repository' THEN (SELECT organization_id FROM repository WHERE id = h.scope_id)
              WHEN 'domain' THEN (SELECT organization_id FROM domain WHERE id = h.scope_id)
              WHEN 'certificate' THEN (SELECT organization_id FROM certificate WHERE id = h.scope_id)
+             WHEN 'portal' THEN (SELECT organization_id FROM portal WHERE id = h.scope_id)
            END AS organization
       FROM held h JOIN live l ON l.leaf = h.id
 )

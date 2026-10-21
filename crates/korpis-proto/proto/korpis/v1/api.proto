@@ -857,6 +857,72 @@ message DeleteCertificateRequest {
 
 message DeleteCertificateResponse {}
 
+// Portals (§3.6 of docs/07-networking.md): made, changed, and deleted under portal.write on the
+// organization holding the name, and read under portal.read; naming a provided certificate takes
+// certificate.read on it beside.
+service PortalService {
+  // Makes a portal of a name the organization holds, served with its own acme certificate unless
+  // a provided one is named.
+  rpc CreatePortal(CreatePortalRequest) returns (CreatePortalResponse);
+  rpc GetPortal(GetPortalRequest) returns (GetPortalResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListPortals(ListPortalsRequest) returns (ListPortalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Serves a portal with another certificate, keeping everything else.
+  rpc SetPortalCertificate(SetPortalCertificateRequest) returns (SetPortalCertificateResponse);
+  rpc DeletePortal(DeletePortalRequest) returns (DeletePortalResponse);
+}
+
+message CreatePortalRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  string name = 3;
+  // A provided certificate of the organization covering the name; empty for its own acme one.
+  string certificate = 4;
+}
+
+message CreatePortalResponse {
+  Portal portal = 1;
+}
+
+message GetPortalRequest {
+  string id = 1;
+}
+
+message GetPortalResponse {
+  Portal portal = 1;
+}
+
+message ListPortalsRequest {
+  string organization = 1;
+  PageRequest page = 2;
+}
+
+message ListPortalsResponse {
+  repeated Portal portals = 1;
+  PageResponse page = 2;
+}
+
+message SetPortalCertificateRequest {
+  Mutation mutation = 1;
+  string id = 2;
+  // A provided certificate of the organization covering the name; empty for its own acme one.
+  string certificate = 3;
+}
+
+message SetPortalCertificateResponse {
+  Portal portal = 1;
+}
+
+message DeletePortalRequest {
+  Mutation mutation = 1;
+  string id = 2;
+}
+
+message DeletePortalResponse {}
+
 // Backups (§5 of docs/06-storage.md), authorized on the workload whose volume they are of.
 service BackupService {
   // Proposes backing a volume up into a repository, under backup.create on the volume's

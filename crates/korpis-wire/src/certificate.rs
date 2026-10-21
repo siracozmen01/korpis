@@ -43,6 +43,7 @@ pub fn certificate_to_pb(c: &Certificate) -> pb::Certificate {
         revision: c.revision,
         created_at: timestamp(c.created_at).into(),
         exposed: c.exposed,
+        portal: c.portal.map(|p| wire_id(IdKind::Portal, p)).unwrap_or_default(),
         ..Default::default()
     }
 }

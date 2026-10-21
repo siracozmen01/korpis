@@ -288,6 +288,24 @@ message Certificate {
   // acme certificate is given a new key at once; a provided one waits for its organization to
   // replace it with a chain for another key, which clears this.
   bool exposed = 13;
+  // For CERTIFICATE_SOURCE_ACME made for a portal: the portal whose name it is for.
+  string portal = 14;
+}
+
+// A name the control plane answers under for an organization (§3.6 of docs/07-networking.md,
+// §3.6 of docs/01-model.md): its API, its panel in the organization's theme, and its sign-in.
+message Portal {
+  string id = 1;
+  string organization = 2;
+  // A lowercase DNS name the organization holds.
+  string name = 3;
+  // The certificate it is served with: its own acme one, or a provided one.
+  string certificate = 4;
+  CertificateSource certificate_source = 5;
+  CertificateState certificate_state = 6;
+  // Why its certificate is not issued, or its renewal failed, where it did.
+  string certificate_reason = 7;
+  google.protobuf.Timestamp created_at = 8;
 }
 
 enum CertificateSource {

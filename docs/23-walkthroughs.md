@@ -1372,6 +1372,12 @@ the same mechanism", and that is the price of having made core and extensions th
 | 124 | Another workload's traffic could be put in an endpoint's class it was never sent to | §47 | `07-networking.md` §7 |
 | 125 | Declaring the uplinks removed every workload's ingress limit | §47 | `07-networking.md` §7 |
 | 126 | A spent budget's hold rested on a workload's labels never changing, which nothing said | §47 | `05-scheduling.md` §5.1 |
+| 127 | The theme of a reseller's sign-in page was to be chosen from a header the browser does not send | §48 | `11-surface-web.md` §7, `07-networking.md` §3.6 |
+| 128 | A session begun at a reseller's portal would have reached everything its account holds | §48 | `08-identity.md` §9.8 |
+| 129 | A `korpis login` approved from a portal would have escaped the portal | §48 | `08-identity.md` §9.8 |
+| 130 | A sign-in through an identity provider at a portal would have returned to the wrong address | §48 | `08-identity.md` §9.7, §9.8 |
+| 131 | A confined session could have changed what protects the account everywhere | §48 | `08-identity.md` §9.8 |
+| 132 | A relay of its own would have refused the console of a panel at a portal | §48 | `07-networking.md` §3.6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4054,3 +4060,127 @@ month, recorded beside the entry, whatever the workload's labels say later; whic
 names is the operator's to change and is still read for each record. → patched into
 `05-scheduling.md` §5.1; built in `crates/korpis-app/src/metering/egress.rs` and migration 0109,
 and tested by a reckoning that relabels a held workload and finds it still counted and held.
+
+## 48. A reseller's customer signs in at the reseller's own address
+
+Written 2026-10-21, to design the control plane answering under names organizations hold (Phase 2
+of §4 of `20-roadmap.md`, Finding 66), before building it. Kestrel Hosting runs an installation at
+`korpis.kestrel.example`, with two control plane replicas behind a load balancer that passes TCP.
+Pinecone Games, a reseller beneath Kestrel's root organization, holds `pinecone.example` and wants
+its customers to see only Pinecone. Ada is one of them; she also rents a server from Northwind,
+another of Kestrel's resellers, through the same account.
+
+The trace was chosen by measuring coverage, as §0 describes: before it, no step of any trace cited
+§7 of `11-surface-web.md`, where the theme a reseller's customers see is decided, and two cited §1,
+where the panel is served; Finding 66 had left both waiting on this design.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Pinecone verifies `pinecone.example` by its TXT record and makes `panel.pinecone.example` its portal: the control plane finds Pinecone the name's holder, no endpoint routing it, and no portal with it, under the lock verification takes, and makes the portal's `acme` certificate (built in P2.9b of the build plan) | `07-networking.md` §3.2, §3.6; `01-model.md` §3.6 |
+| 2 | Pinecone publishes a `CNAME` to `korpis.kestrel.example`; it has no DNS provider, so the issuer records the TLS-ALPN-01 digest and tells the directory to look; the directory's connection reaches the second replica, which reads the digest for that handshake and answers it; the certificate is issued, and each replica loads it when the database announces it | `07-networking.md` §3.6; `18-operations.md` §7 |
+| 3 | Ada opens `https://panel.pinecone.example`: the replica serves the portal's certificate by SNI, the bundle from `--web-root`, and, asked, `GetServerInfo` naming the portal, `GetSignInTheme` with Pinecone's theme, and `ListSignInProviders` with Pinecone's providers ‡ | `07-networking.md` §3.6; `11-surface-web.md` §1, §7; `08-identity.md` §9.8 |
+| 4 | Ada redeems Pinecone's invitation there: her passkey is registered for the relying party `panel.pinecone.example`, recorded with the portal, and her browser is given the portal's own device cookie | `08-identity.md` §9.6, §9.8 |
+| 5 | Ada's session began at the portal, so its access tokens name Pinecone's organization; she opens her Pinecone server, and her Northwind server is not listed there ‡ | `08-identity.md` §9.8, §3.3; `10-api.md` §8 |
+| 6 | Ada runs `korpis login` on her laptop against `korpis.kestrel.example` and approves its code on the portal's device page; the CLI's session is confined as the approving one is ‡ | `08-identity.md` §9.4, §9.8; `13-surface-cli.md` §7 |
+| 7 | Ada adds a second passkey at the portal, which is accepted, and tries to set a password there, which is refused `session.portal_confined`, since she holds a grant at Northwind; she sets it at `korpis.kestrel.example` ‡ | `08-identity.md` §9.8, §9.4 |
+| 8 | Pinecone's staff sign in through Pinecone's identity provider at the portal: the pending sign-in records the portal's `/sign-in/callback`, the identity provider returns them there, and the tab that began it holds the verifier ‡ | `08-identity.md` §9.7, §9.8 |
+| 9 | Ada opens her server's console at the portal: the panel opens the session at Kestrel's relay, a process of its own, which answers the portal's origin from its feed ‡ | `07-networking.md` §3.6; `02-architecture.md` §3.1; `14-streams.md` §6 |
+| 10 | A year later Pinecone deletes the portal: `GetPortal` says three passkeys are registered there and no account signs in nowhere else, Ada having a password and a passkey at home; the portal's sessions end, its passkeys are removed, and its certificate goes with it | `08-identity.md` §9.8; `01-model.md` §3.6; `07-networking.md` §3.2 |
+
+Each step was asked what evaluates it, where, and with what. Step 1 is the control plane's, from
+its records of domains, routes, and portals, under one lock. Step 2 is the issuer's and then any
+replica's, from the database, which is why the replicas need not agree first. Step 3 is the
+replica's listener, from the SNI and the portals it holds; everything after it is decided by the
+portal the connection proved. Step 4 is the control plane's, from that portal, as relying party.
+Step 5 is the gateway's, from the token's claim and the object's ancestry. Step 6 is the control
+plane's, from the approving session. Step 7 is the control plane's, from Ada's grants, read in the
+change's transaction. Step 8 is the control plane's twice, and the tab's, which alone holds the
+verifier. Step 9 is the relay's, from its feed. Step 10 is the control plane's, from the passkeys
+and sessions recorded with the portal. Six steps (‡) found six defects in the design as first
+drafted, or in what earlier documents said it would be.
+
+**FINDING 127: The theme of a reseller's sign-in page was to be chosen from a header the browser
+does not send. `CONFIRMED`**
+
+Found 2026-10-21 at step 3, asking what chooses the theme the sign-in page wears. §7 of
+`11-surface-web.md` said it would be the theme of the organization holding the domain the panel was
+reached at, "which the browser states in its `Origin`". A browser sends `Origin` on a cross-origin
+request and on one that changes something, and not on a same-origin `GET`, which is how the panel
+asks for the theme, a call with no side effects; so the control plane would have been told nothing.
+And had it been told, a header is what the client says it is, which a script anywhere can set on a
+call of its own.
+
+**Resolution.** Which portal a request is for is decided by the connection, whose certificate named
+it, and a request whose `Host` names another name is refused 421; `GetSignInTheme` answers the
+portal's organization's theme there, and `GetServerInfo` names the portal. → patched into
+`11-surface-web.md` §7; designed in `07-networking.md` §3.6.
+
+**FINDING 128: A session begun at a reseller's portal would have reached everything its account
+holds. `CONFIRMED`**
+
+Found 2026-10-21 at step 5, asking who can act through a session begun at a portal. The portal's
+organization holds the name's DNS, so it can obtain a certificate for it from any authority and
+serve its own page there, which is sent every cookie the browser keeps for the name and can relay
+every ceremony as Ada's. Through such a session Pinecone could have restarted Ada's Northwind
+server, and an operator of the installation signing in at Pinecone's portal would have handed
+Pinecone the installation.
+
+**Resolution.** A session begun at a portal records it, its access tokens name the portal's
+organization, and the gateway authorizes a call made with one only on an object at or beneath it.
+→ designed in `08-identity.md` §9.8.
+
+**FINDING 129: A `korpis login` approved from a portal would have escaped the portal. `CONFIRMED`**
+
+Found 2026-10-21 at step 6, asking what the CLI's session holds. The device page approves a code
+with the approving session's own authority (§9.4 of `08-identity.md`), and the CLI's session was a
+new one, holding the account. A page Pinecone served at its portal could have begun a login of its
+own, approved it with Ada's confined session, and received a session confined to nothing, which
+undid Finding 128.
+
+**Resolution.** The CLI's session is given the approving session's portal, and is confined as it
+is. → designed in `08-identity.md` §9.8.
+
+**FINDING 130: A sign-in through an identity provider at a portal would have returned to the wrong
+address. `CONFIRMED`**
+
+Found 2026-10-21 at step 8, asking where the person comes back to and what is waiting there. §9.7
+of `08-identity.md` made the redirect URI `--public-url` followed by `/sign-in/callback`, one for
+the installation; the PKCE verifier is kept in the session storage of the tab that began the
+sign-in, which belongs to the origin it began at. A sign-in begun at the portal would have
+returned to `korpis.kestrel.example`, where no verifier is kept, and completed nothing.
+
+**Resolution.** The redirect URI is the address the sign-in began at, recorded with the pending
+sign-in so the code is redeemed with the URI it was sent to; each portal is one more redirect URI
+to register at the identity provider. → patched into `08-identity.md` §9.7; designed in §9.8.
+
+**FINDING 131: A confined session could have changed what protects the account everywhere.
+`CONFIRMED`**
+
+Found 2026-10-21 at step 7, asking what a confined session may change. Confinement bounds what a
+session does to objects, and the account's factors are not objects beneath any organization: a
+password set, or TOTP removed, through a session Pinecone held as Ada's would have let Pinecone
+sign in as Ada at the installation's own address and reach her Northwind server, undoing Finding
+128 by another road.
+
+**Resolution.** A confined session adds and removes only its portal's passkeys and ends only its
+portal's sessions, and changes the password, TOTP, or recovery codes only when every grant the
+account holds lies beneath the portal's organization; otherwise it is refused
+`session.portal_confined`. → designed in `08-identity.md` §9.8.
+
+**FINDING 132: A relay of its own would have refused the console of a panel at a portal.
+`CONFIRMED`**
+
+Found 2026-10-21 at step 9, asking whom the relay answers. A relay that is its own process answers
+cross-origin calls only for the origins it is started with (`korpis-server relay run
+--web-origin`, §3.1 of `02-architecture.md`), fixed at its start, and a portal is made by a tenant
+at any time; the panel at Pinecone's portal could have signed Ada in and never opened her console.
+
+**Resolution.** The control plane names the portals' origins to every relay in its feed, and a
+relay answers them beside its `--web-origin`. → designed in `07-networking.md` §3.6.
+
+What the trace costs, and what it does not do. It was written before the code, so it confirms that
+every step has an owner and that each owner holds what it needs; whether the listener, the issuer,
+and the gateway do what the steps say is for the code's own tests and the browser tests that will
+follow Ada through steps 3 to 7.

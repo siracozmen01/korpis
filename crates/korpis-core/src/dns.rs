@@ -6,6 +6,7 @@
 
 pub mod certificate;
 pub mod domain;
+pub mod portal;
 pub mod published;
 
 use std::net::{Ipv4Addr, Ipv6Addr};

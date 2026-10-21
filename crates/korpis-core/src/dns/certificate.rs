@@ -165,6 +165,9 @@ pub struct Certificate {
     pub created_at: SystemTime,
     /// For `Acme`: the endpoint whose names it is for.
     pub owner: Option<Owner>,
+    /// For `Acme`: the portal whose name it is for, where no endpoint's names are (§3.6 of
+    /// docs/07-networking.md).
+    pub portal: Option<Uuid>,
     /// For `Acme`: how many attempts in a row to issue it failed.
     pub attempts: u32,
     /// For `Acme`: when the next attempt may be made, after one failed.

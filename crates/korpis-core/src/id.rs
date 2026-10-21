@@ -65,6 +65,8 @@ pub enum IdKind {
     Domain,
     /// A certificate the ingress serves (`crt_`).
     Certificate,
+    /// A portal, a name the control plane answers under for an organization (`ptl_`).
+    Portal,
     /// A user's session (`ses_`).
     Session,
     /// A run of a task or scheduled workload (`run_`).
@@ -108,6 +110,7 @@ impl IdKind {
             Self::Backup => "bkp",
             Self::Domain => "dom",
             Self::Certificate => "crt",
+            Self::Portal => "ptl",
             Self::Session => "ses",
             Self::Run => "run",
             Self::Template => "tpl",

@@ -21,13 +21,13 @@ use korpis_proto::korpis::v1 as pb;
 use std::time::SystemTime;
 
 /// A self-signed certificate for `names` and its key, in PEM.
-fn issued(names: &[&str]) -> (String, String) {
+pub fn issued(names: &[&str]) -> (String, String) {
     let names: Vec<String> = names.iter().map(|n| (*n).to_owned()).collect();
     let made = rcgen::generate_simple_self_signed(names).unwrap();
     (made.cert.pem(), made.signing_key.serialize_pem())
 }
 
-async fn upload(
+pub async fn upload(
     h: &Harness,
     key: &str,
     org: &str,

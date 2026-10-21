@@ -34,6 +34,9 @@ start AS (
     UNION ALL
     SELECT 'certificate', c.id, '{}'::jsonb, 0, NULL, c.organization_id
       FROM certificate c WHERE $1 = 'certificate' AND c.id = $2
+    UNION ALL
+    SELECT 'portal', p.id, '{}'::jsonb, 0, NULL, p.organization_id
+      FROM portal p WHERE $1 = 'portal' AND p.id = $2
 ),
 project_step AS (
     SELECT 'project'::text AS kind, p.id, p.labels, 1 AS depth,
@@ -44,7 +47,7 @@ first_org AS (
     SELECT up_org AS id, depth FROM project_step
     UNION ALL
     SELECT up_org, depth FROM start
-     WHERE kind IN ('project', 'organization', 'node', 'domain', 'certificate')
+     WHERE kind IN ('project', 'organization', 'node', 'domain', 'certificate', 'portal')
         OR (kind = 'repository' AND up_org IS NOT NULL)
 ),
 orgs AS (

@@ -1299,16 +1299,45 @@ Certificate
   renew_after   Timestamp?       for `acme`: when its renewal begins
   revision      int              raised whenever its chain and key change
   endpoint      (WorkloadID, string)?  for `acme`: the endpoint whose names it is for
+  portal        PortalID?        for `acme`: the portal whose name it is for, added 2026-10-21
   attempts      int              for `acme`: attempts in a row that failed
   next_attempt  Timestamp?       for `acme`: when the next may be made
 ```
 
 **Invariants.** Its key is stored only sealed (§3.2 of `07-networking.md`). An `acme` certificate
-is the control plane's to issue and renew, for one endpoint's names; a `provided` one is uploaded
-by its organization and named by the endpoints that use it (`TlsSpec.secret` holds its
-identifier, §3.2 of `07-networking.md`), which must be its organization's and covered by it, and
-is replaced in place by its organization, keeping its identifier, raising its revision. A
-certificate an endpoint serves with is not deleted: the endpoint's routes name it.
+is the control plane's to issue and renew, for one endpoint's names or one portal's name; a
+`provided` one is uploaded by its organization and named by the endpoints that use it
+(`TlsSpec.secret` holds its identifier, §3.2 of `07-networking.md`), which must be its
+organization's and covered by it, and is replaced in place by its organization, keeping its
+identifier, raising its revision; a portal names one too. A certificate an endpoint or a portal
+serves with is not deleted: the endpoint's routes, or the portal, name it.
+
+#### Portal
+
+> A name an organization holds, under which the control plane serves its API and panel for it.
+
+> Added 2026-10-21, when the control plane was designed to answer under names organizations hold
+> (§3.6 of `07-networking.md`, §9.8 of `08-identity.md`), resolving Finding 66 of
+> `23-walkthroughs.md`.
+
+```
+Portal
+  id            PortalID         ptl_…
+  organization  OrganizationID   whose theme and identity providers it wears, and beneath which
+                                 a session begun at it acts
+  name          string           a lowercase DNS name its organization holds; the relying
+                                 party's identifier for every passkey registered at it
+  certificate   CertificateID    what it is served with: its own `acme` one, or a `provided` one
+                                 of its organization covering its name
+  created_at    Timestamp
+```
+
+**Invariants.** Its name is held by its organization, the holder being the organization whose
+verified domain is the most specific one covering it, and while the portal exists that domain is
+neither deleted nor delegated away. A name is a portal or an endpoint's route, never both, and two
+portals never share one; no portal is the installation's own host or a `--web-origin`'s. A passkey
+registered at a portal is used only there, and deleting the portal removes its passkeys and ends
+the sessions begun at it.
 
 #### Stream
 

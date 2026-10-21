@@ -17,6 +17,7 @@ fn unique(constraint: Option<&str>) -> Unique {
         Some("repository_live_name") => Unique::RepositoryName,
         Some("repository_streams") => Unique::RepositoryStreams,
         Some("domain_organization_id_name_key") => Unique::DomainName,
+        Some("portal_name_key") => Unique::PortalName,
         Some("node_name_key") => Unique::NodeName,
         Some("account_name_key") => Unique::AccountName,
         Some("passkey_pkey") => Unique::Passkey,

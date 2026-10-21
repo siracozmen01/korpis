@@ -1786,11 +1786,11 @@ A passkey is bound to a registrable domain, and the panel and the control plane 
 that the browser signed for it and that the origin it reports is one it serves or lists in
 `--web-origin`. In Phase 1 that is the installation's own name. A reseller's customers signing in
 at the reseller's address need the control plane to answer under that address, which Phase 2
-designs (Finding 66 of `23-walkthroughs.md`); a passkey then works at the site it was registered
-at, and a person who signs in at two sites registers one at each. It accepts ES256, EdDSA, and
-RS256, which is what platform authenticators produce, and attestation `none`, since the
-installation has no list of authenticator models to trust and asking for attestation would only
-identify the user's device to it.
+designs as a portal (§9.8, resolving Finding 66 of `23-walkthroughs.md`): a passkey works at the
+address it was registered at, and a person who signs in at two addresses registers one at each. It
+accepts ES256, EdDSA, and RS256, which is what platform authenticators produce, and attestation
+`none`, since the installation has no list of authenticator models to trust and asking for
+attestation would only identify the user's device to it.
 
 **What a sign-in is limited by** (§10 of `10-api.md`). Every failure, a password, a second-factor
 code, or an assertion that does not verify, is charged to its source like any failed attempt. A
@@ -1928,20 +1928,21 @@ the grants of the other.
 
 **The protocol is the provider's; the decisions are the control plane's.** The control plane never
 speaks OIDC or SAML. A sign-in is two calls of `SessionService`, neither authenticated.
-`BeginExternalSignIn(provider, code_challenge)` makes a state, 256 random bits of which the
-control plane keeps the digest, and a nonce, keeps both ten minutes with the provider and the
-challenge, and asks the provider, with the identity provider's `Authorize` call (§6 of
-`16-extensions.md`), for the address to send the person to. The address the person comes back to
-is the panel's, `--public-url` followed by `/sign-in/callback`, the one redirect URI an operator
-registers at their identity provider, and without a public URL the call is refused, there being no
-panel to come back to. The panel made the PKCE verifier (RFC 7636, `S256`) and
-keeps it in the tab's session storage; the control plane is given only its challenge.
-`CompleteExternalSignIn(state, code, code_verifier)` follows the person's return: the control
-plane spends the pending sign-in by its state, once, and has the provider `Assert` the code, the
-verifier, the redirect URI, and the nonce (§5.2). The provider redeems the code at the identity
-provider and validates what it is given (§5.3), and answers the person and their sets; the
-control plane accepts the presentation once, begins the session, and sets its refresh credential
-as every sign-in does.
+`BeginExternalSignIn(provider, code_challenge)` makes a state, 256 random bits of which the control
+plane keeps the digest, and a nonce, keeps both ten minutes with the provider and the challenge,
+and asks the provider, with the identity provider's `Authorize` call (§6 of `16-extensions.md`),
+for the address to send the person to. The address the person comes back to is the panel's,
+`--public-url` followed by `/sign-in/callback`, the one redirect URI an operator registers at their
+identity provider, and without a public URL the call is refused, there being no panel to come back
+to (corrected 2026-10-21, Finding 130 of `23-walkthroughs.md`: a sign-in begun at a portal comes
+back to the portal's own, §9.8, since the verifier is kept in the session storage of the origin it
+began at). The panel made the PKCE verifier (RFC 7636, `S256`) and keeps it in the tab's session
+storage; the control plane is given only its challenge. `CompleteExternalSignIn(state, code,
+code_verifier)` follows the person's return: the control plane spends the pending sign-in by its
+state, once, and has the provider `Assert` the code, the verifier, the redirect URI, and the nonce
+(§5.2). The provider redeems the code at the identity provider and validates what it is given
+(§5.3), and answers the person and their sets; the control plane accepts the presentation once,
+begins the session, and sets its refresh credential as every sign-in does.
 
 The verifier stays in the browser because there it is what binds the sign-in to the person who
 began it. A code taken from the redirect, out of a referrer, a log, or a history, is worthless
@@ -1958,9 +1959,8 @@ organization's operator hands its own people, so no page lists a tenant's provid
 its customers, to strangers. A link names an organization by identifier, so whoever holds it can
 tell that the provider exists; that is all it tells them. Offering a tenant's provider at all
 reaches nothing the tenant did not already reach: a provider vouches only at and beneath its own
-organization (§5), so a person signed in through it holds nothing above it. A reseller's page
-under its own name (§9.6, Finding 66 of `23-walkthroughs.md`) offers its own providers when Phase
-2 serves the control plane under that name.
+organization (§5), so a person signed in through it holds nothing above it. A reseller's portal
+(§9.8) offers its own organization's providers in place of the root's.
 
 **A membership is believed while its member record vouches.** A sign-in names the sets the person
 is in. Each call's caller holds those sets only while the person's record as a member of each
@@ -2050,6 +2050,89 @@ interval and grace past their last sign-in, and must sign in again within that t
 > the next sign-in. A sign-in's calls keep neither the state and nonce nor the code and verifier
 > once answered (§6 of `16-extensions.md`). Approving a `korpis login` from such a session was
 > built beside it, as the note under **The CLI** above says. Not yet built: the panel's pages.
+
+### 9.8 Signing in at a portal
+
+> Designed 2026-10-21, for Phase 2 (§4 of `20-roadmap.md`), resolving Finding 66 of
+> `23-walkthroughs.md`: §9.6 left a reseller's customers signing in at the installation's name,
+> the only relying party there was. A portal is a name an organization holds under which the
+> control plane serves itself (§3.6 of `07-networking.md`).
+
+**A portal is a relying party of its own.** A ceremony at a portal is for the relying party whose
+identifier is the portal's name, and whose one origin is the portal's; the control plane takes the
+portal from the connection, whose certificate named it, never from anything the page says. A
+passkey registered there is recorded with its portal and is offered and accepted only there, so a
+person who signs in at the installation's address and at a portal, or at two portals, registers a
+passkey at each, as §9.6 said they would. The identifier is the portal's whole name, never a
+suffix of it: the control plane does not consult the public suffix list (§9.6), so it cannot tell
+which suffix of a name is registrable, and an identifier that is a public suffix fails every
+ceremony in the browser, while the whole name is always one the page may use. A passkey registered
+at one address is never offered at another. WebAuthn's related origin requests (§5.11 of WebAuthn
+Level 3) let a relying party name other origins its passkeys may be used from, in a file at
+`/.well-known/webauthn` of its identifier, and they are not used: the file is public, so it would
+publish every reseller an installation serves, browsers are required to honour only five
+registrable domains in it, and a reseller's customers would be asked for a passkey of the
+installation's name, which the reseller's address exists to spare them.
+
+**A session begun at a portal acts only beneath its organization.** The session records the portal
+it began at, and every access token it gives names the portal's organization; the gateway
+authorizes a call made with one only on an object at or beneath that organization, whatever the
+grants it holds reach, and a list answers only what lies there (§8 of `10-api.md`, Finding 128 of
+`23-walkthroughs.md`). The reason is who holds the name. The portal's organization holds its DNS,
+so it can obtain a certificate for the name from any authority and serve its own page there; that
+page is sent every cookie a browser keeps for the name, sees every password typed into it, and can
+relay every ceremony to the control plane as the person's. So what a person does at a portal, its
+holder can do as them, and the session reaches no further than what that holder answers for. The
+confinement carries to whatever the session makes: a `korpis login` approved on the device page of
+a portal (§9.4) is a session confined to the same organization, since a page the holder served
+there could otherwise approve a login of its own and hold a session reaching everything the person
+does (Finding 129); and a token, a grant, or a share link issued with a confined session is issued
+on a scope beneath the organization, since issuing is authorized on its scope. A person signed in
+through an identity provider at a portal is confined as an account is. **What evaluates this,
+where, and with what information:** the gateway, at every call, from the access token's claim and
+the object's ancestry, which it loads for every decision already (§3.3); and the device page's
+approval, from the approving session's portal, which the CLI's session is given.
+
+**What a confined session may change of the account.** It sees and ends the account's sessions
+begun at its portal, and adds and removes the passkeys registered there. The password, TOTP, and
+recovery codes serve every address, and a change to one at a portal would let the portal's holder,
+acting as the person, take the account at every address: so a confined session changes them only
+when every grant the account holds lies at or beneath the portal's organization, where the holder
+could take nothing it does not already answer for, and otherwise the change is refused with the
+reason `session.portal_confined`, to be made at the installation's own address (Finding 131). The
+control plane evaluates it at the change, from the account's grants, read in the change's
+transaction. The two rules of §9.6 after every change hold for the account, not for an address: a
+passkey at any portal is a lasting second factor beside a password, so a password whose only second
+factor is a passkey at one portal signs in at any other address with a TOTP code or a recovery code
+alone.
+
+**The sign-in page at a portal.** It wears the portal's organization's theme, which
+`GetSignInTheme` answers at the portal in place of the root organization's (§7 of
+`11-surface-web.md`). It offers the identity providers of the portal's organization that serve
+sign-in, which `ListSignInProviders` answers there in place of the root organization's (§9.7), and
+a sign-in link there reaches a provider at or beneath the portal's organization and is refused for
+any other. A sign-in through a provider returns to the address it began at, `/sign-in/callback` of
+the portal, which the pending sign-in records so the code is redeemed with the redirect URI it was
+sent to; each portal is one more redirect URI the provider's operator registers at the identity
+provider. A device cookie is the portal's own, a `__Host-` cookie being kept for one name, so the
+guesses it spares are spared there (§9.6). An invitation is redeemed at any address, and the
+passkey it registers is the redeeming address's.
+
+**Deleting a portal** ends every session begun at it and removes every passkey registered at it,
+each an `account.factor_removed` by the system, so nothing is left that could be used if the name
+were made a portal again, by its organization or by another that came to hold it. An account left
+with no factor that signs in anywhere is one its issuer invites again (§9.3); `GetPortal` says how
+many passkeys are registered at the portal and how many accounts sign in nowhere else, which the
+panel shows before it deletes one.
+
+What it costs. A person who signs in at two addresses holds two passkeys. A password typed at a
+portal is seen by whoever serves the portal's name, which its holder can arrange, and the same
+password signs in at the installation's own address; the control plane cannot stop a person
+typing it, and a person holding grants outside a portal's organization signs in there with a
+passkey, which is bound to the portal and useless elsewhere. An operator of the installation who
+signs in at a reseller's portal reaches only the reseller's organization there, and signs in at
+the installation's own address for the rest. Every portal is a redirect URI to register at each
+identity provider its organization offers.
 
 ---
 

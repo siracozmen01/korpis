@@ -50,6 +50,7 @@ pub mod node;
 pub mod observation;
 pub mod placement;
 pub mod plan;
+pub mod portal;
 pub mod principal;
 pub mod provider;
 pub mod quota;
@@ -121,6 +122,7 @@ pub fn id_kind(kind: Kind) -> IdKind {
         Kind::Repository => IdKind::Repository,
         Kind::Domain => IdKind::Domain,
         Kind::Certificate => IdKind::Certificate,
+        Kind::Portal => IdKind::Portal,
     }
 }
 

@@ -79,6 +79,9 @@ message Scope {
     string domain = 10;
     // A certificate an organization holds for the ingress (§3.2 of docs/07-networking.md).
     string certificate = 11;
+    // A portal, a name the control plane answers under for an organization (§3.6 of
+    // docs/07-networking.md).
+    string portal = 12;
   }
 }
 

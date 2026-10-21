@@ -19,7 +19,9 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::idempotency::{Idempotent, Reply, finish};
 use crate::page::{Page, Paged, visible};
-use crate::ports::{CertificateWrite as _, Clock, EffectWrite as _, RecipeSource, Store, TlsVault};
+use crate::ports::{
+    CertificateWrite as _, Clock, EffectWrite as _, PortalWrite as _, RecipeSource, Store, TlsVault,
+};
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::dns::certificate::{Certificate, Leaf, Source, State};
@@ -108,6 +110,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             revision: 1,
             created_at: self.clock.now(),
             owner: None,
+            portal: None,
             attempts: 0,
             next_attempt: None,
             key_id: Some(leaf.key_id),
@@ -154,8 +157,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             exposed,
             ..held
         };
-        let served: Vec<DomainName> =
+        let mut served: Vec<DomainName> =
             tx.routes_served_by(id).await?.into_iter().map(|r| r.name).collect();
+        served.extend(tx.portals_served_with(id).await?.into_iter().map(|p| p.name));
         if let Some(name) = replaced.uncovered(&served) {
             let why =
                 format!("{} is served with it, and the new chain does not cover it", name.as_str());
@@ -188,6 +192,10 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 r.endpoint,
                 r.name.as_str()
             );
+            return Err(AppError::conflict("certificate.in_use", why));
+        }
+        if let Some(p) = tx.portals_served_with(id).await?.first() {
+            let why = format!("the portal {} is served with it; change it first", p.name.as_str());
             return Err(AppError::conflict("certificate.in_use", why));
         }
         tx.delete_certificate(id).await?;

@@ -39,6 +39,7 @@ mod metering;
 mod node;
 mod observation;
 mod placement;
+mod portal;
 mod provider;
 mod provider_call;
 mod prune;

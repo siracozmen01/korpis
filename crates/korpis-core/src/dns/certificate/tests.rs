@@ -64,6 +64,7 @@ fn a_certificate_serves_the_names_it_covers_while_valid() {
         revision: 1,
         created_at: at(1000),
         owner: None,
+        portal: None,
         attempts: 0,
         next_attempt: None,
         key_id: Some("k1".into()),

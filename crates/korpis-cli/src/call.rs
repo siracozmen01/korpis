@@ -210,6 +210,11 @@ table! {
     "korpis.v1.DomainService/GetDomain" => DomainServiceClient::get_domain(GetDomainRequest);
     "korpis.v1.DomainService/ListDomains" => DomainServiceClient::list_domains(ListDomainsRequest);
     "korpis.v1.DomainService/DeleteDomain" => DomainServiceClient::delete_domain(DeleteDomainRequest);
+    "korpis.v1.PortalService/CreatePortal" => PortalServiceClient::create_portal(CreatePortalRequest);
+    "korpis.v1.PortalService/GetPortal" => PortalServiceClient::get_portal(GetPortalRequest);
+    "korpis.v1.PortalService/ListPortals" => PortalServiceClient::list_portals(ListPortalsRequest);
+    "korpis.v1.PortalService/SetPortalCertificate" => PortalServiceClient::set_portal_certificate(SetPortalCertificateRequest);
+    "korpis.v1.PortalService/DeletePortal" => PortalServiceClient::delete_portal(DeletePortalRequest);
     "korpis.v1.BackupService/CreateBackup" => BackupServiceClient::create_backup(CreateBackupRequest);
     "korpis.v1.BackupService/GetBackup" => BackupServiceClient::get_backup(GetBackupRequest);
     "korpis.v1.BackupService/ListBackups" => BackupServiceClient::list_backups(ListBackupsRequest);

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO certificate (id, organization_id, names, source, chain, state, revision,\n                                      created_at, portal_id)\n             VALUES ($1, $2, $3, 'acme', '', 'pending', 0, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "TextArray",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6cb15e2cf59ced3a26ab74049cd90d74f5f6f78319258736f734c80323c72ab"
+}

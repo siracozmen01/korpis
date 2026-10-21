@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The ancestry of one object ($1 kind, $2 id): the object first, then each ancestor up to its\n-- root organization, with labels. A node's parent is the organization it was enrolled into, and a\n-- volume's the project it belongs to, a repository's its project, or its organization when it is\n-- scoped to the whole of it, and a domain's or a certificate's the organization holding it. One\n-- statement walks from the object to its organization and then up the organization tree, so the\n-- answer is consistent with a single snapshot. An organization says whether it is suspended,\n-- which authorization derives every grant's suspension from (§2.1 of docs/08-identity.md), and\n-- the delegation ceiling it sets, if it sets one (§5.1).\nWITH RECURSIVE\nstart AS (\n    SELECT 'workload'::text AS kind, w.id, w.labels, 0 AS depth,\n           w.project_id AS up_project, NULL::uuid AS up_org\n      FROM workload w WHERE $1 = 'workload' AND w.id = $2\n    UNION ALL\n    SELECT 'project', p.id, p.labels, 0, NULL, p.organization_id\n      FROM project p WHERE $1 = 'project' AND p.id = $2\n    UNION ALL\n    SELECT 'organization', o.id, '{}'::jsonb, 0, NULL, o.parent_id\n      FROM organization o WHERE $1 = 'organization' AND o.id = $2\n    UNION ALL\n    SELECT 'node', n.id, n.labels, 0, NULL, n.organization_id\n      FROM node n WHERE $1 = 'node' AND n.id = $2\n    UNION ALL\n    SELECT 'volume', v.id, '{}'::jsonb, 0, v.project_id, NULL\n      FROM volume v WHERE $1 = 'volume' AND v.id = $2\n    UNION ALL\n    SELECT 'repository', r.id, '{}'::jsonb, 0, r.project_id,\n           CASE WHEN r.project_id IS NULL THEN r.organization_id END\n      FROM repository r WHERE $1 = 'repository' AND r.id = $2\n    UNION ALL\n    SELECT 'domain', d.id, '{}'::jsonb, 0, NULL, d.organization_id\n      FROM domain d WHERE $1 = 'domain' AND d.id = $2\n    UNION ALL\n    SELECT 'certificate', c.id, '{}'::jsonb, 0, NULL, c.organization_id\n      FROM certificate c WHERE $1 = 'certificate' AND c.id = $2\n    UNION ALL\n    SELECT 'portal', p.id, '{}'::jsonb, 0, NULL, p.organization_id\n      FROM portal p WHERE $1 = 'portal' AND p.id = $2\n),\nproject_step AS (\n    SELECT 'project'::text AS kind, p.id, p.labels, 1 AS depth,\n           p.organization_id AS up_org\n      FROM start s JOIN project p ON p.id = s.up_project\n),\nfirst_org AS (\n    SELECT up_org AS id, depth FROM project_step\n    UNION ALL\n    SELECT up_org, depth FROM start\n     WHERE kind IN ('project', 'organization', 'node', 'domain', 'certificate', 'portal')\n        OR (kind = 'repository' AND up_org IS NOT NULL)\n),\norgs AS (\n    SELECT o.id, o.parent_id, f.depth + 1 AS depth\n      FROM first_org f JOIN organization o ON o.id = f.id\n    UNION ALL\n    SELECT o.id, o.parent_id, orgs.depth + 1\n      FROM orgs JOIN organization o ON o.id = orgs.parent_id\n)\nSELECT chain.kind AS \"kind!\", chain.id AS \"id!\", chain.labels AS \"labels!\",\n       chain.depth AS \"depth!\",\n       (chain.kind = 'organization' AND coalesce(o.status = 'suspended', false))\n           AS \"suspended!\",\n       o.delegation_ceiling_ms AS \"ceiling_ms?\"\n  FROM (\n    SELECT kind, id, labels, depth FROM start\n    UNION ALL\n    SELECT kind, id, labels, depth FROM project_step\n    UNION ALL\n    SELECT 'organization', id, '{}'::jsonb, depth FROM orgs\n  ) chain\n  LEFT JOIN organization o ON chain.kind = 'organization' AND o.id = chain.id\n ORDER BY chain.depth\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "labels!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "depth!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "suspended!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "ceiling_ms?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "organization",
+            "name": "delegation_ceiling_ms"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "189f92db60d9006da47837f01a485c758b9bf84517c74ab73f4238a9950d2d15"
+}

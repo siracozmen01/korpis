@@ -323,6 +323,16 @@ declared again, and is refused if the new chain no longer covers a name one of t
 `korpis certificate list` and `korpis certificate get crt_…` read them, the chain but never the
 key, and `korpis certificate delete crt_…` deletes one no endpoint serves with.
 
+A name an organization holds becomes its portal, the control plane answering there with the
+organization's theme and sign-in (§3.6 of `07-networking.md`, §9.8 of `08-identity.md`), with
+`korpis portal create panel.reseller.example`, under an `acme` certificate of its own unless
+`--certificate crt_…` names a provided one; `korpis portal certificate ptl_… crt_…`, or `--acme`,
+changes what it is served with and keeps everything else. `korpis portal list` and `korpis portal
+get ptl_…` read them, with the certificate's state and why it is not issued where it is not, and
+the passkeys registered at the portal; `korpis portal delete ptl_…` deletes one, which ends the
+sessions begun at it and removes its passkeys and so takes `--yes`, as removing a node does, after
+`korpis portal get` has said how many accounts sign in nowhere else. (Designed 2026-10-21.)
+
 ---
 
 ## 6. Two sources of truth, reconciled honestly

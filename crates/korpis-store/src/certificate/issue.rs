@@ -117,8 +117,8 @@ pub(super) async fn take_due(
                        ORDER BY next_attempt_at NULLS FIRST, id
                        LIMIT 1 FOR UPDATE SKIP LOCKED)
           RETURNING id, organization_id, names, source, chain, not_before, not_after, state,
-                    reason, renew_after, revision, created_at, workload_id, endpoint, attempts,
-                    next_attempt_at, key_id, exposed",
+                    reason, renew_after, revision, created_at, workload_id, endpoint, portal_id,
+                    attempts, next_attempt_at, key_id, exposed",
         from_time(now),
         from_time(until)
     )
@@ -162,6 +162,7 @@ pub(super) async fn remove_orphans(tx: &mut PgTx) -> StoreResult<u64> {
           WHERE id IN (SELECT c.id FROM certificate c
                         WHERE c.source = 'acme'
                           AND NOT EXISTS (SELECT 1 FROM route r WHERE r.certificate_id = c.id)
+                          AND NOT EXISTS (SELECT 1 FROM portal p WHERE p.certificate_id = c.id)
                           AND NOT EXISTS (SELECT 1 FROM endpoint e WHERE e.certificate_id = c.id)
                           AND NOT EXISTS (SELECT 1 FROM certificate_record d
                                            WHERE d.certificate_id = c.id)
