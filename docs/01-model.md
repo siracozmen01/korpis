@@ -151,7 +151,7 @@ Quota dimensions
   memory        bytes
   disk          bytes
   disk_io       bytes/sec and ops/sec, as limits (§5.2 of `05-scheduling.md`)
-  egress        bytes per metering period
+  egress        bytes per calendar month of metering periods (UTC days)
   bandwidth     bits/sec
   workloads     count
   volumes       count
@@ -175,6 +175,12 @@ Quota dimensions
   applies the shaping the quota entry declares for that state (a floor rate, not a cut-off, unless
   the entry says otherwise). Who evaluates, where, and with what information: the control plane,
   from metered bytes; the kernel, from a rate.
+  The budget's window is a calendar month of UTC days, summed as an invoice sums them (§2 of
+  `15-observability.md`), and it begins again on the first: corrected 2026-10-21, when bandwidth
+  was designed (§7 of `07-networking.md`). It said "bytes per metering period", written before a
+  period was defined, and a period is now a UTC day, which would have made a monthly transfer
+  allowance, what hosts sell, a daily one. What it costs: a host that bills from the day a customer
+  signed up rather than from the first keeps that budget itself.
 - Reservations sum against the parent and are never oversubscribed; limits may exceed the parent's
   by a declared ratio. Admission holds what it checks, at admission time, not at use time.
 

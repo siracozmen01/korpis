@@ -3945,3 +3945,7 @@ day though the use behind it is known, so October's invoice states four hours un
 November's names what they used, and a customer reading the two together must add them; that is
 the price of a day that does not change. The days are UTC days, so a host billing in another time
 zone sums the UTC days of its month and says so on its invoice.
+
+Designed after this trace, on what it made readable: the egress budget (§5.1 of
+`05-scheduling.md`) sums a month of records as an invoice sums them, so a budget, too, is spent
+once by each byte, and a late sample spends it in the day it arrives rather than in a closed one.

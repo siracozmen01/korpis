@@ -79,7 +79,8 @@ message QuotaEntry {
   LabelSelector selector = 1;
   // Participates in the admission compare-and-swap (§5.1 of docs/05-scheduling.md).
   uint64 version = 4;
-  // What shaping applies when the egress budget for the period is exhausted.
+  // What shaping applies when the egress budget for the month is exhausted (§5.1 of
+  // docs/05-scheduling.md).
   EgressExhaustion egress_exhausted = 5;
   // The nodes it counts the workloads on, by their labels: set, it counts a workload while it
   // is placed on one of them, by what its placement runs, and is checked when it is bound;

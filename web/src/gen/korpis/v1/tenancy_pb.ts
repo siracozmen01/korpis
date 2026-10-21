@@ -218,7 +218,8 @@ export type QuotaEntry = Message<"korpis.v1.QuotaEntry"> & {
   version: bigint;
 
   /**
-   * What shaping applies when the egress budget for the period is exhausted.
+   * What shaping applies when the egress budget for the month is exhausted (§5.1 of
+   * docs/05-scheduling.md).
    *
    * @generated from field: korpis.v1.EgressExhaustion egress_exhausted = 5;
    */

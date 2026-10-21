@@ -376,6 +376,16 @@ split by destination until bandwidth accounting is built.
 > known, named again by the adjustment in a later day. The API test reads a closed day as it
 > closed, the adjustment in the day it was written, and the same day by its intervals.
 
+**Bytes by endpoint, and egress, as designed.** Designed 2026-10-21, with shaping (§7 of
+`07-networking.md`), and built with it. A sample also carries, cumulative like the rest, the bytes
+and packets each declared endpoint of the workload received and sent, and the bytes that left the
+workload's link for anything but another workload's on its node: its egress, which the egress
+budget is measured in (§5.1 of `05-scheduling.md`). They are read from named counters in the host's
+table, out of the workload's reach, at each of the meter's readings, and differenced into each
+interval's record as the interface's bytes are. An endpoint is named in a record by its name, so
+a record says which of a workload's services carried what. What it costs: a record grows by a row
+per endpoint, and an endpoint renamed begins a count of its own.
+
 ---
 
 ## 3. Metrics

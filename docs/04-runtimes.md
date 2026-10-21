@@ -197,6 +197,13 @@ scheduler refuses a workload that asks for a limit the driver cannot hold, while
 quietly suspended for one platform, and it is the honest version of the Windows column §2 admits it
 lacks.
 
+Bandwidth is the one limit a driver that joins the node's links (`network_modes: veth`, §4.1 of
+`07-networking.md`) does not hold itself: the node's network shapes it, on the workload's link and
+the node's uplinks (§7 there). So the agent adds `egress` and `ingress` to such a driver's
+`enforcement` when its operator has declared an uplink and its helper can write the qdiscs, and
+leaves them out otherwise; a driver that builds a network of its own declares its own. Added
+2026-10-21, when shaping was designed.
+
 **`volume_semantics`, because a VM's volume is a block device.** Under `process` and `container`, a
 volume is a directory on a filesystem the host controls, quota is `refquota` or a project quota,
 exceeding it returns `EDQUOT` in the write path, and inodes are a thing that can run out. Under

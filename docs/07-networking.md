@@ -1041,6 +1041,72 @@ declares it enforces one, which no driver yet does, so it stays unplaced with th
 `04-runtimes.md`, §5.3 of `05-scheduling.md`): either way nothing is shown as held that the kernel
 does not hold (Rule K-3).
 
+**Shaping and accounting, as designed.** Designed 2026-10-21, before they were built (Phase 2 of
+§4 of `20-roadmap.md`), on the network of §4.1: a point-to-point link per workload, routed, every
+packet crossing the host's table.
+
+*Where a reservation is held.* A guarantee is only a guarantee where the guaranteed contend, and
+outbound the workloads of a node contend for its uplinks. So the reservation is held there: on
+each uplink the helper keeps an HTB tree whose root rate is the uplink's capacity, a class for
+each workload with an egress reservation or limit, its rate the reservation and its ceiling the
+limit, and a default class for everything else, the node's own traffic and the workloads that
+reserve nothing, whose rate is what the reservations leave and whose ceiling is the capacity. A
+packet is put in its workload's class by the host table: the workload's chain, reached from the
+verdict map keyed by its link, sets the packet's priority to the class in the forward hook, after
+the kernel's forwarding has set a priority of its own and before translation, which does not
+touch it, and HTB takes a class from a packet's priority with no filter. A priority rather than a
+firewall mark, because marks are shared with every other program on the node that routes by one,
+and a priority set in the forward hook is Korpis's alone. Each class's identifier is allocated by
+the agent with the workload's addresses, kept across restarts, and released with them.
+
+*The uplinks and their capacity are declared.* `korpis-agent run --uplink eth0=1gbit`, repeatable,
+names each interface and the capacity it sells, because the link speed the kernel reports is the
+negotiated rate of a NIC, and on most virtual machines a fiction; the capacity a host sells is what
+its provider sold it, which only the operator knows. The node keeps part of each uplink for itself,
+five percent unless the flag names another (`eth0=1gbit,reserve=50mbit`), as the default class's
+floor, so its control stream, journal, and relays are never starved by reservations it sold. With
+several uplinks each gets the same tree, and the node's allocatable bandwidth is the smallest
+uplink's capacity less what it keeps, since a workload's traffic leaves by whichever its route
+chooses. A node that declares no uplink shapes nothing and enforces nothing.
+
+*The limit is held at the workload's own link.* The ceiling a workload is sold covers all it
+sends, and not all of it leaves by an uplink: traffic to the node itself, its ingress proxy
+included (§3.2), never reaches one. So the limit is also shaped on the workload's side of its link,
+an HTB qdisc on `eth0` in its namespace, which the helper writes and the workload cannot change,
+since it holds no `NET_ADMIN` (§4.1). The uplink's tree holds the guarantee among what leaves by
+it; the link's qdisc holds the ceiling on everything.
+
+*The ingress limit is shaped on the host's side of the link.* What the node sends a workload
+leaves the host's side of the link, so an HTB qdisc there holds `bandwidth.ingress.limit`, on
+everything the workload is sent, from beyond the node, from its proxy, and from other workloads.
+
+*What each endpoint carried is counted in the host table.* Every packet to or from a workload's
+link passes the host's table, forwarded, sent by the node, or received by it, and the workload's
+chains count, for each declared endpoint, the bytes and packets to its port over its protocol and
+from it, as named counters: in the host's namespace, out of the workload's reach, which is the
+point of counting in the kernel rather than in a proxy. The chains also count what leaves the
+workload's link for anything but another workload's link on the node: the workload's egress, which
+the egress budget is measured in. The meter reads the counters at each of its readings through the
+helper, one listing of the table, and journals them with the interval's sample, so they are
+metered as everything else is (§2 of `15-observability.md`), cumulative and differenced.
+
+*The node says it enforces them.* A node whose helper can write the qdiscs and whose operator
+declared an uplink adds `egress` and `ingress` to what its drivers that join its links enforce
+(§4.1 of `04-runtimes.md`), so a workload with a bandwidth reservation or limit is placed only
+there, against the node's allocatable bandwidth, never oversubscribed (§5.2 of
+`05-scheduling.md`). A node without them keeps refusing, with that reason.
+
+What it does not do, and what it costs. Traffic between two workloads of one node never reaches an
+uplink, so it is held by the sender's ceiling and the receiver's ingress limit and by no
+guarantee. The overlay, when it is built (§9), is the node's own traffic to its uplink and goes in
+the default class until it carries the class of the workload inside it. A reservation is a
+guarantee at the uplink's interface and says nothing beyond it (above). HTB's precision is that of
+the kernel's timers, a few percent at gigabit rates; a ceiling is a rate, so a burst within the
+qdisc's buffer passes at line rate before it is held. The counters cost a rule per endpoint per
+direction on every packet of the workload, and a listing of the table every ten seconds, which for
+a thousand workloads is a few hundred kilobytes of JSON. The node needs `tc` from iproute2, as it
+needs `nft` (§2 of `18-operations.md`).
+
 ---
 
 ## 8. Abuse and attack

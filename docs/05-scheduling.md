@@ -988,6 +988,35 @@ The consequence lands where an operator can act on it: a drifted set reports its
 alongside the drift in `korpis status`, so the 03:00 fix that quietly consumed a reseller's
 headroom is visible the same morning instead of at the end of the month.
 
+#### The egress budget, as designed
+
+> Designed 2026-10-21, with shaping (§7 of `07-networking.md`).
+
+**A budget is a bound on what was used, so it is enforced after use, by shaping.** Every other
+dimension bounds what is held, at admission. `egress` bounds the bytes the workloads an entry counts
+send beyond their links over a calendar month of UTC days (§3.1 of `01-model.md`), which is known
+only once it is metered. So an entry's limits carry `egress_bytes_per_month`, and nothing is refused
+at admission for it. Every minute the control plane sums, for each entry with one, the egress its
+workloads' records hold for the month as an invoice sums them (§2 of `15-observability.md`), and an
+entry whose sum reaches its budget is exhausted until the month ends. Each workload an exhausted
+entry counts is told so in its next assignment with the entry's `egress_exhausted`: a floor rate
+its uplink class and its link are held to instead of its limit, or, with `cut_off`, nothing leaving
+its link for beyond the node, replies included, since a served workload's egress is almost all
+replies. A workload counted by several exhausted entries is held to the strictest: a cut-off before
+any floor, the lowest floor before a higher. A budget raised above what was used lifts the state at
+the next pass. An entry
+with a budget and no `egress_exhausted` is refused, since a budget that changes nothing when it is
+spent is a number displayed and not enforced (Rule K-3). At the month's turn the state lifts at
+each workload's next assignment.
+
+What it costs, and what it does not do. A budget is overrun by what its workloads send before it is
+known to be spent: up to an interval of samples, an hour by default, at their ceilings, and a node
+that cannot reach the control plane keeps sending at its last state until it can. A host sets the
+floor knowing that, and sets a shorter interval where an overrun costs more than its rows (question
+1 of §7 of `15-observability.md`). The bytes are those that left the workload's link for anything
+but another workload's on its node, so traffic to the node's own ingress proxy counts, being sent to
+the world on the workload's behalf, and traffic between two workloads of a node does not.
+
 ### 5.2 Reservation and limit are different numbers
 
 ```
