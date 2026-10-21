@@ -2,7 +2,8 @@
 
 //! A node's metering samples (§2 of docs/15-observability.md, "Measuring it, as designed"): each
 //! is measured from the last sample of its workload on that node, and what it measured is
-//! appended as a record. A sample is believed only from a node that held the workload, and it is
+//! appended as a record, superseding every gap it covers, and an adjustment where the day it
+//! begins in is closed. A sample is believed only from a node that held the workload, and it is
 //! not an effect: metering is not the audit log, and the record is its own. Only a sample that
 //! is not believed leaves an effect, as a rejection.
 
@@ -11,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, MeteringWrite as _, RecipeSource, Store};
 use korpis_core::audit::Effect;
-use korpis_core::metering::{Reading, Record, Sample, measure};
+use korpis_core::metering::{Reading, Record, RecordKind, Sample, day_of, measure};
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -38,7 +39,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                 return Ok(Some(e));
             }
         };
-        let record = Record::measured(sample, node, &measured);
+        let mut record = Record::measured(sample, node, &measured);
+        record.supersedes = tx.metering_gaps_within(w, node, (record.from, record.to)).await?;
+        if tx.metering_day_closed(day_of(record.from)).await? {
+            record.kind = RecordKind::Adjustment;
+        }
         tx.append_metering_record(&record, self.clock.now()).await?;
         let reading = Reading { end: sample.end(), counters: sample.counters };
         tx.keep_metering_reading(w, node, &reading).await?;

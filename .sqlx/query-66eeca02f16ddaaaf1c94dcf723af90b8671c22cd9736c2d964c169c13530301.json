@@ -14,7 +14,7 @@
         "Timestamptz",
         "Text",
         "Text",
-        "Uuid",
+        "UuidArray",
         "Int8",
         "Int8",
         "Int8",

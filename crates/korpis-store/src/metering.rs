@@ -6,7 +6,7 @@ use crate::errors::from_sqlx;
 use crate::stored::{count, from_json, from_time, to_count, to_json, to_time};
 use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
-use korpis_app::ports::{MeteringRead, MeteringWrite, StoreError, StoreResult};
+use korpis_app::ports::{MeteringRead, MeteringWrite, Overdue, StoreError, StoreResult};
 use korpis_core::metering::{Counters, Loss, Reading, Record, RecordKind};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -135,6 +135,89 @@ impl MeteringWrite for PgTx {
         Ok(())
     }
 
+    async fn metering_gaps_within(
+        &mut self,
+        workload: Uuid,
+        node: Uuid,
+        (from, to): (SystemTime, SystemTime),
+    ) -> StoreResult<Vec<Uuid>> {
+        let rows = sqlx::query_scalar!(
+            "SELECT g.id FROM metering_record g
+              WHERE g.kind = 'gap' AND g.workload_id = $1 AND g.node_id = $2
+                AND g.interval_start < $4 AND g.interval_end > $3
+                AND NOT EXISTS (SELECT 1 FROM metering_record s WHERE g.id = ANY (s.supersedes))
+              ORDER BY g.interval_start",
+            workload,
+            node,
+            from_time(from),
+            from_time(to)
+        )
+        .fetch_all(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows)
+    }
+
+    async fn metering_day_closed(&mut self, day: SystemTime) -> StoreResult<bool> {
+        let closed = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM metering_period
+                               WHERE day = ($1::timestamptz AT TIME ZONE 'UTC')::date)
+                      AS "closed!""#,
+            from_time(day)
+        )
+        .fetch_one(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(closed)
+    }
+
+    async fn mark_metering_gapped(
+        &mut self,
+        workload: Uuid,
+        node: Uuid,
+        (from, through): (SystemTime, SystemTime),
+    ) -> StoreResult<()> {
+        // A workload never sampled on its node has no reading yet: one is made, measuring
+        // nothing, from where its gaps began, so its first sample is measured from there.
+        sqlx::query!(
+            "INSERT INTO metering_reading (workload_id, node_id, interval_end, gapped_through)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (workload_id, node_id) DO UPDATE SET gapped_through = $4",
+            workload,
+            node,
+            from_time(from),
+            from_time(through)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn close_metering_days(
+        &mut self,
+        before: SystemTime,
+        now: SystemTime,
+    ) -> StoreResult<u64> {
+        let closed = sqlx::query!(
+            "INSERT INTO metering_period (day, closed_at)
+             SELECT d::date, $2 FROM generate_series(
+                 coalesce((SELECT max(day) + 1 FROM metering_period),
+                          (SELECT min((interval_start AT TIME ZONE 'UTC')::date)
+                             FROM metering_record),
+                          ($1::timestamptz AT TIME ZONE 'UTC')::date),
+                 ($1::timestamptz AT TIME ZONE 'UTC')::date - 1,
+                 interval '1 day') AS d
+             ON CONFLICT (day) DO NOTHING",
+            from_time(before),
+            from_time(now)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(closed.rows_affected())
+    }
+
     async fn append_metering_record(&mut self, r: &Record, at: SystemTime) -> StoreResult<()> {
         let [cpu, throttled, read_bytes, written, rx, tx, memory] = columns(&r.used)?;
         sqlx::query!(
@@ -153,7 +236,7 @@ impl MeteringWrite for PgTx {
             from_time(r.to),
             r.kind.as_str(),
             r.cause,
-            r.supersedes,
+            &r.supersedes,
             cpu,
             throttled,
             read_bytes,
@@ -173,6 +256,27 @@ impl MeteringWrite for PgTx {
 }
 
 impl MeteringRead for PgStore {
+    async fn metering_overdue(&self, cutoff: SystemTime) -> StoreResult<Vec<Overdue>> {
+        let rows = sqlx::query!(
+            r#"SELECT p.workload_id AS "workload_id!", p.node_id AS "node_id!", c.at AS "from!"
+                 FROM placement p
+                 LEFT JOIN metering_reading r
+                        ON r.workload_id = p.workload_id AND r.node_id = p.node_id
+                 CROSS JOIN LATERAL (SELECT CASE WHEN r.workload_id IS NULL THEN p.bound_at
+                      ELSE greatest(r.interval_end, coalesce(r.gapped_through, r.interval_end))
+                      END AS at) c
+                WHERE c.at < $1"#,
+            from_time(cutoff)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| Overdue { workload: r.workload_id, node: r.node_id, from: to_time(r.from) })
+            .collect())
+    }
+
     async fn metering_records(
         &self,
         workload: Uuid,

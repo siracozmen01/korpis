@@ -12,7 +12,7 @@ pub mod api;
 pub mod authority;
 pub mod bodies;
 mod flags;
-pub use flags::{metering_interval, placement_policy, span};
+pub use flags::{metering_interval, metering_lateness, placement_policy, span};
 mod background;
 mod buckets;
 pub mod control_backup;
@@ -89,6 +89,9 @@ pub struct ServeConfig {
     pub lease_term: Duration,
     /// The metering interval every node is told (§2 of docs/15-observability.md).
     pub metering_interval: Duration,
+    /// How long after a day ends its metering may still change (§2 of
+    /// docs/15-observability.md).
+    pub metering_lateness: Duration,
     /// The window repeated identical denials are coalesced over (§10 of docs/10-api.md).
     pub denial_window: Duration,
     /// How long the event log keeps an event (§5 of docs/15-observability.md).
@@ -183,6 +186,7 @@ fn application(
         .with_denial_window(config.denial_window)
         .with_rates(config.rates)
         .with_stream_floor(config.stream_retention_floor)
+        .with_metering_lateness(config.metering_lateness)
         .with_certificate_issuer(Arc::new(authority::Authority::load(&config.data)?))
         .with_assignment_sealer(Arc::new(sealer::Ed25519Sealer::new(
             keys.assignment.clone(),

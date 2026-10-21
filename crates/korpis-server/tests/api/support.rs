@@ -160,6 +160,7 @@ impl Harness {
             heartbeat_interval: heartbeat,
             lease_term: std::time::Duration::from_secs(2),
             metering_interval: std::time::Duration::from_secs(3600),
+            metering_lateness: std::time::Duration::from_secs(86_400),
             denial_window,
             event_retention: std::time::Duration::from_secs(30 * 86_400),
             stream_retention_floor: std::time::Duration::ZERO,

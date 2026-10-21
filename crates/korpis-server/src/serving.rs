@@ -64,6 +64,10 @@ pub struct ServeArgs {
     /// that divides an hour (§2 of docs/15-observability.md).
     #[arg(long, default_value = "1h", value_parser = korpis_server::metering_interval)]
     metering_interval: Duration,
+    /// How long after a day ends a late sample may still revise it, in whole hours, before the
+    /// day closes and a later one is an adjustment (§2 of docs/15-observability.md).
+    #[arg(long, default_value = "1d", value_parser = korpis_server::metering_lateness)]
+    metering_lateness: Duration,
     /// Whether this process serves the relay role, carrying console and file sessions; turn it
     /// off where relays run as their own processes (§3.1 of docs/02-architecture.md).
     #[arg(long, env = "KORPIS_RELAY_ROLE", default_value_t = true, action = clap::ArgAction::Set)]
@@ -156,6 +160,7 @@ pub async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         heartbeat_interval: Duration::from_secs(args.agent_heartbeat_secs.max(1)),
         lease_term: Duration::from_secs(args.lease_term_secs.max(1)),
         metering_interval: args.metering_interval,
+        metering_lateness: args.metering_lateness,
         denial_window: Duration::from_secs(args.denial_window_secs.max(1)),
         event_retention: Duration::from_secs(args.event_retention_days.max(1) * 86_400),
         stream_retention_floor: Duration::from_secs(

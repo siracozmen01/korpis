@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO metering_reading (workload_id, node_id, interval_end, gapped_through)\n             VALUES ($1, $2, $3, $4)\n             ON CONFLICT (workload_id, node_id) DO UPDATE SET gapped_through = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "41c911121661fa2d2d0483acd1ca8dc0aefa5f4a4e61a4f7b7d4bd1ab3a7ecaa"
+}

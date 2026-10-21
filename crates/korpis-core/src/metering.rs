@@ -11,6 +11,26 @@ use uuid::Uuid;
 
 /// A span samples were lost over, between the last one received and the next.
 pub const SAMPLES_LOST: &str = "samples lost";
+/// An interval of a workload a node holds that no record covered two intervals after it ended.
+pub const NODE_UNREACHABLE: &str = "node unreachable";
+/// A day of metering, the period records are closed by.
+pub const DAY: Duration = Duration::from_secs(86_400);
+
+/// The start of the UTC day `t` is in.
+#[must_use]
+pub fn day_of(t: SystemTime) -> SystemTime {
+    let since = t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
+    SystemTime::UNIX_EPOCH + Duration::from_secs(since / DAY.as_secs() * DAY.as_secs())
+}
+
+/// The start of the interval of length `interval` that `t` is in.
+#[must_use]
+pub fn interval_of(t: SystemTime, interval: Duration) -> SystemTime {
+    let since = t.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let step = interval.as_secs().max(1);
+    SystemTime::UNIX_EPOCH + Duration::from_secs(since / step * step)
+}
+
 /// A node's counters began again: its meter's accounts were lost, so what ran between its last
 /// sample and the new count is unknown.
 pub const COUNTER_RESET: &str = "counter reset";
@@ -195,8 +215,8 @@ pub struct Record {
     pub kind: RecordKind,
     /// Why it spans more than an interval, begins a count again, or is a gap.
     pub cause: Option<String>,
-    /// The record it replaces.
-    pub supersedes: Option<Uuid>,
+    /// The records it replaces: the gaps it covers.
+    pub supersedes: Vec<Uuid>,
     /// What was used.
     pub used: Counters,
     /// The most memory used within it.
@@ -220,13 +240,47 @@ impl Record {
             to: m.to,
             kind: RecordKind::Measured,
             cause: m.cause.map(str::to_owned),
-            supersedes: None,
+            supersedes: Vec::new(),
             used: m.used,
             memory_peak_bytes: sample.memory_peak_bytes,
             disk_bytes: sample.disk_bytes,
             losses: sample.losses.clone(),
         }
     }
+}
+
+impl Record {
+    /// A gap: nothing of `workload` was heard from `node` over `from` to `to`.
+    #[must_use]
+    pub fn gap(workload: Uuid, node: Uuid, (from, to): (SystemTime, SystemTime)) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            workload,
+            node: Some(node),
+            lease_epoch: 0,
+            from,
+            to,
+            kind: RecordKind::Gap,
+            cause: Some(NODE_UNREACHABLE.to_owned()),
+            supersedes: Vec::new(),
+            used: Counters::default(),
+            memory_peak_bytes: None,
+            disk_bytes: None,
+            losses: Vec::new(),
+        }
+    }
+}
+
+/// The intervals of length `interval` from `from` to `to` not yet covered: each a gap's span.
+#[must_use]
+pub fn gaps(from: SystemTime, to: SystemTime, interval: Duration) -> Vec<(SystemTime, SystemTime)> {
+    let mut out = Vec::new();
+    let mut at = interval_of(from, interval);
+    while at + interval <= to {
+        out.push((at.max(from), at + interval));
+        at += interval;
+    }
+    out
 }
 
 /// Why a sample measures nothing.

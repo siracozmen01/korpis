@@ -94,7 +94,7 @@
       {
         "ordinal": 8,
         "name": "supersedes",
-        "type_info": "Uuid",
+        "type_info": "UuidArray",
         "origin": {
           "Table": {
             "table": "metering_record",
@@ -229,7 +229,7 @@
       false,
       false,
       true,
-      true,
+      false,
       true,
       true,
       true,

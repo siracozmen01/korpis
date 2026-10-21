@@ -71,3 +71,12 @@ fn a_counter_first_measured_now_is_counted_from_zero() {
     assert_eq!((used.cpu_usec, used.net_rx_bytes), (Some(5), Some(70)));
     assert!(!now.below(&before));
 }
+
+#[test]
+fn a_silent_span_is_one_gap_an_interval_and_a_day_is_utc() {
+    let spans = gaps(t(2), t(5), HOUR);
+    assert_eq!(spans, [(t(2), t(3)), (t(3), t(4)), (t(4), t(5))]);
+    assert!(gaps(t(2), t(2) + HOUR / 2, HOUR).is_empty(), "an interval not ended is no gap");
+    let midday = SystemTime::UNIX_EPOCH + DAY * 20_000 + HOUR * 13;
+    assert_eq!(day_of(midday), SystemTime::UNIX_EPOCH + DAY * 20_000);
+}

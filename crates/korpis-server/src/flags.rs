@@ -42,9 +42,24 @@ pub fn metering_interval(s: &str) -> Result<Duration, String> {
     fits.then_some(d).ok_or_else(|| format!("{s:?}: a metering interval divides an hour"))
 }
 
+/// A metering lateness window: a span of whole hours (§2 of docs/15-observability.md).
+pub fn metering_lateness(s: &str) -> Result<Duration, String> {
+    let d = span(s)?;
+    (d.as_secs() % 3600 == 0)
+        .then_some(d)
+        .ok_or_else(|| format!("{s:?}: a lateness window is whole hours"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_lateness_window_is_whole_hours() {
+        assert_eq!(metering_lateness("1d"), Ok(Duration::from_secs(86_400)));
+        assert_eq!(metering_lateness("6h"), Ok(Duration::from_secs(6 * 3600)));
+        assert!(metering_lateness("90m").is_err());
+    }
 
     #[test]
     fn a_metering_interval_is_whole_minutes_that_divide_an_hour() {

@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT g.id FROM metering_record g\n              WHERE g.kind = 'gap' AND g.workload_id = $1 AND g.node_id = $2\n                AND g.interval_start < $4 AND g.interval_end > $3\n                AND NOT EXISTS (SELECT 1 FROM metering_record s WHERE g.id = ANY (s.supersedes))\n              ORDER BY g.interval_start",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "metering_record",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0331cd0772e937cddaf282ffbdf6c8efa8fa1fc843c069d611f29650d17a9e2a"
+}

@@ -299,6 +299,20 @@ split by destination until bandwidth accounting is built.
 > and finds the interval told, a stranger's sample rejected, a duplicate dropped by the cursor,
 > a span, and a stale sample rejected; the agent test finds what a workload used recorded once,
 > interval by interval, across an agent restart.
+>
+> Built 2026-10-21 (P2.7c2): gaps and periods. Every minute the control plane writes a gap, one
+> record an interval with the cause `node unreachable`, for each interval of a workload on a node
+> it is placed on that nothing covers once two more intervals have ended, from its last sample
+> or gap there, or from its placement where the node never sampled it, so a node that does not
+> meter at all leaves gaps rather than silence; at most a week of them a pass. A measurement that
+> arrives later supersedes every gap it covers, so a record names a list of the records it
+> supersedes. A UTC day closes once `--metering-lateness`, whole hours and a day by default, has
+> passed since it ended, recorded with when it closed; a record whose interval begins in a closed
+> day is written as an adjustment, dated by when it was recorded and naming its own interval.
+> What it costs: a workload placed and silent is a row an interval until it is heard, and a
+> placement's first record spans from when it was placed. API tests find the gaps of a silent
+> span and of a placement never sampled, their supersession by the sample that covers them, two
+> days closed, and the late sample of a closed day written as an adjustment.
 
 ---
 

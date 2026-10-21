@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM metering_period\n                               WHERE day = ($1::timestamptz AT TIME ZONE 'UTC')::date)\n                      AS \"closed!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "closed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "700bed51ae31272954aef2010cadafbf48d96c1e7e33f1613f9b4d2d08e5d9d3"
+}

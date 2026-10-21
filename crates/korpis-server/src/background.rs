@@ -29,6 +29,7 @@ pub(crate) fn start(api: &Arc<Api>, config: &ServeConfig) {
     tokio::spawn(close_denial_runs(Arc::clone(api), config.denial_window));
     tokio::spawn(expire_offloaded(Arc::clone(api)));
     tokio::spawn(reconcile_quota(Arc::clone(api)));
+    tokio::spawn(keep_metering(Arc::clone(api)));
     tokio::spawn(reverify_bindings(Arc::clone(api)));
     tokio::spawn(forget_assertions(Arc::clone(api)));
     tokio::spawn(control_jobs::queue_steps(Arc::clone(api)));
@@ -216,6 +217,23 @@ async fn reconcile_quota(api: Arc<Api>) {
             Ok(0) => {}
             Ok(n) => tracing::warn!(corrected = n, "quota totals drifted and were corrected"),
             Err(e) => tracing::warn!(error = %e, "reconciling quota failed"),
+        }
+    }
+}
+
+/// Writes, every minute, the metering gaps now due and closes the days whose lateness window has
+/// passed (§2 of docs/15-observability.md). The task ends with the process.
+async fn keep_metering(api: Arc<Api>) {
+    let mut tick = tokio::time::interval(Duration::from_secs(60));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tick.tick().await;
+        match api.app().keep_metering().await {
+            Ok(k) if k.gaps > 0 || k.closed > 0 => {
+                tracing::info!(gaps = k.gaps, closed = k.closed, "metering kept");
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!(error = %e, "keeping metering failed"),
         }
     }
 }

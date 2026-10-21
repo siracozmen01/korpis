@@ -24,6 +24,7 @@ pub mod event;
 pub mod extension;
 pub mod idempotency;
 pub mod install;
+pub mod metering;
 pub mod node;
 pub mod page;
 pub mod ports;
@@ -67,6 +68,7 @@ pub struct App<S, C = SystemClock, R = NoRecipes> {
     timer: Option<Arc<dyn ports::Timer>>,
     denial_window: std::time::Duration,
     stream_floor: std::time::Duration,
+    metering_lateness: std::time::Duration,
     limiter: rate::Limiter,
     relying_party: Option<korpis_core::webauthn::RelyingParty>,
     factor_vault: Option<Arc<dyn ports::FactorVault>>,
@@ -97,6 +99,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             timer: None,
             denial_window: korpis_core::audit::denial::DEFAULT_WINDOW,
             stream_floor: std::time::Duration::ZERO,
+            metering_lateness: std::time::Duration::from_secs(86_400),
             limiter: rate::Limiter::default(),
             relying_party: None,
             factor_vault: None,
@@ -204,6 +207,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     #[must_use]
     pub const fn with_stream_floor(mut self, floor: std::time::Duration) -> Self {
         self.stream_floor = floor;
+        self
+    }
+
+    /// Closes a day of metering `lateness` after it ends (§2 of docs/15-observability.md); a
+    /// day by default.
+    #[must_use]
+    pub const fn with_metering_lateness(mut self, lateness: std::time::Duration) -> Self {
+        self.metering_lateness = lateness;
         self
     }
 

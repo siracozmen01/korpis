@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO metering_period (day, closed_at)\n             SELECT d::date, $2 FROM generate_series(\n                 coalesce((SELECT max(day) + 1 FROM metering_period),\n                          (SELECT min((interval_start AT TIME ZONE 'UTC')::date)\n                             FROM metering_record),\n                          ($1::timestamptz AT TIME ZONE 'UTC')::date),\n                 ($1::timestamptz AT TIME ZONE 'UTC')::date - 1,\n                 interval '1 day') AS d\n             ON CONFLICT (day) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "918186f6a5f425c3eceafbed47e7d0f822d39296e56b6694c22e1b43e9ceb43a"
+}
