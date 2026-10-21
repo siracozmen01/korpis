@@ -170,6 +170,13 @@ pub trait Host: Send + Sync + 'static {
         &self,
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send;
 
+    /// Makes the node's uplinks shape what its workloads send, exactly those `request` names
+    /// (§7 of docs/07-networking.md).
+    fn ensure_uplinks(
+        &self,
+        request: &helper::EnsureUplinksRequest,
+    ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send;
+
     /// What the filesystem accounts for `volume`, read rather than computed (§3 of
     /// docs/06-storage.md): what the meter samples as its stored bytes (§2 of
     /// docs/15-observability.md).

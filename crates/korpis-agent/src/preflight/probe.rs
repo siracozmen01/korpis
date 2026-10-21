@@ -30,13 +30,20 @@ pub async fn probe(a: &Asking) -> Probes {
             .map(drop)
             .map_err(|e| format!("{}: {e}", a.containerd.display()))
     });
-    let storage = HelperClient::new(&a.helper).describe_storage().await.map_err(|e| e.to_string());
+    let helper = HelperClient::new(&a.helper);
+    let storage = helper.describe_storage().await.map_err(|e| e.to_string());
+    let shaping = match helper.describe_network().await {
+        Ok(d) if d.shapes => Ok(()),
+        Ok(d) => Err(d.why_not_shapes),
+        Err(e) => Err(e.to_string()),
+    };
     Probes {
         landlock_abi: landlock_abi(),
         nft: nft().await,
         containerd,
         storage: Some(storage),
         volume_disk: volume_disk(&a.volume_root, &a.sys),
+        shaping: Some(shaping),
     }
 }
 

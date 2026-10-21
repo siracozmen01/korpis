@@ -140,9 +140,41 @@ pub fn parse_duration(s: &str) -> Result<Duration, ParseError> {
     Ok(Duration::from_millis(total))
 }
 
+/// Parses a rate in bits a second, as `tc` writes one, `100mbit` or `1gbit` (decimal: `kbit`,
+/// `mbit`, `gbit`, `tbit`, or `bit`), or as a quantity of bits a second, `1G` or `100M`.
+pub fn parse_rate(s: &str) -> Result<u64, ParseError> {
+    let bad = || ParseError(s.to_owned(), "rate");
+    let units: [(&str, u128); 5] = [
+        ("kbit", 1_000),
+        ("mbit", 1_000_000),
+        ("gbit", 1_000_000_000),
+        ("tbit", 1_000_000_000_000),
+        ("bit", 1),
+    ];
+    let lower = s.to_ascii_lowercase();
+    let bits = match units.iter().find_map(|(u, f)| lower.strip_suffix(u).map(|n| (n, *f))) {
+        Some((number, factor)) => {
+            decimal_scaled(number, factor.checked_mul(1000).ok_or_else(bad)?).ok_or_else(bad)?
+                / 1000
+        }
+        None => Quantity::parse(s).map_err(|_| bad())?.units(),
+    };
+    u64::try_from(bits).map_err(|_| bad())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_rate_is_written_as_tc_writes_one_or_as_a_quantity() {
+        assert_eq!(parse_rate("1gbit"), Ok(1_000_000_000));
+        assert_eq!(parse_rate("50Mbit"), Ok(50_000_000));
+        assert_eq!(parse_rate("2.5mbit"), Ok(2_500_000));
+        assert_eq!(parse_rate("1G"), Ok(1_000_000_000));
+        assert_eq!(parse_rate("800bit"), Ok(800));
+        assert!(parse_rate("fast").is_err() && parse_rate("gbit").is_err());
+    }
 
     #[test]
     fn quantities_are_exact_in_thousandths() {

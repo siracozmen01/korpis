@@ -305,8 +305,16 @@ impl Host for InMemoryHost {
     ) -> impl Future<Output = Result<helper::DescribeNetworkResponse, HostError>> + Send {
         ready(Ok(helper::DescribeNetworkResponse {
             why_not: "the in-memory host makes no networks".into(),
+            why_not_shapes: "the in-memory host shapes nothing".into(),
             ..Default::default()
         }))
+    }
+
+    fn ensure_uplinks(
+        &self,
+        _request: &helper::EnsureUplinksRequest,
+    ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send {
+        ready(Err(HostError("the in-memory host shapes nothing".into())))
     }
 }
 

@@ -46,6 +46,7 @@ fn probes() -> Probes {
         containerd: Some(Ok(())),
         storage: Some(Ok(vec![class("local", pb::StorageBackend::STORAGE_BACKEND_XFS_PROJECT)])),
         volume_disk: Some(("259:4".into(), "259:0".into())),
+        shaping: Some(Ok(())),
     }
 }
 

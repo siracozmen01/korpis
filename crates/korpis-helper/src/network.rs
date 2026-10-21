@@ -7,6 +7,8 @@
 //! derives every name from the workload's identifier, and makes the rest so, whatever part of it
 //! a crash or a reboot left behind.
 
+mod account;
+mod bandwidth;
 mod egress;
 mod forward;
 mod netns;
@@ -14,6 +16,7 @@ pub(crate) mod nft;
 mod policy;
 mod resolver;
 mod rtnl;
+mod shape;
 
 use crate::error::{HelperError, HelperResult, identifier};
 use forward::{Forward, Transport};
@@ -89,6 +92,7 @@ struct Asked {
     opened: Vec<egress::Opened>,
     rules: Vec<policy::Rule>,
     limits: policy::Limits,
+    shaping: bandwidth::Shaping,
 }
 
 fn transport(t: buffa::EnumValue<helper::Transport>) -> HelperResult<Transport> {
@@ -170,8 +174,9 @@ fn asked(r: &helper::EnsureNetworkRequest) -> HelperResult<Asked> {
         .collect::<HelperResult<Vec<_>>>()?;
     let ids = (r.uid_base, r.uid_count);
     let (rules, limits) = (policy::rules(&r.egress)?, policy::limits(r)?);
+    let shaping = bandwidth::asked(r.bandwidth.as_option())?;
     let workload = r.workload.clone();
-    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits })
+    Ok(Asked { workload, ipv4, ipv6, ids, inbound, forwards, opened, rules, limits, shaping })
 }
 
 /// Configures the workload's side, from inside its namespace.
@@ -240,6 +245,7 @@ impl Network {
     #[must_use]
     pub fn describe(&self) -> helper::DescribeNetworkResponse {
         let closed = nft::closed_forward();
+        let shapes = shape::offered();
         let why_not = if !sysctl_on("/proc/sys/net/ipv4/ip_forward") {
             "IPv4 forwarding is off; `sysctl -w net.ipv4.ip_forward=1` turns it on".to_owned()
         } else if let Err(e) = &closed {
@@ -254,6 +260,8 @@ impl Network {
             closed_forward: closed.unwrap_or_default(),
             syn_cookies: std::fs::read_to_string("/proc/sys/net/ipv4/tcp_syncookies")
                 .is_ok_and(|v| v.trim() != "0"),
+            shapes: shapes.is_ok(),
+            why_not_shapes: shapes.err().unwrap_or_default(),
             ..Default::default()
         }
     }
@@ -286,8 +294,17 @@ impl Network {
         host.extend(forward::hold(&link, (a.ipv4, ipv6), &a.forwards, &listed.ports));
         let own = egress::Own { opened: &a.opened, rules: &a.rules, limits: a.limits };
         host.extend(egress::hold(&link, &own, listed.outward.contains(&link)));
+        let class = bandwidth::class(&link, &a.shaping, &listed.account)?;
+        let ports: Vec<(Transport, u16)> =
+            a.inbound.iter().map(|i| (i.transport, i.port)).collect();
+        let own = account::Own { ports: &ports, class, cut_off: a.shaping.cut_off };
+        host.extend(account::held(&link, &own, &listed.account));
         nft::apply(&serde_json::json!({"nftables": host}))?;
+        if class.is_none() {
+            bandwidth::unclass(&link, &listed.account)?;
+        }
         netns::within(&netns::net(&dir), || inside(a.ipv4, ipv6, &a.inbound))?;
+        bandwidth::apply(&dir, &link, &a.shaping, class)?;
         resolver::write(&dir)?;
         Ok(helper::EnsureNetworkResponse {
             namespaces: dir.to_string_lossy().into_owned(),
@@ -295,6 +312,14 @@ impl Network {
             ipv6: ipv6.is_some(),
             ..Default::default()
         })
+    }
+
+    /// Makes the node's uplinks those `r` names (§7 of docs/07-networking.md).
+    pub fn ensure_uplinks(
+        &self,
+        r: &helper::EnsureUplinksRequest,
+    ) -> HelperResult<helper::EnsureUplinksResponse> {
+        bandwidth::uplinks(r)
     }
 
     /// The sockets of `workload`'s resolver, opened inside its network namespace: UDP, then TCP
@@ -316,6 +341,8 @@ impl Network {
         let mut unforwarded = forward::release(&link, &listed);
         let chained = listed.chains.contains(&egress::chain_of(&link));
         unforwarded.extend(egress::release(&link, (listed.outward.contains(&link), chained)));
+        bandwidth::unclass(&link, &listed.account)?;
+        unforwarded.extend(account::release(&link, &listed.account));
         if !unforwarded.is_empty() {
             nft::apply(&serde_json::json!({"nftables": unforwarded}))?;
         }

@@ -32,6 +32,7 @@ pub mod revoked;
 pub mod run;
 pub mod runtime;
 pub mod session;
+pub mod shaping;
 pub mod state;
 pub mod steps;
 pub mod tls;

@@ -199,6 +199,13 @@ impl Host for NodeHost {
         self.helper.describe_network()
     }
 
+    fn ensure_uplinks(
+        &self,
+        request: &helper::EnsureUplinksRequest,
+    ) -> impl Future<Output = Result<helper::EnsureUplinksResponse, HostError>> + Send {
+        self.helper.ensure_uplinks(request)
+    }
+
     fn volume_usage(
         &self,
         volume: &str,

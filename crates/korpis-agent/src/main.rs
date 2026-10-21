@@ -118,6 +118,13 @@ enum Command {
         /// endpoints are placed here (§3.2 of docs/07-networking.md).
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         ingress: bool,
+        /// An interface the node's workloads leave by and the capacity it sells, as
+        /// `eth0=1gbit`, keeping five percent for the node unless `,reserve=50mbit` says
+        /// otherwise; repeatable. Declared, since a virtual machine's link speed is not what
+        /// its provider sold; none, and the node enforces no bandwidth (§7 of
+        /// docs/07-networking.md).
+        #[arg(long = "uplink", value_parser = korpis_agent::shaping::parse_uplink)]
+        uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
     },
 }
 
@@ -150,6 +157,7 @@ struct Node {
     workload_ipv4: Ipv4Net,
     workload_ipv6: Option<Ipv6Net>,
     ingress: bool,
+    uplinks: Vec<korpis_proto::korpis::helper::v1::Uplink>,
 }
 
 /// Runs the agent with `runtime` and `host` until it is asked to stop; workloads are left
@@ -169,7 +177,8 @@ async fn serve<R: Runtime + Clone, H: Host + Clone>(
     };
     let advertise = Advertise::new(node.advertise_address.clone(), node.ports, &server);
     let ingress = node.ingress.then(|| advertise.ingress());
-    let facts = match facts_of(&runtime, &host, node.reserve, advertise).await {
+    let offer = (node.reserve, node.uplinks.as_slice());
+    let facts = match facts_of(&runtime, &host, offer, advertise).await {
         Ok(f) => f,
         Err(e) => {
             tracing::error!(error = %e, "the driver could not be described");
@@ -283,6 +292,7 @@ async fn main() -> ExitCode {
             workload_ipv4,
             workload_ipv6,
             ingress,
+            uplinks,
         } => {
             let reserve =
                 Reserve { cpu_millis: reserve_cpu_millis, memory_bytes: reserve_memory_bytes };
@@ -298,6 +308,7 @@ async fn main() -> ExitCode {
                 workload_ipv4,
                 workload_ipv6,
                 ingress,
+                uplinks,
             };
             run(&state, node).await
         }

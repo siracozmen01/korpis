@@ -51,6 +51,21 @@ fn rules(rules: &[pb::NetworkRule]) -> Result<Vec<helper::Rule>, Failure> {
     rules.iter().map(rule).collect()
 }
 
+/// What `body` may send and be sent, as the helper holds it (§7 of docs/07-networking.md): an
+/// egress reservation with no limit is its own limit, as placement counts it; none where it
+/// sets nothing.
+fn bandwidth(body: &pb::IntentBody) -> Option<helper::Bandwidth> {
+    let b = body.resources.as_option()?.bandwidth.as_option()?;
+    let egress = b.egress.as_option().cloned().unwrap_or_default();
+    let limit = if egress.limit > 0 { egress.limit } else { egress.reservation };
+    (limit > 0 || b.ingress_limit > 0).then(|| helper::Bandwidth {
+        egress_reservation: egress.reservation,
+        egress_limit: limit,
+        ingress_limit: b.ingress_limit,
+        ..Default::default()
+    })
+}
+
 /// Sets on `request` the workload's own outbound rules and limits, and on each of its inbound
 /// ports the rules and limits of the endpoint listening there, from `body`.
 pub(super) fn apply(
@@ -58,6 +73,7 @@ pub(super) fn apply(
     body: Option<&pb::IntentBody>,
 ) -> Result<(), Failure> {
     let Some(body) = body else { return Ok(()) };
+    request.bandwidth = bandwidth(body).into();
     if let Some(egress) = body.egress.as_option() {
         request.egress = rules(&egress.rules)?;
         if let Some(l) = egress.limits.as_option() {

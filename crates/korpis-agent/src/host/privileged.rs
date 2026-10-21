@@ -240,6 +240,17 @@ impl HelperClient {
         }
     }
 
+    /// Makes the node's uplinks those `request` names.
+    pub async fn ensure_uplinks(
+        &self,
+        request: &helper::EnsureUplinksRequest,
+    ) -> Result<helper::EnsureUplinksResponse, HostError> {
+        match self.call(Verb::EnsureUplinks(Box::new(request.clone()))).await? {
+            Answer::EnsureUplinks(a) => Ok(*a),
+            other => Err(failed(format!("answered {other:?}"))),
+        }
+    }
+
     /// What the filesystem accounts for a volume.
     pub async fn volume_usage(
         &self,

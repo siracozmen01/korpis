@@ -77,6 +77,8 @@ pub struct Probes {
     pub storage: Option<Result<Vec<pb::StorageClassInfo>, String>>,
     /// The block device the volumes are on, as `major:minor`, and the disk it is part of.
     pub volume_disk: Option<(String, String)>,
+    /// Whether the helper can shape bandwidth, `tc` and the HTB qdisc, or why not.
+    pub shaping: Option<Result<(), String>>,
 }
 
 /// Every check, in the order of the table in §2 of docs/18-operations.md.

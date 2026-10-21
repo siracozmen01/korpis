@@ -57,6 +57,10 @@ service HelperService {
   rpc ReleaseNetwork(ReleaseNetworkRequest) returns (ReleaseNetworkResponse);
   // Whether this node can give workloads a network, and what in the host stands in its way.
   rpc DescribeNetwork(DescribeNetworkRequest) returns (DescribeNetworkResponse);
+  // Makes the node's uplinks shape what its workloads send (§7 of docs/07-networking.md):
+  // each declared uplink an HTB tree of its capacity, and every tree of Korpis's on an
+  // interface no longer declared removed.
+  rpc EnsureUplinks(EnsureUplinksRequest) returns (EnsureUplinksResponse);
 }
 
 // One request, as the transport carries it.
@@ -84,6 +88,7 @@ message HelperRequest {
     StartIngressRequest start_ingress = 20;
     StopIngressRequest stop_ingress = 21;
     OpenFilesRequest open_files = 22;
+    EnsureUplinksRequest ensure_uplinks = 23;
   }
 }
 
@@ -113,6 +118,7 @@ message HelperResponse {
     StartIngressResponse start_ingress = 21;
     StopIngressResponse stop_ingress = 22;
     OpenFilesResponse open_files = 23;
+    EnsureUplinksResponse ensure_uplinks = 24;
   }
 }
 
@@ -193,6 +199,44 @@ message EnsureNetworkRequest {
   // default (§6 of docs/07-networking.md).
   uint32 max_connections = 13;
   uint32 new_per_sec = 14;
+  // What it may send and be sent (§7 of docs/07-networking.md); absent shapes nothing.
+  Bandwidth bandwidth = 15;
+}
+
+// A workload's bandwidth, in bits a second; zero for none of each. A reservation is held on
+// every uplink EnsureUplinks made, in a class the helper allocates and keeps for the workload's
+// link; the egress limit is held there and on the workload's own link, the ingress limit on the
+// host's side of its link.
+message Bandwidth {
+  uint64 egress_reservation = 1;
+  uint64 egress_limit = 2;
+  uint64 ingress_limit = 3;
+  // Its egress budget is spent (§5.1 of docs/05-scheduling.md): held to `floor` instead of its
+  // limit, or with `cut_off` sending nothing beyond the node.
+  bool exhausted = 4;
+  uint64 floor = 5;
+  bool cut_off = 6;
+}
+
+// An interface the node's workloads leave by, and the capacity it sells.
+message Uplink {
+  string interface = 1;
+  // Bits a second.
+  uint64 capacity = 2;
+  // What the node keeps of it for its own traffic, the default class's floor.
+  uint64 reserve = 3;
+}
+
+message EnsureUplinksRequest {
+  // Every uplink, the whole set: one not named loses its tree.
+  repeated Uplink uplinks = 1;
+}
+
+message EnsureUplinksResponse {
+  // The interfaces shaped.
+  repeated string shaped = 1;
+  // The interfaces whose trees were removed.
+  repeated string removed = 2;
 }
 
 // Opens the sockets of a workload's resolver inside its network namespace, on the resolver's
@@ -387,6 +431,10 @@ message DescribeNetworkResponse {
   // Whether the kernel answers a SYN flood with SYN cookies, which keeps half-open connections
   // from filling the connection table (§6 of docs/07-networking.md).
   bool syn_cookies = 5;
+  // Whether the node can shape bandwidth: `tc` answers and makes an HTB qdisc (§7 of
+  // docs/07-networking.md); and why not, when it cannot.
+  bool shapes = 6;
+  string why_not_shapes = 7;
 }
 
 message SnapshotVolumeRequest {

@@ -260,7 +260,8 @@ impl Node {
         // but loopback (§3 of docs/07-networking.md).
         let advertise = Advertise::new(vec![host_address().into()], self.ports, &server);
         let ingress = ingress.then(|| advertise.ingress());
-        let facts = facts_of(&runtime, &host, Reserve::default(), advertise).await.unwrap();
+        let offer = (Reserve::default(), [].as_slice());
+        let facts = facts_of(&runtime, &host, offer, advertise).await.unwrap();
         // As `--workload-ipv4` with the node's own pool would.
         let network = korpis_agent::network::offered(&runtime, &host, &id, (self.pool, None)).await;
         let period = Duration::from_millis(500);

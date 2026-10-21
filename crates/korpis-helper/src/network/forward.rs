@@ -164,6 +164,8 @@ pub(crate) struct Listed {
     pub(crate) chains: Vec<String>,
     /// The links its egress map names.
     pub(crate) outward: Vec<String>,
+    /// Its accounting: the chains' maps, the classes, and the counters.
+    pub(crate) account: super::account::Listed,
 }
 
 /// What the host table holds; nothing where it is not there yet.
@@ -197,5 +199,6 @@ pub(crate) fn listed() -> io::Result<Listed> {
         .flatten()
         .filter_map(|e| e.get(0)?.as_str().map(str::to_owned))
         .collect();
-    Ok(Listed { ports, chains, outward })
+    let account = super::account::listed(&items);
+    Ok(Listed { ports, chains, outward, account })
 }

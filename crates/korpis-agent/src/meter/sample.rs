@@ -88,8 +88,10 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
     pub async fn run(self) {
         let started = self.meter.with_book(|b| b.read_at()).unwrap_or_else(SystemTime::now);
         let mut current = start_of(started, self.interval());
-        // An interval shorter than a reading's period is read at its own pace.
-        let mut tick = tokio::time::interval(READ_EVERY.min(self.interval));
+        // An interval shorter than a reading's period is read at its own pace, the control
+        // plane's once it declared one.
+        let mut period = READ_EVERY.min(self.interval());
+        let mut tick = tokio::time::interval(period);
         loop {
             tick.tick().await;
             self.read(SystemTime::now()).await;
@@ -97,6 +99,11 @@ impl<R: Runtime, H: Host> Sampler<R, H> {
             if now > current {
                 self.sample(current, now.duration_since(current).unwrap_or_default()).await;
                 current = now;
+            }
+            let declared = READ_EVERY.min(self.interval());
+            if declared != period {
+                period = declared;
+                tick = tokio::time::interval_at(tokio::time::Instant::now() + period, period);
             }
         }
     }

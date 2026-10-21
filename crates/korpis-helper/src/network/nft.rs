@@ -75,17 +75,26 @@ pub(crate) fn host(chains: &[String]) -> Vec<Value> {
     ]);
     commands.extend(super::forward::base());
     commands.extend(super::egress::base());
+    commands.extend(super::account::base());
     commands.push(json!({"add": {"chain": {"family": "inet", "table": TABLE, "name": BASE}}}));
     commands
 }
 
 /// The marker of this version of the host table's base: raised whenever what [`host`] writes
 /// changes, so a node's table is written anew once and then left to count.
-const BASE: &str = "base_v1";
+const BASE: &str = "base_v2";
 
 /// The chains [`host`] writes, which a table of another version has deleted first.
-const BASE_CHAINS: [&str; 5] =
-    ["postrouting", "forward_prerouting", "forward_output", "workload_forward", "workload_input"];
+const BASE_CHAINS: [&str; 8] = [
+    "postrouting",
+    "forward_prerouting",
+    "forward_output",
+    "workload_forward",
+    "workload_input",
+    "account_forward",
+    "account_input",
+    "account_output",
+];
 
 fn accept_when(left: &Value, op: &str, right: &Value) -> Value {
     let matched = json!({"match": {"op": op, "left": left, "right": right}});

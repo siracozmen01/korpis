@@ -1037,27 +1037,28 @@ reservations "per direction", which for inbound displayed a guarantee no compone
 **Not yet built.** Phase 2 builds shaping and accounting, beside the metering accounting feeds (§4
 of `20-roadmap.md`). Until then a declaration that asks an endpoint for either is refused, and a
 workload whose `bandwidth` sets a reservation or a limit is placed only on a node whose driver
-declares it enforces one, which no driver yet does, so it stays unplaced with that reason (§4.1 of
+declares it enforces one, so it stays unplaced with that reason where none does (§4.1 of
 `04-runtimes.md`, §5.3 of `05-scheduling.md`): either way nothing is shown as held that the kernel
-does not hold (Rule K-3).
+does not hold (Rule K-3). Until the node's shaping was built (below) no driver did; now a node
+with a declared uplink does.
 
 **Shaping and accounting, as designed.** Designed 2026-10-21, before they were built (Phase 2 of
 §4 of `20-roadmap.md`), on the network of §4.1: a point-to-point link per workload, routed, every
 packet crossing the host's table.
 
 *Where a reservation is held.* A guarantee is only a guarantee where the guaranteed contend, and
-outbound the workloads of a node contend for its uplinks. So the reservation is held there: on
-each uplink the helper keeps an HTB tree whose root rate is the uplink's capacity, a class for
-each workload with an egress reservation or limit, its rate the reservation and its ceiling the
-limit, and a default class for everything else, the node's own traffic and the workloads that
-reserve nothing, whose rate is what the reservations leave and whose ceiling is the capacity. A
-packet is put in its workload's class by the host table: the workload's chain, reached from the
-verdict map keyed by its link, sets the packet's priority to the class in the forward hook, after
-the kernel's forwarding has set a priority of its own and before translation, which does not
-touch it, and HTB takes a class from a packet's priority with no filter. A priority rather than a
-firewall mark, because marks are shared with every other program on the node that routes by one,
-and a priority set in the forward hook is Korpis's alone. Each class's identifier is allocated by
-the agent with the workload's addresses, kept across restarts, and released with them.
+outbound the workloads of a node contend for its uplinks. So the reservation is held there: on each
+uplink the helper keeps an HTB tree whose root rate is the uplink's capacity, a class for each
+workload with an egress reservation, its rate the reservation and its ceiling the limit (as
+corrected when built, below), and a default class for everything else, the node's own traffic and
+the workloads that reserve nothing, whose rate is what the reservations leave and whose ceiling is
+the capacity. A packet is put in its workload's class by the host table: the workload's chain,
+reached from the verdict map keyed by its link, sets the packet's priority to the class in the
+forward hook, after the kernel's forwarding has set a priority of its own and before translation,
+which does not touch it, and HTB takes a class from a packet's priority with no filter. A priority
+rather than a firewall mark, because marks are shared with every other program on the node that
+routes by one, and a priority set in the forward hook is Korpis's alone. Each class's identifier is
+allocated by the agent with the workload's addresses, kept across restarts, and released with them.
 
 *The uplinks and their capacity are declared.* `korpis-agent run --uplink eth0=1gbit`, repeatable,
 names each interface and the capacity it sells, because the link speed the kernel reports is the
@@ -1106,6 +1107,34 @@ qdisc's buffer passes at line rate before it is held. The counters cost a rule p
 direction on every packet of the workload, and a listing of the table every ten seconds, which for
 a thousand workloads is a few hundred kilobytes of JSON. The node needs `tc` from iproute2, as it
 needs `nft` (§2 of `18-operations.md`).
+
+> Built 2026-10-21 on the node (P2.8b of the build plan): the helper's `EnsureUplinks` makes each
+> declared uplink's tree and removes Korpis's tree from an interface no longer declared, and
+> `EnsureNetwork` takes a workload's bandwidth (`crates/korpis-helper/src/network/shape.rs`,
+> `account.rs`, `bandwidth.rs`). Every qdisc Korpis makes has the handle `4b50:`, so its trees are
+> told apart from another program's and found again with no ledger; each class sends in turns of
+> 60,000 bytes, where HTB's own quantum, a rate over ten, is megabytes at gigabit rates; and each
+> leaf queues by `fq_codel`. The classes are allocated by the helper from a map in the host table,
+> keyed by the workload's link, so it finds a class again to remove it. Three base chains on the
+> forward, input, and output hooks, at priority -150, send each packet from or to a workload's
+> link to its own chains, which count and set the priority and decide nothing but a cut-off; the
+> counters are named `<link>_egress` and `<link>_<transport>_<port>_in` and `_out`, and survive a
+> rewrite of the chains. `korpis-agent run --uplink` declares the uplinks, the agent shapes them
+> at start, and only then adds `egress` and `ingress` to its link-joining driver's enforcement and
+> its allocatable bandwidth to its facts; `korpis-agent preflight` reports `tc` and HTB as the
+> helper finds them. Corrected the day it was built: the design gave a class on the uplinks to
+> every workload with an egress reservation or limit. Only a reservation needs one, since a class
+> is how a guarantee is held among the contending; a limit alone is held on the workload's own
+> link, which every byte it sends crosses, and its uplink traffic goes in the default class. The
+> helper's test runs in a network namespace of its own, standing for the host, with a dummy
+> interface as its uplink, and finds the tree, the class with its rate and ceiling, the forwarded
+> packets in it, both link limits, the counters of a connection to the endpoint and of what the
+> workload sent, and all of it gone when the workload stops reserving and is released. So a node
+> with a declared uplink now enforces a workload's bandwidth and offers it to placement, which
+> reserves it as it reserves the other guaranteed dimensions (§5.2 of `05-scheduling.md`); a
+> node without one still enforces none, and a workload that sets one is not placed there. Not yet
+> built: placement tested against a node that declares an uplink, and an endpoint's own bandwidth
+> (P2.8c), the meter's reading of the counters (P2.8d), and the egress budget (P2.8e).
 
 ---
 

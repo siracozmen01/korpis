@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! What workloads' networks need (§4 and §4.1 of docs/07-networking.md, §2 of
-//! docs/18-operations.md): nftables 1.0 or later with its JSON input, IP forwarding, and IPv6
-//! for the default addressing mode. A node without the first two gives its workloads loopback
-//! alone; one without IPv6 addresses them over IPv4 only.
+//! What workloads' networks need (§4, §4.1, and §7 of docs/07-networking.md, §2 of
+//! docs/18-operations.md): nftables 1.0 or later with its JSON input, IP forwarding, IPv6 for
+//! the default addressing mode, and `tc` with the HTB qdisc for bandwidth. A node without the
+//! first two gives its workloads loopback alone; one without IPv6 addresses them over IPv4 only;
+//! one that cannot shape enforces no bandwidth.
 
 use super::{Check, Machine, Outcome, Probes};
 
 /// The checks of the network.
 #[must_use]
 pub fn checks(m: &Machine, p: &Probes) -> Vec<Check> {
-    vec![nftables(p), forwarding(m), ipv6(m)]
+    vec![nftables(p), forwarding(m), ipv6(m), shaping(p)]
 }
 
 /// `major.minor` of what `nft --version` prints, e.g. `nftables v1.0.6 (Lester Gooch #5)`.
@@ -93,6 +94,30 @@ fn ipv6(m: &Machine) -> Check {
     Check {
         name: "IPv6",
         needed_for: "the default addressing mode",
+        found,
+        outcome,
+        essential: false,
+    }
+}
+
+fn shaping(p: &Probes) -> Check {
+    let (found, outcome) = match &p.shaping {
+        Some(Ok(())) => ("tc and HTB".to_owned(), Outcome::Met),
+        Some(Err(why)) => (
+            why.clone(),
+            Outcome::Lacking {
+                costs: "the node enforces no bandwidth, and nothing that sets one is placed here"
+                    .into(),
+                fix: "install iproute2's tc, with a kernel that has the HTB qdisc, and declare \
+                      each uplink with korpis-agent run --uplink eth0=1gbit"
+                    .into(),
+            },
+        ),
+        None => ("not asked".to_owned(), Outcome::Unchecked("the helper was not asked".into())),
+    };
+    Check {
+        name: "tc and the HTB qdisc",
+        needed_for: "bandwidth reservations and limits",
         found,
         outcome,
         essential: false,
