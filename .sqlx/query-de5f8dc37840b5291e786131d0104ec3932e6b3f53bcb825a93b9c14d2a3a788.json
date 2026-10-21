@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM quota_egress_selected WHERE month < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de5f8dc37840b5291e786131d0104ec3932e6b3f53bcb825a93b9c14d2a3a788"
+}

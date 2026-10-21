@@ -56,7 +56,7 @@ fn a_spent_entry_holds_what_it_counts_where_placed_to_the_strictest_exhaustion()
     ];
     let chains = BTreeMap::from([(ORG, vec![ORG])]);
     let t = SystemTime::UNIX_EPOCH + Duration::from_secs(1_790_812_800);
-    let r = reckon(&entries, &uses, &chains, (t, t));
+    let r = reckon(&entries, &uses, (&chains, &BTreeSet::new()), (t, t));
     let spent: Vec<(u64, bool)> = r.spent.iter().map(|(_, s)| (s.bytes, s.exhausted)).collect();
     assert_eq!(
         spent,
@@ -66,4 +66,33 @@ fn a_spent_entry_holds_what_it_counts_where_placed_to_the_strictest_exhaustion()
     assert_eq!(r.held.get(&A), Some(&Exhaustion::CutOff), "a cut-off before any floor");
     assert_eq!(r.held.get(&B), Some(&floor), "counted by the organization's spent entry");
     assert_eq!(r.held.len(), 2);
+}
+
+#[test]
+fn a_workload_relabelled_out_of_a_spent_entry_is_still_counted_and_held_for_the_month() {
+    let mut games = entry(1, QuotaOwner::Organization(ORG), 1_000, Exhaustion::CutOff);
+    games.selector = Some(LabelSelector {
+        match_labels: [("tier".to_owned(), "game".to_owned())].into(),
+        expressions: Vec::new(),
+    });
+    let entries = [games];
+    let chains = BTreeMap::from([(ORG, vec![ORG])]);
+    let t = SystemTime::UNIX_EPOCH + Duration::from_secs(1_790_812_800);
+    let mut a = at(A, P1, (1, "eu"), 1_500);
+    a.labels = BTreeMap::from([("tier".to_owned(), "game".to_owned())]);
+
+    let first = reckon(&entries, std::slice::from_ref(&a), (&chains, &BTreeSet::new()), (t, t));
+    assert_eq!(first.held.get(&A), Some(&Exhaustion::CutOff));
+    assert!(first.selected.contains(&(Uuid::from_u128(1), A)), "selected, so remembered");
+
+    // Its holder relabels it to leave the selector.
+    a.labels = BTreeMap::from([("tier".to_owned(), "web".to_owned())]);
+    let later = reckon(&entries, std::slice::from_ref(&a), (&chains, &first.selected), (t, t));
+    assert_eq!(later.spent[0].1.bytes, 1_500, "what it sent stays in the entry's sum");
+    assert_eq!(later.held.get(&A), Some(&Exhaustion::CutOff), "and it stays held");
+    assert!(later.selected.is_empty(), "though it is selected no longer");
+
+    // A month later, nothing is remembered and it is counted by its labels alone.
+    let next = reckon(&entries, std::slice::from_ref(&a), (&chains, &BTreeSet::new()), (t, t));
+    assert!(next.held.is_empty());
 }

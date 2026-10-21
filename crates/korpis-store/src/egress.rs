@@ -10,7 +10,7 @@ use crate::stored::{count, from_json, from_time, to_count, to_time};
 use crate::{PgStore, PgTx};
 use korpis_app::ports::{EgressAt, EgressRead, EgressWrite, StoreError, StoreResult};
 use korpis_core::tenancy::quota::{Exhaustion, QuotaEntry, Spent};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -93,6 +93,17 @@ impl EgressRead for PgStore {
         row.map(|r| held(r.floor_bits_per_sec, r.cut_off)).transpose()
     }
 
+    async fn egress_selected(&self, month: SystemTime) -> StoreResult<BTreeSet<(Uuid, Uuid)>> {
+        let rows = sqlx::query!(
+            "SELECT entry_id, workload_id FROM quota_egress_selected WHERE month = $1",
+            from_time(month)
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(rows.into_iter().map(|r| (r.entry_id, r.workload_id)).collect())
+    }
+
     async fn quota_egress_spent(&self, entries: &[Uuid]) -> StoreResult<BTreeMap<Uuid, Spent>> {
         let rows = sqlx::query!(
             "SELECT entry_id, month, bytes, exhausted, reckoned_at FROM quota_egress
@@ -163,6 +174,38 @@ impl EgressWrite for PgTx {
 
     async fn clear_workload_egress(&mut self, workload: Uuid) -> StoreResult<()> {
         sqlx::query!("DELETE FROM workload_egress WHERE workload_id = $1", workload)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn put_egress_selected(
+        &mut self,
+        pairs: &[(Uuid, Uuid)],
+        month: SystemTime,
+    ) -> StoreResult<()> {
+        let (entries, workloads): (Vec<Uuid>, Vec<Uuid>) = pairs.iter().copied().unzip();
+        // A workload gone since it was read, whose row the key would refuse, is left out.
+        sqlx::query!(
+            "INSERT INTO quota_egress_selected (entry_id, workload_id, month)
+             SELECT p.entry_id, p.workload_id, $3
+               FROM unnest($1::uuid[], $2::uuid[]) AS p (entry_id, workload_id)
+               JOIN quota_entry e ON e.id = p.entry_id
+               JOIN workload w ON w.id = p.workload_id
+             ON CONFLICT DO NOTHING",
+            &entries,
+            &workloads,
+            from_time(month)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
+    async fn forget_egress_selected_before(&mut self, month: SystemTime) -> StoreResult<()> {
+        sqlx::query!("DELETE FROM quota_egress_selected WHERE month < $1", from_time(month))
             .execute(&mut *self.tx)
             .await
             .map_err(from_sqlx)?;

@@ -5,7 +5,7 @@
 
 use super::StoreResult;
 use korpis_core::tenancy::quota::{Exhaustion, QuotaEntry, Spent};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::SystemTime;
 use uuid::Uuid;
 
@@ -55,6 +55,13 @@ pub trait EgressRead {
         month: SystemTime,
     ) -> impl Future<Output = StoreResult<Option<Exhaustion>>> + Send;
 
+    /// Each entry and workload it selected in the month beginning at `month`, which it counts
+    /// for the rest of that month.
+    fn egress_selected(
+        &self,
+        month: SystemTime,
+    ) -> impl Future<Output = StoreResult<BTreeSet<(Uuid, Uuid)>>> + Send;
+
     /// What each of `entries` was last reckoned to have spent.
     fn quota_egress_spent(
         &self,
@@ -83,5 +90,19 @@ pub trait EgressWrite {
     fn clear_workload_egress(
         &mut self,
         workload: Uuid,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Records that each entry selected each workload of `pairs` in the month beginning at
+    /// `month`; one already recorded stays as it is.
+    fn put_egress_selected(
+        &mut self,
+        pairs: &[(Uuid, Uuid)],
+        month: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Forgets what was selected in any month before the one beginning at `month`.
+    fn forget_egress_selected_before(
+        &mut self,
+        month: SystemTime,
     ) -> impl Future<Output = StoreResult<()>> + Send;
 }

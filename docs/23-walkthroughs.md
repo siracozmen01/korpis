@@ -1369,6 +1369,9 @@ the same mechanism", and that is the price of having made core and extensions th
 | 121 | A ceremony whose answer was lost was reported refused, though it may have happened | §44 | `11-surface-web.md` §9 |
 | 122 | A console read on its node was recorded nowhere, though every document said it was | §45 | `14-streams.md` §8 |
 | 123 | A closed day changed when it was read again, and an adjustment was read in no day | §46 | `15-observability.md` §2 |
+| 124 | Another workload's traffic could be put in an endpoint's class it was never sent to | §47 | `07-networking.md` §7 |
+| 125 | Declaring the uplinks removed every workload's ingress limit | §47 | `07-networking.md` §7 |
+| 126 | A spent budget's hold rested on a workload's labels never changing, which nothing said | §47 | `05-scheduling.md` §5.1 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4033,3 +4036,21 @@ its ingress limit kept.
 What it costs: a second major to keep apart, and a name no uplink may have, which the helper
 already refused. It was fixed the day the defect was built, before any release, so no node holds
 a link shaped with the old handle.
+
+**FINDING 126: A spent budget's hold rested on a workload's labels never changing, which nothing
+said. `PLAUSIBLE`**
+
+Found 2026-10-21 by an automated security review of the commit that built the egress budget
+(P2.8e), and confirmed by reading it against step 9. Each pass of the reckoning chose the
+workloads an entry counts by their owner and labels as they stood then. Had Blockhaven been able
+to relabel `mc` out of a spent entry's selector, the next pass would have counted it no longer: its
+hold lifted, and what it sent that month gone from the entry's sum, so the entry no longer spent
+and every other workload it held let go. Nothing changes a workload's labels, project, or
+organization after it is made, so it could not happen; but no document said so, and the first
+label edit anyone built would have opened it without touching the reckoning.
+
+**Resolution.** An entry counts a workload it has selected once in a month for the rest of that
+month, recorded beside the entry, whatever the workload's labels say later; which nodes an entry
+names is the operator's to change and is still read for each record. → patched into
+`05-scheduling.md` §5.1; built in `crates/korpis-app/src/metering/egress.rs` and migration 0109,
+and tested by a reckoning that relabels a held workload and finds it still counted and held.

@@ -6,14 +6,27 @@
 //! until the month ends. Each workload a spent entry counts, where it is placed, is held to the
 //! strictest of its spent entries' exhaustions; written apart from the entry, that hold announces
 //! the workload, and its node is told in its next assignment (§4.3 of docs/02-architecture.md).
+//!
+//! A workload an entry has counted once in a month it counts for the rest of that month, whatever
+//! its labels say later: a workload's labels are its holder's to change, and a holder who could
+//! relabel a held workload out of a spent entry's selector would lift its hold, and take what it
+//! sent out of the entry's sum, so lift every hold the entry made (Finding 126 of
+//! docs/23-walkthroughs.md). Which nodes an entry names is the operator's, and is read again for
+//! each record.
 
 use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, EgressAt, EgressWrite as _, RecipeSource, Store, Tx as _};
 use korpis_core::tenancy::quota::{Exhaustion, QuotaEntry, QuotaOwner, Spent, month_of};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::SystemTime;
 use uuid::Uuid;
+
+/// Each organization's chain of organizations, its own first.
+pub type Chains = BTreeMap<Uuid, Vec<Uuid>>;
+
+/// Entries and the workloads they selected, as `(entry, workload)`.
+pub type Selections = BTreeSet<(Uuid, Uuid)>;
 
 /// What one pass reckoned: each entry's spend, and what each held workload is held to.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -22,34 +35,50 @@ pub struct Reckoned {
     pub spent: Vec<(Uuid, Spent)>,
     /// Each workload a spent entry counts where it is placed, and what it is held to.
     pub held: BTreeMap<Uuid, Exhaustion>,
+    /// Each entry and workload it selects now, to be counted for the rest of the month.
+    pub selected: Selections,
 }
 
-/// Whether `entry` counts `at`: owned by its owner (`chain` the workload's organizations, its
-/// own first), selected by its labels, and, for an entry that names nodes, on one of them.
-fn counts(entry: &QuotaEntry, at: &EgressAt, chain: &[Uuid]) -> bool {
+/// Whether `entry` selects `at`'s workload: owned by its owner (`chain` the workload's
+/// organizations, its own first), and selected by its labels.
+fn selects(entry: &QuotaEntry, at: &EgressAt, chain: &[Uuid]) -> bool {
     let owned = match entry.owner {
         QuotaOwner::Organization(o) => chain.contains(&o),
         QuotaOwner::Project(p) => at.project == p,
     };
-    owned && entry.counts(&at.labels) && (entry.nodes.is_none() || entry.counts_on(&at.node_labels))
+    owned && entry.counts(&at.labels)
+}
+
+/// Whether `at` was sent from a node `entry` counts: any, for an entry that names none.
+fn on_its_nodes(entry: &QuotaEntry, at: &EgressAt) -> bool {
+    entry.nodes.is_none() || entry.counts_on(&at.node_labels)
 }
 
 /// What `entries` come to over `uses`, the month beginning at `month`, reckoned at `now`;
-/// `chains` holds each workload's organizations.
+/// `chains` holds each workload's organizations, and `before` each entry and workload it selected
+/// earlier in the month.
 #[must_use]
 pub fn reckon(
     entries: &[QuotaEntry],
     uses: &[EgressAt],
-    chains: &BTreeMap<Uuid, Vec<Uuid>>,
+    (chains, before): (&Chains, &Selections),
     (month, now): (SystemTime, SystemTime),
 ) -> Reckoned {
     let mut out = Reckoned::default();
     for entry in entries {
         let Some(budget) = entry.egress else { continue };
-        let counted: Vec<&EgressAt> = uses
-            .iter()
-            .filter(|u| counts(entry, u, chains.get(&u.organization).map_or(&[], Vec::as_slice)))
-            .collect();
+        let mut counted: Vec<&EgressAt> = Vec::new();
+        for u in uses {
+            let chain = chains.get(&u.organization).map_or(&[][..], Vec::as_slice);
+            let now_selected = selects(entry, u, chain);
+            if now_selected {
+                out.selected.insert((entry.id, u.workload));
+            }
+            let selected = now_selected || before.contains(&(entry.id, u.workload));
+            if selected && on_its_nodes(entry, u) {
+                counted.push(u);
+            }
+        }
         let bytes = counted.iter().fold(0_u64, |sum, u| sum.saturating_add(u.bytes));
         let exhausted = bytes >= budget.bytes_per_month;
         out.spent.push((entry.id, Spent { month, bytes, exhausted, reckoned_at: now }));
@@ -82,8 +111,13 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         for o in organizations {
             chains.insert(o, self.organization_chain(o).await?);
         }
-        let reckoned = reckon(&entries, &uses, &chains, (month, now));
+        let before_selected = self.store.egress_selected(month).await?;
+        let reckoned = reckon(&entries, &uses, (&chains, &before_selected), (month, now));
         let mut tx = self.store.begin().await?;
+        let new: Vec<(Uuid, Uuid)> =
+            reckoned.selected.difference(&before_selected).copied().collect();
+        tx.put_egress_selected(&new, month).await?;
+        tx.forget_egress_selected_before(month).await?;
         for (entry, spent) in &reckoned.spent {
             tx.put_quota_egress(*entry, spent).await?;
         }

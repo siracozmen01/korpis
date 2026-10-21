@@ -1040,6 +1040,19 @@ the world on the workload's behalf, and traffic between two workloads of a node 
 > installed there. The API test sets a budget, is refused one that names nothing to do, spends it
 > with two samples, finds the workload's next assignment holding it to its floor and the entry
 > saying what it spent, and raises the budget to find the workload let go.
+>
+> Corrected the same day (Finding 126 of `23-walkthroughs.md`, from a security review of the
+> commit that built it). The reckoning chose the workloads an entry counts by their owner and
+> labels as they stood at each pass, so a holder able to relabel a held workload out of a spent
+> entry's selector would have lifted its hold and taken what it sent out of the entry's sum,
+> lifting every other hold the entry made. Nothing changes a workload's labels, project, or
+> organization after it is made, so no one could; but nothing said that either, and a label
+> edited later would have opened it. An entry now counts a workload it has selected once in a
+> month for the rest of that month (`quota_egress_selected`), whatever the workload says of itself
+> later; which nodes an entry names is the operator's to change, and is still read for each
+> record. What it costs: a row per entry and workload it selects in a month, forgotten when the
+> month ends, and a parent who narrows an entry's selector mid-month sees its budget keep counting
+> what it counted until the month turns.
 
 ### 5.2 Reservation and limit are different numbers
 
