@@ -313,6 +313,17 @@ split by destination until bandwidth accounting is built.
 > placement's first record spans from when it was placed. API tests find the gaps of a silent
 > span and of a placement never sampled, their supersession by the sample that covers them, two
 > days closed, and the late sample of a closed day written as an adjustment.
+>
+> Corrected 2026-10-21, after an automated security review of P2.7c1. A sample was stored as its
+> node wrote it. A counter past what the store holds failed the transaction that ingests the
+> node's journal, so that record was sent again forever and nothing behind it was ever ingested;
+> an interval long enough to overflow a time panicked; and a time years from the control plane's
+> clock was believed. Now a sample is checked before anything measures it: its interval is at
+> most 31 days, its interval and its losses lie between 400 days before the control plane's clock
+> and an hour after it, every counter fits the store, and a node holding the workload's lease
+> names no epoch past it. One that fails is a `journal.rejected` record, and the journal moves
+> past it. The API test sends a counter beyond the store and a sample twenty hours ahead, and
+> finds both rejected and the journal moved on.
 
 ---
 

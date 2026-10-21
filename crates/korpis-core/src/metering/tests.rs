@@ -80,3 +80,19 @@ fn a_silent_span_is_one_gap_an_interval_and_a_day_is_utc() {
     let midday = SystemTime::UNIX_EPOCH + DAY * 20_000 + HOUR * 13;
     assert_eq!(day_of(midday), SystemTime::UNIX_EPOCH + DAY * 20_000);
 }
+
+#[test]
+fn a_sample_no_store_could_hold_or_far_from_the_clock_is_implausible() {
+    let now = t(10);
+    assert_eq!(implausible(&sample(5, 100), now), None);
+    let mut long = sample(5, 100);
+    long.interval = Duration::MAX;
+    assert!(implausible(&long, now).is_some(), "an interval that does not add");
+    assert_eq!(long.end(), long.interval_start, "and its end does not panic");
+    assert!(implausible(&sample(20, 100), now).is_some(), "ten hours ahead of the clock");
+    let huge = sample(5, u64::MAX);
+    assert!(implausible(&huge, now).is_some(), "a counter beyond what is stored");
+    let mut lost = sample(5, 100);
+    lost.losses.push(Loss { from: SystemTime::UNIX_EPOCH, to: t(5), cause: "x".into() });
+    assert!(implausible(&lost, now).is_some(), "a loss far from the clock");
+}

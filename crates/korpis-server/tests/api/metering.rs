@@ -71,6 +71,12 @@ async fn a_sample_is_measured_from_the_one_before_it_and_lost_ones_leave_a_span(
     assert_eq!(until(&mut s, ack).await, 4);
     assert_eq!(h.effects("journal.rejected").await.len(), 2, "a sample older than the last");
 
+    // A counter no store could hold, or a time far from the clock, rejects its record and stops
+    // nothing behind it.
+    send(&mut s, vec![sample(5, &workload, 5, u64::MAX), sample(6, &workload, 30, 500)]).await;
+    assert_eq!(until(&mut s, ack).await, 6, "the journal moves past both");
+    assert_eq!(h.effects("journal.rejected").await.len(), 4, "a counter beyond i64, the future");
+
     let id = Id::parse(IdKind::Workload, &workload).unwrap().uuid();
     let store = h.db.store().await.unwrap();
     let records = store.metering_records(id, hour(0) - HOUR, hour(20)).await.unwrap();

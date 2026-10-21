@@ -12,7 +12,7 @@ use crate::App;
 use crate::error::AppError;
 use crate::ports::{Clock, MeteringWrite as _, RecipeSource, Store};
 use korpis_core::audit::Effect;
-use korpis_core::metering::{Reading, Record, RecordKind, Sample, day_of, measure};
+use korpis_core::metering::{Reading, Record, RecordKind, Sample, day_of, implausible, measure};
 use uuid::Uuid;
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
@@ -24,6 +24,19 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         sample: &Sample,
     ) -> Result<Option<Effect>, AppError> {
         let w = sample.workload;
+        if let Some(why) = implausible(sample, self.clock.now()) {
+            let mut e = rejected(why, "metering");
+            e.workload = Some(w);
+            return Ok(Some(e));
+        }
+        // A node that holds the workload's lease now names no epoch past it: that is an epoch
+        // never issued to it. The cut at an epoch's end is Phase 3's, with migration.
+        let current = self.store.lease_epoch(w, node).await?;
+        if current.is_some_and(|epoch| sample.lease_epoch > epoch) {
+            let mut e = rejected("the sample names a lease epoch never issued", "metering");
+            e.workload = Some(w);
+            return Ok(Some(e));
+        }
         if !self.store.ever_leased(w, node).await? && !self.store.nodes_of(w).await?.contains(&node)
         {
             let mut e = rejected("the node never held the workload", "metering");

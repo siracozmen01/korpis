@@ -135,11 +135,48 @@ pub struct Sample {
 }
 
 impl Sample {
-    /// The interval's end.
+    /// The interval's end; its start where the two would not add, which [`implausible`] refuses
+    /// before anything measures it.
     #[must_use]
     pub fn end(&self) -> SystemTime {
-        self.interval_start + self.interval
+        self.interval_start.checked_add(self.interval).unwrap_or(self.interval_start)
     }
+}
+
+/// The longest one sample may cover: a node's journal keeps a week of records past what was
+/// acknowledged, so a node that sampled after a longer silence still has its samples to send,
+/// and a sample is never more than that.
+pub const LONGEST_SAMPLE: Duration = Duration::from_secs(31 * 86_400);
+/// How far before the control plane's clock a sample or a loss may lie.
+pub const OLDEST: Duration = Duration::from_secs(400 * 86_400);
+/// How far ahead of it: a node's clock that runs ahead by more is not believed.
+pub const AHEAD: Duration = Duration::from_secs(3600);
+
+/// Why `sample` cannot be believed at `now`, if it cannot: a node's word is checked before it
+/// is stored, so one record no store could hold rejects that record rather than stopping its
+/// node's journal behind it (§4.10 of docs/02-architecture.md).
+#[must_use]
+pub fn implausible(sample: &Sample, now: SystemTime) -> Option<&'static str> {
+    let oldest = now.checked_sub(OLDEST).unwrap_or(SystemTime::UNIX_EPOCH);
+    let latest = now.checked_add(AHEAD).unwrap_or(now);
+    let within = |t: SystemTime| oldest <= t && t <= latest;
+    if sample.interval.is_zero() || sample.interval > LONGEST_SAMPLE {
+        return Some("a sample's interval is longer than any one sample covers");
+    }
+    let end = sample.interval_start.checked_add(sample.interval);
+    if !within(sample.interval_start) || !end.is_some_and(within) {
+        return Some("a sample's interval is not near the control plane's clock");
+    }
+    if sample.losses.iter().any(|l| !within(l.from) || !within(l.to) || l.to < l.from) {
+        return Some("a loss is not near the control plane's clock");
+    }
+    let fits = |n: Option<u64>| n.is_none_or(|n| i64::try_from(n).is_ok());
+    let counted =
+        sample.counters.pairs().into_iter().chain([sample.memory_peak_bytes, sample.disk_bytes]);
+    if !counted.into_iter().all(fits) || i64::try_from(sample.lease_epoch).is_err() {
+        return Some("a counter is beyond what is stored");
+    }
+    None
 }
 
 /// The last sample of a workload on a node the control plane took: where the next is measured
