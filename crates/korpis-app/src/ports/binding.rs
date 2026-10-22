@@ -63,6 +63,14 @@ pub trait BindingWrite {
         due_by: SystemTime,
     ) -> impl Future<Output = StoreResult<Option<BindingState>>> + Send;
 
+    /// Makes live binding `id` due by `due_by` at the latest, recording nothing else: an answer
+    /// that was dropped may have been the newer one, so it is asked again soon.
+    fn ask_again_by(
+        &mut self,
+        id: Uuid,
+        due_by: SystemTime,
+    ) -> impl Future<Output = StoreResult<()>> + Send;
+
     /// Records a re-verification of live binding `id` asked when it had `asked_at` recorded:
     /// its state, its last confirmation, and when it is next due, counting one more; false if
     /// it was retired, or another answer was recorded, meanwhile.

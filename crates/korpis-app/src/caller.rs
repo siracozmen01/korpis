@@ -79,6 +79,14 @@ impl Caller {
         self
     }
 
+    /// The subjects whose grants the caller holds: itself, and each set that vouches for it now,
+    /// whose grants are as much its own while it does (Finding 142 of docs/23-walkthroughs.md).
+    #[must_use]
+    pub fn holding(&self) -> Vec<String> {
+        let sets = self.memberships.iter().map(|s| s.key.clone());
+        std::iter::once(self.subject.key.clone()).chain(sets).collect()
+    }
+
     /// An effect by this caller, naming the client that relayed them if one did, so the effect
     /// names everyone who took part (§5.2 of docs/08-identity.md).
     #[must_use]

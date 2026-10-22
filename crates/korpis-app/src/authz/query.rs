@@ -88,15 +88,15 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(Paged { items, next })
     }
 
-    /// The grants the caller holds, those beneath its portal's organization alone for a session
-    /// begun at one.
+    /// The grants the caller holds, through the sets that vouch for it too, those beneath its
+    /// portal's organization alone for a session begun at one.
     async fn grants_held(
         &self,
         caller: &Caller,
         page: Page,
     ) -> Result<Paged<GrantRecord>, AppError> {
-        let read =
-            |p: Page| async move { Ok(self.store.grants_held(&caller.subject.key, p).await?) };
+        let holding = &caller.holding();
+        let read = |p: Page| async move { Ok(self.store.grants_held(holding, p).await?) };
         let reached = |found: Vec<GrantRecord>| async move {
             let anchors: Vec<ObjectRef> = found.iter().map(|g| g.grant.scope.anchor()).collect();
             let shown = self.reached_each(caller, &anchors).await?;

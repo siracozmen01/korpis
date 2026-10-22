@@ -205,7 +205,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         place: &Place<'_>,
     ) -> Result<GrantChange, AppError> {
         let key = to.principal().key();
-        let mut held = self.store.grants_held(&key, Page::new(None, Page::MAX)).await?;
+        let mut held =
+            self.store.grants_held(std::slice::from_ref(&key), Page::new(None, Page::MAX)).await?;
         held.retain(|g| g.revoked_at.is_none());
         let (mut keep, mut unserved) = (Vec::new(), Vec::new());
         for (i, need) in manifest.needs.iter().enumerate() {

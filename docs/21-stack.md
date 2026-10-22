@@ -377,7 +377,12 @@ that breaks the panel fails like one that breaks the server.
 > the node's egress rules deny a workload every address of its own host (§7 of
 > `07-networking.md`), and the issuer is on this one. What that leaves untested is the
 > provider's `main` itself: reading its configuration from the environment, which `config`'s own
-> tests cover, and building its HTTP client.
+> tests cover, and building its HTTP client. Corrected 2026-10-22: `scripts/e2e-phase2.sh` runs
+> that `main`, the provider's own binary, on the node's host in a mount namespace of its own that
+> puts the workload's identity socket and relay where the workload's mount puts them, configured
+> by its environment and trusting the test authority alone, and a person signs in through it,
+> acts, and loses a group's authority by its refresh; so only the workload's own sandbox around
+> it is left untested.
 > `scripts/check.sh` runs them with the rest of the tests, and says so when no browser is
 > installed and they are skipped. What it costs: about forty seconds of a check, and one
 > download trusted on its publisher's word. Written over one day, they found eight defects that

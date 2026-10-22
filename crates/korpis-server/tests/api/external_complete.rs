@@ -51,6 +51,23 @@ fn completion(state: &str, code: &str, verifier: &str) -> pb::CompleteExternalSi
     }
 }
 
+/// Waits until the control plane's own loop has asked about `binding` the first time, after
+/// which it is not due again for its interval: no re-verification then asks about a person
+/// signed in meanwhile, whom this test's provider would say is in every set.
+async fn first_asked(h: &Harness, binding: &str) {
+    let identity = h.identity(h.root());
+    let get = pb::GetIdentityBindingRequest { id: binding.to_owned(), ..Default::default() };
+    for _ in 0..120 {
+        let read = identity.get_identity_binding(get.clone()).await.unwrap().into_owned();
+        let state = read.binding.as_option().and_then(|b| b.state.as_known());
+        if state == Some(pb::BindingState::BINDING_STATE_VERIFIED) {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    panic!("binding {binding} was never asked about");
+}
+
 /// Each member record kept, as `<set's member_of> <state>`, in order.
 async fn records(h: &Harness) -> Vec<String> {
     let store = h.db.store().await.unwrap();
@@ -70,7 +87,8 @@ async fn a_person_signs_in_once_per_state_into_a_session_of_their_own() {
     let _corp = issuing(&h, 71, "corp", true).await;
     let org = h.root_org();
     for group in ["admins", "old"] {
-        bind(&h, &org, set(&org, group), pb::IdentityBindingTerms::default()).await.unwrap();
+        let made = bind(&h, &org, set(&org, group), pb::IdentityBindingTerms::default()).await;
+        first_asked(&h, &made.unwrap().id).await;
     }
 
     let (state, code) = returned(&h, "dana", "admins,old,unbound", "p1").await;

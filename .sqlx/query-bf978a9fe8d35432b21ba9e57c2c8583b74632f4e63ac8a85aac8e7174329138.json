@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE identity_member m SET state = 'unverified', answers = m.answers + 1\n               FROM identity_binding b\n              WHERE b.id = m.binding_id AND m.member = $1 AND b.organization_id = $2\n                AND b.provider = $3 AND NOT (m.binding_id = ANY($4))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Text",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bf978a9fe8d35432b21ba9e57c2c8583b74632f4e63ac8a85aac8e7174329138"
+}

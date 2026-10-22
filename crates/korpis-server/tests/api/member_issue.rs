@@ -4,7 +4,8 @@
 //! docs/08-identity.md), issued from their own session: it names the set and the person it came
 //! through, its expiry is clamped to the delegation ceiling, it works while the set still has
 //! them, and it is refused once the set's re-verification finds they left, without anyone
-//! revoking it.
+//! revoking it. The set's grant is listed among the grants they hold while the set vouches for
+//! them, which is how the CLI and the panel find where they may act (Finding 142).
 
 use crate::bindings::{bind, from_template, project_scope, set};
 use crate::delegated::readers;
@@ -55,6 +56,13 @@ pub async fn verify(h: &Harness, binding: &str) {
     h.identity(h.root()).verify_identity_binding(req).await.unwrap();
 }
 
+/// The grants the holder of `token` is told it holds.
+async fn held(h: &Harness, token: &str) -> Vec<String> {
+    let grants = h.grants(h.config(Some(token)));
+    let listed = grants.list_grants(pb::ListGrantsRequest::default()).await.unwrap();
+    listed.into_owned().grants.into_iter().map(|g| g.id).collect()
+}
+
 /// Passing on `parent` on `project` to a new token for thirty days, as the mutation `key`.
 fn helper(key: &str, parent: &str, project: &str) -> pb::IssueGrantRequest {
     pb::IssueGrantRequest {
@@ -80,6 +88,7 @@ async fn a_person_passes_on_through_their_set_until_they_leave_it() {
     let survival = project(&h, &h.root_org(), "survival").await;
     let (role, binding) = ops_read(&h, &survival).await;
     let (_, token) = signed_in(&h, "erin", "ops", "p1").await;
+    assert_eq!(held(&h, &token).await, std::slice::from_ref(&role), "the set's grant is hers");
 
     let issued =
         h.grants(h.config(Some(&token))).issue_grant(helper("helper", &role, &survival)).await;
@@ -101,6 +110,7 @@ async fn a_person_passes_on_through_their_set_until_they_leave_it() {
     verify(&h, &binding).await;
     let left = reader.get_project(get()).await.unwrap_err();
     assert_eq!(left.code, ErrorCode::NotFound, "she left ops, and nobody revoked anything");
+    assert!(held(&h, &token).await.is_empty(), "and it is no longer listed as hers");
     let again =
         h.grants(h.config(Some(&token))).issue_grant(helper("another", &role, &survival)).await;
     let again = again.unwrap_err();

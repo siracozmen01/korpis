@@ -17,6 +17,7 @@ struct MemberRow {
     member: String,
     state: String,
     last_verified_at: Option<DateTime<Utc>>,
+    answers: i64,
 }
 
 impl MemberRow {
@@ -31,15 +32,24 @@ impl MemberRow {
             member: principal(&self.member)?,
             state,
             last_verified_at: self.last_verified_at.map(to_time),
+            answers: u64::try_from(self.answers)
+                .map_err(|_| StoreError::Corrupt("member answers".into()))?,
         })
     }
+}
+
+/// Each member asked about and the count of answers their record had then, as two columns.
+fn columns(asked: &[(String, u64)]) -> StoreResult<(Vec<String>, Vec<i64>)> {
+    let counts = asked.iter().map(|(_, n)| i64::try_from(*n)).collect::<Result<_, _>>();
+    let counts = counts.map_err(|_| StoreError::Corrupt("member answers".into()))?;
+    Ok((asked.iter().map(|(m, _)| m.clone()).collect(), counts))
 }
 
 impl MemberRead for PgStore {
     async fn member(&self, binding: Uuid, member: &str) -> StoreResult<Option<MemberRecord>> {
         let row = sqlx::query_as!(
             MemberRow,
-            "SELECT binding_id, member, state, last_verified_at FROM identity_member
+            "SELECT binding_id, member, state, last_verified_at, answers FROM identity_member
               WHERE binding_id = $1 AND member = $2",
             binding,
             member
@@ -53,7 +63,7 @@ impl MemberRead for PgStore {
     async fn members_who_delegated(&self, binding: Uuid) -> StoreResult<Vec<MemberRecord>> {
         let rows = sqlx::query_as!(
             MemberRow,
-            "SELECT m.binding_id, m.member, m.state, m.last_verified_at
+            "SELECT m.binding_id, m.member, m.state, m.last_verified_at, m.answers
                FROM identity_member m JOIN identity_binding b ON b.id = m.binding_id
               WHERE m.binding_id = $1
                 AND (EXISTS (SELECT 1 FROM grants g
@@ -76,23 +86,40 @@ impl MemberWrite for PgTx {
     async fn record_members(
         &mut self,
         binding: Uuid,
-        (present, absent): (&[String], &[String]),
+        (present, absent): (&[(String, u64)], &[(String, u64)]),
         at: SystemTime,
-    ) -> StoreResult<()> {
-        sqlx::query!(
-            "UPDATE identity_member
-                SET state = CASE WHEN member = ANY($2) THEN 'verified' ELSE 'unverified' END,
-                    last_verified_at = CASE WHEN member = ANY($2) THEN $4 ELSE last_verified_at END
-              WHERE binding_id = $1 AND (member = ANY($2) OR member = ANY($3))",
+    ) -> StoreResult<u64> {
+        let (present, present_at) = columns(present)?;
+        let (absent, absent_at) = columns(absent)?;
+        let stale = sqlx::query_scalar!(
+            r#"WITH asked AS (
+                    SELECT p.member, p.answers, true AS present
+                      FROM unnest($2::text[], $3::bigint[]) AS p(member, answers)
+                    UNION ALL
+                    SELECT a.member, a.answers, false
+                      FROM unnest($4::text[], $5::bigint[]) AS a(member, answers)),
+                written AS (
+                    UPDATE identity_member m
+                       SET state = CASE WHEN a.present THEN 'verified' ELSE 'unverified' END,
+                           last_verified_at =
+                               CASE WHEN a.present THEN $6 ELSE m.last_verified_at END,
+                           answers = m.answers + 1
+                      FROM asked a
+                     WHERE m.binding_id = $1 AND m.member = a.member
+                       AND (NOT a.present OR m.answers = a.answers)
+                 RETURNING a.present, m.answers - 1 <> a.answers AS newer)
+               SELECT count(*) FILTER (WHERE NOT present AND newer) AS "stale!" FROM written"#,
             binding,
-            present,
-            absent,
+            &present,
+            &present_at,
+            &absent,
+            &absent_at,
             from_time(at)
         )
-        .execute(&mut *self.tx)
+        .fetch_one(&mut *self.tx)
         .await
         .map_err(from_sqlx)?;
-        Ok(())
+        u64::try_from(stale).map_err(|_| StoreError::Corrupt("a negative count".into()))
     }
 
     async fn record_sign_in(
@@ -106,7 +133,8 @@ impl MemberWrite for PgTx {
             "INSERT INTO identity_member (binding_id, member, state, last_verified_at, recorded_at)
              SELECT b, $2, 'verified', $3, $3 FROM unnest($1::uuid[]) AS b
              ON CONFLICT (binding_id, member)
-             DO UPDATE SET state = 'verified', last_verified_at = EXCLUDED.last_verified_at",
+             DO UPDATE SET state = 'verified', last_verified_at = EXCLUDED.last_verified_at,
+                           answers = identity_member.answers + 1",
             confirmed,
             member,
             from_time(at)
@@ -115,7 +143,7 @@ impl MemberWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         sqlx::query!(
-            "UPDATE identity_member m SET state = 'unverified'
+            "UPDATE identity_member m SET state = 'unverified', answers = m.answers + 1
                FROM identity_binding b
               WHERE b.id = m.binding_id AND m.member = $1 AND b.organization_id = $2
                 AND b.provider = $3 AND NOT (m.binding_id = ANY($4))",

@@ -107,8 +107,15 @@ scripts/e2e-phase1.sh     the Phase 1 done-when (§4 of docs/20-roadmap.md) the 
                           workload's console read and typed into, its volume quota refused by
                           the kernel and its memory limit its cgroup's, a backup taken, read,
                           and restored into a clone, and all of it deleted; needs root,
-                          containerd, and btrfs-progs, and leaves nothing behind. check.sh runs
-                          neither; the two share scripts/e2e-lib.sh
+                          containerd, and btrfs-progs, and leaves nothing behind
+scripts/e2e-phase2.sh     the Phase 2 done-when (§4 of docs/20-roadmap.md) the same way: a
+                          reseller, its sub-tenant, and their customer each acting with a
+                          credential the level above issued, quota inheriting through all three,
+                          and a person signed in through korpis-idp-oidc against the independent
+                          issuer of conformance/oidc acting on one project through their group,
+                          with no account made, until the group drops them; needs root,
+                          containerd, Node.js, and the issuer's packages, and leaves nothing
+                          behind. check.sh runs none of the three; they share scripts/e2e-lib.sh
 scripts/test-install-package.sh
                           `korpis-server install --postgres package` in systemd containers of
                           Debian, Ubuntu, and Fedora, units started (§2 of

@@ -43,8 +43,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut chains = Vec::new();
         let full = usize::try_from(Page::MAX).unwrap_or(usize::MAX);
         let mut page = Page { after: None, size: Page::MAX };
+        let holding = caller.holding();
         loop {
-            let found = self.store.grants_held(&caller.subject.key, page).await?;
+            let found = self.store.grants_held(&holding, page).await?;
             for held in found.iter().filter(|g| g.revoked_at.is_none()) {
                 chains.push(self.organizations_above(held.grant.scope.anchor()).await?);
             }

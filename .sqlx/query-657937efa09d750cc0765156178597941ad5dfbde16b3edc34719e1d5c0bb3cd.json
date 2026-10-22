@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH asked AS (\n                    SELECT p.member, p.answers, true AS present\n                      FROM unnest($2::text[], $3::bigint[]) AS p(member, answers)\n                    UNION ALL\n                    SELECT a.member, a.answers, false\n                      FROM unnest($4::text[], $5::bigint[]) AS a(member, answers)),\n                written AS (\n                    UPDATE identity_member m\n                       SET state = CASE WHEN a.present THEN 'verified' ELSE 'unverified' END,\n                           last_verified_at =\n                               CASE WHEN a.present THEN $6 ELSE m.last_verified_at END,\n                           answers = m.answers + 1\n                      FROM asked a\n                     WHERE m.binding_id = $1 AND m.member = a.member\n                       AND (NOT a.present OR m.answers = a.answers)\n                 RETURNING a.present, m.answers - 1 <> a.answers AS newer)\n               SELECT count(*) FILTER (WHERE NOT present AND newer) AS \"stale!\" FROM written",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stale!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Int8Array",
+        "TextArray",
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "657937efa09d750cc0765156178597941ad5dfbde16b3edc34719e1d5c0bb3cd"
+}

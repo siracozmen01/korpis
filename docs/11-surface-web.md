@@ -253,12 +253,14 @@ Existence follows read authority (§8 of `10-api.md`), so a workload the viewer 
 rendered as locked. It is not rendered.
 
 > As built, 2026-10-17 (`web/src/views/Places.tsx`). The navigation starts from the caller's own
-> grants, every page of them, each working one opening the organization, project, or workload it
-> is anchored on (a selector grant, the object it selects within); a grant on anything else is
-> not a place and is not shown as one. An organization lists its organizations and projects and a
-> project its workloads, each list only what the API returns, a page at a time with the next
-> offered while one exists, never cut at the first page as if it were all. A place the caller
-> cannot read is left out; a read that failed for another reason is said, not hidden.
+> grants, every page of them (for a person signed in through an identity provider, those of the
+> sets that vouch for them too, Finding 142 of `23-walkthroughs.md`), each working one opening the
+> organization, project, or workload it is anchored on (a selector grant, the object it selects
+> within); a grant on anything else is not a place and is not shown as one. An organization lists
+> its organizations and projects and a project its workloads, each list only what the API returns,
+> a page at a time with the next offered while one exists, never cut at the first page as if it
+> were all. A place the caller cannot read is left out; a read that failed for another reason is
+> said, not hidden.
 >
 > Suspension as built, 2026-10-19 (`web/src/views/Suspension.tsx`). An organization's page tells
 > everyone who reads it that it is suspended, why and since when, whether its workloads are held

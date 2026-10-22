@@ -267,6 +267,19 @@ impl BindingWrite for PgTx {
         Ok(moved == 1)
     }
 
+    async fn ask_again_by(&mut self, id: Uuid, due_by: SystemTime) -> StoreResult<()> {
+        sqlx::query!(
+            "UPDATE identity_binding SET verify_due_at = LEAST(verify_due_at, $2)
+              WHERE id = $1 AND retired_at IS NULL",
+            id,
+            from_time(due_by)
+        )
+        .execute(&mut *self.tx)
+        .await
+        .map_err(from_sqlx)?;
+        Ok(())
+    }
+
     async fn record_ended(
         &mut self,
         id: Uuid,

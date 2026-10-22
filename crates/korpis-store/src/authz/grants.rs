@@ -206,16 +206,20 @@ impl GrantRead for PgStore {
         all(rows)
     }
 
-    async fn grants_held(&self, subject_key: &str, page: Page) -> StoreResult<Vec<GrantRecord>> {
+    async fn grants_held(
+        &self,
+        subject_keys: &[String],
+        page: Page,
+    ) -> StoreResult<Vec<GrantRecord>> {
         let rows = sqlx::query_as!(
             GrantRow,
             "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,
                     link_form, uses, issued_at, revoked_at, suspended_at, root,
                     irreversible_override, label, template_id, template_version, via
                FROM grants
-              WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)
+              WHERE subject_key = ANY($1) AND ($2::uuid IS NULL OR id > $2)
               ORDER BY id LIMIT $3",
-            subject_key,
+            subject_keys,
             page.after,
             i64::from(page.size)
         )

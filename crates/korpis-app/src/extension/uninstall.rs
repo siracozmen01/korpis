@@ -69,7 +69,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             None => None,
         };
         let key = installation.principal().key();
-        let held = self.store.grants_held(&key, Page::new(None, Page::MAX)).await?;
+        let held =
+            self.store.grants_held(std::slice::from_ref(&key), Page::new(None, Page::MAX)).await?;
         let now = self.clock.now();
         let mut tx = self.store.begin().await?;
         let revoked = revoke_all(&mut tx, caller, &held, permit.grant, now).await?;

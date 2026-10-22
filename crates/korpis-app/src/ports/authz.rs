@@ -49,10 +49,10 @@ pub trait GrantRead {
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
 
-    /// Grants held by `subject_key`.
+    /// Grants held by any of `subject_keys`, in identifier order.
     fn grants_held(
         &self,
-        subject_key: &str,
+        subject_keys: &[String],
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<GrantRecord>>> + Send;
 

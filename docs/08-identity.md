@@ -772,7 +772,14 @@ fails closed, as a new binding does. The set's own re-verification asks about ev
 holds a grant through it that is not revoked, in the same question and on its interval, so a set
 costs one provider call per interval however many of its members delegated. A member found in the
 set is confirmed then; one found not in it is unverified whatever came between, as an ending is
-(Finding 116 of `23-walkthroughs.md`). Evaluation refuses a link with `via` once its member's last
+(Finding 116 of `23-walkthroughs.md`). Corrected 2026-10-22 (Finding 141 of
+`23-walkthroughs.md`): an answer was held to the binding's count of answers, which a sign-in does
+not move, so one asked before a sign-in that found a member gone, and answered after it, recorded
+them present again. Each member's record now counts the answers written to it, by a
+re-verification or a sign-in; that a member is found in the set is recorded only against the
+count their record had when they were asked, and that they are not is recorded whatever came
+between, with the set asked again within a minute when their record had been written meanwhile.
+Evaluation refuses a link with `via` once its member's last
 confirmation, plus the set binding's interval and grace, has passed, and everything beneath it with
 it, at use and at renewal.
 
@@ -1977,6 +1984,15 @@ rather than within its tokens' 120 seconds. Writing the sets into the token woul
 and make a bearer header of kilobytes for a person in hundreds of groups. Whether each set still
 counts is evaluation's, from the member records it loads with the bindings (§5). A set bound only
 after the sign-in has no record of the person, so it counts from their next sign-in.
+
+The grants a person holds, as `ListGrants` without a filter answers them, are those issued to
+them and those issued to each set that vouches for them at that call, by the same rule; so the
+CLI resolves names, and the panel opens places, from what their sets give them, and stops listing
+a set's grant when the set stops vouching. Corrected 2026-10-22 (Finding 142 of
+`23-walkthroughs.md`): the list read the person's own subject alone, and a person whose authority
+was all their group's, the case this section is for, was told they held nothing, so `korpis
+status web-1` found no such workload and the panel showed no place to go, while the same
+workload read by its identifier answered.
 
 **How an OIDC provider re-verifies a person.** OIDC has no standard way to ask whether someone is
 still in a group without a token of theirs. The provider asks for `offline_access` when its

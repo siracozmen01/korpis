@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE identity_binding SET verify_due_at = LEAST(verify_due_at, $2)\n              WHERE id = $1 AND retired_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5d89978adaf033700b14ea657822c64ffaabec1d2f0a3c7eb4224a36e1b84298"
+}

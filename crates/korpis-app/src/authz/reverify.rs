@@ -11,7 +11,8 @@ use crate::caller::Caller;
 use crate::error::AppError;
 use crate::extension::CallTarget;
 use crate::ports::{
-    BindingWrite as _, Clock, EffectWrite as _, MemberWrite as _, RecipeSource, Store, Tx as _,
+    Asked, BindingWrite as _, Clock, EffectWrite as _, MemberWrite as _, RecipeSource, Store,
+    Tx as _,
 };
 use korpis_core::audit::{Effect, Outcome, details};
 use korpis_core::authz::binding::{BindingState, IdentityBinding, Verification};
@@ -69,17 +70,18 @@ fn user_of(member: &Principal) -> Option<String> {
 }
 
 /// Of the members asked about, the keys of those an answer says are in the set and of those it
-/// says are not; nothing when it did not answer. A member it says it cannot tell about is in
+/// says are not, each with the count of answers their record had then; nothing when it did not
+/// answer. A member it says it cannot tell about is in
 /// neither, and keeps their last confirmation (§5.1); a set that no longer exists holds no one.
-fn members_found(outcome: &CallOutcome, delegated: &[MemberRecord]) -> (Vec<String>, Vec<String>) {
+fn members_found(outcome: &CallOutcome, delegated: &[MemberRecord]) -> (Vec<Asked>, Vec<Asked>) {
     let CallOutcome::Members(m) = outcome else { return (Vec::new(), Vec::new()) };
     let (mut present, mut absent) = (Vec::new(), Vec::new());
     for d in delegated {
         let Some(user) = user_of(&d.member) else { continue };
         if m.set_exists && m.present.contains(&user) {
-            present.push(d.member.key());
+            present.push((d.member.key(), d.answers));
         } else if !m.set_exists || !m.unknown.contains(&user) {
-            absent.push(d.member.key());
+            absent.push((d.member.key(), d.answers));
         }
     }
     (present, absent)
@@ -110,7 +112,7 @@ struct Answer {
     relay: Option<Principal>,
     grant: Option<Uuid>,
     /// For a set: the members who delegated it found in it, and those found not to be.
-    members: (Vec<String>, Vec<String>),
+    members: (Vec<Asked>, Vec<Asked>),
 }
 
 /// The effect of the binding `id`, of `organization`, moving to `state` on `answer`.
@@ -185,7 +187,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     }
 
     /// Records that `id`'s subject ended, whatever was recorded meanwhile, with an effect if it
-    /// was verified, and that the members found not in it are not.
+    /// was verified, and that the members found not in it are not; the set is asked again within
+    /// a minute where either may be older than what was recorded.
     async fn record_ended(
         &self,
         (id, organization): (Uuid, Uuid),
@@ -194,7 +197,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let mut tx = self.store.begin().await?;
         // A member found not in the set is recorded so whatever came between, as an ending is.
         let now = self.clock.now();
-        tx.record_members(id, (&[], &answer.members.1), now).await?;
+        if tx.record_members(id, (&[], &answer.members.1), now).await? > 0 {
+            tx.ask_again_by(id, now + RETRY).await?;
+        }
         if answer.verification == Verification::Ended {
             let before = tx.record_ended(id, now + RETRY).await?;
             if before == Some(BindingState::Verified) {
@@ -208,7 +213,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
 
     /// Records `answer` of `binding`, against the verifications it had when it was read, with an
     /// effect if its state changed; `None` if another answer was recorded meanwhile, or it was
-    /// retired.
+    /// retired. A member found not in the set whose record was written meanwhile may have been
+    /// confirmed since, so the set is then asked again within a minute.
     async fn record_answer(
         &self,
         mut binding: IdentityBinding,
@@ -218,14 +224,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let asked_at = binding.verifications;
         let changed = binding.verified(answer.verification, now);
         let interval = binding.terms.reverify_interval;
-        let due = now + if answer.reason.is_some() { interval.min(RETRY) } else { interval };
         let mut tx = self.store.begin().await?;
+        let members = (answer.members.0.as_slice(), answer.members.1.as_slice());
+        let overwritten = tx.record_members(binding.id, members, now).await?;
+        let soon = answer.reason.is_some() || overwritten > 0;
+        let due = now + if soon { interval.min(RETRY) } else { interval };
         let (state, last) = (binding.state, binding.last_verified_at);
+        // Dropping the transaction undoes the members' records with it.
         if !tx.record_verification((binding.id, asked_at), state, last, due).await? {
             return Ok(None);
         }
         binding.verifications = asked_at + 1;
-        tx.record_members(binding.id, (&answer.members.0, &answer.members.1), now).await?;
         if changed {
             let at = (binding.id, binding.provider.organization);
             let effect = transition(at, Some(&binding.subject), state, answer);
@@ -273,6 +282,7 @@ mod tests {
             member: Principal::ExternalUser { provider: "org/corp".into(), user: user.into() },
             state: BindingState::Verified,
             last_verified_at: None,
+            answers: 0,
         }
     }
 
@@ -288,7 +298,7 @@ mod tests {
     #[test]
     fn a_member_the_provider_cannot_tell_about_is_neither_confirmed_nor_ended() {
         let asked = [record("ann"), record("bob"), record("cat")];
-        let key = |u: &str| record(u).member.key();
+        let key = |u: &str| (record(u).member.key(), 0);
         let (present, absent) = members_found(&members(true, &["ann"], &["bob"]), &asked);
         assert_eq!((present, absent), (vec![key("ann")], vec![key("cat")]));
         let (present, absent) = members_found(&members(false, &["ann"], &["bob"]), &asked);

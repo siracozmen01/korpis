@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override, label, template_id, template_version, via\n               FROM grants\n              WHERE subject_key = $1 AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
+  "query": "SELECT id, subject_key, actions, scope, conditions, parent_id, delegation, issued_by,\n                    link_form, uses, issued_at, revoked_at, suspended_at, root,\n                    irreversible_override, label, template_id, template_version, via\n               FROM grants\n              WHERE subject_key = ANY($1) AND ($2::uuid IS NULL OR id > $2)\n              ORDER BY id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -215,7 +215,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
+        "TextArray",
         "Uuid",
         "Int8"
       ]
@@ -242,5 +242,5 @@
       true
     ]
   },
-  "hash": "1bb36db3d53ad680fc4e5eedab3b27162475ca906d48d69647a33681f4700615"
+  "hash": "42dcdde7b4df6444e8606ac2aad327f5358e6f95d1bbbd87858657c5e0b8cd97"
 }

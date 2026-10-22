@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO identity_member (binding_id, member, state, last_verified_at, recorded_at)\n             SELECT b, $2, 'verified', $3, $3 FROM unnest($1::uuid[]) AS b\n             ON CONFLICT (binding_id, member)\n             DO UPDATE SET state = 'verified', last_verified_at = EXCLUDED.last_verified_at,\n                           answers = identity_member.answers + 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9d91646f31f12d5ef96bd8d015ce1523a0102052e71f366f1d3410375f5f990b"
+}

@@ -111,7 +111,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         let intent = self.store.intent(workload.intent).await?;
         let artifact = intent.ok_or_else(|| missing("its workload has no intent"))?.body.recipe;
         let key = installation.principal().key();
-        let held = self.store.grants_held(&key, Page::new(None, Page::MAX)).await?;
+        let held =
+            self.store.grants_held(std::slice::from_ref(&key), Page::new(None, Page::MAX)).await?;
         let observed = self.store.observation(installation.workload).await?;
         Ok(ExtensionView {
             status: status(observed.map(|o| o.state)),

@@ -84,7 +84,8 @@ leave() {
 
 # A control plane installed into a database of this run's own and serving on a port of its own,
 # the `korpis` command pointed at it as root, and an organization that runs unsigned recipes,
-# with a project `games`; the organization is $ORG.
+# with a project `games`; the organization is $ORG. With $PANEL set, the control plane is told a
+# public URL, $PANEL_URL, the panel's address a sign-in through an identity provider returns to.
 control_plane() {
     psql "$PG" -qc "CREATE DATABASE $DB TEMPLATE template0" >/dev/null
     local url="${PG%/*}/$DB" token login port
@@ -99,8 +100,11 @@ control_plane() {
     login=$(sed -n 's/^  --database-url //p' "$WORK/install.txt")
     [ -n "$login" ] || fail "install printed no login for the control plane"
     port=$((20000 + $$ % 20000))
+    PANEL_URL="https://localhost:$port"
+    local public=()
+    if [ -n "${PANEL:-}" ]; then public=(--public-url "$PANEL_URL"); fi
     start server "$BIN/korpis-server" serve --data-dir "$WORK/server" --database-url "$login" \
-        --listen "127.0.0.1:$port" --plain-http-registry "$REGISTRY"
+        --listen "127.0.0.1:$port" --plain-http-registry "$REGISTRY" "${public[@]}"
     export KORPIS_SERVER="https://127.0.0.1:$port" KORPIS_CA="$WORK/server/tls/ca.pem"
     export KORPIS_TOKEN=$token
     until_ok 30 korpis version

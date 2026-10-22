@@ -2,7 +2,8 @@
 
 //! The members of a bound set who delegated, in the store (§5.1 of docs/08-identity.md): a
 //! grant naming a member in its `via` records them, unverified, and makes the set's binding due;
-//! re-verification reads the members whose grants still stand and records what it found.
+//! re-verification reads the members whose grants still stand and records what it found, never
+//! an answer that a member is still there over a record written since it asked (Finding 141).
 
 use crate::support::{Fixture, alice, fixture, now};
 use korpis_app::ports::{BindingWrite, GrantWrite, MemberRead, MemberWrite, Store, Tx};
@@ -100,13 +101,42 @@ async fn a_member_who_delegated_is_recorded_asked_about_and_answered() {
     assert_eq!(due.iter().map(|d| d.id).collect::<Vec<_>>(), [b.id], "due at once, not in an hour");
 
     let at = now();
-    tx.record_members(b.id, (&[ann.key()], &[]), at).await.unwrap();
+    tx.record_members(b.id, (&[(ann.key(), 0)], &[]), at).await.unwrap();
     tx.commit().await.unwrap();
     let confirmed = f.store.member(b.id, &ann.key()).await.unwrap().unwrap();
     assert_eq!((confirmed.state, confirmed.last_verified_at), (BindingState::Verified, Some(at)));
     let mut tx = f.store.begin().await.unwrap();
-    tx.record_members(b.id, (&[], &[ann.key()]), now()).await.unwrap();
+    tx.record_members(b.id, (&[], &[(ann.key(), 1)]), now()).await.unwrap();
     tx.commit().await.unwrap();
     let left = f.store.member(b.id, &ann.key()).await.unwrap().unwrap();
     assert_eq!((left.state, left.last_verified_at), (BindingState::Unverified, Some(at)));
+    assert_eq!(left.answers, 2, "each answer recorded counts");
+}
+
+#[tokio::test]
+async fn an_answer_asked_before_a_newer_record_says_only_that_a_member_is_gone() {
+    let f = fixture().await;
+    let b = admins(&f).await;
+    let ann = Principal::ExternalUser { provider: b.provider.key(), user: "ann".into() };
+    let mut tx = f.store.begin().await.unwrap();
+    tx.insert_grant(&delegated(&f, &b.subject, &ann)).await.unwrap();
+    tx.commit().await.unwrap();
+    // Asked about while her record had no answers; a sign-in no longer naming the set writes it.
+    let asked = f.store.members_who_delegated(b.id).await.unwrap()[0].answers;
+    let mut tx = f.store.begin().await.unwrap();
+    tx.record_sign_in(&ann.key(), &b.provider, &[], now()).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let mut tx = f.store.begin().await.unwrap();
+    let stale = tx.record_members(b.id, (&[(ann.key(), asked)], &[]), now()).await.unwrap();
+    tx.commit().await.unwrap();
+    let kept = f.store.member(b.id, &ann.key()).await.unwrap().unwrap();
+    assert_eq!((kept.state, kept.last_verified_at), (BindingState::Unverified, None));
+    assert_eq!((stale, kept.answers), (0, 1), "the older answer that she is there is dropped");
+
+    let mut tx = f.store.begin().await.unwrap();
+    let stale = tx.record_members(b.id, (&[], &[(ann.key(), asked)]), now()).await.unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(stale, 1, "that she is gone is recorded, and said to be older than her record");
+    assert_eq!(f.store.member(b.id, &ann.key()).await.unwrap().unwrap().answers, 2);
 }

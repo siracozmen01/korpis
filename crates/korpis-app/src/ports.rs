@@ -102,7 +102,7 @@ pub use korpis_core::workload::run::RunEnd;
 pub use layout::{LayoutChange, LayoutRead, LayoutWrite, SetLayout};
 pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
-pub use member::{MemberRead, MemberWrite};
+pub use member::{Asked, MemberRead, MemberWrite};
 pub use metering::{MeteringRead, MeteringWrite, Overdue, UsageQuery};
 pub use node::{NodeRead, NodeWrite};
 pub use observation::{ObservationRead, ObservationWrite};

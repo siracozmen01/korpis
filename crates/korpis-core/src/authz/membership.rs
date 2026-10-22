@@ -64,6 +64,10 @@ pub struct MemberRecord {
     pub state: BindingState,
     /// When it last said so.
     pub last_verified_at: Option<SystemTime>,
+    /// How many times the record was written, by a re-verification or a sign-in: what an answer
+    /// asked about it is recorded against, so an older answer that they are still in the set
+    /// never replaces a newer one (Finding 141 of docs/23-walkthroughs.md).
+    pub answers: u64,
 }
 
 impl MemberRecord {

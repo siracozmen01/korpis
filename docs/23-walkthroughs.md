@@ -1386,6 +1386,8 @@ the same mechanism", and that is the price of having made core and extensions th
 | 138 | One HTTP/2 connection could hold as many WebSockets to its workload as it opened streams, past the proxy's bound on connections | §51 | `07-networking.md` §3.2 |
 | 139 | A parent's own workloads could take what it had guaranteed a child, who was then refused below its guarantee | §52 | `05-scheduling.md` §5.1, `01-model.md` §3.1 |
 | 140 | A quota refusal told a customer its reseller's bound and what all the reseller's customers held, and named the entry by an identifier no reader could resolve | §52 | `05-scheduling.md` §5.1 |
+| 141 | An answer that a member was still in a set, asked before a sign-in that found them gone, was recorded over the sign-in | §44 | `08-identity.md` §5.1 |
+| 142 | A person whose authority came through a set was told they held no grant | §44 | `08-identity.md` §9.7, `11-surface-web.md` §5 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -3771,6 +3773,15 @@ Steps 3 to 6 run in a browser since 2026-10-21 (`web/e2e/person.spec.ts`), again
 and the real provider (§9 of `21-stack.md`), and so does Dana's approval of `korpis login` from her
 own terminal ten minutes later, re-authenticated through the provider.
 
+Steps 1, 2, 4 to 7, and 9 run on a real node since 2026-10-22, in `scripts/e2e-phase2.sh`, as
+the external half of Phase 2's done-when: the customer is a reseller's sub-tenant's, its
+administrator acting with a credential issued down three levels; the provider's own program
+serves the provider beside its workload; the panel's calls are made with curl, PKCE and all;
+Dana restarts a server in the one project her group's Operator role is granted on and reads
+nothing elsewhere; no account row exists before or after; and removed from `ops` at the issuer,
+she reads nothing there within the binding's one-minute interval, refused as not there to read
+while her session stands. It found Finding 142 at step 7.
+
 **Trace**
 
 | # | Step | Governed by |
@@ -3781,13 +3792,14 @@ own terminal ten minutes later, re-authenticated through the provider.
 | 4 | Dana opens it. The panel makes a verifier, begins the sign-in with its challenge, and is sent to the issuer: the control plane made the state and the nonce, and the provider built the address with `Authorize` | `08-identity.md` §9.7; `16-extensions.md` §6; `10-api.md` §10 |
 | 5 | The issuer returns her to `/sign-in/callback` with a code. The control plane spends the pending sign-in once, checks the verifier against its challenge, and has the provider assert the code; the provider redeems it with the verifier, validates the ID token, and answers her `sub` and the sets `groups/ops` and `groups/oncall` | `08-identity.md` §5.2, §5.3, §9.7 |
 | 6 | The presentation is accepted once; her binding is made at first use; she is recorded confirmed in both sets, each having a binding, and the session begins, its sets kept with it for the gateway to read at each call | `08-identity.md` §5, §5.1, §9.4, §9.7 |
-| 7 | She restarts a server: evaluation counts the set's grant while the set's binding and her record as its member vouch | `08-identity.md` §5, §5.1 |
+| 7 | She restarts a server: evaluation counts the set's grant while the set's binding and her record as its member vouch; she finds the server by its name, through the grants she is told she holds ‡ | `08-identity.md` §5, §5.1 |
 | 8 | Later that morning the re-verifications of `ops` and `oncall` fall due together, claimed by two control planes; both ask the provider about Dana ‡ | `08-identity.md` §5.1, §9.7 |
 | 9 | At 14:00 she is removed from `ops`. The set's next re-verification asks about her; the provider refreshes her token, reads a new ID token without `ops`, and answers her not present; her record is unverified, and her next restart is refused | `08-identity.md` §5.1, §9.7 |
 | 10 | Added 2026-10-21. That morning, between steps 7 and 8, she passed reading one project on to a helper's token through `ops`: issued from her own session beneath the set's grant, it names `ops` and her as the set and member it came through, and the thirty days she asked for are clamped to the delegation ceiling's seven | `08-identity.md` §5.1, §9.7 |
 | 11 | From step 9 on, the helper's token reads nothing, though nobody revoked it, and she can pass nothing more on through `ops`, holding its grant no longer | `08-identity.md` §5.1 |
+| 12 | Added 2026-10-22. Had she re-authenticated from her session at 14:00, as a change needing a recent sign-in asks her to, the sign-in names `oncall` alone and unverifies her in `ops` at once; a re-verification of `ops` asked a moment before, when the issuer still had her in it, answers after her sign-in ‡ | `08-identity.md` §5.1, §9.6, §9.7 |
 
-**One finding, at step 8** (‡).
+**Three findings, at steps 7, 8, and 12** (‡).
 
 **FINDING 119: Two sets asking about one person at once would spend a rotating refresh token twice.
 `CONFIRMED`**
@@ -3848,6 +3860,53 @@ screen reads it, or a failure with no answer, as a ceremony that may have happen
 one completed through a provider, offers to go on and find out; a redemption says to sign in with
 what was just registered and to renew the recovery codes. → patched into `11-surface-web.md` §9;
 built and tested in `web/src/retrying.ts` and `web/src/views/refusal.ts`.
+
+**FINDING 142: A person whose authority came through a set was told they held no grant.
+`CONFIRMED`, in the code**
+
+Found 2026-10-22 running step 7 on a real node in `scripts/e2e-phase2.sh`, with the independent
+issuer and the provider's own program: Dana, signed in and in `ops`, was refused `korpis status
+web-1` as naming no workload she could read, though `korpis status` of the same workload's
+identifier answered. The CLI resolves a name from the places the caller's grants are anchored on,
+and the panel opens its places the same way (§5 of `11-surface-web.md`); both read `ListGrants`
+without a filter, which listed the grants issued to the caller's own subject. A person signed in
+through an identity provider holds almost nothing as themselves: what they hold is their sets',
+which evaluation counts at each call (§9.7 of `08-identity.md`). The browser test of §44 signs
+her in and stops there, so nothing had asked a person to find anything.
+
+**Resolution.** The grants a caller holds are those of its own subject and of each set that vouches
+for it at that call, by evaluation's own rule, so a set's grant is listed while it counts and not
+after; the organization a person lands at (§7 of `11-surface-web.md`) is chosen from the same
+grants. → stated in §9.7 of `08-identity.md` and the places note of §5 of `11-surface-web.md`;
+built in `crates/korpis-app/src/caller.rs` and `crates/korpis-app/src/authz/query.rs`, with an API
+test that lists the set's grant as hers and, once she leaves the set, no more. What it costs: one
+query names several subjects rather than one.
+
+**FINDING 141: An answer that a member was still in a set, asked before a sign-in that found them
+gone, was recorded over the sign-in. `CONFIRMED`, in the code**
+
+Found 2026-10-22 when the full check failed once, on a loaded machine, in the API test of a
+person re-authenticating (`external_complete.rs`): a set her second sign-in no longer named read
+`verified`. Asking the algebra question of step 12, what decides which of two answers about Dana
+in `ops` stands, and with what: §5.1 of `08-identity.md` says an answer is recorded only against
+the count of answers the binding had when it was asked, so an older one never replaces a newer.
+That count is the binding's. A sign-in writes the member's record and not the binding's count, so
+a re-verification asked before her sign-in and answered after it passed the binding's
+compare-and-swap and wrote "present" over the sign-in's "not in `ops`": she held the set's grant
+again, and everything she issued through it stood, until the set's next interval. The test's
+provider says everyone is in every set, so the same failure also came from a re-verification
+asked after her sign-in, which was the test's own race; it now waits for its bindings' first
+question before anyone signs in.
+
+**Resolution.** Each member's record counts the answers written to it, by a re-verification or a
+sign-in, and a re-verification reads the count with the members it asks about: that a member is
+still in the set is recorded only if the count is unchanged, and that they are not is recorded
+whatever came between, as an ending is, with the set asked again within a minute when the record
+had been written meanwhile. → corrected in §5.1 of `08-identity.md`; built in migration 0121,
+`crates/korpis-store/src/member.rs`, and `crates/korpis-app/src/authz/reverify.rs`, with a store
+test of both answers asked before a sign-in. What it costs: a re-verification that crosses a
+sign-in confirms nobody it asked about whom that sign-in wrote, so their confirmation is the
+sign-in's, and lapses on the sign-in's clock.
 
 ## 45. A host's support engineer reads a customer's console, and the customer reads that they did
 
@@ -4566,11 +4625,11 @@ affected the same way: its text is shown to a holder of `node.read` on the node 
 `08-identity.md`), and a tenant may own a node, so it now names the set and the dimension and no
 number, whoever reads it.
 
-**Run on a real node.** `scripts/e2e-phase2.sh` walks steps 1 to 5 and 8 through the `korpis`
-CLI, each level acting with a credential the level above issued it and never with root's, at a
-scale of mebibytes: Northwind given 512 and permitted to sell twice that, Kestrel given 256 and
-sold 768, Pinecone given all of Kestrel's. Pinecone's first server runs within all three sets;
-its second, which fits Pinecone's, is refused by Northwind's limits, with Pinecone told only the
-dimension and Northwind, planning the same file, told its own set and bound; Northwind's own
+**Run on a real node.** `scripts/e2e-phase2.sh` walks steps 1 to 5 and 8 through the `korpis` CLI,
+each level acting with a credential the level above issued it and never with root's, at a scale of
+mebibytes: Northwind given 512 and sold 768, permitted to sell twice that beneath it, Kestrel given
+256 and sold 768, Pinecone given all of Kestrel's. Pinecone's first server runs within all three
+sets; its second, which fits Pinecone's, is refused by Northwind's limits, with Pinecone told only
+the dimension and Northwind, planning the same file, told its own set and bound; Northwind's own
 second server is refused for reaching into what it guaranteed Kestrel; and each credential reads
 only the organizations beneath where it was issued.
