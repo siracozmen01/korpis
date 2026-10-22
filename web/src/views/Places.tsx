@@ -16,6 +16,7 @@ import { Audit } from "../audit/Audit";
 import { Shown } from "./Shown";
 import { Bindings } from "../identity/Bindings";
 import { Ceiling } from "../identity/Ceiling";
+import { Portals } from "../portals/Portals";
 import { Roles } from "../roles/Roles";
 import { QuotaView } from "./Quota";
 import { Suspension } from "./Suspension";
@@ -185,6 +186,7 @@ export function OrganizationPage({ id }: { readonly id: string }) {
       {org !== undefined && <Roles place={{ case: "organization", id: org.id }} />}
       {org !== undefined && <Bindings organization={org.id} />}
       {org !== undefined && <Ceiling organization={org.id} />}
+      {org !== undefined && !metered && <Portals organization={org.id} />}
       {!metered && <ThemeEditor id={id} />}
       {/* A share link's calls each spend a use, so its holder is shown no trail to page. */}
       {!metered && <Audit id={id} />}

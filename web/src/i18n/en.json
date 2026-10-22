@@ -95,6 +95,9 @@
     "defaultMessage": "Made by",
     "description": "a run's column"
   },
+  "0naACmRu": {
+    "defaultMessage": "Reading this organization's portals…"
+  },
   "1BDY1a0A": {
     "defaultMessage": "({marks})",
     "description": "a step's marks"
@@ -295,6 +298,9 @@
   "8RMoim+k": {
     "defaultMessage": "Declared {declared}, {convergence}"
   },
+  "8d/q0B9s": {
+    "defaultMessage": "Delete the portal"
+  },
   "8jocOM4G": {
     "defaultMessage": "A number"
   },
@@ -312,6 +318,9 @@
   },
   "9HUO3CrK": {
     "defaultMessage": "read its files"
+  },
+  "9OvYhnkX": {
+    "defaultMessage": "Not served: its certificate was not issued. {why}"
   },
   "9Q4NboHp": {
     "defaultMessage": "The upload of {name} stopped at {done} of {total}."
@@ -372,6 +381,9 @@
   },
   "AZ8OrWtY": {
     "defaultMessage": "Its plan waits for approval: {why}"
+  },
+  "AdYv7VFi": {
+    "defaultMessage": "Deleting it ends every session begun at it and removes {passkeys, plural, one {the # passkey} other {the # passkeys}} registered there. {accounts, plural, =0 {Every account with one signs in elsewhere too.} one {# account signs in nowhere else, and is recovered by being invited again.} other {# accounts sign in nowhere else, and are recovered by being invited again.}}"
   },
   "Adiqi3MR": {
     "defaultMessage": "From {from} to now: {measured, plural, one {# interval} other {# intervals}} measured{gaps, plural, =0 {} other {, not counting # unheard over {hours} hours}}."
@@ -489,6 +501,9 @@
   "DbQxUDQO": {
     "defaultMessage": "{known, select, yes {Declared {ago} ago} other {Declared}}, {where, select, node {node {node}} region {its node in {region}} other {its node}} has not acknowledged."
   },
+  "DeXb3C7q": {
+    "defaultMessage": "Make the portal"
+  },
   "Dr+dcwVH": {
     "defaultMessage": "Memory",
     "description": "a usage figure"
@@ -554,6 +569,9 @@
   "FNNGdHd/": {
     "defaultMessage": "Modified",
     "description": "column: when a file was modified"
+  },
+  "FSapitOw": {
+    "defaultMessage": "Not served yet: its certificate is being issued."
   },
   "FUKsmHmt": {
     "defaultMessage": "Your identity provider did not sign you in: {why}"
@@ -627,6 +645,9 @@
   },
   "HErk5s7f": {
     "defaultMessage": "Downtime: about {seconds, plural, one {# second} other {# seconds}}."
+  },
+  "HOzQ6Y9l": {
+    "defaultMessage": "A provided certificate, crt_…, or nothing for its own"
   },
   "HmNW5Y9i": {
     "defaultMessage": "Text",
@@ -925,6 +946,9 @@
   "Px9wrp6g": {
     "defaultMessage": "A role allows at least one action."
   },
+  "Q/y8dTor": {
+    "defaultMessage": "Portals"
+  },
   "QKVDcL4/": {
     "defaultMessage": "Dedicated IPv4 addresses"
   },
@@ -941,6 +965,9 @@
   },
   "Qgzl1qJN": {
     "defaultMessage": "Its provider did not answer: {why}"
+  },
+  "QyrO/nr6": {
+    "defaultMessage": "Served with a provided certificate."
   },
   "R+2+cn8K": {
     "defaultMessage": "Reading the organization…"
@@ -1010,6 +1037,9 @@
   },
   "SGSyVNmC": {
     "defaultMessage": "workloads labelled {labels}"
+  },
+  "Sjp5VKdA": {
+    "defaultMessage": "Make a portal"
   },
   "SqsiTxuN": {
     "defaultMessage": "Written",
@@ -1220,6 +1250,9 @@
   "ZEgIPrqb": {
     "defaultMessage": "Disk writes (operations/s)"
   },
+  "ZGrG3DQ2": {
+    "defaultMessage": "Served with its own certificate."
+  },
   "ZInTaFOM": {
     "defaultMessage": "Uses",
     "description": "how many uses a share link has"
@@ -1233,6 +1266,9 @@
   },
   "Zcs/kMyq": {
     "defaultMessage": "The command-line client was refused, and its code no longer works."
+  },
+  "ZgHI/owG": {
+    "defaultMessage": "The control plane answers at no name of this organization's."
   },
   "Zj8bMqyt": {
     "defaultMessage": "Guaranteed"
@@ -1481,6 +1517,9 @@
   "hJ6uj4ZM": {
     "defaultMessage": "It asked from"
   },
+  "hJSRZ6Nh": {
+    "defaultMessage": "Serve it with another certificate"
+  },
   "hO8zbGty": {
     "defaultMessage": "Their identifier at the provider"
   },
@@ -1503,6 +1542,9 @@
   "i+q7WayW": {
     "defaultMessage": "Observed",
     "description": "what the node observed"
+  },
+  "iE8ogyPn": {
+    "defaultMessage": "Serve it with this"
   },
   "iJNuzDiK": {
     "defaultMessage": "Its impact is unknown."
@@ -1596,6 +1638,9 @@
     "defaultMessage": "Throttled",
     "description": "a usage figure: CPU throttled"
   },
+  "lNbJX12X": {
+    "defaultMessage": "Delete…"
+  },
   "lO2mTRKT": {
     "defaultMessage": "Memory",
     "description": "a usage column"
@@ -1674,6 +1719,9 @@
   },
   "nXNb6xjd": {
     "defaultMessage": "{kind, select, organization {Reading the organization…} project {Reading the project…} other {Reading the workload…}}"
+  },
+  "ngWBuQqU": {
+    "defaultMessage": "Signed in here, you cannot do this, as it reaches beyond this organization. Sign in at your provider's own address to do it."
   },
   "nh0uJD+E": {
     "defaultMessage": "Entry {n}"
@@ -1810,6 +1858,9 @@
   },
   "sYQQIZsv": {
     "defaultMessage": "start it"
+  },
+  "se3fX2nT": {
+    "defaultMessage": "Reading what deleting it removes…"
   },
   "sgfAtMMm": {
     "defaultMessage": "{hours} GiB-hours",
@@ -1964,6 +2015,9 @@
   },
   "yMzzPzXC": {
     "defaultMessage": "Every use needs a second factor"
+  },
+  "yRLGlA/I": {
+    "defaultMessage": "Name, one this organization holds"
   },
   "yS/twS6R": {
     "defaultMessage": "converged",

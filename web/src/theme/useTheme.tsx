@@ -5,7 +5,11 @@
 // the top organization they can read, whatever deeper place they open, so a tenant's theme never
 // dresses its provider's screens; a share link's holder wears the brand of the place it opens, its
 // colours, name, and logo but never its stylesheet; before anyone signs in, the installation
-// root's. A theme that cannot be read leaves the panel's own on, which is what its absence means.
+// root's. At a portal (§3.6 of docs/07-networking.md) the page wears the portal's organization's,
+// before anyone signs in and after, whatever the viewer reads, since the address is that
+// organization's: the control plane names the portal, and answers its theme as the sign-in
+// theme there. A theme that cannot be read leaves the panel's own on, which is what its absence
+// means.
 
 import {
   createContext,
@@ -68,6 +72,10 @@ async function read(source: Source): Promise<Theme | undefined> {
       return r.governing?.theme;
     }
     case "viewer": {
+      // At a portal, the portal's organization's, which the sign-in theme is there.
+      if ((await source.info.getServerInfo({})).portal !== "") {
+        return (await source.info.getSignInTheme({})).governing?.theme;
+      }
       const top = topOf(await readable(source.clients));
       if (top === undefined) return (await source.info.getSignInTheme({})).governing?.theme;
       const r = await source.clients.organizations.getTheme({

@@ -54,8 +54,9 @@ test("the top of what a viewer reads is the one organization whose parent they c
   expect(topOf([]), "none").toBeUndefined();
 });
 
-/** A viewer reading `orgs`, each organization's theme named after it, and the sign-in theme's. */
-function viewer(orgs: ReturnType<typeof org>[]) {
+/** A viewer reading `orgs`, each organization's theme named after it, and the sign-in theme's,
+ * at `portal` where one is named. */
+function viewer(orgs: ReturnType<typeof org>[], portal = "") {
   const asked: string[] = [];
   const transport = createRouterTransport(({ service }) => {
     service(OrganizationService, {
@@ -67,7 +68,12 @@ function viewer(orgs: ReturnType<typeof org>[]) {
       },
     });
     service(ServerInfoService, {
-      getSignInTheme: () => ({ governing: { theme: { productName: "The installation's" } } }),
+      getServerInfo: () => ({ portal, portalOrganization: portal === "" ? "" : "org_reseller" }),
+      getSignInTheme: () => ({
+        governing: {
+          theme: { productName: portal === "" ? "The installation's" : "The portal's" },
+        },
+      }),
     });
   });
   const source = {
@@ -93,6 +99,12 @@ test("a viewer with no single provider wears the installation's theme", async ()
   const asked = viewer([org("org_a", "org_x"), org("org_b", "org_y")]);
   expect(await screen.findByText("The installation's")).toBeTruthy();
   expect(asked).toEqual([]);
+});
+
+test("at a portal a viewer wears the portal's organization's theme, whatever they read", async () => {
+  const asked = viewer([org("org_customer", "org_host")], "ptl_pinecone");
+  expect(await screen.findByText("The portal's")).toBeTruthy();
+  expect(asked, "no organization's theme read in its place").toEqual([]);
 });
 
 test("a page leaving every theme leaves the panel's own on", async () => {

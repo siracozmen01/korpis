@@ -41,6 +41,16 @@ export function refusal(e: unknown): string {
         id: "1UtyFZcc",
       });
     default:
+      // Said here rather than in the control plane's words: what a session begun at a portal
+      // may not do is reached from the installation's own address (§9.8 of
+      // docs/08-identity.md).
+      if (reasonOf(e) === "session.portal_confined") {
+        return t({
+          defaultMessage:
+            "Signed in here, you cannot do this, as it reaches beyond this organization. Sign in at your provider's own address to do it.",
+          id: "ngWBuQqU",
+        });
+      }
       return error.rawMessage;
   }
 }

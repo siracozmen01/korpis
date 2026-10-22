@@ -302,7 +302,17 @@ rendered as locked. It is not rendered.
 > delegation ceiling in force and the organization's own (§5.1 of `08-identity.md`), and a caller
 > holding `org.write` there sets or removes its own; one above what is in force above is refused
 > by the control plane, in its words, rather than by the form, which holds only what it read. A
-> share link is offered none of it. What it does not show: the effects of a relayed call, with the
+> share link is offered none of it.
+>
+> Portals as built, 2026-10-22 (P2.9e1, `web/src/portals/`). An organization's page lists its
+> portals the viewer may read (§3.6 of `07-networking.md`), each with how its certificate stands:
+> served with its own or a provided one, being issued, or not issued and why, in the control
+> plane's words. A caller holding `portal.write` there makes one of a name the organization holds,
+> served with its own `acme` certificate or a provided one it names, serves one with another, and
+> deletes one only after the page has said, from `GetPortal`, how many passkeys deleting it removes
+> and how many accounts would then sign in nowhere. A refusal `session.portal_confined`, of a change
+> a session begun at a portal may not make (§9.8 of `08-identity.md`), is said in the panel's own
+> words: sign in at the provider's own address to make it. A share link is offered none of it. What it does not show: the effects of a relayed call, with the
 > client that relayed them, are read by `korpis get effects` until the tenant-visible audit of
 > Phase 2 (`20-roadmap.md` §4) gives the panel an effect log at all.
 >
@@ -413,8 +423,9 @@ the API like everything else, with the logo inside it, so the panel fetches noth
 > is what the client says it is; which portal a request is for is decided by the connection, whose
 > certificate named it, and nothing a request says changes it. Everywhere else the rule above
 > holds: at the installation's own address the panel wears the theme of the viewer's provider.
-> The two answers are built (P2.9d2a, §9.8 of `08-identity.md`); the panel's use of them is
-> P2.9e.
+> The two answers are built (P2.9d2a, §9.8 of `08-identity.md`), and the panel uses them
+> (P2.9e1): where `GetServerInfo` names a portal, a signed-in viewer wears the theme
+> `GetSignInTheme` answers there instead of their provider's, and nothing they read decides it.
 
 **A stylesheet is code that runs in the panel, and it is fenced.** The panel's content security
 policy, which the bundle carries in its own page so it holds wherever the bundle is served, admits

@@ -15,6 +15,7 @@ import {
   IdentityService,
   OrganizationService,
   PlanService,
+  PortalService,
   ProjectService,
   StreamService,
   WorkloadService,
@@ -30,6 +31,7 @@ export interface Clients {
   readonly metering: Client<typeof MeteringService>;
   readonly organizations: Client<typeof OrganizationService>;
   readonly plans: Client<typeof PlanService>;
+  readonly portals: Client<typeof PortalService>;
   readonly projects: Client<typeof ProjectService>;
   readonly runs: Client<typeof RunService>;
   readonly streams: Client<typeof StreamService>;
@@ -45,6 +47,7 @@ export function clientsOver(transport: Transport): Clients {
     metering: createClient(MeteringService, transport),
     organizations: createClient(OrganizationService, transport),
     plans: createClient(PlanService, transport),
+    portals: createClient(PortalService, transport),
     projects: createClient(ProjectService, transport),
     runs: createClient(RunService, transport),
     streams: createClient(StreamService, transport),
