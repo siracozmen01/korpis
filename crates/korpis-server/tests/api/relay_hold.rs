@@ -20,7 +20,7 @@ use std::time::Duration;
 /// How opening the feed with a fresh request ends: `None` when it opens and sends the token keys.
 async fn opened(h: &Harness, dir: &RelayDir, id: &str) -> Option<ErrorCode> {
     let control = relay::RelayControlServiceClient::new(h.http.clone(), h.config(None));
-    let request = signed_request(id, &dir.identity().unwrap()).unwrap();
+    let request = signed_request(id, &dir.identity().unwrap(), &None).unwrap();
     let mut feed: Feed = match control.feed(request).await {
         Ok(feed) => feed,
         Err(e) => return Some(e.code),
@@ -67,7 +67,7 @@ async fn a_held_relay_is_fed_nothing_and_named_to_no_node_until_it_is_readmitted
     let id = join(&dir, &h.base_url(), &created.token, &created.ca_fingerprint).await.unwrap();
     let control = relay::RelayControlServiceClient::new(h.http.clone(), h.config(None));
     let mut live: Feed =
-        control.feed(signed_request(&id, &dir.identity().unwrap()).unwrap()).await.unwrap();
+        control.feed(signed_request(&id, &dir.identity().unwrap(), &None).unwrap()).await.unwrap();
     let app = App::new(h.db.store().await.unwrap(), SystemClock, test_key(), NoRecipes);
     assert_eq!(app.relay_urls().await.unwrap(), ["https://localhost:9443"]);
 

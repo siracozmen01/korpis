@@ -135,6 +135,13 @@ pub enum Command {
     /// node and offloaded, the operator's floor, what is held only on the node, what is lost;
     /// `share` makes a link to read a range of it.
     Stream(stream_share::StreamArgs),
+    /// Where an SFTP client reaches a workload's files, and the host key to expect, for each
+    /// server that serves SFTP; your client connects, with a key `korpis ssh-key add` registered.
+    Sftp {
+        /// The workload: an identifier, `project/name`, or a name.
+        #[arg(add = ArgValueCompleter::new(complete::workloads))]
+        workload: String,
+    },
     /// A workload's files through a relay: ls, get, put, sync, mkdir, mv, and rm.
     #[command(subcommand)]
     Files(crate::cmd::files::FilesAction),

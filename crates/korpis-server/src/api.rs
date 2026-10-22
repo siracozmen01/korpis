@@ -128,6 +128,8 @@ pub struct Api {
     named_relays: Arc<crate::named_relays::NamedRelays>,
     /// The key page tokens are sealed under (§8 of docs/10-api.md).
     cursors: Arc<cursor::Cursors>,
+    /// The SFTP servers named to clients.
+    sftp: crate::sftp::Advertised,
     /// Until when a restore settles, as last asked of the store, and when that was.
     settling: std::sync::Mutex<Option<(std::time::Instant, Option<std::time::SystemTime>)>>,
 }
@@ -151,6 +153,7 @@ impl Api {
             serves_relay: true,
             named_relays: Arc::default(),
             cursors: Arc::new(cursor::Cursors::of_this_process()),
+            sftp: crate::sftp::Advertised::default(),
             settling: std::sync::Mutex::new(None),
         }
     }
@@ -215,16 +218,32 @@ impl Api {
     }
 
     /// Serves SFTP for this process's relay role on `listener` with `host_key`, reading a PROXY
-    /// header from connections whose peer is in `proxies` (§3.1 of docs/02-architecture.md).
-    /// Ends only if accepting fails.
+    /// header from connections whose peer is in `proxies`, and names it to clients as reached at
+    /// `address` (§3.1 of docs/02-architecture.md). Ends only if accepting fails.
+    ///
+    /// # Errors
+    /// The host key is not one a client can be told of.
     pub fn serve_sftp(
         &self,
-        listener: tokio::net::TcpListener,
-        host_key: russh::keys::PrivateKey,
+        (listener, host_key): (tokio::net::TcpListener, russh::keys::PrivateKey),
         proxies: Arc<[ipnet::IpNet]>,
-    ) -> impl Future<Output = std::io::Result<()>> + Send + 'static {
+        address: korpis_core::relay::sftp::SftpAddress,
+    ) -> Result<impl Future<Output = std::io::Result<()>> + Send + 'static, String> {
+        let blob = host_key.public_key().to_bytes().map_err(|e| e.to_string())?;
+        let key = korpis_core::account::ssh_key::SshPublicKey::from_blob(blob);
+        let host_key_seen = key.map_err(|e| e.to_string())?;
+        let own = korpis_app::relay::SftpEndpoint { relay: None, address, host_key: host_key_seen };
+        if !self.sftp.serve_own(own) {
+            return Err("this process serves SFTP already".into());
+        }
         let ours = (Arc::clone(&self.relay), Arc::new(sftp::OwnFiles(Arc::clone(&self.app))));
-        crate::sftp::serve(listener, host_key, proxies, ours)
+        Ok(crate::sftp::serve(listener, host_key, proxies, ours))
+    }
+
+    /// The SFTP servers named to clients.
+    #[must_use]
+    pub fn sftp_advertised(&self) -> &crate::sftp::Advertised {
+        &self.sftp
     }
 
     /// The application, for the composition root's background work.

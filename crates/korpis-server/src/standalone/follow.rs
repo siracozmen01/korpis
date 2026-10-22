@@ -4,14 +4,18 @@
 //! identity key signs, trusting the control plane by the authority it pinned when it joined, and
 //! takes in every update. A feed that ends, fails, or stays silent for three of its declared
 //! heartbeat intervals is opened again, backing off; a feed the control plane refuses to
-//! authenticate means the relay was removed, and following stops.
+//! authenticate means the relay was removed, and following stops. The request reports what the
+//! relay serves over SFTP, and a feed is opened again, at once, when that changes, so the control
+//! plane always holds what the relay serves.
 
+use super::RelayDir;
 use super::fed::Fed;
-use super::{RelayDir, feed::signed_request};
+use super::feed::{SftpReport, signed_request};
 use connectrpc::client::{ClientConfig, ClientTransport, HttpClient, ServerStream};
 use korpis_proto::korpis::relay::v1 as relay;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::watch;
 
 /// The longest wait between attempts to open the feed.
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
@@ -59,10 +63,10 @@ pub(super) fn control(
     ))
 }
 
-async fn open(dir: &RelayDir, relay_id: &str) -> Result<Feed, Ended> {
+async fn open(dir: &RelayDir, relay_id: &str, sftp: &SftpReport) -> Result<Feed, Ended> {
     let client = control(dir).map_err(Ended::Again)?;
     let key = dir.identity().map_err(|e| Ended::Again(e.to_string()))?;
-    let request = signed_request(relay_id, &key).map_err(|e| Ended::Again(e.to_string()))?;
+    let request = signed_request(relay_id, &key, sftp).map_err(|e| Ended::Again(e.to_string()))?;
     client.feed(request).await.map_err(|e| ended(&e))
 }
 
@@ -74,13 +78,23 @@ fn ended(e: &connectrpc::ConnectError) -> Ended {
     }
 }
 
-/// Takes in `stream` until it ends; whether anything arrived, and how it ended.
-async fn take_in(fed: &Fed, mut stream: Feed) -> (bool, Ended) {
+/// Takes in `stream` until it ends, or what the relay serves over SFTP changes; whether anything
+/// arrived, and how it ended.
+async fn take_in(
+    fed: &Fed,
+    mut stream: Feed,
+    sftp: &mut watch::Receiver<SftpReport>,
+) -> (bool, Ended) {
     let mut heard = false;
     loop {
         let silence = fed.terms().map_or(FIRST_SILENCE, |t| t.heartbeat.saturating_mul(3));
-        let next = match tokio::time::timeout(silence, stream.message::<relay::FeedUpdate>()).await
-        {
+        let message = tokio::select! {
+            m = tokio::time::timeout(silence, stream.message::<relay::FeedUpdate>()) => m,
+            Ok(()) = sftp.changed() => {
+                return (true, Ended::Again("what it serves over SFTP changed".into()));
+            }
+        };
+        let next = match message {
             Ok(Ok(Some(m))) => m.to_owned_message(),
             Ok(Ok(None)) => return (heard, Ended::Again("the feed ended".into())),
             Ok(Err(e)) => return (heard, ended(&e)),
@@ -94,8 +108,13 @@ async fn take_in(fed: &Fed, mut stream: Feed) -> (bool, Ended) {
     }
 }
 
-/// Follows the feed of the relay kept in `dir` into `fed`, until the control plane refuses it.
-pub async fn follow(dir: RelayDir, fed: Arc<Fed>) -> FollowError {
+/// Follows the feed of the relay kept in `dir` into `fed`, reporting what `sftp` says it serves,
+/// until the control plane refuses it.
+pub async fn follow(
+    dir: RelayDir,
+    fed: Arc<Fed>,
+    mut sftp: watch::Receiver<SftpReport>,
+) -> FollowError {
     let relay_id = match dir.joined() {
         Ok(Some(id)) => id,
         Ok(None) => return FollowError::Dir("this relay has not joined".into()),
@@ -103,10 +122,11 @@ pub async fn follow(dir: RelayDir, fed: Arc<Fed>) -> FollowError {
     };
     let mut backoff = Duration::from_secs(1);
     loop {
-        let (heard, how) = match open(&dir, &relay_id).await {
+        let report = sftp.borrow_and_update().clone();
+        let (heard, how) = match open(&dir, &relay_id, &report).await {
             Ok(stream) => {
                 tracing::info!("feed open");
-                take_in(&fed, stream).await
+                take_in(&fed, stream, &mut sftp).await
             }
             Err(how) => (false, how),
         };

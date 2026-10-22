@@ -152,11 +152,22 @@ pub async fn serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
     if args.sftp.on() && !args.relay_role {
         return Err("--sftp-listen serves the relay role's SFTP, and --relay-role is off".into());
     }
-    let sftp = args.sftp.bound(&args.data_dir).await?;
+    let bound = args.sftp.bound(&args.data_dir).await?;
+    let address = match &bound {
+        Some((listener, _)) => {
+            let port = listener.local_addr()?.port();
+            Some(args.sftp.advertised_at(args.public_url.as_deref(), port)?)
+        }
+        None => None,
+    };
     let proxies: std::sync::Arc<[ipnet::IpNet]> = args.proxy_protocol_from.clone().into();
     let running = korpis_server::serve(config(args, policy)?).await?;
-    let sftp =
-        sftp.map(|(listener, key)| tokio::spawn(running.api.serve_sftp(listener, key, proxies)));
+    let sftp = match (bound, address) {
+        (Some(bound), Some(address)) => {
+            Some(tokio::spawn(running.api.serve_sftp(bound, proxies, address)?))
+        }
+        _ => None,
+    };
     tokio::select! {
         r = running.task => r??,
         why = crate::sftp_flags::ended(sftp) => return Err(why.into()),

@@ -5,9 +5,11 @@
 //! is registered and whose grant allows writing uploads, lists, downloads, renames, and removes,
 //! a file of several mebibytes crossing with many requests in flight; a person allowed to read
 //! downloads and is refused an upload; a key no one registered is refused; and each token the
-//! relay asked for is recorded under the relay's name. Skipped where OpenSSH's client is absent.
+//! relay asked for is recorded under the relay's name. Where to connect and which host key to
+//! trust come from `ServerInfo`, which names what the relay reported. Skipped where OpenSSH's client is absent.
 
 use crate::session::until;
+use crate::support::Relay;
 use crate::support::{ControlPlane, facts};
 use korpis_agent::data::files::{READ, WRITE};
 use korpis_agent::host::InMemoryHost;
@@ -59,6 +61,56 @@ async fn sftp(dir: &Path, (w, port): (&str, u16), key: &Path, batch: &str) -> (b
     (out.status.success(), said)
 }
 
+/// The SFTP server `ServerInfo` names, once the relay's report has been listed.
+async fn listed_sftp(cp: &ControlPlane) -> pb::SftpServer {
+    let info = cp.client(pb::ServerInfoServiceClient::new);
+    for _ in 0..100 {
+        let got = info.get_server_info(pb::GetServerInfoRequest::default()).await.unwrap();
+        if let Some(s) = got.into_owned().sftp.into_iter().next() {
+            return s;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("ServerInfo named no SFTP server within ten seconds");
+}
+
+/// A node joined, serving files from beneath `dir`, and a workload on it with a volume at
+/// `/data`; the agent and the workload.
+async fn node_with_files(cp: &ControlPlane, dir: &Path) -> (Agent, String) {
+    let (token, ca) = cp.token("fra-20").await;
+    let state = StateDir::new(dir.join("agent"));
+    let request =
+        Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
+    join(&state, &request).await.unwrap();
+    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
+    host.serve_files_from(&dir.join("files"));
+    let options = Options { period: Duration::from_millis(200), ..Options::default() };
+    let agent = Agent::start(&state, runtime, host, Arc::new(facts), options).unwrap();
+    until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
+    let volume = pb::VolumeSpec { name: "data".into(), path: "/data".into(), ..Default::default() };
+    let w = cp.declare_with(&cp.project().await, "mc", vec![volume]).await;
+    (agent, w)
+}
+
+/// SFTP served at `relay` on a port of its own, which clients are told of, with the key to
+/// expect, by `ServerInfo`, whose `known_hosts` line is written in `dir`; the port.
+async fn served(cp: &ControlPlane, relay: &Relay, dir: &Path) -> u16 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let key = host_key(&dir.join("sftp_host_key")).unwrap();
+    let fingerprint = korpis_server::sftp::host_key::fingerprint(&key);
+    // The server runs until the test does.
+    drop(relay.serve_sftp(listener, key));
+    let listed = listed_sftp(cp).await;
+    assert_eq!(listed.address, format!("localhost:{port}"), "the relay's host, the port bound");
+    let named = (listed.fingerprint, listed.known_hosts_name);
+    assert_eq!(named, (fingerprint, format!("[localhost]:{port}")));
+    assert!(listed.relay.starts_with("rly_"));
+    let known = format!("[127.0.0.1]:{port} {}\n", listed.host_key);
+    std::fs::write(dir.join("known_hosts"), known).unwrap();
+    port
+}
+
 #[tokio::test]
 async fn openssh_s_client_reaches_a_workload_s_files_through_a_relay_by_a_registered_key() {
     if !have("sftp") || !have("ssh-keygen") {
@@ -68,25 +120,8 @@ async fn openssh_s_client_reaches_a_workload_s_files_through_a_relay_by_a_regist
     let cp = ControlPlane::start_as(false, |c| c).await;
     let relay = cp.standalone_relay("sftp-1").await;
     let dir = tempfile::tempdir().unwrap();
-    let (token, ca) = cp.token("fra-20").await;
-    let state = StateDir::new(dir.path().join("agent"));
-    let request =
-        Join { server: cp.url.clone(), token, ca_fingerprint: ca, hostname: String::new() };
-    join(&state, &request).await.unwrap();
-    let (runtime, host) = (InMemory::new(), InMemoryHost::new());
-    host.serve_files_from(&dir.path().join("files"));
-    let options = Options { period: Duration::from_millis(200), ..Options::default() };
-    let agent = Agent::start(&state, runtime, host.clone(), Arc::new(facts), options).unwrap();
-    until(&mut agent.events(), |e| matches!(e, Event::Welcomed { .. })).await;
-    let volume = pb::VolumeSpec { name: "data".into(), path: "/data".into(), ..Default::default() };
-    let w = cp.declare_with(&cp.project().await, "mc", vec![volume]).await;
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let key = host_key(&dir.path().join("sftp_host_key")).unwrap();
-    let line = key.public_key().to_openssh().unwrap();
-    std::fs::write(dir.path().join("known_hosts"), format!("[127.0.0.1]:{port} {line}\n")).unwrap();
-    let _sftp = relay.serve_sftp(listener, key);
+    let (agent, w) = node_with_files(&cp, dir.path()).await;
+    let port = served(&cp, &relay, dir.path()).await;
 
     let ada = dir.path().join("ada");
     cp.person_with_key("ada", &[WRITE], &keygen(&ada).await).await;
@@ -124,5 +159,8 @@ async fn openssh_s_client_reaches_a_workload_s_files_through_a_relay_by_a_regist
         )
         .await;
     assert_eq!(recorded, 3, "each connection's token, under the relay's name");
+    let reported: i64 =
+        cp.scalar("SELECT count(*) FROM effect WHERE action = 'relay.sftp_reported'").await;
+    assert_eq!(reported, 1, "what the relay serves, recorded once, as it changed");
     agent.stop().await;
 }

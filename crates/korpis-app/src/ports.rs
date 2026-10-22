@@ -121,7 +121,8 @@ pub use recovery::{
     RecoveryWrite, SlotRecovery,
 };
 pub use relay::{
-    CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelayWrite,
+    CertificateIssuer, IssuedCertificate, RelayCertificate, RelayEnrollment, RelayRead, RelaySftp,
+    RelayWrite,
 };
 pub use retire::RetirementWrite;
 pub use run::{RunRead, RunWrite};

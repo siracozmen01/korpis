@@ -48,6 +48,19 @@ pub struct RelayCertificate {
     pub alerted: Option<Severity>,
 }
 
+/// Where a relay serves SFTP, as it last reported it (§3.1 of docs/02-architecture.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelaySftp {
+    /// The relay.
+    pub relay: Uuid,
+    /// Where clients reach it, `host:port`.
+    pub address: String,
+    /// Its SSH host key, in SSH's wire form.
+    pub host_key: Vec<u8>,
+    /// When it reported them.
+    pub reported_at: SystemTime,
+}
+
 /// Reading relays.
 pub trait RelayRead {
     /// Every relay, removed ones included, by name.
@@ -62,6 +75,9 @@ pub trait RelayRead {
     /// The certificate of every relay not removed that holds one.
     fn relay_certificates(&self)
     -> impl Future<Output = StoreResult<Vec<RelayCertificate>>> + Send;
+
+    /// Where each relay serving SFTP is reached, as each last reported it.
+    fn relay_sftp(&self) -> impl Future<Output = StoreResult<Vec<RelaySftp>>> + Send;
 
     /// The relay enrollment `token` binds, if it is a relay enrollment token.
     fn relay_enrollment(
@@ -128,6 +144,12 @@ pub trait RelayWrite {
 
     /// Holds, at `at`, every relay not removed and not held already; how many it held.
     fn hold_relays(&mut self, at: SystemTime) -> impl Future<Output = StoreResult<u64>> + Send;
+
+    /// Records where `sftp.relay` serves SFTP, replacing what it reported before.
+    fn set_relay_sftp(&mut self, sftp: &RelaySftp) -> impl Future<Output = StoreResult<()>> + Send;
+
+    /// Forgets where `relay` served SFTP: it reports serving none.
+    fn clear_relay_sftp(&mut self, relay: Uuid) -> impl Future<Output = StoreResult<()>> + Send;
 
     /// Readmits `relay`; false unless it is held and not removed.
     fn readmit_relay(&mut self, relay: Uuid) -> impl Future<Output = StoreResult<bool>> + Send;

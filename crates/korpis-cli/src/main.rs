@@ -20,7 +20,7 @@ use korpis_cli::cmd::run::{self as runs, RunAction};
 use korpis_cli::cmd::template;
 use korpis_cli::cmd::volume;
 use korpis_cli::cmd::{Answer, act, get, grant, sets};
-use korpis_cli::cmd::{console, layout, logs, ssh_key, stream_share, tenancy, theme};
+use korpis_cli::cmd::{console, layout, logs, sftp, ssh_key, stream_share, tenancy, theme};
 use korpis_cli::command::Command;
 use korpis_cli::complete::{COMPLETE_VAR, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
@@ -197,6 +197,9 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         Command::Event(a) => answer(cli, event::event(&cli.required().await?, a).await),
         Command::Console(a) => console::console(&cli.required().await?, a).await,
         Command::Files(a) => answer(cli, remote_files(&cli.required().await?, a).await),
+        Command::Sftp { workload } => {
+            answer(cli, sftp::sftp(&cli.required().await?, workload).await)
+        }
         Command::Logs(a) => logs::logs(&cli.required().await?, a, &mut printer(cli.json)).await,
         Command::Stream(a) => answer(cli, stream_share::run(&cli.required().await?, a).await),
         Command::Workload(a) => answer(cli, act::workload(&cli.required().await?, a).await),

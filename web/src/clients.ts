@@ -17,6 +17,7 @@ import {
   PlanService,
   PortalService,
   ProjectService,
+  ServerInfoService,
   StreamService,
   WorkloadService,
 } from "./gen/korpis/v1/api_pb";
@@ -34,6 +35,7 @@ export interface Clients {
   readonly portals: Client<typeof PortalService>;
   readonly projects: Client<typeof ProjectService>;
   readonly runs: Client<typeof RunService>;
+  readonly serverInfo: Client<typeof ServerInfoService>;
   readonly streams: Client<typeof StreamService>;
   readonly workloads: Client<typeof WorkloadService>;
 }
@@ -50,6 +52,7 @@ export function clientsOver(transport: Transport): Clients {
     portals: createClient(PortalService, transport),
     projects: createClient(ProjectService, transport),
     runs: createClient(RunService, transport),
+    serverInfo: createClient(ServerInfoService, transport),
     streams: createClient(StreamService, transport),
     workloads: createClient(WorkloadService, transport),
   };

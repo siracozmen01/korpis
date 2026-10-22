@@ -49,6 +49,7 @@ mod rate;
 mod recipe;
 mod recovery;
 mod relay;
+mod relay_sftp;
 mod run;
 pub mod schema;
 mod secret;

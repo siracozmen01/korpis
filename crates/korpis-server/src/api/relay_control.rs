@@ -202,7 +202,8 @@ impl relay::RelayControlService for Api {
         let req = request.to_owned_message();
         let id = wire::id(IdKind::Relay, "relay", &req.relay).refuse()?;
         let proof = proof_from_pb(&req.relay, req.auth.as_option())?;
-        self.app.authenticate_relay(id, &proof).await.map_err(error::from_app)?;
+        let sftp = (&req.sftp_host_key[..], req.sftp_address.as_str());
+        self.app.authenticate_relay(id, &proof, sftp).await.map_err(error::from_app)?;
         let (tx, mut rx) = mpsc::channel(8);
         tokio::spawn(feed(Arc::clone(&self.app), Arc::clone(&self.revocations), id, tx));
         let out = futures_util::stream::poll_fn(move |cx| rx.poll_recv(cx).map(|m| m.map(Ok)));

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO relay_sftp (relay_id, address, host_key, reported_at) VALUES ($1, $2, $3, $4)\n         ON CONFLICT (relay_id) DO UPDATE\n            SET address = excluded.address, host_key = excluded.host_key,\n                reported_at = excluded.reported_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d4701ff35a0dbe4319139b493b2eaccc45cdc2163fc8300cbe9d437ebb0f9a24"
+}

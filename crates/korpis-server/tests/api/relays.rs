@@ -143,7 +143,7 @@ async fn a_joined_relay_is_fed_what_it_verifies_by_until_it_is_removed() {
     let id =
         join(&relay_dir, &h.base_url(), &created.token, &created.ca_fingerprint).await.unwrap();
     let control = relay::RelayControlServiceClient::new(h.http.clone(), h.config(None));
-    let request = signed_request(&id, &relay_dir.identity().unwrap()).unwrap();
+    let request = signed_request(&id, &relay_dir.identity().unwrap(), &None).unwrap();
     let mut feed: Feed = control.feed(request.clone()).await.unwrap();
     let keys = next(&mut feed, |u| match u.message {
         Some(Update::TokenKeys(k)) => Some(k),

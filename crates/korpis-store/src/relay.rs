@@ -9,7 +9,7 @@ use crate::tenancy::name;
 use crate::{PgStore, PgTx};
 use chrono::{DateTime, Utc};
 use korpis_app::ports::{
-    RelayCertificate, RelayEnrollment, RelayRead, RelayWrite, StoreError, StoreResult,
+    RelayCertificate, RelayEnrollment, RelayRead, RelaySftp, RelayWrite, StoreError, StoreResult,
 };
 use korpis_core::event::Severity;
 use korpis_core::relay::{CertificateAlert, Relay, RelayUrl};
@@ -83,6 +83,10 @@ impl RelayRead for PgStore {
             .fetch_optional(&self.pool)
             .await
             .map_err(from_sqlx)
+    }
+
+    async fn relay_sftp(&self) -> StoreResult<Vec<RelaySftp>> {
+        crate::relay_sftp::read(self).await
     }
 
     async fn relay_certificates(&self) -> StoreResult<Vec<RelayCertificate>> {
@@ -275,6 +279,14 @@ impl RelayWrite for PgTx {
         .await
         .map_err(from_sqlx)?;
         Ok(true)
+    }
+
+    async fn set_relay_sftp(&mut self, sftp: &RelaySftp) -> StoreResult<()> {
+        crate::relay_sftp::set(self, sftp).await
+    }
+
+    async fn clear_relay_sftp(&mut self, relay: Uuid) -> StoreResult<()> {
+        crate::relay_sftp::clear(self, relay).await
     }
 
     async fn relay_seen(&mut self, relay: Uuid, at: SystemTime) -> StoreResult<()> {

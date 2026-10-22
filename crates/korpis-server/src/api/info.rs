@@ -39,6 +39,7 @@ impl pb::ServerInfoService for Api {
             portal_organization: at
                 .map(|p| wire_id(IdKind::Organization, p.organization))
                 .unwrap_or_default(),
+            sftp: self.sftp.listed(),
             ..Default::default()
         })
     }

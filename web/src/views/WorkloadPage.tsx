@@ -11,6 +11,7 @@ import { Button } from "react-aria-components";
 import { useReach } from "../clients";
 import { Console } from "../console/Console";
 import { FileManager } from "../files/FileManager";
+import { SftpAccess } from "../files/SftpAccess";
 import { READ, WRITE } from "../files/session";
 import { Actions } from "../workload/Actions";
 import { Roles } from "../roles/Roles";
@@ -111,6 +112,7 @@ export function WorkloadPage({ id }: { readonly id: string }) {
           <FileManager id={id} writes={may(WRITE)} />
         </Asked>
       )}
+      {!metered && (may(READ) || may(WRITE)) && <SftpAccess id={id} />}
       {!metered && (
         <>
           {status.head !== undefined && <Configuration id={id} head={status.head} />}

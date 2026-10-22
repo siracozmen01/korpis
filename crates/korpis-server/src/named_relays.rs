@@ -5,7 +5,8 @@
 //! whether this process serves the role itself. Each replica recomputes them every [`EVERY`] from
 //! the same rows and publishes them when they changed; every session sends the current ones
 //! when it opens and each change after, so a relay enrolled or removed reaches every connected
-//! node within about [`EVERY`].
+//! node within about [`EVERY`]. The SFTP the relays report serving is listed alongside, for
+//! `ServerInfo` to name to clients.
 
 use crate::api::Api;
 use korpis_proto::korpis::agent::v1 as agent;
@@ -65,6 +66,11 @@ pub(crate) async fn keep(api: Arc<Api>) {
             }
             // Nodes keep the relays they were named; the next tick tries again.
             Err(e) => tracing::warn!(error = %e, "listing the relays failed"),
+        }
+        match api.app().sftp_endpoints().await {
+            Ok(endpoints) => api.sftp_advertised().relays_are(endpoints),
+            // Clients are told of what was listed last; the next tick tries again.
+            Err(e) => tracing::warn!(error = %e, "listing the relays' SFTP failed"),
         }
     }
 }

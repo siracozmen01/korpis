@@ -8,6 +8,7 @@
 //! from the client's address, as a client of `RelayService` would, and answers each SFTP request
 //! with the session's verbs. Nothing else of SSH is served: no shell, no command, no forwarding.
 
+mod advertised;
 mod answers;
 mod files;
 pub mod host_key;
@@ -15,6 +16,7 @@ mod node;
 mod ops;
 mod ssh;
 
+pub use advertised::Advertised;
 pub use ssh::serve;
 
 use crate::standalone::feed::FilesAsked;

@@ -11,13 +11,26 @@ use korpis_proto::korpis::agent::v1 as agent;
 use korpis_proto::korpis::relay::v1 as relay;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// A feed request from `relay`, signed now with `key`.
+/// What a relay reports serving over SFTP: its host key's wire form and the address clients
+/// reach it at; none where it serves none.
+pub type SftpReport = Option<(Vec<u8>, String)>;
+
+/// A feed request from `relay` reporting `sftp`, signed now with `key`.
 pub fn signed_request(
     relay: &str,
     key: &ed25519_dalek::SigningKey,
+    sftp: &SftpReport,
 ) -> Result<relay::FeedRequest, getrandom::Error> {
-    let auth = signed(key, |s, ns, nonce| relay_feed_message(relay, s, ns, nonce))?;
-    Ok(relay::FeedRequest { relay: relay.to_owned(), auth: auth.into(), ..Default::default() })
+    let (host_key, address) = sftp.as_ref().map_or((&[][..], ""), |(k, a)| (&k[..], &a[..]));
+    let message =
+        |s, ns, nonce: &[u8]| relay_feed_message((relay, (host_key, address)), s, ns, nonce);
+    Ok(relay::FeedRequest {
+        relay: relay.to_owned(),
+        auth: signed(key, message)?.into(),
+        sftp_host_key: host_key.to_vec(),
+        sftp_address: address.to_owned(),
+        ..Default::default()
+    })
 }
 
 /// A renewal from `relay` for the new `tls_key`, signed now with `key`.

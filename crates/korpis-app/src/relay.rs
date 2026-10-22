@@ -6,12 +6,14 @@
 //! them. The control
 //! plane's own relay role is not a relay here; it needs no enrollment.
 
+mod advertised;
 mod enroll;
 mod feed;
 mod join;
 mod renew;
 mod sftp;
 
+pub use advertised::{SftpEndpoint, sftp_report};
 pub use enroll::{CreateRelayEnrollment, RelayEnrollmentToken};
 pub use feed::RelayFeed;
 pub use join::{JoinRelay, JoinedRelay};

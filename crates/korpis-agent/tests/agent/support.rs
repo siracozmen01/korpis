@@ -21,6 +21,7 @@ mod served;
 
 use contended::contended;
 pub use recipe::{push_paper, push_paper_waiting};
+pub use relay::Relay;
 
 pub struct ControlPlane {
     db: TestDb,

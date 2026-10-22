@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT relay_id, address, host_key, reported_at FROM relay_sftp ORDER BY relay_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "relay_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "relay_sftp",
+            "name": "relay_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "relay_sftp",
+            "name": "address"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "host_key",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "relay_sftp",
+            "name": "host_key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "reported_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "relay_sftp",
+            "name": "reported_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "30691c78a75aa2bf6e33a5dab3e61081e3560f89af91fd520a1e6a5190fa211b"
+}

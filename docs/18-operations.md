@@ -396,6 +396,17 @@ changed host key is meant to give. Turning it on extends the relay the trust §9
 applies to the SSH port as to the relay's own, since `source_cidr` is judged by the client's address
 there too.
 
+> Built 2026-10-22. Without `--sftp-advertise`, a relay advertises its URL's host and the port
+> `--sftp-listen` bound, and the control plane its `--public-url`'s host and that port; a control
+> plane with neither refuses to start, since clients could not be told where to connect. The host
+> key is `sftp_host_key` in the relay's directory, or the control plane's data directory, unless
+> `--sftp-host-key` names another. The address and the key travel in the feed request the relay's
+> identity key signs, so no one between them can send clients elsewhere or vouch for another key;
+> a relay opens its feed again as soon as it starts serving SFTP. The control plane records each
+> change as `relay.sftp_reported`, or `relay.sftp_withdrawn` when a relay stops, so a replaced
+> host key is on the record before any client warns of it, and `ServerInfo` lists every admitted
+> relay's endpoint, refreshed with the relays named to nodes.
+
 
 ---
 

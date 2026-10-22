@@ -29,6 +29,7 @@ pub mod repository;
 pub mod run;
 pub mod session;
 pub mod sets;
+pub mod sftp;
 pub mod share;
 pub mod ssh_key;
 pub mod stream;

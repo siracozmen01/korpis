@@ -6,6 +6,8 @@
 //! The control plane's own relay role is not one of these: it needs no enrollment, since it is
 //! the control plane.
 
+pub mod sftp;
+
 use crate::event::Severity;
 use crate::tenancy::Name;
 use std::time::{Duration, SystemTime};

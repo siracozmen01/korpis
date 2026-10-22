@@ -81,10 +81,16 @@ message RenewResponse {
 message FeedRequest {
   string relay = 1;
   // The relay identity key's Ed25519 signature over
-  // "korpis.relay.v1.Feed|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>",
+  // "korpis.relay.v1.Feed|<relay>|<seconds>.<nanos, nine digits>|<nonce in lowercase hex>|<sftp_host_key in lowercase hex>|<sftp_address>",
   // the timestamp within the control plane's auth skew window and the nonce never seen before
   // from this relay.
   korpis.agent.v1.NodeAuth auth = 2;
+  // The SSH host key of the SFTP this relay serves, in SSH's wire form, Ed25519; empty where it
+  // serves none (§3.1 of docs/02-architecture.md).
+  bytes sftp_host_key = 3;
+  // Where clients reach that SFTP, `host:port`: `--sftp-advertise`, or the host of the relay's
+  // URL and the port it listens on; empty where it serves none.
+  string sftp_address = 4;
 }
 
 message FeedUpdate {

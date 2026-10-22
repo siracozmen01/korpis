@@ -222,13 +222,13 @@ async fn relay_run(
     edge: korpis_server::standalone::Edge,
     sftp: &sftp_flags::SftpArgs,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let sftp = sftp.bound(&dir).await?;
+    let bound = sftp.bound(&dir).await?;
     let dir = korpis_server::standalone::RelayDir::new(dir);
     let listen = listen.map_or_else(|| default_listen(&dir), Ok)?;
     let listener = tokio::net::TcpListener::bind(listen).await?;
     let running = korpis_server::standalone::run(dir, listener, edge).await?;
-    let sftp = match sftp {
-        Some((listener, key)) => Some(running.serve_sftp(listener, key)?),
+    let sftp = match bound {
+        Some((listener, key)) => Some(running.serve_sftp(listener, key, sftp.advertised())?),
         None => None,
     };
     tokio::select! {
@@ -263,5 +263,16 @@ fn operator() -> String {
     match std::env::var("SUDO_USER") {
         Ok(by) => format!("uid {uid} ({user}), by sudo from {by}"),
         Err(_) => format!("uid {uid} ({user})"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory as _;
+
+    #[test]
+    fn every_command_s_flags_are_named_once() {
+        Cli::command().debug_assert();
     }
 }

@@ -394,6 +394,9 @@
   "9xEmy1yk": {
     "defaultMessage": "No authenticator app is set up."
   },
+  "A2OYdBg8": {
+    "defaultMessage": "Host key {fingerprint}"
+  },
   "A76GYv5R": {
     "defaultMessage": "the live view ended"
   },
@@ -477,6 +480,9 @@
   "BqSUTrrS": {
     "defaultMessage": "refused",
     "description": "an effect's outcome"
+  },
+  "BwQ8jN2w": {
+    "defaultMessage": "An SFTP client reaches these files with an SSH key added to your profile. Compare the key it shows on its first connection with the one here."
   },
   "C0bpQ4YI": {
     "defaultMessage": "They can"
@@ -2165,6 +2171,9 @@
   "z03iN+NR": {
     "defaultMessage": "link, not followed",
     "description": "a listing entry's kind"
+  },
+  "z9pGS9Fq": {
+    "defaultMessage": "Over SFTP"
   },
   "zEu3E6rp": {
     "defaultMessage": "unknown",

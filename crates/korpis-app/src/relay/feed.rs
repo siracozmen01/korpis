@@ -32,13 +32,22 @@ pub struct RelayFeed {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The relay `proof` was signed for, if it is that relay's fresh signature over a feed
-    /// request, the relay is not removed, and no restore holds it.
+    /// request reporting `sftp`, the host key and address of the SFTP it serves or two empty
+    /// ones, the relay is not removed, and no restore holds it; what it reports is recorded.
+    ///
+    /// # Errors
+    /// The proof does not hold, or the report is not an Ed25519 key and a `host:port`.
     pub async fn authenticate_relay(
         &self,
         relay: Uuid,
         proof: &NodeProof,
+        sftp: (&[u8], &str),
     ) -> Result<Relay, AppError> {
-        self.check_relay(relay, proof, &relay_feed_message).await
+        let report = super::sftp_report(sftp)?;
+        let message = |r: &str, s, ns, nonce: &[u8]| relay_feed_message((r, sftp), s, ns, nonce);
+        let found = self.check_relay(relay, proof, &message).await?;
+        self.record_sftp(&found, report.as_ref()).await?;
+        Ok(found)
     }
 
     /// The relay `proof` was signed for, if it is that relay's fresh signature over `message`'s

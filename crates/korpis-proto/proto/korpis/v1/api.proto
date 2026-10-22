@@ -87,6 +87,24 @@ message GetServerInfoResponse {
   // address.
   string portal = 9;
   string portal_organization = 10;
+  // Where SFTP is served (§3.1 of docs/02-architecture.md): by this control plane's own relay
+  // role, where it serves it, and by each relay admitted that reports serving it.
+  repeated SftpServer sftp = 11;
+}
+
+// An SFTP server, and the host key a client is to expect of it.
+message SftpServer {
+  // Where clients reach it, `host:port`.
+  string address = 1;
+  // How a `known_hosts` file names that address: the host alone on port 22, `[host]:port`
+  // otherwise.
+  string known_hosts_name = 2;
+  // The host key as a `known_hosts` line has it after the name: `ssh-ed25519 AAAA…`.
+  string host_key = 3;
+  // Its SHA-256 fingerprint, as `ssh-keygen -l` and every client print it.
+  string fingerprint = 4;
+  // The relay serving it, `rly_…`; empty for the control plane's own relay role.
+  string relay = 5;
 }
 
 service OrganizationService {

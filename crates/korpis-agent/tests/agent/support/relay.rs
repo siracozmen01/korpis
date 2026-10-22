@@ -24,7 +24,7 @@ impl Relay {
         listener: tokio::net::TcpListener,
         host_key: korpis_server::sftp::host_key::PrivateKey,
     ) -> tokio::task::JoinHandle<std::io::Result<()>> {
-        self.running.serve_sftp(listener, host_key).unwrap()
+        self.running.serve_sftp(listener, host_key, None).unwrap()
     }
 }
 

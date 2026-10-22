@@ -40,10 +40,26 @@ pub fn data_hello_message(
 
 /// What a relay signs to open its feed (§3.1 of docs/02-architecture.md): the same form as
 /// [`hello_message`] under `korpis.relay.v1.Feed`, with the relay's identifier in place of the
-/// node's, signed by the relay's identity key.
+/// node's, signed by the relay's identity key; followed by `|`, the SSH host key of the SFTP it
+/// serves in lowercase hexadecimal, `|`, and the address clients reach it at, both empty where it
+/// serves none, so the signature vouches for where clients are sent and which key they are told
+/// to expect. The address is last, after a key that holds no `|`, so it is unambiguous.
 #[must_use]
-pub fn relay_feed_message(relay: &str, seconds: i64, nanos: u32, nonce: &[u8]) -> Vec<u8> {
-    proof_message("korpis.relay.v1.Feed", relay, seconds, nanos, nonce)
+pub fn relay_feed_message(
+    (relay, (host_key, address)): (&str, (&[u8], &str)),
+    seconds: i64,
+    nanos: u32,
+    nonce: &[u8],
+) -> Vec<u8> {
+    let mut m = proof_message("korpis.relay.v1.Feed", relay, seconds, nanos, nonce);
+    m.push(b'|');
+    for b in host_key {
+        // Writing to a Vec cannot fail.
+        let _ = std::io::Write::write_fmt(&mut m, format_args!("{b:02x}"));
+    }
+    m.push(b'|');
+    m.extend_from_slice(address.as_bytes());
+    m
 }
 
 /// What a relay signs to renew its certificate (§3.1 of docs/02-architecture.md): the same form as
