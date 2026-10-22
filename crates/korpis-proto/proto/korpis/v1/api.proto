@@ -170,6 +170,15 @@ service OrganizationService {
   // org.write. Sets or removes the organization's own layout. mutation.expected_version is the
   // own_version GetLayout returned for the organization, absent when it has none.
   rpc SetLayout(SetLayoutRequest) returns (SetLayoutResponse);
+  // org.read. The placement policy at the organization (§2.2 of docs/05-scheduling.md): the one
+  // it sets for its subtree, and the one in force there.
+  rpc GetPlacementPolicy(GetPlacementPolicyRequest) returns (GetPlacementPolicyResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.write. Sets, replaces, or removes the organization's own placement policy: its strategy
+  // and weights score the nodes the organizations without one of their own beneath it own, and
+  // its spread and affinity place the workloads they hold.
+  rpc SetPlacementPolicy(SetPlacementPolicyRequest) returns (SetPlacementPolicyResponse);
 }
 
 message CreateOrganizationRequest {
@@ -1909,4 +1918,33 @@ message SetDelegationCeilingRequest {
 
 message SetDelegationCeilingResponse {
   DelegationCeiling ceiling = 1;
+}
+
+// The placement policy at an organization (§2.2 of docs/05-scheduling.md).
+message OrganizationPlacementPolicy {
+  // The one the organization sets itself; absent when it sets none.
+  PlacementPolicy own = 1;
+  // The one in force there: its own, the nearest above it that set one, or the installation's.
+  PlacementPolicy effective = 2;
+  // The organization that set the one in force, as `org_…`; empty for the installation's.
+  string set_at = 3;
+}
+
+message GetPlacementPolicyRequest {
+  string organization = 1;
+}
+
+message GetPlacementPolicyResponse {
+  OrganizationPlacementPolicy policy = 1;
+}
+
+message SetPlacementPolicyRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // Absent removes the organization's own.
+  PlacementPolicy policy = 3;
+}
+
+message SetPlacementPolicyResponse {
+  OrganizationPlacementPolicy policy = 1;
 }

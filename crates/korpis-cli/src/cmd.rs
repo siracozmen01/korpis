@@ -21,6 +21,7 @@ pub mod identity;
 pub mod layout;
 pub mod logs;
 pub mod logs_offloaded;
+pub mod placement;
 pub mod portal;
 pub mod provider;
 pub mod quota;

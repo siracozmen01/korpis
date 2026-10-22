@@ -97,6 +97,8 @@ Organization
   status        active | suspended     reversible, from above only (§2.1 of 08-identity.md)
   delegation_ceiling  Duration?  the longest a grant beneath a set subject lasts in its subtree
                                  (§5.1 of 08-identity.md)
+  placement_policy    PlacementPolicy?  how its subtree's workloads stand towards each other and
+                                 how the nodes it owns are used (§2.2 of 05-scheduling.md)
   created       Timestamp
 ```
 

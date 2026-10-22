@@ -1388,6 +1388,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 140 | A quota refusal told a customer its reseller's bound and what all the reseller's customers held, and named the entry by an identifier no reader could resolve | §52 | `05-scheduling.md` §5.1 |
 | 141 | An answer that a member was still in a set, asked before a sign-in that found them gone, was recorded over the sign-in | §44 | `08-identity.md` §5.1 |
 | 142 | A person whose authority came through a set was told they held no grant | §44 | `08-identity.md` §9.7, `11-surface-web.md` §5 |
+| 143 | Nothing bounded how many affinity rules and spread constraints a placement evaluates, under the installation's one lock | §53 | `05-scheduling.md` §2.2 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4633,3 +4634,57 @@ sets; its second, which fits Pinecone's, is refused by Northwind's limits, with 
 the dimension and Northwind, planning the same file, told its own set and bound; Northwind's own
 second server is refused for reaching into what it guaranteed Kestrel; and each credential reads
 only the organizations beneath where it was issued.
+
+---
+
+## 53. A host sells a customer a pool of its own, and a reseller spreads its customers' servers
+
+Written 2026-10-22, to design placement policy per organization (question 8 of §10 of
+`05-scheduling.md`), which was to be settled before Phase 2 and was found unsettled when Phase 2's
+deferrals were surveyed. Kestrel Hosting packs its shared fleet, enrolled into its root
+organization, so idle machines can be powered down. It sells Ledgerline three machines of its
+own, enrolled into Ledgerline's organization, and Ledgerline wants them used evenly. Northwind, a
+reseller beneath Kestrel with no machines, wants each of its customers' servers spread across
+racks wherever they run.
+
+The trace was chosen by the deadline rather than by coverage, and asks the question's own algebra
+at each step: which policy, held where, evaluated by whom, with what information.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | Kestrel enrolls `ded-1` to `ded-3` into Ledgerline's organization; they serve Ledgerline's subtree alone | `01-model.md` §3.4; `02-architecture.md` §7; `05-scheduling.md` §2.1 |
+| 2 | Kestrel's installation runs `packed` by its flag; nothing is set on its root | `05-scheduling.md` §2.2 |
+| 3 | Kestrel sets Ledgerline's policy to `distributed`, under `org.write` over Ledgerline, which its grant on the root covers; Ledgerline could set it too | `05-scheduling.md` §2.2; `08-identity.md` §3.3 |
+| 4 | Ledgerline declares a server. The candidates are its three machines and Kestrel's fleet; its machines rank first, being nearest, scored by `distributed`; the fleet follows them on the shortlist, scored by `packed` | `05-scheduling.md` §2.1, §2.2 |
+| 5 | `ded-2`, the best scored, refuses at prepare; the shortlist goes on to `ded-3`, and to the fleet only if every machine of Ledgerline's refuses | `05-scheduling.md` §2.1 |
+| 6 | Northwind sets a policy whose spread constraint keeps each organization's servers apart by rack. Its customer Pinecone's server is placed on Kestrel's fleet under Northwind's spread, scored by Kestrel's `packed`, since the machines are Kestrel's | `05-scheduling.md` §2.2 |
+| 7 | Pinecone reads its server's explanation: it may read none of Kestrel's nodes, so it sees which checks failed and neither policy | `08-identity.md` §8 |
+| 8 | Northwind's administrator writes a policy of ten thousand affinity rules ‡ | `05-scheduling.md` §2.2, §2.3 |
+
+**One finding, at step 8** (‡).
+
+**FINDING 143: Nothing bounded how many affinity rules and spread constraints a placement
+evaluates, under the installation's one lock. `CONFIRMED`, in the code**
+
+Found 2026-10-22 asking the algebra question of step 8: what evaluates Northwind's rules, where,
+and while holding what? The placement path, in the control plane, for every workload beneath
+Northwind; every rule against every candidate and every workload its selector matches; and while
+holding the placement lock, which is one for the installation (§2.3 of `05-scheduling.md`). An
+intent's own affinity rules had no bound either. So any tenant who could declare a workload, and
+now any organization that sets a policy, could make each placement beneath it take as long as it
+liked while every other tenant's placements waited behind the lock. Per-organization policies
+made it worse: one policy is read for a whole subtree's placements.
+
+**Resolution.** A policy states at most sixteen spread constraints and thirty-two affinity rules,
+and an intent at most thirty-two affinity rules, refused on the way in, the installation's flag
+included. → stated in §2.2 of `05-scheduling.md`; built in
+`crates/korpis-core/src/workload/spec/placement.rs` and `crates/korpis-wire/src/placement.rs`,
+with tests at the bound. What it costs: a tenant with more rules than that writes them as labels
+and fewer selectors; nobody has been seen to need more, and the bounds are where the measurement
+of question 4 of §10 of `05-scheduling.md` would move them.
+
+Steps 3 to 6 are built and tested: the core tests of the owner rule, and an API test in which a
+customer's server lands on its own node before the host's, the explanation recording each
+owner's policy.

@@ -1437,7 +1437,7 @@ node an explanation names:
 | how many candidates, and how many nodes failed each check | a viewer with `workload.read` over the workload's organization: the tenant |
 | which checks failed, with no count | anyone who may read the workload |
 | the region (the chosen node's `region` label) and the tier | anyone who may read the workload |
-| the policy | a viewer who may read every node the explanation names |
+| the policies: the workload's, and each owner's its nodes were scored by (§2.2 of `05-scheduling.md`) | a viewer who may read every node the explanation names |
 
 A placement's `reason` is written for every reader, so it names no node and no count. The same
 filter applies to the explanation of an unplaced workload (§2.3 of `05-scheduling.md`), which is

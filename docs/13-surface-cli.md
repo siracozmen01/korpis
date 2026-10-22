@@ -504,14 +504,16 @@ version it has as the command runs, `identity retire` suspends what is rooted in
 verify` asks its provider now rather than at its interval, printing what the provider answered or,
 when it did not answer in time, why. `korpis organization ceiling ORG` prints the delegation
 ceiling in force there and the organization's own (§5.1 of `08-identity.md`), `--set 3d` sets its
-own, and `--remove` removes it, so the one above is in force again. And `get effects` names, for
-an effect done through a relay, the client that relayed it beside the actor it relayed for (§5.2
-of `08-identity.md`), so a person acting through a bot is never shown as the bot. It reads an
-organization's subtree, the caller's own top organization when nothing is named, or one
-`--project`, `--workload`, `--plan`, or `--node`; `--action grant.` keeps the actions that begin
-so, and `--limit` how many are read, a hundred when not said. Each row says what the effect is
-about, and the log holds only what the caller's grants reach (§4 of `15-observability.md`), a
-refusal of their own among it.
+own, and `--remove` removes it, so the one above is in force again. `korpis organization placement
+ORG` prints the placement policy in force there, where it was set, and the organization's own (§2.2
+of `05-scheduling.md`); `-f policy.yaml` sets its own from a file holding a `PlacementPolicy` as
+`--json` prints one, and `--remove` removes it. And `get effects` names, for an effect done through
+a relay, the client that relayed it beside the actor it relayed for (§5.2 of `08-identity.md`), so
+a person acting through a bot is never shown as the bot. It reads an organization's subtree, the
+caller's own top organization when nothing is named, or one `--project`, `--workload`, `--plan`, or
+`--node`; `--action grant.` keeps the actions that begin so, and `--limit` how many are read, a
+hundred when not said. Each row says what the effect is about, and the log holds only what the
+caller's grants reach (§4 of `15-observability.md`), a refusal of their own among it.
 
 `korpis grant share --actions workload.restart --scope workload:mc-survival` makes a share link
 (§6.1 of `08-identity.md`) and prints it once, as a URL whose fragment is the link, with what it

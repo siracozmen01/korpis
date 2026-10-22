@@ -4,7 +4,9 @@
 
 use super::StoreResult;
 use crate::page::Page;
+use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::{Organization, OrganizationStatus, Project};
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::time::Duration;
 use uuid::Uuid;
@@ -34,6 +36,13 @@ pub trait TenancyRead {
         organization: Uuid,
         page: Page,
     ) -> impl Future<Output = StoreResult<Vec<Project>>> + Send;
+
+    /// The placement policies those of `organizations` set themselves, by organization; one
+    /// that sets none is absent (§2.2 of docs/05-scheduling.md).
+    fn placement_policies(
+        &self,
+        organizations: &[Uuid],
+    ) -> impl Future<Output = StoreResult<BTreeMap<Uuid, PlacementPolicy>>> + Send;
 }
 
 /// Writing organizations and projects.
@@ -66,6 +75,15 @@ pub trait TenancyWrite {
         id: Uuid,
         ceiling: Option<Duration>,
     ) -> impl Future<Output = StoreResult<Option<Option<Duration>>>> + Send;
+
+    /// Sets the placement policy organization `id` sets for its subtree, or removes it with
+    /// `None` (§2.2 of docs/05-scheduling.md); the one it replaced, or `None` outside if the
+    /// organization does not exist.
+    fn set_placement_policy(
+        &mut self,
+        id: Uuid,
+        policy: Option<&PlacementPolicy>,
+    ) -> impl Future<Output = StoreResult<Option<Option<PlacementPolicy>>>> + Send;
 
     /// Inserts a project. A project with the same name in the organization is
     /// [`Unique::ProjectName`](super::Unique::ProjectName).

@@ -134,7 +134,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             // shortlist only asks drivers.
             quota: &[],
         };
-        let (_, ranking) = ranked(&req, &candidates, &peers, &self.policy);
+        let (_, ranking) = ranked(&req, &candidates, &peers, &self.policies(&owners).await?);
         Ok(ranking.into_iter().take(SHORTLIST).collect())
     }
 }

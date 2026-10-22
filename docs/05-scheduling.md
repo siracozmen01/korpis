@@ -221,6 +221,56 @@ that must hold is a required anti-affinity rule, which is a filter (§2.1).
 configuration, with `balanced` and every weight 1 as the default. Whether an organization may set
 its own, and how two such policies combine over a node both may use, is question 8 of §10.
 
+> Decided 2026-10-22, resolving question 8 of §10 before Phase 2 was called done (§4 of
+> `20-roadmap.md`). **An organization may set a placement policy for its subtree, and the policy
+> is read in two halves, each from the party whose decision it is.** The strategy and the
+> weights say how a pool of machines is used, consolidated or spread thin, and that is the
+> decision of whoever owns the machines: a node is scored by the policy nearest its owner, the
+> organization it was enrolled into (§3.4 of `01-model.md`) or the nearest above it that set one,
+> and the installation's where none did. The spread constraints and the affinity rules say how a
+> tenant's workloads stand towards one another, and that is the tenant's: a workload is placed
+> under those of the policy nearest its own organization, or the installation's. So a host packs
+> its shared fleet and distributes the machines it enrolled into one customer's organization,
+> each by the policy set there, and a reseller spreads its customers' servers across racks
+> wherever they run.
+>
+> **Candidates are compared within one owner at a time, nearest the workload first.** A node
+> serves its owner's subtree (§2.1), so every candidate's owner is the workload's organization or
+> one above it. The survivors of the filter are ranked by how near their owner is, the
+> workload's own organization first, and by score within one owner; a farther owner's node is
+> chosen only when no nearer owner's node survives, and stays on the shortlist behind them, so a
+> node that refuses at prepare passes the placement on. Within one owner every node is scored by
+> one policy, so no two policies' scores are ever compared: a weight is a statement about the
+> signals of one pool, not a bid against another's. A customer who enrolls machines of its own
+> runs on them while they have room, which is what enrolling them is for, and a host's dedicated
+> pool takes its customer's workloads before the shared fleet does.
+>
+> Who sets it: an organization's own policy is set, replaced, or removed under `org.write` over
+> it, as its delegation ceiling is, recorded as an effect, and read under `org.read`, with the
+> policy in force there. A policy set nowhere below the root leaves everything as it was: the
+> installation's. The explanation records the workload's policy, as it did, and the policy each
+> owner's nodes were scored by, both shown to a viewer who may read every node the explanation
+> names (§8 of `08-identity.md`).
+>
+> What it costs. A policy is one object, taken whole from the nearest organization that set one,
+> never merged field by field, so an organization that sets only a strategy also sets, for its
+> subtree, empty spread constraints; a field-by-field merge would make the policy in force a
+> composition nobody wrote. A workload whose own organization's node can run it lands there even
+> when a host's node would score far better, by volume locality or spread; a tenant that wants
+> otherwise does not enroll the node, or taints it. And a spread constraint counts the workloads
+> in every owner's nodes, while ranking prefers the nearest owner, so a constraint the nearest
+> owner's nodes cannot satisfy is outranked by ownership, as any preference is by a filter.
+>
+> Built the same day: `Policies` in `crates/korpis-core/src/schedule/policy.rs` and the ranking in
+> `score.rs`, the organization's column (migration 0122), `GetPlacementPolicy` and
+> `SetPlacementPolicy`, and `korpis organization placement` (§7 of `13-surface-cli.md`). A policy
+> decides the placements made after it is set and moves no workload already placed. **A policy
+> states at most sixteen spread constraints and thirty-two affinity rules, and an intent at most
+> thirty-two affinity rules** (Finding 143 of `23-walkthroughs.md`): placement evaluates every one
+> against every candidate and the workloads it selects while it holds the installation's one lock
+> (§2.3), so an unbounded list let one tenant hold every other's placements for as long as it
+> chose. The installation's own, from its flag, is held to the same bounds.
+
 **Scoring signals**, weighted:
 
 | Signal | Prefers |
@@ -1371,7 +1421,11 @@ estimates what a rebalance would achieve. It does not act.
    scale to an entry on a large root organization. A total kept in the admitting transaction, and
    reconciled from the intents, is the remedy. It must exist before quota sets are offered in
    Phase 2, because that is when such entries become settable. → here
-8. **Placement policy per organization.** The policy is one per installation (§2.2). A host that
+8. **Placement policy per organization.** Resolved in §2.2 here, 2026-10-22: an organization sets
+   one for its subtree; a node is scored by the strategy and weights of the policy nearest its
+   owner, a workload placed under the spread and affinity of the policy nearest its own
+   organization, and candidates compared within the nearest owner first. The question was: the
+   policy is one per installation (§2.2). A host that
    sells dedicated pools may want `packed` for its shared fleet and `distributed` for one
    customer's machines, and a customer with nodes of their own (§3.4 of `01-model.md`) may want
    to choose for those. A policy per organization is the obvious shape; what it does not answer

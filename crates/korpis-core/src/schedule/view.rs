@@ -9,7 +9,7 @@
 //! the tenant (reads the workload    how many candidates, and how many failed each check
 //!   across its organization)
 //! anyone who may read the workload  which checks failed, with no counts and no nodes
-//! the policy                        only to a viewer who may read every node it names
+//! the policies                      only to a viewer who may read every node it names
 //! ```
 
 use super::{Check, Explanation, PlacementPolicy, Rejection, Score};
@@ -41,8 +41,10 @@ pub struct ExplanationView {
     pub chosen: Option<Uuid>,
     /// The next best, if the viewer may read it.
     pub runner_up: Option<Uuid>,
-    /// The policy, if the viewer may read every node the explanation names.
+    /// The workload's policy, if the viewer may read every node the explanation names.
     pub policy: Option<PlacementPolicy>,
+    /// The policy each owner's nodes were scored by, under the same condition.
+    pub owners: Option<BTreeMap<Uuid, PlacementPolicy>>,
 }
 
 /// Every node an explanation names.
@@ -58,6 +60,7 @@ pub fn named(e: &Explanation) -> BTreeSet<Uuid> {
 /// `e` as the viewer with `sight` may see it.
 #[must_use]
 pub fn render(e: &Explanation, sight: &Sight) -> ExplanationView {
+    let all = named(e).iter().all(|n| sight.nodes.contains(n));
     let sees = |n: &Uuid| sight.nodes.contains(n);
     let counts = sight.tenant;
     let mut per: BTreeMap<Check, BTreeSet<Uuid>> = BTreeMap::new();
@@ -75,7 +78,8 @@ pub fn render(e: &Explanation, sight: &Sight) -> ExplanationView {
         scored: e.scored.iter().filter(|s| sees(&s.node)).copied().collect(),
         chosen: e.chosen.filter(sees),
         runner_up: e.runner_up.filter(sees),
-        policy: named(e).iter().all(sees).then(|| e.policy.clone()),
+        policy: all.then(|| e.policy.clone()),
+        owners: all.then(|| e.owners.clone()),
     }
 }
 
@@ -95,6 +99,7 @@ mod tests {
             chosen: Some(a),
             runner_up: Some(b),
             policy: PlacementPolicy::default(),
+            owners: BTreeMap::new(),
         }
     }
 

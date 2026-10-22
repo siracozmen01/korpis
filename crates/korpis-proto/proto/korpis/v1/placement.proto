@@ -314,6 +314,17 @@ message Explanation {
   PlacementPolicy policy = 6;
   // Per failing check, how many nodes failed it.
   repeated CheckCount rejected = 7;
+  // The policy each candidate's owner scored its nodes by: its strategy and weights (§2.2 of
+  // docs/05-scheduling.md). `policy` is the workload's, its spread and affinity. Both are shown
+  // only to a viewer who may read every node the explanation names.
+  repeated OwnerPolicy owner_policies = 8;
+}
+
+// The policy one owner's nodes were scored by.
+message OwnerPolicy {
+  // The organization the nodes were enrolled into, as `org_…`.
+  string organization = 1;
+  PlacementPolicy policy = 2;
 }
 
 message CheckCount {

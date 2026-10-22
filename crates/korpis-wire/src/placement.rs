@@ -8,7 +8,10 @@ use crate::{Result, invalid, wire_id};
 use korpis_core::id::IdKind;
 use korpis_core::placement::BoundBy;
 use korpis_core::schedule::view::ExplanationView;
-use korpis_core::schedule::{PlacementPolicy, Signal, SpreadConstraint, SpreadScope, Strategy};
+use korpis_core::schedule::{
+    MAX_SPREAD, PlacementPolicy, Signal, SpreadConstraint, SpreadScope, Strategy,
+};
+use korpis_core::workload::spec::placement::MAX_AFFINITY;
 use korpis_proto::korpis::v1 as pb;
 
 enum_map!(strategy_to_pb, strategy_from_pb, Strategy, pb::PlacementStrategy, "a strategy", {
@@ -69,6 +72,12 @@ pub fn policy_to_pb(p: &PlacementPolicy) -> pb::PlacementPolicy {
 
 /// A placement policy from the field `field`; an unspecified strategy is the default.
 pub fn policy_from_pb(field: &str, p: &pb::PlacementPolicy) -> Result<PlacementPolicy> {
+    if p.spread.len() > MAX_SPREAD {
+        return Err(invalid(&format!("{field}.spread"), "at most 16 constraints"));
+    }
+    if p.affinity.len() > MAX_AFFINITY {
+        return Err(invalid(&format!("{field}.affinity"), "at most 32 rules"));
+    }
     let strategy = match p.strategy.as_known() {
         Some(pb::PlacementStrategy::PLACEMENT_STRATEGY_UNSPECIFIED) => Strategy::default(),
         _ => strategy_from_pb(&format!("{field}.strategy"), p.strategy)?,
@@ -130,6 +139,16 @@ pub fn explanation_to_pb(e: &ExplanationView) -> pb::Explanation {
         chosen: e.chosen.map(node).unwrap_or_default(),
         runner_up: e.runner_up.map(node),
         policy: e.policy.as_ref().map(policy_to_pb).into(),
+        owner_policies: e
+            .owners
+            .iter()
+            .flatten()
+            .map(|(o, p)| pb::OwnerPolicy {
+                organization: wire_id(IdKind::Organization, *o),
+                policy: Some(policy_to_pb(p)).into(),
+                ..Default::default()
+            })
+            .collect(),
         rejected: e
             .rejected
             .iter()

@@ -3,6 +3,7 @@
 //! Organizations, projects, and the object hierarchy.
 
 mod hierarchy;
+mod placement;
 mod suspension;
 
 use crate::errors::from_sqlx;
@@ -12,6 +13,7 @@ use chrono::{DateTime, Utc};
 use korpis_app::Page;
 use korpis_app::ports::{StoreError, StoreResult, TenancyRead, TenancyWrite};
 use korpis_core::labels::Labels;
+use korpis_core::schedule::PlacementPolicy;
 use korpis_core::tenancy::{Name, Organization, OrganizationStatus, Project};
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -140,9 +142,24 @@ impl TenancyRead for PgStore {
         .map(ProjectRow::into_domain)
         .collect()
     }
+
+    async fn placement_policies(
+        &self,
+        organizations: &[Uuid],
+    ) -> StoreResult<BTreeMap<Uuid, PlacementPolicy>> {
+        placement::policies(&self.pool, organizations).await
+    }
 }
 
 impl TenancyWrite for PgTx {
+    async fn set_placement_policy(
+        &mut self,
+        id: Uuid,
+        policy: Option<&PlacementPolicy>,
+    ) -> StoreResult<Option<Option<PlacementPolicy>>> {
+        placement::set(&mut *self.tx, id, policy).await
+    }
+
     async fn any_organization(&mut self) -> StoreResult<bool> {
         sqlx::query_scalar!("SELECT EXISTS (SELECT 1 FROM organization) AS \"e!\"")
             .fetch_one(&mut *self.tx)

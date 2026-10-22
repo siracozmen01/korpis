@@ -66,6 +66,20 @@ pub enum OrganizationAction {
         #[arg(long)]
         remove: bool,
     },
+    /// The placement policy at an organization (§2.2 of docs/05-scheduling.md): its strategy
+    /// and weights score the nodes its subtree owns, and its spread and affinity place its
+    /// subtree's workloads, wherever no organization nearer sets one. With `-f` or `--remove`,
+    /// changes its own, under `org.write` there.
+    Placement {
+        /// The organization, by name or identifier; the top one you can read by default.
+        organization: Option<String>,
+        /// Sets its own from a file, JSON or YAML, as `--json` prints a policy.
+        #[arg(short = 'f', long = "file", conflicts_with = "remove")]
+        file: Option<std::path::PathBuf>,
+        /// Removes its own, leaving the one above it, or the installation's, in force.
+        #[arg(long)]
+        remove: bool,
+    },
 }
 
 /// `korpis project …`.
@@ -147,6 +161,10 @@ pub async fn organization(c: &Connection, a: &OrganizationAction) -> Result<Answ
         OrganizationAction::Ceiling { organization, set, remove } => {
             let asked = (set.as_deref(), *remove);
             return super::ceiling::ceiling(c, organization.as_deref(), asked).await;
+        }
+        OrganizationAction::Placement { organization, file, remove } => {
+            let asked = (file.as_deref(), *remove);
+            return super::placement::placement(c, organization.as_deref(), asked).await;
         }
     };
     let o = o.into_option().unwrap_or_default();

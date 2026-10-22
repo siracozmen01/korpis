@@ -175,7 +175,7 @@ impl Case {
             dependencies: &[],
             quota: &[],
         };
-        place(&req, &candidates, &self.peers, &self.policy)
+        place(&req, &candidates, &self.peers, &Policies::single(self.policy.clone()))
     }
 }
 
@@ -300,12 +300,8 @@ fn a_cordoned_node_keeps_what_is_already_there() {
         dependencies: &[],
         quota: &[],
     };
-    let e = place(
-        &req,
-        &[Candidate { node: &here, allocated: &allocated }],
-        &[],
-        &PlacementPolicy::default(),
-    );
+    let e =
+        place(&req, &[Candidate { node: &here, allocated: &allocated }], &[], &Policies::default());
     assert_eq!(e.chosen, Some(here.id), "its own reservation is counted as free for itself");
     assert!(
         e.scored
@@ -350,19 +346,20 @@ fn an_operator_overrides_their_own_decisions_about_a_node_and_nothing_else() {
     let empty = Bounds::new();
     let c = Candidate { node: &chosen, allocated: &empty };
     let policy = PlacementPolicy::default();
-    let scheduled = place(&req(&labels, &b), &[c], &[], &policy);
+    let scheduled = place(&req(&labels, &b), &[c], &[], &Policies::single(policy.clone()));
     assert_eq!(scheduled.chosen, None, "the scheduler respects the cordon and the taint");
     assert!(
-        operator_refusals(&req(&labels, &b), &c, &[], &policy).is_empty(),
+        operator_refusals(&req(&labels, &b), &c, &[], &Policies::single(policy.clone())).is_empty(),
         "the operator overrides both"
     );
 
     b.resources.memory.reservation = 1 << 50;
-    let refused = operator_refusals(&req(&labels, &b), &c, &[], &policy);
+    let refused = operator_refusals(&req(&labels, &b), &c, &[], &Policies::single(policy.clone()));
     assert_eq!(refused.iter().map(|r| r.check).collect::<Vec<_>>(), [Check::Capacity]);
     chosen.admin = NodeAdmin::Draining;
     let c = Candidate { node: &chosen, allocated: &empty };
-    let refused = operator_refusals(&req(&labels, &body(GIB)), &c, &[], &policy);
+    let refused =
+        operator_refusals(&req(&labels, &body(GIB)), &c, &[], &Policies::single(policy.clone()));
     assert_eq!(refused.iter().map(|r| r.check).collect::<Vec<_>>(), [Check::Status], "not a drain");
 }
 
@@ -390,5 +387,6 @@ fn the_driver_layer_is_the_union_of_what_every_driver_that_could_run_the_tier_de
 mod bandwidth;
 mod colocation;
 mod ingress;
+mod owners;
 mod quota;
 mod signals;

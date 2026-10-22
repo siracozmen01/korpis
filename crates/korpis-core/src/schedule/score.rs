@@ -7,8 +7,8 @@
 
 use super::topology::{Fleet, counts, domain, matching};
 use super::{
-    Candidate, Peer, PlacementPolicy, RESERVED, Request, Score, Signal, SpreadScope, Strategy,
-    reservation,
+    Candidate, Peer, PlacementPolicy, Policies, RESERVED, Request, Score, Signal, SpreadScope,
+    Strategy, reservation,
 };
 use crate::labels::LabelSelector;
 use crate::node::Node;
@@ -128,19 +128,25 @@ fn failure_domain(
     })
 }
 
-/// Every evaluated signal of every survivor, and the survivors best first.
+/// Every evaluated signal of every survivor, and the survivors best first: the nearest owner's
+/// nodes before a farther one's, and within one owner the best scored by that owner's strategy
+/// and weights, so two policies' scores are never compared (§2.2 of docs/05-scheduling.md). A
+/// spread constraint and an affinity rule are the workload's, whoever owns the node.
 pub(super) fn rank(
     req: &Request<'_>,
     survivors: &[Candidate<'_>],
     fleet: &Fleet<'_>,
     peers: &[Peer],
-    policy: &PlacementPolicy,
+    policies: &Policies,
 ) -> (Vec<Score>, Vec<Uuid>) {
     let eligible: Vec<&Node> = survivors.iter().map(|c| c.node).collect();
     let mut scored = Vec::new();
     let mut totals = Vec::new();
     for c in survivors {
         let id = c.node.id;
+        let owner = c.node.organization;
+        let nearness = req.owners.iter().position(|o| *o == owner).unwrap_or(usize::MAX);
+        let policy = policies.of_owner(owner);
         let mut values = vec![(Signal::Utilization, utilization(req, c, policy.strategy))];
         if let Some(cur) = req.current {
             // Phase 0 volumes live on the node of the placement that created them.
@@ -149,7 +155,7 @@ pub(super) fn rank(
         // No Phase 0 intent requests a device, so a node offering a GPU is one to spare.
         let gpu = c.node.drivers.iter().any(|d| d.capabilities.offers_gpu());
         values.push((Signal::DeviceFit, if gpu { 0.0 } else { 1.0 }));
-        if let Some(v) = failure_domain(req, c.node, &eligible, fleet, peers, policy) {
+        if let Some(v) = failure_domain(req, c.node, &eligible, fleet, peers, &policies.workload) {
             values.push((Signal::FailureDomain, v));
         }
         if let Some(held) = req.content.get(&id) {
@@ -163,8 +169,10 @@ pub(super) fn rank(
             total += weight * value;
             scored.push(Score { node: id, signal, value, weight });
         }
-        totals.push((id, total));
+        totals.push((nearness, id, total));
     }
-    totals.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal).then(a.0.cmp(&b.0)));
-    (scored, totals.into_iter().map(|(id, _)| id).collect())
+    totals.sort_by(|a, b| {
+        a.0.cmp(&b.0).then(b.2.partial_cmp(&a.2).unwrap_or(Ordering::Equal)).then(a.1.cmp(&b.1))
+    });
+    (scored, totals.into_iter().map(|(_, id, _)| id).collect())
 }

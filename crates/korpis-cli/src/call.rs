@@ -117,6 +117,10 @@ table! {
     "korpis.v1.OrganizationService/GetLandingTheme" =>
         OrganizationServiceClient::get_landing_theme(GetLandingThemeRequest);
     "korpis.v1.OrganizationService/SetLayout" => OrganizationServiceClient::set_layout(SetLayoutRequest);
+    "korpis.v1.OrganizationService/GetPlacementPolicy" =>
+        OrganizationServiceClient::get_placement_policy(GetPlacementPolicyRequest);
+    "korpis.v1.OrganizationService/SetPlacementPolicy" =>
+        OrganizationServiceClient::set_placement_policy(SetPlacementPolicyRequest);
     "korpis.v1.ProjectService/CreateProject" => ProjectServiceClient::create_project(CreateProjectRequest);
     "korpis.v1.ProjectService/GetProject" => ProjectServiceClient::get_project(GetProjectRequest);
     "korpis.v1.ProjectService/ListProjects" => ProjectServiceClient::list_projects(ListProjectsRequest);

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE organization o SET placement_policy = $2\n           FROM (SELECT placement_policy FROM organization WHERE id = $1 FOR UPDATE) old\n          WHERE o.id = $1\n         RETURNING old.placement_policy",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "placement_policy",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "organization",
+            "name": "placement_policy"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "080006b155834f8ac2b6e07b3f975b93b785bbe3adb0a5fc02a268fffabfd7af"
+}

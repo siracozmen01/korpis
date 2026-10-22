@@ -143,6 +143,22 @@ impl pb::OrganizationService for Api {
         super::ceiling::set(self, &ctx, request).await
     }
 
+    async fn get_placement_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::GetPlacementPolicyRequest>,
+    ) -> ServiceResult<pb::GetPlacementPolicyResponse> {
+        super::placement_policy::get(self, &ctx, request).await
+    }
+
+    async fn set_placement_policy(
+        &self,
+        ctx: RequestContext,
+        request: ServiceRequest<'_, pb::SetPlacementPolicyRequest>,
+    ) -> ServiceResult<pb::SetPlacementPolicyResponse> {
+        super::placement_policy::set(self, &ctx, request).await
+    }
+
     async fn get_theme(
         &self,
         ctx: RequestContext,

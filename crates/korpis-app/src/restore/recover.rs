@@ -85,6 +85,7 @@ fn recovered_placement(opened: &Opened, now: std::time::SystemTime) -> Placement
             chosen: Some(opened.node),
             runner_up: None,
             policy: PlacementPolicy::default(),
+            owners: std::collections::BTreeMap::new(),
         },
         authoritative: true,
         held_at: None,

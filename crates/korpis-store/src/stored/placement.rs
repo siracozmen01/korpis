@@ -69,8 +69,9 @@ impl AffinityDoc {
     }
 }
 
+/// A placement policy as stored: in an explanation, and as an organization's own.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PolicyDoc {
+pub(crate) struct PolicyDoc {
     strategy: StrategyDoc,
     spread: Vec<SpreadDoc>,
     affinity: Vec<AffinityDoc>,
@@ -101,10 +102,14 @@ pub(crate) struct ExplanationDoc {
     chosen: Option<Uuid>,
     runner_up: Option<Uuid>,
     policy: PolicyDoc,
+    /// Absent from an explanation stored before organizations set policies, when every node
+    /// was scored by the one policy.
+    #[serde(default)]
+    owners: BTreeMap<Uuid, PolicyDoc>,
 }
 
 impl PolicyDoc {
-    fn from_domain(p: &PlacementPolicy) -> Self {
+    pub(crate) fn from_domain(p: &PlacementPolicy) -> Self {
         Self {
             strategy: match p.strategy {
                 Strategy::Packed => StrategyDoc::Packed,
@@ -131,7 +136,7 @@ impl PolicyDoc {
         }
     }
 
-    fn into_domain(self) -> Result<PlacementPolicy, StoreError> {
+    pub(crate) fn into_domain(self) -> Result<PlacementPolicy, StoreError> {
         Ok(PlacementPolicy {
             strategy: match self.strategy {
                 StrategyDoc::Packed => Strategy::Packed,
@@ -189,6 +194,7 @@ impl ExplanationDoc {
             chosen: e.chosen,
             runner_up: e.runner_up,
             policy: PolicyDoc::from_domain(&e.policy),
+            owners: e.owners.iter().map(|(o, p)| (*o, PolicyDoc::from_domain(p))).collect(),
         }
     }
 
@@ -217,6 +223,11 @@ impl ExplanationDoc {
             chosen: self.chosen,
             runner_up: self.runner_up,
             policy: self.policy.into_domain()?,
+            owners: self
+                .owners
+                .into_iter()
+                .map(|(o, p)| Ok((o, p.into_domain()?)))
+                .collect::<Result<_, StoreError>>()?,
         })
     }
 }

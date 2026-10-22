@@ -4,7 +4,7 @@
 //! and, until the overlay exists, the workloads it depends on (§5 of docs/07-networking.md).
 
 use super::{GIB, PROJECT, body, node, req};
-use crate::schedule::{Candidate, Check, Needed, Peer, PlacementPolicy, Request, place};
+use crate::schedule::{Candidate, Check, Needed, Peer, Policies, Request, place};
 use crate::tenancy::quota::Bounds;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -19,7 +19,7 @@ fn an_existing_volume_keeps_the_workload_on_the_node_holding_it() {
     let empty = Bounds::new();
     let nodes =
         [Candidate { node: &one, allocated: &empty }, Candidate { node: &two, allocated: &empty }];
-    let e = place(&request, &nodes, &[], &PlacementPolicy::default());
+    let e = place(&request, &nodes, &[], &Policies::default());
     assert_eq!(e.chosen, Some(two.id));
     assert!(e.filtered.iter().any(|r| r.node == one.id && r.check == Check::Volume));
 }
@@ -37,7 +37,7 @@ fn a_dependent_goes_to_its_targets_node_and_a_required_unplaced_one_nowhere() {
     let needed = |required, targets| [Needed { name: "db".into(), required, targets }];
     let placed = |deps: &[Needed], peers: &[Peer]| {
         let request = Request { dependencies: deps, ..req(&labels, &b) };
-        place(&request, &nodes, peers, &PlacementPolicy::default())
+        place(&request, &nodes, peers, &Policies::default())
     };
     let e = placed(&needed(true, vec![db]), &peers);
     assert_eq!(e.chosen, Some(two.id), "beside its database");

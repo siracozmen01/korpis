@@ -79,6 +79,7 @@ mod panel;
 mod pebble;
 mod pin;
 mod placement;
+mod placement_policy;
 mod plans;
 mod portal_client;
 mod portal_deletion;

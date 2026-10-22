@@ -34,6 +34,12 @@ fn explanation(node: Uuid) -> Explanation {
         chosen: Some(node),
         runner_up: None,
         policy,
+        // The policy the node's owner scored it by, kept beside the workload's.
+        owners: [(
+            Uuid::now_v7(),
+            PlacementPolicy { strategy: Strategy::Packed, ..PlacementPolicy::default() },
+        )]
+        .into(),
     }
 }
 

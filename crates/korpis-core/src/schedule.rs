@@ -12,7 +12,9 @@ mod score;
 mod topology;
 pub mod view;
 
-pub use policy::{PlacementPolicy, Signal, SpreadConstraint, SpreadScope, Strategy};
+pub use policy::{
+    MAX_SPREAD, PlacementPolicy, Policies, Signal, SpreadConstraint, SpreadScope, Strategy,
+};
 
 use crate::node::Node;
 use crate::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, Totals};
@@ -50,8 +52,9 @@ pub struct Request<'a> {
     pub project: Uuid,
     /// Its labels, which spread constraints and other workloads' affinity rules select on.
     pub labels: &'a BTreeMap<String, String>,
-    /// The organizations whose nodes may serve it: its own and every ancestor (§3.4 of
-    /// docs/01-model.md).
+    /// The organizations whose nodes may serve it: its own and every ancestor, nearest first
+    /// (§3.4 of docs/01-model.md), which is the order their nodes are preferred in (§2.2 of
+    /// docs/05-scheduling.md).
     pub owners: &'a [Uuid],
     /// The approved intent being placed.
     pub body: &'a IntentBody,
@@ -266,8 +269,10 @@ pub struct Explanation {
     pub chosen: Option<Uuid>,
     /// The next best.
     pub runner_up: Option<Uuid>,
-    /// The policy, as evaluated.
+    /// The workload's policy, as evaluated: its spread constraints and affinity rules.
     pub policy: PlacementPolicy,
+    /// The policy each candidate's owner scored its nodes by, by owner.
+    pub owners: BTreeMap<Uuid, PlacementPolicy>,
 }
 
 /// The refusals of `c` that stand when an operator chooses it by hand (§2.3 of
@@ -279,12 +284,12 @@ pub fn operator_refusals(
     req: &Request<'_>,
     c: &Candidate<'_>,
     peers: &[Peer],
-    policy: &PlacementPolicy,
+    policies: &Policies,
 ) -> Vec<Rejection> {
     let fleet: topology::Fleet<'_> = std::iter::once((c.node.id, c.node)).collect();
     let cordoned = c.node.admin == crate::node::NodeAdmin::Cordoned
         && c.node.connectivity == crate::node::Connectivity::Connected;
-    filter::rejections(req, c, &fleet, peers, policy)
+    filter::rejections(req, c, &fleet, peers, &policies.workload)
         .into_iter()
         .filter(|(check, _)| match check {
             Check::Taint => false,
@@ -295,16 +300,16 @@ pub fn operator_refusals(
         .collect()
 }
 
-/// Filters, scores, and chooses. Ties go to the lower node identifier, so the same inputs
-/// always choose the same node.
+/// Filters, scores, and chooses: the nearest owner's nodes first, and the best scored of them.
+/// Ties go to the lower node identifier, so the same inputs always choose the same node.
 #[must_use]
 pub fn place(
     req: &Request<'_>,
     nodes: &[Candidate<'_>],
     peers: &[Peer],
-    policy: &PlacementPolicy,
+    policies: &Policies,
 ) -> Explanation {
-    ranked(req, nodes, peers, policy).0
+    ranked(req, nodes, peers, policies).0
 }
 
 /// As [`place`], with every node that survived the filter, best first: the shortlist a
@@ -314,8 +319,9 @@ pub fn ranked(
     req: &Request<'_>,
     nodes: &[Candidate<'_>],
     peers: &[Peer],
-    policy: &PlacementPolicy,
+    policies: &Policies,
 ) -> (Explanation, Vec<Uuid>) {
+    let policy = &policies.workload;
     let fleet: topology::Fleet<'_> = nodes.iter().map(|c| (c.node.id, c.node)).collect();
     let mut filtered = Vec::new();
     let mut survivors = Vec::new();
@@ -330,7 +336,12 @@ pub fn ranked(
             detail,
         }));
     }
-    let (scored, ranking) = score::rank(req, &survivors, &fleet, peers, policy);
+    let (scored, ranking) = score::rank(req, &survivors, &fleet, peers, policies);
+    let owners = nodes
+        .iter()
+        .filter_map(|c| policies.owners.get_key_value(&c.node.organization))
+        .map(|(o, p)| (*o, p.clone()))
+        .collect();
     let explanation = Explanation {
         candidates: u32::try_from(nodes.len()).unwrap_or(u32::MAX),
         filtered,
@@ -338,6 +349,7 @@ pub fn ranked(
         chosen: ranking.first().copied(),
         runner_up: ranking.get(1).copied(),
         policy: policy.clone(),
+        owners,
     };
     (explanation, ranking)
 }

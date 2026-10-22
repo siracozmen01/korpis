@@ -60,8 +60,8 @@ fn reason(followed: bool) -> String {
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
     /// The organizations whose nodes may serve one owned by `organization`: it and every
-    /// ancestor (§3.4 of docs/01-model.md).
-    pub(super) async fn owners(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
+    /// ancestor, nearest first (§3.4 of docs/01-model.md).
+    pub(crate) async fn owners(&self, organization: Uuid) -> Result<Vec<Uuid>, AppError> {
         let chain = self.store.ancestry(ObjectRef::new(Kind::Organization, organization)).await?;
         Ok(chain.into_iter().map(|n| n.object.id).collect())
     }
@@ -184,7 +184,7 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             dependencies: &needed,
             quota: &quota,
         };
-        let explanation = place(&req, &candidates, &peers, &self.policy);
+        let explanation = place(&req, &candidates, &peers, &self.policies(&owners).await?);
         match explanation.chosen {
             Some(node) => {
                 let binding = Binding { w, target, current, node };

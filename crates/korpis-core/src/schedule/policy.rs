@@ -6,6 +6,7 @@
 use crate::labels::LabelSelector;
 use crate::workload::spec::placement::AffinityRule;
 use std::collections::BTreeMap;
+use uuid::Uuid;
 
 /// What utilization the scheduler prefers, in Agones' vocabulary.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -106,6 +107,10 @@ impl Signal {
     }
 }
 
+/// The most spread constraints a placement policy states, for the reason affinity rules are
+/// bounded ([`crate::workload::spec::placement::MAX_AFFINITY`]).
+pub const MAX_SPREAD: usize = 16;
+
 /// How candidates are ranked.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PlacementPolicy {
@@ -124,5 +129,33 @@ impl PlacementPolicy {
     #[must_use]
     pub fn weight(&self, signal: Signal) -> f64 {
         self.weights.get(&signal).copied().unwrap_or_else(|| signal.default_weight())
+    }
+}
+
+/// The policies one placement is decided by (§2.2 of docs/05-scheduling.md): the workload's,
+/// whose spread constraints and affinity rules it is placed under, and each node owner's, whose
+/// strategy and weights its nodes are scored by. Nodes are compared within the nearest owner
+/// first, so no two policies' scores are ever compared.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Policies {
+    /// The policy nearest the workload's own organization, or the installation's.
+    pub workload: PlacementPolicy,
+    /// Per node owner, by its organization: the policy nearest it, whose strategy and weights
+    /// score its nodes.
+    pub owners: BTreeMap<Uuid, PlacementPolicy>,
+}
+
+impl Policies {
+    /// One policy for everything, as an installation where no organization set one decides.
+    #[must_use]
+    pub fn single(policy: PlacementPolicy) -> Self {
+        Self { workload: policy, owners: BTreeMap::new() }
+    }
+
+    /// The policy `owner`'s nodes are scored by: the workload's for an owner it was not told
+    /// of.
+    #[must_use]
+    pub fn of_owner(&self, owner: Uuid) -> &PlacementPolicy {
+        self.owners.get(&owner).unwrap_or(&self.workload)
     }
 }

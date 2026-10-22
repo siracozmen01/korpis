@@ -159,11 +159,12 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             dependencies: &needed,
             quota: &quota,
         };
-        let standing = operator_refusals(&req, &c, &peers, &self.policy);
+        let policies = self.policies(&owners).await?;
+        let standing = operator_refusals(&req, &c, &peers, &policies);
         if !standing.is_empty() {
             return Err(refused(&standing));
         }
-        let mut explanation = place(&req, &[c], &peers, &self.policy);
+        let mut explanation = place(&req, &[c], &peers, &policies);
         explanation.chosen = Some(node.id);
         Ok(explanation)
     }

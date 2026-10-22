@@ -19,7 +19,7 @@ mod time;
 pub(crate) use held::{held, held_doc, totals, totals_doc};
 pub(crate) use node::{bounds, bounds_doc, drivers, node_docs, storage_classes, taints};
 pub(crate) use observation::{ObservationDoc, state_str};
-pub(crate) use placement::ExplanationDoc;
+pub(crate) use placement::{ExplanationDoc, PolicyDoc};
 pub(crate) use plan::{ImpactDoc, StepDoc};
 pub(crate) use scope::{ConditionsDoc, DelegationDoc, ScopeDoc, SelectorDoc, actions};
 pub(crate) use time::{from_time, to_time};

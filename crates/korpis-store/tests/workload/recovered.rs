@@ -35,6 +35,7 @@ fn on(workload: Uuid, node: Uuid, intent: Uuid, bound_by: BoundBy) -> Placement 
             chosen: Some(node),
             runner_up: None,
             policy: PlacementPolicy::default(),
+            owners: std::collections::BTreeMap::new(),
         },
         authoritative: true,
         held_at: None,

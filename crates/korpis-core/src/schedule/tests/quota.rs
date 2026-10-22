@@ -7,7 +7,7 @@
 
 use super::{GIB, ORG, body, checks, node, req};
 use crate::labels::LabelSelector;
-use crate::schedule::{Candidate, Check, Counting, PlacementPolicy, place};
+use crate::schedule::{Candidate, Check, Counting, Policies, place};
 use crate::tenancy::quota::{Bounds, Dimension, Held, QuotaEntry, QuotaOwner, Totals};
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -40,7 +40,7 @@ fn a_node_an_entry_counts_is_refused_while_the_workload_would_exceed_it_there() 
     let quota = [Counting { entry: &entry, rest: other.clone(), counted: None, promises: vec![] }];
     let mut r = req(&labels, &b);
     r.quota = &quota;
-    let e = place(&r, &candidates, &[], &PlacementPolicy::default());
+    let e = place(&r, &candidates, &[], &Policies::default());
     assert_eq!(checks(&e, 1), [Check::Quota]);
     let detail = &e.filtered[0].detail;
     assert!(detail.contains("memory_bytes"), "{detail}");
@@ -53,6 +53,6 @@ fn a_node_an_entry_counts_is_refused_while_the_workload_would_exceed_it_there() 
     let quota =
         [Counting { entry: &entry, rest: other, counted: Some(&held), promises: Vec::new() }];
     r.quota = &quota;
-    let e = place(&r, &candidates, &[], &PlacementPolicy::default());
+    let e = place(&r, &candidates, &[], &Policies::default());
     assert!(checks(&e, 1).is_empty(), "what it already runs there is no growth");
 }

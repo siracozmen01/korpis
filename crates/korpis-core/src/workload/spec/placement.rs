@@ -5,6 +5,12 @@
 use super::SpecError;
 use crate::labels::LabelSelector;
 
+/// The most affinity rules an intent, or a placement policy, states: each is evaluated against
+/// every candidate and the workloads it selects while placement holds the installation's one
+/// lock (§2.3 of docs/05-scheduling.md), so their number bounds how long one tenant's placement
+/// keeps every other waiting (Finding 143 of docs/23-walkthroughs.md).
+pub const MAX_AFFINITY: usize = 32;
+
 /// A taint the workload tolerates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Toleration {
@@ -46,6 +52,9 @@ impl PlacementSpec {
         if let Some(i) = self.tolerations.iter().position(|t| t.key.is_empty()) {
             return Err(SpecError::new(&format!("placement.tolerations[{i}].key"), "required"));
         }
+        if self.affinity.len() > MAX_AFFINITY {
+            return Err(SpecError::new("placement.affinity", "at most 32 rules"));
+        }
         if let Some(i) = self.affinity.iter().position(|a| a.topology_key.is_empty()) {
             return Err(SpecError::new(
                 &format!("placement.affinity[{i}].topology_key"),
@@ -53,5 +62,26 @@ impl PlacementSpec {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rules(n: usize) -> PlacementSpec {
+        let rule = AffinityRule {
+            anti: true,
+            required: false,
+            workloads: LabelSelector::default(),
+            topology_key: "rack".into(),
+        };
+        PlacementSpec { affinity: vec![rule; n], ..PlacementSpec::default() }
+    }
+
+    #[test]
+    fn an_intent_states_at_most_thirty_two_affinity_rules() {
+        assert!(rules(MAX_AFFINITY).validate().is_ok());
+        assert!(rules(MAX_AFFINITY + 1).validate().is_err(), "Finding 143");
     }
 }
