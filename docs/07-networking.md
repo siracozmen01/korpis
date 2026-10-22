@@ -1253,16 +1253,16 @@ says nothing about the network beyond it, and the interface says so. The first v
 reservations "per direction", which for inbound displayed a guarantee no component could hold
 (finding S47).
 
-**Not yet built.** Phase 2 builds shaping and accounting, beside the metering accounting feeds (§4
-of `20-roadmap.md`). Until then a declaration that asks an endpoint for either is refused, and a
-workload whose `bandwidth` sets a reservation or a limit is placed only on a node whose driver
-declares it enforces one, so it stays unplaced with that reason where none does (§4.1 of
-`04-runtimes.md`, §5.3 of `05-scheduling.md`): either way nothing is shown as held that the kernel
-does not hold (Rule K-3). Until the node's shaping was built (below) no driver did; now a node
-with a declared uplink does. Since an endpoint's own shaping and accounting were built too (P2.8c,
-below), a declaration asking for either is no longer refused: it is placed only on a node whose
-driver declares `endpoint_shaping` or `endpoint_accounting`, and stays unplaced with that reason
-where none does.
+**Not yet built, as first written; both are built since, in Phase 2.** Phase 2 builds shaping and
+accounting, beside the metering accounting feeds (§4 of `20-roadmap.md`). Until then a declaration
+that asks an endpoint for either is refused, and a workload whose `bandwidth` sets a reservation or
+a limit is placed only on a node whose driver declares it enforces one, so it stays unplaced with
+that reason where none does (§4.1 of `04-runtimes.md`, §5.3 of `05-scheduling.md`): either way
+nothing is shown as held that the kernel does not hold (Rule K-3). Until the node's shaping was
+built (below) no driver did; now a node with a declared uplink does. Since an endpoint's own
+shaping and accounting were built too (P2.8c, below), a declaration asking for either is no longer
+refused: it is placed only on a node whose driver declares `endpoint_shaping` or
+`endpoint_accounting`, and stays unplaced with that reason where none does.
 
 **Shaping and accounting, as designed.** Designed 2026-10-21, before they were built (Phase 2 of
 §4 of `20-roadmap.md`), on the network of §4.1: a point-to-point link per workload, routed, every

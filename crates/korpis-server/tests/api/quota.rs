@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Quota held at admission (§5.1 of docs/05-scheduling.md), against the totals kept beside each
-//! entry (question 7 of §10 there). Entries are written directly: setting quota through the API
-//! arrives with quota sets in Phase 2.
+//! entry (question 7 of §10 there). Entries are written directly, so admission is tested apart
+//! from the rules of setting a set, which `quota_set.rs` tests.
 
 use crate::lifecycle::approve;
 use crate::recipes::{body, change, create, project, push_paper, text};

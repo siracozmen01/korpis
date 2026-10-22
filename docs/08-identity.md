@@ -786,7 +786,7 @@ it, at use and at renewal.
 What this costs. A member is asked about only with their set, so while the set's provider cannot
 answer, the member's grace runs with the set's. And as with the ceiling, nothing issues as a member
 until OIDC's signed-in external users can (Phase 2 of `20-roadmap.md` §4): a relayed call issues
-nothing (§5.2).
+nothing (§5.2). They can since 2026-10-21 (the note on issuing as a member, above).
 
 Designed 2026-10-20, for signing in (§9.7). The members a set's re-verification asks about are
 also those holding a live session that named the set, so a person signed in is asked about as a
@@ -997,7 +997,9 @@ configuration is the provider's environment: `KORPIS_OIDC_ISSUER`, `KORPIS_OIDC_
 in a file named by the SHA-256 of the person's `sub` and readable by the provider alone. It is
 tested against an independent issuer (§9 of `21-stack.md`). Until the control plane's half is
 built (Phase 2 of `20-roadmap.md` §4), nothing asks it to authorize, and a sign-in through it
-cannot yet begin.
+cannot yet begin. The control plane's half was built 2026-10-21 (§9.7), and a person signs in
+through the provider's own program, acts on one project, and loses a group's authority, on a
+real node, in `scripts/e2e-phase2.sh` (trace 44 of `23-walkthroughs.md`).
 
 **SAML's shape.** SAML takes the same two calls and different evidence. `Authorize` answers an
 `AuthnRequest` for the HTTP-Redirect binding whose identifier is derived from the nonce and whose

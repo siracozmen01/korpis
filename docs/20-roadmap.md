@@ -445,11 +445,11 @@ than architecture.
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
-| `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 and 1 built: twenty-five crates and the panel, about 170,000 lines of Rust and 10,700 of TypeScript, 1,008 Rust tests and 85 of the panel's, 85 migrations, and the 129 calls of the public API |
+| `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 to 2 built: twenty-six crates and the panel, about 209,000 lines of Rust and 17,100 of TypeScript, 1,262 Rust tests and 136 of the panel's, 122 migrations, and the 162 calls of the public API |
 
-Seventy-one numbered open questions remain open, of 141 recorded. Sixteen of them are a
-question restated in a second document, carried there by name or pointing on to the one that will
-settle it, so fifty-five decisions are open, each assigned to the one that will settle it. They
+Seventy numbered open questions remain open, of 142 recorded. Sixteen of them are a question
+restated in a second document, carried there by name or pointing on to the one that will settle
+it, so fifty-four decisions are open, each assigned to the one that will settle it. They
 are the design's honest edges, not omissions: an open question with an owner is a decision
 deferred deliberately, and every one of them was recorded where the person who hits it will find
 it.
@@ -469,6 +469,19 @@ it.
 > distinct. Since then that question was resolved in §6.3 of `08-identity.md`, and questions 6
 > and 7 of §10 of `05-scheduling.md` in §5.1 there, which leaves the seventy-one and fifty-five
 > above.
+>
+> Recounted 2026-10-22, as Phase 2 closed, by the rule above, with how each figure of the row
+> above was counted written down so the next count can repeat it: crates are the directories of
+> `crates/`; lines are every `.rs` file's under it, and every `.ts` and `.tsx` file's under
+> `web/src` and `web/e2e` but the generated ones; tests are the `#[test]` and `#[tokio::test]`
+> attributes, and the panel's the `it(` and `test(` calls of the same files; migrations are the
+> files of `crates/korpis-store/migrations` that are not an inverse; and calls are the `rpc`s of
+> `korpis/v1`. The same commands give Phase 1's figures above, at its closing commit, but for its
+> TypeScript, which they give as 10,572, rounded then to 10,700. Of the questions, one was
+> recorded after the count above and is open, which made 142 and seventy-two; question 8 of §10 of
+> `05-scheduling.md` was resolved in §2.2 there before Phase 2 was called done, being due before
+> it, which leaves the seventy and fifty-four above. A question counted as restated says "carried
+> by" another document; one that says "carried from" one is that question's owner.
 
 **Phase 1 is built, and its done-when holds.** `scripts/e2e-phase1.sh` runs it as an operator
 would, on one machine, every step through the `korpis` CLI: the control plane installed into a
@@ -497,4 +510,30 @@ draining is migrating (§4, Phase 3).
 > Corrected 2026-10-19, as Phase 1 closed. This section said Phase 0 was built and that what
 > remained was Phase 1, and its counts were Phase 0's.
 
-The model is drawn, and its first two phases are built. What remains is Phase 2.
+**Phase 2 is built, and its done-when holds.** `scripts/e2e-phase2.sh` runs it on one machine, as
+an operator, its resellers, and a customer's staff would, every step through the `korpis` CLI or,
+for a person signing in, through the calls the panel makes. The operator makes a reseller and
+gives it a quota set and a credential of its own; the reseller, acting with that credential and
+never root's, makes a sub-tenant and gives it a smaller set and a credential; the sub-tenant makes
+its customer. The customer's server is placed within all three sets and runs; its next, which
+fits the customer's set, is refused by the reseller's, the customer told no more than that a set
+it may not read refused it and the reseller, planning the same declaration, told its own; the
+reseller's own servers cannot take what it guaranteed the sub-tenant; and each credential reads
+only beneath where it was issued (trace 52 of `23-walkthroughs.md`). Then the customer installs
+`korpis-idp-oidc` against an independent OpenID Connect issuer and binds its `ops` group to an
+Operator role on one project: a person the issuer signs in restarts a server there and reads
+nothing elsewhere, no account row exists before or after, and once the issuer drops her from the
+group she loses that authority within the binding's interval (trace 44). The twelve traces
+written while it was built (§42 to §53 of `23-walkthroughs.md`, and §36 extended) record what each
+found; building it found the specification wrong or silent in more places, each corrected in place
+where it was found.
+
+**What Phase 2 does not do is homed.** Every refusal the code answers with "arrives in Phase N"
+names Phase 3: dedicated addresses, rules naming workloads, migration plans, and moving a placed
+workload (§4, Phase 3). Phase 2 was built and proven on the one machine §7 calls Phase 1's; the
+two machines it lists from Phase 2 onward are for what Phase 3 measures, migration across a real
+network and lease fencing under a real partition, and Phase 2 needed neither. The release
+blockers stand as Phase 1 left them: the succession document, and the ZFS and LVM-thin volume
+backends.
+
+The model is drawn, and its first three phases are built. What remains is Phase 3.

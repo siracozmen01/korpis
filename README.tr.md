@@ -12,14 +12,18 @@ yerleştirir, istediğin kadar güçlü izole eder, depolama ve ağ verir, beyan
 ve hem senin hem de yetki devrettiğin kişilerin bunu bir panelden, terminalden, sohbetten veya
 API'den işletmesine izin verir.
 
-> **Önce tasarım geldi, kod ilk iki aşamasını tamamladı.** Yapım sırasının Phase 0 ve Phase 1'i
+> **Önce tasarım geldi, kod ilk üç aşamasını tamamladı.** Yapım sırasının Phase 0, 1 ve 2'si
 > `crates/` (Rust, [`21-stack.md`](./docs/21-stack.md) §3) ve `web/` altında kuruldu: tek bir
 > makinedeki tek bir operatör onu kurar, iş yüklerini çalıştırır, yedekler ve geri yükler, dürüst
 > bir konsol okur; panelden ya da CLI'dan, gösterdiği her sınır çekirdek tarafından uygulanarak.
-> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) ve
-> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) bunu bir operatörün yapacağı gibi doğrular.
-> Henüz başkalarına barındırma için değil: onların organizasyonları, yetki devri ve ölçümleme
-> Phase 2'de gelir.
+> Ve başkalarına barındırma yapar: organizasyonlar altlarındaki organizasyonlara devralınan
+> kotayla yetki devreder, kişiler kendi kimlik sağlayıcılarıyla, onlar için hiçbir hesap
+> açılmadan oturum açar ve her kiracının kullandığı ölçülür.
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh),
+> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) ve
+> [`scripts/e2e-phase2.sh`](./scripts/e2e-phase2.sh) bunu bir operatörün yapacağı gibi doğrular.
+> İş yükleri henüz düğümler arasında taşınmaz ve bir konteynerden güçlü izolasyon Phase 3'te
+> gelir.
 >
 > Yirmi dört doküman var ve kod onlara göre yazılıyor. Böyle bir sistemde bazı kararlar sonradan
 > takılamaz: durumun nasıl saklandığı, yetkinin nasıl devredildiği, güvenlik sınırının nerede

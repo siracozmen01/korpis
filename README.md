@@ -9,13 +9,17 @@ job, a virtual machine) on hardware you own. It places the workload on a node, i
 strongly as you ask, gives it storage and network, keeps it in the state you declared, and lets you
 and the people you delegate to operate it from a panel, a terminal, chat, or the API.
 
-> **The design comes first, and the code has finished its first two phases.** Phases 0 and 1 of
-> the build order are built in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)) and
+> **The design comes first, and the code has finished its first three phases.** Phases 0 to 2
+> of the build order are built in `crates/` (Rust, §3 of [`21-stack.md`](./docs/21-stack.md)) and
 > `web/`: one operator on one machine installs it, runs workloads, backs them up and restores
 > them, and reads an honest console, from the panel or the CLI, with every limit it shows
-> enforced by the kernel. [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh) and
-> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh) check it as an operator would. It is not yet
-> for hosting other people: their organizations, delegation, and metering arrive in Phase 2.
+> enforced by the kernel; and it hosts other people: organizations delegate to organizations
+> beneath them with quota that inherits, people sign in through their own identity provider with
+> no account made for them, and what each tenant uses is metered.
+> [`scripts/e2e-phase0.sh`](./scripts/e2e-phase0.sh),
+> [`scripts/e2e-phase1.sh`](./scripts/e2e-phase1.sh), and
+> [`scripts/e2e-phase2.sh`](./scripts/e2e-phase2.sh) check it as an operator would. Workloads do
+> not yet move between nodes, and isolation stronger than a container arrives in Phase 3.
 >
 > Twenty-four documents, and they are the specification the code is held to. Some decisions in a
 > system like this cannot be retrofitted: how state is stored, how authority is delegated, where the
