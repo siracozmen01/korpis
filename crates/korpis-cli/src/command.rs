@@ -17,7 +17,7 @@ use crate::cmd::template::TemplateAction;
 use crate::cmd::tenancy::{OrganizationAction, ProjectAction};
 use crate::cmd::volume::VolumeAction;
 use crate::cmd::{Get, GrantAction, NodeAction, PlanAction, SetAction, WorkloadAction};
-use crate::cmd::{console, logs, stream_share, theme};
+use crate::cmd::{console, layout, logs, stream_share, theme};
 use crate::complete::{self, Shell};
 use crate::sets::SetArgs;
 use clap::Subcommand;
@@ -104,6 +104,9 @@ pub enum Command {
     /// Shows, sets, and clears an organization's theme in the panel.
     #[command(subcommand)]
     Theme(theme::ThemeAction),
+    /// Shows, sets, and clears the landing screen an organization composes in the panel.
+    #[command(subcommand)]
+    Layout(layout::LayoutAction),
     /// Takes, lists, and shows backups.
     #[command(subcommand)]
     Backup(BackupAction),

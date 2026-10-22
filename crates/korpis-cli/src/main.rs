@@ -20,7 +20,7 @@ use korpis_cli::cmd::run::{self as runs, RunAction};
 use korpis_cli::cmd::template;
 use korpis_cli::cmd::volume;
 use korpis_cli::cmd::{Answer, act, get, grant, sets};
-use korpis_cli::cmd::{console, logs, stream_share, tenancy, theme};
+use korpis_cli::cmd::{console, layout, logs, stream_share, tenancy, theme};
 use korpis_cli::command::Command;
 use korpis_cli::complete::{COMPLETE_VAR, registration};
 use korpis_cli::connect::{Connection, Endpoint, token_from};
@@ -165,7 +165,8 @@ async fn run(cli: &Cli) -> Result<(), CliError> {
         | Command::Certificate(_)
         | Command::Domain(_)
         | Command::Portal(_)
-        | Command::Theme(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
+        | Command::Theme(_)
+        | Command::Layout(_) => answer(cli, object(&cli.required().await?, &cli.command).await),
         Command::Status { workload } => {
             answer(cli, get::status(&cli.required().await?, workload).await)
         }
@@ -225,6 +226,7 @@ async fn object(c: &Connection, command: &Command) -> Result<Answer, CliError> {
         Command::Domain(a) => domain::domain(c, a).await,
         Command::Portal(a) => portal::portal(c, a).await,
         Command::Theme(a) => theme::theme(c, a).await,
+        Command::Layout(a) => layout::layout(c, a).await,
         _ => Err(CliError::Local("not a command about one kind of object".into())),
     }
 }

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- The layout organization $1 shows: its own, or the nearest ancestor's, skipping any organization\n-- that removed its own.\nWITH RECURSIVE up AS (\n    SELECT id, parent_id, 0 AS depth FROM organization WHERE id = $1\n    UNION ALL\n    SELECT o.id, o.parent_id, up.depth + 1 FROM organization o JOIN up ON o.id = up.parent_id\n)\nSELECT l.organization_id, l.name, l.items\n  FROM up JOIN organization_layout l ON l.organization_id = up.id AND NOT l.inherit\n ORDER BY up.depth\n LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "organization_layout",
+            "name": "organization_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "organization_layout",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "items",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "organization_layout",
+            "name": "items"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "961c763c4ac64170f76f1ff256adb8722dc69fd9820ca747304f163ef5e11396"
+}

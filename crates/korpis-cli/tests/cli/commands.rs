@@ -176,3 +176,35 @@ async fn a_theme_is_set_from_files_and_flags_shown_and_cleared() {
     let cleared = ok(&cp.korpis(&s, &["theme", "clear"]).await);
     assert!(cleared.contains("the panel's own theme"), "{cleared}");
 }
+
+#[tokio::test]
+async fn a_layout_is_set_from_a_file_shown_set_again_as_shown_and_cleared() {
+    let cp = ControlPlane::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("layout.json");
+    let notice =
+        serde_json::json!({"notice": {"heading": "Maintenance tonight", "text": "At 22:00."}});
+    let layout = serde_json::json!({"name": "Acme", "items": [notice, {"places": {}}]});
+    std::fs::write(&file, layout.to_string()).unwrap();
+    let (s, from) = (cp.secret.clone(), file.to_str().unwrap());
+    let set = json(&cp.korpis(&s, &["--json", "layout", "set", "--from", from]).await);
+    assert_eq!(set["layout"]["name"], "Acme", "{set}");
+    assert_eq!(set["ownVersion"], "1", "{set}");
+
+    // What `show` prints is what `set` takes.
+    let shown = json(&cp.korpis(&s, &["--json", "layout", "show"]).await);
+    std::fs::write(&file, shown["layout"].to_string()).unwrap();
+    let again = json(&cp.korpis(&s, &["--json", "layout", "set", "--from", from]).await);
+    assert_eq!((&again["layout"], &again["ownVersion"]), (&shown["layout"], &"2".into()));
+    let human = ok(&cp.korpis(&s, &["layout", "show"]).await);
+    assert!(human.contains("a notice: Maintenance tonight"), "{human}");
+
+    let link = serde_json::json!({"link": {"label": "Help", "url": "http://help.example"}});
+    let bad = serde_json::json!({"items": [{"places": {}}, link]});
+    std::fs::write(&file, bad.to_string()).unwrap();
+    let refused = cp.korpis(&s, &["layout", "set", "--from", from]).await;
+    let said = String::from_utf8_lossy(&refused.stderr);
+    assert!(!refused.status.success() && said.contains("items[1].link.url"), "{said}");
+    let cleared = ok(&cp.korpis(&s, &["layout", "clear"]).await);
+    assert!(cleared.contains("the panel's own landing"), "{cleared}");
+}

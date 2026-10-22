@@ -700,6 +700,36 @@ Phased 2026-10-16: Phase 2 (§4 of `20-roadmap.md`). A layout is a host composin
 for its customers, a relationship Phase 2 creates, and what it can place is the slot inventory,
 which question 4 of §9 of `16-extensions.md` says is driven by the core extensions' needs, most of
 which arrive after Phase 1. Phase 1's panel has one landing screen, its own.
+
+   **What a layout is, designed 2026-10-22.** A `Layout` is a heading of at most 64 characters on
+   one line and at most 24 items in order, each one of the panel's own components: `places`, what
+   the viewer's grants open, the landing screen as Phase 1 built it; `quota`, the quota of the
+   viewer's top organization as the viewer reads it, which shows nothing to a viewer with no one
+   top organization; `notice`, a heading of at most 120 characters and a text of at most 2,000,
+   shown as text and never as markup; and `link`, a label of at most 64 characters and an `https`
+   address with a host and no user information, at most 2,048 bytes, shown with the host it goes
+   to. `places` is placed exactly once, because a landing screen is how a viewer reaches what
+   their grants open, and a host may arrange what its customers see first but not hide from them
+   what they can reach; `quota` at most once. An extension's slot is the fifth
+   kind, by the slot's name, and it is refused while no extension declares slots, which they do
+   from Phase 4 (`ui_slots`, §3.1 of `16-extensions.md`), since a layout places only what exists:
+   the kind is in the format now so a layout made today is the same object once slots arrive.
+   The layout a viewer's landing shows is chosen as the theme is (§7): at a portal the portal's
+   organization's, else that of the top organization the viewer can read, else, for a viewer
+   with no such organization or more than one, the installation root's. `SetLayout` is
+   `org.write` on the organization, against the version `GetLayout` returned, and each change is
+   an effect, `org.layout.set`; `GetLayout` answers under the read action of the object asked
+   about, as `GetTheme` does; and `GetLandingLayout` answers any caller signed in with the
+   layout of the address it was reached at, since every component it places renders under the
+   caller's own authority and its notices are addressed to whoever signs in there.
+
+   What it does not do: it composes the landing screen and nothing else, so every other page is
+   the panel's own; a notice or a link says what the organization that composed it says, which
+   the panel does not vouch for, and a link can go anywhere on the web, which is why the host it
+   goes to is shown beside its label; and it cannot narrow or widen what a viewer sees, since
+   every component reads with the viewer's credential. What it costs: one more object per
+   organization, inherited by the same walk up the tree a theme takes, and one more read when the
+   landing screen opens, with one more for the quota where it is placed.
 3. **Offline and PWA. Resolved 2026-10-16: the panel may be cached, what it shows may not.**
    Attractive for the incident case, the panel loading while the control plane is degraded.
    Requires deciding what a cached view is allowed to claim, which collides with §2.

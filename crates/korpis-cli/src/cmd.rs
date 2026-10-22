@@ -18,6 +18,7 @@ pub mod files;
 pub mod get;
 pub mod grant;
 pub mod identity;
+pub mod layout;
 pub mod logs;
 pub mod logs_offloaded;
 pub mod portal;

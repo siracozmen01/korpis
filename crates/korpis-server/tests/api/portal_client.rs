@@ -70,14 +70,35 @@ impl Portal {
         request: &impl Message,
         cookie: Option<&str>,
     ) -> Result<(A, reqwest::header::HeaderMap), reqwest::StatusCode> {
+        let cookie = cookie.map(|c| ("cookie", format!("__Host-korpis_refresh={c}")));
+        self.call_with(procedure, request, cookie).await
+    }
+
+    /// Calls `procedure` at the portal as [`Portal::call`] does, presenting `bearer`.
+    pub async fn call_bearing<A: Message + Default>(
+        &self,
+        procedure: &str,
+        request: &impl Message,
+        bearer: &str,
+    ) -> Result<(A, reqwest::header::HeaderMap), reqwest::StatusCode> {
+        let bearer = Some(("authorization", format!("Bearer {bearer}")));
+        self.call_with(procedure, request, bearer).await
+    }
+
+    async fn call_with<A: Message + Default>(
+        &self,
+        procedure: &str,
+        request: &impl Message,
+        header: Option<(&str, String)>,
+    ) -> Result<(A, reqwest::header::HeaderMap), reqwest::StatusCode> {
         let mut sent = self
             .http
             .post(format!("{}/{procedure}", self.url))
             .header("content-type", "application/proto")
             .header("connect-protocol-version", "1")
             .body(request.encode_to_vec());
-        if let Some(c) = cookie {
-            sent = sent.header("cookie", format!("__Host-korpis_refresh={c}"));
+        if let Some((name, value)) = header {
+            sent = sent.header(name, value);
         }
         let answer = sent.send().await.unwrap();
         if !answer.status().is_success() {

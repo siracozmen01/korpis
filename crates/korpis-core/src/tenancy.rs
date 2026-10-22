@@ -2,6 +2,7 @@
 
 //! Tenancy: organizations and the projects inside them (§3.1 of docs/01-model.md).
 
+pub mod layout;
 pub mod quota;
 pub mod theme;
 

@@ -129,6 +129,21 @@ service OrganizationService {
   // org.write. Sets or removes the organization's own theme. mutation.expected_version is the
   // own_version GetTheme returned for the organization, absent when it has none.
   rpc SetTheme(SetThemeRequest) returns (SetThemeResponse);
+  // The layout that applies to an organization, a project, or a workload (question 2 of §10 of
+  // docs/11-surface-web.md): its organization's own, else its nearest ancestor's. Under the read
+  // action of the object asked about.
+  rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // The layout of the address the caller reached the control plane at: at a portal its
+  // organization's, and elsewhere the installation's root organization's. Answered to any caller
+  // signed in, for a landing no one organization of the caller's names.
+  rpc GetLandingLayout(GetLandingLayoutRequest) returns (GetLandingLayoutResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // org.write. Sets or removes the organization's own layout. mutation.expected_version is the
+  // own_version GetLayout returned for the organization, absent when it has none.
+  rpc SetLayout(SetLayoutRequest) returns (SetLayoutResponse);
 }
 
 message CreateOrganizationRequest {
@@ -259,6 +274,34 @@ message SetThemeRequest {
 
 message SetThemeResponse {
   GoverningTheme governing = 1;
+  Consistency consistency = 2;
+}
+
+message GetLayoutRequest {
+  // An organization, a project, or a workload.
+  Scope of = 1;
+  Consistency consistency = 2;
+}
+
+message GetLayoutResponse {
+  GoverningLayout governing = 1;
+}
+
+message GetLandingLayoutRequest {}
+
+message GetLandingLayoutResponse {
+  GoverningLayout governing = 1;
+}
+
+message SetLayoutRequest {
+  Mutation mutation = 1;
+  string organization = 2;
+  // Absent removes the organization's own layout, so its nearest ancestor's applies again.
+  Layout layout = 3;
+}
+
+message SetLayoutResponse {
+  GoverningLayout governing = 1;
   Consistency consistency = 2;
 }
 

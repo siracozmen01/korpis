@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file korpis/v1/tenancy.proto.
  */
 export const file_korpis_v1_tenancy: GenFile = /*@__PURE__*/
-  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEivwMKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIPCgd2ZXJzaW9uGAQgASgEEjUKEGVncmVzc19leGhhdXN0ZWQYBSABKAsyGy5rb3JwaXMudjEuRWdyZXNzRXhoYXVzdGlvbhIjChZlZ3Jlc3NfYnl0ZXNfcGVyX21vbnRoGAogASgESACIAQESLAoMZWdyZXNzX3NwZW50GAsgASgLMhYua29ycGlzLnYxLkVncmVzc1NwZW50EicKBW5vZGVzGAYgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISMgoScmVzZXJ2YXRpb25fYm91bmRzGAcgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiwKDGxpbWl0X2JvdW5kcxgIIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIiCgRoZWxkGAkgASgLMhQua29ycGlzLnYxLlF1b3RhSGVsZEIZChdfZWdyZXNzX2J5dGVzX3Blcl9tb250aEoECAIQA0oECAMQBFIMcmVzZXJ2YXRpb25zUgZsaW1pdHMikwUKC1F1b3RhQm91bmRzEhcKCmNwdV9taWxsaXMYASABKARIAIgBARIZCgxtZW1vcnlfYnl0ZXMYAiABKARIAYgBARIXCgpkaXNrX2J5dGVzGAMgASgESAKIAQESJAoXZGlza19yZWFkX2J5dGVzX3Blcl9zZWMYBCABKARIA4gBARIlChhkaXNrX3dyaXRlX2J5dGVzX3Blcl9zZWMYBSABKARIBIgBARIiChVkaXNrX3JlYWRfb3BzX3Blcl9zZWMYBiABKARIBYgBARIjChZkaXNrX3dyaXRlX29wc19wZXJfc2VjGAcgASgESAaIAQESIwoWYmFuZHdpZHRoX2JpdHNfcGVyX3NlYxgJIAEoBEgHiAEBEhYKCXdvcmtsb2FkcxgKIAEoBEgIiAEBEhQKB3ZvbHVtZXMYCyABKARICYgBARIWCgllbmRwb2ludHMYDCABKARICogBARIbCg5kZWRpY2F0ZWRfaXB2NBgNIAEoBEgLiAEBEhcKCm5vZGVfcG9ydHMYDyABKARIDIgBAUINCgtfY3B1X21pbGxpc0IPCg1fbWVtb3J5X2J5dGVzQg0KC19kaXNrX2J5dGVzQhoKGF9kaXNrX3JlYWRfYnl0ZXNfcGVyX3NlY0IbChlfZGlza193cml0ZV9ieXRlc19wZXJfc2VjQhgKFl9kaXNrX3JlYWRfb3BzX3Blcl9zZWNCGQoXX2Rpc2tfd3JpdGVfb3BzX3Blcl9zZWNCGQoXX2JhbmR3aWR0aF9iaXRzX3Blcl9zZWNCDAoKX3dvcmtsb2Fkc0IKCghfdm9sdW1lc0IMCgpfZW5kcG9pbnRzQhEKD19kZWRpY2F0ZWRfaXB2NEINCgtfbm9kZV9wb3J0cyJ0CglRdW90YUhlbGQSLAoMcmVzZXJ2YXRpb25zGAEgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiYKBmxpbWl0cxgCIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIRCgl1bmJvdW5kZWQYAyADKAkiiwEKC0VncmVzc1NwZW50EikKBW1vbnRoGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVieXRlcxgCIAEoBBIRCglleGhhdXN0ZWQYAyABKAgSLwoLcmVja29uZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEEVncmVzc0V4aGF1c3Rpb24SGgoSZmxvb3JfYml0c19wZXJfc2VjGAEgASgEEg8KB2N1dF9vZmYYAiABKAgi2wEKB1N1YmplY3QSDgoEdXNlchgBIAEoCUgAEg8KBXRva2VuGAIgASgJSAASLwoIZXh0ZXJuYWwYAyABKAsyGy5rb3JwaXMudjEuRXh0ZXJuYWxJZGVudGl0eUgAEhIKCHdvcmtsb2FkGAQgASgJSAASEwoJZXh0ZW5zaW9uGAUgASgJSAASKAoGc3lzdGVtGAYgASgOMhYua29ycGlzLnYxLlN5c3RlbUFjdG9ySAASDgoEbGluaxgHIAEoCUgAEhMKCWFub255bW91cxgIIAEoCEgAQgYKBGtpbmQiZwoQRXh0ZXJuYWxJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRIOCgR1c2VyGAIgASgJSAASJQoDc2V0GAMgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0SABCCgoIc2VsZWN0b3IiLwoLRXh0ZXJuYWxTZXQSDQoFcmVhbG0YASABKAkSEQoJbWVtYmVyX29mGAIgASgJIrMBCgVUaGVtZRIUCgxwcm9kdWN0X25hbWUYASABKAkSHQoEbG9nbxgCIAEoCzIPLmtvcnBpcy52MS5Mb2dvEiUKBWxpZ2h0GAMgASgLMhYua29ycGlzLnYxLlRoZW1lQ29sb3JzEiQKBGRhcmsYBCABKAsyFi5rb3JwaXMudjEuVGhlbWVDb2xvcnMSFAoMc2lnbl9pbl90ZXh0GAUgASgJEhIKCnN0eWxlc2hlZXQYBiABKAkiKAoETG9nbxISCgptZWRpYV90eXBlGAEgASgJEgwKBGRhdGEYAiABKAwioQEKC1RoZW1lQ29sb3JzEhIKCmJhY2tncm91bmQYASABKAkSDAoEdGV4dBgCIAEoCRINCgVtdXRlZBgDIAEoCRIMCgRsaW5lGAQgASgJEg4KBmFjY2VudBgFIAEoCRITCgthY2NlbnRfdGV4dBgGIAEoCRIOCgZkYW5nZXIYByABKAkSDwoHc3VyZmFjZRgIIAEoCRINCgVmb2N1cxgJIAEoCSJmCg5Hb3Zlcm5pbmdUaGVtZRIfCgV0aGVtZRgBIAEoCzIQLmtvcnBpcy52MS5UaGVtZRITCgZzZXRfb24YAiABKAlIAIgBARITCgtvd25fdmVyc2lvbhgDIAEoBEIJCgdfc2V0X29uKnwKEk9yZ2FuaXphdGlvblN0YXR1cxIjCh9PUkdBTklaQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHgoaT1JHQU5JWkFUSU9OX1NUQVRVU19BQ1RJVkUQARIhCh1PUkdBTklaQVRJT05fU1RBVFVTX1NVU1BFTkRFRBACKlkKCU9uU3VzcGVuZBIaChZPTl9TVVNQRU5EX1VOU1BFQ0lGSUVEEAASGwoXT05fU1VTUEVORF9LRUVQX1JVTk5JTkcQARITCg9PTl9TVVNQRU5EX1NUT1AQAiqcAQoLU3lzdGVtQWN0b3ISHAoYU1lTVEVNX0FDVE9SX1VOU1BFQ0lGSUVEEAASGwoXU1lTVEVNX0FDVE9SX1JFQ09OQ0lMRVIQARIaChZTWVNURU1fQUNUT1JfU0NIRURVTEVSEAISGgoWU1lTVEVNX0FDVE9SX0JPT1RTVFJBUBADEhoKFlNZU1RFTV9BQ1RPUl9BVVRIT1JJVFkQBGIGcHJvdG8z", [file_google_protobuf_timestamp, file_korpis_v1_common]);
+  fileDesc("Chdrb3JwaXMvdjEvdGVuYW5jeS5wcm90bxIJa29ycGlzLnYxIoQCCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwYXJlbnQYAyABKAlIAIgBARIiCgVxdW90YRgEIAEoCzITLmtvcnBpcy52MS5RdW90YVNldBItCgZzdGF0dXMYBSABKA4yHS5rb3JwaXMudjEuT3JnYW5pemF0aW9uU3RhdHVzEikKCnN1c3BlbnNpb24YBiABKAsyFS5rb3JwaXMudjEuU3VzcGVuc2lvbhIrCgdjcmVhdGVkGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgd2ZXJzaW9uGAggASgEQgkKB19wYXJlbnQijgEKClN1c3BlbnNpb24SHgoCYnkYASABKAsyEi5rb3JwaXMudjEuU3ViamVjdBImCgJhdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAMgASgJEigKCm9uX3N1c3BlbmQYBCABKA4yFC5rb3JwaXMudjEuT25TdXNwZW5kIvoBCgdQcm9qZWN0EgoKAmlkGAEgASgJEhQKDG9yZ2FuaXphdGlvbhgCIAEoCRIMCgRuYW1lGAMgASgJEiIKBXF1b3RhGAQgASgLMhMua29ycGlzLnYxLlF1b3RhU2V0Ei4KBmxhYmVscxgFIAMoCzIeLmtvcnBpcy52MS5Qcm9qZWN0LkxhYmVsc0VudHJ5EisKB2NyZWF0ZWQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB3ZlcnNpb24YByABKAQaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLEAQoIUXVvdGFTZXQSJgoHZW50cmllcxgBIAMoCzIVLmtvcnBpcy52MS5RdW90YUVudHJ5ElEKGGNoaWxkX292ZXJjb21taXRfcGVyY2VudBgCIAMoCzIvLmtvcnBpcy52MS5RdW90YVNldC5DaGlsZE92ZXJjb21taXRQZXJjZW50RW50cnkaPQobQ2hpbGRPdmVyY29tbWl0UGVyY2VudEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDToCOAEivwMKClF1b3RhRW50cnkSKgoIc2VsZWN0b3IYASABKAsyGC5rb3JwaXMudjEuTGFiZWxTZWxlY3RvchIPCgd2ZXJzaW9uGAQgASgEEjUKEGVncmVzc19leGhhdXN0ZWQYBSABKAsyGy5rb3JwaXMudjEuRWdyZXNzRXhoYXVzdGlvbhIjChZlZ3Jlc3NfYnl0ZXNfcGVyX21vbnRoGAogASgESACIAQESLAoMZWdyZXNzX3NwZW50GAsgASgLMhYua29ycGlzLnYxLkVncmVzc1NwZW50EicKBW5vZGVzGAYgASgLMhgua29ycGlzLnYxLkxhYmVsU2VsZWN0b3ISMgoScmVzZXJ2YXRpb25fYm91bmRzGAcgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiwKDGxpbWl0X2JvdW5kcxgIIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIiCgRoZWxkGAkgASgLMhQua29ycGlzLnYxLlF1b3RhSGVsZEIZChdfZWdyZXNzX2J5dGVzX3Blcl9tb250aEoECAIQA0oECAMQBFIMcmVzZXJ2YXRpb25zUgZsaW1pdHMikwUKC1F1b3RhQm91bmRzEhcKCmNwdV9taWxsaXMYASABKARIAIgBARIZCgxtZW1vcnlfYnl0ZXMYAiABKARIAYgBARIXCgpkaXNrX2J5dGVzGAMgASgESAKIAQESJAoXZGlza19yZWFkX2J5dGVzX3Blcl9zZWMYBCABKARIA4gBARIlChhkaXNrX3dyaXRlX2J5dGVzX3Blcl9zZWMYBSABKARIBIgBARIiChVkaXNrX3JlYWRfb3BzX3Blcl9zZWMYBiABKARIBYgBARIjChZkaXNrX3dyaXRlX29wc19wZXJfc2VjGAcgASgESAaIAQESIwoWYmFuZHdpZHRoX2JpdHNfcGVyX3NlYxgJIAEoBEgHiAEBEhYKCXdvcmtsb2FkcxgKIAEoBEgIiAEBEhQKB3ZvbHVtZXMYCyABKARICYgBARIWCgllbmRwb2ludHMYDCABKARICogBARIbCg5kZWRpY2F0ZWRfaXB2NBgNIAEoBEgLiAEBEhcKCm5vZGVfcG9ydHMYDyABKARIDIgBAUINCgtfY3B1X21pbGxpc0IPCg1fbWVtb3J5X2J5dGVzQg0KC19kaXNrX2J5dGVzQhoKGF9kaXNrX3JlYWRfYnl0ZXNfcGVyX3NlY0IbChlfZGlza193cml0ZV9ieXRlc19wZXJfc2VjQhgKFl9kaXNrX3JlYWRfb3BzX3Blcl9zZWNCGQoXX2Rpc2tfd3JpdGVfb3BzX3Blcl9zZWNCGQoXX2JhbmR3aWR0aF9iaXRzX3Blcl9zZWNCDAoKX3dvcmtsb2Fkc0IKCghfdm9sdW1lc0IMCgpfZW5kcG9pbnRzQhEKD19kZWRpY2F0ZWRfaXB2NEINCgtfbm9kZV9wb3J0cyJ0CglRdW90YUhlbGQSLAoMcmVzZXJ2YXRpb25zGAEgASgLMhYua29ycGlzLnYxLlF1b3RhQm91bmRzEiYKBmxpbWl0cxgCIAEoCzIWLmtvcnBpcy52MS5RdW90YUJvdW5kcxIRCgl1bmJvdW5kZWQYAyADKAkiiwEKC0VncmVzc1NwZW50EikKBW1vbnRoGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgVieXRlcxgCIAEoBBIRCglleGhhdXN0ZWQYAyABKAgSLwoLcmVja29uZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEEVncmVzc0V4aGF1c3Rpb24SGgoSZmxvb3JfYml0c19wZXJfc2VjGAEgASgEEg8KB2N1dF9vZmYYAiABKAgi2wEKB1N1YmplY3QSDgoEdXNlchgBIAEoCUgAEg8KBXRva2VuGAIgASgJSAASLwoIZXh0ZXJuYWwYAyABKAsyGy5rb3JwaXMudjEuRXh0ZXJuYWxJZGVudGl0eUgAEhIKCHdvcmtsb2FkGAQgASgJSAASEwoJZXh0ZW5zaW9uGAUgASgJSAASKAoGc3lzdGVtGAYgASgOMhYua29ycGlzLnYxLlN5c3RlbUFjdG9ySAASDgoEbGluaxgHIAEoCUgAEhMKCWFub255bW91cxgIIAEoCEgAQgYKBGtpbmQiZwoQRXh0ZXJuYWxJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRIOCgR1c2VyGAIgASgJSAASJQoDc2V0GAMgASgLMhYua29ycGlzLnYxLkV4dGVybmFsU2V0SABCCgoIc2VsZWN0b3IiLwoLRXh0ZXJuYWxTZXQSDQoFcmVhbG0YASABKAkSEQoJbWVtYmVyX29mGAIgASgJIrMBCgVUaGVtZRIUCgxwcm9kdWN0X25hbWUYASABKAkSHQoEbG9nbxgCIAEoCzIPLmtvcnBpcy52MS5Mb2dvEiUKBWxpZ2h0GAMgASgLMhYua29ycGlzLnYxLlRoZW1lQ29sb3JzEiQKBGRhcmsYBCABKAsyFi5rb3JwaXMudjEuVGhlbWVDb2xvcnMSFAoMc2lnbl9pbl90ZXh0GAUgASgJEhIKCnN0eWxlc2hlZXQYBiABKAkiKAoETG9nbxISCgptZWRpYV90eXBlGAEgASgJEgwKBGRhdGEYAiABKAwioQEKC1RoZW1lQ29sb3JzEhIKCmJhY2tncm91bmQYASABKAkSDAoEdGV4dBgCIAEoCRINCgVtdXRlZBgDIAEoCRIMCgRsaW5lGAQgASgJEg4KBmFjY2VudBgFIAEoCRITCgthY2NlbnRfdGV4dBgGIAEoCRIOCgZkYW5nZXIYByABKAkSDwoHc3VyZmFjZRgIIAEoCRINCgVmb2N1cxgJIAEoCSJmCg5Hb3Zlcm5pbmdUaGVtZRIfCgV0aGVtZRgBIAEoCzIQLmtvcnBpcy52MS5UaGVtZRITCgZzZXRfb24YAiABKAlIAIgBARITCgtvd25fdmVyc2lvbhgDIAEoBEIJCgdfc2V0X29uIjwKBkxheW91dBIMCgRuYW1lGAEgASgJEiQKBWl0ZW1zGAIgAygLMhUua29ycGlzLnYxLkxheW91dEl0ZW0iygEKCkxheW91dEl0ZW0SKQoGcGxhY2VzGAEgASgLMhcua29ycGlzLnYxLkxheW91dFBsYWNlc0gAEicKBXF1b3RhGAIgASgLMhYua29ycGlzLnYxLkxheW91dFF1b3RhSAASKQoGbm90aWNlGAMgASgLMhcua29ycGlzLnYxLkxheW91dE5vdGljZUgAEiUKBGxpbmsYBCABKAsyFS5rb3JwaXMudjEuTGF5b3V0TGlua0gAEg4KBHNsb3QYBSABKAlIAEIGCgRraW5kIg4KDExheW91dFBsYWNlcyINCgtMYXlvdXRRdW90YSItCgxMYXlvdXROb3RpY2USDwoHaGVhZGluZxgBIAEoCRIMCgR0ZXh0GAIgASgJIigKCkxheW91dExpbmsSDQoFbGFiZWwYASABKAkSCwoDdXJsGAIgASgJImkKD0dvdmVybmluZ0xheW91dBIhCgZsYXlvdXQYASABKAsyES5rb3JwaXMudjEuTGF5b3V0EhMKBnNldF9vbhgCIAEoCUgAiAEBEhMKC293bl92ZXJzaW9uGAMgASgEQgkKB19zZXRfb24qfAoST3JnYW5pemF0aW9uU3RhdHVzEiMKH09SR0FOSVpBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIeChpPUkdBTklaQVRJT05fU1RBVFVTX0FDVElWRRABEiEKHU9SR0FOSVpBVElPTl9TVEFUVVNfU1VTUEVOREVEEAIqWQoJT25TdXNwZW5kEhoKFk9OX1NVU1BFTkRfVU5TUEVDSUZJRUQQABIbChdPTl9TVVNQRU5EX0tFRVBfUlVOTklORxABEhMKD09OX1NVU1BFTkRfU1RPUBACKpwBCgtTeXN0ZW1BY3RvchIcChhTWVNURU1fQUNUT1JfVU5TUEVDSUZJRUQQABIbChdTWVNURU1fQUNUT1JfUkVDT05DSUxFUhABEhoKFlNZU1RFTV9BQ1RPUl9TQ0hFRFVMRVIQAhIaChZTWVNURU1fQUNUT1JfQk9PVFNUUkFQEAMSGgoWU1lTVEVNX0FDVE9SX0FVVEhPUklUWRAEYgZwcm90bzM", [file_google_protobuf_timestamp, file_korpis_v1_common]);
 
 /**
  * The root of a tenancy tree. Recursive: a child organization is how reselling exists.
@@ -783,6 +783,211 @@ export type GoverningTheme = Message<"korpis.v1.GoverningTheme"> & {
  */
 export const GoverningThemeSchema: GenMessage<GoverningTheme> = /*@__PURE__*/
   messageDesc(file_korpis_v1_tenancy, 15);
+
+/**
+ * A landing screen an organization composes for those it serves (question 2 of §10 of
+ * docs/11-surface-web.md): the panel's own components in order, each rendered under the viewer's
+ * own authority, shown to it and to everything beneath it that sets none of its own.
+ *
+ * @generated from message korpis.v1.Layout
+ */
+export type Layout = Message<"korpis.v1.Layout"> & {
+  /**
+   * The landing screen's heading: at most 64 characters, one line; empty for the panel's own.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * At most 24, the places item exactly once and the quota at most once.
+   *
+   * @generated from field: repeated korpis.v1.LayoutItem items = 2;
+   */
+  items: LayoutItem[];
+};
+
+/**
+ * Describes the message korpis.v1.Layout.
+ * Use `create(LayoutSchema)` to create a new message.
+ */
+export const LayoutSchema: GenMessage<Layout> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 16);
+
+/**
+ * One component of a layout.
+ *
+ * @generated from message korpis.v1.LayoutItem
+ */
+export type LayoutItem = Message<"korpis.v1.LayoutItem"> & {
+  /**
+   * @generated from oneof korpis.v1.LayoutItem.kind
+   */
+  kind: {
+    /**
+     * What the viewer's grants open.
+     *
+     * @generated from field: korpis.v1.LayoutPlaces places = 1;
+     */
+    value: LayoutPlaces;
+    case: "places";
+  } | {
+    /**
+     * The quota of the viewer's top organization, as the viewer reads it.
+     *
+     * @generated from field: korpis.v1.LayoutQuota quota = 2;
+     */
+    value: LayoutQuota;
+    case: "quota";
+  } | {
+    /**
+     * Words from whoever composed the layout, shown as text.
+     *
+     * @generated from field: korpis.v1.LayoutNotice notice = 3;
+     */
+    value: LayoutNotice;
+    case: "notice";
+  } | {
+    /**
+     * A link elsewhere, shown with the host it goes to.
+     *
+     * @generated from field: korpis.v1.LayoutLink link = 4;
+     */
+    value: LayoutLink;
+    case: "link";
+  } | {
+    /**
+     * An extension's contribution to a declared slot, by the slot's name: refused until
+     * extensions declare slots (§5 of docs/16-extensions.md), since a layout places only what
+     * exists.
+     *
+     * @generated from field: string slot = 5;
+     */
+    value: string;
+    case: "slot";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message korpis.v1.LayoutItem.
+ * Use `create(LayoutItemSchema)` to create a new message.
+ */
+export const LayoutItemSchema: GenMessage<LayoutItem> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 17);
+
+/**
+ * @generated from message korpis.v1.LayoutPlaces
+ */
+export type LayoutPlaces = Message<"korpis.v1.LayoutPlaces"> & {
+};
+
+/**
+ * Describes the message korpis.v1.LayoutPlaces.
+ * Use `create(LayoutPlacesSchema)` to create a new message.
+ */
+export const LayoutPlacesSchema: GenMessage<LayoutPlaces> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 18);
+
+/**
+ * @generated from message korpis.v1.LayoutQuota
+ */
+export type LayoutQuota = Message<"korpis.v1.LayoutQuota"> & {
+};
+
+/**
+ * Describes the message korpis.v1.LayoutQuota.
+ * Use `create(LayoutQuotaSchema)` to create a new message.
+ */
+export const LayoutQuotaSchema: GenMessage<LayoutQuota> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 19);
+
+/**
+ * @generated from message korpis.v1.LayoutNotice
+ */
+export type LayoutNotice = Message<"korpis.v1.LayoutNotice"> & {
+  /**
+   * 1 to 120 characters, one line.
+   *
+   * @generated from field: string heading = 1;
+   */
+  heading: string;
+
+  /**
+   * At most 2,000 characters; its line breaks are kept.
+   *
+   * @generated from field: string text = 2;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message korpis.v1.LayoutNotice.
+ * Use `create(LayoutNoticeSchema)` to create a new message.
+ */
+export const LayoutNoticeSchema: GenMessage<LayoutNotice> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 20);
+
+/**
+ * @generated from message korpis.v1.LayoutLink
+ */
+export type LayoutLink = Message<"korpis.v1.LayoutLink"> & {
+  /**
+   * 1 to 64 characters, one line.
+   *
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * An https address with a host and no user information, at most 2,048 bytes.
+   *
+   * @generated from field: string url = 2;
+   */
+  url: string;
+};
+
+/**
+ * Describes the message korpis.v1.LayoutLink.
+ * Use `create(LayoutLinkSchema)` to create a new message.
+ */
+export const LayoutLinkSchema: GenMessage<LayoutLink> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 21);
+
+/**
+ * The layout that applies to an object, and the organization it comes from.
+ *
+ * @generated from message korpis.v1.GoverningLayout
+ */
+export type GoverningLayout = Message<"korpis.v1.GoverningLayout"> & {
+  /**
+   * Empty when no organization from the object's up to its root set one: the panel's own.
+   *
+   * @generated from field: korpis.v1.Layout layout = 1;
+   */
+  layout?: Layout | undefined;
+
+  /**
+   * The organization that set it. Absent when the panel's own applies.
+   *
+   * @generated from field: optional string set_on = 2;
+   */
+  setOn?: string | undefined;
+
+  /**
+   * For an organization asked about, the version of its own layout, zero when it has none:
+   * what a change must expect.
+   *
+   * @generated from field: uint64 own_version = 3;
+   */
+  ownVersion: bigint;
+};
+
+/**
+ * Describes the message korpis.v1.GoverningLayout.
+ * Use `create(GoverningLayoutSchema)` to create a new message.
+ */
+export const GoverningLayoutSchema: GenMessage<GoverningLayout> = /*@__PURE__*/
+  messageDesc(file_korpis_v1_tenancy, 22);
 
 /**
  * @generated from enum korpis.v1.OrganizationStatus

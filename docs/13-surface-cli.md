@@ -334,6 +334,14 @@ sessions begun at it and removes its passkeys and so takes `--yes`, as removing 
 `korpis portal get` has said how many accounts sign in nowhere else. (Designed 2026-10-21; built
 2026-10-22.)
 
+The landing screen an organization composes for those it serves (question 2 of §10 of
+`11-surface-web.md`) is read with `korpis layout show`, which names the organization it comes
+from, set with `korpis layout set --from layout.json`, whose file is the `layout` that `korpis
+--json layout show` prints, so a layout is shown, edited, and set again without being retyped,
+and removed with `korpis layout clear`, after which the nearest ancestor's applies. Each takes
+`--organization`, the top one the caller can read by default, as `korpis theme` does. (Built
+2026-10-22.)
+
 ---
 
 ## 6. Two sources of truth, reconciled honestly

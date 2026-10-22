@@ -248,3 +248,60 @@ message GoverningTheme {
   // a change must expect.
   uint64 own_version = 3;
 }
+
+// A landing screen an organization composes for those it serves (question 2 of §10 of
+// docs/11-surface-web.md): the panel's own components in order, each rendered under the viewer's
+// own authority, shown to it and to everything beneath it that sets none of its own.
+message Layout {
+  // The landing screen's heading: at most 64 characters, one line; empty for the panel's own.
+  string name = 1;
+  // At most 24, the places item exactly once and the quota at most once.
+  repeated LayoutItem items = 2;
+}
+
+// One component of a layout.
+message LayoutItem {
+  oneof kind {
+    // What the viewer's grants open.
+    LayoutPlaces places = 1;
+    // The quota of the viewer's top organization, as the viewer reads it.
+    LayoutQuota quota = 2;
+    // Words from whoever composed the layout, shown as text.
+    LayoutNotice notice = 3;
+    // A link elsewhere, shown with the host it goes to.
+    LayoutLink link = 4;
+    // An extension's contribution to a declared slot, by the slot's name: refused until
+    // extensions declare slots (§5 of docs/16-extensions.md), since a layout places only what
+    // exists.
+    string slot = 5;
+  }
+}
+
+message LayoutPlaces {}
+
+message LayoutQuota {}
+
+message LayoutNotice {
+  // 1 to 120 characters, one line.
+  string heading = 1;
+  // At most 2,000 characters; its line breaks are kept.
+  string text = 2;
+}
+
+message LayoutLink {
+  // 1 to 64 characters, one line.
+  string label = 1;
+  // An https address with a host and no user information, at most 2,048 bytes.
+  string url = 2;
+}
+
+// The layout that applies to an object, and the organization it comes from.
+message GoverningLayout {
+  // Empty when no organization from the object's up to its root set one: the panel's own.
+  Layout layout = 1;
+  // The organization that set it. Absent when the panel's own applies.
+  optional string set_on = 2;
+  // For an organization asked about, the version of its own layout, zero when it has none:
+  // what a change must expect.
+  uint64 own_version = 3;
+}

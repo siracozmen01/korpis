@@ -59,6 +59,7 @@ mod idp;
 mod issuance;
 mod issuance_dns;
 mod journal;
+mod layout;
 mod leases;
 mod lifecycle;
 mod links;

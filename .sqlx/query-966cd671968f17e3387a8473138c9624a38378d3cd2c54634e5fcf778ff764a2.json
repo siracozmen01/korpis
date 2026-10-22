@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- SPDX-License-Identifier: AGPL-3.0-or-later\n-- Replaces organization $1's layout, or its removal, at version $4, if it is still at version $7.\n-- A removal is $8: the layout is then cleared and the ancestors' layout applies.\nUPDATE organization_layout SET name = $2, items = $3, version = $4, set_by = $5, set_at = $6,\n                               inherit = $8\n WHERE organization_id = $1 AND version = $7\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Jsonb",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "966cd671968f17e3387a8473138c9624a38378d3cd2c54634e5fcf778ff764a2"
+}

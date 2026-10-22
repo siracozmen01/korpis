@@ -33,6 +33,7 @@ mod feed;
 mod idempotency;
 mod job;
 mod journal;
+mod layout;
 mod lease;
 mod member;
 mod metering;

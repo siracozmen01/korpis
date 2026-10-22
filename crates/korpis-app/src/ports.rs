@@ -29,6 +29,7 @@ mod feasibility;
 mod idempotency;
 mod job;
 mod journal;
+mod layout;
 mod lease;
 mod lookup;
 mod member;
@@ -97,6 +98,7 @@ pub use idempotency::{IdempotencyRead, IdempotencyWrite, Recorded};
 pub use job::{Job, JobEnd, JobRead, JobWrite, NewJob};
 pub use journal::{JournalRead, JournalWrite};
 pub use korpis_core::workload::run::RunEnd;
+pub use layout::{LayoutChange, LayoutRead, LayoutWrite, SetLayout};
 pub use lease::{EpochIssue, LeaseWrite};
 pub use lookup::{LookupError, TxtLookup};
 pub use member::{MemberRead, MemberWrite};
@@ -230,6 +232,7 @@ pub trait Store:
     + PlacementRead
     + TrustRead
     + ThemeRead
+    + LayoutRead
     + EnrollmentRead
     + AssignmentRead
     + JournalRead
@@ -318,6 +321,7 @@ pub trait Tx:
     + RetirementWrite
     + TrustWrite
     + ThemeWrite
+    + LayoutWrite
     + EnrollmentWrite
     + SessionWrite
     + AssignmentWrite

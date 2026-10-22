@@ -39,6 +39,7 @@ mod extension;
 mod external;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod info;
+mod layout;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
 mod metering;
 #[expect(refining_impl_trait, reason = "async fn handlers for generated traits")]
