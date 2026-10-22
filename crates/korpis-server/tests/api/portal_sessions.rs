@@ -6,125 +6,19 @@
 //! organization, as every access token it is exchanged for does, whatever the account's grants
 //! reach, and what it issues is held there too.
 
-use crate::certificates::upload;
 use crate::domains::child;
-use crate::panel::{PANEL, accounts, refresh_cookie};
+use crate::panel::{accounts, refresh_cookie};
+use crate::portal_client::{Portal, portal_of};
 use crate::refusal::reason;
-use crate::routes::attest;
 use crate::support::{Harness, mutation, org_scope};
-use buffa::Message;
 use connectrpc::ErrorCode;
 use korpis_core::webauthn::testing::SoftAuthenticator;
 use korpis_proto::korpis::v1 as pb;
-use rustls::pki_types::CertificateDer;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
 
 const NAME: &str = "panel.kestrel.example";
 
-/// A test authority, and a certificate it issued for `name` with its key, in PEM.
-fn issued(name: &str) -> (CertificateDer<'static>, String, String) {
-    let ca_key = rcgen::KeyPair::generate().unwrap();
-    let mut ca = rcgen::CertificateParams::new(Vec::<String>::new()).unwrap();
-    ca.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    let authority = ca.self_signed(&ca_key).unwrap();
-    let issuer = rcgen::Issuer::new(ca, ca_key);
-    let key = rcgen::KeyPair::generate().unwrap();
-    let leaf = rcgen::CertificateParams::new(vec![name.to_owned()]).unwrap();
-    let leaf = leaf.signed_by(&key, &issuer).unwrap();
-    (authority.der().clone(), leaf.pem(), key.serialize_pem())
-}
-
-/// The portal, as a browser at it reaches it.
-struct Portal {
-    http: reqwest::Client,
-    /// Where the control plane's listener answers for it.
-    url: String,
-    /// Its origin, which the installation's public URL's port is part of: where the panel's page
-    /// at the portal is, and so what its ceremonies are made at.
-    origin: String,
-}
-
-impl Portal {
-    /// Calls `procedure` at the portal in Connect's unary protocol, presenting `cookie`; the
-    /// answer and its headers, or the status it was refused with.
-    async fn call<A: Message + Default>(
-        &self,
-        procedure: &str,
-        request: &impl Message,
-        cookie: Option<&str>,
-    ) -> Result<(A, reqwest::header::HeaderMap), reqwest::StatusCode> {
-        let mut sent = self
-            .http
-            .post(format!("{}/{procedure}", self.url))
-            .header("content-type", "application/proto")
-            .header("connect-protocol-version", "1")
-            .body(request.encode_to_vec());
-        if let Some(c) = cookie {
-            sent = sent.header("cookie", format!("__Host-korpis_refresh={c}"));
-        }
-        let answer = sent.send().await.unwrap();
-        if !answer.status().is_success() {
-            return Err(answer.status());
-        }
-        let headers = answer.headers().clone();
-        Ok((A::decode_from_slice(&answer.bytes().await.unwrap()).unwrap(), headers))
-    }
-}
-
-/// A client reaching `NAME` at `at`, trusting `root` alone.
-fn reaching(at: SocketAddr, root: &CertificateDer<'static>) -> reqwest::Client {
-    let mut roots = rustls::RootCertStore::empty();
-    roots.add(root.clone()).unwrap();
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let tls = rustls::ClientConfig::builder_with_provider(provider)
-        .with_safe_default_protocol_versions()
-        .unwrap()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
-    reqwest::Client::builder()
-        .use_preconfigured_tls(tls)
-        .resolve(NAME, at)
-        .timeout(Duration::from_secs(10))
-        .build()
-        .unwrap()
-}
-
-/// A portal of `org` named [`NAME`], served with a provided certificate, once the control plane
-/// serves it.
-async fn portal_of(h: &Harness, org: &str) -> Portal {
-    attest(h, "d1", org, "kestrel.example").await;
-    let (root, chain, key) = issued(NAME);
-    let certificate = upload(h, "c1", org, (chain, key)).await;
-    let made = pb::CreatePortalRequest {
-        mutation: mutation("p1").into(),
-        organization: org.into(),
-        name: NAME.into(),
-        certificate: certificate.id,
-        ..Default::default()
-    };
-    h.portals(h.root()).create_portal(made).await.unwrap();
-    let port = h.base_url().rsplit_once(':').unwrap().1.parse::<u16>().unwrap();
-    let at = SocketAddr::from(([127, 0, 0, 1], port));
-    let public = PANEL.rsplit_once(':').unwrap().1;
-    let portal = Portal {
-        http: reaching(at, &root),
-        url: format!("https://{NAME}:{port}"),
-        origin: format!("https://{NAME}:{public}"),
-    };
-    for _ in 0..80 {
-        let url = format!("{}/about/source", portal.url);
-        if portal.http.get(url).send().await.is_ok() {
-            return portal;
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    panic!("the portal was never served");
-}
-
-/// Issues `org.read` on the root organization to a new user; the invitation.
-async fn invited(h: &Harness) -> String {
+/// Issues `org.read` on the root organization to a new user; the invitation, and the grant.
+async fn invited(h: &Harness) -> (String, String) {
     let issued = pb::IssueGrantRequest {
         mutation: mutation("invite").into(),
         actions: vec!["org.read".to_owned()],
@@ -132,7 +26,8 @@ async fn invited(h: &Harness) -> String {
         to_new_user: pb::NewUser { display_name: "Dana".into(), ..Default::default() }.into(),
         ..Default::default()
     };
-    h.grants(h.root()).issue_grant(issued).await.unwrap().into_owned().invitation
+    let issued = h.grants(h.root()).issue_grant(issued).await.unwrap().into_owned();
+    (issued.invitation, issued.grant.into_option().unwrap().id)
 }
 
 /// Redeems `invitation` at `portal` with `browser`'s passkey.
@@ -189,8 +84,8 @@ async fn answered_at(
 async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_its_organization() {
     let h = Harness::new().await;
     let reseller = child(&h, "kestrel").await;
-    let portal = portal_of(&h, &reseller).await;
-    let invitation = invited(&h).await;
+    let portal = portal_of(&h, ("p", &reseller), ("kestrel.example", NAME)).await;
+    let (invitation, grant) = invited(&h).await;
     let mut browser = SoftAuthenticator::new(NAME, &portal.origin);
     redeemed_at(&portal, &invitation, &browser).await;
 
@@ -220,8 +115,12 @@ async fn a_portal_s_passkey_signs_in_there_alone_and_its_session_acts_beneath_it
         label: "pipeline".into(),
         ..Default::default()
     };
-    let token = h.grants(confined).issue_grant(token).await.unwrap_err();
+    let token = h.grants(confined.clone()).issue_grant(token).await.unwrap_err();
     assert_eq!(reason(&token), "session.portal_confined");
+    let revoke =
+        pb::RevokeGrantRequest { mutation: mutation("revoke").into(), grant, ..Default::default() };
+    let revoked = h.grants(confined).revoke_grant(revoke).await.unwrap_err();
+    assert_eq!(reason(&revoked), "session.portal_confined", "nor its own grant above it");
 
     // A `korpis login` approved from the portal's session is confined as it is (Finding 129).
     let cli = h.config(Some(&cli_approved_by(&h, &access).await));

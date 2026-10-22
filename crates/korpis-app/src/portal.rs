@@ -109,6 +109,11 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         (port != 443).then_some(port)
     }
 
+    /// The organization of `portal`, none if it is gone: what its sign-in page wears and offers.
+    pub(crate) async fn portal_organization(&self, portal: Uuid) -> Result<Option<Uuid>, AppError> {
+        Ok(self.store.portal(portal).await?.map(|p| p.organization))
+    }
+
     /// The origin of every portal, whose panels open sessions at the relays (§3.6 of
     /// docs/07-networking.md).
     pub async fn portal_origins(&self) -> Result<Vec<String>, AppError> {

@@ -152,7 +152,10 @@ async fn software_deaf_to_its_hook_is_signalled_once_the_hook_s_wait_is_over() {
 
 #[tokio::test]
 async fn an_object_that_ignores_its_stop_is_killed_past_its_grace_and_holds_up_no_other() {
-    let grace = Duration::from_secs(20);
+    // Long enough that another workload is placed, built, and started within it on a machine
+    // loaded by other work, which twenty seconds was not: what is shown is that the grace holds
+    // up no other, not how fast the other starts.
+    let grace = Duration::from_secs(60);
     let cp = ControlPlane::start().await;
     let project = cp.project().await;
     let dir = tempfile::tempdir().unwrap();

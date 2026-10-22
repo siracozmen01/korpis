@@ -93,11 +93,16 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(GoverningTheme { set, own_version })
     }
 
-    /// The theme the sign-in page wears before anyone has signed in: the installation's root
-    /// organization's, answered to anyone.
-    pub async fn sign_in_theme(&self) -> Result<GoverningTheme, AppError> {
-        let set = match self.store.installation_root().await? {
-            Some(root) => self.store.theme(root).await?,
+    /// The theme the sign-in page wears before anyone has signed in, answered to anyone: at a
+    /// portal its organization's, and elsewhere the installation's root organization's (§7 of
+    /// docs/11-surface-web.md).
+    pub async fn sign_in_theme(&self, portal: Option<Uuid>) -> Result<GoverningTheme, AppError> {
+        let wearer = match portal {
+            Some(p) => self.portal_organization(p).await?,
+            None => self.store.installation_root().await?,
+        };
+        let set = match wearer {
+            Some(org) => self.store.theme(org).await?,
             None => None,
         };
         Ok(GoverningTheme { set, own_version: 0 })

@@ -52,6 +52,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
                  docs/08-identity.md)",
             ));
         }
+        // A session begun at a portal revokes only what lies beneath its organization, a grant
+        // it holds or one above it on its chain included (§9.8 of docs/08-identity.md).
+        self.confine(caller, target.grant.scope.anchor()).await?;
         let chain: Vec<Grant> = records.into_iter().map(|r| r.grant).collect();
         let at = caller.revoking_at(target.grant.scope.anchor());
         let authority = self.revocation_authority(&at, &chain).await?;

@@ -31,6 +31,12 @@ pub struct PendingSignIn {
     pub nonce: String,
     /// The PKCE challenge, `S256`, of the verifier the panel keeps.
     pub code_challenge: String,
+    /// Where the person is sent back to, the address it began at: the code is redeemed with it,
+    /// as the identity provider requires.
+    pub redirect_uri: String,
+    /// The portal it began at, whose panel holds the verifier and where it is completed; none
+    /// for the installation's own address (§9.8 of docs/08-identity.md).
+    pub portal: Option<uuid::Uuid>,
     /// When it was begun.
     pub begun_at: SystemTime,
     /// When it stops being completed.

@@ -2155,6 +2155,23 @@ identity provider its organization offers.
 > portal deletes the sessions, passkeys, and challenges recorded with it by the database's own
 > cascade; the effects §9.8 records for it, the sign-in page's theme and providers, and the
 > rules for what a confined session may change of the account are P2.9d2.
+>
+> Built 2026-10-22 (P2.9d2a): the sign-in page at a portal. `GetServerInfo` names the portal and
+> its organization there, `GetSignInTheme` answers the theme governing that organization, and
+> `ListSignInProviders` that organization's own providers that sign people in, none of the root's.
+> A sign-in through a provider begun at a portal is refused, as if the provider did not exist,
+> unless the provider's organization is the portal's or beneath it, which the control plane
+> reads from the provider's organization's ancestry. The pending sign-in records the redirect
+> URI it was sent with, the portal's `/sign-in/callback`, and the portal it began at; the code is
+> redeemed with that URI, and the sign-in is completed only over a connection to the same
+> portal, into a session begun there, or re-authenticates only a session begun there. Pending
+> sign-ins begun before the migration that added the two are let go, as an expiry would.
+>
+> Corrected 2026-10-22, from a review of P2.9d1: revoking a grant decided outside the one
+> decision path too, by holding the grant or one above it on its chain, so a confined session
+> could have revoked the account's grants anywhere, which the portal's holder, acting as the
+> person, could then have done to them. Revoking is now held beneath the organization as issuing
+> is, and refused `session.portal_confined` outside it.
 
 ---
 

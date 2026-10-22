@@ -12,9 +12,11 @@ use korpis_core::authz::binding::ProviderRef;
 use korpis_core::authz::sign_in::{
     Opened, PENDING_SIGN_IN, PendingSignIn, is_challenge, redirect_uri,
 };
+use korpis_core::authz::{Kind, ObjectRef};
 use korpis_core::extension::identity::SignIn;
 use korpis_core::extension::{CallOutcome, CallRequest, ProviderType};
 use std::time::{Duration, SystemTime};
+use uuid::Uuid;
 
 /// How long an identity provider has to say where to send a person: they are waiting.
 const AUTHORIZE_CALL: Duration = Duration::from_secs(10);
@@ -48,10 +50,19 @@ pub(super) fn unavailable(outcome: CallOutcome) -> AppError {
 }
 
 impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
-    /// The identity providers of the installation's root organization that sign people in, by
-    /// name: what its sign-in page offers. A provider anywhere else is reached by its own link.
-    pub async fn sign_in_providers(&self) -> Result<Vec<ProviderRef>, AppError> {
-        let Some(root) = self.store.installation_root().await? else { return Ok(Vec::new()) };
+    /// The identity providers that sign people in, by name, of the organization whose sign-in
+    /// page it is: at `portal` the portal's organization (§9.8 of docs/08-identity.md), and
+    /// elsewhere the installation's root organization. A provider anywhere else is reached by
+    /// its own link.
+    pub async fn sign_in_providers(
+        &self,
+        portal: Option<Uuid>,
+    ) -> Result<Vec<ProviderRef>, AppError> {
+        let offering = match portal {
+            Some(p) => self.portal_organization(p).await?,
+            None => self.store.installation_root().await?,
+        };
+        let Some(root) = offering else { return Ok(Vec::new()) };
         let mut names: Vec<String> = self
             .store
             .registrations_in(root)
@@ -65,29 +76,28 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(names.into_iter().map(|name| ProviderRef { organization: root, name }).collect())
     }
 
-    /// Begins a sign-in through `provider` for a panel that keeps the PKCE verifier of
-    /// `code_challenge`: where to send the person. Refused without a panel to return to, and
-    /// for a provider that does not sign people in.
+    /// Begins a sign-in through `provider` for a panel at `portal`, or at the installation's own
+    /// address, that keeps the PKCE verifier of `code_challenge`: where to send the person, who
+    /// comes back to the address it began at. Refused without a panel to return to, for a
+    /// provider that does not sign people in, and at a portal for one not at or beneath its
+    /// organization.
     pub async fn begin_external_sign_in(
         &self,
         provider: &ProviderRef,
         code_challenge: &str,
+        portal: Option<Uuid>,
     ) -> Result<SignInBegun, AppError> {
         if !is_challenge(code_challenge) {
             return Err(AppError::invalid("code_challenge", "an S256 PKCE challenge"));
         }
-        let origin = self.panel_origin().ok_or_else(|| AppError::Unavailable {
-            what: "signing in through an identity provider",
-            detail: "no --public-url is configured, so there is no panel to return to".into(),
-        })?;
-        let redirect_uri = redirect_uri(origin);
+        let redirect_uri = redirect_uri(&self.returned_to(provider, portal).await?);
         self.signs_in(provider).await?;
         let opened = Opened::new().map_err(|e| AppError::Internal(e.to_string()))?;
         let request = CallRequest::Authorize(SignIn {
             state: opened.state,
             nonce: opened.nonce.clone(),
             code_challenge: code_challenge.to_owned(),
-            redirect_uri,
+            redirect_uri: redirect_uri.clone(),
         });
         let called = self.call_own_provider(&target(provider), request, AUTHORIZE_CALL).await?;
         let now = self.clock.now();
@@ -95,6 +105,8 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             provider: provider.clone(),
             nonce: opened.nonce,
             code_challenge: code_challenge.to_owned(),
+            redirect_uri,
+            portal,
             begun_at: now,
             expires_at: now + PENDING_SIGN_IN,
         };
@@ -107,6 +119,31 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         tx.insert_pending_sign_in(&opened.state_digest, &pending).await?;
         tx.commit().await?;
         Ok(SignInBegun { url: a.url, expires_at: pending.expires_at })
+    }
+
+    /// The origin a sign-in through `provider` begun at `portal` comes back to: the portal's,
+    /// for a provider at or beneath the portal's organization, a provider elsewhere being
+    /// refused there as if it did not exist; and the panel's own at the installation's address.
+    async fn returned_to(
+        &self,
+        provider: &ProviderRef,
+        portal: Option<Uuid>,
+    ) -> Result<String, AppError> {
+        let Some(portal) = portal else {
+            let origin = self.panel_origin().ok_or_else(|| AppError::Unavailable {
+                what: "signing in through an identity provider",
+                detail: "no --public-url is configured, so there is no panel to return to".into(),
+            })?;
+            return Ok(origin.to_owned());
+        };
+        let portal = self.store.portal(portal).await?.ok_or(AppError::Unauthenticated)?;
+        let at = ObjectRef::new(Kind::Organization, portal.organization);
+        let ancestry =
+            self.store.ancestry(ObjectRef::new(Kind::Organization, provider.organization));
+        if !ancestry.await?.iter().any(|n| n.object == at) {
+            return Err(AppError::NotFound { kind: "identity provider that signs people in" });
+        }
+        Ok(portal.origin(self.public_port()))
     }
 
     /// Whether `provider` is registered, at its own organization, as signing people in.

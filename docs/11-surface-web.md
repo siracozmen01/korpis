@@ -413,6 +413,8 @@ the API like everything else, with the logo inside it, so the panel fetches noth
 > is what the client says it is; which portal a request is for is decided by the connection, whose
 > certificate named it, and nothing a request says changes it. Everywhere else the rule above
 > holds: at the installation's own address the panel wears the theme of the viewer's provider.
+> The two answers are built (P2.9d2a, §9.8 of `08-identity.md`); the panel's use of them is
+> P2.9e.
 
 **A stylesheet is code that runs in the panel, and it is fenced.** The panel's content security
 policy, which the bundle carries in its own page so it holds wherever the bundle is served, admits

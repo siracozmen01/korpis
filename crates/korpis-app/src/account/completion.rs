@@ -21,7 +21,7 @@ use crate::ports::{
 };
 use korpis_core::authz::binding::{IdentityBinding, ProviderRef, Verification};
 use korpis_core::authz::sign_in::{
-    MAX_CODE, PendingSignIn, confirmed_in, is_verifier, redirect_uri, state_digest, verifies,
+    MAX_CODE, PendingSignIn, confirmed_in, is_verifier, state_digest, verifies,
 };
 use korpis_core::authz::ticket::fresh;
 use korpis_core::extension::identity::{Assertion, Evidence};
@@ -95,8 +95,14 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
             return Err(AppError::invalid("code_verifier", "a PKCE verifier, RFC 7636 §4.1"));
         }
         let pending = self.spend_sign_in(&c.state).await?;
-        if !verifies(&c.code_verifier, &pending.code_challenge) {
+        // Completed at the address it began at, whose panel holds the verifier (§9.8).
+        if pending.portal != client.address()
+            || !verifies(&c.code_verifier, &pending.code_challenge)
+        {
             return Err(AppError::Unauthenticated);
+        }
+        if let Some(caller) = caller {
+            self.begun_at(caller, pending.portal).await?;
         }
         let assertion = self.assert_sign_in(&pending, c).await?;
         let provider = &pending.provider;
@@ -129,6 +135,20 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Ok(completed)
     }
 
+    /// Refuses re-authenticating `caller`'s session through a sign-in at `portal` unless the
+    /// session began at the same address: a session re-authenticates where it began, as it does
+    /// with a passkey.
+    async fn begun_at(&self, caller: &Caller, portal: Option<Uuid>) -> Result<(), AppError> {
+        let (Some(holder), Some(session)) = (caller.holder, caller.session) else {
+            return Err(AppError::Unauthenticated);
+        };
+        let held = self.store.user_session(holder, session).await?;
+        match held {
+            Some(s) if s.portal.map(|p| p.portal) == portal => Ok(()),
+            _ => Err(AppError::Unauthenticated),
+        }
+    }
+
     /// Spends the sign-in `state` finds, once, whatever happens after: a state is good for one
     /// completion. Unauthenticated if it finds none unexpired.
     async fn spend_sign_in(&self, state: &str) -> Result<PendingSignIn, AppError> {
@@ -146,13 +166,9 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         pending: &PendingSignIn,
         c: Completion,
     ) -> Result<Assertion, AppError> {
-        let origin = self.panel_origin().ok_or_else(|| AppError::Unavailable {
-            what: "signing in through an identity provider",
-            detail: "no --public-url is configured, so there is no panel to return to".into(),
-        })?;
         let headers = BTreeMap::from([
             ("code_verifier".to_owned(), c.code_verifier),
-            ("redirect_uri".to_owned(), redirect_uri(origin)),
+            ("redirect_uri".to_owned(), pending.redirect_uri.clone()),
             ("nonce".to_owned(), pending.nonce.clone()),
         ]);
         let request = CallRequest::Assert(Evidence { body: c.code.into_bytes(), headers });

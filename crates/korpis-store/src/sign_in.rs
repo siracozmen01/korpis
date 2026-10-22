@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Pending sign-ins (migration 0102).
+//! Pending sign-ins (migrations 0102 and 0113).
 
 use crate::PgTx;
 use crate::errors::from_sqlx;
@@ -17,6 +17,8 @@ struct PendingRow {
     provider: String,
     nonce: String,
     code_challenge: String,
+    redirect_uri: String,
+    portal_id: Option<Uuid>,
     begun_at: DateTime<Utc>,
     expires_at: DateTime<Utc>,
 }
@@ -27,6 +29,8 @@ impl PendingRow {
             provider: ProviderRef { organization: self.organization_id, name: self.provider },
             nonce: self.nonce,
             code_challenge: self.code_challenge,
+            redirect_uri: self.redirect_uri,
+            portal: self.portal_id,
             begun_at: to_time(self.begun_at),
             expires_at: to_time(self.expires_at),
         }
@@ -41,14 +45,16 @@ impl SignInWrite for PgTx {
     ) -> StoreResult<()> {
         sqlx::query!(
             "INSERT INTO pending_sign_in
-                (state_digest, organization_id, provider, nonce, code_challenge, begun_at,
-                 expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                (state_digest, organization_id, provider, nonce, code_challenge, redirect_uri,
+                 portal_id, begun_at, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             &state_digest[..],
             p.provider.organization,
             p.provider.name,
             p.nonce,
             p.code_challenge,
+            p.redirect_uri,
+            p.portal,
             from_time(p.begun_at),
             from_time(p.expires_at)
         )
@@ -66,7 +72,8 @@ impl SignInWrite for PgTx {
         let row = sqlx::query_as!(
             PendingRow,
             "DELETE FROM pending_sign_in WHERE state_digest = $1 AND expires_at > $2
-             RETURNING organization_id, provider, nonce, code_challenge, begun_at, expires_at",
+             RETURNING organization_id, provider, nonce, code_challenge, redirect_uri, portal_id,
+                       begun_at, expires_at",
             &state_digest[..],
             from_time(now)
         )

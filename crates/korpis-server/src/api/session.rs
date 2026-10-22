@@ -197,18 +197,18 @@ impl pb::SessionService for Api {
 
     async fn list_sign_in_providers(
         &self,
-        _ctx: RequestContext,
+        ctx: RequestContext,
         _request: ServiceRequest<'_, pb::ListSignInProvidersRequest>,
     ) -> ServiceResult<pb::ListSignInProvidersResponse> {
-        Response::ok(self.sign_in_providers().await?)
+        Response::ok(self.sign_in_providers(&ctx).await?)
     }
 
     async fn begin_external_sign_in(
         &self,
-        _ctx: RequestContext,
+        ctx: RequestContext,
         request: ServiceRequest<'_, pb::BeginExternalSignInRequest>,
     ) -> ServiceResult<pb::BeginExternalSignInResponse> {
-        Response::ok(Api::begin_external_sign_in(self, &request.to_owned_message()).await?)
+        Response::ok(Api::begin_external_sign_in(self, &ctx, &request.to_owned_message()).await?)
     }
 
     async fn complete_external_sign_in(

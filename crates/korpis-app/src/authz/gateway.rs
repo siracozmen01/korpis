@@ -177,6 +177,17 @@ impl<S: Store, C: Clock, R: RecipeSource> App<S, C, R> {
         Some(authz::evaluate(&request, chains, snapshot))
     }
 
+    /// Refuses `object` if it lies outside where the caller may act ([`Caller::confined`]): for
+    /// what decides without the one decision path, such as revoking a grant one holds.
+    pub(crate) async fn confine(&self, caller: &Caller, object: ObjectRef) -> Result<(), AppError> {
+        if caller.within.is_none() {
+            return Ok(());
+        }
+        let mut snapshot = Snapshot::default();
+        snapshot.load(&self.store, object).await?;
+        caller.confined(authz::Hierarchy::resource(&snapshot, object).as_ref())
+    }
+
     /// Whether each of `objects` lies where the caller may act ([`Caller::reaches`]): what a
     /// list of the caller's own, such as the grants it holds, answers a session begun at a
     /// portal (§9.8 of docs/08-identity.md).

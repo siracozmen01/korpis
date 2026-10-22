@@ -81,6 +81,12 @@ message GetServerInfoResponse {
   repeated string relays = 7;
   // Whether this control plane serves RelayService itself, at the address the client reached.
   bool control_plane_relay = 8;
+  // At a portal (§3.6 of docs/07-networking.md): the portal the connection's certificate named,
+  // as `ptl_…`, and its organization, whose theme the panel there wears and beneath which every
+  // session begun there acts (§9.8 of docs/08-identity.md). Both empty at the installation's own
+  // address.
+  string portal = 9;
+  string portal_organization = 10;
 }
 
 service OrganizationService {

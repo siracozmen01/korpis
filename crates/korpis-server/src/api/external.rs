@@ -2,9 +2,10 @@
 
 //! Signing in through an identity provider (§9.7 of docs/08-identity.md), the session service's
 //! procedures that take no credential: which providers the sign-in page offers, a sign-in begun,
-//! and one completed, which re-authenticates the caller's session if it has one.
+//! and one completed, which re-authenticates the caller's session if it has one. Each is answered
+//! for the address the connection reached, a portal or the installation's own (§9.8).
 
-use super::account::{client, with_cookie};
+use super::account::{at, client, with_cookie};
 use super::wire::{self, Refuse as _};
 use super::{Api, error};
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
@@ -16,11 +17,13 @@ use korpis_proto::korpis::v1 as pb;
 use korpis_wire::{timestamp, wire_id};
 
 impl Api {
-    /// The providers the installation's sign-in page offers.
+    /// The providers the sign-in page `ctx` reached offers: a portal's, or the installation's.
     pub(super) async fn sign_in_providers(
         &self,
+        ctx: &RequestContext,
     ) -> Result<pb::ListSignInProvidersResponse, ConnectError> {
-        let providers = self.app.sign_in_providers().await.map_err(error::from_app)?;
+        let portal = at(ctx).map(|p| p.portal);
+        let providers = self.app.sign_in_providers(portal).await.map_err(error::from_app)?;
         Ok(pb::ListSignInProvidersResponse {
             providers: providers
                 .into_iter()
@@ -34,9 +37,10 @@ impl Api {
         })
     }
 
-    /// Begins the sign-in `req` asks for.
+    /// Begins the sign-in `req` asks for, at the address `ctx` reached.
     pub(super) async fn begin_external_sign_in(
         &self,
+        ctx: &RequestContext,
         req: &pb::BeginExternalSignInRequest,
     ) -> Result<pb::BeginExternalSignInResponse, ConnectError> {
         let organization =
@@ -44,7 +48,7 @@ impl Api {
         let provider = ProviderRef { organization, name: req.provider.clone() };
         let begun = self
             .app
-            .begin_external_sign_in(&provider, &req.code_challenge)
+            .begin_external_sign_in(&provider, &req.code_challenge, at(ctx).map(|p| p.portal))
             .await
             .map_err(error::from_app)?;
         Ok(pb::BeginExternalSignInResponse {

@@ -132,9 +132,13 @@ pub(super) async fn set(
     respond(reply, set_response)
 }
 
-/// The theme the sign-in page wears before anyone has signed in.
-pub(super) async fn sign_in(api: &Api) -> ServiceResult<pb::GetSignInThemeResponse> {
-    let g = api.app.sign_in_theme().await.map_err(error::from_app)?;
+/// The theme the sign-in page wears before anyone has signed in, at `portal` or the
+/// installation's own address.
+pub(super) async fn sign_in(
+    api: &Api,
+    portal: Option<uuid::Uuid>,
+) -> ServiceResult<pb::GetSignInThemeResponse> {
+    let g = api.app.sign_in_theme(portal).await.map_err(error::from_app)?;
     Response::ok(pb::GetSignInThemeResponse {
         governing: governing_to_pb(&g).into(),
         ..Default::default()

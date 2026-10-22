@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "DELETE FROM pending_sign_in WHERE state_digest = $1 AND expires_at > $2\n             RETURNING organization_id, provider, nonce, code_challenge, begun_at, expires_at",
+  "query": "DELETE FROM pending_sign_in WHERE state_digest = $1 AND expires_at > $2\n             RETURNING organization_id, provider, nonce, code_challenge, redirect_uri, portal_id,\n                       begun_at, expires_at",
   "describe": {
     "columns": [
       {
@@ -49,6 +49,28 @@
       },
       {
         "ordinal": 4,
+        "name": "redirect_uri",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "redirect_uri"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "portal_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "pending_sign_in",
+            "name": "portal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "begun_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -59,7 +81,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -82,8 +104,10 @@
       false,
       false,
       false,
+      true,
+      false,
       false
     ]
   },
-  "hash": "c70675b33f36b0616c45d490da2990525b3957109c7b872c51c98725a7bc157b"
+  "hash": "d7e72f32d2163842e41d8fba80878250c2c38e217b90ed1a4b4d302faadfca47"
 }
