@@ -20,6 +20,8 @@ pub struct ControlPlane {
     pub root_org: String,
     secret: String,
     server: tokio::task::JoinHandle<Result<(), korpis_server::ServeError>>,
+    /// The services' state, for what a test serves beside the API, such as SFTP.
+    pub api: Arc<korpis_server::api::Api>,
 }
 
 impl Drop for ControlPlane {
@@ -78,6 +80,7 @@ impl ControlPlane {
             root_org,
             secret: installed.token().unwrap().1.expose().to_owned(),
             server: running.task,
+            api: running.api,
         }
     }
 

@@ -4336,12 +4336,17 @@ through it. The session it replaces is ended, so the terminal holds one. → des
 What it costs. A key added from a terminal needs a browser where the person is signed in, as
 `korpis login` does; a machine with neither can add no key, and its owner adds it from the panel.
 
-> Built 2026-10-22, steps 5 to 8, and run against OpenSSH's own `sftp` client, a relay of its own,
-> and a node: a person allowed to write uploads a file of three mebibytes and some, lists it,
-> downloads it byte for byte, renames, and removes; a person allowed to read downloads and is
-> refused an upload as permission denied; a key no one registered is refused; and each token is
-> recorded under the relay's name. Step 4 first wrote the user `wkl_…`; a workload's identifier
-> begins `wl_` (`wl_7f3a` in §3 of `10-api.md`), so the user is `wl_…`, corrected here, in §8 of
+> Built 2026-10-22, every step, and run against OpenSSH's own `sftp` client. Steps 1 and 4: a relay
+> reports the address and the host key in its signed feed request, `ServerInfo` lists them, and
+> `korpis sftp` and the panel print the line, the fingerprint, and a `known_hosts` entry. Step 7,
+> on a real node: part of a world uploaded and then resumed with `reput` from the file's size
+> arrives whole. Step 9: a connection held open while its key is removed ends when its token next
+> renews, within one token lifetime. Steps 5 to 8, against a relay of its own and a node: a person
+> allowed to write uploads a file of three mebibytes and some, lists it, downloads it byte for
+> byte, renames, and removes; a person allowed to read downloads and is refused an upload as
+> permission denied; a key no one registered is refused; and each token is recorded under the
+> relay's name. Step 4 first wrote the user `wkl_…`; a workload's identifier begins `wl_`
+> (`wl_7f3a` in §3 of `10-api.md`), so the user is `wl_…`, corrected here, in §8 of
 > `13-surface-cli.md`, and in `relay.proto`'s comment.
 
 **FINDING 136: Anyone could register another person's public key, and their SFTP client then

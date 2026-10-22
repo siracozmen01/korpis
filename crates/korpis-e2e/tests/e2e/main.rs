@@ -28,6 +28,7 @@ mod oci;
 mod programs;
 mod recipes;
 mod runs;
+mod sftp;
 mod snapshots;
 mod stopping;
 mod support;

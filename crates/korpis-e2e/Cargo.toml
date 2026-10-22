@@ -19,7 +19,7 @@ connectrpc = { version = "=0.9.1", default-features = false, features = ["json",
 korpis-agent = { path = "../korpis-agent" }
 korpis-backup = { path = "../korpis-backup", features = ["testing"] }
 korpis-cli = { path = "../korpis-cli" }
-korpis-core = { workspace = true }
+korpis-core = { workspace = true, features = ["accounts", "authz"] }
 korpis-driver-oci = { path = "../korpis-driver-oci" }
 korpis-extension = { path = "../korpis-extension" }
 korpis-helper = { path = "../korpis-helper" }
