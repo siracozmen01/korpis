@@ -199,6 +199,21 @@ driver is Rust:
 This is still the payoff for the driver interface being a protocol rather than a plugin ABI: the
 first-party drivers share a language, and nothing requires anyone else's to.
 
+**What the `microvm` tier runs that no crate holds** (2026-10-23, as the guest was built).
+`deny.toml` governs crates, and three things the tier needs are not crates, so each is pinned
+where it is fetched and its source recorded here. Firecracker and its jailer are Firecracker's
+release binaries, v1.17.0, pinned in `scripts/tools.sh` by the digests the release published, so
+an asset replaced after the commit is refused. The guest kernel is built rather than downloaded:
+`scripts/guest-kernel.sh` fetches kernel.org's longterm 6.18.58 by its digest and builds it with
+Firecracker's guest configuration, vendored in `guest/kernel/` with its own record of source and
+digest, stamped so the same compiler rebuilds the same bytes. And the guest's first process,
+`korpis-guest`, is Rust like every other program here, built static for the musl target that
+`rust-toolchain.toml` installs, since it runs on a root filesystem Korpis did not make. What it
+costs: Firecracker's security releases and the kernel's longterm updates reach Korpis only through
+a reviewed commit that moves a pin, so following them is a maintainer's chore no tool does; and
+until a release pipeline builds the kernel, a node's operator runs the script (question 7 of §10
+of `18-operations.md`).
+
 ---
 
 ## 6. The `oci` driver, which the first version left in Go

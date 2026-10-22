@@ -1,3 +1,5 @@
 [toolchain]
 channel = "1.98.1"
 components = ["rustfmt", "clippy"]
+# The microVM guest's init, korpis-guest, is a static binary (§4.4 of docs/04-runtimes.md).
+targets = ["x86_64-unknown-linux-musl"]

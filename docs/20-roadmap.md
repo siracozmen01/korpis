@@ -440,16 +440,16 @@ than architecture.
 | `docs/00-overview.md` … `docs/20-roadmap.md` | complete: the core twenty-one |
 | `docs/21-stack.md` | complete: Rust throughout, TypeScript in the browser, and why |
 | `docs/22-first-party.md` | complete: the recipe and extension set, and what it proves |
-| `docs/23-walkthroughs.md` | complete: fifty traces and their 143 findings, and two external reviews, all patched or recorded |
+| `docs/23-walkthroughs.md` | complete: fifty-one traces and their 144 findings, and two external reviews, all patched or recorded |
 | `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | complete: entry point, review policy, disclosure |
 | `LICENSE`, `LICENSE-APACHE`, `LICENSE-AGPL`, `LICENSE-CC-BY` | complete: the split, the full texts, and what it means for a host |
 | succession document (§6 of `19-governance.md`) | **not written**; blocks the first release, not a phase |
 | `CLAUDE.md` | complete: the rules anyone editing these documents works under |
 | `ARCHITECTURE.md`, `crates/`, `web/` | Phases 0 to 2 built: twenty-six crates and the panel, about 209,000 lines of Rust and 17,100 of TypeScript, 1,262 Rust tests and 136 of the panel's, 122 migrations, and the 162 calls of the public API |
 
-Seventy numbered open questions remain open, of 142 recorded. Sixteen of them are a question
+Seventy-one numbered open questions remain open, of 143 recorded. Sixteen of them are a question
 restated in a second document, carried there by name or pointing on to the one that will settle
-it, so fifty-four decisions are open, each assigned to the one that will settle it. They
+it, so fifty-five decisions are open, each assigned to the one that will settle it. They
 are the design's honest edges, not omissions: an open question with an owner is a decision
 deferred deliberately, and every one of them was recorded where the person who hits it will find
 it.
@@ -482,6 +482,9 @@ it.
 > `05-scheduling.md` was resolved in §2.2 there before Phase 2 was called done, being due before
 > it, which leaves the seventy and fifty-four above. A question counted as restated says "carried
 > by" another document; one that says "carried from" one is that question's owner.
+>
+> Since that count, question 7 of §10 of `18-operations.md` was recorded, open (2026-10-23, how a
+> node gets the microVM guest's kernel), which makes the 143, seventy-one, and fifty-five above.
 
 **Phase 1 is built, and its done-when holds.** `scripts/e2e-phase1.sh` runs it as an operator
 would, on one machine, every step through the `korpis` CLI: the control plane installed into a

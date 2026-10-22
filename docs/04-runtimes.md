@@ -322,6 +322,12 @@ driver that cannot enumerate and re-adopt the objects it created is a driver tha
 restart into a customer outage. It belongs in the interface, not in each implementation's good
 intentions.
 
+> Added 2026-10-23 (Finding 144 of `23-walkthroughs.md`). `Stop` and `Signal` name a signal, and
+> nothing said how one reaches a workload that shares no kernel with its driver. A driver
+> delivers what it can and declares exactly that in `signals`: one whose workloads are a guest's
+> processes may declare no names at all, and then its graceful default and its kill are the only
+> two things it tells a workload, in that order. §6 says how the `microvm` tier delivers both.
+
 **`Create` and `Start` are separate.** Resources are allocated, volumes mounted, and the network
 attached before anything executes. This makes failures happen at a point where nothing is running
 yet, and it is a prerequisite for Windows, where creating a job object and starting a process in it
@@ -501,6 +507,53 @@ behind if the create fails. The container's own snapshot is prepared remapped on
 id range (containerd's `uidmapping` and `gidmapping` labels), which is what lets a read-only image
 owned by host root be the root filesystem of a process whose root is an unprivileged host id.
 Every object lives in containerd's `korpis` namespace and nothing outside it is read or written.
+
+**A `microvm` boots the node's kernel, and its first process is Korpis's** (decided 2026-10-23,
+when the guest was built for the `firecracker` driver). The kernel is built by
+`scripts/guest-kernel.sh` from a kernel.org longterm release pinned by its digest, with
+Firecracker's own guest configuration vendored in `guest/kernel/`, and every `microvm` on a node
+boots that one. A recipe does not bring a kernel: its image is the root filesystem and nothing
+else, and a workload that needs a kernel of its own, a module the configuration leaves out, or
+another operating system is a `vm` (§2). Three reasons. The guest's first process relies on the
+kernel having what it uses (virtio block devices, ext4, overlayfs, vsock, and the keyboard
+controller a stop arrives through), and a kernel a publisher chose could lack any of them and
+fail only when the workload is first stopped. A guest kernel with a flaw is then one thing for
+the operator to patch on each node, not one per publisher, patched or not. And the same image
+serves the `container` and `microvm` tiers unchanged, which is what lets them share its fetched
+layers (above). What it costs: every `microvm` on a node runs one kernel version, chosen by the
+operator; a newer kernel reaches a guest at its next boot, never while it runs; and a workload
+whose software needs a different kernel is outside this tier.
+
+The first process is `korpis-guest`, a static binary on a **boot drive** that holds nothing else
+and is shared, read-only, by every guest of the node. The drives are attached in a fixed order,
+so the guest can count on their names: the boot drive, which the kernel mounts as its root; the
+image, read-only; the **config drive**, on which the driver writes what to run (the entry, its
+environment, its user and group as numbers, its working directory, and its addresses and
+gateways); then each volume. `korpis-guest` assembles the workload's root as the
+container tier's is (§2): the image beneath a small tmpfs, in an overlay, so the mount points the
+image lacks can be made, and then the overlay read-only, with `/tmp`, `/run`, and `/dev/shm` as
+small tmpfs mounts. It mounts each volume's filesystem, sets `eth0`, and runs the entry as its
+user in a process group of its own, reaping whatever the entry's children leave. When the entry
+ends, it ends every other process and writes how the run ended in the config drive's last block,
+then restarts the guest, which ends the microVM: on x86 Firecracker exits when its guest resets
+the CPU, and has no power-off to offer (§5 of `research/evidence.md`). A **stop** is
+Ctrl+Alt+Del, which Firecracker injects through the same keyboard controller; the guest's first
+process receives it as `SIGINT` and sends the entry's group `SIGTERM`, and a second Ctrl+Alt+Del
+ends every process at once. The guest keeps no grace of its own: the grace is the supervisor's
+(§6 of `02-architecture.md`), whose stop signals the object with the driver's graceful default and
+kills it once the grace is over, so the driver's default is the first Ctrl+Alt+Del and its kill
+the second, after which the guest syncs its volumes and restarts; a guest that has not exited
+within a bound of that is ended with its Firecracker process. The host reads back sixteen bytes of
+fixed layout, the exit status or the signal, and never a filesystem the guest has written (§4.4).
+
+What the guest does not give, stated: inside it the entry runs as its user with no user namespace,
+so the image's uid 0 is root of a kernel that runs nothing but this workload, which is the
+boundary the tier draws; the console carries what the guest kernel prints at its quiet level beside
+what the workload prints; and the image's user must be a number, as for the container tier (§2).
+
+Built so far (Phase 3): the kernel, `korpis-guest`, and the config drive's format, proven by
+booting guests on Firecracker in `crates/korpis-guest/tests/boot.rs`. The driver that does this
+for a workload is the next step, and until it is built no node offers `microvm`.
 
 ---
 

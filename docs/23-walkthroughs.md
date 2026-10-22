@@ -1389,6 +1389,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 141 | An answer that a member was still in a set, asked before a sign-in that found them gone, was recorded over the sign-in | §44 | `08-identity.md` §5.1 |
 | 142 | A person whose authority came through a set was told they held no grant | §44 | `08-identity.md` §9.7, `11-surface-web.md` §5 |
 | 143 | Nothing bounded how many affinity rules and spread constraints a placement evaluates, under the installation's one lock | §53 | `05-scheduling.md` §2.2 |
+| 144 | The interface named a signal for a stop, and nothing could carry one into a guest | §54 | `04-runtimes.md` §6 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4688,3 +4689,57 @@ of question 4 of §10 of `05-scheduling.md` would move them.
 Steps 3 to 6 are built and tested: the core tests of the owner rule, and an API test in which a
 customer's server lands on its own node before the host's, the explanation recording each
 owner's policy.
+
+---
+
+## 54. A tenant's untrusted build runs in a microVM, and is stopped
+
+Written 2026-10-23, as the guest of the `microvm` tier was built (§6 of `04-runtimes.md`), before
+the `firecracker` driver that will run it. Rule D makes the second driver the test of the driver
+interface (§2 of `20-roadmap.md`), so this trace asks the algebra question of each step of a
+guest's life: what evaluates it, where, and with what information. A host's customer runs builds
+of code it did not write, so its workload is declared on `microvm`; one build hangs and ignores
+its terminating signal, and the customer stops it. The trace was chosen by the build rather than
+by coverage.
+
+**Trace**
+
+| # | Step | Governed by |
+|---|---|---|
+| 1 | The operator has built the node's guest kernel and installed Firecracker, each pinned by its digest | `04-runtimes.md` §6; `21-stack.md` §5 |
+| 2 | The driver writes the config drive: the entry, its environment, its user and group as numbers, its working directory, its addresses and gateways; nothing it writes is read back | `04-runtimes.md` §6 |
+| 3 | Firecracker boots the node's kernel on the shared boot drive, and `korpis-guest` is the first process | `04-runtimes.md` §6 |
+| 4 | `korpis-guest` assembles the root: the image read-only beneath a small tmpfs, the mount points made, then the whole read-only, as a container's | `04-runtimes.md` §2, §6 |
+| 5 | Each volume's filesystem is mounted from its drive; the guest owns it, and the host never mounts it | `04-runtimes.md` §4.1, §4.4; `06-storage.md` §3.1 |
+| 6 | The build runs as its user and prints to the console | `04-runtimes.md` §6; `14-streams.md` §4 |
+| 7 | The customer stops it. The supervisor signals the object with the driver's graceful default, and the build ignores it ‡ | `02-architecture.md` §6; `04-runtimes.md` §4.2, §6 |
+| 8 | The grace is over; the supervisor kills the object. The guest ends every process, syncs, and restarts, and Firecracker exits | `02-architecture.md` §6; `04-runtimes.md` §6 |
+| 9 | The driver reads the sixteen-byte record on the config drive: the build ended by `SIGKILL` | `04-runtimes.md` §4.2, §6 |
+
+**One finding, at step 7** (‡).
+
+**FINDING 144: The interface named a signal for a stop, and nothing could carry one into a
+guest. `CONFIRMED`, by the guest's tests**
+
+Found 2026-10-23 asking the algebra question of step 7: what delivers the signal the supervisor
+names, and where? For a container, the driver's runtime signals a process the host's kernel can
+see. For a microVM the host's kernel sees one process, Firecracker, and the guest's processes are
+the guest kernel's; Firecracker offers one way in, a Ctrl+Alt+Del through its emulated keyboard
+controller, and nothing that names a signal (§5 of `research/evidence.md`). §4.2 of
+`04-runtimes.md` listed `Stop(RuntimeID, signal, grace)` and `Signal(RuntimeID, SignalName)`
+without saying how either reaches a workload that shares no kernel with its driver, and the first
+design of the guest kept a grace of its own, which no step of the supervisor's stop could have set,
+since the grace is the supervisor's and the config drive is written at create.
+
+**Resolution.** A guest is told two things, in order, by the one event it can receive: the first
+Ctrl+Alt+Del sends the entry's group `SIGTERM`, the second ends every process, and the guest keeps
+no grace. The supervisor's own sequence maps onto them unchanged: its graceful default is the
+first, its kill the second. → stated in §6 of `04-runtimes.md`; built in `crates/korpis-guest`,
+with tests of both stops on a booted guest. What it costs: until a channel into the guest exists
+(the vsock of §4.4 there), a `microvm` driver can declare no signal names, so a recipe that asks a
+workload to reload on `SIGHUP` cannot be served on this tier, and two stops sent faster than the
+guest reads them arrive as one, which the driver's bound on a guest's exit covers.
+
+Steps 2 to 9 are built and tested against the guest alone, the driver's part done by the test:
+`crates/korpis-guest/tests/boot.rs` boots the kernel and the drives, runs an entry as its user,
+reads its exit status back, and stops a guest once and twice.

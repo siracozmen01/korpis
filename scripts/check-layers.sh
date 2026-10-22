@@ -42,6 +42,9 @@ rules=(
     # The install worker runs beside one workload's volumes: the domain's install vocabulary and
     # templates, and no RPC stack, runtime, network client, or store.
     "korpis-install||korpis-app korpis-store korpis-server korpis-agent connectrpc tokio sqlx hyper reqwest"
+    # The microVM guest's first process runs inside a tenant's guest: its config format and
+    # nothing else of ours, no RPC stack, runtime, network client, or store.
+    "korpis-guest||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-helper korpis-proto connectrpc tokio sqlx hyper reqwest"
     # A first-party extension is built as a third party's would be (§1 of docs/22-first-party.md):
     # the SDK and the wire contract, and nothing else of ours.
     "korpis-target-s3||korpis-core korpis-app korpis-wire korpis-store korpis-server korpis-agent korpis-backup korpis-recipe sqlx"

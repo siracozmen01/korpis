@@ -625,6 +625,15 @@ Primary:
   `rsa-sha2-256`, never `ssh-rsa` (`PubkeyAcceptedAlgorithms` in ssh_config(5) as installed,
   read 2026-10-22). Why a relay accepting an `ssh-rsa` signature that `russh` does not refuse is a
   cost stated rather than one met in practice (§7 of `../21-stack.md`).
+- **[V]** Firecracker on x86 does not virtualize power management: a guest's `poweroff` leaves the
+  Firecracker process running, while a `reboot` under `reboot=k` resets the CPU through the
+  emulated i8042 keyboard controller, which Firecracker intercepts and exits on; its
+  `SendCtrlAltDel` action injects the key sequence through the same controller, and needs
+  `CONFIG_SERIO_I8042` and `CONFIG_KEYBOARD_ATKBD` in the guest
+  ([FAQ](https://github.com/firecracker-microvm/firecracker/blob/v1.17.0/FAQ.md),
+  [actions](https://github.com/firecracker-microvm/firecracker/tree/v1.17.0/docs/api_requests),
+  read 2026-10-23 at v1.17.0). Why a microVM's run ends with its guest restarting, and a stop
+  arrives as Ctrl+Alt+Del (§6 of `../04-runtimes.md`).
 Secondary:
 - [TheGamePanel: a modern alternative to
   Pterodactyl](https://ollieread.com/articles/thegamepanel-a-modern-alternative-to-pterodactyl)

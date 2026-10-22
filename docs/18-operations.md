@@ -856,3 +856,9 @@ plane requires outbound internet access, and telemetry is off by default (§6 of
    `05-scheduling.md` (question 2) and not carried until now (finding S18). The likely boundary is
    the same as for DNS: a node-pool provider extension creates machines and hands them an
    enrollment token, and Korpis never speaks a cloud API itself. → here
+7. **How a node gets the guest kernel and Firecracker.** Today an operator runs
+   `scripts/guest-kernel.sh` and `scripts/tools.sh` on the node, as the tests do (§5 of
+   `21-stack.md`). A packaged node needs them shipped: built and pinned by the release pipeline,
+   verified by digest when the package is installed, and upgraded with it, with what an upgrade
+   does to guests already running stated (they keep their kernel until their next boot, §6 of
+   `04-runtimes.md`). Decided when the `firecracker` driver becomes a node component. → here

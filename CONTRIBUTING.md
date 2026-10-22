@@ -84,9 +84,14 @@ scripts/dev-registry.sh up
                           127.0.0.1:55000, plain HTTP on loopback only; the images the
                           tests run are mirrored into it by digest the first time, so no
                           test pulls from a public registry
-scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli, oras), into
-                          .tools/; needed to change a .proto (then scripts/gen-proto.sh) or a
-                          query, and to run the end-to-end script
+scripts/tools.sh          the pinned tools (buf, the code generators, sqlx-cli, oras, Firecracker
+                          and its jailer), into .tools/; needed to change a .proto (then
+                          scripts/gen-proto.sh) or a query, to run the end-to-end scripts, and
+                          to boot microVMs
+scripts/guest-kernel.sh   the kernel every microVM boots, from kernel.org's pinned release and
+                          the configuration in guest/kernel/, into .tools/guest/; with
+                          Firecracker, what the microVM tests need, which say so and do not run
+                          without them (also /dev/kvm and root)
 scripts/test-tools.sh     the servers some tests run against (MinIO, built from its pinned release
                           with a pinned Go), into .tools/; a test whose server is missing says
                           so and does not run
@@ -124,7 +129,8 @@ scripts/test-install-package.sh
                           docs/18-operations.md); needs docker and the network
 ```
 
-Building needs only a Rust toolchain: the wire types are generated at build time from the
+Building needs only a Rust toolchain, with the musl target `rust-toolchain.toml` names, which
+`korpis-guest` is built static for: the wire types are generated at build time from the
 committed descriptor set, and queries are checked against the committed `.sqlx/` metadata, so
 neither a protobuf compiler nor a database is needed to compile.
 The web client in `web/` needs Node 22 or later and pnpm, which Node's corepack fetches at the
