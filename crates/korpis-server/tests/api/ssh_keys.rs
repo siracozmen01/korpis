@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! SSH keys and the file tokens a relay serving SFTP asks for with them (§9.9 of
-//! docs/08-identity.md): a person registers keys, one installation-wide per fingerprint, and a
-//! relay is given, for a key its client holds, a token for what that person's grants allow on
-//! the workload, writing or else reading, recorded under the relay's name, and nothing for a key
-//! no one holds, once it is removed, or while its account is disabled.
+//! docs/08-identity.md): a person registers keys they prove they hold, one installation-wide per
+//! fingerprint, and a relay is given, for a key its client holds, a token for what that person's
+//! grants allow on the workload, writing or else reading, recorded under the relay's name, and
+//! nothing for a key no one holds, once it is removed, or while its account is disabled.
 
 use crate::lifecycle::workload;
 use crate::panel::{access, browser, invite, redeem_keeping_cookie};
@@ -14,14 +14,13 @@ use crate::support::{Harness, mutation, org_scope};
 use connectrpc::ErrorCode;
 use connectrpc::client::HttpClient;
 use korpis_core::account::ssh_key::SshPublicKey;
+use korpis_core::account::ssh_key::signing::ed25519_possession;
 use korpis_core::id::{Id, IdKind};
 use korpis_proto::korpis::relay::v1 as relay;
 use korpis_proto::korpis::v1 as pb;
 use korpis_server::standalone::feed::{FilesAsked, signed_files_request};
 use korpis_server::standalone::{RelayDir, join};
 
-const ED25519: &str = "ssh-ed25519 \
-    AAAAC3NzaC1lZDI1NTE5AAAAIHYUMOAa8CAodE24mCEXvC+hwFHXgRkuGMAE8eBMqcsx ada@laptop";
 const RSA_2048: &str = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCmA8kPHkrr+ucw5DrC9rSBi/+LbyMwwn2mQ\
     zGq51Lpkokwq9Rt4d8S2sdVvOThXVzI3M/Hf6HxhLfkXTYNRHeTsgzwM9eiKv+BZLfjlmAXaJqgf6SJrOyfdWlHIRSXR1U\
     9CwVChAKEki+LL9TFX361dGHolEz0nAepDH+unhO1xppDTiAnGurEJryalkG5lagaMZcV6p6sNPgcIDXeG7pnWz49Lx+pN\
@@ -32,40 +31,52 @@ fn profile(h: &Harness, bearer: &str) -> pb::ProfileServiceClient<HttpClient> {
     pb::ProfileServiceClient::new(h.http.clone(), h.config(Some(bearer)))
 }
 
-fn add(key: &str, label: &str) -> pb::AddSshKeyRequest {
-    pb::AddSshKeyRequest { key: key.into(), label: label.into(), ..Default::default() }
+/// The key `seed` makes, added to `account` by whoever holds it.
+fn add(seed: u8, account: &str, label: &str) -> pb::AddSshKeyRequest {
+    let (key, signature) = ed25519_possession([seed; 32], account);
+    pb::AddSshKeyRequest { key, label: label.into(), signature, ..Default::default() }
 }
 
-/// A person signed in, `friend`; their account and an access token of their session.
-async fn friend(h: &Harness) -> (String, String) {
-    let invitation = invite(h, "invite-friend", "A Friend").await.invitation;
-    let (redeemed, cookie) =
-        redeem_keeping_cookie(h, &invitation, "friend", &browser()).await.unwrap();
+/// A person signed in, invited as `who`; their account and an access token of their session.
+async fn person(h: &Harness, who: &str) -> (String, String) {
+    let invitation = invite(h, &format!("invite-{who}"), who).await.invitation;
+    let (redeemed, cookie) = redeem_keeping_cookie(h, &invitation, who, &browser()).await.unwrap();
     (redeemed.account, access(h, &cookie).await)
 }
 
 #[tokio::test]
-async fn a_person_adds_lists_and_removes_ssh_keys_each_registered_once() {
+async fn a_person_adds_lists_and_removes_ssh_keys_each_registered_once_by_its_holder() {
     let h = Harness::new().await;
-    let (_, bearer) = friend(&h).await;
+    let (ada, bearer) = person(&h, "ada").await;
     let me = profile(&h, &bearer);
-    let added = me.add_ssh_key(add(ED25519, "laptop")).await.unwrap().into_owned();
+    let added = me.add_ssh_key(add(1, &ada, "laptop")).await.unwrap().into_owned();
     let key = added.key.as_option().unwrap().clone();
     assert!(key.id.starts_with("ssk_"));
-    assert_eq!(key.fingerprint, "SHA256:I3XZHy63BiL9AKC20atpgIFioqsBqGVMs7EMP2trtmQ");
+    let line = ed25519_possession([1; 32], &ada).0;
+    assert_eq!(key.fingerprint, SshPublicKey::parse(&line).unwrap().fingerprint());
     assert_eq!((key.kind.as_str(), key.label.as_str()), ("ssh-ed25519", "laptop"));
-    let again = me.add_ssh_key(add(ED25519, "again")).await.unwrap_err();
+    let again = me.add_ssh_key(add(1, &ada, "again")).await.unwrap_err();
     assert_eq!(reason(&again), "ssh_key.taken");
-    let weak = me.add_ssh_key(add(RSA_2048, "old")).await.unwrap_err();
+    let weak = pb::AddSshKeyRequest { key: RSA_2048.into(), ..add(2, &ada, "old") };
+    let weak = me.add_ssh_key(weak).await.unwrap_err();
     assert_eq!(weak.code, ErrorCode::InvalidArgument, "an RSA key below 3,072 bits");
 
+    // A public key is public: naming one, with a signature for someone else, adds nothing.
+    let (_, eve_bearer) = person(&h, "eve").await;
+    let eve = profile(&h, &eve_bearer);
+    let squatted = eve.add_ssh_key(add(3, &ada, "not mine")).await.unwrap_err();
+    assert_eq!(squatted.code, ErrorCode::InvalidArgument, "signed for another account");
+    let unsigned = pb::AddSshKeyRequest { signature: String::new(), ..add(3, &ada, "x") };
+    assert_eq!(eve.add_ssh_key(unsigned).await.unwrap_err().code, ErrorCode::InvalidArgument);
+    me.add_ssh_key(add(3, &ada, "ada's own")).await.unwrap();
+
     let listed = me.list_ssh_keys(pb::ListSshKeysRequest::default()).await.unwrap();
-    assert_eq!(listed.into_owned().keys.len(), 1);
+    assert_eq!(listed.into_owned().keys.len(), 2);
     let remove = pb::RemoveSshKeyRequest { id: key.id, ..Default::default() };
     me.remove_ssh_key(remove).await.unwrap();
     let listed = me.list_ssh_keys(pb::ListSshKeysRequest::default()).await.unwrap();
-    assert!(listed.into_owned().keys.is_empty());
-    assert_eq!(h.effects("account.ssh_key_added").await.len(), 1);
+    assert_eq!(listed.into_owned().keys.len(), 1);
+    assert_eq!(h.effects("account.ssh_key_added").await.len(), 2);
     assert_eq!(h.effects("account.ssh_key_removed").await.len(), 1);
 
     let token = profile(&h, "").list_ssh_keys(pb::ListSshKeysRequest::default()).await;
@@ -94,8 +105,8 @@ async fn grant(h: &Harness, key: &str, account: &str, actions: &[&str]) {
 async fn a_relay_is_given_a_file_token_for_a_key_on_what_its_person_may_reach() {
     let h = Harness::new().await;
     let (workload, _) = workload(&h).await;
-    let (account, bearer) = friend(&h).await;
-    let added = profile(&h, &bearer).add_ssh_key(add(ED25519, "laptop")).await.unwrap();
+    let (account, bearer) = person(&h, "friend").await;
+    let added = profile(&h, &bearer).add_ssh_key(add(1, &account, "laptop")).await.unwrap();
     let key_id = added.into_owned().key.into_option().unwrap().id;
     let created = relay_token(&h, &h.root_org(), "sftp-1").await.unwrap();
     let dir = tempfile::tempdir().unwrap();
@@ -104,7 +115,7 @@ async fn a_relay_is_given_a_file_token_for_a_key_on_what_its_person_may_reach() 
     let (id, identity) = (id.unwrap(), relay_dir.identity().unwrap());
     let control = relay::RelayControlServiceClient::new(h.http.clone(), h.config(None));
     let mut asked = FilesAsked {
-        key: SshPublicKey::parse(ED25519).unwrap().blob().to_vec(),
+        key: SshPublicKey::parse(&ed25519_possession([1; 32], &account).0).unwrap().blob().to_vec(),
         workload: Id::parse(IdKind::Workload, &workload).unwrap().uuid(),
         client: "192.0.2.7".parse().unwrap(),
         renews: None,

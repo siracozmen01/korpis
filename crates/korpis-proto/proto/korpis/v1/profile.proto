@@ -81,10 +81,14 @@ message ListSshKeysResponse {
 
 message AddSshKeyRequest {
   // A line as `ssh-keygen` writes it: the kind, the key in base64, and a comment, which is not
-  // kept. Ed25519, ECDSA over P-256 or P-384, or RSA of 3,072 to 16,384 bits.
+  // kept. Ed25519, ECDSA over P-256 or P-384, or RSA of 3,072 to 8,192 bits.
   string key = 1;
   // At most 64 characters.
   string label = 2;
+  // The key's signature proving its holder adds it, as
+  // `printf %s "korpis ssh-key add <usr_…>" | ssh-keygen -Y sign -n korpis-ssh-key -f KEY`
+  // writes it for the caller's own account; a public key is public, so naming one proves nothing.
+  string signature = 3;
 }
 
 message AddSshKeyResponse {

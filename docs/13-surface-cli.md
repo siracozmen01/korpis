@@ -585,7 +585,11 @@ korpis version                       client and server versions, and the source 
 
 **SFTP, designed 2026-10-22** (§3.1 of `02-architecture.md`, §9.9 of `08-identity.md`). `korpis
 ssh-key add ~/.ssh/id_ed25519.pub --label laptop` registers a public key to the signed-in person,
-needing a sign-in within ten minutes, as every change to how they sign in does; a terminal cannot
+with the key's signature over their account, which it makes by running `ssh-keygen -Y sign` with
+the private key beside the `.pub` file or through the agent holding it, or takes made elsewhere
+with `--signature FILE` (corrected 2026-10-22: it first sent the public key alone, which anyone
+can, Finding 136 of `23-walkthroughs.md`); it needs a sign-in within ten minutes, as every change
+to how they sign in does; a terminal cannot
 re-authenticate, so where its sign-in is older the command shows a code to approve on the panel's
 device page, as `korpis login` does, and adds the key through the session that approval begins,
 ending the one it replaces (Finding 135 of `23-walkthroughs.md`); `korpis ssh-key list` shows each

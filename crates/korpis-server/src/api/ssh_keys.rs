@@ -43,7 +43,11 @@ pub(super) async fn add(
 ) -> ServiceResult<pb::AddSshKeyResponse> {
     let caller = api.caller(ctx).await?;
     let req = request.to_owned_message();
-    let key = api.app.add_ssh_key(&caller, &req.key, &req.label).await.map_err(error::from_app)?;
+    let key = api
+        .app
+        .add_ssh_key(&caller, (&req.key, &req.signature), &req.label)
+        .await
+        .map_err(error::from_app)?;
     Response::ok(pb::AddSshKeyResponse { key: Some(key_to_pb(&key)).into(), ..Default::default() })
 }
 

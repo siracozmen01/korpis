@@ -2,8 +2,10 @@
 
 // The SSH keys the signed-in user reaches their files with over SFTP (§9.9 of
 // docs/08-identity.md): each by its label, kind, and fingerprint, added by pasting a public key
-// as `ssh-keygen` writes it, and removed. Adding and removing are changes to how the user reaches
-// their account, so each needs a recent sign-in, which the guard asks for.
+// as `ssh-keygen` writes it with the key's signature over the user's account, which the command
+// shown makes, since a public key is public and pasting one proves nothing; and removed. Adding
+// and removing are changes to how the user reaches their account, so each needs a recent
+// sign-in, which the guard asks for.
 
 import { useCallback, useState } from "react";
 import { Button, Form, Input, Label, TextArea, TextField } from "react-aria-components";
@@ -35,13 +37,20 @@ function KeyItem(props: { readonly k: ProfileSshKey; readonly remove: () => void
   );
 }
 
+/** The command that signs `account`'s name with a key, as `AddSshKeyRequest.signature` asks. */
+export function signingCommand(account: string): string {
+  return `printf %s 'korpis ssh-key add ${account}' | ssh-keygen -Y sign -n korpis-ssh-key -f ~/.ssh/id_ed25519`;
+}
+
 /** The user's SSH keys, read again after each change, by remounting. */
-export function SshKeys({ services }: { readonly services: ProfileServices }) {
+export function SshKeys(props: { readonly services: ProfileServices; readonly account: string }) {
+  const { services, account } = props;
   const [round, setRound] = useState(0);
   return (
     <SshKeysRead
       key={round}
       services={services}
+      account={account}
       changed={() => {
         setRound((r) => r + 1);
       }}
@@ -49,18 +58,24 @@ export function SshKeys({ services }: { readonly services: ProfileServices }) {
   );
 }
 
-function SshKeysRead(props: { readonly services: ProfileServices; readonly changed: () => void }) {
-  const { services, changed } = props;
+function SshKeysRead(props: {
+  readonly services: ProfileServices;
+  readonly account: string;
+  readonly changed: () => void;
+}) {
+  const { services, account, changed } = props;
   const { profiles } = services;
   const keys = useLoad(useCallback(async () => profiles.listSshKeys({}), [profiles]));
   const guard = useGuard(services);
   const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
+  const [signature, setSignature] = useState("");
   const add = () => {
     guard.run(async () => {
-      await profiles.addSshKey({ key: key.trim(), label: label.trim() });
+      await profiles.addSshKey({ key: key.trim(), label: label.trim(), signature });
       setKey("");
       setLabel("");
+      setSignature("");
       changed();
     });
   };
@@ -112,6 +127,20 @@ function SshKeysRead(props: { readonly services: ProfileServices; readonly chang
         <TextField value={label} onChange={setLabel}>
           <Label>{t({ defaultMessage: "Name for this key", id: "ASqOsl6/" })}</Label>
           <Input />
+        </TextField>
+        <p>
+          {t({
+            defaultMessage:
+              "Prove the key is yours: run this where the key is, naming its private file, and paste what it prints.",
+            id: "DDjdFex5",
+          })}
+        </p>
+        <pre className="kept-lines">
+          <code>{signingCommand(account)}</code>
+        </pre>
+        <TextField value={signature} onChange={setSignature}>
+          <Label>{t({ defaultMessage: "The key's signature", id: "efZRKs7a" })}</Label>
+          <TextArea />
         </TextField>
         <Button type="submit">{t({ defaultMessage: "Add the key", id: "8qBmPI7I" })}</Button>
       </Form>

@@ -2233,12 +2233,15 @@ identity provider its organization offers.
 
 **A person reaches their files over SFTP with an SSH key registered to their account, and with
 nothing else.** An account holds any number of public keys, each with a label it is listed by:
-Ed25519, ECDSA over P-256 or P-384, or RSA of at least 3,072 bits, the kinds every current SFTP
+Ed25519, ECDSA over P-256 or P-384, or RSA of 3,072 to 8,192 bits, the kinds every current SFTP
 client makes and none weaker than 128 bits, which NIST SP 800-57 keeps acceptable after 2030
-(`research/evidence.md` §5). A key is registered once in the installation,
-by its SHA-256 fingerprint, so a key names one person; one already registered is refused as
-`ssh_key.taken`, which tells the registrant only that they hold a key someone registered, which
-they could only have if it was theirs or was given to them. Adding one is a change to the account's
+(`research/evidence.md` §5). A key is added with its own signature, as `ssh-keygen -Y sign -n
+korpis-ssh-key` makes one, over the text `korpis ssh-key add` and the account's `usr_…`, so only
+whoever holds its private half adds it, and only to the account the signature names. A key is
+registered once in the installation, by its SHA-256 fingerprint, so a key names one person; one
+already registered is refused as `ssh_key.taken`, which tells the registrant only that a key they
+have just proved they hold is registered, theirs or shared with them. Adding one is a change to
+the account's
 factors (§9.6): it needs a session that signed in or re-authenticated within ten minutes, and is
 recorded as `account.ssh_key_added`; removing one is `account.ssh_key_removed`, and needs the same.
 A terminal cannot re-authenticate, so `korpis ssh-key add` refused as not recent signs it in again
@@ -2247,6 +2250,17 @@ older than ten minutes: the session the approval begins is signed in at its appr
 added through it, and the session it replaces is ended (Finding 135 of `23-walkthroughs.md`).
 An SSH key is a credential for file sessions alone: it signs nobody in to the panel or the API,
 opens no console, and is never shown again but by its fingerprint and label.
+
+> Corrected 2026-10-22, the day it was designed, by the security review of the keys as built
+> (Finding 136 of `23-walkthroughs.md`). A key was first added by naming its public half, and the
+> refusal of one already registered was reasoned as telling the registrant nothing, since they
+> "could only have" the key "if it was theirs or was given to them". A public key is public: an
+> SFTP user's is often published, GitHub serves every account's, and anyone could register
+> another's first. The owner was then refused their own key, and their SFTP client, offering it,
+> authenticated as whoever registered it, reaching that person's files and recorded as that
+> person's act. The signature closes both: it names the account, so a key is added to no account
+> but by its holder. RSA is bounded at 8,192 bits because that is the most the verifier checks a
+> signature of, and keys beyond it are rare.
 
 The reasoning. A password over SSH would be the account's whole credential typed into a client that
 asks no second factor and that most people point at whatever host they are given; a key proves
@@ -2274,6 +2288,10 @@ holds a key (§3.1 of `02-architecture.md`), so a compromised relay serving SFTP
 sessions as anyone with a registered key; the record of each names the relay, and a relay not
 serving SFTP cannot. There is no per-account bound on how many keys an account holds (P10); each
 key is a few hundred bytes, and registering one is charged as any write is (§10 of `10-api.md`).
+Adding a key asks its holder to sign once, which the CLI does with the key beside the `.pub` file
+or the agent holding it, and which the panel asks for with the command to run; a key on a
+hardware token signs as any other where `ssh-keygen` can use it, and a key that cannot sign
+arbitrary text cannot be added.
 
 > As built, 2026-10-22, the keys and the token (`crates/korpis-core/src/account/ssh_key.rs`,
 > `crates/korpis-app/src/relay/sftp.rs`). A key is read field by field from SSH's wire form

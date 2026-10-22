@@ -535,6 +535,9 @@
   "DDEIbpCL": {
     "defaultMessage": "The code expires at"
   },
+  "DDjdFex5": {
+    "defaultMessage": "Prove the key is yours: run this where the key is, naming its private file, and paste what it prints."
+  },
   "DFOWqdkl": {
     "defaultMessage": "{from} to {to}",
     "description": "an interval"
@@ -1538,6 +1541,9 @@
   },
   "edpuFUqD": {
     "defaultMessage": "Why, as its tenant will be shown it"
+  },
+  "efZRKs7a": {
+    "defaultMessage": "The key's signature"
   },
   "efex8u1S": {
     "defaultMessage": "region=eu",

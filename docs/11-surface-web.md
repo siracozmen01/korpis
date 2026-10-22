@@ -76,8 +76,10 @@ listed.
 > one at a time or all but this one. A change refused `session.not_recent` asks the user to
 > confirm it is them and is then made, so none is lost to the ten-minute rule (§9.4 of
 > `08-identity.md`). The profile also lists the account's SSH keys, by label, kind, and
-> fingerprint, added by pasting a public key and removed under the same rule (designed
-> 2026-10-22, §9.9 of `08-identity.md`); a workload's files show, to whoever may write or read
+> fingerprint, added by pasting a public key with the signature the command shown beside it
+> makes over the account, and removed under the same rule (designed 2026-10-22, §9.9 of
+> `08-identity.md`; the signature added the same day, Finding 136 of `23-walkthroughs.md`, since
+> a public key pasted alone proves nothing); a workload's files show, to whoever may write or read
 > them, where an SFTP client connects and the host key to expect, for each relay serving SFTP. A
 > browser without Web Locks (no current one lacks them) falls back to a lock per tab, and there two
 > tabs exchanging at once end the session.

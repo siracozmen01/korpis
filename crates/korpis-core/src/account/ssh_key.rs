@@ -4,18 +4,26 @@
 //! docs/08-identity.md): read from the line `ssh-keygen` writes, checked to be a kind and size
 //! every current client makes and none weaker than 128 bits, and named by the SHA-256
 //! fingerprint `ssh-keygen -l` prints. Only the public half is ever seen, and it is parsed here,
-//! field by field from RFC 4253's wire form, so nothing about it is left to a later reader.
+//! field by field from RFC 4253's wire form, so nothing about it is left to a later reader. Its
+//! holder proves holding the private half by a signature ([`possession`]).
+
+mod possession;
+#[cfg(any(test, feature = "testing"))]
+pub mod signing;
+
+pub use possession::{NAMESPACE, possession_message};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use sha2::{Digest, Sha256};
 
-/// The longest line read, in bytes: an RSA key of 16,384 bits with a comment fits.
-pub const MAX_LINE: usize = 8 << 10;
+/// The longest line read, in bytes: an RSA key of 8,192 bits with a comment fits.
+pub const MAX_LINE: usize = 4 << 10;
 /// The fewest bits an RSA key has: 128 bits of security (`research/evidence.md` §5).
 pub const MIN_RSA_BITS: usize = 3_072;
-/// The most bits an RSA key has, so that checking one costs a bounded amount.
-pub const MAX_RSA_BITS: usize = 16_384;
+/// The most bits an RSA key has, so that checking one costs a bounded amount: the most `ring`
+/// verifies a signature of, which its holder proves holding it with.
+pub const MAX_RSA_BITS: usize = 8_192;
 
 /// What a key is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -9,6 +9,7 @@ import { SessionService } from "../gen/korpis/v1/session_pb";
 import { SshKeys } from "./SshKeys";
 
 const KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHYUMOAa8CAodE24mCEXvC+hwFHXgRkuGMAE8eBMqcsx ada";
+const SIGNATURE = "-----BEGIN SSH SIGNATURE-----\nU1NIU0lH\n-----END SSH SIGNATURE-----\n";
 
 function services(added: AddSshKeyRequest[], recent: boolean) {
   const keys = [
@@ -44,13 +45,22 @@ function fill() {
   fireEvent.change(screen.getByRole("textbox", { name: "Name for this key" }), {
     target: { value: "desk" },
   });
+  fireEvent.change(screen.getByRole("textbox", { name: "The key's signature" }), {
+    target: { value: SIGNATURE },
+  });
   fireEvent.click(screen.getByRole("button", { name: "Add the key" }));
 }
 
-test("a key is listed by its fingerprint, and one pasted is added as written", async () => {
+test("a key is listed by its fingerprint, and one pasted is added with its signature", async () => {
   const added: AddSshKeyRequest[] = [];
-  render(<SshKeys services={services(added, true)} />);
+  render(<SshKeys services={services(added, true)} account="usr_ada" />);
   expect(await screen.findByText("SHA256:I3XZHy63")).toBeTruthy();
+  expect(
+    screen.getByText(
+      "printf %s 'korpis ssh-key add usr_ada' | ssh-keygen -Y sign -n korpis-ssh-key -f ~/.ssh/id_ed25519",
+    ),
+    "the command that signs this account's name",
+  ).toBeTruthy();
   expect(screen.getByText("never used")).toBeTruthy();
   fill();
   await screen.findByText("SHA256:I3XZHy63");
@@ -59,11 +69,12 @@ test("a key is listed by its fingerprint, and one pasted is added as written", a
   });
   expect(added[0]?.key, "trimmed, otherwise as pasted").toBe(KEY);
   expect(added[0]?.label).toBe("desk");
+  expect(added[0]?.signature, "as pasted").toBe(SIGNATURE);
 });
 
 test("adding a key long after signing in asks the user to confirm it is them", async () => {
   const added: AddSshKeyRequest[] = [];
-  render(<SshKeys services={services(added, false)} />);
+  render(<SshKeys services={services(added, false)} account="usr_ada" />);
   await screen.findByText("SHA256:I3XZHy63");
   fill();
   expect(await screen.findByRole("heading", { name: "Confirm it is you" })).toBeTruthy();

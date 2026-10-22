@@ -45,7 +45,7 @@ function Read(props: { readonly services: ProfileServices; readonly changed: () 
             <h1>{p.displayName}</h1>
             <p>{t({ defaultMessage: "Signed in as {name}.", id: "TDUCXqaO" }, { name: p.name })}</p>
             <Factors profile={p} services={services} changed={changed} />
-            <SshKeys services={services} />
+            <SshKeys services={services} account={p.account} />
           </>
         ) : (
           <>

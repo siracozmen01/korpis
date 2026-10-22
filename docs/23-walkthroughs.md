@@ -1381,6 +1381,7 @@ the same mechanism", and that is the price of having made core and extensions th
 | 133 | A password set at a portal would have served every grant issued after it | §48 | `08-identity.md` §9.8 |
 | 134 | A customer holding a project's grant alone wore the installation's theme and landing | §49 | `11-surface-web.md` §7, §10 |
 | 135 | A terminal could not register an SSH key ten minutes after signing in | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
+| 136 | Anyone could register another person's public key, and their SFTP client then signed in as the squatter | §50 | `08-identity.md` §9.9, `13-surface-cli.md` §8 |
 
 **What the second seven traces cost, and what they bought.** They took a paragraph each to write
 and produced fourteen findings, four of which (11, 16, 19, 21) are the kind that are discovered in
@@ -4301,7 +4302,7 @@ and the CLI, which are its own clients.
 | # | Step | Governed by |
 |---|---|---|
 | 1 | Kestrel turns SFTP on for `fra-relay`: `--sftp-listen 0.0.0.0:2022`. The relay makes its host key at that first start, and reports the address and the key's fingerprint in its feed; `ServerInfo` lists them | `02-architecture.md` §3.1; `18-operations.md` §3 |
-| 2 | The owner, signed in at the panel, adds the laptop's public key to their profile. Their sign-in is an hour old, so the panel asks them to confirm it is them first; the key is recorded as `account.ssh_key_added` | `08-identity.md` §9.6, §9.9; `11-surface-web.md` §1 |
+| 2 | The owner, signed in at the panel, adds the laptop's public key to their profile with the signature the command the panel shows makes on the laptop. Their sign-in is an hour old, so the panel asks them to confirm it is them first; the key is recorded as `account.ssh_key_added` § | `08-identity.md` §9.6, §9.9; `11-surface-web.md` §1 |
 | 3 | On another machine, the owner runs `korpis ssh-key add` an hour after `korpis login` ‡ | `08-identity.md` §9.4, §9.9; `13-surface-cli.md` §8 |
 | 4 | `korpis sftp mc` prints the line FileZilla takes, `wl_…@fra-relay.kestrel.example` on port 2022, and the host key's fingerprint, which FileZilla shows on its first connection and the owner compares | `13-surface-cli.md` §8; `17-security.md` §8 |
 | 5 | FileZilla authenticates with the key. The relay checks the client holds it and asks the control plane for a file token for that key, `mc`, and the client's address; the gateway finds the owner's account, evaluates `workload.file.write` on `mc` from that address, mints the token with its route, and records `workload.file.sftp_authorized` naming `fra-relay` and the key | `02-architecture.md` §3.1; `08-identity.md` §9.9, §6 |
@@ -4311,7 +4312,8 @@ and the CLI, which are its own clients.
 | 9 | The laptop is stolen with FileZilla connected. The owner removes the key in the panel; the relay asks again before the token expires, is refused, and the session ends within one token lifetime | `08-identity.md` §9.9, §6.3 |
 | 10 | The tenant reads the trail: each `sftp_authorized` names `fra-relay`, so had Kestrel's relay been compromised, every session it asked for would be on the record under its name | `17-security.md` §8; `15-observability.md` §4 |
 
-**One finding, at step 3** (‡).
+**Two findings: one at step 3** (‡), written with the trace, **and one at step 2** (§), found
+when the keys were built.
 
 **FINDING 135: A terminal could not register an SSH key ten minutes after signing in. `CONFIRMED`**
 
@@ -4341,3 +4343,27 @@ What it costs. A key added from a terminal needs a browser where the person is s
 > recorded under the relay's name. Step 4 first wrote the user `wkl_…`; a workload's identifier
 > begins `wl_` (`wl_7f3a` in §3 of `10-api.md`), so the user is `wl_…`, corrected here, in §8 of
 > `13-surface-cli.md`, and in `relay.proto`'s comment.
+
+**FINDING 136: Anyone could register another person's public key, and their SFTP client then
+signed in as the squatter. `CONFIRMED`**
+
+Found 2026-10-22 by the security review of the keys as built (P2.11b), and confirmed by asking
+the algebra question of step 2: what evaluates that the person adding a key is its holder, and
+with what? Nothing did. The panel took a public key's line, and a public key is public: an SFTP
+user's is often published, GitHub serves every account's. §9.9 of `08-identity.md` had reasoned
+that a registrant refused `ssh_key.taken` "could only have" the key "if it was theirs", which is
+the same mistake. Registered first by someone else, the owner's key was refused to the owner, and
+their client, offering it at step 5, authenticated as the squatter: the relay found the
+squatter's account by the key, and the owner's uploads went where the squatter's grants reached,
+recorded as the squatter's acts.
+
+**Resolution.** A key is added with its own signature, as `ssh-keygen -Y sign -n korpis-ssh-key`
+makes one, over `korpis ssh-key add` and the adding account's `usr_…`, verified by the control
+plane before the key is stored; a signature names one account, so it adds the key to no other.
+`korpis ssh-key add` signs with the private key beside the `.pub` file, or through the agent, or
+takes `--signature` made elsewhere; the panel shows the command with the person's account in it.
+→ corrected in place in `08-identity.md` §9.9, and in `13-surface-cli.md` §8; built (P2.11b2).
+
+What it costs. Adding a key is one more step: running a command where the key is. A key that
+cannot sign arbitrary text through `ssh-keygen` cannot be added, and RSA is bounded at 8,192 bits,
+the most the verifier checks a signature of.
